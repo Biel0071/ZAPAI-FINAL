@@ -1,14 +1,19 @@
 // PM2 ecosystem — ZapAI backend
 // Usage:
-//   pm2 start ecosystem.config.js
-//   pm2 reload ecosystem.config.js --update-env
+//   pm2 start ecosystem.config.js --env production
+//   pm2 reload ecosystem.config.js --env production --update-env
 //   pm2 save && pm2 startup
+//
+// APP_DIR env var overrides /opt/zapai (set by install.sh automatically).
+const path = require('path');
+const APP_DIR = process.env.APP_DIR || '/opt/zapai';
+
 module.exports = {
   apps: [
     {
       name: 'zapai-backend',
       script: 'server.js',
-      cwd: '/opt/zapai/backend',
+      cwd: path.join(APP_DIR, 'backend'),
       instances: 1,                   // WhatsApp session state is single-process
       exec_mode: 'fork',
       watch: false,
@@ -27,8 +32,8 @@ module.exports = {
       },
 
       log_date_format: 'YYYY-MM-DD HH:mm:ss Z',
-      out_file: '/opt/zapai/logs/app.log',
-      error_file: '/opt/zapai/logs/error.log',
+      out_file: path.join(APP_DIR, 'logs/app.log'),
+      error_file: path.join(APP_DIR, 'logs/error.log'),
       merge_logs: true,
     },
   ],
