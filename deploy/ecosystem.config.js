@@ -39,8 +39,8 @@ module.exports = {
     },
     {
       name: 'zapai-frontend',
-      script: 'npm',
-      args: 'start',
+      script: 'node_modules/.bin/vite',
+      args: 'preview --host 0.0.0.0 --port 3000',
       cwd: path.join(APP_DIR, 'frontend'),
       instances: 1,
       exec_mode: 'fork',
