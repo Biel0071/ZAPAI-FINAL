@@ -65,13 +65,23 @@ function buildHealthPayload() {
   const databaseOnline = Boolean(app.locals.store.databaseEnabled);
   const whatsappConnected = String(session?.status || '').toLowerCase() === 'connected';
   const uptimeSec = process.uptime();
+  const mem = process.memoryUsage();
   return {
+    status: 'ok',
+    backend: true,
+    db: databaseOnline,
     server: 'online',
     database: databaseOnline ? 'online' : 'offline',
     api: 'online',
     whatsapp: whatsappConnected ? 'connected' : 'disconnected',
     uptime: formatUptime(uptimeSec),
     uptimeSeconds: Math.floor(uptimeSec),
+    memory: {
+      rss: Math.round(mem.rss / 1024 / 1024),
+      heapUsed: Math.round(mem.heapUsed / 1024 / 1024),
+      heapTotal: Math.round(mem.heapTotal / 1024 / 1024),
+      unit: 'MB',
+    },
     timestamp: new Date().toISOString(),
     service: 'whatsapp-crm-api',
     runtimeActive: sessionManager.isRuntimeActive(),
@@ -958,7 +968,9 @@ async function bootstrap() {
     }
 
     // Initialize runtime manager (handles ngrok and monitoring)
-    if (process.env.NGROK_MANAGED_EXTERNALLY !== 'true') {
+    // In production (VPS), ngrok is never used — Nginx handles reverse proxy.
+    const useNgrok = process.env.USE_NGROK === 'true' && process.env.NGROK_MANAGED_EXTERNALLY !== 'true';
+    if (useNgrok) {
       try {
         const runtimeStatus = await runtimeManager.initialize(PORT);
         console.log('[SERVER] Runtime Manager initialized:', runtimeStatus);
@@ -966,11 +978,11 @@ async function bootstrap() {
         console.error('[SERVER] Failed to initialize runtime manager:', error.message);
         console.warn('[SERVER] Continuing without ngrok tunnel...');
       }
+      PUBLIC_API_URL = await getPublicUrl(`http://localhost:${PORT}`);
     } else {
-      console.log('[SERVER] ngrok managed externally - skipping runtime manager');
+      console.log('[SERVER] Ngrok disabled — using direct URL');
+      PUBLIC_API_URL = process.env.FRONTEND_URL || `http://localhost:${PORT}`;
     }
-
-    PUBLIC_API_URL = await getPublicUrl(`http://localhost:${PORT}`);
     app.locals.store.publicUrl = PUBLIC_API_URL;
 
     console.log('[SERVER] Public API URL:');

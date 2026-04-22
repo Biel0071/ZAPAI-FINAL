@@ -25,6 +25,7 @@ module.exports = {
       env_production: {
         NODE_ENV: 'production',
         PORT: 4025,
+        USE_NGROK: 'false',
         NGROK_MANAGED_EXTERNALLY: 'true',
         CRASH_EXIT_ON_UNHANDLED: 'true',
         LOG_LEVEL: 'info',

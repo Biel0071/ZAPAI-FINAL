@@ -188,6 +188,7 @@ if [[ ! -f "$BACKEND_DIR/.env" ]]; then
   sed -i "s|NODE_ENV=.*|NODE_ENV=production|g"                         "$BACKEND_DIR/.env"
   sed -i "s|# PGSSLMODE=disable|PGSSLMODE=disable|g"                    "$BACKEND_DIR/.env"
   sed -i "s|# DB_RUN_MIGRATIONS_ON_BOOT=false|DB_RUN_MIGRATIONS_ON_BOOT=true|g" "$BACKEND_DIR/.env"
+  sed -i "s|USE_NGROK=.*|USE_NGROK=false|g"                              "$BACKEND_DIR/.env"
 
   if [[ -n "$DOMAIN" ]]; then
     sed -i "s|FRONTEND_URL=.*|FRONTEND_URL=https://$DOMAIN|g"              "$BACKEND_DIR/.env"

@@ -330,6 +330,13 @@ function getDebugInfo() {
  * Starts ngrok and monitoring
  */
 async function initialize(port = CONFIG.NGROK_PORT) {
+  // Skip ngrok entirely when disabled (production VPS uses Nginx, not ngrok)
+  if (process.env.USE_NGROK !== 'true') {
+    console.log('[RuntimeManager] Ngrok disabled (USE_NGROK != true). Skipping tunnel.');
+    runtimeLogger.log('Ngrok disabled via USE_NGROK env var');
+    return { runtime: 'running', ngrok: 'disabled', port, tunnel: null };
+  }
+
   try {
     console.log('[RuntimeManager] Initializing...');
     runtimeLogger.log('Runtime manager initializing');
