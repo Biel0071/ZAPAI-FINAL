@@ -206,8 +206,8 @@ if [[ ! -f "$FRONTEND_DIR/.env.production" ]]; then
   if [[ -n "$DOMAIN" ]]; then
     _VITE_URL="https://$DOMAIN"
   else
-    # Use real public IP so the built JS actually reaches the backend
-    _VITE_URL="http://${PUBLIC_IP:-localhost}:$BACKEND_PORT"
+    # Use real public IP — frontend reaches backend through nginx on port 80
+    _VITE_URL="http://${PUBLIC_IP:-localhost}"
   fi
   cat > "$FRONTEND_DIR/.env.production" <<EOF
 VITE_API_URL=$_VITE_URL
@@ -287,7 +287,7 @@ server {
         proxy_set_header   Host \$host;
     }
 
-    location ~ ^/(health|status-whatsapp|diagnostics)$ {
+    location ~ ^/(health|status-whatsapp|session-status|diagnostics)$ {
         proxy_pass         http://127.0.0.1:$BACKEND_PORT;
         proxy_http_version 1.1;
         proxy_set_header   Host \$host;

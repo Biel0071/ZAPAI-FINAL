@@ -43,10 +43,11 @@ NODE_ENV=production DB_RUN_MIGRATIONS_ON_BOOT=true node -e "
 
 # 6. Reload PM2 (zero-downtime)
 echo "[DEPLOY] Step 6/7 — PM2 reload"
+sed "s|/opt/zapai|$APP_DIR|g" "$DEPLOY_DIR/ecosystem.config.js" > /tmp/zapai_ecosystem.js
 if pm2 describe zapai-backend > /dev/null 2>&1; then
-  pm2 reload ecosystem.config.js --env production --update-env
+  pm2 reload /tmp/zapai_ecosystem.js --env production --update-env
 else
-  pm2 start ecosystem.config.js --env production
+  pm2 start /tmp/zapai_ecosystem.js --env production
 fi
 pm2 save
 
