@@ -50,6 +50,61 @@ if [[ $EUID -ne 0 ]]; then
   die "Run as root or with sudo:  sudo bash deploy/install.sh"
 fi
 
+# ── Pre-flight detection ─────────────────────────────────────
+step "Pre-flight  System detection"
+
+OS_NAME=$(lsb_release -ds 2>/dev/null || \
+          awk -F'"' '/PRETTY_NAME/{print $2}' /etc/os-release 2>/dev/null || \
+          echo "Linux")
+
+PUBLIC_IP=$(curl -s --connect-timeout 4 https://api.ipify.org 2>/dev/null || \
+            curl -s --connect-timeout 4 https://checkip.amazonaws.com 2>/dev/null || \
+            hostname -I | awk '{print $1}')
+PUBLIC_IP="${PUBLIC_IP// /}"
+
+SYS_HOSTNAME=$(hostname -f 2>/dev/null || hostname)
+CURRENT_USER="${SUDO_USER:-$(whoami)}"
+NODE_FOUND=$(node -v 2>/dev/null || echo "not installed")
+PM2_FOUND=$(pm2 -v 2>/dev/null || echo "not installed")
+PG_FOUND=$(psql --version 2>/dev/null | awk '{print $3}' || echo "not installed")
+
+PORT_80_USED=$(ss -tlnp 2>/dev/null | grep -c ':80 ' || true; echo "")
+PORT_80_USED=${PORT_80_USED:-0}
+PORT_4025_USED=$(ss -tlnp 2>/dev/null | grep -c ":${BACKEND_PORT} " || true; echo "")
+PORT_4025_USED=${PORT_4025_USED:-0}
+
+DOMAIN_DNS="not configured (IP mode)"
+if [[ -n "$DOMAIN" ]]; then
+  DOMAIN_IP=$(getent hosts "$DOMAIN" 2>/dev/null | awk '{print $1}' | head -1 || true)
+  if [[ -n "$DOMAIN_IP" ]]; then
+    [[ "$DOMAIN_IP" == "$PUBLIC_IP" ]] && \
+      DOMAIN_DNS="${DOMAIN} → ${DOMAIN_IP} (matches this server ✓)" || \
+      DOMAIN_DNS="${DOMAIN} → ${DOMAIN_IP} (points to different IP — expected ${PUBLIC_IP})"
+  else
+    DOMAIN_DNS="${DOMAIN} → NOT resolving  ⚠  set A record → ${PUBLIC_IP}"
+  fi
+fi
+
+DISK_FREE_GB=$(df -BG "$APP_DIR" 2>/dev/null | awk 'NR==2{gsub(/G/,"",$4); print $4}' || echo "0")
+
+echo ""
+printf "  ${BOLD}%-22s${RESET} %s\n" "System:"       "$OS_NAME"
+printf "  ${BOLD}%-22s${RESET} %s\n" "Public IP:"    "${PUBLIC_IP:-unknown}"
+printf "  ${BOLD}%-22s${RESET} %s\n" "Hostname:"     "$SYS_HOSTNAME"
+printf "  ${BOLD}%-22s${RESET} %s\n" "Deploy user:"  "$CURRENT_USER"
+printf "  ${BOLD}%-22s${RESET} %s\n" "Node.js:"      "$NODE_FOUND"
+printf "  ${BOLD}%-22s${RESET} %s\n" "PM2:"          "$PM2_FOUND"
+printf "  ${BOLD}%-22s${RESET} %s\n" "PostgreSQL:"   "$PG_FOUND"
+printf "  ${BOLD}%-22s${RESET} %s\n" "Port 80:"      "$([ "${PORT_80_USED:-0}" -eq 0 ] && echo 'free' || echo 'IN USE')"
+printf "  ${BOLD}%-22s${RESET} %s\n" "Port $BACKEND_PORT:"   "$([ "${PORT_4025_USED:-0}" -eq 0 ] && echo 'free' || echo 'IN USE (will reload)')"
+printf "  ${BOLD}%-22s${RESET} %s\n" "Domain:"       "$DOMAIN_DNS"
+printf "  ${BOLD}%-22s${RESET} %s\n" "Disk free:"    "${DISK_FREE_GB}GB"
+echo ""
+
+if [[ "$DISK_FREE_GB" =~ ^[0-9]+$ ]] && [[ "$DISK_FREE_GB" -lt 2 ]]; then
+  die "Only ${DISK_FREE_GB}GB free — need at least 2GB. Clean up and retry."
+fi
+
 # ── Step 1 — System packages ─────────────────────────────────
 step "1/10  System packages"
 export DEBIAN_FRONTEND=noninteractive
@@ -135,6 +190,9 @@ if [[ ! -f "$BACKEND_DIR/.env" ]]; then
   if [[ -n "$DOMAIN" ]]; then
     sed -i "s|FRONTEND_URL=.*|FRONTEND_URL=https://$DOMAIN|g"              "$BACKEND_DIR/.env"
     sed -i "s|CORS_ALLOWED_ORIGINS=.*|CORS_ALLOWED_ORIGINS=https://$DOMAIN|g" "$BACKEND_DIR/.env"
+  elif [[ -n "$PUBLIC_IP" ]]; then
+    sed -i "s|FRONTEND_URL=.*|FRONTEND_URL=http://$PUBLIC_IP|g"              "$BACKEND_DIR/.env"
+    sed -i "s|CORS_ALLOWED_ORIGINS=.*|CORS_ALLOWED_ORIGINS=http://$PUBLIC_IP|g" "$BACKEND_DIR/.env"
   fi
   ok "backend/.env created (JWT auto-generated, DB configured)"
   warn "Edit $BACKEND_DIR/.env to set your OPENAI_API_KEY and other secrets"
@@ -146,20 +204,18 @@ fi
 if [[ ! -f "$FRONTEND_DIR/.env.production" ]]; then
   info "Creating frontend/.env.production..."
   if [[ -n "$DOMAIN" ]]; then
-    cat > "$FRONTEND_DIR/.env.production" <<EOF
-VITE_API_URL=https://$DOMAIN
-VITE_WHATSAPP_API_BASE_URL=https://$DOMAIN
-VITE_SUPABASE_URL=
-VITE_SUPABASE_PUBLISHABLE_KEY=
-EOF
+    _VITE_URL="https://$DOMAIN"
   else
-    cat > "$FRONTEND_DIR/.env.production" <<EOF
-VITE_API_URL=http://localhost:$BACKEND_PORT
-VITE_WHATSAPP_API_BASE_URL=http://localhost:$BACKEND_PORT
+    # Use real public IP so the built JS actually reaches the backend
+    _VITE_URL="http://${PUBLIC_IP:-localhost}:$BACKEND_PORT"
+  fi
+  cat > "$FRONTEND_DIR/.env.production" <<EOF
+VITE_API_URL=$_VITE_URL
+VITE_WHATSAPP_API_BASE_URL=$_VITE_URL
 VITE_SUPABASE_URL=
 VITE_SUPABASE_PUBLISHABLE_KEY=
 EOF
-  fi
+  info "VITE_API_URL = $_VITE_URL"
   ok "frontend/.env.production created"
 else
   ok "frontend/.env.production already exists — skipping"
@@ -326,7 +382,7 @@ else
 fi
 
 # ── Summary ──────────────────────────────────────────────────
-SERVER_IP=$(curl -s https://api.ipify.org 2>/dev/null || hostname -I | awk '{print $1}')
+SERVER_IP="${PUBLIC_IP:-$(hostname -I | awk '{print $1}')}"
 echo ""
 echo -e "${BOLD}${GREEN}"
 echo "  ╔═══════════════════════════════════════════════════════╗"

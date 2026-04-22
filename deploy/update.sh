@@ -30,12 +30,29 @@ TARGET="${1:-}"          # optional branch/tag override
 BACKEND_PORT=4025
 PM2_PROCESS="zapai-backend"
 
+START_TIME=$(date +%s)
+
 echo -e "${BOLD}"
 echo "  ╔═════════════════════════════════════════╗"
 echo "  ║   ZapAI CRM — Rolling Update            ║"
 echo "  ║   $(date '+%Y-%m-%d %H:%M:%S')                  ║"
 echo "  ╚═════════════════════════════════════════╝"
 echo -e "${RESET}"
+
+# ── Quick pre-flight ───────────────────────────────────────────
+info "App dir  : $APP_DIR"
+info "Branch   : $(git -C "$APP_DIR" rev-parse --abbrev-ref HEAD 2>/dev/null || echo '?')"
+info "Node     : $(node -v 2>/dev/null || echo 'not found')"
+info "PM2      : $(pm2 -v 2>/dev/null || echo 'not found')"
+echo ""
+
+# Warn if there are uncommitted local changes (could cause git pull conflicts)
+if git -C "$APP_DIR" diff --quiet 2>/dev/null; then
+  ok "Working tree: clean"
+else
+  warn "Working tree has local changes. Stashing before pull..."
+  git -C "$APP_DIR" stash push -m "auto-stash before update $(date +%s)" || true
+fi
 
 # ── Save rollback point ──────────────────────────────────────
 PREV_COMMIT=$(git -C "$APP_DIR" rev-parse HEAD)
@@ -117,7 +134,10 @@ if command -v nginx &>/dev/null; then
 fi
 
 echo ""
-echo -e "${BOLD}${GREEN}  ✓  Update complete — $(date '+%H:%M:%S')${RESET}"
+END_TIME=$(date +%s)
+ELAPSED=$(( END_TIME - START_TIME ))
+echo -e "${BOLD}${GREEN}  ✓  Update complete in ${ELAPSED}s — $(date '+%H:%M:%S')${RESET}"
 echo -e "  Commit : $NEW_COMMIT"
+echo -e "  Prev   : $PREV_COMMIT"
 echo -e "  Logs   : pm2 logs $PM2_PROCESS"
 echo ""
