@@ -186,6 +186,8 @@ if [[ ! -f "$BACKEND_DIR/.env" ]]; then
   sed -i "s|DATABASE_URL=.*|DATABASE_URL=$DB_URL|g"                    "$BACKEND_DIR/.env"
   sed -i "s|AUTH_DEFAULT_PASSWORD=.*|AUTH_DEFAULT_PASSWORD=admin123|g" "$BACKEND_DIR/.env"
   sed -i "s|NODE_ENV=.*|NODE_ENV=production|g"                         "$BACKEND_DIR/.env"
+  sed -i "s|# PGSSLMODE=disable|PGSSLMODE=disable|g"                    "$BACKEND_DIR/.env"
+  sed -i "s|# DB_RUN_MIGRATIONS_ON_BOOT=false|DB_RUN_MIGRATIONS_ON_BOOT=true|g" "$BACKEND_DIR/.env"
 
   if [[ -n "$DOMAIN" ]]; then
     sed -i "s|FRONTEND_URL=.*|FRONTEND_URL=https://$DOMAIN|g"              "$BACKEND_DIR/.env"

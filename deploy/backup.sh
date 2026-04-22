@@ -3,9 +3,10 @@
 # Usage: ./deploy/backup.sh
 set -euo pipefail
 
-BACKUP_DIR="/opt/zapai/backups"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+APP_DIR="$(dirname "$SCRIPT_DIR")"
+BACKUP_DIR="$APP_DIR/backups"
 TIMESTAMP=$(date +%Y%m%d_%H%M%S)
-APP_DIR="/opt/zapai"
 DB_NAME="${DB_NAME:-zapai_crm}"
 DB_USER="${DB_USER:-zapai}"
 

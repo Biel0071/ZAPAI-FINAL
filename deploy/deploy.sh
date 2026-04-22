@@ -4,7 +4,8 @@
 # Run as: zapai user (NOT root)
 set -euo pipefail
 
-APP_DIR="/opt/zapai"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+APP_DIR="$(dirname "$SCRIPT_DIR")"
 FRONTEND_DIR="$APP_DIR/frontend"
 BACKEND_DIR="$APP_DIR/backend"
 DEPLOY_DIR="$APP_DIR/deploy"
