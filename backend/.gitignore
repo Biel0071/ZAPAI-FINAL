@@ -10,10 +10,10 @@ node_modules/
 sessions/
 data/
 
-# Runtime output
+# Runtime output (root-level only — code in subdirs stays tracked)
 logs/
 uploads/
-media/
+/media/
 reports/
 conversations/
 upload/
