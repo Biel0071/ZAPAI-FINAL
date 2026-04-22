@@ -19,7 +19,9 @@ section() { echo -e "\n${BOLD}$*${RESET}"; }
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 APP_DIR="$(dirname "$SCRIPT_DIR")"
 BACKEND_PORT=4025
+FRONTEND_PORT=3000
 PM2_PROCESS="zapai-backend"
+PM2_FRONTEND="zapai-frontend"
 FAILURES=0
 
 echo -e "${BOLD}"
@@ -37,9 +39,9 @@ HEALTH_CODE=$(curl -s -o /tmp/zapai_health.json -w "%{http_code}" \
 if [[ "$HEALTH_CODE" == "200" ]]; then
   pass "HTTP $HEALTH_CODE  http://127.0.0.1:$BACKEND_PORT/health"
   if command -v python3 &>/dev/null; then
-    DB_ST=$(python3 -c "import json,sys; d=json.load(open('/tmp/zapai_health.json')); print(d.get('data',{}).get('database','?'))" 2>/dev/null || echo "?")
-    SOCK_ST=$(python3 -c "import json,sys; d=json.load(open('/tmp/zapai_health.json')); print(d.get('data',{}).get('system',{}).get('socket','?'))" 2>/dev/null || echo "?")
-    WA_ST=$(python3 -c "import json,sys; d=json.load(open('/tmp/zapai_health.json')); print(d.get('data',{}).get('whatsapp','?'))" 2>/dev/null || echo "?")
+    DB_ST=$(python3 -c "import json; d=json.load(open('/tmp/zapai_health.json')); print(d.get('database', d.get('data',{}).get('database','?')))" 2>/dev/null || echo "?")
+    SOCK_ST=$(python3 -c "import json; d=json.load(open('/tmp/zapai_health.json')); s=d.get('system',d.get('data',{}).get('system',{})); print(s.get('socket','?') if isinstance(s,dict) else '?')" 2>/dev/null || echo "?")
+    WA_ST=$(python3 -c "import json; d=json.load(open('/tmp/zapai_health.json')); print(d.get('whatsapp', d.get('data',{}).get('whatsapp','?')))" 2>/dev/null || echo "?")
     [[ "$DB_ST" == "online" ]] && pass "Database   : $DB_ST" || fail "Database   : $DB_ST"
     [[ "$SOCK_ST" == "connected" ]] && pass "Socket.io  : $SOCK_ST" || warn "Socket.io  : $SOCK_ST"
     echo -e "  ${BLUE}i${RESET}  WhatsApp   : $WA_ST"
@@ -112,19 +114,35 @@ else
   fail "pm2 not installed"
 fi
 
-# ── Nginx ────────────────────────────────────────────────────
-section "Nginx"
-if command -v nginx &>/dev/null; then
-  if systemctl is-active nginx &>/dev/null; then
-    pass "nginx service : active"
-  else
-    fail "nginx service : inactive"
-  fi
-  nginx -t 2>/dev/null && pass "nginx config  : valid" || fail "nginx config  : invalid"
-  NGINX_CODE=$(curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1/ 2>/dev/null || echo "000")
-  echo -e "  ${BLUE}i${RESET}  HTTP /      : $NGINX_CODE"
+# ── Frontend (port 3000) ─────────────────────────────────────
+section "Frontend (port $FRONTEND_PORT)"
+FE_CODE=$(curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:$FRONTEND_PORT/ 2>/dev/null || echo "000")
+if [[ "$FE_CODE" =~ ^(200|301|302)$ ]]; then
+  pass "Frontend HTTP : $FE_CODE"
 else
-  warn "nginx not installed (frontend served differently?)"
+  fail "Frontend HTTP : $FE_CODE — run: pm2 restart $PM2_FRONTEND"
+fi
+
+# Check PM2 frontend process
+if command -v pm2 &>/dev/null; then
+  FE_PM2_STATUS=$(pm2 jlist 2>/dev/null | python3 -c "
+import json,sys
+try:
+  procs=[p for p in json.load(sys.stdin) if p.get('name')=='$PM2_FRONTEND']
+  print(procs[0]['pm2_env']['status'] if procs else 'not_found')
+except: print('unknown')" 2>/dev/null || echo "unknown")
+  if [[ "$FE_PM2_STATUS" == "online" ]]; then
+    pass "$PM2_FRONTEND : $FE_PM2_STATUS"
+  else
+    fail "$PM2_FRONTEND : $FE_PM2_STATUS"
+  fi
+fi
+
+# ── Nginx (optional) ─────────────────────────────────────────
+if command -v nginx &>/dev/null && systemctl is-active nginx &>/dev/null; then
+  section "Nginx"
+  pass "nginx service : active"
+  nginx -t 2>/dev/null && pass "nginx config  : valid" || fail "nginx config  : invalid"
 fi
 
 # ── PostgreSQL ───────────────────────────────────────────────
@@ -179,7 +197,7 @@ if [[ "$FAILURES" -eq 0 ]]; then
 else
   echo -e "${BOLD}${RED}  ✗  $FAILURES check(s) failed${RESET}"
 fi
-echo -e "  pm2 logs  : pm2 logs $PM2_PROCESS --lines 50"
+echo -e "  pm2 logs  : pm2 logs --lines 50"
 echo -e "  Update    : bash $SCRIPT_DIR/update.sh"
 echo ""
 

@@ -37,5 +37,27 @@ module.exports = {
       error_file: path.join(APP_DIR, 'logs/error.log'),
       merge_logs: true,
     },
+    {
+      name: 'zapai-frontend',
+      script: 'npm',
+      args: 'start',
+      cwd: path.join(APP_DIR, 'frontend'),
+      instances: 1,
+      exec_mode: 'fork',
+      watch: false,
+      autorestart: true,
+      max_restarts: 10,
+      restart_delay: 3000,
+      max_memory_restart: '400M',
+
+      env_production: {
+        NODE_ENV: 'production',
+      },
+
+      log_date_format: 'YYYY-MM-DD HH:mm:ss Z',
+      out_file: path.join(APP_DIR, 'logs/frontend.log'),
+      error_file: path.join(APP_DIR, 'logs/frontend-error.log'),
+      merge_logs: true,
+    },
   ],
 };

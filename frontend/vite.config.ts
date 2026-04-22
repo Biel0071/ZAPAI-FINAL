@@ -97,6 +97,33 @@ export default defineConfig(({ mode }) => ({
       },
     }),
   ].filter(Boolean),
+  preview: {
+    host: "0.0.0.0",
+    port: 3000,
+    proxy: {
+      "/api": {
+        target: "http://127.0.0.1:4025",
+        changeOrigin: true,
+        secure: false,
+      },
+      "/auth": {
+        target: "http://127.0.0.1:4025",
+        changeOrigin: true,
+        secure: false,
+      },
+      "/health": {
+        target: "http://127.0.0.1:4025",
+        changeOrigin: true,
+        secure: false,
+      },
+      "/socket.io": {
+        target: "http://127.0.0.1:4025",
+        changeOrigin: true,
+        secure: false,
+        ws: true,
+      },
+    },
+  },
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),

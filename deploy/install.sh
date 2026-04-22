@@ -30,7 +30,9 @@ LOG_DIR="$APP_DIR/logs"
 
 DOMAIN="${1:-}"
 BACKEND_PORT=4025
+FRONTEND_PORT=3000
 PM2_PROCESS="zapai-backend"
+PM2_FRONTEND="zapai-frontend"
 NODE_MIN_VERSION=20
 
 # ── Banner ───────────────────────────────────────────────────
@@ -43,6 +45,7 @@ echo -e "${RESET}"
 info "Project root : $APP_DIR"
 info "Domain       : ${DOMAIN:-'(HTTP only, no domain set)'}"
 info "Backend port : $BACKEND_PORT"
+info "Frontend port: $FRONTEND_PORT"
 echo ""
 
 # ── Require root ─────────────────────────────────────────────
@@ -68,8 +71,8 @@ NODE_FOUND=$(node -v 2>/dev/null || echo "not installed")
 PM2_FOUND=$(pm2 -v 2>/dev/null || echo "not installed")
 PG_FOUND=$(psql --version 2>/dev/null | awk '{print $3}' || echo "not installed")
 
-PORT_80_USED=$(ss -tlnp 2>/dev/null | grep -c ':80 ' || true; echo "")
-PORT_80_USED=${PORT_80_USED:-0}
+PORT_3000_USED=$(ss -tlnp 2>/dev/null | grep -c ":${FRONTEND_PORT} " || true; echo "")
+PORT_3000_USED=${PORT_3000_USED:-0}
 PORT_4025_USED=$(ss -tlnp 2>/dev/null | grep -c ":${BACKEND_PORT} " || true; echo "")
 PORT_4025_USED=${PORT_4025_USED:-0}
 
@@ -95,7 +98,7 @@ printf "  ${BOLD}%-22s${RESET} %s\n" "Deploy user:"  "$CURRENT_USER"
 printf "  ${BOLD}%-22s${RESET} %s\n" "Node.js:"      "$NODE_FOUND"
 printf "  ${BOLD}%-22s${RESET} %s\n" "PM2:"          "$PM2_FOUND"
 printf "  ${BOLD}%-22s${RESET} %s\n" "PostgreSQL:"   "$PG_FOUND"
-printf "  ${BOLD}%-22s${RESET} %s\n" "Port 80:"      "$([ "${PORT_80_USED:-0}" -eq 0 ] && echo 'free' || echo 'IN USE')"
+printf "  ${BOLD}%-22s${RESET} %s\n" "Port $FRONTEND_PORT:"  "$([ "${PORT_3000_USED:-0}" -eq 0 ] && echo 'free' || echo 'IN USE')"
 printf "  ${BOLD}%-22s${RESET} %s\n" "Port $BACKEND_PORT:"   "$([ "${PORT_4025_USED:-0}" -eq 0 ] && echo 'free' || echo 'IN USE (will reload)')"
 printf "  ${BOLD}%-22s${RESET} %s\n" "Domain:"       "$DOMAIN_DNS"
 printf "  ${BOLD}%-22s${RESET} %s\n" "Disk free:"    "${DISK_FREE_GB}GB"
@@ -111,7 +114,6 @@ export DEBIAN_FRONTEND=noninteractive
 apt-get update -qq
 apt-get install -y -qq \
   curl wget git unzip build-essential \
-  nginx \
   postgresql postgresql-contrib \
   > /dev/null
 ok "System packages ready"
@@ -194,8 +196,8 @@ if [[ ! -f "$BACKEND_DIR/.env" ]]; then
     sed -i "s|FRONTEND_URL=.*|FRONTEND_URL=https://$DOMAIN|g"              "$BACKEND_DIR/.env"
     sed -i "s|CORS_ALLOWED_ORIGINS=.*|CORS_ALLOWED_ORIGINS=https://$DOMAIN|g" "$BACKEND_DIR/.env"
   elif [[ -n "$PUBLIC_IP" ]]; then
-    sed -i "s|FRONTEND_URL=.*|FRONTEND_URL=http://$PUBLIC_IP|g"              "$BACKEND_DIR/.env"
-    sed -i "s|CORS_ALLOWED_ORIGINS=.*|CORS_ALLOWED_ORIGINS=http://$PUBLIC_IP|g" "$BACKEND_DIR/.env"
+    sed -i "s|FRONTEND_URL=.*|FRONTEND_URL=http://$PUBLIC_IP:$FRONTEND_PORT|g"              "$BACKEND_DIR/.env"
+    sed -i "s|CORS_ALLOWED_ORIGINS=.*|CORS_ALLOWED_ORIGINS=http://$PUBLIC_IP:$FRONTEND_PORT|g" "$BACKEND_DIR/.env"
   fi
   ok "backend/.env created (JWT auto-generated, DB configured)"
   warn "Edit $BACKEND_DIR/.env to set your OPENAI_API_KEY and other secrets"
@@ -209,8 +211,7 @@ if [[ ! -f "$FRONTEND_DIR/.env.production" ]]; then
   if [[ -n "$DOMAIN" ]]; then
     _VITE_URL="https://$DOMAIN"
   else
-    # Use real public IP — frontend reaches backend through nginx on port 80
-    _VITE_URL="http://${PUBLIC_IP:-localhost}"
+    _VITE_URL="http://${PUBLIC_IP:-localhost}:$FRONTEND_PORT"
   fi
   cat > "$FRONTEND_DIR/.env.production" <<EOF
 VITE_API_URL=$_VITE_URL
@@ -237,32 +238,32 @@ npm ci --no-audit --no-fund 2>&1 | tail -5
 npm run build 2>&1 | grep -E "built in|✓|error" | tail -5
 ok "Frontend built → $FRONTEND_DIR/dist"
 
-# ── Step 8 — Nginx ───────────────────────────────────────────
-step "8/10  Nginx"
-NGINX_SITE="/etc/nginx/sites-available/zapai"
-NGINX_ENABLED="/etc/nginx/sites-enabled/zapai"
-DIST_DIR="$FRONTEND_DIR/dist"
-
-# Always start with HTTP — certbot upgrades to HTTPS afterwards.
-# The deploy/nginx.conf (HTTPS) is only used after 'certbot --nginx'.
+# ── Step 8 — Nginx (optional — only when domain is set) ──────
+step "8/10  Nginx (optional)"
 if [[ -n "$DOMAIN" ]]; then
-  SERVER_NAME="$DOMAIN"
+  # Install nginx if not present
+  if ! command -v nginx &>/dev/null; then
+    apt-get install -y -qq nginx > /dev/null
+  fi
+
+  NGINX_SITE="/etc/nginx/sites-available/zapai"
+  NGINX_ENABLED="/etc/nginx/sites-enabled/zapai"
+
   info "Installing HTTP nginx config for $DOMAIN (run certbot after for HTTPS)"
-else
-  SERVER_NAME="_"
-  info "Installing HTTP-only nginx config (no domain — using server IP)"
-fi
-
-cat > "$NGINX_SITE" <<NGINX
+  cat > "$NGINX_SITE" <<NGINX
 server {
-    listen 80$([ "$SERVER_NAME" = "_" ] && echo " default_server");
-    server_name $SERVER_NAME;
-
-    root $DIST_DIR;
-    index index.html;
+    listen 80;
+    server_name $DOMAIN;
 
     location / {
-        try_files \$uri \$uri/ /index.html;
+        proxy_pass         http://127.0.0.1:$FRONTEND_PORT;
+        proxy_http_version 1.1;
+        proxy_set_header   Host              \$host;
+        proxy_set_header   X-Real-IP         \$remote_addr;
+        proxy_set_header   X-Forwarded-For   \$proxy_add_x_forwarded_for;
+        proxy_set_header   X-Forwarded-Proto \$scheme;
+        proxy_set_header   Upgrade           \$http_upgrade;
+        proxy_set_header   Connection        "upgrade";
     }
 
     location /api/ {
@@ -284,12 +285,6 @@ server {
         proxy_set_header   X-Forwarded-For   \$proxy_add_x_forwarded_for;
     }
 
-    location /system/ {
-        proxy_pass         http://127.0.0.1:$BACKEND_PORT;
-        proxy_http_version 1.1;
-        proxy_set_header   Host \$host;
-    }
-
     location ~ ^/(health|status-whatsapp|session-status|diagnostics)$ {
         proxy_pass         http://127.0.0.1:$BACKEND_PORT;
         proxy_http_version 1.1;
@@ -308,50 +303,41 @@ server {
         proxy_buffering         off;
     }
 
-    location /send-media {
-        proxy_pass           http://127.0.0.1:$BACKEND_PORT;
-        proxy_http_version   1.1;
-        proxy_set_header     Host \$host;
-        client_max_body_size 25M;
-        proxy_read_timeout   60s;
-    }
-
-    location ~* \.(js|css|woff2|woff|ttf|png|ico|svg|webp)$ {
-        expires 30d;
-        add_header Cache-Control "public, immutable";
-    }
-
     gzip on;
     gzip_types text/plain text/css application/json application/javascript;
     gzip_min_length 1000;
 }
 NGINX
 
-# Remove default site
-rm -f /etc/nginx/sites-enabled/default
-
-# Enable zapai site
-ln -sf "$NGINX_SITE" "$NGINX_ENABLED"
-
-nginx -t
-systemctl enable nginx
-systemctl restart nginx
-ok "Nginx configured and running"
+  rm -f /etc/nginx/sites-enabled/default
+  ln -sf "$NGINX_SITE" "$NGINX_ENABLED"
+  nginx -t
+  systemctl enable nginx
+  systemctl restart nginx
+  ok "Nginx configured and running (domain: $DOMAIN)"
+else
+  info "No domain set — skipping Nginx. Frontend served directly on port $FRONTEND_PORT"
+  # Stop nginx if running to free port 80
+  if systemctl is-active nginx &>/dev/null; then
+    systemctl stop nginx 2>/dev/null || true
+    info "Stopped existing Nginx (not needed without domain)"
+  fi
+  ok "Nginx skipped — direct access via IP:$FRONTEND_PORT"
+fi
 
 # ── Step 9 — PM2 start ───────────────────────────────────────
-step "9/10  PM2 — start backend"
+step "9/10  PM2 — start backend + frontend"
 cd "$DEPLOY_DIR"
 
 # Update ecosystem cwd to actual app dir
 sed "s|/opt/zapai|$APP_DIR|g" "$DEPLOY_DIR/ecosystem.config.js" > /tmp/zapai_ecosystem.js
 
-if pm2 describe "$PM2_PROCESS" &>/dev/null; then
-  info "Process exists — reloading..."
-  pm2 reload /tmp/zapai_ecosystem.js --env production --update-env
-else
-  info "Starting fresh process..."
-  pm2 start /tmp/zapai_ecosystem.js --env production
-fi
+# Stop old processes if they exist
+pm2 delete "$PM2_PROCESS" 2>/dev/null || true
+pm2 delete "$PM2_FRONTEND" 2>/dev/null || true
+
+info "Starting backend + frontend via PM2..."
+pm2 start /tmp/zapai_ecosystem.js --env production
 
 pm2 save
 # Register PM2 to start on boot (works for root and sudo users)
@@ -360,7 +346,7 @@ PM2_HOME=$(getent passwd "$PM2_USER" | cut -d: -f6 2>/dev/null || echo "/root")
 pm2 startup systemd -u "$PM2_USER" --hp "$PM2_HOME" 2>&1 | \
   grep -E "^sudo|^env " | bash || true
 
-ok "PM2 process '$PM2_PROCESS' running"
+ok "PM2 processes running: $PM2_PROCESS (port $BACKEND_PORT) + $PM2_FRONTEND (port $FRONTEND_PORT)"
 
 # ── Step 10 — Health check ───────────────────────────────────
 step "10/10  Health check"
@@ -377,11 +363,12 @@ else
   warn "Check logs: pm2 logs $PM2_PROCESS --lines 30"
 fi
 
-NGINX_STATUS=$(curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1/ || echo "000")
-if [[ "$NGINX_STATUS" =~ ^(200|301|302)$ ]]; then
-  ok "Nginx frontend: HTTP $NGINX_STATUS ✓"
+FRONTEND_STATUS=$(curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:$FRONTEND_PORT/ || echo "000")
+if [[ "$FRONTEND_STATUS" =~ ^(200|301|302)$ ]]; then
+  ok "Frontend (port $FRONTEND_PORT): HTTP $FRONTEND_STATUS ✓"
 else
-  warn "Nginx returned HTTP $NGINX_STATUS (may be normal if domain not set)"
+  warn "Frontend returned HTTP $FRONTEND_STATUS — may need a few more seconds to start"
+  warn "Check logs: pm2 logs $PM2_FRONTEND --lines 20"
 fi
 
 # ── Summary ──────────────────────────────────────────────────
@@ -392,20 +379,21 @@ echo "  ╔═══════════════════════
 echo "  ║   ✓  ZapAI CRM DEPLOYED SUCCESSFULLY                  ║"
 echo "  ╚═══════════════════════════════════════════════════════╝"
 echo -e "${RESET}"
-echo -e "  ${BOLD}Access URLs (HTTP — active now):${RESET}"
+echo -e "  ${BOLD}Access URLs (active now):${RESET}"
 if [[ -n "$DOMAIN" ]]; then
   echo "    Frontend  → http://$DOMAIN"
   echo "    API       → http://$DOMAIN/api"
   echo "    Health    → http://$DOMAIN/health"
 else
-  echo "    Frontend  → http://$SERVER_IP"
-  echo "    API       → http://$SERVER_IP/api"
-  echo "    Health    → http://$SERVER_IP/health"
+  echo "    Frontend  → http://$SERVER_IP:$FRONTEND_PORT"
+  echo "    API       → http://$SERVER_IP:$BACKEND_PORT/api"
+  echo "    Health    → http://$SERVER_IP:$BACKEND_PORT/health"
 fi
 echo ""
 echo -e "  ${BOLD}Backend direct:${RESET}  http://127.0.0.1:$BACKEND_PORT/health"
+echo -e "  ${BOLD}Frontend direct:${RESET} http://127.0.0.1:$FRONTEND_PORT"
 echo -e "  ${BOLD}PM2 status:${RESET}      pm2 status"
-echo -e "  ${BOLD}Backend logs:${RESET}    pm2 logs $PM2_PROCESS"
+echo -e "  ${BOLD}Logs:${RESET}            pm2 logs"
 echo ""
 echo -e "  ${BOLD}Default login:${RESET}"
 echo "    User     : admin"
