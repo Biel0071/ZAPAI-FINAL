@@ -5,10 +5,10 @@ const whatsappService = require('../services/whatsappService');
 const sessionManager = require('../services/sessionManager');
 const { registerOutgoingMessage } = require('./messagesController');
 const messageStore = require('../store/messageStore');
-const inboxConversationService = require('../backend/inbox/services/ConversationService');
-const inboxConversationRepository = require('../backend/inbox/repositories/ConversationRepository');
-const inboxRealtimeService = require('../backend/inbox/events/InboxRealtimeService');
-const conversationRuntimeService = require('../backend/inbox/services/ConversationRuntimeService');
+const inboxConversationService = require('../inbox-core/inbox/services/ConversationService');
+const inboxConversationRepository = require('../inbox-core/inbox/repositories/ConversationRepository');
+const inboxRealtimeService = require('../inbox-core/inbox/events/InboxRealtimeService');
+const conversationRuntimeService = require('../inbox-core/inbox/services/ConversationRuntimeService');
 
 function getStore(req) {
   return req.app?.locals?.store;

@@ -1,7 +1,7 @@
 const { getClient } = require('../config/ai');
 const { getActivePrompt } = require('../config/promptManager');
 const { buildPersonalityPrompt } = require('../ai-agents/engine/personalityEngine');
-const { processEvent } = require('../backend/ai/AIEventBridge');
+const { processEvent } = require('../inbox-core/ai/AIEventBridge');
 
 function ensureAgent(agent) {
   return agent || {

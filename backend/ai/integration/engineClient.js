@@ -1,4 +1,4 @@
-const { getEngineClient } = require('../../backend/ai/AIEngineClient');
+const { getEngineClient } = require('../../inbox-core/ai/AIEngineClient');
 
 async function processIncomingMessage(event, options = {}) {
   const engine = getEngineClient(options);
