@@ -1,0 +1,1 @@
+Generate a new backend service following the existing architecture pattern in the services folder. Keep controllers thin, isolate persistence in repositories, and emit Socket.IO events only after persistence succeeds.

@@ -1,0 +1,10 @@
+const express = require('express');
+const router = express.Router();
+const quickRepliesController = require('../controllers/quickRepliesController');
+
+router.get('/api/quick-replies', quickRepliesController.listQuickReplies);
+router.post('/api/quick-replies', quickRepliesController.createQuickReply);
+router.put('/api/quick-replies/:id', quickRepliesController.updateQuickReply);
+router.delete('/api/quick-replies/:id', quickRepliesController.deleteQuickReply);
+
+module.exports = router;

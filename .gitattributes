@@ -1,0 +1,27 @@
+# Normalize line endings
+* text=auto
+
+# Shell scripts MUST use LF (Linux VPS)
+*.sh text eol=lf
+
+# Nginx config — LF
+*.conf text eol=lf
+
+# JS/TS/JSON/MD — auto
+*.js   text eol=lf
+*.ts   text eol=lf
+*.tsx  text eol=lf
+*.jsx  text eol=lf
+*.json text eol=lf
+*.md   text eol=lf
+*.yml  text eol=lf
+*.yaml text eol=lf
+*.sql  text eol=lf
+*.env.example text eol=lf
+
+# Binary — no conversion
+*.png  binary
+*.jpg  binary
+*.ico  binary
+*.woff binary
+*.woff2 binary

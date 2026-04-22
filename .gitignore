@@ -1,0 +1,64 @@
+# =============================================================
+# ZAPAI-FINAL — root .gitignore
+# =============================================================
+
+# ── Legacy source repos (have own .git — excluded entirely) ──
+ZAPAI-CRM/
+swift-wa-assist/
+
+# ── Node modules ──────────────────────────────────────────────
+node_modules/
+**/node_modules/
+
+# ── Environment / Secrets (NEVER commit) ─────────────────────
+.env
+.env.local
+.env.production
+.env.*.local
+**/.env
+**/.env.local
+**/.env.production
+**/.env.*.local
+
+# ── Frontend build output ─────────────────────────────────────
+frontend/dist/
+frontend/.tsbuildinfo
+
+# ── WhatsApp runtime state (MUST be persistent volume on VPS) ─
+backend/sessions/
+backend/data/
+
+# ── Runtime uploads & generated files ────────────────────────
+backend/uploads/
+backend/media/
+backend/reports/
+backend/conversations/
+backend/upload/
+
+# ── Log files (keep .gitkeep placeholders, not log content) ───
+*.log
+logs/*.log
+backend/logs/*.log
+
+# ── Temp / debug artifacts ────────────────────────────────────
+tmp_*.js
+tmp_*.log
+*.tmp
+
+# ── PM2 ───────────────────────────────────────────────────────
+.pm2/
+
+# ── OS & Editor ───────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+desktop.ini
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# ── Test output ───────────────────────────────────────────────
+test-results/
+playwright-report/
+coverage/

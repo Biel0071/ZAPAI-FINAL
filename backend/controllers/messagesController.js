@@ -1,0 +1,926 @@
+const fs = require('fs/promises');
+const path = require('path');
+const { randomUUID } = require('crypto');
+
+const sessionManager = require('../services/sessionManager');
+const messageService = require('../services/messageService');
+const conversationRepository = require('../repositories/conversationRepository');
+const messageRepository = require('../repositories/messageRepository');
+const whatsappService = require('../services/whatsappService');
+const MessageAuditService = require('../services/messageAuditService');
+const messageStore = require('../store/messageStore');
+const webhookService = require('../services/webhookService');
+const aiIntelligenceService = require('../services/aiIntelligenceService');
+
+const messageDedupeService = require('../services/messageDedupeService');
+
+// Phase 2a: pure helpers live under ./messages/*. Names are destructured here
+// so all internal callers and module.exports stay byte-compatible.
+const messagesHelpers = require('./messages');
+const {
+  MEDIA_TEMP_PUBLIC_PREFIX,
+  buildMediaUrl,
+  buildStandardNewMessageEnvelope,
+  dedupeMessages,
+  emitConversationSnapshotImmediate,
+  emitInboxRealtimeEvent,
+  emitInboxRealtimeEventFromStore,
+  emitSocketEvent,
+  ensureConversationForMessage,
+  extensionFromMimeType,
+  formatApiMessage,
+  getRequestedSessionId,
+  getStore,
+  inferMediaType,
+  isBase64MediaInput,
+  loadMessagesForChat,
+  normalizeChatId,
+  normalizeMessagesForApi,
+  persistIncomingMessageInMemory,
+  persistOutgoingMessageRecord,
+  registerIncomingMessage,
+  registerOutgoingMessage,
+  saveBase64MediaToTempFile,
+  scheduleConversationRevalidation,
+  shouldPersistExternalMessageId,
+  sortMessagesAsc,
+  toExactMessageText,
+  toIsoTimestamp,
+} = messagesHelpers;
+
+const FAST_FALLBACK_TIMEOUT_MS = Math.max(Number(process.env.API_FALLBACK_TIMEOUT_MS) || 2500, 500);
+
+async function runWithFastFallback(work, fallbackValue = null) {
+  let timer = null;
+
+  try {
+    return await Promise.race([
+      Promise.resolve()
+        .then(work)
+        .then((value) => ({
+          degraded: false,
+          fallback: 'none',
+          value,
+          warning: null,
+        })),
+      new Promise((resolve) => {
+        timer = setTimeout(() => {
+          resolve({
+            degraded: true,
+            fallback: 'timeout',
+            value: fallbackValue,
+            warning: 'Request exceeded the fast-path timeout. Returned memory fallback.',
+          });
+        }, FAST_FALLBACK_TIMEOUT_MS);
+      }),
+    ]);
+  } catch (error) {
+    return {
+      degraded: true,
+      fallback: 'error',
+      value: fallbackValue,
+      warning: error?.message || String(error),
+    };
+  } finally {
+    if (timer) {
+      clearTimeout(timer);
+    }
+  }
+}
+
+// Phase 2a: getRequestedSessionId, normalizeChatId, toIsoTimestamp,
+// buildStandardNewMessageEnvelope moved to controllers/messages/shared.js.
+
+// Phase 2a: persistIncomingMessageInMemory moved to
+//          controllers/messages/receive/persistMemory.js.
+
+// Phase 2a: sortMessagesAsc, dedupeMessages, normalizeMessagesForApi
+//          moved to controllers/messages/sync/collectionOps.js.
+
+// Phase 2a: loadMessagesForChat moved to
+//          controllers/messages/sync/loadMessagesForChat.js.
+
+// Phase 2b-3: scheduleConversationRevalidation, emitConversationSnapshotImmediate,
+//          emitInboxRealtimeEvent, emitInboxRealtimeEventFromStore
+//          moved to controllers/messages/realtime/inboxEvents.js.
+
+// Phase 2a: emitSocketEvent, toExactMessageText, formatApiMessage moved to
+//          controllers/messages/shared.js.
+// Phase 2a: inferMediaType, isBase64MediaInput, extensionFromMimeType,
+//          saveBase64MediaToTempFile moved to controllers/messages/media/helpers.js.
+
+// Phase 2b-3b: ensureConversationForMessage, persistOutgoingMessageRecord
+//          moved to controllers/messages/send/persistOutgoing.js.
+// Phase 2b-3b: registerIncomingMessage, registerOutgoingMessage
+//          moved to controllers/messages/receive/register.js.
+
+async function sendMessage(req, res) {
+  const {
+    _transportMediaPath,
+    chatId,
+    fileName,
+    mediaPath = null,
+    mediaType = null,
+    message,
+    mimetype,
+    phone,
+    ptt = false,
+    sessionId,
+    sessionName,
+    text,
+  } = req.body;
+  const store = getStore(req);
+  const normalizedPhone = whatsappService.normalizePhone(chatId || phone);
+  const mediaTransportPath = await messageService.resolveOutboundMediaPath(_transportMediaPath || mediaPath);
+  const resolvedMediaType = mediaType || inferMediaType(mediaTransportPath || mediaPath);
+  const resolvedText = toExactMessageText(message || text || null) || null;
+  const persistedMediaPath = messageService.toPublicMediaPath(mediaPath || mediaTransportPath);
+  const requestedSessionId = getRequestedSessionId(req);
+  const targetSessionName = sessionManager.normalizeSessionName(
+    sessionName || sessionId || requestedSessionId || sessionManager.DEFAULT_SESSION
+  );
+  const existingSession = sessionManager.getSession(targetSessionName);
+  const fallbackDefaultSession = existingSession ? null : await sessionManager.getDefaultSession();
+  const session = existingSession || fallbackDefaultSession;
+  const sock = session?.sock || store.sock;
+  const normalizedSessionStatus = String(session?.status || 'disconnected').toLowerCase();
+
+  if (!sessionManager.isRuntimeActive()) {
+    return res.status(409).json({
+      error: 'System is inactive. Activate it with POST /system/start.',
+    });
+  }
+
+  if (!normalizedPhone || (!resolvedText && !mediaTransportPath && !mediaPath)) {
+    return res.status(400).json({
+      error: 'The field phone/chatId and at least one of text/message or mediaPath are required.',
+    });
+  }
+
+  if (!sock) {
+    return res.status(409).json({
+      error: 'No active WhatsApp session is available.',
+    });
+  }
+
+  if (!session || ['connected'].includes(normalizedSessionStatus) === false) {
+    return res.status(409).json({
+      error: `Session ${targetSessionName} is not connected (status: ${normalizedSessionStatus || 'unknown'}).`,
+      sessionId: targetSessionName,
+      status: normalizedSessionStatus || 'unknown',
+      success: false,
+    });
+  }
+
+  if (session.systemConnected === false) {
+    return res.status(409).json({
+      error: `Session ${targetSessionName} is disconnected from system processing.`,
+      sessionId: targetSessionName,
+      success: false,
+    });
+  }
+
+  try {
+    let sendResult;
+
+    if (mediaTransportPath || mediaPath) {
+      const checkedMediaTransportPath = await messageService.assertLocalMediaPathExists(
+        mediaTransportPath || mediaPath
+      );
+      await messageService.ensureUploadDirectories();
+      sendResult = await whatsappService.sendMediaMessage(
+        sock,
+        normalizedPhone,
+        resolvedMediaType,
+        checkedMediaTransportPath || mediaPath,
+        {
+        caption: resolvedText || '',
+        fileName,
+        mimetype,
+        ptt,
+        }
+      );
+    } else {
+      sendResult = await whatsappService.sendMessage(sock, normalizedPhone, resolvedText);
+    }
+
+    if (!sendResult) {
+      MessageAuditService.log('message_failed', {
+        error: 'Message send failed',
+        phone: normalizedPhone,
+        text: resolvedText,
+      });
+
+      return res.status(500).json({
+        error: 'Message send failed',
+        success: false,
+      });
+    }
+
+    if (!store.databaseEnabled) {
+      // Persist to in-memory store when PostgreSQL is unavailable
+      const memEntry = messageStore.addMessage(normalizedPhone, {
+        content: resolvedText || '',
+        createdAt: new Date().toISOString(),
+        fromMe: true,
+        mediaPath: persistedMediaPath || mediaTransportPath || mediaPath || null,
+        mediaType: resolvedMediaType || null,
+        sessionId: session?.sessionId || targetSessionName,
+        conversationId: `chat-${normalizedPhone}`,
+        status: 'sent',
+      });
+
+      MessageAuditService.log('message_sent_memory', {
+        phone: normalizedPhone,
+        text: resolvedText,
+      });
+
+      emitSocketEvent(req, 'message_sent', {
+        chatId: normalizedPhone,
+        conversationId: memEntry?.conversationId || `chat-${normalizedPhone}`,
+        id: memEntry?.id,
+        message: resolvedText,
+        phone: normalizedPhone,
+        timestamp: memEntry?.createdAt || new Date().toISOString(),
+      });
+      emitSocketEvent(req, 'message:update', {
+        conversationId: memEntry?.conversationId || `chat-${normalizedPhone}`,
+        id: memEntry?.id,
+        status: 'sent',
+      });
+
+      const inboxPayload = {
+        conversationId: memEntry?.conversationId || `chat-${normalizedPhone}`,
+        content: resolvedText || '',
+        createdAt: memEntry?.createdAt || new Date().toISOString(),
+        fromMe: true,
+        id: memEntry?.id,
+        mediaPath: messageService.toPublicMediaPath(memEntry?.mediaPath || persistedMediaPath || null),
+        mediaType: memEntry?.mediaType || null,
+        phone: normalizedPhone,
+        status: 'sent',
+      };
+
+      if (!inboxPayload.id) {
+        return res.status(500).json({
+          error: 'Message persistence failed: missing id.',
+          success: false,
+        });
+      }
+
+      emitInboxRealtimeEvent(req, inboxPayload);
+
+      void aiIntelligenceService
+        .captureMessageEvent(store, {
+          conversationId: inboxPayload.conversationId,
+          direction: 'outgoing',
+          mediaType: inboxPayload.mediaType || null,
+          messageId: inboxPayload.id,
+          name: normalizedPhone,
+          phone: normalizedPhone,
+          source: 'human-fallback',
+          text: resolvedText || '',
+          timestamp: inboxPayload.createdAt,
+        })
+        .catch((error) => {
+          console.error('[AI INTELLIGENCE] Failed to capture outbound memory fallback:', error.message || error);
+        });
+
+      return res.status(200).json({
+        chatId: normalizeChatId(normalizedPhone),
+        message: inboxPayload,
+        success: true,
+      });
+    }
+
+    const persistedResult = await registerOutgoingMessage(store, {
+      companyId: req.body?.companyId,
+      mediaPath: persistedMediaPath || mediaPath,
+      mediaType: resolvedMediaType,
+      name: session?.phone || 'Unknown',
+      phone: normalizedPhone,
+      sessionId: session?.sessionId || targetSessionName,
+      source: 'human',
+      text: resolvedText,
+    });
+
+    if (!persistedResult?.message) {
+      MessageAuditService.log('message_failed', {
+        error: 'Message persistence failed',
+        phone: normalizedPhone,
+        text: resolvedText,
+      });
+
+      return res.status(500).json({
+        error: 'Message persistence failed',
+        success: false,
+      });
+    }
+
+    const apiMessage = formatApiMessage(persistedResult.message);
+
+    if (!apiMessage?.id) {
+      return res.status(500).json({
+        error: 'Message persistence failed: missing id.',
+        success: false,
+      });
+    }
+
+    console.log('MESSAGE SAVED', apiMessage);
+
+    emitSocketEvent(req, 'message_sent', {
+      chatId: normalizedPhone,
+      conversationId: apiMessage.conversationId,
+      id: apiMessage.id,
+      message: apiMessage.content,
+      phone: apiMessage.phone,
+      timestamp: apiMessage.createdAt,
+    });
+    emitSocketEvent(req, 'message:update', {
+      conversationId: apiMessage.conversationId,
+      id: apiMessage.id,
+      status: 'sent',
+    });
+
+    return res.status(200).json({
+      chatId: normalizeChatId(normalizedPhone),
+      message: apiMessage,
+      success: true,
+    });
+  } catch (error) {
+    const message = String(error?.message || '');
+
+    if (error?.code === 'MEDIA_FILE_NOT_FOUND') {
+      return res.status(404).json({
+        error: error.message,
+        success: false,
+      });
+    }
+
+    if (error?.code === 'MEDIA_PATH_FORBIDDEN') {
+      return res.status(403).json({
+        error: error.message,
+        success: false,
+      });
+    }
+
+    if (error?.code === 'SESSION_UNAVAILABLE' || /socket is not initialized/i.test(message)) {
+      return res.status(409).json({
+        error: 'No active WhatsApp session is available.',
+        success: false,
+      });
+    }
+
+    if (/connection closed|connection closed unexpectedly|timed out|not connected/i.test(message)) {
+      return res.status(409).json({
+        error: 'WhatsApp session is disconnected. Reconnect and try again.',
+        success: false,
+      });
+    }
+
+    MessageAuditService.log('message_failed', {
+      error: message || String(error),
+      phone: normalizedPhone,
+      text: resolvedText,
+    });
+
+    return res.status(500).json({
+      error: error.message || 'Failed to send WhatsApp message.',
+      success: false,
+    });
+  }
+}
+
+async function sendMedia(req, res) {
+  const {
+    caption = '',
+    chatId,
+    file,
+    fileName,
+    mediaPath,
+    mimetype,
+    phone,
+    ptt = false,
+    sessionId,
+    sessionName,
+    type,
+  } = req.body || {};
+
+  try {
+    await messageService.ensureUploadDirectories();
+
+    const resolvedMediaPath = mediaPath || file || null;
+    const resolvedMediaType = type || inferMediaType(resolvedMediaPath);
+
+    if (!resolvedMediaPath || !resolvedMediaType) {
+      return res.status(400).json({
+        error: 'The fields file/mediaPath and type are required for media sending.',
+        success: false,
+      });
+    }
+
+    const tempFile = await saveBase64MediaToTempFile(resolvedMediaPath, {
+      mediaType: resolvedMediaType,
+      mimetype,
+    });
+    const resolvedTransportPath = await messageService.resolveOutboundMediaPath(
+      tempFile?.absolutePath || resolvedMediaPath
+    );
+    const persistedMediaPath =
+      tempFile?.publicPath || messageService.toPublicMediaPath(resolvedTransportPath || resolvedMediaPath);
+    const transportMediaPath = resolvedTransportPath || resolvedMediaPath;
+
+    req.body = {
+      ...req.body,
+      chatId: chatId || phone,
+      _transportMediaPath: transportMediaPath,
+      fileName,
+      mediaPath: persistedMediaPath,
+      mediaType: resolvedMediaType,
+      mimetype,
+      ptt,
+      sessionId,
+      sessionName,
+      text: caption,
+    };
+
+    const originalJson = res.json.bind(res);
+    res.json = (payload) => {
+      if (res.statusCode === 200 && payload?.message) {
+        emitSocketEvent(req, 'media_sent', {
+          caption,
+          chatId: payload.message.phone || chatId || phone,
+          conversationId: payload.message.conversationId,
+          file: payload.message.mediaPath || persistedMediaPath,
+          fileName: fileName || null,
+          id: payload.message.id,
+          mediaPath: payload.message.mediaPath || persistedMediaPath,
+          mediaType: payload.message.mediaType || resolvedMediaType,
+          message: payload.message.content,
+          ptt,
+          timestamp: payload.message.createdAt,
+        });
+      }
+
+      return originalJson(payload);
+    };
+
+    return sendMessage(req, res);
+  } catch (error) {
+    return res.status(500).json({
+      error: error.message || 'Failed to process media upload.',
+      success: false,
+    });
+  }
+}
+
+async function receiveMessage(req, res) {
+  const {
+    mediaPath = null,
+    mediaType = null,
+    name,
+    phone,
+    sessionId,
+    text,
+  } = req.body;
+  const store = getStore(req);
+  const requestedSessionId = getRequestedSessionId(req);
+  const resolvedIncomingMediaType = mediaType || inferMediaType(mediaPath || '');
+  const resolvedIncomingMediaPath = messageService.toPublicMediaPath(
+    await messageService.resolveOutboundMediaPath(mediaPath || '')
+  ) || null;
+
+  if (!phone || (!text && !resolvedIncomingMediaType && !resolvedIncomingMediaPath)) {
+    return res.status(400).json({
+      error: 'The field phone and at least one of text or mediaType are required.',
+    });
+  }
+
+  let savedMessage;
+
+  if (!store.databaseEnabled) {
+    const inboxPayload = persistIncomingMessageInMemory(store, {
+      mediaPath: resolvedIncomingMediaPath,
+      mediaType: resolvedIncomingMediaType || null,
+      name,
+      phone,
+      sessionId: sessionId || requestedSessionId || sessionManager.DEFAULT_SESSION,
+      text,
+    });
+
+    emitInboxRealtimeEvent(req, inboxPayload);
+
+    return res.status(200).json({
+      fallback: 'memory',
+      message: inboxPayload,
+      success: true,
+    });
+  }
+
+  // NOTE(bugfix#1): we intentionally do NOT use runWithFastFallback here.
+  // A timeout-based race on a write path caused duplicate persistence:
+  // the client received a "memory fallback" response, but the original
+  // DB write kept running in the background and eventually committed a
+  // second row (with a second unreadCount increment and socket event).
+  // For at-most-once semantics, wait for the real work; fall back to
+  // memory only on actual rejection.
+  let persistedValue = null;
+  let persistenceError = null;
+
+  try {
+    persistedValue = await registerIncomingMessage(store, {
+      companyId: req.body?.companyId,
+      externalMessageId: req.body?.id || null,
+      mediaPath: resolvedIncomingMediaPath,
+      mediaType: resolvedIncomingMediaType || null,
+      name,
+      phone,
+      sessionId: sessionId || requestedSessionId || sessionManager.DEFAULT_SESSION,
+      text,
+    });
+  } catch (error) {
+    persistenceError = error;
+  }
+
+  if (!persistedValue) {
+    const warning = persistenceError?.message || 'Falling back to memory persistence.';
+
+    MessageAuditService.log('message_failed', {
+      error: warning,
+      fallback: true,
+      phone,
+      text,
+    });
+
+    const fallbackMessage = persistIncomingMessageInMemory(store, {
+      mediaPath: resolvedIncomingMediaPath,
+      mediaType: resolvedIncomingMediaType || null,
+      name,
+      phone,
+      sessionId: sessionId || requestedSessionId || sessionManager.DEFAULT_SESSION,
+      text,
+    });
+
+    emitInboxRealtimeEvent(req, fallbackMessage);
+
+    return res.status(200).json({
+      degraded: true,
+      fallback: 'memory',
+      message: fallbackMessage,
+      success: true,
+      warning,
+    });
+  }
+
+  savedMessage = persistedValue;
+
+  if (savedMessage?.duplicate === true) {
+    return res.status(200).json({
+      degraded: false,
+      duplicate: true,
+      fallback: 'none',
+      message: null,
+      success: true,
+      warning: null,
+    });
+  }
+
+  return res.status(200).json({
+    message: (() => {
+      const apiMessage = formatApiMessage(savedMessage?.message);
+      emitInboxRealtimeEvent(req, apiMessage);
+      return apiMessage;
+    })(),
+    degraded: false,
+    fallback: 'none',
+    success: true,
+    warning: null,
+  });
+}
+
+async function getMessagesByPhone(req, res) {
+  const { phone } = req.params;
+  const requestedSessionId = getRequestedSessionId(req);
+  const companyId = req.tenantId || req.companyId || req.query?.companyId || process.env.DEFAULT_COMPANY_ID || 'default';
+
+  try {
+    const filteredMessages = await messageRepository.getMessagesByPhone(
+      phone,
+      companyId,
+      requestedSessionId
+    );
+
+    return res.status(200).json(filteredMessages);
+  } catch (error) {
+    return res.status(500).json({
+      error: error.message || 'Failed to fetch messages.',
+    });
+  }
+}
+
+async function listMessages(req, res) {
+  const store = getStore(req);
+  const requestedSessionId = getRequestedSessionId(req);
+  const companyId = req.tenantId || req.companyId || req.query?.companyId || process.env.DEFAULT_COMPANY_ID || 'default';
+  const chatId = String(req.query?.chatId || '').trim();
+  const cursor = req.query?.cursor || null;
+  const limit = Math.min(Math.max(Number(req.query?.limit) || 20, 1), 2000);
+
+  if (chatId) {
+    let sourceMessages = [];
+
+    if (store?.databaseEnabled) {
+      try {
+        sourceMessages = await messageRepository.getMessagesByPhone(
+          chatId,
+          companyId,
+          requestedSessionId
+        );
+      } catch (error) {
+        console.error('[API] Failed to list paginated chat messages from DB:', error.message || error);
+      }
+    }
+
+    if (!Array.isArray(sourceMessages) || sourceMessages.length === 0) {
+      sourceMessages = (Array.isArray(store?.messages) ? store.messages : [])
+        .filter((item) => {
+          const phone = whatsappService.normalizePhone(item?.phone || '');
+          const target = whatsappService.normalizePhone(chatId || '');
+          return phone && target && phone === target;
+        })
+        .map((item) => formatApiMessage(item))
+        .filter(Boolean);
+    }
+
+    const sortedDesc = [...sourceMessages].sort(
+      (a, b) => new Date(b.createdAt || b.timestamp || 0) - new Date(a.createdAt || a.timestamp || 0)
+    );
+
+    const startIndex = cursor
+      ? Math.max(
+          0,
+          sortedDesc.findIndex((entry) => String(entry.id) === String(cursor)) + 1
+        )
+      : 0;
+
+    const page = sortedDesc.slice(startIndex, startIndex + limit);
+    const nextCursor =
+      startIndex + limit < sortedDesc.length && page.length > 0
+        ? page[page.length - 1].id
+        : null;
+
+    return res.status(200).json({
+      messages: page.reverse(),
+      nextCursor,
+    });
+  }
+
+  if (store?.databaseEnabled) {
+    try {
+      const messages = await messageRepository.listRecentMessages(limit, companyId);
+      const filteredBySession = messages.filter(
+        (item) => String(item.sessionId || sessionManager.DEFAULT_SESSION) === requestedSessionId
+      );
+
+      return res.status(200).json(filteredBySession);
+    } catch (error) {
+      console.error('[API] Failed to list recent messages from DB:', error.message || error);
+    }
+  }
+
+  const fallbackMessages = Array.isArray(store?.messages)
+    ? store.messages
+        .filter((item) => String(item.sessionId || sessionManager.DEFAULT_SESSION) === requestedSessionId)
+        .slice(-limit)
+        .map((item) => formatApiMessage(item))
+        .filter(Boolean)
+    : [];
+
+  return res.status(200).json(fallbackMessages);
+}
+
+async function getMessagesByConversationId(req, res) {
+  const { conversationId } = req.params;
+  const store = getStore(req);
+
+  try {
+    if (store?.databaseEnabled) {
+      const messages = await messageRepository.findByConversationId(conversationId);
+      const sortedMessages = normalizeMessagesForApi(messages);
+
+      return res.status(200).json(Array.isArray(sortedMessages) ? sortedMessages : []);
+    }
+
+    const memoryList = Array.isArray(store?.messages)
+      ? store.messages
+          .filter((entry) => String(entry?.conversationId || '') === String(conversationId || ''))
+          .map((entry) => formatApiMessage(entry))
+          .filter(Boolean)
+      : [];
+
+    return res.status(200).json(normalizeMessagesForApi(memoryList));
+  } catch (error) {
+    const safeFallback = Array.isArray(store?.messages)
+      ? store.messages
+          .filter((entry) => String(entry?.conversationId || '') === String(conversationId || ''))
+          .map((entry) => formatApiMessage(entry))
+          .filter(Boolean)
+      : [];
+
+    return res.status(200).json(normalizeMessagesForApi(safeFallback));
+  }
+}
+
+async function createMessage(req, res) {
+  const {
+    body,
+    companyId,
+    conversationId,
+    direction,
+    from,
+    mediaPath = null,
+    mediaType = null,
+    name,
+    phone,
+    sessionId,
+    timestamp,
+  } = req.body || {};
+  const store = getStore(req);
+  const requestedSessionId = getRequestedSessionId(req);
+  const normalizedPhone = whatsappService.normalizePhone(phone || from);
+  const resolvedText = body || req.body?.text || '';
+
+  if (!normalizedPhone || (!resolvedText && !mediaType)) {
+    return res.status(400).json({
+      error: 'The field phone and at least one of body/text or mediaType are required.',
+    });
+  }
+
+  if (!store.databaseEnabled) {
+    const fallbackConversationId = String(conversationId || `chat-${normalizedPhone}`);
+    const fallbackMessage = {
+      id: randomUUID(),
+      conversationId: fallbackConversationId,
+      content: String(resolvedText || ''),
+      createdAt: Date.now(),
+      fromMe: direction === 'outbound',
+      mediaPath,
+      mediaType,
+      phone: normalizedPhone,
+      sessionId: sessionId || requestedSessionId || sessionManager.DEFAULT_SESSION,
+      status: direction === 'outbound' ? 'sent' : 'received',
+      timestamp: timestamp ? new Date(timestamp).toISOString() : new Date().toISOString(),
+      type: mediaType || 'text',
+      url: buildMediaUrl(mediaPath || '') || null,
+    };
+
+    if (!Array.isArray(store.messages)) {
+      store.messages = [];
+    }
+
+    store.messages.push(fallbackMessage);
+
+    return res.status(200).json({
+      message: formatApiMessage(fallbackMessage),
+      success: true,
+    });
+  }
+
+  try {
+    let result;
+
+    if (direction === 'outbound') {
+      result = await registerOutgoingMessage(store, {
+        companyId,
+        mediaPath,
+        mediaType,
+        name: name || normalizedPhone,
+        phone: normalizedPhone,
+        sessionId: sessionId || requestedSessionId || sessionManager.DEFAULT_SESSION,
+        source: req.body?.source || 'human',
+        text: resolvedText,
+      });
+    } else {
+      result = await registerIncomingMessage(store, {
+        companyId,
+        conversationId,
+        externalMessageId: req.body?.id || null,
+        mediaPath,
+        mediaType,
+        name: name || normalizedPhone,
+        phone: normalizedPhone,
+        sessionId: sessionId || requestedSessionId || sessionManager.DEFAULT_SESSION,
+        text: resolvedText,
+        timestamp: timestamp ? new Date(timestamp).toISOString() : new Date().toISOString(),
+      });
+    }
+
+    const apiMessage = formatApiMessage(result?.message);
+
+    if (!apiMessage) {
+      return res.status(500).json({
+        error: 'Failed to persist message.',
+      });
+    }
+
+    emitInboxRealtimeEvent(req, apiMessage);
+
+    return res.status(200).json({
+      message: apiMessage,
+      success: true,
+    });
+  } catch (error) {
+    return res.status(500).json({
+      error: error.message || 'Failed to persist message.',
+      success: false,
+    });
+  }
+}
+
+/**
+ * GET /chats
+ * Returns the list of recent chat contacts from the in-memory store (falls back to conversations DB).
+ */
+async function getChats(req, res) {
+  const store = getStore(req);
+  const requestedSessionId = getRequestedSessionId(req);
+
+  // Try DB first when enabled
+  if (store?.databaseEnabled) {
+    try {
+      const dbConversations = await conversationRepository.listConversations(
+        req.query?.companyId || process.env.DEFAULT_COMPANY_ID || 'default',
+        Number(req.query?.limit) || 50,
+        {
+          sessionId: requestedSessionId,
+        }
+      );
+
+      if (Array.isArray(dbConversations) && dbConversations.length > 0) {
+        return res.status(200).json(dbConversations);
+      }
+    } catch (_err) {
+      // fall through to memory store
+    }
+  }
+
+  // Return from in-memory store
+  const memChats = messageStore
+    .getChats()
+    .filter((chat) => String(chat.sessionId || sessionManager.DEFAULT_SESSION) === requestedSessionId);
+  const normalized = memChats.map((chat) => ({
+    id: chat.id,
+    contactName: chat.name,
+    lastMessage: chat.lastMessage,
+    lastMessageType: 'text',
+    phone: chat.phone,
+    sessionId: chat.sessionId,
+    status: 'open',
+    tags: [],
+    unread: chat.unread || 0,
+    updatedAt: chat.lastMessageTimestamp || new Date().toISOString(),
+  }));
+
+  return res.status(200).json(normalized);
+}
+
+/**
+ * GET /chats/:chatId/messages
+ * Returns messages for a chatId (phone) from in-memory store (with DB fallback).
+ */
+async function getMessagesByChatId(req, res) {
+  const { chatId } = req.params;
+  const store = getStore(req);
+  const requestedSessionId = getRequestedSessionId(req);
+  const companyId = req.tenantId || req.companyId || req.query?.companyId || process.env.DEFAULT_COMPANY_ID || 'default';
+
+  try {
+    const messages = await loadMessagesForChat({
+      chatId,
+      companyId,
+      sessionId: requestedSessionId,
+      store,
+    });
+
+    return res.status(200).json(messages);
+  } catch (error) {
+    return res.status(500).json({
+      error: error.message || 'Failed to fetch chat messages.',
+    });
+  }
+}
+
+module.exports = {
+  createMessage,
+  extractIncomingMessage: whatsappService.extractIncomingMessage,
+  getChats,
+  getMessagesByChatId,
+  getMessagesByConversationId,
+  getMessagesByPhone,
+  listMessages,
+  receiveMessage,
+  registerIncomingMessage,
+  registerOutgoingMessage,
+  sendMedia,
+  sendMessage,
+};

@@ -1,0 +1,1 @@
+Generate WhatsApp session management code using Baileys with a Map-based session registry, stable session states, safe reconnect rules, and explicit cleanup for logout, websocket close, and folder removal.

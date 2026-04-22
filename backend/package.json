@@ -1,0 +1,31 @@
+{
+  "name": "zapai-backend",
+  "version": "1.0.0",
+  "private": true,
+  "description": "ZapAI CRM backend — Express + socket.io + PostgreSQL + Baileys (WhatsApp)",
+  "main": "server.js",
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js"
+  },
+  "dependencies": {
+    "@whiskeysockets/baileys": "6.7.21",
+    "axios": "1.13.6",
+    "cors": "2.8.6",
+    "docx": "9.6.1",
+    "dotenv": "16.6.1",
+    "express": "4.22.1",
+    "mammoth": "1.12.0",
+    "node-cron": "4.2.1",
+    "openai": "6.32.0",
+    "pg": "8.20.0",
+    "pino": "9.14.0",
+    "qrcode": "1.5.4",
+    "sharp": "0.34.5",
+    "socket.io": "4.8.3",
+    "winston": "3.19.0"
+  }
+}

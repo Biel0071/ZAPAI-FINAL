@@ -1,0 +1,1 @@
+Generate inbox persistence logic that creates leads, creates conversations, saves messages, updates last_message, and emits realtime events only after database persistence completes.

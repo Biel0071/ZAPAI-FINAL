@@ -1,0 +1,1 @@
+Generate campaign automation code that scans conversations, derives campaign eligibility, emits campaign snapshots, and keeps long-running jobs stoppable and isolated.

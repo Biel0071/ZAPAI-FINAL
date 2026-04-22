@@ -1,0 +1,21 @@
+const express = require('express');
+const router = express.Router();
+const messagesController = require('../controllers/messagesController');
+const outboundQueueController = require('../controllers/outboundQueueController');
+
+router.get('/messages', messagesController.listMessages);
+router.get('/chats', messagesController.getChats);
+router.get('/chats/:chatId/messages', messagesController.getMessagesByChatId);
+router.get('/messages/by-phone/:phone', messagesController.getMessagesByPhone);
+router.get('/messages/:chatId', messagesController.getMessagesByChatId);
+router.get('/conversations/:conversationId/messages', messagesController.getMessagesByConversationId);
+router.post('/messages', messagesController.createMessage);
+router.post('/send-message', messagesController.sendMessage);
+router.post('/send-media', messagesController.sendMedia);
+router.post('/receive-message', messagesController.receiveMessage);
+router.post('/outbound-queue/enqueue', outboundQueueController.enqueue);
+router.get('/outbound-queue/pending', outboundQueueController.listPending);
+router.get('/outbound-queue/dlq', outboundQueueController.listDeadLetter);
+router.post('/outbound-queue/dlq/:id/reprocess', outboundQueueController.reprocessDeadLetter);
+
+module.exports = router;
