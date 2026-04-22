@@ -64,18 +64,50 @@ fi
 # ── PM2 ──────────────────────────────────────────────────────
 section "PM2"
 if command -v pm2 &>/dev/null; then
-  PM2_STATUS=$(pm2 describe "$PM2_PROCESS" 2>/dev/null | grep -oP "status\s*\|\s*\K\w+" | head -1 || echo "not found")
+  # Use pm2 jlist (JSON) — reliable across all PM2 versions
+  # (pm2 describe uses Unicode box chars that grep -oP cannot match portably)
+  if command -v python3 &>/dev/null; then
+    # Write pm2 JSON to temp file so python3 can read it cleanly
+    pm2 jlist 2>/dev/null > /tmp/zapai_pm2.json || echo "[]" > /tmp/zapai_pm2.json
+    _PM2_INFO=$(python3 -c "
+import json
+name='$PM2_PROCESS'
+try:
+  procs=[p for p in json.load(open('/tmp/zapai_pm2.json')) if p.get('name')==name]
+  if procs:
+    env=procs[0].get('pm2_env',{})
+    st=env.get('status','unknown')
+    rs=str(env.get('restart_time',0))
+    mem=str(procs[0].get('monit',{}).get('memory',0))
+    print(st+'|'+rs+'|'+mem)
+  else:
+    print('not_found|0|0')
+except:
+  print('error|0|0')
+" 2>/dev/null || echo "unknown|0|0")
+    PM2_STATUS=$(echo "$_PM2_INFO"   | cut -d'|' -f1)
+    PM2_RESTARTS=$(echo "$_PM2_INFO" | cut -d'|' -f2)
+    _MEM_BYTES=$(echo "$_PM2_INFO"   | cut -d'|' -f3)
+    PM2_MEM_MB=$(( _MEM_BYTES / 1024 / 1024 ))
+  else
+    # Fallback: plain text list grep (less reliable but works)
+    PM2_STATUS=$(pm2 list 2>/dev/null | grep -i "$PM2_PROCESS" | \
+      grep -oE 'online|stopped|errored|launching' | head -1 || echo "unknown")
+    PM2_RESTARTS="?"; PM2_MEM_MB="?"
+  fi
+
   if [[ "$PM2_STATUS" == "online" ]]; then
     pass "$PM2_PROCESS : $PM2_STATUS"
-    RESTARTS=$(pm2 describe "$PM2_PROCESS" 2>/dev/null | grep -oP "↺ \K[0-9]+" || echo "?")
-    [[ "$RESTARTS" =~ ^[0-9]+$ ]] && [[ "$RESTARTS" -gt 10 ]] && \
-      warn "Restart count: $RESTARTS (possible crash loop)" || \
-      echo -e "  ${BLUE}i${RESET}  Restarts   : $RESTARTS"
   else
-    fail "$PM2_PROCESS : $PM2_STATUS"
+    fail "$PM2_PROCESS : ${PM2_STATUS} — run: pm2 start /tmp/zapai_ecosystem.js --env production"
   fi
-  UPTIME=$(pm2 describe "$PM2_PROCESS" 2>/dev/null | grep -oP "uptime\s*\|\s*\K[^\|]+" | head -1 | xargs || echo "?")
-  echo -e "  ${BLUE}i${RESET}  Uptime     : $UPTIME"
+
+  if [[ "$PM2_RESTARTS" =~ ^[0-9]+$ ]] && [[ "$PM2_RESTARTS" -gt 10 ]]; then
+    warn "Restart count: $PM2_RESTARTS (possible crash loop — check: pm2 logs $PM2_PROCESS)"
+  else
+    echo -e "  ${BLUE}i${RESET}  Restarts   : $PM2_RESTARTS"
+  fi
+  echo -e "  ${BLUE}i${RESET}  Memory     : ${PM2_MEM_MB} MB"
 else
   fail "pm2 not installed"
 fi

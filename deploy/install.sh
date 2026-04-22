@@ -87,7 +87,8 @@ step "4/10  PostgreSQL"
 DB_NAME="zapai_crm"
 DB_USER="zapai"
 # Generate a random password if database doesn't exist yet
-DB_PASS_FILE="/opt/zapai_db_password"
+# Keep password file inside project dir (gitignored) so it survives re-runs
+DB_PASS_FILE="$APP_DIR/.db_password"
 if [[ -f "$DB_PASS_FILE" ]]; then
   DB_PASS=$(cat "$DB_PASS_FILE")
   info "Reusing existing DB password from $DB_PASS_FILE"
@@ -167,14 +168,14 @@ fi
 # ── Step 6 — Backend dependencies ────────────────────────────
 step "6/10  Backend npm install"
 cd "$BACKEND_DIR"
-npm ci --omit=dev --no-audit --no-fund --prefer-offline 2>&1 | tail -3
+npm ci --omit=dev --no-audit --no-fund 2>&1 | tail -5
 ok "Backend dependencies installed"
 
 # ── Step 7 — Frontend build ───────────────────────────────────
 step "7/10  Frontend build"
 cd "$FRONTEND_DIR"
-npm ci --no-audit --no-fund --prefer-offline 2>&1 | tail -3
-npm run build 2>&1 | grep -E "built in|error|warning" | tail -5
+npm ci --no-audit --no-fund 2>&1 | tail -5
+npm run build 2>&1 | grep -E "built in|✓|error" | tail -5
 ok "Frontend built → $FRONTEND_DIR/dist"
 
 # ── Step 8 — Nginx ───────────────────────────────────────────
@@ -183,18 +184,20 @@ NGINX_SITE="/etc/nginx/sites-available/zapai"
 NGINX_ENABLED="/etc/nginx/sites-enabled/zapai"
 DIST_DIR="$FRONTEND_DIR/dist"
 
+# Always start with HTTP — certbot upgrades to HTTPS afterwards.
+# The deploy/nginx.conf (HTTPS) is only used after 'certbot --nginx'.
 if [[ -n "$DOMAIN" ]]; then
-  # HTTPS config (Certbot will fill cert paths later)
-  info "Installing HTTPS nginx config for $DOMAIN"
-  sed "s|YOUR_DOMAIN|$DOMAIN|g; s|/opt/zapai/frontend/dist|$DIST_DIR|g" \
-    "$DEPLOY_DIR/nginx.conf" > "$NGINX_SITE"
+  SERVER_NAME="$DOMAIN"
+  info "Installing HTTP nginx config for $DOMAIN (run certbot after for HTTPS)"
 else
-  # HTTP-only fallback (no domain)
-  info "Installing HTTP-only nginx config (no domain provided)"
-  cat > "$NGINX_SITE" <<NGINX
+  SERVER_NAME="_"
+  info "Installing HTTP-only nginx config (no domain — using server IP)"
+fi
+
+cat > "$NGINX_SITE" <<NGINX
 server {
-    listen 80 default_server;
-    server_name _;
+    listen 80$([ "$SERVER_NAME" = "_" ] && echo " default_server");
+    server_name $SERVER_NAME;
 
     root $DIST_DIR;
     index index.html;
@@ -217,8 +220,9 @@ server {
     location /auth/ {
         proxy_pass         http://127.0.0.1:$BACKEND_PORT;
         proxy_http_version 1.1;
-        proxy_set_header   Host \$host;
-        proxy_set_header   X-Real-IP \$remote_addr;
+        proxy_set_header   Host              \$host;
+        proxy_set_header   X-Real-IP         \$remote_addr;
+        proxy_set_header   X-Forwarded-For   \$proxy_add_x_forwarded_for;
     }
 
     location /system/ {
@@ -239,18 +243,21 @@ server {
         proxy_set_header        Upgrade    \$http_upgrade;
         proxy_set_header        Connection "upgrade";
         proxy_set_header        Host       \$host;
+        proxy_set_header        X-Real-IP  \$remote_addr;
         proxy_read_timeout      86400s;
+        proxy_send_timeout      86400s;
         proxy_buffering         off;
     }
 
     location /send-media {
         proxy_pass           http://127.0.0.1:$BACKEND_PORT;
         proxy_http_version   1.1;
+        proxy_set_header     Host \$host;
         client_max_body_size 25M;
         proxy_read_timeout   60s;
     }
 
-    location ~* \.(js|css|woff2|woff|png|ico|svg|webp)$ {
+    location ~* \.(js|css|woff2|woff|ttf|png|ico|svg|webp)$ {
         expires 30d;
         add_header Cache-Control "public, immutable";
     }
@@ -260,7 +267,6 @@ server {
     gzip_min_length 1000;
 }
 NGINX
-fi
 
 # Remove default site
 rm -f /etc/nginx/sites-enabled/default
@@ -289,9 +295,11 @@ else
 fi
 
 pm2 save
-# Register PM2 to start on boot
-pm2 startup systemd -u "$(logname 2>/dev/null || echo root)" --hp "/root" | \
-  grep "^sudo" | bash || true
+# Register PM2 to start on boot (works for root and sudo users)
+PM2_USER="${SUDO_USER:-$(whoami)}"
+PM2_HOME=$(getent passwd "$PM2_USER" | cut -d: -f6 2>/dev/null || echo "/root")
+pm2 startup systemd -u "$PM2_USER" --hp "$PM2_HOME" 2>&1 | \
+  grep -E "^sudo|^env " | bash || true
 
 ok "PM2 process '$PM2_PROCESS' running"
 
@@ -325,11 +333,11 @@ echo "  ╔═══════════════════════
 echo "  ║   ✓  ZapAI CRM DEPLOYED SUCCESSFULLY                  ║"
 echo "  ╚═══════════════════════════════════════════════════════╝"
 echo -e "${RESET}"
-echo -e "  ${BOLD}Access URLs:${RESET}"
+echo -e "  ${BOLD}Access URLs (HTTP — active now):${RESET}"
 if [[ -n "$DOMAIN" ]]; then
-  echo "    Frontend  → https://$DOMAIN"
-  echo "    API       → https://$DOMAIN/api"
-  echo "    Health    → https://$DOMAIN/health"
+  echo "    Frontend  → http://$DOMAIN"
+  echo "    API       → http://$DOMAIN/api"
+  echo "    Health    → http://$DOMAIN/health"
 else
   echo "    Frontend  → http://$SERVER_IP"
   echo "    API       → http://$SERVER_IP/api"
@@ -342,15 +350,19 @@ echo -e "  ${BOLD}Backend logs:${RESET}    pm2 logs $PM2_PROCESS"
 echo ""
 echo -e "  ${BOLD}Default login:${RESET}"
 echo "    User     : admin"
-echo "    Password : admin123  ← CHANGE THIS in backend/.env"
+echo "    Password : admin123"
+echo -e "  ${RED}  ⚠  Change password: edit $BACKEND_DIR/.env → AUTH_DEFAULT_PASSWORD${RESET}"
 echo ""
 if [[ -n "$DOMAIN" ]]; then
-  echo -e "  ${YELLOW}${BOLD}Next step — enable HTTPS:${RESET}"
+  echo -e "  ${YELLOW}${BOLD}Next — enable HTTPS (recommended):${RESET}"
   echo "    apt install certbot python3-certbot-nginx"
   echo "    certbot --nginx -d $DOMAIN"
+  echo "    # Certbot auto-configures nginx for HTTPS + auto-renew"
   echo ""
 fi
-echo -e "  ${BOLD}Update later:${RESET}    bash $DEPLOY_DIR/update.sh"
-echo -e "  ${BOLD}Rollback:${RESET}        bash $DEPLOY_DIR/rollback.sh"
-echo -e "  ${BOLD}Health check:${RESET}    bash $DEPLOY_DIR/check.sh"
+echo -e "  ${BOLD}Commands:${RESET}"
+echo -e "    Update   → bash $DEPLOY_DIR/update.sh"
+echo -e "    Rollback → bash $DEPLOY_DIR/rollback.sh"
+echo -e "    Status   → bash $DEPLOY_DIR/check.sh"
+echo -e "    Logs     → pm2 logs $PM2_PROCESS --lines 50"
 echo ""

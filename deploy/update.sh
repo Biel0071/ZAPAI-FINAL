@@ -65,14 +65,14 @@ fi
 # ── Step 2 — Backend deps ────────────────────────────────────
 step "2/5  Backend npm install"
 cd "$BACKEND_DIR"
-npm ci --omit=dev --no-audit --no-fund --prefer-offline 2>&1 | tail -3
+npm ci --omit=dev --no-audit --no-fund 2>&1 | tail -5
 ok "Backend dependencies ready"
 
 # ── Step 3 — Frontend build ──────────────────────────────────
 step "3/5  Frontend build"
 cd "$FRONTEND_DIR"
-npm ci --no-audit --no-fund --prefer-offline 2>&1 | tail -3
-npm run build 2>&1 | grep -E "built in|error" | tail -5
+npm ci --no-audit --no-fund 2>&1 | tail -5
+npm run build 2>&1 | grep -E "built in|✓|error" | tail -5
 ok "Frontend built → $FRONTEND_DIR/dist"
 
 # ── Step 4 — PM2 reload ──────────────────────────────────────
