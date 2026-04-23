@@ -337,13 +337,13 @@ export default function Dashboard() {
   }, [runtimeState, sessionState]);
 
   const resolveMetricValue = useCallback((key: string) => {
-    if (!metricsSnapshot) return undefined;
+    if (!metricsSnapshot || runtimeState !== "running") return 0;
     if (key === "responseTimeSeconds") {
       const s = metricsSnapshot.responseTimeSeconds;
-      return typeof s === "number" ? `${Math.floor(s / 60)}m ${Math.round(s % 60)}s` : undefined;
+      return typeof s === "number" ? `${Math.floor(s / 60)}m ${Math.round(s % 60)}s` : 0;
     }
-    return (metricsSnapshot as Record<string, unknown>)[key] as number | undefined;
-  }, [metricsSnapshot]);
+    return (metricsSnapshot as Record<string, unknown>)[key] as number | 0;
+  }, [metricsSnapshot, runtimeState]);
 
   const runtimeDotClass = runtimeState === "running" ? "text-success" : runtimeState === "starting" ? "text-warning" : "text-destructive";
   const runtimeLabel = runtimeState === "running" ? "Online" : runtimeState === "starting" ? "Iniciando..." : "Offline";

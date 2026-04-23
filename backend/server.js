@@ -68,7 +68,9 @@ function buildHealthPayload() {
   const whatsappConnected = String(session?.status || '').toLowerCase() === 'connected';
   const uptimeSec = process.uptime();
   const mem = process.memoryUsage();
-  const overallStatus = databaseOnline ? 'healthy' : 'degraded';
+  
+  // Standardized status: online, offline, degraded
+  const overallStatus = databaseOnline && whatsappConnected ? 'online' : (databaseOnline ? 'degraded' : 'offline');
 
   return {
     status: overallStatus,
@@ -81,7 +83,7 @@ function buildHealthPayload() {
     },
     api: 'online',
     whatsapp: {
-      status: whatsappConnected ? 'connected' : 'disconnected',
+      status: whatsappConnected ? 'online' : 'offline',
       sessionStatus: session?.status || 'unknown',
     },
     uptime: formatUptime(uptimeSec),
