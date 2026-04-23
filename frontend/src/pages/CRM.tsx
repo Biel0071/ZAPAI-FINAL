@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { motion } from "framer-motion";
 import {
   MagnifyingGlass,
@@ -61,7 +61,35 @@ const stages = [
   { id: "closed", name: "Fechados", color: "bg-success" },
 ];
 
-function inferLeadStage(conversation: Conversation): Lead["stage"] {
+const CRM_DATA_REFRESH_MS = 20_000;
+const SYSTEM_STATUS_REFRESH_MS = 20_000;
+const DIAGNOSTICS_REFRESH_MS = 20_000;
+const SESSION_STATUS_REFRESH_MS = 30_000;
+const LEADS_PER_STAGE_PAGE = 20;
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === "object";
+}
+
+function normalizeConversationsPayload(payload: unknown): unknown[] {
+  if (Array.isArray(payload)) {
+    return payload.filter((entry) => isRecord(entry));
+  }
+
+  if (!isRecord(payload)) {
+    return [];
+  }
+
+  const nestedCandidates = [payload.data, payload.items, payload.results, payload.conversations];
+  const nestedList = nestedCandidates.find((candidate) => Array.isArray(candidate));
+  if (Array.isArray(nestedList)) {
+    return nestedList.filter((entry) => isRecord(entry));
+  }
+
+  return [];
+}
+
+function inferLeadStage(conversation: Partial<Conversation>): Lead["stage"] {
   const normalizedLast = (conversation.lastMessage ?? "").toLowerCase();
   if (normalizedLast.includes("fechado") || normalizedLast.includes("confirmado")) return "closed";
   if ((conversation.unread ?? 0) > 3) return "contacted";
@@ -70,17 +98,22 @@ function inferLeadStage(conversation: Conversation): Lead["stage"] {
   return "new";
 }
 
-function mapConversationsToLeads(conversations: Conversation[]): Lead[] {
-  return conversations.map((conversation, index) => {
-    const digits = (conversation.phone ?? "").replace(/\D/g, "");
-    const fallbackName = conversation.contactName || (digits ? `Lead ${digits.slice(-4)}` : `Lead ${index + 1}`);
-    const deterministicScore = Math.max(35, Math.min(100, 45 + (conversation.unread ?? 0) * 8));
+function mapConversationsToLeads(conversations: unknown): Lead[] {
+  const safeConversations = normalizeConversationsPayload(conversations);
+
+  return safeConversations.map((conversation, index) => {
+    const safeConversation = isRecord(conversation) ? (conversation as Partial<Conversation> & Record<string, unknown>) : {};
+    const digits = (safeConversation.phone ?? "").replace(/\D/g, "");
+    const fallbackName = safeConversation.contactName || (digits ? `Lead ${digits.slice(-4)}` : `Lead ${index + 1}`);
+    const deterministicScore = Math.max(35, Math.min(100, 45 + (safeConversation.unread ?? 0) * 8));
+    const lastContactRaw = new Date(safeConversation.updatedAt).toLocaleString("pt-BR");
+    const lastContact = lastContactRaw === "Invalid Date" ? "Sem data" : lastContactRaw;
 
     return {
-      id: conversation.id,
+      id: safeConversation.id,
       name: fallbackName,
       email: "",
-      phone: conversation.phone,
+      phone: safeConversation.phone ?? "",
       company: undefined,
       avatar: fallbackName
         .split(" ")
@@ -88,10 +121,10 @@ function mapConversationsToLeads(conversations: Conversation[]): Lead[] {
         .slice(0, 2)
         .map((part) => part[0]?.toUpperCase() ?? "")
         .join("") || "LD",
-      stage: inferLeadStage(conversation),
+      stage: inferLeadStage(safeConversation),
       value: undefined,
-      tags: conversation.tags && conversation.tags.length > 0 ? conversation.tags : ["WhatsApp"],
-      lastContact: new Date(conversation.updatedAt).toLocaleString("pt-BR"),
+      tags: safeConversation.tags && safeConversation.tags.length > 0 ? safeConversation.tags : ["WhatsApp"],
+      lastContact,
       score: deterministicScore,
     };
   });
@@ -99,6 +132,8 @@ function mapConversationsToLeads(conversations: Conversation[]): Lead[] {
 
 function resolveAIEnabled(status: AIStatusResponse | null): boolean {
   if (!status) return false;
+  const rawStatus = status as AIStatusResponse & Record<string, unknown>;
+  if (typeof rawStatus.ai === "boolean") return rawStatus.ai;
   if (typeof status.enabled === "boolean") return status.enabled;
   if (typeof status.active === "boolean") return status.active;
   if (typeof status.status === "string") {
@@ -179,7 +214,8 @@ function extractSystemWidgetStatus(raw: Record<string, unknown>, keys: string[])
     }
 
     if (typeof value === "boolean") return value ? "active" : "offline";
-    if (typeof value === "string" || typeof value === "number") return normalizeSystemWidgetStatus(value);
+    if (typeof value === "number") return value > 0 ? "active" : "offline";
+    if (typeof value === "string") return normalizeSystemWidgetStatus(value);
     if (value && typeof value === "object") {
       const nested = value as Record<string, unknown>;
       const nestedCandidate = nested.status ?? nested.state ?? nested.connected ?? nested.active;
@@ -192,10 +228,10 @@ function extractSystemWidgetStatus(raw: Record<string, unknown>, keys: string[])
 function buildSystemWidgetState(raw: Record<string, unknown>): SystemWidgetState {
   return {
     whatsapp: extractSystemWidgetStatus(raw, ["whatsapp", "whatsappStatus", "whatsapp_status", "sessions", "sessionStatus"]),
-    database: extractSystemWidgetStatus(raw, ["database", "db", "postgres", "postgresql"]),
-    aiEngine: extractSystemWidgetStatus(raw, ["aiEngine", "ai", "ai_status", "llm", "engine"]),
-    runtime: extractSystemWidgetStatus(raw, ["runtime", "system", "systemStatus", "service", "status"]),
-    inboxSocket: extractSystemWidgetStatus(raw, ["socket", "socketIo", "socket_io", "inboxSocket", "realtime"]),
+    database: extractSystemWidgetStatus(raw, ["database", "databaseStatus", "db", "postgres", "postgresql"]),
+    aiEngine: extractSystemWidgetStatus(raw, ["aiEngine", "aiEngineStatus", "ai", "ai_status", "llm", "engine"]),
+    runtime: extractSystemWidgetStatus(raw, ["runtime", "runtimeActive", "system", "systemStatus", "service", "status"]),
+    inboxSocket: extractSystemWidgetStatus(raw, ["socket", "socketConnections", "socketIo", "socket_io", "inboxSocket", "realtime"]),
   };
 }
 
@@ -244,6 +280,17 @@ export default function CRM() {
   const [isSystemLoading, setIsSystemLoading] = useState(true);
   const [isSystemActionLoading, setIsSystemActionLoading] = useState(false);
   const [crmLoadError, setCrmLoadError] = useState<string | null>(null);
+  const [isCrmDataLoading, setIsCrmDataLoading] = useState(true);
+  const [sessions, setSessions] = useState<SessionInfo[]>([]);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [stageFilter, setStageFilter] = useState<Lead["stage"] | "all">("all");
+  const [stagePages, setStagePages] = useState<Record<Lead["stage"], number>>({
+    new: 1,
+    contacted: 1,
+    qualified: 1,
+    proposal: 1,
+    closed: 1,
+  });
   const [systemWidgetState, setSystemWidgetState] = useState<SystemWidgetState>({
     whatsapp: "offline",
     database: "offline",
@@ -255,6 +302,55 @@ export default function CRM() {
   const isLoadingSystemStatusRef = useRef(false);
   const isLoadingDiagnosticsRef = useRef(false);
   const isLoadingSessionStatusRef = useRef(false);
+
+  const safeLeads = useMemo(() => (Array.isArray(leads) ? leads : []), [leads]);
+  const safeSearchQuery = searchQuery.trim().toLowerCase();
+
+  const filteredLeads = useMemo(() => {
+    return safeLeads.filter((lead) => {
+      if (stageFilter !== "all" && lead.stage !== stageFilter) return false;
+      if (!safeSearchQuery) return true;
+
+      const leadName = String(lead.name ?? "").toLowerCase();
+      const leadPhone = String(lead.phone ?? "").toLowerCase();
+      const leadCompany = String(lead.company ?? "").toLowerCase();
+      const leadTags = (Array.isArray(lead.tags) ? lead.tags : []).join(" ").toLowerCase();
+
+      return (
+        leadName.includes(safeSearchQuery) ||
+        leadPhone.includes(safeSearchQuery) ||
+        leadCompany.includes(safeSearchQuery) ||
+        leadTags.includes(safeSearchQuery)
+      );
+    });
+  }, [safeLeads, safeSearchQuery, stageFilter]);
+
+  const leadsByStage = useMemo(() => {
+    return stages.reduce<Record<Lead["stage"], Lead[]>>(
+      (accumulator, stage) => {
+        const stageId = stage.id as Lead["stage"];
+        accumulator[stageId] = filteredLeads.filter((lead) => lead.stage === stageId);
+        return accumulator;
+      },
+      {
+        new: [],
+        contacted: [],
+        qualified: [],
+        proposal: [],
+        closed: [],
+      },
+    );
+  }, [filteredLeads]);
+
+  useEffect(() => {
+    setStagePages({
+      new: 1,
+      contacted: 1,
+      qualified: 1,
+      proposal: 1,
+      closed: 1,
+    });
+  }, [safeSearchQuery, stageFilter]);
 
   useEffect(() => {
     let isMounted = true;
@@ -268,7 +364,7 @@ export default function CRM() {
 
         if (!isMounted) return;
         setIsAIEnabled(resolveAIEnabled(status));
-        setPublicApiUrl(publicUrlData.publicUrl?.trim() || null);
+        setPublicApiUrl(typeof publicUrlData.publicUrl === "string" ? publicUrlData.publicUrl.trim() || null : null);
         setCrmLoadError(null);
       } catch (error) {
         console.error("Erro ao carregar configuração do CRM:", error);
@@ -286,6 +382,10 @@ export default function CRM() {
       }
 
       isRefreshingPersistentDataRef.current = true;
+      if (isMounted) {
+        setIsCrmDataLoading((prev) => (forceRefresh ? prev : true));
+      }
+
       try {
         const [sessions, conversations] = await Promise.all([
           apiService.listSessions(),
@@ -295,15 +395,18 @@ export default function CRM() {
         if (!isMounted) return;
 
         const safeSessions = Array.isArray(sessions) ? sessions : [];
+        const safeConversations = normalizeConversationsPayload(conversations);
         const currentSession =
           safeSessions.find((session) => session.connected || ["connected", "online", "active", "open"].includes((session.status ?? "").toLowerCase())) ??
           safeSessions[0] ??
           null;
 
         const nextActiveSession = currentSession?.id ?? null;
-        const nextLeads = mapConversationsToLeads(Array.isArray(conversations) ? conversations : []);
+        const nextLeads = mapConversationsToLeads(safeConversations);
 
+        setSessions(safeSessions);
         setActiveSession((prev) => (prev === nextActiveSession ? prev : nextActiveSession));
+        setConnectionStatus(resolveWhatsappStatus(safeSessions));
         setLeads((prev) => (areLeadsEqual(prev, nextLeads) ? prev : nextLeads));
         setCrmLoadError(null);
       } catch (error) {
@@ -312,6 +415,9 @@ export default function CRM() {
           setCrmLoadError("Não foi possível atualizar o CRM agora. Tentando novamente automaticamente.");
         }
       } finally {
+        if (isMounted) {
+          setIsCrmDataLoading(false);
+        }
         isRefreshingPersistentDataRef.current = false;
       }
     };
@@ -321,7 +427,7 @@ export default function CRM() {
 
     const intervalId = window.setInterval(() => {
       void loadPersistentData(true);
-    }, 10_000);
+    }, CRM_DATA_REFRESH_MS);
 
     return () => {
       isMounted = false;
@@ -359,7 +465,7 @@ export default function CRM() {
 
     const intervalId = window.setInterval(() => {
       void loadSystemStatus();
-    }, 10_000);
+    }, SYSTEM_STATUS_REFRESH_MS);
 
     return () => {
       isMounted = false;
@@ -384,7 +490,8 @@ export default function CRM() {
       try {
         const diagnostics = await systemControlService.getDiagnostics(publicApiUrl);
         if (cancelled) return;
-        const raw = diagnostics && typeof diagnostics === "object" ? (diagnostics as Record<string, unknown>) : {};
+        const payload = diagnostics && typeof diagnostics === "object" ? (diagnostics as Record<string, unknown>) : {};
+        const raw = payload.data && typeof payload.data === "object" ? (payload.data as Record<string, unknown>) : payload;
         const nextWidgetState = buildSystemWidgetState(raw);
         setSystemWidgetState((prev) =>
           prev.whatsapp === nextWidgetState.whatsapp &&
@@ -415,7 +522,7 @@ export default function CRM() {
     void loadDiagnostics();
     const intervalId = window.setInterval(() => {
       void loadDiagnostics();
-    }, 10_000);
+    }, DIAGNOSTICS_REFRESH_MS);
 
     return () => {
       cancelled = true;
@@ -428,6 +535,10 @@ export default function CRM() {
 
     const loadSessionStatus = async () => {
       if (isLoadingSessionStatusRef.current) {
+        return;
+      }
+
+      if (connectionStatus === "online") {
         return;
       }
 
@@ -452,13 +563,13 @@ export default function CRM() {
     void loadSessionStatus();
     const intervalId = window.setInterval(() => {
       void loadSessionStatus();
-    }, 15_000);
+    }, SESSION_STATUS_REFRESH_MS);
 
     return () => {
       isMounted = false;
       window.clearInterval(intervalId);
     };
-  }, []);
+  }, [connectionStatus]);
 
   const handleAIToggle = async () => {
     if (isAIToggling || isAIStatusLoading) return;
@@ -550,14 +661,6 @@ export default function CRM() {
     }
   };
 
-  const getLeadsByStage = (stageId: string) => {
-    return leads.filter((lead) => lead.stage === stageId);
-  };
-
-  const getTotalValue = (stageId: string) => {
-    return getLeadsByStage(stageId).reduce((sum, lead) => sum + (lead.value || 0), 0);
-  };
-
   return (
     <div className="min-h-screen">
       <Header title="CRM" subtitle="Gerencie seus leads e oportunidades" />
@@ -574,7 +677,7 @@ export default function CRM() {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm text-muted-foreground">Total de Leads</p>
-                  <h3 className="text-2xl font-bold font-display">{leads.length}</h3>
+                  <h3 className="text-2xl font-bold font-display">{filteredLeads.length}</h3>
                 </div>
                 <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
                   <User weight="duotone" className="w-5 h-5 text-primary" />
@@ -589,7 +692,7 @@ export default function CRM() {
                 <div>
                   <p className="text-sm text-muted-foreground">Valor Total</p>
                   <h3 className="text-2xl font-bold font-display">
-                    R$ {leads.reduce((sum, l) => sum + (l.value || 0), 0).toLocaleString()}
+                    R$ {filteredLeads.reduce((sum, l) => sum + (l.value || 0), 0).toLocaleString()}
                   </h3>
                 </div>
                 <div className="w-10 h-10 rounded-xl bg-success/10 flex items-center justify-center">
@@ -619,7 +722,7 @@ export default function CRM() {
                 <div>
                   <p className="text-sm text-muted-foreground">Ticket Médio</p>
                   <h3 className="text-2xl font-bold font-display">
-                    R$ {Math.round(leads.reduce((sum, l) => sum + (l.value || 0), 0) / Math.max(leads.length, 1)).toLocaleString()}
+                    R$ {Math.round(filteredLeads.reduce((sum, l) => sum + (l.value || 0), 0) / Math.max(filteredLeads.length, 1)).toLocaleString()}
                   </h3>
                 </div>
                 <div className="w-10 h-10 rounded-xl bg-warning/10 flex items-center justify-center">
@@ -694,7 +797,7 @@ export default function CRM() {
                 );
               })}
             </div>
-            <p className="mt-3 text-xs text-muted-foreground">Atualiza automaticamente a cada 10 segundos via GET /diagnostics.</p>
+            <p className="mt-3 text-xs text-muted-foreground">Atualiza automaticamente a cada 20 segundos via GET /diagnostics.</p>
           </CardContent>
         </Card>
 
@@ -703,12 +806,30 @@ export default function CRM() {
           <div className="flex items-center gap-3">
             <div className="relative">
               <MagnifyingGlass className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-              <Input placeholder="Buscar leads..." className="w-64 pl-9" />
+              <Input
+                placeholder="Buscar leads..."
+                className="w-64 pl-9"
+                value={searchQuery}
+                onChange={(event) => setSearchQuery(event.target.value)}
+              />
             </div>
-            <Button variant="outline" className="gap-2">
-              <FunnelSimple className="w-4 h-4" />
-              Filtros
-            </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" className="gap-2">
+                  <FunnelSimple className="w-4 h-4" />
+                  {stageFilter === "all" ? "Todos os estágios" : stages.find((stage) => stage.id === stageFilter)?.name ?? "Filtro"}
+                  <CaretDown className="h-3.5 w-3.5" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start">
+                <DropdownMenuItem onClick={() => setStageFilter("all")}>Todos os estágios</DropdownMenuItem>
+                {stages.map((stage) => (
+                  <DropdownMenuItem key={`filter-${stage.id}`} onClick={() => setStageFilter(stage.id as Lead["stage"])}>
+                    {stage.name}
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
           <div className="flex items-center gap-2 flex-wrap">
             <Badge variant="secondary" className="text-xs">
@@ -788,23 +909,39 @@ export default function CRM() {
 
         {/* Kanban board */}
         <div className="flex gap-4 overflow-x-auto pb-4">
-          {stages.map((stage) => (
+          {stages.map((stage) => {
+            const stageId = stage.id as Lead["stage"];
+            const stageLeads = leadsByStage[stageId] ?? [];
+            const currentPage = stagePages[stageId] ?? 1;
+            const visibleLeads = stageLeads.slice(0, currentPage * LEADS_PER_STAGE_PAGE);
+            const hasMoreLeads = stageLeads.length > visibleLeads.length;
+
+            return (
             <div key={stage.id} className="crm-stage min-w-[300px]">
               <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-2">
                   <div className={cn("w-3 h-3 rounded-full", stage.color)} />
                   <h3 className="font-semibold">{stage.name}</h3>
                   <Badge variant="secondary" className="text-xs">
-                    {getLeadsByStage(stage.id).length}
+                    {stageLeads.length}
                   </Badge>
                 </div>
                 <span className="text-sm text-muted-foreground">
-                  R$ {getTotalValue(stage.id).toLocaleString()}
+                  R$ {stageLeads.reduce((sum, lead) => sum + (lead.value || 0), 0).toLocaleString()}
                 </span>
               </div>
 
               <div className="space-y-3">
-                {getLeadsByStage(stage.id).map((lead, index) => (
+                {isCrmDataLoading && visibleLeads.length === 0 ? (
+                  <Card className="border-dashed">
+                    <CardContent className="py-6 text-center text-sm text-muted-foreground">Carregando leads...</CardContent>
+                  </Card>
+                ) : visibleLeads.length === 0 ? (
+                  <Card className="border-dashed">
+                    <CardContent className="py-6 text-center text-sm text-muted-foreground">Nenhum lead neste estágio.</CardContent>
+                  </Card>
+                ) : (
+                  visibleLeads.map((lead, index) => (
                   <motion.div
                     key={lead.id}
                     initial={{ opacity: 0, y: 10 }}
@@ -865,7 +1002,7 @@ export default function CRM() {
                     )}
 
                     <div className="flex items-center gap-1.5 mb-3">
-                      {lead.tags.map((tag) => (
+                      {(Array.isArray(lead.tags) ? lead.tags : []).map((tag) => (
                         <Badge
                           key={tag}
                           variant="secondary"
@@ -908,10 +1045,27 @@ export default function CRM() {
                       </div>
                     </div>
                   </motion.div>
-                ))}
+                ))
+                )}
+
+                {hasMoreLeads && (
+                  <Button
+                    variant="outline"
+                    className="w-full"
+                    onClick={() =>
+                      setStagePages((prev) => ({
+                        ...prev,
+                        [stageId]: (prev[stageId] ?? 1) + 1,
+                      }))
+                    }
+                  >
+                    Mostrar mais ({stageLeads.length - visibleLeads.length})
+                  </Button>
+                )}
               </div>
             </div>
-          ))}
+          );
+          })}
         </div>
 
         <Dialog open={showQrModal} onOpenChange={setShowQrModal}>
