@@ -119,7 +119,7 @@ const IS_PRODUCTION = runtimeEnv.isProduction;
 const IS_DEVELOPMENT = NODE_ENV === 'development';
 const RUN_MIGRATIONS_ON_BOOT = runtimeEnv.runMigrationsOnBoot;
 const FRONTEND_URL = runtimeEnv.frontendUrl;
-const ENV_ALLOWED_ORIGINS = runtimeEnv.allowedOriginsFromEnv;
+const ENV_ALLOWED_ORIGINS = runtimeEnv.allowedOriginsFromEnv || process.env.ALLOWED_ORIGINS?.split(',') || [];
 const BASE_ALLOWED_ORIGINS = [
   'https://swift-wa-assist.lovable.app',
   'http://localhost:8080',
@@ -144,12 +144,25 @@ function getAllowedOrigins() {
 }
 
 function isOriginAllowed(origin) {
-  if (!origin || !IS_PRODUCTION) {
+  // Allow requests with no origin (same-origin, mobile apps, curl, etc.)
+  if (!origin) {
     return true;
   }
 
+  // In development, allow all origins
+  if (!IS_PRODUCTION) {
+    return true;
+  }
+
+  // In production, check against allowed origins
   const allowedOrigins = new Set(getAllowedOrigins());
-  return allowedOrigins.has(origin);
+  const isAllowed = allowedOrigins.has(origin);
+
+  if (!isAllowed) {
+    console.warn(`[CORS] Origin blocked: ${origin}. Allowed origins:`, Array.from(allowedOrigins));
+  }
+
+  return isAllowed;
 }
 
 function validateOrigin(origin, callback) {
