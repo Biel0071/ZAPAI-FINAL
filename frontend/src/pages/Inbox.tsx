@@ -63,7 +63,11 @@ const MAX_PERSISTED_MESSAGES_PER_CHAT = 200;
 const MAX_MEDIA_UPLOAD_BYTES = 10 * 1024 * 1024;
 const RUNTIME_RECONNECTED_EVENT = "runtime:reconnected";
 const ARCHIVED_CHATS_STORAGE_KEY = "zapai_inbox_archived_chats";
-const BACKEND_BASE_URL = ((import.meta.env.VITE_API_URL as string | undefined)?.trim().replace(/\/$/, "") || "http://localhost:4025");
+
+// Use relative URL for production (same origin)
+const BACKEND_BASE_URL = import.meta.env.MODE === 'production'
+  ? ''
+  : ((import.meta.env.VITE_API_URL as string | undefined)?.trim().replace(/\/$/, "") || "http://localhost:4025");
 
 function isSessionActive(session: SessionInfo): boolean {
   const normalizedStatus = (session.status ?? "").toLowerCase();

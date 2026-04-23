@@ -12,8 +12,15 @@ import { getFrontendHealthSnapshot, subscribeFrontendHealth, type FrontendHealth
 import { slog, type StructuredLogEntry } from "@/lib/structuredLogger";
 import { useToast } from "@/hooks/use-toast";
 
-const SYSTEM_API_BASE_URL = (import.meta.env.VITE_WHATSAPP_API_BASE_URL as string | undefined)?.trim().replace(/\/$/, "") || (import.meta.env.VITE_API_URL as string | undefined)?.trim().replace(/\/$/, "") || "http://localhost:4025";
-const API_BASE_URL = `${(import.meta.env.VITE_API_URL as string | undefined)?.trim().replace(/\/$/, "") || "http://localhost:4025"}/api`;
+// Use relative URL for production (same origin)
+const SYSTEM_API_BASE_URL = import.meta.env.MODE === 'production'
+  ? ''
+  : ((import.meta.env.VITE_WHATSAPP_API_BASE_URL as string | undefined)?.trim().replace(/\/$/, "") ||
+     (import.meta.env.VITE_API_URL as string | undefined)?.trim().replace(/\/$/, "") ||
+     "http://localhost:4025");
+const API_BASE_URL = import.meta.env.MODE === 'production'
+  ? '/api'
+  : `${(import.meta.env.VITE_API_URL as string | undefined)?.trim().replace(/\/$/, "") || "http://localhost:4025"}/api`;
 
 type HealthLevel = "healthy" | "warning" | "error";
 

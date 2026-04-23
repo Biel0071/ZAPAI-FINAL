@@ -5,10 +5,13 @@ export type ErrorLogPayload = {
 };
 
 const DEFAULT_TARGET_API_URL = (import.meta.env.VITE_API_URL as string | undefined)?.trim().replace(/\/$/, "") || "http://localhost:4025";
-const TARGET_API_URL =
-  (import.meta.env.VITE_WHATSAPP_API_BASE_URL as string | undefined)?.trim().replace(/\/$/, "") ||
-  ((import.meta.env as Record<string, string | undefined>).TARGET_API_URL ?? "").trim().replace(/\/$/, "") ||
-  DEFAULT_TARGET_API_URL;
+
+// Use relative URL for production (same origin)
+const TARGET_API_URL = import.meta.env.MODE === 'production'
+  ? ''
+  : ((import.meta.env.VITE_WHATSAPP_API_BASE_URL as string | undefined)?.trim().replace(/\/$/, "") ||
+     ((import.meta.env as Record<string, string | undefined>).TARGET_API_URL ?? "").trim().replace(/\/$/, "") ||
+     DEFAULT_TARGET_API_URL);
 const SYSTEM_API_BASE_URL = (() => {
   try {
     return new URL(TARGET_API_URL).origin;
