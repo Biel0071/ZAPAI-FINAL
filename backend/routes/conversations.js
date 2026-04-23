@@ -4,6 +4,8 @@ const conversationsController = require('../controllers/conversationsController'
 
 router.post('/conversations', conversationsController.createConversation);
 router.get('/conversations', conversationsController.getConversations);
+router.get('/inbox', conversationsController.getConversations);
+router.get('/crm', conversationsController.getConversations);
 router.get('/conversations/:conversationId/messages', conversationsController.getConversationMessages);
 router.get('/conversations/:conversationId/insights', conversationsController.getConversationInsights);
 router.get('/conversations/:conversationId/runtime', conversationsController.getConversationRuntime);

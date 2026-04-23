@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { motion } from "framer-motion";
 import {
   MagnifyingGlass,
@@ -243,6 +243,7 @@ export default function CRM() {
   const [systemStatus, setSystemStatus] = useState<SystemControlStatus>("inactive");
   const [isSystemLoading, setIsSystemLoading] = useState(true);
   const [isSystemActionLoading, setIsSystemActionLoading] = useState(false);
+  const [crmLoadError, setCrmLoadError] = useState<string | null>(null);
   const [systemWidgetState, setSystemWidgetState] = useState<SystemWidgetState>({
     whatsapp: "offline",
     database: "offline",
@@ -250,6 +251,10 @@ export default function CRM() {
     runtime: "offline",
     inboxSocket: "offline",
   });
+  const isRefreshingPersistentDataRef = useRef(false);
+  const isLoadingSystemStatusRef = useRef(false);
+  const isLoadingDiagnosticsRef = useRef(false);
+  const isLoadingSessionStatusRef = useRef(false);
 
   useEffect(() => {
     let isMounted = true;
@@ -264,14 +269,23 @@ export default function CRM() {
         if (!isMounted) return;
         setIsAIEnabled(resolveAIEnabled(status));
         setPublicApiUrl(publicUrlData.publicUrl?.trim() || null);
+        setCrmLoadError(null);
       } catch (error) {
         console.error("Erro ao carregar configuração do CRM:", error);
+        if (isMounted) {
+          setCrmLoadError("Falha ao carregar dados do CRM. Verifique a conexão com o backend.");
+        }
       } finally {
         if (isMounted) setIsAIStatusLoading(false);
       }
     };
 
     const loadPersistentData = async (forceRefresh: boolean) => {
+      if (isRefreshingPersistentDataRef.current) {
+        return;
+      }
+
+      isRefreshingPersistentDataRef.current = true;
       try {
         const [sessions, conversations] = await Promise.all([
           apiService.listSessions(),
@@ -291,8 +305,14 @@ export default function CRM() {
 
         setActiveSession((prev) => (prev === nextActiveSession ? prev : nextActiveSession));
         setLeads((prev) => (areLeadsEqual(prev, nextLeads) ? prev : nextLeads));
+        setCrmLoadError(null);
       } catch (error) {
         console.error("Erro ao carregar dados persistidos do CRM:", error);
+        if (isMounted) {
+          setCrmLoadError("Não foi possível atualizar o CRM agora. Tentando novamente automaticamente.");
+        }
+      } finally {
+        isRefreshingPersistentDataRef.current = false;
       }
     };
 
@@ -313,14 +333,24 @@ export default function CRM() {
     let isMounted = true;
 
     const loadSystemStatus = async () => {
+      if (isLoadingSystemStatusRef.current) {
+        return;
+      }
+
+      isLoadingSystemStatusRef.current = true;
       try {
         const status = await systemControlService.getStatus(publicApiUrl ?? undefined);
         if (!isMounted) return;
         const nextSystemStatus: SystemControlStatus = status.active ? "active" : "inactive";
         setSystemStatus((prev) => (prev === nextSystemStatus ? prev : nextSystemStatus));
+        setCrmLoadError(null);
       } catch (error) {
         console.error("Erro ao carregar status do sistema:", error);
+        if (isMounted) {
+          setCrmLoadError("Falha ao consultar status do sistema em tempo real.");
+        }
       } finally {
+        isLoadingSystemStatusRef.current = false;
         if (isMounted) setIsSystemLoading(false);
       }
     };
@@ -341,7 +371,15 @@ export default function CRM() {
     let cancelled = false;
 
     const loadDiagnostics = async () => {
-      if (!publicApiUrl) return;
+      if (isLoadingDiagnosticsRef.current) {
+        return;
+      }
+
+      if (!publicApiUrl) {
+        return;
+      }
+
+      isLoadingDiagnosticsRef.current = true;
 
       try {
         const diagnostics = await systemControlService.getDiagnostics(publicApiUrl);
@@ -357,6 +395,7 @@ export default function CRM() {
             ? prev
             : nextWidgetState,
         );
+        setCrmLoadError(null);
       } catch {
         if (!cancelled) {
           setSystemWidgetState({
@@ -366,7 +405,10 @@ export default function CRM() {
             runtime: "offline",
             inboxSocket: "offline",
           });
+          setCrmLoadError("Diagnóstico indisponível no momento. Exibindo último estado seguro.");
         }
+      } finally {
+        isLoadingDiagnosticsRef.current = false;
       }
     };
 
@@ -385,19 +427,32 @@ export default function CRM() {
     let isMounted = true;
 
     const loadSessionStatus = async () => {
-      const session = await apiService.getSessionStatus();
-      if (!isMounted) return;
+      if (isLoadingSessionStatusRef.current) {
+        return;
+      }
 
-      const nextStatus: WhatsAppConnectionStatus = session.connected ? "online" : "offline";
-      setConnectionStatus((prev) => (prev === nextStatus ? prev : nextStatus));
-      if (!session.connected) setIsActivatingWhatsApp(false);
-      if (!session.connected) setShowQrModal(false);
+      isLoadingSessionStatusRef.current = true;
+      try {
+        const session = await apiService.getSessionStatus();
+        if (!isMounted) return;
+
+        const nextStatus: WhatsAppConnectionStatus = session.connected ? "online" : "offline";
+        setConnectionStatus((prev) => (prev === nextStatus ? prev : nextStatus));
+        if (!session.connected) setIsActivatingWhatsApp(false);
+        if (!session.connected) setShowQrModal(false);
+      } catch (error) {
+        console.error("Erro ao carregar status da sessão:", error);
+        if (!isMounted) return;
+        setConnectionStatus("offline");
+      } finally {
+        isLoadingSessionStatusRef.current = false;
+      }
     };
 
     void loadSessionStatus();
     const intervalId = window.setInterval(() => {
       void loadSessionStatus();
-    }, 5_000);
+    }, 15_000);
 
     return () => {
       isMounted = false;
@@ -513,7 +568,7 @@ export default function CRM() {
         className="p-6 space-y-6"
       >
         {/* Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           <Card className="metric-card">
             <CardContent className="p-5">
               <div className="flex items-center justify-between">
@@ -564,7 +619,7 @@ export default function CRM() {
                 <div>
                   <p className="text-sm text-muted-foreground">Ticket Médio</p>
                   <h3 className="text-2xl font-bold font-display">
-                    R$ {Math.round(leads.reduce((sum, l) => sum + (l.value || 0), 0) / leads.length).toLocaleString()}
+                    R$ {Math.round(leads.reduce((sum, l) => sum + (l.value || 0), 0) / Math.max(leads.length, 1)).toLocaleString()}
                   </h3>
                 </div>
                 <div className="w-10 h-10 rounded-xl bg-warning/10 flex items-center justify-center">
@@ -574,6 +629,17 @@ export default function CRM() {
             </CardContent>
           </Card>
         </div>
+
+        {crmLoadError && (
+          <Card className="border-warning/40 bg-warning/10">
+            <CardContent className="flex flex-col gap-3 py-4 md:flex-row md:items-center md:justify-between">
+              <p className="text-sm text-foreground">{crmLoadError}</p>
+              <Button variant="outline" onClick={() => window.location.reload()}>
+                Recarregar página
+              </Button>
+            </CardContent>
+          </Card>
+        )}
 
         <Card className="glass-card">
           <CardHeader>

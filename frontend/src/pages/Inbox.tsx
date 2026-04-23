@@ -1088,6 +1088,7 @@ export default function Inbox() {
   const isProcessingRealtimeRef = useRef(false);
   const lastRealtimeTimestampRef = useRef(0);
   const fallbackSyncBusyRef = useRef(false);
+  const messagePollingBusyRef = useRef(false);
   const audioPlayerRef = useRef<HTMLAudioElement | null>(null);
   const [playingAudioMessageId, setPlayingAudioMessageId] = useState<string | null>(null);
   const [loadingAudioMessageId, setLoadingAudioMessageId] = useState<string | null>(null);
@@ -1569,21 +1570,25 @@ export default function Inbox() {
     let isMounted = true;
 
     const pollMessages = async () => {
-      if (!isMounted) return;
+      if (!isMounted || messagePollingBusyRef.current) return;
+      messagePollingBusyRef.current = true;
       try {
-        await loadConversationMessages(selectedConversation.id, { force: true });
+        await loadConversationMessages(selectedConversation.id, { force: true, background: true });
       } catch {
         // handled inside loadConversationMessages
+      } finally {
+        messagePollingBusyRef.current = false;
       }
     };
 
     void pollMessages();
     const intervalId = window.setInterval(() => {
       void pollMessages();
-    }, 3000);
+    }, 15_000);
 
     return () => {
       isMounted = false;
+      messagePollingBusyRef.current = false;
       window.clearInterval(intervalId);
     };
   }, [loadConversationMessages, selectedConversation?.id]);
@@ -2261,7 +2266,7 @@ export default function Inbox() {
         setError((current) => (current?.startsWith("Realtime:") ? null : current));
         const selectedId = selectedConversationRef.current?.id;
         if (selectedId) {
-          void loadConversationMessages(String(selectedId), { force: true });
+          void loadConversationMessages(String(selectedId), { force: true, background: true });
         }
       },
       onSocketDisconnected: () => undefined,
@@ -2287,7 +2292,14 @@ export default function Inbox() {
           setBackendOnline(true);
 
           const selectedId = selectedConversationRef.current?.id;
-          if (selectedId) await loadConversationMessages(String(selectedId), { background: true, force: true });
+          if (selectedId && !messagePollingBusyRef.current) {
+            messagePollingBusyRef.current = true;
+            try {
+              await loadConversationMessages(String(selectedId), { background: true, force: true });
+            } finally {
+              messagePollingBusyRef.current = false;
+            }
+          }
         } catch (err) {
           markBackendOffline(err);
           setIsWhatsappConnected(false);
@@ -2295,7 +2307,7 @@ export default function Inbox() {
           fallbackSyncBusyRef.current = false;
         }
       })();
-    }, 5000);
+    }, 30_000);
 
     return () => window.clearInterval(intervalId);
   }, [loadConversationMessages, markBackendOffline]);

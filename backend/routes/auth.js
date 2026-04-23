@@ -30,6 +30,64 @@ function signHs256Jwt(payload, secret) {
   return `${signedData}.${encodedSignature}`;
 }
 
+function fromBase64Url(value) {
+  const normalized = String(value || '').replace(/-/g, '+').replace(/_/g, '/');
+  const padding = normalized.length % 4 === 0 ? '' : '='.repeat(4 - (normalized.length % 4));
+  return Buffer.from(`${normalized}${padding}`, 'base64').toString('utf8');
+}
+
+function getBearerToken(req) {
+  const authorizationHeader = String(req.headers?.authorization || '').trim();
+  if (authorizationHeader.toLowerCase().startsWith('bearer ')) {
+    return authorizationHeader.slice(7).trim();
+  }
+  const queryToken = String(req.query?.token || '').trim();
+  if (queryToken) return queryToken;
+  return '';
+}
+
+function verifyHs256Jwt(token, secret) {
+  const parts = String(token || '').split('.');
+  if (parts.length !== 3) {
+    return { error: 'Invalid token format.', payload: null };
+  }
+
+  const [encodedHeader, encodedPayload, encodedSignature] = parts;
+
+  let header;
+  let payload;
+  try {
+    header = JSON.parse(fromBase64Url(encodedHeader));
+    payload = JSON.parse(fromBase64Url(encodedPayload));
+  } catch {
+    return { error: 'Invalid token payload.', payload: null };
+  }
+
+  if (!header || header.alg !== 'HS256') {
+    return { error: 'Unsupported token algorithm.', payload: null };
+  }
+
+  const signedData = `${encodedHeader}.${encodedPayload}`;
+  const expectedSignature = crypto
+    .createHmac('sha256', secret)
+    .update(signedData)
+    .digest('base64')
+    .replace(/=/g, '')
+    .replace(/\+/g, '-')
+    .replace(/\//g, '_');
+
+  if (!safeEquals(expectedSignature, encodedSignature)) {
+    return { error: 'Invalid token signature.', payload: null };
+  }
+
+  const nowInSeconds = Math.floor(Date.now() / 1000);
+  if (typeof payload.exp === 'number' && nowInSeconds >= payload.exp) {
+    return { error: 'Token has expired.', payload: null };
+  }
+
+  return { error: null, payload };
+}
+
 function safeEquals(a, b) {
   const left = Buffer.from(String(a || ''), 'utf8');
   const right = Buffer.from(String(b || ''), 'utf8');
@@ -124,6 +182,43 @@ router.post('/auth/login', (req, res) => {
       username,
       role: 'admin',
     },
+  });
+});
+
+router.get('/auth/me', (req, res) => {
+  const secret = process.env.JWT_SECRET || process.env.AUTH_JWT_SECRET || '';
+
+  if (!secret) {
+    return res.status(503).json({
+      error: 'Authentication is not configured.',
+    });
+  }
+
+  const token = getBearerToken(req);
+  if (!token) {
+    return res.status(401).json({
+      error: 'Authentication token is required.',
+    });
+  }
+
+  const verification = verifyHs256Jwt(token, secret);
+  if (verification.error || !verification.payload) {
+    return res.status(401).json({
+      error: verification.error || 'Invalid token.',
+    });
+  }
+
+  const payload = verification.payload;
+  const tenantId = String(payload.tenantId || payload.companyId || '').trim();
+
+  return res.status(200).json({
+    authenticated: true,
+    tenantId,
+    user: {
+      username: payload.username || payload.sub || 'unknown',
+      role: payload.role || 'admin',
+    },
+    expiresAt: typeof payload.exp === 'number' ? payload.exp : undefined,
   });
 });
 
