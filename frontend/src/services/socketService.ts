@@ -555,13 +555,13 @@ function bindSharedSocketEvents() {
   if (!sharedSocket || eventBindingsReady) return;
 
   sharedSocket.on("connect", () => {
-    console.log("Realtime connected");
+    if (import.meta.env.MODE !== 'production') console.log("Realtime connected");
     markFrontendHealthy();
     notifySubscribers((subscriber) => subscriber.onSocketConnected?.());
   });
 
   sharedSocket.on("disconnect", () => {
-    console.log("Realtime disconnected");
+    if (import.meta.env.MODE !== 'production') console.log("Realtime disconnected");
     reportFrontendIssue({
       type: "socket_disconnection",
       message: "Socket.IO disconnected",
@@ -572,7 +572,7 @@ function bindSharedSocketEvents() {
   });
 
   sharedSocket.on("connect_error", (error: Error) => {
-    console.error("Realtime error:", error.message);
+    if (import.meta.env.MODE !== 'production') console.error("Realtime error:", error.message);
     reportFrontendIssue({
       type: "socket_disconnection",
       message: error.message || "Socket.IO connection error",
@@ -687,7 +687,7 @@ function bindSharedSocketEvents() {
     sharedSocket?.on(eventName, (payload: { id?: string; messageId?: string; message_id?: string; conversationId?: string; conversation_id?: string }) => {
       const messageId = payload.id ?? payload.messageId ?? payload.message_id;
       if (messageId) {
-        console.log("Message deleted event:", messageId);
+        if (import.meta.env.MODE !== 'production') console.log("Message deleted event:", messageId);
         notifySubscribers((subscriber) => subscriber.onMessageDeleted?.({
           messageId,
           conversationId: payload.conversationId ?? payload.conversation_id,
@@ -702,7 +702,7 @@ function bindSharedSocketEvents() {
       const messageId = payload.id ?? payload.messageId ?? payload.message_id;
       const status = payload.status;
       if (messageId && status) {
-        console.log("Message status event:", messageId, status);
+        if (import.meta.env.MODE !== 'production') console.log("Message status event:", messageId, status);
         notifySubscribers((subscriber) => subscriber.onMessageStatus?.({
           messageId,
           status,

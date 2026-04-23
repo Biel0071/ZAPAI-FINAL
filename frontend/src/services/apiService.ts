@@ -6,10 +6,14 @@ const CACHE_TTL_MS = 30_000;
 const METRICS_CACHE_TTL_MS = 10_000;
 const SESSION_LIST_CACHE_TTL_MS = 15_000;
 const REQUEST_TIMEOUT_MS = 15_000;
-const MAX_GET_RETRIES = 3;
+const MAX_GET_RETRIES = 2; // Reduced to prevent infinite retries
 const INITIAL_BACKOFF_MS = 700;
 const PUBLIC_URL_STORAGE_KEY = "zapai_public_api_url";
-const API_BASE_URL = `${(import.meta.env.VITE_API_URL as string | undefined)?.trim().replace(/\/$/, "") || "http://localhost:4025"}/api`;
+
+// Use relative URL for production (same origin)
+const API_BASE_URL = import.meta.env.MODE === 'production'
+  ? '/api'
+  : `${(import.meta.env.VITE_API_URL as string | undefined)?.trim().replace(/\/$/, "") || "http://localhost:4025"}/api`;
 const CONFIGURED_API_ORIGIN = (() => {
   try {
     return new URL(API_BASE_URL).origin;
