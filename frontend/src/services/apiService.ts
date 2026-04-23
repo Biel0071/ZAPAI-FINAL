@@ -692,17 +692,7 @@ export const apiService = {
 
   async getSessionStatus(): Promise<SessionStatusResponse> {
     try {
-      const response = await fetch(`${API_BASE_URL}/session-status`, {
-        headers: {
-          Accept: "application/json",
-          "ngrok-skip-browser-warning": "true",
-          "x-tenant-id": "main",
-        },
-      });
-
-      if (!response.ok) return { connected: false, lastUpdate: Date.now() };
-
-      const payload = (await response.json()) as unknown;
+      const payload = await request<unknown>({ endpoint: "/session-status", method: "GET" });
       if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
         return { connected: false, lastUpdate: Date.now() };
       }
@@ -1068,7 +1058,7 @@ export const apiService = {
       return cached;
     }
 
-    const endpoints = ["/sessions", "/api/session-status", "/session-status"];
+    const endpoints = ["/sessions", "/api/connections", "/connections", "/api/session-status", "/session-status"];
     for (const endpoint of endpoints) {
       try {
         const data = await request<unknown>({ endpoint, method: "GET" });

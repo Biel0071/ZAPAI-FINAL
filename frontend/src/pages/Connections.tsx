@@ -45,9 +45,15 @@ type SessionEventPayload = {
   status?: string;
 };
 
-function normalizeBackendStatus(status?: string, connected?: boolean): Session["status"] {
-  const normalizedStatus = (status || "").toLowerCase();
-  if (connected || normalizedStatus === "connected" || normalizedStatus === "online" || normalizedStatus === "active" || normalizedStatus === "open") {
+function toText(value: unknown): string {
+  if (typeof value === "string") return value.trim();
+  if (typeof value === "number" || typeof value === "boolean") return String(value);
+  return "";
+}
+
+function normalizeBackendStatus(status?: unknown, connected?: unknown): Session["status"] {
+  const normalizedStatus = toText(status).toLowerCase();
+  if (Boolean(connected) || normalizedStatus === "connected" || normalizedStatus === "online" || normalizedStatus === "active" || normalizedStatus === "open") {
     return "connected";
   }
   if (normalizedStatus === "connecting") return "connecting";
@@ -55,21 +61,26 @@ function normalizeBackendStatus(status?: string, connected?: boolean): Session["
   return "disconnected";
 }
 
-function normalizeSession(item: SessionInfo): Session {
-  const legacyName = (item as SessionInfo & { session_name?: string; name?: string }).session_name;
-  const resolvedName = item.name || legacyName || item.id;
+function normalizeSession(item: SessionInfo | null | undefined): Session {
+  const safeItem = item && typeof item === "object" ? item : ({} as SessionInfo);
+  const legacyName = (safeItem as SessionInfo & { session_name?: string; name?: string }).session_name;
+  const resolvedName = toText(safeItem.name) || toText(legacyName) || toText(safeItem.id);
+  const normalizedId = normalizeSessionName(toText(safeItem.id) || resolvedName || "session");
+  const normalizedStatus = normalizeBackendStatus(safeItem.status, safeItem.connected);
+  const normalizedPhone = toText(safeItem.phone);
 
   return {
-    id: item.id || resolvedName,
-    phone: item.phone,
-    connected: item.connected,
-    name: resolvedName,
-    status: normalizeBackendStatus(item.status, item.connected),
+    id: normalizedId,
+    phone: normalizedPhone || undefined,
+    connected: normalizedStatus === "connected",
+    name: resolvedName || normalizedId,
+    status: normalizedStatus,
   };
 }
 
-function normalizeSessionName(name: string): string {
-  return name.trim().replace(/\s+/g, "_").toLowerCase();
+function normalizeSessionName(name: unknown): string {
+  const normalized = toText(name).replace(/\s+/g, "_").toLowerCase();
+  return normalized || "main";
 }
 
 function resolveSessionId(payload?: SessionEventPayload): string | null {
@@ -144,11 +155,11 @@ export default function Connections() {
 
       return [
         {
-          id: sessionId,
-          name: updates.name || sessionId,
-          phone: updates.phone,
+          id: normalizeSessionName(sessionId),
+          name: toText(updates.name) || normalizeSessionName(sessionId),
+          phone: toText(updates.phone) || undefined,
           status: updates.status ?? "connecting",
-          connected: updates.status === "connected",
+          connected: updates.connected ?? updates.status === "connected",
         },
         ...safePrev,
       ];
@@ -167,7 +178,7 @@ export default function Connections() {
       const deduped = new Map<string, Session>();
 
       (Array.isArray(sessionsData) ? sessionsData : []).forEach((item) => {
-        const normalized = normalizeSession(item);
+        const normalized = normalizeSession(item as SessionInfo);
         deduped.set(normalizeSessionName(normalized.id), normalized);
       });
 
@@ -415,12 +426,14 @@ export default function Connections() {
     }
   };
 
-  const connectedCount = safeSessions.filter((session) => session.status === "connected").length;
-  const connectingCount = safeSessions.filter((session) => session.status === "connecting" || session.status === "qr").length;
-  const disconnectedCount = safeSessions.filter((session) => session.status === "disconnected").length;
-  const activeSessionName = safeSessions.find((session) => session.status === "connected")?.name ?? null;
+  const normalizedSessions = useMemo(() => safeSessions.map((session) => normalizeSession(session)), [safeSessions]);
+
+  const connectedCount = normalizedSessions.filter((session) => session.status === "connected").length;
+  const connectingCount = normalizedSessions.filter((session) => session.status === "connecting" || session.status === "qr").length;
+  const disconnectedCount = normalizedSessions.filter((session) => session.status === "disconnected").length;
+  const activeSessionName = normalizedSessions.find((session) => session.status === "connected")?.name ?? null;
   const currentQrImage = resolveQrImage(lastQr?.qr);
-  const currentQrSession = safeSessions.find((session) => session.id === lastQr?.sessionId);
+  const currentQrSession = normalizedSessions.find((session) => normalizeSessionName(session.id) === normalizeSessionName(lastQr?.sessionId));
   const isQrModalVisible = showQRModal && currentQrSession?.status === "qr";
   const showQrImage = isQrModalVisible && Boolean(currentQrImage);
 
@@ -517,7 +530,7 @@ export default function Connections() {
                   </CardContent>
                 </Card>
               ))
-            : safeSessions.map((session) => {
+            : normalizedSessions.map((session) => {
                 const meta = statusMeta(session.status);
                 const normalizedId = normalizeSessionName(session.id);
                 const isRestarting = restartingSessionId === normalizedId;
@@ -568,6 +581,14 @@ export default function Connections() {
                   </Card>
                 );
               })}
+
+          {!isSessionsLoading && normalizedSessions.length === 0 && (
+            <Card className="glass-card overflow-hidden md:col-span-2 lg:col-span-3">
+              <CardContent className="p-6 text-center text-sm text-muted-foreground">
+                Nenhuma sessão encontrada. Crie uma nova conexão para iniciar.
+              </CardContent>
+            </Card>
+          )}
         </div>
       </motion.div>
     </div>
