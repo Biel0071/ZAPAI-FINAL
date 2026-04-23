@@ -39,7 +39,7 @@ export function Header({ title, subtitle, runtimeState }: HeaderProps) {
         <div className="min-w-0">
           <div className="flex items-center gap-3">
             <h1 className="truncate font-display text-base font-semibold text-foreground md:text-lg">{title}</h1>
-            <span className="text-[10px] font-bold bg-success text-success-foreground px-2 py-0.5 rounded">PROD REAL ESTÁVEL</span>
+            <span className="text-[10px] font-bold bg-primary text-primary-foreground px-2 py-0.5 rounded">VERSAO OFICIAL 2026</span>
             {runtimeBadge && (
               <div className="hidden items-center gap-1.5 rounded-full border border-border/60 bg-background/80 px-2 py-0.5 sm:flex">
                 <span className={`h-1.5 w-1.5 rounded-full ${runtimeBadge.dotClass}`} />
