@@ -1145,6 +1145,7 @@ export default function Inbox() {
   const fallbackSyncBusyRef = useRef(false);
   const messagePollingBusyRef = useRef(false);
   const audioPlayerRef = useRef<HTMLAudioElement | null>(null);
+  const intersectionObserverRef = useRef<IntersectionObserver | null>(null);
   const [playingAudioMessageId, setPlayingAudioMessageId] = useState<string | null>(null);
   const [loadingAudioMessageId, setLoadingAudioMessageId] = useState<string | null>(null);
   const [audioProgress, setAudioProgress] = useState(0);
@@ -1750,6 +1751,11 @@ export default function Inbox() {
     const sentinel = loadMoreTriggerRef.current;
     if (!viewport || !sentinel) return;
 
+    // Reuse existing observer if root hasn't changed, otherwise create new
+    if (intersectionObserverRef.current) {
+      intersectionObserverRef.current.disconnect();
+    }
+
     const observer = new IntersectionObserver(
       (entries) => {
         if (entries.some((entry) => entry.isIntersecting)) {
@@ -1763,8 +1769,13 @@ export default function Inbox() {
       },
     );
 
+    intersectionObserverRef.current = observer;
     observer.observe(sentinel);
-    return () => observer.disconnect();
+
+    return () => {
+      observer.disconnect();
+      intersectionObserverRef.current = null;
+    };
   }, [handleLoadOlderMessages, hasMoreMessages, loadingOlderMessages, selectedConversation?.id]);
 
   useEffect(() => {
@@ -2585,14 +2596,14 @@ export default function Inbox() {
       }
       setAudioProgress(audio.currentTime / duration);
       setAudioDuration(duration);
-    });
+    }, { passive: true });
 
     audio.addEventListener("ended", () => {
       setPlayingAudioMessageId(null);
       setLoadingAudioMessageId(null);
       setAudioProgress(0);
       audioPlayerRef.current = null;
-    });
+    }, { once: true });
 
     audio.addEventListener(
       "error",

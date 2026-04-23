@@ -369,7 +369,9 @@ async function processOneItem() {
       item.attemptCount = Number(item.attemptCount || 0) + 1;
       const failure = sanitizeError(error);
       item.lastFailure = failure;
-      item.failureHistory = [...(item.failureHistory || []), failure];
+      const currentHistory = item.failureHistory || [];
+      const cappedHistory = currentHistory.length >= 50 ? currentHistory.slice(-49) : currentHistory;
+      item.failureHistory = [...cappedHistory, failure];
       item.updatedAt = nowIso();
 
       if (item.attemptCount >= Number(item.maxAttempts || DEFAULT_CONFIG.maxAttempts)) {
