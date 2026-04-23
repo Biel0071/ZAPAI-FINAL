@@ -221,13 +221,15 @@ function mergeMessagesById(base: ChatMessage[], incoming: ChatMessage[]): ChatMe
   return [...base, ...appended];
 }
 
-function normalizeLoadedMessage(message: ChatMessage, conversationId: string, index: number): ChatMessage {
+function normalizeLoadedMessage(message: unknown, conversationId: string, index: number): ChatMessage {
+  const safeMessage = message && typeof message === "object" ? (message as ChatMessage & Record<string, unknown>) : ({} as ChatMessage & Record<string, unknown>);
+
   return {
-    ...message,
-    id: normalizeId(message.id) || `message-${Date.now()}-${index}`,
-    content: String(message.content ?? "") || String((message as ChatMessage & { text?: string }).text ?? ""),
-    conversationId: normalizeId(message.conversationId) || normalizeId(conversationId),
-    createdAt: normalizeId(message.createdAt) || normalizeId(message.timestamp) || new Date().toISOString(),
+    ...safeMessage,
+    id: normalizeId(safeMessage.id) || `message-${Date.now()}-${index}`,
+    content: String(safeMessage.content ?? "") || String((safeMessage as ChatMessage & { text?: string }).text ?? ""),
+    conversationId: normalizeId(safeMessage.conversationId) || normalizeId(conversationId),
+    createdAt: normalizeId(safeMessage.createdAt) || normalizeId(safeMessage.timestamp) || new Date().toISOString(),
   };
 }
 
@@ -346,6 +348,57 @@ function normalizePhone(phone?: string): string {
   if (!normalized) return "";
   if (normalized.includes("@g.us")) return normalized;
   return normalized.replace(/\D/g, "");
+}
+
+function normalizeConversationStatus(value: unknown): Conversation["status"] {
+  const normalized = String(value ?? "").trim().toLowerCase();
+  if (normalized === "typing") return "typing";
+  if (normalized === "offline") return "offline";
+  return "online";
+}
+
+function normalizeConversationEntry(entry: unknown, index = 0): Conversation {
+  const item = entry && typeof entry === "object" ? (entry as Partial<Conversation> & Record<string, unknown>) : {};
+  const resolvedPhone = normalizePhone(String(item.phone ?? item.chatId ?? item.chat_id ?? ""));
+  const resolvedId =
+    normalizeId(item.id ?? item.conversationId ?? item.conversation_id) ||
+    normalizeId(item.chatId ?? item.chat_id) ||
+    `conversation-${index}-${resolvedPhone || Date.now()}`;
+  const normalizedLastMessageType = String(item.lastMessageType ?? item.messageType ?? item.mediaType ?? "text").toLowerCase();
+  const lastMessageType: Conversation["lastMessageType"] =
+    normalizedLastMessageType === "image" ||
+    normalizedLastMessageType === "video" ||
+    normalizedLastMessageType === "audio" ||
+    normalizedLastMessageType === "file"
+      ? normalizedLastMessageType
+      : "text";
+  const unreadNumber = Number(item.unread ?? item.unread_count ?? item.unreadCount ?? 0);
+
+  return {
+    id: resolvedId,
+    chatId: normalizeId(item.chatId ?? item.chat_id) || resolvedPhone || resolvedId,
+    companyId: normalizeId(item.companyId ?? item.company_id) || undefined,
+    contactId: normalizeId(item.contactId ?? item.contact_id) || undefined,
+    sessionId: normalizeId(item.sessionId ?? item.session_id) || undefined,
+    contactName: String((item.contactName ?? item.name ?? item.pushName ?? resolvedPhone) || "Contato").trim() || "Contato",
+    avatar: String(item.avatar ?? item.profilePictureUrl ?? item.profile_picture_url ?? "").trim() || undefined,
+    isGroup: Boolean(item.isGroup ?? String(item.chatId ?? item.chat_id ?? resolvedPhone).includes("@g.us")),
+    lastMessage: String(item.lastMessage ?? item.last_message ?? ""),
+    updatedAt: String(item.updatedAt ?? item.updated_at ?? item.timestamp ?? new Date().toISOString()),
+    phone: resolvedPhone || String(item.phone ?? ""),
+    unread: Number.isFinite(unreadNumber) ? Math.max(0, unreadNumber) : 0,
+    status: normalizeConversationStatus(item.status),
+    tags: Array.isArray(item.tags) ? item.tags.map((tag) => String(tag)) : [],
+    isAI: Boolean(item.isAI ?? false),
+    lastMessageType,
+  };
+}
+
+function normalizeConversationsList(list: unknown): Conversation[] {
+  if (!Array.isArray(list)) return [];
+  return list
+    .map((entry, index) => normalizeConversationEntry(entry, index))
+    .filter((conversation) => Boolean(normalizeId(conversation.id)));
 }
 
 function parseChatsLoadedPayload(payload: unknown): Conversation[] {
@@ -1013,7 +1066,9 @@ export default function Inbox() {
   const isMobile = useIsMobile();
   const navigate = useNavigate();
 
-  const [conversations, setConversations] = useState<Conversation[]>(() => dedupeConversationsByScope(loadPersistedConversations(), loadContactDirectory()));
+  const [conversations, setConversations] = useState<Conversation[]>(() =>
+    dedupeConversationsByScope(normalizeConversationsList(loadPersistedConversations()), loadContactDirectory()),
+  );
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [selectedConversationId, setSelectedConversationId] = useState<string | null>(null);
   const [messageInput, setMessageInput] = useState("");
@@ -1130,33 +1185,36 @@ export default function Inbox() {
   }, []);
 
   const mergeConversationsSnapshot = useCallback((incoming: Conversation[]) => {
-    const mergedDirectory = mergeContactDirectory(contactDirectoryRef.current, incoming);
+    const safeIncoming = normalizeConversationsList(incoming);
+    const mergedDirectory = mergeContactDirectory(contactDirectoryRef.current, safeIncoming);
     contactDirectoryRef.current = mergedDirectory;
     persistContactDirectory(mergedDirectory);
 
-    setConversations((prev) => dedupeConversationsByScope([...prev, ...incoming], mergedDirectory));
+    setConversations((prev) => dedupeConversationsByScope([...prev, ...safeIncoming], mergedDirectory));
   }, []);
 
-  useEffect(() => {
-    if (!conversations.length) return;
-    rememberContacts(conversations);
-    persistConversations(conversations);
-  }, [conversations, rememberContacts]);
-
-  const selectedConversation = useMemo(
-    () => conversations.find((conversation) => normalizeId(conversation.id) === normalizeId(selectedConversationId)) ?? null,
-    [conversations, selectedConversationId],
+  const safeConversations = useMemo(
+    () => (Array.isArray(conversations) ? normalizeConversationsList(conversations) : []),
+    [conversations],
   );
 
   useEffect(() => {
-    // track selection changes
-  }, [messages, selectedConversation?.id]);
+    if (!safeConversations.length) return;
+    rememberContacts(safeConversations);
+    persistConversations(safeConversations);
+  }, [rememberContacts, safeConversations]);
+
+  const selectedConversation = useMemo(
+    () => safeConversations.find((conversation) => normalizeId(conversation.id) === normalizeId(selectedConversationId)) ?? null,
+    [safeConversations, selectedConversationId],
+  );
 
   const refreshSessions = useCallback(async () => {
     try {
       const listedSessions = await apiService.listSessions();
-      setSessions(Array.isArray(listedSessions) ? listedSessions : []);
-      return Array.isArray(listedSessions) ? listedSessions : [];
+      const safeSessions = Array.isArray(listedSessions) ? listedSessions : [];
+      setSessions(safeSessions);
+      return safeSessions;
     } catch {
       setSessions([]);
       return [];
@@ -1192,12 +1250,12 @@ export default function Inbox() {
   }, [messages]);
 
   useEffect(() => {
-    conversationsRef.current = conversations;
+    conversationsRef.current = safeConversations;
 
-    if (selectedConversationId && !conversations.some((item) => normalizeId(item.id) === normalizeId(selectedConversationId))) {
-      setSelectedConversationId(conversations[0]?.id ?? null);
+    if (selectedConversationId && !safeConversations.some((item) => normalizeId(item.id) === normalizeId(selectedConversationId))) {
+      setSelectedConversationId(safeConversations[0]?.id ?? null);
     }
-  }, [conversations, selectedConversationId]);
+  }, [safeConversations, selectedConversationId]);
 
   useEffect(() => {
     if (!activeSession?.id) return;
@@ -1352,8 +1410,8 @@ export default function Inbox() {
           apiService.getPublicUrl(),
           apiService.listSessions(),
         ]);
-        const persistedConversations = loadPersistedConversations();
-        const combinedConversations = [...persistedConversations, ...conversationsData];
+        const persistedConversations = normalizeConversationsList(loadPersistedConversations());
+        const combinedConversations = normalizeConversationsList([...persistedConversations, ...conversationsData]);
         const mergedDirectory = mergeContactDirectory(contactDirectoryRef.current, combinedConversations);
         contactDirectoryRef.current = mergedDirectory;
         persistContactDirectory(mergedDirectory);
@@ -1361,7 +1419,7 @@ export default function Inbox() {
         const normalizedConversations = dedupeConversationsByScope(combinedConversations, mergedDirectory);
         setConversations(normalizedConversations);
         markBackendOnline();
-        setPublicApiUrl(publicUrlData.publicUrl?.trim() || null);
+        setPublicApiUrl(typeof publicUrlData.publicUrl === "string" ? publicUrlData.publicUrl.trim() || null : null);
         setSessions(Array.isArray(sessionsData) ? sessionsData : []);
         setSelectedConversationId((currentId) => {
           if (currentId && normalizedConversations.some((conversation) => normalizeId(conversation.id) === normalizeId(currentId))) {
@@ -1581,10 +1639,9 @@ export default function Inbox() {
       }
     };
 
-    void pollMessages();
     const intervalId = window.setInterval(() => {
       void pollMessages();
-    }, 15_000);
+    }, 20_000);
 
     return () => {
       isMounted = false;
@@ -1993,7 +2050,6 @@ export default function Inbox() {
 
           return normalizedList;
         });
-        void loadConversationMessages(incomingConversationId, { force: true, background: true });
         } finally {
           isProcessingRealtimeRef.current = false;
         }
@@ -2283,6 +2339,7 @@ export default function Inbox() {
   useEffect(() => {
     const intervalId = window.setInterval(() => {
       if (fallbackSyncBusyRef.current) return;
+      if (backendOnline && isWhatsappConnected) return;
 
       void (async () => {
         fallbackSyncBusyRef.current = true;
@@ -2290,16 +2347,6 @@ export default function Inbox() {
           const sessionStatus = await apiService.getSessionStatus();
           setIsWhatsappConnected(Boolean(sessionStatus.connected));
           setBackendOnline(true);
-
-          const selectedId = selectedConversationRef.current?.id;
-          if (selectedId && !messagePollingBusyRef.current) {
-            messagePollingBusyRef.current = true;
-            try {
-              await loadConversationMessages(String(selectedId), { background: true, force: true });
-            } finally {
-              messagePollingBusyRef.current = false;
-            }
-          }
         } catch (err) {
           markBackendOffline(err);
           setIsWhatsappConnected(false);
@@ -2310,7 +2357,7 @@ export default function Inbox() {
     }, 30_000);
 
     return () => window.clearInterval(intervalId);
-  }, [loadConversationMessages, markBackendOffline]);
+  }, [backendOnline, isWhatsappConnected, markBackendOffline]);
 
   useEffect(() => {
     const handleRuntimeReconnected = () => {
@@ -2322,8 +2369,8 @@ export default function Inbox() {
   }, []);
 
   useEffect(() => {
-    publishInboxUnreadTotal(getInboxUnreadTotal(conversations));
-  }, [conversations]);
+    publishInboxUnreadTotal(getInboxUnreadTotal(safeConversations));
+  }, [safeConversations]);
 
   useEffect(() => {
     localStorage.setItem(ARCHIVED_CHATS_STORAGE_KEY, JSON.stringify(archivedChatIds));
@@ -2333,7 +2380,7 @@ export default function Inbox() {
     const normalizedSearch = searchQuery.trim().toLowerCase();
     const archivedSet = new Set(archivedChatIds);
 
-    return conversations
+    return (Array.isArray(safeConversations) ? safeConversations : [])
       .filter((conversation) => {
       const isArchived = archivedSet.has(String(conversation.id));
       if (filter === "archived") return isArchived;
@@ -2342,17 +2389,21 @@ export default function Inbox() {
       if (filter === "ai" && !(conversationControls[conversation.id]?.aiEnabled ?? true)) return false;
       if (!normalizedSearch) return true;
 
+      const safeName = String(conversation.contactName ?? "").toLowerCase();
+      const safePhone = String(conversation.phone ?? "").toLowerCase();
+      const safeLastMessage = String(conversation.lastMessage ?? "").toLowerCase();
+
       return (
-        conversation.contactName.toLowerCase().includes(normalizedSearch) ||
-        conversation.phone.toLowerCase().includes(normalizedSearch) ||
-        conversation.lastMessage.toLowerCase().includes(normalizedSearch)
+        safeName.includes(normalizedSearch) ||
+        safePhone.includes(normalizedSearch) ||
+        safeLastMessage.includes(normalizedSearch)
       );
     })
       .sort((a, b) => normalizeConversationTimestamp(b.updatedAt) - normalizeConversationTimestamp(a.updatedAt));
-  }, [archivedChatIds, conversations, conversationControls, filter, searchQuery]);
+  }, [archivedChatIds, conversationControls, filter, safeConversations, searchQuery]);
 
   const selectedConversationMessages = useMemo(
-    () => messages.filter((message) => normalizeId(message.conversationId) === normalizeId(selectedConversation?.id)),
+    () => (Array.isArray(messages) ? messages : []).filter((message) => normalizeId(message?.conversationId) === normalizeId(selectedConversation?.id)),
     [messages, selectedConversation?.id],
   );
 
@@ -2368,14 +2419,14 @@ export default function Inbox() {
   }, [selectedConversationMessages]);
 
   const leadByConversationId = useMemo<Record<string, LeadIntentResult>>(() => {
-    const entries = conversations.map((conversation) => {
+    const entries = (Array.isArray(safeConversations) ? safeConversations : []).map((conversation) => {
       const cached = conversationControls[conversation.id];
       const sourceText = cached?.summary || conversation.lastMessage || "";
       return [conversation.id, analyzeLeadIntent(sourceText, [sourceText])];
     });
 
     return Object.fromEntries(entries);
-  }, [conversations, conversationControls]);
+  }, [conversationControls, safeConversations]);
 
   const selectedLead = useMemo(() => {
     if (!selectedConversation) return null;
@@ -3190,7 +3241,7 @@ export default function Inbox() {
 
   return (
     <div className="flex h-dvh min-h-0 flex-col overflow-hidden">
-      <Header title="Inbox" subtitle={`${conversations.length} conversas ativas`} />
+      <Header title="Inbox" subtitle={`${safeConversations.length} conversas ativas`} />
 
       <div className="grid min-h-0 flex-1 grid-cols-1 overflow-hidden md:grid-cols-[320px_minmax(0,1fr)] lg:grid-cols-[340px_minmax(0,1fr)_360px]">
         <div className={cn("flex min-h-0 flex-col border-r border-border bg-card/50 lg:resize-x lg:overflow-auto lg:min-w-[280px] lg:max-w-[460px]", isMobile && mobileScreen !== "conversations" && "hidden")}>
