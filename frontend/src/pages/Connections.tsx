@@ -61,8 +61,8 @@ function normalizeBackendStatus(status?: unknown, connected?: unknown): Session[
   return "disconnected";
 }
 
-function normalizeSession(item: SessionInfo | null | undefined): Session {
-  const safeItem = item && typeof item === "object" ? item : ({} as SessionInfo);
+function normalizeSession(item: unknown): Session {
+  const safeItem = item && typeof item === "object" ? (item as SessionInfo) : ({} as SessionInfo);
   const legacyName = (safeItem as SessionInfo & { session_name?: string; name?: string }).session_name;
   const resolvedName = toText(safeItem.name) || toText(legacyName) || toText(safeItem.id);
   const normalizedId = normalizeSessionName(toText(safeItem.id) || resolvedName || "session");
@@ -117,6 +117,49 @@ function resolveSessionName(payload?: SessionEventPayload): string | undefined {
   return payload.sessionName || payload.name;
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === "object";
+}
+
+function normalizeSessionsPayload(payload: unknown): unknown[] {
+  if (Array.isArray(payload)) {
+    return payload.filter((item) => isRecord(item));
+  }
+
+  if (!isRecord(payload)) {
+    return [];
+  }
+
+  const nestedListCandidates = [payload.sessions, payload.data, payload.items, payload.results];
+  const nestedList = nestedListCandidates.find((candidate) => Array.isArray(candidate));
+  if (Array.isArray(nestedList)) {
+    return nestedList.filter((item) => isRecord(item));
+  }
+
+  const objectValues = Object.values(payload);
+  const recordValues = objectValues.filter((entry) => isRecord(entry));
+  if (recordValues.length > 0 && recordValues.length === objectValues.length) {
+    return recordValues;
+  }
+
+  return [];
+}
+
+function areSessionsEqual(previous: Session[], next: Session[]): boolean {
+  if (previous.length !== next.length) return false;
+
+  return previous.every((session, index) => {
+    const target = next[index];
+    return (
+      normalizeSessionName(session.id) === normalizeSessionName(target?.id) &&
+      session.name === target?.name &&
+      session.phone === target?.phone &&
+      session.status === target?.status &&
+      session.connected === target?.connected
+    );
+  });
+}
+
 export default function Connections() {
   const [sessions, setSessions] = useState<Session[]>([]);
   const [showQRModal, setShowQRModal] = useState(false);
@@ -137,6 +180,7 @@ export default function Connections() {
   const creatingSessionsRef = useRef<Set<string>>(new Set());
   const isMountedRef = useRef(false);
   const isRefreshingSessionsRef = useRef(false);
+  const hasLoadedSessionsRef = useRef(false);
 
   useEffect(() => {
     sessionsRef.current = safeSessions;
@@ -172,13 +216,17 @@ export default function Connections() {
     }
 
     isRefreshingSessionsRef.current = true;
-    setIsSessionsLoading(true);
+    if (!hasLoadedSessionsRef.current) {
+      setIsSessionsLoading(true);
+    }
+
     try {
       const sessionsData = await apiService.listSessions();
       const deduped = new Map<string, Session>();
+      const normalizedPayload = normalizeSessionsPayload(sessionsData);
 
-      (Array.isArray(sessionsData) ? sessionsData : []).forEach((item) => {
-        const normalized = normalizeSession(item as SessionInfo);
+      normalizedPayload.forEach((item) => {
+        const normalized = normalizeSession(item);
         deduped.set(normalizeSessionName(normalized.id), normalized);
       });
 
@@ -186,8 +234,10 @@ export default function Connections() {
       if (!isMountedRef.current) {
         return normalized;
       }
-
-      setSessions(normalized);
+      setSessions((prev) => {
+        const safePrev = Array.isArray(prev) ? prev : [];
+        return areSessionsEqual(safePrev, normalized) ? safePrev : normalized;
+      });
 
       const qrReadySession = normalized.find((session) => session.status === "qr");
       if (qrReadySession) {
@@ -208,6 +258,7 @@ export default function Connections() {
         setIsSessionsLoading(false);
       }
 
+      hasLoadedSessionsRef.current = true;
       isRefreshingSessionsRef.current = false;
     }
   }, []);
@@ -227,7 +278,8 @@ export default function Connections() {
         }
 
         if (publicUrlResult.status === "fulfilled") {
-          setPublicApiUrl(publicUrlResult.value.publicUrl?.trim() || null);
+          const nextPublicUrl = typeof publicUrlResult.value?.publicUrl === "string" ? publicUrlResult.value.publicUrl.trim() || null : null;
+          setPublicApiUrl((prev) => (prev === nextPublicUrl ? prev : nextPublicUrl));
         }
 
         if (sessionsResult.status === "rejected") {
@@ -426,14 +478,19 @@ export default function Connections() {
     }
   };
 
-  const normalizedSessions = useMemo(() => safeSessions.map((session) => normalizeSession(session)), [safeSessions]);
+  const normalizedSessions = useMemo(
+    () => (Array.isArray(safeSessions) ? safeSessions.map((session) => normalizeSession(session)) : []),
+    [safeSessions],
+  );
 
-  const connectedCount = normalizedSessions.filter((session) => session.status === "connected").length;
-  const connectingCount = normalizedSessions.filter((session) => session.status === "connecting" || session.status === "qr").length;
-  const disconnectedCount = normalizedSessions.filter((session) => session.status === "disconnected").length;
-  const activeSessionName = normalizedSessions.find((session) => session.status === "connected")?.name ?? null;
+  const connectedCount = (Array.isArray(normalizedSessions) ? normalizedSessions : []).filter((session) => session?.status === "connected").length;
+  const connectingCount = (Array.isArray(normalizedSessions) ? normalizedSessions : []).filter((session) => session?.status === "connecting" || session?.status === "qr").length;
+  const disconnectedCount = (Array.isArray(normalizedSessions) ? normalizedSessions : []).filter((session) => session?.status === "disconnected").length;
+  const activeSessionName = (Array.isArray(normalizedSessions) ? normalizedSessions : []).find((session) => session?.status === "connected")?.name ?? null;
   const currentQrImage = resolveQrImage(lastQr?.qr);
-  const currentQrSession = normalizedSessions.find((session) => normalizeSessionName(session.id) === normalizeSessionName(lastQr?.sessionId));
+  const currentQrSession = (Array.isArray(normalizedSessions) ? normalizedSessions : []).find(
+    (session) => normalizeSessionName(session?.id) === normalizeSessionName(lastQr?.sessionId),
+  );
   const isQrModalVisible = showQRModal && currentQrSession?.status === "qr";
   const showQrImage = isQrModalVisible && Boolean(currentQrImage);
 
@@ -530,49 +587,50 @@ export default function Connections() {
                   </CardContent>
                 </Card>
               ))
-            : normalizedSessions.map((session) => {
-                const meta = statusMeta(session.status);
-                const normalizedId = normalizeSessionName(session.id);
+            : (Array.isArray(normalizedSessions) ? normalizedSessions : []).map((session) => {
+                const safeSession = normalizeSession(session);
+                const meta = statusMeta(safeSession.status);
+                const normalizedId = normalizeSessionName(safeSession.id);
                 const isRestarting = restartingSessionId === normalizedId;
                 const isDeleting = deletingSessionId === normalizedId;
-                const preventQrRegeneration = session.status === "connecting" || session.status === "qr" || isRestarting;
+                const preventQrRegeneration = safeSession.status === "connecting" || safeSession.status === "qr" || isRestarting;
 
                 return (
-                  <Card key={session.id} className="glass-card overflow-hidden">
+                  <Card key={safeSession.id} className="glass-card overflow-hidden">
                     <div className={meta.lineClass} />
                     <CardContent className="p-5 space-y-4">
                       <div className="flex items-start justify-between">
                         <div className="flex items-center gap-3">
                           <div className="w-12 h-12 rounded-full bg-whatsapp/10 flex items-center justify-center"><WhatsappLogo weight="fill" className="w-6 h-6 text-whatsapp" /></div>
                           <div>
-                            <h3 className="font-semibold">{session.name}</h3>
-                            <p className="text-sm text-muted-foreground flex items-center gap-1"><Phone weight="fill" className="w-3 h-3" />{session.phone || "-"}</p>
+                            <h3 className="font-semibold">{safeSession.name}</h3>
+                            <p className="text-sm text-muted-foreground flex items-center gap-1"><Phone weight="fill" className="w-3 h-3" />{safeSession.phone || "-"}</p>
                           </div>
                         </div>
                         <Badge className={meta.badgeClass}>{meta.emoji} {meta.label}</Badge>
                       </div>
 
                       <div className="grid grid-cols-1 gap-2">
-                        <Button variant="outline" size="sm" className="w-full gap-2" onClick={() => void handleGenerateQr(session)} disabled={preventQrRegeneration || isDeleting}>
+                        <Button variant="outline" size="sm" className="w-full gap-2" onClick={() => void handleGenerateQr(safeSession)} disabled={preventQrRegeneration || isDeleting}>
                           {isRestarting ? <Spinner className="w-4 h-4 animate-spin" /> : <QrCode className="w-4 h-4" />}
                           {isRestarting ? "Loading" : "Generate QR"}
                         </Button>
-                        {session.status === "connected" ? (
-                          <Button variant="outline" size="sm" className="w-full gap-2" onClick={() => void handleLogoutSession(session.id)} disabled={isRestarting || isDeleting}>
+                        {safeSession.status === "connected" ? (
+                          <Button variant="outline" size="sm" className="w-full gap-2" onClick={() => void handleLogoutSession(safeSession.id)} disabled={isRestarting || isDeleting}>
                             <ArrowClockwise className="w-4 h-4" />Logout
                           </Button>
-                        ) : session.status === "disconnected" ? (
-                          <Button size="sm" className="w-full gap-2" onClick={() => void handleConnectSession(session.id)} disabled={isRestarting || isDeleting}>
+                        ) : safeSession.status === "disconnected" ? (
+                          <Button size="sm" className="w-full gap-2" onClick={() => void handleConnectSession(safeSession.id)} disabled={isRestarting || isDeleting}>
                             {isRestarting ? <Spinner className="w-4 h-4 animate-spin" /> : <ArrowClockwise className="w-4 h-4" />}
                             {isRestarting ? "Loading" : "Connect"}
                           </Button>
                         ) : (
-                          <Button variant="outline" size="sm" className="w-full gap-2" onClick={() => void handleConnectSession(session.id)} disabled={isRestarting || isDeleting}>
+                          <Button variant="outline" size="sm" className="w-full gap-2" onClick={() => void handleConnectSession(safeSession.id)} disabled={isRestarting || isDeleting}>
                             {isRestarting ? <Spinner className="w-4 h-4 animate-spin" /> : <ArrowClockwise className="w-4 h-4" />}
                             {isRestarting ? "Loading" : "Restart"}
                           </Button>
                         )}
-                        <Button variant="outline" size="sm" className="w-full gap-2" onClick={() => void handleDelete(session.id)} disabled={isDeleting}>
+                        <Button variant="outline" size="sm" className="w-full gap-2" onClick={() => void handleDelete(safeSession.id)} disabled={isDeleting}>
                           {isDeleting ? <Spinner className="w-4 h-4 animate-spin" /> : <Trash className="w-4 h-4" />}
                           {isDeleting ? "Loading" : "Delete"}
                         </Button>
@@ -582,7 +640,7 @@ export default function Connections() {
                 );
               })}
 
-          {!isSessionsLoading && normalizedSessions.length === 0 && (
+          {!isSessionsLoading && (Array.isArray(normalizedSessions) ? normalizedSessions : []).length === 0 && (
             <Card className="glass-card overflow-hidden md:col-span-2 lg:col-span-3">
               <CardContent className="p-6 text-center text-sm text-muted-foreground">
                 Nenhuma sessão encontrada. Crie uma nova conexão para iniciar.

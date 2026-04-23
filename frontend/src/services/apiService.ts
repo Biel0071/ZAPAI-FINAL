@@ -600,27 +600,57 @@ function normalizeSessionName(name: string): string {
   return name.trim().replace(/\s+/g, "_").toLowerCase();
 }
 
-function normalizeSessionInfo(item: RawSession, index: number): SessionInfo {
-  const sessionName = item.name ?? item.sessionName ?? item.session_name;
-  const rawId = normalizeIdentifier((item.sessionId ?? item.session_id ?? item.id) as string | number | undefined);
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === "object";
+}
+
+function toBoolean(value: unknown): boolean | undefined {
+  if (typeof value === "boolean") return value;
+  if (typeof value === "string") {
+    const normalized = value.trim().toLowerCase();
+    if (["true", "1", "yes", "on", "connected", "online"].includes(normalized)) return true;
+    if (["false", "0", "no", "off", "disconnected", "offline"].includes(normalized)) return false;
+  }
+  return undefined;
+}
+
+function normalizeSessionInfo(item: RawSession | null | undefined, index: number): SessionInfo {
+  const safeItem = isRecord(item) ? (item as RawSession) : ({} as RawSession);
+
+  const sessionName = safeItem.name ?? safeItem.sessionName ?? safeItem.session_name;
+  const rawId = normalizeIdentifier((safeItem.sessionId ?? safeItem.session_id ?? safeItem.id) as string | number | undefined);
   const identifier = normalizeSessionName(sessionName ?? rawId ?? `session-${index}`);
 
   return {
     id: identifier,
     name: sessionName ?? identifier,
-    phone: item.phone ?? item.phoneNumber ?? item.phone_number,
-    connected: item.connected,
-    status: item.status,
+    phone: safeItem.phone ?? safeItem.phoneNumber ?? safeItem.phone_number,
+    connected: toBoolean(safeItem.connected),
+    status: typeof safeItem.status === "string" ? safeItem.status : undefined,
   };
 }
 
 function parseSessionStatusPayload(payload: unknown): RawSession[] {
-  if (Array.isArray(payload)) return payload as RawSession[];
-  if (!payload || typeof payload !== "object") return [];
-  const raw = payload as Record<string, unknown>;
-  const candidates = [raw.sessions, raw.data, raw.items, raw.results];
-  const list = candidates.find((item) => Array.isArray(item));
-  return Array.isArray(list) ? (list as RawSession[]) : [];
+  const asSessionArray = (value: unknown): RawSession[] => {
+    if (Array.isArray(value)) return value.filter((item) => isRecord(item)) as RawSession[];
+    if (!isRecord(value)) return [];
+
+    const nestedListCandidates = [value.sessions, value.data, value.items, value.results];
+    const nestedList = nestedListCandidates.find((candidate) => Array.isArray(candidate));
+    if (Array.isArray(nestedList)) {
+      return nestedList.filter((item) => isRecord(item)) as RawSession[];
+    }
+
+    const objectValues = Object.values(value);
+    const recordValues = objectValues.filter((entry) => isRecord(entry));
+    if (recordValues.length > 0 && recordValues.length === objectValues.length) {
+      return recordValues as RawSession[];
+    }
+
+    return [];
+  };
+
+  return asSessionArray(payload);
 }
 
 function resolveRuntimeFromHealthPayload(payload: unknown): RuntimeHealthState {
