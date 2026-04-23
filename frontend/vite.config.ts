@@ -60,26 +60,14 @@ export default defineConfig(({ mode }) => ({
       workbox: {
         navigateFallbackDenylist: [/^\/~oauth/],
         globPatterns: ["**/*.{js,css,html,ico,png,svg,webp,json}"],
+        // Disable API caching to prevent stale data inconsistencies
         runtimeCaching: [
           {
-            urlPattern: /^https?:.*\/api\/.*$/i,
+            urlPattern: /\.(?:js|css)$/i,
             handler: "NetworkFirst",
             options: {
-              cacheName: "api-cache",
-              cacheableResponse: {
-                statuses: [0, 200],
-              },
-              expiration: {
-                maxEntries: 100,
-                maxAgeSeconds: 60 * 60,
-              },
-            },
-          },
-          {
-            urlPattern: /\.(?:js|css)$/i,
-            handler: "StaleWhileRevalidate",
-            options: {
               cacheName: "static-resources",
+              networkTimeoutSeconds: 3,
             },
           },
           {
@@ -88,8 +76,8 @@ export default defineConfig(({ mode }) => ({
             options: {
               cacheName: "asset-cache",
               expiration: {
-                maxEntries: 200,
-                maxAgeSeconds: 60 * 60 * 24 * 30,
+                maxEntries: 100,
+                maxAgeSeconds: 60 * 60 * 24 * 7, // 7 days
               },
             },
           },

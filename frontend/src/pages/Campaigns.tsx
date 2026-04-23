@@ -43,57 +43,7 @@ interface Campaign {
 
 const CAMPAIGN_ROW_HEIGHT = 344;
 
-const mockCampaigns: Campaign[] = [
-  {
-    id: "1",
-    name: "Black Friday 2024",
-    message: "🔥 Promoção especial Black Friday! Até 50% de desconto...",
-    status: "completed",
-    recipients: 5000,
-    sent: 5000,
-    delivered: 4850,
-    read: 3890,
-    replied: 456,
-    tags: ["Promoção", "Black Friday"],
-  },
-  {
-    id: "2",
-    name: "Follow-up Leads Quentes",
-    message: "Olá! Notamos seu interesse em nossos produtos...",
-    status: "running",
-    recipients: 1200,
-    sent: 856,
-    delivered: 834,
-    read: 612,
-    replied: 89,
-    tags: ["Follow-up", "Leads"],
-  },
-  {
-    id: "3",
-    name: "Lançamento Novo Produto",
-    message: "🚀 Apresentamos nosso novo produto exclusivo...",
-    status: "scheduled",
-    scheduledFor: "25/01/2024 às 10:00",
-    recipients: 8500,
-    sent: 0,
-    delivered: 0,
-    read: 0,
-    replied: 0,
-    tags: ["Lançamento"],
-  },
-  {
-    id: "4",
-    name: "Pesquisa de Satisfação",
-    message: "Como foi sua experiência conosco? Responda em 1 minuto...",
-    status: "paused",
-    recipients: 3200,
-    sent: 1560,
-    delivered: 1520,
-    read: 890,
-    replied: 234,
-    tags: ["Pesquisa"],
-  },
-];
+const mockCampaigns: Campaign[] = [];
 
 function getStatusColor(status: Campaign["status"]) {
   switch (status) {
