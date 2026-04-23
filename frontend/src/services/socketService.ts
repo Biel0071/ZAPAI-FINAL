@@ -556,10 +556,6 @@ function bindSharedSocketEvents() {
       level: "warning",
     });
     notifySubscribers((subscriber) => subscriber.onSocketDisconnected?.());
-
-    if (sharedSocket && !sharedSocket.connected) {
-      sharedSocket.connect();
-    }
   });
 
   sharedSocket.on("connect_error", (error: Error) => {

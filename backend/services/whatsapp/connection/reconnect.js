@@ -13,6 +13,16 @@
 
 const { DisconnectReason } = require('@whiskeysockets/baileys');
 
+const TERMINAL_DISCONNECT_CODES = new Set(
+  [
+    DisconnectReason.loggedOut,
+    DisconnectReason.badSession,
+    DisconnectReason.connectionReplaced,
+    DisconnectReason.multideviceMismatch,
+    DisconnectReason.forbidden,
+  ].filter((code) => Number.isFinite(code))
+);
+
 function getConnectionCloseCode(lastDisconnect) {
   return (
     lastDisconnect?.error?.output?.statusCode ||
@@ -24,7 +34,7 @@ function getConnectionCloseCode(lastDisconnect) {
 
 function shouldReconnect(lastDisconnect) {
   const closeCode = getConnectionCloseCode(lastDisconnect);
-  return closeCode !== DisconnectReason.loggedOut;
+  return !TERMINAL_DISCONNECT_CODES.has(closeCode);
 }
 
 module.exports = {

@@ -161,6 +161,29 @@ async function closeSocket(session, { logout = false } = {}) {
 
   session.isClosing = true;
 
+  if (session.heartbeatTimer) {
+    clearInterval(session.heartbeatTimer);
+    session.heartbeatTimer = null;
+  }
+
+  if (session.qrTimeoutTimer) {
+    clearTimeout(session.qrTimeoutTimer);
+    session.qrTimeoutTimer = null;
+  }
+
+  if (session.reconnectCooldownTimer) {
+    clearTimeout(session.reconnectCooldownTimer);
+    session.reconnectCooldownTimer = null;
+  }
+
+  if (session.reconnectRequestTimer) {
+    clearTimeout(session.reconnectRequestTimer);
+    session.reconnectRequestTimer = null;
+  }
+
+  session.reconnecting = false;
+  session.reconnectRequestPending = false;
+
   try {
     session.sock?.ev?.removeAllListeners?.();
   } catch {

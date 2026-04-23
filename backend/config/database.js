@@ -1,5 +1,8 @@
 const { Pool } = require('pg');
 const { runMigrations } = require('../services/migrationRunner');
+const { backendLog, errorLog } = require('../services/logger');
+
+const SLOW_QUERY_THRESHOLD_MS = Math.max(50, Number(process.env.DB_SLOW_QUERY_MS || 500));
 
 function shouldUseSsl() {
   if (process.env.PGSSLMODE === 'disable') {
@@ -54,15 +57,48 @@ pool
     console.warn('PostgreSQL connection warning:', err.message);
   });
 
+function summarizeQuery(text) {
+  return String(text || '')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, 180);
+}
+
 async function query(text, params = []) {
-  return pool.query(text, params);
+  const startedAt = Date.now();
+
+  try {
+    const result = await pool.query(text, params);
+    const durationMs = Date.now() - startedAt;
+
+    if (durationMs >= SLOW_QUERY_THRESHOLD_MS) {
+      backendLog('warn', 'slow_db_query', {
+        durationMs,
+        paramsCount: Array.isArray(params) ? params.length : 0,
+        query: summarizeQuery(text),
+        scope: 'database',
+        thresholdMs: SLOW_QUERY_THRESHOLD_MS,
+      });
+    }
+
+    return result;
+  } catch (error) {
+    const durationMs = Date.now() - startedAt;
+    errorLog(error, {
+      durationMs,
+      paramsCount: Array.isArray(params) ? params.length : 0,
+      query: summarizeQuery(text),
+      scope: 'database',
+    });
+    throw error;
+  }
 }
 
 async function initDatabase(options = {}) {
   const shouldRunMigrations = options.runMigrations === true;
 
   if (!shouldRunMigrations) {
-    await pool.query('SELECT 1');
+    await query('SELECT 1');
     return {
       mode: 'connectivity-check',
       migrated: false,

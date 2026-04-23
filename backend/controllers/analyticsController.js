@@ -16,7 +16,13 @@ function getSummary(req, res) {
 
 async function getMetrics(req, res) {
   try {
-    const snapshot = await metricsTracker.recalcMetricsFromDB(getStore(req));
+    const store = getStore(req);
+    let snapshot = metricsTracker.getMetrics(store);
+
+    if (!snapshot?.generatedAt) {
+      snapshot = await metricsTracker.recalcMetricsFromDB(store, { force: true });
+    }
+
     return res.status(200).json({
       activeConversations: Number(snapshot?.activeConversations) || 0,
       generatedAt: snapshot?.generatedAt || new Date().toISOString(),

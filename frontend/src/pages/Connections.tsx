@@ -124,6 +124,8 @@ export default function Connections() {
   const safeSessions = useMemo(() => (Array.isArray(sessions) ? sessions : []), [sessions]);
   const sessionsRef = useRef<Session[]>(safeSessions);
   const creatingSessionsRef = useRef<Set<string>>(new Set());
+  const isMountedRef = useRef(false);
+  const isRefreshingSessionsRef = useRef(false);
 
   useEffect(() => {
     sessionsRef.current = safeSessions;
@@ -154,6 +156,11 @@ export default function Connections() {
   }, []);
 
   const loadSessions = useCallback(async () => {
+    if (isRefreshingSessionsRef.current) {
+      return;
+    }
+
+    isRefreshingSessionsRef.current = true;
     setIsSessionsLoading(true);
     try {
       const sessionsData = await apiService.listSessions();
@@ -165,6 +172,10 @@ export default function Connections() {
       });
 
       const normalized = [...deduped.values()];
+      if (!isMountedRef.current) {
+        return normalized;
+      }
+
       setSessions(normalized);
 
       const qrReadySession = normalized.find((session) => session.status === "qr");
@@ -176,19 +187,33 @@ export default function Connections() {
         setShowQRModal(false);
       }
     } catch (error) {
+      if (!isMountedRef.current) {
+        return [];
+      }
+
       console.error("Erro ao carregar sessões:", error);
     } finally {
-      setIsSessionsLoading(false);
+      if (isMountedRef.current) {
+        setIsSessionsLoading(false);
+      }
+
+      isRefreshingSessionsRef.current = false;
     }
   }, []);
 
   useEffect(() => {
+    isMountedRef.current = true;
+
     const loadInitialData = async () => {
       try {
         const [publicUrlResult, sessionsResult] = await Promise.allSettled([
           apiService.getPublicUrl(),
           loadSessions(),
         ]);
+
+        if (!isMountedRef.current) {
+          return;
+        }
 
         if (publicUrlResult.status === "fulfilled") {
           setPublicApiUrl(publicUrlResult.value.publicUrl?.trim() || null);
@@ -203,9 +228,16 @@ export default function Connections() {
     };
 
     void loadInitialData();
+    return () => {
+      isMountedRef.current = false;
+    };
   }, [loadSessions]);
 
   useEffect(() => {
+    if (!isMountedRef.current) {
+      return;
+    }
+
     const intervalId = window.setInterval(() => {
       void loadSessions();
     }, 5_000);

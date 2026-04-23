@@ -475,6 +475,8 @@ async function createStableSession({
     sock,
     status: 'connecting',
     lastConnectionState: null,
+    reconnectCooldownTimer: null,
+    reconnectRequestTimer: null,
   };
 
   activeSessions[normalizedSessionName] = session;
@@ -602,6 +604,14 @@ async function createStableSession({
       session.reconnecting = false;
       session.reconnectRequestCount = 0;
       session.reconnectRequestPending = false;
+      if (session.reconnectCooldownTimer) {
+        clearTimeout(session.reconnectCooldownTimer);
+        session.reconnectCooldownTimer = null;
+      }
+      if (session.reconnectRequestTimer) {
+        clearTimeout(session.reconnectRequestTimer);
+        session.reconnectRequestTimer = null;
+      }
       if (session.qrTimeoutTimer) {
         clearTimeout(session.qrTimeoutTimer);
         session.qrTimeoutTimer = null;
@@ -686,6 +696,14 @@ async function createStableSession({
         clearTimeout(session.qrTimeoutTimer);
         session.qrTimeoutTimer = null;
       }
+      if (session.reconnectCooldownTimer) {
+        clearTimeout(session.reconnectCooldownTimer);
+        session.reconnectCooldownTimer = null;
+      }
+      if (session.reconnectRequestTimer) {
+        clearTimeout(session.reconnectRequestTimer);
+        session.reconnectRequestTimer = null;
+      }
 
       session.hasEmittedQr = false;
       session.qrCode = null;
@@ -698,7 +716,11 @@ async function createStableSession({
         }
 
         session.reconnecting = true;
-        setTimeout(() => {
+        if (session.reconnectCooldownTimer) {
+          clearTimeout(session.reconnectCooldownTimer);
+        }
+        session.reconnectCooldownTimer = setTimeout(() => {
+          session.reconnectCooldownTimer = null;
           session.reconnecting = false;
         }, 5000);
 
@@ -792,7 +814,11 @@ async function createStableSession({
           delayMs: reconnectDelayMs,
           closeCode,
         });
-        setTimeout(() => {
+        if (session.reconnectRequestTimer) {
+          clearTimeout(session.reconnectRequestTimer);
+        }
+        session.reconnectRequestTimer = setTimeout(() => {
+          session.reconnectRequestTimer = null;
           onReconnectRequested(normalizedSessionName, { closeCode })
             .catch((error) => {
               logSessionEvent('error', 'reconnect_failed', session, {

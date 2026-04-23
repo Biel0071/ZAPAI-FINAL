@@ -2,6 +2,8 @@ const db = require('../config/database');
 
 let lastMetricsSnapshot = {
   generatedAt: null,
+  activeConversations: 0,
+  connectedSessions: 0,
   messagesProcessed: 0,
   totalConversations: 0,
   totalMessages: 0,
@@ -28,17 +30,19 @@ function buildMetricsSnapshot(store = {}) {
 }
 
 function getMetrics(store = {}) {
-  const snapshot = buildMetricsSnapshot(store);
+  return store.metricsSnapshot || lastMetricsSnapshot || buildMetricsSnapshot(store);
+}
 
+function persistMetricsSnapshot(store, snapshot) {
   lastMetricsSnapshot = {
-    generatedAt: snapshot.generatedAt,
-    messagesProcessed: snapshot.messagesProcessed,
-    uptime: snapshot.uptime,
+    ...snapshot,
   };
 
-  return {
-    ...lastMetricsSnapshot,
-  };
+  if (store) {
+    store.metricsSnapshot = snapshot;
+  }
+
+  return snapshot;
 }
 
 function emitMetrics(store, snapshot) {
@@ -54,20 +58,15 @@ function emitMetrics(store, snapshot) {
   io.emit('dashboard_update', snapshot);
 }
 
-async function recalcMetricsFromDB(store = {}) {
+async function recalcMetricsFromDB(store = {}, options = {}) {
   if (!store?.databaseEnabled) {
-    const snapshot = buildMetricsSnapshot(store);
-
-    lastMetricsSnapshot = {
-      generatedAt: snapshot.generatedAt,
-      messagesProcessed: snapshot.messagesProcessed,
-      totalConversations: snapshot.totalConversations,
-      totalMessages: snapshot.totalMessages,
-      uptime: snapshot.uptime,
-    };
-    store.metricsSnapshot = snapshot;
+    const snapshot = persistMetricsSnapshot(store, buildMetricsSnapshot(store));
     emitMetrics(store, snapshot);
     return snapshot;
+  }
+
+  if (options.force !== true && store.metricsSnapshot) {
+    return store.metricsSnapshot;
   }
 
   const companyId = process.env.DEFAULT_COMPANY_ID || 'default';
@@ -93,14 +92,7 @@ async function recalcMetricsFromDB(store = {}) {
     uptime: Number(process.uptime().toFixed(3)),
   };
 
-  lastMetricsSnapshot = {
-    generatedAt: snapshot.generatedAt,
-    messagesProcessed: snapshot.messagesProcessed,
-    totalConversations: snapshot.totalConversations,
-    totalMessages: snapshot.totalMessages,
-    uptime: snapshot.uptime,
-  };
-  store.metricsSnapshot = snapshot;
+  persistMetricsSnapshot(store, snapshot);
   emitMetrics(store, snapshot);
 
   return snapshot;
@@ -111,19 +103,11 @@ function startMetricsTracking(store, options = {}) {
 
   const run = async () => {
     try {
-      await recalcMetricsFromDB(store);
+      await recalcMetricsFromDB(store, { force: true });
     } catch (error) {
       console.error('[METRICS] recalcMetricsFromDB failed:', error?.message || error);
 
-      const snapshot = buildMetricsSnapshot(store);
-      lastMetricsSnapshot = {
-        generatedAt: snapshot.generatedAt,
-        messagesProcessed: snapshot.messagesProcessed,
-        totalConversations: snapshot.totalConversations,
-        totalMessages: snapshot.totalMessages,
-        uptime: snapshot.uptime,
-      };
-      store.metricsSnapshot = snapshot;
+      const snapshot = persistMetricsSnapshot(store, buildMetricsSnapshot(store));
       emitMetrics(store, snapshot);
     }
   };

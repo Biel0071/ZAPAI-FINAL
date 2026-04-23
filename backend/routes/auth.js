@@ -78,9 +78,14 @@ router.post('/auth/login', (req, res) => {
 
   const expectedUsername = configuredCredentials.username;
   const expectedPassword = configuredCredentials.password;
-  const tenantId =
-    requestedTenant ||
-    String(process.env.AUTH_DEFAULT_TENANT_ID || process.env.DEFAULT_COMPANY_ID || 'default').trim();
+  const tenantId = String(process.env.AUTH_DEFAULT_TENANT_ID || process.env.DEFAULT_COMPANY_ID || 'default').trim();
+
+  if (requestedTenant && requestedTenant !== tenantId) {
+    return res.status(403).json({
+      error: 'Requested tenant is not allowed for this login.',
+    });
+  }
+
   const ttlSeconds = Number(process.env.AUTH_TOKEN_TTL_SECONDS || 8 * 60 * 60);
 
   if (!username || !password) {

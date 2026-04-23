@@ -222,9 +222,17 @@ export default function Dashboard() {
   const [isSystemActionLoading, setIsSystemActionLoading] = useState(false);
   const [metricsSnapshot, setMetricsSnapshot] = useState<DashboardMetrics | null>(null);
   const [activeTab, setActiveTab] = useState("overview");
+  const isMountedRef = useRef(false);
+  const isRefreshingRef = useRef(false);
   const wasRuntimeRunningRef = useRef(false);
 
   const loadStatus = useCallback(async () => {
+    if (isRefreshingRef.current) {
+      return;
+    }
+
+    isRefreshingRef.current = true;
+
     try {
       const [, healthStatusResult, listedSessionsResult, metricsResult] = await Promise.allSettled([
         systemControlService.getStatus(),
@@ -232,6 +240,10 @@ export default function Dashboard() {
         apiService.listSessions(),
         apiService.getMetrics(),
       ]);
+
+      if (!isMountedRef.current) {
+        return;
+      }
 
       const healthStatus =
         healthStatusResult.status === "fulfilled"
@@ -264,20 +276,30 @@ export default function Dashboard() {
       }
       wasRuntimeRunningRef.current = isRunning;
     } catch (error) {
+      if (!isMountedRef.current) {
+        return;
+      }
+
       console.error("Failed to load system status:", error);
       wasRuntimeRunningRef.current = false;
       setRuntimeState((prev) => (isSystemActionLoading || prev === "starting" ? "starting" : "offline"));
     } finally {
-      setIsSystemLoading(false);
+      if (isMountedRef.current) {
+        setIsSystemLoading(false);
+      }
+
+      isRefreshingRef.current = false;
     }
   }, [isSystemActionLoading]);
 
   useEffect(() => {
-    let isMounted = true;
-    const run = async () => { if (isMounted) await loadStatus(); };
-    void run();
-    const intervalId = window.setInterval(() => void run(), 3_000);
-    return () => { isMounted = false; window.clearInterval(intervalId); };
+    isMountedRef.current = true;
+    void loadStatus();
+    const intervalId = window.setInterval(() => void loadStatus(), 10_000);
+    return () => {
+      isMountedRef.current = false;
+      window.clearInterval(intervalId);
+    };
   }, [loadStatus]);
 
   const handleActivateSystem = async () => {
@@ -285,13 +307,27 @@ export default function Dashboard() {
     setIsSystemActionLoading(true);
     setRuntimeState("starting");
     void loadStatus();
-    try { await systemControlService.activate(); } catch { setRuntimeState("offline"); } finally { setIsSystemActionLoading(false); }
+    try {
+      await systemControlService.activate();
+    } catch (_error) {
+      setRuntimeState("offline");
+    } finally {
+      setIsSystemActionLoading(false);
+    }
   };
 
   const handleDeactivateSystem = async () => {
     if (isSystemActionLoading) return;
     setIsSystemActionLoading(true);
-    try { await systemControlService.stop(); wasRuntimeRunningRef.current = false; setRuntimeState("offline"); } catch {} finally { setIsSystemActionLoading(false); }
+    try {
+      await systemControlService.stop();
+      wasRuntimeRunningRef.current = false;
+      setRuntimeState("offline");
+    } catch (_error) {
+      // noop
+    } finally {
+      setIsSystemActionLoading(false);
+    }
   };
 
   const numberHealth = useMemo(() => {

@@ -3,6 +3,8 @@ import { reportFrontendIssue } from "@/services/frontendHealthService";
 import { slog } from "@/lib/structuredLogger";
 
 const CACHE_TTL_MS = 30_000;
+const METRICS_CACHE_TTL_MS = 10_000;
+const SESSION_LIST_CACHE_TTL_MS = 15_000;
 const REQUEST_TIMEOUT_MS = 15_000;
 const MAX_GET_RETRIES = 3;
 const INITIAL_BACKOFF_MS = 700;
@@ -332,69 +334,102 @@ async function request<T>({ endpoint, method, body, timeoutMs = REQUEST_TIMEOUT_
   let attempt = 0;
 
   while (attempt <= MAX_GET_RETRIES) {
+    let timedOut = false;
+    let timeoutId: number | undefined;
+
     try {
       const url = resolveDirectApiUrl(endpoint);
       slog.info("api", `${method} ${endpoint}`, { route: endpoint });
 
-      const timeoutPromise = new Promise<never>((_, reject) => {
-        window.setTimeout(() => reject(new Error(`API timeout after ${timeoutMs}ms`)), timeoutMs);
-      });
+      const controller = new AbortController();
+      timeoutId = window.setTimeout(() => {
+        timedOut = true;
+        controller.abort();
+      }, timeoutMs);
 
-      const fetchPromise = fetch(url, {
-        method,
-        headers: {
-          Accept: "application/json",
-          "ngrok-skip-browser-warning": "true",
-          "x-tenant-id": "main",
-          ...(method !== "GET" ? { "Content-Type": "application/json" } : {}),
-        },
-        body: method === "GET" ? undefined : JSON.stringify(body ?? {}),
-      });
-
-      const response = await Promise.race([fetchPromise, timeoutPromise]);
-
-      const raw = await response.text();
-      const parsed = raw
-        ? (() => {
-            try {
-              return JSON.parse(raw) as unknown;
-            } catch {
-              return raw;
-            }
-          })()
-        : {};
-
-      if (!response.ok) {
-        const details =
-          parsed && typeof parsed === "object"
-            ? String((parsed as Record<string, unknown>).error ?? (parsed as Record<string, unknown>).message ?? raw ?? "Request failed")
-            : String(raw || "Request failed");
-        slog.apiRequest(endpoint, response.status, {
-          error: details,
-          suggestion: response.status === 400 ? "Verificar payload ou query params enviados" : response.status === 404 ? "Endpoint não existe no backend" : undefined,
+      try {
+        const response = await fetch(url, {
+          method,
+          headers: {
+            Accept: "application/json",
+            "ngrok-skip-browser-warning": "true",
+            "x-tenant-id": "main",
+            ...(method !== "GET" ? { "Content-Type": "application/json" } : {}),
+          },
+          body: method === "GET" ? undefined : JSON.stringify(body ?? {}),
+          signal: controller.signal,
         });
-        throw new Error(details || `Request failed with status ${response.status}`);
+
+        const raw = await response.text();
+        const parsed = raw
+          ? (() => {
+              try {
+                return JSON.parse(raw) as unknown;
+              } catch {
+                return raw;
+              }
+            })()
+          : {};
+
+        if (!response.ok) {
+          const details =
+            parsed && typeof parsed === "object"
+              ? String((parsed as Record<string, unknown>).error ?? (parsed as Record<string, unknown>).message ?? raw ?? "Request failed")
+              : String(raw || "Request failed");
+          slog.apiRequest(endpoint, response.status, {
+            error: details,
+            suggestion: response.status === 400 ? "Verificar payload ou query params enviados" : response.status === 404 ? "Endpoint não existe no backend" : undefined,
+          });
+          throw new Error(details || `Request failed with status ${response.status}`);
+        }
+
+        if (parsed && typeof parsed === "object" && "error" in (parsed as Record<string, unknown>)) {
+          throw new Error(String((parsed as Record<string, unknown>).error ?? "Request failed"));
+        }
+
+        slog.apiRequest(endpoint, response.status);
+
+        // Auto-unwrap backend envelope: { success: true, data: [] }
+        if (
+          parsed &&
+          typeof parsed === "object" &&
+          !Array.isArray(parsed) &&
+          "data" in (parsed as Record<string, unknown>) &&
+          "success" in (parsed as Record<string, unknown>)
+        ) {
+          return (parsed as Record<string, unknown>).data as T;
+        }
+
+        return parsed as T;
+      } finally {
+        window.clearTimeout(timeoutId);
       }
-
-      if (parsed && typeof parsed === "object" && "error" in (parsed as Record<string, unknown>)) {
-        throw new Error(String((parsed as Record<string, unknown>).error ?? "Request failed"));
-      }
-
-      slog.apiRequest(endpoint, response.status);
-
-      // Auto-unwrap backend envelope: { success: true, data: [...] }
-      if (
-        parsed &&
-        typeof parsed === "object" &&
-        !Array.isArray(parsed) &&
-        "data" in (parsed as Record<string, unknown>) &&
-        "success" in (parsed as Record<string, unknown>)
-      ) {
-        return (parsed as Record<string, unknown>).data as T;
-      }
-
-      return parsed as T;
     } catch (error) {
+      const wasTimedOut = timedOut || (error instanceof Error && error.name === "AbortError");
+      if (wasTimedOut) {
+        const timeoutError = new Error(`API timeout after ${timeoutMs}ms`);
+        slog.warn("api", `Request failed: ${endpoint}`, {
+          route: endpoint,
+          error: timeoutError.message,
+        });
+
+        if (shouldRetry && attempt < MAX_GET_RETRIES) {
+          const backoffMs = INITIAL_BACKOFF_MS * 2 ** attempt;
+          await new Promise((resolve) => window.setTimeout(resolve, backoffMs));
+          attempt += 1;
+          continue;
+        }
+
+        reportFrontendIssue({
+          type: "api_timeout",
+          message: `API timeout on ${endpoint}`,
+          service: "backend-api",
+          level: "warning",
+        });
+
+        throw timeoutError;
+      }
+
       slog.warn("api", `Request failed: ${endpoint}`, {
         route: endpoint,
         error: error instanceof Error ? error.message : "Unknown error",
@@ -416,14 +451,7 @@ async function request<T>({ endpoint, method, body, timeoutMs = REQUEST_TIMEOUT_
         continue;
       }
 
-      if (errorMessage.includes("timeout")) {
-        reportFrontendIssue({
-          type: "api_timeout",
-          message: `API timeout on ${endpoint}`,
-          service: "backend-api",
-          level: "warning",
-        });
-      } else {
+      if (retriable) {
         reportFrontendIssue({
           type: "socket_disconnection",
           message: "Backend indisponível no momento. Tentando reconectar automaticamente.",
@@ -595,11 +623,6 @@ function parseSessionStatusPayload(payload: unknown): RawSession[] {
   return Array.isArray(list) ? (list as RawSession[]) : [];
 }
 
-function isSessionConnected(session: SessionInfo): boolean {
-  const normalizedStatus = (session.status ?? "").toLowerCase();
-  return Boolean(session.connected || ["connected", "online", "active", "open", "running"].includes(normalizedStatus));
-}
-
 function resolveRuntimeFromHealthPayload(payload: unknown): RuntimeHealthState {
   if (!payload || typeof payload !== "object") return "offline";
   // Backend responded with any payload → online
@@ -619,20 +642,9 @@ export const apiService = {
   },
 
   async getRuntimeSessionHealth(): Promise<RuntimeSessionHealth> {
-    const [healthResult, runtimeStatusResult, sessionsStatusResult] = await Promise.allSettled([
+    const [healthResult, runtimeStatusResult] = await Promise.allSettled([
       request<Record<string, unknown>>({ endpoint: "/api/health", method: "GET" }),
       request<Record<string, unknown>>({ endpoint: "/api/system/runtime/status", method: "GET" }),
-      (async () => {
-        const sessionEndpoints = ["/api/session-status", "/session-status", "/sessions"];
-        for (const endpoint of sessionEndpoints) {
-          try {
-            return await request<unknown>({ endpoint, method: "GET" });
-          } catch {
-            // try next endpoint
-          }
-        }
-        throw new Error("Falha ao obter status das sessões");
-      })(),
     ]);
 
     const runtimePayload =
@@ -647,17 +659,10 @@ export const apiService = {
         ? resolveRuntimeFromHealthPayload(runtimePayload)
         : "offline";
 
-    // Try dedicated session endpoints first
-    let sessions =
-      sessionsStatusResult.status === "fulfilled"
-        ? parseSessionStatusPayload(sessionsStatusResult.value).map(normalizeSessionInfo)
-        : [];
+    let totalSessions = 0;
+    let activeSessions = 0;
 
-    let totalSessions = sessions.length;
-    let activeSessions = sessions.filter(isSessionConnected).length;
-
-    // Fallback: extract session info from /api/health response
-    if (totalSessions === 0 && healthResult.status === "fulfilled") {
+    if (healthResult.status === "fulfilled") {
       const healthData = healthResult.value as Record<string, unknown>;
       const data = (healthData.data ?? healthData) as Record<string, unknown>;
       const system = (data.system ?? data) as Record<string, unknown>;
@@ -773,6 +778,7 @@ export const apiService = {
   async sendMessage(payload: { phone: string; text: string; conversationId?: string; contactId?: string; sessionId?: string }) {
     const response = await request<MessageSendResponse>({ endpoint: "/send-message", method: "POST", body: payload });
     invalidateCache("conversations");
+    invalidateCache("metrics");
     return response;
   },
 
@@ -832,6 +838,7 @@ export const apiService = {
           timeoutMs: 45_000,
         });
         invalidateCache("conversations");
+        invalidateCache("metrics");
         return response;
       } catch (error) {
         lastError = error;
@@ -869,12 +876,20 @@ export const apiService = {
   getAnalytics: () => request<AnalyticsSummary>({ endpoint: "/api/analytics", method: "GET" }),
 
   async getMetrics() {
+    const cacheKey = "metrics";
+    const cached = getCache<MetricsSummary>(cacheKey);
+    if (cached) {
+      return cached;
+    }
+
     const candidateEndpoints = ["/metrics", "/api/metrics", "/api/analytics"];
     let lastError: unknown = new Error("Falha ao carregar métricas");
 
     for (const endpoint of candidateEndpoints) {
       try {
-        return await request<MetricsSummary>({ endpoint, method: "GET" });
+        const data = await request<MetricsSummary>({ endpoint, method: "GET" });
+        setCache(cacheKey, data, METRICS_CACHE_TTL_MS);
+        return data;
       } catch (error) {
         lastError = error;
       }
@@ -888,10 +903,12 @@ export const apiService = {
       const metrics = system?.metrics as Record<string, unknown> | undefined;
       const sessions = system?.sessions as Record<string, unknown> | undefined;
       if (metrics || sessions) {
-        return {
+        const resolvedMetrics = {
           totalMessages: Number(metrics?.messagesProcessed ?? 0),
           activeChats: Number(sessions?.connected ?? 0),
         } as MetricsSummary;
+        setCache(cacheKey, resolvedMetrics, METRICS_CACHE_TTL_MS);
+        return resolvedMetrics;
       }
     } catch {
       // health also failed
@@ -1019,26 +1036,45 @@ export const apiService = {
   saveAdvancedAISettings: (payload: AdvancedAISettings) =>
     request<{ success?: boolean }>({ endpoint: "/config/advanced-ai", method: "POST", body: payload }),
 
-  startSession: (name: string) => {
+  async startSession(name: string) {
     const normalized = normalizeSessionName(name);
-    return request<{ success?: boolean; sessionId?: string; qr?: string }>({
+    const response = await request<{ success?: boolean; sessionId?: string; qr?: string }>({
       endpoint: "/session/start",
       method: "POST",
       body: { name: normalized, sessionId: normalized },
     });
+    invalidateCache("sessions");
+    return response;
   },
-  restartSession: (sessionId: string) =>
-    request<{ success?: boolean; sessionId?: string; qr?: string }>({ endpoint: "/session/restart", method: "POST", body: { sessionId: normalizeSessionName(sessionId) } }),
-  logoutSession: (sessionId: string) =>
-    request<{ success?: boolean; sessionId?: string }>({ endpoint: "/session/logout", method: "POST", body: { sessionId: normalizeSessionName(sessionId) } }),
-  createSession: (sessionId: string) =>
-    request<{ success?: boolean; sessionId?: string; qr?: string }>({ endpoint: "/sessions/create", method: "POST", body: { sessionId: normalizeSessionName(sessionId) } }),
+  async restartSession(sessionId: string) {
+    const response = await request<{ success?: boolean; sessionId?: string; qr?: string }>({ endpoint: "/session/restart", method: "POST", body: { sessionId: normalizeSessionName(sessionId) } });
+    invalidateCache("sessions");
+    return response;
+  },
+  async logoutSession(sessionId: string) {
+    const response = await request<{ success?: boolean; sessionId?: string }>({ endpoint: "/session/logout", method: "POST", body: { sessionId: normalizeSessionName(sessionId) } });
+    invalidateCache("sessions");
+    return response;
+  },
+  async createSession(sessionId: string) {
+    const response = await request<{ success?: boolean; sessionId?: string; qr?: string }>({ endpoint: "/sessions/create", method: "POST", body: { sessionId: normalizeSessionName(sessionId) } });
+    invalidateCache("sessions");
+    return response;
+  },
   async listSessions() {
+    const cacheKey = "sessions";
+    const cached = getCache<SessionInfo[]>(cacheKey);
+    if (cached) {
+      return cached;
+    }
+
     const endpoints = ["/sessions", "/api/session-status", "/session-status"];
     for (const endpoint of endpoints) {
       try {
         const data = await request<unknown>({ endpoint, method: "GET" });
-        return parseSessionStatusPayload(data).map(normalizeSessionInfo);
+        const normalizedSessions = parseSessionStatusPayload(data).map(normalizeSessionInfo);
+        setCache(cacheKey, normalizedSessions, SESSION_LIST_CACHE_TTL_MS);
+        return normalizedSessions;
       } catch {
         // try next endpoint
       }
@@ -1046,8 +1082,14 @@ export const apiService = {
 
     throw new Error("Falha ao carregar sessões");
   },
-  deleteSession: (sessionId: string) =>
-    request<{ success?: boolean }>({ endpoint: `/session/${encodeURIComponent(normalizeSessionName(sessionId))}`, method: "DELETE" }),
-  removeSession: (sessionId: string) =>
-    request<{ success?: boolean }>({ endpoint: `/sessions/${encodeURIComponent(normalizeSessionName(sessionId))}`, method: "DELETE" }),
+  async deleteSession(sessionId: string) {
+    const response = await request<{ success?: boolean }>({ endpoint: `/session/${encodeURIComponent(normalizeSessionName(sessionId))}`, method: "DELETE" });
+    invalidateCache("sessions");
+    return response;
+  },
+  async removeSession(sessionId: string) {
+    const response = await request<{ success?: boolean }>({ endpoint: `/sessions/${encodeURIComponent(normalizeSessionName(sessionId))}`, method: "DELETE" });
+    invalidateCache("sessions");
+    return response;
+  },
 };
