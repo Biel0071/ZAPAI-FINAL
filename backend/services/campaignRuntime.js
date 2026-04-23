@@ -41,7 +41,7 @@ function emitCampaignSnapshot(store, snapshot) {
 }
 
 function startCampaignRuntime(store, options = {}) {
-  const intervalMs = Number(options.intervalMs) || 45000;
+  const intervalMs = Number(options.intervalMs) || 300000;
 
   const run = () => {
     const snapshot = buildCampaignSnapshot(store?.conversations || []);

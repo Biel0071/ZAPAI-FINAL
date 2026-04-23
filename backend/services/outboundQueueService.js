@@ -22,7 +22,7 @@ const DEFAULT_CONFIG = {
   jitterMs: Number(process.env.OUTBOUND_QUEUE_JITTER_MS) || 250,
   maxAttempts: Number(process.env.OUTBOUND_QUEUE_MAX_ATTEMPTS) || 3,
   maxDelayMs: Number(process.env.OUTBOUND_QUEUE_MAX_DELAY_MS) || 60000,
-  pollMs: Number(process.env.OUTBOUND_QUEUE_POLL_MS) || 1000,
+  pollMs: Number(process.env.OUTBOUND_QUEUE_POLL_MS) || 5000,
 };
 
 let storeRef = null;

@@ -99,7 +99,7 @@ async function recalcMetricsFromDB(store = {}, options = {}) {
 }
 
 function startMetricsTracking(store, options = {}) {
-  const intervalMs = Number(options.intervalMs) || 5000;
+  const intervalMs = Number(options.intervalMs) || 30000;
 
   const run = async () => {
     try {

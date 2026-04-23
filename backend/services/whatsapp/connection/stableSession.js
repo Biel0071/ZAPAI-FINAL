@@ -657,13 +657,8 @@ async function createStableSession({
       });
       emitSessionStatus(io, normalizedSessionName, session.status, session.sessionName);
 
-      if (!session.heartbeatTimer) {
-        session.heartbeatTimer = setInterval(() => {
-          if (session.status === 'connected') {
-            (io || global.io)?.emit('ping');
-          }
-        }, 5000);
-      }
+      // Socket.IO has built-in ping/pong (default 25s), custom heartbeat not needed
+      // Removed redundant 5s interval that was emitting 'ping' to all clients
 
       try {
         await loadRealtimeHistory({
