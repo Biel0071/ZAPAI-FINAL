@@ -3,6 +3,7 @@ require('dotenv').config({ path: path.join(__dirname, '.env') });
 
 const express = require('express');
 const cors = require('cors');
+const helmet = require('helmet');
 const http = require('http');
 const fsSync = require('fs');
 const fs = require('fs/promises');
@@ -63,17 +64,26 @@ function formatUptime(seconds) {
 function buildHealthPayload() {
   const session = sessionManager.getSession(DEFAULT_SESSION);
   const databaseOnline = Boolean(app.locals.store.databaseEnabled);
+  const databaseError = app.locals.store.databaseError || null;
   const whatsappConnected = String(session?.status || '').toLowerCase() === 'connected';
   const uptimeSec = process.uptime();
   const mem = process.memoryUsage();
+  const overallStatus = databaseOnline ? 'healthy' : 'degraded';
+
   return {
-    status: 'ok',
+    status: overallStatus,
     backend: true,
     db: databaseOnline,
     server: 'online',
-    database: databaseOnline ? 'online' : 'offline',
+    database: {
+      status: databaseOnline ? 'online' : 'offline',
+      error: databaseError,
+    },
     api: 'online',
-    whatsapp: whatsappConnected ? 'connected' : 'disconnected',
+    whatsapp: {
+      status: whatsappConnected ? 'connected' : 'disconnected',
+      sessionStatus: session?.status || 'unknown',
+    },
     uptime: formatUptime(uptimeSec),
     uptimeSeconds: Math.floor(uptimeSec),
     memory: {
@@ -331,6 +341,11 @@ const corsOptions = {
     'x-request-id',
   ],
 };
+
+app.use(helmet({
+  contentSecurityPolicy: false, // Disabled for Socket.IO and API flexibility
+  crossOriginEmbedderPolicy: false, // Allow loading from different origins
+}));
 
 app.use(cors(corsOptions));
 app.options('*', cors(corsOptions));
