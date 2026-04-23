@@ -19,8 +19,10 @@ module.exports = {
       watch: false,
       autorestart: true,
       max_restarts: 10,
-      restart_delay: 4000,
+      min_uptime: '10s',
+      restart_delay: 5000,
       max_memory_restart: '800M',
+      node_args: '--max-old-space-size=768',
 
       env_production: {
         NODE_ENV: 'production',
@@ -36,28 +38,8 @@ module.exports = {
       out_file: path.join(APP_DIR, 'logs/app.log'),
       error_file: path.join(APP_DIR, 'logs/error.log'),
       merge_logs: true,
-    },
-    {
-      name: 'zapai-frontend',
-      script: 'node_modules/.bin/vite',
-      args: 'preview --host 0.0.0.0 --port 3000',
-      cwd: path.join(APP_DIR, 'frontend'),
-      instances: 1,
-      exec_mode: 'fork',
-      watch: false,
-      autorestart: true,
-      max_restarts: 10,
-      restart_delay: 3000,
-      max_memory_restart: '400M',
-
-      env_production: {
-        NODE_ENV: 'production',
-      },
-
-      log_date_format: 'YYYY-MM-DD HH:mm:ss Z',
-      out_file: path.join(APP_DIR, 'logs/frontend.log'),
-      error_file: path.join(APP_DIR, 'logs/frontend-error.log'),
-      merge_logs: true,
+      log_type: 'json',
+      time: true,
     },
   ],
 };

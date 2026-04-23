@@ -24,6 +24,7 @@ let snapshot: FrontendHealthSnapshot = {
 };
 
 const lastIssueByKey = new Map<string, number>();
+const MAX_ISSUE_KEYS = 200;
 
 function emitSnapshot() {
   window.dispatchEvent(new CustomEvent<FrontendHealthSnapshot>(FRONTEND_HEALTH_EVENT, { detail: snapshot }));
@@ -33,6 +34,10 @@ function shouldThrottle(key: string): boolean {
   const now = Date.now();
   const lastRun = lastIssueByKey.get(key) ?? 0;
   if (now - lastRun < ISSUE_THROTTLE_MS) return true;
+  if (lastIssueByKey.size >= MAX_ISSUE_KEYS) {
+    const first = lastIssueByKey.keys().next().value;
+    if (first !== undefined) lastIssueByKey.delete(first);
+  }
   lastIssueByKey.set(key, now);
   return false;
 }

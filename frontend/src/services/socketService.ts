@@ -538,6 +538,19 @@ function resolveRealtimeMessagePayload(payload: RawRealtimeMessage | RawMessageE
   return [normalized];
 }
 
+const recentMessageIds = new Set<string>();
+const MAX_RECENT_MESSAGE_IDS = 500;
+
+function isDuplicateMessage(messageId: string): boolean {
+  if (recentMessageIds.has(messageId)) return true;
+  recentMessageIds.add(messageId);
+  if (recentMessageIds.size > MAX_RECENT_MESSAGE_IDS) {
+    const first = recentMessageIds.values().next().value;
+    if (first) recentMessageIds.delete(first);
+  }
+  return false;
+}
+
 function bindSharedSocketEvents() {
   if (!sharedSocket || eventBindingsReady) return;
 
@@ -573,6 +586,7 @@ function bindSharedSocketEvents() {
   const handleIncomingMessage = (payload: RawRealtimeMessage | RawMessageEnvelope) => {
     const normalizedMessages = resolveRealtimeMessagePayload(payload);
     normalizedMessages.forEach((normalized) => {
+      if (normalized.id && isDuplicateMessage(normalized.id)) return;
       notifySubscribers((subscriber) => subscriber.onNewMessage?.(normalized));
     });
   };
@@ -782,8 +796,10 @@ function ensureSharedSocket(socketUrl: string): Socket {
     transports: ["websocket", "polling"],
     upgrade: true,
     reconnection: true,
-    reconnectionAttempts: Infinity,
-    reconnectionDelay: 2000,
+    reconnectionAttempts: 20,
+    reconnectionDelay: 3000,
+    reconnectionDelayMax: 30_000,
+    randomizationFactor: 0.5,
     timeout: 10_000,
     extraHeaders: {
       "ngrok-skip-browser-warning": "true",

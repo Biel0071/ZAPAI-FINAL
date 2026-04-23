@@ -303,7 +303,7 @@ export default function Connections() {
 
     const intervalId = window.setInterval(() => {
       void loadSessions();
-    }, 5_000);
+    }, 15_000);
 
     return () => window.clearInterval(intervalId);
   }, [loadSessions]);

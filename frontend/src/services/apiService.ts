@@ -207,6 +207,31 @@ type ProxyRequest = {
   timeoutMs?: number;
 };
 
+const inFlightControllers = new Map<string, AbortController>();
+
+function abortPreviousRequest(key: string) {
+  const previous = inFlightControllers.get(key);
+  if (previous) {
+    try { previous.abort(); } catch { /* noop */ }
+    inFlightControllers.delete(key);
+  }
+}
+
+function registerInFlightRequest(key: string, controller: AbortController) {
+  if (inFlightControllers.size > 50) {
+    const first = inFlightControllers.keys().next().value;
+    if (first !== undefined) {
+      try { inFlightControllers.get(first)?.abort(); } catch { /* noop */ }
+      inFlightControllers.delete(first);
+    }
+  }
+  inFlightControllers.set(key, controller);
+}
+
+function unregisterInFlightRequest(key: string) {
+  inFlightControllers.delete(key);
+}
+
 const RETRYABLE_GET_ENDPOINTS = [
   /^\/api\/health(?:\?|$)/,
   /^\/api\/system\/runtime\/status(?:\?|$)/,
@@ -342,6 +367,10 @@ async function request<T>({ endpoint, method, body, timeoutMs = REQUEST_TIMEOUT_
       slog.info("api", `${method} ${endpoint}`, { route: endpoint });
 
       const controller = new AbortController();
+      const inFlightKey = `${method}:${normalizedEndpoint}`;
+      abortPreviousRequest(inFlightKey);
+      registerInFlightRequest(inFlightKey, controller);
+
       timeoutId = window.setTimeout(() => {
         timedOut = true;
         controller.abort();
@@ -403,6 +432,7 @@ async function request<T>({ endpoint, method, body, timeoutMs = REQUEST_TIMEOUT_
         return parsed as T;
       } finally {
         window.clearTimeout(timeoutId);
+        unregisterInFlightRequest(`${method}:${normalizedEndpoint}`);
       }
     } catch (error) {
       const wasTimedOut = timedOut || (error instanceof Error && error.name === "AbortError");

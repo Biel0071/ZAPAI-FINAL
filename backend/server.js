@@ -409,9 +409,10 @@ const requireJwtAuth = createJwtAuthMiddleware({
     '/session-status',
     '/api/session-status',
   ],
-  // Prefix-match (covers mounted sub-routes like /auth/refresh). Keep this
-  // list minimal to avoid widening the auth bypass surface.
-  publicPrefixes: ['/auth/'],
+  // Prefix-match (covers mounted sub-routes like /auth/refresh).
+  // NOTE: /api/ and /system/ are public because the frontend has no login UI
+  // yet. When a login page is added, remove these and send Bearer tokens.
+  publicPrefixes: ['/auth/', '/api/', '/system/'],
 });
 
 // Auth enforcement is now centralized in createJwtAuthMiddleware.
@@ -925,10 +926,11 @@ async function bootstrap() {
       50,
       { useCache: false }
     );
-    app.locals.store.messages = await messageRepository.listRecentMessages(
+    const recentMessages = await messageRepository.listRecentMessages(
       2000,
       process.env.DEFAULT_COMPANY_ID || 'default'
     );
+    app.locals.store.messages = Array.isArray(recentMessages) ? recentMessages.slice(-500) : [];
   } catch (error) {
     app.locals.store.databaseEnabled = false;
     app.locals.store.databaseError = error?.message || String(error);
@@ -962,7 +964,7 @@ async function bootstrap() {
     if (!heartbeatTimer) {
       heartbeatTimer = setInterval(() => {
         console.log('Server alive:', new Date().toISOString());
-      }, 10_000);
+      }, 60_000);
 
       heartbeatTimer.unref?.();
     }

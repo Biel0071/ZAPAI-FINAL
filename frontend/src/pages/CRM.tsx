@@ -61,10 +61,10 @@ const stages = [
   { id: "closed", name: "Fechados", color: "bg-success" },
 ];
 
-const CRM_DATA_REFRESH_MS = 20_000;
-const SYSTEM_STATUS_REFRESH_MS = 20_000;
-const DIAGNOSTICS_REFRESH_MS = 20_000;
-const SESSION_STATUS_REFRESH_MS = 30_000;
+const CRM_DATA_REFRESH_MS = 30_000;
+const SYSTEM_STATUS_REFRESH_MS = 45_000;
+const DIAGNOSTICS_REFRESH_MS = 60_000;
+const SESSION_STATUS_REFRESH_MS = 45_000;
 const LEADS_PER_STAGE_PAGE = 20;
 
 function isRecord(value: unknown): value is Record<string, unknown> {

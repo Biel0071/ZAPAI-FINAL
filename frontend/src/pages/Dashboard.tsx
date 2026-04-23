@@ -295,7 +295,7 @@ export default function Dashboard() {
   useEffect(() => {
     isMountedRef.current = true;
     void loadStatus();
-    const intervalId = window.setInterval(() => void loadStatus(), 10_000);
+    const intervalId = window.setInterval(() => void loadStatus(), 20_000);
     return () => {
       isMountedRef.current = false;
       window.clearInterval(intervalId);

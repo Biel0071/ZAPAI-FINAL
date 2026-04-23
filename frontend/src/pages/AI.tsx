@@ -255,7 +255,7 @@ export default function AI() {
       } catch {
         // ignore
       }
-    }, 10_000);
+    }, 20_000);
 
     return () => {
       mounted = false;

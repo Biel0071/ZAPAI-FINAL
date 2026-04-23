@@ -246,13 +246,13 @@ const Diagnostics = memo(function Diagnostics() {
 
   useEffect(() => {
     void loadDiagnostics();
-    const intervalId = window.setInterval(() => void loadDiagnostics(), 10_000);
+    const intervalId = window.setInterval(() => void loadDiagnostics(), 30_000);
     return () => window.clearInterval(intervalId);
   }, [loadDiagnostics]);
 
   useEffect(() => {
     void loadAiDiagnostics();
-    const intervalId = window.setInterval(() => void loadAiDiagnostics(), 10000);
+    const intervalId = window.setInterval(() => void loadAiDiagnostics(), 30_000);
     return () => window.clearInterval(intervalId);
   }, [loadAiDiagnostics]);
 
