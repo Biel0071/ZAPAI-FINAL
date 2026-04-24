@@ -27,6 +27,7 @@ const Scheduler = lazy(() => import("./pages/Scheduler"));
 const HumanAlert = lazy(() => import("./pages/HumanAlert"));
 const AccessControl = lazy(() => import("./pages/AccessControl"));
 const Analytics = lazy(() => import("./pages/Analytics"));
+const AdminMaster = lazy(() => import("./pages/AdminMaster"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 
 const queryClient = new QueryClient({
@@ -79,6 +80,7 @@ function App() {
                     <Route path="/campaigns" element={<Campaigns />} />
                     <Route path="/diagnostics" element={<Diagnostics />} />
                     <Route path="/settings" element={<Settings />} />
+                    <Route path="/admin/master" element={<AdminMaster />} />
                   </Route>
                   <Route path="*" element={<NotFound />} />
                 </Routes>
