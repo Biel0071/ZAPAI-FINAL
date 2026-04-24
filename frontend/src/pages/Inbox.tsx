@@ -67,7 +67,7 @@ const ARCHIVED_CHATS_STORAGE_KEY = "zapai_inbox_archived_chats";
 // Use relative URL for production (same origin)
 const BACKEND_BASE_URL = import.meta.env.MODE === 'production'
   ? ''
-  : ((import.meta.env.VITE_API_URL as string | undefined)?.trim().replace(/\/$/, "") || "http://localhost:4025");
+  : ((import.meta.env.VITE_API_URL as string | undefined)?.trim().replace(/\/$/, "") || "/api");
 
 function isSessionActive(session: SessionInfo): boolean {
   const normalizedStatus = (session.status ?? "").toLowerCase();

@@ -17,10 +17,10 @@ const SYSTEM_API_BASE_URL = import.meta.env.MODE === 'production'
   ? ''
   : ((import.meta.env.VITE_WHATSAPP_API_BASE_URL as string | undefined)?.trim().replace(/\/$/, "") ||
      (import.meta.env.VITE_API_URL as string | undefined)?.trim().replace(/\/$/, "") ||
-     "http://localhost:4025");
+     "/api");
 const API_BASE_URL = import.meta.env.MODE === 'production'
   ? '/api'
-  : `${(import.meta.env.VITE_API_URL as string | undefined)?.trim().replace(/\/$/, "") || "http://localhost:4025"}/api`;
+  : `${(import.meta.env.VITE_API_URL as string | undefined)?.trim().replace(/\/$/, "") || "/api"}/api`;
 
 type HealthLevel = "healthy" | "warning" | "error";
 

@@ -4,11 +4,11 @@ export type ErrorLogPayload = {
   timestamp: string;
 };
 
-const DEFAULT_TARGET_API_URL = (import.meta.env.VITE_API_URL as string | undefined)?.trim().replace(/\/$/, "") || "http://localhost:4025";
-
 // Use relative URL for production (same origin)
+const DEFAULT_TARGET_API_URL = "/api";
+
 const TARGET_API_URL = import.meta.env.MODE === 'production'
-  ? ''
+  ? DEFAULT_TARGET_API_URL
   : ((import.meta.env.VITE_WHATSAPP_API_BASE_URL as string | undefined)?.trim().replace(/\/$/, "") ||
      ((import.meta.env as Record<string, string | undefined>).TARGET_API_URL ?? "").trim().replace(/\/$/, "") ||
      DEFAULT_TARGET_API_URL);
@@ -28,7 +28,6 @@ export async function sendErrorLog(payload: ErrorLogPayload) {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "ngrok-skip-browser-warning": "true",
         "x-tenant-id": "main",
       },
       body: JSON.stringify(payload),

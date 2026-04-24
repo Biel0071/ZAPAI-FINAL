@@ -802,7 +802,6 @@ function ensureSharedSocket(socketUrl: string): Socket {
     randomizationFactor: 0.5,
     timeout: 10_000,
     extraHeaders: {
-      "ngrok-skip-browser-warning": "true",
     },
   });
   sharedSocketUrl = normalizedUrl;

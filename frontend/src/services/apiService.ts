@@ -13,7 +13,7 @@ const PUBLIC_URL_STORAGE_KEY = "zapai_public_api_url";
 // Use relative URL for production (same origin)
 const API_BASE_URL = import.meta.env.MODE === 'production'
   ? '/api'
-  : `${(import.meta.env.VITE_API_URL as string | undefined)?.trim().replace(/\/$/, "") || "http://localhost:4025"}/api`;
+  : `${(import.meta.env.VITE_API_URL as string | undefined)?.trim().replace(/\/$/, "") || "/api"}/api`;
 const CONFIGURED_API_ORIGIN = (() => {
   try {
     return new URL(API_BASE_URL).origin;
