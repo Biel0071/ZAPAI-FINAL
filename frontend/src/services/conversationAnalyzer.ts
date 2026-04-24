@@ -51,7 +51,7 @@ export async function analyzeConversation(
     if (error) throw error;
     return data as ConversationAnalysisResult;
   } catch (error) {
-    console.error("AI error", error);
+    if (import.meta.env.MODE !== 'production') console.error("AI error", error);
     throw normalizeAIError(error);
   }
 }
@@ -68,7 +68,7 @@ export async function generateResponse(context: ResponseContext): Promise<{ resp
     if (error) throw error;
     return data as { response: string };
   } catch (error) {
-    console.error("AI error", error);
+    if (import.meta.env.MODE !== 'production') console.error("AI error", error);
     throw normalizeAIError(error);
   }
 }

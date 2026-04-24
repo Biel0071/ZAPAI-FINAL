@@ -75,7 +75,7 @@ export default function Settings() {
         setIsAIEnabled(true);
       }
     } catch (error) {
-      console.error("Erro ao alternar IA:", error);
+      if (import.meta.env.MODE !== 'production') console.error("Erro ao alternar IA:", error);
     } finally {
       setIsAIToggling(false);
     }
