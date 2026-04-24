@@ -1082,6 +1082,15 @@ export default function Inbox() {
   const [messageInput, setMessageInput] = useState("");
   const [filter, setFilter] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
+  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("");
+  
+  // Debounce search query for performance
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      setDebouncedSearchQuery(searchQuery);
+    }, 300);
+    return () => window.clearTimeout(timer);
+  }, [searchQuery]);
   const [loadingConversations, setLoadingConversations] = useState(true);
   const [loadingMessages, setLoadingMessages] = useState(false);
   const [loadingOlderMessages, setLoadingOlderMessages] = useState(false);
@@ -2407,7 +2416,7 @@ export default function Inbox() {
   }, [archivedChatIds]);
 
   const filteredConversations = useMemo(() => {
-    const normalizedSearch = searchQuery.trim().toLowerCase();
+    const normalizedSearch = debouncedSearchQuery.trim().toLowerCase();
     const archivedSet = new Set(archivedChatIds);
 
     return (Array.isArray(safeConversations) ? safeConversations : [])
@@ -2430,7 +2439,7 @@ export default function Inbox() {
       );
     })
       .sort((a, b) => normalizeConversationTimestamp(b.updatedAt) - normalizeConversationTimestamp(a.updatedAt));
-  }, [archivedChatIds, conversationControls, filter, safeConversations, searchQuery]);
+  }, [archivedChatIds, conversationControls, filter, safeConversations, debouncedSearchQuery]);
 
   const selectedConversationMessages = useMemo(
     () => (Array.isArray(messages) ? messages : []).filter((message) => normalizeId(message?.conversationId) === normalizeId(selectedConversation?.id)),
