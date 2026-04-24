@@ -2,7 +2,8 @@ const conversationsRouter = require('./conversations');
 const messagesRouter = require('./messages');
 const sessionsRouter = require('./sessions');
 const systemRouter = require('./system');
-const leadsRouter = require('./leads');
+const adminRouter = require('./admin');
+const metricsRouter = require('./metrics');
 const contactsRouter = require('./contacts');
 const analyticsRouter = require('./analytics');
 const automationRouter = require('./automation');
@@ -31,8 +32,10 @@ function registerRoutes(app, options = {}) {
   app.use('/api', authRouter);
   app.use(requireJwtAuth);
 
-  app.use('/admin', adminMasterRouter);
+  // System routes
+  app.use('/api/system', systemRouter);
   app.use('/api/admin', adminMasterRouter);
+  app.use('/metrics', metricsRouter);
 
   if (writeHeavyRateLimiter) {
     app.use('/send-message', writeHeavyRateLimiter);

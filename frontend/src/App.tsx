@@ -9,6 +9,10 @@ import { MainLayout } from "@/components/layout/MainLayout";
 import { PageFallback } from "@/components/layout/PageFallback";
 import { GlobalErrorBoundary } from "@/components/system/GlobalErrorBoundary";
 import AdminGuard from "@/components/admin/AdminGuard";
+import { DebugTracePanel } from "@/components/DebugTracePanel";
+import { BuildFooter } from "@/components/BuildFooter";
+import { initializeCacheReset } from "@/lib/cacheReset";
+import { validateRuntimeConfig } from "@/config/runtime";
 
 const Dashboard = lazy(() => import("./pages/Dashboard"));
 const Connections = lazy(() => import("./pages/Connections"));
@@ -29,6 +33,8 @@ const HumanAlert = lazy(() => import("./pages/HumanAlert"));
 const AccessControl = lazy(() => import("./pages/AccessControl"));
 const Analytics = lazy(() => import("./pages/Analytics"));
 const AdminMaster = lazy(() => import("./pages/AdminMaster"));
+const Map = lazy(() => import("./pages/Map"));
+const QuickReplies = lazy(() => import("./pages/QuickReplies"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 
 const queryClient = new QueryClient({
@@ -52,49 +58,73 @@ function App() {
     document.documentElement.classList.remove("light");
   }, []);
 
+  // Initialize cache reset on boot
+  useEffect(() => {
+    initializeCacheReset().catch((error) => {
+      console.error('Failed to initialize cache reset:', error);
+    });
+  }, []);
+
+  // Validate runtime config on boot
+  useEffect(() => {
+    const validation = validateRuntimeConfig();
+    if (!validation.valid) {
+      console.error('Runtime config validation failed:', validation.errors);
+      if (import.meta.env.MODE === 'production') {
+        alert('Configuration error. Please contact support.');
+      }
+    }
+  }, []);
+
   return (
-    <GlobalErrorBoundary>
-      <QueryClientProvider client={queryClient}>
-        <ThemeProvider attribute="class" defaultTheme="dark" enableSystem={false}>
-          <TooltipProvider>
-            <Toaster />
-            <Sonner />
-            <BrowserRouter>
-              <Suspense fallback={<PageFallback />}>
-                <Routes>
-                  <Route element={<MainLayout />}>
-                    <Route path="/" element={<Dashboard />} />
-                    <Route path="/connections" element={<Connections />} />
-                    <Route path="/inbox" element={<Inbox />} />
-                    <Route path="/contacts" element={<Contacts />} />
-                    <Route path="/ai" element={<AI />} />
-                    <Route path="/timers" element={<MessageTimers />} />
-                    <Route path="/follow-up" element={<FollowUp />} />
-                    <Route path="/media-library" element={<MediaLibrary />} />
-                    <Route path="/groups" element={<Groups />} />
-                    <Route path="/scheduler" element={<Scheduler />} />
-                    <Route path="/human-alert" element={<HumanAlert />} />
-                    <Route path="/access-control" element={<AccessControl />} />
-                    <Route path="/flows" element={<Flows />} />
-                    <Route path="/crm" element={<CRM />} />
-                    <Route path="/analytics" element={<Analytics />} />
-                    <Route path="/campaigns" element={<Campaigns />} />
-                    <Route path="/diagnostics" element={<Diagnostics />} />
-                    <Route path="/settings" element={<Settings />} />
-                    <Route path="/admin/master" element={
-                      <AdminGuard>
-                        <AdminMaster />
-                      </AdminGuard>
-                    } />
-                  </Route>
-                  <Route path="*" element={<NotFound />} />
-                </Routes>
-              </Suspense>
-            </BrowserRouter>
-          </TooltipProvider>
-        </ThemeProvider>
-      </QueryClientProvider>
-    </GlobalErrorBoundary>
+    <>
+      <GlobalErrorBoundary>
+        <QueryClientProvider client={queryClient}>
+          <ThemeProvider attribute="class" defaultTheme="dark" enableSystem={false}>
+            <TooltipProvider>
+              <Toaster />
+              <Sonner />
+              <BrowserRouter>
+                <Suspense fallback={<PageFallback />}>
+                  <Routes>
+                    <Route element={<MainLayout />}>
+                      <Route path="/" element={<Dashboard />} />
+                      <Route path="/connections" element={<Connections />} />
+                      <Route path="/inbox" element={<Inbox />} />
+                      <Route path="/contacts" element={<Contacts />} />
+                      <Route path="/ai" element={<AI />} />
+                      <Route path="/timers" element={<MessageTimers />} />
+                      <Route path="/follow-up" element={<FollowUp />} />
+                      <Route path="/media-library" element={<MediaLibrary />} />
+                      <Route path="/groups" element={<Groups />} />
+                      <Route path="/scheduler" element={<Scheduler />} />
+                      <Route path="/human-alert" element={<HumanAlert />} />
+                      <Route path="/access-control" element={<AccessControl />} />
+                      <Route path="/flows" element={<Flows />} />
+                      <Route path="/crm" element={<CRM />} />
+                      <Route path="/analytics" element={<Analytics />} />
+                      <Route path="/campaigns" element={<Campaigns />} />
+                      <Route path="/diagnostics" element={<Diagnostics />} />
+                      <Route path="/settings" element={<Settings />} />
+                      <Route path="/admin/master" element={
+                        <AdminGuard>
+                          <AdminMaster />
+                        </AdminGuard>
+                      } />
+                      <Route path="/map" element={<Map />} />
+                      <Route path="/quick-replies" element={<QuickReplies />} />
+                    </Route>
+                    <Route path="*" element={<NotFound />} />
+                  </Routes>
+                </Suspense>
+              </BrowserRouter>
+            </TooltipProvider>
+          </ThemeProvider>
+        </QueryClientProvider>
+      </GlobalErrorBoundary>
+      <DebugTracePanel />
+      <BuildFooter />
+    </>
   );
 }
 

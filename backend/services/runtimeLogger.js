@@ -4,6 +4,10 @@ const path = require('path');
 const RUNTIME_LOG_PATH = path.join(__dirname, '..', 'logs', 'runtime.log');
 const MAX_LOG_ENTRIES = 5000;
 const MAX_LOG_FILE_SIZE = 10 * 1024 * 1024; // 10 MB
+const QUIET_CONSOLE =
+  String(process.env.LOG_CONSOLE_QUIET || (process.env.NODE_ENV === 'production' ? 'true' : 'false'))
+    .trim()
+    .toLowerCase() === 'true';
 
 /**
  * Runtime Logger
@@ -77,14 +81,16 @@ function writeLogEntry(level, message, data = {}) {
 
     fs.appendFileSync(RUNTIME_LOG_PATH, logLine, 'utf8');
 
-    // Also log to console with color coding
-    const prefix = `[${timestamp}] [${level}]`;
-    if (level === 'error') {
-      console.error(prefix, message, data);
-    } else if (level === 'warn') {
-      console.warn(prefix, message, data);
-    } else {
-      console.log(prefix, message, data);
+    // Also log to console unless quiet mode is enabled.
+    if (!QUIET_CONSOLE) {
+      const prefix = `[${timestamp}] [${level}]`;
+      if (level === 'error') {
+        console.error(prefix, message, data);
+      } else if (level === 'warn') {
+        console.warn(prefix, message, data);
+      } else {
+        console.log(prefix, message, data);
+      }
     }
   } catch (error) {
     console.error('[RuntimeLogger] Failed to write log entry:', error);

@@ -9,7 +9,12 @@
   },
   "scripts": {
     "start": "node server.js",
-    "dev": "node server.js"
+    "dev": "node server.js",
+    "protect:sessions": "node scripts/protect-whatsapp-sessions.js",
+    "audit:production": "node scripts/audit-production-data.js",
+    "cleanup:dry-run": "node scripts/safe-cleanup-production.js",
+    "cleanup:execute": "node -e \"process.env.ALLOW_PRODUCTION_CLEANUP='true'; require('./scripts/safe-cleanup-production')\"",
+    "db:maintain": "node scripts/db-performance-maintenance.js"
   },
   "dependencies": {
     "@whiskeysockets/baileys": "6.7.21",

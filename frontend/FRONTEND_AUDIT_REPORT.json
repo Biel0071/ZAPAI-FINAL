@@ -1,0 +1,200 @@
+{
+  "builds": 3,
+  "bundles": 58,
+  "orphanFiles": [
+    "api\\AI_CONTEXT.md",
+    "App.css",
+    "components\\admin\\AdminGuard.tsx",
+    "components\\ai\\AILearningDashboard.tsx",
+    "components\\AI_CONTEXT.md",
+    "components\\DebugTracePanel.tsx",
+    "components\\layout\\Header.tsx",
+    "components\\layout\\MainLayout.tsx",
+    "components\\layout\\PageFallback.tsx",
+    "components\\NavLink.tsx",
+    "components\\system\\GlobalErrorBoundary.tsx",
+    "components\\theme\\ThemeProvider.tsx",
+    "components\\ui\\accordion.tsx",
+    "components\\ui\\alert-dialog.tsx",
+    "components\\ui\\alert.tsx",
+    "components\\ui\\aspect-ratio.tsx",
+    "components\\ui\\avatar.tsx",
+    "components\\ui\\badge.tsx",
+    "components\\ui\\breadcrumb.tsx",
+    "components\\ui\\button.tsx",
+    "components\\ui\\calendar.tsx",
+    "components\\ui\\card.tsx",
+    "components\\ui\\carousel.tsx",
+    "components\\ui\\chart.tsx",
+    "components\\ui\\checkbox.tsx",
+    "components\\ui\\collapsible.tsx",
+    "components\\ui\\command.tsx",
+    "components\\ui\\context-menu.tsx",
+    "components\\ui\\dialog.tsx",
+    "components\\ui\\drawer.tsx",
+    "components\\ui\\dropdown-menu.tsx",
+    "components\\ui\\form.tsx",
+    "components\\ui\\hover-card.tsx",
+    "components\\ui\\input-otp.tsx",
+    "components\\ui\\input.tsx",
+    "components\\ui\\label.tsx",
+    "components\\ui\\menubar.tsx",
+    "components\\ui\\navigation-menu.tsx",
+    "components\\ui\\pagination.tsx",
+    "components\\ui\\popover.tsx",
+    "components\\ui\\progress.tsx",
+    "components\\ui\\radio-group.tsx",
+    "components\\ui\\resizable.tsx",
+    "components\\ui\\scroll-area.tsx",
+    "components\\ui\\select.tsx",
+    "components\\ui\\separator.tsx",
+    "components\\ui\\sheet.tsx",
+    "components\\ui\\sidebar.tsx",
+    "components\\ui\\skeleton.tsx",
+    "components\\ui\\slider.tsx",
+    "components\\ui\\sonner.tsx",
+    "components\\ui\\switch.tsx",
+    "components\\ui\\table.tsx",
+    "components\\ui\\tabs.tsx",
+    "components\\ui\\textarea.tsx",
+    "components\\ui\\toast.tsx",
+    "components\\ui\\toaster.tsx",
+    "components\\ui\\toggle-group.tsx",
+    "components\\ui\\toggle.tsx",
+    "components\\ui\\tooltip.tsx",
+    "components\\ui\\use-toast.ts",
+    "config\\api.config.ts",
+    "hooks\\AI_CONTEXT.md",
+    "hooks\\use-mobile.tsx",
+    "hooks\\use-pwa-install.ts",
+    "hooks\\use-toast.ts",
+    "hooks\\useExecutiveOverview.ts",
+    "hooks\\useFrontendHealthWatcher.ts",
+    "hooks\\useSocketMessages.ts",
+    "integrations\\supabase\\client.ts",
+    "main.tsx",
+    "pages\\AccessControl.tsx",
+    "pages\\AdminMaster.tsx",
+    "pages\\AI.tsx",
+    "pages\\AI_CONTEXT.md",
+    "pages\\Analytics.tsx",
+    "pages\\Campaigns.tsx",
+    "pages\\Connections.tsx",
+    "pages\\Contacts.tsx",
+    "pages\\CRM.tsx",
+    "pages\\Dashboard.tsx",
+    "pages\\Diagnostics.tsx",
+    "pages\\Flows.tsx",
+    "pages\\FollowUp.tsx",
+    "pages\\Groups.tsx",
+    "pages\\HumanAlert.tsx",
+    "pages\\Inbox.tsx",
+    "pages\\Index.tsx",
+    "pages\\Map.tsx",
+    "pages\\MediaLibrary.tsx",
+    "pages\\MessageTimers.tsx",
+    "pages\\NotFound.tsx",
+    "pages\\QuickReplies.tsx",
+    "pages\\Scheduler.tsx",
+    "pages\\Settings.tsx",
+    "services\\adminMasterService.ts",
+    "services\\aiLearningService.ts",
+    "services\\AI_CONTEXT.md",
+    "services\\apiService.ts",
+    "services\\conversationAnalyzer.ts",
+    "services\\conversationControlStore.ts",
+    "services\\errorLogService.ts",
+    "services\\frontendHealthService.ts",
+    "services\\leadAnalyzer.ts",
+    "services\\leadIntelligenceStore.ts",
+    "services\\notifyService.ts",
+    "services\\responseEngine.ts",
+    "services\\salesStrategyEngine.ts",
+    "services\\socketService.ts",
+    "services\\supabaseDataService.ts",
+    "services\\systemControlService.ts",
+    "test\\example.test.ts",
+    "test\\setup.ts",
+    "types.ts",
+    "vite-env.d.ts"
+  ],
+  "oldRoutes": [],
+  "serviceWorker": "dist\\sw.js",
+  "caches": [
+    {
+      "path": "dist",
+      "size": "2.35 MB"
+    }
+  ],
+  "duplicateImports": [
+    {
+      "import": "react",
+      "count": 71
+    },
+    {
+      "import": "react-router-dom",
+      "count": 8
+    },
+    {
+      "import": "@/components/ui/card",
+      "count": 21
+    },
+    {
+      "import": "@/components/ui/button",
+      "count": 23
+    },
+    {
+      "import": "@/components/ui/badge",
+      "count": 14
+    },
+    {
+      "import": "@/components/ui/textarea",
+      "count": 8
+    },
+    {
+      "import": "@/hooks/use-toast",
+      "count": 7
+    },
+    {
+      "import": "@/services/apiService",
+      "count": 12
+    },
+    {
+      "import": "@/components/ui/input",
+      "count": 17
+    },
+    {
+      "import": "@/components/ui/skeleton",
+      "count": 10
+    },
+    {
+      "import": "framer-motion",
+      "count": 7
+    },
+    {
+      "import": "@/lib/utils",
+      "count": 51
+    },
+    {
+      "import": "lucide-react",
+      "count": 21
+    },
+    {
+      "import": "class-variance-authority",
+      "count": 10
+    },
+    {
+      "import": "@/components/ui/label",
+      "count": 12
+    },
+    {
+      "import": "@/components/layout/Header",
+      "count": 18
+    },
+    {
+      "import": "@/components/ui/switch",
+      "count": 8
+    }
+  ],
+  "oldCompiledPages": []
+}

@@ -13,6 +13,7 @@ const { createRequestLogger } = require('./middleware/requestLogger');
 const { createRateLimiter } = require('./middleware/rateLimiter');
 const { apiEnvelopeMiddleware, normalizeErrorMessage } = require('./middleware/apiEnvelope');
 const { createJwtAuthMiddleware } = require('./middleware/jwtAuth');
+const { inputSanitizerMiddleware } = require('./middleware/inputSanitizer');
 
 const { businessHours, isBusinessOpen } = require('./config/businessHours');
 const { initDatabase } = require('./config/database');
@@ -46,6 +47,7 @@ const aiIntelligenceService = require('./services/aiIntelligenceService');
 const { processAI } = require('./services/ai.service');
 const { backendLog, errorLog } = require('./services/logger');
 const { DEFAULT_SESSION } = whatsappService;
+const nodeRegisterService = require('./services/nodeRegister');
 
 function formatUptime(seconds) {
   const total = Math.max(0, Math.floor(Number(seconds) || 0));
@@ -107,13 +109,15 @@ backendLog('info', 'boot:start', { pid: process.pid });
 const app = express();
 const server = http.createServer(app);
 
+// Porta fixa 4025 - travada para produção
+const PORT = 4025;
+
 // Initialize tenant-indexed WhatsApp session state. For backwards compatibility,
 // this service also keeps `global.whatsappSession` in sync with the default tenant.
 const sessionStateService = require('./services/sessionStateService');
 sessionStateService.getWhatsappSession(sessionStateService.DEFAULT_TENANT);
 
 const runtimeEnv = loadRuntimeEnv();
-const PORT = runtimeEnv.port;
 const NODE_ENV = runtimeEnv.nodeEnv;
 const IS_PRODUCTION = runtimeEnv.isProduction;
 const IS_DEVELOPMENT = NODE_ENV === 'development';
@@ -321,17 +325,6 @@ function buildSessionStatusPayload() {
   };
 }
 
-const io = new Server(server, {
-  cors: {
-    origin: IS_PRODUCTION ? validateOrigin : true,
-    credentials: true,
-  },
-});
-
-global.io = io;
-app.set('io', io);
-initializeBugWatcher();
-
 const DEFAULT_PAYLOAD_LIMIT = process.env.DEFAULT_PAYLOAD_LIMIT || '1mb';
 const MEDIA_PAYLOAD_LIMIT = process.env.MEDIA_PAYLOAD_LIMIT || '25mb';
 const mediaPayloadPaths = ['/send-media', '/api/send-media', '/receive-message', '/api/receive-message'];
@@ -412,6 +405,7 @@ app.use((req, res, next) => {
 
 app.use(createRequestLogger());
 
+app.use(inputSanitizerMiddleware);
 app.use(requestContextMiddleware);
 app.use(tenantContextMiddleware);
 app.use(apiEnvelopeMiddleware);
@@ -531,6 +525,37 @@ app.get('/api', (_req, res) => {
 
 app.get('/api/health', (_req, res) => {
   return res.status(200).json(buildHealthPayload());
+});
+
+// Metrics endpoint
+app.get('/api/metrics', (_req, res) => {
+  try {
+    const startTime = process.uptime();
+    
+    const uptimeHours = Math.floor(startTime / 3600);
+    const uptimeMinutes = Math.floor((startTime % 3600) / 60);
+    const uptimeSeconds = Math.floor(startTime % 60);
+    
+    const memoryUsage = process.memoryUsage();
+    const memoryUsedMB = Math.round(memoryUsage.heapUsed / 1024 / 1024);
+    const memoryTotalMB = Math.round(memoryUsage.heapTotal / 1024 / 1024);
+    
+    res.json({
+      uptime: {
+        seconds: Math.floor(startTime),
+        formatted: `${uptimeHours}h ${uptimeMinutes}m ${uptimeSeconds}s`,
+      },
+      memory: {
+        used: memoryUsedMB,
+        total: memoryTotalMB,
+        percentage: Math.round((memoryUsedMB / memoryTotalMB) * 100),
+      },
+      timestamp: new Date().toISOString(),
+    });
+  } catch (error) {
+    console.error('[Metrics] Error:', error);
+    res.status(500).json({ error: 'Failed to get metrics' });
+  }
 });
 
 app.get('/api/session-status', (_req, res) => {
@@ -989,8 +1014,13 @@ async function bootstrap() {
   await enterpriseQueueService.initialize();
 
   server.listen(PORT, '0.0.0.0', async () => {
-    console.log(`Server started on port ${PORT}`);
-    console.log('[SERVER] API running');
+    console.log(`[SERVER] Started on port ${PORT}`);
+    console.log(`[SERVER] Host: 0.0.0.0`);
+    console.log(`[SERVER] Environment: ${NODE_ENV}`);
+    console.log(`[SERVER] API running`);
+    
+    // Register node in master admin
+    await nodeRegisterService.registerNode();
 
     if (!heartbeatTimer) {
       heartbeatTimer = setInterval(() => {

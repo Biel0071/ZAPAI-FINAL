@@ -1,3 +1,20 @@
+/**
+ * ============================================================================
+ * CONFIG FIXA DE API - NÃO ALTERAR
+ * ============================================================================
+ * 
+ * Este arquivo contém serviços de controle do sistema que usam configuração fixa.
+ * 
+ * PROIBIDO:
+ * - Alterar x-tenant-id de "default"
+ * - Remover headers obrigatórios
+ * - Substituir endpoints por fake routes
+ * - Adicionar mock data ou fallback fake
+ * 
+ * Para alterações visuais ou merge: NÃO TOCAR neste arquivo.
+ * ============================================================================
+ */
+
 import { slog } from "@/lib/structuredLogger";
 
 export type RuntimeUiState = "offline" | "starting" | "running";
@@ -106,7 +123,7 @@ async function requestSystem(path: string, method: "GET" | "POST", baseUrl?: str
     headers: {
       "Content-Type": "application/json",
       Accept: "application/json",
-      "x-tenant-id": "main",
+      "x-tenant-id": "default",
     },
     body: method === "POST" ? JSON.stringify({}) : undefined,
   });

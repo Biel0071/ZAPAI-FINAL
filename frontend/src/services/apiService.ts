@@ -1,3 +1,20 @@
+/**
+ * ============================================================================
+ * CONFIG FIXA DE API - NÃO ALTERAR
+ * ============================================================================
+ * 
+ * Este arquivo contém serviços de API que usam configuração fixa.
+ * 
+ * PROIBIDO:
+ * - Alterar x-tenant-id de "default"
+ * - Remover headers obrigatórios
+ * - Substituir endpoints por fake routes
+ * - Adicionar mock data ou fallback fake
+ * 
+ * Para alterações visuais ou merge: NÃO TOCAR neste arquivo.
+ * ============================================================================
+ */
+
 import { getCache, invalidateCache, setCache } from "@/lib/requestCache";
 import { reportFrontendIssue } from "@/services/frontendHealthService";
 import { slog } from "@/lib/structuredLogger";
@@ -386,7 +403,7 @@ async function request<T>({ endpoint, method, body, timeoutMs = REQUEST_TIMEOUT_
           headers: {
             Accept: "application/json",
             "ngrok-skip-browser-warning": "true",
-            "x-tenant-id": "main",
+            "x-tenant-id": "default",
             ...(method !== "GET" ? { "Content-Type": "application/json" } : {}),
           },
           body: method === "GET" ? undefined : JSON.stringify(body ?? {}),

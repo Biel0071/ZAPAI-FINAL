@@ -1,28 +1,13 @@
 /**
  * Development seed data for ZapAI CRM
- * Usage: node migrations/002_seed_data.js
- * This file inserts sample data for development/testing purposes
+ * Migration format for the migration runner
  */
 
-const { Pool } = require('pg');
-const path = require('path');
-require('dotenv').config({ path: path.join(__dirname, '..', '.env') });
-
-const pool = new Pool({
-  host: process.env.DB_HOST || 'localhost',
-  port: Number(process.env.DB_PORT) || 5432,
-  database: process.env.DB_NAME || 'zapai_crm',
-  user: process.env.DB_USER || 'postgres',
-  password: process.env.DB_PASSWORD || 'postgres',
-});
-
-async function seedData() {
-  const client = await pool.connect();
-  
-  try {
+module.exports = {
+  version: '002_seed_data',
+  description: 'Insert sample development data for testing',
+  up: async (client) => {
     await client.query('BEGIN');
-
-    console.log('Seeding development data...');
 
     // Insert sample sessions
     await client.query(`
@@ -96,23 +81,5 @@ async function seedData() {
     `);
 
     await client.query('COMMIT');
-    console.log('✅ Seed data inserted successfully');
-
-  } catch (error) {
-    await client.query('ROLLBACK');
-    console.error('❌ Error seeding data:', error);
-    throw error;
-  } finally {
-    client.release();
-    await pool.end();
-  }
-}
-
-// Run seed if executed directly
-if (require.main === module) {
-  seedData()
-    .then(() => process.exit(0))
-    .catch(() => process.exit(1));
-}
-
-module.exports = { seedData };
+  },
+};

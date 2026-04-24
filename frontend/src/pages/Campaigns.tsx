@@ -43,8 +43,6 @@ interface Campaign {
 
 const CAMPAIGN_ROW_HEIGHT = 344;
 
-const mockCampaigns: Campaign[] = [];
-
 function getStatusColor(status: Campaign["status"]) {
   switch (status) {
     case "completed":
@@ -197,7 +195,7 @@ export default function Campaigns() {
 
   const safeCampaigns = useMemo(() => (Array.isArray(mockCampaigns) ? mockCampaigns : []), []);
 
-  const handleStartCampaign = useCallback((campaignId: string) => {
+  const handleStartCampaign = useCallback((campaignIdsing) => {campaigns
     if (startingCampaignId) return;
     setStartingCampaignId(campaignId);
     window.setTimeout(() => {

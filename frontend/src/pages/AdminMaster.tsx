@@ -93,6 +93,7 @@ export default function AdminMaster() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [isActionLoading, setIsActionLoading] = useState(false);
+  const [backendOnline, setBackendOnline] = useState(true);
   const pollingBusyRef = useRef(false);
 
   const loadMetrics = useCallback(async (silent = false) => {
@@ -133,12 +134,13 @@ export default function AdminMaster() {
         accessesToday: overview.users.accessesToday,
         activePlans: overview.users.plans,
       });
+      setBackendOnline(true);
     } catch (error) {
-      if (import.meta.env.MODE !== "production") console.error("Failed to load admin metrics:", error);
+      setBackendOnline(false);
       if (!silent) {
         toast({
-          title: "Falha ao carregar Admin Master",
-          description: "Verifique autenticação master_admin e backend.",
+          title: "Backend Offline",
+          description: "Não foi possível conectar ao backend. Verifique a conexão.",
           variant: "destructive",
         });
       }
@@ -152,10 +154,11 @@ export default function AdminMaster() {
   useEffect(() => {
     void loadMetrics();
 
+    // Auto refresh 15s em produção
     const interval = window.setInterval(() => {
       if (document.visibilityState !== "visible") return;
       void loadMetrics(true);
-    }, 45_000);
+    }, 15_000);
 
     const onFocus = () => {
       if (document.visibilityState !== "visible") return;

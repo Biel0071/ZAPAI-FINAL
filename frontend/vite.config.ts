@@ -1,11 +1,41 @@
+/**
+ * ============================================================================
+ * CONFIG FIXA DE API - NÃO ALTERAR
+ * ============================================================================
+ * 
+ * Este arquivo contém configuração de proxy para API.
+ * 
+ * PROIBIDO:
+ * - Remover configuração de proxy /api
+ * - Alterar target do proxy
+ * - Desabilitar changeOrigin
+ * 
+ * Para alterações visuais ou merge: NÃO TOCAR neste arquivo.
+ * ============================================================================
+ */
+
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react-swc";
 import path from "path";
 import { componentTagger } from "lovable-tagger";
 import { VitePWA } from "vite-plugin-pwa";
 
+// Gerar build ID único
+const generateBuildId = () => {
+  const timestamp = Date.now();
+  const random = Math.random().toString(36).substring(2, 10);
+  return `${timestamp}-${random}`;
+};
+
+const BUILD_ID = generateBuildId();
+
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => ({
+  // Build ID global
+  define: {
+    __BUILD_ID__: JSON.stringify(BUILD_ID),
+    __BUILD_TIME__: JSON.stringify(new Date().toISOString()),
+  },
   server: {
     host: "::",
     port: 8080,
@@ -60,14 +90,20 @@ export default defineConfig(({ mode }) => ({
       workbox: {
         navigateFallbackDenylist: [/^\/~oauth/],
         globPatterns: ["**/*.{js,css,html,ico,png,svg,webp,json}"],
-        // Disable API caching to prevent stale data inconsistencies
+        // Cache imutável para assets com hash
         runtimeCaching: [
           {
             urlPattern: /\.(?:js|css)$/i,
-            handler: "NetworkFirst",
+            handler: "CacheFirst",
             options: {
               cacheName: "static-resources",
-              networkTimeoutSeconds: 3,
+              expiration: {
+                maxEntries: 100,
+                maxAgeSeconds: 60 * 60 * 24 * 365, // 1 ano para assets com hash
+              },
+              cacheableResponse: {
+                statuses: [0, 200],
+              },
             },
           },
           {
@@ -77,11 +113,18 @@ export default defineConfig(({ mode }) => ({
               cacheName: "asset-cache",
               expiration: {
                 maxEntries: 100,
-                maxAgeSeconds: 60 * 60 * 24 * 7, // 7 days
+                maxAgeSeconds: 60 * 60 * 24 * 365, // 1 ano para assets com hash
+              },
+              cacheableResponse: {
+                statuses: [0, 200],
               },
             },
           },
         ],
+        // Não cachear index.html
+        navigateFallback: "/index.html",
+        skipWaiting: true,
+        clientsClaim: true,
       },
     }),
   ].filter(Boolean),
@@ -116,13 +159,27 @@ export default defineConfig(({ mode }) => ({
     target: "esnext",
     cssMinify: true,
     sourcemap: false,
+    emptyOutDir: true,
+    // Hash em todos os assets para cache imutável
+    assetsDir: "assets",
     rollupOptions: {
       output: {
+        // Hash em nomes de arquivos para cache busting
+        entryFileNames: "assets/[name].[hash].js",
+        chunkFileNames: "assets/[name].[hash].js",
+        assetFileNames: "assets/[name].[hash].[ext]",
         manualChunks: {
           vendor: ["react", "react-dom", "react-router-dom"],
           ui: ["framer-motion", "@radix-ui/react-dialog", "@radix-ui/react-dropdown-menu", "@radix-ui/react-select", "@radix-ui/react-tabs"],
           query: ["@tanstack/react-query"],
           charts: ["recharts"],
+        },
+      },
+      minify: "terser",
+      terserOptions: {
+        compress: {
+          drop_console: true,
+          drop_debugger: true,
         },
       },
     },

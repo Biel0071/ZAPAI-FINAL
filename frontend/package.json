@@ -6,13 +6,21 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
+    "build:prod": "vite build --mode production",
     "build:dev": "vite build --mode development",
+    "clean": "rm -rf dist node_modules/.vite",
+    "clean:all": "rm -rf dist node_modules package-lock.json",
+    "reinstall": "npm run clean:all && npm install",
     "lint": "eslint .",
     "preview": "vite preview",
     "start": "vite preview --host 0.0.0.0 --port 3000",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test-ui": "playwright test"
+    "test-ui": "playwright test",
+    "validate-build": "node scripts/validate-build.js",
+    "prebuild": "npm run clean",
+    "audit": "node scripts/audit-frontend.cjs",
+    "audit:clean": "node scripts/clean-frontend.cjs"
   },
   "dependencies": {
     "@emoji-mart/data": "^1.2.1",

@@ -1,3 +1,5 @@
+import { API_BASE_URL } from '@/config/runtime';
+
 export type AdminMasterOverview = {
   generatedAt: string;
   infra: {
@@ -57,7 +59,7 @@ export async function getAdminMasterOverview(): Promise<AdminMasterOverview> {
   };
   if (token) headers.Authorization = `Bearer ${token}`;
 
-  const response = await fetch("/api/admin/master/overview", { headers });
+  const response = await fetch(`${API_BASE_URL}/api/admin/master/overview`, { headers });
   if (!response.ok) {
     const detail = await response.text();
     throw new Error(detail || `Failed to load admin overview (${response.status})`);
@@ -74,7 +76,7 @@ export async function requestBackendRestart(): Promise<{ accepted: boolean; mess
   };
   if (token) headers.Authorization = `Bearer ${token}`;
 
-  const response = await fetch("/api/admin/master/actions/restart-backend", {
+  const response = await fetch(`${API_BASE_URL}/api/admin/master/actions/restart-backend`, {
     method: "POST",
     headers,
     body: JSON.stringify({}),

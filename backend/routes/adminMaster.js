@@ -1,9 +1,13 @@
 const express = require('express');
 const os = require('os');
+const crypto = require('crypto');
 const { spawnSync } = require('child_process');
 const { query } = require('../config/database');
 const { backendLog, errorLog } = require('../services/logger');
 const runtimeManager = require('../services/runtimeManager');
+const userRepository = require('../repositories/userRepository');
+const auditLogRepository = require('../repositories/auditLogRepository');
+const sessionManager = require('../services/sessionManager');
 
 const router = express.Router();
 
@@ -15,16 +19,28 @@ function requireMasterAdmin(req, res, next) {
   return next();
 }
 
-function logAdminAction(req, action, details = {}) {
-  backendLog('info', 'admin_master_action', {
+async function logAdminAction(req, action, details = {}) {
+  await auditLogRepository.createAuditLog({
+    tenantId: req.authTenantId || req.auth?.tenantId || 'default',
+    actorUsername: req.auth?.username || req.auth?.sub || 'unknown',
+    actorRole: req.auth?.role || 'unknown',
+    actorTenantId: req.authTenantId || req.auth?.tenantId || null,
     action,
-    actor: req.auth?.username || req.auth?.sub || 'unknown',
-    role: req.auth?.role || 'unknown',
-    tenantId: req.authTenantId || req.auth?.tenantId || null,
-    ip: req.ip,
-    scope: 'admin_master',
-    ...details,
+    targetType: details.targetType || null,
+    targetId: details.targetId || null,
+    ipAddress: req.ip || null,
+    userAgent: req.headers?.['user-agent'] || null,
+    metadata: details,
   });
+}
+
+function signHs256Jwt(payload, secret) {
+  const header = { alg: 'HS256', typ: 'JWT' };
+  const encodedHeader = Buffer.from(JSON.stringify(header)).toString('base64').replace(/=/g, '').replace(/\+/g, '-').replace(/\//g, '_');
+  const encodedPayload = Buffer.from(JSON.stringify(payload)).toString('base64').replace(/=/g, '').replace(/\+/g, '-').replace(/\//g, '_');
+  const signedData = `${encodedHeader}.${encodedPayload}`;
+  const encodedSignature = crypto.createHmac('sha256', secret).update(signedData).digest('base64').replace(/=/g, '').replace(/\+/g, '-').replace(/\//g, '_');
+  return `${signedData}.${encodedSignature}`;
 }
 
 function canExecuteAdminRestart() {
@@ -86,6 +102,42 @@ function loadInfraStats() {
   const cpuCount = os.cpus()?.length || 1;
   const cpuPct = Math.max(0, Math.min(100, Math.round((cpuLoad / cpuCount) * 100)));
 
+  const diskProbe = (() => {
+    try {
+      if (process.platform === 'win32') {
+        const result = spawnSync('wmic', ['logicaldisk', 'where', "DeviceID='C:'", 'get', 'Size,FreeSpace', '/value'], {
+          timeout: 1500,
+          windowsHide: true,
+          encoding: 'utf8',
+        });
+        const output = String(result.stdout || '');
+        const size = Number((output.match(/Size=(\d+)/) || [])[1] || 0);
+        const free = Number((output.match(/FreeSpace=(\d+)/) || [])[1] || 0);
+        const usedPct = size > 0 ? Math.round(((size - free) / size) * 100) : null;
+        return { usedPercent: usedPct, totalBytes: size || null, freeBytes: free || null };
+      }
+
+      const result = spawnSync('df', ['-k', '/'], {
+        timeout: 1500,
+        windowsHide: true,
+        encoding: 'utf8',
+      });
+      const lines = String(result.stdout || '').trim().split(/\r?\n/);
+      const data = lines[1] || '';
+      const columns = data.trim().split(/\s+/);
+      const totalKb = Number(columns[1] || 0);
+      const usedKb = Number(columns[2] || 0);
+      const usedPct = totalKb > 0 ? Math.round((usedKb / totalKb) * 100) : null;
+      return {
+        usedPercent: usedPct,
+        totalBytes: totalKb > 0 ? totalKb * 1024 : null,
+        freeBytes: Number(columns[3] || 0) > 0 ? Number(columns[3]) * 1024 : null,
+      };
+    } catch {
+      return { usedPercent: null, totalBytes: null, freeBytes: null };
+    }
+  })();
+
   const probe = (command, args = []) => {
     try {
       const result = spawnSync(command, args, {
@@ -105,6 +157,7 @@ function loadInfraStats() {
     uptimeSec: Math.floor(os.uptime()),
     nodeUptimeSec: Math.floor(process.uptime()),
     platform: `${os.platform()} ${os.release()}`,
+    disk: diskProbe,
     services: {
       pm2: probe('pm2', ['ping']),
       docker: probe('docker', ['info']),
@@ -117,12 +170,16 @@ function loadInfraStats() {
 function loadBackendStats(req) {
   const store = req.app.locals.store || {};
   const runtimeStatus = runtimeManager.getStatus ? runtimeManager.getStatus() : {};
+  const runtimeLogs = runtimeManager.getRecentLogs ? runtimeManager.getRecentLogs(20) : [];
+  const io = req.app.get('io');
 
   return {
     health: store.databaseEnabled === false ? 'degraded' : 'healthy',
     runtimeActive: Boolean(store.system?.active),
     runtimeStatus: store.system?.status || 'inactive',
     queueJobs: Number(store.pendingBackgroundUpdates || 0),
+    usersOnline: Number(io?.engine?.clientsCount || 0),
+    recentLogs: Array.isArray(runtimeLogs) ? runtimeLogs.slice(-20) : [],
     logsStream: 'backend/errors/requests/whatsapp',
     runtime: runtimeStatus,
   };
@@ -140,16 +197,28 @@ function loadWhatsappStats(req) {
     pendingQr,
     activeNumbers: sessions.filter((session) => Boolean(session?.phone)).length,
     sessionErrors: sessions.filter((session) => String(session?.status || '').toLowerCase() === 'error').length,
+    sessions: sessions.map((session) => ({
+      id: session.sessionId,
+      name: session.sessionName,
+      status: session.status,
+      phone: session.phone,
+      createdAt: session.createdAt,
+    })),
   };
 }
 
-function loadUserStats(req) {
-  const actorRole = String(req.auth?.role || 'admin').toLowerCase();
+async function loadUserStats(req) {
+  const users = await userRepository.listUsers({ includeDeleted: false });
+  const io = req.app.get('io');
   return {
-    totalUsers: null,
-    admins: actorRole === 'master_admin' ? 1 : 0,
-    accessesToday: null,
-    plans: null,
+    totalUsers: users.length,
+    admins: users.filter((u) => u.role === 'master_admin').length,
+    accessesToday: Number(io?.engine?.clientsCount || 0),
+    plans: {
+      free: users.filter((u) => u.plan === 'free').length,
+      pro: users.filter((u) => u.plan === 'pro').length,
+      enterprise: users.filter((u) => u.plan === 'enterprise').length,
+    },
   };
 }
 
@@ -168,14 +237,301 @@ router.get('/master/overview', async (req, res) => {
       backend: loadBackendStats(req),
       database,
       whatsapp: loadWhatsappStats(req),
-      users: loadUserStats(req),
+      users: await loadUserStats(req),
     };
 
-    logAdminAction(req, 'overview_read');
+    await logAdminAction(req, 'overview_read');
     return res.status(200).json(payload);
   } catch (error) {
     errorLog(error, { scope: 'admin_master', action: 'overview_read' });
     return res.status(500).json({ error: 'Failed to load admin master overview.' });
+  }
+});
+
+router.get('/master/users', async (req, res) => {
+  try {
+    const users = await userRepository.listUsers({ includeDeleted: false });
+    await logAdminAction(req, 'users_list', { targetType: 'user' });
+    return res.status(200).json({ users, total: users.length });
+  } catch (error) {
+    errorLog(error, { scope: 'admin_master', action: 'users_list' });
+    return res.status(500).json({ error: 'Failed to list users.' });
+  }
+});
+
+router.get('/master/users/:id', async (req, res) => {
+  try {
+    const userId = Number(req.params.id);
+    if (!Number.isInteger(userId)) {
+      return res.status(400).json({ error: 'Invalid user ID.' });
+    }
+
+    const user = await userRepository.getUserById(userId);
+    if (!user) {
+      return res.status(404).json({ error: 'User not found.' });
+    }
+
+    await logAdminAction(req, 'user_read', { targetType: 'user', targetId: String(userId) });
+    return res.status(200).json({ user });
+  } catch (error) {
+    errorLog(error, { scope: 'admin_master', action: 'user_read' });
+    return res.status(500).json({ error: 'Failed to get user.' });
+  }
+});
+
+router.patch('/master/users/:id', async (req, res) => {
+  try {
+    const userId = Number(req.params.id);
+    if (!Number.isInteger(userId)) {
+      return res.status(400).json({ error: 'Invalid user ID.' });
+    }
+
+    const updates = {};
+    if (req.body.email !== undefined) updates.email = String(req.body.email).trim() || null;
+    if (req.body.role !== undefined) updates.role = String(req.body.role).trim();
+    if (req.body.blocked !== undefined) updates.blocked = Boolean(req.body.blocked);
+    if (req.body.plan !== undefined) updates.plan = String(req.body.plan).trim();
+    if (req.body.whatsappLimit !== undefined) updates.whatsappLimit = Number(req.body.whatsappLimit) || 1;
+    if (req.body.password !== undefined) {
+      const hash = crypto.createHash('sha256').update(String(req.body.password)).digest('hex');
+      updates.passwordHash = hash;
+    }
+
+    const updatedUser = await userRepository.updateUser(userId, updates);
+    if (!updatedUser) {
+      return res.status(404).json({ error: 'User not found.' });
+    }
+
+    await logAdminAction(req, 'user_updated', { targetType: 'user', targetId: String(userId), updates });
+    return res.status(200).json({ user: updatedUser });
+  } catch (error) {
+    errorLog(error, { scope: 'admin_master', action: 'user_updated' });
+    return res.status(500).json({ error: 'Failed to update user.' });
+  }
+});
+
+router.delete('/master/users/:id', async (req, res) => {
+  try {
+    const userId = Number(req.params.id);
+    if (!Number.isInteger(userId)) {
+      return res.status(400).json({ error: 'Invalid user ID.' });
+    }
+
+    const user = await userRepository.getUserById(userId);
+    if (!user) {
+      return res.status(404).json({ error: 'User not found.' });
+    }
+
+    if (user.role === 'master_admin') {
+      return res.status(403).json({ error: 'Cannot delete master_admin user.' });
+    }
+
+    const deletedUser = await userRepository.softDeleteUser(userId);
+    await logAdminAction(req, 'user_deleted', { targetType: 'user', targetId: String(userId), username: user.username });
+    return res.status(200).json({ user: deletedUser });
+  } catch (error) {
+    errorLog(error, { scope: 'admin_master', action: 'user_deleted' });
+    return res.status(500).json({ error: 'Failed to delete user.' });
+  }
+});
+
+router.post('/master/impersonate/:id', async (req, res) => {
+  try {
+    const userId = Number(req.params.id);
+    if (!Number.isInteger(userId)) {
+      return res.status(400).json({ error: 'Invalid user ID.' });
+    }
+
+    const targetUser = await userRepository.getUserById(userId);
+    if (!targetUser) {
+      return res.status(404).json({ error: 'User not found.' });
+    }
+
+    if (targetUser.blocked) {
+      return res.status(403).json({ error: 'Cannot impersonate blocked user.' });
+    }
+
+    const secret = process.env.JWT_SECRET || process.env.AUTH_JWT_SECRET || '';
+    if (!secret) {
+      return res.status(503).json({ error: 'Authentication is not configured.' });
+    }
+
+    const issuedAt = Math.floor(Date.now() / 1000);
+    const ttlSeconds = Number(process.env.AUTH_IMPERSONATE_TTL_SECONDS || 15 * 60);
+    const expiresAt = issuedAt + ttlSeconds;
+
+    const payload = {
+      sub: targetUser.username,
+      username: targetUser.username,
+      tenantId: targetUser.tenant_id,
+      companyId: targetUser.tenant_id,
+      role: targetUser.role,
+      impersonatedBy: req.auth?.username || 'unknown',
+      impersonatedAt: issuedAt,
+      iat: issuedAt,
+      exp: expiresAt,
+    };
+
+    const token = signHs256Jwt(payload, secret);
+
+    await logAdminAction(req, 'impersonate_user', { targetType: 'user', targetId: String(userId), username: targetUser.username });
+
+    return res.status(200).json({
+      token,
+      tokenType: 'Bearer',
+      expiresIn: expiresAt - issuedAt,
+      expiresAt,
+      user: {
+        username: targetUser.username,
+        role: targetUser.role,
+        impersonatedBy: req.auth?.username || 'unknown',
+      },
+    });
+  } catch (error) {
+    errorLog(error, { scope: 'admin_master', action: 'impersonate_user' });
+    return res.status(500).json({ error: 'Failed to impersonate user.' });
+  }
+});
+
+router.post('/master/return-session', async (req, res) => {
+  try {
+    const secret = process.env.JWT_SECRET || process.env.AUTH_JWT_SECRET || '';
+    if (!secret) {
+      return res.status(503).json({ error: 'Authentication is not configured.' });
+    }
+
+    const issuedAt = Math.floor(Date.now() / 1000);
+    const ttlSeconds = Number(process.env.AUTH_TOKEN_TTL_SECONDS || 8 * 60 * 60);
+    const expiresAt = issuedAt + ttlSeconds;
+
+    const payload = {
+      sub: req.auth?.username || req.auth?.sub || 'admin',
+      username: req.auth?.username || req.auth?.sub || 'admin',
+      tenantId: req.authTenantId || req.auth?.tenantId || 'default',
+      companyId: req.authTenantId || req.auth?.tenantId || 'default',
+      role: 'master_admin',
+      iat: issuedAt,
+      exp: expiresAt,
+    };
+
+    const token = signHs256Jwt(payload, secret);
+
+    await logAdminAction(req, 'return_session');
+
+    return res.status(200).json({
+      token,
+      tokenType: 'Bearer',
+      expiresIn: expiresAt - issuedAt,
+      expiresAt,
+      user: {
+        username: payload.username,
+        role: 'master_admin',
+      },
+    });
+  } catch (error) {
+    errorLog(error, { scope: 'admin_master', action: 'return_session' });
+    return res.status(500).json({ error: 'Failed to return to admin session.' });
+  }
+});
+
+router.get('/master/whatsapp', async (req, res) => {
+  try {
+    const stats = loadWhatsappStats(req);
+    await logAdminAction(req, 'whatsapp_list', { targetType: 'session' });
+    return res.status(200).json(stats);
+  } catch (error) {
+    errorLog(error, { scope: 'admin_master', action: 'whatsapp_list' });
+    return res.status(500).json({ error: 'Failed to get WhatsApp sessions.' });
+  }
+});
+
+router.post('/master/whatsapp/:id/restart', async (req, res) => {
+  try {
+    const sessionId = String(req.params.id).trim();
+    await logAdminAction(req, 'whatsapp_restart', { targetType: 'session', targetId: sessionId });
+
+    const sessionManager = req.app.locals.store?.sessionManager;
+    if (!sessionManager) {
+      return res.status(503).json({ error: 'Session manager not available.' });
+    }
+
+    await sessionManager.disposeSession(sessionId, { preserveReconnectAttempts: false });
+    await sessionManager.startSession(sessionId, { forceNew: true });
+
+    return res.status(200).json({ message: `Session ${sessionId} restarted.` });
+  } catch (error) {
+    errorLog(error, { scope: 'admin_master', action: 'whatsapp_restart' });
+    return res.status(500).json({ error: 'Failed to restart WhatsApp session.' });
+  }
+});
+
+router.post('/master/whatsapp/:id/disconnect', async (req, res) => {
+  try {
+    const sessionId = String(req.params.id).trim();
+    await logAdminAction(req, 'whatsapp_disconnect', { targetType: 'session', targetId: sessionId });
+
+    const sessionManager = req.app.locals.store?.sessionManager;
+    if (!sessionManager) {
+      return res.status(503).json({ error: 'Session manager not available.' });
+    }
+
+    await sessionManager.disposeSession(sessionId, { logout: true });
+
+    return res.status(200).json({ message: `Session ${sessionId} disconnected.` });
+  } catch (error) {
+    errorLog(error, { scope: 'admin_master', action: 'whatsapp_disconnect' });
+    return res.status(500).json({ error: 'Failed to disconnect WhatsApp session.' });
+  }
+});
+
+router.get('/master/system', async (req, res) => {
+  try {
+    const infra = loadInfraStats();
+    const backend = loadBackendStats(req);
+    const database = await loadDatabaseStats();
+
+    await logAdminAction(req, 'system_status');
+
+    return res.status(200).json({
+      generatedAt: new Date().toISOString(),
+      infra,
+      backend,
+      database,
+    });
+  } catch (error) {
+    errorLog(error, { scope: 'admin_master', action: 'system_status' });
+    return res.status(500).json({ error: 'Failed to get system status.' });
+  }
+});
+
+router.get('/master/logs', async (req, res) => {
+  try {
+    const limit = Math.min(500, Number(req.query.limit) || 100);
+    const offset = Math.max(0, Number(req.query.offset) || 0);
+    const action = req.query.action || null;
+    const targetType = req.query.targetType || null;
+    const targetId = req.query.targetId || null;
+
+    const logs = await auditLogRepository.listAuditLogs({
+      tenantId: req.authTenantId || req.auth?.tenantId || 'default',
+      limit,
+      offset,
+      action,
+      targetType,
+      targetId,
+    });
+
+    const total = await auditLogRepository.getAuditLogCount({
+      tenantId: req.authTenantId || req.auth?.tenantId || 'default',
+      action,
+      targetType,
+      targetId,
+    });
+
+    return res.status(200).json({ logs, total, limit, offset });
+  } catch (error) {
+    errorLog(error, { scope: 'admin_master', action: 'logs_list' });
+    return res.status(500).json({ error: 'Failed to get audit logs.' });
   }
 });
 
@@ -184,7 +540,7 @@ router.post('/master/actions/restart-backend', async (req, res) => {
     const processName = String(process.env.PM2_BACKEND_PROCESS_NAME || 'zapai-backend').trim() || 'zapai-backend';
 
     if (!canExecuteAdminRestart()) {
-      logAdminAction(req, 'restart_backend_blocked', {
+      await logAdminAction(req, 'restart_backend_blocked', {
         reason: 'ALLOW_ADMIN_BACKEND_RESTART is false',
       });
       return res.status(403).json({
@@ -195,7 +551,7 @@ router.post('/master/actions/restart-backend', async (req, res) => {
 
     const restartResult = runPm2Command(['restart', processName]);
 
-    logAdminAction(req, 'restart_backend_executed', {
+    await logAdminAction(req, 'restart_backend_executed', {
       ok: restartResult.ok,
       command: restartResult.command,
       processName,
@@ -222,12 +578,5 @@ router.post('/master/actions/restart-backend', async (req, res) => {
   }
 });
 
-router.get('/master/audit', async (_req, res) => {
-  return res.status(200).json({
-    stream: 'backend.log',
-    filter: 'scope=admin_master',
-    message: 'Use centralized logs to inspect admin actions.',
-  });
-});
 
 module.exports = router;
