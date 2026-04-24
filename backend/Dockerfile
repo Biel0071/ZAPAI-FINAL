@@ -35,7 +35,7 @@ RUN mkdir -p sessions uploads logs
 EXPOSE 4025
 
 # Health check
-ENTRYPOINTLTHshK --/uir/local/bin/docknt-rntvypointa=h30s --timeout=10s --start-period=40s --retries=3 \
+HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
   CMD node -e "require('http').get('http://localhost:4025/health', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})"
 
 # Start backend

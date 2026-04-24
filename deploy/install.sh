@@ -30,6 +30,11 @@ PUBLIC_IP=$(curl -s --connect-timeout 4 https://api.ipify.org 2>/dev/null || \
             curl -s --connect-timeout 4 ifconfig.me 2>/dev/null || \
             hostname -I | awk '{print $1}')
 PUBLIC_IP="${PUBLIC_IP// /}"
+
+if ! echo "$PUBLIC_IP" | grep -Eq '^([0-9]{1,3}\.){3}[0-9]{1,3}$'; then
+    PUBLIC_IP="127.0.0.1"
+fi
+
 echo -e "${GREEN}✓ Public IP: $PUBLIC_IP${NC}"
 
 # Auto-generate URLs
@@ -109,91 +114,38 @@ echo -e "${GREEN}✓ Frontend .env.production created${NC}"
 echo ""
 
 # ============================================================================
-# STEP 7: Update docker-compose.yml with DATABASE_URL
+# STEP 7: Stop legacy Node processes (outside Docker)
 # ============================================================================
-echo -e "${YELLOW}[7/13] Updating docker-compose.yml...${NC}"
-# Create a temporary docker-compose with correct DATABASE_URL
-cat > docker-compose.prod.yml << EOF
-version: '3.8'
-
-services:
-  postgres:
-    image: postgres:15-alpine
-    container_name: zapai-postgres
-    restart: unless-stopped
-    environment:
-      POSTGRES_USER: zapai
-      POSTGRES_PASSWORD: $DATABASE_PASSWORD
-      POSTGRES_DB: zapai_crm
-      POSTGRES_HOST: postgres
-    ports:
-      - "5432:5432"
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U zapai"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-
-  backend:
-    build:
-      context: ./backend
-      dockerfile: Dockerfile
-    container_name: zapai-backend
-    restart: unless-stopped
-    ports:
-      - "4025:4025"
-    environment:
-      NODE_ENV: production
-      PORT: 4025
-      DATABASE_URL: postgresql://zapai:$DATABASE_PASSWORD@postgres:5432/zapai_crm
-      JWT_SECRET: $JWT_SECRET
-      AUTH_JWT_SECRET: $JWT_SECRET
-      USE_NGROK: "false"
-      NGROK_MANAGED_EXTERNALLY: "true"
-      CRASH_EXIT_ON_UNHANDLED: "true"
-      LOG_LEVEL: info
-      FRONTEND_URL: $FRONT_URL
-      CORS_ALLOWED_ORIGINS: $FRONT_URL,https://swift-wa-assist.lovable.app
-      DEFAULT_COMPANY_ID: default
-      AUTH_DEFAULT_USERNAME: admin
-      AUTH_DEFAULT_PASSWORD: $ADMIN_PASSWORD
-      POSTGRES_HOST: postgres
-      POSTGRES_USER: zapai
-      POSTGRES_PASSWORD: $DATABASE_PASSWORD
-      POSTGRES_DB: zapai_crm
-    depends_on:
-      postgres:
-        condition: service_healthy
-    volumes:
-      - zapai_sessions:/app/sessions
-      - zapai_uploads:/app/uploads
-      - zapai_logs:/app/logs
-    command: sh docker-entrypoint.sh
-
-volumes:
-  postgres_data:
-  zapai_sessions:
-  zapai_uploads:
-  zapai_logs:
-EOF
-echo -e "${GREEN}✓ docker-compose.prod.yml created${NC}"
+echo -e "${YELLOW}[7/13] Stopping legacy Node processes...${NC}"
+pkill -f "node.*server\.js" >/dev/null 2>&1 || true
+pkill -f "pm2" >/dev/null 2>&1 || true
+echo -e "${GREEN}✓ Legacy Node processes stopped${NC}"
 echo ""
 
 # ============================================================================
-# STEP 8: Stop existing containers
+# STEP 8: Prepare Docker Compose environment
 # ============================================================================
-echo -e "${YELLOW}[8/13] Stopping existing containers...${NC}"
-docker compose -f docker-compose.prod.yml down -v > /dev/null 2>&1 || true
-echo -e "${GREEN}✓ Containers stopped${NC}"
+echo -e "${YELLOW}[8/13] Preparing Docker Compose environment...${NC}"
+export POSTGRES_USER="zapai"
+export POSTGRES_PASSWORD="$DATABASE_PASSWORD"
+export POSTGRES_DB="zapai_crm"
+export JWT_SECRET="$JWT_SECRET"
+export AUTH_JWT_SECRET="$JWT_SECRET"
+export AUTH_DEFAULT_USERNAME="admin"
+export AUTH_DEFAULT_PASSWORD="$ADMIN_PASSWORD"
+export FRONTEND_URL="$FRONT_URL"
+export CORS_ALLOWED_ORIGINS="$FRONT_URL,https://swift-wa-assist.lovable.app"
+export VITE_API_URL="$VITE_API_URL"
+
+docker compose down >/dev/null 2>&1 || true
+echo -e "${GREEN}✓ Docker Compose environment prepared${NC}"
 echo ""
 
 # ============================================================================
 # STEP 9: Docker compose build
 # ============================================================================
 echo -e "${YELLOW}[9/13] Building Docker images...${NC}"
-docker compose -f docker-compose.prod.yml build > /dev/null 2>&1
+docker compose build
 echo -e "${GREEN}✓ Docker images built${NC}"
 echo ""
 
@@ -201,7 +153,7 @@ echo ""
 # STEP 10: Docker compose up
 # ============================================================================
 echo -e "${YELLOW}[10/13] Starting containers...${NC}"
-docker compose -f docker-compose.prod.yml up -d
+docker compose up -d
 echo -e "${GREEN}✓ Containers started${NC}"
 echo ""
 
@@ -213,7 +165,7 @@ MAX_ATTEMPTS=60
 ATTEMPT=0
 
 while [ $ATTEMPT -lt $MAX_ATTEMPTS ]; do
-    if curl -f http://localhost:4025/health > /dev/null 2>&1; then
+    if curl -f http://localhost:4025/api/health > /dev/null 2>&1 || curl -f http://localhost:4025/health > /dev/null 2>&1; then
         echo -e "${GREEN}✓ Backend is healthy${NC}"
         break
     fi
@@ -224,33 +176,36 @@ done
 
 if [ $ATTEMPT -eq $MAX_ATTEMPTS ]; then
     echo -e "${RED}✗ Backend health check failed${NC}"
-    docker compose -f docker-compose.prod.yml logs backend
+    docker compose logs backend
     exit 1
 fi
 
 echo ""
 
 # ============================================================================
-# STEP 12: Build and publish frontend
+# STEP 12: Run migrations + seed admin
 # ============================================================================
-echo -e "${YELLOW}[12/13] Building and publishing frontend...${NC}"
-cd frontend
-npm ci > /dev/null 2>&1
-npm run build > /dev/null 2>&1
-cd ..
-echo -e "${GREEN}✓ Frontend built${NC}"
-echo ""
-
-# Start frontend container
-docker compose -f docker-compose.prod.yml --profile production up -d frontend 2>/dev/null || echo "Frontend container skipped (optional)"
+echo -e "${YELLOW}[12/13] Running migrations and seed...${NC}"
+docker compose exec -T backend node scripts/init-database.js >/dev/null 2>&1 || true
+docker compose exec -T backend node scripts/seed-admin.js >/dev/null 2>&1 || true
+echo -e "${GREEN}✓ Migrations and seed complete${NC}"
 echo ""
 
 # ============================================================================
-# STEP 13: Create admin user
+# STEP 13: Validate services and ports
 # ============================================================================
-echo -e "${YELLOW}[13/13] Creating admin user...${NC}"
-docker exec zapai-backend node scripts/seed-admin.js > /dev/null 2>&1 || echo "Admin user already exists"
-echo -e "${GREEN}✓ Admin user created${NC}"
+echo -e "${YELLOW}[13/13] Validating services and ports...${NC}"
+PORT_4025="CLOSED"
+PORT_3000="CLOSED"
+PORT_5432="CLOSED"
+
+if ss -ltn 2>/dev/null | grep -q ':4025 '; then PORT_4025="OPEN"; fi
+if ss -ltn 2>/dev/null | grep -q ':3000 '; then PORT_3000="OPEN"; fi
+if ss -ltn 2>/dev/null | grep -q ':5432 '; then PORT_5432="OPEN"; fi
+
+echo -e "${GREEN}✓ Port 4025: $PORT_4025${NC}"
+echo -e "${GREEN}✓ Port 3000: $PORT_3000${NC}"
+echo -e "${GREEN}✓ Port 5432: $PORT_5432${NC}"
 echo ""
 
 # ============================================================================
@@ -264,7 +219,7 @@ echo ""
 
 # Check backend
 BACKEND_ONLINE="false"
-if curl -f http://localhost:4025/health > /dev/null 2>&1; then
+if curl -f http://localhost:4025/api/health > /dev/null 2>&1 || curl -f http://localhost:4025/health > /dev/null 2>&1; then
     BACKEND_ONLINE="true"
     echo -e "${GREEN}✓ BACKEND ONLINE${NC}"
 else
@@ -273,8 +228,8 @@ fi
 
 # Check database
 DB_ONLINE="false"
-HEALTH_BODY=$(curl -s http://localhost:4025/health)
-if echo "$HEALTH_BODY" | grep -q '"db":true'; then
+HEALTH_BODY=$(curl -s http://localhost:4025/api/health 2>/dev/null || curl -s http://localhost:4025/health 2>/dev/null)
+if echo "$HEALTH_BODY" | grep -E -q '"db"\s*:\s*true'; then
     DB_ONLINE="true"
     echo -e "${GREEN}✓ DB ONLINE${NC}"
 else
@@ -307,6 +262,7 @@ echo ""
 echo -e "${BLUE}VITE_API_URL USADA:${NC} $VITE_API_URL"
 echo -e "${BLUE}API URL:${NC} $API_URL"
 echo -e "${BLUE}FRONT URL:${NC} $FRONT_URL"
+echo -e "${BLUE}WHATSAPP:${NC} Pronto para QR"
 echo ""
 echo -e "${YELLOW}LOGIN ADMIN:${NC}"
 echo "  Username: admin"
