@@ -11,7 +11,8 @@ RUN apk add --no-cache \
     g++ \
     ffmpeg \
     imagemagick \
-    webp
+    libwebp \
+    libwebp-tools
 
 WORKDIR /app
 
