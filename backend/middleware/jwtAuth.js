@@ -111,16 +111,24 @@ function createJwtAuthMiddleware(options = {}) {
   const publicPrefixes = Array.from(
     new Set((options.publicPrefixes || []).filter(Boolean))
   );
+  const protectedPrefixes = Array.from(
+    new Set((options.protectedPrefixes || []).filter(Boolean))
+  );
   let hasWarnedDevBypass = false;
 
   function isPublicRequest(req) {
+    const currentPath = String(req.path || '');
+
+    if (protectedPrefixes.some((prefix) => currentPath.startsWith(prefix))) {
+      return false;
+    }
+
     if (publicPaths.has(req.path)) {
       return true;
     }
     if (!publicPrefixes.length) {
       return false;
     }
-    const currentPath = String(req.path || '');
     return publicPrefixes.some((prefix) => currentPath.startsWith(prefix));
   }
 

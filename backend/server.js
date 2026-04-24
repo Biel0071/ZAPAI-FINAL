@@ -443,6 +443,7 @@ const requireJwtAuth = createJwtAuthMiddleware({
   // NOTE: /api/ and /system/ are public because the frontend has no login UI
   // yet. When a login page is added, remove these and send Bearer tokens.
   publicPrefixes: ['/auth/', '/api/', '/system/'],
+  protectedPrefixes: ['/api/admin/', '/admin/'],
 });
 
 // Auth enforcement is now centralized in createJwtAuthMiddleware.

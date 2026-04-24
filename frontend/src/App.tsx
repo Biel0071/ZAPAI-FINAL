@@ -8,6 +8,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { PageFallback } from "@/components/layout/PageFallback";
 import { GlobalErrorBoundary } from "@/components/system/GlobalErrorBoundary";
+import AdminGuard from "@/components/admin/AdminGuard";
 
 const Dashboard = lazy(() => import("./pages/Dashboard"));
 const Connections = lazy(() => import("./pages/Connections"));
@@ -80,7 +81,11 @@ function App() {
                     <Route path="/campaigns" element={<Campaigns />} />
                     <Route path="/diagnostics" element={<Diagnostics />} />
                     <Route path="/settings" element={<Settings />} />
-                    <Route path="/admin/master" element={<AdminMaster />} />
+                    <Route path="/admin/master" element={
+                      <AdminGuard>
+                        <AdminMaster />
+                      </AdminGuard>
+                    } />
                   </Route>
                   <Route path="*" element={<NotFound />} />
                 </Routes>

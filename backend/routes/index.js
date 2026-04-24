@@ -13,6 +13,7 @@ const aiIntelligenceRouter = require('./aiIntelligence');
 const aiConfigRouter = require('./aiConfig');
 const authRouter = require('./auth');
 const mediaRouter = require('./media');
+const adminMasterRouter = require('./adminMaster');
 
 function registerRoutes(app, options = {}) {
   const requireJwtAuth = options.requireJwtAuth;
@@ -29,6 +30,9 @@ function registerRoutes(app, options = {}) {
   app.use('/', authRouter);
   app.use('/api', authRouter);
   app.use(requireJwtAuth);
+
+  app.use('/admin', adminMasterRouter);
+  app.use('/api/admin', adminMasterRouter);
 
   if (writeHeavyRateLimiter) {
     app.use('/send-message', writeHeavyRateLimiter);

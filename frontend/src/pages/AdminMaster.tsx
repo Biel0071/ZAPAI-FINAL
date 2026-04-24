@@ -1,23 +1,25 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Header } from "@/components/layout/Header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useToast } from "@/hooks/use-toast";
+import { getAdminMasterOverview, requestBackendRestart } from "@/services/adminMasterService";
 import {
   Cpu,
   Memory,
   HardDrive,
   Clock,
-  Activity,
+  ChartLineUp,
   Database,
   WhatsappLogo,
   Users,
   Shield,
-  Server,
-  RefreshCw,
-  AlertTriangle,
+  Cpu as ServerCpu,
+  ArrowClockwise,
+  WarningCircle,
   CheckCircle,
   XCircle,
 } from "@phosphor-icons/react";
@@ -27,6 +29,12 @@ interface VPSMetrics {
   ram: number;
   disk: number;
   uptime: string;
+  services?: {
+    pm2?: boolean;
+    docker?: boolean;
+    nginx?: boolean;
+    openresty?: boolean;
+  };
 }
 
 interface BackendMetrics {
@@ -34,6 +42,14 @@ interface BackendMetrics {
   latency: number;
   uptime: string;
   queueJobs: number;
+}
+
+function normalizeHealth(value: string): "healthy" | "degraded" | "down" {
+  const normalized = String(value || "").trim().toLowerCase();
+  if (normalized === "healthy" || normalized === "degraded" || normalized === "down") {
+    return normalized;
+  }
+  return "degraded";
 }
 
 interface DatabaseMetrics {
@@ -51,13 +67,24 @@ interface WhatsAppMetrics {
 }
 
 interface UserMetrics {
-  totalUsers: number;
-  admins: number;
-  accessesToday: number;
-  activePlans: number;
+  totalUsers: number | null;
+  admins: number | null;
+  accessesToday: number | null;
+  activePlans: number | null;
+}
+
+function formatUptime(seconds: number): string {
+  if (!Number.isFinite(seconds) || seconds <= 0) return "0m";
+  const days = Math.floor(seconds / 86_400);
+  const hours = Math.floor((seconds % 86_400) / 3_600);
+  const minutes = Math.floor((seconds % 3_600) / 60);
+  if (days > 0) return `${days}d ${hours}h ${minutes}m`;
+  if (hours > 0) return `${hours}h ${minutes}m`;
+  return `${minutes}m`;
 }
 
 export default function AdminMaster() {
+  const { toast } = useToast();
   const [vpsMetrics, setVpsMetrics] = useState<VPSMetrics | null>(null);
   const [backendMetrics, setBackendMetrics] = useState<BackendMetrics | null>(null);
   const [databaseMetrics, setDatabaseMetrics] = useState<DatabaseMetrics | null>(null);
@@ -65,58 +92,108 @@ export default function AdminMaster() {
   const [userMetrics, setUserMetrics] = useState<UserMetrics | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [isActionLoading, setIsActionLoading] = useState(false);
+  const pollingBusyRef = useRef(false);
 
-  const loadMetrics = async () => {
+  const loadMetrics = useCallback(async (silent = false) => {
+    if (pollingBusyRef.current) return;
+    pollingBusyRef.current = true;
     try {
-      setLoading(true);
-      // Mock data - would be replaced with real API calls
+      if (!silent) setLoading(true);
+      const overview = await getAdminMasterOverview();
+
       setVpsMetrics({
-        cpu: 35,
-        ram: 62,
-        disk: 45,
-        uptime: "15d 4h 23m",
+        cpu: overview.infra.cpuPercent,
+        ram: overview.infra.ramPercent,
+        disk: 0,
+        uptime: formatUptime(overview.infra.uptimeSec),
+        services: overview.infra.services,
       });
       setBackendMetrics({
-        health: "healthy",
-        latency: 45,
-        uptime: "15d 4h 23m",
-        queueJobs: 3,
+        health: normalizeHealth(overview.backend.health),
+        latency: 0,
+        uptime: formatUptime(overview.infra.nodeUptimeSec),
+        queueJobs: overview.backend.queueJobs,
       });
       setDatabaseMetrics({
-        online: true,
-        size: "2.4 GB",
-        lastBackup: "2h ago",
-        connections: 12,
+        online: overview.database.online,
+        size: overview.database.size,
+        lastBackup: "n/a",
+        connections: overview.database.connections,
       });
       setWhatsappMetrics({
-        onlineSessions: 5,
-        pendingQR: 0,
-        activeNumbers: 5,
-        sessionErrors: 0,
+        onlineSessions: overview.whatsapp.onlineSessions,
+        pendingQR: overview.whatsapp.pendingQr,
+        activeNumbers: overview.whatsapp.activeNumbers,
+        sessionErrors: overview.whatsapp.sessionErrors,
       });
       setUserMetrics({
-        totalUsers: 127,
-        admins: 3,
-        accessesToday: 89,
-        activePlans: 45,
+        totalUsers: overview.users.totalUsers,
+        admins: overview.users.admins,
+        accessesToday: overview.users.accessesToday,
+        activePlans: overview.users.plans,
       });
     } catch (error) {
-      console.error("Failed to load admin metrics:", error);
+      if (import.meta.env.MODE !== "production") console.error("Failed to load admin metrics:", error);
+      if (!silent) {
+        toast({
+          title: "Falha ao carregar Admin Master",
+          description: "Verifique autenticação master_admin e backend.",
+          variant: "destructive",
+        });
+      }
     } finally {
       setLoading(false);
       setRefreshing(false);
+      pollingBusyRef.current = false;
     }
-  };
+  }, [toast]);
 
   useEffect(() => {
     void loadMetrics();
-    const interval = window.setInterval(() => void loadMetrics(), 30_000);
-    return () => window.clearInterval(interval);
-  }, []);
+
+    const interval = window.setInterval(() => {
+      if (document.visibilityState !== "visible") return;
+      void loadMetrics(true);
+    }, 45_000);
+
+    const onFocus = () => {
+      if (document.visibilityState !== "visible") return;
+      void loadMetrics(true);
+    };
+
+    window.addEventListener("focus", onFocus);
+    document.addEventListener("visibilitychange", onFocus);
+
+    return () => {
+      window.clearInterval(interval);
+      window.removeEventListener("focus", onFocus);
+      document.removeEventListener("visibilitychange", onFocus);
+    };
+  }, [loadMetrics]);
 
   const handleRefresh = () => {
     setRefreshing(true);
     void loadMetrics();
+  };
+
+  const handleRestartBackend = async () => {
+    setIsActionLoading(true);
+    try {
+      const result = await requestBackendRestart();
+      toast({
+        title: "Ação registrada",
+        description: result.message,
+      });
+    } catch (error) {
+      toast({
+        title: "Falha ao solicitar restart",
+        description: error instanceof Error ? error.message : "Erro desconhecido",
+        variant: "destructive",
+      });
+    } finally {
+      setIsActionLoading(false);
+    }
   };
 
   return (
@@ -130,7 +207,7 @@ export default function AdminMaster() {
             <p className="text-sm text-muted-foreground">Monitoramento e controle do sistema</p>
           </div>
           <Button onClick={handleRefresh} disabled={refreshing}>
-            <RefreshCw className={`mr-2 h-4 w-4 ${refreshing ? "animate-spin" : ""}`} />
+            <ArrowClockwise className={`mr-2 h-4 w-4 ${refreshing ? "animate-spin" : ""}`} />
             Atualizar
           </Button>
         </div>
@@ -216,7 +293,7 @@ export default function AdminMaster() {
                 <div className="space-y-4">
                   <div className="flex items-center justify-between p-3 rounded-lg bg-muted/50">
                     <div className="flex items-center gap-3">
-                      <Server className="h-5 w-5 text-success" />
+                      <ServerCpu className="h-5 w-5 text-success" />
                       <div>
                         <p className="font-medium">PM2 Backend</p>
                         <p className="text-xs text-muted-foreground">Running (PID: 12345)</p>
@@ -226,7 +303,7 @@ export default function AdminMaster() {
                   </div>
                   <div className="flex items-center justify-between p-3 rounded-lg bg-muted/50">
                     <div className="flex items-center gap-3">
-                      <Server className="h-5 w-5 text-success" />
+                      <ServerCpu className="h-5 w-5 text-success" />
                       <div>
                         <p className="font-medium">Nginx</p>
                         <p className="text-xs text-muted-foreground">Running (PID: 67890)</p>
@@ -236,13 +313,28 @@ export default function AdminMaster() {
                   </div>
                   <div className="flex items-center justify-between p-3 rounded-lg bg-muted/50">
                     <div className="flex items-center gap-3">
-                      <Server className="h-5 w-5 text-success" />
+                      <ServerCpu className="h-5 w-5 text-success" />
                       <div>
                         <p className="font-medium">PostgreSQL</p>
                         <p className="text-xs text-muted-foreground">Running (PID: 54321)</p>
                       </div>
                     </div>
                     <Badge variant="default">Online</Badge>
+                  </div>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                    {[
+                      { label: "PM2", online: vpsMetrics?.services?.pm2 },
+                      { label: "Docker", online: vpsMetrics?.services?.docker },
+                      { label: "Nginx", online: vpsMetrics?.services?.nginx },
+                      { label: "OpenResty", online: vpsMetrics?.services?.openresty },
+                    ].map((service) => (
+                      <div key={service.label} className="rounded-lg border border-border/60 bg-card/70 px-3 py-2">
+                        <p className="text-xs text-muted-foreground">{service.label}</p>
+                        <p className={`text-sm font-medium ${service.online ? "text-success" : "text-warning"}`}>
+                          {service.online ? "Online" : "Indisponível"}
+                        </p>
+                      </div>
+                    ))}
                   </div>
                 </div>
               </CardContent>
@@ -263,7 +355,7 @@ export default function AdminMaster() {
                   <Card className="glass-card">
                     <CardHeader className="pb-3">
                       <CardTitle className="text-sm font-medium flex items-center gap-2">
-                        <Activity className="h-4 w-4 text-primary" />
+                        <ChartLineUp className="h-4 w-4 text-primary" />
                         Health
                       </CardTitle>
                     </CardHeader>
@@ -293,7 +385,7 @@ export default function AdminMaster() {
                   <Card className="glass-card">
                     <CardHeader className="pb-3">
                       <CardTitle className="text-sm font-medium flex items-center gap-2">
-                        <Server className="h-4 w-4 text-primary" />
+                        <ServerCpu className="h-4 w-4 text-primary" />
                         Queue Jobs
                       </CardTitle>
                     </CardHeader>
@@ -313,7 +405,9 @@ export default function AdminMaster() {
               <CardContent>
                 <div className="flex flex-wrap gap-2">
                   <Button variant="outline">View Logs</Button>
-                  <Button variant="outline">Restart Backend</Button>
+                  <Button variant="outline" onClick={() => void handleRestartBackend()} disabled={isActionLoading}>
+                    {isActionLoading ? "Solicitando..." : "Restart Backend"}
+                  </Button>
                   <Button variant="outline">Clear Cache</Button>
                 </div>
               </CardContent>
@@ -423,7 +517,7 @@ export default function AdminMaster() {
                   <Card className="glass-card">
                     <CardHeader className="pb-3">
                       <CardTitle className="text-sm font-medium flex items-center gap-2">
-                        <AlertTriangle className="h-4 w-4 text-warning" />
+                        <WarningCircle className="h-4 w-4 text-warning" />
                         Pending QR
                       </CardTitle>
                     </CardHeader>
@@ -500,7 +594,7 @@ export default function AdminMaster() {
                   <Card className="glass-card">
                     <CardHeader className="pb-3">
                       <CardTitle className="text-sm font-medium flex items-center gap-2">
-                        <Activity className="h-4 w-4 text-primary" />
+                        <ChartLineUp className="h-4 w-4 text-primary" />
                         Accesses Today
                       </CardTitle>
                     </CardHeader>

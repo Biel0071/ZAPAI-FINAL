@@ -11,6 +11,13 @@ function toBase64Url(value) {
     .replace(/\//g, '_');
 }
 
+function getDefaultRole() {
+  const role = String(process.env.AUTH_DEFAULT_ROLE || 'admin').trim().toLowerCase();
+  if (!role) return 'admin';
+  if (role === 'master_admin') return 'master_admin';
+  return 'admin';
+}
+
 function signHs256Jwt(payload, secret) {
   const header = {
     alg: 'HS256',
@@ -145,6 +152,7 @@ router.post('/auth/login', (req, res) => {
   }
 
   const ttlSeconds = Number(process.env.AUTH_TOKEN_TTL_SECONDS || 8 * 60 * 60);
+  const defaultRole = getDefaultRole();
 
   if (!username || !password) {
     return res.status(400).json({
@@ -165,7 +173,7 @@ router.post('/auth/login', (req, res) => {
     username,
     tenantId,
     companyId: tenantId,
-    role: 'admin',
+    role: defaultRole,
     iat: issuedAt,
     exp: expiresAt,
   };
@@ -180,7 +188,7 @@ router.post('/auth/login', (req, res) => {
     tenantId,
     user: {
       username,
-      role: 'admin',
+      role: defaultRole,
     },
   });
 });
