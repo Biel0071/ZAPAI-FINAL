@@ -2,27 +2,8 @@ const express = require('express');
 const router = express.Router();
 const crypto = require('crypto');
 
-// Middleware para validar token master
-const validateMasterToken = (req, res, next) => {
-  const token = req.headers['authorization']?.replace('Bearer ', '');
-  const masterToken = process.env.MASTER_TOKEN || process.env.JWT_SECRET;
-  
-  if (!token || token !== masterToken) {
-    return res.status(401).json({ error: 'Unauthorized' });
-  }
-  next();
-};
-
-/**
- * POST /api/node/register
- * Registra um novo node worker no master
- */
-router.post('/register', async (req, res) => {
-  const client = req.app.locals.db;
-  
-  if (!client) {
-    return res.status(503).json({ error: 'Database not available' });
-  }
+const validateMasterToken =q, resm oitkRET;
+ n(
 
   try {
     const { node_id, hostname, ip, port, version, metrics } = req.body;
@@ -100,9 +81,9 @@ router.post('/register', async (req, res) => {
 
 /**
  * POST /api/node/heartbeat
- * Recebe heartbeat de um node worker
+ * Recebe heartbeat de rker
  */
-router.post('/heartbeat', validateMasterToken, async (req, res) => {
+router.post('/heartbeat', validatede segterToken, async (req, res) => {
   const client = req.app.locals.db;
   
   if (!client) {
@@ -132,9 +113,9 @@ router.post('/heartbeat', validateMasterToken, async (req, res) => {
         metrics?.cpu?.cores || 0,
         metrics?.ram?.total || 0,
         metrics?.uptime?.seconds || 0
-      ]
+      ] (com JWT)
     );
-
+Jw
     if (result.rows.length === 0) {
       return res.status(404).json({ error: 'Node not found' });
     }
@@ -148,72 +129,91 @@ router.post('/heartbeat', validateMasterToken, async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 });
-
-/**
- * POST /api/node/stats
- * Recebe estatísticas detalhadas de um node
- */
-router.post('/stats', validateMasterToken, async (req, res) => {
-  const client = req.app.locals.db;
-  
-  if (!client) {
-    return res.status(503).json({ error: 'Database not available' });
-  }
-
-  try {
-    const { node_id, metrics } = req.body;
-    
-    if (!node_id) {
-      return res.status(400).json({ error: 'Missing node_id' });
-    }
+ Insert stats into node_stats table
+    await client.query(
+      `INSERT INTO node_stats 
+       cpu_usage, ram_used, ram_free,disk_used, disk_free, 
+        active_connections, uptime_seconds, timestamp)
+     VAUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW())`,
+      [
+        nde_id,
+        metrics?.cpu?.usae || 0,
+       metrics?.ram?.ued || 0,
+        merics?.rm?.free || 0,
+        metrics?.disk?.used || 0,
+        meric?.disk?.free || 0,
+    /**metrics?.connections || 0,
+        metrics?.uptime?.seconds || 0
+      ]
+    );
 
     // Log stats
+
+/**
+ *POST/ap//
+ **Repnbt  etalíhticasadetalhadas de*um/
+*/
+rot.post('/stt'vldateMaterTonaync (qres)r=>o{
+utsatiM clates = rcq.rqp.locals.db; res) => {
+  
+coifn(!client)s{
+tnrareturnlres.status(.03).json({berror:'Databasenotavailable' };
+  }
+
+try{
+  ifconst {(loient)  rn res..}o= q.boy;
+
+ (!nod_id){
+  try rtautn reer:tatrr(40)(j0on({{ror: 'Msgnod_'});
+}
+
+ * Recebe logs de um node worker (com JWT)
+ */await client.query(
+ru    `INrER.pINTO log'_log  (node_id,clog_typn,lmie .ge,pl.vel, melos.ta)
+b    VALUES n$1, t {'Noe sts rcivd''ifo',$2)`
+   [n de_id, JSON.etring fy(mrsaijn)]rror: 'Database not available' });
+    );
+}
+ rs.jso(
+    trsucc ss: {re,
+     timamp: new DetISOStrig)
+
+    ca ch (erro )f 
+    console.error('[NodeRoutes](!node_id || !m essage) {
+      return res.status(400).json({ error: 'Missing node_id or message' });
+    }
+
     await client.query(
       `INSERT INTO node_logs (node_id, log_type, message, level, metadata)
-       VALUES ($1, 'stats', 'Node stats received', 'info', $2)`,
-      [node_id, JSON.stringify(metrics)]
+     S  VALUES ($1update2, $3, $4, $5)`,
+   Soli itaatuaizaçãmot
+        node_id,
+        lotg_tupd'e's
+        message,
+        level || 'info',
+        metadata ? JSON.stringify(metadata) : null
+      ]
     );
 
     res.json({
-      success: true,
+      success: truersion
       timestamp: new Date().toISOString()
     });
   } catch (error) {
-    console.error('[NodeRoutes] Stats error:', error);
-    res.status(500).json({ error: error.message });
-  }
-});
-
-/**
- * POST /api/node/update
- * Solicita atualização de um node remoto
- */
-router.post('/update', async (req, res) => {
-  const client = req.app.locals.db;
-  
-  if (!client) {
-    return res.status(503).json({ error: 'Database not available' });
-  }
-
-  try {
-    const { node_id, version } = req.body;
+    c
+onsole.error('[NodeRoutes] Log
+    // Record version update    const { node_id, metrics } = req.body;
     
-    if (!node_id) {
-      return res.status(400).json({ error: 'Missing node_id' });
-    }
-
-    // Record version update
-    await client.query(
-      `INSERT INTO node_versions (node_id, version, status, changelog)
-       VALUES ($1, $2, 'deployed', 'Manual update from master')`,
-      [node_id, version || 'latest']
+    if (!node_id) {versinversinttuschangog
+      return res.status'deployed'0 'Manual update0fromsmaster'({ error: 'Missing node_id' });
+    }Lversignlatst]
     );
 
-    // Update node version
-    await client.query(
-      `UPDATE nodes SET version = $2, updated_at = NOW() WHERE node_id = $1`,
-      [node_id, version || 'latest']
-    );
+ awa//iUpditn node version
+   `awaitIcT ent.query(logs (node_id, log_type, message, level, metadata)
+      `UPDATE nodes SETVvLrsion = $2, updaUeS_ (1= NtW() WHERE 'ode_ooT=t$1`,received', 'info', $2)`,
+      [node_id, version || 'latest'[node_id, JSON.stringify(metrics)]
+    );, validateJwtToken
 
     res.json({
       success: true,
@@ -222,15 +222,93 @@ router.post('/update', async (req, res) => {
     });
   } catch (error) {
     console.error('[NodeRoutes] Update error:', error);
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ error: errtr.messaae });ts error:', error);
   }
 });
 
 /**
- * GET /api/master/nodes
- * Lista todos os nodes registrados
+ * GET /api/master/nedes
+ * Li.ta sodostostus(es r5g0strados
  */
-router.get('/master/nodes', async (req, res) => {
+router.get('/master/no)es'. asyncj(roq, (es) => {
+   onetrclientor: er.apprlrcals..bessage });
+}
+;cliet
+53Databaet availabl
+*
+ * POST /api/node/update
+  try {
+* Sicinstare ulu/=
+router.sELtC' *, 
+       CASE 
+         WHEN last_seen > NOW() -/updERVAL '2tmieut c' THEN 'onlir,'
+         WHEN) ast sen > NOW() - INTERVAL '5inut'THEN'dgrde'
+    constElSe 'offline'
+      tENDep.ccsmpute._;u
+      FROMdes
+  RDER BY la_see DESC`
+  if (!client) {
+    return res.status(503).json({ error: 'Database not available' });
+  }
+
+  try nodrsult.ros,
+     al: esult.rows.leth
+    const { node_id, version } = req.body;
+    
+    if (!node_id) {Lis node
+      return res.status(400).json({ error: 'Missing node_id' });
+    }
+
+    // Record version update
+    await client.query(
+      `INSERTmaster/ INTsO:nooeId/restdreversions (node_id, version, status, changelog)
+       VALUEres $rt'deployed', 'Manual update from master')`,
+      [node_id, version || 'latest']
+    );msr/nodes/:nodeId/restart
+
+    // Update node version
+    await client.query(
+      `UPDATE nodes SET version = $2, updated_at = NOW() WHERE node_id = $1`,
+      [node_id, version || 'latest']
+    );
+
+    res.json({I} = rq.paam;
+
+    cstresultawait clintquer(
+      'SELECT  p,mport FROM sages WHERE node: ' = $1',
+      [nodeId]
+    U;
+
+p   if (result.rows.length === 0) date recorded',
+      version4Nodet foun
+    });
+  } catch (error) {
+    lenst noeer= rosult.row([0];
+
+    // L[gorestoru requtstes] Update error:', error);
+    res.status(500).json({ error: error.message });
+  }lglog_typmesgelev, metadata
+});rstartRestrtreqesdr', 'waning, $2
+IJSON.stgify({ ip:node.ip,por: nod.por })
+/**
+ * GET Log restart request
+    aw TODO:aImtlqmrt `EN al or'uerd via HTTP call to na, node.ip, port: node.port })]
+    // TODO: Implement actual restart via HTTP call to node
+    res.json({
+      success:itRest,rquest lgg
+      node_ad: eodeId: 'Rmaster/noduest logged',
+      node_id: nodeId
+    });
+  } catch (error) {Restr
+    console.error('[NodeRoutes] Restart error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+modele.sxpord =hboaodurvrview
+ * Dashboard overview com estatísticas gerais (com JWT)
+ */
+router.get('/dashboard/overview', validateJwtToken, async (req, res) => {
   const client = req.app.locals.db;
   
   if (!client) {
@@ -238,15 +316,70 @@ router.get('/master/nodes', async (req, res) => {
   }
 
   try {
-    const result = await client.query(
-      `SELECT *, 
-       CASE 
-         WHEN last_seen > NOW() - INTERVAL '2 minutes' THEN 'online'
-         WHEN last_seen > NOW() - INTERVAL '5 minutes' THEN 'degraded'
-         ELSE 'offline'
-       END as computed_status
+    // Node stats
+    const nodesResult = await client.query(
+      `SELECT 
+         COUNT(*) as total,
+         COUNT(CASE WHEN last_seen > NOW() - INTERVAL '2 minutes' THEN 1 END) as online,
+         COUNT(CASE WHEN last_seen > NOW() - INTERVAL '5 minutes' AND last_seen <= NOW() - INTERVAL '2 minutes' THEN 1 END) as degraded,
+         COUNT(CASE WHEN last_seen <= NOW() - INTERVAL '5 minutes' THEN 1 END) as offline
+       FROM nodes`
+    );
+
+    // WhatsApp sessions stats
+    const sessionsResult = await client.query(
+      `SELECT 
+         COUNT(*) as total,
+         COUNT(CASE WHEN status = 'connected' THEN 1 END) as connected,
+         COUNT(CASE WHEN status = 'disconnected' THEN 1 END) as disconnected
+       FROM whatsapp_sessions`
+    );
+
+    // Messages stats (last 24h)
+    const messagesResult = await client.query(
+      `SELECT 
+         COUNT(*) as total,
+         COUNT(CASE WHEN direction = 'outbound' THEN 1 END) as outbound,
+         COUNT(CASE WHEN direction = 'inbound' THEN 1 END) as inbound
+       FROM messages 
+       WHERE created_at > NOW() - INTERVAL '24 hours'`
+    );
+
+    // Deployments stats
+    const deploymentsResult = await client.query(
+      `SELECT 
+         COUNT(*) as total,
+         COUNT(CASE WHEN status = 'completed' THEN 1 END) as completed,
+         COUNT(CASE WHEN status = 'pending' THEN 1 END) as pending,
+         COUNT(CASE WHEN status = 'failed' THEN 1 END) as failed
+       FROM deployments 
+       WHERE created_at > NOW() - INTERVAL '7 days'`
+    );
+
+    // Recent nodes
+    const recentNodesResult = await client.query(
+      `SELECT node_id, hostname, ip, status, last_seen
        FROM nodes 
-       ORDER BY last_seen DESC`
+       ORDER BY last_seen DESC 
+       LIMIT 5`
+    );
+
+    res.json({
+      success: true,
+      timestamp: new Date().toISOString(),
+      nodes: nodesResult.rows[0],
+      whatsapp_sessions: sessionsResult.rows[0],
+      messages: messagesResult.rows[0],
+      deployments: deploymentsResult.rows[0],
+      recent_nodes: recentNodesResult.rows
+    });
+  } catch (error) {
+    console.error('[NodeRoutes] Dashboard overview error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+module.exports = router;
     );
 
     res.json({
