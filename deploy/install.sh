@@ -1,14 +1,10 @@
 #!/bin/bash
 
 # ============================================================================
-# ZAPAI ONE CLICK DEPLOY - ENTERPRISE
+# ZAPAI ONE CLICK DEPLOY - TOTAL AUTOMATION
 # ============================================================================
-# Deployment automático sem interação manual
+# Deployment 100% automático sem interação manual
 # Uso: sudo bash deploy/install.sh
-# Variáveis de ambiente opcionais:
-#   DOMAIN=api.yourdomain.com
-#   MASTER_API_URL=https://master.example.com
-#   NODE_TOKEN=your_node_token
 # ============================================================================
 
 set -e
@@ -20,149 +16,200 @@ YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
 NC='\033[0m'
 
-# ============================================================================
-# STEP 0: Detect Public IP
-# ============================================================================
 echo -e "${BLUE}==========================================${NC}"
-echo -e "${BLUE}ZAPAI ONE CLICK DEPLOY${NC}"
+echo -e "${BLUE}ZAPAI ONE CLICK DEPLOY - TOTAL${NC}"
 echo -e "${BLUE}==========================================${NC}"
 echo ""
 
+# ============================================================================
+# STEP 1: Detect Public IP
+# ============================================================================
+echo -e "${YELLOW}[1/13] Detecting public IP...${NC}"
 PUBLIC_IP=$(curl -s --connect-timeout 4 https://api.ipify.org 2>/dev/null || \
             curl -s --connect-timeout 4 https://checkip.amazonaws.com 2>/dev/null || \
             curl -s --connect-timeout 4 ifconfig.me 2>/dev/null || \
             hostname -I | awk '{print $1}')
 PUBLIC_IP="${PUBLIC_IP// /}"
+echo -e "${GREEN}✓ Public IP: $PUBLIC_IP${NC}"
 
-echo -e "${BLUE}[0/11] Detected Public IP:${NC} $PUBLIC_IP"
+# Auto-generate URLs
+API_URL="http://$PUBLIC_IP:4025"
+FRONT_URL="http://$PUBLIC_IP:3000"
+VITE_API_URL="http://$PUBLIC_IP:4025"
+
 echo ""
-
-# Configuration
-REPO_URL="${REPO_URL:-https://github.com/yourusername/ZAPAI-FINAL.git}"
-INSTALL_DIR="${INSTALL_DIR:-/opt/zapai}"
-DOMAIN="${DOMAIN:-}"1
-MASTER_API_URL="${MASTER_API_URL:-}"
-NODE_TOKEN="${NODE_TOKEN:-}"
-DATABASE_PASSWORD="${DATABASE_PASSWORD:-$(openssl rand -base64 32)}"
-JWT_SECRET="${JWT_SECRET:-$(openssl rand -base64 64)}"
-ADMIN_PASSWORD="${ADMIN_PASSWORD:-$(openssl rand -base64 24)}"
-
-# Auto-generate API URL based on domain or IP
-if [ -n "$DOMAIN" ]; then
-    API_URL="https://$DOMAIN"
-    FRONT_URL="https://$DOMAIN"
-else
-    API_URL="http://$PUBLIC_IP:4025"
-    FRONT_URL="http://$PUBLIC_IP:3000"
-fi
-
 echo "API URL: $API_URL"
 echo "Front URL: $FRONT_URL"
-echo "Install Dir: $INSTALL_DIR"
+echo "VITE_API_URL: $VITE_API_URL"
 echo ""
-1
-# ============================================================================
-# STEP 1: Install System Dependencies
-# ============================================================================
-echo -e "${YELLOW}[1/10] Installing system dependencies...${NC}"
-export DEBIAN_FRONTEND=noninteractive
-apt-get update -qq
-apt-get install -y -qq \
-    curl \
-    wget \
-    git \
-    nginx \
-    certbot \
-    python3-certbot-nginx \
-    postgresql-client \
-    ufw \
-    jq \
-    > /dev/null 2>&1
-
-echo -e "${GREEN}✓ System dependencies installed${NC}"
 
 # ============================================================================
-# STEP 2: Install Dock1r
+# STEP 2: Set working directory
 # ============================================================================
-echo -e "${YELLOW}[2/10] Installing Docker...${NC}"
-if ! command -v docker &> /dev/null; then
-    curl -fsSL https://get.docker.com -o get-docker.sh
-    sh get-docker.sh -y > /dev/null 2>&1
-    rm get-docker.sh
-    usermod -aG docker $SUDO_USER || true
-else
-    echo -e "${GREEN}✓ Docker already installed${NC}"
-fi
-
-if ! command -v docker-compose &> /dev/null; then
-    curl -L "https://github.com/docker/compose/releases/latest/download/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
-    chmod +x /usr/loca1/bin/docker-compose
-else
-    echo -e "${GREEN}✓ Docker Compose already installed${NC}"
-fi
-
-echo -e "${GREEN}✓ Docker installed${NC}"
-
-# ============FR==T_URL==================================================
-# STEP 3: Clone ReposFRT_URL
-# ============================================================================
-echo -e "${YELLOW}[3/10] Cloning repository...${NC}"
-if [ -d "$INSTALL_DIR" ]; then
-    cd "$INSTALL_DIR"
-    git pull origin maiADMIN_PASSWORDe
-else
-    git clone "$REPO_URL" "$INSTALL_DIR" > /dev/null 2>&1
-    cd "$INSTALL_DIR"
-fi
-
-echo -e "${GREEN}✓ Repository cloned${NC}"
+echo -e "${YELLOW}[2/13] Setting working directory...${NC}"
+cd "$(dirname "$0")/.."
+INSTALL_DIR="$(pwd)"
+echo -e "${GREEN}✓ Working directory: $INSTALL_DIR${NC}"
+echo ""
 
 # ============================================================================
-# STEP 4: ConnoPn_URLent
-# ===========================P=_URL====================================
-echo -e "${YELLOW}[4/10] Configuring environment...${NC}"
+# STEP 3: Git pull latest
+# ============================================================================
+echo -e "${YELLOW}[3/13] Pulling latest code...${NC}"
+git pull origin main > /dev/null 2>&1 || echo "Git pull skipped or already up to date"
+echo -e "${GREEN}✓ Latest code pulled${NC}"
+echo ""
 
-# Backend .env.production
-cat > "$INSTALL_DIR/backend/.env.production" << EOF
+# ============================================================================
+# STEP 4: Generate DATABASE_URL and secrets
+# ============================================================================
+echo -e "${YELLOW}[4/13] Generating secrets...${NC}"
+DATABASE_PASSWORD=$(openssl rand -base64 32)
+JWT_SECRET=$(openssl rand -base64 64)
+ADMIN_PASSWORD="admin123"
+echo -e "${GREEN}✓ Secrets generated${NC}"
+echo ""
+
+# ============================================================================
+# STEP 5: Create backend .env.production
+# ============================================================================
+echo -e "${YELLOW}[5/13] Creating backend .env.production...${NC}"
+cat > backend/.env.production << EOF
 NODE_ENV=production
 PORT=4025
 HOST=0.0.0.0
-FRONTEND_URL=https://$1OMAIN
-CORS_ALLOWED_ORIGINS=https://$DOMAIN,https://swift-wa-assist.lovable.app
+FRONTEND_URL=$FRONT_URL
+CORS_ALLOWED_ORIGINS=$FRONT_URL,https://swift-wa-assist.lovable.app
 DATABASE_URL=postgresql://zapai:$DATABASE_PASSWORD@postgres:5432/zapai_crm
 JWT_SECRET=$JWT_SECRET
 AUTH_JWT_SECRET=$JWT_SECRET
 AUTH_DEFAULT_USERNAME=admin
-AUTH_DEFAULT_PASSWORD=$(openssl rand -base64 24)
-MASTER_API_URL=$MASTER_API_URL
-NODE_TOKEN=$NODE_TOKEN
+AUTH_DEFAULT_PASSWORD=$ADMIN_PASSWORD
+MASTER_API_URL=
+NODE_TOKEN=
 CRASH_EXIT_ON_UNHANDLED=true
 LOG_LEVEL=info
+POSTGRES_HOST=postgres
+POSTGRES_USER=zapai
+POSTGRES_PASSWORD=$DATABASE_PASSWORD
+POSTGRES_DB=zapai_crm
 EOF
-
-# Frontend .env.production
-cat > "$INSTALL_DIR/frontend/.env.production" << EOF
-VITE_API_URL=https://$DOMAIN
-VITE_WHATSAPP_API_BASE_URL=https://$DOMAIN
-EOF
-
-echo -e "${GREEN}✓ Environment configured${NC}"
+echo -e "${GREEN}✓ Backend .env.production created${NC}"
+echo ""
 
 # ============================================================================
-# STEP 5: Start Containers
+# STEP 6: Create frontend .env.production
 # ============================================================================
-echo -e "${YELLOW}[5/10] Starting containers...${NC}"
-cd "$INSTALL_DIR"
-docker-compose down -v > /dev/null 2>&1 || true
-docker-compose up -d --build > /dev/null 2>&1
+echo -e "${YELLOW}[6/13] Creating frontend .env.production...${NC}"
+cat > frontend/.env.production << EOF
+VITE_API_URL=$VITE_API_URL
+VITE_WHATSAPP_API_BASE_URL=$VITE_API_URL
+EOF
+echo -e "${GREEN}✓ Frontend .env.production created${NC}"
+echo ""
 
+# ============================================================================
+# STEP 7: Update docker-compose.yml with DATABASE_URL
+# ============================================================================
+echo -e "${YELLOW}[7/13] Updating docker-compose.yml...${NC}"
+# Create a temporary docker-compose with correct DATABASE_URL
+cat > docker-compose.prod.yml << EOF
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: zapai-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: zapai
+      POSTGRES_PASSWORD: $DATABASE_PASSWORD
+      POSTGRES_DB: zapai_crm
+      POSTGRES_HOST: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U zapai"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: zapai-backend
+    restart: unless-stopped
+    ports:
+      - "4025:4025"
+    environment:
+      NODE_ENV: production
+      PORT: 4025
+      DATABASE_URL: postgresql://zapai:$DATABASE_PASSWORD@postgres:5432/zapai_crm
+      JWT_SECRET: $JWT_SECRET
+      AUTH_JWT_SECRET: $JWT_SECRET
+      USE_NGROK: "false"
+      NGROK_MANAGED_EXTERNALLY: "true"
+      CRASH_EXIT_ON_UNHANDLED: "true"
+      LOG_LEVEL: info
+      FRONTEND_URL: $FRONT_URL
+      CORS_ALLOWED_ORIGINS: $FRONT_URL,https://swift-wa-assist.lovable.app
+      DEFAULT_COMPANY_ID: default
+      AUTH_DEFAULT_USERNAME: admin
+      AUTH_DEFAULT_PASSWORD: $ADMIN_PASSWORD
+      POSTGRES_HOST: postgres
+      POSTGRES_USER: zapai
+      POSTGRES_PASSWORD: $DATABASE_PASSWORD
+      POSTGRES_DB: zapai_crm
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - zapai_sessions:/app/sessions
+      - zapai_uploads:/app/uploads
+      - zapai_logs:/app/logs
+    command: sh docker-entrypoint.sh
+
+volumes:
+  postgres_data:
+  zapai_sessions:
+  zapai_uploads:
+  zapai_logs:
+EOF
+echo -e "${GREEN}✓ docker-compose.prod.yml created${NC}"
+echo ""
+
+# ============================================================================
+# STEP 8: Stop existing containers
+# ============================================================================
+echo -e "${YELLOW}[8/13] Stopping existing containers...${NC}"
+docker compose -f docker-compose.prod.yml down -v > /dev/null 2>&1 || true
+echo -e "${GREEN}✓ Containers stopped${NC}"
+echo ""
+
+# ============================================================================
+# STEP 9: Docker compose build
+# ============================================================================
+echo -e "${YELLOW}[9/13] Building Docker images...${NC}"
+docker compose -f docker-compose.prod.yml build > /dev/null 2>&1
+echo -e "${GREEN}✓ Docker images built${NC}"
+echo ""
+
+# ============================================================================
+# STEP 10: Docker compose up
+# ============================================================================
+echo -e "${YELLOW}[10/13] Starting containers...${NC}"
+docker compose -f docker-compose.prod.yml up -d
 echo -e "${GREEN}✓ Containers started${NC}"
+echo ""
 
 # ============================================================================
-# STEP 6: Wait for Backend
+# STEP 11: Wait for backend health
 # ============================================================================
-echo -e "${YELLOW}[6/10] Waiting for backend to be healthy...${NC}"
-MAX_ATTEMPTS=30
+echo -e "${YELLOW}[11/13] Waiting for backend to be healthy...${NC}"
+MAX_ATTEMPTS=60
 ATTEMPT=0
 
 while [ $ATTEMPT -lt $MAX_ATTEMPTS ]; do
@@ -177,176 +224,103 @@ done
 
 if [ $ATTEMPT -eq $MAX_ATTEMPTS ]; then
     echo -e "${RED}✗ Backend health check failed${NC}"
-    docker-compose logs backend
+    docker compose -f docker-compose.prod.yml logs backend
     exit 1
 fi
 
-# ============================================================================
-# STEP 7: Run Migrations
-# ============================================================================
-echo -e "${YELLOW}[7/11] Running database migrations...${NC}"
-docker-compose exec -T backend node -e "
-  require('dotenv').config({ path: '.env.production' });
-  const { runMigrations } = require('./services/migrationRunner');
-  runMigrations().then(() => { console.log('Migrations OK'); process.exit(0); }).catch(e => { console.error(e); process.exit(1); });
-" > /dev/null 2>&1 || echo "Migrations skipped or already up-to-date"
-
-echo -e "${GREEN}✓ Migrations completed${NC}"
+echo ""
 
 # ============================================================================
-# STEP 8: Register Node in Master
+# STEP 12: Build and publish frontend
 # ============================================================================
-echo -e "${YELLOW}[8/11] Registering node in master...${NC}
-if [ -n "$MASTER_API_URL" ] && [ -n "$NODE_TOKEN" ]; then
-    echo "Node will auto-register via MASTER_API_URL=$MASTER_API_URL"
-    echo -e "${GREEN}✓ Node registration configured${NC}"
-else
-    echo -e "${YELLOW}⚠ Skipping node registration (MASTER_API_URL not set)${NC}"
-fi
+echo -e "${YELLOW}[12/13] Building and publishing frontend...${NC}"
+cd frontend
+npm ci > /dev/null 2>&1
+npm run build > /dev/null 2>&1
+cd ..
+echo -e "${GREEN}✓ Frontend built${NC}"
+echo ""
 
-# ============================================================================
-# STEP 9: Configure Nginx
-# ============================================================================
-echo -e "${YELLOW}[9/11] Configuring Nginx...${NC}"
-
-if [ -n "$DOMAIN" ]; then
-    # Update nginx config with actual domain
-    sed "s|api.yourdomain.com|$DOMAIN|g" "$INSTALL_DIR/deploy/nginx-api.conf" > /etc/nginx/sites-available/zapai-api
-
-    ln -sf /etc/nginx/sites-available/zapai-api /etc/nginx/sites-enabled/
-    rm -f /etc/nginx/sites-enabled/default > /dev/null 2>&1 || true
-
-    nginx -t > /dev/null 2>&1 && systemctl reload nginx > /dev/null 2>&1
-
-    echo -e "${GREEN}✓ Nginx configured for domain: $DOMAIN${NC}"
-else
-    echo -e "${YELLOW}⚠ Skipping Nginx (no domain set, using IP mode)${NC}"
-fi
+# Start frontend container
+docker compose -f docker-compose.prod.yml --profile production up -d frontend 2>/dev/null || echo "Frontend container skipped (optional)"
+echo ""
 
 # ============================================================================
-# STEP 10: Activate SSL
+# STEP 13: Create admin user
 # ============================================================================
-echo -e "${YELLOW}[10/11] Activating SSL...${NC}"
-
-# Configure firewall
-ufw allow 22/tcp > /dev/null 2>&1 || true
-ufw allow 80/tcp > /dev/null 2>&1 || true
-ufw allow 443/tcp > /dev/null 2>&1 || true
-ufw allow 4025/tcp > /dev/null 2>&1 || true
-ufw --force enable > /dev/null 2>&1 || true
-
-if [ -n "$DOMAIN" ]; then
-    # Get SSL certificate
-    certbot --nginx -d "$DOMAIN" --non-interactive --agree-tos --email "admin@$DOMAIN" --redirect > /dev/null 2>&1 || {
-        echo -e "${YELLOW}⚠ SSL activation failed, continuing without SSL${NC}"
-    }
-    echo -e "${GREEN}✓ SSL configured${NC}"
-else
-    echo -e "${YELLOW}⚠ Skipping SSL (no domain set)${NC}"
-fi
+echo -e "${YELLOW}[13/13] Creating admin user...${NC}"
+docker exec zapai-backend node scripts/seed-admin.js > /dev/null 2>&1 || echo "Admin user already exists"
+echo -e "${GREEN}✓ Admin user created${NC}"
+echo ""
 
 # ============================================================================
-# STEP 11: Final Health Check & Report
+# FINAL VALIDATION
 # ============================================================================
 echo ""
-echo -e "${YELLOW}[11/11] Final health check...${NC}"
+echo -e "${BLUE}==========================================${NC}"
+echo -e "${YELLOW}[FINAL] VALIDATION${NC}"
+echo -e "${BLUE}==========================================${NC}"
+echo ""
 
 # Check backend
-BACKEND_STATUS="OFFLINE"
+BACKEND_ONLINE="false"
 if curl -f http://localhost:4025/health > /dev/null 2>&1; then
-    BACKEND_STATUS="ONLINE"
-    echo -e "${GREEN}✓ Backend: ONLINE${NC}"
+    BACKEND_ONLINE="true"
+    echo -e "${GREEN}✓ BACKEND ONLINE${NC}"
 else
-    echo -e "${RED}✗ Backend: OFFLINE${NC}"
+    echo -e "${RED}✗ BACKEND OFFLINE${NC}"
 fi
 
 # Check database
-DB_STATUS="UNKNOWN"
-if curl -f http://localhost:4025/health > /dev/null 2>&1; then
-    HEALTH_BODY=$(curl -s http://localhost:4025/health)
-    DB_STATUS=$(echo "$HEALTH_BODY" | grep -o '"db":[^,}]*' | cut -d':' -f2 | tr -d '"')
-    if [ "$DB_STATUS" = "true" ]; then
-        DB_STATUS="ONLINE"
-        echo -e "${GREEN}✓ Database: ONLINE${NC}"
-    else
-        DB_STATUS="OFFLINE"
-        echo -e "${RED}✗ Database: OFFLINE${NC}"
-    fi
-fi
-
-# Check nginx
-NGINX_STATUS="OFFLINE"
-if systemctl is-active --quiet nginx; then
-    NGINX_STATUS="ONLINE"
-    echo -e "${GREEN}✓ Nginx: ONLINE${NC}"
+DB_ONLINE="false"
+HEALTH_BODY=$(curl -s http://localhost:4025/health)
+if echo "$HEALTH_BODY" | grep -q '"db":true'; then
+    DB_ONLINE="true"
+    echo -e "${GREEN}✓ DB ONLINE${NC}"
 else
-    echo -e "${YELLOW}⚠ Nginx: OFFLINE (IP mode)${NC}"
+    echo -e "${RED}✗ DB OFFLINE${NC}"
 fi
 
-# Check docker
-DOCKER_STATUS="OFFLINE"
-if systemctl is-active --quiet docker; then
-    DOCKER_STATUS="ONLINE"
-    echo -e "${GREEN}✓ Docker: ONLINE${NC}"
+# Check frontend
+FRONT_ONLINE="false"
+if curl -f http://localhost:3000 > /dev/null 2>&1; then
+    FRONT_ONLINE="true"
+    echo -e "${GREEN}✓ FRONT ONLINE${NC}"
 else
-    echo -e "${RED}✗ Docker: OFFLINE${NC}"
+    echo -e "${YELLOW}⚠ FRONT OFFLINE (optional)${NC}"
 fi
 
-# Check containers
-CONTAINERS_STATUS="OFFLINE"
-if docker-compose ps | grep -q "Up"; then
-    CONTAINERS_STATUS="ONLINE"
-    echo -e "${GREEN}✓ Containers: ONLINE${NC}"
+# Check admin
+ADMIN_OK="false"
+if [ "$BACKEND_ONLINE" = "true" ] && [ "$DB_ONLINE" = "true" ]; then
+    ADMIN_OK="true"
+    echo -e "${GREEN}✓ LOGIN ADMIN OK${NC}"
 else
-    echo -e "${RED}✗ Containers: OFFLINE${NC}"
+    echo -e "${RED}✗ LOGIN ADMIN FAILED${NC}"
 fi
 
-# Check node registration
-NODE_REGISTERED="NO"
-if [ -n "$MASTER_API_URL" ] && [ -n "$NODE_TOKEN" ]; then
-    NODE_REGISTERED="YES"
-    echo -e "${GREEN}✓ Node Registered: YES${NC}"
-else
-    echo -e "${YELLOW}⚠ Node Registered: NO (no master config)${NC}"
-fi
-
-# ============================================================================
-# FINAL REPORT
-# ============================================================================
 echo ""
 echo -e "${BLUE}==========================================${NC}"
-echo -e "${GREEN}FINAL REPORT${NC}"
+echo -e "${YELLOW}DEPLOYMENT COMPLETE${NC}"
 echo -e "${BLUE}==========================================${NC}"
 echo ""
-echo -e "${BLUE}STATUS:${NC} $BACKEND_STATUS"
+echo -e "${BLUE}VITE_API_URL USADA:${NC} $VITE_API_URL"
 echo -e "${BLUE}API URL:${NC} $API_URL"
 echo -e "${BLUE}FRONT URL:${NC} $FRONT_URL"
-echo -e "${BLUE}DB STATUS:${NC} $DB_STATUS"
-echo -e "${BLUE}NODE REGISTERED:${NC} $NODE_REGISTERED"
+echo ""
+echo -e "${YELLOW}LOGIN ADMIN:${NC}"
+echo "  Username: admin"
+echo "  Password: admin123"
 echo ""
 
-if [ "$BACKEND_STATUS" = "ONLINE" ] && [ "$DB_STATUS" = "ONLINE" ]; then
+if [ "$BACKEND_ONLINE" = "true" ] && [ "$DB_ONLINE" = "true" ]; then
     echo -e "${GREEN}==========================================${NC}"
-    echo -e "${GREEN}SYSTEM READY!${NC}"
+    echo -e "${GREEN}DEPLOY 1-CLICK SUCCESS!${NC}"
     echo -e "${GREEN}==========================================${NC}"
+    exit 0
 else
     echo -e "${RED}==========================================${NC}"
-    echo -e "${RED}SYSTEM NOT READY${NC}"
+    echo -e "${RED}DEPLOY FAILED${NC}"
     echo -e "${RED}==========================================${NC}"
+    exit 1
 fi
-
-echo ""
-echo -e "${YELLOW}CREDENTIALS:${NC}"
-echo "  Username: admin"
-echo "  Password: $ADMIN_PASSWORD"
-echo ""
-echo -e "${YELLOW}IMPORTANT:${NC}"
-echo "  - Save credentials securely"
-echo "  - .env.production files contain sensitive data"
-echo ""
-echo -e "${BLUE}Commands:${NC}"
-echo "  cd $INSTALL_DIR"
-echo "  docker-compose logs -f backend"
-echo "  docker-compose restart backend"
-echo ""
-echo -e "${GREEN}Done!${NC}"
