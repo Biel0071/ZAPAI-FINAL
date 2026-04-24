@@ -99,7 +99,7 @@ class NodeRegisterService {
         timestamp: new Date().toISOString(),
       };
 
-      const url = `${this.masterApiUrl}/master/register-node`;
+      const url = `${this.masterApiUrl}/api/node/register`;
       
       await this.makeRequest(url, payload);
       
@@ -126,7 +126,7 @@ class NodeRegisterService {
         timestamp: new Date().toISOString(),
       };
 
-      const url = `${this.masterApiUrl}/master/heartbeat`;
+      const url = `${this.masterApiUrl}/api/node/heartbeat`;
       
       await this.makeRequest(url, payload);
       

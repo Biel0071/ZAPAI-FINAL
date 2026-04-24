@@ -15,6 +15,7 @@ const aiConfigRouter = require('./aiConfig');
 const authRouter = require('./auth');
 const mediaRouter = require('./media');
 const adminMasterRouter = require('./adminMaster');
+const nodeRouter = require('./node');
 
 function registerRoutes(app, options = {}) {
   const requireJwtAuth = options.requireJwtAuth;
@@ -66,6 +67,7 @@ function registerRoutes(app, options = {}) {
   app.use('/api', aiConfigRouter);
   app.use('/', mediaRouter);
   app.use('/api', mediaRouter);
+  app.use('/api', nodeRouter);
 }
 
 module.exports = {
