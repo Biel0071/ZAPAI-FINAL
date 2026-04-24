@@ -22,6 +22,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Dialog,
@@ -933,9 +934,23 @@ export default function CRM() {
 
               <div className="space-y-3">
                 {isCrmDataLoading && visibleLeads.length === 0 ? (
-                  <Card className="border-dashed">
-                    <CardContent className="py-6 text-center text-sm text-muted-foreground">Carregando leads...</CardContent>
-                  </Card>
+                  <div className="space-y-3">
+                    {[1, 2, 3].map((i) => (
+                      <Card key={i} className="border-dashed">
+                        <CardContent className="p-4 space-y-3">
+                          <div className="flex items-center gap-2">
+                            <Skeleton className="w-8 h-8 rounded-full" />
+                            <div className="space-y-2">
+                              <Skeleton className="h-4 w-24" />
+                              <Skeleton className="h-3 w-16" />
+                            </div>
+                          </div>
+                          <Skeleton className="h-3 w-full" />
+                          <Skeleton className="h-3 w-3/4" />
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
                 ) : visibleLeads.length === 0 ? (
                   <Card className="border-dashed">
                     <CardContent className="py-6 text-center text-sm text-muted-foreground">Nenhum lead neste estágio.</CardContent>

@@ -471,17 +471,19 @@ export default function Dashboard() {
                 <CardContent className="space-y-4">
                   <div className="flex items-center gap-2">
                     <span className={runtimeDotClass}>●</span>
-                    {isSystemLoading ? <span className="text-sm font-medium">Verificando status...</span> : (
+                    {isSystemLoading ? <Skeleton className="h-4 w-24" /> : (
                       <><span className="text-sm font-medium">Runtime:</span><Badge variant={runtimeBadgeVariant}>{runtimeLabel}</Badge></>
                     )}
                   </div>
                   <div className="flex items-center gap-2">
                     <span className={sessionDotClass}>●</span>
-                    {isSystemLoading ? <span className="text-sm font-medium">Verificando sessões...</span> : (
+                    {isSystemLoading ? <Skeleton className="h-4 w-24" /> : (
                       <><span className="text-sm font-medium">Sessões:</span><Badge variant={sessionBadgeVariant}>{sessionLabel}</Badge><span className="text-xs text-muted-foreground">({activeSessions}/{totalSessions})</span></>
                     )}
                   </div>
-                  <p className="text-sm text-muted-foreground">{isSystemLoading ? "Carregando status do sistema..." : runtimeDescription}</p>
+                  {isSystemLoading ? <Skeleton className="h-4 w-full" /> : (
+                    <p className="text-sm text-muted-foreground">{runtimeDescription}</p>
+                  )}
                   <div className="flex flex-wrap gap-2">
                     <Button onClick={() => void handleActivateSystem()} disabled={isSystemActionLoading || runtimeState === "running"}>
                       {isSystemActionLoading ? <CircleNotch className="mr-2 h-4 w-4 animate-spin" /> : null}
