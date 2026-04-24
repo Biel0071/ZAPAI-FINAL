@@ -10,6 +10,7 @@ services:
       POSTGRES_USER: zapai
       POSTGRES_PASSWORD: zapai_password
       POSTGRES_DB: zapai_crm
+      POSTGRES_HOST: postgres
     ports:
       - "5432:5432"
     volumes:
@@ -50,27 +51,31 @@ services:
       NODE_ENV: production
       PORT: 4025
       DATABASE_URL: postgresql://zapai:zapai_password@postgres:5432/zapai_crm
-      JWT_SECRET: ${JWT_SECRET:-change_me_min_64_chars_random_string}
-      AUTH_JWT_SECRET: ${AUTH_JWT_SECRET:-change_me_min_64_chars_random_string}
+      JWT_SECRET: ${JWT_SECRET:-change_me_min_64_chars_random_string_please_change_this_in_production}
+      AUTH_JWT_SECRET: ${AUTH_JWT_SECRET:-change_me_min_64_chars_random_string_please_change_this_in_production}
       USE_NGROK: "false"
       NGROK_MANAGED_EXTERNALLY: "true"
       CRASH_EXIT_ON_UNHANDLED: "true"
       LOG_LEVEL: info
       FRONTEND_URL: http://localhost:3000
-      CORS_ALLOWED_ORIGINS: http://localhost:3000
+      CORS_ALLOWED_ORIGINS: http://localhost:3000,https://swift-wa-assist.lovable.app
       DEFAULT_COMPANY_ID: default
+      AUTH_DEFAULT_USERNAME: admin
+      POSTGRES_HOST: postgres
+      POSTGRES_USER: zapai
+      POSTGRES_PASSWORD: zapai_password
+      POSTGRES_DB: zapai_crm
+      AUTH_DEFAULT_PASSWORD: ${ADMIN_PASSWORD:-admin123}
     depends_on:
       postgres:
-        condition: service_healthy
+        condish oockne-vntiypointc_hhealthy
     volumes:
-      - ./backend:/app
-      - /app/node_modules
       - zapai_sessions:/app/sessions
       - zapai_uploads:/app/uploads
       - zapai_logs:/app/logs
     command: node server.js
 
-  # Frontend (for development only)
+  # Frontend (production build)
   frontend:
     build:
       context: ./frontend
@@ -78,17 +83,13 @@ services:
     container_name: zapai-frontend
     restart: unless-stopped
     ports:
-      - "3000:3000"
+      - "3000:80"
     environment:
-      VITE_API_URL: http://localhost:4025
+      VITE_API_URL: ${VITE_API_URL:-http://localhost:4025}
     depends_on:
       - backend
-    volumes:
-      - ./frontend:/app
-      - /app/node_modules
-    command: npm run dev
     profiles:
-      - dev
+      - production
 
 volumes:
   postgres_data:
