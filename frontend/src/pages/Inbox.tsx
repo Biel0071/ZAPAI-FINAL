@@ -1070,6 +1070,10 @@ export default function Inbox() {
   const isMobile = useIsMobile();
   const navigate = useNavigate();
 
+  // Guards to prevent infinite loading and duplicate requests
+  const isMountedRef = useRef(false);
+  const isRefreshingRef = useRef(false);
+
   const [conversations, setConversations] = useState<Conversation[]>(() =>
     dedupeConversationsByScope(normalizeConversationsList(loadPersistedConversations()), loadContactDirectory()),
   );
@@ -1395,7 +1399,7 @@ export default function Inbox() {
   }, []);
 
   const markBackendOffline = useCallback((err: unknown) => {
-    console.error("BACKEND OFF:", err);
+    if (import.meta.env.MODE !== 'production') console.error("BACKEND OFF:", err);
     setBackendOnline(false);
   }, []);
 
@@ -1404,7 +1408,12 @@ export default function Inbox() {
   }, []);
 
   useEffect(() => {
+    isMountedRef.current = true;
+    
     const loadInitial = async () => {
+      if (isRefreshingRef.current) return;
+      isRefreshingRef.current = true;
+      
       setError(null);
       setLoadingConversations(true);
       setConversationsLoadFailed(false);
@@ -1449,10 +1458,16 @@ export default function Inbox() {
         showErrorToast(message);
       } finally {
         setLoadingConversations(false);
+        isRefreshingRef.current = false;
       }
     };
 
     void loadInitial();
+
+    return () => {
+      isMountedRef.current = false;
+      isRefreshingRef.current = false;
+    };
   }, [loadConversationControls, markBackendOffline, markBackendOnline, showErrorToast]);
 
 

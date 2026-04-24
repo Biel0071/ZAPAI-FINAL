@@ -367,7 +367,7 @@ export default function CRM() {
         setPublicApiUrl(typeof publicUrlData.publicUrl === "string" ? publicUrlData.publicUrl.trim() || null : null);
         setCrmLoadError(null);
       } catch (error) {
-        console.error("Erro ao carregar configuração do CRM:", error);
+        if (import.meta.env.MODE !== 'production') console.error("Erro ao carregar configuração do CRM:", error);
         if (isMounted) {
           setCrmLoadError("Falha ao carregar dados do CRM. Verifique a conexão com o backend.");
         }
@@ -410,7 +410,7 @@ export default function CRM() {
         setLeads((prev) => (areLeadsEqual(prev, nextLeads) ? prev : nextLeads));
         setCrmLoadError(null);
       } catch (error) {
-        console.error("Erro ao carregar dados persistidos do CRM:", error);
+        if (import.meta.env.MODE !== 'production') console.error("Erro ao carregar dados persistidos do CRM:", error);
         if (isMounted) {
           setCrmLoadError("Não foi possível atualizar o CRM agora. Tentando novamente automaticamente.");
         }
@@ -451,7 +451,7 @@ export default function CRM() {
         setSystemStatus((prev) => (prev === nextSystemStatus ? prev : nextSystemStatus));
         setCrmLoadError(null);
       } catch (error) {
-        console.error("Erro ao carregar status do sistema:", error);
+        if (import.meta.env.MODE !== 'production') console.error("Erro ao carregar status do sistema:", error);
         if (isMounted) {
           setCrmLoadError("Falha ao consultar status do sistema em tempo real.");
         }

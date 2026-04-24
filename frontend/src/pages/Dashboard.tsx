@@ -280,7 +280,7 @@ export default function Dashboard() {
         return;
       }
 
-      console.error("Failed to load system status:", error);
+      if (import.meta.env.MODE !== 'production') console.error("Failed to load system status:", error);
       wasRuntimeRunningRef.current = false;
       setRuntimeState((prev) => (isSystemActionLoading || prev === "starting" ? "starting" : "offline"));
     } finally {

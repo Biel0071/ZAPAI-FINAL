@@ -255,7 +255,7 @@ export default function AI() {
       } catch {
         // ignore
       }
-    }, 20_000);
+    }, 60_000); // Increased from 20s to 60s - reduce polling frequency
 
     return () => {
       mounted = false;

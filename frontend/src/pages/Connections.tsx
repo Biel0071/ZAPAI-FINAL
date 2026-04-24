@@ -303,7 +303,7 @@ export default function Connections() {
 
     const intervalId = window.setInterval(() => {
       void loadSessions();
-    }, 15_000);
+    }, 60_000); // Increased from 15s to 60s - socket.io handles realtime updates
 
     return () => window.clearInterval(intervalId);
   }, [loadSessions]);

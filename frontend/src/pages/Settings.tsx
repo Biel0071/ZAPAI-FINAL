@@ -50,7 +50,7 @@ export default function Settings() {
         const status = await apiService.getAIStatus();
         if (isMounted) setIsAIEnabled(resolveAIEnabled(status));
       } catch (error) {
-        console.error("Erro ao carregar status da IA:", error);
+        if (import.meta.env.MODE !== 'production') console.error("Erro ao carregar status da IA:", error);
       } finally {
         if (isMounted) setIsAIStatusLoading(false);
       }
