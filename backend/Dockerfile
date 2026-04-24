@@ -2,7 +2,7 @@
 # ZAPAI BACKEND DOCKERFILE
 # ============================================================================
 
-FROM node:18-alpine
+FROM node:20-alpine
 
 # Install dependencies for Baileys (WhatsApp)
 RUN apk add --no-cache \
@@ -20,7 +20,7 @@ WORKDIR /app
 COPY package*.json ./
 
 # Install dependencies
-RUN npm ci --only=production
+RUN npm ci --omit=dev
 
 # Copy backend code
 COPY . .
