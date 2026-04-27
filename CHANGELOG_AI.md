@@ -35,6 +35,13 @@
 5. Testar `curl http://127.0.0.1:4025/health` e `curl http://209.50.229.68:4025/health`.
 6. Revisar logs dos containers `zapai-backend`, `zapai-frontend`, `zapai-postgres`, `zapai-redis`.
 
+### Tentativa de execução VPS
+- Usuário/host confirmado: `root@209.50.229.68`.
+- Comando SSH de identificação executado antes de qualquer deploy destrutivo.
+- Resultado: bloqueado por autenticação SSH.
+- Erro retornado: `Permission denied (publickey,password)`.
+- Nenhum `git pull`, `deploy/install.sh`, alteração Docker ou restart foi executado na VPS.
+
 ### Status
 - Local validado.
-- VPS aguardando confirmação de SSH/usuário e autorização para execução remota.
+- VPS aguardando credenciais SSH válidas ou sessão autenticada para execução remota.
