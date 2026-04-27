@@ -61,7 +61,15 @@ env_get() {
   local key="$1"
   local file="$2"
   [ -f "$file" ] || return 1
-  grep -E "^${key}=" "$file" | tail -n1 | cut -d'=' -f2-
+  local raw
+  raw="$(grep -E "^${key}=" "$file" | tail -n1 | cut -d'=' -f2- || true)"
+  raw="${raw%$'\r'}"
+  if [[ "$raw" == \"*\" && "$raw" == *\" ]]; then
+    raw="${raw:1:${#raw}-2}"
+    raw="${raw//\\\"/\"}"
+    raw="${raw//\\\\/\\}"
+  fi
+  echo "$raw"
 }
 
 existing_or_default() {
@@ -74,6 +82,71 @@ existing_or_default() {
   else
     echo "$default_value"
   fi
+}
+
+escape_env_value() {
+  local value="${1:-}"
+  value="${value//$'\r'/}"
+  value="${value//\\/\\\\}"
+  value="${value//\"/\\\"}"
+  value="${value//$'\n'/\\n}"
+  printf '%s' "$value"
+}
+
+begin_env_file() {
+  local file="$1"
+  : > "$file"
+}
+
+write_env_line() {
+  local file="$1"
+  local key="$2"
+  local value="${3:-}"
+  printf '%s="%s"\n' "$key" "$(escape_env_value "$value")" >> "$file"
+}
+
+validate_env_file() {
+  local file="$1"
+  [ -f "$file" ] || fail "Arquivo de ambiente não encontrado: $file"
+
+  local line_number=0
+  local line key value
+  while IFS= read -r line || [ -n "$line" ]; do
+    line_number=$((line_number + 1))
+    line="${line%$'\r'}"
+    [ -z "$line" ] && continue
+    [[ "$line" == \#* ]] && continue
+
+    if ! [[ "$line" =~ ^[A-Za-z_][A-Za-z0-9_]*=\".*\"$ ]]; then
+      fail "Formato inválido em $file linha $line_number. Use CHAVE=\"valor\" com aspas duplas."
+    fi
+
+    key="${line%%=*}"
+    value="${line#*=}"
+    value="${value:1:${#value}-2}"
+
+    if [[ "$value" == *'$('* || "$value" == *'`'* ]]; then
+      fail "Valor inseguro detectado em $file linha $line_number ($key)."
+    fi
+  done < "$file"
+}
+
+validate_generated_env_files() {
+  log "Validando arquivos .env gerados"
+  validate_env_file "$ENV_FILE"
+  validate_env_file "$APP_DIR/backend/.env.production"
+  validate_env_file "$APP_DIR/frontend/.env.production"
+  ok "Arquivos .env válidos"
+}
+
+validate_compose_config() {
+  log "Validando docker compose config"
+  local output
+  if ! output="$(docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" config >/dev/null 2>&1)"; then
+    docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" config || true
+    fail "docker compose config falhou. Corrija o .env.production ou docker-compose.production.yml antes do deploy."
+  fi
+  ok "docker compose config validado"
 }
 
 wait_http() {
@@ -138,59 +211,56 @@ write_master_env_files() {
   master_panel_token="$(existing_or_default MASTER_PANEL_TOKEN "$(openssl rand -hex 32)")"
   node_registration_token="$(existing_or_default NODE_REGISTRATION_TOKEN "$(openssl rand -hex 32)")"
 
-  cat > "$ENV_FILE" <<EOF
-POSTGRES_USER=${postgres_user}
-POSTGRES_PASSWORD=${postgres_password}
-POSTGRES_DB=${postgres_db}
-JWT_SECRET=${jwt_secret}
-AUTH_JWT_SECRET=${auth_jwt_secret}
-AUTH_DEFAULT_USERNAME=${admin_user}
-AUTH_DEFAULT_PASSWORD=${admin_password}
-FRONTEND_URL=${frontend_url}
-CORS_ALLOWED_ORIGINS=${cors_origins}
-VITE_API_URL=${api_url}
-MASTER_PANEL_TOKEN=${master_panel_token}
-NODE_REGISTRATION_TOKEN=${node_registration_token}
-MASTER=true
-MASTER_HOSTNAME=${master_hostname}
-MASTER_VPS_IP=${master_ip}
-DOMAIN=${domain}
-LETSENCRYPT_EMAIL=${ssl_email}
-BACKUP_SCHEDULE=@daily
-BACKUP_KEEP_DAYS=7
-BACKUP_KEEP_WEEKS=4
-BACKUP_KEEP_MONTHS=6
-EOF
+  begin_env_file "$ENV_FILE"
+  write_env_line "$ENV_FILE" POSTGRES_USER "$postgres_user"
+  write_env_line "$ENV_FILE" POSTGRES_PASSWORD "$postgres_password"
+  write_env_line "$ENV_FILE" POSTGRES_DB "$postgres_db"
+  write_env_line "$ENV_FILE" JWT_SECRET "$jwt_secret"
+  write_env_line "$ENV_FILE" AUTH_JWT_SECRET "$auth_jwt_secret"
+  write_env_line "$ENV_FILE" AUTH_DEFAULT_USERNAME "$admin_user"
+  write_env_line "$ENV_FILE" AUTH_DEFAULT_PASSWORD "$admin_password"
+  write_env_line "$ENV_FILE" FRONTEND_URL "$frontend_url"
+  write_env_line "$ENV_FILE" CORS_ALLOWED_ORIGINS "$cors_origins"
+  write_env_line "$ENV_FILE" VITE_API_URL "$api_url"
+  write_env_line "$ENV_FILE" MASTER_PANEL_TOKEN "$master_panel_token"
+  write_env_line "$ENV_FILE" NODE_REGISTRATION_TOKEN "$node_registration_token"
+  write_env_line "$ENV_FILE" MASTER "true"
+  write_env_line "$ENV_FILE" MASTER_HOSTNAME "$master_hostname"
+  write_env_line "$ENV_FILE" MASTER_VPS_IP "$master_ip"
+  write_env_line "$ENV_FILE" DOMAIN "$domain"
+  write_env_line "$ENV_FILE" LETSENCRYPT_EMAIL "$ssl_email"
+  write_env_line "$ENV_FILE" BACKUP_SCHEDULE "@daily"
+  write_env_line "$ENV_FILE" BACKUP_KEEP_DAYS "7"
+  write_env_line "$ENV_FILE" BACKUP_KEEP_WEEKS "4"
+  write_env_line "$ENV_FILE" BACKUP_KEEP_MONTHS "6"
 
-  cat > "$APP_DIR/backend/.env.production" <<EOF
-NODE_ENV=production
-PORT=4025
-HOST=0.0.0.0
-DATABASE_URL=postgresql://${postgres_user}:${postgres_password}@postgres:5432/${postgres_db}
-POSTGRES_HOST=postgres
-POSTGRES_USER=${postgres_user}
-POSTGRES_PASSWORD=${postgres_password}
-POSTGRES_DB=${postgres_db}
-JWT_SECRET=${jwt_secret}
-AUTH_JWT_SECRET=${auth_jwt_secret}
-AUTH_DEFAULT_USERNAME=${admin_user}
-AUTH_DEFAULT_PASSWORD=${admin_password}
-MASTER_PANEL_TOKEN=${master_panel_token}
-NODE_REGISTRATION_TOKEN=${node_registration_token}
-MASTER_API_URL=${api_url}
-MASTER=true
-MASTER_HOSTNAME=${master_hostname}
-MASTER_VPS_IP=${master_ip}
-CRASH_EXIT_ON_UNHANDLED=true
-LOG_LEVEL=info
-FRONTEND_URL=${frontend_url}
-CORS_ALLOWED_ORIGINS=${cors_origins}
-EOF
+  begin_env_file "$APP_DIR/backend/.env.production"
+  write_env_line "$APP_DIR/backend/.env.production" NODE_ENV "production"
+  write_env_line "$APP_DIR/backend/.env.production" PORT "4025"
+  write_env_line "$APP_DIR/backend/.env.production" HOST "0.0.0.0"
+  write_env_line "$APP_DIR/backend/.env.production" DATABASE_URL "postgresql://${postgres_user}:${postgres_password}@postgres:5432/${postgres_db}"
+  write_env_line "$APP_DIR/backend/.env.production" POSTGRES_HOST "postgres"
+  write_env_line "$APP_DIR/backend/.env.production" POSTGRES_USER "$postgres_user"
+  write_env_line "$APP_DIR/backend/.env.production" POSTGRES_PASSWORD "$postgres_password"
+  write_env_line "$APP_DIR/backend/.env.production" POSTGRES_DB "$postgres_db"
+  write_env_line "$APP_DIR/backend/.env.production" JWT_SECRET "$jwt_secret"
+  write_env_line "$APP_DIR/backend/.env.production" AUTH_JWT_SECRET "$auth_jwt_secret"
+  write_env_line "$APP_DIR/backend/.env.production" AUTH_DEFAULT_USERNAME "$admin_user"
+  write_env_line "$APP_DIR/backend/.env.production" AUTH_DEFAULT_PASSWORD "$admin_password"
+  write_env_line "$APP_DIR/backend/.env.production" MASTER_PANEL_TOKEN "$master_panel_token"
+  write_env_line "$APP_DIR/backend/.env.production" NODE_REGISTRATION_TOKEN "$node_registration_token"
+  write_env_line "$APP_DIR/backend/.env.production" MASTER_API_URL "$api_url"
+  write_env_line "$APP_DIR/backend/.env.production" MASTER "true"
+  write_env_line "$APP_DIR/backend/.env.production" MASTER_HOSTNAME "$master_hostname"
+  write_env_line "$APP_DIR/backend/.env.production" MASTER_VPS_IP "$master_ip"
+  write_env_line "$APP_DIR/backend/.env.production" CRASH_EXIT_ON_UNHANDLED "true"
+  write_env_line "$APP_DIR/backend/.env.production" LOG_LEVEL "info"
+  write_env_line "$APP_DIR/backend/.env.production" FRONTEND_URL "$frontend_url"
+  write_env_line "$APP_DIR/backend/.env.production" CORS_ALLOWED_ORIGINS "$cors_origins"
 
-  cat > "$APP_DIR/frontend/.env.production" <<EOF
-VITE_API_URL=${api_url}
-VITE_WHATSAPP_API_BASE_URL=${api_url}
-EOF
+  begin_env_file "$APP_DIR/frontend/.env.production"
+  write_env_line "$APP_DIR/frontend/.env.production" VITE_API_URL "$api_url"
+  write_env_line "$APP_DIR/frontend/.env.production" VITE_WHATSAPP_API_BASE_URL "$api_url"
 
   echo
   ok "MASTER NODE configurado"
@@ -223,59 +293,58 @@ write_node_env_files() {
   jwt_secret="$(existing_or_default JWT_SECRET "$(openssl rand -base64 64)")"
   auth_jwt_secret="$(existing_or_default AUTH_JWT_SECRET "$jwt_secret")"
 
-  cat > "$ENV_FILE" <<EOF
-POSTGRES_USER=${postgres_user}
-POSTGRES_PASSWORD=${postgres_password}
-POSTGRES_DB=${postgres_db}
-JWT_SECRET=${jwt_secret}
-AUTH_JWT_SECRET=${auth_jwt_secret}
-AUTH_DEFAULT_USERNAME=admin
-AUTH_DEFAULT_PASSWORD=admin123
-FRONTEND_URL=http://${public_ip}:3000
-CORS_ALLOWED_ORIGINS=http://${public_ip}:3000
-VITE_API_URL=${master_api_url}
-MASTER_PANEL_TOKEN=
-NODE_REGISTRATION_TOKEN=${node_registration_token}
-DOMAIN=
-LETSENCRYPT_EMAIL=
-BACKUP_SCHEDULE=@daily
-BACKUP_KEEP_DAYS=7
-BACKUP_KEEP_WEEKS=4
-BACKUP_KEEP_MONTHS=6
-EOF
+  begin_env_file "$ENV_FILE"
+  write_env_line "$ENV_FILE" POSTGRES_USER "$postgres_user"
+  write_env_line "$ENV_FILE" POSTGRES_PASSWORD "$postgres_password"
+  write_env_line "$ENV_FILE" POSTGRES_DB "$postgres_db"
+  write_env_line "$ENV_FILE" JWT_SECRET "$jwt_secret"
+  write_env_line "$ENV_FILE" AUTH_JWT_SECRET "$auth_jwt_secret"
+  write_env_line "$ENV_FILE" AUTH_DEFAULT_USERNAME "admin"
+  write_env_line "$ENV_FILE" AUTH_DEFAULT_PASSWORD "admin123"
+  write_env_line "$ENV_FILE" FRONTEND_URL "http://${public_ip}:3000"
+  write_env_line "$ENV_FILE" CORS_ALLOWED_ORIGINS "http://${public_ip}:3000"
+  write_env_line "$ENV_FILE" VITE_API_URL "$master_api_url"
+  write_env_line "$ENV_FILE" MASTER_PANEL_TOKEN ""
+  write_env_line "$ENV_FILE" NODE_REGISTRATION_TOKEN "$node_registration_token"
+  write_env_line "$ENV_FILE" DOMAIN ""
+  write_env_line "$ENV_FILE" LETSENCRYPT_EMAIL ""
+  write_env_line "$ENV_FILE" BACKUP_SCHEDULE "@daily"
+  write_env_line "$ENV_FILE" BACKUP_KEEP_DAYS "7"
+  write_env_line "$ENV_FILE" BACKUP_KEEP_WEEKS "4"
+  write_env_line "$ENV_FILE" BACKUP_KEEP_MONTHS "6"
 
-  cat > "$APP_DIR/backend/.env.production" <<EOF
-NODE_ENV=production
-PORT=4025
-HOST=0.0.0.0
-DATABASE_URL=postgresql://${postgres_user}:${postgres_password}@postgres:5432/${postgres_db}
-POSTGRES_HOST=postgres
-POSTGRES_USER=${postgres_user}
-POSTGRES_PASSWORD=${postgres_password}
-POSTGRES_DB=${postgres_db}
-JWT_SECRET=${jwt_secret}
-AUTH_JWT_SECRET=${auth_jwt_secret}
-AUTH_DEFAULT_USERNAME=admin
-AUTH_DEFAULT_PASSWORD=admin123
-MASTER_API_URL=${master_api_url}
-NODE_REGISTRATION_TOKEN=${node_registration_token}
-NODE_ID=node-$(hostname)-${public_ip//./-}
-CRASH_EXIT_ON_UNHANDLED=true
-LOG_LEVEL=info
-FRONTEND_URL=http://${public_ip}:3000
-CORS_ALLOWED_ORIGINS=http://${public_ip}:3000
-EOF
+  begin_env_file "$APP_DIR/backend/.env.production"
+  write_env_line "$APP_DIR/backend/.env.production" NODE_ENV "production"
+  write_env_line "$APP_DIR/backend/.env.production" PORT "4025"
+  write_env_line "$APP_DIR/backend/.env.production" HOST "0.0.0.0"
+  write_env_line "$APP_DIR/backend/.env.production" DATABASE_URL "postgresql://${postgres_user}:${postgres_password}@postgres:5432/${postgres_db}"
+  write_env_line "$APP_DIR/backend/.env.production" POSTGRES_HOST "postgres"
+  write_env_line "$APP_DIR/backend/.env.production" POSTGRES_USER "$postgres_user"
+  write_env_line "$APP_DIR/backend/.env.production" POSTGRES_PASSWORD "$postgres_password"
+  write_env_line "$APP_DIR/backend/.env.production" POSTGRES_DB "$postgres_db"
+  write_env_line "$APP_DIR/backend/.env.production" JWT_SECRET "$jwt_secret"
+  write_env_line "$APP_DIR/backend/.env.production" AUTH_JWT_SECRET "$auth_jwt_secret"
+  write_env_line "$APP_DIR/backend/.env.production" AUTH_DEFAULT_USERNAME "admin"
+  write_env_line "$APP_DIR/backend/.env.production" AUTH_DEFAULT_PASSWORD "admin123"
+  write_env_line "$APP_DIR/backend/.env.production" MASTER_API_URL "$master_api_url"
+  write_env_line "$APP_DIR/backend/.env.production" NODE_REGISTRATION_TOKEN "$node_registration_token"
+  write_env_line "$APP_DIR/backend/.env.production" NODE_ID "node-$(hostname)-${public_ip//./-}"
+  write_env_line "$APP_DIR/backend/.env.production" CRASH_EXIT_ON_UNHANDLED "true"
+  write_env_line "$APP_DIR/backend/.env.production" LOG_LEVEL "info"
+  write_env_line "$APP_DIR/backend/.env.production" FRONTEND_URL "http://${public_ip}:3000"
+  write_env_line "$APP_DIR/backend/.env.production" CORS_ALLOWED_ORIGINS "http://${public_ip}:3000"
 
-  cat > "$APP_DIR/frontend/.env.production" <<EOF
-VITE_API_URL=${master_api_url}
-VITE_WHATSAPP_API_BASE_URL=${master_api_url}
-EOF
+  begin_env_file "$APP_DIR/frontend/.env.production"
+  write_env_line "$APP_DIR/frontend/.env.production" VITE_API_URL "$master_api_url"
+  write_env_line "$APP_DIR/frontend/.env.production" VITE_WHATSAPP_API_BASE_URL "$master_api_url"
 
   ok "Arquivos .env do NODE gerados automaticamente"
 }
 
 bring_up_stack() {
   local mode="$1"
+  validate_generated_env_files
+  validate_compose_config
   log "Subindo stack Docker (postgres, redis, backend, frontend, backup)"
   docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" down || true
   docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" up -d --build postgres redis postgres-backup backend frontend
