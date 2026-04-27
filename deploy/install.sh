@@ -89,6 +89,8 @@ escape_env_value() {
   value="${value//$'\r'/}"
   value="${value//\\/\\\\}"
   value="${value//\"/\\\"}"
+  value="${value//\$/\\\$}"
+  value="${value//\`/\\\`}"
   value="${value//$'\n'/\\n}"
   printf '%s' "$value"
 }
@@ -117,15 +119,23 @@ validate_env_file() {
     [ -z "$line" ] && continue
     [[ "$line" == \#* ]] && continue
 
+    if [[ "$line" == +* ]]; then
+      echo "Linha inválida em $file:$line_number"
+      echo "$line"
+      fail "Arquivo .env contém caractere '+' no início da linha. Geração abortada antes do docker compose."
+    fi
+
     if ! [[ "$line" =~ ^[A-Za-z_][A-Za-z0-9_]*=\".*\"$ ]]; then
-      fail "Formato inválido em $file linha $line_number. Use CHAVE=\"valor\" com aspas duplas."
+      echo "Linha inválida em $file:$line_number"
+      echo "$line"
+      fail "Formato inválido. Use exatamente CHAVE=\"valor\" com aspas duplas."
     fi
 
     key="${line%%=*}"
     value="${line#*=}"
     value="${value:1:${#value}-2}"
 
-    if [[ "$value" == *'$('* || "$value" == *'`'* ]]; then
+    if [[ "$value" == *'$('* ]]; then
       fail "Valor inseguro detectado em $file linha $line_number ($key)."
     fi
   done < "$file"
@@ -142,11 +152,26 @@ validate_generated_env_files() {
 validate_compose_config() {
   log "Validando docker compose config"
   local output
-  if ! output="$(docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" config >/dev/null 2>&1)"; then
-    docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" config || true
+  if ! output="$(docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" config 2>&1 >/dev/null)"; then
+    echo "$output"
+    show_env_file_diagnostics "$ENV_FILE"
     fail "docker compose config falhou. Corrija o .env.production ou docker-compose.production.yml antes do deploy."
   fi
   ok "docker compose config validado"
+}
+
+show_env_file_diagnostics() {
+  local file="$1"
+  local line_number=0
+  local line
+  echo "Diagnóstico de $file:"
+  while IFS= read -r line || [ -n "$line" ]; do
+    line_number=$((line_number + 1))
+    line="${line%$'\r'}"
+    if [[ "$line" == +* ]] || ! [[ "$line" =~ ^[A-Za-z_][A-Za-z0-9_]*=\".*\"$ ]]; then
+      echo "Linha inválida $line_number: $line"
+    fi
+  done < "$file"
 }
 
 wait_http() {
@@ -345,9 +370,11 @@ bring_up_stack() {
   local mode="$1"
   validate_generated_env_files
   validate_compose_config
+  log "Build das imagens Docker"
+  docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" build postgres redis postgres-backup backend frontend
   log "Subindo stack Docker (postgres, redis, backend, frontend, backup)"
   docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" down || true
-  docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" up -d --build postgres redis postgres-backup backend frontend
+  docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" up -d postgres redis postgres-backup backend frontend
 
   log "Aguardando healthchecks"
   wait_http "http://127.0.0.1:4025/health" 240 || wait_http "http://127.0.0.1:4025/api/health" 240 || fail "Backend healthcheck falhou"
