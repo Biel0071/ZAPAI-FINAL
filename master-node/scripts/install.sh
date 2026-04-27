@@ -1,270 +1,134 @@
-#!/bin/bash
+#!/usr/bin/env bash
+set -euo pipefail
 
-# ============================================================================
-# ZAPAI MASTER NODE - INSTALL SCRIPT (1-CLIQUE)
-# ============================================================================
-# 
-# Este script instala automaticamente:
-# - Docker e Docker Compose
-# - Backend ZapAI
-# - Frontend ZapAI
-# - Agent Master Node
-# - SSL automático (Let's Encrypt)
-# - PM2 para gerenciamento de processos
-#
-# Zero mock. Tudo produção real.
-# ============================================================================
-
-set -e
-
-# Colors
-RED='\033[0;31m'
+BLUE='\033[0;34m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
-BLUE='\033[0;34m'
-NC='\033[0m' # No Color
+RED='\033[0;31m'
+NC='\033[0m'
 
-# Configuration
-MASTER_API_URL="${MASTER_API_URL:-https://your-master-api.com/api}"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
+
+APP_DIR="${APP_DIR:-/opt/zapai}"
+REPO_URL="${REPO_URL:-https://github.com/Biel0071/ZAPAI-FINAL.git}"
+REPO_BRANCH="${REPO_BRANCH:-main}"
+MASTER_API_URL="${MASTER_API_URL:-http://127.0.0.1:5000/api}"
+NODE_REGISTRATION_TOKEN="${NODE_REGISTRATION_TOKEN:-}"
+CLIENT_ID="${CLIENT_ID:-default-client}"
+CLIENT_NAME="${CLIENT_NAME:-Default Client}"
+NODE_DOMAIN="${NODE_DOMAIN:-}"
 NODE_NAME="${NODE_NAME:-$(hostname)}"
-DOMAIN="${DOMAIN:-}"
-API_PORT="${API_PORT:-4025}"
 
-echo -e "${BLUE}========================================${NC}"
-echo -e "${BLUE}ZAPAI MASTER NODE - INSTALL SCRIPT${NC}"
-echo -e "${BLUE}========================================${NC}"
-echo ""
+log() { echo -e "${BLUE}[INSTALL]${NC} $*"; }
+ok() { echo -e "${GREEN}[OK]${NC} $*"; }
+warn() { echo -e "${YELLOW}[WARN]${NC} $*"; }
+err() { echo -e "${RED}[ERR]${NC} $*"; exit 1; }
 
-# Check if running as root
-if [[ $EUID -ne 0 ]]; then
-   echo -e "${RED}Este script deve ser executado como root${NC}"
-   exit 1
+if [[ "$EUID" -ne 0 ]]; then
+  err "Execute como root: sudo bash install.sh"
 fi
 
-# Update system
-echo -e "${YELLOW}[1/10] Atualizando sistema...${NC}"
+log "[1/9] Instalando dependências de sistema"
 apt-get update -y
-apt-get upgrade -y
+apt-get install -y curl jq git ca-certificates gnupg lsb-release ufw
 
-# Install Docker
-echo -e "${YELLOW}[2/10] Instalando Docker...${NC}"
-if ! command -v docker &> /dev/null; then
-    curl -fsSL https://get.docker.com -o get-docker.sh
-    sh get-docker.sh
-    systemctl enable docker
-    systemctl start docker
-    rm get-docker.sh
-else
-    echo -e "${GREEN}Docker já instalado${NC}"
+log "[2/9] Instalando Docker"
+if ! command -v docker >/dev/null 2>&1; then
+  curl -fsSL https://get.docker.com | sh
+fi
+systemctl enable docker
+systemctl start docker
+
+log "[3/9] Validando Docker Compose plugin"
+if ! docker compose version >/dev/null 2>&1; then
+  err "Docker Compose plugin ausente. Instale pacote docker-compose-plugin."
 fi
 
-# Install Docker Compose
-echo -e "${YELLOW}[3/10] Instalando Docker Compose...${NC}"
-if ! command -v docker-compose &> /dev/null; then
-    curl -L "https://github.com/docker/compose/releases/latest/download/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
-    chmod +x /usr/local/bin/docker-compose
+log "[4/9] Baixando projeto"
+if [ -d "$APP_DIR/.git" ]; then
+  git -C "$APP_DIR" fetch --all
+  git -C "$APP_DIR" checkout "$REPO_BRANCH"
+  git -C "$APP_DIR" pull --rebase origin "$REPO_BRANCH"
 else
-    echo -e "${GREEN}Docker Compose já instalado${NC}"
+  rm -rf "$APP_DIR"
+  git clone --branch "$REPO_BRANCH" "$REPO_URL" "$APP_DIR"
 fi
 
-# Install Node.js
-echo -e "${YELLOW}[4/10] Instalando Node.js...${NC}"
-if ! command -v node &> /dev/null; then
-    curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
-    apt-get install -y nodejs
-else
-    echo -e "${GREEN}Node.js já instalado${NC}"
+log "[5/9] Preparando pastas e env"
+mkdir -p "$APP_DIR/logs" "$APP_DIR/logs/deploy" "$APP_DIR/backups"
+mkdir -p "$APP_DIR/backend/sessions" "$APP_DIR/backend/uploads" "$APP_DIR/backend/logs"
+
+if [ ! -f "$APP_DIR/.env.production" ]; then
+  if [ -f "$APP_DIR/.env.production.example" ]; then
+    cp "$APP_DIR/.env.production.example" "$APP_DIR/.env.production"
+    warn "Arquivo .env.production criado do exemplo. Ajuste secrets quando necessário."
+  else
+    err "Arquivo .env.production.example não encontrado"
+  fi
 fi
 
-# Install PM2
-echo -e "${YELLOW}[5/10] Instalando PM2...${NC}"
-npm install -g pm2
+log "[6/9] Subindo stack principal"
+docker compose --env-file "$APP_DIR/.env.production" -f "$APP_DIR/docker-compose.production.yml" up -d --build
 
-# Install Git
-echo -e "${YELLOW}[6/10] Instalando Git...${NC}"
-if ! command -v git &> /dev/null; then
-    apt-get install -y git
-else
-    echo -e "${GREEN}Git já instalado${NC}"
-fi
+log "[7/9] Instalando node-agent"
+cd "$APP_DIR/master-node/agent"
+npm ci --omit=dev
 
-# Create directory structure
-echo -e "${YELLOW}[7/10] Criando estrutura de diretórios...${NC}"
-mkdir -p /opt/zapai
-mkdir -p /opt/zapai/backend
-mkdir -p /opt/zapai/frontend
-mkdir -p /opt/zapai/agent
-mkdir -p /opt/zapai/data
-mkdir -p /opt/zapai/sessions
-mkdir -p /opt/zapai/backups
-mkdir -p /opt/zapai/logs
-mkdir -p /opt/zapai/ssl
-
-# Clone repository (replace with your actual repo)
-echo -e "${YELLOW}[8/10] Clonando repositório...${NC}"
-if [ -d "/opt/zapai/.git" ]; then
-    cd /opt/zapai
-    git pull
-else
-    # Replace with your actual repository URL
-    git clone https://github.com/your-repo/zapai.git /opt/zapai
-fi
-
-# Setup environment files
-echo -e "${YELLOW}[9/10] Configurando variáveis de ambiente...${NC}"
-
-# Backend .env
-cat > /opt/zapai/backend/.env << EOF
-NODE_ENV=production
-PORT=4025
-FRONTEND_URL=https://${DOMAIN:-localhost}
-CORS_ALLOWED_ORIGINS=https://${DOMAIN:-localhost},http://localhost:8080
-DATABASE_URL=postgresql://postgres:\${POSTGRES_PASSWORD}@postgres:5432/zapai_crm
-JWT_SECRET=\$(openssl rand -hex 32)
-AUTH_JWT_SECRET=\$(openssl rand -hex 32)
-AUTH_DEFAULT_USERNAME=admin
-AUTH_DEFAULT_PASSWORD=\$(openssl rand -hex 16)
-AUTH_DEFAULT_TENANT_ID=default
-AUTH_DEFAULT_ROLE=master_admin
-DEFAULT_COMPANY_ID=default
-OPENAI_API_KEY=
-USE_NGROK=false
-LOG_LEVEL=info
-CRASH_EXIT_ON_UNHANDLED=false
-EOF
-
-# Frontend .env
-cat > /opt/zapai/frontend/.env << EOF
-VITE_API_URL=https://${DOMAIN:-localhost}
-VITE_WHATSAPP_API_BASE_URL=https://${DOMAIN:-localhost}
-EOF
-
-# Agent .env
-cat > /opt/zapai/agent/.env << EOF
+cat > /etc/zapai-node-agent.env <<EOF
 MASTER_API_URL=${MASTER_API_URL}
-NODE_ID=
-NODE_TOKEN=
+NODE_REGISTRATION_TOKEN=${NODE_REGISTRATION_TOKEN}
 LOCAL_API_PORT=4025
 HEARTBEAT_INTERVAL=30000
+NODE_NAME=${NODE_NAME}
+NODE_DOMAIN=${NODE_DOMAIN}
+CLIENT_ID=${CLIENT_ID}
+CLIENT_NAME=${CLIENT_NAME}
+NODE_AGENT_LOG_FILE=${APP_DIR}/logs/node-agent.log
+NODE_CREDENTIALS_PATH=${APP_DIR}/master-node/agent/.agent-credentials.json
 EOF
 
-# Register node with master API
-echo -e "${YELLOW}[10/10] Registrando nó no Master API...${NC}"
-IP_ADDRESS=$(curl -s ifconfig.me)
-REGISTER_RESPONSE=$(curl -s -X POST "${MASTER_API_URL}/nodes/register" \
-  -H "Content-Type: application/json" \
-  -d "{\"name\":\"${NODE_NAME}\",\"ip_address\":\"${IP_ADDRESS}\",\"domain\":\"${DOMAIN}\",\"api_port\":${API_PORT}}")
+cat > /etc/systemd/system/zapai-node-agent.service <<EOF
+[Unit]
+Description=ZapAI Node Agent
+After=network-online.target docker.service
+Wants=network-online.target
 
-NODE_ID=$(echo $REGISTER_RESPONSE | jq -r '.data.node_id')
-NODE_TOKEN=$(echo $REGISTER_RESPONSE | jq -r '.data.token')
+[Service]
+Type=simple
+WorkingDirectory=${APP_DIR}/master-node/agent
+EnvironmentFile=/etc/zapai-node-agent.env
+ExecStart=/usr/bin/node ${APP_DIR}/master-node/agent/agent.js
+Restart=always
+RestartSec=5
+User=root
 
-if [ -n "$NODE_ID" ] && [ "$NODE_ID" != "null" ]; then
-    # Update agent .env with credentials
-    sed -i "s/NODE_ID=.*/NODE_ID=${NODE_ID}/" /opt/zapai/agent/.env
-    sed -i "s/NODE_TOKEN=.*/NODE_TOKEN=${NODE_TOKEN}/" /opt/zapai/agent/.env
-    echo -e "${GREEN}Nó registrado com sucesso!${NC}"
-    echo -e "${GREEN}Node ID: ${NODE_ID}${NC}"
-else
-    echo -e "${RED}Falha ao registrar nó${NC}"
-    echo -e "${YELLOW}Response: ${REGISTER_RESPONSE}${NC}"
-fi
-
-# Setup SSL if domain provided
-if [ -n "$DOMAIN" ]; then
-    echo -e "${YELLOW}[SSL] Configurando SSL automático...${NC}"
-    apt-get install -y certbot python3-certbot-nginx
-    
-    # Install Nginx for SSL
-    apt-get install -y nginx
-    
-    # Configure Nginx
-    cat > /etc/nginx/sites-available/zapai << EOF
-server {
-    listen 80;
-    server_name ${DOMAIN};
-    
-    location / {
-        proxy_pass http://localhost:8080;
-        proxy_http_version 1.1;
-        proxy_set_header Upgrade \$http_upgrade;
-        proxy_set_header Connection 'upgrade';
-        proxy_set_header Host \$host;
-        proxy_cache_bypass \$http_upgrade;
-        proxy_set_header X-Real-IP \$remote_addr;
-        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto \$scheme;
-    }
-    
-    location /api {
-        proxy_pass http://localhost:4025;
-        proxy_http_version 1.1;
-        proxy_set_header Host \$host;
-        proxy_set_header X-Real-IP \$remote_addr;
-        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto \$scheme;
-    }
-    
-    location /socket.io {
-        proxy_pass http://localhost:4025;
-        proxy_http_version 1.1;
-        proxy_set_header Upgrade \$http_upgrade;
-        proxy_set_header Connection "upgrade";
-        proxy_set_header Host \$host;
-        proxy_set_header X-Real-IP \$remote_addr;
-        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
-    }
-}
+[Install]
+WantedBy=multi-user.target
 EOF
 
-    ln -s /etc/nginx/sites-available/zapai /etc/nginx/sites-enabled/
-    rm -f /etc/nginx/sites-enabled/default
-    nginx -t
-    systemctl restart nginx
-    
-    # Get SSL certificate
-    certbot --nginx -d ${DOMAIN} --non-interactive --agree-tos --email admin@${DOMAIN}
-fi
+systemctl daemon-reload
+systemctl enable zapai-node-agent
+systemctl restart zapai-node-agent
 
-# Start services
-echo -e "${GREEN}Iniciando serviços...${NC}"
+log "[8/9] Liberando firewall"
+ufw allow 22/tcp || true
+ufw allow 80/tcp || true
+ufw allow 443/tcp || true
+ufw allow 4025/tcp || true
+ufw --force enable || true
 
-cd /opt/zapai/backend
-npm install
-pm2 start server.js --name zapai-backend
+log "[9/9] Healthcheck final"
+for _ in $(seq 1 60); do
+  if curl -fsS http://127.0.0.1:4025/health >/dev/null 2>&1; then
+    break
+  fi
+  sleep 2
+done
 
-cd /opt/zapai/frontend
-npm install
-npm run build
-pm2 start "npx serve -s build -l 8080" --name zapai-frontend
+curl -fsS http://127.0.0.1:4025/health >/dev/null 2>&1 || err "Backend healthcheck falhou"
+systemctl is-active --quiet zapai-node-agent || err "Serviço zapai-node-agent não está ativo"
 
-cd /opt/zapai/agent
-npm install
-pm2 start agent.js --name zapai-agent
-
-# Save PM2 process list
-pm2 save
-pm2 startup
-
-echo ""
-echo -e "${GREEN}========================================${NC}"
-echo -e "${GREEN}INSTALAÇÃO CONCLUÍDA COM SUCESSO!${NC}"
-echo -e "${GREEN}========================================${NC}"
-echo ""
-echo -e "${BLUE}Node ID: ${NODE_ID}${NC}"
-echo -e "${BLUE}Node Token: ${NODE_TOKEN}${NC}"
-echo -e "${BLUE}IP Address: ${IP_ADDRESS}${NC}"
-echo -e "${BLUE}Domain: ${DOMAIN:-Não configurado}${NC}"
-echo ""
-echo -e "${YELLOW}Serviços rodando:${NC}"
-pm2 status
-echo ""
-echo -e "${YELLOW}Logs:${NC}"
-echo -e "  Backend: pm2 logs zapai-backend"
-echo -e "  Frontend: pm2 logs zapai-frontend"
-echo -e "  Agent: pm2 logs zapai-agent"
-echo ""
-echo -e "${YELLOW}Comandos úteis:${NC}"
-echo -e "  Reiniciar tudo: pm2 restart all"
-echo -e "  Parar tudo: pm2 stop all"
-echo -e "  Ver status: pm2 status"
-echo ""
+ok "Instalação concluída"
+ok "Agent: systemctl status zapai-node-agent"
+ok "Logs agent: journalctl -u zapai-node-agent -f"

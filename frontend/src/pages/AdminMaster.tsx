@@ -73,6 +73,17 @@ interface UserMetrics {
   activePlans: number | null;
 }
 
+interface MasterNodeStatus {
+  nodeId: string;
+  name: string;
+  ip: string;
+  status: "online" | "offline" | "pending" | string;
+  cpu: number;
+  ram: number;
+  disk: number;
+  lastSeen: string | null;
+}
+
 function formatUptime(seconds: number): string {
   if (!Number.isFinite(seconds) || seconds <= 0) return "0m";
   const days = Math.floor(seconds / 86_400);
@@ -94,6 +105,8 @@ export default function AdminMaster() {
   const [refreshing, setRefreshing] = useState(false);
   const [isActionLoading, setIsActionLoading] = useState(false);
   const [backendOnline, setBackendOnline] = useState(true);
+  const [nodesSummary, setNodesSummary] = useState({ total: 0, online: 0, offline: 0 });
+  const [nodesList, setNodesList] = useState<MasterNodeStatus[]>([]);
   const pollingBusyRef = useRef(false);
 
   const loadMetrics = useCallback(async (silent = false) => {
@@ -106,7 +119,7 @@ export default function AdminMaster() {
       setVpsMetrics({
         cpu: overview.infra.cpuPercent,
         ram: overview.infra.ramPercent,
-        disk: 0,
+        disk: Number(overview.infra.disk?.usedPercent ?? 0),
         uptime: formatUptime(overview.infra.uptimeSec),
         services: overview.infra.services,
       });
@@ -134,6 +147,28 @@ export default function AdminMaster() {
         accessesToday: overview.users.accessesToday,
         activePlans: overview.users.plans,
       });
+      const summary = overview.nodes?.summary;
+      const rows = Array.isArray(overview.nodes?.nodes) ? overview.nodes?.nodes : [];
+
+      setNodesSummary({
+        total: Number(summary?.total_nodes || rows.length || 0),
+        online: Number(summary?.online_nodes || rows.filter((row) => row.status === "online").length || 0),
+        offline: Number(summary?.offline_nodes || rows.filter((row) => row.status !== "online").length || 0),
+      });
+
+      setNodesList(
+        rows.map((row) => ({
+          nodeId: row.node_id,
+          name: row.name || row.node_id,
+          ip: row.ip_address || "-",
+          status: row.status || "offline",
+          cpu: Number(row.cpu_usage || 0),
+          ram: Number(row.memory_usage || 0),
+          disk: Number(row.disk_usage || 0),
+          lastSeen: row.last_seen || null,
+        })),
+      );
+
       setBackendOnline(true);
     } catch (error) {
       setBackendOnline(false);
@@ -294,36 +329,6 @@ export default function AdminMaster() {
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  <div className="flex items-center justify-between p-3 rounded-lg bg-muted/50">
-                    <div className="flex items-center gap-3">
-                      <ServerCpu className="h-5 w-5 text-success" />
-                      <div>
-                        <p className="font-medium">PM2 Backend</p>
-                        <p className="text-xs text-muted-foreground">Running (PID: 12345)</p>
-                      </div>
-                    </div>
-                    <Badge variant="default">Online</Badge>
-                  </div>
-                  <div className="flex items-center justify-between p-3 rounded-lg bg-muted/50">
-                    <div className="flex items-center gap-3">
-                      <ServerCpu className="h-5 w-5 text-success" />
-                      <div>
-                        <p className="font-medium">Nginx</p>
-                        <p className="text-xs text-muted-foreground">Running (PID: 67890)</p>
-                      </div>
-                    </div>
-                    <Badge variant="default">Online</Badge>
-                  </div>
-                  <div className="flex items-center justify-between p-3 rounded-lg bg-muted/50">
-                    <div className="flex items-center gap-3">
-                      <ServerCpu className="h-5 w-5 text-success" />
-                      <div>
-                        <p className="font-medium">PostgreSQL</p>
-                        <p className="text-xs text-muted-foreground">Running (PID: 54321)</p>
-                      </div>
-                    </div>
-                    <Badge variant="default">Online</Badge>
-                  </div>
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
                     {[
                       { label: "PM2", online: vpsMetrics?.services?.pm2 },
@@ -339,6 +344,52 @@ export default function AdminMaster() {
                       </div>
                     ))}
                   </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="glass-card">
+              <CardHeader>
+                <CardTitle className="font-display">Nodes Registrados</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-4">
+                  <div className="rounded-lg border border-border/60 bg-card/70 px-3 py-2">
+                    <p className="text-xs text-muted-foreground">Total</p>
+                    <p className="text-lg font-semibold">{nodesSummary.total}</p>
+                  </div>
+                  <div className="rounded-lg border border-border/60 bg-card/70 px-3 py-2">
+                    <p className="text-xs text-muted-foreground">Online</p>
+                    <p className="text-lg font-semibold text-success">{nodesSummary.online}</p>
+                  </div>
+                  <div className="rounded-lg border border-border/60 bg-card/70 px-3 py-2">
+                    <p className="text-xs text-muted-foreground">Offline</p>
+                    <p className="text-lg font-semibold text-warning">{nodesSummary.offline}</p>
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  {nodesList.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">Nenhum node registrado no master.</p>
+                  ) : (
+                    nodesList.map((node) => (
+                      <div key={node.nodeId} className="rounded-lg border border-border/60 bg-card/70 px-3 py-2">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <p className="text-sm font-medium">{node.name}</p>
+                            <p className="text-xs text-muted-foreground">{node.ip}</p>
+                          </div>
+                          <Badge variant={node.status === "online" ? "default" : "secondary"}>
+                            {node.status}
+                          </Badge>
+                        </div>
+                        <p className="mt-2 text-xs text-muted-foreground">
+                          CPU {node.cpu.toFixed(0)}% • RAM {node.ram.toFixed(0)}% • Disco {node.disk.toFixed(0)}%
+                          {node.lastSeen ? ` • Last seen ${new Date(node.lastSeen).toLocaleString()}` : ""}
+                        </p>
+                      </div>
+                    ))
+                  )}
                 </div>
               </CardContent>
             </Card>

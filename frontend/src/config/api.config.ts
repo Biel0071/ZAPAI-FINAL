@@ -1,21 +1,18 @@
 /**
- * ============================================================================
- * API CONFIG - DEPRECATED - USE runtime.ts
- * ============================================================================
+ * API CONFIG SHIM
  * 
- * Este arquivo está DEPRECATED.
- * Use src/config/runtime.ts como única fonte de verdade.
- * 
- * Mantido apenas para compatibilidade. Será removido em breve.
- * ============================================================================
+ * Fonte oficial: src/config/runtime.ts
+ * Este arquivo existe apenas para evitar imports quebrados durante transição.
  */
 
-// Re-export from runtime.ts
 export {
   API_BASE_URL,
   WS_BASE_URL,
   BUILD_ID,
   BUILD_TIME,
+  APP_VERSION,
+  RELEASE_LOCK_ENABLED,
+  STABLE_BUILD_ID,
   ENV_NAME,
   TENANT_ID,
   DEFAULT_HEADERS as API_HEADERS,

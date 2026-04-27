@@ -27,14 +27,18 @@ const MAX_GET_RETRIES = 2; // Reduced to prevent infinite retries
 const INITIAL_BACKOFF_MS = 700;
 const PUBLIC_URL_STORAGE_KEY = "zapai_public_api_url";
 
-// Use relative URL for production (same origin)
-const API_BASE_URL = import.meta.env.MODE === 'production'
-  ? '/api'
-  : `${(import.meta.env.VITE_API_URL as string | undefined)?.trim().replace(/\/$/, "") || "/api"}/api`;
+const configuredApiUrl = (import.meta.env.VITE_API_URL as string | undefined)?.trim().replace(/\/$/, "") || "";
+const normalizedApiOrigin = configuredApiUrl
+  ? configuredApiUrl.replace(/\/api$/i, "")
+  : "";
+const API_BASE_URL = normalizedApiOrigin ? `${normalizedApiOrigin}/api` : '/api';
 const CONFIGURED_API_ORIGIN = (() => {
   try {
-    return new URL(API_BASE_URL).origin;
+    return new URL(normalizedApiOrigin || API_BASE_URL).origin;
   } catch {
+    if (typeof window !== "undefined") {
+      return window.location.origin;
+    }
     return "";
   }
 })();

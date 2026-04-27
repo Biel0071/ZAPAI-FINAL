@@ -34,14 +34,13 @@ export type SystemErrorLog = {
   message: string;
 };
 
-// Use relative URL for production (same origin)
-const DEFAULT_TARGET_API_URL = "/api";
+const DEFAULT_TARGET_API_URL =
+  (import.meta.env.VITE_WHATSAPP_API_BASE_URL as string | undefined)?.trim().replace(/\/$/, "") ||
+  (import.meta.env.VITE_API_URL as string | undefined)?.trim().replace(/\/$/, "") ||
+  ((import.meta.env as Record<string, string | undefined>).TARGET_API_URL ?? "").trim().replace(/\/$/, "") ||
+  "/api";
 
-const TARGET_API_URL = import.meta.env.MODE === 'production'
-  ? DEFAULT_TARGET_API_URL
-  : ((import.meta.env.VITE_WHATSAPP_API_BASE_URL as string | undefined)?.trim().replace(/\/$/, "") ||
-     ((import.meta.env as Record<string, string | undefined>).TARGET_API_URL ?? "").trim().replace(/\/$/, "") ||
-     DEFAULT_TARGET_API_URL);
+const TARGET_API_URL = DEFAULT_TARGET_API_URL;
 const CONFIGURED_API_ORIGIN = (() => {
   try {
     return new URL(TARGET_API_URL).origin;

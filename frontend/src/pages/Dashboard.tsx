@@ -19,6 +19,7 @@ import {
   Export,
 } from "@phosphor-icons/react";
 import { Header } from "@/components/layout/Header";
+import { useSearchParams } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -210,9 +211,18 @@ const tooltipStyle = {
 const formatMetricValue = (value: number | undefined, fallback: string) =>
   typeof value === "number" && Number.isFinite(value) ? value.toLocaleString("pt-BR") : fallback;
 
+const dashboardTabs = new Set(["overview", "performance", "conversations", "ai", "schedule", "map"]);
+
 /* ─── Component ─── */
 
 export default function Dashboard() {
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  const getTabFromSearchParams = useCallback((params: URLSearchParams) => {
+    const tab = params.get("tab");
+    return tab && dashboardTabs.has(tab) ? tab : "overview";
+  }, []);
+
   const [runtimeState, setRuntimeState] = useState<RuntimeUiState>("offline");
   const [sessionState, setSessionState] = useState<RuntimeHealthState>("offline");
   const [sessions, setSessions] = useState<SessionInfo[]>([]);
@@ -221,10 +231,30 @@ export default function Dashboard() {
   const [isSystemLoading, setIsSystemLoading] = useState(true);
   const [isSystemActionLoading, setIsSystemActionLoading] = useState(false);
   const [metricsSnapshot, setMetricsSnapshot] = useState<DashboardMetrics | null>(null);
-  const [activeTab, setActiveTab] = useState("overview");
+  const [activeTab, setActiveTab] = useState(() => getTabFromSearchParams(searchParams));
   const isMountedRef = useRef(false);
   const isRefreshingRef = useRef(false);
   const wasRuntimeRunningRef = useRef(false);
+
+  useEffect(() => {
+    const tabFromUrl = getTabFromSearchParams(searchParams);
+    setActiveTab((prev) => (prev === tabFromUrl ? prev : tabFromUrl));
+  }, [searchParams, getTabFromSearchParams]);
+
+  const handleTabChange = useCallback((nextTab: string) => {
+    const safeTab = dashboardTabs.has(nextTab) ? nextTab : "overview";
+    setActiveTab(safeTab);
+
+    setSearchParams((current) => {
+      const nextParams = new URLSearchParams(current);
+      if (safeTab === "overview") {
+        nextParams.delete("tab");
+      } else {
+        nextParams.set("tab", safeTab);
+      }
+      return nextParams;
+    }, { replace: true });
+  }, [setSearchParams]);
 
   const loadStatus = useCallback(async () => {
     if (isRefreshingRef.current) {
@@ -362,7 +392,7 @@ export default function Dashboard() {
       <div className="p-6 space-y-6">
         {/* Top bar: Number health + Tab navigation */}
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <Tabs value={activeTab} onValueChange={setActiveTab}>
+          <Tabs value={activeTab} onValueChange={handleTabChange}>
             <TabsList>
               <TabsTrigger value="overview">Visão Geral</TabsTrigger>
               <TabsTrigger value="performance">Performance</TabsTrigger>

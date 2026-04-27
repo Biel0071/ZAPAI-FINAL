@@ -1,25 +1,3 @@
-/**
- * ============================================================================
- * MASTER NODE API - SERVER
- * ============================================================================
- * 
- * API central para gerenciamento de múltiplos nós VPS.
- * Zero mock. Tudo produção real.
- * 
- * Endpoints:
- * - POST /api/nodes/register - Registrar novo nó
- * - POST /api/nodes/:nodeId/heartbeat - Receber heartbeat
- * - GET /api/nodes - Listar todos os nós
- * - GET /api/nodes/:nodeId - Detalhes de um nó
- * - POST /api/nodes/:nodeId/commands - Enviar comando remoto
- * - GET /api/nodes/:nodeId/commands - Listar comandos
- * - GET /api/nodes/:nodeId/logs - Listar logs
- * - POST /api/nodes/:nodeId/logs - Receber logs
- * - GET /api/nodes/:nodeId/sessions - Listar sessões WhatsApp
- * - GET /api/lovable/dashboard - Dashboard para Lovable
- * ============================================================================
- */
-
 const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
@@ -29,76 +7,210 @@ require('dotenv').config();
 
 const app = express();
 const PORT = process.env.MASTER_PORT || 5000;
+const MASTER_PANEL_TOKEN = process.env.MASTER_PANEL_TOKEN || process.env.MASTER_TOKEN;
+const NODE_REGISTRATION_TOKEN = process.env.NODE_REGISTRATION_TOKEN || '';
+const OFFLINE_AFTER_SECONDS = Number(process.env.NODE_OFFLINE_AFTER_SECONDS || 90);
 
-// Database connection
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
   ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
 });
 
-// Middleware
 app.use(helmet());
 app.use(cors());
 app.use(express.json());
 
-// Generate unique node ID
 function generateNodeId() {
   return `node_${crypto.randomBytes(16).toString('hex')}`;
 }
 
-// Generate auth token
-function generateToken() {
-  return crypto.randomBytes(32).toString('hex');
+function generateNodeToken() {
+  return crypto.randomBytes(48).toString('hex');
 }
 
-// ============================================================================
-// NODE REGISTRATION
-// ============================================================================
+function getBearerToken(req) {
+  const header = req.headers.authorization;
+  if (!header || !header.startsWith('Bearer ')) {
+    return '';
+  }
+  return header.slice(7);
+}
 
-app.post('/api/nodes/register', async (req, res) => {
-  const { name, ip_address, domain, api_port } = req.body;
+function requireMasterAuth(req, res, next) {
+  if (!MASTER_PANEL_TOKEN) {
+    return res.status(503).json({ success: false, error: 'MASTER_PANEL_TOKEN not configured' });
+  }
 
-  if (!name || !ip_address) {
-    return res.status(400).json({ 
-      success: false, 
-      error: 'name and ip_address are required' 
-    });
+  const token = getBearerToken(req);
+  if (!token || token !== MASTER_PANEL_TOKEN) {
+    return res.status(401).json({ success: false, error: 'Unauthorized' });
+  }
+
+  next();
+}
+
+async function requireNodeAuth(req, res, next) {
+  const { nodeId } = req.params;
+  const token = getBearerToken(req);
+
+  if (!token || !nodeId) {
+    return res.status(401).json({ success: false, error: 'Unauthorized' });
   }
 
   try {
-    const node_id = generateNodeId();
-    const token = generateToken();
-
     const result = await pool.query(
-      `INSERT INTO nodes (node_id, name, ip_address, domain, api_port, token, status)
-       VALUES ($1, $2, $3, $4, $5, $6, 'pending')
-       RETURNING *`,
-      [node_id, name, ip_address, domain || null, api_port || 4025, token]
+      'SELECT node_id FROM nodes WHERE node_id = $1 AND token = $2',
+      [nodeId, token]
     );
+
+    if (result.rows.length === 0) {
+      return res.status(401).json({ success: false, error: 'Invalid node credentials' });
+    }
+
+    req.nodeId = nodeId;
+    next();
+  } catch (error) {
+    console.error('Node auth error:', error.message);
+    return res.status(500).json({ success: false, error: 'Auth check failed' });
+  }
+}
+
+async function setNodeDerivedStatus(nodeId) {
+  await pool.query(
+    `UPDATE nodes
+     SET status = CASE
+       WHEN last_seen IS NULL THEN status
+       WHEN last_seen >= NOW() - ($2::text || ' seconds')::interval THEN 'online'
+       ELSE 'offline'
+     END,
+     updated_at = NOW()
+     WHERE node_id = $1`,
+    [nodeId, OFFLINE_AFTER_SECONDS]
+  );
+}
+
+async function createRemoteCommand(nodeId, commandType, payload = {}) {
+  const result = await pool.query(
+    `INSERT INTO remote_commands (node_id, command_type, payload, status)
+     VALUES ($1, $2, $3, 'pending')
+     RETURNING *`,
+    [nodeId, commandType, payload]
+  );
+  return result.rows[0];
+}
+
+async function ensureClientNodeLink(clientId, clientName, nodeId) {
+  if (!clientId || !clientName) {
+    return;
+  }
+
+  await pool.query(
+    `INSERT INTO clients (client_id, name, status)
+     VALUES ($1, $2, 'active')
+     ON CONFLICT (client_id)
+     DO UPDATE SET name = EXCLUDED.name, updated_at = NOW()`,
+    [clientId, clientName]
+  );
+
+  await pool.query(
+    `INSERT INTO client_nodes (client_id, node_id)
+     VALUES ($1, $2)
+     ON CONFLICT (client_id, node_id)
+     DO NOTHING`,
+    [clientId, nodeId]
+  );
+}
+
+app.post('/api/nodes/register', async (req, res) => {
+  const {
+    name,
+    ip_address,
+    domain,
+    api_port,
+    hostname,
+    version,
+    client_id,
+    client_name,
+  } = req.body;
+
+  if (!name || !ip_address) {
+    return res.status(400).json({
+      success: false,
+      error: 'name and ip_address are required'
+    });
+  }
+
+  if (NODE_REGISTRATION_TOKEN) {
+    const registrationToken = req.headers['x-registration-token'];
+    if (!registrationToken || registrationToken !== NODE_REGISTRATION_TOKEN) {
+      return res.status(401).json({ success: false, error: 'Invalid registration token' });
+    }
+  }
+
+  try {
+    const existing = await pool.query(
+      `SELECT node_id, token
+       FROM nodes
+       WHERE name = $1 AND ip_address = $2
+       ORDER BY created_at ASC
+       LIMIT 1`,
+      [name, ip_address]
+    );
+
+    let nodeId;
+    let nodeToken;
+
+    if (existing.rows.length > 0) {
+      nodeId = existing.rows[0].node_id;
+      nodeToken = existing.rows[0].token;
+
+      await pool.query(
+        `UPDATE nodes
+         SET domain = $2,
+             api_port = $3,
+             version = $4,
+             status = 'online',
+             last_seen = NOW(),
+             last_heartbeat = NOW(),
+             updated_at = NOW()
+         WHERE node_id = $1`,
+        [nodeId, domain || null, api_port || 4025, version || null]
+      );
+    } else {
+      nodeId = generateNodeId();
+      nodeToken = generateNodeToken();
+
+      await pool.query(
+        `INSERT INTO nodes (
+          node_id, name, ip_address, domain, api_port, token, status, version, last_seen, last_heartbeat
+        ) VALUES ($1, $2, $3, $4, $5, $6, 'online', $7, NOW(), NOW())`,
+        [nodeId, hostname || name, ip_address, domain || null, api_port || 4025, nodeToken, version || null]
+      );
+    }
+
+    await ensureClientNodeLink(client_id, client_name, nodeId);
+    await setNodeDerivedStatus(nodeId);
 
     res.status(201).json({
       success: true,
       data: {
-        node_id: result.rows[0].node_id,
-        token: result.rows[0].token,
+        node_id: nodeId,
+        token: nodeToken,
         master_api_url: `${req.protocol}://${req.get('host')}/api`,
+        heartbeat_interval_ms: 30000,
       }
     });
   } catch (error) {
     console.error('Error registering node:', error);
-    res.status(500).json({ 
-      success: false, 
-      error: 'Failed to register node' 
+    res.status(500).json({
+      success: false,
+      error: 'Failed to register node'
     });
   }
 });
 
-// ============================================================================
-// HEARTBEAT
-// ============================================================================
-
-app.post('/api/nodes/:nodeId/heartbeat', async (req, res) => {
-  const { nodeId } = req.params;
+app.post('/api/nodes/:nodeId/heartbeat', requireNodeAuth, async (req, res) => {
+  const { nodeId } = req;
   const {
     cpu_usage,
     memory_usage,
@@ -112,36 +224,20 @@ app.post('/api/nodes/:nodeId/heartbeat', async (req, res) => {
   } = req.body;
 
   try {
-    // Verify node exists and token
-    const authHeader = req.headers.authorization;
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      return res.status(401).json({ success: false, error: 'Unauthorized' });
-    }
-
-    const token = authHeader.substring(7);
-    const nodeResult = await pool.query(
-      'SELECT * FROM nodes WHERE node_id = $1 AND token = $2',
-      [nodeId, token]
-    );
-
-    if (nodeResult.rows.length === 0) {
-      return res.status(404).json({ success: false, error: 'Node not found or invalid token' });
-    }
-
-    // Update node status and last heartbeat
     await pool.query(
-      `UPDATE nodes 
-       SET status = 'online', 
+      `UPDATE nodes
+       SET status = 'online',
            last_heartbeat = NOW(),
-           last_seen = NOW()
+           last_seen = NOW(),
+           version = COALESCE($2, version),
+           updated_at = NOW()
        WHERE node_id = $1`,
-      [nodeId]
+      [nodeId, req.body.version || null]
     );
 
-    // Insert heartbeat record
     await pool.query(
-      `INSERT INTO heartbeats 
-       (node_id, cpu_usage, memory_usage, disk_usage, uptime_seconds, 
+      `INSERT INTO heartbeats
+       (node_id, cpu_usage, memory_usage, disk_usage, uptime_seconds,
         active_sessions, total_sessions, whatsapp_connected, messages_today, errors_count)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
       [
@@ -158,21 +254,21 @@ app.post('/api/nodes/:nodeId/heartbeat', async (req, res) => {
       ]
     );
 
-    // Check for pending commands
+    await setNodeDerivedStatus(nodeId);
+
     const commandsResult = await pool.query(
-      `SELECT * FROM remote_commands 
+      `SELECT * FROM remote_commands
        WHERE node_id = $1 AND status = 'pending'
        ORDER BY created_at ASC
        LIMIT 10`,
       [nodeId]
     );
 
-    // Update commands status to 'sent'
     if (commandsResult.rows.length > 0) {
       const commandIds = commandsResult.rows.map(c => c.id);
       await pool.query(
-        `UPDATE remote_commands 
-         SET status = 'sent', sent_at = NOW() 
+        `UPDATE remote_commands
+         SET status = 'sent', sent_at = NOW(), updated_at = NOW()
          WHERE id = ANY($1)`,
         [commandIds]
       );
@@ -194,28 +290,123 @@ app.post('/api/nodes/:nodeId/heartbeat', async (req, res) => {
   }
 });
 
-// ============================================================================
-// NODE MANAGEMENT
-// ============================================================================
+app.get('/api/nodes', requireMasterAuth, async (req, res) => {
+  const limit = Number(req.query.limit || 100);
+  const offset = Number(req.query.offset || 0);
 
-app.get('/api/nodes', async (req, res) => {
   try {
-    const result = await pool.query(
-      `SELECT 
-        node_id, name, ip_address, domain, api_port, status, version,
-        last_heartbeat, last_seen, installed_at, created_at, updated_at
-       FROM nodes 
-       ORDER BY last_seen DESC`
+    await pool.query(
+      `UPDATE nodes
+       SET status = 'offline', updated_at = NOW()
+       WHERE last_seen IS NOT NULL
+         AND last_seen < NOW() - ($1::text || ' seconds')::interval
+         AND status <> 'offline'`,
+      [OFFLINE_AFTER_SECONDS]
     );
 
-    res.json({ success: true, data: result.rows });
+    const result = await pool.query(
+      `SELECT
+        n.node_id,
+        n.name,
+        n.ip_address,
+        n.domain,
+        n.api_port,
+        CASE
+          WHEN n.last_seen IS NULL THEN 'pending'
+          WHEN n.last_seen >= NOW() - ($3::text || ' seconds')::interval THEN 'online'
+          ELSE 'offline'
+        END AS status,
+        n.version,
+        n.last_heartbeat,
+        n.last_seen,
+        n.installed_at,
+        n.created_at,
+        n.updated_at,
+        h.cpu_usage,
+        h.memory_usage,
+        h.disk_usage,
+        h.active_sessions,
+        h.total_sessions,
+        h.whatsapp_connected,
+        h.messages_today,
+        h.errors_count
+      FROM nodes n
+      LEFT JOIN LATERAL (
+        SELECT *
+        FROM heartbeats
+        WHERE node_id = n.node_id
+        ORDER BY received_at DESC
+        LIMIT 1
+      ) h ON true
+      ORDER BY n.last_seen DESC NULLS LAST
+      LIMIT $1 OFFSET $2`,
+      [limit, offset, OFFLINE_AFTER_SECONDS]
+    );
+
+    res.json({
+      success: true,
+      data: result.rows,
+      meta: { limit, offset }
+    });
   } catch (error) {
     console.error('Error fetching nodes:', error);
     res.status(500).json({ success: false, error: 'Failed to fetch nodes' });
   }
 });
 
-app.get('/api/nodes/:nodeId', async (req, res) => {
+app.get('/api/master/nodes', requireMasterAuth, async (req, res) => {
+  const limit = Number(req.query.limit || 100);
+  const offset = Number(req.query.offset || 0);
+
+  try {
+    await pool.query(
+      `UPDATE nodes
+       SET status = 'offline', updated_at = NOW()
+       WHERE last_seen IS NOT NULL
+         AND last_seen < NOW() - ($1::text || ' seconds')::interval
+         AND status <> 'offline'`,
+      [OFFLINE_AFTER_SECONDS]
+    );
+
+    const result = await pool.query(
+      `SELECT
+         n.node_id,
+         n.name,
+         n.ip_address,
+         n.domain,
+         n.api_port,
+         CASE
+           WHEN n.last_seen IS NULL THEN 'pending'
+           WHEN n.last_seen >= NOW() - ($3::text || ' seconds')::interval THEN 'online'
+           ELSE 'offline'
+         END AS status,
+         n.version,
+         n.last_heartbeat,
+         n.last_seen,
+         h.cpu_usage,
+         h.memory_usage,
+         h.disk_usage
+       FROM nodes n
+       LEFT JOIN LATERAL (
+         SELECT *
+         FROM heartbeats
+         WHERE node_id = n.node_id
+         ORDER BY received_at DESC
+         LIMIT 1
+       ) h ON true
+       ORDER BY n.last_seen DESC NULLS LAST
+       LIMIT $1 OFFSET $2`,
+      [limit, offset, OFFLINE_AFTER_SECONDS]
+    );
+
+    res.json({ success: true, data: result.rows, meta: { limit, offset } });
+  } catch (error) {
+    console.error('Error fetching master nodes:', error);
+    res.status(500).json({ success: false, error: 'Failed to fetch master nodes' });
+  }
+});
+
+app.get('/api/nodes/:nodeId', requireMasterAuth, async (req, res) => {
   const { nodeId } = req.params;
 
   try {
@@ -228,11 +419,10 @@ app.get('/api/nodes/:nodeId', async (req, res) => {
       return res.status(404).json({ success: false, error: 'Node not found' });
     }
 
-    // Get latest heartbeat
     const heartbeatResult = await pool.query(
-      `SELECT * FROM heartbeats 
-       WHERE node_id = $1 
-       ORDER BY received_at DESC 
+      `SELECT * FROM heartbeats
+       WHERE node_id = $1
+       ORDER BY received_at DESC
        LIMIT 1`,
       [nodeId]
     );
@@ -250,11 +440,31 @@ app.get('/api/nodes/:nodeId', async (req, res) => {
   }
 });
 
-// ============================================================================
-// REMOTE COMMANDS
-// ============================================================================
+app.post('/api/master/nodes/:nodeId/deploy', requireMasterAuth, async (req, res) => {
+  const { nodeId } = req.params;
 
-app.post('/api/nodes/:nodeId/commands', async (req, res) => {
+  try {
+    const command = await createRemoteCommand(nodeId, 'deploy', req.body.payload || req.body || {});
+    res.status(201).json({ success: true, data: command });
+  } catch (error) {
+    console.error('Error creating deploy command:', error);
+    res.status(500).json({ success: false, error: 'Failed to create deploy command' });
+  }
+});
+
+app.post('/api/master/nodes/:nodeId/restart', requireMasterAuth, async (req, res) => {
+  const { nodeId } = req.params;
+
+  try {
+    const command = await createRemoteCommand(nodeId, 'restart', req.body.payload || {});
+    res.status(201).json({ success: true, data: command });
+  } catch (error) {
+    console.error('Error creating restart command:', error);
+    res.status(500).json({ success: false, error: 'Failed to create restart command' });
+  }
+});
+
+app.post('/api/nodes/:nodeId/commands', requireMasterAuth, async (req, res) => {
   const { nodeId } = req.params;
   const { command_type, payload } = req.body;
 
@@ -262,27 +472,21 @@ app.post('/api/nodes/:nodeId/commands', async (req, res) => {
     return res.status(400).json({ success: false, error: 'command_type is required' });
   }
 
-  const validCommands = ['restart', 'update', 'rebuild', 'disconnect_whatsapp', 'backup', 'clear_cache'];
+  const validCommands = ['restart', 'deploy', 'update', 'rebuild', 'disconnect_whatsapp', 'backup', 'clear_cache'];
   if (!validCommands.includes(command_type)) {
     return res.status(400).json({ success: false, error: 'Invalid command_type' });
   }
 
   try {
-    const result = await pool.query(
-      `INSERT INTO remote_commands (node_id, command_type, payload)
-       VALUES ($1, $2, $3)
-       RETURNING *`,
-      [nodeId, command_type, JSON.stringify(payload || {})]
-    );
-
-    res.status(201).json({ success: true, data: result.rows[0] });
+    const command = await createRemoteCommand(nodeId, command_type, payload || {});
+    res.status(201).json({ success: true, data: command });
   } catch (error) {
     console.error('Error creating command:', error);
     res.status(500).json({ success: false, error: 'Failed to create command' });
   }
 });
 
-app.get('/api/nodes/:nodeId/commands', async (req, res) => {
+app.get('/api/nodes/:nodeId/commands', requireMasterAuth, async (req, res) => {
   const { nodeId } = req.params;
 
   try {
@@ -301,17 +505,21 @@ app.get('/api/nodes/:nodeId/commands', async (req, res) => {
   }
 });
 
-app.post('/api/nodes/:nodeId/commands/:commandId/result', async (req, res) => {
+app.post('/api/nodes/:nodeId/commands/:commandId/result', requireNodeAuth, async (req, res) => {
   const { nodeId, commandId } = req.params;
   const { status, result, error_message } = req.body;
 
   try {
     const updateResult = await pool.query(
-      `UPDATE remote_commands 
-       SET status = $1, result = $2, error_message = $3, completed_at = NOW()
+      `UPDATE remote_commands
+       SET status = $1,
+           result = $2,
+           error_message = $3,
+           completed_at = NOW(),
+           updated_at = NOW()
        WHERE id = $4 AND node_id = $5
        RETURNING *`,
-      [status, JSON.stringify(result || {}), error_message || null, commandId, nodeId]
+      [status, result || {}, error_message || null, commandId, nodeId]
     );
 
     if (updateResult.rows.length === 0) {
@@ -325,11 +533,7 @@ app.post('/api/nodes/:nodeId/commands/:commandId/result', async (req, res) => {
   }
 });
 
-// ============================================================================
-// LOGS
-// ============================================================================
-
-app.get('/api/nodes/:nodeId/logs', async (req, res) => {
+app.get('/api/nodes/:nodeId/logs', requireMasterAuth, async (req, res) => {
   const { nodeId } = req.params;
   const { level, limit = 100 } = req.query;
 
@@ -354,7 +558,7 @@ app.get('/api/nodes/:nodeId/logs', async (req, res) => {
   }
 });
 
-app.post('/api/nodes/:nodeId/logs', async (req, res) => {
+app.post('/api/nodes/:nodeId/logs', requireNodeAuth, async (req, res) => {
   const { nodeId } = req.params;
   const { logs } = req.body;
 
@@ -363,21 +567,13 @@ app.post('/api/nodes/:nodeId/logs', async (req, res) => {
   }
 
   try {
-    const values = logs.map(log => `(
-      '${nodeId}',
-      '${log.level}',
-      '${log.service || 'unknown'}',
-      $${logs.indexOf(log) + 1},
-      '${JSON.stringify(log.metadata || {})}',
-      NOW()
-    )`).join(',');
-
-    const query = `
-      INSERT INTO node_logs (node_id, level, service, message, metadata, created_at)
-      VALUES ${values}
-    `;
-
-    await pool.query(query, logs.map(log => log.message));
+    for (const log of logs) {
+      await pool.query(
+        `INSERT INTO node_logs (node_id, level, service, message, metadata, created_at)
+         VALUES ($1, $2, $3, $4, $5, NOW())`,
+        [nodeId, log.level || 'info', log.service || 'agent', log.message || '', log.metadata || {}]
+      );
+    }
 
     res.json({ success: true, data: { received: logs.length } });
   } catch (error) {
@@ -386,11 +582,7 @@ app.post('/api/nodes/:nodeId/logs', async (req, res) => {
   }
 });
 
-// ============================================================================
-// WHATSAPP SESSIONS
-// ============================================================================
-
-app.get('/api/nodes/:nodeId/sessions', async (req, res) => {
+app.get('/api/nodes/:nodeId/sessions', requireMasterAuth, async (req, res) => {
   const { nodeId } = req.params;
 
   try {
@@ -408,7 +600,7 @@ app.get('/api/nodes/:nodeId/sessions', async (req, res) => {
   }
 });
 
-app.post('/api/nodes/:nodeId/sessions', async (req, res) => {
+app.post('/api/nodes/:nodeId/sessions', requireNodeAuth, async (req, res) => {
   const { nodeId } = req.params;
   const { sessions } = req.body;
 
@@ -446,13 +638,45 @@ app.post('/api/nodes/:nodeId/sessions', async (req, res) => {
   }
 });
 
-// ============================================================================
-// LOVABLE DASHBOARD API
-// ============================================================================
+app.post('/api/master/clients/:clientId/nodes/:nodeId', requireMasterAuth, async (req, res) => {
+  const { clientId, nodeId } = req.params;
+  const { client_name } = req.body;
 
-app.get('/api/lovable/dashboard', async (req, res) => {
+  if (!client_name) {
+    return res.status(400).json({ success: false, error: 'client_name is required' });
+  }
+
   try {
-    // Get all nodes with latest heartbeat
+    await ensureClientNodeLink(clientId, client_name, nodeId);
+    res.status(201).json({ success: true, data: { client_id: clientId, node_id: nodeId } });
+  } catch (error) {
+    console.error('Error linking client and node:', error);
+    res.status(500).json({ success: false, error: 'Failed to link client and node' });
+  }
+});
+
+app.get('/api/master/clients/:clientId/nodes', requireMasterAuth, async (req, res) => {
+  const { clientId } = req.params;
+
+  try {
+    const result = await pool.query(
+      `SELECT n.node_id, n.name, n.ip_address, n.domain, n.status, n.last_seen, n.version
+       FROM client_nodes cn
+       INNER JOIN nodes n ON n.node_id = cn.node_id
+       WHERE cn.client_id = $1
+       ORDER BY n.last_seen DESC NULLS LAST`,
+      [clientId]
+    );
+
+    res.json({ success: true, data: result.rows });
+  } catch (error) {
+    console.error('Error fetching client nodes:', error);
+    res.status(500).json({ success: false, error: 'Failed to fetch client nodes' });
+  }
+});
+
+app.get('/api/lovable/dashboard', requireMasterAuth, async (req, res) => {
+  try {
     const nodesResult = await pool.query(`
       SELECT 
         n.*,
@@ -473,9 +697,8 @@ app.get('/api/lovable/dashboard', async (req, res) => {
       ORDER BY n.last_seen DESC
     `);
 
-    // Aggregate stats
     const totalNodes = nodesResult.rows.length;
-    const onlineNodes = nodesResult.rows.filter(n => n.status === 'online').length;
+    const onlineNodes = nodesResult.rows.filter(n => n.last_seen && new Date(n.last_seen).getTime() >= Date.now() - (OFFLINE_AFTER_SECONDS * 1000)).length;
     const offlineNodes = totalNodes - onlineNodes;
     const totalSessions = nodesResult.rows.reduce((sum, n) => sum + (n.active_sessions || 0), 0);
     const totalMessages = nodesResult.rows.reduce((sum, n) => sum + (n.messages_today || 0), 0);
@@ -499,9 +722,63 @@ app.get('/api/lovable/dashboard', async (req, res) => {
   }
 });
 
-// ============================================================================
-// HEALTH CHECK
-// ============================================================================
+app.get('/api/dashboard/overview', requireMasterAuth, async (_req, res) => {
+  try {
+    const overview = await pool.query(
+      `SELECT
+         COUNT(*)::int AS total_nodes,
+         COUNT(CASE WHEN last_seen >= NOW() - ($1::text || ' seconds')::interval THEN 1 END)::int AS online_nodes,
+         COUNT(CASE WHEN last_seen < NOW() - ($1::text || ' seconds')::interval OR last_seen IS NULL THEN 1 END)::int AS offline_nodes
+       FROM nodes`,
+      [OFFLINE_AFTER_SECONDS]
+    );
+
+    const avgMetrics = await pool.query(
+      `SELECT
+         ROUND(AVG(cpu_usage)::numeric, 2) AS avg_cpu_usage,
+         ROUND(AVG(memory_usage)::numeric, 2) AS avg_memory_usage,
+         ROUND(AVG(disk_usage)::numeric, 2) AS avg_disk_usage
+       FROM heartbeats
+       WHERE received_at >= NOW() - INTERVAL '15 minutes'`
+    );
+
+    res.json({
+      success: true,
+      data: {
+        summary: overview.rows[0],
+        metrics_15m: avgMetrics.rows[0],
+      }
+    });
+  } catch (error) {
+    console.error('Error fetching overview:', error);
+    res.status(500).json({ success: false, error: 'Failed to fetch overview' });
+  }
+});
+
+app.get('/api/master/nodes/status', requireMasterAuth, async (_req, res) => {
+  try {
+    const result = await pool.query(
+      `SELECT
+         node_id,
+         name,
+         ip_address,
+         domain,
+         last_seen,
+         CASE
+           WHEN last_seen >= NOW() - ($1::text || ' seconds')::interval THEN 'online'
+           ELSE 'offline'
+         END AS status
+       FROM nodes
+       ORDER BY last_seen DESC NULLS LAST`,
+      [OFFLINE_AFTER_SECONDS]
+    );
+
+    res.json({ success: true, data: result.rows });
+  } catch (error) {
+    console.error('Error fetching node statuses:', error);
+    res.status(500).json({ success: false, error: 'Failed to fetch node statuses' });
+  }
+});
 
 app.get('/health', (req, res) => {
   res.json({
@@ -511,10 +788,6 @@ app.get('/health', (req, res) => {
     timestamp: new Date().toISOString()
   });
 });
-
-// ============================================================================
-// START SERVER
-// ============================================================================
 
 app.listen(PORT, () => {
   console.log(`Master Node API running on port ${PORT}`);

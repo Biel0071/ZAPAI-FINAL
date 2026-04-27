@@ -54,7 +54,7 @@ function checkFile(filePath: string, content: string): ValidationResult {
   return { valid: errors.length === 0, errors, warnings };
 }
 
-function checkApiConfig(filePath: string): ValidationResult {
+function checkRuntimeConfig(filePath: string): ValidationResult {
   const errors: string[] = [];
   const warnings: string[] = [];
 
@@ -65,19 +65,19 @@ function checkApiConfig(filePath: string): ValidationResult {
 
   const content = readFileSync(filePath, 'utf-8');
 
-  // Verificar BASE_URL
-  if (!content.includes('BASE_URL')) {
-    errors.push('BASE_URL não definido em api.config.ts');
+  // Verificar API_BASE_URL
+  if (!content.includes('API_BASE_URL')) {
+    errors.push('API_BASE_URL não definido em runtime.ts');
   }
 
   // Verificar TENANT_ID
   if (!content.includes("TENANT_ID: 'default'") && !content.includes('TENANT_ID: "default"')) {
-    errors.push('TENANT_ID não é "default" em api.config.ts');
+    errors.push('TENANT_ID não é "default" em runtime.ts');
   }
 
   // Verificar HEADERS
   if (!content.includes("x-tenant-id")) {
-    errors.push('Header x-tenant-id não definido em api.config.ts');
+    errors.push('Header x-tenant-id não definido em runtime.ts');
   }
 
   // Verificar ENDPOINTS
@@ -91,7 +91,7 @@ function checkApiConfig(filePath: string): ValidationResult {
 
   for (const endpoint of requiredEndpoints) {
     if (!content.includes(endpoint)) {
-      errors.push(`Endpoint ${endpoint} não definido em api.config.ts`);
+      errors.push(`Endpoint ${endpoint} não definido em runtime.ts`);
     }
   }
 
@@ -148,9 +148,9 @@ function main() {
   const allErrors: string[] = [];
   const allWarnings: string[] = [];
 
-  // Verificar api.config.ts
-  console.log('📋 Verificando api.config.ts...');
-  const apiConfigResult = checkApiConfig(join(frontendDir, 'src/config/api.config.ts'));
+  // Verificar runtime.ts
+  console.log('📋 Verificando runtime.ts...');
+  const apiConfigResult = checkRuntimeConfig(join(frontendDir, 'src/config/runtime.ts'));
   allErrors.push(...apiConfigResult.errors);
   allWarnings.push(...apiConfigResult.warnings);
 

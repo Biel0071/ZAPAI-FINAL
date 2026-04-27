@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Shield, Lock } from "@phosphor-icons/react";
 
@@ -10,9 +10,22 @@ export default function AdminGuard({ children }: AdminGuardProps) {
   const navigate = useNavigate();
   const [isAuthorized, setIsAuthorized] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const authCheckSeqRef = useRef(0);
 
   useEffect(() => {
+    let isMounted = true;
+
     const checkAdminAccess = async () => {
+      const runSeq = ++authCheckSeqRef.current;
+      if (!isMounted) return;
+      setIsLoading(true);
+
+      const applyIfLatest = (updater: () => void) => {
+        if (!isMounted) return;
+        if (runSeq !== authCheckSeqRef.current) return;
+        updater();
+      };
+
       try {
         const userRole = String(localStorage.getItem("user_role") || "").trim().toLowerCase();
         const localToken =
@@ -23,12 +36,17 @@ export default function AdminGuard({ children }: AdminGuardProps) {
         const isDevMode = import.meta.env.MODE === "development";
 
         if (userRole === "master_admin" || isDevMode) {
-          setIsAuthorized(true);
+          applyIfLatest(() => {
+            setIsAuthorized(true);
+          });
           return;
         }
 
         if (!localToken) {
-          navigate("/");
+          applyIfLatest(() => {
+            setIsAuthorized(false);
+            navigate("/");
+          });
           return;
         }
 
@@ -40,27 +58,53 @@ export default function AdminGuard({ children }: AdminGuardProps) {
         });
 
         if (!meResponse.ok) {
-          navigate("/");
+          applyIfLatest(() => {
+            setIsAuthorized(false);
+            navigate("/");
+          });
           return;
         }
 
         const mePayload = (await meResponse.json()) as { user?: { role?: string } };
         const apiRole = String(mePayload?.user?.role || "").trim().toLowerCase();
         if (apiRole === "master_admin") {
-          setIsAuthorized(true);
+          applyIfLatest(() => {
+            setIsAuthorized(true);
+          });
           return;
         }
 
-        navigate("/");
+        applyIfLatest(() => {
+          setIsAuthorized(false);
+          navigate("/");
+        });
       } catch (error) {
         if (import.meta.env.MODE !== "production") console.error("Failed to check admin access:", error);
-        navigate("/");
+        applyIfLatest(() => {
+          setIsAuthorized(false);
+          navigate("/");
+        });
       } finally {
-        setIsLoading(false);
+        applyIfLatest(() => {
+          setIsLoading(false);
+        });
       }
     };
 
     void checkAdminAccess();
+
+    const handleStorageOrFocus = () => {
+      void checkAdminAccess();
+    };
+
+    window.addEventListener("storage", handleStorageOrFocus);
+    window.addEventListener("focus", handleStorageOrFocus);
+
+    return () => {
+      isMounted = false;
+      window.removeEventListener("storage", handleStorageOrFocus);
+      window.removeEventListener("focus", handleStorageOrFocus);
+    };
   }, [navigate]);
 
   if (isLoading) {

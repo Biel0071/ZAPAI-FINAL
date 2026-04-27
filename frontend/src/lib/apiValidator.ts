@@ -14,7 +14,7 @@
  * ============================================================================
  */
 
-import { API_CONFIG, ERROR_MESSAGES } from '@/config/api.config';
+import { API_BASE_URL, API_ENDPOINTS, TENANT_ID } from '@/config/runtime';
 
 export interface EndpointValidation {
   endpoint: string;
@@ -30,19 +30,19 @@ export interface ApiValidationResult {
 }
 
 const CRITICAL_ENDPOINTS = [
-  API_CONFIG.ENDPOINTS.HEALTH,
-  API_CONFIG.ENDPOINTS.DASHBOARD,
-  API_CONFIG.ENDPOINTS.CONVERSATIONS,
+  API_ENDPOINTS.HEALTH,
+  API_ENDPOINTS.DASHBOARD,
+  API_ENDPOINTS.CONVERSATIONS,
 ];
 
 async function validateEndpoint(endpoint: string): Promise<EndpointValidation> {
   try {
-    const url = endpoint.startsWith('http') ? endpoint : `${API_CONFIG.BASE_URL}${endpoint}`;
+    const url = endpoint.startsWith('http') ? endpoint : `${API_BASE_URL}${endpoint}`;
     const response = await fetch(url, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
-        'x-tenant-id': API_CONFIG.TENANT_ID,
+        'x-tenant-id': TENANT_ID,
       },
       signal: AbortSignal.timeout(5000), // 5 segundos timeout
     });
@@ -98,7 +98,7 @@ export function getErrorMessageForStatus(status: 'online' | 'partial' | 'offline
     case 'partial':
       return 'API parcialmente indisponível';
     case 'offline':
-      return ERROR_MESSAGES.BACKEND_OFFLINE;
+      return 'Backend offline';
   }
 }
 

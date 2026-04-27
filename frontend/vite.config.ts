@@ -17,8 +17,35 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react-swc";
 import path from "path";
+import fs from "fs";
 import { componentTagger } from "lovable-tagger";
 import { VitePWA } from "vite-plugin-pwa";
+
+const RELEASE_LOCK_FILE = path.resolve(__dirname, "release.lock.json");
+
+type ReleaseLock = {
+  locked: boolean;
+  buildId?: string;
+  lockedAt?: string;
+};
+
+function readReleaseLock(): ReleaseLock {
+  try {
+    if (!fs.existsSync(RELEASE_LOCK_FILE)) {
+      return { locked: false };
+    }
+
+    const raw = fs.readFileSync(RELEASE_LOCK_FILE, "utf8");
+    const parsed = JSON.parse(raw) as ReleaseLock;
+    return {
+      locked: Boolean(parsed.locked),
+      buildId: typeof parsed.buildId === "string" ? parsed.buildId : undefined,
+      lockedAt: typeof parsed.lockedAt === "string" ? parsed.lockedAt : undefined,
+    };
+  } catch {
+    return { locked: false };
+  }
+}
 
 // Gerar build ID único
 const generateBuildId = () => {
@@ -27,14 +54,29 @@ const generateBuildId = () => {
   return `${timestamp}-${random}`;
 };
 
-const BUILD_ID = generateBuildId();
+const releaseLock = readReleaseLock();
+const isReleaseLocked = releaseLock.locked && Boolean(releaseLock.buildId);
+const BUILD_ID = isReleaseLocked ? String(releaseLock.buildId) : generateBuildId();
+const APP_VERSION = isReleaseLocked ? String(BUILD_ID) : `unlocked-${BUILD_ID}`;
+
+function assertProductionLock(mode: string) {
+  if (mode === "production" && !isReleaseLocked) {
+    throw new Error("Production build requires release.lock.json locked buildId");
+  }
+}
 
 // https://vitejs.dev/config/
-export default defineConfig(({ mode }) => ({
+export default defineConfig(({ mode }) => {
+  assertProductionLock(mode);
+
+  return {
   // Build ID global
   define: {
     __BUILD_ID__: JSON.stringify(BUILD_ID),
     __BUILD_TIME__: JSON.stringify(new Date().toISOString()),
+    __RELEASE_LOCK_ENABLED__: JSON.stringify(isReleaseLocked),
+    __STABLE_BUILD_ID__: JSON.stringify(isReleaseLocked ? BUILD_ID : ""),
+    __APP_VERSION__: JSON.stringify(APP_VERSION),
   },
   server: {
     host: "::",
@@ -65,7 +107,7 @@ export default defineConfig(({ mode }) => ({
     react(),
     mode === "development" && componentTagger(),
     VitePWA({
-      registerType: "autoUpdate",
+      registerType: "prompt",
       includeAssets: ["favicon.ico"],
       manifest: {
         name: "ZapAI CRM",
@@ -123,37 +165,14 @@ export default defineConfig(({ mode }) => ({
         ],
         // Não cachear index.html
         navigateFallback: "/index.html",
-        skipWaiting: true,
-        clientsClaim: true,
+        skipWaiting: false,
+        clientsClaim: false,
       },
     }),
   ].filter(Boolean),
   preview: {
     host: "0.0.0.0",
     port: 3000,
-    proxy: {
-      "/api": {
-        target: "http://127.0.0.1:4025",
-        changeOrigin: true,
-        secure: false,
-      },
-      "/auth": {
-        target: "http://127.0.0.1:4025",
-        changeOrigin: true,
-        secure: false,
-      },
-      "/health": {
-        target: "http://127.0.0.1:4025",
-        changeOrigin: true,
-        secure: false,
-      },
-      "/socket.io": {
-        target: "http://127.0.0.1:4025",
-        changeOrigin: true,
-        secure: false,
-        ws: true,
-      },
-    },
   },
   build: {
     target: "esnext",
@@ -190,4 +209,5 @@ export default defineConfig(({ mode }) => ({
       "@": path.resolve(__dirname, "./src"),
     },
   },
-}));
+  };
+});

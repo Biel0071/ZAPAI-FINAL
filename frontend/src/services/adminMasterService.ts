@@ -2,9 +2,19 @@ import { API_BASE_URL } from '@/config/runtime';
 
 export type AdminMasterOverview = {
   generatedAt: string;
+  master?: {
+    enabled: boolean;
+    hostname: string;
+    registrationTokenConfigured: boolean;
+  };
   infra: {
     cpuPercent: number;
     ramPercent: number;
+    disk?: {
+      usedPercent?: number | null;
+      totalBytes?: number | null;
+      freeBytes?: number | null;
+    };
     uptimeSec: number;
     nodeUptimeSec: number;
     platform: string;
@@ -39,6 +49,27 @@ export type AdminMasterOverview = {
     admins: number | null;
     accessesToday: number | null;
     plans: number | null;
+  };
+  nodes?: {
+    summary?: {
+      total_nodes?: number;
+      online_nodes?: number;
+      offline_nodes?: number;
+    };
+    nodes?: Array<{
+      node_id: string;
+      name: string;
+      ip_address: string;
+      domain?: string | null;
+      api_port?: number | null;
+      status: "online" | "offline" | "pending" | string;
+      last_heartbeat?: string | null;
+      last_seen?: string | null;
+      cpu_usage?: number | null;
+      memory_usage?: number | null;
+      disk_usage?: number | null;
+      uptime_seconds?: number | null;
+    }>;
   };
 };
 

@@ -81,6 +81,68 @@ function runPm2Command(args = []) {
   };
 }
 
+async function loadNodesStats() {
+  const offlineAfterSeconds = Number(process.env.NODE_OFFLINE_AFTER_SECONDS || 90);
+
+  await query(
+    `UPDATE nodes
+        SET status = 'offline', updated_at = NOW()
+      WHERE last_seen IS NOT NULL
+        AND last_seen < NOW() - ($1::text || ' seconds')::interval
+        AND status <> 'offline'`,
+    [offlineAfterSeconds],
+  );
+
+  const counters = await query(
+    `SELECT
+        COUNT(*)::int AS total_nodes,
+        COUNT(CASE WHEN last_seen >= NOW() - ($1::text || ' seconds')::interval THEN 1 END)::int AS online_nodes,
+        COUNT(CASE WHEN last_seen < NOW() - ($1::text || ' seconds')::interval OR last_seen IS NULL THEN 1 END)::int AS offline_nodes
+      FROM nodes`,
+    [offlineAfterSeconds],
+  );
+
+  const nodes = await query(
+    `SELECT
+        n.node_id,
+        n.name,
+        n.ip_address,
+        n.domain,
+        n.api_port,
+        CASE
+          WHEN n.last_seen IS NULL THEN 'pending'
+          WHEN n.last_seen >= NOW() - ($1::text || ' seconds')::interval THEN 'online'
+          ELSE 'offline'
+        END AS status,
+        n.last_heartbeat,
+        n.last_seen,
+        h.cpu_usage,
+        h.memory_usage,
+        h.disk_usage,
+        h.uptime_seconds
+      FROM nodes n
+      LEFT JOIN LATERAL (
+        SELECT cpu_usage, memory_usage, disk_usage, uptime_seconds
+        FROM heartbeats
+        WHERE node_id = n.node_id
+        ORDER BY received_at DESC
+        LIMIT 1
+      ) h ON true
+      ORDER BY n.last_seen DESC NULLS LAST
+      LIMIT 100`,
+    [offlineAfterSeconds],
+  );
+
+  return {
+    summary: counters.rows?.[0] || {
+      total_nodes: 0,
+      online_nodes: 0,
+      offline_nodes: 0,
+    },
+    nodes: nodes.rows || [],
+  };
+}
+
 async function loadDatabaseStats() {
   const [sizeResult, connectionsResult] = await Promise.all([
     query("SELECT pg_size_pretty(pg_database_size(current_database())) AS size"),
@@ -226,18 +288,25 @@ router.use(requireMasterAdmin);
 
 router.get('/master/overview', async (req, res) => {
   try {
-    const [database, infra] = await Promise.all([
+    const [database, infra, nodeData] = await Promise.all([
       loadDatabaseStats(),
       Promise.resolve(loadInfraStats()),
+      loadNodesStats(),
     ]);
 
     const payload = {
       generatedAt: new Date().toISOString(),
+      master: {
+        enabled: String(process.env.MASTER || '').trim().toLowerCase() === 'true',
+        hostname: process.env.MASTER_HOSTNAME || os.hostname(),
+        registrationTokenConfigured: Boolean(String(process.env.NODE_REGISTRATION_TOKEN || '').trim()),
+      },
       infra,
       backend: loadBackendStats(req),
       database,
       whatsapp: loadWhatsappStats(req),
       users: await loadUserStats(req),
+      nodes: nodeData,
     };
 
     await logAdminAction(req, 'overview_read');

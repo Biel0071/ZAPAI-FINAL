@@ -1,8 +1,14 @@
 import { createRoot } from "react-dom/client";
-import { registerSW } from "virtual:pwa-register";
 import App from "./App.tsx";
 import "./index.css";
 
-registerSW({ immediate: true });
+async function purgeLegacyServiceWorkers() {
+  if (!("serviceWorker" in navigator)) return;
+
+  const registrations = await navigator.serviceWorker.getRegistrations();
+  await Promise.all(registrations.map((registration) => registration.unregister()));
+}
+
+void purgeLegacyServiceWorkers();
 
 createRoot(document.getElementById("root")!).render(<App />);

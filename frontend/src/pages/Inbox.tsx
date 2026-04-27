@@ -1161,6 +1161,7 @@ export default function Inbox() {
   const lastRealtimeTimestampRef = useRef(0);
   const fallbackSyncBusyRef = useRef(false);
   const messagePollingBusyRef = useRef(false);
+  const hasMoreMessagesRef = useRef(false);
   const audioPlayerRef = useRef<HTMLAudioElement | null>(null);
   const intersectionObserverRef = useRef<IntersectionObserver | null>(null);
   const [playingAudioMessageId, setPlayingAudioMessageId] = useState<string | null>(null);
@@ -1266,6 +1267,10 @@ export default function Inbox() {
   useEffect(() => {
     messageIdsRef.current = new Set(messages.map((message) => message.id));
   }, [messages]);
+
+  useEffect(() => {
+    hasMoreMessagesRef.current = hasMoreMessages;
+  }, [hasMoreMessages]);
 
   useEffect(() => {
     conversationsRef.current = safeConversations;
@@ -1650,7 +1655,12 @@ export default function Inbox() {
 
     setPendingBackgroundUpdates(0);
     setUnseenRealtimeCount(0);
-  }, [loadConversationMessages, selectedConversation?.id]);
+  }, [
+    loadConversationMessages,
+    selectedConversation?.id,
+    selectedConversation?.phone,
+    selectedConversation?.sessionId,
+  ]);
 
   useEffect(() => {
     if (!selectedConversation?.id) return;
@@ -2269,7 +2279,7 @@ export default function Inbox() {
           if (isPotentialDuplicateMessage(prev, normalizedIncoming)) return prev;
 
           const next = sortMessagesAsc([...prev, normalizedIncoming]);
-          updateConversationMessageStore(incomingConversationId, next, hasMoreMessages);
+          updateConversationMessageStore(incomingConversationId, next, hasMoreMessagesRef.current);
           return next;
         });
 
@@ -2322,7 +2332,7 @@ export default function Inbox() {
             updateConversationMessageStore(
               targetConversationId,
               next,
-              hasMoreMessages,
+              hasMoreMessagesRef.current,
             );
           }
           return next;
@@ -2350,7 +2360,7 @@ export default function Inbox() {
 
           const targetConversationId = normalizedConversationId ?? String(selectedConversationRef.current?.id ?? "");
           if (targetConversationId) {
-            updateConversationMessageStore(targetConversationId, next, hasMoreMessages);
+            updateConversationMessageStore(targetConversationId, next, hasMoreMessagesRef.current);
           }
 
           return next;

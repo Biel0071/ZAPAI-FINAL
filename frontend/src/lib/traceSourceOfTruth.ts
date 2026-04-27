@@ -112,13 +112,11 @@ export class SourceOfTruthTrace {
 
   private getAPIOrigin(): string {
     try {
-      // Ler da configuração fixa
       const apiUrl = import.meta.env.VITE_API_URL;
       if (apiUrl) {
         return new URL(apiUrl).origin;
       }
-      // Fallback: ler do proxy
-      return window.location.origin;
+      return 'unknown';
     } catch {
       return 'unknown';
     }
@@ -130,7 +128,7 @@ export class SourceOfTruthTrace {
       if (apiUrl) {
         return new URL(apiUrl).origin.replace('http', 'ws');
       }
-      return window.location.origin.replace('http', 'ws');
+      return 'unknown';
     } catch {
       return 'unknown';
     }

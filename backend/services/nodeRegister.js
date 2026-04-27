@@ -11,11 +11,13 @@
 const https = require('https');
 const http = require('http');
 const os = require('os');
+const { spawnSync } = require('child_process');
 
 class NodeRegisterService {
   constructor() {
     this.masterApiUrl = process.env.MASTER_API_URL;
     this.nodeToken = process.env.NODE_TOKEN;
+    this.registrationToken = process.env.NODE_REGISTRATION_TOKEN || process.env.MASTER_TOKEN || '';
     this.nodeId = process.env.NODE_ID || this.generateNodeId();
     this.heartbeatInterval = null;
   }
@@ -50,6 +52,55 @@ class NodeRegisterService {
     const freemem = os.freemem();
     const uptime = process.uptime();
 
+    const diskProbe = (() => {
+      try {
+        if (process.platform === 'win32') {
+          const result = spawnSync('wmic', ['logicaldisk', 'where', "DeviceID='C:'", 'get', 'Size,FreeSpace', '/value'], {
+            timeout: 2000,
+            windowsHide: true,
+            encoding: 'utf8',
+          });
+          const output = String(result.stdout || '');
+          const size = Number((output.match(/Size=(\d+)/) || [])[1] || 0);
+          const free = Number((output.match(/FreeSpace=(\d+)/) || [])[1] || 0);
+          const used = size > 0 ? size - free : 0;
+          const usedPercent = size > 0 ? Math.round((used / size) * 100) : 0;
+          return {
+            total: Math.round(size / 1024 / 1024),
+            used: Math.round(used / 1024 / 1024),
+            free: Math.round(free / 1024 / 1024),
+            usedPercent,
+          };
+        }
+
+        const result = spawnSync('df', ['-k', '/'], {
+          timeout: 2000,
+          windowsHide: true,
+          encoding: 'utf8',
+        });
+        const lines = String(result.stdout || '').trim().split(/\r?\n/);
+        const data = String(lines[1] || '').trim().split(/\s+/);
+        const totalKb = Number(data[1] || 0);
+        const usedKb = Number(data[2] || 0);
+        const freeKb = Number(data[3] || 0);
+        const usedPercent = totalKb > 0 ? Math.round((usedKb / totalKb) * 100) : 0;
+
+        return {
+          total: Math.round(totalKb / 1024),
+          used: Math.round(usedKb / 1024),
+          free: Math.round(freeKb / 1024),
+          usedPercent,
+        };
+      } catch {
+        return {
+          total: 0,
+          used: 0,
+          free: 0,
+          usedPercent: 0,
+        };
+      }
+    })();
+
     return {
       cpu: {
         cores: cpus.length,
@@ -60,11 +111,7 @@ class NodeRegisterService {
         free: Math.round(freemem / 1024 / 1024), // MB
         used: Math.round((totalmem - freemem) / 1024 / 1024), // MB
       },
-      disk: {
-        // Placeholder - seria necessário usar fs para obter disk real
-        total: 0,
-        used: 0,
-      },
+      disk: diskProbe,
       uptime: {
         seconds: Math.floor(uptime),
         formatted: this.formatUptime(uptime),
@@ -80,8 +127,8 @@ class NodeRegisterService {
   }
 
   async registerNode() {
-    if (!this.masterApiUrl || !this.nodeToken) {
-      console.log('[NodeRegister] MASTER_API_URL or NODE_TOKEN not configured, skipping auto-register');
+    if (!this.masterApiUrl) {
+      console.log('[NodeRegister] MASTER_API_URL not configured, skipping auto-register');
       return;
     }
 
@@ -93,15 +140,31 @@ class NodeRegisterService {
         node_id: this.nodeId,
         hostname: os.hostname(),
         ip: publicIP,
+        ip_address: publicIP,
+        name: os.hostname(),
+        api_port: Number(process.env.PORT || 4025),
         version: process.env.npm_package_version || '1.0.0',
         online: true,
         metrics,
         timestamp: new Date().toISOString(),
       };
 
-      const url = `${this.masterApiUrl}/api/node/register`;
-      
-      await this.makeRequest(url, payload);
+      const url = `${this.masterApiUrl}/api/master/register-node`;
+
+      const registerResponse = await this.makeRequest(url, payload, {
+        bearerToken: this.registrationToken || this.nodeToken || undefined,
+        registrationToken: this.registrationToken || undefined,
+      });
+
+      const returnedToken = String(registerResponse?.token || registerResponse?.node?.token || '').trim();
+      if (returnedToken) {
+        this.nodeToken = returnedToken;
+      }
+
+      const returnedNodeId = String(registerResponse?.node?.node_id || '').trim();
+      if (returnedNodeId) {
+        this.nodeId = returnedNodeId;
+      }
       
       console.log(`[NodeRegister] Node registered: ${this.nodeId} (${publicIP})`);
       
@@ -123,12 +186,18 @@ class NodeRegisterService {
       const payload = {
         node_id: this.nodeId,
         metrics,
+        cpu_usage: Number(metrics.cpu?.usage || 0),
+        memory_usage: Number(metrics.ram?.total ? Math.round((metrics.ram.used / metrics.ram.total) * 100) : 0),
+        disk_usage: Number(metrics.disk?.usedPercent || 0),
+        uptime_seconds: Number(metrics.uptime?.seconds || 0),
         timestamp: new Date().toISOString(),
       };
 
-      const url = `${this.masterApiUrl}/api/node/heartbeat`;
-      
-      await this.makeRequest(url, payload);
+      const url = `${this.masterApiUrl}/api/master/heartbeat`;
+
+      await this.makeRequest(url, payload, {
+        bearerToken: this.nodeToken,
+      });
       
       console.log('[NodeRegister] Heartbeat sent');
     } catch (error) {
@@ -150,26 +219,35 @@ class NodeRegisterService {
     }
   }
 
-  async makeRequest(url, payload) {
+  async makeRequest(url, payload, options = {}) {
     const isHttps = url.startsWith('https://');
     const client = isHttps ? https : http;
 
+    const headers = {
+      'Content-Type': 'application/json',
+      'Content-Length': Buffer.byteLength(JSON.stringify(payload)),
+    };
+
+    if (options.bearerToken) {
+      headers.Authorization = `Bearer ${options.bearerToken}`;
+    }
+
+    if (options.registrationToken) {
+      headers['x-registration-token'] = options.registrationToken;
+    }
+
     return new Promise((resolve, reject) => {
       const urlObj = new URL(url);
-      
-      const options = {
+
+      const requestOptions = {
         hostname: urlObj.hostname,
         port: urlObj.port || (isHttps ? 443 : 80),
         path: urlObj.pathname,
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${this.nodeToken}`,
-          'Content-Length': Buffer.byteLength(JSON.stringify(payload)),
-        },
+        headers,
       };
 
-      const req = client.request(options, (res) => {
+      const req = client.request(requestOptions, (res) => {
         let data = '';
         res.on('data', (chunk) => data += chunk);
         res.on('end', () => {

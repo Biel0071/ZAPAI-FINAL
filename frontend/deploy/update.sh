@@ -44,9 +44,8 @@ sleep 10
 if curl -f http://localhost/health; then
     echo "Update successful!"
 else
-    echo "Health check failed! Rolling back..."
-    docker-compose -f deploy/docker-compose.yml down
-    # Rollback logic here
+    echo "Health check failed! Auto rollback is disabled for locked releases."
+    echo "Investigate and run manual rollback only if explicitly approved."
     exit 1
 fi
 

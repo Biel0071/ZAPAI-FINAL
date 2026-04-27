@@ -32,6 +32,28 @@ type SidebarNavItem = {
   path: string;
 };
 
+function isNavItemActive(currentPathname: string, currentSearch: string, itemPath: string) {
+  if (!itemPath.includes("?")) {
+    return currentPathname === itemPath;
+  }
+
+  const [pathname, search = ""] = itemPath.split("?");
+  const currentParams = new URLSearchParams(currentSearch);
+  const targetParams = new URLSearchParams(search);
+
+  if (currentPathname !== pathname) {
+    return false;
+  }
+
+  for (const [key, value] of targetParams.entries()) {
+    if (currentParams.get(key) !== value) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
 const navItems: SidebarNavItem[] = [
   { icon: House, label: "Dashboard", path: "/" },
   { icon: ChatCircleDots, label: "Inbox", path: "/inbox" },
@@ -89,7 +111,7 @@ export function Sidebar() {
   const sidebarWidth = useMemo(() => (collapsed ? 72 : 240), [collapsed]);
 
   const renderNavItem = (item: SidebarNavItem, compact: boolean) => {
-    const isActive = location.pathname === item.path;
+    const isActive = isNavItemActive(location.pathname, location.search, item.path);
     const isInboxItem = item.path === "/inbox";
 
     return (

@@ -7,6 +7,7 @@ const metricsRouter = require('./metrics');
 const contactsRouter = require('./contacts');
 const analyticsRouter = require('./analytics');
 const automationRouter = require('./automation');
+const leadsRouter = require('./leads');
 const quickRepliesRouter = require('./quickReplies');
 const integrationsRouter = require('./integrations');
 const aiRouter = require('./ai');
@@ -15,7 +16,7 @@ const aiConfigRouter = require('./aiConfig');
 const authRouter = require('./auth');
 const mediaRouter = require('./media');
 const adminMasterRouter = require('./adminMaster');
-const nodeRouter = require('./node');
+const nodeRouter = require('./nodeMaster');
 
 function registerRoutes(app, options = {}) {
   const requireJwtAuth = options.requireJwtAuth;

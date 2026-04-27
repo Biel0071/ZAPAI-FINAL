@@ -16,14 +16,40 @@ export function DebugTracePanel() {
   const [isOpen, setIsOpen] = useState(false);
 
   useEffect(() => {
-    loadTrace();
+    let isMounted = true;
+
+    const loadTrace = async () => {
+      try {
+        const info = await sourceOfTruthTrace.traceAll();
+        if (!isMounted) return;
+        setTraceInfo(info);
+        setIsValid(sourceOfTruthTrace.validateSingleSourceOfTruth());
+      } catch {
+        if (!isMounted) return;
+        setIsValid(false);
+      }
+    };
+
+    void loadTrace();
+
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   const loadTrace = async () => {
-    const info = await sourceOfTruthTrace.traceAll();
-    setTraceInfo(info);
-    setIsValid(sourceOfTruthTrace.validateSingleSourceOfTruth());
+    try {
+      const info = await sourceOfTruthTrace.traceAll();
+      setTraceInfo(info);
+      setIsValid(sourceOfTruthTrace.validateSingleSourceOfTruth());
+    } catch {
+      setIsValid(false);
+    }
   };
+
+  if (import.meta.env.MODE === 'production') {
+    return null;
+  }
 
   if (!isOpen) {
     return (

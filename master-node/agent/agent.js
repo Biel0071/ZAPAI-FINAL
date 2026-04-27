@@ -1,43 +1,161 @@
-/**
- * ============================================================================
- * MASTER NODE AGENT
- * ============================================================================
- * 
- * Agent local instalado em cada VPS para:
- * - Enviar heartbeat a cada 30 segundos
- * - Receber e executar comandos remotos
- * - Enviar métricas em tempo real
- * - Enviar logs de erros
- * - Monitorar sessões WhatsApp
- * 
- * Zero mock. Tudo produção real.
- * ============================================================================
- */
-
 const axios = require('axios');
 const os = require('os');
 const fs = require('fs');
 const path = require('path');
 const { exec } = require('child_process');
 const { promisify } = require('util');
+require('dotenv').config();
+
 const execAsync = promisify(exec);
 
-// Configuration
 const config = {
   masterApiUrl: process.env.MASTER_API_URL || 'http://localhost:5000/api',
   nodeId: process.env.NODE_ID,
   token: process.env.NODE_TOKEN,
-  heartbeatInterval: parseInt(process.env.HEARTBEAT_INTERVAL) || 30000, // 30 segundos
+  heartbeatInterval: parseInt(process.env.HEARTBEAT_INTERVAL || '30000', 10),
   localApiPort: process.env.LOCAL_API_PORT || 4025,
+  nodeName: process.env.NODE_NAME || os.hostname(),
+  nodeDomain: process.env.NODE_DOMAIN || '',
+  nodeVersion: process.env.NODE_VERSION || process.env.VERSION || '1.0.0',
+  registrationToken: process.env.NODE_REGISTRATION_TOKEN || '',
+  clientId: process.env.CLIENT_ID || '',
+  clientName: process.env.CLIENT_NAME || '',
+  credentialsPath: process.env.NODE_CREDENTIALS_PATH || path.join(__dirname, '.agent-credentials.json'),
+  localLogPath: process.env.NODE_AGENT_LOG_FILE || path.join(__dirname, 'agent.log'),
 };
 
-// State
 let isRunning = true;
 let uptimeStart = Date.now();
+let registered = false;
+let failedHeartbeats = 0;
+const pendingLogBuffer = [];
 
-// ============================================================================
-// SYSTEM METRICS
-// ============================================================================
+function log(level, message, metadata = {}) {
+  const line = JSON.stringify({
+    timestamp: new Date().toISOString(),
+    level,
+    message,
+    metadata,
+  });
+
+  const rendered = `[${new Date().toISOString()}] [${level.toUpperCase()}] ${message}`;
+  if (level === 'error') {
+    console.error(rendered);
+  } else {
+    console.log(rendered);
+  }
+
+  try {
+    fs.appendFileSync(config.localLogPath, `${line}\n`);
+  } catch (_error) {
+  }
+
+  pendingLogBuffer.push({
+    level,
+    service: 'node-agent',
+    message,
+    metadata,
+  });
+
+  if (pendingLogBuffer.length > 300) {
+    pendingLogBuffer.splice(0, pendingLogBuffer.length - 300);
+  }
+}
+
+function persistCredentials() {
+  const payload = {
+    nodeId: config.nodeId,
+    token: config.token,
+    updatedAt: new Date().toISOString(),
+  };
+  fs.writeFileSync(config.credentialsPath, JSON.stringify(payload, null, 2));
+}
+
+function restoreCredentials() {
+  if (!fs.existsSync(config.credentialsPath)) {
+    return;
+  }
+
+  try {
+    const raw = fs.readFileSync(config.credentialsPath, 'utf8');
+    const parsed = JSON.parse(raw);
+    if (!config.nodeId && parsed.nodeId) {
+      config.nodeId = parsed.nodeId;
+    }
+    if (!config.token && parsed.token) {
+      config.token = parsed.token;
+    }
+  } catch (error) {
+    log('warn', 'Failed to restore credentials file', { error: error.message });
+  }
+}
+
+async function detectPublicIp() {
+  const providers = [
+    'https://api.ipify.org?format=json',
+    'https://ifconfig.me/all.json',
+    'https://ipinfo.io/json',
+  ];
+
+  for (const url of providers) {
+    try {
+      const response = await axios.get(url, { timeout: 8000 });
+      const ip = response.data?.ip || response.data?.ip_addr || response.data?.IP;
+      if (ip) {
+        return ip;
+      }
+    } catch (_error) {
+    }
+  }
+
+  return '127.0.0.1';
+}
+
+async function registerIfNeeded() {
+  if (config.nodeId && config.token) {
+    registered = true;
+    return;
+  }
+
+  const ipAddress = await detectPublicIp();
+  const payload = {
+    name: config.nodeName,
+    hostname: os.hostname(),
+    ip_address: ipAddress,
+    domain: config.nodeDomain || null,
+    api_port: Number(config.localApiPort),
+    version: config.nodeVersion,
+    client_id: config.clientId || undefined,
+    client_name: config.clientName || undefined,
+  };
+
+  const headers = { 'Content-Type': 'application/json' };
+  if (config.registrationToken) {
+    headers['x-registration-token'] = config.registrationToken;
+  }
+
+  const response = await axios.post(
+    `${config.masterApiUrl}/nodes/register`,
+    payload,
+    {
+      headers,
+      timeout: 15000,
+    }
+  );
+
+  const nodeId = response.data?.data?.node_id;
+  const token = response.data?.data?.token;
+
+  if (!nodeId || !token) {
+    throw new Error('Master did not return node credentials');
+  }
+
+  config.nodeId = nodeId;
+  config.token = token;
+  registered = true;
+  persistCredentials();
+  log('info', 'Node registered successfully', { nodeId, ipAddress });
+}
 
 async function getCpuUsage() {
   const cpus = os.cpus();
@@ -86,10 +204,6 @@ function getUptimeSeconds() {
   return Math.floor((Date.now() - uptimeStart) / 1000);
 }
 
-// ============================================================================
-// WHATSAPP SESSIONS
-// ============================================================================
-
 async function getWhatsAppSessions() {
   try {
     const response = await axios.get(`http://localhost:${config.localApiPort}/api/sessions`, {
@@ -104,8 +218,7 @@ async function getWhatsAppSessions() {
         whatsapp_connected: sessions.some(s => s.connected),
       };
     }
-  } catch (error) {
-    // Local API might not be available
+  } catch (_error) {
     return {
       active_sessions: 0,
       total_sessions: 0,
@@ -123,17 +236,13 @@ async function getMessagesToday() {
     if (response.data && response.data.data) {
       return response.data.data.messagesToday || 0;
     }
-  } catch (error) {
+  } catch (_error) {
     return 0;
   }
 }
 
-// ============================================================================
-// ERROR LOGS
-// ============================================================================
-
 async function getErrorLogs() {
-  const logPath = path.join(__dirname, '../../backend/logs');
+  const logPath = path.join(__dirname, '..', '..', 'backend', 'logs');
   
   if (!fs.existsSync(logPath)) {
     return 0;
@@ -159,12 +268,39 @@ async function getErrorLogs() {
   }
 }
 
-// ============================================================================
-// HEARTBEAT
-// ============================================================================
+async function flushRemoteLogs() {
+  if (!registered || !config.nodeId || !config.token || pendingLogBuffer.length === 0) {
+    return;
+  }
+
+  const batch = pendingLogBuffer.splice(0, 30);
+  try {
+    await axios.post(
+      `${config.masterApiUrl}/nodes/${config.nodeId}/logs`,
+      { logs: batch },
+      {
+        headers: {
+          Authorization: `Bearer ${config.token}`,
+          'Content-Type': 'application/json',
+        },
+        timeout: 10000,
+      }
+    );
+  } catch (error) {
+    pendingLogBuffer.unshift(...batch);
+    if (pendingLogBuffer.length > 300) {
+      pendingLogBuffer.splice(300);
+    }
+    log('warn', 'Failed to send logs to master', { error: error.message });
+  }
+}
 
 async function sendHeartbeat() {
   try {
+    if (!registered) {
+      await registerIfNeeded();
+    }
+
     const [cpuUsage, memoryUsage, diskUsage, uptime, sessions, messagesToday, errorsCount] = await Promise.all([
       getCpuUsage(),
       getMemoryUsage(),
@@ -176,6 +312,7 @@ async function sendHeartbeat() {
     ]);
 
     const payload = {
+      version: config.nodeVersion,
       cpu_usage: parseFloat(cpuUsage),
       memory_usage: parseFloat(memoryUsage),
       disk_usage: diskUsage ? parseFloat(diskUsage) : null,
@@ -200,35 +337,51 @@ async function sendHeartbeat() {
     );
 
     if (response.data.success) {
-      console.log(`[${new Date().toISOString()}] Heartbeat sent successfully`);
-      
-      // Process pending commands
+      failedHeartbeats = 0;
+      log('info', 'Heartbeat sent successfully', { nodeId: config.nodeId });
+
       if (response.data.data.commands && response.data.data.commands.length > 0) {
-        console.log(`[${new Date().toISOString()}] Received ${response.data.data.commands.length} commands`);
+        log('info', 'Received pending commands', { count: response.data.data.commands.length });
         for (const command of response.data.data.commands) {
           await executeCommand(command);
         }
       }
+
+      await flushRemoteLogs();
     }
   } catch (error) {
-    console.error(`[${new Date().toISOString()}] Heartbeat failed:`, error.message);
+    failedHeartbeats += 1;
+
+    if (error.response?.status === 401 || error.response?.status === 404) {
+      registered = false;
+      config.nodeId = '';
+      config.token = '';
+      try {
+        fs.unlinkSync(config.credentialsPath);
+      } catch (_removeError) {
+      }
+    }
+
+    log('error', 'Heartbeat failed', {
+      error: error.message,
+      failedHeartbeats,
+      status: error.response?.status || null,
+    });
   }
 }
 
-// ============================================================================
-// COMMAND EXECUTION
-// ============================================================================
-
 async function executeCommand(command) {
-  console.log(`[${new Date().toISOString()}] Executing command: ${command.command_type}`);
+  log('info', 'Executing command', { type: command.command_type, commandId: command.id });
   
   try {
     let result = null;
-    let error = null;
 
     switch (command.command_type) {
       case 'restart':
         result = await executeRestart();
+        break;
+      case 'deploy':
+        result = await executeDeploy(command.payload);
         break;
       case 'update':
         result = await executeUpdate();
@@ -249,7 +402,6 @@ async function executeCommand(command) {
         throw new Error(`Unknown command: ${command.command_type}`);
     }
 
-    // Send result back to master
     await axios.post(
       `${config.masterApiUrl}/nodes/${config.nodeId}/commands/${command.id}/result`,
       {
@@ -265,11 +417,10 @@ async function executeCommand(command) {
       }
     );
 
-    console.log(`[${new Date().toISOString()}] Command ${command.command_type} completed`);
+    log('info', 'Command completed', { type: command.command_type, commandId: command.id });
   } catch (error) {
-    console.error(`[${new Date().toISOString()}] Command ${command.command_type} failed:`, error.message);
-    
-    // Send error back to master
+    log('error', 'Command failed', { type: command.command_type, commandId: command.id, error: error.message });
+
     await axios.post(
       `${config.masterApiUrl}/nodes/${config.nodeId}/commands/${command.id}/result`,
       {
@@ -288,52 +439,61 @@ async function executeCommand(command) {
 }
 
 async function executeRestart() {
-  // Restart the application (PM2 or docker)
   try {
-    await execAsync('pm2 restart zapai-backend || docker-compose restart backend');
+    await execAsync('docker compose restart backend || docker-compose restart backend || systemctl restart zapai-backend');
     return { message: 'Restart initiated' };
-  } catch (error) {
+  } catch (_error) {
     throw new Error('Restart failed');
   }
 }
 
-async function executeUpdate() {
-  // Git pull and restart
+async function executeDeploy(payload) {
+  const ref = payload?.ref || 'main';
+
   try {
-    await execAsync('git pull');
-    await execAsync('npm install');
-    await execAsync('pm2 restart zapai-backend || docker-compose restart backend');
+    await execAsync(`git fetch origin ${ref}`);
+    await execAsync(`git checkout ${ref}`);
+    await execAsync('git pull --rebase origin main || true');
+    await execAsync('docker compose build --pull backend frontend || docker-compose build backend frontend');
+    await execAsync('docker compose up -d backend frontend || docker-compose up -d backend frontend');
+    return { message: 'Deploy completed', ref };
+  } catch (_error) {
+    throw new Error('Deploy failed');
+  }
+}
+
+async function executeUpdate() {
+  try {
+    await execAsync('git pull --rebase origin main');
+    await execAsync('docker compose up -d --build backend || docker-compose up -d --build backend');
     return { message: 'Update completed' };
-  } catch (error) {
+  } catch (_error) {
     throw new Error('Update failed');
   }
 }
 
 async function executeRebuild() {
-  // Rebuild and restart
   try {
-    await execAsync('npm run build');
-    await execAsync('pm2 restart zapai-backend || docker-compose restart backend');
+    await execAsync('docker compose build backend frontend || docker-compose build backend frontend');
+    await execAsync('docker compose up -d backend frontend || docker-compose up -d backend frontend');
     return { message: 'Rebuild completed' };
-  } catch (error) {
+  } catch (_error) {
     throw new Error('Rebuild failed');
   }
 }
 
 async function executeDisconnectWhatsApp() {
-  // Disconnect all WhatsApp sessions
   try {
     await axios.post(`http://localhost:${config.localApiPort}/api/sessions/disconnect-all`, {
       timeout: 10000,
     });
     return { message: 'WhatsApp sessions disconnected' };
-  } catch (error) {
+  } catch (_error) {
     throw new Error('Failed to disconnect WhatsApp');
   }
 }
 
 async function executeBackup(payload) {
-  // Create backup
   const backupType = payload?.type || 'full';
   const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
   const backupPath = `/backups/backup-${timestamp}-${backupType}.tar.gz`;
@@ -342,33 +502,19 @@ async function executeBackup(payload) {
     await execAsync(`mkdir -p /backups`);
     await execAsync(`tar -czf ${backupPath} /app/backend/data /app/backend/sessions`);
     return { message: 'Backup created', backup_path: backupPath };
-  } catch (error) {
+  } catch (_error) {
     throw new Error('Backup failed');
   }
 }
 
 async function executeClearCache() {
-  // Clear application cache
   try {
     await execAsync('rm -rf /app/backend/.cache /app/backend/node_modules/.cache');
     return { message: 'Cache cleared' };
-  } catch (error) {
+  } catch (_error) {
     throw new Error('Failed to clear cache');
   }
 }
-
-// ============================================================================
-// LOGS SENDING
-// ============================================================================
-
-async function sendLogs() {
-  // This would read local logs and send to master
-  // Implementation depends on logging system
-}
-
-// ============================================================================
-// SESSIONS SYNC
-// ============================================================================
 
 async function syncSessions() {
   try {
@@ -396,49 +542,40 @@ async function syncSessions() {
         }
       );
     }
-  } catch (error) {
-    // Silent fail - local API might not be available
+  } catch (_error) {
   }
 }
 
-// ============================================================================
-// MAIN LOOP
-// ============================================================================
-
 async function main() {
-  console.log(`[${new Date().toISOString()}] Master Node Agent starting`);
-  console.log(`[${new Date().toISOString()}] Node ID: ${config.nodeId}`);
-  console.log(`[${new Date().toISOString()}] Master API: ${config.masterApiUrl}`);
-  console.log(`[${new Date().toISOString()}] Heartbeat interval: ${config.heartbeatInterval}ms`);
+  restoreCredentials();
 
-  if (!config.nodeId || !config.token) {
-    console.error('ERROR: NODE_ID and NODE_TOKEN environment variables are required');
-    process.exit(1);
-  }
+  log('info', 'Master Node Agent starting');
+  log('info', 'Agent config loaded', {
+    masterApiUrl: config.masterApiUrl,
+    nodeId: config.nodeId || null,
+    heartbeatInterval: config.heartbeatInterval,
+    hostname: os.hostname(),
+  });
 
-  // Send initial heartbeat
+  await registerIfNeeded();
+
   await sendHeartbeat();
-  
-  // Sync sessions initially
   await syncSessions();
 
-  // Start heartbeat loop
   const heartbeatInterval = setInterval(async () => {
     if (isRunning) {
       await sendHeartbeat();
     }
   }, config.heartbeatInterval);
 
-  // Start sessions sync loop (every 5 minutes)
   const sessionsInterval = setInterval(async () => {
     if (isRunning) {
       await syncSessions();
     }
   }, 5 * 60 * 1000);
 
-  // Graceful shutdown
   process.on('SIGTERM', () => {
-    console.log(`[${new Date().toISOString()}] Received SIGTERM, shutting down`);
+    log('warn', 'Received SIGTERM, shutting down');
     isRunning = false;
     clearInterval(heartbeatInterval);
     clearInterval(sessionsInterval);
@@ -446,7 +583,7 @@ async function main() {
   });
 
   process.on('SIGINT', () => {
-    console.log(`[${new Date().toISOString()}] Received SIGINT, shutting down`);
+    log('warn', 'Received SIGINT, shutting down');
     isRunning = false;
     clearInterval(heartbeatInterval);
     clearInterval(sessionsInterval);
@@ -454,9 +591,8 @@ async function main() {
   });
 }
 
-// Start agent
 main().catch(error => {
-  console.error('Fatal error:', error);
+  log('error', 'Fatal error', { error: error.message });
   process.exit(1);
 });
 

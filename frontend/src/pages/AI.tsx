@@ -68,6 +68,10 @@ type TrainingRow = {
 };
 
 const DEFAULT_PROMPT = "Você é Camila, assistente de vendas do Depósito Vista Alegre.";
+const DEFAULT_ABSENCE_MESSAGE =
+  "Olá! No momento estamos fora do horário de atendimento. Nosso atendimento online ocorre das 7h às 20h.";
+const DEFAULT_QUEUE_MESSAGE =
+  "Olá! Ontem você entrou em contato conosco fora do horário. Posso ajudar agora?";
 
 const defaultTrainingRows: TrainingRow[] = [
   {
@@ -148,15 +152,11 @@ export default function AI() {
   const [outsideHoursAutoReply, setOutsideHoursAutoReply] = useState(true);
 
   const [absenceEnabled, setAbsenceEnabled] = useState(true);
-  const [absenceMessage, setAbsenceMessage] = useState(
-    "Olá! No momento estamos fora do horário de atendimento. Nosso atendimento online ocorre das 7h às 20h.",
-  );
+  const [absenceMessage, setAbsenceMessage] = useState(DEFAULT_ABSENCE_MESSAGE);
 
   const [queueBatchSize, setQueueBatchSize] = useState(5);
   const [queueDelaySeconds, setQueueDelaySeconds] = useState(60);
-  const [queueMessage, setQueueMessage] = useState(
-    "Olá! Ontem você entrou em contato conosco fora do horário. Posso ajudar agora?",
-  );
+  const [queueMessage, setQueueMessage] = useState(DEFAULT_QUEUE_MESSAGE);
   const [queueWaiting, setQueueWaiting] = useState(0);
   const [queueSentToday, setQueueSentToday] = useState(0);
 
@@ -216,13 +216,13 @@ export default function AI() {
 
         if (absence) {
           setAbsenceEnabled(Boolean(absence.enabled));
-          setAbsenceMessage(absence.message ?? absenceMessage);
+          setAbsenceMessage(absence.message ?? DEFAULT_ABSENCE_MESSAGE);
         }
 
         if (queue) {
           setQueueBatchSize(queue.batchSize ?? 5);
           setQueueDelaySeconds(queue.delaySeconds ?? 60);
-          setQueueMessage(queue.reactivationMessage ?? queueMessage);
+          setQueueMessage(queue.reactivationMessage ?? DEFAULT_QUEUE_MESSAGE);
           setQueueWaiting(queue.customersWaiting ?? 0);
           setQueueSentToday(queue.messagesSentToday ?? 0);
         }

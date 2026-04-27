@@ -195,7 +195,7 @@ export default function Campaigns() {
 
   const safeCampaigns = useMemo(() => (Array.isArray(mockCampaigns) ? mockCampaigns : []), []);
 
-  const handleStartCampaign = useCallback((campaignIdsing) => {campaigns
+  const handleStartCampaign = useCallback((campaignId: string) => {
     if (startingCampaignId) return;
     setStartingCampaignId(campaignId);
     window.setTimeout(() => {

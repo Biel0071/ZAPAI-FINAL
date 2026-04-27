@@ -8,10 +8,24 @@
  * ============================================================================
  */
 
-import { BUILD_ID, ENV_NAME } from '@/config/runtime';
+import { APP_VERSION, ENV_NAME } from '@/config/runtime';
 
-const CACHE_RESET_KEY = 'zapai_cache_reset';
-const LAST_BUILD_KEY = 'zapai_last_build_id';
+const CACHE_RESET_KEY = `zapai_cache_reset_${APP_VERSION}`;
+let cacheResetInitialized = false;
+let cacheResetInitPromise: Promise<void> | null = null;
+
+const LEGACY_VERSION_KEYS = [
+  'zapai_last_build_id',
+  'zapai_build_id',
+  'zapai_stable_build_id',
+  'zapai_runtime_build_source',
+  'zapai_runtime_build_origin',
+  'zapai_preview_build',
+  'zapai_legacy_source',
+  'zapai_version_switch',
+  'zapai_auto_rollback',
+  'zapai_release_candidate',
+];
 
 /**
  * Limpa localStorage legado
@@ -22,7 +36,18 @@ export const clearLocalStorage = (): void => {
     
     for (let i = 0; i < localStorage.length; i++) {
       const key = localStorage.key(i);
-      if (key && !key.startsWith('zapai_')) {
+      if (!key) continue;
+
+      const normalized = key.toLowerCase();
+      const isLegacyVersionKey =
+        LEGACY_VERSION_KEYS.includes(key) ||
+        normalized.includes('build') ||
+        normalized.includes('version') ||
+        normalized.includes('rollback') ||
+        normalized.includes('legacy') ||
+        normalized.includes('preview');
+
+      if (isLegacyVersionKey) {
         keysToRemove.push(key);
       }
     }
@@ -83,36 +108,11 @@ export const clearCaches = async (): Promise<void> => {
 };
 
 /**
- * Detecta mudança de build e força reload
- */
-export const detectBuildChange = (): boolean => {
-  try {
-    const lastBuildId = localStorage.getItem(LAST_BUILD_KEY);
-    const currentBuildId = BUILD_ID;
-    
-    if (lastBuildId && lastBuildId !== currentBuildId) {
-      console.log(`[CacheReset] Build changed from ${lastBuildId} to ${currentBuildId}`);
-      localStorage.setItem(LAST_BUILD_KEY, currentBuildId);
-      return true;
-    }
-    
-    if (!lastBuildId) {
-      localStorage.setItem(LAST_BUILD_KEY, currentBuildId);
-    }
-    
-    return false;
-  } catch (e) {
-    console.error('[CacheReset] Error detecting build change:', e);
-    return false;
-  }
-};
-
-/**
  * Executa hard reset completo
  */
 export const executeHardReset = async (): Promise<void> => {
   console.log('[CacheReset] Starting hard reset...');
-  console.log(`[CacheReset] Build ID: ${BUILD_ID}`);
+  console.log(`[CacheReset] App Version: ${APP_VERSION}`);
   console.log(`[CacheReset] Environment: ${ENV_NAME}`);
   
   // Em produção, executar reset completo
@@ -124,14 +124,6 @@ export const executeHardReset = async (): Promise<void> => {
     
     // Marcar como resetado
     localStorage.setItem(CACHE_RESET_KEY, Date.now().toString());
-  }
-  
-  // Detectar mudança de build
-  const buildChanged = detectBuildChange();
-  
-  if (buildChanged) {
-    console.log('[CacheReset] Build changed, forcing reload...');
-    window.location.reload();
   }
   
   console.log('[CacheReset] Hard reset complete');
@@ -160,15 +152,24 @@ export const wasResetExecuted = (): boolean => {
  * Inicializa reset no boot
  */
 export const initializeCacheReset = async (): Promise<void> => {
-  // Em produção, sempre executar reset no primeiro load
-  if (ENV_NAME === 'production' && !wasResetExecuted()) {
-    await executeHardReset();
+  if (cacheResetInitialized) {
+    return;
   }
-  
-  // Detectar mudança de build em qualquer ambiente
-  const buildChanged = detectBuildChange();
-  if (buildChanged) {
-    console.log('[CacheReset] Build changed, reloading...');
-    window.location.reload();
+
+  if (cacheResetInitPromise) {
+    return cacheResetInitPromise;
   }
+
+  cacheResetInitPromise = (async () => {
+    // Em produção, executar limpeza de legado uma vez por versão oficial
+    if (ENV_NAME === 'production' && !wasResetExecuted()) {
+      await executeHardReset();
+    }
+
+    cacheResetInitialized = true;
+  })().finally(() => {
+    cacheResetInitPromise = null;
+  });
+
+  return cacheResetInitPromise;
 };

@@ -18,25 +18,44 @@
 // Build ID injetado pelo Vite
 declare const __BUILD_ID__: string;
 declare const __BUILD_TIME__: string;
+declare const __RELEASE_LOCK_ENABLED__: boolean;
+declare const __STABLE_BUILD_ID__: string;
+declare const __APP_VERSION__: string;
 
 /**
  * URL base da API - ÚNICA FONTE DE VERDADE
  * PRODUÇÃO: Usa apenas VITE_API_URL, sem fallbacks
  */
 export const API_BASE_URL = (() => {
-  // Em produção, usar variável de ambiente SEM fallback
+  // Em todos os ambientes, usar variável de ambiente SEM fallback
   const envUrl = import.meta.env.VITE_API_URL;
   if (envUrl && envUrl !== '/api') {
     return envUrl.replace(/\/$/, ''); // Remove trailing slash
   }
-  
-  // Em desenvolvimento, usar localhost do backend (porta 4025)
-  if (import.meta.env.MODE === 'development') {
-    return 'http://localhost:4025';
+
+  // Em produção sem configuração, manter vazio para evitar crash de import
+  // (a validação de runtime reporta o erro no boot)
+  console.error('VITE_API_URL not configured. Frontend must point to master API URL.');
+  return '';
+})();
+
+/**
+ * Release lock flags
+ */
+export const RELEASE_LOCK_ENABLED = (() => {
+  try {
+    return typeof __RELEASE_LOCK_ENABLED__ !== 'undefined' ? Boolean(__RELEASE_LOCK_ENABLED__) : false;
+  } catch {
+    return false;
   }
-  
-  // PROIBIDO: Não usar fallback em produção
-  throw new Error('VITE_API_URL not configured. Set VITE_API_URL in .env.production');
+})();
+
+export const STABLE_BUILD_ID = (() => {
+  try {
+    return typeof __STABLE_BUILD_ID__ !== 'undefined' ? String(__STABLE_BUILD_ID__ || '') : '';
+  } catch {
+    return '';
+  }
 })();
 
 /**
@@ -56,6 +75,22 @@ export const BUILD_ID = (() => {
   } catch {
     return 'dev-local';
   }
+})();
+
+export const APP_VERSION = (() => {
+  try {
+    if (typeof __APP_VERSION__ !== 'undefined' && String(__APP_VERSION__ || '').trim()) {
+      return String(__APP_VERSION__).trim();
+    }
+  } catch {
+    // no-op
+  }
+
+  if (STABLE_BUILD_ID) {
+    return STABLE_BUILD_ID;
+  }
+
+  return BUILD_ID;
 })();
 
 /**
@@ -165,6 +200,10 @@ export const validateRuntimeConfig = (): { valid: boolean; errors: string[] } =>
   if (!BUILD_ID) {
     errors.push('BUILD_ID is empty');
   }
+
+  if (!APP_VERSION) {
+    errors.push('APP_VERSION is empty');
+  }
   
   if (!ENV_NAME) {
     errors.push('ENV_NAME is empty');
@@ -172,6 +211,10 @@ export const validateRuntimeConfig = (): { valid: boolean; errors: string[] } =>
   
   if (ENV_NAME === 'production' && API_BASE_URL.includes('localhost')) {
     errors.push('Production mode cannot use localhost');
+  }
+
+  if (ENV_NAME === 'production' && !RELEASE_LOCK_ENABLED) {
+    errors.push('Production mode requires release lock enabled');
   }
   
   return {
@@ -187,6 +230,7 @@ export const getRuntimeInfo = () => ({
   apiBaseURL: API_BASE_URL,
   wsBaseURL: WS_BASE_URL,
   buildId: BUILD_ID,
+  appVersion: APP_VERSION,
   buildTime: BUILD_TIME,
   envName: ENV_NAME,
   tenantId: TENANT_ID,
