@@ -9,6 +9,20 @@ function shouldUseSsl() {
     return false;
   }
 
+  const hostFromUrl = (() => {
+    try {
+      return process.env.DATABASE_URL ? new URL(process.env.DATABASE_URL).hostname : '';
+    } catch {
+      return '';
+    }
+  })();
+
+  const effectiveHost = String(hostFromUrl || process.env.DB_HOST || '').trim().toLowerCase();
+  const isLocalDockerHost = ['localhost', '127.0.0.1', 'postgres', 'db'].includes(effectiveHost);
+  if (isLocalDockerHost) {
+    return false;
+  }
+
   return process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false;
 }
 

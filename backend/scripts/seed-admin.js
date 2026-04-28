@@ -11,7 +11,7 @@
 
 require('dotenv').config({ path: '.env.production' });
 const { Pool } = require('pg');
-const bcrypt = require('bcrypt');
+const bcrypt = require('bcryptjs');
 
 async function seedAdmin() {
   console.log('==========================================');

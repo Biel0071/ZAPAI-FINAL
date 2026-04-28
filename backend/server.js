@@ -22,11 +22,9 @@ const {
   saveAiIntelligenceState,
 } = require('./config/aiIntelligenceStorage');
 const { ensurePromptHistory } = require('./config/promptManager');
-const { getPublicUrl } = require('./config/ngrok');
 const { loadRuntimeEnv, logRuntimeWarnings } = require('./config/runtimeEnv');
 const { loadStoreState, saveStoreState } = require('./config/storage');
 const { initializeBugWatcher } = require('./services/bugWatcher');
-const systemRouter = require('./routes/system');
 const { registerRoutes } = require('./routes');
 const { tenantContextMiddleware } = require('./services/tenantContext');
 const {
@@ -39,7 +37,6 @@ const conversationRepository = require('./repositories/conversationRepository');
 const messageRepository = require('./repositories/messageRepository');
 const sessionManager = require('./services/sessionManager');
 const systemManager = require('./services/systemManager');
-const runtimeManager = require('./services/runtimeManager');
 const whatsappService = require('./services/whatsappService');
 const outboundQueueService = require('./services/outboundQueueService');
 const enterpriseQueueService = require('./services/enterprise/queue-service');
@@ -98,6 +95,13 @@ function buildHealthPayload() {
     },
     timestamp: new Date().toISOString(),
     service: 'whatsapp-crm-api',
+    mode: NODE_ROLE,
+    isMaster: IS_MASTER,
+    features: {
+      adminMasterRoutes: ENABLE_ADMIN_MASTER_ROUTES,
+      nodeRegistrationServer: ENABLE_NODE_REGISTRATION_SERVER,
+      nodeAutoRegisterClient: ENABLE_NODE_AUTO_REGISTER_CLIENT,
+    },
     runtimeActive: sessionManager.isRuntimeActive(),
     system: systemManager.getSystemStatus(app.locals.store),
   };
@@ -108,6 +112,14 @@ backendLog('info', 'boot:start', { pid: process.pid });
 
 const app = express();
 const server = http.createServer(app);
+const io = new Server(server, {
+  cors: {
+    origin: validateOrigin,
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  },
+});
+app.set('io', io);
 
 // Porta fixa 4025 - travada para produção
 const PORT = 4025;
@@ -122,6 +134,11 @@ const NODE_ENV = runtimeEnv.nodeEnv;
 const IS_PRODUCTION = runtimeEnv.isProduction;
 const IS_DEVELOPMENT = NODE_ENV === 'development';
 const RUN_MIGRATIONS_ON_BOOT = runtimeEnv.runMigrationsOnBoot;
+const NODE_ROLE = runtimeEnv.nodeRole;
+const IS_MASTER = runtimeEnv.isMaster;
+const ENABLE_ADMIN_MASTER_ROUTES = runtimeEnv.enableAdminMasterRoutes;
+const ENABLE_NODE_REGISTRATION_SERVER = runtimeEnv.enableNodeRegistrationServer;
+const ENABLE_NODE_AUTO_REGISTER_CLIENT = runtimeEnv.enableNodeAutoRegisterClient;
 const FRONTEND_URL = runtimeEnv.frontendUrl;
 const ENV_ALLOWED_ORIGINS = runtimeEnv.allowedOriginsFromEnv || process.env.ALLOWED_ORIGINS?.split(',') || [];
 const BASE_ALLOWED_ORIGINS = [
@@ -141,10 +158,7 @@ console.log(`[SERVER] Bootstrapping on port ${PORT}`);
 logRuntimeWarnings(runtimeEnv);
 
 function getAllowedOrigins() {
-  return [
-    ...BASE_ALLOWED_ORIGINS,
-    ...(app.locals.store?.publicUrl ? [app.locals.store.publicUrl] : []),
-  ];
+  return [...BASE_ALLOWED_ORIGINS];
 }
 
 function isOriginAllowed(origin) {
@@ -449,11 +463,10 @@ app.locals.store = {
   conversations: [],
   databaseEnabled: false,
   databaseError: null,
-  io,
+  io: app.get("io"),
   messages: [],
   metricsJob: null,
   metricsSnapshot: null,
-  ngrokProcess: null,
   publicUrl: PUBLIC_API_URL,
   saveState: async () => Promise.resolve(),
   saveAiState: async () =>
@@ -512,9 +525,9 @@ registerRoutes(app, {
   requireJwtAuth: authMiddleware,
   writeHeavyRateLimiter,
   authRateLimiter,
+  enableAdminMasterRoutes: ENABLE_ADMIN_MASTER_ROUTES,
+  enableNodeRegistrationServer: ENABLE_NODE_REGISTRATION_SERVER,
 });
-
-app.use('/api/system', systemRouter);
 
 app.get('/api', (_req, res) => {
   return res.status(200).json({
@@ -1030,22 +1043,9 @@ async function bootstrap() {
       heartbeatTimer.unref?.();
     }
 
-    // Initialize runtime manager (handles ngrok and monitoring)
-    // In production (VPS), ngrok is never used — Nginx handles reverse proxy.
-    const useNgrok = process.env.USE_NGROK === 'true' && process.env.NGROK_MANAGED_EXTERNALLY !== 'true';
-    if (useNgrok) {
-      try {
-        const runtimeStatus = await runtimeManager.initialize(PORT);
-        console.log('[SERVER] Runtime Manager initialized:', runtimeStatus);
-      } catch (error) {
-        console.error('[SERVER] Failed to initialize runtime manager:', error.message);
-        console.warn('[SERVER] Continuing without ngrok tunnel...');
-      }
-      PUBLIC_API_URL = await getPublicUrl(`http://localhost:${PORT}`);
-    } else {
-      console.log('[SERVER] Ngrok disabled — using direct URL');
-      PUBLIC_API_URL = process.env.FRONTEND_URL || `http://localhost:${PORT}`;
-    }
+    PUBLIC_API_URL =
+      String(process.env.MASTER_API_URL || process.env.PUBLIC_API_URL || '').trim() ||
+      `http://209.50.229.68:${PORT}`;
     app.locals.store.publicUrl = PUBLIC_API_URL;
 
     console.log('[SERVER] Public API URL:');
@@ -1086,7 +1086,6 @@ process.on('SIGINT', async () => {
   await outboundQueueService.shutdownOutboundQueue();
   await enterpriseQueueService.shutdown();
   await systemManager.shutdownSystem(app.locals.store);
-  await runtimeManager.shutdown();
   process.exit(0);
 });
 
@@ -1099,7 +1098,6 @@ process.on('SIGTERM', async () => {
   await outboundQueueService.shutdownOutboundQueue();
   await enterpriseQueueService.shutdown();
   await systemManager.shutdownSystem(app.locals.store);
-  await runtimeManager.shutdown();
   process.exit(0);
 });
 

@@ -151,7 +151,7 @@ module.exports = {
     await client.query(TABLES_DDL_SQL);
     
     // Insert default admin user
-    const bcrypt = require('bcrypt');
+    const bcrypt = require('bcryptjs');
     const passwordHash = await bcrypt.hash('admin123', 10);
     await client.query(
       `INSERT INTO users (username, email, password_hash, role)

@@ -19,6 +19,11 @@ class NodeRegisterService {
     this.nodeToken = process.env.NODE_TOKEN;
     this.registrationToken = process.env.NODE_REGISTRATION_TOKEN || process.env.MASTER_TOKEN || '';
     this.nodeId = process.env.NODE_ID || this.generateNodeId();
+    const role = String(process.env.NODE_ROLE || '').trim().toLowerCase();
+    const isMaster = role ? role === 'master' : String(process.env.MASTER || '').trim().toLowerCase() === 'true';
+    this.autoRegisterEnabled = String(process.env.FEATURE_NODE_AUTO_REGISTER || (isMaster ? 'false' : 'true'))
+      .trim()
+      .toLowerCase() === 'true';
     this.heartbeatInterval = null;
   }
 
@@ -127,6 +132,11 @@ class NodeRegisterService {
   }
 
   async registerNode() {
+    if (!this.autoRegisterEnabled) {
+      console.log('[NodeRegister] FEATURE_NODE_AUTO_REGISTER disabled, skipping auto-register');
+      return;
+    }
+
     if (!this.masterApiUrl) {
       console.log('[NodeRegister] MASTER_API_URL not configured, skipping auto-register');
       return;

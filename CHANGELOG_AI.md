@@ -1,5 +1,38 @@
 # CHANGELOG_AI
 
+## 2026-04-28 - Estabilização VPS única (209.50.229.68:4025)
+
+### Escopo
+- Auditoria backend + deploy para operação exclusiva via VPS `209.50.229.68` na porta `4025`.
+- Limpeza de legado conflitante de ngrok e variáveis duplicadas de API no deploy.
+
+### Ajustes aplicados
+- `backend/server.js`
+  - Removidas dependências e fluxo de runtime/ngrok no boot e shutdown.
+  - URL pública passa a usar `MASTER_API_URL`/`PUBLIC_API_URL` com fallback explícito para `http://209.50.229.68:4025`.
+  - Mantidos healthcheck e Socket.IO com CORS por allowlist.
+- `backend/controllers/conversationsController.js`
+  - Removida dependência de `config/ngrok`.
+  - Endpoint `/public-url` e geração de `paymentUrl` agora usam base explícita (`MASTER_API_URL`/`PUBLIC_API_URL`).
+- `deploy/install.sh`
+  - Removida geração de `VITE_WHATSAPP_API_BASE_URL` (fonte duplicada/legada).
+- `deploy/doctor.sh`
+  - Removida sugestão de `VITE_WHATSAPP_API_BASE_URL` ao regenerar `.env.production` do frontend.
+- `deploy/ecosystem.config.js`
+  - PM2 revisado para produção master: `NODE_ROLE=master`, `MASTER=true`, `MASTER_API_URL=http://209.50.229.68:4025`, `autorestart=true`.
+  - Removidas flags de ngrok do perfil de produção.
+- `.github/workflows/deploy-vps.yml`
+  - Deploy automático em `main` com validação pós-deploy de `health` e handshake de Socket.IO.
+- Templates de ambiente
+  - Removidos blocos/flags de ngrok em `backend/.env.example`, `backend/.env.production.example` e `.env.production.example`.
+
+### Validação local
+- `node --check backend/server.js`: OK.
+- `node --check backend/controllers/conversationsController.js`: OK.
+
+### Resultado
+- Backend e deploy alinhados para produção previsível via VPS oficial, sem dependência operacional de ngrok.
+
 ## 2026-04-27 - Operação DevOps ZAPAI-FINAL
 
 ### Contexto

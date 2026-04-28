@@ -23,18 +23,38 @@ function parseOrigins(rawValue = '') {
     .filter(Boolean);
 }
 
+function parseNodeRole() {
+  const explicitRole = String(process.env.NODE_ROLE || '').trim().toLowerCase();
+  if (explicitRole === 'master' || explicitRole === 'node') {
+    return explicitRole;
+  }
+
+  const masterFlag = String(process.env.MASTER || '').trim().toLowerCase() === 'true';
+  return masterFlag ? 'master' : 'node';
+}
+
 function loadRuntimeEnv() {
   const nodeEnv = String(process.env.NODE_ENV || 'development').toLowerCase();
   const isProduction = nodeEnv === 'production';
+  const nodeRole = parseNodeRole();
+  const isMaster = nodeRole === 'master';
   const port = Number(process.env.PORT || process.env.APP_PORT) || 4025;
   const frontendUrl = String(process.env.FRONTEND_URL || '').trim();
   const allowedOriginsFromEnv = parseOrigins(process.env.CORS_ALLOWED_ORIGINS || '');
   const runMigrationsOnBoot = parseBoolean(process.env.DB_RUN_MIGRATIONS_ON_BOOT, false);
+  const enableAdminMasterRoutes = parseBoolean(process.env.FEATURE_ADMIN_MASTER, isMaster);
+  const enableNodeRegistrationServer = parseBoolean(process.env.FEATURE_NODE_MASTER_API, isMaster);
+  const enableNodeAutoRegisterClient = parseBoolean(process.env.FEATURE_NODE_AUTO_REGISTER, !isMaster);
 
   return {
     allowedOriginsFromEnv,
+    enableAdminMasterRoutes,
+    enableNodeAutoRegisterClient,
+    enableNodeRegistrationServer,
     frontendUrl,
+    isMaster,
     isProduction,
+    nodeRole,
     nodeEnv,
     port,
     runMigrationsOnBoot,

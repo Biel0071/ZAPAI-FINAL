@@ -10,17 +10,10 @@ import { generateDesignSystemZip } from "@/lib/designSystemExporter";
 import { systemControlService, type AiDiagnosticsResponse } from "@/services/systemControlService";
 import { getFrontendHealthSnapshot, subscribeFrontendHealth, type FrontendHealthSnapshot } from "@/services/frontendHealthService";
 import { slog, type StructuredLogEntry } from "@/lib/structuredLogger";
+import { API_ORIGIN } from "@/services/apiService";
 import { useToast } from "@/hooks/use-toast";
 
-// Use relative URL for production (same origin)
-const SYSTEM_API_BASE_URL = import.meta.env.MODE === 'production'
-  ? ''
-  : ((import.meta.env.VITE_WHATSAPP_API_BASE_URL as string | undefined)?.trim().replace(/\/$/, "") ||
-     (import.meta.env.VITE_API_URL as string | undefined)?.trim().replace(/\/$/, "") ||
-     "/api");
-const API_BASE_URL = import.meta.env.MODE === 'production'
-  ? '/api'
-  : `${(import.meta.env.VITE_API_URL as string | undefined)?.trim().replace(/\/$/, "") || "/api"}/api`;
+const SYSTEM_API_BASE_URL = API_ORIGIN;
 
 type HealthLevel = "healthy" | "warning" | "error";
 
@@ -154,7 +147,7 @@ function buildIndicators(status: DiagnosticsStatus | null, frontendHealth: Front
 }
 
 async function checkRouteHealth(route: string): Promise<RouteHealthResult> {
-  const url = route.startsWith("/api/") ? `${new URL(API_BASE_URL).origin}${route}` : `${API_BASE_URL}${route}`;
+  const url = route.startsWith("/api/") ? `${SYSTEM_API_BASE_URL}${route}` : `${SYSTEM_API_BASE_URL}/api${route}`;
   const start = performance.now();
   try {
     const controller = new AbortController();

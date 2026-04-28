@@ -86,17 +86,17 @@ export default defineConfig(({ mode }) => {
     },
     proxy: {
       "/api": {
-        target: process.env.VITE_API_URL || process.env.VITE_WHATSAPP_API_BASE_URL || "http://localhost:4025",
+        target: process.env.VITE_API_URL || "http://localhost:4025",
         changeOrigin: true,
         secure: false,
       },
       "/auth": {
-        target: process.env.VITE_API_URL || process.env.VITE_WHATSAPP_API_BASE_URL || "http://localhost:4025",
+        target: process.env.VITE_API_URL || "http://localhost:4025",
         changeOrigin: true,
         secure: false,
       },
       "/socket.io": {
-        target: process.env.VITE_API_URL || process.env.VITE_WHATSAPP_API_BASE_URL || "http://localhost:4025",
+        target: process.env.VITE_API_URL || "http://localhost:4025",
         changeOrigin: true,
         secure: false,
         ws: true,

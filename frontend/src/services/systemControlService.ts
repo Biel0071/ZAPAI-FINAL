@@ -16,6 +16,7 @@
  */
 
 import { slog } from "@/lib/structuredLogger";
+import { API_BASE_URL as RUNTIME_API_BASE_URL } from "@/config/runtime";
 
 export type RuntimeUiState = "offline" | "starting" | "running";
 
@@ -34,21 +35,7 @@ export type SystemErrorLog = {
   message: string;
 };
 
-const DEFAULT_TARGET_API_URL =
-  (import.meta.env.VITE_WHATSAPP_API_BASE_URL as string | undefined)?.trim().replace(/\/$/, "") ||
-  (import.meta.env.VITE_API_URL as string | undefined)?.trim().replace(/\/$/, "") ||
-  ((import.meta.env as Record<string, string | undefined>).TARGET_API_URL ?? "").trim().replace(/\/$/, "") ||
-  "/api";
-
-const TARGET_API_URL = DEFAULT_TARGET_API_URL;
-const CONFIGURED_API_ORIGIN = (() => {
-  try {
-    return new URL(TARGET_API_URL).origin;
-  } catch {
-    return "";
-  }
-})();
-const API_BASE_URL = `${CONFIGURED_API_ORIGIN}/api`;
+const API_BASE_URL = RUNTIME_API_BASE_URL.trim().replace(/\/$/, "");
 
 export type AiDiagnosticsItem = {
   status: string;
@@ -106,15 +93,17 @@ function resolveRuntimeUiState(status: SystemStatusResponse | null | undefined):
   return resolveSystemActive(status) ? "running" : "offline";
 }
 
-function resolveSystemBaseUrl(_baseUrl?: string): string {
-  if (_baseUrl?.trim()) return _baseUrl.trim().replace(/\/$/, "");
+function resolveSystemBaseUrl(baseUrl?: string): string {
+  if (baseUrl?.trim()) return baseUrl.trim().replace(/\/$/, "");
   return API_BASE_URL;
 }
 
 async function requestSystem(path: string, method: "GET" | "POST", baseUrl?: string) {
   const resolvedBaseUrl = resolveSystemBaseUrl(baseUrl);
-  const normalizedPath = path.startsWith("/api/") ? path.slice(4) : path;
-  const endpoint = `${resolvedBaseUrl}${normalizedPath}`;
+  const normalizedPath = path.startsWith("/") ? path : `/${path}`;
+  const endpoint = normalizedPath.startsWith("/api/")
+    ? `${resolvedBaseUrl}${normalizedPath}`
+    : `${resolvedBaseUrl}/api${normalizedPath}`;
   slog.info("system", `${method} ${normalizedPath}`, { route: normalizedPath });
 
   const response = await fetch(endpoint, {

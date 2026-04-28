@@ -2,7 +2,6 @@ const conversationsRouter = require('./conversations');
 const messagesRouter = require('./messages');
 const sessionsRouter = require('./sessions');
 const systemRouter = require('./system');
-const adminRouter = require('./admin');
 const metricsRouter = require('./metrics');
 const contactsRouter = require('./contacts');
 const analyticsRouter = require('./analytics');
@@ -22,6 +21,8 @@ function registerRoutes(app, options = {}) {
   const requireJwtAuth = options.requireJwtAuth;
   const writeHeavyRateLimiter = options.writeHeavyRateLimiter;
   const authRateLimiter = options.authRateLimiter;
+  const enableAdminMasterRoutes = options.enableAdminMasterRoutes !== false;
+  const enableNodeRegistrationServer = options.enableNodeRegistrationServer !== false;
 
   app.use('/system', systemRouter);
   // Brute-force protection: applied before the auth router so /auth/login
@@ -36,7 +37,9 @@ function registerRoutes(app, options = {}) {
 
   // System routes
   app.use('/api/system', systemRouter);
-  app.use('/api/admin', adminMasterRouter);
+  if (enableAdminMasterRoutes) {
+    app.use('/api/admin', adminMasterRouter);
+  }
   app.use('/metrics', metricsRouter);
 
   if (writeHeavyRateLimiter) {
@@ -68,7 +71,9 @@ function registerRoutes(app, options = {}) {
   app.use('/api', aiConfigRouter);
   app.use('/', mediaRouter);
   app.use('/api', mediaRouter);
-  app.use('/api', nodeRouter);
+  if (enableNodeRegistrationServer) {
+    app.use('/api', nodeRouter);
+  }
 }
 
 module.exports = {

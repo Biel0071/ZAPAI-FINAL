@@ -26,9 +26,11 @@ module.exports = {
 
       env_production: {
         NODE_ENV: 'production',
+        NODE_ROLE: 'master',
+        MASTER: 'true',
         PORT: 4025,
-        USE_NGROK: 'false',
-        NGROK_MANAGED_EXTERNALLY: 'true',
+        HOST: '0.0.0.0',
+        MASTER_API_URL: 'http://209.50.229.68:4025',
         CRASH_EXIT_ON_UNHANDLED: 'true',
         LOG_LEVEL: 'info',
         LOG_CONSOLE_QUIET: 'false',

@@ -209,11 +209,11 @@ write_master_env_files() {
   if [ -n "$domain" ]; then
     frontend_url="https://${domain}"
     api_url="http://${master_ip}:4025"
-    cors_origins="${frontend_url},http://${master_ip}:3000,http://${public_ip}:3000"
+    cors_origins="${frontend_url},http://${master_ip}:3000,http://${public_ip}:3000,https://swift-wa-assist.lovable.app"
   else
     frontend_url="http://${master_ip}:3000"
     api_url="http://${master_ip}:4025"
-    cors_origins="${frontend_url},http://${public_ip}:3000"
+    cors_origins="${frontend_url},http://${public_ip}:3000,https://swift-wa-assist.lovable.app"
   fi
 
   local postgres_user
@@ -250,8 +250,12 @@ write_master_env_files() {
   write_env_line "$ENV_FILE" MASTER_PANEL_TOKEN "$master_panel_token"
   write_env_line "$ENV_FILE" NODE_REGISTRATION_TOKEN "$node_registration_token"
   write_env_line "$ENV_FILE" MASTER "true"
+  write_env_line "$ENV_FILE" NODE_ROLE "master"
   write_env_line "$ENV_FILE" MASTER_HOSTNAME "$master_hostname"
   write_env_line "$ENV_FILE" MASTER_VPS_IP "$master_ip"
+  write_env_line "$ENV_FILE" FEATURE_ADMIN_MASTER "true"
+  write_env_line "$ENV_FILE" FEATURE_NODE_MASTER_API "true"
+  write_env_line "$ENV_FILE" FEATURE_NODE_AUTO_REGISTER "false"
   write_env_line "$ENV_FILE" DOMAIN "$domain"
   write_env_line "$ENV_FILE" LETSENCRYPT_EMAIL "$ssl_email"
   write_env_line "$ENV_FILE" BACKUP_SCHEDULE "@daily"
@@ -264,6 +268,7 @@ write_master_env_files() {
   write_env_line "$APP_DIR/backend/.env.production" PORT "4025"
   write_env_line "$APP_DIR/backend/.env.production" HOST "0.0.0.0"
   write_env_line "$APP_DIR/backend/.env.production" DATABASE_URL "postgresql://${postgres_user}:${postgres_password}@postgres:5432/${postgres_db}"
+  write_env_line "$APP_DIR/backend/.env.production" PGSSLMODE "disable"
   write_env_line "$APP_DIR/backend/.env.production" POSTGRES_HOST "postgres"
   write_env_line "$APP_DIR/backend/.env.production" POSTGRES_USER "$postgres_user"
   write_env_line "$APP_DIR/backend/.env.production" POSTGRES_PASSWORD "$postgres_password"
@@ -276,8 +281,12 @@ write_master_env_files() {
   write_env_line "$APP_DIR/backend/.env.production" NODE_REGISTRATION_TOKEN "$node_registration_token"
   write_env_line "$APP_DIR/backend/.env.production" MASTER_API_URL "$api_url"
   write_env_line "$APP_DIR/backend/.env.production" MASTER "true"
+  write_env_line "$APP_DIR/backend/.env.production" NODE_ROLE "master"
   write_env_line "$APP_DIR/backend/.env.production" MASTER_HOSTNAME "$master_hostname"
   write_env_line "$APP_DIR/backend/.env.production" MASTER_VPS_IP "$master_ip"
+  write_env_line "$APP_DIR/backend/.env.production" FEATURE_ADMIN_MASTER "true"
+  write_env_line "$APP_DIR/backend/.env.production" FEATURE_NODE_MASTER_API "true"
+  write_env_line "$APP_DIR/backend/.env.production" FEATURE_NODE_AUTO_REGISTER "false"
   write_env_line "$APP_DIR/backend/.env.production" CRASH_EXIT_ON_UNHANDLED "true"
   write_env_line "$APP_DIR/backend/.env.production" LOG_LEVEL "info"
   write_env_line "$APP_DIR/backend/.env.production" FRONTEND_URL "$frontend_url"
@@ -285,7 +294,6 @@ write_master_env_files() {
 
   begin_env_file "$APP_DIR/frontend/.env.production"
   write_env_line "$APP_DIR/frontend/.env.production" VITE_API_URL "$api_url"
-  write_env_line "$APP_DIR/frontend/.env.production" VITE_WHATSAPP_API_BASE_URL "$api_url"
 
   echo
   ok "MASTER NODE configurado"
@@ -331,6 +339,11 @@ write_node_env_files() {
   write_env_line "$ENV_FILE" VITE_API_URL "$master_api_url"
   write_env_line "$ENV_FILE" MASTER_PANEL_TOKEN ""
   write_env_line "$ENV_FILE" NODE_REGISTRATION_TOKEN "$node_registration_token"
+  write_env_line "$ENV_FILE" MASTER "false"
+  write_env_line "$ENV_FILE" NODE_ROLE "node"
+  write_env_line "$ENV_FILE" FEATURE_ADMIN_MASTER "false"
+  write_env_line "$ENV_FILE" FEATURE_NODE_MASTER_API "false"
+  write_env_line "$ENV_FILE" FEATURE_NODE_AUTO_REGISTER "true"
   write_env_line "$ENV_FILE" DOMAIN ""
   write_env_line "$ENV_FILE" LETSENCRYPT_EMAIL ""
   write_env_line "$ENV_FILE" BACKUP_SCHEDULE "@daily"
@@ -343,6 +356,7 @@ write_node_env_files() {
   write_env_line "$APP_DIR/backend/.env.production" PORT "4025"
   write_env_line "$APP_DIR/backend/.env.production" HOST "0.0.0.0"
   write_env_line "$APP_DIR/backend/.env.production" DATABASE_URL "postgresql://${postgres_user}:${postgres_password}@postgres:5432/${postgres_db}"
+  write_env_line "$APP_DIR/backend/.env.production" PGSSLMODE "disable"
   write_env_line "$APP_DIR/backend/.env.production" POSTGRES_HOST "postgres"
   write_env_line "$APP_DIR/backend/.env.production" POSTGRES_USER "$postgres_user"
   write_env_line "$APP_DIR/backend/.env.production" POSTGRES_PASSWORD "$postgres_password"
@@ -354,6 +368,11 @@ write_node_env_files() {
   write_env_line "$APP_DIR/backend/.env.production" MASTER_API_URL "$master_api_url"
   write_env_line "$APP_DIR/backend/.env.production" NODE_REGISTRATION_TOKEN "$node_registration_token"
   write_env_line "$APP_DIR/backend/.env.production" NODE_ID "node-$(hostname)-${public_ip//./-}"
+  write_env_line "$APP_DIR/backend/.env.production" MASTER "false"
+  write_env_line "$APP_DIR/backend/.env.production" NODE_ROLE "node"
+  write_env_line "$APP_DIR/backend/.env.production" FEATURE_ADMIN_MASTER "false"
+  write_env_line "$APP_DIR/backend/.env.production" FEATURE_NODE_MASTER_API "false"
+  write_env_line "$APP_DIR/backend/.env.production" FEATURE_NODE_AUTO_REGISTER "true"
   write_env_line "$APP_DIR/backend/.env.production" CRASH_EXIT_ON_UNHANDLED "true"
   write_env_line "$APP_DIR/backend/.env.production" LOG_LEVEL "info"
   write_env_line "$APP_DIR/backend/.env.production" FRONTEND_URL "http://${public_ip}:3000"
@@ -361,7 +380,6 @@ write_node_env_files() {
 
   begin_env_file "$APP_DIR/frontend/.env.production"
   write_env_line "$APP_DIR/frontend/.env.production" VITE_API_URL "$master_api_url"
-  write_env_line "$APP_DIR/frontend/.env.production" VITE_WHATSAPP_API_BASE_URL "$master_api_url"
 
   ok "Arquivos .env do NODE gerados automaticamente"
 }

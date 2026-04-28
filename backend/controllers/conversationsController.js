@@ -1,6 +1,5 @@
 const conversationRepository = require('../repositories/conversationRepository');
 const messageRepository = require('../repositories/messageRepository');
-const { getPublicUrl: resolvePublicUrl } = require('../config/ngrok');
 const whatsappService = require('../services/whatsappService');
 const sessionManager = require('../services/sessionManager');
 const { registerOutgoingMessage } = require('./messagesController');
@@ -32,6 +31,14 @@ function ensureDraftStore(store) {
   }
 
   return store.conversationDrafts;
+}
+
+function resolveBasePublicUrl(store) {
+  return (
+    String(process.env.MASTER_API_URL || process.env.PUBLIC_API_URL || '').trim() ||
+    store?.publicUrl ||
+    'http://209.50.229.68:4025'
+  );
 }
 
 function emitConversationUpdated(store, conversation) {
@@ -266,23 +273,14 @@ async function createConversation(req, res) {
 }
 
 async function getPublicUrl(req, res) {
-  const fallbackUrl = req.app.locals.store?.publicUrl || 'http://localhost:4000';
-
-  try {
-    const publicUrl = await resolvePublicUrl(fallbackUrl);
-
-    if (req.app.locals.store) {
-      req.app.locals.store.publicUrl = publicUrl;
-    }
-
-    return res.status(200).json({
-      api: publicUrl,
-    });
-  } catch (_error) {
-    return res.status(200).json({
-      api: fallbackUrl,
-    });
+  const publicUrl = resolveBasePublicUrl(req.app.locals.store);
+  if (req.app.locals.store) {
+    req.app.locals.store.publicUrl = publicUrl;
   }
+
+  return res.status(200).json({
+    api: publicUrl,
+  });
 }
 
 async function getConversationMessages(req, res) {
@@ -602,7 +600,7 @@ async function generateBilling(req, res) {
       status: 'pending',
     };
 
-    const publicUrl = await resolvePublicUrl(store?.publicUrl || 'http://localhost:4000');
+    const publicUrl = resolveBasePublicUrl(store);
     const paymentUrl = `${publicUrl}/conversations/${conversationId}/billing/${billingId}`;
     billing.paymentUrl = paymentUrl;
     billing.paymentCode = paymentCode;

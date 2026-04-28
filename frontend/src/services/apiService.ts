@@ -18,6 +18,7 @@
 import { getCache, invalidateCache, setCache } from "@/lib/requestCache";
 import { reportFrontendIssue } from "@/services/frontendHealthService";
 import { slog } from "@/lib/structuredLogger";
+import { API_BASE_URL as RUNTIME_API_BASE_URL } from "@/config/runtime";
 
 const CACHE_TTL_MS = 30_000;
 const METRICS_CACHE_TTL_MS = 10_000;
@@ -27,21 +28,9 @@ const MAX_GET_RETRIES = 2; // Reduced to prevent infinite retries
 const INITIAL_BACKOFF_MS = 700;
 const PUBLIC_URL_STORAGE_KEY = "zapai_public_api_url";
 
-const configuredApiUrl = (import.meta.env.VITE_API_URL as string | undefined)?.trim().replace(/\/$/, "") || "";
-const normalizedApiOrigin = configuredApiUrl
-  ? configuredApiUrl.replace(/\/api$/i, "")
-  : "";
-const API_BASE_URL = normalizedApiOrigin ? `${normalizedApiOrigin}/api` : '/api';
-const CONFIGURED_API_ORIGIN = (() => {
-  try {
-    return new URL(normalizedApiOrigin || API_BASE_URL).origin;
-  } catch {
-    if (typeof window !== "undefined") {
-      return window.location.origin;
-    }
-    return "";
-  }
-})();
+const normalizedApiOrigin = RUNTIME_API_BASE_URL.trim().replace(/\/api$/i, "").replace(/\/$/, "");
+const API_BASE_URL = normalizedApiOrigin ? `${normalizedApiOrigin}/api` : "";
+const CONFIGURED_API_ORIGIN = normalizedApiOrigin;
 
 /** Exported so other modules (socket, pages) can use the resolved backend origin */
 export { CONFIGURED_API_ORIGIN as API_ORIGIN };
