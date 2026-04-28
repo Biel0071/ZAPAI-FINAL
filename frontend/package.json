@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "build:prod": "vite build --mode production",
+    "build:prod": "npm run ui:guard && vite build --mode production",
     "build:dev": "vite build --mode development",
     "clean": "node scripts/clean-build.cjs",
     "clean:all": "node scripts/clean-build.cjs && node -e \"const fs=require('fs');['node_modules','package-lock.json'].forEach((p)=>fs.rmSync(p,{recursive:true,force:true}))\"",
@@ -18,6 +18,7 @@
     "test:watch": "vitest",
     "test-ui": "playwright test",
     "validate-build": "node scripts/validate-build.js",
+    "ui:guard": "node scripts/ui-stability-guard.cjs",
     "lock-release": "node scripts/lock-release.cjs",
     "publish-locked": "node scripts/publish-locked.cjs",
     "prebuild": "npm run clean",

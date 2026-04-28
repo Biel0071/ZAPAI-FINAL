@@ -1,12 +1,13 @@
 {
   "builds": 3,
-  "bundles": 58,
+  "bundles": 45,
   "orphanFiles": [
     "api\\AI_CONTEXT.md",
     "App.css",
     "components\\admin\\AdminGuard.tsx",
     "components\\ai\\AILearningDashboard.tsx",
     "components\\AI_CONTEXT.md",
+    "components\\BuildFooter.tsx",
     "components\\DebugTracePanel.tsx",
     "components\\layout\\Header.tsx",
     "components\\layout\\MainLayout.tsx",
@@ -64,6 +65,7 @@
     "components\\ui\\tooltip.tsx",
     "components\\ui\\use-toast.ts",
     "config\\api.config.ts",
+    "config\\runtime.ts",
     "hooks\\AI_CONTEXT.md",
     "hooks\\use-mobile.tsx",
     "hooks\\use-pwa-install.ts",
@@ -73,29 +75,17 @@
     "hooks\\useSocketMessages.ts",
     "integrations\\supabase\\client.ts",
     "main.tsx",
-    "pages\\AccessControl.tsx",
     "pages\\AdminMaster.tsx",
     "pages\\AI.tsx",
     "pages\\AI_CONTEXT.md",
-    "pages\\Analytics.tsx",
     "pages\\Campaigns.tsx",
     "pages\\Connections.tsx",
     "pages\\Contacts.tsx",
-    "pages\\CRM.tsx",
     "pages\\Dashboard.tsx",
     "pages\\Diagnostics.tsx",
     "pages\\Flows.tsx",
-    "pages\\FollowUp.tsx",
-    "pages\\Groups.tsx",
-    "pages\\HumanAlert.tsx",
     "pages\\Inbox.tsx",
-    "pages\\Index.tsx",
-    "pages\\Map.tsx",
-    "pages\\MediaLibrary.tsx",
-    "pages\\MessageTimers.tsx",
     "pages\\NotFound.tsx",
-    "pages\\QuickReplies.tsx",
-    "pages\\Scheduler.tsx",
     "pages\\Settings.tsx",
     "services\\adminMasterService.ts",
     "services\\aiLearningService.ts",
@@ -123,33 +113,33 @@
   "caches": [
     {
       "path": "dist",
-      "size": "2.35 MB"
+      "size": "2.31 MB"
     }
   ],
   "duplicateImports": [
     {
       "import": "react",
-      "count": 71
+      "count": 68
     },
     {
       "import": "react-router-dom",
       "count": 8
     },
     {
+      "import": "@/config/runtime",
+      "count": 8
+    },
+    {
       "import": "@/components/ui/card",
-      "count": 21
+      "count": 11
     },
     {
       "import": "@/components/ui/button",
-      "count": 23
+      "count": 19
     },
     {
       "import": "@/components/ui/badge",
-      "count": 14
-    },
-    {
-      "import": "@/components/ui/textarea",
-      "count": 8
+      "count": 12
     },
     {
       "import": "@/hooks/use-toast",
@@ -161,39 +151,31 @@
     },
     {
       "import": "@/components/ui/input",
-      "count": 17
-    },
-    {
-      "import": "@/components/ui/skeleton",
       "count": 10
     },
     {
+      "import": "@/components/ui/skeleton",
+      "count": 9
+    },
+    {
       "import": "framer-motion",
-      "count": 7
+      "count": 6
     },
     {
       "import": "@/lib/utils",
-      "count": 51
+      "count": 50
     },
     {
       "import": "lucide-react",
-      "count": 21
+      "count": 19
     },
     {
       "import": "class-variance-authority",
       "count": 10
     },
     {
-      "import": "@/components/ui/label",
-      "count": 12
-    },
-    {
       "import": "@/components/layout/Header",
-      "count": 18
-    },
-    {
-      "import": "@/components/ui/switch",
-      "count": 8
+      "count": 10
     }
   ],
   "oldCompiledPages": []

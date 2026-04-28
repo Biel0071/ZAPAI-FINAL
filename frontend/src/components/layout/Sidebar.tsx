@@ -7,7 +7,6 @@ import {
   Robot,
   TreeStructure,
   AddressBook,
-  ChartLineUp,
   Megaphone,
   Gear,
   CaretLeft,
@@ -61,7 +60,6 @@ const navItems: SidebarNavItem[] = [
   { icon: AddressBook, label: "Contacts", path: "/contacts" },
   { icon: TreeStructure, label: "Flows", path: "/flows" },
   { icon: Robot, label: "AI Config", path: "/ai" },
-  { icon: ChartLineUp, label: "Analytics", path: "/?tab=performance" },
   { icon: Megaphone, label: "Campaigns", path: "/campaigns" },
   { icon: Lightning, label: "Diagnostics", path: "/diagnostics" },
 ];
