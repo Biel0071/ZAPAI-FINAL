@@ -4,7 +4,7 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { ThemeProvider } from "@/components/theme/ThemeProvider";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { PageFallback } from "@/components/layout/PageFallback";
 import { GlobalErrorBoundary } from "@/components/system/GlobalErrorBoundary";
@@ -102,7 +102,8 @@ function App() {
                 <Suspense fallback={<PageFallback />}>
                   <Routes>
                     <Route element={<MainLayout />}>
-                      <Route path="/" element={<Dashboard />} />
+                      <Route path="/" element={<Navigate to="/dashboard" replace />} />
+                      <Route path="/dashboard" element={<Dashboard />} />
                       <Route path="/connections" element={<Connections />} />
                       <Route path="/inbox" element={<Inbox />} />
                       <Route path="/contacts" element={<Contacts />} />

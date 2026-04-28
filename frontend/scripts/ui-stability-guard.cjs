@@ -15,6 +15,7 @@ const FORBIDDEN_TOKENS = [
 
 const OFFICIAL_ROUTES = new Set([
   "/",
+  "/dashboard",
   "/connections",
   "/inbox",
   "/contacts",
