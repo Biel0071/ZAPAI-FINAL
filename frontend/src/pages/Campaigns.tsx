@@ -26,20 +26,7 @@ import { Switch } from "@/components/ui/switch";
 import { Input } from "@/components/ui/input";
 import { notify } from "@/services/notifyService";
 import { cn } from "@/lib/utils";
-
-interface Campaign {
-  id: string;
-  name: string;
-  message: string;
-  status: "scheduled" | "running" | "completed" | "paused";
-  scheduledFor?: string;
-  recipients: number;
-  sent: number;
-  delivered: number;
-  read: number;
-  replied: number;
-  tags: string[];
-}
+import { apiService, type Campaign } from "@/services/apiService";
 
 const CAMPAIGN_ROW_HEIGHT = 344;
 
@@ -178,6 +165,8 @@ function CampaignVirtualRow({ index, style, ...rowProps }: RowComponentProps<Cam
 
 export default function Campaigns() {
   const [loading, setLoading] = useState(true);
+  const [campaigns, setCampaigns] = useState<Campaign[]>([]);
+  const [campaignsError, setCampaignsError] = useState<string | null>(null);
   const [startingCampaignId, setStartingCampaignId] = useState<string | null>(null);
   const [campaignStep, setCampaignStep] = useState(1);
   const [shuffleEnabled, setShuffleEnabled] = useState(true);
@@ -189,11 +178,26 @@ export default function Campaigns() {
   ]);
 
   useEffect(() => {
-    const timer = window.setTimeout(() => setLoading(false), 700);
-    return () => window.clearTimeout(timer);
+    let cancelled = false;
+    setLoading(true);
+    setCampaignsError(null);
+    apiService.getCampaigns()
+      .then((data) => {
+        if (!cancelled) {
+          setCampaigns(data);
+          setLoading(false);
+        }
+      })
+      .catch((err) => {
+        if (!cancelled) {
+          setCampaignsError(err instanceof Error ? err.message : "Erro ao carregar campanhas");
+          setLoading(false);
+        }
+      });
+    return () => { cancelled = true; };
   }, []);
 
-  const safeCampaigns = useMemo(() => (Array.isArray(mockCampaigns) ? mockCampaigns : []), []);
+  const safeCampaigns = useMemo(() => (Array.isArray(campaigns) ? campaigns : []), [campaigns]);
 
   const handleStartCampaign = useCallback((campaignId: string) => {
     if (startingCampaignId) return;

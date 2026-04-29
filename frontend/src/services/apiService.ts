@@ -115,6 +115,20 @@ export interface SessionInfo {
   status?: string;
 }
 
+export interface Campaign {
+  id: string;
+  name: string;
+  message: string;
+  status: "scheduled" | "running" | "completed" | "paused";
+  scheduledFor?: string;
+  recipients: number;
+  sent: number;
+  delivered: number;
+  read: number;
+  replied: number;
+  tags: string[];
+}
+
 export interface ImproveRequest {
   customerQuestion: string;
   aiResponse: string;
@@ -837,6 +851,56 @@ export const apiService = {
 
       throw new Error("Falha ao carregar mensagens da conversa");
     }
+  },
+
+  async getCampaigns(forceRefresh = false) {
+    const cacheKey = "campaigns";
+    if (!forceRefresh) {
+      const cached = getCache<Campaign[]>(cacheKey);
+      if (cached) return cached;
+    }
+
+    const raw = await request<
+      Array<{
+        id?: string;
+        name?: string;
+        status?: string;
+        selectedContacts?: Array<unknown>;
+        messages?: Array<unknown>;
+        tags?: string[];
+        startedAt?: string | null;
+        createdAt?: string;
+      }>
+    >({ endpoint: "/api/campaigns", method: "GET" });
+
+    const normalized: Campaign[] = Array.isArray(raw)
+      ? raw.map((item) => {
+          const statusMap: Record<string, Campaign["status"]> = {
+            draft: "scheduled",
+            active: "running",
+            completed: "completed",
+            paused: "paused",
+          };
+          return {
+            id: String(item.id ?? "campaign-" + Math.random().toString(36).slice(2)),
+            name: String(item.name ?? "Campanha sem nome"),
+            message: Array.isArray(item.messages) && item.messages.length > 0
+              ? String((item.messages[0] as Record<string, unknown>)?.content ?? "Sem mensagem")
+              : "Sem mensagem",
+            status: statusMap[String(item.status ?? "draft")] ?? "scheduled",
+            scheduledFor: item.startedAt ? String(item.startedAt) : undefined,
+            recipients: Array.isArray(item.selectedContacts) ? item.selectedContacts.length : 0,
+            sent: 0,
+            delivered: 0,
+            read: 0,
+            replied: 0,
+            tags: Array.isArray(item.tags) ? item.tags : [],
+          };
+        })
+      : [];
+
+    setCache(cacheKey, normalized, CACHE_TTL_MS);
+    return normalized;
   },
 
   async sendMessage(payload: { phone: string; text: string; conversationId?: string; contactId?: string; sessionId?: string }) {
