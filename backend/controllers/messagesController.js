@@ -600,7 +600,12 @@ async function receiveMessage(req, res) {
 
 async function getMessagesByPhone(req, res) {
   const { phone } = req.params;
-  const requestedSessionId = getRequestedSessionId(req);
+  const requestedSessionRaw = String(
+    req?.headers?.['x-session-id'] || req?.query?.sessionId || req?.body?.sessionId || ''
+  ).trim();
+  const requestedSessionId = requestedSessionRaw
+    ? sessionManager.normalizeSessionName(requestedSessionRaw)
+    : null;
   const companyId = req.tenantId || req.companyId || req.query?.companyId || process.env.DEFAULT_COMPANY_ID || 'default';
 
   try {
@@ -620,7 +625,12 @@ async function getMessagesByPhone(req, res) {
 
 async function listMessages(req, res) {
   const store = getStore(req);
-  const requestedSessionId = getRequestedSessionId(req);
+  const requestedSessionRaw = String(
+    req?.headers?.['x-session-id'] || req?.query?.sessionId || req?.body?.sessionId || ''
+  ).trim();
+  const requestedSessionId = requestedSessionRaw
+    ? sessionManager.normalizeSessionName(requestedSessionRaw)
+    : null;
   const companyId = req.tenantId || req.companyId || req.query?.companyId || process.env.DEFAULT_COMPANY_ID || 'default';
   const chatId = String(req.query?.chatId || '').trim();
   const cursor = req.query?.cursor || null;
@@ -678,6 +688,10 @@ async function listMessages(req, res) {
   if (store?.databaseEnabled) {
     try {
       const messages = await messageRepository.listRecentMessages(limit, companyId);
+      if (!requestedSessionId) {
+        return res.status(200).json(messages);
+      }
+
       const filteredBySession = messages.filter(
         (item) => String(item.sessionId || sessionManager.DEFAULT_SESSION) === requestedSessionId
       );
@@ -690,7 +704,11 @@ async function listMessages(req, res) {
 
   const fallbackMessages = Array.isArray(store?.messages)
     ? store.messages
-        .filter((item) => String(item.sessionId || sessionManager.DEFAULT_SESSION) === requestedSessionId)
+        .filter((item) => (
+          requestedSessionId
+            ? String(item.sessionId || sessionManager.DEFAULT_SESSION) === requestedSessionId
+            : true
+        ))
         .slice(-limit)
         .map((item) => formatApiMessage(item))
         .filter(Boolean)
