@@ -21,6 +21,18 @@ function getRequestedSessionId(req) {
   return sessionManager.normalizeSessionName(raw || 'main');
 }
 
+function getOptionalSessionId(req) {
+  const raw = String(
+    req?.headers?.['x-session-id'] || req?.query?.sessionId || req?.body?.sessionId || ''
+  ).trim();
+
+  if (!raw) {
+    return null;
+  }
+
+  return sessionManager.normalizeSessionName(raw);
+}
+
 function ensureDraftStore(store) {
   if (!store) {
     return {};
@@ -153,14 +165,14 @@ async function sendAutomatedConversationMessage({ conversation, store, text }) {
 
 async function getConversations(req, res) {
   const store = getStore(req);
-  const sessionId = getRequestedSessionId(req);
+  const sessionId = getOptionalSessionId(req);
 
   if (store?.databaseEnabled) {
     try {
       const sortedConversations = await inboxConversationService.listConversations({
         companyId: req.query?.companyId,
         limit: Number(req.query?.limit) || 50,
-        sessionId,
+        sessionId: sessionId || undefined,
         store,
       });
 
