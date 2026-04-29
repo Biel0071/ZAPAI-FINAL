@@ -54,7 +54,7 @@ function isNavItemActive(currentPathname: string, currentSearch: string, itemPat
 }
 
 const navItems: SidebarNavItem[] = [
-  { icon: House, label: "Dashboard", path: "/" },
+  { icon: House, label: "Dashboard", path: "/dashboard" },
   { icon: ChatCircleDots, label: "Inbox", path: "/inbox" },
   { icon: WhatsappLogo, label: "Conexões", path: "/connections" },
   { icon: AddressBook, label: "Contacts", path: "/contacts" },
