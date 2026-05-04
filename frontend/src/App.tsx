@@ -8,6 +8,7 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { PageFallback } from "@/components/layout/PageFallback";
 import { GlobalErrorBoundary } from "@/components/system/GlobalErrorBoundary";
+import { ProtectedRoute } from "@/components/ProtectedRoute";
 import AdminGuard from "@/components/admin/AdminGuard";
 import { DebugTracePanel } from "@/components/DebugTracePanel";
 import { BuildFooter } from "@/components/BuildFooter";
@@ -50,6 +51,8 @@ const Diagnostics = lazyWithRetry(() => import("./pages/Diagnostics"));
 const Contacts = lazyWithRetry(() => import("./pages/Contacts"));
 const AdminMaster = lazyWithRetry(() => import("./pages/AdminMaster"));
 const AdminSystem = lazyWithRetry(() => import("./pages/AdminSystem"));
+const Login = lazyWithRetry(() => import("./pages/Login"));
+const ForgotPassword = lazyWithRetry(() => import("./pages/ForgotPassword"));
 const NotFound = lazyWithRetry(() => import("./pages/NotFound"));
 
 const queryClient = new QueryClient({
@@ -102,28 +105,36 @@ function App() {
               <BrowserRouter>
                 <Suspense fallback={<PageFallback />}>
                   <Routes>
-                    <Route element={<MainLayout />}>
-                      <Route path="/" element={<Navigate to="/dashboard" replace />} />
-                      <Route path="/dashboard" element={<Dashboard />} />
-                      <Route path="/connections" element={<Connections />} />
-                      <Route path="/inbox" element={<Inbox />} />
-                      <Route path="/contacts" element={<Contacts />} />
-                      <Route path="/ai" element={<AI />} />
-                      <Route path="/flows" element={<Flows />} />
-                      <Route path="/campaigns" element={<Campaigns />} />
-                      <Route path="/diagnostics" element={<Diagnostics />} />
-                      <Route path="/settings" element={<Settings />} />
-                      <Route path="/admin/master" element={
-                        <AdminGuard>
-                          <AdminMaster />
-                        </AdminGuard>
-                      } />
-                      <Route path="/admin/system" element={
-                        <AdminGuard>
-                          <AdminSystem />
-                        </AdminGuard>
-                      } />
+                    {/* Public routes — no layout, no auth required */}
+                    <Route path="/login" element={<Login />} />
+                    <Route path="/forgot-password" element={<ForgotPassword />} />
+
+                    {/* Protected routes — require auth */}
+                    <Route element={<ProtectedRoute />}>
+                      <Route element={<MainLayout />}>
+                        <Route path="/" element={<Navigate to="/dashboard" replace />} />
+                        <Route path="/dashboard" element={<Dashboard />} />
+                        <Route path="/connections" element={<Connections />} />
+                        <Route path="/inbox" element={<Inbox />} />
+                        <Route path="/contacts" element={<Contacts />} />
+                        <Route path="/ai" element={<AI />} />
+                        <Route path="/flows" element={<Flows />} />
+                        <Route path="/campaigns" element={<Campaigns />} />
+                        <Route path="/diagnostics" element={<Diagnostics />} />
+                        <Route path="/settings" element={<Settings />} />
+                        <Route path="/admin/master" element={
+                          <AdminGuard>
+                            <AdminMaster />
+                          </AdminGuard>
+                        } />
+                        <Route path="/admin/system" element={
+                          <AdminGuard>
+                            <AdminSystem />
+                          </AdminGuard>
+                        } />
+                      </Route>
                     </Route>
+
                     <Route path="*" element={<NotFound />} />
                   </Routes>
                 </Suspense>

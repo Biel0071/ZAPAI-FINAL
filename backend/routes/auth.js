@@ -278,4 +278,19 @@ router.get('/auth/me', (req, res) => {
   });
 });
 
+// POST /api/auth/forgot-password — stub for password recovery
+router.post('/auth/forgot-password', async (req, res) => {
+  const { email } = req.body || {};
+  if (!email || !String(email).includes('@')) {
+    return res.status(400).json({ error: 'Valid e-mail is required.' });
+  }
+
+  // TODO: implement real e-mail dispatch (SendGrid, AWS SES, etc.)
+  // For now: always return success to avoid leaking registered e-mails.
+  return res.status(200).json({
+    success: true,
+    message: 'Se o e-mail existir, voce recebera um link de recuperacao.',
+  });
+});
+
 module.exports = router;
