@@ -278,15 +278,42 @@ router.get('/auth/me', (req, res) => {
   });
 });
 
-// POST /api/auth/forgot-password — stub for password recovery
+const { sendEmail, isEmailConfigured } = require('../services/emailService');
+
+// POST /api/auth/forgot-password — password recovery
 router.post('/auth/forgot-password', async (req, res) => {
   const { email } = req.body || {};
   if (!email || !String(email).includes('@')) {
     return res.status(400).json({ error: 'Valid e-mail is required.' });
   }
 
-  // TODO: implement real e-mail dispatch (SendGrid, AWS SES, etc.)
-  // For now: always return success to avoid leaking registered e-mails.
+  // Check if email exists in database before sending
+  let userExists = false;
+  try {
+    const result = await query('SELECT id FROM users WHERE email = $1 LIMIT 1', [String(email).trim().toLowerCase()]);
+    userExists = result.rows.length > 0;
+  } catch (dbErr) {
+    // If DB error, still return generic message (security)
+    console.error('[AUTH] DB error checking email:', dbErr.message);
+  }
+
+  // If email configured and user exists, send real recovery email
+  if (isEmailConfigured() && userExists) {
+    try {
+      const resetLink = (process.env.FRONTEND_URL || 'https://SEU_DOMINIO.com') + '/reset-password?email=' + encodeURIComponent(email);
+      await sendEmail({
+        to: email,
+        subject: 'Recuperação de senha — ZapAI CRM',
+        text: `Olá,\n\nVocê solicitou a recuperação de senha.\n\nClique no link para redefinir: ${resetLink}\n\nSe não foi você, ignore este e-mail.`,
+        html: `<p>Olá,</p><p>Você solicitou a recuperação de senha.</p><p><a href="${resetLink}">Clique aqui para redefinir sua senha</a></p><p>Se não foi você, ignore este e-mail.</p>`,
+      });
+      console.log('[AUTH] Password recovery email sent to:', email);
+    } catch (emailErr) {
+      console.error('[AUTH] Failed to send recovery email:', emailErr.message);
+      // Return generic success anyway to avoid leaking info
+    }
+  }
+
   return res.status(200).json({
     success: true,
     message: 'Se o e-mail existir, voce recebera um link de recuperacao.',

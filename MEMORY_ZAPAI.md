@@ -161,12 +161,12 @@ VITE_API_URL=https://SEU_DOMINIO.com
 - [x] Backup automático das sessões Baileys no Docker
 - [x] Fechar portas 5432/6379 no docker-compose.production.yml
 - [x] VITE_API_URL via domínio HTTPS (não IP)
+- [x] Envio de e-mails para recuperação de senha
 
 ---
 
 ## 🚧 FUNCIONALIDADES PENDENTES
 
-- [ ] Implementar envio real de e-mail para recuperação de senha (SendGrid/AWS SES)
 - [ ] Testar login em produção com credenciais do .env
 - [ ] Apontar domínio para IP da VPS (209.50.229.68)
 - [ ] Configurar SSL via Certbot e atualizar nginx.conf com domínio real
