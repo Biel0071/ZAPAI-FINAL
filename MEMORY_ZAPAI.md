@@ -236,7 +236,6 @@ curl http://localhost:4025/health
 |------|--------|-----------------|
 | 04/05/2026 | Diagnóstico inicial | Análise completa do repositório. Identificados 5 blockers críticos. Sistema rodando na VPS ICP com Docker. Dashboard acessível com dados reais. |
 | 04/05/2026 | Login + Infra + Correções | Criada página de login (/login), forgot-password, ProtectedRoute, authService. Auth backend corrigido para bcrypt contra DB. Portas 5432/6379 fechadas no compose. IP hardcoded removido. Nginx + certbot integrados no docker-compose.production.yml principal. Porta 4025 do backend fechada para host (apenas nginx acessa). Frontend servido via nginx static. Criada infra/ com nginx, certbot, Makefile, scripts backup-sessions.sh, setup-vps.sh, validate-production.sh. |
-| | | |
 
 > **Como atualizar**: Após cada sessão, adicionar linha no histórico acima com data, resumo e arquivos modificados.
 
