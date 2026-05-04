@@ -251,7 +251,6 @@ curl http://localhost:4025/health
 1. **Apontar domínio** para IP da VPS (209.50.229.68)
 2. **Configurar SSL** via Certbot e atualizar nginx.conf com domínio real
 3. **Testar login** em produção com credenciais do .env
-4. **Implementar envio real de e-mail** para recuperação de senha (SendGrid/AWS SES)
 
 ---
 
