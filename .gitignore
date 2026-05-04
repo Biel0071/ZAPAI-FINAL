@@ -21,6 +21,12 @@ node_modules/
 **/.env.*.local
 .db_password
 backups/
+admin-credentials.txt
+*.pem
+*.key
+*.p12
+.ssh/
+docker-compose.local-override.yml
 
 # ── Frontend build output ─────────────────────────────────────
 frontend/dist/
