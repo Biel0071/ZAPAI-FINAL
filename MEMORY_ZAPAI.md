@@ -241,6 +241,7 @@ curl http://localhost:4025/health
 | 04/05/2026 | Diagnóstico inicial | Análise completa do repositório. Identificados 5 blockers críticos. Sistema rodando na VPS ICP com Docker. Dashboard acessível com dados reais. |
 | 04/05/2026 | Login + Infra + Correções | Criada página de login (/login), forgot-password, ProtectedRoute, authService. Auth backend corrigido para bcrypt contra DB. Portas 5432/6379 fechadas no compose. IP hardcoded removido. Nginx + certbot integrados no docker-compose.production.yml principal. Porta 4025 do backend fechada para host (apenas nginx acessa). Frontend servido via nginx static. Criada infra/ com nginx, certbot, Makefile, scripts backup-sessions.sh, setup-vps.sh, validate-production.sh. |
 | 04/05/2026 | Onboarding wizard | Criada tela /onboarding com wizard de 3 passos (empresa, e-mail admin, WhatsApp). Controle de estado via localStorage (zapai_onboarding_done). Rota pública adicionada ao App.tsx. |
+| 04/05/2026 | Deploy PRO evolução | auto-deploy.sh evoluído: idempotência (verifica antes de instalar/gerar), rollback automático (backup pré-deploy de nginx.conf, frontend/dist, imagem Docker), validação forte (health 90s retry, frontend HTTP, WebSocket handshake, containers), SSL inteligente (dry-run certbot, verifica expiração), modo --status, modo --debug, saída profissional. Criado deploy-to-vps.ps1 (deploy da máquina Windows para VPS via SSH/SCP). |
 
 > **Como atualizar**: Após cada sessão, adicionar linha no histórico acima com data, resumo e arquivos modificados.
 
