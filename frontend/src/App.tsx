@@ -53,6 +53,7 @@ const AdminMaster = lazyWithRetry(() => import("./pages/AdminMaster"));
 const AdminSystem = lazyWithRetry(() => import("./pages/AdminSystem"));
 const Login = lazyWithRetry(() => import("./pages/Login"));
 const ForgotPassword = lazyWithRetry(() => import("./pages/ForgotPassword"));
+const Onboarding = lazyWithRetry(() => import("./pages/Onboarding"));
 const NotFound = lazyWithRetry(() => import("./pages/NotFound"));
 
 const queryClient = new QueryClient({
@@ -106,6 +107,7 @@ function App() {
                 <Suspense fallback={<PageFallback />}>
                   <Routes>
                     {/* Public routes — no layout, no auth required */}
+                    <Route path="/onboarding" element={<Onboarding />} />
                     <Route path="/login" element={<Login />} />
                     <Route path="/forgot-password" element={<ForgotPassword />} />
 

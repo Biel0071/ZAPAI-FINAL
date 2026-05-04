@@ -165,7 +165,10 @@ VITE_API_URL=https://SEU_DOMINIO.com
 
 ## 🚧 FUNCIONALIDADES PENDENTES
 
-- [ ] Tela de onboarding primeiro acesso
+- [ ] Implementar envio real de e-mail para recuperação de senha (SendGrid/AWS SES)
+- [ ] Testar login em produção com credenciais do .env
+- [ ] Apontar domínio para IP da VPS (209.50.229.68)
+- [ ] Configurar SSL via Certbot e atualizar nginx.conf com domínio real
 
 ---
 
