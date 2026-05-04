@@ -30,7 +30,7 @@ async function initDatabase() {
   // Create pool
   const pool = new Pool({
     connectionString: process.env.DATABASE_URL,
-    ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
+    ssl: process.env.PGSSLMODE !== 'disable' && process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
   });
 
   try {
@@ -39,7 +39,6 @@ async function initDatabase() {
     const client = await pool.connect();
     const result = await client.query('SELECT NOW()');
     console.log('✓ Database connected at:', result.rows[0].now);
-    client.release();
 
     // Run migrations
     console.log('\n[2/3] Running migrations...');
@@ -61,6 +60,7 @@ async function initDatabase() {
     await client.query('COMMIT');
     console.log('✓ Read/write test passed');
     console.log(`  - Test value: ${testResult.rows[0].value}`);
+    client.release();
 
     console.log('\n==========================================');
     console.log('DATABASE INITIALIZATION COMPLETE');

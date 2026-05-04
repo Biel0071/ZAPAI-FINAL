@@ -23,9 +23,11 @@ async function seedAdmin() {
     process.exit(1);
   }
 
-  const adminUsername = process.env.AUTH_DEFAULT_USERNAME || 'admin';
+  const adminUsername = process.env.AUTH_DEFAULT_USERNAME || 'admin@admin.com';
   const adminPassword = process.env.AUTH_DEFAULT_PASSWORD || 'admin123';
   const adminTenantId = process.env.AUTH_DEFAULT_TENANT_ID || 'default';
+  const adminEmail = process.env.AUTH_DEFAULT_EMAIL || adminUsername;
+  const adminRole = process.env.AUTH_DEFAULT_ROLE || 'master_admin';
 
   console.log('Admin username:', adminUsername);
   console.log('Admin tenant:', adminTenantId);
@@ -33,7 +35,7 @@ async function seedAdmin() {
 
   const pool = new Pool({
     connectionString: process.env.DATABASE_URL,
-    ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
+    ssl: process.env.PGSSLMODE !== 'disable' && process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
   });
 
   try {
@@ -56,7 +58,7 @@ async function seedAdmin() {
           username VARCHAR(255) UNIQUE NOT NULL,
           password_hash VARCHAR(255) NOT NULL,
           tenant_id VARCHAR(100) DEFAULT 'default',
-          role VARCHAR(50) DEFAULT 'admin',
+          role VARCHAR(50) DEFAULT 'master_admin',
           is_active BOOLEAN DEFAULT true,
           created_at TIMESTAMP DEFAULT NOW(),
           updated_at TIMESTAMP DEFAULT NOW()
@@ -72,22 +74,36 @@ async function seedAdmin() {
 
     // Upsert admin user
     console.log('Upserting admin user...');
+    await client.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS email VARCHAR(255)');
+    await client.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS password_hash TEXT');
+    await client.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS tenant_id TEXT DEFAULT 'default'");
+    await client.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS role VARCHAR(50) DEFAULT 'master_admin'");
+    await client.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS blocked BOOLEAN DEFAULT false');
+    await client.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT true');
+    await client.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS plan VARCHAR(50) DEFAULT 'enterprise'");
+    await client.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS whatsapp_limit INTEGER DEFAULT 999');
+    await client.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT NOW()');
+
     await client.query(`
-      INSERT INTO users (username, password_hash, tenant_id, role, is_active, updated_at)
-      VALUES ($1, $2, $3, 'admin', true, NOW())
+      INSERT INTO users (username, email, password_hash, tenant_id, role, blocked, is_active, plan, whatsapp_limit, updated_at)
+      VALUES ($1, $2, $3, $4, $5, false, true, 'enterprise', 999, NOW())
       ON CONFLICT (username) 
       DO UPDATE SET 
+        email = EXCLUDED.email,
         password_hash = EXCLUDED.password_hash,
         tenant_id = EXCLUDED.tenant_id,
         role = EXCLUDED.role,
+        blocked = false,
         is_active = EXCLUDED.is_active,
+        plan = EXCLUDED.plan,
+        whatsapp_limit = EXCLUDED.whatsapp_limit,
         updated_at = NOW()
-    `, [adminUsername, passwordHash, adminTenantId]);
+    `, [adminUsername, adminEmail, passwordHash, adminTenantId, adminRole]);
     console.log('✓ Admin user upserted');
 
     // Verify admin user
     const result = await client.query(
-      'SELECT username, tenant_id, role, is_active FROM users WHERE username = $1',
+      'SELECT username, email, tenant_id, role, is_active FROM users WHERE username = $1',
       [adminUsername]
     );
 
@@ -98,6 +114,7 @@ async function seedAdmin() {
     const admin = result.rows[0];
     console.log('\nAdmin user verified:');
     console.log(`  Username: ${admin.username}`);
+    console.log(`  Email: ${admin.email || adminUsername}`);
     console.log(`  Tenant: ${admin.tenant_id}`);
     console.log(`  Role: ${admin.role}`);
     console.log(`  Active: ${admin.is_active}`);

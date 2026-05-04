@@ -46,14 +46,14 @@ done
 
 if [ -f scripts/init-database.js ]; then
   log "Running database migrations..."
-  node scripts/init-database.js || log "WARNING: migrations failed or were skipped"
+  node scripts/init-database.js
 else
   log "Skipping migrations (scripts/init-database.js not found)"
 fi
 
 if [ -f scripts/seed-admin.js ]; then
   log "Seeding admin user..."
-  node scripts/seed-admin.js || log "WARNING: admin seed failed or was skipped"
+  node scripts/seed-admin.js
 else
   log "Skipping admin seed (scripts/seed-admin.js not found)"
 fi

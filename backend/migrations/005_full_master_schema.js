@@ -112,6 +112,8 @@ const TABLES_DDL_SQL = `
   CREATE INDEX IF NOT EXISTS idx_deployments_deployed_at ON deployments(deployed_at);
 
   -- Messages table (Message tracking across nodes)
+  -- This table may already exist from migration 001 (without node_id).
+  -- We ensure node_id exists before creating the index.
   CREATE TABLE IF NOT EXISTS messages (
     id SERIAL PRIMARY KEY,
     node_id VARCHAR(100) REFERENCES nodes(node_id) ON DELETE CASCADE,
@@ -124,6 +126,8 @@ const TABLES_DDL_SQL = `
     sent_at TIMESTAMP,
     created_at TIMESTAMP DEFAULT NOW()
   );
+
+  ALTER TABLE messages ADD COLUMN IF NOT EXISTS node_id VARCHAR(100) REFERENCES nodes(node_id) ON DELETE CASCADE;
 
   CREATE INDEX IF NOT EXISTS idx_messages_node_id ON messages(node_id);
   CREATE INDEX IF NOT EXISTS idx_messages_session_id ON messages(session_id);
