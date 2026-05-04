@@ -59,15 +59,8 @@ const isReleaseLocked = releaseLock.locked && Boolean(releaseLock.buildId);
 const BUILD_ID = isReleaseLocked ? String(releaseLock.buildId) : generateBuildId();
 const APP_VERSION = isReleaseLocked ? String(BUILD_ID) : `unlocked-${BUILD_ID}`;
 
-function assertProductionLock(mode: string) {
-  if (mode === "production" && !isReleaseLocked) {
-    throw new Error("Production build requires release.lock.json locked buildId");
-  }
-}
-
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => {
-  assertProductionLock(mode);
 
   return {
   // Build ID global

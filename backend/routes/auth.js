@@ -1,5 +1,7 @@
 const crypto = require('crypto');
 const express = require('express');
+const bcrypt = require('bcryptjs');
+const { query } = require('../config/database');
 
 const router = express.Router();
 
@@ -120,9 +122,8 @@ function getConfiguredCredentials() {
   };
 }
 
-router.post('/auth/login', (req, res) => {
+router.post('/auth/login', async (req, res) => {
   const secret = process.env.JWT_SECRET || process.env.AUTH_JWT_SECRET || '';
-  const configuredCredentials = getConfiguredCredentials();
 
   if (!secret) {
     return res.status(503).json({
@@ -130,19 +131,10 @@ router.post('/auth/login', (req, res) => {
     });
   }
 
-  if (!configuredCredentials) {
-    return res.status(503).json({
-      error: 'Authentication credentials are not configured.',
-    });
-  }
-
   const body = req.body || {};
   const username = String(body.username || '').trim();
   const password = String(body.password || '').trim();
   const requestedTenant = String(body.tenantId || body.companyId || '').trim();
-
-  const expectedUsername = configuredCredentials.username;
-  const expectedPassword = configuredCredentials.password;
   const tenantId = String(process.env.AUTH_DEFAULT_TENANT_ID || process.env.DEFAULT_COMPANY_ID || 'default').trim();
 
   if (requestedTenant && requestedTenant !== tenantId) {
@@ -151,45 +143,101 @@ router.post('/auth/login', (req, res) => {
     });
   }
 
-  const ttlSeconds = Number(process.env.AUTH_TOKEN_TTL_SECONDS || 8 * 60 * 60);
-  const defaultRole = getDefaultRole();
-
   if (!username || !password) {
     return res.status(400).json({
       error: 'username and password are required.',
     });
   }
 
-  if (!safeEquals(username, expectedUsername) || !safeEquals(password, expectedPassword)) {
-    return res.status(401).json({
-      error: 'Invalid credentials.',
-    });
+  // Try database authentication first (production path)
+  try {
+    const result = await query(
+      'SELECT username, password_hash, tenant_id, role, is_active, blocked FROM users WHERE username = $1 LIMIT 1',
+      [username]
+    );
+
+    if (result.rows.length > 0) {
+      const user = result.rows[0];
+
+      if (!user.is_active) {
+        return res.status(401).json({ error: 'Account is deactivated.' });
+      }
+      if (user.blocked) {
+        return res.status(401).json({ error: 'Account is blocked.' });
+      }
+
+      const passwordValid = await bcrypt.compare(password, user.password_hash);
+      if (passwordValid) {
+        const ttlSeconds = Number(process.env.AUTH_TOKEN_TTL_SECONDS || 8 * 60 * 60);
+        const issuedAt = Math.floor(Date.now() / 1000);
+        const expiresAt = issuedAt + (Number.isFinite(ttlSeconds) && ttlSeconds > 0 ? ttlSeconds : 8 * 60 * 60);
+        const payload = {
+          sub: user.username,
+          username: user.username,
+          tenantId: user.tenant_id || tenantId,
+          companyId: user.tenant_id || tenantId,
+          role: user.role || getDefaultRole(),
+          iat: issuedAt,
+          exp: expiresAt,
+        };
+
+        const token = signHs256Jwt(payload, secret);
+        return res.status(200).json({
+          token,
+          tokenType: 'Bearer',
+          expiresIn: expiresAt - issuedAt,
+          expiresAt,
+          tenantId: user.tenant_id || tenantId,
+          user: {
+            username: user.username,
+            role: user.role || getDefaultRole(),
+          },
+        });
+      }
+    }
+  } catch (dbError) {
+    console.error('[AUTH] Database login error:', dbError.message);
+    // Continue to fallback
   }
 
-  const issuedAt = Math.floor(Date.now() / 1000);
-  const expiresAt = issuedAt + (Number.isFinite(ttlSeconds) && ttlSeconds > 0 ? ttlSeconds : 8 * 60 * 60);
-  const payload = {
-    sub: username,
-    username,
-    tenantId,
-    companyId: tenantId,
-    role: defaultRole,
-    iat: issuedAt,
-    exp: expiresAt,
-  };
+  // Fallback: environment credentials (only if DB user not found or DB unavailable)
+  const configuredCredentials = getConfiguredCredentials();
+  if (configuredCredentials) {
+    const expectedUsername = configuredCredentials.username;
+    const expectedPassword = configuredCredentials.password;
 
-  const token = signHs256Jwt(payload, secret);
+    if (safeEquals(username, expectedUsername) && safeEquals(password, expectedPassword)) {
+      const ttlSeconds = Number(process.env.AUTH_TOKEN_TTL_SECONDS || 8 * 60 * 60);
+      const defaultRole = getDefaultRole();
+      const issuedAt = Math.floor(Date.now() / 1000);
+      const expiresAt = issuedAt + (Number.isFinite(ttlSeconds) && ttlSeconds > 0 ? ttlSeconds : 8 * 60 * 60);
+      const payload = {
+        sub: username,
+        username,
+        tenantId,
+        companyId: tenantId,
+        role: defaultRole,
+        iat: issuedAt,
+        exp: expiresAt,
+      };
 
-  return res.status(200).json({
-    token,
-    tokenType: 'Bearer',
-    expiresIn: expiresAt - issuedAt,
-    expiresAt,
-    tenantId,
-    user: {
-      username,
-      role: defaultRole,
-    },
+      const token = signHs256Jwt(payload, secret);
+      return res.status(200).json({
+        token,
+        tokenType: 'Bearer',
+        expiresIn: expiresAt - issuedAt,
+        expiresAt,
+        tenantId,
+        user: {
+          username,
+          role: defaultRole,
+        },
+      });
+    }
+  }
+
+  return res.status(401).json({
+    error: 'Invalid credentials.',
   });
 });
 

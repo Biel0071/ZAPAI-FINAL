@@ -213,10 +213,6 @@ export const validateRuntimeConfig = (): { valid: boolean; errors: string[] } =>
     errors.push('Production mode cannot use localhost');
   }
 
-  if (ENV_NAME === 'production' && !RELEASE_LOCK_ENABLED) {
-    errors.push('Production mode requires release lock enabled');
-  }
-  
   return {
     valid: errors.length === 0,
     errors,

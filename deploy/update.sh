@@ -9,6 +9,7 @@ TARGET="${1:-}"
 
 info() { echo "[UPDATE][INFO] $*"; }
 ok() { echo "[UPDATE][OK]   $*"; }
+warn() { echo "[UPDATE][WARN] $*" >&2; }
 fail() { echo "[UPDATE][ERR]  $*" >&2; exit 1; }
 
 wait_http() {
