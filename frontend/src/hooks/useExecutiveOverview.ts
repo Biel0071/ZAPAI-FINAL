@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { mockContacts, mockSessions } from '@/lib/mocks';
+import { buildApiUrl } from '@/config/runtime';
 import { Contact, SessionStatus } from '@/types';
 import {
   buildDddHeatmap,
@@ -144,6 +144,20 @@ let cachedOverview: ExecutiveOverviewData | null = null;
 let cachedOverviewAt = 0;
 let pendingOverviewPromise: Promise<ExecutiveOverviewData> | null = null;
 
+async function fetchJson<T>(endpoint: string): Promise<T> {
+  const response = await fetch(buildApiUrl(endpoint), {
+    headers: {
+      Accept: 'application/json',
+    },
+  });
+
+  if (!response.ok) {
+    throw new Error(`${endpoint} returned ${response.status}`);
+  }
+
+  return (await response.json()) as T;
+}
+
 function buildFallbackDailySeries(): DailyPoint[] {
   return Array.from({ length: 7 }).map((_, index) => {
     const date = new Date();
@@ -282,14 +296,14 @@ async function fetchExecutiveOverview(force = false): Promise<ExecutiveOverviewD
       contactsResult,
       sessionsResult,
     ] = await Promise.allSettled([
-      fetch('/api/dashboard').then(r => r.ok ? r.json() : {}),
-      fetch('/api/analytics').then(r => r.ok ? r.json() : {}),
-      fetch('/metrics').then(r => r.ok ? r.json() : {}),
-      fetch('/system/status').then(r => r.ok ? r.json() : {}),
-      fetch('/system/runtime/status').then(r => r.ok ? r.json() : {}),
-      fetch('/diagnostics').then(r => r.ok ? r.json() : {}),
-      fetch('/api/contacts').then(r => r.ok ? r.json() : []),
-      fetch('/sessions').then(r => r.ok ? r.json() : []),
+      fetchJson<DashboardPayload>('/api/dashboard'),
+      fetchJson<AnalyticsPayload>('/api/analytics'),
+      fetchJson<MetricsPayload>('/metrics'),
+      fetchJson<SystemStatusPayload>('/system/status'),
+      fetchJson<RuntimeStatusPayload>('/system/runtime/status'),
+      fetchJson<DiagnosticsPayload>('/diagnostics'),
+      fetchJson<Contact[]>('/api/contacts'),
+      fetchJson<SessionStatus[]>('/sessions'),
     ]);
 
     const settled = [
@@ -319,10 +333,10 @@ async function fetchExecutiveOverview(force = false): Promise<ExecutiveOverviewD
     const diagnostics = diagnosticsResult.status === 'fulfilled' ? diagnosticsResult.value : {};
     const contacts = contactsResult.status === 'fulfilled' && Array.isArray(contactsResult.value)
       ? contactsResult.value
-      : mockContacts;
+      : [];
     const sessions = sessionsResult.status === 'fulfilled' && Array.isArray(sessionsResult.value)
       ? sessionsResult.value
-      : mockSessions;
+      : [];
 
     const daily = normalizeDailySeries(analytics?.charts?.daily, dashboard?.charts?.daily);
     const dddHeatmap = buildDddHeatmap(contacts);
@@ -436,7 +450,7 @@ export function useExecutiveOverview() {
   const [loading, setLoading] = useState(!cachedOverview);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(
-    cachedOverview?.partial ? 'Algumas fontes responderam com fallback. A interface segue funcional.' : null,
+    cachedOverview?.partial ? 'Algumas fontes do backend não responderam. A interface segue com dados reais parciais.' : null,
   );
 
   const load = useCallback(async (force = false) => {
@@ -453,7 +467,7 @@ export function useExecutiveOverview() {
       setData(next);
       setError(
         next.partial
-          ? `Dados parciais carregados com fallback para: ${next.issues.join(', ')}.`
+          ? `Dados reais parciais carregados. Fontes indisponíveis: ${next.issues.join(', ')}.`
           : null,
       );
     } catch (loadError) {
@@ -476,7 +490,7 @@ export function useExecutiveOverview() {
       setLoading(false);
       setError(
         cachedOverview?.partial
-          ? `Dados parciais carregados com fallback para: ${cachedOverview.issues.join(', ')}.`
+          ? `Dados reais parciais carregados. Fontes indisponíveis: ${cachedOverview.issues.join(', ')}.`
           : null,
       );
       return;

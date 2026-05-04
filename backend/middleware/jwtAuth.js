@@ -191,4 +191,5 @@ function createJwtAuthMiddleware(options = {}) {
 module.exports = {
   createJwtAuthMiddleware,
   getTenantFromClaims,
+  verifyHs256Jwt,
 };

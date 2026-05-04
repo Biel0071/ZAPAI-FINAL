@@ -181,6 +181,13 @@ export default defineConfig(({ mode }) => {
     emptyOutDir: true,
     // Hash em todos os assets para cache imutável
     assetsDir: "assets",
+    minify: "terser",
+    terserOptions: {
+      compress: {
+        drop_console: true,
+        drop_debugger: true,
+      },
+    },
     rollupOptions: {
       output: {
         // Hash em nomes de arquivos para cache busting
@@ -192,13 +199,6 @@ export default defineConfig(({ mode }) => {
           ui: ["framer-motion", "@radix-ui/react-dialog", "@radix-ui/react-dropdown-menu", "@radix-ui/react-select", "@radix-ui/react-tabs"],
           query: ["@tanstack/react-query"],
           charts: ["recharts"],
-        },
-      },
-      minify: "terser",
-      terserOptions: {
-        compress: {
-          drop_console: true,
-          drop_debugger: true,
         },
       },
     },

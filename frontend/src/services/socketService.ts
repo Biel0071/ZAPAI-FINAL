@@ -792,6 +792,16 @@ function ensureSharedSocket(socketUrl: string): Socket {
 
   destroySharedSocket();
 
+  const authToken = (() => {
+    if (typeof window === "undefined") return "";
+    const keys = ["auth_token", "zapai_auth_token", "jwt_token", "token"];
+    for (const key of keys) {
+      const value = String(localStorage.getItem(key) || "").trim();
+      if (value) return value;
+    }
+    return "";
+  })();
+
   sharedSocket = io(normalizedUrl, {
     transports: ["websocket", "polling"],
     upgrade: true,
@@ -801,6 +811,9 @@ function ensureSharedSocket(socketUrl: string): Socket {
     reconnectionDelayMax: 30_000,
     randomizationFactor: 0.5,
     timeout: 10_000,
+    auth: {
+      token: authToken,
+    },
     extraHeaders: {
     },
   });

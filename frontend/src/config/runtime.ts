@@ -127,7 +127,7 @@ export const DEFAULT_HEADERS = {
  */
 export const API_ENDPOINTS = {
   // Health
-  HEALTH: '/metrics/health',
+  HEALTH: '/api/health',
   
   // Dashboard
   DASHBOARD: '/api/dashboard',

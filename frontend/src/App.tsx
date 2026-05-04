@@ -49,6 +49,7 @@ const Settings = lazyWithRetry(() => import("./pages/Settings"));
 const Diagnostics = lazyWithRetry(() => import("./pages/Diagnostics"));
 const Contacts = lazyWithRetry(() => import("./pages/Contacts"));
 const AdminMaster = lazyWithRetry(() => import("./pages/AdminMaster"));
+const AdminSystem = lazyWithRetry(() => import("./pages/AdminSystem"));
 const NotFound = lazyWithRetry(() => import("./pages/NotFound"));
 
 const queryClient = new QueryClient({
@@ -115,6 +116,11 @@ function App() {
                       <Route path="/admin/master" element={
                         <AdminGuard>
                           <AdminMaster />
+                        </AdminGuard>
+                      } />
+                      <Route path="/admin/system" element={
+                        <AdminGuard>
+                          <AdminSystem />
                         </AdminGuard>
                       } />
                     </Route>

@@ -13,6 +13,7 @@ import {
   CaretRight,
   Lightning,
   WhatsappLogo,
+  Wrench,
   List,
 } from "@phosphor-icons/react";
 import { Badge } from "@/components/ui/badge";
@@ -65,6 +66,7 @@ const navItems: SidebarNavItem[] = [
 ];
 
 const bottomItems: SidebarNavItem[] = [{ icon: Gear, label: "Settings", path: "/settings" }];
+const adminItems: SidebarNavItem[] = [{ icon: Wrench, label: "Admin Sistema", path: "/admin/system" }];
 
 export function Sidebar() {
   const [collapsed, setCollapsed] = useState(false);
@@ -198,6 +200,7 @@ export function Sidebar() {
 
       {/* Bottom */}
       <div className="px-2 py-3 border-t border-sidebar-border/60 space-y-0.5">
+        {adminItems.map((item) => renderNavItem(item, compact))}
         {bottomItems.map((item) => renderNavItem(item, compact))}
 
         {!mobileMode && (

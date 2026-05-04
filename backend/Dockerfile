@@ -6,7 +6,10 @@ FROM node:20-alpine
 
 # Install dependencies for Baileys (WhatsApp)
 RUN apk add --no-cache \
+    bash \
+    docker-cli \
     ffmpeg \
+    git \
     imagemagick \
     libwebp \
     libwebp-tools \

@@ -121,6 +121,32 @@ const io = new Server(server, {
 });
 app.set('io', io);
 
+// Socket.io JWT authentication middleware
+const { verifyHs256Jwt } = require('./middleware/jwtAuth');
+io.use((socket, next) => {
+  const token = String(socket.handshake.auth?.token || '').trim();
+  const secret = process.env.JWT_SECRET || process.env.AUTH_JWT_SECRET || '';
+
+  if (!secret) {
+    return next(new Error('Authentication is not configured.'));
+  }
+
+  if (!token) {
+    return next(new Error('Authentication token is required.'));
+  }
+
+  const verification = verifyHs256Jwt(token, secret);
+  if (verification.error || !verification.payload) {
+    return next(new Error(verification.error || 'Invalid token.'));
+  }
+
+  socket.data.user = verification.payload;
+  socket.data.tenantId = verification.payload.tenantId || verification.payload.companyId || 'default';
+  socket.data.username = verification.payload.username || verification.payload.sub || 'unknown';
+  socket.data.role = verification.payload.role || 'admin';
+  next();
+});
+
 // Porta fixa 4025 - travada para produção
 const PORT = 4025;
 
@@ -143,6 +169,7 @@ const FRONTEND_URL = runtimeEnv.frontendUrl;
 const ENV_ALLOWED_ORIGINS = runtimeEnv.allowedOriginsFromEnv || process.env.ALLOWED_ORIGINS?.split(',') || [];
 const BASE_ALLOWED_ORIGINS = [
   'https://swift-wa-assist.lovable.app',
+  'https://*.lovable.app',
   'http://localhost:8080',
   'http://localhost:5173',
   'http://127.0.0.1:8080',
@@ -175,12 +202,26 @@ function isOriginAllowed(origin) {
   // In production, check against allowed origins
   const allowedOrigins = new Set(getAllowedOrigins());
   const isAllowed = allowedOrigins.has(origin);
+  const wildcardAllowed = Array.from(allowedOrigins).some((allowedOrigin) => {
+    if (!allowedOrigin.includes('*.')) {
+      return false;
+    }
 
-  if (!isAllowed) {
+    try {
+      const parsedOrigin = new URL(origin);
+      const parsedAllowed = new URL(allowedOrigin.replace('*.', 'wildcard.'));
+      const suffix = parsedAllowed.hostname.replace(/^wildcard\./, '.');
+      return parsedOrigin.protocol === parsedAllowed.protocol && parsedOrigin.hostname.endsWith(suffix);
+    } catch {
+      return false;
+    }
+  });
+
+  if (!isAllowed && !wildcardAllowed) {
     console.warn(`[CORS] Origin blocked: ${origin}. Allowed origins:`, Array.from(allowedOrigins));
   }
 
-  return isAllowed;
+  return isAllowed || wildcardAllowed;
 }
 
 function validateOrigin(origin, callback) {
@@ -1045,7 +1086,7 @@ async function bootstrap() {
 
     PUBLIC_API_URL =
       String(process.env.MASTER_API_URL || process.env.PUBLIC_API_URL || '').trim() ||
-      `http://209.50.229.68:${PORT}`;
+      `http://localhost:${PORT}`;
     app.locals.store.publicUrl = PUBLIC_API_URL;
 
     console.log('[SERVER] Public API URL:');

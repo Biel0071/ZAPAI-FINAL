@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Shield, Lock } from "@phosphor-icons/react";
+import { buildApiUrl } from "@/config/runtime";
 
 interface AdminGuardProps {
   children: React.ReactNode;
@@ -50,7 +51,7 @@ export default function AdminGuard({ children }: AdminGuardProps) {
           return;
         }
 
-        const meResponse = await fetch("/api/auth/me", {
+        const meResponse = await fetch(buildApiUrl("/api/auth/me"), {
           headers: {
             Authorization: `Bearer ${localToken}`,
             Accept: "application/json",

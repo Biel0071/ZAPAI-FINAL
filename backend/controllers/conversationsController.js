@@ -49,7 +49,7 @@ function resolveBasePublicUrl(store) {
   return (
     String(process.env.MASTER_API_URL || process.env.PUBLIC_API_URL || '').trim() ||
     store?.publicUrl ||
-    'http://209.50.229.68:4025'
+    `http://localhost:${process.env.PORT || 4025}`
   );
 }
 
