@@ -28,9 +28,6 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
 ENV_FILE="${PROJECT_ROOT}/.env.production"
 NGINX_CONF="${PROJECT_ROOT}/infra/nginx/nginx.conf"
-NGINX_AVAILABLE="/etc/nginx/sites-available/zapai"
-NGINX_ENABLED="/etc/nginx/sites-enabled/zapai"
-NGINX_DEFAULT="/etc/nginx/sites-enabled/default"
 BACKUP_DIR="${PROJECT_ROOT}/backups/rollback"
 TIMESTAMP=$(date +%Y%m%d-%H%M%S)
 CURRENT_BACKUP="${BACKUP_DIR}/${TIMESTAMP}"
@@ -73,7 +70,7 @@ show_status() {
   
   echo "  VPS IP:        $public_ip"
   echo "  Domínio:       ${domain:-(não configurado)}"
-  echo "  Nginx:         $(systemctl is-active nginx 2>/dev/null || echo 'inativo')"
+  echo "  Nginx Docker:  $(docker inspect -f '{{.State.Status}}' zapai-nginx 2>/dev/null || echo 'inativo')"
   echo "  SSL:           $([ -d "/etc/letsencrypt/live/${domain:-}" ] 2>/dev/null && echo 'ativo' || echo 'inativo / n/a')"
   echo ""
   
@@ -115,9 +112,6 @@ backup_current_state() {
     cp "$NGINX_CONF" "$CURRENT_BACKUP/nginx.conf"
     log_debug "nginx.conf backup: $CURRENT_BACKUP/nginx.conf"
   fi
-  if [[ -f "$NGINX_AVAILABLE" ]]; then
-    cp "$NGINX_AVAILABLE" "$CURRENT_BACKUP/nginx-active.conf"
-  fi
   
   # 2. Frontend dist
   if [[ -d "${PROJECT_ROOT}/frontend/dist" ]]; then
@@ -158,13 +152,8 @@ execute_rollback() {
   # 1. Restore nginx
   if [[ -f "$backup/nginx.conf" ]]; then
     cp "$backup/nginx.conf" "$NGINX_CONF"
-    [[ -f "$backup/nginx-active.conf" ]] && cp "$backup/nginx-active.conf" "$NGINX_AVAILABLE"
-    if nginx -t &>/dev/null; then
-      systemctl reload nginx || systemctl restart nginx
-      log_ok "nginx restaurado"
-    else
-      log_warn "nginx config restaurada é inválida — verifique manualmente"
-    fi
+    docker compose -f "${PROJECT_ROOT}/docker-compose.production.yml" --env-file "${ENV_FILE}" up -d nginx || true
+    log_ok "nginx.conf restaurado"
   fi
   
   # 2. Restore frontend dist
@@ -203,11 +192,11 @@ validate_deployment() {
   
   log_section "VALIDAÇÃO DO DEPLOY"
   
-  # 1. Nginx process
-  if systemctl is-active --quiet nginx; then
-    log_ok "Nginx process: ATIVO"
+  # 1. Nginx container
+  if docker inspect -f '{{.State.Running}}' zapai-nginx 2>/dev/null | grep -q true; then
+    log_ok "Nginx container: ATIVO"
   else
-    log_error "Nginx process: INATIVO"
+    log_error "Nginx container: INATIVO"
     all_ok=false
   fi
   
@@ -364,13 +353,10 @@ prepare_system() {
     log_ok "apt já atualizado recentemente (pulando)"
   fi
   
-  # Nginx
-  if ! command -v nginx &>/dev/null; then
-    log_info "Instalando nginx..."
-    apt-get install -y -qq nginx
-    log_ok "nginx instalado"
-  else
-    log_ok "nginx: $(nginx -v 2>&1 | head -1)"
+  # Host nginx must not bind 80/443; production uses Docker nginx.
+  if command -v nginx &>/dev/null && systemctl is-active --quiet nginx 2>/dev/null; then
+    log_warn "Nginx do host está ativo. Parando para liberar portas 80/443 ao container."
+    systemctl stop nginx || true
   fi
   
   # Certbot
@@ -427,9 +413,12 @@ prepare_system() {
 configure_nginx() {
   log_section "NGINX"
   mkdir -p "${PROJECT_ROOT}/infra/nginx"
-  
+
   local new_conf
-  if [[ -n "$DOMAIN" ]]; then
+  local ssl_ready=false
+  [[ -n "$DOMAIN" && -f "/etc/letsencrypt/live/${DOMAIN}/fullchain.pem" && -f "/etc/letsencrypt/live/${DOMAIN}/privkey.pem" ]] && ssl_ready=true
+
+  if [[ -n "$DOMAIN" && "$ssl_ready" == "true" ]]; then
     new_conf=$(cat <<EOF
 server {
     listen 80;
@@ -472,7 +461,56 @@ server {
         proxy_set_header Host \$host;
     }
     location / {
-        root ${PROJECT_ROOT}/frontend/dist;
+        root /usr/share/nginx/html;
+        try_files \$uri \$uri/ /index.html;
+        location ~* \.(js|css|png|jpg|jpeg|gif|ico|svg|woff|woff2)$ {
+            expires 1y;
+            add_header Cache-Control "public, immutable";
+        }
+    }
+    gzip on;
+    gzip_types text/plain text/css application/json application/javascript text/xml application/xml image/svg+xml;
+    gzip_min_length 1000;
+}
+EOF
+)
+  elif [[ -n "$DOMAIN" ]]; then
+    new_conf=$(cat <<EOF
+server {
+    listen 80;
+    server_name ${DOMAIN};
+    client_max_body_size 50m;
+    location /.well-known/acme-challenge/ { root /var/www/certbot; }
+    location /api/ {
+        proxy_pass http://backend:${BACKEND_PORT};
+        proxy_http_version 1.1;
+        proxy_set_header Host \$host;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+        proxy_read_timeout 300s;
+        proxy_connect_timeout 60s;
+        proxy_send_timeout 300s;
+    }
+    location /socket.io/ {
+        proxy_pass http://backend:${BACKEND_PORT};
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade \$http_upgrade;
+        proxy_set_header Connection "upgrade";
+        proxy_set_header Host \$host;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+        proxy_read_timeout 86400s;
+        proxy_send_timeout 86400s;
+    }
+    location /health {
+        proxy_pass http://backend:${BACKEND_PORT};
+        proxy_http_version 1.1;
+        proxy_set_header Host \$host;
+    }
+    location / {
+        root /usr/share/nginx/html;
         try_files \$uri \$uri/ /index.html;
         location ~* \.(js|css|png|jpg|jpeg|gif|ico|svg|woff|woff2)$ {
             expires 1y;
@@ -520,7 +558,7 @@ server {
         proxy_set_header Host \$host;
     }
     location / {
-        root ${PROJECT_ROOT}/frontend/dist;
+        root /usr/share/nginx/html;
         try_files \$uri \$uri/ /index.html;
         location ~* \.(js|css|png|jpg|jpeg|gif|ico|svg|woff|woff2)$ {
             expires 1y;
@@ -543,19 +581,11 @@ EOF
     log_ok "nginx.conf atualizado"
   fi
   
-  # Activate
-  [[ -L "$NGINX_DEFAULT" ]] && rm "$NGINX_DEFAULT"
-  [[ -f "$NGINX_DEFAULT" ]] && rm "$NGINX_DEFAULT"
-  mkdir -p /etc/nginx/sites-available /etc/nginx/sites-enabled
-  cp "$NGINX_CONF" "$NGINX_AVAILABLE"
-  ln -sf "$NGINX_AVAILABLE" "$NGINX_ENABLED"
-  
-  if nginx -t &>/dev/null; then
-    systemctl reload nginx || systemctl restart nginx
-    log_ok "nginx ativo e recarregado"
+  if docker run --rm -v "${NGINX_CONF}:/etc/nginx/conf.d/default.conf:ro" nginx:alpine nginx -t &>/tmp/zapai-nginx-test.log; then
+    log_ok "nginx.conf válido para container"
   else
-    log_error "nginx config inválida!"
-    nginx -t || true
+    log_error "nginx.conf inválido para container"
+    cat /tmp/zapai-nginx-test.log || true
     return 1
   fi
 }
@@ -584,12 +614,12 @@ configure_ssl() {
     fi
   else
     log_info "Solicitando certificado Let's Encrypt..."
-    # Dry-run first to avoid rate limits on failure
-    if certbot certonly --nginx -d "$DOMAIN" --non-interactive --agree-tos \
+    # Dry-run first to avoid rate limits on failure. Uses Docker nginx webroot.
+    if certbot certonly --webroot -w /var/www/certbot -d "$DOMAIN" --non-interactive --agree-tos \
          -m "${LETSENCRYPT_EMAIL:-admin@${DOMAIN}}" --dry-run &>/dev/null; then
       log_ok "Dry-run certbot: OK"
       # Real request
-      certbot certonly --nginx -d "$DOMAIN" --non-interactive --agree-tos \
+      certbot certonly --webroot -w /var/www/certbot -d "$DOMAIN" --non-interactive --agree-tos \
         -m "${LETSENCRYPT_EMAIL:-admin@${DOMAIN}}" 2>/dev/null || {
         log_warn "Falha ao obter certificado SSL. nginx continuará com HTTP fallback."
         log_warn "Verifique se o domínio $DOMAIN aponta para este IP: $PUBLIC_IP"
@@ -775,7 +805,7 @@ show_final_report() {
   
   # Service status table
   echo -e "\033[1mStatus dos serviços:\033[0m"
-  printf "  %-12s %s\n" "Nginx:" "$(systemctl is-active nginx 2>/dev/null || echo 'inativo')"
+  printf "  %-12s %s\n" "Nginx:" "$(docker inspect -f '{{.State.Status}}' zapai-nginx 2>/dev/null || echo 'inativo')"
   
   local services=(backend postgres redis nginx certbot postgres-backup)
   for svc in "${services[@]}"; do
@@ -825,7 +855,6 @@ main() {
   backup_current_state
   prepare_system
   configure_nginx || { log_error "Nginx config falhou"; exit 1; }
-  configure_ssl
   configure_env || { log_error "Env config falhou"; exit 1; }
   
   if [[ "$SKIP_BUILD" == "false" ]]; then
@@ -835,6 +864,9 @@ main() {
   fi
   
   deploy_docker || { log_error "Docker deploy falhou"; exit 1; }
+  configure_ssl
+  configure_nginx || { log_error "Nginx config pós-SSL falhou"; exit 1; }
+  docker compose -f docker-compose.production.yml --env-file .env.production up -d nginx
   
   # Validation
   if validate_deployment "$API_URL" 90; then
