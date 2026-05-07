@@ -33,9 +33,11 @@ export const API_BASE_URL = (() => {
     return envUrl.replace(/\/$/, ''); // Remove trailing slash
   }
 
-  // Em produção sem configuração, manter vazio para evitar crash de import
-  // (a validação de runtime reporta o erro no boot)
-  console.error('VITE_API_URL not configured. Frontend must point to master API URL.');
+  if (typeof window !== 'undefined' && window.location?.origin) {
+    return window.location.origin.replace(/\/$/, '');
+  }
+
+  console.error('VITE_API_URL not configured and window.location.origin is unavailable.');
   return '';
 })();
 

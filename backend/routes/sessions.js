@@ -14,6 +14,7 @@ router.post('/sessions/create', sessionsController.create);
 router.get('/sessions', sessionsController.list);
 router.get('/connections', sessionsController.list);
 router.get('/sessions/status', sessionsController.getStatus);
+router.get('/session/status', sessionsController.getStatus);
 router.get('/sessions/:id/status', sessionsController.getStatus);
 router.get('/sessions/qr', sessionsController.getQr);
 router.get('/sessions/:id/qr', sessionsController.getQr);

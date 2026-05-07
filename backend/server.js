@@ -4,7 +4,9 @@ require('dotenv').config({ path: path.join(__dirname, '.env') });
 const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
+const compression = require('compression');
 const http = require('http');
+const { monitorEventLoopDelay } = require('perf_hooks');
 const fsSync = require('fs');
 const fs = require('fs/promises');
 const { Server } = require('socket.io');
@@ -45,6 +47,9 @@ const { processAI } = require('./services/ai.service');
 const { backendLog, errorLog } = require('./services/logger');
 const { DEFAULT_SESSION } = whatsappService;
 const nodeRegisterService = require('./services/nodeRegister');
+
+const eventLoopDelay = monitorEventLoopDelay({ resolution: 20 });
+eventLoopDelay.enable();
 
 function formatUptime(seconds) {
   const total = Math.max(0, Math.floor(Number(seconds) || 0));
@@ -107,6 +112,42 @@ function buildHealthPayload() {
   };
 }
 
+function buildFullHealthPayload() {
+  const base = buildHealthPayload();
+  const mem = process.memoryUsage();
+  const heapUsedMb = Math.round(mem.heapUsed / 1024 / 1024);
+  const heapLimitMb = Math.max(1, Number(process.env.HEALTH_MEMORY_LIMIT_MB || 700));
+  const eventLoopDelayMs = Math.round(eventLoopDelay.mean / 1e6) || 0;
+  const eventLoopDelayLimitMs = Math.max(50, Number(process.env.HEALTH_EVENT_LOOP_DELAY_MS || 250));
+  const dbOk = Boolean(base.db);
+  const whatsappOk = base.whatsapp?.status === 'online';
+  const memoryOk = heapUsedMb < heapLimitMb;
+  const eventLoopOk = eventLoopDelayMs < eventLoopDelayLimitMs;
+  const status = dbOk && memoryOk && eventLoopOk ? (whatsappOk ? 'ok' : 'degraded') : 'down';
+
+  return {
+    success: status !== 'down',
+    status,
+    services: {
+      db: dbOk ? 'ok' : 'down',
+      whatsapp: whatsappOk ? 'ok' : 'degraded',
+      memory: memoryOk ? 'ok' : 'degraded',
+      eventLoop: eventLoopOk ? 'ok' : 'degraded',
+    },
+    diagnostics: {
+      dbError: base.database?.error || null,
+      heapUsedMb,
+      heapLimitMb,
+      eventLoopDelayMs,
+      eventLoopDelayLimitMs,
+      pid: process.pid,
+      uptimeSeconds: base.uptimeSeconds,
+      socketConnections: io.engine.clientsCount,
+    },
+    timestamp: new Date().toISOString(),
+  };
+}
+
 console.log('Server starting...');
 backendLog('info', 'boot:start', { pid: process.pid });
 
@@ -118,6 +159,8 @@ const io = new Server(server, {
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   },
+  pingInterval: Math.max(5_000, Number(process.env.SOCKET_PING_INTERVAL_MS || 25_000)),
+  pingTimeout: Math.max(5_000, Number(process.env.SOCKET_PING_TIMEOUT_MS || 20_000)),
 });
 app.set('io', io);
 
@@ -147,15 +190,13 @@ io.use((socket, next) => {
   next();
 });
 
-// Porta fixa 4025 - travada para produção
-const PORT = 4025;
-
 // Initialize tenant-indexed WhatsApp session state. For backwards compatibility,
 // this service also keeps `global.whatsappSession` in sync with the default tenant.
 const sessionStateService = require('./services/sessionStateService');
 sessionStateService.getWhatsappSession(sessionStateService.DEFAULT_TENANT);
 
 const runtimeEnv = loadRuntimeEnv();
+const PORT = process.env.PORT || runtimeEnv.port || 4025;
 const NODE_ENV = runtimeEnv.nodeEnv;
 const IS_PRODUCTION = runtimeEnv.isProduction;
 const IS_DEVELOPMENT = NODE_ENV === 'development';
@@ -394,7 +435,7 @@ app.use(express.urlencoded({ extended: true, limit: DEFAULT_PAYLOAD_LIMIT }));
 const corsOptions = {
   origin: validateOrigin,
   credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
   allowedHeaders: [
     'Content-Type',
     'Authorization',
@@ -409,6 +450,7 @@ app.use(helmet({
   contentSecurityPolicy: false, // Disabled for Socket.IO and API flexibility
   crossOriginEmbedderPolicy: false, // Allow loading from different origins
 }));
+app.use(compression());
 
 app.use(cors(corsOptions));
 app.options('*', cors(corsOptions));
@@ -464,7 +506,6 @@ app.use(inputSanitizerMiddleware);
 app.use(requestContextMiddleware);
 app.use(tenantContextMiddleware);
 app.use(apiEnvelopeMiddleware);
-app.use(corsBlockMiddleware);
 app.use('/media', express.static(path.join(__dirname, 'media')));
 app.use('/upload', express.static(path.join(__dirname, 'upload')));
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
@@ -578,7 +619,7 @@ app.get('/api', (_req, res) => {
 });
 
 app.get('/api/health', (_req, res) => {
-  return res.status(200).json(buildHealthPayload());
+  return res.status(200).json({ ...buildHealthPayload(), success: true, status: 'ok' });
 });
 
 // Metrics endpoint
@@ -637,7 +678,71 @@ app.get('/api/diagnostics', (_req, res) => {
 });
 
 app.get('/health', (_req, res) => {
-  return res.status(200).json(buildHealthPayload());
+  return res.status(200).json({ ...buildHealthPayload(), success: true, status: 'ok' });
+});
+
+app.get('/ready', (_req, res) => {
+  const payload = buildHealthPayload();
+  const isReady = payload.status === 'online' || payload.status === 'degraded';
+  return res.status(isReady ? 200 : 503).json({
+    status: isReady ? 'ok' : 'down',
+    message: isReady ? 'Service is ready' : 'Service is not ready',
+    timestamp: new Date().toISOString()
+  });
+});
+
+app.get('/api/ready', (_req, res) => {
+  const payload = buildHealthPayload();
+  const isReady = payload.status === 'online' || payload.status === 'degraded';
+  return res.status(isReady ? 200 : 503).json({
+    status: isReady ? 'ok' : 'down',
+    message: isReady ? 'Service is ready' : 'Service is not ready',
+    timestamp: new Date().toISOString()
+  });
+});
+
+app.get('/health/full', (_req, res) => {
+  const payload = buildFullHealthPayload();
+  return res.status(payload.status === 'down' ? 503 : 200).json(payload);
+});
+
+app.get('/api/health/full', (_req, res) => {
+  const payload = buildFullHealthPayload();
+  return res.status(payload.status === 'down' ? 503 : 200).json(payload);
+});
+
+app.get('/api/system/full-status', (_req, res) => {
+  const payload = buildFullHealthPayload();
+  const session = sessionManager.getSession(whatsappService.DEFAULT_SESSION);
+  const queueSize = app.locals.store?.messages?.length || 0;
+  
+  return res.status(200).json({
+    status: payload.status,
+    uptime: payload.diagnostics.uptimeSeconds,
+    memory: {
+      usedMb: payload.diagnostics.heapUsedMb,
+      limitMb: payload.diagnostics.heapLimitMb
+    },
+    cpu: {
+      eventLoopDelayMs: payload.diagnostics.eventLoopDelayMs
+    },
+    services: {
+      postgres: payload.services.db,
+      redis: payload.services.redis || 'ok',
+      websocket: {
+        status: 'ok',
+        connections: payload.diagnostics.socketConnections
+      }
+    },
+    whatsapp: {
+      status: payload.services.whatsapp,
+      sessionStatus: session?.status || 'unknown'
+    },
+    queue: {
+      pendingMessages: queueSize
+    },
+    timestamp: new Date().toISOString()
+  });
 });
 
 app.get('/diagnostics', (_req, res) => {
@@ -1118,29 +1223,34 @@ bootstrap().catch((error) => {
   process.exit(1);
 });
 
-process.on('SIGINT', async () => {
-  console.log('[SERVER] Shutting down gracefully...');
+async function shutdownGracefully(signal) {
+  console.log(`[SERVER] Shutting down gracefully (${signal})...`);
   if (heartbeatTimer) {
     clearInterval(heartbeatTimer);
     heartbeatTimer = null;
   }
-  await outboundQueueService.shutdownOutboundQueue();
-  await enterpriseQueueService.shutdown();
-  await systemManager.shutdownSystem(app.locals.store);
-  process.exit(0);
-});
 
-process.on('SIGTERM', async () => {
-  console.log('[SERVER] Shutting down gracefully...');
-  if (heartbeatTimer) {
-    clearInterval(heartbeatTimer);
-    heartbeatTimer = null;
-  }
-  await outboundQueueService.shutdownOutboundQueue();
-  await enterpriseQueueService.shutdown();
-  await systemManager.shutdownSystem(app.locals.store);
-  process.exit(0);
-});
+  server.close(async () => {
+    try {
+      io.close();
+      await outboundQueueService.shutdownOutboundQueue();
+      await enterpriseQueueService.shutdown();
+      await systemManager.shutdownSystem(app.locals.store);
+      process.exit(0);
+    } catch (error) {
+      console.error('[SERVER] Graceful shutdown failed:', error?.stack || error?.message || error);
+      process.exit(1);
+    }
+  });
+
+  setTimeout(() => {
+    console.warn('[SERVER] Graceful shutdown timeout. Forcing exit.');
+    process.exit(1);
+  }, Math.max(5_000, Number(process.env.GRACEFUL_SHUTDOWN_TIMEOUT_MS || 15_000))).unref();
+}
+
+process.on('SIGINT', () => shutdownGracefully('SIGINT'));
+process.on('SIGTERM', () => shutdownGracefully('SIGTERM'));
 
 // Bugfix#5: after an uncaught exception the Node process is in an
 // undefined state. The previous handlers only logged and let the process
@@ -1199,3 +1309,5 @@ process.on('unhandledRejection', (reason) => {
 });
 
 module.exports = app;
+
+

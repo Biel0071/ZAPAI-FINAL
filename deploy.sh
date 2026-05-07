@@ -8,6 +8,13 @@ ECOSYSTEM_FILE="$APP_DIR/deploy/ecosystem.config.js"
 BRANCH="${1:-main}"
 BACKEND_PORT="${BACKEND_PORT:-4025}"
 PM2_PROCESS="${PM2_PROCESS:-zapai-backend}"
+LOG_DIR="$APP_DIR/logs"
+DEPLOY_LOG="$LOG_DIR/deploy.log"
+
+mkdir -p "$LOG_DIR"
+touch "$DEPLOY_LOG"
+
+exec > >(tee -a "$DEPLOY_LOG") 2>&1
 
 info() { echo "[DEPLOY][INFO] $*"; }
 ok() { echo "[DEPLOY][OK]   $*"; }
@@ -19,9 +26,12 @@ require_cmd() {
 }
 
 smoke_check() {
-  local health_status socket_payload
+  local health_status full_health_status socket_payload
   health_status="$(curl -s -o /dev/null -w "%{http_code}" "http://127.0.0.1:${BACKEND_PORT}/health" || true)"
   [ "$health_status" = "200" ] || return 1
+
+  full_health_status="$(curl -s -o /tmp/zapai-health-full.out -w "%{http_code}" "http://127.0.0.1:${BACKEND_PORT}/health/full" || true)"
+  [ "$full_health_status" = "200" ] || return 1
 
   socket_payload="$(curl -fsS "http://127.0.0.1:${BACKEND_PORT}/socket.io/?EIO=4&transport=polling" || true)"
   printf '%s' "$socket_payload" | grep -q '"sid"' || return 1
@@ -44,6 +54,8 @@ require_cmd npm
 require_cmd pm2
 require_cmd curl
 
+info "============================================================"
+info "Deploy iniciado em $(date '+%Y-%m-%d %H:%M:%S')"
 info "Branch alvo: $BRANCH"
 info "Snapshot atual: $PREV_COMMIT"
 
@@ -58,7 +70,11 @@ info "Instalando dependências frontend"
 npm --prefix "$FRONTEND_DIR" ci --no-audit --no-fund
 
 info "Build frontend (produção)"
-npm --prefix "$FRONTEND_DIR" run build:prod
+if npm --prefix "$FRONTEND_DIR" run | grep -q '^  build:prod'; then
+  npm --prefix "$FRONTEND_DIR" run build:prod
+else
+  npm --prefix "$FRONTEND_DIR" run build
+fi
 
 if pm2 describe "$PM2_PROCESS" >/dev/null 2>&1; then
   info "Recarregando PM2 ($PM2_PROCESS)"
@@ -74,6 +90,8 @@ for _ in $(seq 1 20); do
   if smoke_check; then
     ROLLBACK_ARMED=0
     ok "Deploy concluído com sucesso"
+    info "Deploy finalizado em $(date '+%Y-%m-%d %H:%M:%S')"
+    info "============================================================"
     exit 0
   fi
   sleep 2

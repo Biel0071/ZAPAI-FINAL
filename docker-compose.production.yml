@@ -38,6 +38,11 @@ services:
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_DB: ${POSTGRES_DB}
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 1G
     # Not exposed to host — backend accesses via Docker network only
     volumes:
       - postgres_data:/var/lib/postgresql/data
@@ -55,6 +60,11 @@ services:
     container_name: zapai-redis
     restart: unless-stopped
     command: ["redis-server", "--appendonly", "yes"]
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
     # Not exposed to host — backend accesses via Docker network only
     volumes:
       - redis_data:/data
@@ -95,6 +105,11 @@ services:
       dockerfile: Dockerfile
     container_name: zapai-backend
     restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 2G
     env_file:
       - ./.env.production
     environment:

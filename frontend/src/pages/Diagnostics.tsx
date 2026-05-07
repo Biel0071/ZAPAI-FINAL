@@ -11,6 +11,7 @@ import { systemControlService, type AiDiagnosticsResponse } from "@/services/sys
 import { getFrontendHealthSnapshot, subscribeFrontendHealth, type FrontendHealthSnapshot } from "@/services/frontendHealthService";
 import { slog, type StructuredLogEntry } from "@/lib/structuredLogger";
 import { API_ORIGIN } from "@/services/apiService";
+import { buildApiUrl } from "@/config/runtime";
 import { useToast } from "@/hooks/use-toast";
 
 const SYSTEM_API_BASE_URL = API_ORIGIN;
@@ -147,7 +148,7 @@ function buildIndicators(status: DiagnosticsStatus | null, frontendHealth: Front
 }
 
 async function checkRouteHealth(route: string): Promise<RouteHealthResult> {
-  const url = route.startsWith("/api/") ? `${SYSTEM_API_BASE_URL}${route}` : `${SYSTEM_API_BASE_URL}/api${route}`;
+  const url = buildApiUrl(route);
   const start = performance.now();
   try {
     const controller = new AbortController();

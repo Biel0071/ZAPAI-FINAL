@@ -4,9 +4,11 @@
 //   pm2 reload ecosystem.config.js --env production --update-env
 //   pm2 save && pm2 startup
 //
-// APP_DIR env var overrides /opt/zapai (set by install.sh automatically).
+// APP_DIR env var overrides /opt/ZAPAI-FINAL.
 const path = require('path');
-const APP_DIR = process.env.APP_DIR || '/opt/zapai';
+const APP_DIR = process.env.APP_DIR || '/opt/ZAPAI-FINAL';
+const PM2_INSTANCES = process.env.PM2_INSTANCES || '1';
+const PM2_EXEC_MODE = Number(PM2_INSTANCES) > 1 ? 'cluster' : 'fork';
 
 module.exports = {
   apps: [
@@ -14,8 +16,8 @@ module.exports = {
       name: 'zapai-backend',
       script: 'server.js',
       cwd: path.join(APP_DIR, 'backend'),
-      instances: 1,                   // WhatsApp session state is single-process
-      exec_mode: 'fork',
+      instances: PM2_INSTANCES,
+      exec_mode: PM2_EXEC_MODE,
       watch: false,
       autorestart: true,
       max_restarts: 10,
@@ -32,8 +34,9 @@ module.exports = {
         HOST: '0.0.0.0',
         MASTER_API_URL: 'http://209.50.229.68:4025',
         CRASH_EXIT_ON_UNHANDLED: 'true',
-        LOG_LEVEL: 'info',
+        LOG_LEVEL: process.env.LOG_LEVEL || 'warn',
         LOG_CONSOLE_QUIET: 'false',
+        PM2_GRACEFUL_LISTEN_TIMEOUT: '8000',
       },
 
       log_date_format: 'YYYY-MM-DD HH:mm:ss Z',

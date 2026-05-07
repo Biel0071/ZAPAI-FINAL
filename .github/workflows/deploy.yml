@@ -32,11 +32,10 @@ jobs:
         run: |
           ssh -o StrictHostKeyChecking=yes "${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}" <<'EOF'
             set -euo pipefail
-            cd /root/ZAPAI-FINAL
+            cd /opt/ZAPAI-FINAL
             echo "[deploy] commit before: $(git rev-parse --short HEAD || true)"
-            git pull --rebase origin main
-            echo "[deploy] commit after:  $(git rev-parse --short HEAD || true)"
-            bash deploy/update.sh
-            docker compose --env-file .env.production -f docker-compose.production.yml ps
-            docker compose --env-file .env.production -f docker-compose.production.yml logs --tail=120 backend frontend
+            bash deploy.sh main
+            echo "[deploy] commit after: $(git rev-parse --short HEAD || true)"
+            curl -fsS http://127.0.0.1:4025/health
+            pm2 status zapai-backend
           EOF
