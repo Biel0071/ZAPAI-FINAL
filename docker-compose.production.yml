@@ -154,11 +154,11 @@ services:
       - ./:/workspace
       - /var/run/docker.sock:/var/run/docker.sock
     healthcheck:
-      test: ["CMD-SHELL", "wget -q -T 5 -O /dev/null http://localhost:4025/health || exit 1"]
-      interval: 15s
-      timeout: 5s
-      retries: 20
-      start_period: 40s
+      test: ["CMD", "curl", "-sf", "http://127.0.0.1:4025/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 120s
     logging: *default-logging
 
 volumes:

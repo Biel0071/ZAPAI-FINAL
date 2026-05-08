@@ -7,6 +7,7 @@ FROM node:20-alpine
 # Install dependencies for Baileys (WhatsApp)
 RUN apk add --no-cache \
     bash \
+    curl \
     docker-cli \
     ffmpeg \
     git \
@@ -46,9 +47,9 @@ RUN mkdir -p sessions uploads logs
 # Expose port
 EXPOSE 4025
 
-# Health check
-HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
-  CMD wget -q -T 5 -O /dev/null http://localhost:4025/health || exit 1
+# Health check — uses curl (more reliable than wget on Alpine)
+HEALTHCHECK --interval=30s --timeout=10s --start-period=120s --retries=5 \
+  CMD curl -sf http://127.0.0.1:4025/health || exit 1
 
 # Start backend with startup orchestration
 ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]
