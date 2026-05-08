@@ -14,8 +14,9 @@ function timestamp() {
 }
 
 function getPool() {
+  const ssl = String(process.env.DB_SSL || '').trim().toLowerCase() === 'true' ? { rejectUnauthorized: false } : false;
   if (process.env.DATABASE_URL) {
-    return new Pool({ connectionString: process.env.DATABASE_URL });
+    return new Pool({ connectionString: process.env.DATABASE_URL, ssl });
   }
 
   return new Pool({
@@ -24,6 +25,7 @@ function getPool() {
     database: process.env.DB_NAME || 'zapai_crm',
     user: process.env.DB_USER || 'postgres',
     password: process.env.DB_PASSWORD || 'postgres',
+    ssl,
   });
 }
 

@@ -30,7 +30,7 @@ async function initDatabase() {
   // Create pool
   const pool = new Pool({
     connectionString: process.env.DATABASE_URL,
-    ssl: process.env.PGSSLMODE !== 'disable' && process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
+    ssl: String(process.env.DB_SSL || '').trim().toLowerCase() === 'true' ? { rejectUnauthorized: false } : false,
   });
 
   try {

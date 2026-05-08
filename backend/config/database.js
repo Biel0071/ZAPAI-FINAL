@@ -5,10 +5,21 @@ const { backendLog, errorLog } = require('../services/logger');
 const SLOW_QUERY_THRESHOLD_MS = Math.max(50, Number(process.env.DB_SLOW_QUERY_MS || 500));
 
 function shouldUseSsl() {
+  // Explicit disable always wins
   if (process.env.PGSSLMODE === 'disable') {
     return false;
   }
 
+  // Explicit enable: DB_SSL=true or PGSSLMODE=require
+  const explicitEnable =
+    String(process.env.DB_SSL || '').trim().toLowerCase() === 'true' ||
+    String(process.env.PGSSLMODE || '').trim().toLowerCase() === 'require';
+
+  if (explicitEnable) {
+    return { rejectUnauthorized: false };
+  }
+
+  // Docker internal hosts never need SSL
   const hostFromUrl = (() => {
     try {
       return process.env.DATABASE_URL ? new URL(process.env.DATABASE_URL).hostname : '';
@@ -17,13 +28,16 @@ function shouldUseSsl() {
     }
   })();
 
-  const effectiveHost = String(hostFromUrl || process.env.DB_HOST || '').trim().toLowerCase();
-  const isLocalDockerHost = ['localhost', '127.0.0.1', 'postgres', 'db'].includes(effectiveHost);
+  const effectiveHost = String(hostFromUrl || process.env.POSTGRES_HOST || process.env.DB_HOST || '').trim().toLowerCase();
+  const isLocalDockerHost = ['localhost', '127.0.0.1', 'postgres', 'db', ''].includes(effectiveHost);
   if (isLocalDockerHost) {
     return false;
   }
 
-  return process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false;
+  // External host without explicit config: default to SSL off (safe for Docker)
+  // Set DB_SSL=true if connecting to an external managed database
+  console.log(`[DB] Host "${effectiveHost}" detected. SSL disabled by default. Set DB_SSL=true to enable.`);
+  return false;
 }
 
 function getNumericSetting(value, fallback) {
