@@ -38,7 +38,7 @@ fi
 # ==============================================================================
 echo -e "${YELLOW}📦 Instalando e Validando Dependências (Docker, Node, Curl, Git, UFW)...${NC}"
 apt-get update && apt-get upgrade -y
-apt-get install -y curl wget git jq ufw htop software-properties-common
+apt-get install -y curl wget git jq ufw htop software-properties-common gettext-base
 
 if ! command -v docker &> /dev/null; then
     curl -fsSL https://get.docker.com -o get-docker.sh
@@ -133,21 +133,18 @@ if [ ! -d "frontend/dist" ] || [ -z "$(ls -A frontend/dist)" ]; then
 fi
 
 # ==============================================================================
-# 3. VALIDAÇÃO DOCKER COMPOSE & UPSTREAM NGINX
+# 3. VALIDAÇÃO DOCKER COMPOSE E TEMPLATE NGINX
 # ==============================================================================
 echo -e "${YELLOW}🔍 Validando Sintaxe do Docker Compose...${NC}"
 docker compose -f docker-compose.production.yml config > /dev/null || { echo -e "${RED}❌ ERRO: docker-compose.production.yml inválido ou duplicidade detectada! Abortando.${NC}"; exit 1; }
 
-echo -e "${YELLOW}🔍 Auto-detectando Upstream Nginx...${NC}"
+echo -e "${YELLOW}🔍 Auto-detectando Upstream Nginx e gerando nginx.conf...${NC}"
 BACKEND_SERVICE=$(docker compose -f docker-compose.production.yml config --services | grep -E 'backend|api|server' | head -n1)
 if [ -z "$BACKEND_SERVICE" ]; then BACKEND_SERVICE=backend; fi
 
-ESCAPED_SERVICE=$(printf '%s\n' "$BACKEND_SERVICE" | sed 's/[\/&]/\\&/g')
+export BACKEND_SERVICE
+envsubst '${BACKEND_SERVICE}' < infrastructure/nginx/nginx.conf.template > infrastructure/nginx/nginx.conf
 
-sed -i "s|http://backend:4025|http://${ESCAPED_SERVICE}:4025|g" infrastructure/nginx/nginx.conf
-sed -i "s|http://zapai-backend:4025|http://${ESCAPED_SERVICE}:4025|g" infrastructure/nginx/nginx.conf
-sed -i "s|http://api:4025|http://${ESCAPED_SERVICE}:4025|g" infrastructure/nginx/nginx.conf
-sed -i "s|http://server:4025|http://${ESCAPED_SERVICE}:4025|g" infrastructure/nginx/nginx.conf
 
 # ==============================================================================
 # 4. AUTO TESTE NGINX & DOCKER UP

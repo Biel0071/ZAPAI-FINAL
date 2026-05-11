@@ -66,7 +66,7 @@ server {
     # Backend REST API
     location /api/ {
         limit_req zone=api_limit burst=60 nodelay;
-        proxy_pass         http://zapai-backend:4025;
+        proxy_pass         http://${BACKEND_SERVICE}:4025;
         proxy_http_version 1.1;
         proxy_set_header   Host              $host;
         proxy_set_header   X-Real-IP         $remote_addr;
@@ -81,7 +81,7 @@ server {
 
     # Auth endpoint
     location /auth/ {
-        proxy_pass         http://zapai-backend:4025;
+        proxy_pass         http://${BACKEND_SERVICE}:4025;
         proxy_http_version 1.1;
         proxy_set_header   Host              $host;
         proxy_set_header   X-Real-IP         $remote_addr;
@@ -91,7 +91,7 @@ server {
 
     # System endpoints (health, version, runtime)
     location /system/ {
-        proxy_pass         http://zapai-backend:4025;
+        proxy_pass         http://${BACKEND_SERVICE}:4025;
         proxy_http_version 1.1;
         proxy_set_header   Host              $host;
         proxy_set_header   X-Real-IP         $remote_addr;
@@ -102,7 +102,7 @@ server {
     # Public health endpoints (no auth, no rate limit)
     location ~ ^/(health|ready|status-whatsapp|session-status|diagnostics|metrics)$ {
         limit_req zone=health_limit burst=20 nodelay;
-        proxy_pass         http://zapai-backend:4025;
+        proxy_pass         http://${BACKEND_SERVICE}:4025;
         proxy_http_version 1.1;
         proxy_set_header   Host              $host;
         proxy_set_header   X-Real-IP         $remote_addr;
@@ -112,7 +112,7 @@ server {
 
     # Socket.IO (WebSocket upgrade)
     location /socket.io/ {
-        proxy_pass              http://zapai-backend:4025/socket.io/;
+        proxy_pass              http://${BACKEND_SERVICE}:4025/socket.io/;
         proxy_http_version      1.1;
         proxy_set_header        Upgrade           $http_upgrade;
         proxy_set_header        Connection        "upgrade";
@@ -127,7 +127,7 @@ server {
 
     # Media uploads (larger body size)
     location /send-media {
-        proxy_pass         http://zapai-backend:4025;
+        proxy_pass         http://${BACKEND_SERVICE}:4025;
         proxy_http_version 1.1;
         proxy_set_header   Host              $host;
         proxy_set_header   X-Real-IP         $remote_addr;
@@ -199,7 +199,7 @@ server {
 #     # Backend REST API
 #     location /api/ {
 #         limit_req zone=api_limit burst=60 nodelay;
-#         proxy_pass         http://zapai-backend:4025;
+#         proxy_pass         http://${BACKEND_SERVICE}:4025;
 #         proxy_http_version 1.1;
 #         proxy_set_header   Host              $host;
 #         proxy_set_header   X-Real-IP         $remote_addr;
@@ -213,7 +213,7 @@ server {
 #     }
 #
 #     location /auth/ {
-#         proxy_pass         http://zapai-backend:4025;
+#         proxy_pass         http://${BACKEND_SERVICE}:4025;
 #         proxy_http_version 1.1;
 #         proxy_set_header   Host              $host;
 #         proxy_set_header   X-Real-IP         $remote_addr;
@@ -222,7 +222,7 @@ server {
 #     }
 #
 #     location /system/ {
-#         proxy_pass         http://zapai-backend:4025;
+#         proxy_pass         http://${BACKEND_SERVICE}:4025;
 #         proxy_http_version 1.1;
 #         proxy_set_header   Host              $host;
 #         proxy_set_header   X-Real-IP         $remote_addr;
@@ -232,7 +232,7 @@ server {
 #
 #     location ~ ^/(health|ready|status-whatsapp|session-status|diagnostics|metrics)$ {
 #         limit_req zone=health_limit burst=20 nodelay;
-#         proxy_pass         http://zapai-backend:4025;
+#         proxy_pass         http://${BACKEND_SERVICE}:4025;
 #         proxy_http_version 1.1;
 #         proxy_set_header   Host              $host;
 #         proxy_set_header   X-Real-IP         $remote_addr;
@@ -241,7 +241,7 @@ server {
 #     }
 #
 #     location /socket.io/ {
-#         proxy_pass              http://zapai-backend:4025/socket.io/;
+#         proxy_pass              http://${BACKEND_SERVICE}:4025/socket.io/;
 #         proxy_http_version      1.1;
 #         proxy_set_header        Upgrade           $http_upgrade;
 #         proxy_set_header        Connection        "upgrade";
@@ -255,7 +255,7 @@ server {
 #     }
 #
 #     location /send-media {
-#         proxy_pass         http://zapai-backend:4025;
+#         proxy_pass         http://${BACKEND_SERVICE}:4025;
 #         proxy_http_version 1.1;
 #         proxy_set_header   Host              $host;
 #         proxy_set_header   X-Real-IP         $remote_addr;
