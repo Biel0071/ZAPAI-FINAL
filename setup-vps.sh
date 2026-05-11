@@ -15,6 +15,25 @@ NC='\033[0m'
 echo -e "${GREEN}🚀 Iniciando Auto-Bootstrap Enterprise do Zapflow AI...${NC}"
 
 # ==============================================================================
+# 0. AUTO-LIMPEZA VPS (HARD RESET)
+# ==============================================================================
+echo -e "${YELLOW}🧹 Executando Limpeza Profunda e Desativação de Conflitos Host...${NC}"
+systemctl stop nginx 2>/dev/null || true
+systemctl stop apache2 2>/dev/null || true
+systemctl disable nginx 2>/dev/null || true
+systemctl disable apache2 2>/dev/null || true
+
+# Limpeza de pastas legadas
+rm -rf ~/ZAPAI-FINAL /root/ZAPAI-FINAL swift-wa-assist ZAPAI-CRM 2>/dev/null || true
+rm -rf frontend/node_modules frontend/dist 2>/dev/null || true
+
+# Limpeza pesada no Docker
+echo -e "${YELLOW}🐳 Executando Limpeza Profunda no Docker...${NC}"
+if command -v docker &> /dev/null; then
+    docker system prune -af --volumes || true
+fi
+
+# ==============================================================================
 # 1. AUTO DETECÇÃO E PREPARAÇÃO DO SO
 # ==============================================================================
 echo -e "${YELLOW}📦 Instalando e Validando Dependências (Docker, Node, Curl, Git, UFW)...${NC}"
@@ -49,11 +68,11 @@ fi
 
 # Auto-configurar .env se não existir
 if [ ! -f ".env.production" ]; then
-    cp .env.production.example .env.production
-    sed -i "s/TROQUE_openssl_rand_hex_32/$(openssl rand -hex 32)/g" .env.production
-    sed -i "s/TROQUE_openssl_rand_hex_24/$(openssl rand -hex 24)/g" .env.production
-    sed -i "s/TROQUE_PARA_UMA_SENHA_FORTE/zapadmin123/g" .env.production
-    sed -i "s/TROQUE_PARA_SENHA_FORTE/zapadmin123/g" .env.production
+    cp .env.production.example .env.production 2>/dev/null || touch .env.production
+    sed -i "s/TROQUE_openssl_rand_hex_32/$(openssl rand -hex 32)/g" .env.production 2>/dev/null || true
+    sed -i "s/TROQUE_openssl_rand_hex_24/$(openssl rand -hex 24)/g" .env.production 2>/dev/null || true
+    sed -i "s/TROQUE_PARA_UMA_SENHA_FORTE/zapadmin123/g" .env.production 2>/dev/null || true
+    sed -i "s/TROQUE_PARA_SENHA_FORTE/zapadmin123/g" .env.production 2>/dev/null || true
 fi
 
 # ==============================================================================
@@ -150,7 +169,7 @@ while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
         ALL_HEALTHY=true
         break
     else
-        echo -e "${RED}⚠️ Falha detectada (Front: $HTTP_FRONTEND | API: $HTTP_API | WS: $WS_STATUS). Reiniciando Backend e Nginx...${NC}"
+        echo -e "${RED}⚠️ Falha detectada (Front: $HTTP_FRONTEND | API: $HTTP_API | WS: $WS_STATUS). Executando Auto-Recovery...${NC}"
         docker compose --env-file .env.production -f docker-compose.production.yml restart backend nginx
         sleep 10
         RETRY_COUNT=$((RETRY_COUNT+1))
