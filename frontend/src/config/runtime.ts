@@ -27,17 +27,10 @@ declare const __APP_VERSION__: string;
  * PRODUÇÃO: Usa apenas VITE_API_URL, sem fallbacks
  */
 export const API_BASE_URL = (() => {
-  // Em todos os ambientes, usar variável de ambiente SEM fallback
-  const envUrl = import.meta.env.VITE_API_URL;
-  if (envUrl && envUrl !== '/api') {
-    return envUrl.replace(/\/$/, ''); // Remove trailing slash
-  }
-
   if (typeof window !== 'undefined' && window.location?.origin) {
-    return window.location.origin.replace(/\/$/, '');
+    // Retorna sempre a origem atual para que o nginx capture as rotas /api e /socket.io
+    return window.location.origin;
   }
-
-  console.error('VITE_API_URL not configured and window.location.origin is unavailable.');
   return '';
 })();
 

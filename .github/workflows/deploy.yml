@@ -1,41 +1,23 @@
-name: Deploy VPS
+name: Production Deploy
 
 on:
   push:
-    branches:
-      - main
+    branches: [ main ]
   workflow_dispatch:
-
-concurrency:
-  group: zapai-vps-deploy
-  cancel-in-progress: false
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
-
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Configure SSH
-        shell: bash
-        run: |
-          mkdir -p ~/.ssh
-          install -m 600 /dev/null ~/.ssh/id_rsa
-          printf '%s\n' "${{ secrets.VPS_SSH_KEY }}" > ~/.ssh/id_rsa
-          ssh-keyscan -H "${{ secrets.VPS_HOST }}" >> ~/.ssh/known_hosts
-
-      - name: Deploy on VPS
-        shell: bash
-        run: |
-          ssh -o StrictHostKeyChecking=yes "${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}" <<'EOF'
-            set -euo pipefail
-            cd /opt/ZAPAI-FINAL
-            echo "[deploy] commit before: $(git rev-parse --short HEAD || true)"
-            bash deploy.sh main
-            echo "[deploy] commit after: $(git rev-parse --short HEAD || true)"
-            curl -fsS http://127.0.0.1:4025/health
-            pm2 status zapai-backend
-          EOF
+      - uses: actions/checkout@v4
+      
+      - name: VPS Deploy via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USERNAME }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          script: |
+            cd /opt/zapai-final
+            git pull origin main
+            bash scripts/deploy.sh

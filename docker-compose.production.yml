@@ -6,8 +6,8 @@ services:
     container_name: zapai-nginx
     restart: unless-stopped
     ports:
-      - "80:80"
-      - "443:443"
+      - "3000:80"
+      # - "443:443"
     volumes:
       - ./infra/nginx/nginx.conf:/etc/nginx/conf.d/default.conf:ro
       - /etc/letsencrypt:/etc/letsencrypt:ro
@@ -154,11 +154,21 @@ services:
       - ./:/workspace
       - /var/run/docker.sock:/var/run/docker.sock
     healthcheck:
-      test: ["CMD", "curl", "-sf", "http://127.0.0.1:4025/health"]
+      test: ["CMD-SHELL", "wget --spider -q http://127.0.0.1:4025/health || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 5
       start_period: 120s
+    logging: *default-logging
+
+  dozzle:
+    image: amir20/dozzle:latest
+    container_name: zapai-dozzle
+    restart: unless-stopped
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    ports:
+      - "8080:8080"
     logging: *default-logging
 
 volumes:

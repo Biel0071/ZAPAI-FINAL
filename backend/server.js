@@ -131,6 +131,7 @@ function buildFullHealthPayload() {
     status,
     services: {
       db: dbOk ? 'ok' : 'down',
+      redis: process.env.REDIS_URL ? 'ok' : 'disabled',
       whatsapp: whatsappOk ? 'ok' : 'degraded',
       memory: memoryOk ? 'ok' : 'degraded',
       eventLoop: eventLoopOk ? 'ok' : 'degraded',
@@ -684,7 +685,14 @@ app.get('/api/diagnostics', (_req, res) => {
 
 app.get('/health', (_req, res) => {
   try {
-    return res.status(200).json({ ...buildHealthPayload(), success: true, status: 'ok' });
+    const payload = buildHealthPayload();
+    return res.status(200).json({
+      ...payload,
+      success: true,
+      status: 'ok',
+      service: 'zapai-backend',
+      uptime: payload.uptimeSeconds
+    });
   } catch (err) {
     // Health must ALWAYS return 200 for Docker healthcheck — even during startup
     return res.status(200).json({
@@ -692,6 +700,7 @@ app.get('/health', (_req, res) => {
       success: true,
       service: 'zapai-backend',
       booting: true,
+      uptime: process.uptime(),
       timestamp: new Date().toISOString(),
     });
   }
