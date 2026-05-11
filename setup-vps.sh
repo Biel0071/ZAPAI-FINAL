@@ -137,18 +137,55 @@ fi
 log "Docker limpo."
 
 # ==============================================================================
-step "5. BUILD DO FRONTEND"
+step "5. ATOMIC FRONTEND BUILD"
 # ==============================================================================
+RELEASES_DIR="$SCRIPT_DIR/frontend/releases"
+CURRENT_LINK="$SCRIPT_DIR/frontend/current"
+BUILD_HASH=$(git rev-parse --short HEAD 2>/dev/null || echo "$(date +%s)")
+RELEASE_NAME="release_${BUILD_HASH}_$(date +%Y%m%d_%H%M%S)"
+RELEASE_DIR="$RELEASES_DIR/$RELEASE_NAME"
+
+mkdir -p "$RELEASES_DIR"
+
+# Build into dist (Vite default)
 cd "$SCRIPT_DIR/frontend"
 npm ci
 npm run build
 cd "$SCRIPT_DIR"
 
-if [ ! -d "$SCRIPT_DIR/frontend/dist" ] || [ -z "$(ls -A "$SCRIPT_DIR/frontend/dist")" ]; then
-    err "Build do frontend falhou. Abortando."
+# Validate build output
+if [ ! -f "$SCRIPT_DIR/frontend/dist/index.html" ]; then
+    err "Build falhou — index.html ausente. Abortando."
     exit 1
 fi
-log "Frontend compilado."
+
+if [ ! -f "$SCRIPT_DIR/frontend/dist/build-manifest.json" ]; then
+    warn "build-manifest.json ausente — build pode estar incompleto."
+fi
+
+JS_COUNT=$(find "$SCRIPT_DIR/frontend/dist/assets" -name "*.js" 2>/dev/null | wc -l)
+CSS_COUNT=$(find "$SCRIPT_DIR/frontend/dist/assets" -name "*.css" 2>/dev/null | wc -l)
+
+if [ "$JS_COUNT" -lt 3 ]; then
+    err "Build inválido — apenas $JS_COUNT chunks JS encontrados. Abortando."
+    exit 1
+fi
+
+# Atomic swap: move dist → release dir → symlink
+mv "$SCRIPT_DIR/frontend/dist" "$RELEASE_DIR"
+rm -f "$CURRENT_LINK"
+ln -sf "$RELEASE_DIR" "$CURRENT_LINK"
+
+log "Release atômica criada: $RELEASE_NAME ($JS_COUNT JS + $CSS_COUNT CSS chunks)."
+
+# Cleanup old releases (keep last 3)
+cd "$RELEASES_DIR"
+RELEASE_COUNT=$(ls -1d release_* 2>/dev/null | wc -l)
+if [ "$RELEASE_COUNT" -gt 3 ]; then
+    ls -1dt release_* | tail -n +4 | xargs rm -rf
+    log "Releases antigas limpas (mantidas: 3)."
+fi
+cd "$SCRIPT_DIR"
 
 # ==============================================================================
 step "6. NGINX TEMPLATE (envsubst)"

@@ -53,14 +53,34 @@ server {
     root /usr/share/nginx/html;
     index index.html;
 
+    # SPA routing — serve index.html for all non-file paths
     location / {
-        # No cache for index.html to prevent stale builds
-        location = /index.html {
-            add_header Cache-Control "no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0";
-            add_header Pragma "no-cache";
-            add_header Expires "0";
-        }
         try_files $uri $uri/ /index.html;
+    }
+
+    # index.html — NEVER cache (prevents stale frontend)
+    location = /index.html {
+        add_header Cache-Control "no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0" always;
+        add_header Pragma "no-cache" always;
+        add_header Expires "0" always;
+        add_header X-Build-Source "zapflow-atomic-deploy" always;
+        etag off;
+        if_modified_since off;
+    }
+
+    # Service worker — NEVER cache (forces update check)
+    location = /sw.js {
+        add_header Cache-Control "no-store, no-cache, must-revalidate, max-age=0" always;
+        add_header Pragma "no-cache" always;
+        etag off;
+    }
+
+    # Build manifest — NEVER cache (deploy validation)
+    location = /build-manifest.json {
+        add_header Cache-Control "no-store, no-cache, must-revalidate, max-age=0" always;
+        add_header Pragma "no-cache" always;
+        add_header Access-Control-Allow-Origin "*" always;
+        etag off;
     }
 
     # Backend REST API
@@ -137,18 +157,26 @@ server {
         proxy_read_timeout   60s;
     }
 
-    # Static asset caching (Vite hashed filenames)
-    location ~* \.(js|css|woff2|woff|ttf|png|ico|svg|webp|jpg|jpeg|gif)$ {
+    # Hashed static assets — immutable cache (Vite adds content hash)
+    location ~* \.(?:js|css|woff2|woff|ttf)$ {
+        expires 365d;
+        add_header Cache-Control "public, immutable, max-age=31536000" always;
+    }
+
+    # Images/media — long cache
+    location ~* \.(?:png|ico|svg|webp|jpg|jpeg|gif|avif)$ {
         expires 30d;
-        add_header Cache-Control "public, immutable";
+        add_header Cache-Control "public, max-age=2592000" always;
     }
 
     # Gzip compression
     gzip              on;
-    gzip_types        text/plain text/css application/json application/javascript text/xml application/xml image/svg+xml;
-    gzip_min_length   1000;
+    gzip_types        text/plain text/css application/json application/javascript text/xml application/xml application/xml+rss image/svg+xml;
+    gzip_min_length   256;
     gzip_vary         on;
-    gzip_comp_level   5;
+    gzip_comp_level   6;
+    gzip_proxied      any;
+    gzip_buffers      16 8k;
 }
 
 # ── HTTPS block ────────────────────────────────────────────

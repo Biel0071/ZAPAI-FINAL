@@ -162,6 +162,46 @@ export default defineConfig(({ mode }) => {
         clientsClaim: false,
       },
     }),
+    // Build manifest — generates build-manifest.json for atomic deploy validation
+    {
+      name: 'build-manifest-plugin',
+      apply: 'build',
+      closeBundle() {
+        const distDir = path.resolve(__dirname, 'dist');
+        const assetsDir = path.resolve(distDir, 'assets');
+        if (!fs.existsSync(assetsDir)) return;
+
+        const assets = fs.readdirSync(assetsDir);
+        const jsChunks = assets.filter(f => f.endsWith('.js'));
+        const cssChunks = assets.filter(f => f.endsWith('.css'));
+
+        const manifest = {
+          version: APP_VERSION,
+          buildId: BUILD_ID,
+          buildTime: new Date().toISOString(),
+          environment: 'production',
+          chunks: {
+            js: jsChunks,
+            css: cssChunks,
+            total: jsChunks.length + cssChunks.length,
+          },
+          assets: {
+            total: assets.length,
+            files: assets,
+          },
+          integrity: {
+            indexHtml: fs.existsSync(path.resolve(distDir, 'index.html')),
+            swJs: fs.existsSync(path.resolve(distDir, 'sw.js')),
+          },
+        };
+
+        fs.writeFileSync(
+          path.resolve(distDir, 'build-manifest.json'),
+          JSON.stringify(manifest, null, 2),
+        );
+        console.log(`\n[build-manifest] Generated: ${jsChunks.length} JS + ${cssChunks.length} CSS chunks`);
+      },
+    },
   ].filter(Boolean),
   preview: {
     host: "0.0.0.0",
