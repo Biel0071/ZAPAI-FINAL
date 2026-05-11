@@ -10,8 +10,11 @@ const USER_KEY = "zapai_user";
 const TENANT_ID = "default";
 
 function getApiBase(): string {
-  const url = import.meta.env.VITE_API_URL || "";
-  return url.replace(/\/$/, "");
+  // Always use current origin — nginx proxies /api to backend
+  if (typeof window !== 'undefined' && window.location?.origin) {
+    return window.location.origin;
+  }
+  return '';
 }
 
 interface LoginCredentials {
@@ -90,9 +93,6 @@ export async function login(
   credentials: LoginCredentials
 ): Promise<LoginResponse> {
   const base = getApiBase();
-  if (!base) {
-    throw new Error("API URL não configurada. Verifique VITE_API_URL.");
-  }
 
   const res = await fetch(`${base}/api/auth/login`, {
     method: "POST",
@@ -125,9 +125,6 @@ export async function login(
 
 export async function forgotPassword(email: string): Promise<void> {
   const base = getApiBase();
-  if (!base) {
-    throw new Error("API URL não configurada.");
-  }
 
   const res = await fetch(`${base}/api/auth/forgot-password`, {
     method: "POST",

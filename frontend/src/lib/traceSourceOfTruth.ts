@@ -112,11 +112,7 @@ export class SourceOfTruthTrace {
 
   private getAPIOrigin(): string {
     try {
-      const apiUrl = import.meta.env.VITE_API_URL;
-      if (apiUrl) {
-        return new URL(apiUrl).origin;
-      }
-      return 'unknown';
+      return typeof window !== 'undefined' ? window.location.origin : 'unknown';
     } catch {
       return 'unknown';
     }
@@ -124,9 +120,8 @@ export class SourceOfTruthTrace {
 
   private getWebsocketOrigin(): string {
     try {
-      const apiUrl = import.meta.env.VITE_API_URL;
-      if (apiUrl) {
-        return new URL(apiUrl).origin.replace('http', 'ws');
+      if (typeof window !== 'undefined') {
+        return window.location.origin.replace(/^http/, 'ws');
       }
       return 'unknown';
     } catch {

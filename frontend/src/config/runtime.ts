@@ -24,7 +24,7 @@ declare const __APP_VERSION__: string;
 
 /**
  * URL base da API - ÚNICA FONTE DE VERDADE
- * PRODUÇÃO: Usa apenas VITE_API_URL, sem fallbacks
+ * Usa window.location.origin — nginx reverse proxy cuida do roteamento
  */
 export const API_BASE_URL = (() => {
   if (typeof window !== 'undefined' && window.location?.origin) {
