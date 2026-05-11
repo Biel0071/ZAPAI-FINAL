@@ -779,8 +779,9 @@ function resolveSocketUrl(socketUrl: string): string {
     return `${protocol}${trimmedUrl}`;
   }
 
-  const isLocalhost = /^(localhost|127\.0\.0\.1)(:\d+)?(\/.*)?$/i.test(trimmedUrl);
-  return `${isLocalhost ? "http" : "https"}://${trimmedUrl}`;
+  // Use current page protocol for any bare hostname — never hardcode http/https
+  const protocol = typeof window !== "undefined" ? window.location.protocol : "https:";
+  return `${protocol}//${trimmedUrl}`;
 }
 
 function ensureSharedSocket(socketUrl: string): Socket {
