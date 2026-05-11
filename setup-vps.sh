@@ -254,7 +254,30 @@ fi
 log "Todos os serviços estão online!"
 
 # ==============================================================================
-step "11. RESULTADO FINAL"
+step "11. MASTER SELF-REGISTRATION"
+# ==============================================================================
+HOSTNAME_LOCAL=$(hostname 2>/dev/null || echo "master")
+BUILD_HASH=$(git rev-parse --short HEAD 2>/dev/null || echo "unknown")
+
+REGISTER_RESULT=$(curl -s --max-time 10 \
+  -X POST "http://127.0.0.1:3000/api/master/register-node" \
+  -H "Content-Type: application/json" \
+  -d "{
+    \"node_id\": \"master\",
+    \"hostname\": \"${HOSTNAME_LOCAL}\",
+    \"ip\": \"${PUBLIC_IP}\",
+    \"version\": \"${BUILD_HASH}\",
+    \"port\": 4025
+  }" 2>/dev/null || echo '{"success":false}')
+
+if echo "$REGISTER_RESULT" | grep -q '"success":true'; then
+    log "Master registrado no cluster."
+else
+    warn "Auto-registro do master falhou (não-crítico)."
+fi
+
+# ==============================================================================
+step "12. RESULTADO FINAL"
 # ==============================================================================
 echo ""
 echo "============================================================"
@@ -263,10 +286,12 @@ echo "============================================================"
 echo ""
 echo -e "  Frontend:  ${CYAN}http://${PUBLIC_IP}:3000${NC}"
 echo -e "  API:       ${CYAN}http://${PUBLIC_IP}:3000/api/health${NC}"
+echo -e "  Cluster:   ${CYAN}http://${PUBLIC_IP}:3000/api/cluster/overview${NC}"
 echo -e "  Dozzle:    ${CYAN}http://${PUBLIC_IP}:8080${NC}"
 echo ""
 echo -e "  Login:     ${CYAN}zapadmin / zapadmin123${NC}"
 echo ""
-echo -e "  Logs:      dc logs -f"
-echo -e "  Status:    docker ps"
+echo -e "  Logs:      docker compose --env-file .env.production -f docker-compose.production.yml logs -f"
+echo -e "  Agent:     ZAPAI_MASTER_URL=http://${PUBLIC_IP}:3000 bash scripts/zapai-agent.sh"
 echo "============================================================"
+
