@@ -22,14 +22,15 @@ function normalizeErrorMessage(value, fallback = 'Unexpected error.') {
   return fallback;
 }
 
-function formatApiResponse({ success, data = null, error, meta }) {
+function formatApiResponse({ success, data = null, error = null, meta = null, token = null }) {
   const payload = {
     success: Boolean(success),
     data: success ? data : null,
+    error: success ? null : normalizeErrorMessage(error),
   };
 
-  if (!success) {
-    payload.error = normalizeErrorMessage(error);
+  if (token) {
+    payload.token = token;
   }
 
   if (meta && isPlainObject(meta)) {

@@ -809,28 +809,19 @@ async function createStableSession({
           delayMs: reconnectDelayMs,
           closeCode,
         });
-        if (session.reconnectRequestTimer) {
-          clearTimeout(session.reconnectRequestTimer);
-        }
-        session.reconnectRequestTimer = setTimeout(() => {
-          session.reconnectRequestTimer = null;
-          onReconnectRequested(normalizedSessionName, { closeCode })
-            .catch((error) => {
-              logSessionEvent('error', 'reconnect_failed', session, {
-                attempt: session.reconnectRequestCount,
-                closeCode,
-                error: error?.message || String(error),
-              });
-              // eslint-disable-next-line no-console
-              console.error(
-                `[WHATSAPP] Session ${normalizedSessionName} reconnect failed:`,
-                error?.message || error
-              );
-            })
-            .finally(() => {
-              session.reconnectRequestPending = false;
+        onReconnectRequested(normalizedSessionName, { closeCode })
+          .catch((error) => {
+            logSessionEvent('error', 'reconnect_failed', session, {
+              attempt: session.reconnectRequestCount,
+              closeCode,
+              error: error?.message || String(error),
             });
-        }, reconnectDelayMs);
+            // eslint-disable-next-line no-console
+            console.error(
+              `[WHATSAPP] Session ${normalizedSessionName} reconnect failed:`,
+              error?.message || error
+            );
+          });
       } else if (!shouldReconnect(lastDisconnect)) {
         delete activeSessions[normalizedSessionName];
         // loggedOut — clear stale auth so next connect gets a fresh QR

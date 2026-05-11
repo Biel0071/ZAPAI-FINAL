@@ -388,37 +388,34 @@ async function startSession(sessionName = DEFAULT_SESSION, options = {}) {
         }
 
         const attempt = nextReconnectAttempt(normalizedTarget);
+
         if (attempt > MAX_RECONNECT_ATTEMPTS) {
-          console.warn(`[WHATSAPP] Limite de reconexao atingido para ${normalizedTarget} (code: ${closeCode || 'unknown'})`);
+          console.warn(`[WHATSAPP] Reconnect limit reached for ${normalizedTarget} (attempt ${attempt-1})`);
           if (targetSession) {
             targetSession.status = 'error';
             targetSession.lastError = 'Reconnect limit reached';
-            targetSession.retryCount = MAX_RECONNECT_ATTEMPTS;
-            targetSession.lastRetryAt = new Date().toISOString();
             setSession(normalizedTarget, targetSession);
           }
           return;
         }
 
-        if (targetSession) {
-          targetSession.status = 'connecting';
-          targetSession.retryCount = attempt;
-          targetSession.lastRetryAt = new Date().toISOString();
-          setSession(normalizedTarget, targetSession);
-        }
+        const backoffMs = Math.min(3000 * attempt, 30000); // 3s, 6s, 9s... max 30s
+        console.log(`[WHATSAPP] Reconnect scheduled for ${normalizedTarget} in ${backoffMs}ms (attempt ${attempt}/${MAX_RECONNECT_ATTEMPTS})`);
 
         const timer = setTimeout(async () => {
           reconnectTimers.delete(normalizedTarget);
           reconnectInFlight.add(normalizedTarget);
 
           try {
-            await startSession(normalizedTarget, { forceNew: true });
+            if (runtimeActive && !targetSession?.isDisposed) {
+              await startSession(normalizedTarget, { forceNew: true });
+            }
           } catch (error) {
             console.error(`[WHATSAPP] Reconnect failed for ${normalizedTarget}:`, error.message || error);
           } finally {
             reconnectInFlight.delete(normalizedTarget);
           }
-        }, Math.min(3000 * attempt, 15000));
+        }, backoffMs);
 
         reconnectTimers.set(normalizedTarget, timer);
       },
