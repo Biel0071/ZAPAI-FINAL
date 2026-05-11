@@ -15,15 +15,12 @@ const { spawnSync } = require('child_process');
 
 class NodeRegisterService {
   constructor() {
-    this.masterApiUrl = process.env.MASTER_API_URL;
+    this.masterApiUrl = process.env.MASTER_API_URL || `http://127.0.0.1:${process.env.PORT || 4025}`;
     this.nodeToken = process.env.NODE_TOKEN;
     this.registrationToken = process.env.NODE_REGISTRATION_TOKEN || process.env.MASTER_TOKEN || '';
-    this.nodeId = process.env.NODE_ID || this.generateNodeId();
-    const role = String(process.env.NODE_ROLE || '').trim().toLowerCase();
-    const isMaster = role ? role === 'master' : String(process.env.MASTER || '').trim().toLowerCase() === 'true';
-    this.autoRegisterEnabled = String(process.env.FEATURE_NODE_AUTO_REGISTER || (isMaster ? 'false' : 'true'))
-      .trim()
-      .toLowerCase() === 'true';
+    const isMaster = String(process.env.MASTER || '').trim().toLowerCase() === 'true';
+    this.nodeId = process.env.NODE_ID || (isMaster ? 'master' : this.generateNodeId());
+    this.autoRegisterEnabled = String(process.env.FEATURE_NODE_AUTO_REGISTER || 'true').trim().toLowerCase() === 'true';
     this.heartbeatInterval = null;
   }
 
@@ -208,8 +205,22 @@ class NodeRegisterService {
       await this.makeRequest(url, payload, {
         bearerToken: this.nodeToken,
       });
-      
-      console.log('[NodeRegister] Heartbeat sent');
+
+      const metricsArray = [
+        { type: 'cpu', name: 'cpu.usage', value: payload.cpu_usage, unit: 'percent' },
+        { type: 'ram', name: 'ram.total_mb', value: metrics.ram?.total || 0, unit: 'mb' },
+        { type: 'ram', name: 'ram.used_mb', value: metrics.ram?.used || 0, unit: 'mb' },
+        { type: 'ram', name: 'ram.usage', value: payload.memory_usage, unit: 'percent' },
+        { type: 'disk', name: 'disk.usage', value: payload.disk_usage, unit: 'percent' },
+        { type: 'system', name: 'system.uptime', value: payload.uptime_seconds, unit: 'seconds' }
+      ];
+
+      const metricsUrl = `${this.masterApiUrl}/api/cluster/metrics/ingest`;
+      await this.makeRequest(metricsUrl, { node_id: this.nodeId, metrics: metricsArray }, {
+        bearerToken: this.nodeToken,
+      });
+
+      console.log('[NodeRegister] Heartbeat & metrics sent');
     } catch (error) {
       console.error('[NodeRegister] Failed to send heartbeat:', error.message);
     }
@@ -240,6 +251,7 @@ class NodeRegisterService {
 
     if (options.bearerToken) {
       headers.Authorization = `Bearer ${options.bearerToken}`;
+      headers['x-node-token'] = options.bearerToken;
     }
 
     if (options.registrationToken) {

@@ -100,9 +100,7 @@ const CLUSTER_TABLES_SQL = `
   ALTER TABLE nodes ADD COLUMN IF NOT EXISTS tags JSONB DEFAULT '[]'::jsonb;
 
   -- ── Cleanup: auto-purge old metrics (keep 7 days) ─────────────────────────
-  -- This should be run via cron or pg_cron, not inline. Just an index to help.
-  CREATE INDEX IF NOT EXISTS idx_node_metrics_cleanup ON node_metrics(recorded_at) WHERE recorded_at < NOW() - INTERVAL '7 days';
-  CREATE INDEX IF NOT EXISTS idx_heartbeats_cleanup ON heartbeats(received_at) WHERE received_at < NOW() - INTERVAL '7 days';
+  -- This should be run via cron or pg_cron, not inline.
 `;
 
 module.exports = {

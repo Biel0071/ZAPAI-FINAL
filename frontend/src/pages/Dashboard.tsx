@@ -402,10 +402,6 @@ export default function Dashboard() {
               <TabsTrigger value="map">Mapa de Origem</TabsTrigger>
             </TabsList>
           </Tabs>
-          <Badge className={numberHealth.className}>
-            <numberHealth.icon className="mr-1.5 h-4 w-4" />
-            Number health: {numberHealth.label}
-          </Badge>
         </div>
 
         {/* ═══ OVERVIEW TAB ═══ */}
@@ -494,37 +490,11 @@ export default function Dashboard() {
               </Card>
             </div>
 
-            {/* System Control + Sessions */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              <Card className="glass-card">
-                <CardHeader><CardTitle className="font-display">Controle do Sistema</CardTitle></CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="flex items-center gap-2">
-                    <span className={runtimeDotClass}>●</span>
-                    {isSystemLoading ? <Skeleton className="h-4 w-24" /> : (
-                      <><span className="text-sm font-medium">Runtime:</span><Badge variant={runtimeBadgeVariant}>{runtimeLabel}</Badge></>
-                    )}
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className={sessionDotClass}>●</span>
-                    {isSystemLoading ? <Skeleton className="h-4 w-24" /> : (
-                      <><span className="text-sm font-medium">Sessões:</span><Badge variant={sessionBadgeVariant}>{sessionLabel}</Badge><span className="text-xs text-muted-foreground">({activeSessions}/{totalSessions})</span></>
-                    )}
-                  </div>
-                  {isSystemLoading ? <Skeleton className="h-4 w-full" /> : (
-                    <p className="text-sm text-muted-foreground">{runtimeDescription}</p>
-                  )}
-                  <div className="flex flex-wrap gap-2">
-                    <Button onClick={() => void handleActivateSystem()} disabled={isSystemActionLoading || runtimeState === "running"}>
-                      {isSystemActionLoading ? <CircleNotch className="mr-2 h-4 w-4 animate-spin" /> : null}
-                      {isSystemActionLoading ? "Iniciando runtime..." : "Ativar Sistema"}
-                    </Button>
-                    <Button variant="outline" onClick={() => void handleDeactivateSystem()} disabled={isSystemActionLoading || runtimeState !== "running"}>Desativar Sistema</Button>
-                  </div>
-                </CardContent>
-              </Card>
+            {/* Sessions */}
+            <div className="grid grid-cols-1 gap-6">
 
-              <Card className="glass-card lg:col-span-2">
+
+              <Card className="glass-card">
                 <CardHeader><CardTitle className="font-display">Sessões WhatsApp</CardTitle></CardHeader>
                 <CardContent className="space-y-4">
                   {sessions.length === 0 && !isSystemLoading && (

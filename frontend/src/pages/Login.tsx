@@ -50,7 +50,7 @@ export default function Login() {
               <WhatsappLogo size={28} weight="fill" />
             </div>
             <h1 className="text-2xl font-display font-bold tracking-tight text-foreground">
-              ZapAI <span className="text-whatsapp">CRM</span>
+              ZAPFLOW <span className="text-whatsapp">AI</span>
             </h1>
           </div>
           <p className="text-sm text-muted-foreground">Gerencie seus atendimentos com IA</p>
@@ -135,7 +135,7 @@ export default function Login() {
         </Card>
 
         <p className="text-center text-xs text-muted-foreground">
-          ZapAI CRM &copy; {new Date().getFullYear()} — v1.0
+          ZAPFLOW AI &copy; {new Date().getFullYear()} — v1.0
         </p>
       </div>
     </div>

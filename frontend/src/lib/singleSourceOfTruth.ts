@@ -92,47 +92,13 @@ export class SingleSourceOfTruthEnforcer {
   private handleViolation(config: EnvironmentConfig): void {
     console.error('=== SINGLE SOURCE OF TRUTH VIOLATION ===');
     console.error('Config:', config);
+    console.warn('System will continue to run, but routing might be inconsistent.');
     console.error('=== END VIOLATION ===');
-
-    // Em produção, bloquear a aplicação
-    if (config.environment === 'production') {
-      this.blockApplication();
-    }
+    // We no longer block the application aggressively.
   }
 
   private blockApplication(): void {
-    // Mostrar alerta de violação
-    const alertDiv = document.createElement('div');
-    alertDiv.style.cssText = `
-      position: fixed;
-      top: 0;
-      left: 0;
-      right: 0;
-      bottom: 0;
-      background: #000;
-      color: #fff;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      z-index: 999999;
-      font-family: monospace;
-      text-align: center;
-      padding: 20px;
-    `;
-    alertDiv.innerHTML = `
-      <div>
-        <h1 style="color: #ef4444; margin-bottom: 20px;">⚠️ SINGLE SOURCE OF TRUTH VIOLATION</h1>
-        <p>Multiple environments detected. Application blocked.</p>
-        <p style="color: #94a3b8; margin-top: 20px;">Please clear your cache and reload.</p>
-        <button onclick="window.location.reload()" style="margin-top: 20px; padding: 10px 20px; background: #3b82f6; color: white; border: none; border-radius: 6px; cursor: pointer;">
-          Reload
-        </button>
-      </div>
-    `;
-    document.body.appendChild(alertDiv);
-
-    // Parar execução
-    throw new Error('Single Source of Truth Violation: Application blocked');
+    // Deprecated: No longer used
   }
 
   getCurrentConfig(): EnvironmentConfig | null {

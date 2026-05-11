@@ -291,14 +291,63 @@ fi
 log "Todos os serviços estão online!"
 
 # ==============================================================================
-step "11. MASTER SELF-REGISTRATION"
+step "11. SYSTEMD SERVICES"
+# ==============================================================================
+
+cat <<EOF > /etc/systemd/system/zapai-backend.service
+[Unit]
+Description=ZAPFLOW AI Backend (Docker Compose)
+Requires=docker.service
+After=docker.service network-online.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+WorkingDirectory=$SCRIPT_DIR
+ExecStart=/usr/bin/docker compose --env-file $ENV_FILE -f $COMPOSE_FILE up -d
+ExecStop=/usr/bin/docker compose --env-file $ENV_FILE -f $COMPOSE_FILE down
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+cat <<EOF > /etc/systemd/system/zapai-agent.service
+[Unit]
+Description=ZAPFLOW AI Worker Agent
+After=docker.service network-online.target zapai-backend.service
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=$SCRIPT_DIR
+Environment="ZAPAI_MASTER_URL=http://127.0.0.1:3000"
+Environment="ZAPAI_NODE_ID=master"
+EnvironmentFile=$ENV_FILE
+ExecStart=/bin/bash $SCRIPT_DIR/scripts/zapai-agent.sh
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+systemctl daemon-reload 2>/dev/null || true
+systemctl enable zapai-backend.service zapai-agent.service 2>/dev/null || true
+systemctl start zapai-agent.service 2>/dev/null || true
+
+log "Systemd services configurados: zapai-backend, zapai-agent."
+
+# ==============================================================================
+step "12. MASTER SELF-REGISTRATION"
 # ==============================================================================
 HOSTNAME_LOCAL=$(hostname 2>/dev/null || echo "master")
 BUILD_HASH=$(git rev-parse --short HEAD 2>/dev/null || echo "unknown")
+REG_TOKEN=$(grep '^NODE_REGISTRATION_TOKEN=' "$ENV_FILE" | cut -d'=' -f2 | tr -d '"')
 
 REGISTER_RESULT=$(curl -s --max-time 10 \
   -X POST "http://127.0.0.1:3000/api/master/register-node" \
   -H "Content-Type: application/json" \
+  -H "x-registration-token: ${REG_TOKEN}" \
   -d "{
     \"node_id\": \"master\",
     \"hostname\": \"${HOSTNAME_LOCAL}\",
@@ -314,7 +363,7 @@ else
 fi
 
 # ==============================================================================
-step "12. RESULTADO FINAL"
+step "13. RESULTADO FINAL"
 # ==============================================================================
 echo ""
 echo "============================================================"

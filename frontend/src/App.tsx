@@ -88,10 +88,7 @@ function App() {
     const validation = validateRuntimeConfig();
     if (!validation.valid) {
       console.error("Runtime config validation failed:", validation.errors);
-      if (import.meta.env.MODE === "production" && !sessionStorage.getItem(RUNTIME_ALERT_KEY)) {
-        sessionStorage.setItem(RUNTIME_ALERT_KEY, "1");
-        alert("Configuration error. Please contact support.");
-      }
+      // Removed the alert. Just log and continue.
     }
   }, []);
 

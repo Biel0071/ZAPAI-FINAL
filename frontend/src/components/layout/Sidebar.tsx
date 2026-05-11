@@ -54,19 +54,23 @@ function isNavItemActive(currentPathname: string, currentSearch: string, itemPat
   return true;
 }
 
-const navItems: SidebarNavItem[] = [
+const crmItems: SidebarNavItem[] = [
   { icon: House, label: "Dashboard", path: "/dashboard" },
-  { icon: ChatCircleDots, label: "Inbox", path: "/inbox" },
-  { icon: WhatsappLogo, label: "Conexões", path: "/connections" },
-  { icon: AddressBook, label: "Contacts", path: "/contacts" },
-  { icon: TreeStructure, label: "Flows", path: "/flows" },
-  { icon: Robot, label: "AI Config", path: "/ai" },
-  { icon: Megaphone, label: "Campaigns", path: "/campaigns" },
-  { icon: Lightning, label: "Diagnostics", path: "/diagnostics" },
+  { icon: ChatCircleDots, label: "Conversas", path: "/inbox" },
+  { icon: WhatsappLogo, label: "Leads", path: "/contacts" },
+  { icon: Megaphone, label: "Campanhas", path: "/campaigns" },
+  { icon: TreeStructure, label: "Fluxos", path: "/flows" },
+  { icon: Robot, label: "Métricas", path: "/ai" },
 ];
 
-const bottomItems: SidebarNavItem[] = [{ icon: Gear, label: "Settings", path: "/settings" }];
-const adminItems: SidebarNavItem[] = [{ icon: Wrench, label: "Admin Sistema", path: "/admin/system" }];
+const systemItems: SidebarNavItem[] = [
+  { icon: Lightning, label: "Health", path: "/diagnostics" },
+  { icon: Wrench, label: "Admin Sistema", path: "/admin/system" },
+];
+
+const bottomItems: SidebarNavItem[] = [
+  { icon: Gear, label: "Settings", path: "/settings" }
+];
 
 export function Sidebar() {
   const [collapsed, setCollapsed] = useState(false);
@@ -166,8 +170,8 @@ export function Sidebar() {
     >
       {/* Logo */}
       <div className="flex items-center gap-2.5 px-4 h-16 border-b border-sidebar-border/60">
-        <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center flex-shrink-0">
-          <Lightning weight="fill" className="w-4 h-4 text-primary-foreground" />
+        <div className="w-8 h-8 rounded-lg bg-whatsapp flex items-center justify-center flex-shrink-0">
+          <WhatsappLogo weight="fill" className="w-4 h-4 text-white" />
         </div>
         <AnimatePresence>
           {!compact && (
@@ -178,10 +182,10 @@ export function Sidebar() {
               transition={{ duration: 0.15 }}
             >
               <h1 className="font-display text-[15px] font-bold text-sidebar-foreground leading-tight">
-                ZapAI CRM
+                ZAPFLOW <span className="text-whatsapp">AI</span>
               </h1>
               <p className="text-[10px] text-sidebar-muted leading-none">
-                Automação Inteligente
+                Enterprise
               </p>
             </motion.div>
           )}
@@ -191,16 +195,22 @@ export function Sidebar() {
       {/* Navigation */}
       <nav className="flex-1 px-2 py-3 space-y-0.5 overflow-y-auto scrollbar-thin">
         {!compact && (
-          <p className="text-[10px] font-semibold uppercase tracking-wider text-sidebar-muted/60 px-3 mb-2">
-            Menu
+          <p className="text-[10px] font-semibold uppercase tracking-wider text-sidebar-muted/60 px-3 mb-2 mt-2">
+            CRM
           </p>
         )}
-        {navItems.map((item) => renderNavItem(item, compact))}
+        {crmItems.map((item) => renderNavItem(item, compact))}
+
+        {!compact && (
+          <p className="text-[10px] font-semibold uppercase tracking-wider text-sidebar-muted/60 px-3 mb-2 mt-6">
+            Sistema (Admin)
+          </p>
+        )}
+        {systemItems.map((item) => renderNavItem(item, compact))}
       </nav>
 
       {/* Bottom */}
       <div className="px-2 py-3 border-t border-sidebar-border/60 space-y-0.5">
-        {adminItems.map((item) => renderNavItem(item, compact))}
         {bottomItems.map((item) => renderNavItem(item, compact))}
 
         {!mobileMode && (

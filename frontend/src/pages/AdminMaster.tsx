@@ -236,12 +236,12 @@ export default function AdminMaster() {
 
   return (
     <div className="min-h-screen bg-background">
-      <Header title="Admin Master" subtitle="Painel de controle administrativo" />
+      <Header title="Sistema (Admin)" subtitle="ZAPFLOW AI Enterprise" />
       
       <div className="p-6">
         <div className="flex justify-between items-center mb-6">
           <div>
-            <h1 className="text-2xl font-bold font-display">Admin Master</h1>
+            <h1 className="text-2xl font-bold font-display">Sistema (Admin)</h1>
             <p className="text-sm text-muted-foreground">Monitoramento e controle do sistema</p>
           </div>
           <Button onClick={handleRefresh} disabled={refreshing}>
