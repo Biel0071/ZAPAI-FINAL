@@ -96,12 +96,15 @@ fi
 # 3. AUTO DETECÇÃO DE UPSTREAM NGINX
 # ==============================================================================
 echo -e "${YELLOW}🔍 Auto-detectando Upstream Nginx...${NC}"
-BACKEND_SERVICE=$(grep -A 10 "backend:" docker-compose.production.yml | grep "container_name:" | awk '{print $2}' || echo "zapai-backend")
+BACKEND_SERVICE=$(docker compose -f docker-compose.production.yml config --services | grep -E 'backend|api|server' | head -n1)
+if [ -z "$BACKEND_SERVICE" ]; then BACKEND_SERVICE=backend; fi
 
-sed -i -E "s|proxy_pass[[:space:]]+http://[^:]+:4025|proxy_pass http://${BACKEND_SERVICE}:4025|g" infra/nginx/nginx.conf
+ESCAPED_SERVICE=$(printf '%s\n' "$BACKEND_SERVICE" | sed 's/[\/&]/\\&/g')
 
-# Validar resultado
-grep "proxy_pass http://" infra/nginx/nginx.conf || true
+sed -i "s|http://backend:4025|http://${ESCAPED_SERVICE}:4025|g" infra/nginx/nginx.conf
+sed -i "s|http://zapai-backend:4025|http://${ESCAPED_SERVICE}:4025|g" infra/nginx/nginx.conf
+sed -i "s|http://api:4025|http://${ESCAPED_SERVICE}:4025|g" infra/nginx/nginx.conf
+sed -i "s|http://server:4025|http://${ESCAPED_SERVICE}:4025|g" infra/nginx/nginx.conf
 
 # ==============================================================================
 # 4. AUTO TESTE NGINX & DOCKER UP
@@ -112,8 +115,8 @@ chmod -R 777 backups logs backend/sessions backend/uploads
 
 docker compose --env-file .env.production -f docker-compose.production.yml down --remove-orphans || true
 
-# Subir stack temporária (backend) para resolução de DNS Docker
-docker compose --env-file .env.production -f docker-compose.production.yml up -d backend
+# Subir stack temporária (backend, redis, postgres) para resolução de DNS Docker
+docker compose --env-file .env.production -f docker-compose.production.yml up -d backend redis postgres
 
 # Testar nginx rodando container acoplado à rede usando run para ter DNS
 NGINX_TEST=$(docker compose --env-file .env.production -f docker-compose.production.yml run --rm nginx nginx -t 2>&1 || true)
