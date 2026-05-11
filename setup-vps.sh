@@ -98,7 +98,10 @@ fi
 echo -e "${YELLOW}🔍 Auto-detectando Upstream Nginx...${NC}"
 BACKEND_SERVICE=$(grep -A 10 "backend:" docker-compose.production.yml | grep "container_name:" | awk '{print $2}' || echo "zapai-backend")
 
-sed -i -E "s/proxy_pass[[:space:]]+http:\/\/[^:]+:4025/proxy_pass http:\/\/${BACKEND_SERVICE}:4025/g" infra/nginx/nginx.conf
+sed -i -E "s|proxy_pass[[:space:]]+http://[^:]+:4025|proxy_pass http://${BACKEND_SERVICE}:4025|g" infra/nginx/nginx.conf
+
+# Validar resultado
+grep "proxy_pass http://" infra/nginx/nginx.conf || true
 
 # ==============================================================================
 # 4. AUTO TESTE NGINX & DOCKER UP
@@ -108,9 +111,12 @@ mkdir -p backups/postgres logs/backend backend/sessions backend/uploads
 chmod -R 777 backups logs backend/sessions backend/uploads
 
 docker compose --env-file .env.production -f docker-compose.production.yml down --remove-orphans || true
-docker compose --env-file .env.production -f docker-compose.production.yml up -d --build --no-deps nginx || true
 
-NGINX_TEST=$(docker compose --env-file .env.production -f docker-compose.production.yml exec -T nginx nginx -t 2>&1 || true)
+# Subir stack temporária (backend) para resolução de DNS Docker
+docker compose --env-file .env.production -f docker-compose.production.yml up -d backend
+
+# Testar nginx rodando container acoplado à rede usando run para ter DNS
+NGINX_TEST=$(docker compose --env-file .env.production -f docker-compose.production.yml run --rm nginx nginx -t 2>&1 || true)
 if echo "$NGINX_TEST" | grep -qi "failed"; then
     echo -e "${RED}❌ ERRO: Sintaxe do Nginx inválida! Logs:${NC}"
     echo "$NGINX_TEST"
