@@ -66,13 +66,34 @@ if [ ! -d "/opt/netdata" ] && ! command -v netdata &> /dev/null; then
     wget -O /tmp/netdata-kickstart.sh https://get.netdata.cloud/kickstart.sh && sh /tmp/netdata-kickstart.sh --non-interactive || true
 fi
 
-# Auto-configurar .env se não existir
+# Auto-configurar .env.production se não existir
 if [ ! -f ".env.production" ]; then
-    cp .env.production.example .env.production 2>/dev/null || touch .env.production
-    sed -i "s/TROQUE_openssl_rand_hex_32/$(openssl rand -hex 32)/g" .env.production 2>/dev/null || true
-    sed -i "s/TROQUE_openssl_rand_hex_24/$(openssl rand -hex 24)/g" .env.production 2>/dev/null || true
-    sed -i "s/TROQUE_PARA_UMA_SENHA_FORTE/zapadmin123/g" .env.production 2>/dev/null || true
-    sed -i "s/TROQUE_PARA_SENHA_FORTE/zapadmin123/g" .env.production 2>/dev/null || true
+    echo -e "${YELLOW}📝 Gerando .env.production automaticamente com IP público e senhas fortes...${NC}"
+    SERVER_IP=$(curl -s ifconfig.me)
+
+    cat > .env.production <<EOF
+NODE_ENV=production
+PORT=4025
+
+POSTGRES_DB=zapai
+POSTGRES_USER=zapai
+POSTGRES_PASSWORD=$(openssl rand -hex 16)
+
+DATABASE_URL=postgresql://zapai:\${POSTGRES_PASSWORD}@postgres:5432/zapai
+
+REDIS_URL=redis://redis:6379
+
+FRONTEND_URL=http://\${SERVER_IP}:3000
+CORS_ALLOWED_ORIGINS=http://\${SERVER_IP}:3000
+
+JWT_SECRET=$(openssl rand -hex 32)
+SESSION_SECRET=$(openssl rand -hex 32)
+
+MASTER_ROLE=master
+NODE_ROLE=master
+
+TZ=America/Sao_Paulo
+EOF
 fi
 
 # ==============================================================================
@@ -112,8 +133,11 @@ if [ ! -d "frontend/dist" ] || [ -z "$(ls -A frontend/dist)" ]; then
 fi
 
 # ==============================================================================
-# 3. AUTO DETECÇÃO DE UPSTREAM NGINX
+# 3. VALIDAÇÃO DOCKER COMPOSE & UPSTREAM NGINX
 # ==============================================================================
+echo -e "${YELLOW}🔍 Validando Sintaxe do Docker Compose...${NC}"
+docker compose -f docker-compose.production.yml config > /dev/null || { echo -e "${RED}❌ ERRO: docker-compose.production.yml inválido ou duplicidade detectada! Abortando.${NC}"; exit 1; }
+
 echo -e "${YELLOW}🔍 Auto-detectando Upstream Nginx...${NC}"
 BACKEND_SERVICE=$(docker compose -f docker-compose.production.yml config --services | grep -E 'backend|api|server' | head -n1)
 if [ -z "$BACKEND_SERVICE" ]; then BACKEND_SERVICE=backend; fi
