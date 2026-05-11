@@ -144,10 +144,10 @@ if [ -z "$BACKEND_SERVICE" ]; then BACKEND_SERVICE=backend; fi
 
 ESCAPED_SERVICE=$(printf '%s\n' "$BACKEND_SERVICE" | sed 's/[\/&]/\\&/g')
 
-sed -i "s|http://backend:4025|http://${ESCAPED_SERVICE}:4025|g" infra/nginx/nginx.conf
-sed -i "s|http://zapai-backend:4025|http://${ESCAPED_SERVICE}:4025|g" infra/nginx/nginx.conf
-sed -i "s|http://api:4025|http://${ESCAPED_SERVICE}:4025|g" infra/nginx/nginx.conf
-sed -i "s|http://server:4025|http://${ESCAPED_SERVICE}:4025|g" infra/nginx/nginx.conf
+sed -i "s|http://backend:4025|http://${ESCAPED_SERVICE}:4025|g" infrastructure/nginx/nginx.conf
+sed -i "s|http://zapai-backend:4025|http://${ESCAPED_SERVICE}:4025|g" infrastructure/nginx/nginx.conf
+sed -i "s|http://api:4025|http://${ESCAPED_SERVICE}:4025|g" infrastructure/nginx/nginx.conf
+sed -i "s|http://server:4025|http://${ESCAPED_SERVICE}:4025|g" infrastructure/nginx/nginx.conf
 
 # ==============================================================================
 # 4. AUTO TESTE NGINX & DOCKER UP
