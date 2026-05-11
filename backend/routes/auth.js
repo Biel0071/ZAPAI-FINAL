@@ -183,6 +183,7 @@ router.post('/auth/login', async (req, res) => {
 
         const token = signHs256Jwt(payload, secret);
         return res.status(200).json({
+          success: true,
           token,
           tokenType: 'Bearer',
           expiresIn: expiresAt - issuedAt,
@@ -223,6 +224,7 @@ router.post('/auth/login', async (req, res) => {
 
       const token = signHs256Jwt(payload, secret);
       return res.status(200).json({
+        success: true,
         token,
         tokenType: 'Bearer',
         expiresIn: expiresAt - issuedAt,

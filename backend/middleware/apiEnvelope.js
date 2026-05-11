@@ -3,7 +3,7 @@ function isPlainObject(value) {
 }
 
 function isEnvelope(value) {
-  return isPlainObject(value) && typeof value.success === 'boolean' && ('data' in value || 'error' in value);
+  return isPlainObject(value) && typeof value.success === 'boolean' && ('data' in value || 'error' in value || 'token' in value);
 }
 
 function normalizeErrorMessage(value, fallback = 'Unexpected error.') {
