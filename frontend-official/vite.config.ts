@@ -15,6 +15,7 @@ export default defineConfig(({ mode }) => {
     "import.meta.env.VITE_APP_VERSION_LABEL": JSON.stringify(stableVersionLabel),
   },
   build: {
+    target: "es2020",
     emptyOutDir: true,
     rollupOptions: {
       output: {
