@@ -1029,6 +1029,52 @@ app.get('/api/queues/diagnostics', (_req, res) => {
   }
 });
 
+// ─── Consolidated Production Status ───
+app.get('/api/production/status', (_req, res) => {
+  try {
+    const uptime = process.uptime();
+    const mem = process.memoryUsage();
+
+    const data = {
+      status: 'operational',
+      version: process.env.npm_package_version || '1.0.0',
+      environment: process.env.NODE_ENV || 'development',
+      uptime: {
+        seconds: Math.round(uptime),
+        human: `${Math.floor(uptime / 3600)}h ${Math.floor((uptime % 3600) / 60)}m ${Math.round(uptime % 60)}s`,
+      },
+      memory: {
+        heapUsedMB: Math.round(mem.heapUsed / 1048576),
+        heapTotalMB: Math.round(mem.heapTotal / 1048576),
+        rssMB: Math.round(mem.rss / 1048576),
+        externalMB: Math.round((mem.external || 0) / 1048576),
+      },
+      services: {
+        backend: 'healthy',
+        websocket: websocketGateway.isConnected() ? 'connected' : 'disconnected',
+        websocketClients: websocketGateway.getConnectedSockets(),
+      },
+      workers: (() => {
+        try { return workerSupervisor.getStatus(); } catch { return 'unavailable'; }
+      })(),
+      sessions: (() => {
+        try { return sessionWatchdog.auditSessions(); } catch { return 'unavailable'; }
+      })(),
+      queues: (() => {
+        try {
+          const eq = require('./services/enterprise/queue-service');
+          return eq.getStats();
+        } catch { return 'unavailable'; }
+      })(),
+      timestamp: new Date().toISOString(),
+    };
+
+    return sendSafeJson(res, { success: true, data });
+  } catch (error) {
+    return sendSafeJson(res, { success: false, error: error?.message || 'Status failed' }, 500);
+  }
+});
+
 app.get('/api/test', (_req, res) => {
   return res.status(200).json({
     message: 'API funcionando',
