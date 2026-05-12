@@ -444,6 +444,15 @@ async function createStableSession({
     return existingSession;
   }
 
+  // CRITICAL: If there's a stale entry (disposed/closing), clean it up first
+  if (existingSession) {
+    try {
+      existingSession.sock?.ev?.removeAllListeners?.();
+      existingSession.sock?.end?.(undefined);
+    } catch { /* ignore cleanup errors */ }
+    delete activeSessions[normalizedSessionName];
+  }
+
   const { state, saveCreds } = await useMultiFileAuthState(sessionPath);
   const { version } = await fetchLatestBaileysVersion();
 
@@ -707,6 +716,8 @@ async function createStableSession({
 
       if (willReconnect) {
         if (session.reconnecting) {
+          // eslint-disable-next-line no-console
+          console.log(`[WHATSAPP] Reconnect already in progress for ${normalizedSessionName}, ignoring duplicate close event.`);
           return;
         }
 
@@ -714,10 +725,12 @@ async function createStableSession({
         if (session.reconnectCooldownTimer) {
           clearTimeout(session.reconnectCooldownTimer);
         }
+        // Cooldown: prevent another close event from triggering a second reconnect
+        // within 10s window. Reset flag after the backoff + execution window.
         session.reconnectCooldownTimer = setTimeout(() => {
           session.reconnectCooldownTimer = null;
           session.reconnecting = false;
-        }, 5000);
+        }, 10000);
 
         session.reconnectRequestCount = Number(session.reconnectRequestCount || 0) + 1;
 
@@ -1092,6 +1105,93 @@ async function createStableSession({
       sessionId: normalizedSessionName,
       updates,
     });
+  });
+
+  // ── Chats sync (fired after initial connection) ─────────────────────────
+  // Baileys emits 'chats.set' when the initial chat list arrives after
+  // authentication. We capture this to ensure the realtime store is populated
+  // even if loadRealtimeHistory missed some chats.
+  sock.ev.on('chats.set', ({ chats: chatList = [] }) => {
+    if (!Array.isArray(chatList) || chatList.length === 0) {
+      return;
+    }
+
+    // eslint-disable-next-line no-console
+    console.log(
+      `[WHATSAPP] chats.set session=${normalizedSessionName} count=${chatList.length}`
+    );
+
+    const store = ensureRealtimeStore(session);
+
+    for (const chat of chatList) {
+      const chatId = chat?.id;
+      if (!isValidRealtimeChatId(chatId)) {
+        continue;
+      }
+
+      // Only create chat entry if it doesn't exist yet
+      if (!store.chats[chatId]) {
+        store.chats[chatId] = createRealtimeChatState({
+          chatId,
+          isGroup: String(chatId).endsWith('@g.us'),
+          name: chat?.name || chat?.subject || chatId,
+        });
+      } else {
+        // Update name if available
+        const name = chat?.name || chat?.subject;
+        if (name) {
+          store.chats[chatId].name = name;
+        }
+      }
+    }
+
+    // Re-emit chats loaded for any late-connecting frontend clients
+    emitChatsLoaded(io || global.io, store);
+  });
+
+  // ── Chats update (name/archive changes) ─────────────────────────────────
+  sock.ev.on('chats.update', (updates) => {
+    const store = ensureRealtimeStore(session);
+
+    for (const update of updates || []) {
+      const chatId = update?.id;
+      if (!chatId || !store.chats[chatId]) {
+        continue;
+      }
+
+      if (update.name) {
+        store.chats[chatId].name = update.name;
+      }
+      if (typeof update.archived === 'boolean') {
+        store.chats[chatId].archived = update.archived;
+      }
+    }
+  });
+
+  // ── Contacts sync ──────────────────────────────────────────────────────
+  sock.ev.on('contacts.update', (updates) => {
+    const store = ensureRealtimeStore(session);
+    if (!store.contacts) {
+      store.contacts = Object.create(null);
+    }
+
+    for (const contact of updates || []) {
+      const id = contact?.id || '';
+      if (!id) {
+        continue;
+      }
+
+      store.contacts[id] = { ...(store.contacts[id] || {}), ...contact };
+      const normalizedId = normalizeContactKey(id);
+      if (normalizedId) {
+        store.contacts[normalizedId] = store.contacts[id];
+      }
+    }
+
+    // eslint-disable-next-line no-console
+    console.log(
+      `[WHATSAPP] contacts.update session=${normalizedSessionName} count=${(updates || []).length}`
+    );
   });
 
   return session;

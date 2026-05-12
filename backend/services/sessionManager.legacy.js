@@ -2,6 +2,8 @@ const fs = require('fs/promises');
 const path = require('path');
 const sessionRepository = require('../repositories/sessionRepository');
 const whatsappService = require('./whatsappService');
+// Shared mutable registry — same object reference as stableSession.js uses.
+const { activeSessions } = require('./whatsapp/state/registry');
 
 const SESSIONS_DIRECTORY = path.join(__dirname, '..', 'sessions');
 const sessions = new Map();
@@ -79,6 +81,8 @@ function setSession(name, session) {
   session.sessionName = session.sessionName || session.displayName || normalizedName;
   session.name = session.displayName || session.sessionName || normalizedName;
   sessions.set(normalizedName, session);
+  // Keep activeSessions registry in sync (shared with stableSession.js)
+  activeSessions[normalizedName] = session;
   emitRuntimeStatus();
   return session;
 }
@@ -276,6 +280,7 @@ async function disposeSession(sessionName, options = {}) {
   const session = getSession(normalizedName);
 
   clearReconnectTimer(normalizedName);
+  reconnectInFlight.delete(normalizedName);
 
   if (options.preserveReconnectAttempts !== true) {
     resetReconnectAttempts(normalizedName);
@@ -286,7 +291,18 @@ async function disposeSession(sessionName, options = {}) {
     session.status = 'disconnected';
     await closeSocket(session, { logout: options.logout === true });
     sessions.delete(normalizedName);
+    // CRITICAL: also clean the shared activeSessions registry
+    delete activeSessions[normalizedName];
     emitRuntimeStatus();
+  } else {
+    // Even if session isn't in the Map, clean activeSessions to prevent ghosts
+    const activeRef = activeSessions[normalizedName];
+    if (activeRef) {
+      activeRef.isDisposed = true;
+      activeRef.status = 'disconnected';
+      await closeSocket(activeRef, { logout: options.logout === true });
+      delete activeSessions[normalizedName];
+    }
   }
 
   if (options.deleteFolder === true) {
@@ -377,6 +393,7 @@ async function startSession(sessionName = DEFAULT_SESSION, options = {}) {
         const targetSession = getSession(normalizedTarget);
         const closeCode = Number(metadata?.closeCode || 0) || null;
 
+        // Guard: prevent duplicate reconnect scheduling
         if (
           !runtimeActive ||
           reconnectTimers.has(normalizedTarget) ||
@@ -384,32 +401,52 @@ async function startSession(sessionName = DEFAULT_SESSION, options = {}) {
           targetSession?.isDisposed ||
           targetSession?.isClosing
         ) {
+          console.log(`[WHATSAPP] Reconnect suppressed for ${normalizedTarget} (guard triggered)`);
           return;
         }
 
         const attempt = nextReconnectAttempt(normalizedTarget);
 
         if (attempt > MAX_RECONNECT_ATTEMPTS) {
-          console.warn(`[WHATSAPP] Reconnect limit reached for ${normalizedTarget} (attempt ${attempt-1})`);
+          console.warn(`[WHATSAPP] Reconnect limit reached for ${normalizedTarget} (attempt ${attempt-1}/${MAX_RECONNECT_ATTEMPTS})`);
           if (targetSession) {
             targetSession.status = 'error';
-            targetSession.lastError = 'Reconnect limit reached';
+            targetSession.lastError = `Reconnect limit reached (${MAX_RECONNECT_ATTEMPTS} attempts, last close code: ${closeCode || 'unknown'})`;
             setSession(normalizedTarget, targetSession);
           }
+          // Emit final status so frontend stops showing 'connecting'
+          emitSessionStatusCompat({
+            sessionId: normalizedTarget,
+            sessionName: targetSession?.sessionName || normalizedTarget,
+            status: 'error',
+            lastError: 'Reconnect limit reached',
+          });
           return;
         }
 
-        const backoffMs = Math.min(3000 * attempt, 30000); // 3s, 6s, 9s... max 30s
-        console.log(`[WHATSAPP] Reconnect scheduled for ${normalizedTarget} in ${backoffMs}ms (attempt ${attempt}/${MAX_RECONNECT_ATTEMPTS})`);
+        // Exponential backoff: 3s, 6s, 12s, 24s, 30s (capped)
+        const backoffMs = Math.min(3000 * Math.pow(2, attempt - 1), 30000);
+        console.log(`[WHATSAPP] Reconnect scheduled for ${normalizedTarget} in ${backoffMs}ms (attempt ${attempt}/${MAX_RECONNECT_ATTEMPTS}, closeCode=${closeCode || 'n/a'})`);
 
         const timer = setTimeout(async () => {
           reconnectTimers.delete(normalizedTarget);
+
+          // Re-check guards before actually reconnecting
+          const freshSession = getSession(normalizedTarget);
+          if (!runtimeActive || freshSession?.isDisposed || reconnectInFlight.has(normalizedTarget)) {
+            console.log(`[WHATSAPP] Reconnect aborted for ${normalizedTarget} (post-backoff guard)`);
+            return;
+          }
+
           reconnectInFlight.add(normalizedTarget);
 
           try {
-            if (runtimeActive && !targetSession?.isDisposed) {
-              await startSession(normalizedTarget, { forceNew: true });
-            }
+            // Dispose old session cleanly before recreating
+            await disposeSession(normalizedTarget, { preserveReconnectAttempts: true });
+            await startSession(normalizedTarget, {
+              forceNew: true,
+              displayName: freshSession?.displayName || normalizedTarget,
+            });
           } catch (error) {
             console.error(`[WHATSAPP] Reconnect failed for ${normalizedTarget}:`, error.message || error);
           } finally {
