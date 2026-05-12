@@ -56,6 +56,10 @@ const workerSupervisor = require('./services/workerSupervisor');
 const backpressureController = require('./services/backpressureController');
 const correlationTracker = require('./services/correlationTracker');
 const socketSafetyGuard = require('./services/socketSafetyGuard');
+const aiMemoryEngine = require('./services/aiMemoryEngine');
+const websocketGateway = require('./services/websocketGateway');
+const campaignDispatchEngine = require('./services/campaignDispatchEngine');
+const envValidator = require('./services/envValidator');
 
 const eventLoopDelay = monitorEventLoopDelay({ resolution: 20 });
 eventLoopDelay.enable();
@@ -923,6 +927,66 @@ app.get('/api/traces/stats', (_req, res) => {
   }
 });
 
+// ─── Phase 6: Enterprise Stabilization endpoints ───
+
+app.get('/api/ai/memory/search', (req, res) => {
+  try {
+    const query = req.query.q || req.query.query || '';
+    const results = aiMemoryEngine.searchMemory(app.locals.store, query);
+    return sendSafeJson(res, { success: true, data: results.slice(0, 50) });
+  } catch (error) {
+    return sendSafeJson(res, { success: false, error: error?.message || 'Memory search failed' }, 500);
+  }
+});
+
+app.get('/api/ai/memory/analytics', (_req, res) => {
+  try {
+    return sendSafeJson(res, { success: true, data: aiMemoryEngine.getMemoryAnalytics(app.locals.store) });
+  } catch (error) {
+    return sendSafeJson(res, { success: false, error: error?.message || 'Memory analytics failed' }, 500);
+  }
+});
+
+app.post('/api/ai/memory/flush', async (_req, res) => {
+  try {
+    const flushed = await aiMemoryEngine.flushMemoryToPostgres(app.locals.store);
+    return sendSafeJson(res, { success: true, data: { flushed } });
+  } catch (error) {
+    return sendSafeJson(res, { success: false, error: error?.message || 'Memory flush failed' }, 500);
+  }
+});
+
+app.get('/api/websocket/metrics', (_req, res) => {
+  try {
+    return sendSafeJson(res, { success: true, data: websocketGateway.getMetrics() });
+  } catch (error) {
+    return sendSafeJson(res, { success: false, error: error?.message || 'WS metrics failed' }, 500);
+  }
+});
+
+app.get('/api/websocket/status', (_req, res) => {
+  try {
+    return sendSafeJson(res, {
+      success: true,
+      data: {
+        connected: websocketGateway.isConnected(),
+        sockets: websocketGateway.getConnectedSockets(),
+        metrics: websocketGateway.getMetrics(),
+      },
+    });
+  } catch (error) {
+    return sendSafeJson(res, { success: false, error: error?.message || 'WS status failed' }, 500);
+  }
+});
+
+app.get('/api/env/validate', (_req, res) => {
+  try {
+    return sendSafeJson(res, { success: true, data: envValidator.validateEnvironment() });
+  } catch (error) {
+    return sendSafeJson(res, { success: false, error: error?.message || 'Env validation failed' }, 500);
+  }
+});
+
 app.get('/api/test', (_req, res) => {
   return res.status(200).json({
     message: 'API funcionando',
@@ -1386,6 +1450,25 @@ async function bootstrap() {
 
       // Phase 5: Start SocketSafety periodic audit
       socketSafetyGuard.startAuditWorker(io);
+
+      // Phase 6: WebSocket Gateway initialization
+      websocketGateway.init(io);
+
+      // Phase 6: Validate environment
+      envValidator.validateEnvironment();
+
+      // Phase 6: AI Memory table + hydration
+      aiMemoryEngine.ensureMemoryTable().then(() => {
+        return aiMemoryEngine.loadMemoryFromPostgres(app.locals.store);
+      }).catch((err) => {
+        console.error('[SERVER] AI Memory hydration failed:', err?.message || err);
+      });
+
+      // Phase 6: Register AI memory flush worker
+      workerSupervisor.registerWorker('ai_memory_flush', async () => {
+        await aiMemoryEngine.flushMemoryToPostgres(app.locals.store);
+      }, 300_000); // Every 5 minutes
+      workerSupervisor.startWorker('ai_memory_flush');
     } catch (error) {
       console.error('[SERVER] Failed to auto-restore sessions at startup:', error.message || error);
     }
@@ -1417,6 +1500,8 @@ async function shutdownGracefully(signal) {
 
   server.close(async () => {
     try {
+      websocketGateway.shutdown();
+      campaignDispatchEngine.stopAll();
       workerSupervisor.stopAll();
       socketSafetyGuard.stopAuditWorker();
       socketSafetyGuard.clearAllTimers();

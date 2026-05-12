@@ -17,6 +17,7 @@ const mediaRouter = require('./media');
 const adminMasterRouter = require('./adminMaster');
 const nodeRouter = require('./nodeMaster');
 const clusterRouter = require('./cluster');
+const campaignDispatchRouter = require('./campaignDispatch');
 
 function registerRoutes(app, options = {}) {
   const requireJwtAuth = options.requireJwtAuth;
@@ -76,6 +77,9 @@ function registerRoutes(app, options = {}) {
     app.use('/api', nodeRouter);
     app.use('/api/cluster', clusterRouter);
   }
+
+  // Campaign dispatch engine
+  app.use('/api', campaignDispatchRouter);
 }
 
 module.exports = {
