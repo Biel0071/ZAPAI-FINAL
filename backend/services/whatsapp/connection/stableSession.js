@@ -1109,6 +1109,13 @@ async function createStableSession({
   sock.ev.on('messages.update', async (updates) => {
     await emitMessageUpdates(io, updates, normalizedSessionName);
 
+    // Phase 5: Track ACK state transitions
+    const messageAckPipeline = require('../../messageAckPipeline');
+    const ackResults = messageAckPipeline.processBaileysStatusBatch(updates);
+    for (const ackEntry of ackResults) {
+      messageAckPipeline.emitAckUpdate(io || global.io, ackEntry);
+    }
+
     for (const update of updates || []) {
       (io || global.io)?.emit('message_status', {
         id: update?.key?.id || null,

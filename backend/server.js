@@ -51,6 +51,11 @@ const nodeRegisterService = require('./services/nodeRegister');
 const runtimeEngine = require('./services/runtimeEngine');
 const diagnosticsEngine = require('./services/diagnosticsEngine');
 const sessionRegistry = require('./services/sessionRegistry');
+const messageAckPipeline = require('./services/messageAckPipeline');
+const workerSupervisor = require('./services/workerSupervisor');
+const backpressureController = require('./services/backpressureController');
+const correlationTracker = require('./services/correlationTracker');
+const socketSafetyGuard = require('./services/socketSafetyGuard');
 
 const eventLoopDelay = monitorEventLoopDelay({ resolution: 20 });
 eventLoopDelay.enable();
@@ -848,6 +853,76 @@ app.get('/api/sessions/registry', (_req, res) => {
 });
 
 
+// ─── Phase 5: Production Hardening endpoints ───
+
+app.get('/api/ack/stats', (_req, res) => {
+  try {
+    return sendSafeJson(res, { success: true, data: messageAckPipeline.getStats() });
+  } catch (error) {
+    return sendSafeJson(res, { success: false, error: error?.message || 'ACK stats failed' }, 500);
+  }
+});
+
+app.get('/api/ack/pending', (req, res) => {
+  try {
+    const sessionId = req.query.sessionId || null;
+    return sendSafeJson(res, { success: true, data: messageAckPipeline.getPendingMessages(sessionId) });
+  } catch (error) {
+    return sendSafeJson(res, { success: false, error: error?.message || 'ACK pending failed' }, 500);
+  }
+});
+
+app.get('/api/ack/failed', (req, res) => {
+  try {
+    const sessionId = req.query.sessionId || null;
+    return sendSafeJson(res, { success: true, data: messageAckPipeline.getFailedMessages(sessionId) });
+  } catch (error) {
+    return sendSafeJson(res, { success: false, error: error?.message || 'ACK failed list failed' }, 500);
+  }
+});
+
+app.post('/api/ack/reconcile', (_req, res) => {
+  try {
+    const result = messageAckPipeline.reconcilePendingMessages(io);
+    return sendSafeJson(res, { success: true, data: result });
+  } catch (error) {
+    return sendSafeJson(res, { success: false, error: error?.message || 'Reconciliation failed' }, 500);
+  }
+});
+
+app.get('/api/workers/status', (_req, res) => {
+  try {
+    return sendSafeJson(res, { success: true, data: workerSupervisor.getSummary() });
+  } catch (error) {
+    return sendSafeJson(res, { success: false, error: error?.message || 'Worker status failed' }, 500);
+  }
+});
+
+app.get('/api/backpressure/status', (_req, res) => {
+  try {
+    return sendSafeJson(res, { success: true, data: backpressureController.getStatus() });
+  } catch (error) {
+    return sendSafeJson(res, { success: false, error: error?.message || 'Backpressure status failed' }, 500);
+  }
+});
+
+app.get('/api/safety/audit', (_req, res) => {
+  try {
+    const audit = socketSafetyGuard.runFullAudit(io);
+    return sendSafeJson(res, { success: true, data: audit });
+  } catch (error) {
+    return sendSafeJson(res, { success: false, error: error?.message || 'Safety audit failed' }, 500);
+  }
+});
+
+app.get('/api/traces/stats', (_req, res) => {
+  try {
+    return sendSafeJson(res, { success: true, data: correlationTracker.getStats() });
+  } catch (error) {
+    return sendSafeJson(res, { success: false, error: error?.message || 'Trace stats failed' }, 500);
+  }
+});
+
 app.get('/api/test', (_req, res) => {
   return res.status(200).json({
     message: 'API funcionando',
@@ -1296,6 +1371,21 @@ async function bootstrap() {
       sessionRegistry.hydrate().catch((err) => {
         console.error('[SERVER] SessionRegistry hydration failed:', err?.message || err);
       });
+
+      // Phase 5: Start WorkerSupervisor managed workers
+      workerSupervisor.registerWorker('backpressure_cleanup', () => {
+        backpressureController.cleanupSessionRates();
+      }, 60_000);
+      workerSupervisor.registerWorker('ack_reconciliation', () => {
+        messageAckPipeline.reconcilePendingMessages(io);
+      }, 120_000);
+      workerSupervisor.registerWorker('stale_worker_check', () => {
+        workerSupervisor.checkStaleWorkers();
+      }, 60_000);
+      workerSupervisor.startAll();
+
+      // Phase 5: Start SocketSafety periodic audit
+      socketSafetyGuard.startAuditWorker(io);
     } catch (error) {
       console.error('[SERVER] Failed to auto-restore sessions at startup:', error.message || error);
     }
@@ -1327,6 +1417,9 @@ async function shutdownGracefully(signal) {
 
   server.close(async () => {
     try {
+      workerSupervisor.stopAll();
+      socketSafetyGuard.stopAuditWorker();
+      socketSafetyGuard.clearAllTimers();
       runtimeEngine.stopRuntimeEngine();
       io.close();
       await outboundQueueService.shutdownOutboundQueue();
