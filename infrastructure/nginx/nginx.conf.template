@@ -1,306 +1,190 @@
-# ============================================================
-# Nginx config for ZAPFLOW AI — Docker Compose (Production)
-# ============================================================
-# This config is mounted by docker-compose.production.yml into
-# the Nginx container. The backend is accessed via Docker's
-# internal DNS name "backend" (not 127.0.0.1).
-#
-# HTTPS mode: requires SSL certs from Certbot in /etc/letsencrypt.
-# HTTP-only fallback: comment out the 443 block and remove the
-# 301 redirect in the port-80 block.
-#
-# To switch domain: replace every instance of _ (catch-all)
-# with your real domain, e.g. zapflow.example.com
-# ============================================================
+# ZAPFLOW AI — Production Nginx Config
+# Proxies ALL backend routes through Docker network DNS.
+# ${BACKEND_SERVICE} is replaced by envsubst during setup-vps.sh
 
-# Rate limiting zones
-limit_req_zone $binary_remote_addr zone=api_limit:10m rate=30r/s;
-limit_req_zone $binary_remote_addr zone=health_limit:10m rate=60r/s;
-limit_conn_zone $binary_remote_addr zone=addr:10m;
-
-# ── HTTP: redirect to HTTPS or serve directly ──────────────
 server {
     listen 80;
     server_name _;
 
-    # Certbot challenge (must be accessible over HTTP)
-    location /.well-known/acme-challenge/ {
-        root /var/www/certbot;
-    }
+    root /usr/share/nginx/html;
+    index index.html;
 
-    # If you have SSL certs, uncomment the next line to force HTTPS:
-    # return 301 https://$host$request_uri;
+    # ── Compression ──────────────────────────────────────────
+    gzip on;
+    gzip_types text/plain text/css application/json application/javascript text/xml application/xml application/xml+rss text/javascript image/svg+xml;
+    gzip_min_length 256;
+    gzip_vary on;
+    gzip_comp_level 6;
+    gzip_proxied any;
 
-    # ── If running HTTP-only (no domain/SSL yet), serve everything here ──
-    # Connection limits
-    limit_conn addr 50;
-
-    # Timeouts (Slowloris protection)
+    # ── Timeouts ─────────────────────────────────────────────
     client_body_timeout 12s;
     client_header_timeout 12s;
     send_timeout 10s;
     keepalive_timeout 65s;
-    keepalive_requests 100;
-    reset_timedout_connection on;
 
-    # Security headers
-    add_header X-Frame-Options        "SAMEORIGIN"   always;
-    add_header X-Content-Type-Options "nosniff"      always;
-    add_header X-XSS-Protection       "1; mode=block" always;
-    add_header Referrer-Policy        "strict-origin-when-cross-origin" always;
+    # ── Security headers ─────────────────────────────────────
+    add_header X-Frame-Options "SAMEORIGIN" always;
+    add_header X-Content-Type-Options "nosniff" always;
 
-    # Frontend (Vite build served from Docker volume)
-    root /usr/share/nginx/html;
-    index index.html;
-
-    # SPA routing — serve index.html for all non-file paths.
-    # CRITICAL: Cache-Control headers MUST be here (not just on location = /index.html)
-    # because try_files serves index.html under ANY URL path (/dashboard, /inbox, etc.)
-    # and the browser caches the RESPONSE at that URL — not at /index.html.
+    # ── SPA routing (fallback to index.html) ─────────────────
     location / {
         try_files $uri $uri/ /index.html;
-
-        # Prevent browser from caching SPA HTML responses (they contain JS chunk references).
-        # Without this, old cached HTML serves old JS chunks that may contain bugs.
         add_header Cache-Control "no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0" always;
         add_header Pragma "no-cache" always;
         add_header Expires "0" always;
-        add_header X-Build-Source "zapflow-spa" always;
     }
 
-    # Service worker — NEVER cache (forces update check)
-    location = /sw.js {
-        add_header Cache-Control "no-store, no-cache, must-revalidate, max-age=0" always;
-        add_header Pragma "no-cache" always;
-        etag off;
-    }
-
-    # Build manifest — NEVER cache (deploy validation)
-    location = /build-manifest.json {
-        add_header Cache-Control "no-store, no-cache, must-revalidate, max-age=0" always;
-        add_header Pragma "no-cache" always;
-        add_header Access-Control-Allow-Origin "*" always;
-        etag off;
-    }
-
-    # Backend REST API
+    # ── Backend REST API (/api/*) ────────────────────────────
     location /api/ {
-        limit_req zone=api_limit burst=60 nodelay;
-        proxy_pass         http://${BACKEND_SERVICE}:4025;
+        proxy_pass http://${BACKEND_SERVICE}:4025;
         proxy_http_version 1.1;
-        proxy_set_header   Host              $host;
-        proxy_set_header   X-Real-IP         $remote_addr;
-        proxy_set_header   X-Forwarded-For   $proxy_add_x_forwarded_for;
-        proxy_set_header   X-Forwarded-Proto $scheme;
-        proxy_set_header   Connection        "";
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header Connection "";
         proxy_read_timeout 60s;
         proxy_send_timeout 60s;
         proxy_connect_timeout 10s;
         client_max_body_size 25M;
     }
 
-    # Auth endpoint
+    # ── Auth endpoint (/auth/*) ──────────────────────────────
     location /auth/ {
-        proxy_pass         http://${BACKEND_SERVICE}:4025;
+        proxy_pass http://${BACKEND_SERVICE}:4025;
         proxy_http_version 1.1;
-        proxy_set_header   Host              $host;
-        proxy_set_header   X-Real-IP         $remote_addr;
-        proxy_set_header   X-Forwarded-For   $proxy_add_x_forwarded_for;
-        proxy_set_header   X-Forwarded-Proto $scheme;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
     }
 
-    # System endpoints (health, version, runtime)
+    # ── System endpoints (/system/*) ─────────────────────────
     location /system/ {
-        proxy_pass         http://${BACKEND_SERVICE}:4025;
+        proxy_pass http://${BACKEND_SERVICE}:4025;
         proxy_http_version 1.1;
-        proxy_set_header   Host              $host;
-        proxy_set_header   X-Real-IP         $remote_addr;
-        proxy_set_header   X-Forwarded-For   $proxy_add_x_forwarded_for;
-        proxy_set_header   X-Forwarded-Proto $scheme;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
     }
 
-    # Public health endpoints (no auth, no rate limit)
-    location ~ ^/(health|ready|status-whatsapp|session-status|diagnostics|metrics)$ {
-        limit_req zone=health_limit burst=20 nodelay;
-        proxy_pass         http://${BACKEND_SERVICE}:4025;
+    # ── Public health/status endpoints (no auth) ─────────────
+    location = /health {
+        proxy_pass http://${BACKEND_SERVICE}:4025;
         proxy_http_version 1.1;
-        proxy_set_header   Host              $host;
-        proxy_set_header   X-Real-IP         $remote_addr;
-        proxy_set_header   X-Forwarded-For   $proxy_add_x_forwarded_for;
-        proxy_set_header   X-Forwarded-Proto $scheme;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
     }
 
-    # Socket.IO (WebSocket upgrade)
+    location = /ready {
+        proxy_pass http://${BACKEND_SERVICE}:4025;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+    }
+
+    location = /status-whatsapp {
+        proxy_pass http://${BACKEND_SERVICE}:4025;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+    }
+
+    location = /session-status {
+        proxy_pass http://${BACKEND_SERVICE}:4025;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+    }
+
+    location = /sessions {
+        proxy_pass http://${BACKEND_SERVICE}:4025;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    }
+
+    location = /diagnostics {
+        proxy_pass http://${BACKEND_SERVICE}:4025;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+    }
+
+    location = /metrics {
+        proxy_pass http://${BACKEND_SERVICE}:4025;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+    }
+
+    # ── WebSocket (Socket.IO upgrade) ────────────────────────
     location /socket.io/ {
-        proxy_pass              http://${BACKEND_SERVICE}:4025/socket.io/;
-        proxy_http_version      1.1;
-        proxy_set_header        Upgrade           $http_upgrade;
-        proxy_set_header        Connection        "upgrade";
-        proxy_set_header        Host              $host;
-        proxy_set_header        X-Real-IP         $remote_addr;
-        proxy_set_header        X-Forwarded-For   $proxy_add_x_forwarded_for;
-        proxy_set_header        X-Forwarded-Proto $scheme;
-        proxy_read_timeout      86400s;
-        proxy_send_timeout      86400s;
-        proxy_buffering         off;
-    }
-
-    # Media uploads (larger body size)
-    location /send-media {
-        proxy_pass         http://${BACKEND_SERVICE}:4025;
+        proxy_pass http://${BACKEND_SERVICE}:4025/socket.io/;
         proxy_http_version 1.1;
-        proxy_set_header   Host              $host;
-        proxy_set_header   X-Real-IP         $remote_addr;
-        proxy_set_header   X-Forwarded-For   $proxy_add_x_forwarded_for;
-        proxy_set_header   X-Forwarded-Proto $scheme;
-        client_max_body_size 25M;
-        proxy_read_timeout   60s;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_read_timeout 86400s;
+        proxy_send_timeout 86400s;
+        proxy_buffering off;
     }
 
-    # Hashed static assets — immutable cache (Vite adds content hash)
+    # ── Media uploads (larger body size) ─────────────────────
+    location /send-media {
+        proxy_pass http://${BACKEND_SERVICE}:4025;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        client_max_body_size 25M;
+        proxy_read_timeout 60s;
+    }
+
+    # ── Sessions sub-routes (/sessions/*) ────────────────────
+    location /sessions/ {
+        proxy_pass http://${BACKEND_SERVICE}:4025;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
+    # ── Session sub-routes (/session/*) ──────────────────────
+    location /session/ {
+        proxy_pass http://${BACKEND_SERVICE}:4025;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
+    # ── Connections endpoint ─────────────────────────────────
+    location = /connections {
+        proxy_pass http://${BACKEND_SERVICE}:4025;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+    }
+
+    # ── Hashed static assets — immutable cache ───────────────
     location ~* \.(?:js|css|woff2|woff|ttf)$ {
         expires 365d;
         add_header Cache-Control "public, immutable, max-age=31536000" always;
     }
 
-    # Images/media — long cache
+    # ── Images/media — long cache ────────────────────────────
     location ~* \.(?:png|ico|svg|webp|jpg|jpeg|gif|avif)$ {
         expires 30d;
         add_header Cache-Control "public, max-age=2592000" always;
     }
-
-    # Gzip compression
-    gzip              on;
-    gzip_types        text/plain text/css application/json application/javascript text/xml application/xml application/xml+rss image/svg+xml;
-    gzip_min_length   256;
-    gzip_vary         on;
-    gzip_comp_level   6;
-    gzip_proxied      any;
-    gzip_buffers      16 8k;
 }
-
-# ── HTTPS block ────────────────────────────────────────────
-# Uncomment this entire block AFTER running certbot and obtaining
-# SSL certificates. Replace YOUR_DOMAIN with your actual domain.
-#
-# server {
-#     listen 443 ssl http2;
-#     server_name YOUR_DOMAIN;
-#
-#     # Connection limits
-#     limit_conn addr 50;
-#
-#     # Timeouts (Slowloris protection)
-#     client_body_timeout 12s;
-#     client_header_timeout 12s;
-#     send_timeout 10s;
-#     keepalive_timeout 65s;
-#     keepalive_requests 100;
-#     reset_timedout_connection on;
-#
-#     # TLS (Certbot manages these)
-#     ssl_certificate     /etc/letsencrypt/live/YOUR_DOMAIN/fullchain.pem;
-#     ssl_certificate_key /etc/letsencrypt/live/YOUR_DOMAIN/privkey.pem;
-#     include             /etc/letsencrypt/options-ssl-nginx.conf;
-#     ssl_dhparam         /etc/letsencrypt/ssl-dhparams.pem;
-#
-#     # Security headers
-#     add_header X-Frame-Options        "SAMEORIGIN"   always;
-#     add_header X-Content-Type-Options "nosniff"      always;
-#     add_header X-XSS-Protection       "1; mode=block" always;
-#     add_header Referrer-Policy        "strict-origin-when-cross-origin" always;
-#     add_header Content-Security-Policy "default-src 'self'; connect-src 'self' wss: https:; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; font-src 'self'; media-src 'self' blob: https:; frame-ancestors 'self';" always;
-#
-#     # Frontend (Vite build)
-#     root /usr/share/nginx/html;
-#     index index.html;
-#
-#     location / {
-#         location = /index.html {
-#             add_header Cache-Control "no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0";
-#             add_header Pragma "no-cache";
-#             add_header Expires "0";
-#         }
-#         try_files $uri $uri/ /index.html;
-#     }
-#
-#     # Backend REST API
-#     location /api/ {
-#         limit_req zone=api_limit burst=60 nodelay;
-#         proxy_pass         http://${BACKEND_SERVICE}:4025;
-#         proxy_http_version 1.1;
-#         proxy_set_header   Host              $host;
-#         proxy_set_header   X-Real-IP         $remote_addr;
-#         proxy_set_header   X-Forwarded-For   $proxy_add_x_forwarded_for;
-#         proxy_set_header   X-Forwarded-Proto $scheme;
-#         proxy_set_header   Connection        "";
-#         proxy_read_timeout 60s;
-#         proxy_send_timeout 60s;
-#         proxy_connect_timeout 10s;
-#         client_max_body_size 25M;
-#     }
-#
-#     location /auth/ {
-#         proxy_pass         http://${BACKEND_SERVICE}:4025;
-#         proxy_http_version 1.1;
-#         proxy_set_header   Host              $host;
-#         proxy_set_header   X-Real-IP         $remote_addr;
-#         proxy_set_header   X-Forwarded-For   $proxy_add_x_forwarded_for;
-#         proxy_set_header   X-Forwarded-Proto $scheme;
-#     }
-#
-#     location /system/ {
-#         proxy_pass         http://${BACKEND_SERVICE}:4025;
-#         proxy_http_version 1.1;
-#         proxy_set_header   Host              $host;
-#         proxy_set_header   X-Real-IP         $remote_addr;
-#         proxy_set_header   X-Forwarded-For   $proxy_add_x_forwarded_for;
-#         proxy_set_header   X-Forwarded-Proto $scheme;
-#     }
-#
-#     location ~ ^/(health|ready|status-whatsapp|session-status|diagnostics|metrics)$ {
-#         limit_req zone=health_limit burst=20 nodelay;
-#         proxy_pass         http://${BACKEND_SERVICE}:4025;
-#         proxy_http_version 1.1;
-#         proxy_set_header   Host              $host;
-#         proxy_set_header   X-Real-IP         $remote_addr;
-#         proxy_set_header   X-Forwarded-For   $proxy_add_x_forwarded_for;
-#         proxy_set_header   X-Forwarded-Proto $scheme;
-#     }
-#
-#     location /socket.io/ {
-#         proxy_pass              http://${BACKEND_SERVICE}:4025/socket.io/;
-#         proxy_http_version      1.1;
-#         proxy_set_header        Upgrade           $http_upgrade;
-#         proxy_set_header        Connection        "upgrade";
-#         proxy_set_header        Host              $host;
-#         proxy_set_header        X-Real-IP         $remote_addr;
-#         proxy_set_header        X-Forwarded-For   $proxy_add_x_forwarded_for;
-#         proxy_set_header        X-Forwarded-Proto $scheme;
-#         proxy_read_timeout      86400s;
-#         proxy_send_timeout      86400s;
-#         proxy_buffering         off;
-#     }
-#
-#     location /send-media {
-#         proxy_pass         http://${BACKEND_SERVICE}:4025;
-#         proxy_http_version 1.1;
-#         proxy_set_header   Host              $host;
-#         proxy_set_header   X-Real-IP         $remote_addr;
-#         proxy_set_header   X-Forwarded-For   $proxy_add_x_forwarded_for;
-#         proxy_set_header   X-Forwarded-Proto $scheme;
-#         client_max_body_size 25M;
-#         proxy_read_timeout   60s;
-#     }
-#
-#     location ~* \.(js|css|woff2|woff|ttf|png|ico|svg|webp|jpg|jpeg|gif)$ {
-#         expires 30d;
-#         add_header Cache-Control "public, immutable";
-#     }
-#
-#     gzip              on;
-#     gzip_types        text/plain text/css application/json application/javascript text/xml application/xml image/svg+xml;
-#     gzip_min_length   1000;
-#     gzip_vary         on;
-#     gzip_comp_level   5;
-# }
