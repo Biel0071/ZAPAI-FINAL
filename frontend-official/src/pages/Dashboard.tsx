@@ -30,6 +30,8 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { StatGridSkeleton } from "@/components/ui/loading-skeleton";
 import { apiService, type Conversation, type MetricsSummary, type RuntimeHealthState, type SessionInfo } from "@/services/apiService";
 import { reportFrontendIssue } from "@/services/frontendHealthService";
+import { useAppStore } from "@/stores/appStore";
+import { useRuntime } from "@/providers/RuntimeProvider";
 import {
   AreaChart,
   Area,
@@ -114,13 +116,19 @@ const formatMetricValue = (value: number | undefined) =>
 
 export default function Dashboard() {
   const [searchParams, setSearchParams] = useSearchParams();
+  const runtime = useRuntime();
+
+  // Read sessions and conversations from the shared Zustand store
+  // (hydrated in real-time by RuntimeProvider via WebSocket)
+  const sessions = useAppStore((s) => s.sessions);
+  const conversations = useAppStore((s) => s.conversations);
+  const storeMetrics = useAppStore((s) => s.metrics);
+
   const [sessionState, setSessionState] = useState<RuntimeHealthState>("offline");
-  const [sessions, setSessions] = useState<SessionInfo[]>([]);
   const [activeSessions, setActiveSessions] = useState(0);
   const [totalSessions, setTotalSessions] = useState(0);
   const [isSystemLoading, setIsSystemLoading] = useState(true);
   const [metricsSnapshot, setMetricsSnapshot] = useState<DashboardMetrics | null>(null);
-  const [conversations, setConversations] = useState<Conversation[]>([]);
   const [activeTab, setActiveTab] = useState(() => {
     const initialTab = searchParams.get("tab") ?? "overview";
     return ["overview", "performance", "conversations", "ai", "schedule", "map"].includes(initialTab)
@@ -129,21 +137,25 @@ export default function Dashboard() {
   });
   const lastHeavyFetchAtRef = useRef(0);
 
+  // Sync metrics from store when RuntimeProvider hydrates them
+  useEffect(() => {
+    if (storeMetrics) {
+      setMetricsSnapshot(mapMetricsPayload(storeMetrics));
+    }
+  }, [storeMetrics]);
+
   const loadStatus = useCallback(async () => {
     try {
       const shouldRefreshHeavyData =
         activeTab === "overview" && Date.now() - lastHeavyFetchAtRef.current >= HEAVY_REFRESH_MS;
 
-      const shouldRefreshSessions = Date.now() - lastHeavyFetchAtRef.current >= HEAVY_REFRESH_MS;
-
-      const [healthStatusResult, listedSessionsResult, metricsResult, conversationsResult] = await Promise.allSettled([
+      // Health status is Dashboard-specific — not covered by RuntimeProvider
+      const [healthStatusResult, metricsResult] = await Promise.allSettled([
         apiService.getRuntimeSessionHealth(),
-        shouldRefreshSessions ? apiService.listSessions() : Promise.resolve([] as SessionInfo[]),
         shouldRefreshHeavyData ? apiService.getMetrics() : Promise.resolve({} as MetricsSummary),
-        shouldRefreshHeavyData ? apiService.getConversations(false, { limit: 400 }) : Promise.resolve([] as Conversation[]),
       ]);
 
-      if (shouldRefreshSessions || shouldRefreshHeavyData) {
+      if (shouldRefreshHeavyData) {
         lastHeavyFetchAtRef.current = Date.now();
       }
 
@@ -155,16 +167,9 @@ export default function Dashboard() {
       setSessionState(healthStatus.sessions);
       setActiveSessions(healthStatus.activeSessions);
       setTotalSessions(healthStatus.totalSessions);
-      if (listedSessionsResult.status === "fulfilled" && shouldRefreshSessions && Array.isArray(listedSessionsResult.value)) {
-        setSessions(listedSessionsResult.value);
-      }
 
       if (metricsResult.status === "fulfilled" && shouldRefreshHeavyData) {
         setMetricsSnapshot(mapMetricsPayload(metricsResult.value));
-      }
-
-      if (conversationsResult.status === "fulfilled" && shouldRefreshHeavyData) {
-        setConversations(Array.isArray(conversationsResult.value) ? conversationsResult.value : []);
       }
 
     } catch (error) {

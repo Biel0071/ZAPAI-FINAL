@@ -18,10 +18,10 @@ type AppState = {
   sessions: SessionInfo[];
   lastSyncAt: number | null;
 
-  setConversations: (list: Conversation[]) => void;
+  setConversations: (listOrUpdater: Conversation[] | ((prev: Conversation[]) => Conversation[])) => void;
   upsertConversation: (conv: Conversation) => void;
   setMetrics: (metrics: MetricsSummary | null) => void;
-  setSessions: (sessions: SessionInfo[]) => void;
+  setSessions: (sessionsOrUpdater: SessionInfo[] | ((prev: SessionInfo[]) => SessionInfo[])) => void;
   reset: () => void;
 };
 
@@ -31,8 +31,14 @@ export const useAppStore = create<AppState>((set) => ({
   sessions: [],
   lastSyncAt: null,
 
-  setConversations: (list) =>
-    set({ conversations: list, lastSyncAt: Date.now() }),
+  setConversations: (listOrUpdater) =>
+    set((state) => ({
+      conversations:
+        typeof listOrUpdater === "function"
+          ? listOrUpdater(state.conversations)
+          : listOrUpdater,
+      lastSyncAt: Date.now(),
+    })),
 
   upsertConversation: (conv) =>
     set((state) => {
@@ -46,8 +52,17 @@ export const useAppStore = create<AppState>((set) => ({
     }),
 
   setMetrics: (metrics) => set({ metrics, lastSyncAt: Date.now() }),
-  setSessions: (sessions) => set({ sessions, lastSyncAt: Date.now() }),
+
+  setSessions: (sessionsOrUpdater) =>
+    set((state) => ({
+      sessions:
+        typeof sessionsOrUpdater === "function"
+          ? sessionsOrUpdater(state.sessions)
+          : sessionsOrUpdater,
+      lastSyncAt: Date.now(),
+    })),
 
   reset: () =>
     set({ conversations: [], metrics: null, sessions: [], lastSyncAt: null }),
 }));
+

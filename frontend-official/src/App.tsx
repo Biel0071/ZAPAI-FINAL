@@ -13,6 +13,7 @@ import { SafeRender } from "@/components/system/SafeRender";
 import { type AppUserRole, useUserRole } from "@/hooks/useUserRole";
 import { useAdminAuth } from "@/hooks/useAdminAuth";
 import { useFrontendHealthWatcher } from "@/hooks/useFrontendHealthWatcher";
+import { RuntimeProvider } from "@/providers/RuntimeProvider";
 
 function AppSplash() {
   return (
@@ -135,7 +136,7 @@ const App = () => {
                 <Suspense fallback={<PageFallback />}>
                   <Routes>
                     <Route path="/login" element={<LoginRoute />} />
-                    <Route element={<RequireAdminAuth><MainLayout /></RequireAdminAuth>}>
+                    <Route element={<RequireAdminAuth><RuntimeProvider><MainLayout /></RuntimeProvider></RequireAdminAuth>}>
                       <Route path="/" element={<RootRoute />} />
                       <Route path="/dashboard" element={<Dashboard />} />
                       <Route path="/inbox" element={<Inbox />} />
