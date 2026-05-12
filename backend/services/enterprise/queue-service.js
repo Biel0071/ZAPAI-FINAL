@@ -253,9 +253,31 @@ async function shutdown() {
   logQueue('info', 'shutdown', {});
 }
 
+function getStats() {
+  const stats = {};
+  for (const [name, queue] of inMemoryQueues) {
+    const items = Array.isArray(queue) ? queue : [];
+    stats[name] = {
+      pending: items.filter((i) => i?.status === 'pending' || !i?.status).length,
+      processing: items.filter((i) => i?.status === 'processing').length,
+      failed: items.filter((i) => i?.status === 'failed').length,
+      total: items.length,
+      hasHandler: queueHandlers.has(name),
+    };
+  }
+
+  return {
+    mode: bullmqEnabled ? 'bullmq' : 'in-memory',
+    initialized,
+    queues: stats,
+    registeredHandlers: Array.from(queueHandlers.keys()),
+  };
+}
+
 module.exports = {
   QUEUE_NAMES,
   enqueue,
+  getStats,
   initialize,
   registerWorker,
   shutdown,

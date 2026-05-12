@@ -90,6 +90,7 @@ const { activeSessions } = require('../state/registry');
 const contactsEngine = require('../../contactsEngine');
 const runtimeEngine = require('../../runtimeEngine');
 const sessionRegistry = require('../../sessionRegistry');
+const messageAckPipeline = require('../../messageAckPipeline');
 
 const SESSIONS_DIRECTORY = path.join(__dirname, '..', '..', '..', 'sessions');
 const DEFAULT_RECONNECT_DELAY_MS = 3000;
@@ -733,12 +734,14 @@ async function createStableSession({
         if (session.reconnectCooldownTimer) {
           clearTimeout(session.reconnectCooldownTimer);
         }
-        // Cooldown: prevent another close event from triggering a second reconnect
-        // within 10s window. Reset flag after the backoff + execution window.
+        // Cooldown: prevent another close event from triggering a second reconnect.
+        // Window matches the computed backoff so the flag is only cleared AFTER the
+        // reconnect attempt has had time to complete.
+        const cooldownMs = computeReconnectDelay(session.reconnectRequestCount) + 5000;
         session.reconnectCooldownTimer = setTimeout(() => {
           session.reconnectCooldownTimer = null;
           session.reconnecting = false;
-        }, 10000);
+        }, cooldownMs);
 
         session.reconnectRequestCount = Number(session.reconnectRequestCount || 0) + 1;
 
@@ -1110,7 +1113,6 @@ async function createStableSession({
     await emitMessageUpdates(io, updates, normalizedSessionName);
 
     // Phase 5: Track ACK state transitions
-    const messageAckPipeline = require('../../messageAckPipeline');
     const ackResults = messageAckPipeline.processBaileysStatusBatch(updates);
     for (const ackEntry of ackResults) {
       messageAckPipeline.emitAckUpdate(io || global.io, ackEntry);

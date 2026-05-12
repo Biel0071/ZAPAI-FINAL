@@ -60,6 +60,7 @@ const aiMemoryEngine = require('./services/aiMemoryEngine');
 const websocketGateway = require('./services/websocketGateway');
 const campaignDispatchEngine = require('./services/campaignDispatchEngine');
 const envValidator = require('./services/envValidator');
+const sessionWatchdog = require('./services/sessionWatchdog');
 
 const eventLoopDelay = monitorEventLoopDelay({ resolution: 20 });
 eventLoopDelay.enable();
@@ -987,6 +988,47 @@ app.get('/api/env/validate', (_req, res) => {
   }
 });
 
+app.get('/api/watchdog/status', (_req, res) => {
+  try {
+    return sendSafeJson(res, { success: true, data: sessionWatchdog.getWatchdogDiagnostics() });
+  } catch (error) {
+    return sendSafeJson(res, { success: false, error: error?.message || 'Watchdog failed' }, 500);
+  }
+});
+
+app.post('/api/watchdog/audit', (_req, res) => {
+  try {
+    const io = app.locals?.io || global.io;
+    const audit = sessionWatchdog.auditSessions();
+    const cleaned = sessionWatchdog.cleanupZombieSessions(audit, io);
+    return sendSafeJson(res, { success: true, data: { ...audit, cleaned } });
+  } catch (error) {
+    return sendSafeJson(res, { success: false, error: error?.message || 'Audit failed' }, 500);
+  }
+});
+
+app.get('/api/queues/diagnostics', (_req, res) => {
+  try {
+    const outboundQueue = require('./services/outboundQueueService');
+    const enterpriseQueue = require('./services/enterprise/queue-service');
+
+    return sendSafeJson(res, {
+      success: true,
+      data: {
+        outbound: {
+          pending: outboundQueue.listPending?.() || [],
+          deadLetter: outboundQueue.listDeadLetter?.() || [],
+        },
+        enterprise: {
+          stats: enterpriseQueue.getStats?.() || {},
+        },
+      },
+    });
+  } catch (error) {
+    return sendSafeJson(res, { success: false, error: error?.message || 'Queue diagnostics failed' }, 500);
+  }
+});
+
 app.get('/api/test', (_req, res) => {
   return res.status(200).json({
     message: 'API funcionando',
@@ -1469,6 +1511,16 @@ async function bootstrap() {
         await aiMemoryEngine.flushMemoryToPostgres(app.locals.store);
       }, 300_000); // Every 5 minutes
       workerSupervisor.startWorker('ai_memory_flush');
+
+      // Phase 7: Session Watchdog worker
+      workerSupervisor.registerWorker('session_watchdog', () => {
+        const audit = sessionWatchdog.auditSessions();
+        if (audit.zombies.length > 0 || audit.stuck.length > 0 || audit.stale.length > 0) {
+          console.warn(`[WATCHDOG] Issues found: ${audit.zombies.length} zombies, ${audit.stuck.length} stuck, ${audit.stale.length} stale`);
+          sessionWatchdog.cleanupZombieSessions(audit, io);
+        }
+      }, 60_000); // Every 60 seconds
+      workerSupervisor.startWorker('session_watchdog');
     } catch (error) {
       console.error('[SERVER] Failed to auto-restore sessions at startup:', error.message || error);
     }
