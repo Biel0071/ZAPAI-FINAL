@@ -72,8 +72,17 @@ RELEASE_DIR="$RELEASES_DIR/$RELEASE_NAME"
 mkdir -p "$RELEASES_DIR"
 
 cd "$SCRIPT_DIR/frontend-official"
-npm ci --legacy-peer-deps
-VITE_API_URL="${VITE_API_URL:-http://${PUBLIC_IP}:3000}" npm run build
+# NODE_ENV=development ensures devDependencies (vite, typescript, postcss) are installed
+NODE_ENV=development npm ci --legacy-peer-deps
+
+# Validate vite is available
+if [ ! -f "node_modules/.bin/vite" ]; then
+    warn "vite ausente — tentando npm install..."
+    npm install --legacy-peer-deps
+fi
+
+# Build with VITE_API_URL from env
+NODE_ENV=production VITE_API_URL="${VITE_API_URL:-http://${PUBLIC_IP}:3000}" npx vite build
 cd "$SCRIPT_DIR"
 
 if [ ! -f "$SCRIPT_DIR/frontend-official/dist/index.html" ]; then

@@ -372,14 +372,37 @@ RELEASE_DIR="$RELEASES_DIR/$RELEASE_NAME"
 
 mkdir -p "$RELEASES_DIR"
 
-# Source env so VITE_API_URL is baked into the Vite build
-set -a
-. "$ENV_FILE"
-set +a
+# Source env ONLY for VITE_API_URL — do NOT let NODE_ENV=production
+# leak into npm ci, or it will skip devDependencies (vite, typescript, etc.)
+VITE_API_URL=$(grep '^VITE_API_URL=' "$ENV_FILE" 2>/dev/null | cut -d'=' -f2- || echo "http://${PUBLIC_IP}:3000")
+export VITE_API_URL
 
 cd "$SCRIPT_DIR/frontend-official"
-npm ci --legacy-peer-deps
-VITE_API_URL="${VITE_API_URL:-http://${PUBLIC_IP}:3000}" npm run build
+
+# Install ALL dependencies (including devDependencies like vite, typescript, postcss)
+# NODE_ENV must NOT be "production" here, or npm ci skips devDependencies.
+NODE_ENV=development npm ci --legacy-peer-deps
+
+# Validate vite is actually installed before attempting build
+if [ ! -f "node_modules/.bin/vite" ]; then
+    warn "vite não encontrado após npm ci. Tentando install explícito..."
+    npm install --legacy-peer-deps
+fi
+
+if [ ! -f "node_modules/.bin/vite" ]; then
+    warn "vite ainda ausente. Instalando diretamente..."
+    npm install vite@^5.4.19 @vitejs/plugin-react-swc --legacy-peer-deps
+fi
+
+if [ ! -f "node_modules/.bin/vite" ]; then
+    err "FALHA CRÍTICA: vite não pode ser instalado. Abortando."
+    exit 1
+fi
+
+log "Dependências instaladas: $(ls node_modules | wc -l) pacotes | vite: $(npx vite --version 2>/dev/null || echo 'ok')"
+
+# Build with production optimizations
+NODE_ENV=production npx vite build
 cd "$SCRIPT_DIR"
 
 # Validate build output
