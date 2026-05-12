@@ -1,3 +1,6 @@
+// ── MUST be first import — patches globals before any other module loads ──
+import "@/lib/runtimeHardening";
+
 import { createRoot } from "react-dom/client";
 import App from "./App.tsx";
 import "./index.css";
@@ -70,7 +73,7 @@ function persistBuildInfo() {
     // storage indisponível
   }
 
-  window.ZAPAI_BUILD = zapaiBuildInfo;
+  (window as Record<string, unknown>).ZAPAI_BUILD = zapaiBuildInfo;
 }
 
 function renderFatalError(message: string) {
@@ -84,7 +87,8 @@ function renderFatalError(message: string) {
         <h1 style="font-size:24px;font-weight:700;margin-bottom:12px;">ZAPFLOW AI</h1>
         <p style="font-size:14px;color:#a3a3a3;margin-bottom:24px;">O sistema encontrou um erro durante a inicialização.</p>
         <pre style="font-size:12px;background:#1a1a1a;padding:16px;border-radius:8px;overflow:auto;text-align:left;color:#ef4444;margin-bottom:24px;max-height:120px;">${message}</pre>
-        <button onclick="location.reload()" style="padding:10px 24px;background:#3b82f6;color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:14px;">Recarregar</button>
+        <button onclick="localStorage.clear();sessionStorage.clear();location.reload()" style="padding:10px 24px;background:#3b82f6;color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:14px;margin-right:8px;">Limpar e Recarregar</button>
+        <button onclick="location.reload()" style="padding:10px 24px;background:#334155;color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:14px;">Recarregar</button>
       </div>
     </div>
   `;

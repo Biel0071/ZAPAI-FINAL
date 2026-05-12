@@ -1,4 +1,3 @@
-import { supabase } from "@/integrations/supabase/client";
 import { isAdminAuthSessionValid, loadAdminAuthSession } from "@/lib/adminAuthSession";
 
 export const FIXED_TENANT_ID = "main";
@@ -14,12 +13,15 @@ export const REQUIRED_API_ENDPOINTS = [
 export const PUBLISH_BLOCKER_ENDPOINTS = ["/api/health", "/api/conversations"] as const;
 
 async function readAccessToken(): Promise<string | null> {
+  // Always prefer the admin auth session (backend JWT) over Supabase
   const adminSession = loadAdminAuthSession();
   if (isAdminAuthSessionValid(adminSession) && adminSession?.token) {
     return adminSession.token;
   }
 
+  // Fallback: try Supabase session (only in environments where Supabase is configured)
   try {
+    const { supabase } = await import("@/integrations/supabase/client");
     const { data, error } = await supabase.auth.getSession();
     if (error) return null;
     return data.session?.access_token ?? null;

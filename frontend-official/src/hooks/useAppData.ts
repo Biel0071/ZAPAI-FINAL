@@ -20,10 +20,13 @@ export function useConversations(enabled = true) {
     queryKey: ["conversations"],
     queryFn: () => apiService.getConversations(false),
     enabled,
+    staleTime: 60_000,
+    retry: 2,
+    refetchOnWindowFocus: false,
   });
 
   useEffect(() => {
-    if (query.data) setConversations(query.data);
+    if (query.data && Array.isArray(query.data)) setConversations(query.data);
   }, [query.data, setConversations]);
 
   useEffect(() => {
@@ -41,10 +44,12 @@ export function useMetrics(enabled = true) {
     queryFn: () => apiService.getMetrics(),
     enabled,
     refetchInterval: 30_000,
+    retry: 1,
+    refetchOnWindowFocus: false,
   });
 
   useEffect(() => {
-    if (query.data) setMetrics(query.data);
+    if (query.data && typeof query.data === "object") setMetrics(query.data);
   }, [query.data, setMetrics]);
 
   useEffect(() => {
@@ -62,10 +67,12 @@ export function useSessions(enabled = true) {
     queryFn: () => apiService.listSessions(),
     enabled,
     refetchInterval: 10_000,
+    retry: 1,
+    refetchOnWindowFocus: false,
   });
 
   useEffect(() => {
-    if (query.data) setSessions(query.data);
+    if (query.data && Array.isArray(query.data)) setSessions(query.data);
   }, [query.data, setSessions]);
 
   useEffect(() => {

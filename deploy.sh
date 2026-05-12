@@ -82,7 +82,7 @@ if [ ! -f "node_modules/.bin/vite" ]; then
 fi
 
 # Build with VITE_API_URL from env
-NODE_ENV=production VITE_API_URL="${VITE_API_URL:-http://${PUBLIC_IP}:3000}" npx vite build
+NODE_ENV=production VITE_API_URL="${VITE_API_URL:-/}" npx vite build
 cd "$SCRIPT_DIR"
 
 if [ ! -f "$SCRIPT_DIR/frontend-official/dist/index.html" ]; then

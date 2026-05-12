@@ -102,7 +102,7 @@ export function useMasterNodesControlPlane() {
   }, [pushMetric, refresh, setNodes, upsertDeployment]);
 
   const sortedNodes = useMemo(
-    () => [...nodes].sort((a, b) => a.name.localeCompare(b.name)),
+    () => Array.isArray(nodes) ? [...nodes].sort((a, b) => (a.name || "").localeCompare(b.name || "")) : [],
     [nodes],
   );
 

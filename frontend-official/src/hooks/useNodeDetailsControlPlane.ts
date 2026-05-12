@@ -112,7 +112,7 @@ export function useNodeDetailsControlPlane(nodeId: string | undefined) {
   );
 
   const timeline = useMemo(
-    () => [...bundle.deployments].sort((a, b) => new Date(b.startedAt ?? 0).getTime() - new Date(a.startedAt ?? 0).getTime()),
+    () => Array.isArray(bundle?.deployments) ? [...bundle.deployments].sort((a, b) => new Date(b.startedAt ?? 0).getTime() - new Date(a.startedAt ?? 0).getTime()) : [],
     [bundle.deployments],
   );
 

@@ -1,27 +1,45 @@
 <!doctype html>
-<html lang="en">
+<html lang="pt-BR" class="dark">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <!-- TODO: Set the document title to the name of your application -->
-    <title>Lovable App</title>
-    <meta name="description" content="Lovable Generated Project">
-    <meta name="author" content="Lovable" />
+    <title>ZAPFLOW AI — Plataforma Inteligente de Atendimento</title>
+    <meta name="description" content="ZAPFLOW AI — Plataforma inteligente de atendimento e automação via WhatsApp." />
+    <meta name="author" content="ZAPFLOW AI" />
 
-    <!-- TODO: Update og:title to match your application name -->
-    
-    
     <meta property="og:type" content="website" />
-    <meta property="og:image" content="https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/7ac5343e-45a9-485b-b709-30360e27d10a/id-preview-ff2b33de--b0121d7d-b6b4-40c0-ad38-492e90ac8994.lovable.app-1773079843687.png">
+    <meta property="og:title" content="ZAPFLOW AI" />
+    <meta property="og:description" content="Plataforma inteligente de atendimento e automação via WhatsApp." />
+    <meta name="twitter:card" content="summary" />
+    <meta name="twitter:title" content="ZAPFLOW AI" />
+    <meta name="twitter:description" content="Plataforma inteligente de atendimento e automação via WhatsApp." />
 
-    <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:site" content="@Lovable" />
-    <meta name="twitter:image" content="https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/7ac5343e-45a9-485b-b709-30360e27d10a/id-preview-ff2b33de--b0121d7d-b6b4-40c0-ad38-492e90ac8994.lovable.app-1773079843687.png">
-    <meta property="og:title" content="Lovable App">
-  <meta name="twitter:title" content="Lovable App">
-  <meta property="og:description" content="Lovable Generated Project">
-  <meta name="twitter:description" content="Lovable Generated Project">
-</head>
+    <style>
+      /* Pre-React loading indicator — shows immediately while JS bundles load */
+      #root:empty {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 100vh;
+        background-color: #0a0f1a;
+        color: #94a3b8;
+        font-family: system-ui, -apple-system, sans-serif;
+      }
+      #root:empty::after {
+        content: "Carregando ZAPFLOW AI…";
+        font-size: 14px;
+        animation: pulse 1.5s ease-in-out infinite;
+      }
+      @keyframes pulse {
+        0%, 100% { opacity: 0.4; }
+        50% { opacity: 1; }
+      }
+      /* Hide the loading text once React mounts */
+      #root:not(:empty)::after {
+        display: none;
+      }
+    </style>
+  </head>
 
   <body>
     <div id="root"></div>

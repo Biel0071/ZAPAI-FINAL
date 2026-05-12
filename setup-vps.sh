@@ -107,7 +107,7 @@ if [ -f "$ENV_FILE" ]; then
     ensure_env_var "CRASH_EXIT_ON_UNHANDLED" "true"
     ensure_env_var "DOMAIN" "${PUBLIC_IP}"
     ensure_env_var "LETSENCRYPT_EMAIL" "admin@zapflow.app"
-    ensure_env_var "VITE_API_URL" "http://${PUBLIC_IP}:3000"
+        ensure_env_var "VITE_API_URL" "/"
     ensure_env_var "CORS_ALLOWED_ORIGINS" "http://${PUBLIC_IP}:3000,http://${PUBLIC_IP},https://${PUBLIC_IP}"
 
     # Ensure CORS includes current IP (IP may have changed)
@@ -171,7 +171,7 @@ LETSENCRYPT_EMAIL=admin@zapflow.app
 # URLs — Nginx serves on port 3000 by default
 FRONTEND_URL=http://${PUBLIC_IP}:3000
 CORS_ALLOWED_ORIGINS=http://${PUBLIC_IP}:3000,http://${PUBLIC_IP},https://${PUBLIC_IP}
-VITE_API_URL=http://${PUBLIC_IP}:3000
+VITE_API_URL=/
 
 JWT_SECRET=${JWT}
 AUTH_JWT_SECRET=${JWT}
@@ -374,7 +374,7 @@ mkdir -p "$RELEASES_DIR"
 
 # Source env ONLY for VITE_API_URL — do NOT let NODE_ENV=production
 # leak into npm ci, or it will skip devDependencies (vite, typescript, etc.)
-VITE_API_URL=$(grep '^VITE_API_URL=' "$ENV_FILE" 2>/dev/null | cut -d'=' -f2- || echo "http://${PUBLIC_IP}:3000")
+VITE_API_URL=$(grep '^VITE_API_URL=' "$ENV_FILE" 2>/dev/null | cut -d'=' -f2- || echo "/")
 export VITE_API_URL
 
 cd "$SCRIPT_DIR/frontend-official"
@@ -440,6 +440,58 @@ BACKEND_SERVICE=$(docker compose -f "$COMPOSE_FILE" config --services 2>/dev/nul
 if [ -z "$BACKEND_SERVICE" ]; then BACKEND_SERVICE=backend; fi
 export BACKEND_SERVICE
 
+mkdir -p "$(dirname "$NGINX_TEMPLATE")"
+cat << 'EOF' > "$NGINX_TEMPLATE"
+server {
+    listen 80;
+    server_name _;
+    
+    root /usr/share/nginx/html;
+    index index.html;
+
+    gzip on;
+    gzip_types text/plain text/css application/json application/javascript text/xml application/xml application/xml+rss text/javascript;
+
+    location / {
+        try_files $uri $uri/ /index.html;
+    }
+
+    location /api/ {
+        proxy_pass http://${BACKEND_SERVICE}:4025;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_cache_bypass $http_upgrade;
+    }
+
+    location /socket.io/ {
+        proxy_pass http://${BACKEND_SERVICE}:4025;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_cache_bypass $http_upgrade;
+    }
+
+    location ~* \.(js|css|png|jpg|jpeg|gif|ico|svg|woff2?|eot|ttf|otf|mp4|webm|webp)$ {
+        expires 1y;
+        add_header Cache-Control "public, max-age=31536000, immutable";
+        access_log off;
+    }
+
+    location = /index.html {
+        add_header Cache-Control "no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0";
+        add_header Pragma "no-cache";
+        expires off;
+    }
+}
+EOF
+
 envsubst '${BACKEND_SERVICE}' < "$NGINX_TEMPLATE" > "$NGINX_CONF"
 log "nginx.conf gerado (upstream → ${BACKEND_SERVICE})."
 
@@ -481,6 +533,7 @@ sleep 15
 MAX_RETRIES=10
 ALL_HEALTHY=false
 PG_AUTH_FIXED=false
+FRONTEND_REBUILT=false
 
 for i in $(seq 1 $MAX_RETRIES); do
     echo -e "  🧪 Tentativa $i/$MAX_RETRIES..."
@@ -512,12 +565,26 @@ for i in $(seq 1 $MAX_RETRIES); do
 
     HTTP_FRONT=$(curl -s -o /dev/null -w "%{http_code}" --max-time 5 http://127.0.0.1:3000 2>/dev/null || echo "000")
     HTTP_API=$(curl -s -o /dev/null -w "%{http_code}" --max-time 5 http://127.0.0.1:3000/api/health 2>/dev/null || echo "000")
+    
+    FRONT_HTML_ROOT=$(curl -s --max-time 5 http://127.0.0.1:3000 2>/dev/null | grep -c "id=\"root\"" || echo "0")
 
-    echo -e "     Frontend: ${HTTP_FRONT} | API: ${HTTP_API}"
+    echo -e "     Frontend: ${HTTP_FRONT} (Root DOM: ${FRONT_HTML_ROOT}) | API: ${HTTP_API}"
 
-    if [ "$HTTP_FRONT" = "200" ] && [ "$HTTP_API" = "200" ]; then
+    if [ "$HTTP_FRONT" = "200" ] && [ "$HTTP_API" = "200" ] && [ "$FRONT_HTML_ROOT" -gt "0" ]; then
         ALL_HEALTHY=true
         break
+    fi
+    
+    # Se o frontend está respondendo com erro 5xx ou HTML corrompido sem a div root
+    if [ "$HTTP_FRONT" != "200" ] || [ "$FRONT_HTML_ROOT" = "0" ]; then
+        if [ "$FRONTEND_REBUILT" != "true" ] && [ "$i" -ge 4 ]; then
+            warn "Frontend possivelmente corrompido no deploy. Forçando auto-rebuild..."
+            cd "$SCRIPT_DIR/frontend-official"
+            npm ci --legacy-peer-deps && NODE_ENV=production npx vite build
+            cp -r dist/* "$RELEASE_DIR/" 2>/dev/null || true
+            cd "$SCRIPT_DIR"
+            FRONTEND_REBUILT=true
+        fi
     fi
 
     # If backend is starting, just wait; if unhealthy, restart it

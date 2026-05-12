@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { connectInboxSocket } from "@/services/socketService";
 import type { ChatMessage, Conversation } from "@/services/apiService";
 
@@ -35,24 +35,8 @@ export function useSocketMessages(params: UseSocketMessagesParams) {
     onQrGenerated,
   } = params;
 
-  useEffect(() => {
-    if (!socketUrl) return;
-
-    const disconnect = connectInboxSocket({
-      socketUrl,
-      onNewMessage,
-      onConversationUpdated,
-      onError,
-      onSessionConnected,
-      onSessionDisconnected,
-      onSessionDeleted,
-      onSessionStatus,
-      onQrGenerated,
-    });
-
-    return () => disconnect();
-  }, [
-    socketUrl,
+  // Impede Infinite Reconnect Loops encapsulando referências mutáveis
+  const callbacksRef = useRef({
     onNewMessage,
     onConversationUpdated,
     onError,
@@ -61,5 +45,36 @@ export function useSocketMessages(params: UseSocketMessagesParams) {
     onSessionDeleted,
     onSessionStatus,
     onQrGenerated,
-  ]);
+  });
+
+  useEffect(() => {
+    callbacksRef.current = {
+      onNewMessage,
+      onConversationUpdated,
+      onError,
+      onSessionConnected,
+      onSessionDisconnected,
+      onSessionDeleted,
+      onSessionStatus,
+      onQrGenerated,
+    };
+  });
+
+  useEffect(() => {
+    if (!socketUrl) return;
+
+    const disconnect = connectInboxSocket({
+      socketUrl,
+      onNewMessage: (payload) => callbacksRef.current.onNewMessage(payload),
+      onConversationUpdated: (conversation) => callbacksRef.current.onConversationUpdated(conversation),
+      onError: (message) => callbacksRef.current.onError(message),
+      onSessionConnected: (payload) => callbacksRef.current.onSessionConnected?.(payload),
+      onSessionDisconnected: (payload) => callbacksRef.current.onSessionDisconnected?.(payload),
+      onSessionDeleted: (payload) => callbacksRef.current.onSessionDeleted?.(payload),
+      onSessionStatus: (payload) => callbacksRef.current.onSessionStatus?.(payload),
+      onQrGenerated: (payload) => callbacksRef.current.onQrGenerated?.(payload),
+    });
+
+    return () => disconnect();
+  }, [socketUrl]);
 }

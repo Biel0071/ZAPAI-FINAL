@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
 import { ADMIN_AUTH_CHANGED_EVENT, isAdminAuthSessionValid, loadAdminAuthSession } from "@/lib/adminAuthSession";
 
 export type AppUserRole = "user" | "admin" | "master";
@@ -15,30 +14,30 @@ let roleInitStarted = false;
 
 function normalizeRole(value: unknown): AppUserRole {
   const normalized = String(value ?? "").trim().toLowerCase();
-  if (["master", "admin_master", "superadmin", "owner"].includes(normalized)) return "master";
+  if (["master", "admin_master", "master_admin", "superadmin", "owner"].includes(normalized)) return "master";
   if (["admin", "administrator", "manager"].includes(normalized)) return "admin";
   return "user";
-}
-
-async function inferRoleFromBackend(accessToken: string, userEmail?: string | null): Promise<AppUserRole | null> {
-  void accessToken;
-  void userEmail;
-  return null;
-}
-
-async function resolveSessionWithTimeout(timeoutMs = 3500) {
-  return Promise.race([
-    supabase.auth.getSession(),
-    new Promise<never>((_, reject) => {
-      window.setTimeout(() => reject(new Error("session_timeout")), timeoutMs);
-    }),
-  ]);
 }
 
 function resolveRoleFromAdminSession(): AppUserRole | null {
   const adminSession = loadAdminAuthSession();
   if (!isAdminAuthSessionValid(adminSession)) return null;
   return normalizeRole(adminSession.role);
+}
+
+async function resolveSupabaseSession(): Promise<{ session: unknown | null }> {
+  try {
+    const { supabase } = await import("@/integrations/supabase/client");
+    const { data } = await Promise.race([
+      supabase.auth.getSession(),
+      new Promise<never>((_, reject) => {
+        window.setTimeout(() => reject(new Error("session_timeout")), 3500);
+      }),
+    ]);
+    return { session: data?.session ?? null };
+  } catch {
+    return { session: null };
+  }
 }
 
 export function useUserRole() {
@@ -60,32 +59,6 @@ export function useUserRole() {
     publishRoleSnapshot({ role: nextRole, isLoading: false });
   }, [publishRoleSnapshot]);
 
-  const resolveSessionRole = useCallback(async (session: Awaited<ReturnType<typeof supabase.auth.getSession>>["data"]["session"]) => {
-    const adminRole = resolveRoleFromAdminSession();
-    if (adminRole) {
-      publishRoleSnapshot({ role: adminRole, isLoading: false });
-      return;
-    }
-
-    const sessionRole =
-      session?.user?.app_metadata?.role ??
-      session?.user?.user_metadata?.role ??
-      session?.user?.app_metadata?.profile;
-
-    if (sessionRole) {
-      publishRoleSnapshot({ role: normalizeRole(sessionRole), isLoading: false });
-      return;
-    }
-
-    if (!session?.access_token) {
-      publishRoleSnapshot({ role: "user", isLoading: false });
-      return;
-    }
-
-    const backendRole = await inferRoleFromBackend(session.access_token, session.user?.email);
-    publishRoleSnapshot({ role: backendRole ?? "user", isLoading: false });
-  }, [publishRoleSnapshot]);
-
   useEffect(() => {
     roleListeners.add(syncLocalState);
     syncLocalState(roleSnapshot);
@@ -97,41 +70,40 @@ export function useUserRole() {
         try {
           publishRoleSnapshot({ role: roleSnapshot.role, isLoading: true });
 
+          // Priority 1: Check the admin auth session (backend JWT)
           const adminRole = resolveRoleFromAdminSession();
           if (adminRole) {
             publishRoleSnapshot({ role: adminRole, isLoading: false });
             return;
           }
 
-          const { data } = await resolveSessionWithTimeout();
-          await resolveSessionRole(data.session);
+          // Priority 2: Try Supabase session (if configured)
+          const { session } = await resolveSupabaseSession();
+          if (session && typeof session === "object") {
+            const s = session as Record<string, unknown>;
+            const user = s.user as Record<string, unknown> | null;
+            const sessionRole =
+              (user?.app_metadata as Record<string, unknown>)?.role ??
+              (user?.user_metadata as Record<string, unknown>)?.role ??
+              (user?.app_metadata as Record<string, unknown>)?.profile;
+
+            if (sessionRole) {
+              publishRoleSnapshot({ role: normalizeRole(sessionRole), isLoading: false });
+              return;
+            }
+          }
+
+          publishRoleSnapshot({ role: "user", isLoading: false });
         } catch {
           publishRoleSnapshot({ role: "user", isLoading: false });
         }
       })();
-
-      const {
-        data: { subscription },
-      } = supabase.auth.onAuthStateChange((_event, session) => {
-        const adminRole = resolveRoleFromAdminSession();
-        if (adminRole) {
-          publishRoleSnapshot({ role: adminRole, isLoading: false });
-          return;
-        }
-
-        publishRoleSnapshot({ role: roleSnapshot.role, isLoading: true });
-        void resolveSessionRole(session).catch(() => {
-          publishRoleSnapshot({ role: "user", isLoading: false });
-        });
-      });
-
-      void subscription;
     }
 
     return () => {
       roleListeners.delete(syncLocalState);
     };
-  }, [publishRoleSnapshot, resolveSessionRole, syncLocalState]);
+  }, [publishRoleSnapshot, syncLocalState]);
 
   useEffect(() => {
     const onAdminAuthChanged = () => {
