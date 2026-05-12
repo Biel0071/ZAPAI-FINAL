@@ -90,9 +90,7 @@ if [ ! -f "$SCRIPT_DIR/frontend-official/dist/index.html" ]; then
     exit 1
 fi
 
-mv "$SCRIPT_DIR/frontend-official/dist" "$RELEASE_DIR"
-rm -f "$CURRENT_LINK"
-ln -sf "$RELEASE_DIR" "$CURRENT_LINK"
+cp -r "$SCRIPT_DIR/frontend-official/dist" "$RELEASE_DIR"
 log "Release: $RELEASE_NAME"
 
 # Cleanup old releases (keep last 5)

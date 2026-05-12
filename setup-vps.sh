@@ -411,10 +411,6 @@ if [ ! -f "$SCRIPT_DIR/frontend-official/dist/index.html" ]; then
     exit 1
 fi
 
-if [ ! -f "$SCRIPT_DIR/frontend-official/dist/build-manifest.json" ]; then
-    warn "build-manifest.json ausente — build pode estar incompleto."
-fi
-
 JS_COUNT=$(find "$SCRIPT_DIR/frontend-official/dist/assets" -name "*.js" 2>/dev/null | wc -l)
 CSS_COUNT=$(find "$SCRIPT_DIR/frontend-official/dist/assets" -name "*.css" 2>/dev/null | wc -l)
 
@@ -423,12 +419,10 @@ if [ "$JS_COUNT" -lt 3 ]; then
     exit 1
 fi
 
-# Atomic swap: move dist → release dir → symlink
-mv "$SCRIPT_DIR/frontend-official/dist" "$RELEASE_DIR"
-rm -f "$CURRENT_LINK"
-ln -sf "$RELEASE_DIR" "$CURRENT_LINK"
+# Save release backup (copy, don't move — dist/ is the Docker mount source)
+cp -r "$SCRIPT_DIR/frontend-official/dist" "$RELEASE_DIR"
 
-log "Release atômica: $RELEASE_NAME ($JS_COUNT JS + $CSS_COUNT CSS chunks)."
+log "Build OK: $RELEASE_NAME ($JS_COUNT JS + $CSS_COUNT CSS chunks). dist/ pronto para nginx."
 
 # Cleanup old releases (keep last 3)
 cd "$RELEASES_DIR"

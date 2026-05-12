@@ -120,6 +120,7 @@ function CatchAllRoute() {
 
 const App = () => {
   useFrontendHealthWatcher();
+  console.log("[ZAPFLOW] App: rendering");
 
   return (
     <GlobalErrorBoundary>

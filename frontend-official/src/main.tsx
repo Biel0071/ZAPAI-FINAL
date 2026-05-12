@@ -59,6 +59,7 @@ function renderFatalError(message: string) {
 }
 
 async function bootstrap() {
+  console.log("[ZAPFLOW] bootstrap: start", { href: window.location.href, time: new Date().toISOString() });
   persistBuildInfo();
   enforceDarkThemeDom();
 
@@ -68,7 +69,16 @@ async function bootstrap() {
     window.history.replaceState({}, "", `${url.pathname}${url.search}${url.hash}` || "/");
   }
 
-  createRoot(document.getElementById("root")!).render(<App />);
+  const rootEl = document.getElementById("root");
+  if (!rootEl) {
+    console.error("[ZAPFLOW] bootstrap: #root element not found!");
+    renderFatalError("Elemento #root não encontrado no DOM.");
+    return;
+  }
+
+  console.log("[ZAPFLOW] bootstrap: rendering <App />");
+  createRoot(rootEl).render(<App />);
+  console.log("[ZAPFLOW] bootstrap: render() called — React is mounting");
 }
 
 void bootstrap().catch((error) => {

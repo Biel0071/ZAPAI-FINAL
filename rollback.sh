@@ -47,19 +47,18 @@ log "Backend revertido."
 step "2. ROLLBACK FRONTEND RELEASE"
 # ──────────────────────────────────────────────────────────────
 RELEASES_DIR="$SCRIPT_DIR/frontend-official/releases"
-CURRENT_LINK="$SCRIPT_DIR/frontend-official/current"
+DIST_DIR="$SCRIPT_DIR/frontend-official/dist"
 
 if [ -d "$RELEASES_DIR" ]; then
-    # Current symlink target
-    CURRENT_RELEASE="$(readlink -f "$CURRENT_LINK" 2>/dev/null || true)"
-    CURRENT_NAME="$(basename "$CURRENT_RELEASE" 2>/dev/null || true)"
+    # Current dist hash (from the release name embedded in dist)
+    CURRENT_RELEASE="$(ls -1dt "$RELEASES_DIR"/release_* 2>/dev/null | head -1 || true)"
 
     # Find previous release (second newest)
-    PREVIOUS_RELEASE="$(ls -1dt "$RELEASES_DIR"/release_* 2>/dev/null | grep -v "$CURRENT_NAME" | head -1 || true)"
+    PREVIOUS_RELEASE="$(ls -1dt "$RELEASES_DIR"/release_* 2>/dev/null | sed -n '2p' || true)"
 
     if [ -n "$PREVIOUS_RELEASE" ] && [ -d "$PREVIOUS_RELEASE" ]; then
-        rm -f "$CURRENT_LINK"
-        ln -sf "$PREVIOUS_RELEASE" "$CURRENT_LINK"
+        rm -rf "$DIST_DIR"
+        cp -r "$PREVIOUS_RELEASE" "$DIST_DIR"
         log "Frontend revertido para: $(basename "$PREVIOUS_RELEASE")"
     else
         warn "Nenhuma release anterior encontrada. Frontend mantido."
