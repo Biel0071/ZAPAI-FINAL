@@ -1055,7 +1055,7 @@ app.get('/api/production/status', (_req, res) => {
         websocketClients: websocketGateway.getConnectedSockets(),
       },
       workers: (() => {
-        try { return workerSupervisor.getStatus(); } catch { return 'unavailable'; }
+        try { return workerSupervisor.getSummary(); } catch { return 'unavailable'; }
       })(),
       sessions: (() => {
         try { return sessionWatchdog.auditSessions(); } catch { return 'unavailable'; }
