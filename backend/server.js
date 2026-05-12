@@ -584,7 +584,7 @@ app.locals.store = {
 
 io.on('connection', (socket) => {
   const tenantId = joinTenantRoom(socket);
-  console.log(`[SERVER] WebSocket client connected (tenant=${tenantId})`);
+  console.log(`[SERVER] WebSocket client connected (tenant=${tenantId}, id=${socket.id})`);
 
   socket.on('typing:start', (payload = {}) => {
     const target = payload?.tenantId || payload?.companyId || socket.data?.tenantId || tenantId;
@@ -594,6 +594,10 @@ io.on('connection', (socket) => {
   socket.on('typing:stop', (payload = {}) => {
     const target = payload?.tenantId || payload?.companyId || socket.data?.tenantId || tenantId;
     emitToTenantWithAliases(io, target, 'typing:stop', payload, ['typing_stop']);
+  });
+
+  socket.on('disconnect', (reason) => {
+    console.log(`[SERVER] WebSocket client disconnected (tenant=${tenantId}, id=${socket.id}, reason=${reason})`);
   });
 });
 

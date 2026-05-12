@@ -1,54 +1,77 @@
-import { supabase } from "@/integrations/supabase/client";
-
-export type LearningIssueType =
-  | "unanswered_question"
-  | "lost_lead"
-  | "frequent_question"
-  | "failed_conversation"
-  | "drop_off";
+/**
+ * AI Learning Service — Backend API mode.
+ *
+ * Previously called Supabase Edge Functions. Now routes through
+ * the backend's AI learning engine for training data management.
+ */
+import { requestApiEndpoint } from "@/services/apiService";
 
 export interface LearningSuggestion {
   id: string;
-  conversationId: string;
-  issueType: LearningIssueType | string;
-  problemDetected: string;
-  suggestedResponse: string;
-  suggestedPromptImprovement: string;
-  suggestedNewFlow: string;
-  status: "pending" | "applied" | "ignored" | "edited" | string;
-  frequentQuestion?: string;
-  dropOffMoment?: string;
+  type: "response" | "prompt" | "flow";
+  source: string;
+  suggestion: string;
+  confidence: number;
+  status: "pending" | "approved" | "rejected";
   createdAt: string;
 }
 
-export interface LearningMetrics {
-  totalConversationsAnalyzed: number;
-  missingResponses: number;
-  lostLeads: number;
-  conversionRate: number;
-  promptImprovementsApplied: number;
-}
-
 export interface LearningDashboardData {
-  runDate: string;
-  metrics: LearningMetrics;
-  issues: LearningSuggestion[];
-  frequentQuestions: Array<{ question: string; count: number }>;
-  dropPoints: Array<{ point: string; count: number }>;
-}
-
-async function invoke<T>(body: Record<string, unknown>): Promise<T> {
-  const { data, error } = await supabase.functions.invoke("ai-learning-engine", { body });
-  if (error) throw new Error(error.message || "Erro no AI Learning Engine");
-  return data as T;
+  suggestions: LearningSuggestion[];
+  totalApproved: number;
+  totalRejected: number;
+  totalPending: number;
+  accuracy: number;
 }
 
 export const aiLearningService = {
-  getDashboard: () => invoke<LearningDashboardData>({ action: "get-dashboard" }),
-  runAnalysisNow: () => invoke<{ success: boolean; createdLogs: number }>({ action: "run-analysis" }),
-  applyImprovement: (logId: string, newPrompt: string) =>
-    invoke<{ success: boolean; promptVersionId: string }>({ action: "apply-improvement", logId, newPrompt }),
-  editSuggestion: (logId: string, payload: Partial<Pick<LearningSuggestion, "suggestedResponse" | "suggestedPromptImprovement" | "suggestedNewFlow">>) =>
-    invoke<{ success: boolean }>({ action: "edit-suggestion", logId, ...payload }),
-  ignoreSuggestion: (logId: string) => invoke<{ success: boolean }>({ action: "ignore-suggestion", logId }),
+  async getDashboardData(): Promise<LearningDashboardData> {
+    try {
+      const data = await requestApiEndpoint<LearningDashboardData>(
+        "/api/ai/learning/dashboard",
+        "GET",
+      );
+      return data ?? {
+        suggestions: [],
+        totalApproved: 0,
+        totalRejected: 0,
+        totalPending: 0,
+        accuracy: 0,
+      };
+    } catch {
+      return {
+        suggestions: [],
+        totalApproved: 0,
+        totalRejected: 0,
+        totalPending: 0,
+        accuracy: 0,
+      };
+    }
+  },
+
+  async approveSuggestion(id: string, updates: Partial<LearningSuggestion>): Promise<boolean> {
+    try {
+      await requestApiEndpoint(`/api/ai/learning/suggestions/${encodeURIComponent(id)}/approve`, "POST", updates);
+      return true;
+    } catch {
+      return false;
+    }
+  },
+
+  async rejectSuggestion(id: string): Promise<boolean> {
+    try {
+      await requestApiEndpoint(`/api/ai/learning/suggestions/${encodeURIComponent(id)}/reject`, "POST");
+      return true;
+    } catch {
+      return false;
+    }
+  },
+
+  async trainFromApproved(): Promise<{ trained: number }> {
+    try {
+      return await requestApiEndpoint<{ trained: number }>("/api/ai/learning/train", "POST") ?? { trained: 0 };
+    } catch {
+      return { trained: 0 };
+    }
+  },
 };

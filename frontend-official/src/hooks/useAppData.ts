@@ -66,7 +66,7 @@ export function useSessions(enabled = true) {
     queryKey: ["sessions"],
     queryFn: () => apiService.listSessions(),
     enabled,
-    refetchInterval: 10_000,
+    refetchInterval: 30_000,
     retry: 1,
     refetchOnWindowFocus: false,
   });

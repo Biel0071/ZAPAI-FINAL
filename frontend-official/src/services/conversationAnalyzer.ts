@@ -1,74 +1,49 @@
-import { supabase } from "@/integrations/supabase/client";
-import type { LeadIntentResult } from "@/services/leadAnalyzer";
-import type { SalesStrategy } from "@/services/salesStrategyEngine";
+/**
+ * Conversation Analyzer — Backend API mode.
+ *
+ * Previously called Supabase Edge Functions. Now routes through
+ * the backend's AI intelligence service which provides the same
+ * analysis capabilities via PostgreSQL + OpenAI.
+ */
+import { requestApiEndpoint } from "@/services/apiService";
 
-export interface ConversationAnalysisResult {
-  summary: string;
-  customer_interest_score: number;
-  objections: string[];
-  questions: string[];
-  purchase_signals: string[];
-  recommended_action: string;
-}
-
-export interface ResponseContext {
-  prompt: string;
-  conversationHistory: Array<{ role: "user" | "assistant"; content: string }>;
-  customerMessage: string;
-  leadAnalysis: LeadIntentResult;
-  salesStrategy: SalesStrategy;
-}
-
-function normalizeAIError(error: unknown): Error {
-  const message = error instanceof Error ? error.message : "";
-  const lowered = message.toLowerCase();
-
-  if (
-    lowered.includes("non-2xx") ||
-    lowered.includes("edge function") ||
-    lowered.includes("failed to fetch") ||
-    lowered.includes("network")
-  ) {
-    return new Error("AI response unavailable.");
-  }
-
-  return new Error(message || "AI response unavailable.");
+export interface ConversationAnalysis {
+  summary?: string;
+  sentiment?: "positive" | "neutral" | "negative";
+  topics?: string[];
+  actionItems?: string[];
+  leadScore?: number;
 }
 
 export async function analyzeConversation(
   conversationId: string,
-  conversationMessages: Array<{ role: "user" | "assistant"; content: string }>,
-): Promise<ConversationAnalysisResult> {
+  messages: Array<{ text: string; fromMe: boolean }>,
+): Promise<ConversationAnalysis | null> {
   try {
-    const { data, error } = await supabase.functions.invoke("conversation-intelligence", {
-      body: {
-        action: "analyze-conversation",
-        conversationId,
-        conversationMessages,
-      },
-    });
-
-    if (error) throw error;
-    return data as ConversationAnalysisResult;
+    return await requestApiEndpoint<ConversationAnalysis>(
+      "/api/ai/analyze-conversation",
+      "POST",
+      { conversationId, messages },
+    );
   } catch (error) {
-    console.error("AI error", error);
-    throw normalizeAIError(error);
+    console.warn("[ConversationAnalyzer] Analysis failed:", error);
+    return null;
   }
 }
 
-export async function generateResponse(context: ResponseContext): Promise<{ response: string }> {
+export async function generateResponse(
+  conversationId: string,
+  context: { messages?: Array<{ text: string; fromMe: boolean }>; prompt?: string },
+): Promise<string | null> {
   try {
-    const { data, error } = await supabase.functions.invoke("conversation-intelligence", {
-      body: {
-        action: "generate-response",
-        context,
-      },
-    });
-
-    if (error) throw error;
-    return data as { response: string };
+    const result = await requestApiEndpoint<{ response?: string }>(
+      "/api/ai/generate-response",
+      "POST",
+      { conversationId, ...context },
+    );
+    return result?.response ?? null;
   } catch (error) {
-    console.error("AI error", error);
-    throw normalizeAIError(error);
+    console.warn("[ConversationAnalyzer] Response generation failed:", error);
+    return null;
   }
 }
