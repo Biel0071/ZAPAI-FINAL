@@ -796,14 +796,15 @@ function ensureSharedSocket(socketUrl: string): Socket {
 }
 
 export function forceReconnectInboxSocket() {
-  if (!sharedSocketUrl && sharedSocket) {
-    if (!sharedSocket.connected) sharedSocket.connect();
-    return;
-  }
+  const savedUrl = sharedSocketUrl;
 
-  if (!sharedSocketUrl) return;
+  // Destroy existing socket so ensureSharedSocket creates a new one
+  // with the current JWT token from adminAuthSession.
+  destroySharedSocket();
 
-  const socket = ensureSharedSocket(sharedSocketUrl);
+  if (!savedUrl) return;
+
+  const socket = ensureSharedSocket(savedUrl);
   if (!socket.connected) socket.connect();
 }
 

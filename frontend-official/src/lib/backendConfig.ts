@@ -8,7 +8,14 @@ function resolveOrigin(): string {
       const isConfiguredHttp = /^http:\/\//i.test(sanitized);
 
       if (isPreviewHttps && isConfiguredHttp) {
-        return "";
+        // Log warning but still return the URL — the browser will block
+        // actual mixed content at the network level. Returning "" here
+        // silently disables ALL backend communication and causes
+        // "Resposta do servidor sem token" on login.
+        console.warn(
+          "[backendConfig] Mixed-content detected: page is HTTPS but API is HTTP.",
+          "Set VITE_API_URL to https:// for full production SSL.",
+        );
       }
     }
 

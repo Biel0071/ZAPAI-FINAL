@@ -28,7 +28,7 @@ let memorySession: AdminAuthSession | null = null;
 
 function normalizeRole(value: unknown): AdminSessionRole {
   const normalized = String(value ?? "").trim().toLowerCase();
-  if (["master", "owner", "superadmin"].includes(normalized)) return "master";
+  if (["master", "master_admin", "owner", "superadmin"].includes(normalized)) return "master";
   if (["admin", "administrator", "manager"].includes(normalized)) return "admin";
   return "user";
 }
@@ -61,6 +61,11 @@ function parseAuthPayload(raw: unknown): { ok: boolean; role: AdminSessionRole; 
     normalizeToken(data.jwt);
   const refreshToken = normalizeToken(data.refreshToken) ?? normalizeToken(data.refresh_token);
 
+  // The backend returns role inside a nested "user" object:
+  // { success: true, token: "...", user: { username: "...", role: "master_admin" } }
+  const userObj = data.user && typeof data.user === "object" ? (data.user as Record<string, unknown>) : null;
+  const rawRole = data.role ?? userObj?.role;
+
   const explicitOk = typeof envelope.success === "boolean" ? envelope.success : (typeof data.ok === "boolean" ? data.ok : null);
   const hasAuthTokens = Boolean(token);
   const unauthorized = data.error === "Credenciais inválidas." || data.message === "Credenciais inválidas.";
@@ -68,7 +73,7 @@ function parseAuthPayload(raw: unknown): { ok: boolean; role: AdminSessionRole; 
 
   return {
     ok,
-    role: normalizeRole(data.role),
+    role: normalizeRole(rawRole),
     token,
     refreshToken,
   };
