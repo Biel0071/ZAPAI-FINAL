@@ -12,7 +12,7 @@ services:
       - ./infrastructure/nginx/nginx.conf:/etc/nginx/conf.d/default.conf:ro
       - /etc/letsencrypt:/etc/letsencrypt:ro
       - /var/www/certbot:/var/www/certbot:ro
-      - ./frontend/current:/usr/share/nginx/html:ro
+      - ./frontend-official/current:/usr/share/nginx/html:ro
     depends_on:
       backend:
         condition: service_healthy
@@ -138,7 +138,11 @@ services:
       DB_WAIT_INTERVAL_SECONDS: ${DB_WAIT_INTERVAL_SECONDS:-2}
       PGSSLMODE: disable
       DB_SSL: "false"
+      DB_RUN_MIGRATIONS_ON_BOOT: "true"
       REDIS_URL: redis://redis:6379
+      DEFAULT_COMPANY_ID: ${DEFAULT_COMPANY_ID:-default}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      CRASH_EXIT_ON_UNHANDLED: ${CRASH_EXIT_ON_UNHANDLED:-true}
     # Not exposed to host — only nginx reaches backend via Docker network
     expose:
       - "4025"

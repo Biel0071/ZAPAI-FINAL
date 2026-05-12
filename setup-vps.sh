@@ -33,7 +33,7 @@ systemctl stop apache2 2>/dev/null || true
 systemctl disable nginx 2>/dev/null || true
 systemctl disable apache2 2>/dev/null || true
 
-rm -rf "$SCRIPT_DIR/frontend/node_modules" "$SCRIPT_DIR/frontend/dist" 2>/dev/null || true
+rm -rf "$SCRIPT_DIR/frontend-official/node_modules" "$SCRIPT_DIR/frontend-official/dist" 2>/dev/null || true
 log "Conflitos do host eliminados."
 
 # ==============================================================================
@@ -57,6 +57,8 @@ log "Docker $(docker --version | cut -d' ' -f3) | Node $(node --version)"
 step "2. FIREWALL"
 # ==============================================================================
 ufw allow OpenSSH
+ufw allow 80/tcp
+ufw allow 443/tcp
 ufw allow 3000/tcp
 ufw allow 8080/tcp
 ufw allow 19999/tcp
@@ -87,8 +89,15 @@ DATABASE_URL=postgresql://zapai:${PG_PASS}@postgres:5432/zapai_crm
 
 REDIS_URL=redis://redis:6379
 
+# Domain — set to your real domain once DNS is configured
+# Used by Certbot and Nginx SSL block
+DOMAIN=${PUBLIC_IP}
+LETSENCRYPT_EMAIL=admin@zapflow.app
+
+# URLs — Nginx serves on port 3000 by default (change to 80 for production)
 FRONTEND_URL=http://${PUBLIC_IP}:3000
-CORS_ALLOWED_ORIGINS=http://${PUBLIC_IP}:3000
+CORS_ALLOWED_ORIGINS=http://${PUBLIC_IP}:3000,http://${PUBLIC_IP},https://${PUBLIC_IP}
+VITE_API_URL=http://${PUBLIC_IP}:3000
 
 JWT_SECRET=${JWT}
 AUTH_JWT_SECRET=${JWT}
@@ -105,11 +114,16 @@ AUTH_DEFAULT_EMAIL=admin@admin.com
 AUTH_DEFAULT_PASSWORD=zapadmin123
 AUTH_DEFAULT_ROLE=master_admin
 AUTH_DEFAULT_TENANT_ID=default
+DEFAULT_COMPANY_ID=default
 
 DB_WAIT_TIMEOUT_SECONDS=120
 DB_WAIT_INTERVAL_SECONDS=2
+DB_RUN_MIGRATIONS_ON_BOOT=true
 PGSSLMODE=disable
 DB_SSL=false
+
+LOG_LEVEL=info
+CRASH_EXIT_ON_UNHANDLED=true
 
 TZ=America/Sao_Paulo
 ENVEOF
@@ -139,8 +153,8 @@ log "Docker limpo."
 # ==============================================================================
 step "5. ATOMIC FRONTEND BUILD"
 # ==============================================================================
-RELEASES_DIR="$SCRIPT_DIR/frontend/releases"
-CURRENT_LINK="$SCRIPT_DIR/frontend/current"
+RELEASES_DIR="$SCRIPT_DIR/frontend-official/releases"
+CURRENT_LINK="$SCRIPT_DIR/frontend-official/current"
 BUILD_HASH=$(git rev-parse --short HEAD 2>/dev/null || echo "$(date +%s)")
 RELEASE_NAME="release_${BUILD_HASH}_$(date +%Y%m%d_%H%M%S)"
 RELEASE_DIR="$RELEASES_DIR/$RELEASE_NAME"
@@ -148,23 +162,28 @@ RELEASE_DIR="$RELEASES_DIR/$RELEASE_NAME"
 mkdir -p "$RELEASES_DIR"
 
 # Build into dist (Vite default)
-cd "$SCRIPT_DIR/frontend"
-npm ci
-npm run build
+# Source env so VITE_API_URL is baked into the Vite build
+set -a
+. "$ENV_FILE"
+set +a
+
+cd "$SCRIPT_DIR/frontend-official"
+npm ci --legacy-peer-deps
+VITE_API_URL="${VITE_API_URL:-http://${PUBLIC_IP}:3000}" npm run build
 cd "$SCRIPT_DIR"
 
 # Validate build output
-if [ ! -f "$SCRIPT_DIR/frontend/dist/index.html" ]; then
+if [ ! -f "$SCRIPT_DIR/frontend-official/dist/index.html" ]; then
     err "Build falhou — index.html ausente. Abortando."
     exit 1
 fi
 
-if [ ! -f "$SCRIPT_DIR/frontend/dist/build-manifest.json" ]; then
+if [ ! -f "$SCRIPT_DIR/frontend-official/dist/build-manifest.json" ]; then
     warn "build-manifest.json ausente — build pode estar incompleto."
 fi
 
-JS_COUNT=$(find "$SCRIPT_DIR/frontend/dist/assets" -name "*.js" 2>/dev/null | wc -l)
-CSS_COUNT=$(find "$SCRIPT_DIR/frontend/dist/assets" -name "*.css" 2>/dev/null | wc -l)
+JS_COUNT=$(find "$SCRIPT_DIR/frontend-official/dist/assets" -name "*.js" 2>/dev/null | wc -l)
+CSS_COUNT=$(find "$SCRIPT_DIR/frontend-official/dist/assets" -name "*.css" 2>/dev/null | wc -l)
 
 if [ "$JS_COUNT" -lt 3 ]; then
     err "Build inválido — apenas $JS_COUNT chunks JS encontrados. Abortando."
@@ -172,7 +191,7 @@ if [ "$JS_COUNT" -lt 3 ]; then
 fi
 
 # Atomic swap: move dist → release dir → symlink
-mv "$SCRIPT_DIR/frontend/dist" "$RELEASE_DIR"
+mv "$SCRIPT_DIR/frontend-official/dist" "$RELEASE_DIR"
 rm -f "$CURRENT_LINK"
 ln -sf "$RELEASE_DIR" "$CURRENT_LINK"
 

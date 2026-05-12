@@ -1,0 +1,14 @@
+{
+  "product_info": [
+    "ZapAI CRM automatiza atendimento no WhatsApp com IA e CRM integrado.",
+    "Suporte a múltiplas sessões, fluxos comerciais e análise de performance."
+  ],
+  "delivery_rules": [
+    "Prazo varia por CEP e modalidade.",
+    "Pedidos pagos até 14h têm processamento no mesmo dia útil."
+  ],
+  "payment_rules": [
+    "Aceitamos PIX, cartão de crédito e boleto.",
+    "Parcelamento sujeito a valor mínimo por compra."
+  ]
+}

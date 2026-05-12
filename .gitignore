@@ -31,10 +31,17 @@ docker-compose.local-override.yml
 # ── Frontend build output ─────────────────────────────────────
 frontend/dist/
 frontend/.tsbuildinfo
+frontend-official/dist/
+frontend-official/.tsbuildinfo
 
 # ── Atomic deploy releases (generated on VPS) ────────────────
 frontend/releases/
 frontend/current
+frontend-official/releases/
+frontend-official/current
+
+# ── Whitelist frontend-official/.env.production (no secrets, just VITE_API_URL)
+!frontend-official/.env.production
 
 # ── Generated nginx config (from template via envsubst) ──────
 infrastructure/nginx/nginx.conf

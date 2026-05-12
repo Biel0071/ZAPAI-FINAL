@@ -3,8 +3,8 @@ const path = require('path');
 const crypto = require('crypto');
 
 function runBootstrap() {
-  const envPath = path.join(__dirname, '..', '.env');
-  const targetEnv = fs.existsSync('/workspace') ? '/workspace/.env' : envPath;
+  const localEnv = path.join(__dirname, '.env');
+  const targetEnv = fs.existsSync('/workspace') ? '/workspace/.env' : localEnv;
 
   if (fs.existsSync(targetEnv)) {
     return;
