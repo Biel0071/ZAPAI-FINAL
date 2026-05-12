@@ -87,6 +87,9 @@ const { logSessionEvent, pushConnectionLog } = require('./logger');
 const { sendMessage } = require('../outbound/senders');
 const { saveMessage } = require('../chat/operations');
 const { activeSessions } = require('../state/registry');
+const contactsEngine = require('../../contactsEngine');
+const runtimeEngine = require('../../runtimeEngine');
+const sessionRegistry = require('../../sessionRegistry');
 
 const SESSIONS_DIRECTORY = path.join(__dirname, '..', '..', '..', 'sessions');
 const DEFAULT_RECONNECT_DELAY_MS = 3000;
@@ -666,6 +669,11 @@ async function createStableSession({
       });
       emitSessionStatus(io, normalizedSessionName, session.status, session.sessionName);
 
+      // Sync to SessionRegistry and RuntimeEngine
+      sessionRegistry.setConnected(normalizedSessionName, session.phone);
+      sessionRegistry.persistSession(normalizedSessionName).catch(() => {});
+      runtimeEngine.recordSessionHeartbeat(normalizedSessionName);
+
       // Socket.IO has built-in ping/pong (default 25s), custom heartbeat not needed
       // Removed redundant 5s interval that was emitting 'ping' to all clients
 
@@ -810,6 +818,13 @@ async function createStableSession({
       });
       emitSessionStatus(io, normalizedSessionName, session.status, session.sessionName);
 
+      // Sync to SessionRegistry and RuntimeEngine
+      sessionRegistry.setDisconnected(normalizedSessionName, willReconnect ? 'reconnect' : 'closed');
+      sessionRegistry.persistSession(normalizedSessionName).catch(() => {});
+      if (willReconnect) {
+        runtimeEngine.incrementReconnectCounter(normalizedSessionName);
+      }
+
       if (willReconnect) {
         if (session.reconnectRequestPending) {
           return;
@@ -868,6 +883,7 @@ async function createStableSession({
       console.log(
         `[WHATSAPP] messages.upsert session=${normalizedSessionName} count=${batchCount} type=${type || 'unknown'}`
       );
+      runtimeEngine.incrementMessageCounter(batchCount);
     }
 
     if (type !== 'notify') {
@@ -1187,6 +1203,17 @@ async function createStableSession({
         store.contacts[normalizedId] = store.contacts[id];
       }
     }
+
+    // Sync through ContactsEngine pipeline (incremental + persist + emit)
+    const companyId = session.companyId || process.env.DEFAULT_COMPANY_ID || 'default';
+    contactsEngine.fullSync(
+      updates || [],
+      normalizedSessionName,
+      companyId,
+      io || global.io
+    ).catch((err) => {
+      console.error(`[WHATSAPP] ContactsEngine sync failed: ${err?.message || err}`);
+    });
 
     // eslint-disable-next-line no-console
     console.log(

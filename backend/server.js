@@ -48,6 +48,9 @@ const { processAI } = require('./services/ai.service');
 const { backendLog, errorLog } = require('./services/logger');
 const { DEFAULT_SESSION } = whatsappService;
 const nodeRegisterService = require('./services/nodeRegister');
+const runtimeEngine = require('./services/runtimeEngine');
+const diagnosticsEngine = require('./services/diagnosticsEngine');
+const sessionRegistry = require('./services/sessionRegistry');
 
 const eventLoopDelay = monitorEventLoopDelay({ resolution: 20 });
 eventLoopDelay.enable();
@@ -790,6 +793,61 @@ app.get('/diagnostics', (_req, res) => {
   });
 });
 
+// ─── Phase 4: RuntimeEngine + DiagnosticsEngine endpoints ───
+
+app.get('/api/diagnostics/full', async (_req, res) => {
+  try {
+    const diagnostics = await diagnosticsEngine.runFullDiagnostics(app.locals.store);
+    return sendSafeJson(res, { success: true, data: diagnostics });
+  } catch (error) {
+    return sendSafeJson(res, { success: false, error: error?.message || 'Diagnostics failed' }, 500);
+  }
+});
+
+app.get('/api/runtime/summary', (_req, res) => {
+  try {
+    const summary = runtimeEngine.getRuntimeSummary();
+    return sendSafeJson(res, { success: true, data: summary });
+  } catch (error) {
+    return sendSafeJson(res, { success: false, error: error?.message || 'Runtime summary failed' }, 500);
+  }
+});
+
+app.get('/api/runtime/diagnostics', (_req, res) => {
+  try {
+    const diagnostics = runtimeEngine.getDiagnostics();
+    return sendSafeJson(res, { success: true, data: diagnostics || {} });
+  } catch (error) {
+    return sendSafeJson(res, { success: false, error: error?.message || 'Runtime diagnostics failed' }, 500);
+  }
+});
+
+app.get('/api/sessions/registry', (_req, res) => {
+  try {
+    const stats = sessionRegistry.getStats();
+    const sessions = sessionRegistry.list();
+    return sendSafeJson(res, {
+      success: true,
+      data: {
+        stats,
+        sessions: sessions.map((s) => ({
+          sessionId: s.sessionId,
+          status: s.status,
+          connected: s.connected,
+          phone: s.phone,
+          name: s.name,
+          reconnectCount: s.reconnectCount,
+          lastHeartbeatAt: s.lastHeartbeatAt,
+          updatedAt: s.updatedAt,
+        })),
+      },
+    });
+  } catch (error) {
+    return sendSafeJson(res, { success: false, error: error?.message || 'Registry failed' }, 500);
+  }
+});
+
+
 app.get('/api/test', (_req, res) => {
   return res.status(200).json({
     message: 'API funcionando',
@@ -1230,6 +1288,14 @@ async function bootstrap() {
       const bootStatus = await systemManager.startSystem(app.locals.store);
       const restored = Array.isArray(bootStatus?.restoredSessions) ? bootStatus.restoredSessions.length : 0;
       console.log(`[SERVER] Session lifecycle initialized. Restored sessions: ${restored}`);
+
+      // Start RuntimeEngine workers (heartbeat, cleanup, metrics, diagnostics)
+      runtimeEngine.startRuntimeEngine(app.locals.store);
+
+      // Hydrate SessionRegistry from persistent storage
+      sessionRegistry.hydrate().catch((err) => {
+        console.error('[SERVER] SessionRegistry hydration failed:', err?.message || err);
+      });
     } catch (error) {
       console.error('[SERVER] Failed to auto-restore sessions at startup:', error.message || error);
     }
@@ -1261,6 +1327,7 @@ async function shutdownGracefully(signal) {
 
   server.close(async () => {
     try {
+      runtimeEngine.stopRuntimeEngine();
       io.close();
       await outboundQueueService.shutdownOutboundQueue();
       await enterpriseQueueService.shutdown();
