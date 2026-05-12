@@ -1,5 +1,13 @@
 #!/bin/sh
-set -eu
+# ==============================================================================
+# ZAPAI Backend — Docker Entrypoint
+# Waits for PostgreSQL, runs migrations + seed, then starts the app.
+# ==============================================================================
+
+# Exit on unset variables, but NOT on command errors (-e removed).
+# The migration and seed scripts are best-effort — the main app
+# (server.js bootstrap()) also runs migrations with proper error handling.
+set -u
 
 log() {
   echo "[$(date -u +'%Y-%m-%dT%H:%M:%SZ')] [entrypoint] $*"
@@ -36,24 +44,35 @@ while [ "$attempt" -le "$MAX_ATTEMPTS" ]; do
 
   log "Waiting for PostgreSQL (attempt ${attempt}/${MAX_ATTEMPTS})..."
   if [ "$attempt" -eq "$MAX_ATTEMPTS" ]; then
-    log "ERROR: PostgreSQL did not become ready within ${DB_WAIT_TIMEOUT_SECONDS}s"
-    exit 1
+    log "WARNING: PostgreSQL did not become ready within ${DB_WAIT_TIMEOUT_SECONDS}s"
+    log "Continuing anyway — server.js bootstrap will retry."
+    break
   fi
 
   attempt=$((attempt + 1))
   sleep "$DB_WAIT_INTERVAL_SECONDS"
 done
 
+# Run migrations (best-effort — server.js bootstrap() also runs them)
 if [ -f scripts/init-database.js ]; then
   log "Running database migrations..."
-  node scripts/init-database.js
+  if node scripts/init-database.js; then
+    log "Migrations completed successfully."
+  else
+    log "WARNING: Migrations failed. server.js bootstrap will retry."
+  fi
 else
   log "Skipping migrations (scripts/init-database.js not found)"
 fi
 
+# Seed admin user (best-effort)
 if [ -f scripts/seed-admin.js ]; then
   log "Seeding admin user..."
-  node scripts/seed-admin.js
+  if node scripts/seed-admin.js; then
+    log "Admin seed completed."
+  else
+    log "WARNING: Admin seed failed. Login may use env credentials."
+  fi
 else
   log "Skipping admin seed (scripts/seed-admin.js not found)"
 fi
