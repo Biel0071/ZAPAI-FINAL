@@ -53,19 +53,19 @@ server {
     root /usr/share/nginx/html;
     index index.html;
 
-    # SPA routing — serve index.html for all non-file paths
+    # SPA routing — serve index.html for all non-file paths.
+    # CRITICAL: Cache-Control headers MUST be here (not just on location = /index.html)
+    # because try_files serves index.html under ANY URL path (/dashboard, /inbox, etc.)
+    # and the browser caches the RESPONSE at that URL — not at /index.html.
     location / {
         try_files $uri $uri/ /index.html;
-    }
 
-    # index.html — NEVER cache (prevents stale frontend)
-    location = /index.html {
+        # Prevent browser from caching SPA HTML responses (they contain JS chunk references).
+        # Without this, old cached HTML serves old JS chunks that may contain bugs.
         add_header Cache-Control "no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0" always;
         add_header Pragma "no-cache" always;
         add_header Expires "0" always;
-        add_header X-Build-Source "zapflow-atomic-deploy" always;
-        etag off;
-        if_modified_since off;
+        add_header X-Build-Source "zapflow-spa" always;
     }
 
     # Service worker — NEVER cache (forces update check)

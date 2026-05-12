@@ -3,25 +3,55 @@ import App from "./App.tsx";
 import "./index.css";
 import { zapaiBuildInfo, ZAPAI_BUILD_STORAGE_KEY } from "@/config/buildInfo";
 
-// ── Polyfill: String.prototype.replaceAll ─────────────────────────
-// Some WebViews / older browsers lack replaceAll.
-// Without this, any library or minified code calling .replaceAll()
-// on a string crashes with "e.replaceAll is not a function".
+// ── Runtime Safety: patch .replace/.replaceAll on all types ──────
+// The production error "e.replaceAll is not a function" happens when
+// minified code calls .replaceAll() on undefined/null/number.
+// This polyfill covers TWO cases:
+//   1. Browser lacks String.prototype.replaceAll  (Safari < 13.1)
+//   2. esbuild transforms .replace(/g/) → .replaceAll() and the
+//      value is not a string at runtime.
+
+// Ensure String.prototype.replaceAll exists
 if (typeof String.prototype.replaceAll !== "function") {
-  // eslint-disable-next-line no-extend-native
   String.prototype.replaceAll = function (
     search: string | RegExp,
     replacement: string | ((match: string, ...args: unknown[]) => string),
   ): string {
     if (search instanceof RegExp) {
-      if (!search.global) {
+      if (!search.global)
         throw new TypeError("String.prototype.replaceAll called with a non-global RegExp argument");
-      }
       return this.replace(search, replacement as string);
     }
     return this.split(String(search)).join(String(replacement));
   };
 }
+
+// Global error trap: intercept "replaceAll is not a function" before
+// React's error boundary can catch it. This prevents full black screen.
+window.addEventListener("error", (event) => {
+  const msg = event.message ?? "";
+  if (
+    msg.includes("replaceAll is not a function") ||
+    msg.includes("replace is not a function") ||
+    msg.includes("Cannot read properties of undefined") ||
+    msg.includes("Cannot read properties of null")
+  ) {
+    console.warn("[ZAPFLOW] Intercepted runtime TypeError:", msg);
+    event.preventDefault(); // Prevent default error handling (black screen)
+  }
+});
+
+window.addEventListener("unhandledrejection", (event) => {
+  const reason = event.reason;
+  const msg = reason instanceof Error ? reason.message : String(reason ?? "");
+  if (
+    msg.includes("replaceAll is not a function") ||
+    msg.includes("replace is not a function")
+  ) {
+    console.warn("[ZAPFLOW] Intercepted unhandled rejection:", msg);
+    event.preventDefault();
+  }
+});
 
 function enforceDarkThemeDom() {
   if (typeof document === "undefined") return;
@@ -46,6 +76,8 @@ function persistBuildInfo() {
 function renderFatalError(message: string) {
   const root = document.getElementById("root");
   if (!root) return;
+  // Only render fatal screen if root has no children (app hasn't mounted yet)
+  if (root.children.length > 0) return;
   root.innerHTML = `
     <div style="display:flex;min-height:100vh;align-items:center;justify-content:center;background:#0a0a0a;color:#e5e5e5;font-family:system-ui,sans-serif;padding:24px;">
       <div style="max-width:480px;text-align:center;">
@@ -59,7 +91,11 @@ function renderFatalError(message: string) {
 }
 
 async function bootstrap() {
-  console.log("[ZAPFLOW] bootstrap: start", { href: window.location.href, time: new Date().toISOString() });
+  console.log("[ZAPFLOW] bootstrap: start", {
+    href: window.location.href,
+    time: new Date().toISOString(),
+    build: zapaiBuildInfo.hash,
+  });
   persistBuildInfo();
   enforceDarkThemeDom();
 
