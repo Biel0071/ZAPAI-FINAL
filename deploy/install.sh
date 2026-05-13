@@ -15,12 +15,20 @@
 
 set -euo pipefail
 
-# ─── Parse args ───────────────────────────────────────────────────────────────
+# ─── Parse args ─────────────────────────────────────────────────────────────
+# APP_DIR auto-detects from the script's own location (the repo root).
+# This means:
+#   /opt/ZAPAI-FINAL/deploy/install.sh  → APP_DIR=/opt/ZAPAI-FINAL
+#   /opt/zapai/deploy/install.sh         → APP_DIR=/opt/zapai
+# Override with: APP_DIR=/custom/path sudo bash deploy/install.sh
+SCRIPT_SELF_DIR="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" 2>/dev/null && pwd)"
+REPO_ROOT="$(cd "$SCRIPT_SELF_DIR/.." 2>/dev/null && pwd)"
+
 DOMAIN=""
 SKIP_POSTGRES=false
 SKIP_REDIS=false
 APP_USER="${APP_USER:-$(logname 2>/dev/null || echo 'zapai')}"
-APP_DIR="${APP_DIR:-/opt/zapai}"
+APP_DIR="${APP_DIR:-$REPO_ROOT}"
 NODE_VERSION="${NODE_VERSION:-20}"
 REPO_URL="${REPO_URL:-https://github.com/Biel0071/ZAPAI-FINAL.git}"
 
@@ -82,32 +90,50 @@ echo "  URL:  $PUBLIC_URL"
 echo "============================================================"
 
 # ─── 0. CLEANUP OLD INSTALLATIONS ────────────────────────────────────────────
-# Prevents conflicts from old clones at /opt/ZAPAI-FINAL, /opt/zapai-frontend,
-# /var/www/*, or any previous partial installs.
+# ─── 0. CLEANUP OLD INSTALLATIONS ────────────────────────────────────────────
+# Archives DEAD install paths (not the current APP_DIR and not the repo root).
+# NEVER archives /opt/ZAPAI-FINAL if that's where the script is running from.
 step "0. CLEANUP OLD INSTALLATIONS"
-OLD_PATHS=(
-  "/opt/ZAPAI-FINAL"
+DEAD_PATHS=(
   "/opt/zapai-frontend"
   "/var/www/zapai"
   "/var/www/html/zapai"
   "/opt/zapai-old"
 )
-for old_path in "${OLD_PATHS[@]}"; do
-  if [ -d "$old_path" ] && [ "$old_path" != "$APP_DIR" ]; then
-    warn "Old installation found: $old_path — archiving to /opt/zapai-archive"
+for dead_path in "${DEAD_PATHS[@]}"; do
+  if [ -d "$dead_path" ] && \
+     [ "$dead_path" != "$APP_DIR" ] && \
+     [ "$dead_path" != "$REPO_ROOT" ]; then
+    warn "Dead installation: $dead_path — archiving"
     mkdir -p /opt/zapai-archive
-    mv "$old_path" "/opt/zapai-archive/$(basename $old_path)_$(date +%Y%m%d_%H%M%S)" 2>/dev/null || true
-    log "Archived: $old_path"
+    mv "$dead_path" "/opt/zapai-archive/$(basename $dead_path)_$(date +%Y%m%d_%H%M%S)" 2>/dev/null || true
+    log "Archived: $dead_path"
   fi
 done
 
-# Kill any orphaned PM2 processes from old installs
+# Kill orphaned PM2 daemons from other projects, but only if PM2 is managing
+# something other than zapflow-api (avoids killing live sessions)
 if command -v pm2 >/dev/null 2>&1; then
-  pm2 delete all 2>/dev/null || true
-  log "PM2: cleared orphaned processes"
+  RUNNING_APPS=$(pm2 jlist 2>/dev/null | python3 -c \
+    "import sys,json; procs=json.load(sys.stdin); print(len(procs))" 2>/dev/null || echo '0')
+  if [ "$RUNNING_APPS" -gt 0 ]; then
+    warn "PM2: $RUNNING_APPS app(s) running — checking for orphans"
+    # Only delete apps NOT named zapflow-api (preserve live sessions)
+    pm2 jlist 2>/dev/null | python3 -c "
+import sys, json, subprocess
+procs = json.load(sys.stdin)
+for p in procs:
+    name = p.get('name', '')
+    if name and name != 'zapflow-api':
+        subprocess.run(['pm2', 'delete', name], capture_output=True)
+        print(f'Removed orphan PM2 app: {name}')
+" 2>/dev/null || pm2 delete all 2>/dev/null || true
+  else
+    log "PM2: no running apps — clean slate"
+  fi
 fi
 
-log "Old installation cleanup done"
+log "Cleanup done — APP_DIR: $APP_DIR"
 
 # ─── 1. System packages ───────────────────────────────────────────────────────
 step "1. SYSTEM PACKAGES"

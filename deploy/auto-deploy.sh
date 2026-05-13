@@ -248,6 +248,54 @@ else
   else
     warn "Health envelope may be non-standard: $(echo "$HEALTH_JSON" | head -c 200)"
   fi
+
+  # WebSocket endpoint reachable (HTTP upgrade check via curl)
+  WS_HTTP=$(curl -s -o /dev/null -w "%{http_code}" \
+    --max-time 5 -H "Upgrade: websocket" -H "Connection: Upgrade" \
+    "http://127.0.0.1:${BACKEND_PORT:-4025}/socket.io/" 2>/dev/null || echo "000")
+  if [ "$WS_HTTP" != "000" ]; then
+    log "WebSocket endpoint: HTTP $WS_HTTP (reachable) ✓"
+  else
+    warn "WebSocket endpoint unreachable — check nginx /socket.io/ proxy"
+  fi
+
+  # PostgreSQL connectivity
+  if command -v psql >/dev/null 2>&1; then
+    if PGPASSWORD="${POSTGRES_PASSWORD:-}" psql \
+        -h "${POSTGRES_HOST:-localhost}" \
+        -U "${POSTGRES_USER:-zapai}" \
+        -d "${POSTGRES_DB:-zapai_crm}" \
+        -c 'SELECT 1' >/dev/null 2>&1; then
+      log "PostgreSQL: connection OK ✓"
+    else
+      warn "PostgreSQL: connection failed — check .env.production credentials"
+    fi
+  fi
+
+  # Redis ping
+  if command -v redis-cli >/dev/null 2>&1; then
+    if redis-cli ping 2>/dev/null | grep -q PONG; then
+      log "Redis: PONG ✓"
+    else
+      warn "Redis: not responding"
+    fi
+  fi
+
+  # Nginx config validity
+  if nginx -t 2>/dev/null; then
+    log "Nginx: config valid ✓"
+  else
+    warn "Nginx: config test failed — run: nginx -t"
+  fi
+
+  # Frontend dist exists
+  DIST_INDEX="$FRONTEND_DIR/dist/index.html"
+  if [ -f "$DIST_INDEX" ]; then
+    DIST_SIZE=$(du -sh "$FRONTEND_DIR/dist" 2>/dev/null | cut -f1)
+    log "Frontend dist: present ($DIST_SIZE) ✓"
+  else
+    warn "Frontend dist/index.html missing — build may have failed"
+  fi
 fi
 
 # ─── 8. Save release snapshot (for rollback) ─────────────────────────────────
