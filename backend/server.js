@@ -1641,6 +1641,13 @@ async function bootstrap() {
         }
       }, 60_000); // Every 60 seconds
       workerSupervisor.startWorker('session_watchdog');
+
+      // Signal PM2 that the process is fully ready (wait_ready: true)
+      // This tells PM2 it can safely route traffic and manage restarts
+      if (typeof process.send === 'function' && process.env.PM2_READY_SIGNAL === 'true') {
+        process.send('ready');
+        console.log('[SERVER] PM2 ready signal sent');
+      }
     } catch (error) {
       console.error('[SERVER] Failed to auto-restore sessions at startup:', error.message || error);
     }

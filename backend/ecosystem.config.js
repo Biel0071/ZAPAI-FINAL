@@ -41,13 +41,16 @@ module.exports = {
 
       // ─── Graceful Shutdown ───
       kill_timeout: 12000,           // 12s — enough for Baileys creds flush
+      wait_ready: true,              // Wait for process.send('ready') before SIGTERM-free window
       listen_timeout: 10000,
       shutdown_with_message: false,  // Use SIGTERM (no custom message needed)
 
       // ─── Logs ───
+      time: true,                    // Prefix all log lines with timestamp
       log_date_format: 'YYYY-MM-DD HH:mm:ss.SSS',
-      error_file: './logs/pm2-error.log',
-      out_file: './logs/pm2-out.log',
+      // Absolute paths so logs work from any cwd (Docker / /opt/zapai)
+      error_file: process.env.PM2_ERROR_LOG || './logs/pm2-error.log',
+      out_file:   process.env.PM2_OUT_LOG   || './logs/pm2-out.log',
       merge_logs: true,
       log_type: 'json',
 
@@ -79,6 +82,10 @@ module.exports = {
         HEALTH_MEMORY_LIMIT_MB: 800,
         // Crash exit on unhandled rejection in production (PM2 restarts)
         CRASH_EXIT_ON_UNHANDLED: 'true',
+        // Healthcheck polling interval for internal probes
+        HEALTH_CHECK_INTERVAL_MS: 30000,
+        // Enable PM2 ready signal emission after server starts
+        PM2_READY_SIGNAL: 'true',
       },
     },
   ],
