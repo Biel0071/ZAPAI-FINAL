@@ -786,10 +786,23 @@ function ensureSharedSocket(socketUrl: string): Socket {
     reconnection: true,
     reconnectionAttempts: Infinity,
     reconnectionDelay: 2000,
+    reconnectionDelayMax: 30_000,
     timeout: 10_000,
     auth: { token },
   });
   sharedSocketUrl = normalizedUrl;
+
+  // JWT token auto-refresh on every reconnect attempt.
+  // Socket.IO v4: mutating socket.auth before reconnect sends fresh credentials,
+  // preventing silent auth failures after JWT expiry.
+  sharedSocket.io.on("reconnect_attempt", () => {
+    const freshSession = loadAdminAuthSession();
+    const freshToken = freshSession?.token ?? "";
+    if (sharedSocket) {
+      (sharedSocket as Socket & { auth: Record<string, unknown> }).auth = { token: freshToken };
+    }
+  });
+
   bindSharedSocketEvents();
 
   return sharedSocket;

@@ -68,8 +68,11 @@ const MAX_MEDIA_UPLOAD_BYTES = 10 * 1024 * 1024;
 const RUNTIME_RECONNECTED_EVENT = "runtime:reconnected";
 const ARCHIVED_CHATS_STORAGE_KEY = "zapai_inbox_archived_chats";
 const BACKEND_BASE_URL = API_ORIGIN;
-const OFFLINE_MESSAGE_POLL_INTERVAL_MS = 8_000;
-const OFFLINE_FALLBACK_SYNC_INTERVAL_MS = 12_000;
+// Offline fallback polls: only activate when WebSocket is disconnected.
+// Deliberately conservative — realtime WS handles the happy path.
+// These intervals kick in ONLY when WS is down, so aggressive values hurt DB.
+const OFFLINE_MESSAGE_POLL_INTERVAL_MS = 30_000;   // was 8s — too aggressive
+const OFFLINE_FALLBACK_SYNC_INTERVAL_MS = 45_000;   // was 12s — too aggressive
 const SOCKET_CONNECTED_SYNC_DEBOUNCE_MS = 8_000;
 const SOCKET_FORCE_RECONNECT_DEBOUNCE_MS = 15_000;
 const SOCKET_BACKGROUND_HYDRATE_DEBOUNCE_MS = 10_000;
@@ -2365,6 +2368,8 @@ export default function Inbox() {
       if (isRealtimeConnected) return;
       if (fallbackSyncBusyRef.current) return;
       if (activeMessageRequestRef.current !== null) return;
+      // Do not poll when tab is hidden — no visible user, no need for fresh data
+      if (document.hidden) return;
 
       void (async () => {
         fallbackSyncBusyRef.current = true;

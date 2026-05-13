@@ -46,12 +46,17 @@ function getNumericSetting(value, fallback) {
 }
 
 function getPoolConfig() {
+  const isProduction = String(process.env.NODE_ENV || '').trim().toLowerCase() === 'production';
+
   const sharedConfig = {
-    connectionTimeoutMillis: getNumericSetting(process.env.DB_CONNECTION_TIMEOUT_MS, 5000),
-    idleTimeoutMillis: getNumericSetting(process.env.DB_IDLE_TIMEOUT_MS, 10000),
-    max: getNumericSetting(process.env.DB_POOL_MAX, 10),
-    query_timeout: getNumericSetting(process.env.DB_QUERY_TIMEOUT_MS, 5000),
-    statement_timeout: getNumericSetting(process.env.DB_STATEMENT_TIMEOUT_MS, 5000),
+    connectionTimeoutMillis: getNumericSetting(process.env.DB_CONNECTION_TIMEOUT_MS, 8000),
+    idleTimeoutMillis: getNumericSetting(process.env.DB_IDLE_TIMEOUT_MS, 30000),
+    // Production: 20 connections (concurrent API + metrics + session ops)
+    // Development: 5 (low resource)
+    max: getNumericSetting(process.env.DB_POOL_MAX, isProduction ? 20 : 5),
+    // 30s for reports/bulk queries, 5s in dev
+    query_timeout: getNumericSetting(process.env.DB_QUERY_TIMEOUT_MS, isProduction ? 30000 : 5000),
+    statement_timeout: getNumericSetting(process.env.DB_STATEMENT_TIMEOUT_MS, isProduction ? 30000 : 5000),
   };
 
   if (process.env.DATABASE_URL) {

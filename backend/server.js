@@ -642,37 +642,111 @@ app.get('/api', (_req, res) => {
 });
 
 app.get('/api/health', (_req, res) => {
-  return res.status(200).json({ ...buildHealthPayload(), success: true, status: 'ok' });
+  try {
+    const base = buildHealthPayload();
+    const session = sessionManager.getSession(DEFAULT_SESSION);
+    const sessionsTotal = app.locals.store?.sessions?.length ?? (session ? 1 : 0);
+    const sessionsConnected = session && String(session.status || '').toLowerCase() === 'connected' ? 1 : 0;
+
+    // Standardized envelope: { success, status, data: { system: { sessions, websocket, database, whatsapp } }, ...legacy }
+    const envelope = {
+      ...base,
+      success: true,
+      status: base.status || 'online',
+      data: {
+        system: {
+          sessions: {
+            total: sessionsTotal,
+            connected: sessionsConnected,
+          },
+          websocket: {
+            status: 'online',
+            connections: io.engine?.clientsCount ?? 0,
+          },
+          database: {
+            status: base.db ? 'online' : 'offline',
+            error: base.database?.error || null,
+          },
+          whatsapp: {
+            connected: sessionsConnected > 0,
+            sessionStatus: session?.status || 'unknown',
+          },
+          metrics: {
+            messagesProcessed: app.locals.store?.messages?.length ?? 0,
+          },
+        },
+      },
+    };
+    return res.status(200).json(envelope);
+  } catch (err) {
+    return res.status(200).json({ success: true, status: 'ok', booting: true, timestamp: new Date().toISOString() });
+  }
 });
 
-// Metrics endpoint
-app.get('/api/metrics', (_req, res) => {
+// Metrics endpoint — returns business metrics with infra fallback
+app.get('/api/metrics', async (_req, res) => {
   try {
-    const startTime = process.uptime();
-    
-    const uptimeHours = Math.floor(startTime / 3600);
-    const uptimeMinutes = Math.floor((startTime % 3600) / 60);
-    const uptimeSeconds = Math.floor(startTime % 60);
-    
-    const memoryUsage = process.memoryUsage();
-    const memoryUsedMB = Math.round(memoryUsage.heapUsed / 1024 / 1024);
-    const memoryTotalMB = Math.round(memoryUsage.heapTotal / 1024 / 1024);
-    
+    // --- Business metrics from DB (best effort) ---
+    let messagesToday = 0;
+    let activeChats = 0;
+    let aiResponses = 0;
+    let newLeads = 0;
+
+    if (app.locals.store?.databaseEnabled) {
+      try {
+        const { query } = require('./config/database');
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const todayIso = today.toISOString();
+
+        const [msgsRes, aiRes, leadsRes] = await Promise.allSettled([
+          query(`SELECT COUNT(*) AS cnt FROM messages WHERE created_at >= $1`, [todayIso]),
+          query(`SELECT COUNT(*) AS cnt FROM messages WHERE created_at >= $1 AND (sender = 'agent' OR direction = 'outgoing')`, [todayIso]),
+          query(`SELECT COUNT(*) AS cnt FROM conversations WHERE created_at >= $1`, [todayIso]),
+        ]);
+
+        if (msgsRes.status === 'fulfilled') messagesToday = Number(msgsRes.value.rows[0]?.cnt ?? 0);
+        if (aiRes.status === 'fulfilled') aiResponses = Number(aiRes.value.rows[0]?.cnt ?? 0);
+        if (leadsRes.status === 'fulfilled') newLeads = Number(leadsRes.value.rows[0]?.cnt ?? 0);
+      } catch {
+        // DB query failed — use infra defaults below
+      }
+    }
+
+    // Active chats from session registry
+    const defaultSession = sessionManager.getSession(DEFAULT_SESSION);
+    activeChats = defaultSession && String(defaultSession.status || '').toLowerCase() === 'connected' ? 1 : 0;
+
+    // --- Infra metrics (always available) ---
+    const uptimeSec = Math.floor(process.uptime());
+    const mem = process.memoryUsage();
+    const memUsedMB = Math.round(mem.heapUsed / 1024 / 1024);
+    const memTotalMB = Math.round(mem.heapTotal / 1024 / 1024);
+
     res.json({
-      uptime: {
-        seconds: Math.floor(startTime),
-        formatted: `${uptimeHours}h ${uptimeMinutes}m ${uptimeSeconds}s`,
-      },
-      memory: {
-        used: memoryUsedMB,
-        total: memoryTotalMB,
-        percentage: Math.round((memoryUsedMB / memoryTotalMB) * 100),
+      success: true,
+      data: {
+        // Business metrics (dashboard cards)
+        messagesToday,
+        activeChats,
+        aiResponses,
+        newLeads,
+        // Infra (diagnostics)
+        uptime: {
+          seconds: uptimeSec,
+          formatted: `${Math.floor(uptimeSec/3600)}h ${Math.floor((uptimeSec%3600)/60)}m`,
+        },
+        memory: {
+          used: memUsedMB,
+          total: memTotalMB,
+          percentage: memTotalMB ? Math.round((memUsedMB / memTotalMB) * 100) : 0,
+        },
       },
       timestamp: new Date().toISOString(),
     });
   } catch (error) {
     console.error('[Metrics] Error:', error);
-    res.status(500).json({ error: 'Failed to get metrics' });
+    res.status(500).json({ success: false, error: 'Failed to get metrics' });
   }
 });
 

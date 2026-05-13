@@ -1,7 +1,17 @@
 const fs = require('fs/promises');
 const path = require('path');
 const sessionRepository = require('../repositories/sessionRepository');
-const whatsappService = require('./whatsappService');
+// NOTE: whatsappService is required lazily inside startSession() to break the
+// circular dependency: sessionManager → whatsappService → sessionManager.
+// A top-level require would cause whatsappService.createStableSession to be
+// undefined because Node.js returns the partially-initialised module object.
+let _whatsappService = null;
+function getWhatsappService() {
+  if (!_whatsappService) {
+    _whatsappService = require('./whatsappService');
+  }
+  return _whatsappService;
+}
 // Shared mutable registry — same object reference as stableSession.js uses.
 const { activeSessions } = require('./whatsapp/state/registry');
 
@@ -379,7 +389,7 @@ async function startSession(sessionName = DEFAULT_SESSION, options = {}) {
       await disposeSession(normalizedName, { preserveReconnectAttempts: true });
     }
 
-    const session = await whatsappService.createStableSession({
+    const session = await getWhatsappService().createStableSession({
       displayName,
       io: managerOptions.io,
       onConnectionUpdate: async () => {},

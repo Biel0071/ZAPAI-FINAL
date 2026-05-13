@@ -1,6 +1,24 @@
 const fs = require('fs');
 const path = require('path');
 
+// Per-IP rate limiter for POST /error-log — prevents frontend loops
+const ERROR_LOG_RATE_WINDOW_MS = 60_000;
+const ERROR_LOG_RATE_MAX = 20;
+const _errorLogRateMap = new Map(); // ip -> { count, windowStart }
+
+function _isErrorLogRateLimited(ip) {
+  const now = Date.now();
+  const key = String(ip || 'unknown');
+  const entry = _errorLogRateMap.get(key);
+  if (!entry || now - entry.windowStart > ERROR_LOG_RATE_WINDOW_MS) {
+    _errorLogRateMap.set(key, { count: 1, windowStart: now });
+    return false;
+  }
+  entry.count += 1;
+  if (entry.count > ERROR_LOG_RATE_MAX) return true;
+  return false;
+}
+
 const systemManager = require('../services/systemManager');
 const bugWatcher = require('../services/bugWatcher');
 const metricsTracker = require('../services/metricsTracker');
@@ -93,6 +111,43 @@ function errorLog(_req, res) {
     return res.status(500).json({
       error: error.message || 'Failed to read system error log.',
     });
+  }
+}
+
+/**
+ * Receives frontend error reports — POST /api/system/error-log
+ * Rate limited (20 req/min/IP). Never throws. Persists to runtime_errors.log.
+ */
+function receiveErrorLog(req, res) {
+  // Always respond 200 first — frontend must never loop on this endpoint
+  res.status(200).json({ success: true, received: true });
+
+  try {
+    const clientIp = String(
+      req.headers['x-forwarded-for'] ||
+      req.headers['x-real-ip'] ||
+      req.socket?.remoteAddress ||
+      'unknown'
+    ).split(',')[0].trim();
+
+    if (_isErrorLogRateLimited(clientIp)) return;
+
+    const body = req.body || {};
+    const entry = {
+      timestamp: body.timestamp || new Date().toISOString(),
+      level: String(body.level || 'error'),
+      type: String(body.type || 'frontend_error'),
+      message: String(body.message || '').slice(0, 2000),
+      service: String(body.componentStack || body.service || 'frontend').slice(0, 200),
+      stack: body.stack ? String(body.stack).slice(0, 4000) : undefined,
+      userAgent: req.headers['user-agent']?.slice(0, 200),
+      ip: clientIp,
+    };
+
+    const logLine = JSON.stringify(entry) + '\n';
+    fs.appendFileSync(RUNTIME_ERROR_LOG, logLine, 'utf8');
+  } catch {
+    // Silent — never let error logging cause errors
   }
 }
 
@@ -331,6 +386,7 @@ module.exports = {
   getRuntimeDebug,
   getRuntimeLogs,
   getRuntimeStatus,
+  receiveErrorLog,
   restartNgrok,
   start,
   stop,

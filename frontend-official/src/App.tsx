@@ -14,6 +14,7 @@ import { type AppUserRole, useUserRole } from "@/hooks/useUserRole";
 import { useAdminAuth } from "@/hooks/useAdminAuth";
 import { useFrontendHealthWatcher } from "@/hooks/useFrontendHealthWatcher";
 import { RuntimeProvider } from "@/providers/RuntimeProvider";
+import { InboxRuntimeBoundary } from "@/components/system/InboxRuntimeBoundary";
 
 function AppSplash() {
   return (
@@ -139,7 +140,7 @@ const App = () => {
                     <Route element={<RequireAdminAuth><RuntimeProvider><MainLayout /></RuntimeProvider></RequireAdminAuth>}>
                       <Route path="/" element={<RootRoute />} />
                       <Route path="/dashboard" element={<Dashboard />} />
-                      <Route path="/inbox" element={<Inbox />} />
+                      <Route path="/inbox" element={<InboxRuntimeBoundary><Inbox /></InboxRuntimeBoundary>} />
                       <Route path="/connections" element={<Connections />} />
                       <Route path="/contacts" element={<Contacts />} />
                       <Route path="/flows" element={<Flows />} />

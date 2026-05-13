@@ -149,6 +149,7 @@ router.delete('/runtime/logs', systemController.clearRuntimeLogs);
 // Existing system endpoints
 router.get('/ai-diagnostics', systemController.getAIDiagnostics);
 router.get('/error-log', systemController.errorLog);
+router.post('/error-log', systemController.receiveErrorLog);
 router.post('/start', systemController.start);
 router.post('/stop', systemController.stop);
 router.get('/status', systemController.status);
