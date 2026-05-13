@@ -68,11 +68,11 @@ function getPoolConfig() {
   }
 
   return {
-    host: process.env.DB_HOST || 'localhost',
-    port: Number(process.env.DB_PORT) || 5432,
-    database: process.env.DB_NAME || 'zapai_crm',
-    user: process.env.DB_USER || 'postgres',
-    password: process.env.DB_PASSWORD || 'postgres',
+    host: process.env.DB_HOST || process.env.POSTGRES_HOST || 'localhost',
+    port: Number(process.env.DB_PORT || process.env.POSTGRES_PORT) || 5432,
+    database: process.env.DB_NAME || process.env.POSTGRES_DB || 'zapai_crm',
+    user: process.env.DB_USER || process.env.POSTGRES_USER || 'zapai',
+    password: process.env.DB_PASSWORD || process.env.POSTGRES_PASSWORD || '',
     ssl: shouldUseSsl(),
     ...sharedConfig,
   };

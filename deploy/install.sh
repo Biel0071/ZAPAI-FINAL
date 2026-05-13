@@ -362,42 +362,95 @@ fi
 step "9. BACKEND DEPENDENCIES"
 if [ -d "$BACKEND_DIR" ]; then
   cd "$BACKEND_DIR"
-  sudo -u "$APP_USER" npm install --production --prefer-offline --no-audit --no-fund 2>&1 | tail -5
+  # Clean broken node_modules + npm cache before install to avoid peer dep conflicts
+  if [ -d node_modules ] && [ ! -f node_modules/.install_ok ]; then
+    warn "Removing possibly broken node_modules..."
+    rm -rf node_modules
+  fi
+  sudo -u "$APP_USER" npm install \
+    --production \
+    --legacy-peer-deps \
+    --prefer-offline \
+    --no-audit \
+    --no-fund \
+    2>&1 | tail -5
+  touch node_modules/.install_ok 2>/dev/null || true
   log "Backend deps installed"
 else
-  warn "backend/ not found at $BACKEND_DIR — was clone successful?"
+  err "backend/ not found at $BACKEND_DIR — clone may have failed"
 fi
 
 # ─── 10. Database migrations ──────────────────────────────────────────────────
 step "10. DATABASE MIGRATIONS"
 if [ -f "$BACKEND_DIR/scripts/run-migrations.js" ]; then
   cd "$BACKEND_DIR"
-  sudo -u "$APP_USER" bash -c \
-    "NODE_ENV=production node scripts/run-migrations.js" 2>&1 | tail -5 || \
-    warn "Migrations failed — check DB connectivity in .env.production"
+
+  # Source .env.production so DATABASE_URL / POSTGRES_* vars are available
+  if [ -f "$APP_DIR/.env.production" ]; then
+    set -a
+    # shellcheck disable=SC1091
+    source "$APP_DIR/.env.production" 2>/dev/null || true
+    set +a
+  fi
+
+  # Validate DB connection before attempting migration
+  if ! PGPASSWORD="${POSTGRES_PASSWORD:-}" psql \
+      -h "${POSTGRES_HOST:-localhost}" \
+      -U "${POSTGRES_USER:-zapai}" \
+      -d "${POSTGRES_DB:-zapai_crm}" \
+      -c 'SELECT 1' >/dev/null 2>&1; then
+    err "Cannot connect to PostgreSQL before migrations. Check .env.production."
+    exit 1
+  fi
+
+  log "Running migrations..."
+  if ! sudo -u "$APP_USER" bash -c \
+      "set -a; source '$APP_DIR/.env.production' 2>/dev/null; set +a; NODE_ENV=production node scripts/run-migrations.js" \
+      2>&1 | tail -8; then
+    err "Migrations FAILED — aborting install. Fix DB or .env.production and retry."
+    exit 1
+  fi
   log "Migrations complete"
 else
-  warn "run-migrations.js not found — skipping"
+  warn "run-migrations.js not found — skipping (first boot may work without)"
 fi
 
 # ─── 11. Frontend build ───────────────────────────────────────────────────────
 step "11. FRONTEND BUILD"
 if [ -d "$FRONTEND_DIR" ]; then
   cd "$FRONTEND_DIR"
-  sudo -u "$APP_USER" npm install --prefer-offline --no-audit --no-fund 2>&1 | tail -5
-  sudo -u "$APP_USER" bash -c \
-    "NODE_ENV=production VITE_API_URL=/ npx vite build --outDir dist" 2>&1 | tail -10 || \
-    warn "Vite build failed — backend will still start"
+
+  # Remove stale dist to avoid serving old chunks after a failed build
+  rm -rf dist 2>/dev/null || true
+
+  # --legacy-peer-deps handles react/vite peer-dependency conflicts on Ubuntu
+  sudo -u "$APP_USER" npm install \
+    --legacy-peer-deps \
+    --prefer-offline \
+    --no-audit \
+    --no-fund \
+    2>&1 | tail -5
+
+  # Build is fatal — a broken frontend serves the white screen of death
+  if ! sudo -u "$APP_USER" bash -c \
+      "NODE_ENV=production VITE_API_URL=/ npx vite build --outDir dist" \
+      2>&1 | tail -10; then
+    err "Frontend build FAILED — aborting install. Fix build errors and retry."
+    exit 1
+  fi
 
   if [ -f "$FRONTEND_DIR/dist/index.html" ]; then
     CHUNKS=$(find "$FRONTEND_DIR/dist/assets" -name '*.js' 2>/dev/null | wc -l)
-    log "Frontend built: $CHUNKS JS chunks"
+    log "Frontend built: $CHUNKS JS chunks ✔"
   else
-    warn "dist/index.html missing — build may have failed"
+    err "dist/index.html missing after build — unexpected failure"
+    exit 1
   fi
 else
-  warn "frontend-official/ not found — skipping build"
+  err "frontend-official/ not found — clone may have failed"
+  exit 1
 fi
+
 
 # ─── 12. Nginx ────────────────────────────────────────────────────────────────
 step "12. NGINX"
@@ -424,7 +477,7 @@ server {
     add_header X-Content-Type-Options nosniff always;
     add_header X-XSS-Protection "1; mode=block" always;
 
-    root /opt/zapai/frontend-official/dist;
+    root $FRONTEND_DIR/dist;
     index index.html;
 
     location / {

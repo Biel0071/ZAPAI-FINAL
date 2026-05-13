@@ -136,7 +136,13 @@ cd "$BACKEND_DIR"
 if $DRY_RUN; then
   warn "[DRY-RUN] Skipping npm install"
 else
-  npm install --production --prefer-offline --no-audit --no-fund 2>&1 | tail -5
+  npm install \
+    --production \
+    --legacy-peer-deps \
+    --prefer-offline \
+    --no-audit \
+    --no-fund \
+    2>&1 | tail -5
   log "Backend deps installed"
 fi
 
@@ -148,6 +154,9 @@ elif $DRY_RUN; then
   warn "[DRY-RUN] Skipping migrations"
 else
   cd "$BACKEND_DIR"
+  # Source .env.production so DATABASE_URL / POSTGRES_* are available
+  # shellcheck disable=SC1091
+  [ -f "$ROOT_DIR/.env.production" ] && set -a && source "$ROOT_DIR/.env.production" 2>/dev/null; set +a || true
   node scripts/run-migrations.js
   log "Migrations complete"
 fi
@@ -161,7 +170,12 @@ elif $DRY_RUN; then
 else
   cd "$FRONTEND_DIR"
   # Install dev deps needed for build (vite, tsc, etc.)
-  NODE_ENV=development npm install --prefer-offline --no-audit --no-fund 2>&1 | tail -5
+  NODE_ENV=development npm install \
+    --legacy-peer-deps \
+    --prefer-offline \
+    --no-audit \
+    --no-fund \
+    2>&1 | tail -5
 
   # TypeScript check before build
   echo "  → TypeScript check..."
