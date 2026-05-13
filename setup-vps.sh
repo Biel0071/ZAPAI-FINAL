@@ -73,6 +73,16 @@ ufw allow 19999/tcp
 ufw --force enable
 log "UFW ativo."
 
+# ── Kernel tuning (inotify + network) ────────────────────────
+# Baileys sessions use inotify watches for auth state files.
+# Default limits are too low on many VPS images.
+if ! grep -q "fs.inotify.max_user_watches" /etc/sysctl.conf 2>/dev/null; then
+    echo "fs.inotify.max_user_watches=524288" >> /etc/sysctl.conf
+    echo "net.core.somaxconn=65535" >> /etc/sysctl.conf
+    sysctl -p 2>/dev/null || true
+    log "Kernel tuning aplicado (inotify + somaxconn)."
+fi
+
 # ==============================================================================
 step "3. .env.production — AUTO-SYNC ENGINE"
 # ==============================================================================
