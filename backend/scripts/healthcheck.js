@@ -314,6 +314,95 @@ function checkPm2() {
   }
 }
 
+// ─── 9. CPU ──────────────────────────────────────────────────────────────────
+
+function checkCpu() {
+  try {
+    // Read /proc/stat twice with 500ms gap for accurate CPU usage
+    const read1 = fs.readFileSync('/proc/stat', 'utf8').split('\n')[0].trim().split(/\s+/);
+    const [, u1, n1, s1, i1, w1] = read1.map(Number);
+    const idle1 = i1 + (w1 || 0);
+    const total1 = u1 + n1 + s1 + idle1;
+
+    // Brief sleep via synchronous approach
+    const start = Date.now();
+    while (Date.now() - start < 300) { /* busy wait */ }
+
+    const read2 = fs.readFileSync('/proc/stat', 'utf8').split('\n')[0].trim().split(/\s+/);
+    const [, u2, n2, s2, i2, w2] = read2.map(Number);
+    const idle2 = i2 + (w2 || 0);
+    const total2 = u2 + n2 + s2 + idle2;
+
+    const idleDelta = idle2 - idle1;
+    const totalDelta = total2 - total1;
+    const cpuUsedPct = totalDelta > 0 ? Math.round((1 - idleDelta / totalDelta) * 100) : 0;
+
+    const status = cpuUsedPct > 90 ? 'fail' : cpuUsedPct > 75 ? 'warn' : 'ok';
+    result('cpu_usage', status, `${cpuUsedPct}% used`);
+  } catch {
+    // Non-Linux or /proc not available
+    try {
+      const loadavg = fs.readFileSync('/proc/loadavg', 'utf8').split(' ');
+      result('cpu_usage', 'ok', `loadavg=${loadavg[0]} ${loadavg[1]} ${loadavg[2]}`);
+    } catch {
+      result('cpu_usage', 'warn', 'Cannot read CPU stats (non-Linux?)');
+    }
+  }
+}
+
+// ─── 10. Nginx ────────────────────────────────────────────────────────────────
+
+function checkNginx() {
+  try {
+    const status = execSync('systemctl is-active nginx 2>/dev/null', { encoding: 'utf8', timeout: 3000 }).trim();
+    if (status === 'active') {
+      // Also check config
+      try {
+        execSync('nginx -t 2>/dev/null', { encoding: 'utf8', timeout: 5000 });
+        result('nginx', 'ok', 'active + config valid');
+      } catch {
+        result('nginx', 'warn', 'active but config test failed');
+      }
+    } else {
+      result('nginx', 'fail', `nginx status: ${status}`);
+    }
+  } catch {
+    // systemctl not available — try process check
+    try {
+      execSync('pgrep nginx', { encoding: 'utf8', timeout: 3000 });
+      result('nginx', 'ok', 'process running (no systemctl)');
+    } catch {
+      result('nginx', 'warn', 'nginx not found — may be proxied externally');
+    }
+  }
+}
+
+// ─── 11. Pending Migrations ───────────────────────────────────────────────────
+
+async function checkMigrations() {
+  const { Pool } = require('pg');
+  const pool = new Pool({
+    connectionString: process.env.DATABASE_URL,
+    host: process.env.POSTGRES_HOST || process.env.DB_HOST,
+    port: Number(process.env.POSTGRES_PORT || process.env.DB_PORT || 5432),
+    user: process.env.POSTGRES_USER || process.env.DB_USER,
+    password: process.env.POSTGRES_PASSWORD || process.env.DB_PASSWORD,
+    database: process.env.POSTGRES_DB || process.env.DB_NAME || 'zapai_crm',
+    connectionTimeoutMillis: 5000,
+    max: 1,
+  });
+  try {
+    const r = await pool.query(
+      "SELECT COUNT(*) AS c FROM schema_migrations WHERE applied_at IS NOT NULL"
+    );
+    result('migrations', 'ok', `${r.rows[0].c} migrations applied`);
+  } catch {
+    result('migrations', 'warn', 'Could not verify migration state (table may not exist yet)');
+  } finally {
+    await pool.end().catch(() => {});
+  }
+}
+
 // ─── Main ────────────────────────────────────────────────────────────────────
 
 async function main() {
@@ -323,13 +412,44 @@ async function main() {
   await checkRedis();
   checkFilesystem();
   checkMemory();
+  checkCpu();
   await checkBackendHttp();
   await checkWebSocket();
   checkBaileySessions();
   checkPm2();
+  checkNginx();
+  await checkMigrations();
 
   const total = passed + failed + warned;
-  const report = { checks, summary: { total, passed, failed, warned }, timestamp: new Date().toISOString() };
+
+  // Build structured report (enterprise envelope)
+  const byName = (name) => checks.find(c => c.name === name) || { status: 'unknown', detail: '' };
+  const report = {
+    success: failed === 0,
+    timestamp: new Date().toISOString(),
+    summary: { total, passed, failed, warned },
+    services: {
+      pm2:   { status: byName('pm2_process').status,   detail: byName('pm2_process').detail },
+      nginx: { status: byName('nginx').status,         detail: byName('nginx').detail },
+    },
+    database: {
+      postgres:   { status: byName('postgres').status,   detail: byName('postgres').detail },
+      migrations: { status: byName('migrations').status, detail: byName('migrations').detail },
+    },
+    memory: {
+      heap:   { status: byName('memory_heap').status,   detail: byName('memory_heap').detail },
+      system: { status: byName('memory_system').status, detail: byName('memory_system').detail },
+      disk:   { status: byName('disk_space').status,    detail: byName('disk_space').detail },
+      cpu:    { status: byName('cpu_usage').status,     detail: byName('cpu_usage').detail },
+    },
+    sessions: {
+      baileys: { status: byName('baileys_sessions').status, detail: byName('baileys_sessions').detail },
+    },
+    websocket: {
+      route: { status: byName('websocket_route').status, detail: byName('websocket_route').detail },
+    },
+    checks,
+  };
 
   if (IS_JSON) {
     console.log(JSON.stringify(report, null, 2));
@@ -352,3 +472,4 @@ main().catch((err) => {
   console.error('[healthcheck] Fatal:', err.message);
   process.exit(1);
 });
+

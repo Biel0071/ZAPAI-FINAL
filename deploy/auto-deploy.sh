@@ -250,17 +250,57 @@ else
   fi
 fi
 
-# ─── 8. Cleanup ──────────────────────────────────────────────────────────────
-step "9. CLEANUP"
-# Remove rollback snapshot on success
-if [ -n "$DIST_BACKUP" ] && [ -d "$DIST_BACKUP" ]; then
-  rm -rf "$DIST_BACKUP"
+# ─── 8. Save release snapshot (for rollback) ─────────────────────────────────
+step "9. SAVE RELEASE SNAPSHOT"
+RELEASES_DIR="$ROOT_DIR/releases"
+RELEASES_CURRENT="$RELEASES_DIR/current"
+RELEASES_PREVIOUS="$RELEASES_DIR/previous"
+RELEASES_TIMESTAMPS="$RELEASES_DIR/timestamps"
+mkdir -p "$RELEASES_CURRENT" "$RELEASES_PREVIOUS" "$RELEASES_TIMESTAMPS"
+
+NEW_COMMIT="$(git rev-parse HEAD 2>/dev/null || echo 'unknown')"
+NEW_TS="$(date +%Y%m%d_%H%M%S)"
+
+if ! $DRY_RUN; then
+  # Rotate: current → previous
+  if [ -f "$RELEASES_CURRENT/commit" ]; then
+    PREV_COMMIT="$(cat "$RELEASES_CURRENT/commit")"
+    PREV_TS="$(cat "$RELEASES_CURRENT/timestamp" 2>/dev/null || echo 'unknown')"
+    mkdir -p "$RELEASES_TIMESTAMPS/$PREV_TS"
+    cp "$RELEASES_CURRENT/commit"    "$RELEASES_TIMESTAMPS/$PREV_TS/" 2>/dev/null || true
+    cp "$RELEASES_CURRENT/timestamp" "$RELEASES_TIMESTAMPS/$PREV_TS/" 2>/dev/null || true
+    [ -d "$RELEASES_CURRENT/dist" ] && cp -r "$RELEASES_CURRENT/dist" "$RELEASES_TIMESTAMPS/$PREV_TS/" 2>/dev/null || true
+    rm -rf "$RELEASES_PREVIOUS"
+    cp -r "$RELEASES_CURRENT" "$RELEASES_PREVIOUS" 2>/dev/null || true
+    log "Previous release archived: $PREV_COMMIT"
+  fi
+
+  # Save new current
+  echo "$NEW_COMMIT" > "$RELEASES_CURRENT/commit"
+  echo "$NEW_TS"     > "$RELEASES_CURRENT/timestamp"
+  if [ -d "$FRONTEND_DIR/dist" ]; then
+    DIST_SIZE=$(du -sm "$FRONTEND_DIR/dist" 2>/dev/null | cut -f1 || echo "999")
+    if [ "$DIST_SIZE" -lt 100 ]; then
+      rm -rf "$RELEASES_CURRENT/dist"
+      cp -r "$FRONTEND_DIR/dist" "$RELEASES_CURRENT/dist"
+    fi
+  fi
+  log "Release snapshot: $NEW_COMMIT at $NEW_TS"
+
+  # Keep only last 5 timestamp archives
+  ls -1t "$RELEASES_TIMESTAMPS"/ 2>/dev/null | tail -n +6 | xargs -I{} rm -rf "$RELEASES_TIMESTAMPS/{}" 2>/dev/null || true
 fi
+
+# ─── 9. Cleanup ──────────────────────────────────────────────────────────────
+step "10. CLEANUP"
+# Remove dist.rollback snapshot (releases/ now owns rollback artifacts)
+rm -rf "$FRONTEND_DIR/dist.rollback" 2>/dev/null || true
 
 # Rotate old deploy logs (keep last 30)
 if [ -d "$LOGS_DIR" ]; then
   ls -1t "$LOGS_DIR"/deploy_*.log 2>/dev/null | tail -n +31 | xargs rm -f 2>/dev/null || true
 fi
+
 
 echo ""
 echo "============================================================"
