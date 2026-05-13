@@ -1,0 +1,223 @@
+# ZAPFLOW AI — Production Nginx Config (Enterprise)
+# Proxies ALL backend routes through Docker network DNS.
+# ${BACKEND_SERVICE} is replaced by envsubst during setup-vps.sh
+
+# ── Rate limiting zones ──────────────────────────────────────
+limit_req_zone $binary_remote_addr zone=api_limit:10m rate=30r/s;
+limit_req_zone $binary_remote_addr zone=auth_limit:10m rate=5r/s;
+
+# ── Upstream ─────────────────────────────────────────────────
+upstream zapflow_backend {
+    server ${BACKEND_SERVICE}:4025;
+    keepalive 16;
+}
+
+server {
+    listen 80;
+    server_name _;
+
+    root /usr/share/nginx/html;
+    index index.html;
+
+    # ── Compression ──────────────────────────────────────────
+    gzip on;
+    gzip_types text/plain text/css application/json application/javascript text/xml application/xml application/xml+rss text/javascript image/svg+xml;
+    gzip_min_length 256;
+    gzip_vary on;
+    gzip_comp_level 6;
+    gzip_proxied any;
+
+    # ── Timeouts ─────────────────────────────────────────────
+    client_body_timeout 30s;
+    client_header_timeout 12s;
+    send_timeout 30s;
+    keepalive_timeout 65s;
+    proxy_connect_timeout 10s;
+    proxy_read_timeout 60s;
+    proxy_send_timeout 60s;
+
+    # ── Security headers ─────────────────────────────────────
+    add_header X-Frame-Options "SAMEORIGIN" always;
+    add_header X-Content-Type-Options "nosniff" always;
+    add_header X-XSS-Protection "1; mode=block" always;
+    add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+
+    # ── Upload limits ────────────────────────────────────────
+    client_max_body_size 25M;
+
+    # ── SPA routing (fallback to index.html) ─────────────────
+    location / {
+        try_files $uri $uri/ /index.html;
+        add_header Cache-Control "no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0" always;
+        add_header Pragma "no-cache" always;
+        add_header Expires "0" always;
+    }
+
+    # ── Backend REST API (/api/*) ────────────────────────────
+    location /api/ {
+        limit_req zone=api_limit burst=60 nodelay;
+        proxy_pass http://zapflow_backend;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header Connection "";
+    }
+
+    # ── Auth endpoint (/auth/*) ──────────────────────────────
+    location /auth/ {
+        limit_req zone=auth_limit burst=10 nodelay;
+        proxy_pass http://zapflow_backend;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
+    # ── System endpoints (/system/*) ─────────────────────────
+    location /system/ {
+        proxy_pass http://zapflow_backend;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
+    # ── Public health/status endpoints (no auth) ─────────────
+    location = /health {
+        proxy_pass http://zapflow_backend;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+    }
+
+    location = /ready {
+        proxy_pass http://zapflow_backend;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+    }
+
+    location = /status-whatsapp {
+        proxy_pass http://zapflow_backend;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+    }
+
+    location = /session-status {
+        proxy_pass http://zapflow_backend;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+    }
+
+    location = /sessions {
+        proxy_pass http://zapflow_backend;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    }
+
+    location = /diagnostics {
+        proxy_pass http://zapflow_backend;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+    }
+
+    location = /metrics {
+        proxy_pass http://zapflow_backend;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+    }
+
+    location = /connections {
+        proxy_pass http://zapflow_backend;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+    }
+
+    # ── WebSocket (Socket.IO upgrade) ────────────────────────
+    location /socket.io/ {
+        proxy_pass http://zapflow_backend/socket.io/;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_read_timeout 86400s;
+        proxy_send_timeout 86400s;
+        proxy_buffering off;
+        proxy_cache off;
+    }
+
+    # ── Message sending (rate limited) ───────────────────────
+    location /send-message {
+        limit_req zone=api_limit burst=20 nodelay;
+        proxy_pass http://zapflow_backend;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
+    # ── Media uploads (larger body size) ─────────────────────
+    location /send-media {
+        limit_req zone=api_limit burst=10 nodelay;
+        proxy_pass http://zapflow_backend;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        client_max_body_size 50M;
+        proxy_read_timeout 120s;
+    }
+
+    # ── Sessions sub-routes (/sessions/*) ────────────────────
+    location /sessions/ {
+        proxy_pass http://zapflow_backend;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
+    # ── Session sub-routes (/session/*) ──────────────────────
+    location /session/ {
+        proxy_pass http://zapflow_backend;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
+    # ── Certbot ACME challenge ───────────────────────────────
+    location /.well-known/acme-challenge/ {
+        root /var/www/certbot;
+    }
+
+    # ── Hashed static assets — immutable cache ───────────────
+    location ~* \.(?:js|css|woff2|woff|ttf)$ {
+        expires 365d;
+        add_header Cache-Control "public, immutable, max-age=31536000" always;
+    }
+
+    # ── Images/media — long cache ────────────────────────────
+    location ~* \.(?:png|ico|svg|webp|jpg|jpeg|gif|avif)$ {
+        expires 30d;
+        add_header Cache-Control "public, max-age=2592000" always;
+    }
+}
