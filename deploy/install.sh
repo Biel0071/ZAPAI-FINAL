@@ -135,6 +135,118 @@ fi
 
 log "Cleanup done — APP_DIR: $APP_DIR"
 
+# ─── 0.5. VPS ENVIRONMENT AUDIT ───────────────────────────────────────────────
+# Read-only. Detects what already exists before installing anything.
+step "0.5. VPS ENVIRONMENT AUDIT"
+
+echo ""
+echo "  ── System ──────────────────────────────────────────"
+OS_NAME=$(. /etc/os-release 2>/dev/null && echo "$NAME $VERSION_ID" || uname -s)
+KERNEL=$(uname -r)
+ARCH=$(uname -m)
+echo "  OS:       $OS_NAME ($ARCH)"
+echo "  Kernel:   $KERNEL"
+
+# CPU
+CPU_CORES=$(nproc 2>/dev/null || grep -c processor /proc/cpuinfo 2>/dev/null || echo '?')
+CPU_MODEL=$(grep 'model name' /proc/cpuinfo 2>/dev/null | head -1 | cut -d: -f2 | xargs || echo 'unknown')
+echo "  CPU:      $CPU_CORES core(s) — $CPU_MODEL"
+
+# RAM
+RAM_TOTAL=$(free -m 2>/dev/null | awk '/^Mem/{print $2}' || echo '?')
+RAM_FREE=$(free -m 2>/dev/null | awk '/^Mem/{print $4}' || echo '?')
+echo "  RAM:      ${RAM_TOTAL}MB total / ${RAM_FREE}MB free"
+
+# Disk
+DISK_TOTAL=$(df -h "$APP_DIR" 2>/dev/null | awk 'NR==2{print $2}' || echo '?')
+DISK_FREE=$(df -h "$APP_DIR" 2>/dev/null | awk 'NR==2{print $4}' || echo '?')
+DISK_PCT=$(df -h "$APP_DIR" 2>/dev/null | awk 'NR==2{print $5}' || echo '?')
+echo "  Disk:     ${DISK_TOTAL} total / ${DISK_FREE} free (${DISK_PCT} used)"
+
+# Check if disk is critically full
+DISK_USED_INT=$(df "$APP_DIR" 2>/dev/null | awk 'NR==2{gsub(/%/,"",$5); print $5}' || echo '0')
+if [ "${DISK_USED_INT:-0}" -gt 90 ] 2>/dev/null; then
+  warn "Disk usage >90% — install may fail. Free up space first."
+fi
+
+echo ""
+echo "  ── Network ──────────────────────────────────────────"
+# Internet check (silent, 3s timeout)
+if curl -s --max-time 3 https://github.com -o /dev/null; then
+  log "Internet: reachable ✔"
+else
+  warn "Internet: unreachable — apt-get and git clone may fail"
+fi
+echo "  Public IP: $PUBLIC_IP"
+
+# Open ports
+echo "  Listening ports (40xx range):"
+ss -tlnp 2>/dev/null | grep -E ':40[0-9]{2}' | awk '{print "    "$1,$4,$NF}' || echo "    none"
+
+echo ""
+echo "  ── Tools already installed ──────────────────────────"
+AUDIT_TOOLS=(git curl wget nginx psql redis-cli node npm pm2 python3 openssl unzip build-essential)
+MISSING_TOOLS=()
+for tool in "${AUDIT_TOOLS[@]}"; do
+  if command -v "$tool" >/dev/null 2>&1; then
+    VER=$(${tool} --version 2>/dev/null | head -1 | sed 's/^[^0-9]*//' | cut -c1-20 || echo 'ok')
+    printf "  ✔ %-16s %s\n" "$tool" "$VER"
+  else
+    printf "  ✖ %-16s (missing — will install)\n" "$tool"
+    MISSING_TOOLS+=("$tool")
+  fi
+done
+
+echo ""
+echo "  ── Current project directory ────────────────────────"
+if [ -d "$APP_DIR/.git" ]; then
+  CURRENT_BRANCH=$(git -C "$APP_DIR" rev-parse --abbrev-ref HEAD 2>/dev/null || echo 'unknown')
+  CURRENT_COMMIT=$(git -C "$APP_DIR" rev-parse --short HEAD 2>/dev/null || echo 'unknown')
+  echo "  Repo:     $APP_DIR"
+  echo "  Branch:   $CURRENT_BRANCH @ $CURRENT_COMMIT"
+else
+  echo "  Repo:     $APP_DIR (not yet cloned)"
+fi
+
+if [ -f "$BACKEND_DIR/package.json" ]; then
+  BE_VER=$(node -e "try{console.log(require('$BACKEND_DIR/package.json').version)}catch(e){}" 2>/dev/null || echo '?')
+  echo "  Backend:  $BACKEND_DIR (v$BE_VER)"
+fi
+if [ -f "$FRONTEND_DIR/package.json" ]; then
+  FE_VER=$(node -e "try{console.log(require('$FRONTEND_DIR/package.json').version)}catch(e){}" 2>/dev/null || echo '?')
+  echo "  Frontend: $FRONTEND_DIR (v$FE_VER)"
+fi
+if [ -f "$BACKEND_DIR/ecosystem.config.js" ]; then
+  echo "  PM2 eco:  $BACKEND_DIR/ecosystem.config.js ✔"
+fi
+if [ -f "$APP_DIR/.env.production" ]; then
+  echo "  .env:     $APP_DIR/.env.production ✔ ($(wc -l < "$APP_DIR/.env.production") lines)"
+else
+  echo "  .env:     not found — will auto-generate"
+fi
+
+echo ""
+echo "  ── Nginx status ─────────────────────────────────────"
+if systemctl is-active --quiet nginx 2>/dev/null; then
+  echo "  Nginx: active ✔"
+  NGINX_SITES=$(ls /etc/nginx/sites-enabled/ 2>/dev/null | tr '\n' ' ' || echo 'none')
+  echo "  Enabled sites: $NGINX_SITES"
+else
+  echo "  Nginx: not running (will start)"
+fi
+
+echo ""
+echo "  ── PM2 status ───────────────────────────────────────"
+if command -v pm2 >/dev/null 2>&1; then
+  pm2 status 2>/dev/null | grep -E 'zapflow|pm2' || echo "  No PM2 apps running"
+else
+  echo "  PM2: not installed (will install)"
+fi
+
+echo ""
+log "Audit complete — proceeding to install"
+echo ""
+
 # ─── 1. System packages ───────────────────────────────────────────────────────
 step "1. SYSTEM PACKAGES"
 apt-get update -qq
