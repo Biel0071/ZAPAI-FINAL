@@ -174,7 +174,8 @@ log "PM2 logrotate configured"
 
 # ─── 4. PostgreSQL (with self-healing retry) ─────────────────────────────────
 step "4. POSTGRESQL"
-DB_PASS="${DB_PASSWORD:-$(openssl rand -hex 16)}"
+# Fixed password — must match .env.production (zapai123)
+DB_PASS="${DB_PASSWORD:-zapai123}"
 
 if $SKIP_POSTGRES; then
   warn "PostgreSQL install skipped (--skip-postgres)"
@@ -288,13 +289,22 @@ fi
 step "8. ENVIRONMENT FILE (.env.production)"
 ENV_FILE="$APP_DIR/.env.production"
 
+# Fixed credentials — same on every install for zero-config login
+# DB password is fixed (not random) so re-installs don't lose access
+DB_PASS="zapai123"
+ADMIN_USERNAME="zapadmin"
+ADMIN_PASSWORD="zapadmin1010"
+ADMIN_EMAIL="zapadmin@zapai.local"
+
 if [ -f "$ENV_FILE" ]; then
-  log ".env.production already exists — keeping existing secrets"
+  log ".env.production already exists — refreshing URL + admin vars"
+  # Update dynamic fields without replacing secrets
+  sed -i "s|^FRONTEND_URL=.*|FRONTEND_URL=${PUBLIC_URL}|" "$ENV_FILE" 2>/dev/null || true
+  sed -i "s|^CORS_ORIGIN=.*|CORS_ORIGIN=${PUBLIC_URL}|"   "$ENV_FILE" 2>/dev/null || true
+  sed -i "s|^BACKEND_URL=.*|BACKEND_URL=http://${PUBLIC_IP}:4025|" "$ENV_FILE" 2>/dev/null || true
 else
   JWT_SECRET="$(openssl rand -hex 32)"
   SESSION_SECRET="$(openssl rand -hex 32)"
-  # Reuse DB_PASS from step 4 if set, otherwise generate
-  DB_PASS="${DB_PASS:-$(openssl rand -hex 16)}"
 
   cat > "$ENV_FILE" << ENVEOF
 # ZAPAI-FINAL Production Environment
@@ -306,7 +316,7 @@ NODE_ENV=production
 PORT=4025
 HOST=0.0.0.0
 
-# PostgreSQL
+# PostgreSQL (fixed credentials — zapai/zapai123/zapai_crm)
 POSTGRES_HOST=localhost
 POSTGRES_PORT=5432
 POSTGRES_USER=zapai
@@ -327,6 +337,13 @@ BACKEND_URL=http://${PUBLIC_IP}:4025
 FRONTEND_URL=${PUBLIC_URL}
 CORS_ORIGIN=${PUBLIC_URL}
 
+# Master Admin (auto-created by seed-admin.js)
+AUTH_DEFAULT_USERNAME=${ADMIN_USERNAME}
+AUTH_DEFAULT_EMAIL=${ADMIN_EMAIL}
+AUTH_DEFAULT_PASSWORD=${ADMIN_PASSWORD}
+AUTH_DEFAULT_ROLE=master
+AUTH_DEFAULT_TENANT_ID=default
+
 # App
 DEFAULT_COMPANY_ID=default
 
@@ -344,7 +361,7 @@ ENVEOF
 
   chown "$APP_USER:$APP_USER" "$ENV_FILE"
   chmod 600 "$ENV_FILE"
-  log ".env.production created (IP: ${PUBLIC_IP}, secrets auto-generated)"
+  log ".env.production created (IP: ${PUBLIC_IP}, admin: ${ADMIN_USERNAME})"
 fi
 
 # Frontend .env.production
@@ -413,6 +430,35 @@ if [ -f "$BACKEND_DIR/scripts/run-migrations.js" ]; then
   log "Migrations complete"
 else
   warn "run-migrations.js not found — skipping (first boot may work without)"
+fi
+
+# ─── 10.5. SEED ADMIN MASTER ──────────────────────────────────────────────────
+step "10.5. ADMIN MASTER SEED (zapadmin / zapadmin1010)"
+cd "$BACKEND_DIR"
+
+# Source env so seed-admin.js can connect
+set -a
+# shellcheck disable=SC1091
+source "$APP_DIR/.env.production" 2>/dev/null || true
+set +a
+
+if [ -f "$BACKEND_DIR/scripts/seed-admin.js" ]; then
+  if ! sudo -u "$APP_USER" bash -c \
+      "set -a; source '$APP_DIR/.env.production' 2>/dev/null; set +a; \
+       AUTH_DEFAULT_USERNAME=zapadmin \
+       AUTH_DEFAULT_PASSWORD=zapadmin1010 \
+       AUTH_DEFAULT_EMAIL=zapadmin@zapai.local \
+       AUTH_DEFAULT_ROLE=master \
+       AUTH_DEFAULT_TENANT_ID=default \
+       NODE_ENV=production \
+       node scripts/seed-admin.js" \
+      2>&1 | tail -8; then
+    warn "Admin seed failed — login may require manual setup"
+  else
+    log "Admin user ready: zapadmin / zapadmin1010 ✔"
+  fi
+else
+  warn "seed-admin.js not found — admin user not auto-created"
 fi
 
 # ─── 11. Frontend build ───────────────────────────────────────────────────────
@@ -702,18 +748,22 @@ if $HEALTH_OK; then
   echo "  System is ONLINE. No manual steps needed."
 else
   echo -e "${YELLOW}  ⚠  INSTALL COMPLETE — $(date)${NC}"
-  echo "  Backend not responding yet — check:"
-  echo "    pm2 logs zapflow-api"
-  echo "    pm2 status"
+  echo "  Backend not responding yet — check: pm2 logs zapflow-api"
 fi
 echo ""
-echo "  Runtime:    $APP_DIR"
-echo "  ► OPEN URL: ${PUBLIC_URL}"
-echo "  Backend:    http://${PUBLIC_IP}:4025/health"
-echo "  PM2:        pm2 status && pm2 logs zapflow-api"
-echo "  Deploy:     bash deploy/auto-deploy.sh"
-echo "  Watcher:    systemctl status zapai-watcher.timer"
+echo -e "${CYAN}  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+echo -e "${GREEN}  ► OPEN URL:  ${PUBLIC_URL}${NC}"
+echo -e "${CYAN}  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
 echo ""
-echo "  ► Next: open ${PUBLIC_URL}/connections → scan WhatsApp QR"
-echo "  ► Auto-deploy ACTIVE: git push origin main → VPS updates automatically"
+echo -e "${YELLOW}  ADMIN LOGIN${NC}"
+echo "  Username:  zapadmin"
+echo "  Password:  zapadmin1010"
+echo ""
+echo "  Backend:   http://${PUBLIC_IP}:4025/api/health"
+echo "  PM2:       pm2 status && pm2 logs zapflow-api"
+echo "  Deploy:    bash deploy/auto-deploy.sh"
+echo "  Watcher:   systemctl status zapai-watcher.timer"
+echo ""
+echo "  ► /connections → scan WhatsApp QR"
+echo "  ► Auto-deploy ACTIVE: git push origin main → VPS updates"
 echo "============================================================"
