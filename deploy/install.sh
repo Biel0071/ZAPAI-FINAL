@@ -47,14 +47,67 @@ warn() { echo -e "${YELLOW}[INSTALL $(date +%H:%M:%S)] ⚠ $*${NC}"; }
 err()  { echo -e "${RED}[INSTALL $(date +%H:%M:%S)] ✖ $*${NC}"; exit 1; }
 step() { echo -e "\n${CYAN}━━━ $* ━━━${NC}"; }
 
+[[ $EUID -eq 0 ]] || err "Run as root: sudo bash deploy/install.sh"
+
+# ─── AUTO-DETECT PUBLIC IP ────────────────────────────────────────────────────
+# The public IP is used for BACKEND_URL, FRONTEND_URL, CORS_ORIGIN in .env
+# and shown in the final output. Never hardcodes localhost.
+if [ -n "$DOMAIN" ]; then
+  PUBLIC_IP="$DOMAIN"     # use domain as the host if provided
+  PUBLIC_URL="https://$DOMAIN"
+else
+  # Try multiple services in order of reliability
+  PUBLIC_IP=$(
+    curl -s --max-time 5 https://api.ipify.org 2>/dev/null ||
+    curl -s --max-time 5 http://checkip.amazonaws.com 2>/dev/null ||
+    curl -s --max-time 5 http://ifconfig.me 2>/dev/null ||
+    hostname -I 2>/dev/null | awk '{print $1}'
+  )
+  PUBLIC_IP="${PUBLIC_IP// /}"   # strip whitespace
+  PUBLIC_URL="http://${PUBLIC_IP}"
+fi
+
+if [ -z "$PUBLIC_IP" ]; then
+  warn "Could not detect public IP — using 127.0.0.1 (configure FRONTEND_URL manually)"
+  PUBLIC_IP="127.0.0.1"
+  PUBLIC_URL="http://127.0.0.1"
+fi
+
 echo "============================================================"
 echo "  ZAPAI VPS INSTALL (Full Bootstrap) — $(date)"
 echo "  User: $APP_USER | Dir: $APP_DIR"
-echo "  Node: v${NODE_VERSION} | Domain: ${DOMAIN:-<none>}"
+echo "  Node: v${NODE_VERSION} | Public IP: $PUBLIC_IP"
 echo "  Repo: $REPO_URL"
+echo "  URL:  $PUBLIC_URL"
 echo "============================================================"
 
-[[ $EUID -eq 0 ]] || err "Run as root: sudo bash deploy/install.sh"
+# ─── 0. CLEANUP OLD INSTALLATIONS ────────────────────────────────────────────
+# Prevents conflicts from old clones at /opt/ZAPAI-FINAL, /opt/zapai-frontend,
+# /var/www/*, or any previous partial installs.
+step "0. CLEANUP OLD INSTALLATIONS"
+OLD_PATHS=(
+  "/opt/ZAPAI-FINAL"
+  "/opt/zapai-frontend"
+  "/var/www/zapai"
+  "/var/www/html/zapai"
+  "/opt/zapai-old"
+)
+for old_path in "${OLD_PATHS[@]}"; do
+  if [ -d "$old_path" ] && [ "$old_path" != "$APP_DIR" ]; then
+    warn "Old installation found: $old_path — archiving to /opt/zapai-archive"
+    mkdir -p /opt/zapai-archive
+    mv "$old_path" "/opt/zapai-archive/$(basename $old_path)_$(date +%Y%m%d_%H%M%S)" 2>/dev/null || true
+    log "Archived: $old_path"
+  fi
+done
+
+# Kill any orphaned PM2 processes from old installs
+if command -v pm2 >/dev/null 2>&1; then
+  pm2 delete all 2>/dev/null || true
+  log "PM2: cleared orphaned processes"
+fi
+
+log "Old installation cleanup done"
 
 # ─── 1. System packages ───────────────────────────────────────────────────────
 step "1. SYSTEM PACKAGES"
@@ -93,36 +146,78 @@ pm2 set pm2-logrotate:retain 14 2>/dev/null || true
 pm2 set pm2-logrotate:compress true 2>/dev/null || true
 log "PM2 logrotate configured"
 
-# ─── 4. PostgreSQL ────────────────────────────────────────────────────────────
+# ─── 4. PostgreSQL (with self-healing retry) ─────────────────────────────────
 step "4. POSTGRESQL"
+DB_PASS="${DB_PASSWORD:-$(openssl rand -hex 16)}"
+
 if $SKIP_POSTGRES; then
   warn "PostgreSQL install skipped (--skip-postgres)"
-elif command -v psql >/dev/null 2>&1; then
-  log "PostgreSQL $(psql --version | head -1) already installed"
 else
-  apt-get install -y -qq postgresql postgresql-contrib 2>&1 | tail -3
-  systemctl enable postgresql
-  systemctl start postgresql
-  DB_PASS="${DB_PASSWORD:-$(openssl rand -hex 16)}"
-  sudo -u postgres psql -c "CREATE USER zapai WITH PASSWORD '$DB_PASS';" 2>/dev/null || true
-  sudo -u postgres psql -c "CREATE DATABASE zapai_crm OWNER zapai;" 2>/dev/null || true
-  sudo -u postgres psql -c "GRANT ALL PRIVILEGES ON DATABASE zapai_crm TO zapai;" 2>/dev/null || true
-  log "PostgreSQL: zapai_crm ready"
-  warn "DB password: $DB_PASS — will be written to .env.production"
+  if ! command -v psql >/dev/null 2>&1; then
+    apt-get install -y -qq postgresql postgresql-contrib 2>&1 | tail -3
+    log "PostgreSQL installed"
+  else
+    log "PostgreSQL $(psql --version | head -1) already installed"
+  fi
+
+  # Self-healing boot: retry up to 5 times with backoff
+  PG_READY=false
+  for attempt in 1 2 3 4 5; do
+    systemctl enable postgresql 2>/dev/null || true
+    systemctl start postgresql 2>/dev/null || true
+    sleep $((attempt * 2))
+    if sudo -u postgres psql -c 'SELECT 1' >/dev/null 2>&1; then
+      PG_READY=true
+      log "PostgreSQL: accepting connections (attempt $attempt)"
+      break
+    fi
+    warn "PostgreSQL not ready (attempt $attempt/5) — retrying..."
+  done
+
+  if $PG_READY; then
+    # Read existing password from .env if present
+    if [ -f "$APP_DIR/.env.production" ]; then
+      EXISTING_DB_PASS=$(grep '^POSTGRES_PASSWORD=' "$APP_DIR/.env.production" 2>/dev/null | cut -d= -f2)
+      [ -n "$EXISTING_DB_PASS" ] && DB_PASS="$EXISTING_DB_PASS"
+    fi
+    sudo -u postgres psql -c "CREATE USER zapai WITH PASSWORD '$DB_PASS';" 2>/dev/null || true
+    sudo -u postgres psql -c "CREATE DATABASE zapai_crm OWNER zapai;" 2>/dev/null || true
+    sudo -u postgres psql -c "GRANT ALL PRIVILEGES ON DATABASE zapai_crm TO zapai;" 2>/dev/null || true
+    # Validate connection
+    if PGPASSWORD="$DB_PASS" psql -h localhost -U zapai -d zapai_crm -c 'SELECT 1' >/dev/null 2>&1; then
+      log "PostgreSQL: zapai_crm connection verified"
+    else
+      warn "PostgreSQL: connection test failed — check pg_hba.conf if needed"
+    fi
+  else
+    warn "PostgreSQL did not start after 5 attempts — check: systemctl status postgresql"
+    warn "Continuing install — migrations will fail until PG is ready"
+  fi
 fi
 
-# ─── 5. Redis ─────────────────────────────────────────────────────────────────
+# ─── 5. Redis (graceful fallback — system continues if Redis unavailable) ─────
 step "5. REDIS"
 if $SKIP_REDIS; then
   warn "Redis install skipped (--skip-redis)"
-elif command -v redis-server >/dev/null 2>&1; then
-  log "Redis already installed"
 else
-  apt-get install -y -qq redis-server 2>&1 | tail -3
-  sed -i 's/^# bind 127.0.0.1/bind 127.0.0.1/' /etc/redis/redis.conf 2>/dev/null || true
-  systemctl enable redis-server
-  systemctl start redis-server
-  log "Redis installed (localhost-only)"
+  if ! command -v redis-server >/dev/null 2>&1; then
+    apt-get install -y -qq redis-server 2>&1 | tail -3
+    sed -i 's/^# bind 127.0.0.1/bind 127.0.0.1/' /etc/redis/redis.conf 2>/dev/null || true
+    systemctl enable redis-server
+    log "Redis installed"
+  else
+    log "Redis already installed"
+  fi
+
+  # Start with graceful fallback (Redis failure is non-fatal)
+  systemctl start redis-server 2>/dev/null || true
+  sleep 2
+  if redis-cli ping 2>/dev/null | grep -q PONG; then
+    log "Redis: PONG received — online"
+  else
+    warn "Redis not responding — system will continue without caching layer"
+    warn "Fix: systemctl restart redis-server"
+  fi
 fi
 
 # ─── 6. App user & directories ────────────────────────────────────────────────
@@ -177,8 +272,9 @@ else
 
   cat > "$ENV_FILE" << ENVEOF
 # ZAPAI-FINAL Production Environment
-# Generated by deploy/install.sh on $(date)
-# Review and adjust before first deploy.
+# Auto-generated by deploy/install.sh on $(date)
+# IP: ${PUBLIC_IP} | URL: ${PUBLIC_URL}
+# Do NOT commit this file to git.
 
 NODE_ENV=production
 PORT=4025
@@ -200,9 +296,13 @@ JWT_SECRET=${JWT_SECRET}
 SESSION_SECRET=${SESSION_SECRET}
 JWT_EXPIRES_IN=7d
 
+# URLs (auto-detected from public IP)
+BACKEND_URL=http://${PUBLIC_IP}:4025
+FRONTEND_URL=${PUBLIC_URL}
+CORS_ORIGIN=${PUBLIC_URL}
+
 # App
 DEFAULT_COMPANY_ID=default
-FRONTEND_URL=http://${DOMAIN:-localhost}
 
 # PM2 Signals
 PM2_READY_SIGNAL=true
@@ -218,15 +318,18 @@ ENVEOF
 
   chown "$APP_USER:$APP_USER" "$ENV_FILE"
   chmod 600 "$ENV_FILE"
-  log ".env.production created with secure random secrets"
+  log ".env.production created (IP: ${PUBLIC_IP}, secrets auto-generated)"
 fi
 
 # Frontend .env.production
+# VITE_API_URL=/ means 'use same origin as the page'
+# Nginx proxies /api/* → localhost:4025 so this always resolves to the correct IP.
+# No hardcoded localhost or IP needed in frontend build.
 FRONTEND_ENV="$FRONTEND_DIR/.env.production"
-if [ ! -f "$FRONTEND_ENV" ] && [ -d "$FRONTEND_DIR" ]; then
+if [ -d "$FRONTEND_DIR" ]; then
   echo "VITE_API_URL=/" > "$FRONTEND_ENV"
-  chown "$APP_USER:$APP_USER" "$FRONTEND_ENV"
-  log "frontend-official/.env.production: VITE_API_URL=/"
+  chown "$APP_USER:$APP_USER" "$FRONTEND_ENV" 2>/dev/null || true
+  log "frontend-official/.env.production: VITE_API_URL=/ (nginx proxies /api)"
 fi
 
 # ─── 9. Backend dependencies ──────────────────────────────────────────────────
@@ -525,16 +628,13 @@ else
   echo "    pm2 status"
 fi
 echo ""
-echo "  Runtime:  $APP_DIR"
-echo "  Backend:  http://127.0.0.1:4025"
-echo "  Health:   http://127.0.0.1:4025/health"
-echo "  PM2:      pm2 status && pm2 logs zapflow-api"
-echo "  Deploy:   bash deploy/auto-deploy.sh"
-echo "  Watcher:  systemctl status zapai-watcher.timer"
-if [ -n "$DOMAIN" ]; then
-  echo "  URL:      https://$DOMAIN"
-fi
+echo "  Runtime:    $APP_DIR"
+echo "  ► OPEN URL: ${PUBLIC_URL}"
+echo "  Backend:    http://${PUBLIC_IP}:4025/health"
+echo "  PM2:        pm2 status && pm2 logs zapflow-api"
+echo "  Deploy:     bash deploy/auto-deploy.sh"
+echo "  Watcher:    systemctl status zapai-watcher.timer"
 echo ""
-echo "  ► Next: /connections → scan WhatsApp QR"
-echo "  ► Auto-deploy ACTIVE: git push → VPS updates automatically"
+echo "  ► Next: open ${PUBLIC_URL}/connections → scan WhatsApp QR"
+echo "  ► Auto-deploy ACTIVE: git push origin main → VPS updates automatically"
 echo "============================================================"
