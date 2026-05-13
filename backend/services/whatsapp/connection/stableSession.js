@@ -1134,8 +1134,12 @@ async function createStableSession({
 
   // ── Chats sync (fired after initial connection) ─────────────────────────
   // Baileys emits 'chats.set' when the initial chat list arrives after
-  // authentication. We capture this to ensure the realtime store is populated
-  // even if loadRealtimeHistory missed some chats.
+  // authentication. We capture this to ensure:
+  //   1. The realtime store is populated (in-memory, for WS emission)
+  //   2. Each 1:1 conversation is persisted to PostgreSQL (for Inbox hydration)
+  //
+  // Without (2), restarting PM2 empties the Inbox because GET /api/conversations
+  // reads from the DB — not from the in-memory store.
   sock.ev.on('chats.set', ({ chats: chatList = [] }) => {
     if (!Array.isArray(chatList) || chatList.length === 0) {
       return;
@@ -1148,31 +1152,90 @@ async function createStableSession({
 
     const store = ensureRealtimeStore(session);
 
+    // Batch for DB persist — individual chats only (groups use a different schema)
+    const individualChatsToSync = [];
+
     for (const chat of chatList) {
       const chatId = chat?.id;
       if (!isValidRealtimeChatId(chatId)) {
         continue;
       }
 
-      // Only create chat entry if it doesn't exist yet
+      const isGroup = String(chatId).endsWith('@g.us');
+      const name = chat?.name || chat?.subject || chatId;
+
+      // 1. Update in-memory realtime store
       if (!store.chats[chatId]) {
         store.chats[chatId] = createRealtimeChatState({
           chatId,
-          isGroup: String(chatId).endsWith('@g.us'),
-          name: chat?.name || chat?.subject || chatId,
+          isGroup,
+          name,
         });
       } else {
-        // Update name if available
-        const name = chat?.name || chat?.subject;
         if (name) {
           store.chats[chatId].name = name;
+        }
+      }
+
+      // 2. Queue individual chats for DB persistence
+      if (!isGroup) {
+        // Extract phone number from JID (e.g. "5511999887766@s.whatsapp.net" → "5511999887766")
+        const phone = String(chatId).split('@')[0];
+        if (phone && /^\d{7,15}$/.test(phone)) {
+          individualChatsToSync.push({ phone, name, chatId });
         }
       }
     }
 
     // Re-emit chats loaded for any late-connecting frontend clients
     emitChatsLoaded(io || global.io, store);
+
+    // Async DB sync — fire and forget, does not block the event loop
+    // Uses lazy require to avoid circular dependency at module load time
+    if (individualChatsToSync.length > 0) {
+      setImmediate(async () => {
+        try {
+          const conversationRepository = require('../../../repositories/conversationRepository');
+          const companyId = process.env.DEFAULT_COMPANY_ID || 'default';
+          let synced = 0;
+          let errors = 0;
+
+          // Process in small batches to avoid overwhelming the DB pool
+          const BATCH_SIZE = 10;
+          for (let i = 0; i < individualChatsToSync.length; i += BATCH_SIZE) {
+            const batch = individualChatsToSync.slice(i, i + BATCH_SIZE);
+            await Promise.allSettled(batch.map(async ({ phone, name }) => {
+              try {
+                await conversationRepository.findOrCreateConversationByPhone({
+                  companyId,
+                  contactName: name || phone,
+                  phone,
+                  sessionId: normalizedSessionName,
+                });
+                synced++;
+              } catch (err) {
+                errors++;
+                // Only log first few errors to avoid log spam
+                if (errors <= 3) {
+                  console.warn(`[WHATSAPP] chats.set DB sync failed for ${phone}: ${err?.message}`);
+                }
+              }
+            }));
+          }
+
+          console.log(
+            `[WHATSAPP] chats.set DB sync complete session=${normalizedSessionName} synced=${synced} errors=${errors} total=${individualChatsToSync.length}`
+          );
+
+          // Invalidate conversation cache so next GET /api/conversations sees fresh data
+          conversationRepository.invalidateConversationCache(companyId);
+        } catch (err) {
+          console.error(`[WHATSAPP] chats.set DB sync fatal: ${err?.message}`);
+        }
+      });
+    }
   });
+
 
   // ── Chats update (name/archive changes) ─────────────────────────────────
   sock.ev.on('chats.update', (updates) => {

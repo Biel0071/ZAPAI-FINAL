@@ -1642,6 +1642,22 @@ async function bootstrap() {
       }, 60_000); // Every 60 seconds
       workerSupervisor.startWorker('session_watchdog');
 
+      // Phase 8: Retention worker — daily message cleanup
+      // Groups: messages > 24h | Individuals: messages > 60 days
+      // PRESERVES: AI memory, leads, analytics, tags, conversation metadata
+      workerSupervisor.registerWorker('message_retention', async () => {
+        try {
+          const retentionService = require('./services/retentionService');
+          const report = await retentionService.runRetention();
+          if (!report.skipped) {
+            console.log(`[SERVER] Retention complete: groups=${report.groups?.deleted ?? 0} individual=${report.individual?.deleted ?? 0}`);
+          }
+        } catch (err) {
+          console.error('[SERVER] Retention worker error:', err?.message || err);
+        }
+      }, 24 * 60 * 60 * 1000); // Every 24 hours
+      workerSupervisor.startWorker('message_retention');
+
       // Signal PM2 that the process is fully ready (wait_ready: true)
       // This tells PM2 it can safely route traffic and manage restarts
       if (typeof process.send === 'function' && process.env.PM2_READY_SIGNAL === 'true') {
