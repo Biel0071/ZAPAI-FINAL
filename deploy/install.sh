@@ -81,6 +81,85 @@ if [ -z "$PUBLIC_IP" ]; then
   PUBLIC_URL="http://127.0.0.1"
 fi
 
+# ─── PANEL DETECTION (SAFE MODE) ─────────────────────────────────────────────
+# Detects hosting control panels that manage nginx/ports globally.
+# When detected, install.sh skips UFW reset and avoids breaking panel configs.
+PANEL_SAFE_MODE=false
+DETECTED_PANEL=""
+
+detect_panel() {
+  # Hestia CP
+  if [ -d "/usr/local/hestia" ] || command -v hestia >/dev/null 2>&1; then
+    DETECTED_PANEL="HestiaCP"; PANEL_SAFE_MODE=true; return
+  fi
+  # CyberPanel
+  if [ -d "/usr/local/CyberCP" ] || command -v cyberpanel >/dev/null 2>&1; then
+    DETECTED_PANEL="CyberPanel"; PANEL_SAFE_MODE=true; return
+  fi
+  # aaPanel / BT Panel
+  if [ -d "/www/server/panel" ] || command -v bt >/dev/null 2>&1; then
+    DETECTED_PANEL="aaPanel/BT"; PANEL_SAFE_MODE=true; return
+  fi
+  # Plesk
+  if [ -d "/opt/psa" ] || command -v plesk >/dev/null 2>&1; then
+    DETECTED_PANEL="Plesk"; PANEL_SAFE_MODE=true; return
+  fi
+  # Webmin
+  if [ -d "/etc/webmin" ] || command -v webmin >/dev/null 2>&1; then
+    DETECTED_PANEL="Webmin"; PANEL_SAFE_MODE=true; return
+  fi
+  # DirectAdmin
+  if [ -d "/usr/local/directadmin" ]; then
+    DETECTED_PANEL="DirectAdmin"; PANEL_SAFE_MODE=true; return
+  fi
+  # ISPConfig
+  if [ -d "/usr/local/ispconfig" ]; then
+    DETECTED_PANEL="ISPConfig"; PANEL_SAFE_MODE=true; return
+  fi
+}
+
+detect_panel
+
+if $PANEL_SAFE_MODE; then
+  warn "═══════════════════════════════════════════════════"
+  warn "  PANEL SAFE MODE ACTIVE — detected: $DETECTED_PANEL"
+  warn "  → UFW will NOT be reset (panel manages firewall)"
+  warn "  → /etc/nginx/nginx.conf will NOT be touched"
+  warn "  → Only isolated site config will be created"
+  warn "  → Panel-managed services will NOT be restarted"
+  warn "═══════════════════════════════════════════════════"
+else
+  log "No hosting panel detected — standard install mode"
+fi
+
+# ─── AUTO PORT DETECTION ──────────────────────────────────────────────────────
+# Find a free port starting from PREFERRED_PORT (default 4025).
+# If 4025 is already occupied by another service, auto-select next free port.
+PREFERRED_PORT="${PORT:-4025}"
+
+find_free_port() {
+  local start=$1
+  local port=$start
+  while [ $port -lt $((start + 100)) ]; do
+    if ! ss -tlnp 2>/dev/null | grep -q ":${port} " && \
+       ! lsof -i ":${port}" >/dev/null 2>&1; then
+      echo "$port"
+      return 0
+    fi
+    port=$((port + 1))
+  done
+  echo "$start"  # fallback to preferred if scan fails
+}
+
+BACKEND_PORT=$(find_free_port "$PREFERRED_PORT")
+
+if [ "$BACKEND_PORT" != "$PREFERRED_PORT" ]; then
+  warn "Port $PREFERRED_PORT is occupied — using port $BACKEND_PORT instead"
+  warn "Update .env.production PORT=$BACKEND_PORT if needed"
+else
+  log "Backend port: $BACKEND_PORT (free)"
+fi
+
 echo "============================================================"
 echo "  ZAPAI VPS INSTALL (Full Bootstrap) — $(date)"
 echo "  User: $APP_USER | Dir: $APP_DIR"
@@ -425,7 +504,7 @@ else
 # Do NOT commit this file to git.
 
 NODE_ENV=production
-PORT=4025
+PORT=${BACKEND_PORT}
 HOST=0.0.0.0
 
 # PostgreSQL (fixed credentials — zapai/zapai123/zapai_crm)
@@ -695,13 +774,22 @@ ln -sf /var/log/nginx/error.log  "$LOGS_DIR/nginx/error.log"  2>/dev/null || tru
 
 # ─── 13. Firewall ─────────────────────────────────────────────────────────────
 step "13. FIREWALL (UFW)"
-ufw --force reset 2>/dev/null || true
-ufw allow 22/tcp   comment "SSH"
-ufw allow 80/tcp   comment "HTTP"
-ufw allow 443/tcp  comment "HTTPS"
-ufw deny  4025/tcp comment "Block direct backend"
-ufw --force enable 2>/dev/null || true
-log "UFW: 22/80/443 open | 4025 blocked"
+if $PANEL_SAFE_MODE; then
+  warn "PANEL SAFE MODE: skipping UFW reset ($DETECTED_PANEL manages firewall)"
+  # Only deny backend port if UFW is already active
+  if ufw status 2>/dev/null | grep -q 'Status: active'; then
+    ufw deny "${BACKEND_PORT}/tcp" comment "Block direct ZAPAI backend" 2>/dev/null || true
+    log "UFW: blocked direct access to port $BACKEND_PORT"
+  fi
+else
+  ufw --force reset 2>/dev/null || true
+  ufw allow 22/tcp   comment "SSH"
+  ufw allow 80/tcp   comment "HTTP"
+  ufw allow 443/tcp  comment "HTTPS"
+  ufw deny  "${BACKEND_PORT}/tcp" comment "Block direct backend"
+  ufw --force enable 2>/dev/null || true
+  log "UFW: 22/80/443 open | ${BACKEND_PORT} blocked"
+fi
 
 systemctl enable fail2ban 2>/dev/null || true
 systemctl start fail2ban 2>/dev/null || true
