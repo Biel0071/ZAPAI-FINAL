@@ -1,14 +1,14 @@
-.PHONY: up down restart rebuild logs ps health dev deploy validate doctor ssl backup rollback emergency
+.PHONY: up down restart rebuild logs ps health dev deploy validate doctor recovery backup rollback
 
-# ── Quick Reference ──────────────────────────────────────────────────
-# make deploy     → deploy.sh (git pull, build, restart, healthcheck)
-# make validate   → validate-vps.sh (25+ production checks)
-# make doctor     → runtime-doctor.sh (diagnose issues)
-# make ssl        → enable-ssl.sh (needs DOMAIN= and EMAIL=)
-# make emergency  → emergency-restart.sh (nuclear restart)
-# make rollback   → rollback.sh
+# ── Quick Reference ──────────────────────────────────────────────────────────
+# make deploy     → deploy/auto-deploy.sh   (git pull → build → pm2 → nginx → health)
+# make health     → backend/scripts/healthcheck.js (13 system checks)
+# make recovery   → backend/scripts/recovery.sh (auto-recover crashed backend)
+# make validate   → tsc + build validation
+# make doctor     → pm2 status + health JSON
+# make rollback   → git reset to previous commit + pm2 restart
 
-# ── Production ──────────────────────────────────────────────────────
+# ── Production Docker ────────────────────────────────────────────────────────
 up:
 	docker compose -f docker-compose.production.yml --env-file .env.production up -d
 
@@ -30,34 +30,61 @@ logs-backend:
 ps:
 	docker compose -f docker-compose.production.yml --env-file .env.production ps
 
-# ── Deploy Scripts ───────────────────────────────────────────────────
+# ── Deploy (OFFICIAL) ────────────────────────────────────────────────────────
 deploy:
-	bash deploy.sh
+	bash deploy/auto-deploy.sh
 
-validate:
-	bash validate-vps.sh
+deploy-skip-build:
+	bash deploy/auto-deploy.sh --skip-build
+
+deploy-dry:
+	bash deploy/auto-deploy.sh --dry-run
+
+# ── Health & Recovery (OFFICIAL) ─────────────────────────────────────────────
+health:
+	node backend/scripts/healthcheck.js
+
+health-json:
+	node backend/scripts/healthcheck.js --json
+
+recovery:
+	bash backend/scripts/recovery.sh
 
 doctor:
-	bash runtime-doctor.sh
+	@echo "=== PM2 Status ==="
+	@pm2 status 2>/dev/null || echo "PM2 not running"
+	@echo "\n=== Health Check ==="
+	@node backend/scripts/healthcheck.js --json 2>/dev/null | node -e \
+		"const d=require('fs').readFileSync('/dev/stdin','utf8');const j=JSON.parse(d);console.log('Passed:',j.summary.passed,'Failed:',j.summary.failed,'Warned:',j.summary.warned)" \
+		2>/dev/null || curl -s http://localhost:4025/health 2>/dev/null | head -c 200
 
-emergency:
-	bash emergency-restart.sh
+# ── Validation ───────────────────────────────────────────────────────────────
+validate:
+	@echo "=== TypeScript ==="
+	cd frontend-official && npx tsc --noEmit
+	@echo "=== Backend syntax ==="
+	node --check backend/server.js
+	@echo "=== ALL VALID ==="
 
+build-frontend:
+	cd frontend-official && NODE_ENV=development npm ci --legacy-peer-deps && npx vite build
+
+lint-frontend:
+	cd frontend-official && npx tsc --noEmit
+
+lint-backend:
+	node --check backend/server.js
+	@echo "Backend syntax OK"
+
+# ── Rollback ──────────────────────────────────────────────────────────────────
 rollback:
-	bash rollback.sh
+	@echo "Rolling back to previous git commit..."
+	git log --oneline -5
+	@read -p "Enter commit hash to rollback to: " hash; git reset --hard $$hash
+	@pm2 restart backend/ecosystem.config.js --env production --update-env 2>/dev/null || true
+	@echo "Rollback complete. Run: node backend/scripts/healthcheck.js"
 
-ssl:
-	@test -n "$(DOMAIN)" || (echo "Usage: make ssl DOMAIN=your-domain.com EMAIL=admin@domain.com" && exit 1)
-	bash enable-ssl.sh $(DOMAIN) $(EMAIL)
-
-# ── Health ───────────────────────────────────────────────────────────
-health:
-	@echo "=== Health Checks ==="
-	@curl -s -o /dev/null -w "Frontend: %{http_code}\n" http://localhost:3000 || echo "Frontend: FAIL"
-	@curl -s -o /dev/null -w "API: %{http_code}\n" http://localhost:3000/api/health || echo "API: FAIL"
-	@curl -s -o /dev/null -w "WS: %{http_code}\n" http://localhost:3000/socket.io/?EIO=4\&transport=polling || echo "WS: FAIL"
-
-# ── Database ─────────────────────────────────────────────────────────
+# ── Database ─────────────────────────────────────────────────────────────────
 backup:
 	docker exec zapai-postgres pg_dumpall -U zapai > backups/postgres/manual_$(shell date +%Y%m%d_%H%M%S).sql
 	@echo "Backup saved to backups/postgres/"
@@ -73,14 +100,5 @@ psql:
 shell-backend:
 	docker exec -it zapai-backend sh
 
-# ── Frontend ─────────────────────────────────────────────────────────
-build-frontend:
-	cd frontend-official && NODE_ENV=development npm ci --legacy-peer-deps && npx vite build
-
-lint-frontend:
-	cd frontend-official && npx tsc --noEmit
-
-# ── Backend Lint ─────────────────────────────────────────────────────
-lint-backend:
-	node --check backend/server.js
-	@echo "Backend syntax OK"
+migrate:
+	cd backend && node scripts/run-migrations.js
