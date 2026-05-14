@@ -3,7 +3,16 @@ function isPlainObject(value) {
 }
 
 function isEnvelope(value) {
-  return isPlainObject(value) && typeof value.success === 'boolean' && ('data' in value || 'error' in value || 'token' in value);
+  if (!isPlainObject(value)) return false;
+  // Standard envelope: {success: boolean, data?, error?, token?}
+  if (typeof value.success === 'boolean' && ('data' in value || 'error' in value || 'token' in value)) {
+    return true;
+  }
+  // New standardized envelope: {ok: boolean, data?, total?}
+  if (typeof value.ok === 'boolean' && ('data' in value || 'error' in value)) {
+    return true;
+  }
+  return false;
 }
 
 function normalizeErrorMessage(value, fallback = 'Unexpected error.') {
