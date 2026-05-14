@@ -6,16 +6,23 @@ services:
     container_name: zapai-nginx
     restart: unless-stopped
     ports:
-      - "3000:80"
+      - "${NGINX_PORT:-80}:80"
+      # Uncomment to enable HTTPS (requires SSL certs):
       # - "443:443"
     volumes:
-      - ./infrastructure/nginx/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./deploy/nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
       - /etc/letsencrypt:/etc/letsencrypt:ro
       - /var/www/certbot:/var/www/certbot:ro
       - ./frontend-official/dist:/usr/share/nginx/html:ro
     depends_on:
       backend:
         condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget --spider -q http://127.0.0.1/api/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
     logging: &default-logging
       driver: json-file
       options:
@@ -48,7 +55,7 @@ services:
       - postgres_data:/var/lib/postgresql/data
       - ./backups/postgres:/backups
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-zapai} -d ${POSTGRES_DB:-zapai_crm}"]
       interval: 10s
       timeout: 5s
       retries: 15
@@ -82,9 +89,9 @@ services:
     restart: unless-stopped
     environment:
       POSTGRES_HOST: postgres
-      POSTGRES_DB: ${POSTGRES_DB}
-      POSTGRES_USER: ${POSTGRES_USER}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB:-zapai_crm}
+      POSTGRES_USER: ${POSTGRES_USER:-zapai}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-zapadmin123}
       POSTGRES_EXTRA_OPTS: ${POSTGRES_BACKUP_EXTRA_OPTS:--Z9 --schema=public --blobs}
       SCHEDULE: ${BACKUP_SCHEDULE:-@daily}
       BACKUP_KEEP_DAYS: ${BACKUP_KEEP_DAYS:-7}
@@ -123,10 +130,10 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-zapadmin123}
       POSTGRES_DB: ${POSTGRES_DB:-zapai_crm}
       DATABASE_URL: postgresql://${POSTGRES_USER:-zapai}:${POSTGRES_PASSWORD:-zapadmin123}@postgres:5432/${POSTGRES_DB:-zapai_crm}
-      FRONTEND_URL: ${FRONTEND_URL}
-      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS}
-      MASTER_PANEL_TOKEN: ${MASTER_PANEL_TOKEN}
-      NODE_REGISTRATION_TOKEN: ${NODE_REGISTRATION_TOKEN}
+      FRONTEND_URL: ${FRONTEND_URL:-http://localhost}
+      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-http://localhost}
+      MASTER_PANEL_TOKEN: ${MASTER_PANEL_TOKEN:-changeme}
+      NODE_REGISTRATION_TOKEN: ${NODE_REGISTRATION_TOKEN:-changeme}
       JWT_SECRET: ${JWT_SECRET:-zapadmin_secret_key_123456789}
       AUTH_JWT_SECRET: ${AUTH_JWT_SECRET:-zapadmin_secret_key_123456789}
       AUTH_DEFAULT_USERNAME: ${AUTH_DEFAULT_USERNAME:-zapadmin}
@@ -143,6 +150,7 @@ services:
       DEFAULT_COMPANY_ID: ${DEFAULT_COMPANY_ID:-default}
       LOG_LEVEL: ${LOG_LEVEL:-info}
       CRASH_EXIT_ON_UNHANDLED: ${CRASH_EXIT_ON_UNHANDLED:-true}
+      TZ: ${TZ:-America/Sao_Paulo}
     # Not exposed to host — only nginx reaches backend via Docker network
     expose:
       - "4025"
@@ -154,11 +162,12 @@ services:
     volumes:
       - zapai_sessions:/app/sessions
       - zapai_uploads:/app/uploads
-      - ./logs/backend:/app/logs
-      - ./:/workspace
+      - zapai_whatsapp:/app/data
+      - zapai_logs:/app/logs
+      - ./backups:/app/backups
       - /var/run/docker.sock:/var/run/docker.sock
     healthcheck:
-      test: ["CMD-SHELL", "wget --spider -q http://127.0.0.1:4025/health || exit 1"]
+      test: ["CMD-SHELL", "wget --spider -q http://127.0.0.1:4025/api/health || wget --spider -q http://127.0.0.1:4025/health || exit 1"]
       interval: 15s
       timeout: 10s
       retries: 15
@@ -172,7 +181,7 @@ services:
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
     ports:
-      - "8080:8080"
+      - "8888:8080"
     logging: *default-logging
 
 volumes:
@@ -180,3 +189,5 @@ volumes:
   redis_data:
   zapai_sessions:
   zapai_uploads:
+  zapai_whatsapp:
+  zapai_logs:

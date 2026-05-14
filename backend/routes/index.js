@@ -19,6 +19,12 @@ const nodeRouter = require('./nodeMaster');
 const clusterRouter = require('./cluster');
 const campaignDispatchRouter = require('./campaignDispatch');
 
+// ── NEW: Frontend-compatibility routers ──────────────────────────────────────
+const campaignsRouter = require('./campaigns');
+const logsRouter = require('./logs');
+const whatsappRouter = require('./whatsapp');
+const adminUsersRouter = require('./adminUsers');
+
 function registerRoutes(app, options = {}) {
   const requireJwtAuth = options.requireJwtAuth;
   const writeHeavyRateLimiter = options.writeHeavyRateLimiter;
@@ -61,7 +67,9 @@ function registerRoutes(app, options = {}) {
 
   app.use('/', leadsRouter);
   app.use('/', contactsRouter);
+  app.use('/api', contactsRouter);         // ← contacts under /api prefix
   app.use('/', analyticsRouter);
+  app.use('/api', analyticsRouter);        // ← analytics under /api prefix
   app.use('/', automationRouter);
   app.use('/', quickRepliesRouter);
   app.use('/', integrationsRouter);
@@ -80,6 +88,19 @@ function registerRoutes(app, options = {}) {
 
   // Campaign dispatch engine
   app.use('/api', campaignDispatchRouter);
+
+  // ── NEW: Frontend-compatibility endpoints ────────────────────────────────
+  // /api/campaigns — CRUD + launch/pause
+  app.use('/api', campaignsRouter);
+
+  // /api/logs — system log read/export/clear
+  app.use('/api', logsRouter);
+
+  // /api/whatsapp/sessions — aliases for sessionsController
+  app.use('/api/whatsapp', whatsappRouter);
+
+  // /api/admin/users — user CRUD with standardized envelope
+  app.use('/api/admin', adminUsersRouter);
 }
 
 module.exports = {

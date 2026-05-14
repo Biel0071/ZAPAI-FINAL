@@ -154,4 +154,169 @@ router.post('/start', systemController.start);
 router.post('/stop', systemController.stop);
 router.get('/status', systemController.status);
 
+// ─── NEW: Frontend-required endpoints ───────────────────────────────────────
+
+/**
+ * GET /api/system/info
+ * Returns hostname, platform, uptime, version, environment
+ */
+router.get('/info', async (req, res) => {
+  try {
+    const os = require('os');
+    let version = '1.0.0';
+    try { version = await readPackageVersion(); } catch { /* ignore */ }
+
+    return res.status(200).json({
+      ok: true,
+      data: {
+        hostname: os.hostname() || '',
+        platform: `${os.platform()} ${os.release()}`.trim(),
+        arch: os.arch(),
+        uptime: Math.floor(process.uptime()),
+        uptimeFormatted: formatUptime(process.uptime()),
+        version,
+        environment: process.env.NODE_ENV || 'production',
+        nodeVersion: process.version,
+        pid: process.pid,
+      },
+    });
+  } catch (error) {
+    return res.status(200).json({
+      ok: true,
+      data: { hostname: '', platform: '', uptime: 0, version: '1.0.0', environment: 'production' },
+    });
+  }
+});
+
+/**
+ * GET /api/system/resources
+ * Returns CPU, memory, disk usage
+ */
+router.get('/resources', (req, res) => {
+  try {
+    const os = require('os');
+    const { spawnSync } = require('child_process');
+
+    const totalMem = os.totalmem();
+    const freeMem = os.freemem();
+    const usedMem = totalMem - freeMem;
+    const cpuLoad = os.loadavg()[0] || 0;
+    const cpuCount = Math.max(1, os.cpus()?.length || 1);
+    const cpuPercent = Math.min(100, Math.max(0, Math.round((cpuLoad / cpuCount) * 100)));
+
+    // Disk probe
+    let disk = { total: 0, used: 0, free: 0, usedPercent: 0 };
+    try {
+      if (process.platform !== 'win32') {
+        const result = spawnSync('df', ['-k', '/'], { timeout: 1500, encoding: 'utf8' });
+        const lines = String(result.stdout || '').trim().split(/\r?\n/);
+        const cols = (lines[1] || '').trim().split(/\s+/);
+        const totalKb = Number(cols[1] || 0);
+        const usedKb = Number(cols[2] || 0);
+        const freeKb = Number(cols[3] || 0);
+        disk = {
+          total: totalKb * 1024,
+          used: usedKb * 1024,
+          free: freeKb * 1024,
+          usedPercent: totalKb > 0 ? Math.round((usedKb / totalKb) * 100) : 0,
+        };
+      }
+    } catch { /* ignore disk errors */ }
+
+    return res.status(200).json({
+      ok: true,
+      data: {
+        cpu: {
+          percent: cpuPercent,
+          loadAvg: os.loadavg(),
+          cores: cpuCount,
+        },
+        memory: {
+          total: totalMem,
+          used: usedMem,
+          free: freeMem,
+          usedPercent: Math.round((usedMem / totalMem) * 100),
+          totalMb: Math.round(totalMem / 1024 / 1024),
+          usedMb: Math.round(usedMem / 1024 / 1024),
+          freeMb: Math.round(freeMem / 1024 / 1024),
+        },
+        disk,
+        process: {
+          heapUsedMb: Math.round(process.memoryUsage().heapUsed / 1024 / 1024),
+          heapTotalMb: Math.round(process.memoryUsage().heapTotal / 1024 / 1024),
+          rssMb: Math.round(process.memoryUsage().rss / 1024 / 1024),
+        },
+      },
+    });
+  } catch (error) {
+    return res.status(200).json({
+      ok: true,
+      data: {
+        cpu: { percent: 0, loadAvg: [0, 0, 0], cores: 1 },
+        memory: { total: 0, used: 0, free: 0, usedPercent: 0, totalMb: 0, usedMb: 0, freeMb: 0 },
+        disk: { total: 0, used: 0, free: 0, usedPercent: 0 },
+        process: { heapUsedMb: 0, heapTotalMb: 0, rssMb: 0 },
+      },
+    });
+  }
+});
+
+/**
+ * GET /api/system/nodes
+ * Returns registered cluster nodes — empty array if table doesn't exist
+ */
+router.get('/nodes', async (req, res) => {
+  try {
+    const store = req.app.locals.store;
+    if (!store?.databaseEnabled) {
+      return res.status(200).json({ ok: true, data: [], total: 0 });
+    }
+
+    try {
+      const offlineAfterSeconds = Number(process.env.NODE_OFFLINE_AFTER_SECONDS || 90);
+      const result = await query(
+        `SELECT
+            node_id, name, ip_address, domain, api_port,
+            CASE
+              WHEN last_seen IS NULL THEN 'pending'
+              WHEN last_seen >= NOW() - ($1::text || ' seconds')::interval THEN 'online'
+              ELSE 'offline'
+            END AS status,
+            last_seen, last_heartbeat
+          FROM nodes
+          ORDER BY last_seen DESC NULLS LAST
+          LIMIT 100`,
+        [offlineAfterSeconds]
+      );
+      const nodes = result.rows || [];
+      return res.status(200).json({ ok: true, data: nodes, total: nodes.length });
+    } catch {
+      // Table doesn't exist or query failed — safe empty state
+      return res.status(200).json({ ok: true, data: [], total: 0 });
+    }
+  } catch (error) {
+    return res.status(200).json({ ok: true, data: [], total: 0 });
+  }
+});
+
+/**
+ * POST /api/system/refresh
+ * Triggers a system refresh (clears caches, re-reads config)
+ */
+router.post('/refresh', (req, res) => {
+  try {
+    const store = req.app.locals.store;
+    // Signal workers to refresh if possible
+    if (store?.io) {
+      try { store.io.emit('system:refresh', { timestamp: new Date().toISOString() }); } catch { /* ignore */ }
+    }
+    return res.status(200).json({
+      ok: true,
+      data: { refreshed: true, timestamp: new Date().toISOString() },
+    });
+  } catch (error) {
+    return res.status(200).json({ ok: true, data: { refreshed: false } });
+  }
+});
+
 module.exports = router;

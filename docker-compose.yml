@@ -1,0 +1,78 @@
+# ZAPFLOW AI — Docker Compose (Local Development)
+# For production use: docker-compose.production.yml
+
+name: zapai-dev
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: zapai-dev-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: zapai
+      POSTGRES_PASSWORD: zapai_dev_pass
+      POSTGRES_DB: zapai_crm
+    ports:
+      - "5432:5432"
+    volumes:
+      - dev_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U zapai -d zapai_crm"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    container_name: zapai-dev-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - dev_redis_data:/data
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: zapai-dev-backend
+    restart: unless-stopped
+    environment:
+      NODE_ENV: development
+      PORT: 4025
+      DATABASE_URL: postgresql://zapai:zapai_dev_pass@postgres:5432/zapai_crm
+      PGSSLMODE: disable
+      DB_SSL: "false"
+      DB_RUN_MIGRATIONS_ON_BOOT: "true"
+      REDIS_URL: redis://redis:6379
+      JWT_SECRET: dev_jwt_secret_change_me
+      AUTH_JWT_SECRET: dev_jwt_secret_change_me
+      AUTH_DEFAULT_USERNAME: admin
+      AUTH_DEFAULT_PASSWORD: admin123
+      AUTH_DEFAULT_ROLE: master_admin
+      AUTH_DEFAULT_TENANT_ID: default
+      DEFAULT_COMPANY_ID: default
+      LOG_LEVEL: debug
+      FRONTEND_URL: http://localhost:8080
+      CORS_ALLOWED_ORIGINS: http://localhost:8080,http://localhost:5173
+    ports:
+      - "4025:4025"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - ./backend:/app
+      - /app/node_modules
+      - dev_sessions:/app/sessions
+    command: ["node", "server.js"]
+    healthcheck:
+      test: ["CMD-SHELL", "wget --spider -q http://127.0.0.1:4025/api/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+volumes:
+  dev_postgres_data:
+  dev_redis_data:
+  dev_sessions:

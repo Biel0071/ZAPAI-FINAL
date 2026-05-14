@@ -31,6 +31,19 @@ export default defineConfig(({ mode }) => {
     hmr: {
       overlay: false,
     },
+    proxy: {
+      // In DEV mode, proxy /api to the local backend to avoid CORS
+      '/api': {
+        target: 'http://localhost:4025',
+        changeOrigin: true,
+        secure: false,
+      },
+      '/socket.io': {
+        target: 'http://localhost:4025',
+        changeOrigin: true,
+        ws: true,
+      },
+    },
   },
   plugins: [
     react(),
