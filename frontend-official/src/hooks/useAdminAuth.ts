@@ -100,7 +100,7 @@ async function verifyCredentials(
           headers: {
             Accept: "application/json",
             "Content-Type": "application/json",
-            "x-tenant-id": "main",
+            "x-tenant-id": "default",
             "ngrok-skip-browser-warning": "true",
           },
           body: JSON.stringify(requestBody),
@@ -135,17 +135,7 @@ async function verifyCredentials(
   };
 
   const invoke = async () => {
-    const { supabase } = await import("@/integrations/supabase/client");
-    const { data, error } = await supabase.functions.invoke("admin-auth", {
-      body: {
-        username,
-        password,
-      },
-    });
-
-    if (error) throw new Error(error.message || "Falha ao validar credenciais.");
-    const parsed = parseAuthPayload(data);
-    return parsed;
+    throw new Error("Backend de autenticação indisponível no ambiente atual.");
   };
 
   const timeout = new Promise<never>((_, reject) => {
@@ -156,7 +146,8 @@ async function verifyCredentials(
     (async () => {
       try {
         return await tryBackendLogin();
-      } catch {
+      } catch (error) {
+        console.warn("[Login] Backend auth failed:", error);
         return invoke();
       }
     })(),

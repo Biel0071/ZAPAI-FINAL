@@ -787,54 +787,32 @@ export const apiService = {
   },
 
   async getSessionStatus(): Promise<SessionStatusResponse> {
-    const endpoints = ["/status-whatsapp", "/api/status-whatsapp", "/api/session-status", "/session-status", "/sessions"];
+    const payload = await request<unknown>({ endpoint: "/api/session-status", method: "GET" });
 
-    for (const endpoint of endpoints) {
-      try {
-        const payload = await request<unknown>({ endpoint, method: "GET" });
+    if (Array.isArray(payload)) {
+      const sessions = payload.map((item, index) => normalizeSessionInfo((item ?? {}) as RawSession, index));
+      return {
+        connected: sessions.some(isSessionConnected),
+        lastUpdate: Date.now(),
+      };
+    }
 
-        if (Array.isArray(payload)) {
-          const sessions = payload.map((item, index) => normalizeSessionInfo((item ?? {}) as RawSession, index));
-          return {
-            connected: sessions.some(isSessionConnected),
-            lastUpdate: Date.now(),
-          };
-        }
+    if (payload && typeof payload === "object") {
+      const raw = payload as Record<string, unknown>;
+      const connectedFromStatus = resolveConnectedFromStatusPayload(raw);
+      if (connectedFromStatus !== null) {
+        return {
+          connected: connectedFromStatus,
+          lastUpdate: typeof raw.lastUpdate === "number" ? raw.lastUpdate : Date.now(),
+        };
+      }
 
-        if (payload && typeof payload === "object") {
-          const raw = payload as Record<string, unknown>;
-          const connectedFromStatus = resolveConnectedFromStatusPayload(raw);
-          if (connectedFromStatus !== null) {
-            return {
-              connected: connectedFromStatus,
-              lastUpdate: typeof raw.lastUpdate === "number" ? raw.lastUpdate : Date.now(),
-            };
-          }
-
-          const connected =
-            typeof raw.connected === "boolean"
-              ? raw.connected
-              : typeof raw.status === "string"
-                ? ["connected", "online", "active", "open", "running"].includes(raw.status.toLowerCase())
-                : false;
-
-          if (connected) {
-            return {
-              connected: true,
-              lastUpdate: typeof raw.lastUpdate === "number" ? raw.lastUpdate : Date.now(),
-            };
-          }
-
-          const sessions = parseSessionStatusPayload(raw).map(normalizeSessionInfo);
-          if (sessions.length > 0) {
-            return {
-              connected: sessions.some(isSessionConnected),
-              lastUpdate: Date.now(),
-            };
-          }
-        }
-      } catch {
-        // tenta próximo endpoint
+      const sessions = parseSessionStatusPayload(raw).map(normalizeSessionInfo);
+      if (sessions.length > 0) {
+        return {
+          connected: sessions.some(isSessionConnected),
+          lastUpdate: Date.now(),
+        };
       }
     }
 
@@ -880,43 +858,9 @@ export const apiService = {
       before: options?.before,
     });
 
-    const fallbackEndpoints = [
-      withQuery(`/api/messages/${encodeURIComponent(conversationId)}`, {
-        limit: options?.limit,
-        before: options?.before,
-      }),
-      withQuery("/messages", {
-        conversationId,
-        limit: options?.limit,
-        before: options?.before,
-      }),
-    ];
-
-    const tryEndpoint = async (endpoint: string) => {
-      const data = await request<RawMessage[] | { messages?: RawMessage[] }>({ endpoint, method: "GET" });
-      const entries = Array.isArray(data) ? data : Array.isArray(data?.messages) ? data.messages : [];
-      return entries.map((item, index) => normalizeMessage(item, index, String(conversationId)));
-    };
-
-    try {
-      const result = await tryEndpoint(primaryEndpoint);
-      if (result.length > 0) return result;
-    } catch {
-      // tenta fallbacks
-    }
-
-    for (const endpoint of fallbackEndpoints) {
-      try {
-        const result = await tryEndpoint(endpoint);
-        if (result.length > 0) return result;
-      } catch {
-        // próximo
-      }
-    }
-
-    // Nenhum endpoint trouxe mensagens — devolve [] em vez de lançar,
-    // para o Inbox exibir "sem mensagens" em vez de erro.
-    return [];
+    const data = await request<RawMessage[] | { messages?: RawMessage[] }>({ endpoint: primaryEndpoint, method: "GET" });
+    const entries = Array.isArray(data) ? data : Array.isArray(data?.messages) ? data.messages : [];
+    return entries.map((item, index) => normalizeMessage(item, index, String(conversationId)));
   },
 
   async sendMessage(payload: { phone: string; text: string; conversationId?: string; contactId?: string; sessionId?: string }) {
@@ -1196,23 +1140,8 @@ export const apiService = {
   createSession: (sessionId: string) =>
     request<{ success?: boolean; sessionId?: string; qr?: string }>({ endpoint: "/sessions/create", method: "POST", body: { sessionId: normalizeSessionName(sessionId) } }),
   async listSessions() {
-    const endpoints = ["/api/session-status"];
-    for (const endpoint of endpoints) {
-      try {
-        const data = await request<unknown>({ endpoint, method: "GET" });
-        if (endpoint.includes("admin/master/overview") || endpoint.includes("/api/dashboard")) {
-          const raw = data as Record<string, unknown>;
-          const candidate = raw.sessions ?? (raw.data as Record<string, unknown> | undefined)?.sessions ?? [];
-          return parseSessionStatusPayload(candidate).map(normalizeSessionInfo);
-        }
-        return parseSessionStatusPayload(data).map(normalizeSessionInfo);
-      } catch (error) {
-        if (!is404Error(error)) throw error;
-        // try next endpoint
-      }
-    }
-
-    throw new Error("Falha ao carregar sessões");
+    const data = await request<unknown>({ endpoint: "/api/session-status", method: "GET" });
+    return parseSessionStatusPayload(data).map(normalizeSessionInfo);
   },
   deleteSession: (sessionId: string) =>
     request<{ success?: boolean }>({ endpoint: `/session/${encodeURIComponent(normalizeSessionName(sessionId))}`, method: "DELETE" }),
@@ -1220,6 +1149,6 @@ export const apiService = {
     request<{ success?: boolean }>({ endpoint: `/sessions/${encodeURIComponent(normalizeSessionName(sessionId))}`, method: "DELETE" }),
 };
 
-export async function requestApiEndpoint<T>(endpoint: string, method: "GET" | "POST" = "GET", body?: unknown): Promise<T> {
-  return request<T>({ endpoint, method, body: body as Record<string, unknown> | undefined });
+export async function requestApiEndpoint<T>(endpoint: string, method: "GET" | "POST" | "PUT" | "PATCH" | "DELETE" = "GET", body?: unknown): Promise<T> {
+  return request<T>({ endpoint, method: method as ProxyRequest["method"], body: body as Record<string, unknown> | undefined });
 }

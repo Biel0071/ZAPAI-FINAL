@@ -69,9 +69,18 @@ export default function Contacts() {
   const loadContacts = useCallback(async () => {
     try {
       setError(null);
-      const conversations = await apiService.getConversations(true);
-      const normalized = (Array.isArray(conversations) ? conversations : []).map(normalizeConversationToContact);
-      
+      const contactsData = await apiService.getContacts(true);
+      const normalized = (Array.isArray(contactsData) ? contactsData : []).map((contact) => ({
+        id: contact.id,
+        name: contact.name || contact.phone || "Contato",
+        phone: contact.phone || "",
+        lastMessage: "",
+        updatedAt: new Date().toISOString(),
+        unread: 0,
+        isGroup: false,
+        tags: [],
+      }));
+
       // Dedupe by phone
       const byPhone = new Map<string, ContactRow>();
       normalized.forEach((c) => {

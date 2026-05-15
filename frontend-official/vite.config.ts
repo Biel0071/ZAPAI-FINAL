@@ -31,6 +31,33 @@ export default defineConfig(({ mode }) => {
     hmr: {
       overlay: false,
     },
+    proxy: {
+      "/api": {
+        target: env.VITE_API_URL?.trim() || "http://127.0.0.1:4025",
+        changeOrigin: true,
+      },
+      "/auth": {
+        target: env.VITE_API_URL?.trim() || "http://127.0.0.1:4025",
+        changeOrigin: true,
+      },
+      "/socket.io": {
+        target: env.VITE_API_URL?.trim() || "http://127.0.0.1:4025",
+        changeOrigin: true,
+        ws: true,
+      },
+      "/media": {
+        target: env.VITE_API_URL?.trim() || "http://127.0.0.1:4025",
+        changeOrigin: true,
+      },
+      "/upload": {
+        target: env.VITE_API_URL?.trim() || "http://127.0.0.1:4025",
+        changeOrigin: true,
+      },
+      "/uploads": {
+        target: env.VITE_API_URL?.trim() || "http://127.0.0.1:4025",
+        changeOrigin: true,
+      },
+    },
   },
   plugins: [
     react(),

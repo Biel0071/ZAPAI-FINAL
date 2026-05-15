@@ -1041,7 +1041,7 @@ export default function Inbox() {
   const [error, setError] = useState<string | null>(null);
   const [backendOnline, setBackendOnline] = useState(true);
   const [isRealtimeConnected, setIsRealtimeConnected] = useState(false);
-  const [publicApiUrl, setPublicApiUrl] = useState<string | null>(null);
+  const socketUrl = (API_ORIGIN || (typeof window !== "undefined" ? window.location.origin : "")).trim() || null;
   const [isWhatsappConnected, setIsWhatsappConnected] = useState(false);
   const [hasMoreMessages, setHasMoreMessages] = useState(false);
   const [pendingBackgroundUpdates, setPendingBackgroundUpdates] = useState(0);
@@ -1402,9 +1402,8 @@ export default function Inbox() {
       setConversationsLoadFailed(false);
 
       try {
-        const [conversationsResult, publicUrlResult, sessionsResult] = await Promise.allSettled([
+        const [conversationsResult, sessionsResult] = await Promise.allSettled([
           apiService.getConversations(false, { limit: CONVERSATIONS_PAGE_SIZE }),
-          apiService.getPublicUrl(),
           apiService.listSessions(),
         ]);
 
@@ -1413,7 +1412,6 @@ export default function Inbox() {
         }
 
         const conversationsData = conversationsResult.value;
-        const publicUrlData = publicUrlResult.status === "fulfilled" ? publicUrlResult.value : { publicUrl: "" };
         const sessionsData = sessionsResult.status === "fulfilled" ? sessionsResult.value : [];
         const persistedConversations = loadPersistedConversations();
         const combinedConversations = [...persistedConversations, ...conversationsData];
@@ -1424,7 +1422,6 @@ export default function Inbox() {
         const normalizedConversations = dedupeConversationsByScope(combinedConversations, mergedDirectory);
         setConversations(normalizedConversations);
         markBackendOnline();
-        setPublicApiUrl(publicUrlData.publicUrl?.trim() || null);
         setSessions(Array.isArray(sessionsData) ? sessionsData : []);
         setSelectedConversationId((currentId) => {
           if (currentId && normalizedConversations.some((conversation) => normalizeId(conversation.id) === normalizeId(currentId))) {
@@ -1444,7 +1441,7 @@ export default function Inbox() {
       } catch (err) {
         markBackendOffline(err);
         setConversationsLoadFailed(true);
-        const message = "Não foi possível atualizar as conversas. Mantendo os últimos dados em tela.";
+        const message = "Não foi possível atualizar as conversas. Verifique backend e banco de dados local; os últimos dados em tela serão mantidos quando disponíveis.";
         setError(message);
         showErrorToast(message);
       } finally {
@@ -1875,12 +1872,12 @@ export default function Inbox() {
   }, [conversationControls, messages, selectedConversation]);
 
   useEffect(() => {
-    if (!publicApiUrl) return;
+    if (!socketUrl) return;
 
     // websocket-first: do not force backend refresh after each realtime event
 
     const disconnect = connectInboxSocket({
-      socketUrl: publicApiUrl,
+      socketUrl,
       onNewMessage: (incoming) => {
         if (isProcessingRealtimeRef.current) return;
         isProcessingRealtimeRef.current = true;
@@ -2361,7 +2358,7 @@ export default function Inbox() {
     });
 
     return () => disconnect();
-  }, [clearPendingFallbackTimersForTempId, publicApiUrl, updateConversationMessageStore]);
+  }, [clearPendingFallbackTimersForTempId, socketUrl, updateConversationMessageStore]);
 
   useEffect(() => {
     const intervalId = window.setInterval(() => {
@@ -3414,7 +3411,7 @@ export default function Inbox() {
             ) : filteredConversations.length === 0 ? (
               conversationsLoadFailed ? (
                 <div className="rounded-lg border border-border bg-card p-4 text-center">
-                  <p className="text-sm text-muted-foreground">Falha ao carregar conversas.</p>
+                  <p className="text-sm text-muted-foreground">Falha ao carregar conversas. O backend está online, mas o banco local pode estar indisponível.</p>
                   <Button type="button" variant="outline" size="sm" className="mt-3" onClick={() => void handleRetryConversations()}>
                     Tentar novamente
                   </Button>

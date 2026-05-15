@@ -1,8 +1,21 @@
-# ✅ ZapFlow Runtime Management System - COMPLETE
+# Runtime local e modo Docker/VPS
 
-## Implementation Status: 100% Complete ✅
+Este projeto possui dois modos suportados e eles não devem ser confundidos.
 
-A comprehensive runtime management system has been successfully implemented to prevent frontend disconnection errors and ensure automatic recovery from ngrok/server failures.
+## Modo local oficial
+- Frontend: `frontend-official` via Vite em `http://localhost:8080`
+- Backend: `backend/server.js` em `http://127.0.0.1:4025`
+- Banco: PostgreSQL acessível pelo host como `localhost:5432`
+- Neste modo, **não** use `postgres` como hostname do banco.
+
+## Modo Docker/VPS-like
+- Stack via `docker-compose.production.yml`
+- Banco e Redis dentro da rede Docker
+- Neste modo, o hostname `postgres` é válido para o backend dentro dos containers
+
+## Regra prática
+- Backend rodando direto no host → `DATABASE_URL` deve apontar para `localhost`
+- Backend rodando no compose → `DATABASE_URL` pode apontar para `postgres`
 
 ---
 

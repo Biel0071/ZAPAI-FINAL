@@ -25,19 +25,9 @@ function resolveRoleFromAdminSession(): AppUserRole | null {
   return normalizeRole(adminSession.role);
 }
 
-async function resolveSupabaseSession(): Promise<{ session: unknown | null }> {
-  try {
-    const { supabase } = await import("@/integrations/supabase/client");
-    const { data } = await Promise.race([
-      supabase.auth.getSession(),
-      new Promise<never>((_, reject) => {
-        window.setTimeout(() => reject(new Error("session_timeout")), 3500);
-      }),
-    ]);
-    return { session: data?.session ?? null };
-  } catch {
-    return { session: null };
-  }
+async function resolveBackendSessionRole(): Promise<{ role: AppUserRole | null }> {
+  const adminRole = resolveRoleFromAdminSession();
+  return { role: adminRole };
 }
 
 export function useUserRole() {
@@ -70,27 +60,10 @@ export function useUserRole() {
         try {
           publishRoleSnapshot({ role: roleSnapshot.role, isLoading: true });
 
-          // Priority 1: Check the admin auth session (backend JWT)
-          const adminRole = resolveRoleFromAdminSession();
-          if (adminRole) {
-            publishRoleSnapshot({ role: adminRole, isLoading: false });
+          const { role } = await resolveBackendSessionRole();
+          if (role) {
+            publishRoleSnapshot({ role, isLoading: false });
             return;
-          }
-
-          // Priority 2: Try Supabase session (if configured)
-          const { session } = await resolveSupabaseSession();
-          if (session && typeof session === "object") {
-            const s = session as Record<string, unknown>;
-            const user = s.user as Record<string, unknown> | null;
-            const sessionRole =
-              (user?.app_metadata as Record<string, unknown>)?.role ??
-              (user?.user_metadata as Record<string, unknown>)?.role ??
-              (user?.app_metadata as Record<string, unknown>)?.profile;
-
-            if (sessionRole) {
-              publishRoleSnapshot({ role: normalizeRole(sessionRole), isLoading: false });
-              return;
-            }
           }
 
           publishRoleSnapshot({ role: "user", isLoading: false });
