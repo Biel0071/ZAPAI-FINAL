@@ -447,7 +447,10 @@ async function request<T>({ endpoint, method, body, timeoutMs = REQUEST_TIMEOUT_
       }
 
       if (parsed && typeof parsed === "object" && "error" in (parsed as Record<string, unknown>)) {
-        throw new Error(String((parsed as Record<string, unknown>).error ?? "Request failed"));
+        const errorValue = (parsed as Record<string, unknown>).error;
+        if (typeof errorValue === "string" && errorValue.trim()) {
+          throw new Error(errorValue);
+        }
       }
 
       slog.apiRequest(endpoint, response.status);
@@ -1147,6 +1150,12 @@ export const apiService = {
     request<{ success?: boolean }>({ endpoint: `/session/${encodeURIComponent(normalizeSessionName(sessionId))}`, method: "DELETE" }),
   removeSession: (sessionId: string) =>
     request<{ success?: boolean }>({ endpoint: `/sessions/${encodeURIComponent(normalizeSessionName(sessionId))}`, method: "DELETE" }),
+  patchConversation: (conversationId: string, payload: { status?: string; lead_temperature?: string; funnel_stage?: string; tags?: string[] }) =>
+    request<Record<string, unknown>>({ endpoint: `/api/conversations/${encodeURIComponent(conversationId)}`, method: "PATCH", body: payload }),
+  deleteMessage: (messageId: string) =>
+    request<{ success?: boolean; messageId?: string }>({ endpoint: `/api/messages/${encodeURIComponent(messageId)}`, method: "DELETE" }),
+  forwardMessage: (messageId: string, payload: { phone: string; conversationId?: string; sessionId?: string }) =>
+    request<Record<string, unknown>>({ endpoint: `/api/messages/${encodeURIComponent(messageId)}/forward`, method: "POST", body: payload }),
 };
 
 export async function requestApiEndpoint<T>(endpoint: string, method: "GET" | "POST" | "PUT" | "PATCH" | "DELETE" = "GET", body?: unknown): Promise<T> {

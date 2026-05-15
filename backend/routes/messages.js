@@ -10,6 +10,8 @@ router.get('/messages/by-phone/:phone', messagesController.getMessagesByPhone);
 router.get('/messages/:chatId', messagesController.getMessagesByChatId);
 router.get('/conversations/:conversationId/messages', messagesController.getMessagesByConversationId);
 router.post('/messages', messagesController.createMessage);
+router.delete('/messages/:messageId', messagesController.deleteMessage);
+router.post('/messages/:messageId/forward', messagesController.forwardMessage);
 router.post('/send-message', messagesController.sendMessage);
 router.post('/send-media', messagesController.sendMedia);
 router.post('/receive-message', messagesController.receiveMessage);

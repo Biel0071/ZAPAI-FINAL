@@ -246,6 +246,56 @@ async function updateConversationAI(req, res) {
   }
 }
 
+async function updateConversationMeta(req, res) {
+  const { conversationId } = req.params;
+  const body = req.body || {};
+  const updates = {};
+
+  if (typeof body.status === 'string' && body.status.trim()) {
+    updates.status = body.status.trim();
+  }
+
+  if (typeof body.lead_temperature === 'string' && body.lead_temperature.trim()) {
+    updates.lead_temperature = body.lead_temperature.trim();
+  }
+
+  if (typeof body.funnel_stage === 'string' && body.funnel_stage.trim()) {
+    updates.funnel_stage = body.funnel_stage.trim();
+  }
+
+  if (Array.isArray(body.tags)) {
+    updates.tags = body.tags.map((entry) => String(entry).trim()).filter(Boolean);
+  }
+
+  if (!Object.keys(updates).length) {
+    return res.status(400).json({ error: 'No supported conversation fields were provided.' });
+  }
+
+  try {
+    const conversation = await conversationRepository.updateConversationState(String(conversationId || ''), updates);
+
+    if (!conversation) {
+      return res.status(404).json({ error: 'Conversation not found.' });
+    }
+
+    const store = req.app.locals.store;
+    if (store?.conversations) {
+      const index = store.conversations.findIndex((item) => String(item.id) === String(conversation.id));
+      if (index >= 0) {
+        store.conversations[index] = conversation;
+      } else {
+        store.conversations.push(conversation);
+      }
+    }
+
+    emitConversationUpdated(store, conversation);
+
+    return res.status(200).json(toConversationStateWithRuntime(store, conversation));
+  } catch (error) {
+    return res.status(500).json({ error: error.message || 'Failed to update conversation metadata.' });
+  }
+}
+
 async function createConversation(req, res) {
   const { companyId, name, phone, sessionId, text } = req.body || {};
   const targetSessionId = sessionManager.normalizeSessionName(sessionId || getRequestedSessionId(req) || 'main');
@@ -692,4 +742,5 @@ module.exports = {
   setConversationHandoff,
   updateTypingState,
   updateConversationAI,
+  updateConversationMeta,
 };

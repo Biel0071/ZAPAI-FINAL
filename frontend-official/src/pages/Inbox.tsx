@@ -24,6 +24,10 @@ import {
 } from "@phosphor-icons/react";
 import { Header } from "@/components/layout/Header";
 import { useNavigate } from "react-router-dom";
+import { ChatHeaderBar } from "@/components/inbox/ChatHeaderBar";
+import { ChatSearchBar } from "@/components/inbox/ChatSearchBar";
+import { NewMessagesBanner } from "@/components/inbox/NewMessagesBanner";
+import { OperationalStatusBadge } from "@/components/enterprise/OperationalStatusBadge";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -106,6 +110,7 @@ type PreviewMediaState = {
 type MessageCacheEntry = {
   messages: ChatMessage[];
   hasMore: boolean;
+  oldestCursor: string | null;
   cachedAt: number;
 };
 
@@ -142,6 +147,38 @@ function normalizeConversationTimestamp(value?: string): number {
 
 function normalizeId(id: unknown): string {
   return String(id ?? "").trim();
+}
+
+function normalizePhoneKey(phone: unknown): string {
+  return String(phone ?? "").trim().toLowerCase();
+}
+
+function getConversationKey(conversation: Partial<Conversation> & { conversationId?: unknown; remoteJid?: unknown; jid?: unknown; chatId?: unknown }) {
+  const preferredId = normalizeId(conversation.id) || normalizeId(conversation.conversationId);
+  if (preferredId) return preferredId;
+
+  const phone = normalizePhoneKey(conversation.phone);
+  const sessionId = normalizeId(conversation.sessionId);
+  if (phone && sessionId) return `${sessionId}:${phone}`;
+
+  const jid = normalizeId(conversation.chatId) || normalizeId(conversation.remoteJid) || normalizeId(conversation.jid);
+  if (jid) return jid;
+
+  return phone || sessionId || "unknown-conversation";
+}
+
+function getMessageConversationKey(message: Partial<ChatMessage> & { sessionId?: unknown; phone?: unknown; remoteJid?: unknown; jid?: unknown; chatId?: unknown; conversationId?: unknown }) {
+  const preferredId = normalizeId(message.conversationId);
+  if (preferredId) return preferredId;
+
+  const phone = normalizePhoneKey(message.phone);
+  const sessionId = normalizeId(message.sessionId);
+  if (phone && sessionId) return `${sessionId}:${phone}`;
+
+  const jid = normalizeId(message.chatId) || normalizeId(message.remoteJid) || normalizeId(message.jid);
+  if (jid) return jid;
+
+  return phone || sessionId || "unknown-conversation";
 }
 
 function toConversationDateLabel(value?: string): string {
@@ -233,11 +270,32 @@ function mergeMessagesById(base: ChatMessage[], incoming: ChatMessage[]): ChatMe
   return [...base, ...appended];
 }
 
+function getMessageDisplayContent(message: Partial<ChatMessage> & { text?: string; body?: string; message?: string; caption?: string; mediaType?: string }) {
+  const directText = [message.content, message.text, message.body, message.message, message.caption]
+    .map((value) => (typeof value === "string" ? value.trim() : ""))
+    .find((value) => value.length > 0);
+
+  if (directText) return directText;
+
+  switch (message.mediaType) {
+    case "image":
+      return "[imagem]";
+    case "video":
+      return "[vídeo]";
+    case "audio":
+      return "[áudio]";
+    case "file":
+      return "[arquivo]";
+    default:
+      return "Mensagem sem conteúdo";
+  }
+}
+
 function normalizeLoadedMessage(message: ChatMessage, conversationId: string, index: number): ChatMessage {
   return {
     ...message,
     id: normalizeId(message.id) || `message-${Date.now()}-${index}`,
-    content: String(message.content ?? "") || String((message as ChatMessage & { text?: string }).text ?? ""),
+    content: getMessageDisplayContent(message as ChatMessage & { text?: string; body?: string; message?: string; caption?: string }),
     conversationId: normalizeId(message.conversationId) || normalizeId(conversationId),
     createdAt: normalizeId(message.createdAt) || normalizeId(message.timestamp) || new Date().toISOString(),
   };
@@ -801,8 +859,7 @@ const MessageBubble = memo(function MessageBubble({
   }, [hasRenderableMedia, mediaUrl, message]);
 
   const hasCaption = Boolean(message.caption?.trim());
-  const textContent = hasCaption ? message.caption ?? "" : message.content;
-  const safeTextContent = textContent?.trim() ? textContent : "Mensagem vazia";
+  const safeTextContent = getMessageDisplayContent(message as ChatMessage & { text?: string; body?: string; message?: string; caption?: string });
 
   return (
     <div className={cn("flex", message.fromMe && "justify-end")}>
@@ -1099,7 +1156,7 @@ export default function Inbox() {
   const recordingStreamRef = useRef<MediaStream | null>(null);
   const recordedChunksRef = useRef<Blob[]>([]);
   const summaryBusyRef = useRef(false);
-  const activeMessageRequestRef = useRef<number | null>(null);
+  const activeMessageRequestRef = useRef<Map<string, number>>(new Map());
   const messageCacheRef = useRef<Map<string, MessageCacheEntry>>(new Map());
   const messageIdsRef = useRef<Set<string>>(new Set());
   const pendingOutgoingTempIdsRef = useRef<Map<string, string[]>>(new Map());
@@ -1135,10 +1192,13 @@ export default function Inbox() {
     const linkedConversation =
       conversationsRef.current.find((item) => String(item.id) === normalizedConversationId) ??
       (String(selectedConversationRef.current?.id ?? "") === normalizedConversationId ? selectedConversationRef.current : null);
+    const conversationKey = getConversationKey(linkedConversation ?? { id: normalizedConversationId });
+    const oldestCursor = nextMessages.length > 0 ? String(nextMessages[0]?.createdAt ?? nextMessages[0]?.timestamp ?? "") || null : null;
 
-    messageCacheRef.current.set(normalizedConversationId, {
+    messageCacheRef.current.set(conversationKey, {
       messages: nextMessages,
       hasMore,
+      oldestCursor,
       cachedAt: Date.now(),
     });
 
@@ -1173,6 +1233,10 @@ export default function Inbox() {
   const selectedConversation = useMemo(
     () => conversations.find((conversation) => normalizeId(conversation.id) === normalizeId(selectedConversationId)) ?? null,
     [conversations, selectedConversationId],
+  );
+  const selectedConversationKey = useMemo(
+    () => (selectedConversation ? getConversationKey(selectedConversation) : null),
+    [selectedConversation],
   );
 
   // Persist right-panel collapsed state
@@ -1495,7 +1559,8 @@ export default function Inbox() {
       const conversationMeta =
         conversationsRef.current.find((item) => normalizeId(item.id) === normalizeId(normalizedConversationId)) ??
         (normalizeId(selectedConversationRef.current?.id) === normalizeId(normalizedConversationId) ? selectedConversationRef.current : null);
-      const cached = messageCacheRef.current.get(normalizedConversationId);
+      const conversationKey = getConversationKey(conversationMeta ?? { id: normalizedConversationId });
+      const cached = messageCacheRef.current.get(conversationKey);
       const persisted = loadPersistedConversationMessages({
         conversationId: normalizedConversationId,
         sessionId: conversationMeta?.sessionId,
@@ -1505,20 +1570,24 @@ export default function Inbox() {
         .filter((item) => normalizeId(item.conversationId) === normalizeId(normalizedConversationId));
 
       if (!options?.force && cached && Date.now() - cached.cachedAt < MESSAGE_CACHE_TTL_MS) {
-        setMessages(cached.messages);
-        setHasMoreMessages(cached.hasMore);
+        if (normalizeId(selectedConversationRef.current?.id) === normalizeId(normalizedConversationId)) {
+          setMessages(cached.messages);
+          setHasMoreMessages(cached.hasMore);
+        }
         return;
       }
 
       if (!cached && persisted.length > 0) {
         const sortedPersisted = sortMessagesAsc(persisted);
-        setMessages(sortedPersisted);
-        setHasMoreMessages(sortedPersisted.length >= MESSAGE_PAGE_SIZE);
+        if (normalizeId(selectedConversationRef.current?.id) === normalizeId(normalizedConversationId)) {
+          setMessages(sortedPersisted);
+          setHasMoreMessages(sortedPersisted.length >= MESSAGE_PAGE_SIZE);
+        }
         updateConversationMessageStore(normalizedConversationId, sortedPersisted, sortedPersisted.length >= MESSAGE_PAGE_SIZE);
       }
 
       const requestId = Date.now();
-      activeMessageRequestRef.current = requestId;
+      activeMessageRequestRef.current.set(normalizedConversationId, requestId);
       const shouldShowLoading = !options?.background && !(cached?.messages.length || persisted.length);
       if (shouldShowLoading) {
         setLoadingMessages(true);
@@ -1529,7 +1598,7 @@ export default function Inbox() {
       try {
         const data = await apiService.getMessages(normalizedConversationId, { limit: MESSAGE_PAGE_SIZE });
         markBackendOnline();
-        if (activeMessageRequestRef.current !== requestId) return;
+        if (activeMessageRequestRef.current.get(normalizedConversationId) !== requestId) return;
 
         const normalizedData = Array.isArray(data)
           ? data.map((item, index) => normalizeLoadedMessage(item, normalizedConversationId, index))
@@ -1556,26 +1625,28 @@ export default function Inbox() {
           return;
         }
 
-        setMessages((prev) => {
-          if (!Array.isArray(data)) return prev;
-          return mergedWithCache;
-        });
-        setHasMoreMessages(hasMore);
-        setPendingBackgroundUpdates(0);
-        setMessagesLoadFailed(false);
+        if (normalizeId(selectedConversationRef.current?.id) === normalizeId(normalizedConversationId)) {
+          setMessages((prev) => {
+            if (!Array.isArray(data)) return prev;
+            return mergedWithCache;
+          });
+          setHasMoreMessages(hasMore);
+          setPendingBackgroundUpdates(0);
+          setMessagesLoadFailed(false);
+        }
         updateConversationMessageStore(normalizedConversationId, mergedWithCache, hasMore);
 
         void hydrateConversationHistoryForAnalysis(normalizedConversationId, sorted);
       } catch (err) {
         markBackendOffline(err);
-        if (activeMessageRequestRef.current !== requestId) return;
+        if (activeMessageRequestRef.current.get(normalizedConversationId) !== requestId) return;
         setMessagesLoadFailed(true);
         const message = "Falha ao carregar mensagens agora. Você pode tentar novamente.";
         setError(message);
         showErrorToast(message);
       } finally {
-        if (activeMessageRequestRef.current === requestId) {
-          activeMessageRequestRef.current = null;
+        if (activeMessageRequestRef.current.get(normalizedConversationId) === requestId) {
+          activeMessageRequestRef.current.delete(normalizedConversationId);
           setLoadingMessages(false);
         }
       }
@@ -1604,7 +1675,7 @@ export default function Inbox() {
 
     // Instead of clearing to [], try to hydrate from cache/persisted immediately
     const normalizedId = String(selectedConversation.id);
-    const cached = messageCacheRef.current.get(normalizedId);
+    const cached = messageCacheRef.current.get(getConversationKey(selectedConversation));
     if (cached && cached.messages.length > 0) {
       setMessages(cached.messages);
       setHasMoreMessages(cached.hasMore);
@@ -1626,12 +1697,16 @@ export default function Inbox() {
       } else {
         setMessages([]);
         setHasMoreMessages(false);
+        setLoadingMessages(true);
         messageIdsRef.current = new Set();
       }
     }
 
     setPendingBackgroundUpdates(0);
     setUnseenRealtimeCount(0);
+    setActiveMessageMenuId(null);
+    setActiveReactionPickerMessageId(null);
+    setReplyingTo(null);
   }, [loadConversationMessages, selectedConversation?.id]);
 
   useEffect(() => {
@@ -1642,7 +1717,8 @@ export default function Inbox() {
 
     const pollMessages = async () => {
       if (!isMounted || isPolling) return;
-      if (activeMessageRequestRef.current !== null) return;
+      const activeId = String(selectedConversationRef.current?.id ?? "");
+      if (activeId && activeMessageRequestRef.current.has(activeId)) return;
       isPolling = true;
       try {
         await loadConversationMessages(selectedConversation.id, { force: true });
@@ -1700,7 +1776,8 @@ export default function Inbox() {
 
     setLoadingOlderMessages(true);
     try {
-      const before = messages[0]?.createdAt;
+      const cacheKey = selectedConversation ? getConversationKey(selectedConversation) : null;
+      const before = (cacheKey ? messageCacheRef.current.get(cacheKey)?.oldestCursor : null) || messages[0]?.createdAt;
       const olderBatch = await apiService.getMessages(selectedConversation.id, {
         limit: MESSAGE_PAGE_SIZE,
         before,
@@ -1746,6 +1823,10 @@ export default function Inbox() {
     const onScroll = () => {
       autoScrollRef.current = isViewportNearBottom(viewport);
       if (autoScrollRef.current) setUnseenRealtimeCount(0);
+      if (activeMessageMenuId || activeReactionPickerMessageId) {
+        setActiveMessageMenuId(null);
+        setActiveReactionPickerMessageId(null);
+      }
       if (viewport.scrollTop <= 40 && hasMoreMessages && !loadingOlderMessages) {
         void handleLoadOlderMessages();
       }
@@ -1754,7 +1835,7 @@ export default function Inbox() {
     autoScrollRef.current = isViewportNearBottom(viewport);
     viewport.addEventListener("scroll", onScroll, { passive: true });
     return () => viewport.removeEventListener("scroll", onScroll);
-  }, [handleLoadOlderMessages, hasMoreMessages, loadingOlderMessages, selectedConversation?.id]);
+  }, [activeMessageMenuId, activeReactionPickerMessageId, handleLoadOlderMessages, hasMoreMessages, loadingOlderMessages, selectedConversation?.id]);
 
   useEffect(() => {
     if (!selectedConversation?.id || !hasMoreMessages || loadingOlderMessages) return;
@@ -1944,12 +2025,16 @@ export default function Inbox() {
           id: String(incoming.id),
         };
 
-        const selectedChatId = String(selectedConversationRef.current?.id ?? "");
-        const incomingChatId = String(incomingConversationId);
-
-        if (!selectedChatId || incomingChatId !== selectedChatId) return;
-
-        const isActiveConversation = true;
+        const incomingConversationKey = getMessageConversationKey({
+          conversationId: incomingConversationId,
+          chatId: incoming.chatId,
+          sessionId: normalizedIncoming.sessionId,
+          phone: normalizedIncoming.phone,
+          remoteJid: incoming.remoteJid,
+          jid: incoming.jid,
+        });
+        const selectedChatKey = selectedConversationRef.current ? getConversationKey(selectedConversationRef.current) : "";
+        const isActiveConversation = Boolean(selectedChatKey && incomingConversationKey === selectedChatKey);
 
         const scrollChatToBottom = () => {
           const root = messagesScrollRef.current?.closest("[data-radix-scroll-area-root]");
@@ -1961,53 +2046,49 @@ export default function Inbox() {
           return true;
         };
 
-        const updateMessages = (conversationId: string, message: ChatMessage) => {
+        const updateMessages = (conversationId: string, conversationKey: string, message: ChatMessage) => {
           const normalizedConversationId = String(conversationId);
-          if (messageIdsRef.current.has(message.id)) {
+          const cached = messageCacheRef.current.get(conversationKey);
+          const base = cached?.messages ?? [];
+
+          const tempIds = pendingOutgoingTempIdsRef.current.get(normalizedConversationId) ?? [];
+          let nextBase = base;
+          if (message.fromMe && tempIds.length > 0) {
+            const [tempIdToRemove, ...rest] = tempIds;
+            if (tempIdToRemove) {
+              nextBase = nextBase.filter((item) => item.id !== tempIdToRemove);
+              clearPendingFallbackTimersForTempId(tempIdToRemove);
+              if (rest.length > 0) {
+                pendingOutgoingTempIdsRef.current.set(normalizedConversationId, rest);
+              } else {
+                pendingOutgoingTempIdsRef.current.delete(normalizedConversationId);
+              }
+            }
+          }
+
+          if (nextBase.some((item) => item.id === message.id)) {
             return false;
           }
 
-          let inserted = false;
+          const next = sortMessagesAsc([...nextBase, message]);
+          const hasMoreFromCache = cached?.hasMore ?? next.length >= MESSAGE_PAGE_SIZE;
+          updateConversationMessageStore(normalizedConversationId, next, hasMoreFromCache);
 
-          setMessages((prev) => {
-            let base = prev;
-
-            if (message.fromMe) {
-              const pending = pendingOutgoingTempIdsRef.current.get(normalizedConversationId) ?? [];
-              const [tempIdToRemove, ...rest] = pending;
-              if (tempIdToRemove) {
-                base = base.filter((item) => item.id !== tempIdToRemove);
-                messageIdsRef.current.delete(tempIdToRemove);
-                clearPendingFallbackTimersForTempId(tempIdToRemove);
-                if (rest.length > 0) {
-                  pendingOutgoingTempIdsRef.current.set(normalizedConversationId, rest);
-                } else {
-                  pendingOutgoingTempIdsRef.current.delete(normalizedConversationId);
-                }
-              }
-            }
-
-            const exists = base.some((item) => item.id === message.id);
-            if (exists) return base;
+          if (isActiveConversation) {
             messageIdsRef.current.add(message.id);
-            inserted = true;
-            const next = sortMessagesAsc([...base, message]);
-            const hasMoreFromCache = messageCacheRef.current.get(normalizedConversationId)?.hasMore ?? next.length >= MESSAGE_PAGE_SIZE;
-            updateConversationMessageStore(normalizedConversationId, next, hasMoreFromCache);
-            return next;
-          });
-
-          const scrolled = scrollChatToBottom();
-          if (!scrolled && !message.fromMe) {
-            setUnseenRealtimeCount((prev) => prev + 1);
-          } else if (scrolled) {
-            setUnseenRealtimeCount(0);
+            setMessages(next);
+            const scrolled = scrollChatToBottom();
+            if (!scrolled && !message.fromMe) {
+              setUnseenRealtimeCount((prev) => prev + 1);
+            } else if (scrolled) {
+              setUnseenRealtimeCount(0);
+            }
           }
 
-          return inserted;
+          return true;
         };
 
-        const wasInserted = updateMessages(incomingConversationId, normalizedIncoming);
+        const wasInserted = updateMessages(incomingConversationId, incomingConversationKey, normalizedIncoming);
         if (!wasInserted) return;
 
         if (!normalizedIncoming.fromMe) {
@@ -2364,7 +2445,8 @@ export default function Inbox() {
     const intervalId = window.setInterval(() => {
       if (isRealtimeConnected) return;
       if (fallbackSyncBusyRef.current) return;
-      if (activeMessageRequestRef.current !== null) return;
+      const activeId = String(selectedConversationRef.current?.id ?? "");
+      if (activeId && activeMessageRequestRef.current.has(activeId)) return;
       // Do not poll when tab is hidden — no visible user, no need for fresh data
       if (document.hidden) return;
 
@@ -2517,6 +2599,12 @@ export default function Inbox() {
     event.target.value = "";
   }, [addFilesToComposer]);
 
+  const clearMessageActionState = useCallback(() => {
+    setActiveMessageMenuId(null);
+    setActiveReactionPickerMessageId(null);
+    setReplyingTo(null);
+  }, []);
+
   const handleInsertEmoji = useCallback((emoji: { native?: string }) => {
     if (!emoji.native) return;
     setMessageInput((prev) => `${prev}${emoji.native}`);
@@ -2524,7 +2612,7 @@ export default function Inbox() {
   }, []);
 
   const handleCopyMessage = useCallback((message: ChatMessage) => {
-    const value = (message.caption ?? message.content ?? "").trim();
+    const value = getMessageDisplayContent(message as ChatMessage & { text?: string; body?: string; message?: string; caption?: string }).trim();
     if (!value) return;
     void navigator.clipboard.writeText(value);
     toast({ title: "Mensagem copiada" });
@@ -2540,7 +2628,7 @@ export default function Inbox() {
   }, []);
 
   const handleForwardMessage = useCallback((message: ChatMessage) => {
-    const value = (message.caption ?? message.content ?? "").trim();
+    const value = getMessageDisplayContent(message as ChatMessage & { text?: string; body?: string; message?: string; caption?: string }).trim();
     setMessageInput(value ? `Encaminhar: ${value}` : "Encaminhar: ");
     setActiveMessageMenuId(null);
     setActiveReactionPickerMessageId(null);
@@ -2561,6 +2649,32 @@ export default function Inbox() {
   const handleToggleReactionPicker = useCallback((messageId: string) => {
     setActiveMessageMenuId(null);
     setActiveReactionPickerMessageId((prev) => (prev === messageId ? null : messageId));
+  }, []);
+
+  useEffect(() => {
+    const handleMouseDown = (event: MouseEvent) => {
+      const root = messagesScrollRef.current;
+      const input = messageInputRef.current;
+      const target = event.target as Node | null;
+      if (target && (root?.contains(target) || input?.contains(target))) {
+        return;
+      }
+      setActiveMessageMenuId(null);
+      setActiveReactionPickerMessageId(null);
+    };
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") return;
+      setActiveMessageMenuId(null);
+      setActiveReactionPickerMessageId(null);
+    };
+
+    document.addEventListener("mousedown", handleMouseDown);
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.removeEventListener("mousedown", handleMouseDown);
+      document.removeEventListener("keydown", handleKeyDown);
+    };
   }, []);
 
   const handleToggleAudioPlayback = useCallback((messageId: string, url: string) => {
@@ -2916,7 +3030,7 @@ export default function Inbox() {
           clearPendingFallbackTimersForTempId(tempId);
         });
         setMessages((prev) => {
-          const next = prev.filter((item) => !pendingTempIds.has(item.id));
+          const next = prev.map((item) => (pendingTempIds.has(item.id) ? { ...item, status: "failed" as const } : item));
           updateConversationMessageStore(
             selectedConversation.id,
             next,
@@ -3364,10 +3478,11 @@ export default function Inbox() {
       <div className="grid min-h-0 flex-1 grid-cols-1 overflow-hidden md:grid-cols-[320px_minmax(0,1fr)] lg:grid-cols-[340px_minmax(0,1fr)_360px]">
         <div className={cn("flex min-h-0 flex-col border-r border-border bg-card/50 lg:resize-x lg:overflow-auto lg:min-w-[280px] lg:max-w-[460px]", isMobile && mobileScreen !== "conversations" && "hidden")}>
           <div className="space-y-3 border-b border-border p-4">
-            <div className="relative">
-              <MagnifyingGlass className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <Input placeholder="Buscar conversas..." className="pl-9" value={searchQuery} onChange={(event) => setSearchQuery(event.target.value)} />
-            </div>
+            <ChatSearchBar
+              value={searchQuery}
+              onChange={setSearchQuery}
+              placeholder="Buscar conversas..."
+            />
             <Tabs value={filter} onValueChange={setFilter}>
               <TabsList className="w-full">
                 <TabsTrigger value="all" className="flex-1">Todas</TabsTrigger>
@@ -3376,14 +3491,20 @@ export default function Inbox() {
                 <TabsTrigger value="archived" className="flex-1">Arquivadas</TabsTrigger>
               </TabsList>
             </Tabs>
-            <Button
-              type="button"
-              variant={activeSession ? "secondary" : "outline"}
-              className="w-full"
-              onClick={() => navigate("/connections")}
-            >
-              {activeSession ? "Baileys conectado" : "Conectar Baileys"}
-            </Button>
+            <div className="flex items-center justify-between gap-3">
+              <OperationalStatusBadge
+                label={activeSession ? "Baileys conectado" : "Baileys offline"}
+                tone={activeSession ? "online" : "warning"}
+                pulse={Boolean(activeSession)}
+              />
+              <Button
+                type="button"
+                variant={activeSession ? "secondary" : "outline"}
+                onClick={() => navigate("/connections")}
+              >
+                {activeSession ? "Gerenciar sessão" : "Conectar Baileys"}
+              </Button>
+            </div>
           </div>
 
           <div className="min-h-0 flex-1 overflow-hidden p-2">
@@ -3443,27 +3564,15 @@ export default function Inbox() {
         >
           {selectedConversation ? (
             <>
-              <div className="flex h-16 items-center justify-between border-b border-border bg-card/50 px-3 md:px-4">
-                <div className="flex items-center gap-2 md:gap-3">
-                  {isMobile && (
-                    <Button variant="ghost" size="icon" className={MOBILE_TOUCH_TARGET_CLASS} onClick={() => setMobileScreen("conversations")} aria-label="Voltar para conversas">
-                      <CaretLeft className="h-5 w-5" />
-                    </Button>
-                  )}
-                  <Avatar className="h-10 w-10">
-                    {selectedConversation.avatar ? <AvatarImage src={selectedConversation.avatar} alt={selectedConversation.contactName} loading="lazy" /> : null}
-                    <AvatarFallback className="bg-primary/10 font-semibold text-primary">{getInitials(selectedConversation.contactName)}</AvatarFallback>
-                  </Avatar>
-                  <div>
-                    <h3 className="font-semibold">{selectedConversation.contactName}</h3>
-                    <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                      <span>{selectedConversation.phone || "Sem número"}</span>
-                      <span>•</span>
-                      <span>{selectedConversationStatusLabel}</span>
-                    </p>
-                  </div>
-                </div>
-              </div>
+              <ChatHeaderBar
+                contactName={selectedConversation.contactName}
+                phone={selectedConversation.phone}
+                avatar={selectedConversation.avatar}
+                initials={getInitials(selectedConversation.contactName)}
+                isMobile={isMobile}
+                onBack={() => setMobileScreen("conversations")}
+                statusLabel={selectedConversationStatusLabel}
+              />
 
               {!activeSession && (
                 <div className="border-b border-border bg-destructive/10 px-4 py-3">
@@ -3564,15 +3673,10 @@ export default function Inbox() {
                 </div>
               </ScrollArea>
 
-              {unseenRealtimeCount > 0 && (
-                <div className="px-4 pb-2">
-                  <div className="mx-auto flex max-w-3xl justify-center">
-                    <Button type="button" size="sm" className="h-8 rounded-full px-4 text-xs" onClick={scrollToLatestMessage}>
-                      {unseenRealtimeCount === 1 ? "1 nova mensagem" : `${unseenRealtimeCount} novas mensagens`}
-                    </Button>
-                  </div>
-                </div>
-              )}
+              <NewMessagesBanner
+                unseenRealtimeCount={unseenRealtimeCount}
+                onScrollToLatest={scrollToLatestMessage}
+              />
 
               <div
                 className={cn(
