@@ -64,21 +64,31 @@ export default function Flows() {
     };
   }, []);
 
-  const handleAddFlow = () => {
+  const handleAddFlow = async () => {
     if (!draft.id.trim() || !draft.trigger.trim() || !draft.response.trim()) return;
 
-    setFlows((prev) => [
-      {
-        id: draft.id.trim(),
-        name: draft.name.trim() || draft.id.trim(),
-        trigger: draft.trigger.trim(),
-        response: draft.response.trim(),
-        nextSteps: draft.nextSteps,
-      },
-      ...prev,
-    ]);
+    const payload = {
+      id: draft.id.trim(),
+      name: draft.name.trim() || draft.id.trim(),
+      trigger: draft.trigger.trim(),
+      response: draft.response.trim(),
+      nextSteps: draft.nextSteps,
+    };
 
-    setDraft({ id: "", name: "", trigger: "", response: "", nextSteps: [] });
+    try {
+      const created = await requestApiEndpoint<Record<string, unknown>>("/api/flows", "POST", payload);
+      const normalized = {
+        id: String(created.id ?? payload.id),
+        name: String(created.name ?? payload.name),
+        trigger: String(created.trigger ?? payload.trigger),
+        response: String(created.response ?? payload.response),
+        nextSteps: Array.isArray(created.nextSteps) ? created.nextSteps.map(String) : payload.nextSteps,
+      } satisfies FlowItem;
+      setFlows((prev) => [normalized, ...prev]);
+      setDraft({ id: "", name: "", trigger: "", response: "", nextSteps: [] });
+    } catch {
+      // keep UI stable; API error feedback can be added in a dedicated UX pass
+    }
   };
 
   return (

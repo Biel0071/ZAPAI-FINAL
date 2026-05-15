@@ -224,16 +224,10 @@ const ENABLE_NODE_AUTO_REGISTER_CLIENT = runtimeEnv.enableNodeAutoRegisterClient
 const FRONTEND_URL = runtimeEnv.frontendUrl;
 const ENV_ALLOWED_ORIGINS = runtimeEnv.allowedOriginsFromEnv || process.env.ALLOWED_ORIGINS?.split(',') || [];
 const BASE_ALLOWED_ORIGINS = [
-  'https://swift-wa-assist.lovable.app',
-  'https://*.lovable.app',
   'http://localhost:8080',
   'http://localhost:5173',
   'http://127.0.0.1:8080',
   'http://127.0.0.1:5173',
-  'http://209.50.229.68',
-  'http://209.50.229.68:4025',
-  'http://209.50.229.68:80',
-  'https://209.50.229.68',
   ...(FRONTEND_URL ? [FRONTEND_URL] : []),
   ...ENV_ALLOWED_ORIGINS,
 ];
@@ -538,20 +532,32 @@ const requireJwtAuth = createJwtAuthMiddleware({
   // Exact-match public endpoints (healthcheck, login, liveness probes).
   publicPaths: [
     '/health',
+    '/ready',
+    '/health/full',
     '/api',
     '/api/health',
+    '/api/ready',
+    '/api/health/full',
     '/api/test',
     '/diagnostics',
     '/api/diagnostics',
     '/auth/login',
+    '/api/auth/login',
+    '/auth/forgot-password',
+    '/api/auth/forgot-password',
     '/status-whatsapp',
     '/session-status',
     '/api/session-status',
+    '/api/system/full-status',
+    '/api/production/status',
+    '/api/node/register',
+    '/api/master/register-node',
+    '/api/node/heartbeat',
+    '/api/master/heartbeat',
+    '/api/cluster/metrics/ingest',
   ],
-  // Prefix-match (covers mounted sub-routes like /auth/refresh).
-  // NOTE: /api/ and /system/ are public because the frontend has no login UI
-  // yet. When a login page is added, remove these and send Bearer tokens.
-  publicPrefixes: ['/auth/', '/api/', '/system/'],
+  // Prefix-match public auth endpoints only.
+  publicPrefixes: ['/auth/'],
   protectedPrefixes: ['/api/admin/', '/admin/'],
 });
 

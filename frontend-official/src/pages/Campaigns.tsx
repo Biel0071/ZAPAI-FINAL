@@ -242,13 +242,18 @@ export default function Campaigns() {
     };
   }, [safeCampaigns]);
 
-  const handleStartCampaign = useCallback((campaignId: string) => {
+  const handleStartCampaign = useCallback(async (campaignId: string) => {
     if (startingCampaignId) return;
     setStartingCampaignId(campaignId);
-    window.setTimeout(() => {
+    try {
+      const updated = await requestApiEndpoint<Partial<Campaign> & Record<string, unknown>>(`/api/campaigns/${encodeURIComponent(campaignId)}/start`, "POST");
+      setCampaigns((prev) => prev.map((campaign) => campaign.id === campaignId ? { ...campaign, status: String(updated.status ?? "running") as Campaign["status"] } : campaign));
       notify.success("Campaign started successfully");
+    } catch (error) {
+      notify.error(error instanceof Error ? error.message : "Failed to start campaign");
+    } finally {
       setStartingCampaignId(null);
-    }, 900);
+    }
   }, [startingCampaignId]);
 
   const campaignRowProps = useMemo(

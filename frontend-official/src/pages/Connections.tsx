@@ -29,6 +29,7 @@ import { apiService, type SessionInfo } from "@/services/apiService";
 import { connectInboxSocket } from "@/services/socketService";
 import { notify } from "@/services/notifyService";
 import { reportFrontendIssue } from "@/services/frontendHealthService";
+import { API_ORIGIN } from "@/lib/backendConfig";
 
 interface Session extends SessionInfo {
   name: string;
@@ -120,7 +121,7 @@ export default function Connections() {
   const [createStatus, setCreateStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
   const [restartingSessionId, setRestartingSessionId] = useState<string | null>(null);
   const [deletingSessionId, setDeletingSessionId] = useState<string | null>(null);
-  const [publicApiUrl, setPublicApiUrl] = useState<string | null>(null);
+  const socketUrl = (API_ORIGIN || (typeof window !== "undefined" ? window.location.origin : "")).trim() || null;
   const [lastQr, setLastQr] = useState<{ sessionId?: string; qr?: string } | null>(null);
   const sessionLoadInFlightRef = useRef(false);
 
@@ -196,16 +197,13 @@ export default function Connections() {
   useEffect(() => {
     const loadInitialData = async () => {
       try {
-        const [publicUrlResult, sessionsResult] = await Promise.allSettled([
-          apiService.getPublicUrl(),
+        const sessionsResult = await Promise.allSettled([
           loadSessions(),
         ]);
 
-        if (publicUrlResult.status === "fulfilled") {
-          setPublicApiUrl(publicUrlResult.value.publicUrl?.trim() || null);
-        }
+        setPublicApiUrl((API_ORIGIN || (typeof window !== "undefined" ? window.location.origin : "")).trim() || null);
 
-        if (sessionsResult.status === "rejected") {
+        if (sessionsResult[0].status === "rejected") {
           reportFrontendIssue({
             type: "unexpected_error",
             service: "connections.loadInitialData",
@@ -234,10 +232,10 @@ export default function Connections() {
   }, [loadSessions]);
 
   useEffect(() => {
-    if (!publicApiUrl) return;
+    if (!socketUrl) return;
 
     const disconnect = connectInboxSocket({
-      socketUrl: publicApiUrl,
+      socketUrl,
       onQrGenerated: (payload) => {
         const sessionId = resolveSessionId(payload);
         const qr = extractQrPayload(payload);
@@ -277,7 +275,7 @@ export default function Connections() {
     });
 
     return () => disconnect();
-  }, [publicApiUrl, upsertSession]);
+  }, [socketUrl, upsertSession]);
 
   const handleCreateSession = async () => {
     const rawSessionName = newSessionName.trim();
