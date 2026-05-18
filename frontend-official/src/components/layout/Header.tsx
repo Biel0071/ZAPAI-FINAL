@@ -13,6 +13,7 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useAdminAuth } from "@/hooks/useAdminAuth";
 import { useApiRuntimeStatus } from "@/hooks/useApiRuntimeStatus";
+import { useRuntime } from "@/providers/RuntimeProvider";
 
 interface HeaderProps {
   title: string;
@@ -25,6 +26,7 @@ export function Header({ title, subtitle, runtimeState, actions }: HeaderProps) 
   const navigate = useNavigate();
   const { logout, username } = useAdminAuth();
   const { connectionState, manualReconnect } = useApiRuntimeStatus();
+  const { forceReconnect } = useRuntime();
 
   const handleLogout = () => {
     logout();
@@ -59,7 +61,10 @@ export function Header({ title, subtitle, runtimeState, actions }: HeaderProps) 
                     size="sm"
                     variant="outline"
                     className="h-6 gap-1 border-destructive/30 px-2 text-[10px] hover:bg-destructive/10"
-                    onClick={manualReconnect}
+                    onClick={() => {
+                      manualReconnect();
+                      forceReconnect();
+                    }}
                   >
                     <ArrowClockwise className="h-3 w-3" />
                     Reconectar

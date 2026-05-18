@@ -1141,7 +1141,7 @@ export const apiService = {
   logoutSession: (sessionId: string) =>
     request<{ success?: boolean; sessionId?: string }>({ endpoint: "/session/logout", method: "POST", body: { sessionId: normalizeSessionName(sessionId) } }),
   createSession: (sessionId: string) =>
-    request<{ success?: boolean; sessionId?: string; qr?: string }>({ endpoint: "/sessions/create", method: "POST", body: { sessionId: normalizeSessionName(sessionId) } }),
+    request<{ success?: boolean; sessionId?: string; qr?: string }>({ endpoint: "/session/start", method: "POST", body: { sessionId: normalizeSessionName(sessionId), name: normalizeSessionName(sessionId) } }),
   async listSessions() {
     const data = await request<unknown>({ endpoint: "/api/session-status", method: "GET" });
     return parseSessionStatusPayload(data).map(normalizeSessionInfo);

@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Outlet } from "react-router-dom";
 import { Sidebar } from "./Sidebar";
-import { useApiRuntimeStatus } from "@/hooks/useApiRuntimeStatus";
+import { useRuntime } from "@/providers/RuntimeProvider";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { Badge } from "@/components/ui/badge";
 
@@ -10,9 +10,14 @@ const SIDEBAR_COLLAPSE_EVENT = "sidebar:collapsed";
 export function MainLayout() {
   const [collapsed, setCollapsed] = useState(false);
   const isMobile = useIsMobile();
-  const { connectionState } = useApiRuntimeStatus();
+  const { status } = useRuntime();
 
-  const websocketStatus = connectionState;
+  const websocketStatus =
+    status === "online"
+      ? "ONLINE"
+      : status === "reconnecting"
+        ? "RECONNECTING"
+        : "OFFLINE";
 
   const websocketStatusTone =
     websocketStatus === "ONLINE"

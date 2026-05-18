@@ -223,11 +223,12 @@ export default function Connections() {
   useEffect(() => {
     const intervalId = window.setInterval(() => {
       if (document.visibilityState !== "visible") return;
+      if (showQRModal || isActivationDialogOpen || isConnecting || restartingSessionId) return;
       void loadSessions({ silent: true });
-    }, 10_000);
+    }, 30_000);
 
     return () => window.clearInterval(intervalId);
-  }, [loadSessions]);
+  }, [isActivationDialogOpen, isConnecting, loadSessions, restartingSessionId, showQRModal]);
 
   useEffect(() => {
     if (!socketUrl) return;
@@ -361,8 +362,10 @@ export default function Connections() {
         setShowQRModal(true);
         setIsActivationDialogOpen(true);
         upsertSession(responseSessionId, { status: "qr", connected: false });
+        notify.success("QR da sessão solicitado com sucesso");
+      } else {
+        notify.success("Reconexão da sessão solicitada");
       }
-      notify.success("WhatsApp session restart requested");
       await loadSessions();
       setRestartingSessionId(null);
       setIsConnecting(false);
@@ -373,7 +376,7 @@ export default function Connections() {
         message: error instanceof Error ? error.message : "Falha ao gerar QR",
       });
       upsertSession(normalizedId, { status: "disconnected", connected: false });
-      notify.error("Failed to restart session");
+      notify.error(error instanceof Error && error.message.includes("401") ? "Sessão de login expirada. Faça login novamente." : "Falha ao reiniciar sessão");
       setIsConnecting(false);
       setRestartingSessionId(null);
     }
@@ -396,8 +399,10 @@ export default function Connections() {
         setShowQRModal(true);
         setIsActivationDialogOpen(true);
         upsertSession(responseSessionId, { status: "qr", connected: false });
+        notify.success("QR da sessão solicitado com sucesso");
+      } else {
+        notify.success("Reconexão da sessão solicitada");
       }
-      notify.success("Session connect requested");
       await loadSessions();
       setRestartingSessionId(null);
       setIsConnecting(false);
@@ -408,7 +413,7 @@ export default function Connections() {
         message: error instanceof Error ? error.message : "Falha ao conectar sessão",
       });
       upsertSession(normalizedId, { status: "disconnected", connected: false });
-      notify.error("Failed to connect session");
+      notify.error(error instanceof Error && error.message.includes("401") ? "Sessão de login expirada. Faça login novamente." : "Falha ao conectar sessão");
       setIsConnecting(false);
       setRestartingSessionId(null);
     }

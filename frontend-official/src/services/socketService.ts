@@ -244,6 +244,8 @@ type SocketSubscriber = {
 let sharedSocket: Socket | null = null;
 let sharedSocketUrl: string | null = null;
 let eventBindingsReady = false;
+let lastForcedReconnectAt = 0;
+const MIN_FORCE_RECONNECT_INTERVAL_MS = 5000;
 const subscribers = new Map<string, SocketSubscriber>();
 
 function toStableHash(value: string): string {
@@ -809,10 +811,14 @@ function ensureSharedSocket(socketUrl: string): Socket {
 }
 
 export function forceReconnectInboxSocket() {
+  const now = Date.now();
+  if (now - lastForcedReconnectAt < MIN_FORCE_RECONNECT_INTERVAL_MS) {
+    return;
+  }
+  lastForcedReconnectAt = now;
+
   const savedUrl = sharedSocketUrl;
 
-  // Destroy existing socket so ensureSharedSocket creates a new one
-  // with the current JWT token from adminAuthSession.
   destroySharedSocket();
 
   if (!savedUrl) return;

@@ -1264,10 +1264,9 @@ export default function Inbox() {
   const refreshSessions = useCallback(async () => {
     try {
       const listedSessions = await apiService.listSessions();
-      setSessions(Array.isArray(listedSessions) ? listedSessions : []);
+      setSessions((prev) => (Array.isArray(listedSessions) ? listedSessions : prev));
       return Array.isArray(listedSessions) ? listedSessions : [];
     } catch {
-      setSessions([]);
       return [];
     }
   }, []);
@@ -1468,7 +1467,7 @@ export default function Inbox() {
       try {
         const [conversationsResult, sessionsResult] = await Promise.allSettled([
           apiService.getConversations(false, { limit: CONVERSATIONS_PAGE_SIZE }),
-          apiService.listSessions(),
+          refreshSessions(),
         ]);
 
         if (conversationsResult.status !== "fulfilled") {
@@ -2439,7 +2438,7 @@ export default function Inbox() {
     });
 
     return () => disconnect();
-  }, [clearPendingFallbackTimersForTempId, socketUrl, updateConversationMessageStore]);
+  }, [clearPendingFallbackTimersForTempId, refreshSessions, socketUrl, updateConversationMessageStore]);
 
   useEffect(() => {
     const intervalId = window.setInterval(() => {

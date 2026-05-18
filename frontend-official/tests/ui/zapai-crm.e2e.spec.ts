@@ -1,21 +1,41 @@
 import { test, expect } from "@playwright/test";
 
-const TEST_TOKEN = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ6YXBhZG1pbiIsInVzZXJuYW1lIjoiemFwYWRtaW4iLCJ0ZW5hbnRJZCI6ImRlZmF1bHQiLCJjb21wYW55SWQiOiJkZWZhdWx0Iiwicm9sZSI6ImFkbWluIiwiaWF0IjoxNzc4Nzk5MzMzLCJleHAiOjE3Nzg4MjgxMzN9.L8U7e11dnb1rKF01O91uTcQCwQSkOWtaOhIv5xTK5k4";
-
 async function login(page: import("@playwright/test").Page) {
+  const response = await page.request.post("http://127.0.0.1:4025/api/auth/login", {
+    data: {
+      username: "zapadmin",
+      password: "zapadmin123",
+      tenantId: "default",
+    },
+    headers: {
+      "x-tenant-id": "default",
+    },
+  });
+
+  expect(response.ok()).toBeTruthy();
+  const payload = await response.json();
+  const token = payload?.token ?? payload?.accessToken ?? payload?.data?.token;
+  const expiresAtSeconds = payload?.expiresAt ?? payload?.data?.expiresAt ?? null;
+
+  expect(token).toBeTruthy();
+
   await page.goto("/login");
-  await page.evaluate((token) => {
+  await page.evaluate(({ token: authToken, expiresAt }) => {
     const session = {
-      token,
+      token: authToken,
       username: "zapadmin",
       role: "admin",
+      tenantId: "default",
+      companyId: "default",
       issuedAt: Date.now(),
-      expiresAt: Date.now() + 1000 * 60 * 60 * 8,
+      expiresAt: typeof expiresAt === "number" && Number.isFinite(expiresAt)
+        ? (expiresAt > 1_000_000_000_000 ? expiresAt : expiresAt * 1000)
+        : Date.now() + 1000 * 60 * 60 * 8,
       remember: true,
     };
     localStorage.setItem("zapai_admin_auth_session", JSON.stringify(session));
     window.dispatchEvent(new CustomEvent("zapai-admin-auth-changed"));
-  }, TEST_TOKEN);
+  }, { token, expiresAt: expiresAtSeconds });
   await page.goto("/dashboard");
   await expect(page).toHaveURL(/\/dashboard/);
 }
