@@ -19,15 +19,6 @@ export function useFrontendHealthWatcher() {
         service: "window.onerror",
         level: "error",
       });
-
-      const isChunkError = event.message?.includes("dynamically imported module") || event.message?.includes("ChunkLoadError") || event.message?.includes("Failed to fetch");
-      if (isChunkError) {
-        const isRecovering = sessionStorage.getItem("chunk_recovery");
-        if (!isRecovering) {
-          sessionStorage.setItem("chunk_recovery", "true");
-          window.location.reload();
-        }
-      }
     };
 
     const onUnhandledRejection = (event: PromiseRejectionEvent) => {
@@ -44,15 +35,6 @@ export function useFrontendHealthWatcher() {
         service: "window.unhandledrejection",
         level: "error",
       });
-
-      const isChunkError = reason?.includes("dynamically imported module") || reason?.includes("ChunkLoadError") || reason?.includes("Failed to fetch");
-      if (isChunkError) {
-        const isRecovering = sessionStorage.getItem("chunk_recovery");
-        if (!isRecovering) {
-          sessionStorage.setItem("chunk_recovery", "true");
-          window.location.reload();
-        }
-      }
     };
 
     window.addEventListener("error", onWindowError);
