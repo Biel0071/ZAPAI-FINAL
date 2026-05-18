@@ -48,24 +48,36 @@ export function useRuntime() {
 }
 
 // Debounce helper
-function useDebouncedCallback<T extends (...args: unknown[]) => void>(fn: T, delayMs: number): T {
+function useDebouncedCallback<T extends (...args: unknown[]) => void>(fn: T, delayMs: number): [T, () => void] {
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const fnRef = useRef(fn);
   fnRef.current = fn;
 
-  return useCallback(
+  const cancel = useCallback(() => {
+    if (timerRef.current) {
+      clearTimeout(timerRef.current);
+      timerRef.current = null;
+    }
+  }, []);
+
+  const debounced = useCallback(
     ((...args: unknown[]) => {
-      if (timerRef.current) clearTimeout(timerRef.current);
+      cancel();
       timerRef.current = setTimeout(() => fnRef.current(...args), delayMs);
     }) as T,
-    [delayMs],
+    [cancel, delayMs],
   );
+
+  useEffect(() => cancel, [cancel]);
+
+  return [debounced, cancel];
 }
 
 export function RuntimeProvider({ children }: { children: ReactNode }) {
   const [status, setStatus] = useState<RuntimeStatus>("offline");
   const [hydrated, setHydrated] = useState(false);
   const disconnectedAtRef = useRef<number | null>(null);
+  const hasHydratedRef = useRef(false);
 
   const setConversations = useAppStore((s) => s.setConversations);
   const setSessions = useAppStore((s) => s.setSessions);
@@ -85,25 +97,31 @@ export function RuntimeProvider({ children }: { children: ReactNode }) {
         apiService.getMetrics(),
       ]);
 
-      if (sessionsResult.status === "fulfilled" && Array.isArray(sessionsResult.value)) {
+      const sessionsOk = sessionsResult.status === "fulfilled" && Array.isArray(sessionsResult.value);
+      const conversationsOk = conversationsResult.status === "fulfilled" && Array.isArray(conversationsResult.value);
+      const metricsOk = metricsResult.status === "fulfilled" && Boolean(metricsResult.value);
+
+      if (sessionsOk) {
         setSessions(sessionsResult.value);
       }
-      if (conversationsResult.status === "fulfilled" && Array.isArray(conversationsResult.value)) {
+      if (conversationsOk) {
         setConversations(conversationsResult.value);
       }
-      if (metricsResult.status === "fulfilled" && metricsResult.value) {
+      if (metricsOk) {
         setMetrics(metricsResult.value);
       }
 
+      const apiHealthy = sessionsOk && conversationsOk && metricsOk;
       persistRuntimeCoherenceSnapshot(
         buildRuntimeCoherenceSnapshot({
-          apiHealthy: true,
-          mismatchReason: null,
+          apiHealthy,
+          mismatchReason: apiHealthy ? null : "Carregamento parcial do backend oficial detectado.",
           socketOrigin: socketUrl,
           websocketHealthy: status === "online",
         }),
       );
 
+      hasHydratedRef.current = true;
       setHydrated(true);
     } catch {
       persistRuntimeCoherenceSnapshot(
@@ -118,7 +136,7 @@ export function RuntimeProvider({ children }: { children: ReactNode }) {
   }, [setConversations, setMetrics, setSessions]);
 
   // Debounced refresh for reconnection (avoid flooding after reconnect)
-  const debouncedRefresh = useDebouncedCallback(loadFromApi, 3000);
+  const [debouncedRefresh, cancelDebouncedRefresh] = useDebouncedCallback(loadFromApi, 3000);
 
   const forceReconnect = useCallback(() => {
     forceReconnectInboxSocket();
@@ -147,7 +165,7 @@ export function RuntimeProvider({ children }: { children: ReactNode }) {
           }),
         );
 
-        if (hydrated) {
+        if (hasHydratedRef.current) {
           debouncedRefresh();
         }
       },
@@ -235,8 +253,11 @@ export function RuntimeProvider({ children }: { children: ReactNode }) {
       },
     });
 
-    return () => disconnect();
-  }, [socketUrl, loadFromApi, hydrated, debouncedRefresh, setSessions]);
+    return () => {
+      cancelDebouncedRefresh();
+      disconnect();
+    };
+  }, [socketUrl, loadFromApi, debouncedRefresh, cancelDebouncedRefresh, setSessions]);
 
   const contextValue: RuntimeContextValue = {
     status,

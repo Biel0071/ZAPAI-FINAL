@@ -28,6 +28,7 @@ const startupPromises = new Map();
 const reconnectTimers = new Map();
 const reconnectAttempts = new Map();
 const reconnectInFlight = new Set();
+const sessionGenerations = new Map();
 const MAX_RECONNECT_ATTEMPTS = 5;
 
 function getSessionQr(sessionName = DEFAULT_SESSION) {
@@ -59,6 +60,22 @@ function normalizeLifecycleStatus(status = 'disconnected') {
   return normalizeSessionStatus(status);
 }
 
+function getSessionGeneration(sessionName = DEFAULT_SESSION) {
+  const normalizedName = normalizeSessionName(sessionName);
+  return Number(sessionGenerations.get(normalizedName) || 0);
+}
+
+function bumpSessionGeneration(sessionName = DEFAULT_SESSION) {
+  const normalizedName = normalizeSessionName(sessionName);
+  const nextGeneration = getSessionGeneration(normalizedName) + 1;
+  sessionGenerations.set(normalizedName, nextGeneration);
+  return nextGeneration;
+}
+
+function isSessionGenerationCurrent(sessionName = DEFAULT_SESSION, generation = 0) {
+  return getSessionGeneration(sessionName) === Number(generation || 0);
+}
+
 function configureSessionManager(options = {}) {
   managerOptions = {
     ...managerOptions,
@@ -71,8 +88,8 @@ function setSession(name, session) {
   session.sessionId = normalizedName;
   session.sessionName = session.sessionName || session.displayName || normalizedName;
   session.name = session.displayName || session.sessionName || normalizedName;
+  session.generation = Number(session.generation || getSessionGeneration(normalizedName) || 0);
   sessions.set(normalizedName, session);
-  // Keep activeSessions registry in sync (shared with stableSession.js)
   activeSessions[normalizedName] = session;
   emitRuntimeStatus();
   return session;
@@ -127,8 +144,9 @@ function setRuntimeActive(value) {
   runtimeActive = Boolean(value);
 
   if (!runtimeActive) {
-    for (const timer of reconnectTimers.values()) {
+    for (const [sessionName, timer] of reconnectTimers.entries()) {
       clearTimeout(timer);
+      bumpSessionGeneration(sessionName);
     }
 
     reconnectTimers.clear();
@@ -290,9 +308,15 @@ function setSessionSystemConnection(sessionName = DEFAULT_SESSION, enabled = tru
 async function disposeSession(sessionName, options = {}) {
   const normalizedName = normalizeSessionName(sessionName);
   const session = getSession(normalizedName);
+  const expectedGeneration = options.expectedGeneration == null ? null : Number(options.expectedGeneration);
+
+  if (expectedGeneration != null && !isSessionGenerationCurrent(normalizedName, expectedGeneration)) {
+    return null;
+  }
 
   clearReconnectTimer(normalizedName);
   reconnectInFlight.delete(normalizedName);
+  bumpSessionGeneration(normalizedName);
 
   if (options.preserveReconnectAttempts !== true) {
     resetReconnectAttempts(normalizedName);
@@ -400,13 +424,19 @@ async function startSession(sessionName = DEFAULT_SESSION, options = {}) {
     return startupPromises.get(normalizedName);
   }
 
+  const startupGeneration = bumpSessionGeneration(normalizedName);
+
   const startupPromise = (async () => {
     if (existingSession) {
-      await disposeSession(normalizedName, { preserveReconnectAttempts: true });
+      await disposeSession(normalizedName, {
+        expectedGeneration: startupGeneration,
+        preserveReconnectAttempts: true,
+      });
     }
 
     const session = await getWhatsappService().createStableSession({
       displayName,
+      generation: startupGeneration,
       io: managerOptions.io,
       onConnectionUpdate: async () => {},
       onIncomingMessage: managerOptions.onIncomingMessage,
@@ -423,6 +453,7 @@ async function startSession(sessionName = DEFAULT_SESSION, options = {}) {
         const normalizedTarget = normalizeSessionName(targetSessionName);
         const targetSession = getSession(normalizedTarget);
         const closeCode = Number(metadata?.closeCode || 0) || null;
+        const reconnectGeneration = Number(metadata?.generation || targetSession?.generation || getSessionGeneration(normalizedTarget));
 
         // Guard: prevent duplicate reconnect scheduling
         if (
@@ -430,7 +461,8 @@ async function startSession(sessionName = DEFAULT_SESSION, options = {}) {
           reconnectTimers.has(normalizedTarget) ||
           reconnectInFlight.has(normalizedTarget) ||
           targetSession?.isDisposed ||
-          targetSession?.isClosing
+          targetSession?.isClosing ||
+          !isSessionGenerationCurrent(normalizedTarget, reconnectGeneration)
         ) {
           console.log(`[WHATSAPP] Reconnect suppressed for ${normalizedTarget} (guard triggered)`);
           return;
@@ -464,18 +496,23 @@ async function startSession(sessionName = DEFAULT_SESSION, options = {}) {
         const timer = setTimeout(async () => {
           reconnectTimers.delete(normalizedTarget);
 
-          // Re-check guards before actually reconnecting
           const freshSession = getSession(normalizedTarget);
-          if (!runtimeActive || freshSession?.isDisposed || reconnectInFlight.has(normalizedTarget)) {
-            console.log(`[WHATSAPP] Reconnect aborted for ${normalizedTarget} (post-backoff guard)`);
+          if (
+            !runtimeActive ||
+            freshSession?.isDisposed ||
+            reconnectInFlight.has(normalizedTarget) ||
+            !isSessionGenerationCurrent(normalizedTarget, reconnectGeneration)
+          ) {
             return;
           }
 
           reconnectInFlight.add(normalizedTarget);
 
           try {
-            // Dispose old session cleanly before recreating
-            await disposeSession(normalizedTarget, { preserveReconnectAttempts: true });
+            await disposeSession(normalizedTarget, {
+              expectedGeneration: reconnectGeneration,
+              preserveReconnectAttempts: true,
+            });
             await startSession(normalizedTarget, {
               forceNew: true,
               displayName: freshSession?.displayName || normalizedTarget,

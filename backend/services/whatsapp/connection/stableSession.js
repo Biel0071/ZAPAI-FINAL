@@ -428,6 +428,7 @@ function shouldRefreshSummary(messageHistory = []) {
 
 async function createStableSession({
   displayName,
+  generation = 0,
   io,
   onConnectionUpdate = async () => {},
   onIncomingMessage = async () => {},
@@ -470,6 +471,7 @@ async function createStableSession({
   const session = {
     authState: state,
     displayName: displayName || normalizedSessionName,
+    generation: Number(generation || 0),
     io,
     hasEmittedQr: false,
     phone: null,
@@ -854,7 +856,7 @@ async function createStableSession({
           delayMs: reconnectDelayMs,
           closeCode,
         });
-        onReconnectRequested(normalizedSessionName, { closeCode })
+        onReconnectRequested(normalizedSessionName, { closeCode, generation: session.generation })
           .catch((error) => {
             logSessionEvent('error', 'reconnect_failed', session, {
               attempt: session.reconnectRequestCount,
@@ -1034,7 +1036,9 @@ async function createStableSession({
       console.log(
         `[WHATSAPP] message.saved session=${normalizedSessionName} chat=${remoteJid} id=${savedMessage.id}`
       );
-      emitInboundRealtimeMessage(io, savedMessage, result?.conversation || null);
+      if (result?.conversation) {
+        emitInboundRealtimeMessage(io, savedMessage, result.conversation);
+      }
 
       if (chatStore && formattedRealtimeMessage?.chatId) {
         const realtimeUrl = realtimeMediaPayload?.url || null;

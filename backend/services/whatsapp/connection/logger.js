@@ -54,22 +54,6 @@ function logSessionEvent(level, event, session, details = {}) {
     ...details,
   });
 
-  const serialized = JSON.stringify(payload);
-
-  if (normalizedLevel === 'error') {
-    // eslint-disable-next-line no-console
-    console.error(serialized);
-    return;
-  }
-
-  if (normalizedLevel === 'warn') {
-    // eslint-disable-next-line no-console
-    console.warn(serialized);
-    return;
-  }
-
-  // eslint-disable-next-line no-console
-  console.log(serialized);
 }
 
 module.exports = {

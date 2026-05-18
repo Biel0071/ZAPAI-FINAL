@@ -8,6 +8,45 @@
  */
 
 const sessionRepository = require('../../../repositories/sessionRepository');
+const { whatsappLog } = require('../../logger');
+
+const persistenceHealth = {
+  consecutiveFailures: 0,
+  degraded: false,
+  lastError: null,
+  lastFailureAt: null,
+  lastOperation: null,
+  lastSuccessAt: null,
+};
+
+function markPersistenceSuccess(operation) {
+  persistenceHealth.consecutiveFailures = 0;
+  persistenceHealth.degraded = false;
+  persistenceHealth.lastError = null;
+  persistenceHealth.lastOperation = operation;
+  persistenceHealth.lastSuccessAt = new Date().toISOString();
+}
+
+function markPersistenceFailure(sessionId, operation, error) {
+  persistenceHealth.consecutiveFailures += 1;
+  persistenceHealth.degraded = true;
+  persistenceHealth.lastError = error?.message || String(error);
+  persistenceHealth.lastFailureAt = new Date().toISOString();
+  persistenceHealth.lastOperation = operation;
+
+  whatsappLog('warn', 'persistence_degraded', `Session ${sessionId} persistence degraded`, {
+    consecutiveFailures: persistenceHealth.consecutiveFailures,
+    error: persistenceHealth.lastError,
+    operation,
+    sessionId,
+  });
+}
+
+function getPersistenceHealth() {
+  return {
+    ...persistenceHealth,
+  };
+}
 
 async function safeCreateSessionRecord(sessionId, sessionName) {
   try {
@@ -17,11 +56,9 @@ async function safeCreateSessionRecord(sessionId, sessionName) {
       sessionName,
       status: 'connecting',
     });
+    markPersistenceSuccess('create_session_record');
   } catch (error) {
-    console.warn(
-      `[DB] Session ${sessionId} persistence unavailable:`,
-      error?.message || error
-    );
+    markPersistenceFailure(sessionId, 'create_session_record', error);
   }
 }
 
@@ -34,15 +71,14 @@ async function safeUpdateSessionStatus(sessionId, status, phone, sessionName) {
       undefined,
       sessionName
     );
+    markPersistenceSuccess('update_session_status');
   } catch (error) {
-    console.warn(
-      `[DB] Session ${sessionId} status sync failed:`,
-      error?.message || error
-    );
+    markPersistenceFailure(sessionId, 'update_session_status', error);
   }
 }
 
 module.exports = {
+  getPersistenceHealth,
   safeCreateSessionRecord,
   safeUpdateSessionStatus,
 };

@@ -209,9 +209,15 @@ const Diagnostics = memo(function Diagnostics() {
   const [errorsByRoute, setErrorsByRoute] = useState<Record<string, number>>({});
   const diagnosticsSnapshotRef = useRef("");
   const aiDiagnosticsSnapshotRef = useRef("");
+  const diagnosticsInFlightRef = useRef(false);
+  const aiDiagnosticsInFlightRef = useRef(false);
+  const routeHealthInFlightRef = useRef(false);
+  const runtimeCoherenceInFlightRef = useRef(false);
   const { toast } = useToast();
 
   const loadDiagnostics = useCallback(async () => {
+    if (diagnosticsInFlightRef.current) return;
+    diagnosticsInFlightRef.current = true;
     try {
       const [statusResponse, recentErrors] = await Promise.all([
         systemControlService.getStatus(),
@@ -227,11 +233,14 @@ const Diagnostics = memo(function Diagnostics() {
       setStatus(null);
       setErrors([]);
     } finally {
+      diagnosticsInFlightRef.current = false;
       setLoading(false);
     }
   }, []);
 
   const loadAiDiagnostics = useCallback(async () => {
+    if (aiDiagnosticsInFlightRef.current) return;
+    aiDiagnosticsInFlightRef.current = true;
     try {
       const aiResponse = await systemControlService.getAiDiagnostics();
       const nextSnapshot = JSON.stringify(aiResponse);
@@ -242,21 +251,27 @@ const Diagnostics = memo(function Diagnostics() {
     } catch {
       setAiDiagnostics(null);
     } finally {
+      aiDiagnosticsInFlightRef.current = false;
       setAiLoading(false);
     }
   }, []);
 
   const loadRouteHealth = useCallback(async () => {
+    if (routeHealthInFlightRef.current) return;
+    routeHealthInFlightRef.current = true;
     setRouteHealthLoading(true);
     try {
       const results = await Promise.all(ROUTE_HEALTH_ENDPOINTS.map(checkRouteHealth));
       setRouteHealth(results);
     } finally {
+      routeHealthInFlightRef.current = false;
       setRouteHealthLoading(false);
     }
   }, []);
 
   const loadRuntimeCoherence = useCallback(async () => {
+    if (runtimeCoherenceInFlightRef.current) return;
+    runtimeCoherenceInFlightRef.current = true;
     try {
       const coherence = await systemControlService.getRuntimeCoherence();
       const identity = (coherence.runtimeIdentity ?? {}) as Record<string, unknown>;
@@ -283,6 +298,8 @@ const Diagnostics = memo(function Diagnostics() {
       });
     } catch {
       setRuntimeCoherence(null);
+    } finally {
+      runtimeCoherenceInFlightRef.current = false;
     }
   }, []);
 

@@ -77,13 +77,11 @@ function auditSessions() {
       continue;
     }
 
-    // Check: stuck in 'connecting' for 2+ minutes
     if (status === 'connecting') {
       const connectingDuration = session._connectingStartedAt
         ? now - session._connectingStartedAt
         : 0;
 
-      // Track when connecting started
       if (!session._connectingStartedAt) {
         session._connectingStartedAt = now;
       }
@@ -96,36 +94,35 @@ function auditSessions() {
           reason: 'connecting_timeout',
         });
       }
+
+      if (!session.reconnecting && !session.reconnectRequestPending) {
+        const reconnectingDuration = session._reconnectingStartedAt
+          ? now - session._reconnectingStartedAt
+          : 0;
+
+        if (!session._reconnectingStartedAt) {
+          session._reconnectingStartedAt = now;
+        }
+
+        if (reconnectingDuration > STALE_RECONNECTING_MS) {
+          results.stale.push({
+            sessionId,
+            status,
+            staleMs: reconnectingDuration,
+            reason: 'connecting_no_reconnect',
+          });
+        }
+      } else if (session._reconnectingStartedAt) {
+        delete session._reconnectingStartedAt;
+      }
+
       continue;
     }
 
-    // Clear connecting tracker if no longer connecting
     if (session._connectingStartedAt && status !== 'connecting') {
       delete session._connectingStartedAt;
     }
 
-    // Check: stuck in reconnect limbo for 5+ min with no active reconnect pending
-    if (status === 'connecting' && !session.reconnecting && !session.reconnectRequestPending) {
-      const reconnectingDuration = session._reconnectingStartedAt
-        ? now - session._reconnectingStartedAt
-        : 0;
-
-      if (!session._reconnectingStartedAt) {
-        session._reconnectingStartedAt = now;
-      }
-
-      if (reconnectingDuration > STALE_RECONNECTING_MS) {
-        results.stale.push({
-          sessionId,
-          status,
-          staleMs: reconnectingDuration,
-          reason: 'connecting_no_reconnect',
-        });
-      }
-      continue;
-    }
-
-    // Clear reconnecting tracker
     if (session._reconnectingStartedAt && status !== 'connecting') {
       delete session._reconnectingStartedAt;
     }
