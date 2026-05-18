@@ -201,8 +201,6 @@ export default function Connections() {
           loadSessions(),
         ]);
 
-        setPublicApiUrl((API_ORIGIN || (typeof window !== "undefined" ? window.location.origin : "")).trim() || null);
-
         if (sessionsResult[0].status === "rejected") {
           reportFrontendIssue({
             type: "unexpected_error",

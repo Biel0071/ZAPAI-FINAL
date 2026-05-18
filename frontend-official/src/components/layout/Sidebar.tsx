@@ -47,12 +47,12 @@ type SidebarNavItem = {
 const crmItems: SidebarNavItem[] = [
   { icon: SquaresFour, label: "Dashboard", path: "/dashboard", minRole: "user" },
   { icon: ChatCircleDots, label: "Conversas", path: "/inbox", minRole: "user" },
-  { icon: Users, label: "Leads", path: "/contacts", minRole: "user" },
+  { icon: Users, label: "Leads CRM / Contatos", path: "/contacts", minRole: "user" },
   { icon: Megaphone, label: "Campanhas", path: "/campaigns", minRole: "user" },
   { icon: TreeStructure, label: "Fluxos", path: "/flows", minRole: "user" },
-  { icon: AddressBook, label: "Contatos", path: "/contacts", minRole: "user" },
-  { icon: Robot, label: "IA", path: "/ai", minRole: "user" },
-  { icon: ChartLineUp, label: "Relatórios", path: "/analytics", minRole: "user" },
+  { icon: AddressBook, label: "Conexões", path: "/connections", minRole: "user" },
+  { icon: Robot, label: "IA / Automação", path: "/ai", minRole: "user" },
+  { icon: ChartLineUp, label: "Analytics", path: "/analytics", minRole: "user" },
 ];
 
 const systemItems: SidebarNavItem[] = [

@@ -147,6 +147,9 @@ const App = () => {
                       <Route path="/ai" element={<AI />} />
                       <Route path="/analytics" element={<Analytics />} />
                       <Route path="/campaigns" element={<Campaigns />} />
+                      <Route path="/automation" element={<Flows />} />
+                      <Route path="/integrations" element={<Settings />} />
+                      <Route path="/dev-tools" element={<ProtectedRoute minRole="admin"><Diagnostics /></ProtectedRoute>} />
                       <Route path="/memory" element={<Memory />} />
                       <Route path="/users" element={<ProtectedRoute minRole="master"><MasterAdmins /></ProtectedRoute>} />
 

@@ -126,11 +126,29 @@ export function useApiRuntimeStatus() {
       ? "RECONNECTING"
       : "OFFLINE";
 
+  const manualReconnect = () => {
+    offlineStartedAtRef.current = null;
+    retryDelayRef.current = OFFLINE_BASE_RETRY_MS;
+    abortRef.current?.abort();
+
+    const controller = new AbortController();
+    abortRef.current = controller;
+
+    void pingBackend(controller.signal)
+      .then((nextStatus) => {
+        setStatus(nextStatus);
+      })
+      .catch(() => {
+        setStatus({ online: false, latencyMs: null });
+      });
+  };
+
   return {
     apiLabel,
     connectionState,
     latencyMs: status.latencyMs,
     isOnline: status.online,
     retryIntervalMs: OFFLINE_BASE_RETRY_MS,
+    manualReconnect,
   };
 }

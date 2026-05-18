@@ -3,10 +3,12 @@
 Frontend oficial ativo do ZAPFLOW AI.
 
 ## Runtime oficial
+- Esta pasta (`frontend-official/`) é a única fonte de verdade do frontend.
 - Dev server: `npm run dev`
 - Porta local: `8080`
 - Backend esperado em desenvolvimento: `http://127.0.0.1:4025`
 - Em produção, o frontend deve preferir same-origin via Nginx/proxy
+- O visual/UX vindo do Lovable deve ser absorvido aqui, nunca executado como app paralelo.
 
 ## Fluxo local recomendado
 ```sh
@@ -19,8 +21,9 @@ Abra:
 
 ## Observações importantes
 - Esta pasta é a fonte de verdade do frontend.
-- Não usar `frontend/` ou conteúdo em `archive/` como runtime principal.
+- Não usar `frontend/`, clones do Lovable ou conteúdo em `archive/` como runtime principal.
 - A autenticação oficial é via backend JWT.
+- `apiService`, `socketService`, `RuntimeProvider` e os guards de rota desta pasta são a integração oficial com o backend real.
 - O fallback Supabase não deve ser o caminho principal do sistema.
 
 ## Testes e validação

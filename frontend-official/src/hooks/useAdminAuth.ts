@@ -33,12 +33,24 @@ function normalizeRole(value: unknown): AdminSessionRole {
   return "user";
 }
 
-function buildSession(username: string, role: AdminSessionRole, remember: boolean, token: string): AdminAuthSession {
+function buildSession(
+  username: string,
+  role: AdminSessionRole,
+  remember: boolean,
+  token: string,
+  tenantId?: string | null,
+  companyId?: string | null,
+): AdminAuthSession {
   const issuedAt = Date.now();
+  const normalizedTenantId = String(tenantId ?? "").trim();
+  const normalizedCompanyId = String(companyId ?? normalizedTenantId).trim();
+
   return {
     token,
     username,
     role,
+    ...(normalizedTenantId ? { tenantId: normalizedTenantId } : {}),
+    ...(normalizedCompanyId ? { companyId: normalizedCompanyId } : {}),
     issuedAt,
     expiresAt: issuedAt + SESSION_TTL_MS,
     remember,
@@ -50,7 +62,14 @@ function normalizeToken(value: unknown): string | null {
   return token.length > 0 ? token : null;
 }
 
-function parseAuthPayload(raw: unknown): { ok: boolean; role: AdminSessionRole; token: string | null; refreshToken: string | null } {
+function parseAuthPayload(raw: unknown): {
+  ok: boolean;
+  role: AdminSessionRole;
+  token: string | null;
+  refreshToken: string | null;
+  tenantId: string | null;
+  companyId: string | null;
+} {
   const envelope = raw && typeof raw === "object" ? (raw as Record<string, unknown>) : {};
   const data = (envelope.data && typeof envelope.data === "object" ? envelope.data : envelope) as Record<string, unknown>;
 
@@ -65,6 +84,8 @@ function parseAuthPayload(raw: unknown): { ok: boolean; role: AdminSessionRole; 
   // { success: true, token: "...", user: { username: "...", role: "master_admin" } }
   const userObj = data.user && typeof data.user === "object" ? (data.user as Record<string, unknown>) : null;
   const rawRole = data.role ?? userObj?.role;
+  const tenantId = normalizeToken(data.tenantId) ?? normalizeToken(data.companyId) ?? normalizeToken(userObj?.tenantId) ?? normalizeToken(userObj?.companyId);
+  const companyId = normalizeToken(data.companyId) ?? normalizeToken(data.tenantId) ?? normalizeToken(userObj?.companyId) ?? normalizeToken(userObj?.tenantId);
 
   const explicitOk = typeof envelope.success === "boolean" ? envelope.success : (typeof data.ok === "boolean" ? data.ok : null);
   const hasAuthTokens = Boolean(token);
@@ -76,13 +97,22 @@ function parseAuthPayload(raw: unknown): { ok: boolean; role: AdminSessionRole; 
     role: normalizeRole(rawRole),
     token,
     refreshToken,
+    tenantId,
+    companyId,
   };
 }
 
 async function verifyCredentials(
   username: string,
   password: string,
-): Promise<{ ok: boolean; role: AdminSessionRole; token: string | null; refreshToken: string | null }> {
+): Promise<{
+  ok: boolean;
+  role: AdminSessionRole;
+  token: string | null;
+  refreshToken: string | null;
+  tenantId: string | null;
+  companyId: string | null;
+}> {
   const apiLoginCandidates = ["/api/auth/login", "/api/login", "/auth/login", "/login"];
   const requestBody = { username, password };
   const origin = API_ORIGIN?.trim();
@@ -210,7 +240,7 @@ export function useAdminAuth() {
     }
 
     const next = {
-      ...buildSession(safeUsername, check.role, remember, check.token),
+      ...buildSession(safeUsername, check.role, remember, check.token, check.tenantId, check.companyId),
       ...(check.refreshToken ? { refreshToken: check.refreshToken } : {}),
     };
     persistAdminAuthSession(next);

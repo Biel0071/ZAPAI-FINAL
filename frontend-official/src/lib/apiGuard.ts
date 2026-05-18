@@ -12,22 +12,23 @@ export const REQUIRED_API_ENDPOINTS = [
 
 export const PUBLISH_BLOCKER_ENDPOINTS = ["/api/health", "/api/conversations"] as const;
 
-async function readAccessToken(): Promise<string | null> {
+async function readAccessToken(): Promise<{ token: string | null; tenantId: string }> {
   const adminSession = loadAdminAuthSession();
   if (isAdminAuthSessionValid(adminSession) && adminSession?.token) {
-    return adminSession.token;
+    const tenantId = String(adminSession.tenantId ?? adminSession.companyId ?? FIXED_TENANT_ID).trim() || FIXED_TENANT_ID;
+    return { token: adminSession.token, tenantId };
   }
 
-  return null;
+  return { token: null, tenantId: FIXED_TENANT_ID };
 }
 
 export async function buildApiHeaders(): Promise<Record<string, string>> {
-  const token = await readAccessToken();
+  const { token, tenantId } = await readAccessToken();
 
   return {
     Accept: "application/json",
     "Content-Type": "application/json",
-    "x-tenant-id": FIXED_TENANT_ID,
+    "x-tenant-id": tenantId,
     "ngrok-skip-browser-warning": "true",
     ...(token ? { Authorization: `Bearer ${token}` } : {}),
   };
