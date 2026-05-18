@@ -59,6 +59,11 @@ function get(sessionId) {
   return registry.get(sessionId) || null;
 }
 
+function toTimestamp(value) {
+  const parsed = new Date(value || 0).getTime();
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
 function set(sessionId, patch = {}) {
   const existing = registry.get(sessionId);
   const entry = existing
@@ -174,7 +179,13 @@ async function loadFromRedis() {
     for (const [sessionId, json] of Object.entries(all)) {
       try {
         const parsed = JSON.parse(json);
-        registry.set(sessionId, { ...createEntry(sessionId), ...parsed });
+        const current = registry.get(sessionId);
+        const incoming = { ...createEntry(sessionId), ...parsed };
+        if (current && toTimestamp(current.updatedAt) > toTimestamp(incoming.updatedAt)) {
+          entries.push(current);
+          continue;
+        }
+        registry.set(sessionId, incoming);
         entries.push(registry.get(sessionId));
       } catch {
         // Skip corrupt entries
@@ -229,13 +240,21 @@ async function loadFromPostgres() {
 
     const entries = [];
     for (const row of result.rows || []) {
-      const entry = set(row.id, {
+      const sessionId = row.id;
+      const current = registry.get(sessionId);
+      const incomingUpdatedAt = row.updated_at ? new Date(row.updated_at).toISOString() : new Date().toISOString();
+      if (current && toTimestamp(current.updatedAt) > toTimestamp(incomingUpdatedAt)) {
+        entries.push(current);
+        continue;
+      }
+      const entry = set(sessionId, {
         companyId: row.company_id,
         name: row.name,
         phone: row.phone,
         status: row.status || 'disconnected',
         connected: Boolean(row.connected),
         createdAt: row.created_at ? new Date(row.created_at).toISOString() : undefined,
+        updatedAt: incomingUpdatedAt,
       });
       entries.push(entry);
     }
@@ -270,11 +289,10 @@ async function removeSession(sessionId) {
 }
 
 async function hydrate() {
-  // Load from PostgreSQL first (durable), then overlay Redis (fresher)
   const pgEntries = await loadFromPostgres();
   const redisEntries = await loadFromRedis();
 
-  console.log(`[SessionRegistry] Hydrated: ${pgEntries.length} from Postgres, ${redisEntries.length} from Redis, ${registry.size} total in memory`);
+  console.log(`[SessionRegistry] Hydrated cautiously: ${pgEntries.length} from Postgres, ${redisEntries.length} from Redis, ${registry.size} total in memory`);
   return list();
 }
 
