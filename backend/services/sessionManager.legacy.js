@@ -1,6 +1,12 @@
 const fs = require('fs/promises');
 const path = require('path');
 const sessionRepository = require('../repositories/sessionRepository');
+const {
+  buildSessionStatusPayload,
+  emitRuntimeStatus: emitRealtimeRuntimeStatus,
+  emitSessionStatus: emitRealtimeSessionStatus,
+  normalizeSessionStatus,
+} = require('./whatsapp/realtime/events');
 // NOTE: whatsappService is required lazily inside startSession() to break the
 // circular dependency: sessionManager → whatsappService → sessionManager.
 // A top-level require would cause whatsappService.createStableSession to be
@@ -24,24 +30,13 @@ const reconnectAttempts = new Map();
 const reconnectInFlight = new Set();
 const MAX_RECONNECT_ATTEMPTS = 5;
 
-// Latest QR code for the single session (expires after 60 s)
-let _latestQr = null;
-let _qrExpiresAt = 0;
-const QR_TTL_MS = 60_000;
-
-function setLatestQr(qr) {
-  _latestQr = qr;
-  _qrExpiresAt = Date.now() + QR_TTL_MS;
-}
-
-function clearLatestQr() {
-  _latestQr = null;
-  _qrExpiresAt = 0;
+function getSessionQr(sessionName = DEFAULT_SESSION) {
+  const normalizedName = normalizeSessionName(sessionName);
+  return getSession(normalizedName)?.qrCode || null;
 }
 
 function getLatestQr() {
-  if (!_latestQr || Date.now() > _qrExpiresAt) return null;
-  return _latestQr;
+  return getSessionQr(DEFAULT_SESSION);
 }
 
 let managerOptions = {
@@ -61,21 +56,7 @@ function normalizeSessionName(sessionName = DEFAULT_SESSION) {
 }
 
 function normalizeLifecycleStatus(status = 'disconnected') {
-  const normalized = String(status || '').toLowerCase();
-
-  if (normalized === 'qr_ready') {
-    return 'qr';
-  }
-
-  if (normalized === 'error') {
-    return 'connecting';
-  }
-
-  if (['connected', 'connecting', 'qr', 'disconnected'].includes(normalized)) {
-    return normalized;
-  }
-
-  return 'disconnected';
+  return normalizeSessionStatus(status);
 }
 
 function configureSessionManager(options = {}) {
@@ -109,11 +90,14 @@ function getSession(name = DEFAULT_SESSION) {
 
 function listSessions() {
   return Array.from(sessions.entries()).map(([sessionName, session]) => ({
+    connected: normalizeLifecycleStatus(session.status) === 'connected',
     name: session.displayName || session.sessionName || sessionName,
-    phone: session.phone,
+    phone: session.phone || null,
+    qr: normalizeLifecycleStatus(session.status) === 'qr_ready' ? session.qrCode || null : null,
     sessionId: sessionName,
     sessionName: session.displayName || session.sessionName || sessionName,
     status: normalizeLifecycleStatus(session.status),
+    updatedAt: session.updatedAt || new Date().toISOString(),
   }));
 }
 
@@ -124,13 +108,8 @@ function emitRuntimeStatus() {
     return;
   }
 
-  const activeSessions = listSessions().filter((session) =>
-    ['connected', 'connecting', 'qr'].includes(String(session.status || '').toLowerCase())
-  );
-
-  io.emit('system:runtime-status', {
-    sessions: activeSessions,
-    status: runtimeActive && activeSessions.length > 0 ? 'online' : 'offline',
+  emitRealtimeRuntimeStatus(io, listSessions(), {
+    runtimeActive,
   });
 }
 
@@ -138,11 +117,10 @@ function emitSessionStatusCompat(payload = {}) {
   const io = managerOptions.io;
 
   if (!io) {
-    return;
+    return null;
   }
 
-  io.emit('session_status', payload);
-  io.emit('session:status', payload);
+  return emitRealtimeSessionStatus(io, payload);
 }
 
 function setRuntimeActive(value) {
@@ -157,6 +135,30 @@ function setRuntimeActive(value) {
   }
 
   emitRuntimeStatus();
+}
+
+function updateSessionState(sessionName = DEFAULT_SESSION, patch = {}, options = {}) {
+  const normalizedName = normalizeSessionName(sessionName);
+  const existing = getSession(normalizedName);
+
+  if (!existing) {
+    return null;
+  }
+
+  const next = {
+    ...existing,
+    ...patch,
+    sessionId: normalizedName,
+    updatedAt: options.updatedAt || new Date().toISOString(),
+  };
+
+  setSession(normalizedName, next);
+
+  if (options.emit !== false) {
+    emitSessionStatusCompat(buildSessionStatusPayload(next));
+  }
+
+  return next;
 }
 
 function isRuntimeActive() {
@@ -296,28 +298,42 @@ async function disposeSession(sessionName, options = {}) {
     resetReconnectAttempts(normalizedName);
   }
 
-  if (session) {
-    session.isDisposed = true;
-    session.status = 'disconnected';
-    await closeSocket(session, { logout: options.logout === true });
-    sessions.delete(normalizedName);
-    // CRITICAL: also clean the shared activeSessions registry
-    delete activeSessions[normalizedName];
-    emitRuntimeStatus();
-  } else {
-    // Even if session isn't in the Map, clean activeSessions to prevent ghosts
-    const activeRef = activeSessions[normalizedName];
-    if (activeRef) {
-      activeRef.isDisposed = true;
-      activeRef.status = 'disconnected';
-      await closeSocket(activeRef, { logout: options.logout === true });
-      delete activeSessions[normalizedName];
-    }
+  const targetSession = session || activeSessions[normalizedName] || null;
+
+  if (targetSession) {
+    targetSession.isDisposed = true;
+    targetSession.status = 'disconnected';
+    targetSession.qrCode = null;
+    targetSession.updatedAt = new Date().toISOString();
+    await closeSocket(targetSession, { logout: options.logout === true });
   }
+
+  if (session) {
+    sessions.delete(normalizedName);
+  }
+
+  delete activeSessions[normalizedName];
+  emitRuntimeStatus();
 
   if (options.deleteFolder === true) {
     await deleteSessionFolder(normalizedName);
   }
+
+  return targetSession;
+}
+
+async function destroySession(sessionName, options = {}) {
+  const normalizedName = normalizeSessionName(sessionName);
+  const session = getSession(normalizedName) || activeSessions[normalizedName] || null;
+  const shouldDeleteFolder = options.deleteFolder !== false;
+
+  await disposeSession(normalizedName, {
+    deleteFolder: shouldDeleteFolder,
+    logout: options.logout === true,
+    preserveReconnectAttempts: options.preserveReconnectAttempts === true,
+  });
+
+  return session;
 }
 
 async function listStoredSessionNames() {
@@ -396,7 +412,12 @@ async function startSession(sessionName = DEFAULT_SESSION, options = {}) {
       onIncomingMessage: managerOptions.onIncomingMessage,
       onMessageUpdate: async () => {},
       onQrGenerated: (qr) => {
-        setLatestQr(qr);
+        updateSessionState(normalizedName, {
+          qrCode: qr,
+          status: 'qr_ready',
+        }, {
+          emit: false,
+        });
       },
       onReconnectRequested: async (targetSessionName, metadata = {}) => {
         const normalizedTarget = normalizeSessionName(targetSessionName);
@@ -420,16 +441,18 @@ async function startSession(sessionName = DEFAULT_SESSION, options = {}) {
         if (attempt > MAX_RECONNECT_ATTEMPTS) {
           console.warn(`[WHATSAPP] Reconnect limit reached for ${normalizedTarget} (attempt ${attempt-1}/${MAX_RECONNECT_ATTEMPTS})`);
           if (targetSession) {
-            targetSession.status = 'error';
+            targetSession.status = 'disconnected';
+            targetSession.qrCode = null;
             targetSession.lastError = `Reconnect limit reached (${MAX_RECONNECT_ATTEMPTS} attempts, last close code: ${closeCode || 'unknown'})`;
             setSession(normalizedTarget, targetSession);
           }
-          // Emit final status so frontend stops showing 'connecting'
           emitSessionStatusCompat({
+            connected: false,
+            lastError: 'Reconnect limit reached',
+            qr: null,
             sessionId: normalizedTarget,
             sessionName: targetSession?.sessionName || normalizedTarget,
-            status: 'error',
-            lastError: 'Reconnect limit reached',
+            status: 'disconnected',
           });
           return;
         }
@@ -474,7 +497,12 @@ async function startSession(sessionName = DEFAULT_SESSION, options = {}) {
           typeof connectedSession.systemConnected === 'boolean' ? connectedSession.systemConnected : true;
         resetReconnectAttempts(normalizedName);
         setSession(normalizedName, connectedSession);
-        clearLatestQr();
+        updateSessionState(normalizedName, {
+          qrCode: null,
+          status: 'connected',
+        }, {
+          emit: false,
+        });
         managerOptions.onSessionConnected(connectedSession);
       },
       sessionName: normalizedName,
@@ -504,7 +532,11 @@ async function restartSession(sessionName = DEFAULT_SESSION, options = {}) {
 
   console.log('Restarting session:', normalizedName);
 
-  await disposeSession(normalizedName, { deleteFolder: true });
+  await disposeSession(normalizedName, {
+    deleteFolder: false,
+    logout: false,
+    preserveReconnectAttempts: false,
+  });
   resetReconnectAttempts(normalizedName);
 
   return startSession(normalizedName, { displayName, forceNew: true });
@@ -553,7 +585,7 @@ async function removeSession(name = DEFAULT_SESSION) {
 
   console.log('Deleting session:', normalizedName);
 
-  await disposeSession(normalizedName, { logout: true, deleteFolder: true });
+  await destroySession(normalizedName, { logout: true, deleteFolder: true });
   resetReconnectAttempts(normalizedName);
 
   try {
@@ -585,7 +617,7 @@ async function logoutSession(name = DEFAULT_SESSION) {
     return false;
   }
 
-  await disposeSession(normalizedName, { deleteFolder: true, logout: true });
+  await destroySession(normalizedName, { deleteFolder: true, logout: true });
   resetReconnectAttempts(normalizedName);
 
   managerOptions.io?.emit('session_disconnected', {
@@ -670,13 +702,15 @@ async function stopAllSessions() {
 }
 
 module.exports = {
-  clearLatestQr,
   configureSessionManager,
   createSession,
   DEFAULT_SESSION,
+  destroySession,
+  disposeSession,
   getDefaultSession,
   getLatestQr,
   getSession,
+  getSessionQr,
   hasSession,
   isSessionCreating,
   isRuntimeActive,
@@ -688,10 +722,10 @@ module.exports = {
   restartSession,
   restoreSessions,
   sessions,
-  setLatestQr,
   setSessionSystemConnection,
   setRuntimeActive,
   setSession,
   startSession,
   stopAllSessions,
+  updateSessionState,
 };

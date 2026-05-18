@@ -79,11 +79,16 @@ function formatUptime(seconds) {
   return parts.join(' ');
 }
 
+function resolvePrimarySession() {
+  return sessionManager.getSession(DEFAULT_SESSION) || sessionManager.sessions?.values?.().next?.().value || null;
+}
+
 function buildHealthPayload() {
-  const session = sessionManager.getSession(DEFAULT_SESSION);
+  const session = resolvePrimarySession();
   const databaseOnline = Boolean(app.locals.store.databaseEnabled);
   const databaseError = app.locals.store.databaseError || null;
-  const whatsappConnected = String(session?.status || '').toLowerCase() === 'connected';
+  const sessionStatus = String(session?.status || 'disconnected').toLowerCase();
+  const whatsappConnected = sessionStatus === 'connected';
   const uptimeSec = process.uptime();
   const mem = process.memoryUsage();
   
@@ -405,32 +410,53 @@ function sendSafeJson(res, payload, status = 200) {
 }
 
 function buildSessionStatusPayload() {
-  const session = sessionManager.getSession(DEFAULT_SESSION);
-  const sessionStatus = String(session?.status || '').toLowerCase();
-  // Phase 2c: tenant-indexed state service replaces legacy global.whatsappSession.
-  const tenantState = sessionStateService.getWhatsappSession();
-  const normalizedStatus = (() => {
-    if (sessionStatus === 'connected') {
-      return 'CONNECTED';
-    }
+  const session = resolvePrimarySession();
+  const status = String(session?.status || 'disconnected').toLowerCase();
 
-    if (sessionStatus === 'qr_ready' || sessionStatus === 'qr') {
-      return 'QR';
-    }
+  if (status === 'connected') {
+    return {
+      connected: true,
+      phone: session?.phone || null,
+      qr: null,
+      sessionId: session?.sessionId || DEFAULT_SESSION,
+      status: 'connected',
+      timestamp: Date.now(),
+      updatedAt: session?.updatedAt || new Date().toISOString(),
+    };
+  }
 
-    if (sessionStatus === 'connecting' || sessionStatus === 'creating') {
-      return 'CONNECTING';
-    }
+  if (['qr_ready', 'qr', 'awaiting_qr'].includes(status)) {
+    return {
+      connected: false,
+      phone: session?.phone || null,
+      qr: session?.qrCode || null,
+      sessionId: session?.sessionId || DEFAULT_SESSION,
+      status: 'qr_ready',
+      timestamp: Date.now(),
+      updatedAt: session?.updatedAt || new Date().toISOString(),
+    };
+  }
 
-    return tenantState?.status || 'DISCONNECTED';
-  })();
+  if (['connecting', 'creating', 'error', 'reconnecting'].includes(status)) {
+    return {
+      connected: false,
+      phone: session?.phone || null,
+      qr: null,
+      sessionId: session?.sessionId || DEFAULT_SESSION,
+      status: 'connecting',
+      timestamp: Date.now(),
+      updatedAt: session?.updatedAt || new Date().toISOString(),
+    };
+  }
 
   return {
-    connected: sessionStatus === 'connected' || Boolean(tenantState?.connected),
+    connected: false,
     phone: session?.phone || null,
+    qr: null,
     sessionId: session?.sessionId || DEFAULT_SESSION,
-    status: normalizedStatus,
+    status: 'disconnected',
     timestamp: Date.now(),
+    updatedAt: session?.updatedAt || new Date().toISOString(),
   };
 }
 
@@ -650,9 +676,10 @@ app.get('/api', (_req, res) => {
 app.get('/api/health', (_req, res) => {
   try {
     const base = buildHealthPayload();
-    const session = sessionManager.getSession(DEFAULT_SESSION);
-    const sessionsTotal = app.locals.store?.sessions?.length ?? (session ? 1 : 0);
-    const sessionsConnected = session && String(session.status || '').toLowerCase() === 'connected' ? 1 : 0;
+    const session = resolvePrimarySession();
+    const liveSessions = sessionManager.listSessions?.() || [];
+    const sessionsTotal = liveSessions.length || (session ? 1 : 0);
+    const sessionsConnected = liveSessions.filter((item) => String(item.status || '').toLowerCase() === 'connected').length;
 
     // Standardized envelope: { success, status, data: { system: { sessions, websocket, database, whatsapp } }, ...legacy }
     const envelope = {
@@ -720,7 +747,7 @@ app.get('/api/metrics', async (_req, res) => {
     }
 
     // Active chats from session registry
-    const defaultSession = sessionManager.getSession(DEFAULT_SESSION);
+    const defaultSession = resolvePrimarySession();
     activeChats = defaultSession && String(defaultSession.status || '').toLowerCase() === 'connected' ? 1 : 0;
 
     // --- Infra metrics (always available) ---
@@ -765,7 +792,7 @@ app.get('/session-status', (_req, res) => {
 });
 
 app.get('/api/diagnostics', (_req, res) => {
-  const defaultSession = sessionManager.getSession(DEFAULT_SESSION);
+  const defaultSession = resolvePrimarySession();
 
   return sendSafeJson(res, {
     success: true,
@@ -868,7 +895,7 @@ app.get('/api/system/full-status', (_req, res) => {
 });
 
 app.get('/diagnostics', (_req, res) => {
-  const defaultSession = sessionManager.getSession(DEFAULT_SESSION);
+  const defaultSession = resolvePrimarySession();
 
   return sendSafeJson(res, {
     success: true,
@@ -1076,11 +1103,11 @@ app.get('/api/watchdog/status', (_req, res) => {
   }
 });
 
-app.post('/api/watchdog/audit', (_req, res) => {
+app.post('/api/watchdog/audit', async (_req, res) => {
   try {
     const io = app.locals?.io || global.io;
     const audit = sessionWatchdog.auditSessions();
-    const cleaned = sessionWatchdog.cleanupZombieSessions(audit, io);
+    const cleaned = await sessionWatchdog.cleanupZombieSessions(audit, io);
     return sendSafeJson(res, { success: true, data: { ...audit, cleaned } });
   } catch (error) {
     return sendSafeJson(res, { success: false, error: error?.message || 'Audit failed' }, 500);
@@ -1192,7 +1219,7 @@ function buildSessionStatusEntry(session) {
 
 app.get('/status-whatsapp', (_req, res) => {
   // Default session (backwards-compatible top-level fields)
-  const session = sessionManager.getSession(DEFAULT_SESSION);
+  const session = resolvePrimarySession();
   const primary = buildSessionStatusEntry(session || { sessionId: DEFAULT_SESSION });
 
   // Enumerate every live session in the manager so multi-session
@@ -1639,11 +1666,12 @@ async function bootstrap() {
       workerSupervisor.startWorker('ai_memory_flush');
 
       // Phase 7: Session Watchdog worker
-      workerSupervisor.registerWorker('session_watchdog', () => {
+      workerSupervisor.registerWorker('session_watchdog', async () => {
         const audit = sessionWatchdog.auditSessions();
         if (audit.zombies.length > 0 || audit.stuck.length > 0 || audit.stale.length > 0) {
           console.warn(`[WATCHDOG] Issues found: ${audit.zombies.length} zombies, ${audit.stuck.length} stuck, ${audit.stale.length} stale`);
-          sessionWatchdog.cleanupZombieSessions(audit, io);
+          await sessionWatchdog.cleanupZombieSessions(audit, io);
+          await sessionWatchdog.restartStuckSessions(audit, (sessionId) => sessionManager.reconnectSession(sessionId, { force: true }), io);
         }
       }, 60_000); // Every 60 seconds
       workerSupervisor.startWorker('session_watchdog');

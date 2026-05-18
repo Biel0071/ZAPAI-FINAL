@@ -4,7 +4,7 @@
  * Runs as a supervised worker (registered with WorkerSupervisor) that:
  * - Scans activeSessions for zombies (connected status but no heartbeat)
  * - Detects sessions stuck in 'connecting' for > 2 minutes
- * - Detects sessions stuck in 'error' with expired reconnect timers
+ * - Detects sessions stuck in reconnect limbo with expired reconnect timers
  * - Emits diagnostics via WebSocket
  * - Auto-restarts stuck sessions when safe
  *
@@ -15,9 +15,10 @@
 const { activeSessions } = require('./whatsapp/state/registry');
 const sessionRegistry = require('./sessionRegistry');
 const runtimeEngine = require('./runtimeEngine');
+const sessionManager = require('./sessionManager');
 
 const STALE_CONNECTING_MS = 2 * 60_000;   // 2 min in connecting = stuck
-const STALE_ERROR_MS = 5 * 60_000;        // 5 min in error = zombie
+const STALE_RECONNECTING_MS = 5 * 60_000; // 5 min in reconnect limbo = zombie
 const STALE_HEARTBEAT_MS = 3 * 60_000;    // 3 min no heartbeat = dead
 const MAX_AUTO_RESTART_PER_HOUR = 3;
 
@@ -103,30 +104,30 @@ function auditSessions() {
       delete session._connectingStartedAt;
     }
 
-    // Check: stuck in 'error' with no active reconnect for 5+ min
-    if (status === 'error' && !session.reconnecting && !session.reconnectRequestPending) {
-      const errorDuration = session._errorStartedAt
-        ? now - session._errorStartedAt
+    // Check: stuck in reconnect limbo for 5+ min with no active reconnect pending
+    if (status === 'connecting' && !session.reconnecting && !session.reconnectRequestPending) {
+      const reconnectingDuration = session._reconnectingStartedAt
+        ? now - session._reconnectingStartedAt
         : 0;
 
-      if (!session._errorStartedAt) {
-        session._errorStartedAt = now;
+      if (!session._reconnectingStartedAt) {
+        session._reconnectingStartedAt = now;
       }
 
-      if (errorDuration > STALE_ERROR_MS) {
+      if (reconnectingDuration > STALE_RECONNECTING_MS) {
         results.stale.push({
           sessionId,
           status,
-          staleMs: errorDuration,
-          reason: 'error_no_reconnect',
+          staleMs: reconnectingDuration,
+          reason: 'connecting_no_reconnect',
         });
       }
       continue;
     }
 
-    // Clear error tracker
-    if (session._errorStartedAt && status !== 'error') {
-      delete session._errorStartedAt;
+    // Clear reconnecting tracker
+    if (session._reconnectingStartedAt && status !== 'connecting') {
+      delete session._reconnectingStartedAt;
     }
 
     // Healthy
@@ -138,39 +139,38 @@ function auditSessions() {
 
 // ─── Cleanup Actions ───
 
-function cleanupZombieSessions(auditResult, io) {
+async function cleanupZombieSessions(auditResult, io) {
   const cleaned = [];
 
   for (const zombie of auditResult.zombies || []) {
     const session = activeSessions[zombie.sessionId];
     if (!session) continue;
 
-    // Mark as disconnected — don't destroy auth state
-    session.status = 'disconnected';
-    session.lastError = 'Watchdog: zombie session detected (no heartbeat)';
-    session.isClosing = true;
-
     try {
-      session.sock?.ev?.removeAllListeners?.();
-      session.sock?.end?.(undefined);
-    } catch { /* ignore */ }
+      await sessionManager.disposeSession(zombie.sessionId, {
+        deleteFolder: false,
+        logout: false,
+        preserveReconnectAttempts: true,
+      });
+      sessionRegistry.setDisconnected(zombie.sessionId, 'watchdog_cleanup');
+      cleaned.push(zombie.sessionId);
 
-    sessionRegistry.setDisconnected(zombie.sessionId, 'watchdog_cleanup');
-    cleaned.push(zombie.sessionId);
+      console.warn(`[WATCHDOG] Cleaned zombie session: ${zombie.sessionId}`);
 
-    console.warn(`[WATCHDOG] Cleaned zombie session: ${zombie.sessionId}`);
-
-    io?.emit('session_watchdog', {
-      action: 'zombie_cleaned',
-      sessionId: zombie.sessionId,
-      timestamp: new Date().toISOString(),
-    });
+      io?.emit('session_watchdog', {
+        action: 'zombie_cleaned',
+        sessionId: zombie.sessionId,
+        timestamp: new Date().toISOString(),
+      });
+    } catch (error) {
+      console.error(`[WATCHDOG] Failed to clean zombie session ${zombie.sessionId}:`, error?.message || error);
+    }
   }
 
   return cleaned;
 }
 
-function restartStuckSessions(auditResult, restartFn, io) {
+async function restartStuckSessions(auditResult, restartFn, io) {
   const restarted = [];
 
   for (const stuck of [...(auditResult.stuck || []), ...(auditResult.stale || [])]) {
@@ -182,19 +182,21 @@ function restartStuckSessions(auditResult, restartFn, io) {
     const session = activeSessions[stuck.sessionId];
     if (!session) continue;
 
-    // Clean up old socket
-    try {
-      session.sock?.ev?.removeAllListeners?.();
-      session.sock?.end?.(undefined);
-    } catch { /* ignore */ }
-    delete activeSessions[stuck.sessionId];
-
     recordAutoRestart(stuck.sessionId);
     restarted.push(stuck.sessionId);
 
     console.warn(`[WATCHDOG] Auto-restarting stuck session: ${stuck.sessionId} (${stuck.reason})`);
 
-    // Trigger reconnect via the provided function
+    try {
+      await sessionManager.disposeSession(stuck.sessionId, {
+        deleteFolder: false,
+        logout: false,
+        preserveReconnectAttempts: true,
+      });
+    } catch (err) {
+      console.error(`[WATCHDOG] Dispose failed before restart for ${stuck.sessionId}:`, err?.message || err);
+    }
+
     if (typeof restartFn === 'function') {
       restartFn(stuck.sessionId).catch((err) => {
         console.error(`[WATCHDOG] Restart failed for ${stuck.sessionId}:`, err?.message || err);

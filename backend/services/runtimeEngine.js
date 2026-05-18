@@ -16,6 +16,7 @@
 const sessionManager = require('./sessionManager');
 const metricsTracker = require('./metricsTracker');
 const messageDedupeService = require('./messageDedupeService');
+const { emitRuntimeStatus: emitRealtimeRuntimeStatus } = require('./whatsapp/realtime/events');
 
 // ─── Configuration ───
 const HEARTBEAT_INTERVAL_MS = Math.max(5_000, Number(process.env.RUNTIME_HEARTBEAT_MS) || 15_000);
@@ -178,18 +179,8 @@ function emitRuntimeStatus() {
   const io = runtimeState.storeRef?.io || global.io;
   if (!io) return;
 
-  const sessions = sessionManager.listSessions();
-  const connected = sessions.filter(
-    (s) => s.connected || String(s.status || '').toLowerCase() === 'connected'
-  );
-
-  io.emit('system:runtime-status', {
-    status: connected.length > 0 ? 'online' : 'offline',
-    sessions: connected.map((s) => ({
-      sessionId: s.id || s.sessionId,
-      status: s.status || 'connected',
-      name: s.name || s.sessionId || s.id,
-    })),
+  emitRealtimeRuntimeStatus(io, sessionManager.listSessions(), {
+    runtimeActive: sessionManager.isRuntimeActive?.() !== false,
     workersActive: runtimeState.started,
     uptimeSeconds: Math.floor(process.uptime()),
   });

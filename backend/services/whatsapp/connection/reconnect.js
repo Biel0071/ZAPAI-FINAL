@@ -23,6 +23,15 @@ const TERMINAL_DISCONNECT_CODES = new Set(
   ].filter((code) => Number.isFinite(code))
 );
 
+const TRANSIENT_DISCONNECT_CODES = new Set(
+  [
+    DisconnectReason.restartRequired,
+    DisconnectReason.connectionClosed,
+    DisconnectReason.connectionLost,
+    DisconnectReason.timedOut,
+  ].filter((code) => Number.isFinite(code))
+);
+
 function getConnectionCloseCode(lastDisconnect) {
   return (
     lastDisconnect?.error?.output?.statusCode ||
@@ -34,10 +43,29 @@ function getConnectionCloseCode(lastDisconnect) {
 
 function shouldReconnect(lastDisconnect) {
   const closeCode = getConnectionCloseCode(lastDisconnect);
-  return !TERMINAL_DISCONNECT_CODES.has(closeCode);
+
+  if (closeCode == null) {
+    return true;
+  }
+
+  if (TERMINAL_DISCONNECT_CODES.has(closeCode)) {
+    return false;
+  }
+
+  if (TRANSIENT_DISCONNECT_CODES.size === 0) {
+    return true;
+  }
+
+  return TRANSIENT_DISCONNECT_CODES.has(closeCode) || !TERMINAL_DISCONNECT_CODES.has(closeCode);
+}
+
+function isTerminalDisconnect(lastDisconnect) {
+  const closeCode = getConnectionCloseCode(lastDisconnect);
+  return TERMINAL_DISCONNECT_CODES.has(closeCode);
 }
 
 module.exports = {
   getConnectionCloseCode,
+  isTerminalDisconnect,
   shouldReconnect,
 };

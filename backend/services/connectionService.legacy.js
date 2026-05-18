@@ -5,24 +5,19 @@ const DEFAULT_SESSION = sessionManager.DEFAULT_SESSION || 'main';
 function normalizeStatus(status = 'disconnected') {
   const value = String(status || '').toLowerCase();
 
-  if (value === 'qr_ready') return 'qr';
-  if (value === 'error') return 'error';
-  if (value === 'creating') return 'creating';
-  if (['connected', 'connecting', 'qr', 'disconnected'].includes(value)) return value;
-
+  if (value === 'connected') return 'connected';
+  if (['qr_ready', 'qr', 'awaiting_qr'].includes(value)) return 'qr_ready';
+  if (['creating', 'connecting', 'error', 'reconnecting'].includes(value)) return 'connecting';
   return 'disconnected';
 }
 
 function toPublicStatus(status = 'disconnected') {
-  const normalized = normalizeStatus(status);
-
-  if (normalized === 'disconnected') return 'idle';
-  return normalized;
+  return normalizeStatus(status);
 }
 
-function toHealth(status = 'idle') {
+function toHealth(status = 'disconnected') {
   if (status === 'connected') return 'healthy';
-  if (status === 'idle') return 'offline';
+  if (status === 'disconnected') return 'offline';
   return 'degraded';
 }
 
@@ -31,7 +26,7 @@ function mapSession(session = {}, sessionId = DEFAULT_SESSION) {
   const isCreating = typeof sessionManager.isSessionCreating === 'function'
     ? sessionManager.isSessionCreating(id)
     : false;
-  const status = isCreating ? 'creating' : toPublicStatus(session.status || 'disconnected');
+  const status = isCreating ? 'connecting' : toPublicStatus(session.status || 'disconnected');
 
   return {
     name: session.sessionName || session.name || id,
@@ -71,7 +66,7 @@ async function getConnectionStatus(sessionId = DEFAULT_SESSION) {
     return {
       sessionId,
       sessionName: sessionId,
-      status: 'idle',
+      status: 'disconnected',
       connected: false,
       systemConnected: false,
       retryCount: 0,
@@ -86,7 +81,7 @@ async function getConnectionStatus(sessionId = DEFAULT_SESSION) {
     return {
       sessionId,
       sessionName: sessionId,
-      status: 'creating',
+      status: 'connecting',
       connected: false,
       systemConnected: true,
       retryCount: 0,
@@ -102,7 +97,7 @@ async function getConnectionStatus(sessionId = DEFAULT_SESSION) {
 
   return {
     ...mapped,
-    qrReady: status === 'qr',
+    qrReady: status === 'qr_ready',
     logs: Array.isArray(session.connectionLogs) ? session.connectionLogs.slice(-10) : [],
   };
 }
@@ -118,7 +113,7 @@ async function createConnection(sessionId = DEFAULT_SESSION, displayName = DEFAU
       phone: null,
       sessionId,
       sessionName: displayName || sessionId,
-      status: 'creating',
+      status: 'connecting',
       connected: false,
       systemConnected: true,
       retryCount: 0,
@@ -130,7 +125,7 @@ async function createConnection(sessionId = DEFAULT_SESSION, displayName = DEFAU
 
   const existing = getSessionCompat(sessionId);
 
-  if (existing && toPublicStatus(existing.status) !== 'idle') {
+  if (existing && toPublicStatus(existing.status) !== 'disconnected') {
     return {
       ...mapSession(existing, sessionId),
       alreadyRunning: true,
@@ -162,17 +157,17 @@ async function getConnectionQr(sessionId = DEFAULT_SESSION) {
     return { status: 'connected', qr: null };
   }
 
-  const qr = session?.qrCode || (typeof sessionManager.getLatestQr === 'function' ? sessionManager.getLatestQr() : null);
+  const qr = session?.qrCode || (typeof sessionManager.getSessionQr === 'function' ? sessionManager.getSessionQr(sessionId) : null);
 
   if (!qr) {
     if (creating) {
-      return { status: 'creating', qr: null };
+      return { status: 'connecting', qr: null };
     }
 
-    return { status: session ? toPublicStatus(session.status) : 'idle', qr: null };
+    return { status: session ? toPublicStatus(session.status) : 'disconnected', qr: null };
   }
 
-  return { status: session ? toPublicStatus(session.status) : 'qr', qr };
+  return { status: session ? toPublicStatus(session.status) : 'qr_ready', qr };
 }
 
 module.exports = {
