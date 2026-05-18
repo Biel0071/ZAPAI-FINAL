@@ -29,33 +29,6 @@ if (typeof String.prototype.replaceAll !== "function") {
   };
 }
 
-// Global error trap: intercept "replaceAll is not a function" before
-// React's error boundary can catch it. This prevents full black screen.
-window.addEventListener("error", (event) => {
-  const msg = event.message ?? "";
-  if (
-    msg.includes("replaceAll is not a function") ||
-    msg.includes("replace is not a function") ||
-    msg.includes("Cannot read properties of undefined") ||
-    msg.includes("Cannot read properties of null")
-  ) {
-    console.warn("[ZAPFLOW] Intercepted runtime TypeError:", msg);
-    event.preventDefault(); // Prevent default error handling (black screen)
-  }
-});
-
-window.addEventListener("unhandledrejection", (event) => {
-  const reason = event.reason;
-  const msg = reason instanceof Error ? reason.message : String(reason ?? "");
-  if (
-    msg.includes("replaceAll is not a function") ||
-    msg.includes("replace is not a function")
-  ) {
-    console.warn("[ZAPFLOW] Intercepted unhandled rejection:", msg);
-    event.preventDefault();
-  }
-});
-
 function enforceDarkThemeDom() {
   if (typeof document === "undefined") return;
 
@@ -94,14 +67,26 @@ function renderFatalError(message: string) {
   `;
 }
 
+function clearLegacyRuntimeCaches() {
+  try {
+    if ("caches" in window) {
+      void caches.keys().then((keys) =>
+        Promise.all(
+          keys
+            .filter((key) => /lovable|swift-wa-assist|preview|vite/i.test(key))
+            .map((key) => caches.delete(key)),
+        ),
+      );
+    }
+  } catch {
+    // ignore
+  }
+}
+
 async function bootstrap() {
-  console.log("[ZAPFLOW] bootstrap: start", {
-    href: window.location.href,
-    time: new Date().toISOString(),
-    build: zapaiBuildInfo.hash,
-  });
   persistBuildInfo();
   enforceDarkThemeDom();
+  clearLegacyRuntimeCaches();
 
   const url = new URL(window.location.href);
   if (url.searchParams.has("runtime_recover")) {
@@ -116,9 +101,7 @@ async function bootstrap() {
     return;
   }
 
-  console.log("[ZAPFLOW] bootstrap: rendering <App />");
   createRoot(rootEl).render(<App />);
-  console.log("[ZAPFLOW] bootstrap: render() called — React is mounting");
 }
 
 void bootstrap().catch((error) => {

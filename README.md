@@ -123,6 +123,20 @@ npm run dev
 # → http://localhost:8080
 ```
 
+### Runtime único local
+```bash
+# Na raiz do repositório
+npm run stop         # derruba Vites/Node duplicados gerenciados
+npm run start:official
+# ou: npm run dev:clean
+# frontend oficial → http://localhost:8080
+# backend oficial  → http://127.0.0.1:4025
+```
+
+Logs locais gerados pelos scripts:
+- `logs/local-backend.log`
+- `logs/local-frontend.log`
+
 ### Verificar sistema funcionando
 ```bash
 # Health check

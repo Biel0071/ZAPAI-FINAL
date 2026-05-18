@@ -16,6 +16,13 @@ npm install
 npm run dev
 ```
 
+Ou, a partir da raiz do repositório, use os scripts de runtime único:
+```sh
+npm run stop
+npm run start:official
+# ou: npm run dev:clean
+```
+
 Abra:
 - `http://localhost:8080/login`
 

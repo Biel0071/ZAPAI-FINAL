@@ -122,7 +122,6 @@ function CatchAllRoute() {
 
 const App = () => {
   useFrontendHealthWatcher();
-  console.log("[ZAPFLOW] App: rendering");
 
   return (
     <GlobalErrorBoundary>
@@ -147,9 +146,9 @@ const App = () => {
                       <Route path="/ai" element={<AI />} />
                       <Route path="/analytics" element={<Analytics />} />
                       <Route path="/campaigns" element={<Campaigns />} />
-                      <Route path="/automation" element={<Flows />} />
-                      <Route path="/integrations" element={<Settings />} />
-                      <Route path="/dev-tools" element={<ProtectedRoute minRole="admin"><Diagnostics /></ProtectedRoute>} />
+                      <Route path="/automation" element={<Navigate to="/flows" replace />} />
+                      <Route path="/integrations" element={<Navigate to="/settings" replace />} />
+                      <Route path="/dev-tools" element={<Navigate to="/diagnostics" replace />} />
                       <Route path="/memory" element={<Memory />} />
                       <Route path="/users" element={<ProtectedRoute minRole="master"><MasterAdmins /></ProtectedRoute>} />
 
@@ -157,13 +156,13 @@ const App = () => {
                       <Route path="/nodes/:id" element={<ProtectedRoute minRole="master"><NodeDetails /></ProtectedRoute>} />
                       <Route path="/deployments" element={<ProtectedRoute minRole="master"><MasterDeployments /></ProtectedRoute>} />
                       <Route path="/logs" element={<ProtectedRoute minRole="master"><MasterLogs /></ProtectedRoute>} />
-                      <Route path="/system/runtime" element={<ProtectedRoute minRole="admin"><Diagnostics /></ProtectedRoute>} />
-                      <Route path="/system/performance" element={<ProtectedRoute minRole="admin"><Diagnostics /></ProtectedRoute>} />
-                      <Route path="/system/websocket" element={<ProtectedRoute minRole="admin"><Diagnostics /></ProtectedRoute>} />
-                      <Route path="/system/database" element={<ProtectedRoute minRole="admin"><Diagnostics /></ProtectedRoute>} />
-                      <Route path="/system/files" element={<ProtectedRoute minRole="admin"><Diagnostics /></ProtectedRoute>} />
-                      <Route path="/system/health" element={<ProtectedRoute minRole="admin"><Diagnostics /></ProtectedRoute>} />
-                      <Route path="/system/metrics" element={<ProtectedRoute minRole="admin"><Diagnostics /></ProtectedRoute>} />
+                      <Route path="/system/runtime" element={<Navigate to="/diagnostics" replace />} />
+                      <Route path="/system/performance" element={<Navigate to="/diagnostics" replace />} />
+                      <Route path="/system/websocket" element={<Navigate to="/diagnostics" replace />} />
+                      <Route path="/system/database" element={<Navigate to="/diagnostics" replace />} />
+                      <Route path="/system/files" element={<Navigate to="/diagnostics" replace />} />
+                      <Route path="/system/health" element={<Navigate to="/diagnostics" replace />} />
+                      <Route path="/system/metrics" element={<Navigate to="/diagnostics" replace />} />
 
                       <Route
                         path="/diagnostics"

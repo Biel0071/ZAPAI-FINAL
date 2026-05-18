@@ -9,7 +9,23 @@
  *  5. Corrupt storage auto-cleanup
  */
 
-const STORAGE_VERSION = "zapflow_storage_v2";
+const STORAGE_VERSION = "zapflow_storage_v3";
+const OFFICIAL_BUILD_KEY = "zapai:build:active";
+const OFFICIAL_BUILD_MARKER = "official-frontend-8080";
+const LEGACY_STORAGE_KEYS = [
+  "chunk_recovery",
+  "zapflow_chunk_recovery",
+  "zapai:runtime:diag",
+  "lovable-preview-state",
+  "lovable-runtime-state",
+  "swift-wa-assist-runtime",
+  "swift-wa-assist-auth",
+];
+const LEGACY_STORAGE_PREFIXES = [
+  "lovable",
+  "swift-wa-assist",
+  "supabase.auth.",
+];
 
 // ── 1. Safe JSON.parse ──────────────────────────────────────────────
 const _originalParse = JSON.parse;
@@ -96,15 +112,43 @@ function safeStorageClear(): void {
 function migrateStorage(): void {
   try {
     const currentVersion = safeGetItem(STORAGE_VERSION);
-    if (currentVersion === "2") return; // Already current
+    if (currentVersion === "3") return;
 
-    // Version mismatch — clear all storage (safe reset)
-    if (currentVersion && currentVersion !== "2") {
-      console.warn("[RuntimeHardening] Storage version mismatch — resetting...");
-      safeStorageClear();
+    if (currentVersion && currentVersion !== "3") {
+      console.warn("[RuntimeHardening] Storage version mismatch — resetting runtime fragments...");
+      clearLegacyRuntimeFragments();
     }
 
-    safeSetItem(STORAGE_VERSION, "2");
+    safeSetItem(STORAGE_VERSION, "3");
+  } catch {
+    // ignore
+  }
+}
+
+function clearLegacyRuntimeFragments(): void {
+  if (typeof window === "undefined") return;
+
+  const storages = [window.localStorage, window.sessionStorage].filter(Boolean) as Storage[];
+  for (const storage of storages) {
+    try {
+      const keysToRemove: string[] = [];
+      for (let index = 0; index < storage.length; index += 1) {
+        const key = storage.key(index);
+        if (!key) continue;
+        if (LEGACY_STORAGE_KEYS.includes(key) || LEGACY_STORAGE_PREFIXES.some((prefix) => key.startsWith(prefix))) {
+          keysToRemove.push(key);
+        }
+      }
+      keysToRemove.forEach((key) => storage.removeItem(key));
+    } catch {
+      // ignore
+    }
+  }
+}
+
+function enforceOfficialFrontendMarker(): void {
+  try {
+    safeSetItem(OFFICIAL_BUILD_KEY, OFFICIAL_BUILD_MARKER);
   } catch {
     // ignore
   }
@@ -113,7 +157,6 @@ function migrateStorage(): void {
 // ── 4. Clean up stale recovery flags ────────────────────────────────
 function cleanRecoveryFlags(): void {
   try {
-    // Remove chunk recovery flag after 5 seconds of successful load
     window.addEventListener(
       "load",
       () => {
@@ -190,11 +233,13 @@ export function injectRuntimeHardening(): void {
   if (typeof window === "undefined") return;
 
   migrateStorage();
+  clearLegacyRuntimeFragments();
+  enforceOfficialFrontendMarker();
   cleanRecoveryFlags();
   installSafeStringHelper();
   installGlobalErrorInterceptors();
 
-  console.info("[RuntimeHardening] Active — storage v2, error interceptors installed.");
+  console.info("[RuntimeHardening] Active — official frontend marker enforced.");
 }
 
 // Auto-execute on import
