@@ -25,7 +25,7 @@ async function pingBackend(signal: AbortSignal): Promise<ApiRuntimeStatus> {
     signal,
     headers: {
       Accept: "application/json",
-      "x-tenant-id": "main",
+      "x-tenant-id": "default",
       "ngrok-skip-browser-warning": "true",
     },
   });
