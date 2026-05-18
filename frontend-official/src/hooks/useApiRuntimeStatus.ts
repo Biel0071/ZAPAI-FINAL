@@ -47,6 +47,14 @@ export function useApiRuntimeStatus() {
   const offlineStartedAtRef = useRef<number | null>(null);
   const timerRef = useRef<number | null>(null);
   const abortRef = useRef<AbortController | null>(null);
+  const runProbeRef = useRef<() => void>(() => {});
+
+  const clearTimer = () => {
+    if (timerRef.current) {
+      window.clearTimeout(timerRef.current);
+      timerRef.current = null;
+    }
+  };
 
   useEffect(() => {
     let mounted = true;
@@ -58,17 +66,10 @@ export function useApiRuntimeStatus() {
       };
     }
 
-    const clearTimer = () => {
-      if (timerRef.current) {
-        window.clearTimeout(timerRef.current);
-        timerRef.current = null;
-      }
-    };
-
     const schedule = (ms: number) => {
       clearTimer();
       timerRef.current = window.setTimeout(() => {
-        void runProbe();
+        runProbeRef.current();
       }, ms);
     };
 
@@ -109,6 +110,10 @@ export function useApiRuntimeStatus() {
       }
     };
 
+    runProbeRef.current = () => {
+      void runProbe();
+    };
+
     void runProbe();
 
     return () => {
@@ -129,6 +134,7 @@ export function useApiRuntimeStatus() {
   const manualReconnect = () => {
     offlineStartedAtRef.current = null;
     retryDelayRef.current = OFFLINE_BASE_RETRY_MS;
+    clearTimer();
     abortRef.current?.abort();
 
     const controller = new AbortController();
@@ -137,6 +143,10 @@ export function useApiRuntimeStatus() {
     void pingBackend(controller.signal)
       .then((nextStatus) => {
         setStatus(nextStatus);
+        clearTimer();
+        timerRef.current = window.setTimeout(() => {
+          runProbeRef.current();
+        }, nextStatus.online ? ONLINE_REVALIDATE_MS : OFFLINE_BASE_RETRY_MS);
       })
       .catch(() => {
         setStatus({ online: false, latencyMs: null });

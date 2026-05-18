@@ -147,7 +147,7 @@ export default function Dashboard() {
   const loadStatus = useCallback(async () => {
     try {
       const shouldRefreshHeavyData =
-        activeTab === "overview" && Date.now() - lastHeavyFetchAtRef.current >= HEAVY_REFRESH_MS;
+        Date.now() - lastHeavyFetchAtRef.current >= HEAVY_REFRESH_MS;
 
       // Health status is Dashboard-specific — not covered by RuntimeProvider
       const [healthStatusResult, metricsResult] = await Promise.allSettled([
@@ -182,7 +182,7 @@ export default function Dashboard() {
     } finally {
       setIsSystemLoading(false);
     }
-  }, [activeTab]);
+  }, []);
 
   useEffect(() => {
     let isMounted = true;

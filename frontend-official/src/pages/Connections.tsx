@@ -176,9 +176,14 @@ export default function Connections() {
 
       const qrReadySession = normalized.find((session) => session.status === "qr");
       if (qrReadySession) {
-        setLastQr((prev) => ({ sessionId: qrReadySession.id, qr: prev?.qr }));
-        setShowQRModal(true);
-        setIsActivationDialogOpen(true);
+        setLastQr((prev) => {
+          if (prev?.sessionId === qrReadySession.id) {
+            return prev;
+          }
+          setShowQRModal(true);
+          setIsActivationDialogOpen(true);
+          return { sessionId: qrReadySession.id, qr: prev?.qr };
+        });
       } else {
         setShowQRModal(false);
       }
@@ -224,6 +229,8 @@ export default function Connections() {
     const intervalId = window.setInterval(() => {
       if (document.visibilityState !== "visible") return;
       if (showQRModal || isActivationDialogOpen || isConnecting || restartingSessionId) return;
+      const hasQrSession = sessionsRef.current.some((session) => session.status === "qr");
+      if (hasQrSession) return;
       void loadSessions({ silent: true });
     }, 30_000);
 

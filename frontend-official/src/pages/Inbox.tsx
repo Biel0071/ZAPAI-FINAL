@@ -2473,6 +2473,7 @@ export default function Inbox() {
   useEffect(() => {
     const handleRuntimeReconnected = () => {
       const now = Date.now();
+      if (isRealtimeConnected) return;
       if (now - lastForceReconnectAtRef.current < SOCKET_FORCE_RECONNECT_DEBOUNCE_MS) return;
       lastForceReconnectAtRef.current = now;
       forceReconnectInboxSocket();
@@ -2480,7 +2481,7 @@ export default function Inbox() {
 
     window.addEventListener(RUNTIME_RECONNECTED_EVENT, handleRuntimeReconnected);
     return () => window.removeEventListener(RUNTIME_RECONNECTED_EVENT, handleRuntimeReconnected);
-  }, []);
+  }, [isRealtimeConnected]);
 
   useEffect(() => {
     publishInboxUnreadTotal(getInboxUnreadTotal(conversations));
