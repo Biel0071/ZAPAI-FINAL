@@ -99,6 +99,12 @@ function buildHealthPayload() {
     status: overallStatus,
     backend: true,
     db: databaseOnline,
+    runtimeIdentity: {
+      backendUrl: OFFICIAL_BACKEND_URL,
+      frontendRuntime: 'official',
+      frontendUrl: OFFICIAL_FRONTEND_URL,
+      websocketUrl: OFFICIAL_BACKEND_URL,
+    },
     server: 'online',
     database: {
       status: databaseOnline ? 'online' : 'offline',
@@ -227,6 +233,8 @@ const ENABLE_ADMIN_MASTER_ROUTES = runtimeEnv.enableAdminMasterRoutes;
 const ENABLE_NODE_REGISTRATION_SERVER = runtimeEnv.enableNodeRegistrationServer;
 const ENABLE_NODE_AUTO_REGISTER_CLIENT = runtimeEnv.enableNodeAutoRegisterClient;
 const FRONTEND_URL = runtimeEnv.frontendUrl;
+const OFFICIAL_FRONTEND_URL = FRONTEND_URL || 'http://localhost:8080';
+const OFFICIAL_BACKEND_URL = `http://127.0.0.1:${PORT}`;
 const ENV_ALLOWED_ORIGINS = runtimeEnv.allowedOriginsFromEnv || process.env.ALLOWED_ORIGINS?.split(',') || [];
 const BASE_ALLOWED_ORIGINS = [
   'http://localhost:8080',
@@ -1080,6 +1088,12 @@ app.get('/api/websocket/status', (_req, res) => {
         connected: websocketGateway.isConnected(),
         sockets: websocketGateway.getConnectedSockets(),
         metrics: websocketGateway.getMetrics(),
+        runtimeIdentity: {
+          backendUrl: OFFICIAL_BACKEND_URL,
+          frontendRuntime: 'official',
+          frontendUrl: OFFICIAL_FRONTEND_URL,
+          websocketUrl: OFFICIAL_BACKEND_URL,
+        },
       },
     });
   } catch (error) {

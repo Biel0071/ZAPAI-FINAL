@@ -1,4 +1,28 @@
-import { officialPorts, startOfficialRuntime, waitForHttp } from "./runtime-lib.mjs";
+import {
+  cleanRuntimeArtifacts,
+  formatProcessSummary,
+  officialPorts,
+  startOfficialRuntime,
+  stopManagedProcesses,
+  waitForHttp,
+} from "./runtime-lib.mjs";
+
+const stopped = stopManagedProcesses();
+if (stopped.killed.length > 0) {
+  console.log("[runtime:start] Processos encerrados:");
+  console.log(formatProcessSummary(stopped.killed));
+}
+if (stopped.failed.length > 0) {
+  console.warn("[runtime:start] Falhas ao encerrar alguns processos:");
+  for (const failure of stopped.failed) {
+    console.warn(`- PID ${failure.proc.pid}: ${failure.error}`);
+  }
+}
+
+const removed = cleanRuntimeArtifacts();
+if (removed.length > 0) {
+  console.log(`[runtime:start] Artefatos limpos: ${removed.join(", ")}`);
+}
 
 const started = startOfficialRuntime();
 console.log(`[runtime:start] Backend iniciado com PID ${started.backendPid}.`);

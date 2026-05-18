@@ -27,6 +27,10 @@ export function Header({ title, subtitle, runtimeState, actions }: HeaderProps) 
   const { logout, username } = useAdminAuth();
   const { connectionState, manualReconnect } = useApiRuntimeStatus();
   const { forceReconnect } = useRuntime();
+  const runtimeManifest = typeof window !== "undefined" ? window.__ZAPFLOW_RUNTIME__ : undefined;
+  const runtimeBadgeLabel = runtimeManifest
+    ? `${runtimeManifest.runtime} · ${runtimeManifest.hash} · ${runtimeManifest.commit}`
+    : null;
 
   const handleLogout = () => {
     logout();
@@ -56,6 +60,11 @@ export function Header({ title, subtitle, runtimeState, actions }: HeaderProps) 
                   <span className={`h-1.5 w-1.5 rounded-full ${runtimeBadge.dotClass}`} />
                   <span className="text-[11px] font-medium text-muted-foreground">{runtimeBadge.label}</span>
                 </div>
+                {runtimeBadgeLabel && (
+                  <div className="hidden items-center gap-1.5 rounded-full border border-border/60 bg-background/80 px-2 py-0.5 xl:flex">
+                    <span className="text-[11px] font-medium text-muted-foreground">{runtimeBadgeLabel}</span>
+                  </div>
+                )}
                 {connectionState === "OFFLINE" && (
                   <Button
                     size="sm"

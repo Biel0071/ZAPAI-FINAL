@@ -15,6 +15,10 @@ import { connectInboxSocket, forceReconnectInboxSocket } from "@/services/socket
 import { apiService, type Conversation, type SessionInfo } from "@/services/apiService";
 import { useAppStore } from "@/stores/appStore";
 import { API_ORIGIN } from "@/lib/backendConfig";
+import {
+  buildRuntimeCoherenceSnapshot,
+  persistRuntimeCoherenceSnapshot,
+} from "@/services/runtimeCoherenceService";
 
 type RuntimeStatus = "online" | "reconnecting" | "offline";
 
@@ -91,9 +95,25 @@ export function RuntimeProvider({ children }: { children: ReactNode }) {
         setMetrics(metricsResult.value);
       }
 
+      persistRuntimeCoherenceSnapshot(
+        buildRuntimeCoherenceSnapshot({
+          apiHealthy: true,
+          mismatchReason: null,
+          socketOrigin: socketUrl,
+          websocketHealthy: status === "online",
+        }),
+      );
+
       setHydrated(true);
     } catch {
-      // Silent — health watcher reports errors separately
+      persistRuntimeCoherenceSnapshot(
+        buildRuntimeCoherenceSnapshot({
+          apiHealthy: false,
+          mismatchReason: "Falha ao carregar dados do backend oficial.",
+          socketOrigin: socketUrl,
+          websocketHealthy: status === "online",
+        }),
+      );
     }
   }, [setConversations, setMetrics, setSessions]);
 
@@ -118,8 +138,15 @@ export function RuntimeProvider({ children }: { children: ReactNode }) {
       onSocketConnected: () => {
         setStatus("online");
         disconnectedAtRef.current = null;
+        persistRuntimeCoherenceSnapshot(
+          buildRuntimeCoherenceSnapshot({
+            apiHealthy: true,
+            mismatchReason: null,
+            socketOrigin: socketUrl,
+            websocketHealthy: true,
+          }),
+        );
 
-        // Re-hydrate on reconnect (but not on first connect — loadFromApi handles that)
         if (hydrated) {
           debouncedRefresh();
         }
@@ -129,9 +156,20 @@ export function RuntimeProvider({ children }: { children: ReactNode }) {
         if (!disconnectedAtRef.current) {
           disconnectedAtRef.current = now;
         }
-        // Show "reconnecting" for first 30s, then "offline"
         const elapsed = now - (disconnectedAtRef.current ?? now);
-        setStatus(elapsed < 30_000 ? "reconnecting" : "offline");
+        const nextStatus = elapsed < 30_000 ? "reconnecting" : "offline";
+        setStatus(nextStatus);
+        persistRuntimeCoherenceSnapshot(
+          buildRuntimeCoherenceSnapshot({
+            apiHealthy: true,
+            mismatchReason:
+              nextStatus === "reconnecting"
+                ? "Socket desconectado do runtime oficial; aguardando reconnect controlado."
+                : "Socket offline em relação ao runtime oficial.",
+            socketOrigin: socketUrl,
+            websocketHealthy: false,
+          }),
+        );
       },
 
       // Session events → update Zustand sessions store

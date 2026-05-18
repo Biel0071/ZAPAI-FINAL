@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { DownloadSimple, CaretDown, Palette, CopySimple, ArrowClockwise, CheckCircle, WarningCircle, XCircle } from "@phosphor-icons/react";
+import { readRuntimeManifest, type RuntimeCoherenceSnapshot } from "@/services/runtimeCoherenceService";
 import { generateDesignSystemZip } from "@/lib/designSystemExporter";
 import { API_ORIGIN } from "@/services/apiService";
 import { IS_MIXED_CONTENT_BLOCKED } from "@/lib/backendConfig";
@@ -47,6 +48,14 @@ type RouteHealthResult = {
   responseTime: number;
   level: HealthLevel;
   message: string;
+};
+
+type RuntimeCoherenceCard = {
+  manifest: ReturnType<typeof readRuntimeManifest>;
+  backendUrl: string;
+  frontendUrl: string;
+  websocketUrl: string;
+  mismatchReason: string | null;
 };
 
 const AI_DIAGNOSTIC_DEFINITIONS = [
@@ -195,6 +204,7 @@ const Diagnostics = memo(function Diagnostics() {
   const [dsLoading, setDsLoading] = useState(false);
   const [routeHealth, setRouteHealth] = useState<RouteHealthResult[]>([]);
   const [routeHealthLoading, setRouteHealthLoading] = useState(true);
+  const [runtimeCoherence, setRuntimeCoherence] = useState<RuntimeCoherenceCard | null>(null);
   const [structuredLogs, setStructuredLogs] = useState<StructuredLogEntry[]>(slog.getLogs);
   const [errorsByRoute, setErrorsByRoute] = useState<Record<string, number>>({});
   const diagnosticsSnapshotRef = useRef("");
@@ -246,6 +256,36 @@ const Diagnostics = memo(function Diagnostics() {
     }
   }, []);
 
+  const loadRuntimeCoherence = useCallback(async () => {
+    try {
+      const coherence = await systemControlService.getRuntimeCoherence();
+      const identity = (coherence.runtimeIdentity ?? {}) as Record<string, unknown>;
+      const frontendUrl = String(identity.frontendUrl ?? "http://localhost:8080");
+      const backendUrl = String(identity.backendUrl ?? API_ORIGIN ?? "http://127.0.0.1:4025");
+      const websocketUrl = String(identity.websocketUrl ?? backendUrl);
+      const manifest = readRuntimeManifest();
+      let mismatchReason: string | null = null;
+
+      if (manifest?.runtime !== "official") {
+        mismatchReason = "Runtime manifest não oficial detectado.";
+      } else if (manifest?.frontend !== "8080") {
+        mismatchReason = "Porta de frontend divergente do runtime oficial.";
+      } else if (manifest?.backend !== "4025") {
+        mismatchReason = "Porta de backend divergente do runtime oficial.";
+      }
+
+      setRuntimeCoherence({
+        manifest,
+        backendUrl,
+        frontendUrl,
+        websocketUrl,
+        mismatchReason,
+      });
+    } catch {
+      setRuntimeCoherence(null);
+    }
+  }, []);
+
   useEffect(() => {
     const unsubscribe = subscribeFrontendHealth(setFrontendHealth);
     return () => unsubscribe();
@@ -280,12 +320,14 @@ const Diagnostics = memo(function Diagnostics() {
 
   useEffect(() => {
     void loadRouteHealth();
+    void loadRuntimeCoherence();
     const intervalId = window.setInterval(() => {
       if (document.visibilityState !== "visible") return;
       void loadRouteHealth();
+      void loadRuntimeCoherence();
     }, 60_000);
     return () => window.clearInterval(intervalId);
-  }, [loadRouteHealth]);
+  }, [loadRouteHealth, loadRuntimeCoherence]);
 
   const indicators = useMemo(() => buildIndicators(status, frontendHealth), [status, frontendHealth]);
   const aiCards = useMemo(() => buildAiDiagnosticCards(aiDiagnostics), [aiDiagnostics]);
@@ -377,6 +419,54 @@ const Diagnostics = memo(function Diagnostics() {
           <Card className="metric-card"><CardContent className="p-5"><p className="text-sm text-muted-foreground">Messages processed</p><p className="font-display text-2xl font-bold">{metrics.messagesProcessed}</p></CardContent></Card>
           <Card className="metric-card"><CardContent className="p-5"><p className="text-sm text-muted-foreground">System uptime</p><p className="font-display text-2xl font-bold">{metrics.uptime}</p></CardContent></Card>
         </div>
+
+        {runtimeCoherence && (
+          <Card className="glass-card">
+            <CardHeader>
+              <CardTitle className="font-display">Runtime Coherence</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3 text-sm text-muted-foreground">
+              <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
+                <div className="rounded-lg border border-border bg-card p-3">
+                  <p className="text-xs uppercase tracking-wide text-muted-foreground">Runtime</p>
+                  <p className="font-medium text-foreground">{runtimeCoherence.manifest?.runtime ?? "unknown"}</p>
+                </div>
+                <div className="rounded-lg border border-border bg-card p-3">
+                  <p className="text-xs uppercase tracking-wide text-muted-foreground">Build hash</p>
+                  <p className="font-medium text-foreground">{runtimeCoherence.manifest?.hash ?? "unknown"}</p>
+                </div>
+                <div className="rounded-lg border border-border bg-card p-3">
+                  <p className="text-xs uppercase tracking-wide text-muted-foreground">Commit</p>
+                  <p className="font-medium text-foreground">{runtimeCoherence.manifest?.commit ?? "unknown"}</p>
+                </div>
+                <div className="rounded-lg border border-border bg-card p-3">
+                  <p className="text-xs uppercase tracking-wide text-muted-foreground">Schema</p>
+                  <p className="font-medium text-foreground">{runtimeCoherence.manifest?.schemaVersion ?? "unknown"}</p>
+                </div>
+              </div>
+              <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+                <div className="rounded-lg border border-border bg-card p-3">
+                  <p className="text-xs uppercase tracking-wide text-muted-foreground">Frontend origin</p>
+                  <p className="font-mono text-xs text-foreground">{runtimeCoherence.frontendUrl}</p>
+                </div>
+                <div className="rounded-lg border border-border bg-card p-3">
+                  <p className="text-xs uppercase tracking-wide text-muted-foreground">Backend origin</p>
+                  <p className="font-mono text-xs text-foreground">{runtimeCoherence.backendUrl}</p>
+                </div>
+                <div className="rounded-lg border border-border bg-card p-3">
+                  <p className="text-xs uppercase tracking-wide text-muted-foreground">Socket origin</p>
+                  <p className="font-mono text-xs text-foreground">{runtimeCoherence.websocketUrl}</p>
+                </div>
+              </div>
+              <div className="rounded-lg border border-border bg-card p-3">
+                <p className="text-xs uppercase tracking-wide text-muted-foreground">Mismatch reason</p>
+                <p className={runtimeCoherence.mismatchReason ? "text-warning" : "text-success"}>
+                  {runtimeCoherence.mismatchReason ?? "Nenhuma divergência detectada com o runtime oficial."}
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Route Health Checks */}
         <Card className="glass-card">

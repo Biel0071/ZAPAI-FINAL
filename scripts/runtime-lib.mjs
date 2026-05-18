@@ -9,7 +9,7 @@ export const repoRoot = path.resolve(__dirname, "..");
 export const logsDir = path.join(repoRoot, "logs");
 export const frontendDir = path.join(repoRoot, "frontend-official");
 export const backendDir = path.join(repoRoot, "backend");
-export const targetPorts = [3000, 4025, 5173, 8080];
+export const targetPorts = [3000, 4025, 4173, 5173, 8080];
 export const officialPorts = {
   backend: 4025,
   frontend: 8080,
@@ -17,6 +17,7 @@ export const officialPorts = {
 
 const duplicateCommandFragments = [
   "frontend-official",
+  "vite preview",
   `${path.sep}backend${path.sep}`,
   "swift-wa-assist-live-integration",
   `${path.sep}swift-wa-assist${path.sep}`,

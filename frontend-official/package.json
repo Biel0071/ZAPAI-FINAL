@@ -5,11 +5,12 @@
   "type": "module",
   "scripts": {
     "check:api": "node scripts/check-api-endpoints.mjs",
-    "dev": "vite",
+    "dev": "node -e \"console.error('Use o runtime oficial da raiz: npm run dev:clean ou npm run start:official'); process.exit(1)\"",
     "build": "vite build",
     "build:dev": "vite build --mode development",
     "lint": "eslint .",
-    "preview": "vite preview",
+    "preview": "node -e \"console.error('Preview isolado desabilitado. Use o runtime oficial da raiz em localhost:8080.'); process.exit(1)\"",
+    "preview:unsafe": "vite preview",
     "test": "vitest run",
     "test:watch": "vitest",
     "test-ui": "playwright test"

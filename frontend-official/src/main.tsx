@@ -1,20 +1,22 @@
 // ── MUST be first import — patches globals before any other module loads ──
-import "@/lib/runtimeHardening";
+import {
+  injectRuntimeHardening,
+} from "@/lib/runtimeHardening";
 
 import { createRoot } from "react-dom/client";
 import App from "./App.tsx";
 import "./index.css";
-import { zapaiBuildInfo, ZAPAI_BUILD_STORAGE_KEY } from "@/config/buildInfo";
+import {
+  createRuntimeManifest,
+  OFFICIAL_BACKEND_PORT,
+  OFFICIAL_FRONTEND_PORT,
+  zapaiBuildInfo,
+  ZAPAI_RUNTIME_MANIFEST_STORAGE_KEY,
+} from "@/config/buildInfo";
+import { API_ORIGIN } from "@/lib/backendConfig";
 
-// ── Runtime Safety: patch .replace/.replaceAll on all types ──────
-// The production error "e.replaceAll is not a function" happens when
-// minified code calls .replaceAll() on undefined/null/number.
-// This polyfill covers TWO cases:
-//   1. Browser lacks String.prototype.replaceAll  (Safari < 13.1)
-//   2. esbuild transforms .replace(/g/) → .replaceAll() and the
-//      value is not a string at runtime.
+injectRuntimeHardening(zapaiBuildInfo.hash);
 
-// Ensure String.prototype.replaceAll exists
 if (typeof String.prototype.replaceAll !== "function") {
   String.prototype.replaceAll = function (
     search: string | RegExp,
@@ -39,20 +41,38 @@ function enforceDarkThemeDom() {
   root.style.colorScheme = "dark";
 }
 
+function resolveSocketOrigin(): string | null {
+  if (API_ORIGIN) return API_ORIGIN;
+  if (typeof window !== "undefined") {
+    return window.location.origin;
+  }
+  return null;
+}
+
 function persistBuildInfo() {
+  const frontendOrigin = typeof window !== "undefined" ? window.location.origin : null;
+  const socketOrigin = resolveSocketOrigin();
+  const runtimeManifest = createRuntimeManifest({
+    apiOrigin: API_ORIGIN || frontendOrigin,
+    backend: OFFICIAL_BACKEND_PORT,
+    frontend: OFFICIAL_FRONTEND_PORT,
+    frontendOrigin,
+    socketOrigin,
+  });
+
   try {
-    localStorage.setItem(ZAPAI_BUILD_STORAGE_KEY, JSON.stringify(zapaiBuildInfo));
+    localStorage.setItem(ZAPAI_RUNTIME_MANIFEST_STORAGE_KEY, JSON.stringify(runtimeManifest));
   } catch {
     // storage indisponível
   }
 
-  (window as Record<string, unknown>).ZAPAI_BUILD = zapaiBuildInfo;
+  window.ZAPAI_BUILD = zapaiBuildInfo;
+  window.__ZAPFLOW_RUNTIME__ = runtimeManifest;
 }
 
 function renderFatalError(message: string) {
   const root = document.getElementById("root");
   if (!root) return;
-  // Only render fatal screen if root has no children (app hasn't mounted yet)
   if (root.children.length > 0) return;
   root.innerHTML = `
     <div style="display:flex;min-height:100vh;align-items:center;justify-content:center;background:#0a0a0a;color:#e5e5e5;font-family:system-ui,sans-serif;padding:24px;">

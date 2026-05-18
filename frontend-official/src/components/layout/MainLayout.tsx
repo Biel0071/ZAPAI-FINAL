@@ -11,6 +11,7 @@ export function MainLayout() {
   const [collapsed, setCollapsed] = useState(false);
   const isMobile = useIsMobile();
   const { status } = useRuntime();
+  const runtimeManifest = typeof window !== "undefined" ? window.__ZAPFLOW_RUNTIME__ : undefined;
 
   const websocketStatus =
     status === "online"
@@ -50,7 +51,11 @@ export function MainLayout() {
       >
         <div className="sticky top-0 z-40 border-b border-border/70 bg-background/95 px-4 py-2 backdrop-blur supports-[backdrop-filter]:bg-background/70">
           <div className="flex items-center justify-between gap-3">
-            <p className="truncate text-xs text-muted-foreground">Painel operacional ativo</p>
+            <p className="truncate text-xs text-muted-foreground">
+              {runtimeManifest
+                ? `Painel operacional ativo · ${runtimeManifest.runtime} · ${runtimeManifest.frontend}/${runtimeManifest.backend}`
+                : "Painel operacional ativo"}
+            </p>
             <Badge variant={websocketStatusTone} className="rounded-full px-2.5 py-1 text-[10px] font-semibold tracking-wide">
               {websocketStatus}
             </Badge>
