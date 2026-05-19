@@ -9,6 +9,7 @@ Frontend oficial ativo do ZAPFLOW AI.
 - Backend esperado em desenvolvimento: `http://127.0.0.1:4025`
 - Em produção, o frontend deve preferir same-origin via Nginx/proxy
 - O visual/UX vindo do Lovable deve ser absorvido aqui, nunca executado como app paralelo.
+- A fonte visual oficial deve entrar pela branch `lovable-sync` e pela superfície `src/lovable/**`, com integração via adapters e wrappers protegidos.
 
 ## Fluxo local recomendado
 ```sh

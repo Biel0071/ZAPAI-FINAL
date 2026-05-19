@@ -6,7 +6,7 @@
 
 ## Estrutura Oficial
 
-> Decisão de consolidação: `frontend-official/` é a única fonte de verdade do frontend. Qualquer UI/UX herdada do Lovable deve ser portada para dentro desta pasta, sem manter app paralelo ou runtime concorrente.
+> Decisão de consolidação: `frontend-official/` é a única fonte de verdade do runtime do frontend. A UI do Lovable deve entrar por fluxo controlado via branch `lovable-sync` e superfície `frontend-official/src/lovable/`, sem manter app paralelo ou runtime concorrente.
 
 ```
 ZAPAI-FINAL/
