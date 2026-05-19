@@ -1,17 +1,10 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Header } from "@/components/layout/Header";
-import { ContactGrid, type ContactGridItem } from "@/components/contacts/ContactGrid";
-import { ContactSidebar, type ContactSegment } from "@/components/contacts/ContactSidebar";
-import { ChatSearchBar } from "@/components/inbox/ChatSearchBar";
-import { Card, CardContent } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { EmptyState } from "@/components/ui/empty-state";
-import { StatGridSkeleton, ListSkeleton } from "@/components/ui/loading-skeleton";
-import { OperationalStatusBadge } from "@/components/enterprise/OperationalStatusBadge";
-import { AddressBook, ChatCircleDots, Phone } from "@phosphor-icons/react";
+import ContactsView from "@/lovable/pages/ContactsPageView";
+import { createContactsLovableViewModel } from "@/adapters/lovable/contactsAdapter";
+import { type ContactGridItem } from "@/components/contacts/ContactGrid";
+import { type ContactSegment } from "@/components/contacts/ContactSidebar";
 import { apiService, type Conversation } from "@/services/apiService";
 
 type ContactRow = {
@@ -260,120 +253,45 @@ export default function Contacts() {
     [navigate],
   );
 
-  const selectedSegmentLabel = useMemo(() => {
-    const labels: Record<ContactSegment, string> = {
-      all: "Todos os contatos",
-      inbox: "Contatos com conversa",
-      lead: "Leads CRM",
-      saved: "Contatos salvos",
-      grupos: "Grupos",
-      archived: "Arquivados",
-      lead_quente: "Lead quente",
-      lead_morno: "Lead morno",
-      lead_frio: "Lead frio",
-      ativo: "Ativos",
-      recorrente: "Recorrentes",
-      em_risco: "Em risco",
-      bloqueado: "Bloqueados",
-    };
-
-    return labels[activeSegment];
-  }, [activeSegment]);
+  const contactsViewModel = createContactsLovableViewModel({
+    activeSegment,
+    filteredContacts: filteredContacts.map((contact) => ({
+      id: contact.id,
+      name: contact.name,
+      phone: contact.phone,
+      updatedAt: contact.updatedAt,
+      isGroup: contact.isGroup,
+      tags: contact.tags,
+      temperature: contact.temperature,
+      status: contact.status,
+      unread: contact.unread,
+      lastMessage: contact.lastMessage,
+    })),
+    totalContacts: contacts.length,
+    groupCount,
+    individualCount,
+  });
 
   return (
     <div className="min-h-screen">
       <Header title="Leads CRM / Contatos" subtitle="Gestão de base e qualificação de leads" />
-      <div className="page-container section-stack">
-        <div className="grid gap-6 lg:grid-cols-[240px_minmax(0,1fr)]">
-          <Card className="glass-card min-h-[540px] overflow-hidden rounded-2xl border-border/70 bg-card/85">
-            <ContactSidebar activeSegment={activeSegment} onSegmentChange={setActiveSegment} counts={contactCounts} />
-          </Card>
-
-          <div className="space-y-4">
-            <Card className="glass-card rounded-2xl border-border/70 bg-card/85">
-              <CardContent className="space-y-3 p-4">
-                <div className="grid grid-cols-1 gap-3 md:grid-cols-[minmax(0,1fr)_auto]">
-                  <ChatSearchBar
-                    value={searchQuery}
-                    onChange={setSearchQuery}
-                    placeholder="Buscar por nome, telefone ou tag..."
-                  />
-                  <Button className="rounded-xl shadow-glow md:w-fit" onClick={() => void loadContacts()}>
-                    <ChatCircleDots weight="duotone" className="h-4 w-4" />
-                    Salvar filtro atual
-                  </Button>
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  <Button variant="outline" className="rounded-full">
-                    Filtrar: Todos
-                  </Button>
-                  <Button variant="outline" className="rounded-full">
-                    + Salvar filtro atual
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card className="glass-card overflow-hidden rounded-2xl border-border/70 bg-card/85">
-              <CardContent className="p-0">
-                <div className="flex items-center justify-between border-b border-border/60 px-4 py-4">
-                  <div className="flex min-w-0 items-center gap-2">
-                    <AddressBook className="h-4 w-4 text-primary" />
-                    <div>
-                      <p className="text-sm font-semibold">{selectedSegmentLabel}</p>
-                      <p className="text-xs text-muted-foreground">CRM enriquecido com dados reais de conversas</p>
-                    </div>
-                    {!loading && (
-                      <Badge variant="secondary" className="ml-2 rounded-full border border-border/70 bg-background/60 text-xs">
-                        {filteredContacts.length}
-                      </Badge>
-                    )}
-                  </div>
-                </div>
-
-                {loading ? (
-                  <div className="space-y-3 p-4">
-                    <ListSkeleton rows={8} />
-                  </div>
-                ) : error ? (
-                  <div className="p-4">
-                    <EmptyState
-                      icon={<AddressBook className="h-8 w-8 text-muted-foreground/50" />}
-                      title="Erro ao carregar contatos"
-                      description={error}
-                      action={
-                        <Button variant="outline" size="sm" onClick={() => void loadContacts()}>
-                          Tentar novamente
-                        </Button>
-                      }
-                    />
-                  </div>
-                ) : filteredContacts.length === 0 ? (
-                  <div className="p-4">
-                    <EmptyState
-                      icon={<AddressBook className="h-8 w-8 text-muted-foreground/50" />}
-                      title={searchQuery || tagFilter ? "Nenhum contato encontrado" : "Nenhum contato ainda"}
-                      description={searchQuery || tagFilter ? "Tente ajustar os filtros de busca." : "Os contatos aparecerão aqui quando houver conversas no WhatsApp."}
-                    />
-                  </div>
-                ) : (
-                  <ContactGrid
-                    contacts={gridContacts}
-                    onSelect={(item) => {
-                      const source = filteredContacts.find((contact) => contact.id === item.id);
-                      if (source) goToChat(source);
-                    }}
-                    onGoToChat={(item) => {
-                      const source = filteredContacts.find((contact) => contact.id === item.id);
-                      if (source) goToChat(source);
-                    }}
-                  />
-                )}
-              </CardContent>
-            </Card>
-          </div>
-        </div>
-      </div>
+      <ContactsView
+        loading={loading}
+        error={error}
+        searchQuery={searchQuery}
+        tagFilter={tagFilter}
+        activeSegment={activeSegment}
+        counts={contactCounts}
+        viewModel={contactsViewModel}
+        onSearchChange={setSearchQuery}
+        onTagFilterChange={setTagFilter}
+        onSegmentChange={setActiveSegment}
+        onRefresh={() => void loadContacts()}
+        onGoToChat={(item) => {
+          const source = filteredContacts.find((contact) => contact.id === item.id);
+          if (source) goToChat(source);
+        }}
+      />
     </div>
   );
 }
