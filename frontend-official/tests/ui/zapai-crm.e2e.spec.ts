@@ -43,26 +43,26 @@ async function login(page: import("@playwright/test").Page) {
 test.describe("ZapAI CRM UI smoke", () => {
   test("dashboard screen visible after login", async ({ page }) => {
     await login(page);
-    await expect(page.getByText("CRM Operacional").first()).toBeVisible();
+    await expect(page.locator("main").getByRole("heading", { name: "CRM Operacional" })).toBeVisible();
   });
 
   test("connections screen visible", async ({ page }) => {
     await login(page);
     await page.goto("/connections");
-    await expect(page.getByText("Conexões WhatsApp")).toBeVisible();
-    await expect(page.getByRole("heading", { name: "Gerencie o lifecycle das conexões em um único runtime" })).toBeVisible();
+    await expect(page.locator("main").getByRole("heading", { name: "Conexões WhatsApp" })).toBeVisible();
+    await expect(page.locator("main").getByRole("heading", { name: "Gerencie o lifecycle das conexões em um único runtime" })).toBeVisible();
   });
 
   test("inbox screen visible", async ({ page }) => {
     await login(page);
     await page.goto("/inbox");
-    await expect(page.getByText("Inbox")).toBeVisible();
+    await expect(page.locator("main").getByRole("heading", { name: "Inbox" })).toBeVisible();
     await expect(page.getByPlaceholder("Buscar conversas...")).toBeVisible();
   });
 
   test("settings screen visible", async ({ page }) => {
     await login(page);
     await page.goto("/settings");
-    await expect(page.getByRole("heading", { name: "Configurações" })).toBeVisible();
+    await expect(page.locator("main").getByRole("heading", { name: "Configurações" })).toBeVisible();
   });
 });
