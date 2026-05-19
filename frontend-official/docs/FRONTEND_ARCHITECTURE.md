@@ -78,6 +78,7 @@ O baseline congelado após a consolidação final é:
 
 - shell único Lovable-like estabilizado
 - sem topbar duplicada em `MainLayout`
+- baseline visual sincronizado com a UI publicada em `swift-wa-assist.lovable.app`
 - páginas críticas validadas por Playwright:
   - `/dashboard`
   - `/connections`
@@ -85,6 +86,7 @@ O baseline congelado após a consolidação final é:
   - `/settings`
 - build production válida
 - runtime oficial único em `8080/4025`
+- referência visual formalizada em `docs/VISUAL_BASELINE.md`
 
 ## Guardrails de regressão
 

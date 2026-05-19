@@ -1,0 +1,17 @@
+# Protected runtime and integration layer
+/frontend-official/src/App.tsx @Biel0071
+/frontend-official/src/main.tsx @Biel0071
+/frontend-official/src/providers/ @Biel0071
+/frontend-official/src/services/ @Biel0071
+/frontend-official/src/stores/ @Biel0071
+/frontend-official/src/config/ @Biel0071
+/frontend-official/src/lib/backendConfig.ts @Biel0071
+/frontend-official/src/components/layout/ @Biel0071
+/frontend-official/src/pages/ @Biel0071
+
+# Lovable-owned visual intake surface
+/frontend-official/src/lovable/ @Biel0071
+/frontend-official/src/adapters/lovable/ @Biel0071
+/.github/workflows/ @Biel0071
+/docs/ @Biel0071
+/frontend-official/docs/ @Biel0071

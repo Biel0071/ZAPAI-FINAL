@@ -98,6 +98,14 @@ Durante o freeze final foram identificados estes pontos:
   - primitive genérico não usado pelo shell oficial
   - pode permanecer como biblioteca base, mas não é shell oficial
 
+## Camada Lovable protegida
+
+A ingestão visual do Lovable deve acontecer em:
+- `src/lovable/**`
+- `src/adapters/lovable/**`
+
+Essa camada pode evoluir visualmente com sync Git controlado, mas continua dependente da cadeia oficial de providers descrita acima.
+
 ## Regras proibidas
 
 - provider duplicado por rota

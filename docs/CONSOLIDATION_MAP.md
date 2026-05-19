@@ -65,10 +65,11 @@ Observação: backend antigo contém configuração `ngrok` e não deve ser impo
 
 ## Decisão de consolidação
 
-- Não substituir `frontend/src` oficial em massa.
+- Não substituir `frontend-official/src` oficial em massa.
 - Não importar backend legado inteiro.
 - Preservar candidatos em `archive/legacy-frontend-candidates` e importar para runtime oficial somente após build individual.
 - Manter `ai-engine-core` fora do projeto oficial, integrado apenas via cliente/feature flag quando necessário.
+- Toda UI real do Lovable deve entrar por `lovable-sync` e ser absorvida na superfície controlada `frontend-official/src/lovable/**`.
 
 ## FASE 2 - Consolidação executada
 

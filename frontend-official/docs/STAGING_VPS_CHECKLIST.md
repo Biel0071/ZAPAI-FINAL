@@ -21,10 +21,12 @@
 - [ ] `/inbox` abre com shell oficial único
 - [ ] `/campaigns` abre com shell oficial único
 - [ ] `/settings` abre com shell oficial único
+- [ ] `/contacts` abre com shell oficial único
 - [ ] Sem header duplicado
 - [ ] Sem sidebar duplicada
 - [ ] Sem clipping de headings
 - [ ] Sem double scrollbar inesperado
+- [ ] Layout visual compatível com `docs/VISUAL_BASELINE.md`
 
 ## Backend real integrado
 

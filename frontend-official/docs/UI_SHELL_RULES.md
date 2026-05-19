@@ -74,4 +74,5 @@ A mudança deve ser rejeitada se causar qualquer um destes sintomas:
 - clipping de headings
 - scroll invisível
 - double scrollbar sem necessidade
-- diferença perceptível entre localhost e baseline Lovable esperado
+- diferença perceptível entre localhost e a UI publicada do Lovable
+- drift entre o shell oficial e `docs/VISUAL_BASELINE.md`
