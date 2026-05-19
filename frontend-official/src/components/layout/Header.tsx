@@ -27,11 +27,18 @@ export function Header({ title, subtitle, runtimeState, actions }: HeaderProps) 
   const navigate = useNavigate();
   const { logout, username } = useAdminAuth();
   const { connectionState, manualReconnect } = useApiRuntimeStatus();
-  const { forceReconnect } = useRuntime();
+  const { forceReconnect, status: runtimeProviderStatus } = useRuntime();
   const runtimeManifest = typeof window !== "undefined" ? window.__ZAPFLOW_RUNTIME__ : undefined;
   const runtimeBadgeLabel = runtimeManifest
     ? `${runtimeManifest.runtime} · ${runtimeManifest.hash} · ${runtimeManifest.commit}`
     : null;
+  const resolvedRuntimeState = runtimeState ?? (
+    runtimeProviderStatus === "online"
+      ? "running"
+      : runtimeProviderStatus === "reconnecting"
+        ? "reconnecting"
+        : "offline"
+  );
 
   const handleLogout = () => {
     logout();
@@ -39,13 +46,13 @@ export function Header({ title, subtitle, runtimeState, actions }: HeaderProps) 
   };
 
   const runtimeBadge =
-    runtimeState === "running"
+    resolvedRuntimeState === "running"
       ? { label: "Online", tone: "online" as const }
-      : runtimeState === "starting" || runtimeState === "reconnecting"
-        ? { label: runtimeState === "reconnecting" ? "Reconectando" : "Iniciando", tone: "warning" as const }
-        : runtimeState === "offline"
+      : resolvedRuntimeState === "starting" || resolvedRuntimeState === "reconnecting"
+        ? { label: resolvedRuntimeState === "reconnecting" ? "Reconectando" : "Iniciando", tone: "warning" as const }
+        : resolvedRuntimeState === "offline"
           ? { label: "Offline", tone: "offline" as const }
-          : runtimeState === "unconfigured"
+          : resolvedRuntimeState === "unconfigured"
             ? { label: "Não configurado", tone: "syncing" as const }
             : null;
 
@@ -53,46 +60,40 @@ export function Header({ title, subtitle, runtimeState, actions }: HeaderProps) 
     <header className="sticky top-0 z-40 shrink-0 border-b border-border/70 bg-card/60 backdrop-blur-xl">
       <div className="flex h-16 items-center justify-between gap-3 px-4 pl-14 md:gap-4 md:px-6 md:pl-6">
         <div className="min-w-0">
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-2">
             <h1 className="truncate font-display text-base font-semibold text-foreground md:text-lg">{title}</h1>
             {runtimeBadge && (
-              <div className="flex items-center gap-2">
-                <div className="hidden sm:flex">
-                  <OperationalStatusBadge
-                    label={runtimeBadge.label}
-                    tone={runtimeBadge.tone}
-                    pulse={runtimeState === "starting" || runtimeState === "reconnecting"}
-                  />
-                </div>
-                {runtimeBadgeLabel && (
-                  <div className="hidden items-center gap-1.5 rounded-full border border-border/60 bg-background/80 px-2.5 py-1 xl:flex">
-                    <span className="text-[11px] font-medium text-muted-foreground">{runtimeBadgeLabel}</span>
-                  </div>
-                )}
-                {connectionState === "OFFLINE" && (
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="h-7 gap-1 border-warning/40 bg-warning/10 px-2.5 text-[10px] font-semibold hover:bg-warning/15"
-                    onClick={() => {
-                      manualReconnect();
-                      forceReconnect();
-                    }}
-                  >
-                    <ArrowClockwise className="h-3 w-3" />
-                    Reconectar
-                  </Button>
-                )}
-              </div>
+              <OperationalStatusBadge
+                label={runtimeBadge.label}
+                tone={runtimeBadge.tone}
+                pulse={resolvedRuntimeState === "starting" || resolvedRuntimeState === "reconnecting"}
+              />
+            )}
+            {connectionState === "OFFLINE" && (
+              <Button
+                size="sm"
+                variant="outline"
+                className="h-7 gap-1 rounded-xl border-warning/40 bg-warning/10 px-2.5 text-[10px] font-semibold hover:bg-warning/15"
+                onClick={() => {
+                  manualReconnect();
+                  forceReconnect();
+                }}
+              >
+                <ArrowClockwise className="h-3 w-3" />
+                Reconectar
+              </Button>
             )}
           </div>
-          {subtitle && <p className="hidden text-[11px] text-muted-foreground/90 sm:line-clamp-1">{subtitle}</p>}
+          <div className="mt-1 flex flex-wrap items-center gap-2 text-[11px] text-muted-foreground/90">
+            {subtitle && <p className="line-clamp-1">{subtitle}</p>}
+            {runtimeBadgeLabel && <span className="hidden xl:inline">{runtimeBadgeLabel}</span>}
+          </div>
         </div>
 
         <div className="flex shrink-0 items-center gap-1 md:gap-2">
           <div className="relative hidden lg:block">
             <MagnifyingGlass className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
-            <Input placeholder="Buscar" className="h-8 w-52 border-border/60 bg-background/80 pl-8 text-sm" />
+            <Input placeholder="Buscar módulo, contato ou sessão" className="h-8 w-60 border-border/60 bg-background/80 pl-8 text-sm" />
           </div>
 
           <Button
@@ -123,7 +124,7 @@ export function Header({ title, subtitle, runtimeState, actions }: HeaderProps) 
           {actions ? (
             <div className="hidden items-center gap-2 md:flex">{actions}</div>
           ) : (
-            <Button size="sm" className="hidden h-8 gap-1.5 text-xs shadow-glow md:inline-flex">
+            <Button size="sm" className="hidden h-8 gap-1.5 rounded-xl text-xs shadow-glow md:inline-flex">
               <Plus weight="bold" className="h-3.5 w-3.5" />
               Nova Conversa
             </Button>

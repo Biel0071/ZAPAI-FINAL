@@ -9,7 +9,6 @@ import {
   DotsThreeVertical,
   PencilSimple,
   Star,
-  SidebarSimple,
   File as FileIcon,
   ImageSquare,
   MagnifyingGlass,
@@ -3472,10 +3471,11 @@ export default function Inbox() {
   );
 
   return (
-    <div className="flex h-dvh min-h-0 flex-col overflow-hidden">
+    <div className="min-h-screen">
       <Header title="Inbox" subtitle={`${conversations.length} conversas ativas`} />
 
-      <div className="grid min-h-0 flex-1 grid-cols-1 overflow-hidden md:grid-cols-[320px_minmax(0,1fr)] lg:grid-cols-[340px_minmax(0,1fr)_360px]">
+      <div className="page-container pt-4 lg:pt-6">
+        <div className="grid min-h-[calc(100vh-8.5rem)] grid-cols-1 overflow-hidden rounded-2xl border border-border/70 bg-card/30 md:grid-cols-[320px_minmax(0,1fr)] lg:grid-cols-[340px_minmax(0,1fr)_360px]">
         <div className={cn("flex min-h-0 flex-col border-r border-border bg-card/50 lg:resize-x lg:overflow-auto lg:min-w-[280px] lg:max-w-[460px]", isMobile && mobileScreen !== "conversations" && "hidden")}>
           <div className="space-y-3 border-b border-border p-4">
             <ChatSearchBar
@@ -3850,16 +3850,17 @@ export default function Inbox() {
         </aside>
       </div>
 
-      {isTabletLayout && (
-        <Sheet open={showLeadPanel} onOpenChange={setShowLeadPanel}>
-          <SheetContent side="right" className="w-full p-4 sm:max-w-md">
-            <SheetHeader>
-              <SheetTitle>Lead Panel</SheetTitle>
-            </SheetHeader>
-            <div className="mt-4 overflow-y-auto pr-1">{leadPanelContent}</div>
-          </SheetContent>
-        </Sheet>
-      )}
+        {isTabletLayout && (
+          <Sheet open={showLeadPanel} onOpenChange={setShowLeadPanel}>
+            <SheetContent side="right" className="w-full p-4 sm:max-w-md">
+              <SheetHeader>
+                <SheetTitle>Lead Panel</SheetTitle>
+              </SheetHeader>
+              <div className="mt-4 overflow-y-auto pr-1">{leadPanelContent}</div>
+            </SheetContent>
+          </Sheet>
+        )}
+      </div>
 
       <Dialog open={Boolean(previewMedia)} onOpenChange={(open) => !open && setPreviewMedia(null)}>
         <DialogContent className="h-screen w-screen max-w-none border-none bg-black/95 p-0 shadow-none">

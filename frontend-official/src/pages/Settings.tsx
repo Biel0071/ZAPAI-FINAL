@@ -85,7 +85,7 @@ export default function Settings() {
     <div className="min-h-screen">
       <Header title="Configurações" subtitle="Gerencie sua conta e preferências" />
 
-      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="p-6">
+      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="page-container section-stack">
         <div className="flex flex-col lg:flex-row gap-6">
           <div className="w-full lg:w-64 flex-shrink-0">
             <nav className="flex lg:flex-col gap-1 overflow-x-auto lg:overflow-x-visible pb-2 lg:pb-0">

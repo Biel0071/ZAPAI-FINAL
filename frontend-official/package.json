@@ -10,7 +10,6 @@
     "build:dev": "vite build --mode development",
     "lint": "eslint .",
     "preview": "node -e \"console.error('Preview isolado desabilitado. Use o runtime oficial da raiz em localhost:8080.'); process.exit(1)\"",
-    "preview:unsafe": "vite preview",
     "test": "vitest run",
     "test:watch": "vitest",
     "test-ui": "playwright test"
