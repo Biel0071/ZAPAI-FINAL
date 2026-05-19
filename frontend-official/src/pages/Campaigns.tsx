@@ -1,408 +1,1036 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { List, type RowComponentProps } from "react-window";
-import { motion } from "framer-motion";
 import {
-  Plus,
   Megaphone,
+  PaperPlaneTilt,
+  Eye,
+  CheckCircle,
+  Plus,
+  ArrowClockwise,
   Play,
   Pause,
   Trash,
-  PencilSimple,
-  Clock,
-  CheckCircle,
-  Eye,
   Copy,
-  CalendarBlank,
-  PaperPlaneTilt,
+  PencilSimple,
+  Users,
+  Clock,
+  Sparkle,
+  X,
 } from "@phosphor-icons/react";
 import { Header } from "@/components/layout/Header";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Progress } from "@/components/ui/progress";
 import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Checkbox } from "@/components/ui/checkbox";
 import { EmptyState } from "@/components/ui/empty-state";
 import { StatGridSkeleton } from "@/components/ui/loading-skeleton";
 import { OperationalStatusBadge } from "@/components/enterprise/OperationalStatusBadge";
+import {
+  apiService,
+  type CampaignContact,
+  type CampaignRecord,
+  type Contact,
+} from "@/services/apiService";
 import { notify } from "@/services/notifyService";
 import { cn } from "@/lib/utils";
-import { requestApiEndpoint } from "@/services/apiService";
 
-interface Campaign {
-  id: string;
-  name: string;
-  message: string;
-  status: "scheduled" | "running" | "completed" | "paused";
-  scheduledFor?: string;
-  recipients: number;
-  sent: number;
-  delivered: number;
-  read: number;
-  replied: number;
-  tags: string[];
+type ComposerMode = "create" | "edit" | "duplicate";
+type CampaignAction = "save" | "launch" | "start" | "pause" | "resume" | "delete" | "refresh" | null;
+
+const STEP_LABELS = [
+  "Selecionar contatos",
+  "Criar mensagens",
+  "Configurar cadência",
+  "Prévia operacional",
+  "Lançar",
+] as const;
+
+const DEFAULT_MESSAGES = [
+  "Olá! Tenho uma condição especial para te apresentar hoje.",
+  "Oi! Posso te mostrar uma oportunidade alinhada ao seu perfil?",
+];
+
+function normalizeCampaignStatus(campaign: CampaignRecord): CampaignRecord["status"] {
+  if (campaign.queue?.paused) return "paused";
+  return campaign.status || "draft";
 }
 
-const CAMPAIGN_ROW_HEIGHT = 344;
+function statusMeta(campaign: CampaignRecord) {
+  const status = normalizeCampaignStatus(campaign).toLowerCase();
 
-function getStatusColor(status: Campaign["status"]) {
-  switch (status) {
-    case "completed":
-      return "bg-success/10 text-success";
-    case "running":
-      return "bg-info/10 text-info";
-    case "scheduled":
-      return "bg-warning/10 text-warning";
-    case "paused":
-      return "bg-muted text-muted-foreground";
+  if (["completed", "sent"].includes(status)) {
+    return { label: "Concluída", tone: "online" as const, cardLine: "bg-success" };
   }
-}
-
-function getStatusLabel(status: Campaign["status"]) {
-  switch (status) {
-    case "completed":
-      return "Concluída";
-    case "running":
-      return "Em execução";
-    case "scheduled":
-      return "Agendada";
-    case "paused":
-      return "Pausada";
+  if (["running", "active", "processing"].includes(status)) {
+    return { label: "Em execução", tone: "syncing" as const, cardLine: "bg-info" };
   }
+  if (["paused"].includes(status)) {
+    return { label: "Pausada", tone: "warning" as const, cardLine: "bg-warning" };
+  }
+  if (["scheduled", "ready"].includes(status)) {
+    return { label: "Pronta para lançar", tone: "warning" as const, cardLine: "bg-warning" };
+  }
+  if (["cancelled", "canceled"].includes(status)) {
+    return { label: "Cancelada", tone: "offline" as const, cardLine: "bg-muted" };
+  }
+  return { label: "Rascunho", tone: "offline" as const, cardLine: "bg-muted" };
 }
 
-type CampaignRowData = {
-  campaigns: Campaign[];
-  startingCampaignId: string | null;
-  onStart: (campaignId: string) => void;
-};
+function formatDateTime(value?: string | null) {
+  if (!value) return "Não agendada";
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return "Não agendada";
+  return parsed.toLocaleString("pt-BR");
+}
 
-function CampaignVirtualRow({ index, style, ...rowProps }: RowComponentProps<CampaignRowData>) {
-  const { campaigns, startingCampaignId, onStart } = rowProps as CampaignRowData;
-  const campaign = campaigns[index];
-  if (!campaign) return <div style={style} />;
+function formatInputDateTime(value?: string | null) {
+  if (!value) return "";
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return "";
+  const timezoneOffsetMs = parsed.getTimezoneOffset() * 60_000;
+  return new Date(parsed.getTime() - timezoneOffsetMs).toISOString().slice(0, 16);
+}
 
-  return (
-    <div style={style} className="px-1 py-2">
-      <Card className="glass-card rounded-2xl border-border/70 bg-card/85">
-        <CardContent className="p-5">
-          <div className="flex items-start gap-4">
-            <div
-              className={cn(
-                "flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-2xl",
-                campaign.status === "completed"
-                  ? "bg-success/10"
-                  : campaign.status === "running"
-                  ? "bg-info/10"
-                  : campaign.status === "scheduled"
-                  ? "bg-warning/10"
-                  : "bg-muted",
-              )}
-            >
-              <Megaphone
-                weight="duotone"
-                className={cn(
-                  "h-6 w-6",
-                  campaign.status === "completed"
-                    ? "text-success"
-                    : campaign.status === "running"
-                    ? "text-info"
-                    : campaign.status === "scheduled"
-                    ? "text-warning"
-                    : "text-muted-foreground",
-                )}
-              />
-            </div>
-
-            <div className="min-w-0 flex-1">
-              <div className="mb-1 flex items-center gap-2">
-                <h3 className="font-display text-xl font-semibold">{campaign.name}</h3>
-                <Badge className={getStatusColor(campaign.status)}>{getStatusLabel(campaign.status)}</Badge>
-              </div>
-              <p className="mb-2 line-clamp-2 text-sm text-muted-foreground">{campaign.message}</p>
-              <div className="flex flex-wrap items-center gap-2">
-                {campaign.tags.map((tag) => (
-                  <Badge key={tag} variant="secondary" className="rounded-full border border-border/70 bg-background/60 text-xs">
-                    {tag}
-                  </Badge>
-                ))}
-              </div>
-
-              {campaign.scheduledFor && (
-                <div className="mt-3 flex items-center gap-1 text-sm text-muted-foreground">
-                  <CalendarBlank className="h-4 w-4" />
-                  Agendada para {campaign.scheduledFor}
-                </div>
-              )}
-
-              {campaign.status !== "scheduled" && (
-                <div className="mt-4 space-y-2">
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-muted-foreground">Progresso</span>
-                    <span className="font-medium">
-                      {campaign.sent} / {campaign.recipients} enviadas
-                    </span>
-                  </div>
-                  <Progress value={campaign.recipients > 0 ? (campaign.sent / campaign.recipients) * 100 : 0} className="h-2" />
-                </div>
-              )}
-            </div>
-
-            <div className="flex flex-shrink-0 items-center gap-2">
-              {campaign.status === "running" && (
-                <Button variant="outline" size="icon" disabled>
-                  <Pause className="h-4 w-4" />
-                </Button>
-              )}
-              {(campaign.status === "paused" || campaign.status === "scheduled") && (
-                <Button variant="outline" size="icon" onClick={() => onStart(campaign.id)} disabled={startingCampaignId === campaign.id}>
-                  {startingCampaignId === campaign.id ? <Clock className="h-4 w-4 animate-spin" /> : <Play className="h-4 w-4" />}
-                </Button>
-              )}
-              <Button variant="outline" size="icon" disabled>
-                <PencilSimple className="h-4 w-4" />
-              </Button>
-              <Button variant="ghost" size="icon" disabled>
-                <Copy className="h-4 w-4" />
-              </Button>
-              <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive" disabled>
-                <Trash className="h-4 w-4" />
-              </Button>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-    </div>
-  );
+function uniqueContacts(contacts: Contact[]) {
+  const seen = new Set<string>();
+  return contacts.filter((contact) => {
+    const key = String(contact.phone || contact.id || "").trim();
+    if (!key || seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
 }
 
 export default function Campaigns() {
   const [loading, setLoading] = useState(true);
-  const [campaigns, setCampaigns] = useState<Campaign[]>([]);
-  const [startingCampaignId, setStartingCampaignId] = useState<string | null>(null);
+  const [campaigns, setCampaigns] = useState<CampaignRecord[]>([]);
+  const [contacts, setContacts] = useState<Contact[]>([]);
   const [campaignStep, setCampaignStep] = useState(1);
+  const [composerMode, setComposerMode] = useState<ComposerMode>("create");
+  const [editingCampaignId, setEditingCampaignId] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [campaignName, setCampaignName] = useState("");
+  const [selectedContactIds, setSelectedContactIds] = useState<string[]>([]);
+  const [messageVariants, setMessageVariants] = useState<string[]>(DEFAULT_MESSAGES);
   const [shuffleEnabled, setShuffleEnabled] = useState(true);
-  const [typingDelay, setTypingDelay] = useState<number[]>([2.8]);
-  const [delayRange, setDelayRange] = useState<number[]>([4, 12]);
-  const [messageVariants, setMessageVariants] = useState<string[]>([
-    "Olá! Temos uma condição especial hoje.",
-    "Oi! Posso te mostrar uma oferta que combina com seu perfil.",
-  ]);
+  const [typingDelay, setTypingDelay] = useState<number[]>([3]);
+  const [intervalSeconds, setIntervalSeconds] = useState<number[]>([10]);
+  const [pauseEvery, setPauseEvery] = useState("10");
+  const [pauseSeconds, setPauseSeconds] = useState("60");
+  const [startAt, setStartAt] = useState("");
+  const [tagsInput, setTagsInput] = useState("");
+  const [actionCampaignId, setActionCampaignId] = useState<string | null>(null);
+  const [actionType, setActionType] = useState<CampaignAction>(null);
 
-  const loadCampaigns = useCallback(async () => {
-    setLoading(true);
+  const loadPageData = useCallback(async (options?: { silent?: boolean }) => {
+    if (!options?.silent) setLoading(true);
     try {
-      const payload = await requestApiEndpoint<unknown>("/api/campaigns");
-      const list = Array.isArray(payload)
-        ? payload
-        : payload && typeof payload === "object" && Array.isArray((payload as { data?: unknown[] }).data)
-          ? ((payload as { data?: unknown[] }).data ?? [])
-          : [];
-
-      const normalized = list
-        .filter((item): item is Record<string, unknown> => Boolean(item && typeof item === "object"))
-        .map((item, index) => ({
-          id: String(item.id ?? `campaign-${index}`),
-          name: String(item.name ?? "Campanha"),
-          message: String(item.message ?? item.content ?? ""),
-          status: String(item.status ?? "scheduled") as Campaign["status"],
-          scheduledFor: typeof item.scheduledFor === "string" ? item.scheduledFor : undefined,
-          recipients: Number(item.recipients ?? 0),
-          sent: Number(item.sent ?? 0),
-          delivered: Number(item.delivered ?? 0),
-          read: Number(item.read ?? 0),
-          replied: Number(item.replied ?? 0),
-          tags: Array.isArray(item.tags) ? item.tags.map(String) : [],
-        }));
-
-      setCampaigns(normalized);
-    } catch {
-      setCampaigns([]);
+      const [campaignList, contactList] = await Promise.all([
+        apiService.getCampaigns(),
+        apiService.getContacts(true),
+      ]);
+      setCampaigns(Array.isArray(campaignList) ? campaignList : []);
+      setContacts(uniqueContacts(Array.isArray(contactList) ? contactList : []));
+    } catch (error) {
+      notify.error(error instanceof Error ? error.message : "Falha ao carregar campanhas");
+      if (!options?.silent) {
+        setCampaigns([]);
+        setContacts([]);
+      }
     } finally {
-      setLoading(false);
+      if (!options?.silent) setLoading(false);
     }
   }, []);
 
   useEffect(() => {
-    void loadCampaigns();
-  }, [loadCampaigns]);
+    void loadPageData();
+  }, [loadPageData]);
 
-  const safeCampaigns = useMemo(() => campaigns, [campaigns]);
-  const totals = useMemo(() => {
-    const sent = safeCampaigns.reduce((acc, item) => acc + item.sent, 0);
-    const delivered = safeCampaigns.reduce((acc, item) => acc + item.delivered, 0);
-    const read = safeCampaigns.reduce((acc, item) => acc + item.read, 0);
-    const replied = safeCampaigns.reduce((acc, item) => acc + item.replied, 0);
-    return {
-      sent,
-      readRate: delivered > 0 ? (read / delivered) * 100 : 0,
-      replyRate: delivered > 0 ? (replied / delivered) * 100 : 0,
-    };
-  }, [safeCampaigns]);
+  const resetComposer = useCallback(() => {
+    setComposerMode("create");
+    setEditingCampaignId(null);
+    setCampaignName("");
+    setSelectedContactIds([]);
+    setMessageVariants(DEFAULT_MESSAGES);
+    setShuffleEnabled(true);
+    setTypingDelay([3]);
+    setIntervalSeconds([10]);
+    setPauseEvery("10");
+    setPauseSeconds("60");
+    setStartAt("");
+    setTagsInput("");
+    setCampaignStep(1);
+    setSearchQuery("");
+  }, []);
 
-  const handleStartCampaign = useCallback(async (campaignId: string) => {
-    if (startingCampaignId) return;
-    setStartingCampaignId(campaignId);
-    try {
-      const updated = await requestApiEndpoint<Partial<Campaign> & Record<string, unknown>>(`/api/campaigns/${encodeURIComponent(campaignId)}/start`, "POST");
-      setCampaigns((prev) => prev.map((campaign) => campaign.id === campaignId ? { ...campaign, status: String(updated.status ?? "running") as Campaign["status"] } : campaign));
-      notify.success("Campanha iniciada com sucesso");
-    } catch (error) {
-      notify.error(error instanceof Error ? error.message : "Falha ao iniciar campanha");
-    } finally {
-      setStartingCampaignId(null);
-    }
-  }, [startingCampaignId]);
+  const hydrateComposer = useCallback((campaign: CampaignRecord, mode: ComposerMode) => {
+    setComposerMode(mode);
+    setEditingCampaignId(mode === "edit" ? campaign.id : null);
+    setCampaignName(mode === "duplicate" ? `${campaign.name} (cópia)` : campaign.name);
+    setSelectedContactIds(
+      (campaign.selectedContacts ?? [])
+        .map((contact) => String(contact.phone || contact.id || "").trim())
+        .filter(Boolean),
+    );
+    setMessageVariants(
+      campaign.messages && campaign.messages.length > 0
+        ? campaign.messages.map((message) => String(message.content || "").trim()).filter(Boolean)
+        : DEFAULT_MESSAGES,
+    );
+    setShuffleEnabled((campaign.messages ?? []).length > 1);
+    setTypingDelay([campaign.settings?.typingDelaySeconds ?? 3]);
+    setIntervalSeconds([campaign.settings?.intervalSeconds ?? 10]);
+    setPauseEvery(String(campaign.settings?.pauseEvery ?? 10));
+    setPauseSeconds(String(campaign.settings?.pauseSeconds ?? 60));
+    setStartAt(formatInputDateTime(campaign.settings?.startAt));
+    setTagsInput(Array.isArray(campaign.tags) ? campaign.tags.join(", ") : "");
+    setCampaignStep(1);
+  }, []);
 
-  const handleLaunchCampaign = useCallback(async () => {
-    const payload = {
-      name: `Campanha ${new Date().toLocaleTimeString("pt-BR")}`,
-      variants: messageVariants,
-      shuffleEnabled,
-      typingDelaySeconds: typingDelay[0],
-      delayRangeSeconds: delayRange,
-      currentStep: campaignStep,
-    };
+  const filteredContacts = useMemo(() => {
+    if (!searchQuery.trim()) return contacts;
+    const needle = searchQuery.toLowerCase();
+    return contacts.filter((contact) => {
+      const name = String(contact.name || "").toLowerCase();
+      const phone = String(contact.phone || "").toLowerCase();
+      return name.includes(needle) || phone.includes(needle);
+    });
+  }, [contacts, searchQuery]);
 
-    try {
-      await requestApiEndpoint("/api/campaigns", "POST", payload);
-      notify.success("Campanha criada com sucesso");
-      await loadCampaigns();
-    } catch (error) {
-      notify.error(error instanceof Error ? error.message : "Falha ao criar campanha");
-    }
-  }, [campaignStep, delayRange, loadCampaigns, messageVariants, shuffleEnabled, typingDelay]);
+  const selectedContacts = useMemo<CampaignContact[]>(() => {
+    return selectedContactIds.map((contactId, index) => {
+      const existing = contacts.find((contact) => String(contact.phone || contact.id) === contactId);
+      return {
+        id: existing?.id ?? contactId,
+        name: existing?.name ?? `Contato ${index + 1}`,
+        phone: existing?.phone ?? contactId,
+        status: existing?.status,
+      };
+    });
+  }, [contacts, selectedContactIds]);
 
-  const campaignRowProps = useMemo(
-    () => ({ campaigns: safeCampaigns, startingCampaignId, onStart: handleStartCampaign }),
-    [safeCampaigns, startingCampaignId, handleStartCampaign],
+  const selectedContactCount = selectedContacts.length;
+  const cleanMessages = useMemo(
+    () => messageVariants.map((message) => message.trim()).filter(Boolean),
+    [messageVariants],
   );
 
-  const listHeight = useMemo(() => Math.min(760, Math.max(250, safeCampaigns.length * CAMPAIGN_ROW_HEIGHT)), [safeCampaigns.length]);
+  const editingCampaign = useMemo(
+    () => campaigns.find((campaign) => campaign.id === editingCampaignId) ?? null,
+    [campaigns, editingCampaignId],
+  );
+
+  const totals = useMemo(() => {
+    return campaigns.reduce(
+      (accumulator, campaign) => {
+        accumulator.sent += Number(campaign.queue?.sent ?? 0);
+        accumulator.total += Number(campaign.queue?.total ?? 0);
+        accumulator.processed += Number(campaign.queue?.processed ?? 0);
+        accumulator.failed += Number(campaign.queue?.failed ?? 0);
+        return accumulator;
+      },
+      { sent: 0, total: 0, processed: 0, failed: 0 },
+    );
+  }, [campaigns]);
+
+  const launchReadiness = useMemo(() => {
+    const missing: string[] = [];
+    if (!campaignName.trim()) missing.push("Defina um nome");
+    if (selectedContactCount === 0) missing.push("Selecione contatos");
+    if (cleanMessages.length === 0) missing.push("Crie ao menos uma mensagem");
+    return missing;
+  }, [campaignName, cleanMessages.length, selectedContactCount]);
+
+  const isSaving = actionType === "save" || actionType === "launch";
+
+  const buildPayload = useCallback(
+    (nextStatus: string) => {
+      const queueBase = editingCampaign?.queue ?? { total: 0, processed: 0, sent: 0, failed: 0, paused: false };
+      return {
+        id: editingCampaignId ?? undefined,
+        name: campaignName.trim(),
+        status: nextStatus,
+        selectedContacts,
+        messages: cleanMessages.map((content, index) => ({
+          id: editingCampaign?.messages?.[index]?.id,
+          type: "text" as const,
+          content,
+          delaySeconds: intervalSeconds[0],
+        })),
+        settings: {
+          intervalSeconds: intervalSeconds[0],
+          pauseEvery: Math.max(1, Number(pauseEvery) || 1),
+          pauseSeconds: Math.max(0, Number(pauseSeconds) || 0),
+          typingDelaySeconds: typingDelay[0],
+          startAt: startAt ? new Date(startAt).toISOString() : null,
+          shuffleEnabled,
+        },
+        queue: {
+          total: selectedContacts.length,
+          processed: Math.min(Number(queueBase.processed ?? 0), selectedContacts.length),
+          sent: Math.min(Number(queueBase.sent ?? 0), selectedContacts.length),
+          failed: Number(queueBase.failed ?? 0),
+          paused: nextStatus === "paused",
+        },
+        tags: tagsInput
+          .split(",")
+          .map((tag) => tag.trim())
+          .filter(Boolean),
+      };
+    },
+    [campaignName, cleanMessages, editingCampaign, editingCampaignId, intervalSeconds, pauseEvery, pauseSeconds, selectedContacts, shuffleEnabled, startAt, tagsInput, typingDelay],
+  );
+
+  const persistCampaign = useCallback(
+    async (mode: "save" | "launch") => {
+      if (launchReadiness.length > 0) {
+        notify.error(launchReadiness[0]);
+        return;
+      }
+
+      setActionType(mode);
+      setActionCampaignId(editingCampaignId ?? "draft");
+      try {
+        const initialStatus = mode === "launch" ? "scheduled" : editingCampaign?.status ?? "draft";
+        const payload = buildPayload(initialStatus);
+        const savedCampaign = editingCampaignId
+          ? await apiService.updateCampaign(editingCampaignId, payload)
+          : await apiService.createCampaign(payload);
+
+        if (mode === "launch") {
+          await apiService.startCampaignDispatch(savedCampaign.id);
+          notify.success("Campanha criada e lançada com sucesso");
+          resetComposer();
+        } else {
+          notify.success(editingCampaignId ? "Campanha atualizada" : "Campanha salva como rascunho");
+          hydrateComposer(savedCampaign, "edit");
+        }
+
+        await loadPageData({ silent: true });
+      } catch (error) {
+        notify.error(error instanceof Error ? error.message : "Falha ao salvar campanha");
+      } finally {
+        setActionType(null);
+        setActionCampaignId(null);
+      }
+    },
+    [buildPayload, editingCampaign?.status, editingCampaignId, hydrateComposer, launchReadiness, loadPageData, resetComposer],
+  );
+
+  const runCampaignAction = useCallback(
+    async (campaignId: string, action: Exclude<CampaignAction, "save" | "launch" | "refresh" | null>) => {
+      const targetCampaign = campaigns.find((campaign) => campaign.id === campaignId);
+      if (!targetCampaign) return;
+
+      setActionCampaignId(campaignId);
+      setActionType(action);
+      try {
+        if (action === "start") {
+          await apiService.startCampaignDispatch(campaignId);
+          notify.success("Campanha iniciada");
+        }
+
+        if (action === "pause") {
+          await apiService.updateCampaign(campaignId, {
+            ...targetCampaign,
+            status: "paused",
+            queue: {
+              ...targetCampaign.queue,
+              paused: true,
+            },
+          });
+          notify.success("Campanha pausada");
+        }
+
+        if (action === "resume") {
+          await apiService.updateCampaign(campaignId, {
+            ...targetCampaign,
+            status: "scheduled",
+            queue: {
+              ...targetCampaign.queue,
+              paused: false,
+            },
+          });
+          await apiService.startCampaignDispatch(campaignId);
+          notify.success("Campanha retomada");
+        }
+
+        if (action === "delete") {
+          await apiService.deleteCampaign(campaignId);
+          if (editingCampaignId === campaignId) resetComposer();
+          notify.success("Campanha removida");
+        }
+
+        await loadPageData({ silent: true });
+      } catch (error) {
+        notify.error(error instanceof Error ? error.message : "Falha na ação da campanha");
+      } finally {
+        setActionCampaignId(null);
+        setActionType(null);
+      }
+    },
+    [campaigns, editingCampaignId, loadPageData, resetComposer],
+  );
+
+  const toggleContact = useCallback((contactKey: string) => {
+    setSelectedContactIds((current) =>
+      current.includes(contactKey)
+        ? current.filter((entry) => entry !== contactKey)
+        : [...current, contactKey],
+    );
+  }, []);
+
+  const toggleSelectAllVisibleContacts = useCallback(() => {
+    const visibleKeys = filteredContacts.map((contact) => String(contact.phone || contact.id));
+    const everySelected = visibleKeys.every((key) => selectedContactIds.includes(key));
+
+    if (everySelected) {
+      setSelectedContactIds((current) => current.filter((key) => !visibleKeys.includes(key)));
+      return;
+    }
+
+    setSelectedContactIds((current) => Array.from(new Set([...current, ...visibleKeys])));
+  }, [filteredContacts, selectedContactIds]);
+
+  const stepProgress = (campaignStep / STEP_LABELS.length) * 100;
 
   return (
     <div className="min-h-screen">
-      <Header title="Campanhas" subtitle="Disparos em massa e campanhas programadas" />
+      <Header
+        title="Campanhas"
+        subtitle="Criação, persistência e lançamento operacional de campanhas reais"
+        actions={
+          <>
+            <Button variant="outline" size="sm" className="rounded-xl" onClick={() => void loadPageData()}>
+              <ArrowClockwise className="h-4 w-4" />
+              Atualizar
+            </Button>
+            <Button size="sm" className="rounded-xl shadow-glow" onClick={resetComposer}>
+              <Plus className="h-4 w-4" />
+              Nova Campanha
+            </Button>
+          </>
+        }
+      />
 
-      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="page-container section-stack">
-        <Card className="glass-card rounded-2xl border-border/70 bg-card/85">
-          <CardContent className="space-y-5 p-5">
-            <p className="text-xs text-muted-foreground">Origem dos dados: API de produção</p>
-            <div className="flex flex-wrap items-center gap-2">
-              {[
-                "Selecionar contatos",
-                "Criar mensagens",
-                "Configurar delays",
-                "Prévia",
-                "Lançar",
-              ].map((label, index) => {
-                const step = index + 1;
-                return (
-                  <Button
-                    key={label}
-                    size="sm"
-                    variant={campaignStep === step ? "default" : "outline"}
-                    className={campaignStep === step ? "rounded-xl shadow-glow" : "rounded-xl"}
-                    onClick={() => setCampaignStep(step)}
-                  >
-                    {step}. {label}
-                  </Button>
-                );
-              })}
+      <div className="page-container section-stack">
+        {loading ? (
+          <StatGridSkeleton count={4} />
+        ) : (
+          <>
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+              <Card className="metric-card rounded-2xl border-border/70 bg-card/85">
+                <CardContent className="space-y-2 p-5">
+                  <div className="flex items-center gap-4">
+                    <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10">
+                      <Megaphone weight="duotone" className="h-6 w-6 text-primary" />
+                    </div>
+                    <div>
+                      <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Campanhas</p>
+                      <h3 className="font-display text-2xl font-bold">{campaigns.length}</h3>
+                    </div>
+                  </div>
+                  <OperationalStatusBadge label="Base persistida" tone="syncing" />
+                </CardContent>
+              </Card>
+
+              <Card className="metric-card rounded-2xl border-border/70 bg-card/85">
+                <CardContent className="space-y-2 p-5">
+                  <div className="flex items-center gap-4">
+                    <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-info/10">
+                      <PaperPlaneTilt weight="fill" className="h-6 w-6 text-info" />
+                    </div>
+                    <div>
+                      <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Envios</p>
+                      <h3 className="font-display text-2xl font-bold">{totals.sent.toLocaleString("pt-BR")}</h3>
+                    </div>
+                  </div>
+                  <OperationalStatusBadge label="Pipeline ativo" tone="online" />
+                </CardContent>
+              </Card>
+
+              <Card className="metric-card rounded-2xl border-border/70 bg-card/85">
+                <CardContent className="space-y-2 p-5">
+                  <div className="flex items-center gap-4">
+                    <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-success/10">
+                      <Eye weight="duotone" className="h-6 w-6 text-success" />
+                    </div>
+                    <div>
+                      <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Contatos na fila</p>
+                      <h3 className="font-display text-2xl font-bold">{totals.total.toLocaleString("pt-BR")}</h3>
+                    </div>
+                  </div>
+                  <OperationalStatusBadge label="Segmentação pronta" tone="online" />
+                </CardContent>
+              </Card>
+
+              <Card className="metric-card rounded-2xl border-border/70 bg-card/85">
+                <CardContent className="space-y-2 p-5">
+                  <div className="flex items-center gap-4">
+                    <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-warning/10">
+                      <CheckCircle weight="fill" className="h-6 w-6 text-warning" />
+                    </div>
+                    <div>
+                      <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Etapa atual</p>
+                      <h3 className="font-display text-2xl font-bold">{campaignStep}/{STEP_LABELS.length}</h3>
+                    </div>
+                  </div>
+                  <OperationalStatusBadge label={composerMode === "edit" ? "Modo edição" : composerMode === "duplicate" ? "Duplicando" : "Novo rascunho"} tone="warning" />
+                </CardContent>
+              </Card>
             </div>
 
-            <div className="grid grid-cols-1 gap-4 xl:grid-cols-3">
-              <div className="rounded-2xl border border-border bg-card p-4">
-                <div className="flex items-center justify-between">
-                  <p className="text-sm font-semibold">Randomização</p>
-                  <Switch checked={shuffleEnabled} onCheckedChange={setShuffleEnabled} />
-                </div>
-                <p className="mt-1 text-xs text-muted-foreground">Alterna entre múltiplas mensagens para variar os envios.</p>
-                <div className="mt-3 space-y-2">
-                  {messageVariants.map((variant, index) => (
-                    <Input
-                      key={`variant-${index}`}
-                      value={variant}
-                      onChange={(event) =>
-                        setMessageVariants((prev) => prev.map((entry, entryIndex) => (entryIndex === index ? event.target.value : entry)))
-                      }
-                    />
-                  ))}
-                </div>
-              </div>
-
-              <div className="rounded-2xl border border-border bg-card p-4">
-                <p className="text-sm font-semibold">Human Simulation</p>
-                <p className="mt-1 text-xs text-muted-foreground">Ajuste atraso de digitação e intervalo entre mensagens.</p>
-                <div className="mt-4 space-y-4">
-                  <div>
-                    <div className="mb-2 flex items-center justify-between text-xs text-muted-foreground">
-                      <span>Typing delay</span>
-                      <span>{typingDelay[0].toFixed(1)}s</span>
+            <div className="grid gap-6 xl:grid-cols-[minmax(0,1.2fr)_420px]">
+              <Card className="glass-card rounded-2xl border-border/70 bg-card/85">
+                <CardContent className="space-y-5 p-5">
+                  <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+                    <div>
+                      <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground/70">Wizard oficial</p>
+                      <h2 className="mt-1 font-display text-xl font-semibold">Campanha operacional com persistência real</h2>
+                      <p className="mt-2 text-sm text-muted-foreground">Selecione a audiência, monte as mensagens, ajuste a cadência e salve ou lance no backend oficial.</p>
                     </div>
-                    <Slider value={typingDelay} min={0.5} max={8} step={0.1} onValueChange={setTypingDelay} />
-                  </div>
-                  <div>
-                    <div className="mb-2 flex items-center justify-between text-xs text-muted-foreground">
-                      <span>Delay range</span>
-                      <span>{delayRange[0]}s - {delayRange[1]}s</span>
+                    <div className="rounded-2xl border border-border/70 bg-background/50 px-3 py-2 text-right">
+                      <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Progresso</p>
+                      <p className="font-display text-lg font-semibold">{Math.round(stepProgress)}%</p>
                     </div>
-                    <Slider value={delayRange} min={1} max={20} step={1} onValueChange={setDelayRange} />
                   </div>
-                </div>
-              </div>
 
-              <div className="rounded-2xl border border-border bg-card p-4">
-                <p className="text-sm font-semibold">Resumo de lançamento</p>
-                <div className="mt-2 space-y-2 text-xs text-muted-foreground">
-                  <p>Etapa atual: <span className="font-medium text-foreground">{campaignStep}/5</span></p>
-                  <p>Shuffle: <span className="font-medium text-foreground">{shuffleEnabled ? "Ativo" : "Desativado"}</span></p>
-                  <p>Delay padrão: <span className="font-medium text-foreground">{typingDelay[0].toFixed(1)}s</span></p>
-                  <p>Range envio: <span className="font-medium text-foreground">{delayRange[0]}-{delayRange[1]}s</span></p>
-                </div>
-                <Button className="mt-4 w-full rounded-xl shadow-glow" onClick={() => void handleLaunchCampaign()}>
-                  Lançar campanha
-                </Button>
-              </div>
+                  <div className="grid grid-cols-1 gap-2 md:grid-cols-5">
+                    {STEP_LABELS.map((label, index) => {
+                      const step = index + 1;
+                      const active = campaignStep === step;
+                      const complete = campaignStep > step;
+                      return (
+                        <Button
+                          key={label}
+                          variant={active ? "default" : "outline"}
+                          className={cn(
+                            "justify-start rounded-xl text-left",
+                            active && "shadow-glow",
+                            complete && !active && "border-success/40 text-success",
+                          )}
+                          onClick={() => setCampaignStep(step)}
+                        >
+                          <span className="mr-2 inline-flex h-6 w-6 items-center justify-center rounded-full border border-current/20 text-[11px]">
+                            {step}
+                          </span>
+                          <span className="truncate">{label}</span>
+                        </Button>
+                      );
+                    })}
+                  </div>
+
+                  {campaignStep === 1 && (
+                    <div className="space-y-4">
+                      <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_220px]">
+                        <div>
+                          <label className="mb-2 block text-sm font-medium">Nome da campanha</label>
+                          <Input
+                            value={campaignName}
+                            onChange={(event) => setCampaignName(event.target.value)}
+                            placeholder="Ex: Reativação de clientes quentes"
+                          />
+                        </div>
+                        <div>
+                          <label className="mb-2 block text-sm font-medium">Tags operacionais</label>
+                          <Input
+                            value={tagsInput}
+                            onChange={(event) => setTagsInput(event.target.value)}
+                            placeholder="vip, follow-up, maio"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="grid gap-4 lg:grid-cols-[240px_minmax(0,1fr)]">
+                        <Card className="rounded-2xl border-border/70 bg-background/40">
+                          <CardContent className="space-y-3 p-4">
+                            <div>
+                              <p className="text-xs uppercase tracking-wide text-muted-foreground">Audiência atual</p>
+                              <p className="mt-1 font-display text-2xl font-semibold">{selectedContactCount}</p>
+                            </div>
+                            <OperationalStatusBadge label="Seleção em tempo real" tone="syncing" />
+                            <Button variant="outline" className="w-full rounded-xl" onClick={toggleSelectAllVisibleContacts}>
+                              {filteredContacts.length > 0 && filteredContacts.every((contact) => selectedContactIds.includes(String(contact.phone || contact.id)))
+                                ? "Remover lista visível"
+                                : "Selecionar lista visível"}
+                            </Button>
+                          </CardContent>
+                        </Card>
+
+                        <div className="space-y-3">
+                          <Input
+                            value={searchQuery}
+                            onChange={(event) => setSearchQuery(event.target.value)}
+                            placeholder="Buscar contato por nome ou telefone"
+                          />
+                          <div className="scrollbar-thin max-h-[420px] space-y-2 overflow-y-auto rounded-2xl border border-border/70 bg-background/30 p-3">
+                            {filteredContacts.length === 0 ? (
+                              <EmptyState
+                                icon={<Users className="h-8 w-8 text-muted-foreground/50" />}
+                                title="Nenhum contato disponível"
+                                description="Sincronize contatos reais para alimentar a campanha oficial."
+                              />
+                            ) : (
+                              filteredContacts.map((contact) => {
+                                const key = String(contact.phone || contact.id);
+                                const checked = selectedContactIds.includes(key);
+                                return (
+                                  <button
+                                    key={key}
+                                    type="button"
+                                    onClick={() => toggleContact(key)}
+                                    className={cn(
+                                      "flex w-full items-start gap-3 rounded-2xl border px-3 py-3 text-left transition-colors",
+                                      checked
+                                        ? "border-primary/40 bg-primary/10"
+                                        : "border-border/70 bg-card/60 hover:border-border hover:bg-card/80",
+                                    )}
+                                  >
+                                    <Checkbox checked={checked} className="mt-0.5" />
+                                    <div className="min-w-0 flex-1">
+                                      <p className="truncate text-sm font-medium">{contact.name || "Contato"}</p>
+                                      <p className="truncate text-xs text-muted-foreground">{contact.phone || "Sem telefone"}</p>
+                                    </div>
+                                    {contact.status ? <Badge variant="secondary">{contact.status}</Badge> : null}
+                                  </button>
+                                );
+                              })
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {campaignStep === 2 && (
+                    <div className="space-y-4">
+                      <div className="flex items-center justify-between rounded-2xl border border-border/70 bg-background/40 px-4 py-3">
+                        <div>
+                          <p className="text-sm font-medium">Variantes da mensagem</p>
+                          <p className="text-xs text-muted-foreground">Crie textos alternativos reais para personalizar os envios.</p>
+                        </div>
+                        <Button
+                          variant="outline"
+                          className="rounded-xl"
+                          onClick={() => setMessageVariants((current) => [...current, ""])}
+                        >
+                          <Plus className="h-4 w-4" />
+                          Adicionar variante
+                        </Button>
+                      </div>
+
+                      <div className="space-y-3">
+                        {messageVariants.map((variant, index) => (
+                          <Card key={`variant-${index}`} className="rounded-2xl border-border/70 bg-background/30">
+                            <CardContent className="space-y-3 p-4">
+                              <div className="flex items-center justify-between gap-3">
+                                <div>
+                                  <p className="text-sm font-medium">Mensagem {index + 1}</p>
+                                  <p className="text-xs text-muted-foreground">Texto enviado para o contato durante a campanha.</p>
+                                </div>
+                                {messageVariants.length > 1 && (
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="rounded-xl"
+                                    onClick={() => setMessageVariants((current) => current.filter((_, itemIndex) => itemIndex !== index))}
+                                  >
+                                    <X className="h-4 w-4" />
+                                  </Button>
+                                )}
+                              </div>
+                              <Textarea
+                                value={variant}
+                                onChange={(event) =>
+                                  setMessageVariants((current) =>
+                                    current.map((entry, itemIndex) => (itemIndex === index ? event.target.value : entry)),
+                                  )
+                                }
+                                placeholder="Escreva a mensagem da variante"
+                                className="min-h-[120px]"
+                              />
+                            </CardContent>
+                          </Card>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {campaignStep === 3 && (
+                    <div className="grid gap-4 lg:grid-cols-3">
+                      <Card className="rounded-2xl border-border/70 bg-background/30">
+                        <CardContent className="space-y-4 p-4">
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <p className="text-sm font-medium">Randomização</p>
+                              <p className="text-xs text-muted-foreground">Alterna as variantes para distribuir melhor os envios.</p>
+                            </div>
+                            <Switch checked={shuffleEnabled} onCheckedChange={setShuffleEnabled} />
+                          </div>
+                          <OperationalStatusBadge label={shuffleEnabled ? "Shuffle ativo" : "Shuffle desligado"} tone={shuffleEnabled ? "online" : "offline"} />
+                        </CardContent>
+                      </Card>
+
+                      <Card className="rounded-2xl border-border/70 bg-background/30">
+                        <CardContent className="space-y-4 p-4">
+                          <div>
+                            <div className="mb-2 flex items-center justify-between text-sm">
+                              <span>Typing delay</span>
+                              <span>{typingDelay[0].toFixed(1)}s</span>
+                            </div>
+                            <Slider value={typingDelay} min={0.5} max={8} step={0.1} onValueChange={setTypingDelay} />
+                          </div>
+                          <div>
+                            <div className="mb-2 flex items-center justify-between text-sm">
+                              <span>Intervalo entre contatos</span>
+                              <span>{intervalSeconds[0]}s</span>
+                            </div>
+                            <Slider value={intervalSeconds} min={2} max={60} step={1} onValueChange={setIntervalSeconds} />
+                          </div>
+                        </CardContent>
+                      </Card>
+
+                      <Card className="rounded-2xl border-border/70 bg-background/30">
+                        <CardContent className="space-y-4 p-4">
+                          <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-1">
+                            <div>
+                              <label className="mb-2 block text-sm font-medium">Pausar a cada X envios</label>
+                              <Input value={pauseEvery} onChange={(event) => setPauseEvery(event.target.value)} inputMode="numeric" />
+                            </div>
+                            <div>
+                              <label className="mb-2 block text-sm font-medium">Tempo da pausa (s)</label>
+                              <Input value={pauseSeconds} onChange={(event) => setPauseSeconds(event.target.value)} inputMode="numeric" />
+                            </div>
+                            <div className="md:col-span-2 lg:col-span-1">
+                              <label className="mb-2 block text-sm font-medium">Agendamento opcional</label>
+                              <Input type="datetime-local" value={startAt} onChange={(event) => setStartAt(event.target.value)} />
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    </div>
+                  )}
+
+                  {campaignStep === 4 && (
+                    <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_320px]">
+                      <Card className="rounded-2xl border-border/70 bg-background/30">
+                        <CardContent className="space-y-4 p-4">
+                          <div>
+                            <p className="text-sm font-medium">Prévia da campanha</p>
+                            <p className="text-xs text-muted-foreground">Confira a estrutura final antes de salvar ou lançar.</p>
+                          </div>
+                          <div className="space-y-2 rounded-2xl border border-border/70 bg-card/80 p-4">
+                            <p className="text-xs uppercase tracking-wide text-muted-foreground">Nome</p>
+                            <p className="text-lg font-semibold">{campaignName || "Campanha sem nome"}</p>
+                          </div>
+                          <div className="grid gap-3 md:grid-cols-2">
+                            <div className="rounded-2xl border border-border/70 bg-card/80 p-4">
+                              <p className="text-xs uppercase tracking-wide text-muted-foreground">Contatos selecionados</p>
+                              <p className="mt-1 font-display text-2xl font-bold">{selectedContactCount}</p>
+                            </div>
+                            <div className="rounded-2xl border border-border/70 bg-card/80 p-4">
+                              <p className="text-xs uppercase tracking-wide text-muted-foreground">Mensagens ativas</p>
+                              <p className="mt-1 font-display text-2xl font-bold">{cleanMessages.length}</p>
+                            </div>
+                          </div>
+                          <div className="space-y-2">
+                            {cleanMessages.map((message, index) => (
+                              <div key={`preview-${index}`} className="rounded-2xl border border-border/70 bg-card/80 p-4 text-sm text-muted-foreground">
+                                <p className="mb-2 text-xs uppercase tracking-wide text-muted-foreground">Variante {index + 1}</p>
+                                <p className="text-foreground">{message}</p>
+                              </div>
+                            ))}
+                          </div>
+                        </CardContent>
+                      </Card>
+
+                      <Card className="rounded-2xl border-border/70 bg-background/30">
+                        <CardContent className="space-y-4 p-4">
+                          <p className="text-sm font-medium">Checklist operacional</p>
+                          <div className="space-y-2 text-sm text-muted-foreground">
+                            <p>• Typing delay: <span className="font-medium text-foreground">{typingDelay[0].toFixed(1)}s</span></p>
+                            <p>• Intervalo por contato: <span className="font-medium text-foreground">{intervalSeconds[0]}s</span></p>
+                            <p>• Pausa a cada: <span className="font-medium text-foreground">{pauseEvery} envios</span></p>
+                            <p>• Tempo da pausa: <span className="font-medium text-foreground">{pauseSeconds}s</span></p>
+                            <p>• Agendamento: <span className="font-medium text-foreground">{startAt ? formatDateTime(new Date(startAt).toISOString()) : "Imediato"}</span></p>
+                            <p>• Shuffle: <span className="font-medium text-foreground">{shuffleEnabled ? "Ativo" : "Desligado"}</span></p>
+                          </div>
+                          <div className="rounded-2xl border border-border/70 bg-card/80 p-4">
+                            <p className="text-xs uppercase tracking-wide text-muted-foreground">Tags</p>
+                            <div className="mt-2 flex flex-wrap gap-2">
+                              {tagsInput
+                                .split(",")
+                                .map((tag) => tag.trim())
+                                .filter(Boolean)
+                                .map((tag) => (
+                                  <Badge key={tag} variant="secondary" className="rounded-full border border-border/70 bg-background/60">
+                                    {tag}
+                                  </Badge>
+                                ))}
+                              {!tagsInput.trim() && <span className="text-sm text-muted-foreground">Sem tags definidas</span>}
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    </div>
+                  )}
+
+                  {campaignStep === 5 && (
+                    <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_320px]">
+                      <Card className="rounded-2xl border-border/70 bg-background/30">
+                        <CardContent className="space-y-4 p-4">
+                          <div>
+                            <p className="text-sm font-medium">Pronto para persistir e lançar</p>
+                            <p className="text-xs text-muted-foreground">O rascunho é salvo em `/api/campaigns` e o lançamento usa o runtime oficial de campanhas.</p>
+                          </div>
+                          <div className="rounded-2xl border border-border/70 bg-card/80 p-4">
+                            <p className="text-xs uppercase tracking-wide text-muted-foreground">Resultado esperado</p>
+                            <p className="mt-2 text-sm text-foreground">A campanha será persistida com contatos, mensagens, tags, fila e configuração de envio. Em seguida, poderá ser executada no backend oficial.</p>
+                          </div>
+                          <div className="flex flex-wrap gap-2">
+                            <OperationalStatusBadge label={`${selectedContactCount} contatos`} tone={selectedContactCount > 0 ? "online" : "offline"} />
+                            <OperationalStatusBadge label={`${cleanMessages.length} mensagens`} tone={cleanMessages.length > 0 ? "online" : "offline"} />
+                            <OperationalStatusBadge label={startAt ? "Com agendamento" : "Execução imediata"} tone="syncing" />
+                          </div>
+                        </CardContent>
+                      </Card>
+
+                      <Card className="rounded-2xl border-border/70 bg-background/30">
+                        <CardContent className="space-y-4 p-4">
+                          <p className="text-sm font-medium">Readiness</p>
+                          {launchReadiness.length === 0 ? (
+                            <div className="rounded-2xl border border-success/30 bg-success/10 p-4 text-sm text-success">
+                              Campanha consistente para salvar ou lançar.
+                            </div>
+                          ) : (
+                            <div className="rounded-2xl border border-warning/30 bg-warning/10 p-4 text-sm text-warning">
+                              {launchReadiness.map((item) => (
+                                <p key={item}>• {item}</p>
+                              ))}
+                            </div>
+                          )}
+                          <div className="rounded-2xl border border-border/70 bg-card/80 p-4 text-sm text-muted-foreground">
+                            <p className="font-medium text-foreground">Modo atual</p>
+                            <p className="mt-1">{composerMode === "edit" ? "Editando uma campanha existente" : composerMode === "duplicate" ? "Gerando uma cópia pronta para ajustes" : "Criando um novo rascunho"}</p>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    </div>
+                  )}
+
+                  <div className="flex flex-col gap-3 border-t border-border/70 pt-5 sm:flex-row sm:items-center sm:justify-between">
+                    <div className="flex gap-2">
+                      <Button variant="outline" className="rounded-xl" disabled={campaignStep === 1} onClick={() => setCampaignStep((current) => Math.max(1, current - 1))}>
+                        Voltar
+                      </Button>
+                      <Button variant="outline" className="rounded-xl" disabled={campaignStep === STEP_LABELS.length} onClick={() => setCampaignStep((current) => Math.min(STEP_LABELS.length, current + 1))}>
+                        Próximo
+                      </Button>
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      <Button variant="outline" className="rounded-xl" onClick={() => void persistCampaign("save")} disabled={isSaving}>
+                        {isSaving && actionType === "save" ? <Clock className="h-4 w-4 animate-spin" /> : <Sparkle className="h-4 w-4" />}
+                        Salvar rascunho
+                      </Button>
+                      <Button className="rounded-xl shadow-glow" onClick={() => void persistCampaign("launch")} disabled={isSaving || launchReadiness.length > 0}>
+                        {isSaving && actionType === "launch" ? <Clock className="h-4 w-4 animate-spin" /> : <Play className="h-4 w-4" />}
+                        Salvar e lançar
+                      </Button>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card className="glass-card rounded-2xl border-border/70 bg-card/85">
+                <CardContent className="space-y-4 p-5">
+                  <div>
+                    <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground/70">Resumo lateral</p>
+                    <h3 className="mt-1 font-display text-lg font-semibold">Operação da campanha</h3>
+                  </div>
+                  <div className="space-y-3">
+                    <div className="rounded-2xl border border-border/70 bg-background/40 p-4">
+                      <p className="text-xs uppercase tracking-wide text-muted-foreground">Nome atual</p>
+                      <p className="mt-1 text-sm font-medium text-foreground">{campaignName || "Aguardando definição"}</p>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="rounded-2xl border border-border/70 bg-background/40 p-4">
+                        <p className="text-xs uppercase tracking-wide text-muted-foreground">Contatos</p>
+                        <p className="mt-1 font-display text-2xl font-bold">{selectedContactCount}</p>
+                      </div>
+                      <div className="rounded-2xl border border-border/70 bg-background/40 p-4">
+                        <p className="text-xs uppercase tracking-wide text-muted-foreground">Variantes</p>
+                        <p className="mt-1 font-display text-2xl font-bold">{cleanMessages.length}</p>
+                      </div>
+                    </div>
+                    <div className="rounded-2xl border border-border/70 bg-background/40 p-4">
+                      <p className="text-xs uppercase tracking-wide text-muted-foreground">Cadência</p>
+                      <div className="mt-2 space-y-2 text-sm text-muted-foreground">
+                        <p>Typing delay: <span className="font-medium text-foreground">{typingDelay[0].toFixed(1)}s</span></p>
+                        <p>Intervalo: <span className="font-medium text-foreground">{intervalSeconds[0]}s</span></p>
+                        <p>Pausa: <span className="font-medium text-foreground">{pauseEvery} / {pauseSeconds}s</span></p>
+                      </div>
+                    </div>
+                    <div className="rounded-2xl border border-border/70 bg-background/40 p-4">
+                      <p className="text-xs uppercase tracking-wide text-muted-foreground">Prévia da audiência</p>
+                      <div className="mt-3 space-y-2">
+                        {selectedContacts.slice(0, 5).map((contact) => (
+                          <div key={`${contact.id}-${contact.phone}`} className="rounded-xl border border-border/70 bg-card/70 px-3 py-2 text-sm">
+                            <p className="font-medium">{contact.name || "Contato"}</p>
+                            <p className="text-xs text-muted-foreground">{contact.phone || "Sem telefone"}</p>
+                          </div>
+                        ))}
+                        {selectedContacts.length === 0 && <p className="text-sm text-muted-foreground">Nenhum contato selecionado.</p>}
+                        {selectedContacts.length > 5 && <p className="text-xs text-muted-foreground">+ {selectedContacts.length - 5} contatos adicionais</p>}
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
             </div>
-          </CardContent>
-        </Card>
 
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
-          <Card className="metric-card rounded-2xl border-border/70 bg-card/85"><CardContent className="space-y-2 p-5"><div className="flex items-center gap-4"><div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10"><Megaphone weight="duotone" className="h-6 w-6 text-primary" /></div><div><p className="text-[11px] uppercase tracking-wide text-muted-foreground">Campanhas</p><h3 className="font-display text-2xl font-bold">{safeCampaigns.length}</h3></div></div><OperationalStatusBadge label="Orquestração ativa" tone="syncing" /></CardContent></Card>
-          <Card className="metric-card rounded-2xl border-border/70 bg-card/85"><CardContent className="space-y-2 p-5"><div className="flex items-center gap-4"><div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-info/10"><PaperPlaneTilt weight="fill" className="h-6 w-6 text-info" /></div><div><p className="text-[11px] uppercase tracking-wide text-muted-foreground">Enviadas</p><h3 className="font-display text-2xl font-bold">{totals.sent.toLocaleString("pt-BR")}</h3></div></div><OperationalStatusBadge label="Disparo controlado" tone="online" /></CardContent></Card>
-          <Card className="metric-card rounded-2xl border-border/70 bg-card/85"><CardContent className="space-y-2 p-5"><div className="flex items-center gap-4"><div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-success/10"><Eye weight="duotone" className="h-6 w-6 text-success" /></div><div><p className="text-[11px] uppercase tracking-wide text-muted-foreground">Taxa de Leitura</p><h3 className="font-display text-2xl font-bold">{totals.readRate.toFixed(1)}%</h3></div></div><OperationalStatusBadge label="Interesse monitorado" tone="online" /></CardContent></Card>
-          <Card className="metric-card rounded-2xl border-border/70 bg-card/85"><CardContent className="space-y-2 p-5"><div className="flex items-center gap-4"><div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-warning/10"><CheckCircle weight="fill" className="h-6 w-6 text-warning" /></div><div><p className="text-[11px] uppercase tracking-wide text-muted-foreground">Taxa de Resposta</p><h3 className="font-display text-2xl font-bold">{totals.replyRate.toFixed(1)}%</h3></div></div><OperationalStatusBadge label="Follow-up ativo" tone="warning" /></CardContent></Card>
-        </div>
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground/70">Campanhas persistidas</p>
+                <h2 className="mt-1 font-display text-lg font-semibold">Lista operacional</h2>
+              </div>
+              <Button variant="outline" className="rounded-xl" onClick={() => void loadPageData()} disabled={actionType === "refresh"}>
+                <ArrowClockwise className="h-4 w-4" />
+                Atualizar lista
+              </Button>
+            </div>
 
-        <div className="flex items-center justify-between">
-          <h2 className="font-display text-lg font-semibold">Suas Campanhas</h2>
-          <Button className="gap-2 rounded-xl shadow-glow" onClick={() => setCampaignStep(1)}>
-            <Plus weight="bold" className="h-4 w-4" />
-            Nova Campanha
-          </Button>
-        </div>
+            {campaigns.length === 0 ? (
+              <Card className="glass-card rounded-2xl border-border/70 bg-card/85">
+                <CardContent className="p-0">
+                  <EmptyState
+                    icon={<Megaphone className="h-8 w-8 text-muted-foreground/50" />}
+                    title="Nenhuma campanha disponível"
+                    description="Crie a primeira campanha oficial para persistir audiência, mensagens e configurações diretamente no backend consolidado."
+                    action={
+                      <Button className="rounded-xl shadow-glow" onClick={resetComposer}>
+                        Criar campanha
+                      </Button>
+                    }
+                  />
+                </CardContent>
+              </Card>
+            ) : (
+              <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
+                {campaigns.map((campaign) => {
+                  const meta = statusMeta(campaign);
+                  const recipients = Number(campaign.queue?.total ?? campaign.selectedContacts?.length ?? 0);
+                  const sent = Number(campaign.queue?.sent ?? 0);
+                  const progress = recipients > 0 ? Math.min(100, Math.round((sent / recipients) * 100)) : 0;
+                  const busy = actionCampaignId === campaign.id;
 
-        <div>
-          {loading ? (
-            <StatGridSkeleton count={4} />
-          ) : safeCampaigns.length === 0 ? (
-            <Card className="glass-card rounded-2xl border-border/70 bg-card/85">
-              <CardContent className="p-0">
-                <EmptyState
-                  icon={<Megaphone className="h-8 w-8 text-muted-foreground/50" />}
-                  title="Nenhuma campanha disponível"
-                  description="Crie sua primeira campanha oficial para orquestrar mensagens, delays e lançamentos em um único fluxo."
-                  action={<Button className="rounded-xl shadow-glow" onClick={() => setCampaignStep(1)}>Criar campanha</Button>}
-                />
-              </CardContent>
-            </Card>
-          ) : (
-            <List rowComponent={CampaignVirtualRow} rowCount={safeCampaigns.length} rowHeight={CAMPAIGN_ROW_HEIGHT} rowProps={campaignRowProps} style={{ height: listHeight }} />
-          )}
-        </div>
-      </motion.div>
+                  return (
+                    <Card key={campaign.id} className="glass-card overflow-hidden rounded-2xl border-border/70 bg-card/85">
+                      <div className={cn("h-1", meta.cardLine)} />
+                      <CardContent className="space-y-4 p-5">
+                        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                          <div className="min-w-0 flex-1">
+                            <div className="flex flex-wrap items-center gap-2">
+                              <h3 className="truncate font-display text-xl font-semibold">{campaign.name}</h3>
+                              <OperationalStatusBadge label={meta.label} tone={meta.tone} pulse={meta.tone === "syncing"} />
+                            </div>
+                            <p className="mt-2 text-sm text-muted-foreground">
+                              {(campaign.messages ?? []).map((message) => message.content).filter(Boolean).join(" • ") || "Sem mensagem cadastrada"}
+                            </p>
+                            <div className="mt-3 flex flex-wrap gap-2">
+                              {(campaign.tags ?? []).map((tag) => (
+                                <Badge key={tag} variant="secondary" className="rounded-full border border-border/70 bg-background/60 text-xs">
+                                  {tag}
+                                </Badge>
+                              ))}
+                              {(campaign.tags ?? []).length === 0 && <Badge variant="secondary">Sem tags</Badge>}
+                            </div>
+                          </div>
+
+                          <div className="grid grid-cols-2 gap-2 lg:w-[220px]">
+                            <Button variant="outline" className="rounded-xl" onClick={() => hydrateComposer(campaign, "edit")}>
+                              <PencilSimple className="h-4 w-4" />
+                              Editar
+                            </Button>
+                            <Button variant="outline" className="rounded-xl" onClick={() => hydrateComposer(campaign, "duplicate")}>
+                              <Copy className="h-4 w-4" />
+                              Duplicar
+                            </Button>
+                            {normalizeCampaignStatus(campaign) === "paused" ? (
+                              <Button className="rounded-xl shadow-glow" onClick={() => void runCampaignAction(campaign.id, "resume")} disabled={busy}>
+                                {busy && actionType === "resume" ? <Clock className="h-4 w-4 animate-spin" /> : <Play className="h-4 w-4" />}
+                                Retomar
+                              </Button>
+                            ) : (
+                              <Button className="rounded-xl shadow-glow" onClick={() => void runCampaignAction(campaign.id, "start")} disabled={busy}>
+                                {busy && actionType === "start" ? <Clock className="h-4 w-4 animate-spin" /> : <Play className="h-4 w-4" />}
+                                Iniciar
+                              </Button>
+                            )}
+                            <Button
+                              variant="outline"
+                              className="rounded-xl border-destructive/30 text-destructive hover:bg-destructive/10"
+                              onClick={() => void runCampaignAction(campaign.id, "delete")}
+                              disabled={busy}
+                            >
+                              {busy && actionType === "delete" ? <Clock className="h-4 w-4 animate-spin" /> : <Trash className="h-4 w-4" />}
+                              Excluir
+                            </Button>
+                          </div>
+                        </div>
+
+                        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+                          <div className="rounded-2xl border border-border/70 bg-background/40 p-4">
+                            <p className="text-xs uppercase tracking-wide text-muted-foreground">Contatos</p>
+                            <p className="mt-1 font-display text-2xl font-bold">{recipients}</p>
+                          </div>
+                          <div className="rounded-2xl border border-border/70 bg-background/40 p-4">
+                            <p className="text-xs uppercase tracking-wide text-muted-foreground">Enviadas</p>
+                            <p className="mt-1 font-display text-2xl font-bold">{sent}</p>
+                          </div>
+                          <div className="rounded-2xl border border-border/70 bg-background/40 p-4">
+                            <p className="text-xs uppercase tracking-wide text-muted-foreground">Falhas</p>
+                            <p className="mt-1 font-display text-2xl font-bold">{Number(campaign.queue?.failed ?? 0)}</p>
+                          </div>
+                          <div className="rounded-2xl border border-border/70 bg-background/40 p-4">
+                            <p className="text-xs uppercase tracking-wide text-muted-foreground">Agendamento</p>
+                            <p className="mt-1 text-sm font-medium text-foreground">{formatDateTime(campaign.settings?.startAt)}</p>
+                          </div>
+                        </div>
+
+                        <div className="rounded-2xl border border-border/70 bg-background/40 p-4">
+                          <div className="mb-2 flex items-center justify-between text-sm">
+                            <span className="text-muted-foreground">Progresso operacional</span>
+                            <span className="font-medium text-foreground">{progress}%</span>
+                          </div>
+                          <div className="h-2 overflow-hidden rounded-full bg-muted/70">
+                            <div className="h-full rounded-full bg-primary transition-[width]" style={{ width: `${progress}%` }} />
+                          </div>
+                        </div>
+
+                        <div className="flex flex-wrap gap-2">
+                          <Button variant="outline" className="rounded-xl" onClick={() => hydrateComposer(campaign, "edit")}>
+                            <ArrowClockwise className="h-4 w-4" />
+                            Carregar no editor
+                          </Button>
+                          {normalizeCampaignStatus(campaign) !== "paused" && normalizeCampaignStatus(campaign) !== "completed" && (
+                            <Button variant="outline" className="rounded-xl" onClick={() => void runCampaignAction(campaign.id, "pause")} disabled={busy}>
+                              {busy && actionType === "pause" ? <Clock className="h-4 w-4 animate-spin" /> : <Pause className="h-4 w-4" />}
+                              Pausar
+                            </Button>
+                          )}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  );
+                })}
+              </div>
+            )}
+          </>
+        )}
+      </div>
     </div>
   );
 }

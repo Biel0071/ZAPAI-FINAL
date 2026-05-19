@@ -450,7 +450,22 @@ export default function Connections() {
 
   return (
     <div className="min-h-screen">
-      <Header title="Conexões WhatsApp" subtitle="Gerencie suas sessões oficiais de WhatsApp em tempo real" />
+      <Header
+        title="Conexões WhatsApp"
+        subtitle="Gerencie suas sessões oficiais de WhatsApp em tempo real"
+        actions={
+          <>
+            <Button variant="outline" size="sm" className="rounded-xl" onClick={() => void loadSessions()}>
+              <ArrowClockwise className="h-4 w-4" />
+              Atualizar
+            </Button>
+            <Button size="sm" className="rounded-xl shadow-glow" onClick={() => setIsActivationDialogOpen(true)}>
+              <Plus weight="bold" className="h-4 w-4" />
+              Nova sessão
+            </Button>
+          </>
+        }
+      />
 
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="page-container section-stack">
         <div className="grid grid-cols-1 gap-4 md:grid-cols-3 xl:grid-cols-4">

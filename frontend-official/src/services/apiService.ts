@@ -151,6 +151,52 @@ export interface SessionInfo {
   status?: string;
 }
 
+export interface CampaignContact {
+  id: string;
+  name?: string;
+  phone?: string;
+  status?: string;
+}
+
+export interface CampaignMessage {
+  id?: string;
+  type: "text" | "image" | "audio" | "video" | "file";
+  content: string;
+  mediaUrl?: string | null;
+  delaySeconds?: number;
+}
+
+export interface CampaignSettings {
+  intervalSeconds: number;
+  pauseEvery: number;
+  pauseSeconds: number;
+  typingDelaySeconds: number;
+  startAt?: string | null;
+}
+
+export interface CampaignQueue {
+  total: number;
+  processed: number;
+  sent: number;
+  failed: number;
+  paused: boolean;
+}
+
+export interface CampaignRecord {
+  id: string;
+  name: string;
+  status: string;
+  selectedContacts: CampaignContact[];
+  messages: CampaignMessage[];
+  settings: CampaignSettings;
+  queue: CampaignQueue;
+  tags: string[];
+  startedAt?: string | null;
+  completedAt?: string | null;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
 export interface ImproveRequest {
   customerQuestion: string;
   aiResponse: string;
@@ -639,6 +685,68 @@ function normalizeSessionInfo(item: RawSession, index: number): SessionInfo {
     phone: item.phone ?? item.phoneNumber ?? item.phone_number,
     connected: item.connected,
     status: item.status,
+  };
+}
+
+function normalizeCampaignContact(item: unknown, index: number): CampaignContact {
+  const raw = item && typeof item === "object" ? (item as Record<string, unknown>) : {};
+  const id = normalizeIdentifier((raw.id ?? raw.contactId ?? raw.contact_id ?? raw.phone) as string | number | undefined) ?? `contact-${index}`;
+  return {
+    id,
+    name: typeof raw.name === "string" ? raw.name : typeof raw.contactName === "string" ? raw.contactName : undefined,
+    phone: typeof raw.phone === "string" ? raw.phone : undefined,
+    status: typeof raw.status === "string" ? raw.status : undefined,
+  };
+}
+
+function normalizeCampaignMessage(item: unknown, index: number): CampaignMessage {
+  const raw = item && typeof item === "object" ? (item as Record<string, unknown>) : {};
+  const type = String(raw.type ?? "text").trim().toLowerCase();
+  return {
+    id: typeof raw.id === "string" ? raw.id : `message-${index}`,
+    type: type === "image" || type === "audio" || type === "video" || type === "file" ? type : "text",
+    content: String(raw.content ?? raw.text ?? raw.caption ?? "").trim(),
+    mediaUrl: typeof raw.mediaUrl === "string" ? raw.mediaUrl : typeof raw.media_url === "string" ? raw.media_url : null,
+    delaySeconds: Number(raw.delaySeconds ?? raw.delay_seconds ?? 0),
+  };
+}
+
+function normalizeCampaignRecord(item: unknown, index: number): CampaignRecord {
+  const raw = item && typeof item === "object" ? (item as Record<string, unknown>) : {};
+  const selectedContacts = Array.isArray(raw.selectedContacts)
+    ? raw.selectedContacts.map(normalizeCampaignContact)
+    : Array.isArray(raw.selected_contacts)
+      ? raw.selected_contacts.map(normalizeCampaignContact)
+      : [];
+  const messages = Array.isArray(raw.messages) ? raw.messages.map(normalizeCampaignMessage) : [];
+  const settingsRaw = raw.settings && typeof raw.settings === "object" ? (raw.settings as Record<string, unknown>) : {};
+  const queueRaw = raw.queue && typeof raw.queue === "object" ? (raw.queue as Record<string, unknown>) : {};
+
+  return {
+    id: String(raw.id ?? `campaign-${index}`),
+    name: String(raw.name ?? "Nova campanha").trim(),
+    status: String(raw.status ?? "draft").trim(),
+    selectedContacts,
+    messages,
+    settings: {
+      intervalSeconds: Number(settingsRaw.intervalSeconds ?? raw.intervalSeconds ?? 10),
+      pauseEvery: Number(settingsRaw.pauseEvery ?? raw.pauseEvery ?? 10),
+      pauseSeconds: Number(settingsRaw.pauseSeconds ?? raw.pauseSeconds ?? 60),
+      typingDelaySeconds: Number(settingsRaw.typingDelaySeconds ?? raw.typingDelaySeconds ?? 3),
+      startAt: typeof settingsRaw.startAt === "string" ? settingsRaw.startAt : typeof raw.scheduledFor === "string" ? raw.scheduledFor : null,
+    },
+    queue: {
+      total: Number(queueRaw.total ?? selectedContacts.length ?? 0),
+      processed: Number(queueRaw.processed ?? 0),
+      sent: Number(queueRaw.sent ?? raw.sent ?? 0),
+      failed: Number(queueRaw.failed ?? 0),
+      paused: Boolean(queueRaw.paused ?? false),
+    },
+    tags: Array.isArray(raw.tags) ? raw.tags.map(String) : [],
+    startedAt: typeof raw.startedAt === "string" ? raw.startedAt : null,
+    completedAt: typeof raw.completedAt === "string" ? raw.completedAt : null,
+    createdAt: typeof raw.createdAt === "string" ? raw.createdAt : undefined,
+    updatedAt: typeof raw.updatedAt === "string" ? raw.updatedAt : undefined,
   };
 }
 
@@ -1150,6 +1258,31 @@ export const apiService = {
     request<{ success?: boolean }>({ endpoint: `/session/${encodeURIComponent(normalizeSessionName(sessionId))}`, method: "DELETE" }),
   removeSession: (sessionId: string) =>
     request<{ success?: boolean }>({ endpoint: `/sessions/${encodeURIComponent(normalizeSessionName(sessionId))}`, method: "DELETE" }),
+  getCampaigns: async () => {
+    const data = await request<unknown>({ endpoint: "/api/campaigns", method: "GET" });
+    const entries = Array.isArray(data)
+      ? data
+      : data && typeof data === "object" && Array.isArray((data as { data?: unknown[] }).data)
+        ? (data as { data?: unknown[] }).data ?? []
+        : [];
+    return entries.map(normalizeCampaignRecord);
+  },
+  createCampaign: (payload: Partial<CampaignRecord> & Record<string, unknown>) =>
+    request<CampaignRecord>({ endpoint: "/api/campaigns", method: "POST", body: payload }),
+  updateCampaign: (campaignId: string, payload: Partial<CampaignRecord> & Record<string, unknown>) =>
+    request<CampaignRecord>({ endpoint: `/api/campaigns/${encodeURIComponent(campaignId)}`, method: "PUT", body: payload }),
+  deleteCampaign: (campaignId: string) =>
+    request<{ success?: boolean }>({ endpoint: `/api/campaigns/${encodeURIComponent(campaignId)}`, method: "DELETE" }),
+  startCampaignDispatch: (campaignId: string) =>
+    request<Record<string, unknown>>({ endpoint: `/api/campaigns/${encodeURIComponent(campaignId)}/start`, method: "POST" }),
+  pauseCampaignDispatch: (campaignId: string) =>
+    request<Record<string, unknown>>({ endpoint: `/api/campaigns/${encodeURIComponent(campaignId)}/pause`, method: "POST" }),
+  resumeCampaignDispatch: (campaignId: string) =>
+    request<Record<string, unknown>>({ endpoint: `/api/campaigns/${encodeURIComponent(campaignId)}/resume`, method: "POST" }),
+  cancelCampaignDispatch: (campaignId: string) =>
+    request<Record<string, unknown>>({ endpoint: `/api/campaigns/${encodeURIComponent(campaignId)}/cancel`, method: "POST" }),
+  getCampaignDispatchStatus: (campaignId: string) =>
+    request<Record<string, unknown>>({ endpoint: `/api/campaigns/${encodeURIComponent(campaignId)}/status`, method: "GET" }),
   patchConversation: (conversationId: string, payload: { status?: string; lead_temperature?: string; funnel_stage?: string; tags?: string[] }) =>
     request<Record<string, unknown>>({ endpoint: `/api/conversations/${encodeURIComponent(conversationId)}`, method: "PATCH", body: payload }),
   deleteMessage: (messageId: string) =>
