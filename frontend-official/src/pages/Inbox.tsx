@@ -22,6 +22,8 @@ import {
   Waveform,
 } from "@phosphor-icons/react";
 import { Header } from "@/components/layout/Header";
+import InboxView from "@/lovable/pages/InboxPageView";
+import { createInboxLovableViewModel } from "@/adapters/lovable/inboxAdapter";
 import { useNavigate } from "react-router-dom";
 import { ChatHeaderBar } from "@/components/inbox/ChatHeaderBar";
 import { ChatSearchBar } from "@/components/inbox/ChatSearchBar";
@@ -2538,6 +2540,12 @@ export default function Inbox() {
     return Object.fromEntries(entries);
   }, [conversations, conversationControls]);
 
+  const lovableInboxViewModel = createInboxLovableViewModel({
+    conversations,
+    selectedConversation,
+    messages: selectedConversationMessages,
+  });
+
   const selectedLead = useMemo(() => {
     if (!selectedConversation) return null;
     return leadInsight ?? leadByConversationId[selectedConversation.id] ?? null;
@@ -3260,10 +3268,11 @@ export default function Inbox() {
     <div className="flex h-full w-full flex-col overflow-hidden">
       <Tabs value={rightPanelTab} onValueChange={(v) => setRightPanelTab(v as "ai" | "lead" | "qr")} className="flex h-full w-full flex-col">
         <div className="sticky top-0 z-10 -mx-1 mb-2 bg-card/40 px-1 pb-2 pt-0.5 backdrop-blur supports-[backdrop-filter]:bg-card/30">
-          <TabsList className="grid h-9 w-full shrink-0 grid-cols-3 bg-muted/60">
+          <TabsList className="grid h-9 w-full shrink-0 grid-cols-4 bg-muted/60">
             <TabsTrigger value="ai" className="text-xs transition-all data-[state=active]:shadow-sm" title="IA (Alt+1)">IA</TabsTrigger>
             <TabsTrigger value="lead" className="text-xs transition-all data-[state=active]:shadow-sm" title="Lead (Alt+2)">Lead</TabsTrigger>
-            <TabsTrigger value="qr" className="text-xs transition-all data-[state=active]:shadow-sm" title="Quick Replies (Alt+3)">Replies</TabsTrigger>
+            <TabsTrigger value="qr" className="text-xs transition-all data-[state=active]:shadow-sm" title="Quick Replies (Alt+3)">Respostas</TabsTrigger>
+            <button type="button" className="text-xs text-muted-foreground">Tags</button>
           </TabsList>
         </div>
 
@@ -3472,11 +3481,11 @@ export default function Inbox() {
 
   return (
     <div className="min-h-screen">
-      <Header title="Inbox" subtitle={`${conversations.length} conversas ativas`} />
+      <Header title="Inbox" subtitle={`${lovableInboxViewModel.conversationCount} conversas ativas`} />
 
-      <div className="page-container pt-4 lg:pt-6">
-        <div className="grid min-h-[calc(100vh-8.5rem)] grid-cols-1 overflow-hidden rounded-2xl border border-border/70 bg-card/30 md:grid-cols-[320px_minmax(0,1fr)] lg:grid-cols-[340px_minmax(0,1fr)_360px]">
-        <div className={cn("flex min-h-0 flex-col border-r border-border bg-card/50 lg:resize-x lg:overflow-auto lg:min-w-[280px] lg:max-w-[460px]", isMobile && mobileScreen !== "conversations" && "hidden")}>
+      <InboxView
+        leftPanel={
+          <div className={cn("flex min-h-0 flex-col border-r border-border bg-card/50 lg:overflow-auto lg:min-w-[280px] lg:max-w-[460px]", isMobile && mobileScreen !== "conversations" && "hidden")}>
           <div className="space-y-3 border-b border-border p-4">
             <ChatSearchBar
               value={searchQuery}
@@ -3553,8 +3562,9 @@ export default function Inbox() {
             )}
           </div>
         </div>
-
-        <div
+        }
+        centerPanel={
+          <div
           className={cn("flex min-h-0 min-w-0 flex-col", isMobile && mobileScreen !== "chat" && "hidden")}
           onDragOver={(event) => { event.preventDefault(); setIsDraggingFiles(true); }}
           onDragLeave={() => setIsDraggingFiles(false)}
@@ -3572,6 +3582,7 @@ export default function Inbox() {
                 isMobile={isMobile}
                 onBack={() => setMobileScreen("conversations")}
                 statusLabel={selectedConversationStatusLabel}
+                showStatusDot
               />
 
               {!activeSession && (
@@ -3798,8 +3809,9 @@ export default function Inbox() {
             </div>
           )}
         </div>
-
-        <aside
+        }
+        rightPanel={
+          <aside
           className={cn(
             "hidden min-h-0 border-l border-border bg-card/40 transition-[width,padding] duration-300 ease-out lg:flex lg:flex-col",
             rightPanelCollapsed
@@ -3848,43 +3860,45 @@ export default function Inbox() {
             </div>
           )}
         </aside>
-      </div>
-
-        {isTabletLayout && (
-          <Sheet open={showLeadPanel} onOpenChange={setShowLeadPanel}>
-            <SheetContent side="right" className="w-full p-4 sm:max-w-md">
-              <SheetHeader>
-                <SheetTitle>Lead Panel</SheetTitle>
-              </SheetHeader>
-              <div className="mt-4 overflow-y-auto pr-1">{leadPanelContent}</div>
-            </SheetContent>
-          </Sheet>
-        )}
-      </div>
-
-      <Dialog open={Boolean(previewMedia)} onOpenChange={(open) => !open && setPreviewMedia(null)}>
-        <DialogContent className="h-screen w-screen max-w-none border-none bg-black/95 p-0 shadow-none">
-          <div className="flex h-full w-full items-center justify-center" onClick={() => setPreviewMedia(null)}>
-            {previewMedia?.type === "image" && (
-              <img
-                src={previewMedia.url}
-                alt="Preview da imagem"
-                className="max-h-[85vh] max-w-[95vw] rounded-lg border border-border object-contain"
-                onClick={(event) => event.stopPropagation()}
-              />
-            )}
-            {previewMedia?.type === "video" && (
-              <video
-                src={previewMedia.url}
-                controls
-                autoPlay
-                className="max-h-[85vh] max-w-[95vw] rounded-lg border border-border object-contain"
-                onClick={(event) => event.stopPropagation()}
-              />
-            )}
-          </div>
-        </DialogContent>
-      </Dialog>
+        }
+        tabletLeadSheet={
+          isTabletLayout ? (
+            <Sheet open={showLeadPanel} onOpenChange={setShowLeadPanel}>
+              <SheetContent side="right" className="w-full p-4 sm:max-w-md">
+                <SheetHeader>
+                  <SheetTitle>Lead Panel</SheetTitle>
+                </SheetHeader>
+                <div className="mt-4 overflow-y-auto pr-1">{leadPanelContent}</div>
+              </SheetContent>
+            </Sheet>
+          ) : undefined
+        }
+        previewDialog={
+          <Dialog open={Boolean(previewMedia)} onOpenChange={(open) => !open && setPreviewMedia(null)}>
+            <DialogContent className="h-screen w-screen max-w-none border-none bg-black/95 p-0 shadow-none">
+              <div className="flex h-full w-full items-center justify-center" onClick={() => setPreviewMedia(null)}>
+                {previewMedia?.type === "image" && (
+                  <img
+                    src={previewMedia.url}
+                    alt="Preview da imagem"
+                    className="max-h-[85vh] max-w-[95vw] rounded-lg border border-border object-contain"
+                    onClick={(event) => event.stopPropagation()}
+                  />
+                )}
+                {previewMedia?.type === "video" && (
+                  <video
+                    src={previewMedia.url}
+                    controls
+                    autoPlay
+                    className="max-h-[85vh] max-w-[95vw] rounded-lg border border-border object-contain"
+                    onClick={(event) => event.stopPropagation()}
+                  />
+                )}
+              </div>
+            </DialogContent>
+          </Dialog>
+        }
+      />
     </div>
   );
 }

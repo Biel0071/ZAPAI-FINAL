@@ -12,6 +12,7 @@ interface ChatHeaderBarProps {
   onBack?: () => void;
   rightActions?: ReactNode;
   statusLabel?: string;
+  showStatusDot?: boolean;
 }
 
 export function ChatHeaderBar({
@@ -23,6 +24,7 @@ export function ChatHeaderBar({
   onBack,
   rightActions,
   statusLabel,
+  showStatusDot = true,
 }: ChatHeaderBarProps) {
   return (
     <div className="flex h-16 items-center justify-between border-b border-border/70 bg-card/80 px-3 md:px-4">
@@ -40,7 +42,11 @@ export function ChatHeaderBar({
 
         <div className="min-w-0">
           <h3 className="font-semibold">{contactName}</h3>
-          <p className="truncate text-xs text-muted-foreground">{phone || "Sem número"}{statusLabel ? ` • ${statusLabel}` : ""}</p>
+          <p className="truncate text-xs text-muted-foreground">
+            {phone || "Sem número"}
+            {showStatusDot && <span className="mx-1 text-destructive">•</span>}
+            {statusLabel ?? ""}
+          </p>
         </div>
       </div>
 
