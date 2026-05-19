@@ -17,6 +17,8 @@ import {
   X,
 } from "@phosphor-icons/react";
 import { Header } from "@/components/layout/Header";
+import CampaignsView from "@/lovable/pages/CampaignsPageView";
+import { createCampaignsLovableViewModel } from "@/adapters/lovable/campaignsAdapter";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -41,11 +43,11 @@ type ComposerMode = "create" | "edit" | "duplicate";
 type CampaignAction = "save" | "launch" | "start" | "pause" | "resume" | "delete" | "refresh" | null;
 
 const STEP_LABELS = [
-  "Selecionar contatos",
-  "Criar mensagens",
-  "Configurar cadência",
-  "Prévia operacional",
-  "Lançar",
+  "Público",
+  "Mensagem",
+  "Mídia",
+  "Delays",
+  "Revisão",
 ] as const;
 
 const DEFAULT_MESSAGES = [
@@ -396,17 +398,20 @@ export default function Campaigns() {
   }, [filteredContacts, selectedContactIds]);
 
   const stepProgress = (campaignStep / STEP_LABELS.length) * 100;
+  const lovableCampaignsViewModel = createCampaignsLovableViewModel(campaigns);
 
   return (
     <div className="min-h-screen">
       <Header
         title="Campanhas"
-        subtitle="Criação, persistência e lançamento operacional de campanhas reais"
+        subtitle="Disparos em massa e campanhas programadas"
         actions={
           <>
-            <Button variant="outline" size="sm" className="rounded-xl" onClick={() => void loadPageData()}>
-              <ArrowClockwise className="h-4 w-4" />
-              Atualizar
+            <Button variant="outline" size="sm" className="rounded-xl" onClick={() => void persistCampaign("save")}>
+              Salvar Rascunho
+            </Button>
+            <Button variant="outline" size="sm" className="rounded-xl">
+              Importar Contatos
             </Button>
             <Button size="sm" className="rounded-xl shadow-glow" onClick={resetComposer}>
               <Plus className="h-4 w-4" />
@@ -416,85 +421,91 @@ export default function Campaigns() {
         }
       />
 
-      <div className="page-container section-stack">
+      <div>
         {loading ? (
-          <StatGridSkeleton count={4} />
+          <div className="page-container section-stack">
+            <StatGridSkeleton count={4} />
+          </div>
         ) : (
-          <>
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
-              <Card className="metric-card rounded-2xl border-border/70 bg-card/85">
-                <CardContent className="space-y-2 p-5">
-                  <div className="flex items-center gap-4">
-                    <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10">
-                      <Megaphone weight="duotone" className="h-6 w-6 text-primary" />
+          <CampaignsView
+            summaryCards={
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+                <Card className="metric-card rounded-2xl border-border/70 bg-card/85">
+                  <CardContent className="space-y-2 p-5">
+                    <div className="flex items-center gap-4">
+                      <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10">
+                        <Megaphone weight="duotone" className="h-6 w-6 text-primary" />
+                      </div>
+                      <div>
+                        <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Campanhas</p>
+                        <h3 className="font-display text-2xl font-bold">{lovableCampaignsViewModel.totalCampaigns}</h3>
+                      </div>
                     </div>
-                    <div>
-                      <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Campanhas</p>
-                      <h3 className="font-display text-2xl font-bold">{campaigns.length}</h3>
-                    </div>
-                  </div>
-                  <OperationalStatusBadge label="Base persistida" tone="syncing" />
-                </CardContent>
-              </Card>
+                    <OperationalStatusBadge label="Base persistida" tone="syncing" />
+                  </CardContent>
+                </Card>
 
-              <Card className="metric-card rounded-2xl border-border/70 bg-card/85">
-                <CardContent className="space-y-2 p-5">
-                  <div className="flex items-center gap-4">
-                    <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-info/10">
-                      <PaperPlaneTilt weight="fill" className="h-6 w-6 text-info" />
+                <Card className="metric-card rounded-2xl border-border/70 bg-card/85">
+                  <CardContent className="space-y-2 p-5">
+                    <div className="flex items-center gap-4">
+                      <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-info/10">
+                        <PaperPlaneTilt weight="fill" className="h-6 w-6 text-info" />
+                      </div>
+                      <div>
+                        <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Envios</p>
+                        <h3 className="font-display text-2xl font-bold">{lovableCampaignsViewModel.sentMessages.toLocaleString("pt-BR")}</h3>
+                      </div>
                     </div>
-                    <div>
-                      <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Envios</p>
-                      <h3 className="font-display text-2xl font-bold">{totals.sent.toLocaleString("pt-BR")}</h3>
-                    </div>
-                  </div>
-                  <OperationalStatusBadge label="Pipeline ativo" tone="online" />
-                </CardContent>
-              </Card>
+                    <OperationalStatusBadge label="Pipeline ativo" tone="online" />
+                  </CardContent>
+                </Card>
 
-              <Card className="metric-card rounded-2xl border-border/70 bg-card/85">
-                <CardContent className="space-y-2 p-5">
-                  <div className="flex items-center gap-4">
-                    <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-success/10">
-                      <Eye weight="duotone" className="h-6 w-6 text-success" />
+                <Card className="metric-card rounded-2xl border-border/70 bg-card/85">
+                  <CardContent className="space-y-2 p-5">
+                    <div className="flex items-center gap-4">
+                      <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-success/10">
+                        <Eye weight="duotone" className="h-6 w-6 text-success" />
+                      </div>
+                      <div>
+                        <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Contatos na fila</p>
+                        <h3 className="font-display text-2xl font-bold">{lovableCampaignsViewModel.totalQueuedContacts.toLocaleString("pt-BR")}</h3>
+                      </div>
                     </div>
-                    <div>
-                      <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Contatos na fila</p>
-                      <h3 className="font-display text-2xl font-bold">{totals.total.toLocaleString("pt-BR")}</h3>
-                    </div>
-                  </div>
-                  <OperationalStatusBadge label="Segmentação pronta" tone="online" />
-                </CardContent>
-              </Card>
+                    <OperationalStatusBadge label="Segmentação pronta" tone="online" />
+                  </CardContent>
+                </Card>
 
-              <Card className="metric-card rounded-2xl border-border/70 bg-card/85">
-                <CardContent className="space-y-2 p-5">
-                  <div className="flex items-center gap-4">
-                    <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-warning/10">
-                      <CheckCircle weight="fill" className="h-6 w-6 text-warning" />
+                <Card className="metric-card rounded-2xl border-border/70 bg-card/85">
+                  <CardContent className="space-y-2 p-5">
+                    <div className="flex items-center gap-4">
+                      <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-warning/10">
+                        <CheckCircle weight="fill" className="h-6 w-6 text-warning" />
+                      </div>
+                      <div>
+                        <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Etapa atual</p>
+                        <h3 className="font-display text-2xl font-bold">{campaignStep}/{STEP_LABELS.length}</h3>
+                      </div>
                     </div>
-                    <div>
-                      <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Etapa atual</p>
-                      <h3 className="font-display text-2xl font-bold">{campaignStep}/{STEP_LABELS.length}</h3>
-                    </div>
-                  </div>
-                  <OperationalStatusBadge label={composerMode === "edit" ? "Modo edição" : composerMode === "duplicate" ? "Duplicando" : "Novo rascunho"} tone="warning" />
-                </CardContent>
-              </Card>
-            </div>
-
-            <div className="grid gap-6 xl:grid-cols-[minmax(0,1.2fr)_420px]">
-              <Card className="glass-card rounded-2xl border-border/70 bg-card/85">
-                <CardContent className="space-y-5 p-5">
+                    <OperationalStatusBadge label={composerMode === "edit" ? "Modo edição" : composerMode === "duplicate" ? "Duplicando" : "Novo rascunho"} tone="warning" />
+                  </CardContent>
+                </Card>
+              </div>
+            }
+            composer={
+              <div className="grid gap-6 xl:grid-cols-[minmax(0,1.2fr)_420px]">
+                <Card className="glass-card rounded-2xl border-border/70 bg-card/85">
+                  <CardContent className="space-y-5 p-5">
                   <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
                     <div>
-                      <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground/70">Wizard oficial</p>
-                      <h2 className="mt-1 font-display text-xl font-semibold">Campanha operacional com persistência real</h2>
-                      <p className="mt-2 text-sm text-muted-foreground">Selecione a audiência, monte as mensagens, ajuste a cadência e salve ou lance no backend oficial.</p>
+                      <h2 className="mt-1 font-display text-2xl font-semibold">Nova Campanha de Alta Conversão</h2>
                     </div>
-                    <div className="rounded-2xl border border-border/70 bg-background/50 px-3 py-2 text-right">
-                      <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Progresso</p>
-                      <p className="font-display text-lg font-semibold">{Math.round(stepProgress)}%</p>
+                    <div className="flex flex-wrap gap-2">
+                      <Button variant="outline" className="rounded-xl">
+                        Importar CSV
+                      </Button>
+                      <Button variant="outline" className="rounded-xl" onClick={() => void persistCampaign("save")}>
+                        Salvar Rascunho
+                      </Button>
                     </div>
                   </div>
 
@@ -504,102 +515,102 @@ export default function Campaigns() {
                       const active = campaignStep === step;
                       const complete = campaignStep > step;
                       return (
-                        <Button
+                        <button
                           key={label}
-                          variant={active ? "default" : "outline"}
+                          type="button"
                           className={cn(
-                            "justify-start rounded-xl text-left",
-                            active && "shadow-glow",
-                            complete && !active && "border-success/40 text-success",
+                            "flex flex-col items-center gap-2 rounded-xl border border-transparent px-3 py-4 text-center transition-all",
+                            active && "border-primary/30 bg-primary/10 shadow-glow",
+                            complete && !active && "text-success",
                           )}
                           onClick={() => setCampaignStep(step)}
                         >
-                          <span className="mr-2 inline-flex h-6 w-6 items-center justify-center rounded-full border border-current/20 text-[11px]">
-                            {step}
-                          </span>
-                          <span className="truncate">{label}</span>
-                        </Button>
+                          <span className={cn("inline-flex h-10 w-10 items-center justify-center rounded-full border text-sm", active ? "border-primary/40 text-primary" : "border-border/70 text-muted-foreground")}>{step}</span>
+                          <span className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">{label}</span>
+                        </button>
                       );
                     })}
                   </div>
 
                   {campaignStep === 1 && (
-                    <div className="space-y-4">
-                      <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_220px]">
+                    <div className="space-y-6">
+                      <div className="flex items-center justify-between">
                         <div>
-                          <label className="mb-2 block text-sm font-medium">Nome da campanha</label>
-                          <Input
-                            value={campaignName}
-                            onChange={(event) => setCampaignName(event.target.value)}
-                            placeholder="Ex: Reativação de clientes quentes"
-                          />
+                          <h3 className="text-2xl font-semibold">Definir Público-Alvo</h3>
+                          <p className="mt-2 text-base text-muted-foreground">Escolha os contatos que receberão esta campanha.</p>
                         </div>
-                        <div>
-                          <label className="mb-2 block text-sm font-medium">Tags operacionais</label>
-                          <Input
-                            value={tagsInput}
-                            onChange={(event) => setTagsInput(event.target.value)}
-                            placeholder="vip, follow-up, maio"
-                          />
-                        </div>
+                        <Badge variant="secondary" className="rounded-full border border-success/30 bg-success/10 px-4 py-2 text-sm font-semibold text-success">
+                          {selectedContactCount} Leads Selecionados
+                        </Badge>
                       </div>
 
-                      <div className="grid gap-4 lg:grid-cols-[240px_minmax(0,1fr)]">
-                        <Card className="rounded-2xl border-border/70 bg-background/40">
-                          <CardContent className="space-y-3 p-4">
-                            <div>
-                              <p className="text-xs uppercase tracking-wide text-muted-foreground">Audiência atual</p>
-                              <p className="mt-1 font-display text-2xl font-semibold">{selectedContactCount}</p>
-                            </div>
-                            <OperationalStatusBadge label="Seleção em tempo real" tone="syncing" />
-                            <Button variant="outline" className="w-full rounded-xl" onClick={toggleSelectAllVisibleContacts}>
-                              {filteredContacts.length > 0 && filteredContacts.every((contact) => selectedContactIds.includes(String(contact.phone || contact.id)))
-                                ? "Remover lista visível"
-                                : "Selecionar lista visível"}
-                            </Button>
-                          </CardContent>
-                        </Card>
+                      <div className="grid gap-4 md:grid-cols-3">
+                        <button type="button" className="rounded-2xl border border-success/20 bg-success/5 p-6 text-left transition-colors hover:bg-success/10">
+                          <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-success/10">
+                            <Users className="h-6 w-6 text-success" />
+                          </div>
+                          <p className="mt-5 text-2xl font-semibold">Filtro Atual</p>
+                          <p className="mt-3 text-sm text-muted-foreground">Usar leads do mapa ou CRM</p>
+                        </button>
+                        <button type="button" className="rounded-2xl border border-border/70 bg-background/30 p-6 text-left transition-colors hover:bg-card/60">
+                          <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-background/60">
+                            <ArrowClockwise className="h-6 w-6 text-muted-foreground" />
+                          </div>
+                          <p className="mt-5 text-2xl font-semibold">Importar Lista</p>
+                          <p className="mt-3 text-sm text-muted-foreground">Planilha .xlsx ou .csv</p>
+                        </button>
+                        <button type="button" className="rounded-2xl border border-border/70 bg-background/30 p-6 text-left transition-colors hover:bg-card/60">
+                          <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-background/60">
+                            <Badge variant="secondary" className="h-10 rounded-xl px-3 text-sm">#</Badge>
+                          </div>
+                          <p className="mt-5 text-2xl font-semibold">Por Etiquetas</p>
+                          <p className="mt-3 text-sm text-muted-foreground">Segmentar por tags do CRM</p>
+                        </button>
+                      </div>
 
-                        <div className="space-y-3">
+                      <div className="rounded-2xl border border-border/70 bg-background/30">
+                        <div className="flex items-center justify-between border-b border-border/70 px-4 py-4">
+                          <p className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Lista de Disparo</p>
                           <Input
                             value={searchQuery}
                             onChange={(event) => setSearchQuery(event.target.value)}
-                            placeholder="Buscar contato por nome ou telefone"
+                            placeholder="Buscar na lista..."
+                            className="h-10 w-full max-w-xs rounded-xl"
                           />
-                          <div className="scrollbar-thin max-h-[420px] space-y-2 overflow-y-auto rounded-2xl border border-border/70 bg-background/30 p-3">
-                            {filteredContacts.length === 0 ? (
-                              <EmptyState
-                                icon={<Users className="h-8 w-8 text-muted-foreground/50" />}
-                                title="Nenhum contato disponível"
-                                description="Sincronize contatos reais para alimentar a campanha oficial."
-                              />
-                            ) : (
-                              filteredContacts.map((contact) => {
-                                const key = String(contact.phone || contact.id);
-                                const checked = selectedContactIds.includes(key);
-                                return (
-                                  <button
-                                    key={key}
-                                    type="button"
-                                    onClick={() => toggleContact(key)}
-                                    className={cn(
-                                      "flex w-full items-start gap-3 rounded-2xl border px-3 py-3 text-left transition-colors",
-                                      checked
-                                        ? "border-primary/40 bg-primary/10"
-                                        : "border-border/70 bg-card/60 hover:border-border hover:bg-card/80",
-                                    )}
-                                  >
-                                    <Checkbox checked={checked} className="mt-0.5" />
-                                    <div className="min-w-0 flex-1">
-                                      <p className="truncate text-sm font-medium">{contact.name || "Contato"}</p>
-                                      <p className="truncate text-xs text-muted-foreground">{contact.phone || "Sem telefone"}</p>
-                                    </div>
-                                    {contact.status ? <Badge variant="secondary">{contact.status}</Badge> : null}
-                                  </button>
-                                );
-                              })
-                            )}
-                          </div>
+                        </div>
+                        <div className="scrollbar-thin max-h-[420px] space-y-2 overflow-y-auto p-4">
+                          {filteredContacts.length === 0 ? (
+                            <EmptyState
+                              icon={<Users className="h-8 w-8 text-muted-foreground/50" />}
+                              title="Nenhum contato disponível"
+                              description="Sincronize contatos reais para alimentar a campanha oficial."
+                            />
+                          ) : (
+                            filteredContacts.map((contact) => {
+                              const key = String(contact.phone || contact.id);
+                              const checked = selectedContactIds.includes(key);
+                              return (
+                                <button
+                                  key={key}
+                                  type="button"
+                                  onClick={() => toggleContact(key)}
+                                  className={cn(
+                                    "flex w-full items-start gap-3 rounded-2xl border px-3 py-3 text-left transition-colors",
+                                    checked
+                                      ? "border-primary/40 bg-primary/10"
+                                      : "border-border/70 bg-card/60 hover:border-border hover:bg-card/80",
+                                  )}
+                                >
+                                  <Checkbox checked={checked} className="mt-0.5" />
+                                  <div className="min-w-0 flex-1">
+                                    <p className="truncate text-sm font-medium">{contact.name || "Contato"}</p>
+                                    <p className="truncate text-xs text-muted-foreground">{contact.phone || "Sem telefone"}</p>
+                                  </div>
+                                  {contact.status ? <Badge variant="secondary">{contact.status}</Badge> : null}
+                                </button>
+                              );
+                            })
+                          )}
                         </div>
                       </div>
                     </div>
@@ -822,22 +833,15 @@ export default function Campaigns() {
                   )}
 
                   <div className="flex flex-col gap-3 border-t border-border/70 pt-5 sm:flex-row sm:items-center sm:justify-between">
+                    <Button variant="outline" className="rounded-xl" onClick={resetComposer}>
+                      Cancelar
+                    </Button>
                     <div className="flex gap-2">
                       <Button variant="outline" className="rounded-xl" disabled={campaignStep === 1} onClick={() => setCampaignStep((current) => Math.max(1, current - 1))}>
                         Voltar
                       </Button>
-                      <Button variant="outline" className="rounded-xl" disabled={campaignStep === STEP_LABELS.length} onClick={() => setCampaignStep((current) => Math.min(STEP_LABELS.length, current + 1))}>
-                        Próximo
-                      </Button>
-                    </div>
-                    <div className="flex flex-wrap gap-2">
-                      <Button variant="outline" className="rounded-xl" onClick={() => void persistCampaign("save")} disabled={isSaving}>
-                        {isSaving && actionType === "save" ? <Clock className="h-4 w-4 animate-spin" /> : <Sparkle className="h-4 w-4" />}
-                        Salvar rascunho
-                      </Button>
-                      <Button className="rounded-xl shadow-glow" onClick={() => void persistCampaign("launch")} disabled={isSaving || launchReadiness.length > 0}>
-                        {isSaving && actionType === "launch" ? <Clock className="h-4 w-4 animate-spin" /> : <Play className="h-4 w-4" />}
-                        Salvar e lançar
+                      <Button className="rounded-xl shadow-glow" disabled={campaignStep === STEP_LABELS.length} onClick={() => setCampaignStep((current) => Math.min(STEP_LABELS.length, current + 1))}>
+                        Próximo Passo
                       </Button>
                     </div>
                   </div>
@@ -890,8 +894,10 @@ export default function Campaigns() {
                 </CardContent>
               </Card>
             </div>
-
-            <div className="flex items-center justify-between gap-3">
+            }
+            listSection={
+              <>
+                <div className="flex items-center justify-between gap-3">
               <div>
                 <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground/70">Campanhas persistidas</p>
                 <h2 className="mt-1 font-display text-lg font-semibold">Lista operacional</h2>
@@ -1029,6 +1035,8 @@ export default function Campaigns() {
               </div>
             )}
           </>
+            }
+          />
         )}
       </div>
     </div>
