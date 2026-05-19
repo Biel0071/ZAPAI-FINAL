@@ -13,6 +13,7 @@ export type ZapAIRuntimeManifest = {
   buildAt: string;
   commit: string;
   runtime: "official";
+  visualSource: "frontend-official" | "lovable-sync";
   marker: string;
   frontend: "8080";
   backend: "4025";
@@ -53,6 +54,7 @@ export const zapaiRuntimeManifest: ZapAIRuntimeManifest = {
   buildAt,
   commit,
   runtime: "official",
+  visualSource: "lovable-sync",
   marker: OFFICIAL_RUNTIME_MARKER,
   frontend: OFFICIAL_FRONTEND_PORT,
   backend: OFFICIAL_BACKEND_PORT,

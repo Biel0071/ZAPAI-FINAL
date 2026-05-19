@@ -48,12 +48,11 @@ type SidebarNavItem = {
 
 const crmItems: SidebarNavItem[] = [
   { icon: SquaresFour, label: "Dashboard", path: "/dashboard", minRole: "user" },
-  { icon: ChatCircleDots, label: "Conversas", path: "/inbox", minRole: "user", badge: "Live" },
-  { icon: Users, label: "Leads CRM / Contatos", path: "/contacts", minRole: "user" },
-  { icon: Megaphone, label: "Campanhas", path: "/campaigns", minRole: "user", badge: "Ops" },
-  { icon: TreeStructure, label: "Fluxos", path: "/flows", minRole: "user" },
+  { icon: ChatCircleDots, label: "Conversas", path: "/inbox", minRole: "user" },
   { icon: AddressBook, label: "Conexões", path: "/connections", minRole: "user" },
-  { icon: Robot, label: "IA / Automação", path: "/ai", minRole: "user", badge: "AI" },
+  { icon: Users, label: "Leads CRM / Contatos", path: "/contacts", minRole: "user" },
+  { icon: Megaphone, label: "Campanhas", path: "/campaigns", minRole: "user" },
+  { icon: Robot, label: "IA / Automação", path: "/ai", minRole: "user" },
   { icon: ChartLineUp, label: "Analytics", path: "/analytics", minRole: "user" },
 ];
 
@@ -176,7 +175,10 @@ export function Sidebar() {
               </div>
               <p className="mt-1 text-[10px] uppercase tracking-[0.24em] text-sidebar-muted">CRM Enterprise</p>
               <div className="mt-3 flex flex-wrap items-center gap-2">
-                <OperationalStatusBadge label="Runtime oficial" tone="online" />
+                <span className="flex items-center gap-1.5 rounded-full border border-sidebar-border/80 bg-muted/20 px-2 py-1 text-[9px] font-semibold uppercase tracking-wide text-sidebar-foreground">
+                  <span className="h-1.5 w-1.5 rounded-full bg-success" />
+                  VSTABLE
+                </span>
                 {!isLoading && (
                   <Badge variant="outline" className="h-6 rounded-full border-sidebar-border/80 bg-muted/20 px-2.5 text-[10px] uppercase tracking-wide text-sidebar-foreground">
                     {role}
@@ -188,15 +190,6 @@ export function Sidebar() {
         </div>
       </div>
 
-      {!compact && (
-        <div className="border-b border-sidebar-border/60 px-4 py-3">
-          <div className="rounded-2xl border border-sidebar-border/70 bg-sidebar-accent/65 p-3">
-            <p className="text-[10px] uppercase tracking-[0.18em] text-sidebar-muted">Workspace</p>
-            <p className="mt-1 text-sm font-medium text-sidebar-foreground">Operação comercial unificada</p>
-            <p className="mt-1 text-xs text-sidebar-muted">Único shell, único runtime, jornadas reais por página.</p>
-          </div>
-        </div>
-      )}
 
       <nav className="scrollbar-thin flex-1 space-y-4 overflow-y-auto px-3 py-4">
         {!compact && <p className="px-2 text-[10px] font-semibold uppercase tracking-[0.22em] text-sidebar-muted/60">CRM</p>}

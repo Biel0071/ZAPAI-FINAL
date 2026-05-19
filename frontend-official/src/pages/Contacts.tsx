@@ -282,80 +282,35 @@ export default function Contacts() {
 
   return (
     <div className="min-h-screen">
-      <Header title="Contatos" subtitle={`${contacts.length} contatos sincronizados do WhatsApp`} />
+      <Header title="Leads CRM / Contatos" subtitle="Gestão de base e qualificação de leads" />
       <div className="page-container section-stack">
-        {loading ? (
-          <StatGridSkeleton count={3} />
-        ) : (
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-            <Card className="metric-card rounded-2xl border-border/70 bg-card/85">
-              <CardContent className="space-y-2 p-5">
-                <div className="flex items-center gap-4">
-                  <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10">
-                    <AddressBook weight="duotone" className="h-6 w-6 text-primary" />
-                  </div>
-                  <div>
-                    <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Total</p>
-                    <h3 className="font-display text-2xl font-bold">{contacts.length}</h3>
-                  </div>
-                </div>
-                <OperationalStatusBadge label="Base sincronizada" tone="syncing" />
-              </CardContent>
-            </Card>
-
-            <Card className="metric-card rounded-2xl border-border/70 bg-card/85">
-              <CardContent className="space-y-2 p-5">
-                <div className="flex items-center gap-4">
-                  <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-success/10">
-                    <Phone weight="duotone" className="h-6 w-6 text-success" />
-                  </div>
-                  <div>
-                    <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Individuais</p>
-                    <h3 className="font-display text-2xl font-bold">{individualCount}</h3>
-                  </div>
-                </div>
-                <OperationalStatusBadge label="Contatos diretos" tone="online" />
-              </CardContent>
-            </Card>
-
-            <Card className="metric-card rounded-2xl border-border/70 bg-card/85">
-              <CardContent className="space-y-2 p-5">
-                <div className="flex items-center gap-4">
-                  <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-info/10">
-                    <ChatCircleDots weight="duotone" className="h-6 w-6 text-info" />
-                  </div>
-                  <div>
-                    <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Grupos</p>
-                    <h3 className="font-display text-2xl font-bold">{groupCount}</h3>
-                  </div>
-                </div>
-                <OperationalStatusBadge label="Segmentação ativa" tone="syncing" />
-              </CardContent>
-            </Card>
-          </div>
-        )}
-
-        <div className="grid gap-6 lg:grid-cols-[280px_minmax(0,1fr)]">
+        <div className="grid gap-6 lg:grid-cols-[240px_minmax(0,1fr)]">
           <Card className="glass-card min-h-[540px] overflow-hidden rounded-2xl border-border/70 bg-card/85">
             <ContactSidebar activeSegment={activeSegment} onSegmentChange={setActiveSegment} counts={contactCounts} />
           </Card>
 
           <div className="space-y-4">
             <Card className="glass-card rounded-2xl border-border/70 bg-card/85">
-              <CardContent className="grid grid-cols-1 gap-3 p-4 md:grid-cols-[minmax(0,1fr)_220px_auto]">
-                <ChatSearchBar
-                  value={searchQuery}
-                  onChange={setSearchQuery}
-                  placeholder="Buscar por nome ou telefone"
-                />
-                <Input
-                  placeholder="Filtrar por tag"
-                  value={tagFilter}
-                  onChange={(event) => setTagFilter(event.target.value)}
-                />
-                <Button className="rounded-xl shadow-glow md:w-fit" onClick={() => void loadContacts()}>
-                  Atualizar
-                </Button>
+              <CardContent className="space-y-3 p-4">
+                <div className="grid grid-cols-1 gap-3 md:grid-cols-[minmax(0,1fr)_auto]">
+                  <ChatSearchBar
+                    value={searchQuery}
+                    onChange={setSearchQuery}
+                    placeholder="Buscar por nome, telefone ou tag..."
+                  />
+                  <Button className="rounded-xl shadow-glow md:w-fit" onClick={() => void loadContacts()}>
+                    <ChatCircleDots weight="duotone" className="h-4 w-4" />
+                    Salvar filtro atual
+                  </Button>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  <Button variant="outline" className="rounded-full">
+                    Filtrar: Todos
+                  </Button>
+                  <Button variant="outline" className="rounded-full">
+                    + Salvar filtro atual
+                  </Button>
+                </div>
               </CardContent>
             </Card>
 

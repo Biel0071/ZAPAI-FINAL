@@ -65,7 +65,7 @@ export function ContactSidebar({ activeSegment, onSegmentChange, counts }: Conta
       variant="ghost"
       size="sm"
       className={cn(
-        "w-full justify-start gap-3 px-3 transition-all",
+        "w-full justify-start gap-3 rounded-xl px-3 py-2.5 transition-all",
         activeSegment === item.id ? "bg-primary/10 text-primary hover:bg-primary/15" : "text-muted-foreground hover:bg-muted/50",
       )}
       onClick={() => onSegmentChange(item.id)}

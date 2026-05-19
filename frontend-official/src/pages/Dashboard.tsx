@@ -19,6 +19,8 @@ import {
   Export,
 } from "@phosphor-icons/react";
 import { Header } from "@/components/layout/Header";
+import { DashboardView } from "@/lovable/pages/DashboardView";
+import { createDashboardLovableViewModel } from "@/adapters/lovable/dashboardAdapter";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { OperationalStatusBadge } from "@/components/enterprise/OperationalStatusBadge";
@@ -400,6 +402,13 @@ export default function Dashboard() {
 
   const maxDddCount = Math.max(...dddRegions.map(r => r.count), 1);
 
+  const lovableDashboardViewModel = createDashboardLovableViewModel({
+    conversations,
+    metrics: storeMetrics,
+    sessions,
+    runtimeStatus: runtime.status,
+  });
+
   return (
     <div className="min-h-screen">
       <Header title="CRM Operacional" subtitle="Operação comercial unificada" />
@@ -428,6 +437,8 @@ export default function Dashboard() {
         {/* ═══ OVERVIEW TAB ═══ */}
         {activeTab === "overview" && (
           <div className="space-y-6 animate-in fade-in-0 duration-300">
+            <DashboardView viewModel={lovableDashboardViewModel} />
+
             <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
               <Card className="metric-card rounded-2xl border-border/70 bg-card/85"><CardContent className="p-4"><p className="text-[11px] uppercase tracking-wide text-muted-foreground">Conversas ativas</p><p className="mt-1 font-display text-2xl font-bold">{metricsSnapshot?.activeChats ?? 0}</p></CardContent></Card>
               <Card className="metric-card rounded-2xl border-border/70 bg-card/85"><CardContent className="p-4"><p className="text-[11px] uppercase tracking-wide text-muted-foreground">Leads novos</p><p className="mt-1 font-display text-2xl font-bold">{metricsSnapshot?.newLeads ?? 0}</p></CardContent></Card>
