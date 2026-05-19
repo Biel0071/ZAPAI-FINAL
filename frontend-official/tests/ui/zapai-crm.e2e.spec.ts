@@ -50,7 +50,7 @@ test.describe("ZapAI CRM UI smoke", () => {
     await login(page);
     await page.goto("/connections");
     await expect(page.getByText("Conexões WhatsApp")).toBeVisible();
-    await expect(page.getByRole("heading", { name: "Suas Sessões" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Gerencie o lifecycle das conexões em um único runtime" })).toBeVisible();
   });
 
   test("inbox screen visible", async ({ page }) => {

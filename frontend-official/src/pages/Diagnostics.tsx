@@ -10,6 +10,7 @@ import { DownloadSimple, CaretDown, Palette, CopySimple, ArrowClockwise, CheckCi
 import { readRuntimeManifest, type RuntimeCoherenceSnapshot } from "@/services/runtimeCoherenceService";
 import { generateDesignSystemZip } from "@/lib/designSystemExporter";
 import { API_ORIGIN } from "@/services/apiService";
+import { OperationalStatusBadge } from "@/components/enterprise/OperationalStatusBadge";
 import { IS_MIXED_CONTENT_BLOCKED } from "@/lib/backendConfig";
 import { systemControlService, type AiDiagnosticsResponse } from "@/services/systemControlService";
 import { getFrontendHealthSnapshot, subscribeFrontendHealth, type FrontendHealthSnapshot } from "@/services/frontendHealthService";
@@ -431,10 +432,10 @@ const Diagnostics = memo(function Diagnostics() {
 
         {/* Metric summary cards */}
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
-          <Card className="metric-card"><CardContent className="p-5"><p className="text-sm text-muted-foreground">Total sessions</p><p className="font-display text-2xl font-bold">{metrics.totalSessions}</p></CardContent></Card>
-          <Card className="metric-card"><CardContent className="p-5"><p className="text-sm text-muted-foreground">Connected sessions</p><p className="font-display text-2xl font-bold">{metrics.connectedSessions}</p></CardContent></Card>
-          <Card className="metric-card"><CardContent className="p-5"><p className="text-sm text-muted-foreground">Messages processed</p><p className="font-display text-2xl font-bold">{metrics.messagesProcessed}</p></CardContent></Card>
-          <Card className="metric-card"><CardContent className="p-5"><p className="text-sm text-muted-foreground">System uptime</p><p className="font-display text-2xl font-bold">{metrics.uptime}</p></CardContent></Card>
+          <Card className="metric-card rounded-2xl border-border/70 bg-card/85"><CardContent className="space-y-2 p-5"><p className="text-[11px] uppercase tracking-wide text-muted-foreground">Total de sessões</p><p className="font-display text-2xl font-bold">{metrics.totalSessions}</p><OperationalStatusBadge label="Sessões registradas" tone="syncing" /></CardContent></Card>
+          <Card className="metric-card rounded-2xl border-border/70 bg-card/85"><CardContent className="space-y-2 p-5"><p className="text-[11px] uppercase tracking-wide text-muted-foreground">Sessões conectadas</p><p className="font-display text-2xl font-bold">{metrics.connectedSessions}</p><OperationalStatusBadge label={metrics.connectedSessions > 0 ? "Runtime saudável" : "Aguardando conexão"} tone={metrics.connectedSessions > 0 ? "online" : "warning"} /></CardContent></Card>
+          <Card className="metric-card rounded-2xl border-border/70 bg-card/85"><CardContent className="space-y-2 p-5"><p className="text-[11px] uppercase tracking-wide text-muted-foreground">Mensagens processadas</p><p className="font-display text-2xl font-bold">{metrics.messagesProcessed}</p><OperationalStatusBadge label="Pipeline ativo" tone="online" /></CardContent></Card>
+          <Card className="metric-card rounded-2xl border-border/70 bg-card/85"><CardContent className="space-y-2 p-5"><p className="text-[11px] uppercase tracking-wide text-muted-foreground">Uptime do sistema</p><p className="font-display text-2xl font-bold">{metrics.uptime}</p><OperationalStatusBadge label="Observabilidade contínua" tone="syncing" /></CardContent></Card>
         </div>
 
         {runtimeCoherence && (
@@ -477,9 +478,14 @@ const Diagnostics = memo(function Diagnostics() {
               </div>
               <div className="rounded-lg border border-border bg-card p-3">
                 <p className="text-xs uppercase tracking-wide text-muted-foreground">Mismatch reason</p>
-                <p className={runtimeCoherence.mismatchReason ? "text-warning" : "text-success"}>
-                  {runtimeCoherence.mismatchReason ?? "Nenhuma divergência detectada com o runtime oficial."}
-                </p>
+                <div className="mt-2">
+                  <OperationalStatusBadge
+                    label={runtimeCoherence.mismatchReason ?? "Nenhuma divergência detectada com o runtime oficial"}
+                    tone={runtimeCoherence.mismatchReason ? "warning" : "online"}
+                    pulse={Boolean(runtimeCoherence.mismatchReason)}
+                    className="max-w-full"
+                  />
+                </div>
               </div>
             </CardContent>
           </Card>

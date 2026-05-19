@@ -21,6 +21,7 @@ import {
 import { Header } from "@/components/layout/Header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { OperationalStatusBadge } from "@/components/enterprise/OperationalStatusBadge";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Input } from "@/components/ui/input";
@@ -416,20 +417,22 @@ export default function Dashboard() {
               <TabsTrigger value="map">Mapa de Origem</TabsTrigger>
             </TabsList>
           </Tabs>
-          <Badge className={`${numberHealth.className} self-start rounded-full border border-border/60 px-3 py-1.5 text-xs font-semibold`}>
-            <numberHealth.icon className="mr-1.5 h-4 w-4" />
-            Number health: {numberHealth.label}
-          </Badge>
+          <OperationalStatusBadge
+            label={`Number health · ${numberHealth.label}`}
+            tone={sessionState === "online" ? "online" : sessionState === "offline" ? "warning" : "offline"}
+            pulse={sessionState !== "online"}
+            className="self-start"
+          />
         </div>
 
         {/* ═══ OVERVIEW TAB ═══ */}
         {activeTab === "overview" && (
           <div className="space-y-6 animate-in fade-in-0 duration-300">
             <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
-              <Card className="metric-card rounded-lg"><CardContent className="p-4"><p className="text-xs text-muted-foreground">Conversas ativas</p><p className="mt-1 text-xl font-bold font-display">{metricsSnapshot?.activeChats ?? 0}</p></CardContent></Card>
-              <Card className="metric-card rounded-lg"><CardContent className="p-4"><p className="text-xs text-muted-foreground">Leads novos</p><p className="mt-1 text-xl font-bold font-display">{metricsSnapshot?.newLeads ?? 0}</p></CardContent></Card>
-              <Card className="metric-card rounded-lg"><CardContent className="p-4"><p className="text-xs text-muted-foreground">Sessões online</p><p className="mt-1 text-xl font-bold font-display">{activeSessions}/{Math.max(totalSessions, 1)}</p></CardContent></Card>
-              <Card className="metric-card rounded-lg"><CardContent className="p-4"><p className="text-xs text-muted-foreground">Estado da operação</p><p className="mt-1 text-xl font-bold font-display">{sessionLabel}</p></CardContent></Card>
+              <Card className="metric-card rounded-2xl border-border/70 bg-card/85"><CardContent className="p-4"><p className="text-[11px] uppercase tracking-wide text-muted-foreground">Conversas ativas</p><p className="mt-1 font-display text-2xl font-bold">{metricsSnapshot?.activeChats ?? 0}</p></CardContent></Card>
+              <Card className="metric-card rounded-2xl border-border/70 bg-card/85"><CardContent className="p-4"><p className="text-[11px] uppercase tracking-wide text-muted-foreground">Leads novos</p><p className="mt-1 font-display text-2xl font-bold">{metricsSnapshot?.newLeads ?? 0}</p></CardContent></Card>
+              <Card className="metric-card rounded-2xl border-border/70 bg-card/85"><CardContent className="p-4"><p className="text-[11px] uppercase tracking-wide text-muted-foreground">Sessões online</p><p className="mt-1 font-display text-2xl font-bold">{activeSessions}/{Math.max(totalSessions, 1)}</p></CardContent></Card>
+              <Card className="metric-card rounded-2xl border-border/70 bg-card/85"><CardContent className="space-y-2 p-4"><p className="text-[11px] uppercase tracking-wide text-muted-foreground">Estado da operação</p><p className="font-display text-2xl font-bold">{sessionLabel}</p><OperationalStatusBadge label={sessionLabel === "Online" ? "Operação saudável" : "Operação degradada"} tone={sessionLabel === "Online" ? "online" : "offline"} /></CardContent></Card>
             </div>
 
             {/* KPI Cards */}
@@ -528,7 +531,7 @@ export default function Dashboard() {
                     <EmptyState
                       icon={<WhatsappLogo className="h-6 w-6 text-muted-foreground" weight="duotone" />}
                       title="Nenhuma sessão conectada"
-                      description="Assim que uma sessão entrar online, ela aparece aqui com status em tempo real."
+                      description="Assim que uma sessão entrar online, ela aparece aqui com status operacional e saúde em tempo real."
                       className="py-10"
                     />
                   )}

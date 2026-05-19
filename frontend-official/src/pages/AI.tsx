@@ -22,6 +22,7 @@ import { Header } from "@/components/layout/Header";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { OperationalStatusBadge } from "@/components/enterprise/OperationalStatusBadge";
 import { Switch } from "@/components/ui/switch";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -423,8 +424,8 @@ export default function AI() {
     <div className="min-h-screen bg-background">
       <Header title="Configuração de IA" subtitle="Central de Controle" />
 
-      <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="p-4 md:p-6">
-        <div className="rounded-2xl border border-border/60 bg-card/60 backdrop-blur-xl p-3 md:p-5">
+      <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="page-container section-stack">
+        <div className="rounded-2xl border border-border/60 bg-card/70 p-3 backdrop-blur-xl md:p-5">
           <Tabs
             value={activeSection}
             onValueChange={(value) => setActiveSection(value as SectionId)}
@@ -449,25 +450,27 @@ export default function AI() {
 
             <div className="space-y-4">
               <div className="grid gap-3 sm:grid-cols-3">
-                <Card className="glass-card">
-                  <CardContent className="p-4 flex items-center justify-between">
+                <Card className="metric-card rounded-2xl border-border/70 bg-card/85">
+                  <CardContent className="space-y-2 p-4">
                     <div>
-                      <p className="text-xs text-muted-foreground">Status da IA</p>
+                      <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Status da IA</p>
                       <p className="text-lg font-semibold">{aiEnabled ? "Ativada" : "Desativada"}</p>
                     </div>
-                    <span className={cn("h-3 w-3 rounded-full", aiEnabled ? "bg-success" : "bg-destructive")} />
+                    <OperationalStatusBadge label={aiEnabled ? "Assistente online" : "Assistente offline"} tone={aiEnabled ? "online" : "offline"} />
                   </CardContent>
                 </Card>
-                <Card className="glass-card">
-                  <CardContent className="p-4">
-                    <p className="text-xs text-muted-foreground">Conversas perdidas</p>
+                <Card className="metric-card rounded-2xl border-border/70 bg-card/85">
+                  <CardContent className="space-y-2 p-4">
+                    <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Conversas perdidas</p>
                     <p className="text-lg font-semibold">{lostCount}</p>
+                    <OperationalStatusBadge label="Treinamento ativo" tone={lostCount > 0 ? "warning" : "online"} />
                   </CardContent>
                 </Card>
-                <Card className="glass-card">
-                  <CardContent className="p-4">
-                    <p className="text-xs text-muted-foreground">Fila aguardando</p>
+                <Card className="metric-card rounded-2xl border-border/70 bg-card/85">
+                  <CardContent className="space-y-2 p-4">
+                    <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Fila aguardando</p>
                     <p className="text-lg font-semibold">{queueWaiting}</p>
+                    <OperationalStatusBadge label="Reativação monitorada" tone="syncing" />
                   </CardContent>
                 </Card>
               </div>

@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 import { Header } from "@/components/layout/Header";
 import { Card, CardContent } from "@/components/ui/card";
-import { Skeleton } from "@/components/ui/skeleton";
+import { StatGridSkeleton } from "@/components/ui/loading-skeleton";
+import { OperationalStatusBadge } from "@/components/enterprise/OperationalStatusBadge";
 import { apiService, type MetricsSummary } from "@/services/apiService";
 
 export default function Analytics() {
@@ -44,17 +45,13 @@ export default function Analytics() {
       <Header title="Relatórios" subtitle="Indicadores operacionais em tempo real" />
       <div className="page-container section-stack">
         {loading ? (
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
-            {Array.from({ length: 4 }).map((_, index) => (
-              <Skeleton key={`analytics-skeleton-${index}`} className="h-24 w-full" />
-            ))}
-          </div>
+          <StatGridSkeleton count={4} />
         ) : (
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
-            <Card className="metric-card rounded-lg"><CardContent className="p-4"><p className="text-xs text-muted-foreground">Mensagens hoje</p><p className="mt-1 text-2xl font-bold font-display">{Number(metrics?.messagesToday ?? metrics?.todayMessages ?? metrics?.totalMessages ?? 0).toLocaleString("pt-BR")}</p></CardContent></Card>
-            <Card className="metric-card rounded-lg"><CardContent className="p-4"><p className="text-xs text-muted-foreground">Conversas ativas</p><p className="mt-1 text-2xl font-bold font-display">{Number(metrics?.activeChats ?? metrics?.chats ?? 0).toLocaleString("pt-BR")}</p></CardContent></Card>
-            <Card className="metric-card rounded-lg"><CardContent className="p-4"><p className="text-xs text-muted-foreground">Respostas IA</p><p className="mt-1 text-2xl font-bold font-display">{Number(metrics?.aiResponses ?? metrics?.ai ?? 0).toLocaleString("pt-BR")}</p></CardContent></Card>
-            <Card className="metric-card rounded-lg"><CardContent className="p-4"><p className="text-xs text-muted-foreground">Conversas carregadas</p><p className="mt-1 text-2xl font-bold font-display">{conversationCount.toLocaleString("pt-BR")}</p></CardContent></Card>
+            <Card className="metric-card rounded-2xl border-border/70 bg-card/85"><CardContent className="space-y-2 p-4"><p className="text-[11px] uppercase tracking-wide text-muted-foreground">Mensagens hoje</p><p className="mt-1 font-display text-2xl font-bold">{Number(metrics?.messagesToday ?? metrics?.todayMessages ?? metrics?.totalMessages ?? 0).toLocaleString("pt-BR")}</p><OperationalStatusBadge label="Pipeline diário" tone="online" /></CardContent></Card>
+            <Card className="metric-card rounded-2xl border-border/70 bg-card/85"><CardContent className="space-y-2 p-4"><p className="text-[11px] uppercase tracking-wide text-muted-foreground">Conversas ativas</p><p className="mt-1 font-display text-2xl font-bold">{Number(metrics?.activeChats ?? metrics?.chats ?? 0).toLocaleString("pt-BR")}</p><OperationalStatusBadge label="Operação ativa" tone="syncing" /></CardContent></Card>
+            <Card className="metric-card rounded-2xl border-border/70 bg-card/85"><CardContent className="space-y-2 p-4"><p className="text-[11px] uppercase tracking-wide text-muted-foreground">Respostas IA</p><p className="mt-1 font-display text-2xl font-bold">{Number(metrics?.aiResponses ?? metrics?.ai ?? 0).toLocaleString("pt-BR")}</p><OperationalStatusBadge label="Assistente em uso" tone="online" /></CardContent></Card>
+            <Card className="metric-card rounded-2xl border-border/70 bg-card/85"><CardContent className="space-y-2 p-4"><p className="text-[11px] uppercase tracking-wide text-muted-foreground">Conversas carregadas</p><p className="mt-1 font-display text-2xl font-bold">{conversationCount.toLocaleString("pt-BR")}</p><OperationalStatusBadge label="Visão consolidada" tone="syncing" /></CardContent></Card>
           </div>
         )}
       </div>

@@ -2,6 +2,7 @@ import { Bell, MagnifyingGlass, Moon, Plus, User, ArrowClockwise } from "@phosph
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { OperationalStatusBadge } from "@/components/enterprise/OperationalStatusBadge";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -39,29 +40,32 @@ export function Header({ title, subtitle, runtimeState, actions }: HeaderProps) 
 
   const runtimeBadge =
     runtimeState === "running"
-      ? { dotClass: "bg-success", label: "Online" }
+      ? { label: "Online", tone: "online" as const }
       : runtimeState === "starting" || runtimeState === "reconnecting"
-        ? { dotClass: "bg-warning animate-pulse", label: runtimeState === "reconnecting" ? "Reconectando" : "Iniciando" }
+        ? { label: runtimeState === "reconnecting" ? "Reconectando" : "Iniciando", tone: "warning" as const }
         : runtimeState === "offline"
-          ? { dotClass: "bg-destructive", label: "Offline" }
+          ? { label: "Offline", tone: "offline" as const }
           : runtimeState === "unconfigured"
-            ? { dotClass: "bg-muted", label: "Não configurado" }
+            ? { label: "Não configurado", tone: "syncing" as const }
             : null;
 
   return (
     <header className="sticky top-0 z-40 shrink-0 border-b border-border/70 bg-card/60 backdrop-blur-xl">
-      <div className="flex h-14 items-center justify-between gap-2 px-4 pl-14 md:gap-3 md:px-6 md:pl-6">
+      <div className="flex h-16 items-center justify-between gap-3 px-4 pl-14 md:gap-4 md:px-6 md:pl-6">
         <div className="min-w-0">
           <div className="flex items-center gap-3">
             <h1 className="truncate font-display text-base font-semibold text-foreground md:text-lg">{title}</h1>
             {runtimeBadge && (
               <div className="flex items-center gap-2">
-                <div className="hidden items-center gap-1.5 rounded-full border border-border/60 bg-background/80 px-2 py-0.5 sm:flex">
-                  <span className={`h-1.5 w-1.5 rounded-full ${runtimeBadge.dotClass}`} />
-                  <span className="text-[11px] font-medium text-muted-foreground">{runtimeBadge.label}</span>
+                <div className="hidden sm:flex">
+                  <OperationalStatusBadge
+                    label={runtimeBadge.label}
+                    tone={runtimeBadge.tone}
+                    pulse={runtimeState === "starting" || runtimeState === "reconnecting"}
+                  />
                 </div>
                 {runtimeBadgeLabel && (
-                  <div className="hidden items-center gap-1.5 rounded-full border border-border/60 bg-background/80 px-2 py-0.5 xl:flex">
+                  <div className="hidden items-center gap-1.5 rounded-full border border-border/60 bg-background/80 px-2.5 py-1 xl:flex">
                     <span className="text-[11px] font-medium text-muted-foreground">{runtimeBadgeLabel}</span>
                   </div>
                 )}
@@ -69,7 +73,7 @@ export function Header({ title, subtitle, runtimeState, actions }: HeaderProps) 
                   <Button
                     size="sm"
                     variant="outline"
-                    className="h-6 gap-1 border-destructive/30 px-2 text-[10px] hover:bg-destructive/10"
+                    className="h-7 gap-1 border-warning/40 bg-warning/10 px-2.5 text-[10px] font-semibold hover:bg-warning/15"
                     onClick={() => {
                       manualReconnect();
                       forceReconnect();
@@ -82,7 +86,7 @@ export function Header({ title, subtitle, runtimeState, actions }: HeaderProps) 
               </div>
             )}
           </div>
-          {subtitle && <p className="hidden text-xs text-muted-foreground sm:line-clamp-1">{subtitle}</p>}
+          {subtitle && <p className="hidden text-[11px] text-muted-foreground/90 sm:line-clamp-1">{subtitle}</p>}
         </div>
 
         <div className="flex shrink-0 items-center gap-1 md:gap-2">

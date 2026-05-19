@@ -8,8 +8,9 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
+import { StatGridSkeleton, ListSkeleton } from "@/components/ui/loading-skeleton";
+import { OperationalStatusBadge } from "@/components/enterprise/OperationalStatusBadge";
 import { AddressBook, ChatCircleDots, Phone } from "@phosphor-icons/react";
 import { apiService, type Conversation } from "@/services/apiService";
 
@@ -282,58 +283,65 @@ export default function Contacts() {
   return (
     <div className="min-h-screen">
       <Header title="Contatos" subtitle={`${contacts.length} contatos sincronizados do WhatsApp`} />
-      <div className="space-y-6 p-6">
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-          <Card className="metric-card">
-            <CardContent className="p-5">
-              <div className="flex items-center gap-4">
-                <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10">
-                  <AddressBook weight="duotone" className="h-6 w-6 text-primary" />
+      <div className="page-container section-stack">
+        {loading ? (
+          <StatGridSkeleton count={3} />
+        ) : (
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+            <Card className="metric-card rounded-2xl border-border/70 bg-card/85">
+              <CardContent className="space-y-2 p-5">
+                <div className="flex items-center gap-4">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10">
+                    <AddressBook weight="duotone" className="h-6 w-6 text-primary" />
+                  </div>
+                  <div>
+                    <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Total</p>
+                    <h3 className="font-display text-2xl font-bold">{contacts.length}</h3>
+                  </div>
                 </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">Total</p>
-                  <h3 className="font-display text-2xl font-bold">{loading ? "—" : contacts.length}</h3>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+                <OperationalStatusBadge label="Base sincronizada" tone="syncing" />
+              </CardContent>
+            </Card>
 
-          <Card className="metric-card">
-            <CardContent className="p-5">
-              <div className="flex items-center gap-4">
-                <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-success/10">
-                  <Phone weight="duotone" className="h-6 w-6 text-success" />
+            <Card className="metric-card rounded-2xl border-border/70 bg-card/85">
+              <CardContent className="space-y-2 p-5">
+                <div className="flex items-center gap-4">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-success/10">
+                    <Phone weight="duotone" className="h-6 w-6 text-success" />
+                  </div>
+                  <div>
+                    <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Individuais</p>
+                    <h3 className="font-display text-2xl font-bold">{individualCount}</h3>
+                  </div>
                 </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">Individuais</p>
-                  <h3 className="font-display text-2xl font-bold">{loading ? "—" : individualCount}</h3>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+                <OperationalStatusBadge label="Contatos diretos" tone="online" />
+              </CardContent>
+            </Card>
 
-          <Card className="metric-card">
-            <CardContent className="p-5">
-              <div className="flex items-center gap-4">
-                <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-info/10">
-                  <ChatCircleDots weight="duotone" className="h-6 w-6 text-info" />
+            <Card className="metric-card rounded-2xl border-border/70 bg-card/85">
+              <CardContent className="space-y-2 p-5">
+                <div className="flex items-center gap-4">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-info/10">
+                    <ChatCircleDots weight="duotone" className="h-6 w-6 text-info" />
+                  </div>
+                  <div>
+                    <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Grupos</p>
+                    <h3 className="font-display text-2xl font-bold">{groupCount}</h3>
+                  </div>
                 </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">Grupos</p>
-                  <h3 className="font-display text-2xl font-bold">{loading ? "—" : groupCount}</h3>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
+                <OperationalStatusBadge label="Segmentação ativa" tone="syncing" />
+              </CardContent>
+            </Card>
+          </div>
+        )}
 
         <div className="grid gap-6 lg:grid-cols-[280px_minmax(0,1fr)]">
-          <Card className="glass-card min-h-[540px] overflow-hidden">
+          <Card className="glass-card min-h-[540px] overflow-hidden rounded-2xl border-border/70 bg-card/85">
             <ContactSidebar activeSegment={activeSegment} onSegmentChange={setActiveSegment} counts={contactCounts} />
           </Card>
 
           <div className="space-y-4">
-            <Card className="glass-card">
+            <Card className="glass-card rounded-2xl border-border/70 bg-card/85">
               <CardContent className="grid grid-cols-1 gap-3 p-4 md:grid-cols-[minmax(0,1fr)_220px_auto]">
                 <ChatSearchBar
                   value={searchQuery}
@@ -345,13 +353,13 @@ export default function Contacts() {
                   value={tagFilter}
                   onChange={(event) => setTagFilter(event.target.value)}
                 />
-                <Button className="md:w-fit" onClick={() => void loadContacts()}>
+                <Button className="rounded-xl shadow-glow md:w-fit" onClick={() => void loadContacts()}>
                   Atualizar
                 </Button>
               </CardContent>
             </Card>
 
-            <Card className="glass-card overflow-hidden">
+            <Card className="glass-card overflow-hidden rounded-2xl border-border/70 bg-card/85">
               <CardContent className="p-0">
                 <div className="flex items-center justify-between border-b border-border/60 px-4 py-4">
                   <div className="flex min-w-0 items-center gap-2">
@@ -361,7 +369,7 @@ export default function Contacts() {
                       <p className="text-xs text-muted-foreground">CRM enriquecido com dados reais de conversas</p>
                     </div>
                     {!loading && (
-                      <Badge variant="secondary" className="ml-2 text-xs">
+                      <Badge variant="secondary" className="ml-2 rounded-full border border-border/70 bg-background/60 text-xs">
                         {filteredContacts.length}
                       </Badge>
                     )}
@@ -370,16 +378,7 @@ export default function Contacts() {
 
                 {loading ? (
                   <div className="space-y-3 p-4">
-                    {Array.from({ length: 8 }).map((_, index) => (
-                      <div key={`contact-skeleton-${index}`} className="flex items-center gap-4 rounded-lg border border-border bg-card p-4">
-                        <Skeleton className="h-12 w-12 rounded-full" />
-                        <div className="flex-1 space-y-2">
-                          <Skeleton className="h-4 w-1/3" />
-                          <Skeleton className="h-3 w-1/2" />
-                        </div>
-                        <Skeleton className="h-6 w-16 rounded-full" />
-                      </div>
-                    ))}
+                    <ListSkeleton rows={8} />
                   </div>
                 ) : error ? (
                   <div className="p-4">
