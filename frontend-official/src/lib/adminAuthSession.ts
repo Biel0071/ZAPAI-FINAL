@@ -5,6 +5,8 @@ export type AdminAuthSession = {
   refreshToken?: string;
   username: string;
   role: AdminSessionRole;
+  tenantId?: string;
+  companyId?: string;
   issuedAt: number;
   expiresAt: number;
   remember: boolean;
@@ -31,6 +33,8 @@ function readStorage(storage: Storage | undefined): AdminAuthSession | null {
     const refreshToken = String(parsed.refreshToken ?? "").trim();
     const username = String(parsed.username ?? "").trim();
     const role = String(parsed.role ?? "user").trim().toLowerCase() as AdminSessionRole;
+    const tenantId = String(parsed.tenantId ?? "").trim();
+    const companyId = String(parsed.companyId ?? "").trim();
     const issuedAt = Number(parsed.issuedAt ?? 0);
     const expiresAt = Number(parsed.expiresAt ?? 0);
     const remember = Boolean(parsed.remember);
@@ -41,6 +45,8 @@ function readStorage(storage: Storage | undefined): AdminAuthSession | null {
       ...(refreshToken ? { refreshToken } : {}),
       username,
       role: role === "master" || role === "admin" ? role : "user",
+      ...(tenantId ? { tenantId } : {}),
+      ...(companyId ? { companyId } : {}),
       issuedAt,
       expiresAt,
       remember,
@@ -61,6 +67,11 @@ export function loadAdminAuthSession(): AdminAuthSession | null {
 export function isAdminAuthSessionValid(session: AdminAuthSession | null): boolean {
   if (!session) return false;
   return session.expiresAt > Date.now();
+}
+
+export function getAdminAuthTenantId(session: AdminAuthSession | null | undefined): string | null {
+  const tenantId = String(session?.tenantId ?? session?.companyId ?? "").trim();
+  return tenantId || null;
 }
 
 export function persistAdminAuthSession(session: AdminAuthSession) {

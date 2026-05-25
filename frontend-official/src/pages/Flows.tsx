@@ -82,7 +82,7 @@ export default function Flows() {
   };
 
   return (
-    <div className="min-h-screen">
+    <div className="flex flex-1 flex-col overflow-y-auto">
       <Header title="Flows" subtitle="Sistema de fluxos comerciais automatizados" />
 
       <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="p-6 space-y-6">

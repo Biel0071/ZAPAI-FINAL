@@ -114,7 +114,7 @@ export default function Contacts() {
   const individualCount = useMemo(() => contacts.filter((c) => !c.isGroup).length, [contacts]);
 
   return (
-    <div className="min-h-screen">
+    <div className="flex flex-1 flex-col overflow-y-auto">
       <Header title="Contatos" subtitle={`${contacts.length} contatos sincronizados do WhatsApp`} />
       <div className="space-y-6 p-6">
         {/* Stats */}

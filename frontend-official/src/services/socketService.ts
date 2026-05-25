@@ -543,19 +543,20 @@ function bindSharedSocketEvents() {
   if (!sharedSocket || eventBindingsReady) return;
 
   sharedSocket.on("connect", () => {
+    console.info(`[Socket] connected id=${sharedSocket?.id ?? "??"} subscribers=${subscribers.size}`);
     markFrontendHealthy();
     notifySubscribers((subscriber) => subscriber.onSocketConnected?.());
   });
 
-  sharedSocket.on("disconnect", () => {
+  sharedSocket.on("disconnect", (reason) => {
+    console.warn(`[Socket] disconnected reason=${reason ?? "unknown"} subscribers=${subscribers.size}`);
     reportFrontendIssue({
       type: "socket_disconnection",
-      message: "Socket.IO disconnected",
+      message: `Socket.IO disconnected: ${reason ?? "unknown"}`,
       service: "socket.io",
       level: "warning",
     });
     notifySubscribers((subscriber) => subscriber.onSocketDisconnected?.());
-
   });
 
   sharedSocket.on("connect_error", (error: Error) => {
@@ -747,6 +748,7 @@ function bindSharedSocketEvents() {
 
 function destroySharedSocket() {
   if (!sharedSocket) return;
+  console.info(`[Socket] destroying socket subscribers=${subscribers.size}`);
   sharedSocket.removeAllListeners();
   sharedSocket.disconnect();
   sharedSocket = null;
@@ -810,6 +812,7 @@ function ensureSharedSocket(socketUrl: string): Socket {
 
 export function forceReconnectInboxSocket() {
   const savedUrl = sharedSocketUrl;
+  console.info(`[Socket] forceReconnect url=${savedUrl ?? "none"} subscribers=${subscribers.size}`);
 
   // Destroy existing socket so ensureSharedSocket creates a new one
   // with the current JWT token from adminAuthSession.
@@ -876,6 +879,7 @@ export function connectInboxSocket(params: {
   };
 
   subscribers.set(subscriberId, nextSubscriber);
+  console.info(`[Socket] subscriber:added id=${subscriberId} total=${subscribers.size}`);
 
   if (sharedSocket?.connected) {
     nextSubscriber.onSocketConnected?.();
@@ -883,6 +887,7 @@ export function connectInboxSocket(params: {
 
   return () => {
     subscribers.delete(subscriberId);
+    console.info(`[Socket] subscriber:removed id=${subscriberId} remaining=${subscribers.size}`);
     if (subscribers.size === 0) destroySharedSocket();
   };
 }

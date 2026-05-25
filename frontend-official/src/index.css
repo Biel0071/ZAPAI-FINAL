@@ -297,6 +297,40 @@
     box-shadow: var(--shadow-card);
     @apply border-primary/30;
   }
+
+  /* Lovable-style chat grid background */
+  .chat-grid-bg {
+    background-image: radial-gradient(circle at 1px 1px, hsl(var(--border) / 0.15) 1px, transparent 0);
+    background-size: 24px 24px;
+  }
+
+  /* Inbox column panels */
+  .inbox-panel {
+    @apply flex min-h-0 flex-col overflow-hidden;
+    contain: layout style;
+  }
+
+  /* Resize handle for split panels */
+  .resize-handle {
+    @apply relative w-1 cursor-col-resize select-none;
+    background: transparent;
+    transition: background 0.15s ease;
+  }
+
+  .resize-handle:hover,
+  .resize-handle:active {
+    background: hsl(var(--primary) / 0.25);
+  }
+
+  .resize-handle::after {
+    content: '';
+    @apply absolute inset-y-0 -left-1 -right-1;
+  }
+
+  /* Fade-in animation */
+  .animate-fade-in {
+    animation: fadeIn 0.2s ease-out;
+  }
 }
 
 @layer utilities {
@@ -383,6 +417,11 @@
 @keyframes shimmer {
   0% { background-position: -200% 0; }
   100% { background-position: 200% 0; }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
 .animate-float {

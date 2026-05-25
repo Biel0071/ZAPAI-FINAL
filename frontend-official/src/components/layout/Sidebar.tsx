@@ -14,14 +14,11 @@ import {
   Robot,
   ChartLineUp,
   Megaphone,
-  Users,
   Database,
   Pulse,
   HardDrives,
-  Queue,
   ShieldCheck,
   TrendUp,
-  Cpu,
   Broadcast,
   FileText,
   CaretDown,
@@ -42,34 +39,31 @@ type SidebarNavItem = {
   label: string;
   path: string;
   minRole?: AppUserRole;
+  badge?: string;
 };
 
 const crmItems: SidebarNavItem[] = [
   { icon: SquaresFour, label: "Dashboard", path: "/dashboard", minRole: "user" },
-  { icon: ChatCircleDots, label: "Conversas", path: "/inbox", minRole: "user" },
-  { icon: Users, label: "Leads", path: "/contacts", minRole: "user" },
-  { icon: Megaphone, label: "Campanhas", path: "/campaigns", minRole: "user" },
-  { icon: TreeStructure, label: "Fluxos", path: "/flows", minRole: "user" },
+  { icon: ChatCircleDots, label: "Inbox", path: "/inbox", minRole: "user", badge: "Live" },
+  { icon: Lightning, label: "Conexões", path: "/connections", minRole: "user" },
   { icon: AddressBook, label: "Contatos", path: "/contacts", minRole: "user" },
-  { icon: Robot, label: "IA", path: "/ai", minRole: "user" },
-  { icon: ChartLineUp, label: "Relatórios", path: "/analytics", minRole: "user" },
+  { icon: Megaphone, label: "Campanhas", path: "/campaigns", minRole: "user" },
+  { icon: Robot, label: "IA & Automação", path: "/ai", minRole: "user" },
+  { icon: TreeStructure, label: "Fluxos", path: "/flows", minRole: "user" },
+  { icon: Database, label: "Memória IA", path: "/memory", minRole: "user" },
+  { icon: ChartLineUp, label: "Analytics", path: "/analytics", minRole: "user" },
 ];
 
 const systemItems: SidebarNavItem[] = [
-  { icon: HardDrives, label: "Cluster", path: "/nodes", minRole: "master" },
-  { icon: Pulse, label: "Runtime", path: "/system/runtime", minRole: "admin" },
-  { icon: Cpu, label: "Performance", path: "/system/performance", minRole: "admin" },
-  { icon: Broadcast, label: "WebSocket", path: "/system/websocket", minRole: "admin" },
-  { icon: Database, label: "Banco", path: "/system/database", minRole: "admin" },
-  { icon: Queue, label: "Files", path: "/system/files", minRole: "admin" },
-  { icon: Pulse, label: "Health", path: "/system/health", minRole: "admin" },
-  { icon: ChartLineUp, label: "Métricas", path: "/system/metrics", minRole: "admin" },
-  { icon: TrendUp, label: "Deployments", path: "/deployments", minRole: "master" },
-  { icon: FileText, label: "Logs", path: "/logs", minRole: "master" },
+  { icon: HardDrives, label: "Gerenciar VPS", path: "/nodes", minRole: "master" },
+  { icon: Broadcast, label: "Sessões Ativas", path: "/system/runtime", minRole: "admin" },
+  { icon: ShieldCheck, label: "Controle de Acesso", path: "/users", minRole: "master" },
+  { icon: TrendUp, label: "Métricas Globais", path: "/system/metrics", minRole: "admin" },
+  { icon: FileText, label: "Logs do Sistema", path: "/logs", minRole: "master" },
 ];
 
 const bottomItems: SidebarNavItem[] = [
-  { icon: ShieldCheck, label: "Usuários", path: "/users", minRole: "master" },
+  { icon: Pulse, label: "Status & Saúde", path: "/diagnostics", minRole: "admin" },
   { icon: Gear, label: "Configurações", path: "/settings", minRole: "user" },
 ];
 
@@ -142,6 +136,11 @@ export function Sidebar() {
             </motion.span>
           )}
         </AnimatePresence>
+        {!compact && item.badge && (
+          <Badge variant="default" className="ml-auto h-5 rounded-md px-1.5 text-[9px] font-semibold uppercase tracking-wide">
+            {item.badge}
+          </Badge>
+        )}
       </NavLink>
     );
   };
@@ -183,7 +182,7 @@ export function Sidebar() {
           <Collapsible open={systemOpen} onOpenChange={setSystemOpen}>
             {!compact && (
               <CollapsibleTrigger className="mt-3 flex w-full items-center justify-between rounded-md px-3 py-2 text-left text-[10px] font-semibold uppercase tracking-wider text-sidebar-muted/70 hover:bg-sidebar-accent/40">
-                <span>Sistema</span>
+                <span>Administração</span>
                 {systemOpen ? <CaretUp className="h-3.5 w-3.5" /> : <CaretDown className="h-3.5 w-3.5" />}
               </CollapsibleTrigger>
             )}

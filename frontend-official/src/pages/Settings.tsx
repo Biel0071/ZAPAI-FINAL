@@ -82,7 +82,7 @@ export default function Settings() {
   };
 
   return (
-    <div className="min-h-screen">
+    <div className="flex flex-1 flex-col overflow-y-auto">
       <Header title="Configurações" subtitle="Gerencie sua conta e preferências" />
 
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="p-6">

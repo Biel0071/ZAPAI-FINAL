@@ -39,7 +39,7 @@ export default function MasterAdmins() {
   }, []);
 
   return (
-    <div className="min-h-screen">
+    <div className="flex flex-1 flex-col overflow-y-auto">
       <Header title="Admins" subtitle="Acessos administrativos do SaaS" runtimeState="running" />
       <div className="page-container section-stack">
         <Card className="glass-card">

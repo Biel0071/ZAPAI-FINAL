@@ -40,14 +40,18 @@ function loadRuntimeEnv() {
   const isMaster = nodeRole === 'master';
   const port = Number(process.env.PORT || process.env.APP_PORT) || 4025;
   const frontendUrl = String(process.env.FRONTEND_URL || '').trim();
+  // APP_PUBLIC_URL is the single source of truth for production CORS.
+  const appPublicUrl = String(process.env.APP_PUBLIC_URL || '').trim();
   const allowedOriginsFromEnv = parseOrigins(process.env.CORS_ALLOWED_ORIGINS || '');
+  const allowedOriginsExtra = parseOrigins(process.env.ALLOWED_ORIGINS || '');
   const runMigrationsOnBoot = parseBoolean(process.env.DB_RUN_MIGRATIONS_ON_BOOT, false);
   const enableAdminMasterRoutes = parseBoolean(process.env.FEATURE_ADMIN_MASTER, isMaster);
   const enableNodeRegistrationServer = parseBoolean(process.env.FEATURE_NODE_MASTER_API, isMaster);
   const enableNodeAutoRegisterClient = parseBoolean(process.env.FEATURE_NODE_AUTO_REGISTER, !isMaster);
 
   return {
-    allowedOriginsFromEnv,
+    allowedOriginsFromEnv: [...allowedOriginsFromEnv, ...allowedOriginsExtra],
+    appPublicUrl,
     enableAdminMasterRoutes,
     enableNodeAutoRegisterClient,
     enableNodeRegistrationServer,

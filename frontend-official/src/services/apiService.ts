@@ -1,3 +1,4 @@
+/* apiService — FIX applied 2026-05-25T16:59 — error:null guard */
 import { getCache, invalidateCache, setCache } from "@/lib/requestCache";
 import { buildApiHeaders } from "@/lib/apiGuard";
 import { reportFrontendIssue } from "@/services/frontendHealthService";
@@ -88,6 +89,10 @@ export interface Conversation {
   tags?: string[];
   isAI?: boolean;
   lastMessageType?: "text" | "image" | "video" | "audio" | "file";
+  aiEnabled?: boolean;
+  summary?: string;
+  controlMode?: string;
+  humanActive?: boolean;
 }
 
 export interface ChatMessage {
@@ -318,6 +323,11 @@ type RawConversation = {
   lastMessageType?: "text" | "image" | "video" | "audio" | "file";
   messageType?: "text" | "image" | "video" | "audio" | "file";
   mediaType?: "image" | "video" | "audio" | "file";
+  aiEnabled?: boolean;
+  ai_enabled?: boolean;
+  summary?: string;
+  controlMode?: string;
+  humanActive?: boolean;
 };
 
 type RawMessage = {
@@ -446,7 +456,9 @@ async function request<T>({ endpoint, method, body, timeoutMs = REQUEST_TIMEOUT_
         throw new Error(`HTTP_${response.status}:${details || "Request failed"}`);
       }
 
-      if (parsed && typeof parsed === "object" && "error" in (parsed as Record<string, unknown>)) {
+      // Only throw if the response contains a truthy error value.
+      // The backend envelope often includes "error": null on success — we must NOT throw on that.
+      if (parsed && typeof parsed === "object" && (parsed as Record<string, unknown>).error) {
         throw new Error(String((parsed as Record<string, unknown>).error ?? "Request failed"));
       }
 
@@ -571,6 +583,10 @@ function normalizeConversation(item: RawConversation, index: number): Conversati
       normalizedType === "image" || normalizedType === "video" || normalizedType === "audio" || normalizedType === "file"
         ? normalizedType
         : "text",
+    aiEnabled: item.aiEnabled ?? item.ai_enabled ?? true,
+    summary: item.summary ?? "",
+    controlMode: item.controlMode,
+    humanActive: item.humanActive,
   };
 }
 
@@ -1181,8 +1197,9 @@ export const apiService = {
   saveAdvancedAISettings: (payload: AdvancedAISettings) =>
     request<{ success?: boolean }>({ endpoint: "/config/advanced-ai", method: "POST", body: payload }),
 
-  startSession: (name: string) => {
-    const normalized = normalizeSessionName(name);
+  startSession: (input: string | { name: string }) => {
+    const rawName = typeof input === "string" ? input : input.name;
+    const normalized = normalizeSessionName(rawName);
     return request<{ success?: boolean; sessionId?: string; qr?: string }>({
       endpoint: "/session/start",
       method: "POST",
@@ -1196,7 +1213,7 @@ export const apiService = {
   createSession: (sessionId: string) =>
     request<{ success?: boolean; sessionId?: string; qr?: string }>({ endpoint: "/sessions/create", method: "POST", body: { sessionId: normalizeSessionName(sessionId) } }),
   async listSessions() {
-    const endpoints = ["/api/session-status"];
+    const endpoints = ["/api/sessions/status", "/sessions"];
     for (const endpoint of endpoints) {
       try {
         const data = await request<unknown>({ endpoint, method: "GET" });
@@ -1204,6 +1221,12 @@ export const apiService = {
           const raw = data as Record<string, unknown>;
           const candidate = raw.sessions ?? (raw.data as Record<string, unknown> | undefined)?.sessions ?? [];
           return parseSessionStatusPayload(candidate).map(normalizeSessionInfo);
+        }
+        // /api/sessions/status wraps sessions in data.sessions
+        const raw = data as Record<string, unknown>;
+        const nested = raw.data as Record<string, unknown> | undefined;
+        if (nested?.sessions && Array.isArray(nested.sessions)) {
+          return parseSessionStatusPayload(nested.sessions).map(normalizeSessionInfo);
         }
         return parseSessionStatusPayload(data).map(normalizeSessionInfo);
       } catch (error) {
@@ -1218,6 +1241,15 @@ export const apiService = {
     request<{ success?: boolean }>({ endpoint: `/session/${encodeURIComponent(normalizeSessionName(sessionId))}`, method: "DELETE" }),
   removeSession: (sessionId: string) =>
     request<{ success?: boolean }>({ endpoint: `/sessions/${encodeURIComponent(normalizeSessionName(sessionId))}`, method: "DELETE" }),
+  getSessionQr: (sessionId: string) =>
+    request<{ qr?: string; status?: string }>({ endpoint: `/sessions/${encodeURIComponent(normalizeSessionName(sessionId))}/qr`, method: "GET" }),
+  async updateConversationAI(phone: string, aiEnabled: boolean) {
+    return request<Conversation>({
+      endpoint: `/conversations/${encodeURIComponent(phone)}/ai`,
+      method: "PATCH",
+      body: { aiEnabled },
+    });
+  },
 };
 
 export async function requestApiEndpoint<T>(endpoint: string, method: "GET" | "POST" = "GET", body?: unknown): Promise<T> {

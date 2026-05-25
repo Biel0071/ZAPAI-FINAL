@@ -189,23 +189,45 @@ async function loadFromRedis() {
 
 // ─── PostgreSQL Persistence ───
 
+async function ensureSessionColumns() {
+  // Add columns that the registry needs but the original migration didn't include
+  const alterSql = `
+    ALTER TABLE sessions ADD COLUMN IF NOT EXISTS connected BOOLEAN DEFAULT FALSE;
+    ALTER TABLE sessions ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT NOW();
+  `;
+  try {
+    await db.query(alterSql);
+  } catch (err) {
+    if (err?.code !== '42P01') {
+      console.error('[SessionRegistry] Column migration failed:', err?.message || err);
+    }
+  }
+}
+
+let columnsEnsured = false;
+
 async function syncToPostgres(sessionId) {
   const entry = get(sessionId);
   if (!entry) return;
 
+  if (!columnsEnsured) {
+    await ensureSessionColumns();
+    columnsEnsured = true;
+  }
+
   try {
     await db.query(
-      `INSERT INTO sessions (id, company_id, name, phone, status, connected, created_at, updated_at)
+      `INSERT INTO sessions (session_id, session_name, company_id, phone_number, status, connected, created_at, updated_at)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-       ON CONFLICT (id) DO UPDATE SET
-         phone = EXCLUDED.phone,
+       ON CONFLICT (session_id) DO UPDATE SET
+         phone_number = EXCLUDED.phone_number,
          status = EXCLUDED.status,
          connected = EXCLUDED.connected,
          updated_at = EXCLUDED.updated_at`,
       [
         entry.sessionId,
-        entry.companyId,
         entry.name || entry.sessionId,
+        entry.companyId,
         entry.phone,
         entry.status,
         entry.connected,
@@ -222,17 +244,27 @@ async function syncToPostgres(sessionId) {
 }
 
 async function loadFromPostgres() {
+  if (!columnsEnsured) {
+    await ensureSessionColumns();
+    columnsEnsured = true;
+  }
+
   try {
     const result = await db.query(
-      'SELECT id, company_id, name, phone, status, connected, created_at, updated_at FROM sessions ORDER BY updated_at DESC LIMIT 100'
+      `SELECT session_id, session_name, company_id, phone_number, status, connected, created_at, updated_at
+       FROM sessions
+       WHERE session_id IS NOT NULL
+       ORDER BY COALESCE(updated_at, created_at) DESC
+       LIMIT 100`
     );
 
     const entries = [];
     for (const row of result.rows || []) {
-      const entry = set(row.id, {
+      if (!row.session_id) continue;
+      const entry = set(row.session_id, {
         companyId: row.company_id,
-        name: row.name,
-        phone: row.phone,
+        name: row.session_name || row.session_id,
+        phone: row.phone_number,
         status: row.status || 'disconnected',
         connected: Boolean(row.connected),
         createdAt: row.created_at ? new Date(row.created_at).toISOString() : undefined,
@@ -263,7 +295,7 @@ async function removeSession(sessionId) {
     removeFromRedis(sessionId),
     // Don't delete from Postgres — keep audit trail. Mark as disconnected.
     db.query(
-      'UPDATE sessions SET status = $1, connected = false, updated_at = NOW() WHERE id = $2',
+      'UPDATE sessions SET status = $1, connected = false, updated_at = NOW() WHERE session_id = $2',
       ['deleted', sessionId]
     ).catch(() => {}),
   ]);

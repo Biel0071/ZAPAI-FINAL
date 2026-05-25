@@ -9,6 +9,7 @@ import {
   type AdminSessionRole,
 } from "@/lib/adminAuthSession";
 import { API_ORIGIN } from "@/lib/backendConfig";
+import { getCurrentTenantId } from "@/lib/apiGuard";
 
 const SESSION_TTL_MS = 1000 * 60 * 60 * 12;
 const LOGIN_TIMEOUT_MS = 12_000;
@@ -24,6 +25,16 @@ type LoginResult = {
   session: AdminAuthSession;
 };
 
+type ParsedAuthPayload = {
+  ok: boolean;
+  role: AdminSessionRole;
+  token: string | null;
+  refreshToken: string | null;
+  username: string | null;
+  tenantId: string | null;
+  companyId: string | null;
+};
+
 let memorySession: AdminAuthSession | null = null;
 
 function normalizeRole(value: unknown): AdminSessionRole {
@@ -33,15 +44,27 @@ function normalizeRole(value: unknown): AdminSessionRole {
   return "user";
 }
 
-function buildSession(username: string, role: AdminSessionRole, remember: boolean, token: string): AdminAuthSession {
+function buildSession(params: {
+  username: string;
+  role: AdminSessionRole;
+  remember: boolean;
+  token: string;
+  tenantId?: string | null;
+  companyId?: string | null;
+}): AdminAuthSession {
   const issuedAt = Date.now();
+  const tenantId = String(params.tenantId ?? "").trim();
+  const companyId = String(params.companyId ?? tenantId).trim();
+
   return {
-    token,
-    username,
-    role,
+    token: params.token,
+    username: params.username,
+    role: params.role,
+    ...(tenantId ? { tenantId } : {}),
+    ...(companyId ? { companyId } : {}),
     issuedAt,
     expiresAt: issuedAt + SESSION_TTL_MS,
-    remember,
+    remember: params.remember,
   };
 }
 
@@ -50,7 +73,7 @@ function normalizeToken(value: unknown): string | null {
   return token.length > 0 ? token : null;
 }
 
-function parseAuthPayload(raw: unknown): { ok: boolean; role: AdminSessionRole; token: string | null; refreshToken: string | null } {
+function parseAuthPayload(raw: unknown): ParsedAuthPayload {
   const envelope = raw && typeof raw === "object" ? (raw as Record<string, unknown>) : {};
   const data = (envelope.data && typeof envelope.data === "object" ? envelope.data : envelope) as Record<string, unknown>;
 
@@ -61,10 +84,19 @@ function parseAuthPayload(raw: unknown): { ok: boolean; role: AdminSessionRole; 
     normalizeToken(data.jwt);
   const refreshToken = normalizeToken(data.refreshToken) ?? normalizeToken(data.refresh_token);
 
-  // The backend returns role inside a nested "user" object:
-  // { success: true, token: "...", user: { username: "...", role: "master_admin" } }
   const userObj = data.user && typeof data.user === "object" ? (data.user as Record<string, unknown>) : null;
   const rawRole = data.role ?? userObj?.role;
+  const username = normalizeToken(data.username) ?? normalizeToken(userObj?.username);
+  const tenantId =
+    normalizeToken(data.tenantId) ??
+    normalizeToken(userObj?.tenantId) ??
+    normalizeToken(data.companyId) ??
+    normalizeToken(userObj?.companyId);
+  const companyId =
+    normalizeToken(data.companyId) ??
+    normalizeToken(userObj?.companyId) ??
+    normalizeToken(data.tenantId) ??
+    normalizeToken(userObj?.tenantId);
 
   const explicitOk = typeof envelope.success === "boolean" ? envelope.success : (typeof data.ok === "boolean" ? data.ok : null);
   const hasAuthTokens = Boolean(token);
@@ -76,15 +108,19 @@ function parseAuthPayload(raw: unknown): { ok: boolean; role: AdminSessionRole; 
     role: normalizeRole(rawRole),
     token,
     refreshToken,
+    username,
+    tenantId,
+    companyId,
   };
 }
 
 async function verifyCredentials(
   username: string,
   password: string,
-): Promise<{ ok: boolean; role: AdminSessionRole; token: string | null; refreshToken: string | null }> {
+): Promise<ParsedAuthPayload> {
   const apiLoginCandidates = ["/api/auth/login", "/api/login", "/auth/login", "/login"];
-  const requestBody = { username, password };
+  const tenantId = getCurrentTenantId();
+  const requestBody = { username, password, tenantId, companyId: tenantId };
   const origin = API_ORIGIN?.trim();
 
   const tryBackendLogin = async () => {
@@ -100,7 +136,7 @@ async function verifyCredentials(
           headers: {
             Accept: "application/json",
             "Content-Type": "application/json",
-            "x-tenant-id": "main",
+            "x-tenant-id": tenantId,
             "ngrok-skip-browser-warning": "true",
           },
           body: JSON.stringify(requestBody),
@@ -219,7 +255,14 @@ export function useAdminAuth() {
     }
 
     const next = {
-      ...buildSession(safeUsername, check.role, remember, check.token),
+      ...buildSession({
+        username: check.username ?? safeUsername,
+        role: check.role,
+        remember,
+        token: check.token,
+        tenantId: check.tenantId,
+        companyId: check.companyId,
+      }),
       ...(check.refreshToken ? { refreshToken: check.refreshToken } : {}),
     };
     persistAdminAuthSession(next);

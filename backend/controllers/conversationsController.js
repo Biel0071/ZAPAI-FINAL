@@ -674,6 +674,90 @@ async function getBillingDetails(req, res) {
   }
 }
 
+async function listConversationControls(req, res) {
+  try {
+    const companyId = req.query?.companyId || process.env.DEFAULT_COMPANY_ID || 'default';
+    const conversations = await conversationRepository.listConversations(companyId, 200, { useCache: false });
+    const mapped = conversations.map(conv => ({
+      conversation_id: conv.id,
+      conversationId: conv.id,
+      ai_enabled: conv.aiEnabled !== false,
+      aiEnabled: conv.aiEnabled !== false,
+      assigned_to: conv.agent_name || 'Camila',
+      tags: conv.tags || [],
+      summary: conv.summary || '',
+      updated_at: conv.updatedAt,
+    }));
+    return res.status(200).json(mapped);
+  } catch (error) {
+    return res.status(500).json({ error: error.message || 'Failed to list conversation controls.' });
+  }
+}
+
+async function upsertConversationControl(req, res) {
+  try {
+    const { conversation_id, conversationId, ai_enabled, aiEnabled, assigned_to, tags, summary } = req.body || {};
+    const targetId = conversationId || conversation_id;
+
+    if (!targetId) {
+      return res.status(400).json({ error: 'The field conversation_id is required.' });
+    }
+
+    const fields = {};
+    if (typeof aiEnabled !== 'undefined') fields.aiEnabled = Boolean(aiEnabled);
+    else if (typeof ai_enabled !== 'undefined') fields.aiEnabled = Boolean(ai_enabled);
+    if (typeof summary !== 'undefined') fields.summary = summary;
+    if (Array.isArray(tags)) fields.tags = tags;
+    if (typeof assigned_to !== 'undefined') fields.agent_name = assigned_to;
+
+    const updated = await conversationRepository.updateConversationState(targetId, fields);
+    if (!updated) {
+      return res.status(404).json({ error: 'Conversation not found.' });
+    }
+
+    const responsePayload = {
+      conversation_id: updated.id,
+      conversationId: updated.id,
+      ai_enabled: updated.aiEnabled !== false,
+      aiEnabled: updated.aiEnabled !== false,
+      assigned_to: updated.agent_name || 'Camila',
+      tags: updated.tags || [],
+      summary: updated.summary || '',
+      updated_at: updated.updatedAt,
+    };
+
+    const store = getStore(req);
+    emitConversationUpdated(store, updated);
+
+    return res.status(200).json(responsePayload);
+  } catch (error) {
+    return res.status(500).json({ error: error.message || 'Failed to upsert conversation control.' });
+  }
+}
+
+async function getConversationControl(req, res) {
+  try {
+    const { conversationId } = req.params;
+    const conv = await conversationRepository.getConversationById(conversationId);
+    if (!conv) {
+      return res.status(404).json({ error: 'Conversation not found.' });
+    }
+    const responsePayload = {
+      conversation_id: conv.id,
+      conversationId: conv.id,
+      ai_enabled: conv.aiEnabled !== false,
+      aiEnabled: conv.aiEnabled !== false,
+      assigned_to: conv.agent_name || 'Camila',
+      tags: conv.tags || [],
+      summary: conv.summary || '',
+      updated_at: conv.updatedAt,
+    };
+    return res.status(200).json(responsePayload);
+  } catch (error) {
+    return res.status(500).json({ error: error.message || 'Failed to get conversation control.' });
+  }
+}
+
 module.exports = {
   clearConversationDraft,
   createConversation,
@@ -692,4 +776,7 @@ module.exports = {
   setConversationHandoff,
   updateTypingState,
   updateConversationAI,
+  listConversationControls,
+  upsertConversationControl,
+  getConversationControl,
 };

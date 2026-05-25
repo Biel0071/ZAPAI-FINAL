@@ -69,26 +69,7 @@ type TrainingRow = {
 
 const DEFAULT_PROMPT = "Você é Camila, assistente de vendas do Depósito Vista Alegre.";
 
-const defaultTrainingRows: TrainingRow[] = [
-  {
-    id: "1",
-    customerQuestion: "Quero saber se vocês entregam hoje no centro.",
-    aiResponse: "Posso verificar para você. Qual o seu CEP?",
-    status: "lost",
-  },
-  {
-    id: "2",
-    customerQuestion: "Tem desconto no pix para 20 unidades?",
-    aiResponse: "Temos condições especiais para atacado, posso te enviar uma proposta.",
-    status: "lost",
-  },
-  {
-    id: "3",
-    customerQuestion: "Qual o prazo para faturamento?",
-    aiResponse: "Em média até 24h úteis após confirmação dos dados.",
-    status: "closed",
-  },
-];
+const defaultTrainingRows: TrainingRow[] = [];
 
 const sections: Array<{ id: SectionId; label: string; icon: ElementType }> = [
   { id: "status", label: "Status da IA", icon: Robot },
@@ -420,7 +401,7 @@ export default function AI() {
   };
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="flex flex-1 flex-col overflow-y-auto bg-background">
       <Header title="Configuração de IA" subtitle="Central de Controle" />
 
       <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="p-4 md:p-6">
@@ -663,16 +644,24 @@ export default function AI() {
                     <CardDescription>Revise respostas e aplique melhorias com um clique.</CardDescription>
                   </CardHeader>
                   <CardContent className="space-y-3">
-                    {trainingRows.map((row) => (
-                      <div key={row.id} className="rounded-xl border border-border p-3 space-y-2">
-                        <div className="flex items-center justify-between gap-2">
-                          <Badge variant={row.status === "lost" ? "destructive" : "secondary"}>{row.status === "lost" ? "perdida" : "encerrada"}</Badge>
-                          <Button size="sm" variant="outline" onClick={() => openImproveModal(row)}>Melhorar resposta</Button>
-                        </div>
-                        <p className="text-sm"><span className="text-muted-foreground">Pergunta do cliente:</span> {row.customerQuestion}</p>
-                        <p className="text-sm"><span className="text-muted-foreground">Resposta da IA:</span> {row.aiResponse}</p>
+                    {trainingRows.length === 0 ? (
+                      <div className="flex flex-col items-center justify-center py-8 text-center">
+                        <Sparkle className="h-8 w-8 text-muted-foreground/60 mb-2 animate-pulse" />
+                        <p className="text-sm font-medium text-muted-foreground">Nenhuma sugestão de treinamento disponível.</p>
+                        <p className="text-xs text-muted-foreground/70 mt-1">Conforme a IA interagir com os clientes, novas sugestões aparecerão aqui.</p>
                       </div>
-                    ))}
+                    ) : (
+                      trainingRows.map((row) => (
+                        <div key={row.id} className="rounded-xl border border-border p-3 space-y-2">
+                          <div className="flex items-center justify-between gap-2">
+                            <Badge variant={row.status === "lost" ? "destructive" : "secondary"}>{row.status === "lost" ? "perdida" : "encerrada"}</Badge>
+                            <Button size="sm" variant="outline" onClick={() => openImproveModal(row)}>Melhorar resposta</Button>
+                          </div>
+                          <p className="text-sm"><span className="text-muted-foreground">Pergunta do cliente:</span> {row.customerQuestion}</p>
+                          <p className="text-sm"><span className="text-muted-foreground">Resposta da IA:</span> {row.aiResponse}</p>
+                        </div>
+                      ))
+                    )}
                   </CardContent>
                 </Card>
               </TabsContent>

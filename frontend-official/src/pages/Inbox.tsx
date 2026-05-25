@@ -43,6 +43,8 @@ import { getInboxUnreadTotal, publishInboxUnreadTotal } from "@/lib/inboxUnread"
 import { apiService, API_ORIGIN, type ChatMessage, type Conversation, type MessageSendResponse, type SessionInfo } from "@/services/apiService";
 import { connectInboxSocket, emitInboxSocketEvent, forceReconnectInboxSocket } from "@/services/socketService";
 import { notify } from "@/services/notifyService";
+import { useAppStore } from "@/stores/appStore";
+import { useRuntime } from "@/providers/RuntimeProvider";
 import { analyzeLeadIntent, type LeadIntentResult } from "@/services/leadAnalyzer";
 import { generateSalesStrategy } from "@/services/salesStrategyEngine";
 import { analyzeConversation } from "@/services/conversationAnalyzer";
@@ -1040,9 +1042,12 @@ export default function Inbox() {
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [backendOnline, setBackendOnline] = useState(true);
-  const [isRealtimeConnected, setIsRealtimeConnected] = useState(false);
-  const [publicApiUrl, setPublicApiUrl] = useState<string | null>(null);
-  const [isWhatsappConnected, setIsWhatsappConnected] = useState(false);
+  const { status, hydrated, forceRefresh } = useRuntime();
+  const sessions = useAppStore((state) => state.sessions);
+
+  const socketConnected = status === "online";
+  const reconnecting = status === "reconnecting";
+  const isWhatsappConnected = useMemo(() => sessions.some((s) => s.status === "connected"), [sessions]);
   const [hasMoreMessages, setHasMoreMessages] = useState(false);
   const [pendingBackgroundUpdates, setPendingBackgroundUpdates] = useState(0);
   const [conversationListHeight, setConversationListHeight] = useState(520);
@@ -1066,7 +1071,6 @@ export default function Inbox() {
   const [mobileScreen, setMobileScreen] = useState<"conversations" | "chat">("conversations");
   const [isTabletLayout, setIsTabletLayout] = useState<boolean>(() => window.innerWidth < 1024);
   const [keyboardOffset, setKeyboardOffset] = useState(0);
-  const [sessions, setSessions] = useState<SessionInfo[]>([]);
   const [preferredSessionId, setPreferredSessionId] = useState<string | null>(() => localStorage.getItem(ACTIVE_SESSION_STORAGE_KEY));
   const [EmojiPickerComponent, setEmojiPickerComponent] = useState<ComponentType<{ data: unknown; onEmojiSelect: (emoji: { native?: string }) => void; previewPosition: "none"; skinTonePosition: "none"; theme: "light" }> | null>(null);
   const [emojiPickerData, setEmojiPickerData] = useState<unknown>(null);
@@ -1198,15 +1202,9 @@ export default function Inbox() {
   }, []);
 
   const refreshSessions = useCallback(async () => {
-    try {
-      const listedSessions = await apiService.listSessions();
-      setSessions(Array.isArray(listedSessions) ? listedSessions : []);
-      return Array.isArray(listedSessions) ? listedSessions : [];
-    } catch {
-      setSessions([]);
-      return [];
-    }
-  }, []);
+    await forceRefresh();
+    return useAppStore.getState().sessions;
+  }, [forceRefresh]);
 
   const activeSession = useMemo(
     () => pickActiveSession(sessions, selectedConversation?.sessionId ?? preferredSessionId),
@@ -1376,8 +1374,32 @@ export default function Inbox() {
 
   const loadConversationControls = useCallback(async (nextConversations: Conversation[]) => {
     try {
-      const controls = await listConversationControls(nextConversations.map((item) => item.id));
-      setConversationControls((prev) => ({ ...prev, ...controls }));
+      const initialControls: Record<string, ConversationControl> = {};
+      for (const conv of nextConversations) {
+        if (conv && conv.id) {
+          initialControls[conv.id] = {
+            conversation_id: conv.id,
+            ai_enabled: conv.aiEnabled !== false,
+            notes: "",
+            tags: conv.tags || [],
+            summary: conv.summary || "",
+          };
+        }
+      }
+
+      const controlsArray = await listConversationControls(nextConversations.map((item) => item.id));
+      const controlsRecord: Record<string, ConversationControl> = {};
+      for (const ctrl of controlsArray) {
+        if (ctrl && ctrl.conversation_id) {
+          controlsRecord[ctrl.conversation_id] = ctrl;
+        }
+      }
+
+      setConversationControls((prev) => ({
+        ...prev,
+        ...initialControls,
+        ...controlsRecord
+      }));
     } catch {
       // non-blocking
     }
@@ -1402,10 +1424,8 @@ export default function Inbox() {
       setConversationsLoadFailed(false);
 
       try {
-        const [conversationsResult, publicUrlResult, sessionsResult] = await Promise.allSettled([
+        const [conversationsResult] = await Promise.allSettled([
           apiService.getConversations(false, { limit: CONVERSATIONS_PAGE_SIZE }),
-          apiService.getPublicUrl(),
-          apiService.listSessions(),
         ]);
 
         if (conversationsResult.status !== "fulfilled") {
@@ -1413,8 +1433,9 @@ export default function Inbox() {
         }
 
         const conversationsData = conversationsResult.value;
-        const publicUrlData = publicUrlResult.status === "fulfilled" ? publicUrlResult.value : { publicUrl: "" };
-        const sessionsData = sessionsResult.status === "fulfilled" ? sessionsResult.value : [];
+        
+        await forceRefresh();
+
         const persistedConversations = loadPersistedConversations();
         const combinedConversations = [...persistedConversations, ...conversationsData];
         const mergedDirectory = mergeContactDirectory(contactDirectoryRef.current, combinedConversations);
@@ -1424,8 +1445,6 @@ export default function Inbox() {
         const normalizedConversations = dedupeConversationsByScope(combinedConversations, mergedDirectory);
         setConversations(normalizedConversations);
         markBackendOnline();
-        setPublicApiUrl(publicUrlData.publicUrl?.trim() || null);
-        setSessions(Array.isArray(sessionsData) ? sessionsData : []);
         setSelectedConversationId((currentId) => {
           if (currentId && normalizedConversations.some((conversation) => normalizeId(conversation.id) === normalizeId(currentId))) {
             return normalizeId(currentId);
@@ -1453,7 +1472,7 @@ export default function Inbox() {
     };
 
     void loadInitial();
-  }, [loadConversationControls, markBackendOffline, markBackendOnline, showErrorToast]);
+  }, [loadConversationControls, markBackendOffline, markBackendOnline, showErrorToast, forceRefresh]);
 
 
   const hydrateConversationHistoryForAnalysis = useCallback(async (conversationId: string, seedMessages: ChatMessage[]) => {
@@ -1639,7 +1658,7 @@ export default function Inbox() {
 
   useEffect(() => {
     if (!selectedConversation?.id) return;
-    if (isRealtimeConnected) return;
+    if (socketConnected) return;
     let isMounted = true;
     let isPolling = false;
 
@@ -1665,7 +1684,7 @@ export default function Inbox() {
       isMounted = false;
       window.clearInterval(intervalId);
     };
-  }, [isRealtimeConnected, loadConversationMessages, selectedConversation?.id]);
+  }, [socketConnected, loadConversationMessages, selectedConversation?.id]);
 
   const applyPendingBackgroundUpdates = useCallback(async () => {
     if (!selectedConversation?.id) return;
@@ -1875,12 +1894,10 @@ export default function Inbox() {
   }, [conversationControls, messages, selectedConversation]);
 
   useEffect(() => {
-    if (!publicApiUrl) return;
-
     // websocket-first: do not force backend refresh after each realtime event
 
     const disconnect = connectInboxSocket({
-      socketUrl: publicApiUrl,
+      socketUrl: API_ORIGIN,
       onNewMessage: (incoming) => {
         if (isProcessingRealtimeRef.current) return;
         isProcessingRealtimeRef.current = true;
@@ -1950,9 +1967,60 @@ export default function Inbox() {
         const selectedChatId = String(selectedConversationRef.current?.id ?? "");
         const incomingChatId = String(incomingConversationId);
 
-        if (!selectedChatId || incomingChatId !== selectedChatId) return;
+        // ─── Always update conversation list (sidebar) for ALL messages ───
+        // This ensures non-selected chats show updated lastMessage, unread, and reorder to top.
+        const lastMessageText = normalizedIncoming.content || (normalizedIncoming.messageType ? `[${normalizedIncoming.messageType}]` : "");
+        const lastMessageTimestamp = normalizedIncoming.createdAt ?? new Date().toISOString();
 
-        const isActiveConversation = true;
+        setConversations((prev) => {
+          const existing =
+            prev.find((conversation) => String(conversation.id) === incomingConversationId) ??
+            (incomingScope
+              ? prev.find(
+                  (conversation) =>
+                    getConversationScope({ phone: conversation.phone, sessionId: conversation.sessionId }) === incomingScope,
+                )
+              : undefined);
+          const unreadBase = existing?.unread ?? 0;
+          const isSelectedChat = incomingChatId === selectedChatId;
+          const unread = normalizedIncoming.fromMe ? unreadBase : isSelectedChat ? 0 : unreadBase + 1;
+
+          const nextConversation: Conversation = existing
+            ? {
+                ...existing,
+                sessionId: normalizedIncoming.sessionId ?? existing.sessionId,
+                lastMessage: lastMessageText || existing.lastMessage,
+                updatedAt: lastMessageTimestamp,
+                unread,
+                lastMessageType: normalizedIncoming.messageType ?? normalizedIncoming.mediaType ?? existing.lastMessageType ?? "text",
+              }
+            : {
+                id: incomingConversationId,
+                contactName: normalizedIncoming.phone || "Contato",
+                phone: normalizedIncoming.phone || "",
+                sessionId: normalizedIncoming.sessionId,
+                lastMessage: lastMessageText,
+                updatedAt: lastMessageTimestamp,
+                unread: normalizedIncoming.fromMe ? 0 : 1,
+                status: "online",
+                tags: [],
+                isAI: false,
+                lastMessageType: normalizedIncoming.messageType ?? normalizedIncoming.mediaType ?? "text",
+              };
+
+          const idsToRemove = new Set([incomingConversationId, existing?.id].filter(Boolean).map((id) => String(id)));
+          const nextList = [nextConversation, ...prev.filter((item) => !idsToRemove.has(String(item.id)))];
+          const normalizedList = dedupeConversationsByScope(nextList, contactDirectoryRef.current);
+
+          if (!selectedConversationRef.current?.id) {
+            setSelectedConversationId(normalizedList[0]?.id ?? null);
+          }
+
+          return normalizedList;
+        });
+
+        // ─── Only insert into messages array if this is the selected chat ───
+        if (!selectedChatId || incomingChatId !== selectedChatId) return;
 
         const scrollChatToBottom = () => {
           const root = messagesScrollRef.current?.closest("[data-radix-scroll-area-root]");
@@ -2017,53 +2085,6 @@ export default function Inbox() {
           notify.success("New message received");
         }
 
-        setConversations((prev) => {
-          const existing =
-            prev.find((conversation) => String(conversation.id) === incomingConversationId) ??
-            (incomingScope
-              ? prev.find(
-                  (conversation) =>
-                    getConversationScope({ phone: conversation.phone, sessionId: conversation.sessionId }) === incomingScope,
-                )
-              : undefined);
-          const unreadBase = existing?.unread ?? 0;
-          const lastMessageText = normalizedIncoming.content || (normalizedIncoming.messageType ? `[${normalizedIncoming.messageType}]` : "");
-          const lastMessageTimestamp = normalizedIncoming.createdAt ?? new Date().toISOString();
-          const unread = normalizedIncoming.fromMe ? unreadBase : 0;
-
-          const nextConversation: Conversation = existing
-            ? {
-                ...existing,
-                sessionId: normalizedIncoming.sessionId ?? existing.sessionId,
-                lastMessage: lastMessageText || existing.lastMessage,
-                updatedAt: lastMessageTimestamp,
-                unread,
-                lastMessageType: normalizedIncoming.messageType ?? normalizedIncoming.mediaType ?? existing.lastMessageType ?? "text",
-              }
-            : {
-                id: incomingConversationId,
-                contactName: normalizedIncoming.phone || "Contato",
-                phone: normalizedIncoming.phone || "",
-                sessionId: normalizedIncoming.sessionId,
-                lastMessage: lastMessageText,
-                updatedAt: lastMessageTimestamp,
-                unread: 0,
-                status: "online",
-                tags: [],
-                isAI: false,
-                lastMessageType: normalizedIncoming.messageType ?? normalizedIncoming.mediaType ?? "text",
-              };
-
-          const idsToRemove = new Set([incomingConversationId, existing?.id].filter(Boolean).map((id) => String(id)));
-          const nextList = [nextConversation, ...prev.filter((item) => !idsToRemove.has(String(item.id)))];
-          const normalizedList = dedupeConversationsByScope(nextList, contactDirectoryRef.current);
-
-          if (!selectedConversationRef.current?.id) {
-            setSelectedConversationId(normalizedList[0]?.id ?? null);
-          }
-
-          return normalizedList;
-        });
         const now = Date.now();
         if (now - lastBackgroundHydrateAtRef.current >= SOCKET_BACKGROUND_HYDRATE_DEBOUNCE_MS) {
           lastBackgroundHydrateAtRef.current = now;
@@ -2337,7 +2358,6 @@ export default function Inbox() {
         });
       },
       onSocketConnected: () => {
-        setIsRealtimeConnected(true);
         setBackendOnline(true);
         setError((current) => (current?.startsWith("Realtime:") ? null : current));
         const now = Date.now();
@@ -2351,21 +2371,19 @@ export default function Inbox() {
         }
       },
       onSocketDisconnected: () => {
-        setIsRealtimeConnected(false);
       },
       onError: (message) => {
-        setIsRealtimeConnected(false);
         setBackendOnline(false);
         setError(`Realtime: ${message}`);
       },
     });
 
     return () => disconnect();
-  }, [clearPendingFallbackTimersForTempId, publicApiUrl, updateConversationMessageStore]);
+  }, [clearPendingFallbackTimersForTempId, updateConversationMessageStore]);
 
   useEffect(() => {
     const intervalId = window.setInterval(() => {
-      if (isRealtimeConnected) return;
+      if (socketConnected) return;
       if (fallbackSyncBusyRef.current) return;
       if (activeMessageRequestRef.current !== null) return;
       // Do not poll when tab is hidden — no visible user, no need for fresh data
@@ -2374,15 +2392,13 @@ export default function Inbox() {
       void (async () => {
         fallbackSyncBusyRef.current = true;
         try {
-          const sessionStatus = await apiService.getSessionStatus();
-          setIsWhatsappConnected(Boolean(sessionStatus.connected));
+          await forceRefresh();
           setBackendOnline(true);
 
           const selectedId = selectedConversationRef.current?.id;
           if (selectedId) await loadConversationMessagesRef.current(String(selectedId), { background: true, force: true });
         } catch (err) {
           markBackendOffline(err);
-          setIsWhatsappConnected(false);
         } finally {
           fallbackSyncBusyRef.current = false;
         }
@@ -2390,7 +2406,7 @@ export default function Inbox() {
     }, OFFLINE_FALLBACK_SYNC_INTERVAL_MS);
 
     return () => window.clearInterval(intervalId);
-  }, [isRealtimeConnected, loadConversationMessages, markBackendOffline]);
+  }, [socketConnected, loadConversationMessages, markBackendOffline, forceRefresh]);
 
   useEffect(() => {
     const handleRuntimeReconnected = () => {
@@ -2989,14 +3005,21 @@ export default function Inbox() {
     setUpdatingAiToggle(true);
 
     try {
-      const updated = await upsertConversationControl({
-        conversationId: selectedConversation.id,
-        aiEnabled: enabled,
-        summary: conversationControls[selectedConversation.id]?.summary,
-        summarizedMessageCount: conversationControls[selectedConversation.id]?.summarizedMessageCount,
-      });
+      await apiService.updateConversationAI(selectedConversation.phone, enabled);
 
-      setConversationControls((prev) => ({ ...prev, [updated.conversationId]: updated }));
+      setConversationControls((prev) => {
+        const current = prev[selectedConversation.id] || {
+          conversation_id: selectedConversation.id,
+          ai_enabled: enabled,
+        };
+        return {
+          ...prev,
+          [selectedConversation.id]: {
+            ...current,
+            ai_enabled: enabled,
+          },
+        };
+      });
       toast({ title: enabled ? "AI habilitada para esta conversa." : "AI desabilitada para esta conversa." });
     } catch {
       showErrorToast("Não foi possível atualizar o controle de IA.");
@@ -3361,10 +3384,10 @@ export default function Inbox() {
   );
 
   return (
-    <div className="flex h-dvh min-h-0 flex-col overflow-hidden">
+    <div className="flex h-full min-h-0 flex-1 flex-col overflow-hidden">
       <Header title="Inbox" subtitle={`${conversations.length} conversas ativas`} />
 
-      <div className="grid min-h-0 flex-1 grid-cols-1 overflow-hidden md:grid-cols-[320px_minmax(0,1fr)] lg:grid-cols-[340px_minmax(0,1fr)_360px]">
+      <div className="grid min-h-0 flex-1 grid-cols-1 overflow-hidden md:grid-cols-[minmax(280px,320px)_minmax(0,1fr)] lg:grid-cols-[minmax(280px,340px)_minmax(0,1fr)_minmax(280px,360px)]">
         <div className={cn("flex min-h-0 flex-col border-r border-border bg-card/50 lg:resize-x lg:overflow-auto lg:min-w-[280px] lg:max-w-[460px]", isMobile && mobileScreen !== "conversations" && "hidden")}>
           <div className="space-y-3 border-b border-border p-4">
             <div className="relative">
@@ -3492,7 +3515,7 @@ export default function Inbox() {
                 </div>
               )}
 
-              <ScrollArea className={cn("min-h-0 flex-1 bg-muted/20 p-4 pb-28 md:pb-6", isMobile && "pb-[calc(11rem+env(safe-area-inset-bottom))]")}>
+              <ScrollArea className={cn("min-h-0 flex-1 bg-muted/20 chat-grid-bg p-4 pb-4", isMobile && "pb-[calc(11rem+env(safe-area-inset-bottom))]")}>
                 <div ref={messagesScrollRef} className={cn("mx-auto max-w-3xl space-y-3", isDraggingFiles && "rounded-xl border border-dashed border-primary p-3") }>
                   <div ref={loadMoreTriggerRef} className="h-1 w-full" aria-hidden />
                   {isDraggingFiles && <p className="text-xs text-muted-foreground">Solte arquivos aqui para anexar.</p>}
@@ -3741,7 +3764,7 @@ export default function Inbox() {
                   <CaretRight className="h-4 w-4" />
                 </Button>
               </div>
-              <div className="min-h-0 flex-1">
+              <div className="min-h-0 flex-1 overflow-y-auto scrollbar-thin">
                 {leadPanelContent}
               </div>
             </div>

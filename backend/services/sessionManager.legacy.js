@@ -1,6 +1,7 @@
 const fs = require('fs/promises');
 const path = require('path');
 const sessionRepository = require('../repositories/sessionRepository');
+const sessionRegistry = require('./sessionRegistry');
 // NOTE: whatsappService is required lazily inside startSession() to break the
 // circular dependency: sessionManager → whatsappService → sessionManager.
 // A top-level require would cause whatsappService.createStableSession to be
@@ -315,6 +316,31 @@ async function disposeSession(sessionName, options = {}) {
     }
   }
 
+  // Update session registry status
+  try {
+    if (options.logout === true || options.deleteFolder === true) {
+      await sessionRegistry.removeSession(normalizedName);
+    } else {
+      sessionRegistry.setDisconnected(normalizedName);
+      await sessionRegistry.persistSession(normalizedName);
+    }
+  } catch (err) {
+    // ignore
+  }
+
+  // Try-catch database status fallback
+  try {
+    await sessionRepository.updateSessionStatus(
+      normalizedName,
+      'disconnected',
+      session?.phone || null,
+      undefined,
+      session?.displayName || session?.sessionName || normalizedName
+    );
+  } catch (err) {
+    // ignore
+  }
+
   if (options.deleteFolder === true) {
     await deleteSessionFolder(normalizedName);
   }
@@ -481,6 +507,15 @@ async function startSession(sessionName = DEFAULT_SESSION, options = {}) {
     });
 
     session.displayName = displayName;
+    try {
+      const persisted = await sessionRepository.getSessions(undefined, { activeOnly: false });
+      const record = persisted.find(s => s.sessionId === normalizedName);
+      if (record && record.phone) {
+        session.phone = record.phone;
+      }
+    } catch (e) {
+      // ignore
+    }
     setSession(normalizedName, session);
     return session;
   })().finally(() => {
@@ -608,7 +643,7 @@ async function restoreSessions() {
   const restoredSessions = [];
   const storedSessions = await listStoredSessionNames();
   const restoreMode = String(process.env.WHATSAPP_RESTORE_MODE || '').trim().toLowerCase();
-  const defaultRestoreMode = String(process.env.NODE_ENV || '').toLowerCase() === 'production' ? 'default' : 'active';
+  const defaultRestoreMode = 'active';
   const effectiveRestoreMode = restoreMode || defaultRestoreMode;
   const allowList = String(process.env.WHATSAPP_RESTORE_SESSION_ALLOWLIST || '')
     .split(',')

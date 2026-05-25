@@ -5,6 +5,7 @@ import { createRoot } from "react-dom/client";
 import App from "./App.tsx";
 import "./index.css";
 import { zapaiBuildInfo, ZAPAI_BUILD_STORAGE_KEY } from "@/config/buildInfo";
+import { initRuntimeIdentity } from "@/lib/runtimeIdentity";
 
 // ── Runtime Safety: patch .replace/.replaceAll on all types ──────
 // The production error "e.replaceAll is not a function" happens when
@@ -101,6 +102,7 @@ async function bootstrap() {
     build: zapaiBuildInfo.hash,
   });
   persistBuildInfo();
+  initRuntimeIdentity(zapaiBuildInfo.hash);
   enforceDarkThemeDom();
 
   const url = new URL(window.location.href);

@@ -41,7 +41,7 @@ export default function MasterLogs() {
   }, []);
 
   return (
-    <div className="min-h-screen">
+    <div className="flex flex-1 flex-col overflow-y-auto">
       <Header title="Logs" subtitle="Observabilidade do backend oficial" runtimeState="running" />
       <div className="page-container section-stack">
         <Card className="glass-card">

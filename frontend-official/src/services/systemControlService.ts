@@ -137,9 +137,18 @@ async function requestSystem(path: string, method: "GET" | "POST", baseUrl?: str
   }
 
   if (parsed && typeof parsed === "object") {
-    if ("error" in (parsed as Record<string, unknown>)) {
+    // Only throw if there is a TRUTHY error value.
+    // The backend envelope includes "error": null on success — must NOT throw on that.
+    if ((parsed as Record<string, unknown>).error) {
       throw new Error(String((parsed as Record<string, unknown>).error ?? "System request failed"));
     }
+
+    // Auto-unwrap backend envelope: { success: true, data: {...} }
+    const asRecord = parsed as Record<string, unknown>;
+    if ("data" in asRecord && asRecord.data && typeof asRecord.data === "object") {
+      return asRecord.data as Record<string, unknown>;
+    }
+
     return parsed as Record<string, unknown>;
   }
 

@@ -57,7 +57,7 @@ export default function NodeDetails() {
   );
 
   return (
-    <div className="min-h-screen">
+    <div className="flex flex-1 flex-col overflow-y-auto">
       <Header
         title={node ? `${node.name} · Node Details` : "Node Details"}
         subtitle="Overview, métricas, containers, sessões, deploys, logs e diagnóstico"

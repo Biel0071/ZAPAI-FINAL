@@ -1,33 +1,39 @@
 /**
  * RuntimeProvider — Central WebSocket hydration layer.
  *
- * Wraps the authenticated portion of the app and:
- * 1. Maintains a single shared Socket.IO connection
- * 2. Hydrates Zustand store with real-time data (sessions, metrics, conversations)
- * 3. Provides runtime status (online/offline/reconnecting) to all children
- * 4. Eliminates the need for per-page polling where WebSocket covers the same data
+ * Architecture:
+ * - ONE shared Socket.IO connection (managed by socketService.ts)
+ * - ONE subscriber registered via connectInboxSocket()
+ * - ALL session/QR/conversation events route through Zustand store
+ * - Pages read from useAppStore() — no per-page polling or duplicate sockets
  *
- * All pages consume data through useAppStore (Zustand) which this provider
- * keeps in sync with the backend via WebSocket events.
+ * Data flow:
+ *   Backend WS event → socketService → RuntimeProvider subscriber → Zustand store → UI
+ *
+ * What this provider owns:
+ * - WebSocket lifecycle (connect/disconnect/reconnect awareness)
+ * - Initial API hydration (sessions, conversations, metrics)
+ * - Re-hydration on reconnect
+ * - Realtime subscriptions for WhatsApp sessions and QR codes
+ *
+ * What this provider does NOT own:
+ * - Message events (Inbox.tsx manages those with its own subscriber — correct by design)
+ * - Per-page UI state (each page manages its own local state)
  */
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from "react";
 import { connectInboxSocket, forceReconnectInboxSocket } from "@/services/socketService";
-import { apiService, type Conversation, type SessionInfo } from "@/services/apiService";
+import { apiService } from "@/services/apiService";
 import { useAppStore } from "@/stores/appStore";
 import { API_ORIGIN } from "@/lib/backendConfig";
+import { normalizeSession, getSessionId } from "@/services/normalizeSession";
 
 type RuntimeStatus = "online" | "reconnecting" | "offline";
 
 type RuntimeContextValue = {
-  /** Current WebSocket connection status */
   status: RuntimeStatus;
-  /** Number of connected WhatsApp sessions */
   connectedSessions: number;
-  /** Whether the initial hydration has completed */
   hydrated: boolean;
-  /** Force a full data refresh from the API */
   forceRefresh: () => Promise<void>;
-  /** Force WebSocket reconnection */
   forceReconnect: () => void;
 };
 
@@ -43,37 +49,45 @@ export function useRuntime() {
   return useContext(RuntimeContext);
 }
 
-// Debounce helper
-function useDebouncedCallback<T extends (...args: unknown[]) => void>(fn: T, delayMs: number): T {
-  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const fnRef = useRef(fn);
-  fnRef.current = fn;
-
-  return useCallback(
-    ((...args: unknown[]) => {
-      if (timerRef.current) clearTimeout(timerRef.current);
-      timerRef.current = setTimeout(() => fnRef.current(...args), delayMs);
-    }) as T,
-    [delayMs],
-  );
-}
-
 export function RuntimeProvider({ children }: { children: ReactNode }) {
   const [status, setStatus] = useState<RuntimeStatus>("offline");
   const [hydrated, setHydrated] = useState(false);
-  const disconnectedAtRef = useRef<number | null>(null);
 
-  const setConversations = useAppStore((s) => s.setConversations);
-  const setSessions = useAppStore((s) => s.setSessions);
-  const setMetrics = useAppStore((s) => s.setMetrics);
+  // Refs for values used inside socket callbacks — prevents effect re-runs
+  const disconnectedAtRef = useRef<number | null>(null);
+  const hydratedRef = useRef(false);
+  const refreshTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Keep hydratedRef in sync
+  hydratedRef.current = hydrated;
+
   const sessions = useAppStore((s) => s.sessions);
 
   const connectedSessions = sessions.filter(
-    (s) => s.connected || (s.status ?? "").toLowerCase() === "connected",
+    (s) => s.status === "connected",
   ).length;
 
-  // Full API refresh (used on initial load + reconnect)
+  const forceRefresh = useCallback(async () => {
+    try {
+      const response = await apiService.listSessions();
+      const normalized = (response ?? []).map(normalizeSession);
+
+      useAppStore.getState().setSessions(normalized);
+
+      for (const session of normalized) {
+        if (session.status === "connected") {
+          useAppStore.getState().clearLastQr(session.id);
+        }
+      }
+    } catch (err) {
+      console.warn("[Runtime] forceRefresh:error", err);
+    }
+  }, []);
+
+  // Full API refresh — called on mount and on reconnect
   const loadFromApi = useCallback(async () => {
+    const t0 = performance.now();
+    console.info("[Runtime] hydration:start");
     try {
       const [sessionsResult, conversationsResult, metricsResult] = await Promise.allSettled([
         apiService.listSessions(),
@@ -81,130 +95,168 @@ export function RuntimeProvider({ children }: { children: ReactNode }) {
         apiService.getMetrics(),
       ]);
 
+      console.info("[Runtime] hydration:raw", {
+        sessions: sessionsResult.status === "fulfilled" ? sessionsResult.value : sessionsResult,
+        conversations: conversationsResult.status === "fulfilled" ? `${Array.isArray(conversationsResult.value) ? conversationsResult.value.length : 'NOT_ARRAY'} items` : conversationsResult,
+        metrics: metricsResult.status === "fulfilled" ? metricsResult.value : metricsResult,
+      });
+
+      const store = useAppStore.getState();
       if (sessionsResult.status === "fulfilled" && Array.isArray(sessionsResult.value)) {
-        setSessions(sessionsResult.value);
+        const normalized = sessionsResult.value.map(normalizeSession);
+        store.setSessions(normalized);
+        for (const session of normalized) {
+          if (session.status === "connected") {
+            store.clearLastQr(session.id);
+          }
+        }
       }
       if (conversationsResult.status === "fulfilled" && Array.isArray(conversationsResult.value)) {
-        setConversations(conversationsResult.value);
+        store.setConversations(conversationsResult.value);
       }
       if (metricsResult.status === "fulfilled" && metricsResult.value) {
-        setMetrics(metricsResult.value);
+        store.setMetrics(metricsResult.value);
       }
 
       setHydrated(true);
-    } catch {
-      // Silent — health watcher reports errors separately
+      const elapsed = Math.round(performance.now() - t0);
+      const sCount = sessionsResult.status === "fulfilled" && Array.isArray(sessionsResult.value) ? sessionsResult.value.length : 0;
+      const cCount = conversationsResult.status === "fulfilled" && Array.isArray(conversationsResult.value) ? conversationsResult.value.length : 0;
+      console.info(`[Runtime] hydration:done sessions=${sCount} conversations=${cCount} elapsed=${elapsed}ms`);
+    } catch (err) {
+      console.warn("[Runtime] hydration:error", err instanceof Error ? err.message : err);
     }
-  }, [setConversations, setMetrics, setSessions]);
-
-  // Debounced refresh for reconnection (avoid flooding after reconnect)
-  const debouncedRefresh = useDebouncedCallback(loadFromApi, 3000);
+  }, []);
 
   const forceReconnect = useCallback(() => {
     forceReconnectInboxSocket();
   }, []);
 
-  // Resolve the socket URL — use API_ORIGIN or window.location.origin
+  // Debounced refresh for reconnect — avoid flooding API after brief disconnection
+  const debouncedRefresh = useCallback(() => {
+    if (refreshTimerRef.current) clearTimeout(refreshTimerRef.current);
+    refreshTimerRef.current = setTimeout(() => void loadFromApi(), 3000);
+  }, [loadFromApi]);
+
+  // Resolve socket URL once
   const socketUrl = API_ORIGIN || (typeof window !== "undefined" ? window.location.origin : "");
 
+  // ─── Main effect: WebSocket subscription ─────────────────────
   useEffect(() => {
     if (!socketUrl) return;
 
-    // Initial hydration from API
+    // Initial hydration
     void loadFromApi();
 
     const disconnect = connectInboxSocket({
       socketUrl,
+
       onSocketConnected: () => {
+        console.info("[Runtime] socket:connected");
         setStatus("online");
         disconnectedAtRef.current = null;
 
-        // Re-hydrate on reconnect (but not on first connect — loadFromApi handles that)
-        if (hydrated) {
+        // Re-hydrate on reconnect (not on first connect — loadFromApi handles that)
+        if (hydratedRef.current) {
+          console.info("[Runtime] reconnect:rehydrating");
           debouncedRefresh();
         }
       },
+
       onSocketDisconnected: () => {
         const now = Date.now();
         if (!disconnectedAtRef.current) {
           disconnectedAtRef.current = now;
         }
-        // Show "reconnecting" for first 30s, then "offline"
         const elapsed = now - (disconnectedAtRef.current ?? now);
-        setStatus(elapsed < 30_000 ? "reconnecting" : "offline");
+        const nextStatus = elapsed < 30_000 ? "reconnecting" : "offline";
+        console.warn(`[Runtime] socket:disconnected status=${nextStatus} elapsed=${elapsed}ms`);
+        setStatus(nextStatus);
       },
 
-      // Session events → update Zustand sessions store
+      // ─── Session events → Zustand store ──────────────────
+      onQrGenerated: (payload) => {
+        const sessionId = getSessionId(payload);
+        const qr = payload?.qr ?? payload?.base64 ?? null;
+        if (!sessionId || !qr) return;
+
+        console.info(`[Runtime] qr:generated session=${sessionId}`);
+        useAppStore.getState().setLastQr(sessionId, qr);
+        useAppStore.getState().upsertSession(
+          normalizeSession({ ...payload, id: sessionId, status: "qr" })
+        );
+      },
+
       onSessionConnected: (payload) => {
-        if (!payload.sessionId) return;
-        setSessions((prev: SessionInfo[]) => {
-          const existing = prev.find((s) => s.id === payload.sessionId);
-          if (existing) {
-            return prev.map((s) =>
-              s.id === payload.sessionId
-                ? { ...s, connected: true, status: "connected", phone: payload.phone ?? s.phone }
-                : s,
-            );
-          }
-          return [
-            ...prev,
-            {
-              id: payload.sessionId!,
-              connected: true,
-              status: "connected",
-              phone: payload.phone,
-            },
-          ];
-        });
-      },
-      onSessionDisconnected: (payload) => {
-        if (!payload.sessionId) return;
-        setSessions((prev: SessionInfo[]) =>
-          prev.map((s) =>
-            s.id === payload.sessionId ? { ...s, connected: false, status: "disconnected" } : s,
-          ),
-        );
-      },
-      onSessionStatus: (payload) => {
-        if (!payload.sessionId) return;
-        setSessions((prev: SessionInfo[]) =>
-          prev.map((s) =>
-            s.id === payload.sessionId
-              ? {
-                  ...s,
-                  connected: payload.status?.toLowerCase() === "connected",
-                  status: payload.status,
-                }
-              : s,
-          ),
-        );
-      },
-      onSessionDeleted: (payload) => {
-        if (!payload.sessionId) return;
-        setSessions((prev: SessionInfo[]) => prev.filter((s) => s.id !== payload.sessionId));
+        const session = normalizeSession({ ...payload, status: "connected" });
+        console.info(`[Runtime] session:connected id=${session.id} phone=${session.phone ?? "??"}`);
+        useAppStore.getState().upsertSession(session);
+        useAppStore.getState().clearLastQr(session.id);
       },
 
-      // Conversation events → update Zustand conversations store
+      onSessionDisconnected: (payload) => {
+        const session = normalizeSession({ ...payload, status: "disconnected" });
+        console.warn(`[Runtime] session:disconnected id=${session.id}`);
+        useAppStore.getState().upsertSession(session);
+      },
+
+      onSessionStatus: (payload) => {
+        const session = normalizeSession(payload);
+        console.info(`[Runtime] session:status id=${session.id} status=${session.status}`);
+        useAppStore.getState().upsertSession(session);
+
+        if (session.status === "connected") {
+          useAppStore.getState().clearLastQr(session.id);
+        }
+      },
+
+      onSessionDeleted: (payload) => {
+        const sessionId = getSessionId(payload);
+        if (!sessionId) return;
+        console.warn(`[Runtime] session:deleted id=${sessionId}`);
+        useAppStore.getState().removeSession(sessionId);
+      },
+
+      // ─── Conversation events → Zustand store ────────────
       onConversationUpdated: (incoming) => {
         if (!incoming?.id) return;
-        const store = useAppStore.getState();
-        const existing = store.conversations.find((c) => c.id === incoming.id);
-        if (existing) {
-          store.upsertConversation({ ...existing, ...incoming });
-        } else {
-          store.upsertConversation(incoming);
-        }
+        useAppStore.getState().upsertConversation(incoming);
       },
     });
 
-    return () => disconnect();
-  }, [socketUrl, loadFromApi, hydrated, debouncedRefresh, setSessions]);
+    return () => {
+      disconnect();
+      if (refreshTimerRef.current) clearTimeout(refreshTimerRef.current);
+    };
+  }, [socketUrl, loadFromApi, debouncedRefresh]);
+
+  // ─── Re-hydrate on tab focus ─────────────────────────────────
+  // When the user switches back to this tab after being away,
+  // re-fetch sessions & conversations to stay current.
+  useEffect(() => {
+    let lastVisibleAt = Date.now();
+
+    const onVisibilityChange = () => {
+      if (document.visibilityState !== "visible") return;
+      const elapsed = Date.now() - lastVisibleAt;
+      lastVisibleAt = Date.now();
+
+      // Only re-hydrate if tab was hidden for > 30 seconds
+      if (elapsed > 30_000 && hydratedRef.current) {
+        console.info(`[Runtime] tab:focused elapsed=${elapsed}ms rehydrating`);
+        void loadFromApi();
+      }
+    };
+
+    document.addEventListener("visibilitychange", onVisibilityChange);
+    return () => document.removeEventListener("visibilitychange", onVisibilityChange);
+  }, [loadFromApi]);
 
   const contextValue: RuntimeContextValue = {
     status,
     connectedSessions,
     hydrated,
-    forceRefresh: loadFromApi,
+    forceRefresh,
     forceReconnect,
   };
 

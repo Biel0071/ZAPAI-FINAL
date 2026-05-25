@@ -70,7 +70,7 @@ export default function MasterNodes() {
   );
 
   return (
-    <div className="min-h-screen">
+    <div className="flex flex-1 flex-col overflow-y-auto">
       <Header title="Control Plane · Nodes" subtitle="Orquestração multi-VPS com monitoramento em tempo real" runtimeState="running" />
       <div className="page-container section-stack">
         <div className="grid grid-cols-2 gap-3 xl:grid-cols-5">

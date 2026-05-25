@@ -259,7 +259,7 @@ export default function Campaigns() {
   const listHeight = useMemo(() => Math.min(760, Math.max(250, safeCampaigns.length * CAMPAIGN_ROW_HEIGHT)), [safeCampaigns.length]);
 
   return (
-    <div className="min-h-screen">
+    <div className="flex flex-1 flex-col overflow-y-auto">
       <Header title="Campanhas" subtitle="Disparos em massa e campanhas programadas" />
 
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="space-y-6 p-6">

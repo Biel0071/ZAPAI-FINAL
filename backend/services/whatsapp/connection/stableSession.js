@@ -578,6 +578,8 @@ async function createStableSession({
       // eslint-disable-next-line no-console
       console.log(`[WHATSAPP] QR generated: ${normalizedSessionName}`);
       onQrGenerated(qrDataUrl);
+      sessionRegistry.setQr(normalizedSessionName, qrDataUrl);
+      sessionRegistry.persistSession(normalizedSessionName).catch(() => {});
       (io || global.io)?.emit('session_qr', {
         eventAt: Date.now(),
         name: session.sessionName,

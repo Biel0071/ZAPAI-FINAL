@@ -22,6 +22,12 @@ export default defineConfig(({ mode }) => {
         entryFileNames: "assets/[name]-[hash].js",
         chunkFileNames: "assets/[name]-[hash].js",
         assetFileNames: "assets/[name]-[hash][extname]",
+        manualChunks: {
+          "vendor-react": ["react", "react-dom", "react-router-dom"],
+          "vendor-ui": ["framer-motion", "@radix-ui/react-dialog", "@radix-ui/react-tabs"],
+          "vendor-charts": ["recharts"],
+          "vendor-socket": ["socket.io-client"],
+        },
       },
     },
   },
@@ -38,10 +44,55 @@ export default defineConfig(({ mode }) => {
         changeOrigin: true,
         secure: false,
       },
+      '/health': {
+        target: 'http://localhost:4025',
+        changeOrigin: true,
+        secure: false,
+      },
+      '/metrics': {
+        target: 'http://localhost:4025',
+        changeOrigin: true,
+        secure: false,
+      },
+      '/media': {
+        target: 'http://localhost:4025',
+        changeOrigin: true,
+        secure: false,
+      },
       '/socket.io': {
         target: 'http://localhost:4025',
         changeOrigin: true,
         ws: true,
+      },
+      '/send-message': {
+        target: 'http://localhost:4025',
+        changeOrigin: true,
+        secure: false,
+      },
+      '/send-media': {
+        target: 'http://localhost:4025',
+        changeOrigin: true,
+        secure: false,
+      },
+      '/upload': {
+        target: 'http://localhost:4025',
+        changeOrigin: true,
+        secure: false,
+      },
+      '/uploads': {
+        target: 'http://localhost:4025',
+        changeOrigin: true,
+        secure: false,
+      },
+      '/session-status': {
+        target: 'http://localhost:4025',
+        changeOrigin: true,
+        secure: false,
+      },
+      '/status-whatsapp': {
+        target: 'http://localhost:4025',
+        changeOrigin: true,
+        secure: false,
       },
     },
   },

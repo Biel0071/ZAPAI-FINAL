@@ -352,7 +352,7 @@ const Diagnostics = memo(function Diagnostics() {
   }, []);
 
   return (
-    <div className="min-h-screen">
+    <div className="flex flex-1 flex-col overflow-y-auto">
       <Header title="System Diagnostics" subtitle="Real-time infrastructure health for developers and admins" />
       <div className="space-y-6 p-6">
         <div className="flex flex-wrap items-center justify-end gap-3">

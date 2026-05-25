@@ -21,7 +21,7 @@ export default function MasterDeployments() {
   const normalizeStatus = (value: unknown) => String(value ?? "unknown").toLowerCase();
 
   return (
-    <div className="min-h-screen">
+    <div className="flex flex-1 flex-col overflow-y-auto">
       <Header title="Deploy Center" subtitle="Deploy remoto multi-node com progresso e histórico" runtimeState="running" />
       <div className="page-container section-stack">
         <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">

@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { API_ORIGIN, IS_API_URL_CONFIGURED, IS_MIXED_CONTENT_BLOCKED } from "@/lib/backendConfig";
+import { getCurrentTenantId } from "@/lib/apiGuard";
 
 const OFFLINE_BASE_RETRY_MS = 12_000;
 const OFFLINE_MAX_RETRY_MS = 45_000;
@@ -20,12 +21,12 @@ async function pingBackend(signal: AbortSignal): Promise<ApiRuntimeStatus> {
   }
 
   const startedAt = performance.now();
-  const response = await fetch(`${API_ORIGIN}/api/health`, {
+  const response = await fetch(`${API_ORIGIN}/health`, {
     method: "GET",
     signal,
     headers: {
       Accept: "application/json",
-      "x-tenant-id": "main",
+      "x-tenant-id": getCurrentTenantId(),
       "ngrok-skip-browser-warning": "true",
     },
   });

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { motion } from "framer-motion";
 import {
   WhatsappLogo,
@@ -25,410 +25,246 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
-import { apiService, type SessionInfo } from "@/services/apiService";
-import { connectInboxSocket } from "@/services/socketService";
+import { apiService } from "@/services/apiService";
 import { notify } from "@/services/notifyService";
 import { reportFrontendIssue } from "@/services/frontendHealthService";
+import { useAppStore, type SessionItem } from "@/stores/appStore";
+import { useRuntime } from "@/providers/RuntimeProvider";
 
-interface Session extends SessionInfo {
-  name: string;
-  status: "connected" | "connecting" | "qr" | "disconnected";
-}
+type SessionStatus = "connected" | "connecting" | "qr" | "disconnected";
 
-type SessionEventPayload = {
-  sessionId?: string;
-  name?: string;
-  sessionName?: string;
-  qr?: string;
-  qrCode?: string;
-  qrcode?: string;
-  base64?: string;
-  phone?: string;
-  status?: string;
-};
-
-function normalizeBackendStatus(status?: string, connected?: boolean): Session["status"] {
-  const normalizedStatus = (status || "").toLowerCase();
-  if (connected || normalizedStatus === "connected" || normalizedStatus === "online" || normalizedStatus === "active" || normalizedStatus === "open") {
-    return "connected";
-  }
-  if (normalizedStatus === "connecting") return "connecting";
-  if (normalizedStatus === "qr" || normalizedStatus === "qr_ready" || normalizedStatus === "awaiting_qr") return "qr";
+function resolveStatus(status: SessionItem["status"]): SessionStatus {
+  if (status === "connected") return "connected";
+  if (status === "connecting") return "connecting";
+  if (status === "qr") return "qr";
   return "disconnected";
 }
 
-function normalizeSession(item: SessionInfo): Session {
-  const legacyName = (item as SessionInfo & { session_name?: string; name?: string }).session_name;
-  const resolvedName = item.name || legacyName || item.id;
-
-  return {
-    id: item.id || resolvedName,
-    phone: item.phone,
-    connected: item.connected,
-    name: resolvedName,
-    status: normalizeBackendStatus(item.status, item.connected),
-  };
-}
-
-function normalizeSessionName(name: string): string {
-  return name.trim().replace(/\s+/g, "_").toLowerCase();
-}
-
-function resolveSessionId(payload?: SessionEventPayload): string | null {
-  if (!payload) return null;
-  return payload.sessionId || payload.name || payload.sessionName || null;
-}
-
-function extractQrPayload(payload?: SessionEventPayload): string | undefined {
-  const candidate = payload?.qr ?? payload?.qrCode ?? payload?.qrcode ?? payload?.base64;
-  if (!candidate) return undefined;
-  return candidate.trim();
-}
-
-function resolveQrImage(qr?: string): string | null {
-  if (!qr) return null;
-
-  const cleaned = qr.trim();
-  if (!cleaned) return null;
-
-  if (cleaned.startsWith("data:image/")) return cleaned;
-
-  return `data:image/png;base64,${cleaned.replace(/\s/g, "")}`;
-}
-
-function statusMeta(status: Session["status"]) {
+function statusMeta(status: SessionStatus) {
   if (status === "connected") return { emoji: "🟢", label: "Connected", badgeClass: "status-online", lineClass: "h-1 bg-success" };
   if (status === "connecting") return { emoji: "🟡", label: "Connecting", badgeClass: "status-busy", lineClass: "h-1 bg-warning" };
   if (status === "qr") return { emoji: "🟠", label: "QR Ready", badgeClass: "status-busy", lineClass: "h-1 bg-warning" };
   return { emoji: "🔴", label: "Disconnected", badgeClass: "status-offline", lineClass: "h-1 bg-muted" };
 }
 
-function resolveSessionName(payload?: SessionEventPayload): string | undefined {
-  if (!payload) return undefined;
-  return payload.sessionName || payload.name;
+function resolveQrImage(qr?: string): string | null {
+  if (!qr) return null;
+  const cleaned = qr.trim();
+  if (!cleaned) return null;
+  if (cleaned.startsWith("data:image/")) return cleaned;
+  return `data:image/png;base64,${cleaned.replace(/\s/g, "")}`;
 }
 
 export default function Connections() {
-  const [sessions, setSessions] = useState<Session[]>([]);
-  const [showQRModal, setShowQRModal] = useState(false);
-  const [isActivationDialogOpen, setIsActivationDialogOpen] = useState(false);
+  const { status, hydrated, forceRefresh } = useRuntime();
+  const sessions = useAppStore((state) => state.sessions);
+  const lastQr = useAppStore((state) => state.lastQr);
+  const setLastQr = useAppStore((state) => state.setLastQr);
+
+  const socketConnected = status === "online";
+  const reconnecting = status === "reconnecting";
+
+  // UI Local states
+  const [createOpen, setCreateOpen] = useState(false);
+  const [creating, setCreating] = useState(false);
+  const [pendingQrSessionId, setPendingQrSessionId] = useState<string | null>(null);
+  const [qrModalSessionId, setQrModalSessionId] = useState<string | null>(null);
   const [newSessionName, setNewSessionName] = useState("");
   const [sessionNameError, setSessionNameError] = useState<string | null>(null);
-  const [isConnecting, setIsConnecting] = useState(false);
-  const [isCreating, setIsCreating] = useState(false);
-  const [isSessionsLoading, setIsSessionsLoading] = useState(true);
-  const [createStatus, setCreateStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
   const [restartingSessionId, setRestartingSessionId] = useState<string | null>(null);
   const [deletingSessionId, setDeletingSessionId] = useState<string | null>(null);
-  const [publicApiUrl, setPublicApiUrl] = useState<string | null>(null);
-  const [lastQr, setLastQr] = useState<{ sessionId?: string; qr?: string } | null>(null);
-  const sessionLoadInFlightRef = useRef(false);
+  const [selectedSessionId, setSelectedSessionId] = useState<string | null>(null);
+  const [isInitialLoading, setIsInitialLoading] = useState(true);
 
-  const safeSessions = useMemo(() => (Array.isArray(sessions) ? sessions : []), [sessions]);
-  const sessionsRef = useRef<Session[]>(safeSessions);
-  const creatingSessionsRef = useRef<Set<string>>(new Set());
-
+  // Initial loading indicator
   useEffect(() => {
-    sessionsRef.current = safeSessions;
-  }, [safeSessions]);
-
-  const upsertSession = useCallback((sessionId: string, updates: Partial<Session>) => {
-    setSessions((prev) => {
-      const safePrev = Array.isArray(prev) ? prev : [];
-      const normalizedId = normalizeSessionName(sessionId);
-      const existing = safePrev.find((session) => normalizeSessionName(session.id) === normalizedId);
-      if (existing) {
-        return safePrev.map((session) =>
-          normalizeSessionName(session.id) === normalizedId ? { ...session, ...updates, id: existing.id } : session,
-        );
-      }
-
-      return [
-        {
-          id: sessionId,
-          name: updates.name || sessionId,
-          phone: updates.phone,
-          status: updates.status ?? "connecting",
-          connected: updates.status === "connected",
-        },
-        ...safePrev,
-      ];
-    });
-  }, []);
-
-  const loadSessions = useCallback(async (options?: { silent?: boolean }) => {
-    if (sessionLoadInFlightRef.current) return;
-    sessionLoadInFlightRef.current = true;
-    const isSilent = Boolean(options?.silent);
-    if (!isSilent) setIsSessionsLoading(true);
-    try {
-      const sessionsData = await apiService.listSessions();
-      const deduped = new Map<string, Session>();
-
-      (Array.isArray(sessionsData) ? sessionsData : []).forEach((item) => {
-        const normalized = normalizeSession(item);
-        deduped.set(normalizeSessionName(normalized.id), normalized);
-      });
-
-      const normalized = [...deduped.values()];
-      setSessions(normalized);
-
-      const qrReadySession = normalized.find((session) => session.status === "qr");
-      if (qrReadySession) {
-        setLastQr((prev) => ({ sessionId: qrReadySession.id, qr: prev?.qr }));
-        setShowQRModal(true);
-        setIsActivationDialogOpen(true);
-      } else {
-        setShowQRModal(false);
-      }
-    } catch (error) {
-      reportFrontendIssue({
-        type: "unexpected_error",
-        service: "connections.loadSessions",
-        message: error instanceof Error ? error.message : "Falha ao carregar sessões",
-      });
-    } finally {
-      sessionLoadInFlightRef.current = false;
-      if (!isSilent) setIsSessionsLoading(false);
+    if (hydrated) {
+      setIsInitialLoading(false);
     }
-  }, []);
+  }, [hydrated]);
 
+  // Listener to open the QR modal when the QR code arrives for a pending session
   useEffect(() => {
-    const loadInitialData = async () => {
+    if (!pendingQrSessionId) return;
+
+    const qr = lastQr[pendingQrSessionId];
+    if (!qr) return;
+
+    setQrModalSessionId(pendingQrSessionId);
+    setPendingQrSessionId(null);
+  }, [pendingQrSessionId, lastQr]);
+
+  // Fallback to fetch active QR from the backend when the modal opens but store doesn't have it
+  useEffect(() => {
+    if (!qrModalSessionId) return;
+
+    let active = true;
+
+    const fetchQrFallback = async () => {
       try {
-        const [publicUrlResult, sessionsResult] = await Promise.allSettled([
-          apiService.getPublicUrl(),
-          loadSessions(),
-        ]);
-
-        if (publicUrlResult.status === "fulfilled") {
-          setPublicApiUrl(publicUrlResult.value.publicUrl?.trim() || null);
-        }
-
-        if (sessionsResult.status === "rejected") {
-          reportFrontendIssue({
-            type: "unexpected_error",
-            service: "connections.loadInitialData",
-            message: sessionsResult.reason instanceof Error ? sessionsResult.reason.message : "Falha no carregamento inicial de sessões",
-          });
+        const response = await apiService.getSessionQr(qrModalSessionId);
+        if (active && response?.qr) {
+          setLastQr(qrModalSessionId, response.qr);
         }
       } catch (error) {
-        reportFrontendIssue({
-          type: "unexpected_error",
-          service: "connections.loadInitialData",
-          message: error instanceof Error ? error.message : "Falha ao carregar dados iniciais",
-        });
+        console.warn("Failed to fetch session QR fallback:", error);
       }
     };
 
-    void loadInitialData();
-  }, [loadSessions]);
+    // Initial fetch if missing
+    if (!lastQr[qrModalSessionId]) {
+      void fetchQrFallback();
+    }
 
+    // Keep polling every 3 seconds to fetch new QR updates if the session is still in 'qr' or 'connecting'
+    const intervalId = setInterval(() => {
+      const currentSession = sessions.find((s) => s.id === qrModalSessionId);
+      if (currentSession && (currentSession.status === "qr" || currentSession.status === "connecting")) {
+        void fetchQrFallback();
+      } else {
+        clearInterval(intervalId);
+      }
+    }, 3000);
+
+    return () => {
+      active = false;
+      clearInterval(intervalId);
+    };
+  }, [qrModalSessionId, lastQr, setLastQr, sessions]);
+
+  // Automatically close QR modal when session connects
   useEffect(() => {
-    const intervalId = window.setInterval(() => {
-      if (document.visibilityState !== "visible") return;
-      void loadSessions({ silent: true });
-    }, 10_000);
+    if (!qrModalSessionId) return;
+    const session = sessions.find((s) => s.id === qrModalSessionId);
+    if (session && session.status === "connected") {
+      const timeoutId = setTimeout(() => {
+        setQrModalSessionId(null);
+      }, 2000);
+      return () => clearTimeout(timeoutId);
+    }
+  }, [qrModalSessionId, sessions]);
 
-    return () => window.clearInterval(intervalId);
-  }, [loadSessions]);
+  const sessionsWithStatus = useMemo(
+    () =>
+      sessions.map((s) => ({
+        ...s,
+        resolvedStatus: resolveStatus(s.status),
+        displayName: s.name ?? s.id,
+      })),
+    [sessions],
+  );
 
-  useEffect(() => {
-    if (!publicApiUrl) return;
+  const connectedCount = sessionsWithStatus.filter((s) => s.resolvedStatus === "connected").length;
+  const connectingCount = sessionsWithStatus.filter((s) => s.resolvedStatus === "connecting" || s.resolvedStatus === "qr").length;
+  const disconnectedCount = sessionsWithStatus.filter((s) => s.resolvedStatus === "disconnected").length;
+  const activeSessionName = sessionsWithStatus.find((s) => s.resolvedStatus === "connected")?.displayName ?? null;
 
-    const disconnect = connectInboxSocket({
-      socketUrl: publicApiUrl,
-      onQrGenerated: (payload) => {
-        const sessionId = resolveSessionId(payload);
-        const qr = extractQrPayload(payload);
-        if (!sessionId) return;
-        setLastQr({ sessionId, qr });
-        setShowQRModal(Boolean(qr));
-        setIsActivationDialogOpen(true);
-        upsertSession(sessionId, { status: "qr", connected: false, name: resolveSessionName(payload) });
-      },
-      onSessionConnected: (payload) => {
-        const sessionId = payload.sessionId;
-        if (!sessionId) return;
-        upsertSession(sessionId, { status: "connected", connected: true, phone: payload.phone });
-        setShowQRModal(false);
-        setIsConnecting(false);
-        setRestartingSessionId(null);
-      },
-      onSessionDisconnected: (payload) => {
-        const sessionId = payload.sessionId;
-        if (!sessionId) return;
-        upsertSession(sessionId, { status: "disconnected", connected: false });
-      },
-      onSessionDeleted: (payload) => {
-        const sessionId = payload.sessionId;
-        if (!sessionId) return;
-        const normalizedId = normalizeSessionName(sessionId);
-        setSessions((prev) => prev.filter((session) => normalizeSessionName(session.id) !== normalizedId));
-      },
-      onSessionStatus: (payload) => {
-        const sessionId = payload.sessionId;
-        if (!sessionId) return;
-        upsertSession(sessionId, {
-          status: normalizeBackendStatus(payload.status, payload.status?.toLowerCase() === "connected"),
-          connected: payload.status?.toLowerCase() === "connected",
-        });
-      },
-    });
+  const currentSessionForQr = qrModalSessionId ? sessionsWithStatus.find((s) => s.id === qrModalSessionId) : null;
+  const qrImageSource = qrModalSessionId ? resolveQrImage(lastQr[qrModalSessionId] ?? "") : null;
 
-    return () => disconnect();
-  }, [publicApiUrl, upsertSession]);
+  const stopCardClick = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+  };
 
   const handleCreateSession = async () => {
     const rawSessionName = newSessionName.trim();
-    if (!rawSessionName || isCreating) return;
+    if (!rawSessionName || creating) return;
 
-    const sessionName = normalizeSessionName(rawSessionName);
+    const sessionName = rawSessionName.toLowerCase().replace(/\s+/g, "_");
 
-    // Anti-duplication: check if session already exists
-    const existingSession = sessionsRef.current.find(
-      (s) => normalizeSessionName(s.id) === sessionName
-    );
-    if (existingSession) {
-      if (existingSession.status === "connected") {
+    // Check duplication
+    const existing = sessions.find((s) => s.id === sessionName);
+    if (existing) {
+      if (existing.status === "connected") {
         setSessionNameError("Sessão já existe e está conectada.");
         return;
       }
-      if (existingSession.status === "connecting" || existingSession.status === "qr") {
+      if (existing.status === "connecting" || existing.status === "qr") {
         setSessionNameError("Sessão já está em processo de conexão.");
         return;
       }
     }
 
-    // Anti-duplication: guard concurrent creation
-    if (creatingSessionsRef.current.has(sessionName)) {
-      return;
-    }
-    creatingSessionsRef.current.add(sessionName);
-
-    setSessionNameError(null);
-    setIsActivationDialogOpen(true);
-    setIsConnecting(true);
-    setIsCreating(true);
-    setCreateStatus("loading");
-
-    upsertSession(sessionName, { status: "connecting", name: rawSessionName.trim() });
-
     try {
-      const startResponse = await apiService.startSession(sessionName);
+      setCreating(true);
+      setSessionNameError(null);
 
-      if (startResponse?.sessionId || startResponse?.qr) {
-        const resolvedSessionId = normalizeSessionName(startResponse.sessionId || sessionName);
-        setLastQr({ sessionId: resolvedSessionId, qr: startResponse.qr });
-        setShowQRModal(Boolean(startResponse.qr));
-        setIsActivationDialogOpen(true);
-        upsertSession(resolvedSessionId, {
-          status: startResponse.qr ? "qr" : "connecting",
-        });
-      }
+      const created = await apiService.startSession({ name: rawSessionName });
+      await forceRefresh();
 
-      setCreateStatus("success");
+      const sessionId =
+        created?.sessionId ??
+        created?.id ??
+        sessionName;
+
+      setPendingQrSessionId(String(sessionId));
+      setCreateOpen(false);
+      setNewSessionName("");
       notify.success("WhatsApp session created successfully");
-      await loadSessions();
-    } catch (error) {
+    } catch (error: any) {
       reportFrontendIssue({
         type: "unexpected_error",
         service: "connections.createSession",
         message: error instanceof Error ? error.message : "Falha ao criar sessão",
       });
-      setCreateStatus("error");
       notify.error("Failed to create WhatsApp session");
-      upsertSession(sessionName, { status: "disconnected", connected: false });
-      setIsConnecting(false);
     } finally {
-      creatingSessionsRef.current.delete(sessionName);
-      setIsCreating(false);
-      // Don't reset isConnecting here — let socket events handle it when QR/connect completes
-      window.setTimeout(() => setCreateStatus("idle"), 1500);
+      setCreating(false);
     }
   };
 
-  const handleGenerateQr = async (session: Session) => {
-    const normalizedId = normalizeSessionName(session.id);
-    if (restartingSessionId === normalizedId || session.status === "qr" || session.status === "connecting") return;
-
-    setRestartingSessionId(normalizedId);
-    setIsActivationDialogOpen(true);
-    setIsConnecting(true);
-    upsertSession(normalizedId, { status: "connecting", connected: false });
+  const handleGenerateQr = async (sessionId: string) => {
+    if (restartingSessionId || deletingSessionId) return;
+    setRestartingSessionId(sessionId);
 
     try {
-      const response = await apiService.restartSession(normalizedId);
-      if (response?.qr) {
-        const responseSessionId = normalizeSessionName(response.sessionId || normalizedId);
-        setLastQr({ sessionId: responseSessionId, qr: response.qr });
-        setShowQRModal(true);
-        setIsActivationDialogOpen(true);
-        upsertSession(responseSessionId, { status: "qr", connected: false });
-      }
+      const response = await apiService.restartSession(sessionId);
+      await forceRefresh();
+
+      const targetSessionId = response?.sessionId ?? sessionId;
+      setPendingQrSessionId(targetSessionId);
       notify.success("WhatsApp session restart requested");
-      await loadSessions();
-      setRestartingSessionId(null);
-      setIsConnecting(false);
     } catch (error) {
       reportFrontendIssue({
         type: "unexpected_error",
         service: "connections.generateQr",
         message: error instanceof Error ? error.message : "Falha ao gerar QR",
       });
-      upsertSession(normalizedId, { status: "disconnected", connected: false });
       notify.error("Failed to restart session");
-      setIsConnecting(false);
+    } finally {
       setRestartingSessionId(null);
     }
   };
 
   const handleConnectSession = async (sessionId: string) => {
-    const normalizedId = normalizeSessionName(sessionId);
-    if (restartingSessionId === normalizedId) return;
-
-    setRestartingSessionId(normalizedId);
-    setIsActivationDialogOpen(true);
-    setIsConnecting(true);
-    upsertSession(normalizedId, { status: "connecting", connected: false });
+    if (restartingSessionId || deletingSessionId) return;
+    setRestartingSessionId(sessionId);
 
     try {
-      const response = await apiService.startSession(normalizedId);
-      if (response?.qr) {
-        const responseSessionId = normalizeSessionName(response.sessionId || normalizedId);
-        setLastQr({ sessionId: responseSessionId, qr: response.qr });
-        setShowQRModal(true);
-        setIsActivationDialogOpen(true);
-        upsertSession(responseSessionId, { status: "qr", connected: false });
-      }
+      const response = await apiService.startSession(sessionId);
+      await forceRefresh();
+
+      const targetSessionId = response?.sessionId ?? sessionId;
+      setPendingQrSessionId(targetSessionId);
       notify.success("Session connect requested");
-      await loadSessions();
-      setRestartingSessionId(null);
-      setIsConnecting(false);
     } catch (error) {
       reportFrontendIssue({
         type: "unexpected_error",
         service: "connections.connectSession",
         message: error instanceof Error ? error.message : "Falha ao conectar sessão",
       });
-      upsertSession(normalizedId, { status: "disconnected", connected: false });
       notify.error("Failed to connect session");
-      setIsConnecting(false);
+    } finally {
       setRestartingSessionId(null);
     }
   };
 
   const handleLogoutSession = async (sessionId: string) => {
-    const normalizedId = normalizeSessionName(sessionId);
-
     try {
-      await apiService.logoutSession(normalizedId);
-      upsertSession(normalizedId, { status: "disconnected", connected: false });
+      await apiService.logoutSession(sessionId);
+      await forceRefresh();
       notify.warning("WhatsApp session disconnected");
-      setShowQRModal(false);
-      setIsActivationDialogOpen(false);
-      setIsConnecting(false);
-      await loadSessions();
     } catch (error) {
       reportFrontendIssue({
         type: "unexpected_error",
@@ -439,23 +275,14 @@ export default function Connections() {
     }
   };
 
-  const handleDelete = async (id: string) => {
-    const normalizedId = normalizeSessionName(id);
-    if (deletingSessionId === normalizedId) return;
+  const handleDelete = async (sessionId: string) => {
+    if (deletingSessionId) return;
+    setDeletingSessionId(sessionId);
 
-    setDeletingSessionId(normalizedId);
     try {
-      await apiService.deleteSession(normalizedId);
-      setSessions((prev) => {
-        const safePrev = Array.isArray(prev) ? prev : [];
-        return safePrev.filter((session) => normalizeSessionName(session.id) !== normalizedId);
-      });
-
+      await apiService.deleteSession(sessionId);
+      await forceRefresh();
       notify.warning("WhatsApp session deleted");
-      if (lastQr?.sessionId === id || lastQr?.sessionId === normalizedId) {
-        setLastQr(null);
-        setShowQRModal(false);
-      }
     } catch (error) {
       reportFrontendIssue({
         type: "unexpected_error",
@@ -468,23 +295,8 @@ export default function Connections() {
     }
   };
 
-  const connectedCount = safeSessions.filter((session) => session.status === "connected").length;
-  const connectingCount = safeSessions.filter((session) => session.status === "connecting" || session.status === "qr").length;
-  const disconnectedCount = safeSessions.filter((session) => session.status === "disconnected").length;
-  const activeSessionName = safeSessions.find((session) => session.status === "connected")?.name ?? null;
-  const currentQrImage = resolveQrImage(lastQr?.qr);
-  const currentQrSession = safeSessions.find((session) => session.id === lastQr?.sessionId);
-  const isQrModalVisible = showQRModal && currentQrSession?.status === "qr";
-  const showQrImage = isQrModalVisible && Boolean(currentQrImage);
-
-  const qrModalDescription = useMemo(() => {
-    if (currentQrSession?.status === "connected") return "Connected";
-    if (currentQrSession?.status === "qr" && currentQrImage) return "Scan QR";
-    return "Waiting for QR";
-  }, [currentQrImage, currentQrSession?.status]);
-
   return (
-    <div className="min-h-screen">
+    <div className="flex flex-1 flex-col overflow-y-auto">
       <Header title="Conexões WhatsApp" subtitle="Gerencie suas sessões de WhatsApp" />
 
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="p-6 space-y-6">
@@ -495,21 +307,26 @@ export default function Connections() {
         </div>
 
         <div className="flex items-center justify-between rounded-xl border border-border bg-card px-4 py-3">
-          <p className="text-sm text-muted-foreground">Sessão ativa</p>
-          <Badge variant={activeSessionName ? "default" : "secondary"}>{activeSessionName ?? "Nenhuma"}</Badge>
+          <div className="flex items-center gap-3">
+            <p className="text-sm text-muted-foreground">Status do Realtime: <strong className="text-foreground">{reconnecting ? "Reconectando..." : socketConnected ? "Online" : "Offline"}</strong></p>
+            <span className="text-muted-foreground">|</span>
+            <p className="text-sm text-muted-foreground">Sessão ativa: <strong className="text-foreground">{activeSessionName ?? "Nenhuma"}</strong></p>
+          </div>
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm" className="gap-1.5 text-xs" onClick={() => window.open("/logs", "_self")}>
+              Ver Logs
+            </Button>
+            <Button variant="outline" size="sm" className="gap-1.5 text-xs" onClick={() => window.open("/diagnostics", "_self")}>
+              Diagnósticos
+            </Button>
+          </div>
         </div>
 
         <div className="flex items-center justify-between">
           <h2 className="font-display text-lg font-semibold">Suas Sessões</h2>
-          <Dialog
-            open={isActivationDialogOpen}
-            onOpenChange={(open) => {
-              setIsActivationDialogOpen(open);
-              if (!open) setShowQRModal(false);
-            }}
-          >
+          <Dialog open={createOpen} onOpenChange={setCreateOpen}>
             <DialogTrigger asChild>
-              <Button className="gap-2"><Plus weight="bold" className="w-4 h-4" />Activate WhatsApp</Button>
+              <Button className="gap-2"><Plus weight="bold" className="w-4 h-4" />Nova Conexão</Button>
             </DialogTrigger>
             <DialogContent className="sm:max-w-md">
               <DialogHeader><DialogTitle className="font-display">Conectar WhatsApp</DialogTitle></DialogHeader>
@@ -528,32 +345,53 @@ export default function Connections() {
                   {sessionNameError && <p className="text-xs text-destructive">{sessionNameError}</p>}
                 </div>
 
-                <Button className="w-full gap-2" onClick={() => void handleCreateSession()} disabled={!newSessionName.trim() || isCreating}>
-                  {isCreating ? <Spinner weight="bold" className="w-4 h-4 animate-spin" /> : <QrCode weight="bold" className="w-4 h-4" />}
-                  {createStatus === "success" ? "Success" : createStatus === "error" ? "Error" : isCreating ? "Creating..." : "Activate WhatsApp"}
+                <Button className="w-full gap-2" onClick={() => void handleCreateSession()} disabled={!newSessionName.trim() || creating}>
+                  {creating ? <Spinner weight="bold" className="w-4 h-4 animate-spin" /> : <QrCode weight="bold" className="w-4 h-4" />}
+                  {creating ? "Creating..." : "Activate WhatsApp"}
                 </Button>
+              </div>
+            </DialogContent>
+          </Dialog>
 
-                {isQrModalVisible && (
-                  <div className="space-y-3 text-center">
-                    {showQrImage ? (
-                      <img
-                        src={currentQrImage ?? undefined}
-                        alt="QR Code da sessão WhatsApp"
-                        className="mx-auto block h-[280px] w-[280px] rounded-lg border border-border"
-                      />
-                    ) : (
-                      <div className="p-3 rounded-lg bg-muted text-xs font-mono break-all">Waiting for QR code</div>
-                    )}
-                    <p className="text-sm text-muted-foreground">{qrModalDescription} ({lastQr?.sessionId || newSessionName || "session"})</p>
+          <Dialog
+            open={qrModalSessionId !== null}
+            onOpenChange={(open) => {
+              if (!open) {
+                setQrModalSessionId(null);
+              }
+            }}
+          >
+            <DialogContent className="sm:max-w-md">
+              <DialogHeader>
+                <DialogTitle className="font-display">Scan QR Code</DialogTitle>
+              </DialogHeader>
+              <div className="space-y-4 py-4 text-center">
+                {qrImageSource ? (
+                  <img
+                    src={qrImageSource}
+                    alt="WhatsApp QR Code"
+                    className="mx-auto block h-[280px] w-[280px] rounded-lg border border-border"
+                  />
+                ) : (
+                  <div className="p-3 rounded-lg bg-muted text-xs font-mono break-all flex items-center justify-center h-[280px]">
+                    <div className="flex flex-col items-center gap-2">
+                      <Spinner className="w-8 h-8 animate-spin text-muted-foreground" />
+                      <span className="text-xs text-muted-foreground">Waiting for QR Code...</span>
+                    </div>
                   </div>
                 )}
+                <p className="text-sm text-muted-foreground">
+                  {currentSessionForQr?.resolvedStatus === "connected"
+                    ? "Conectado com sucesso!"
+                    : `Sessão: ${qrModalSessionId || ""}. Escaneie pelo WhatsApp do seu celular.`}
+                </p>
               </div>
             </DialogContent>
           </Dialog>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {isSessionsLoading
+          {isInitialLoading
             ? Array.from({ length: 3 }).map((_, index) => (
                 <Card key={`session-skeleton-${index}`} className="glass-card overflow-hidden">
                   <CardContent className="p-5 space-y-4">
@@ -570,22 +408,26 @@ export default function Connections() {
                   </CardContent>
                 </Card>
               ))
-            : safeSessions.map((session) => {
-                const meta = statusMeta(session.status);
-                const normalizedId = normalizeSessionName(session.id);
+            : sessionsWithStatus.map((session) => {
+                const meta = statusMeta(session.resolvedStatus);
+                const normalizedId = session.id;
                 const isRestarting = restartingSessionId === normalizedId;
                 const isDeleting = deletingSessionId === normalizedId;
-                const preventQrRegeneration = session.status === "connecting" || session.status === "qr" || isRestarting;
+                const preventQrRegeneration = session.resolvedStatus === "connecting" || session.resolvedStatus === "qr" || isRestarting;
 
                 return (
-                  <Card key={session.id} className="glass-card overflow-hidden">
+                  <Card
+                    key={session.id}
+                    className={`glass-card overflow-hidden cursor-pointer transition-all ${selectedSessionId === session.id ? 'ring-2 ring-primary' : ''}`}
+                    onClick={() => setSelectedSessionId(session.id)}
+                  >
                     <div className={meta.lineClass} />
                     <CardContent className="p-5 space-y-4">
                       <div className="flex items-start justify-between">
                         <div className="flex items-center gap-3">
                           <div className="w-12 h-12 rounded-full bg-whatsapp/10 flex items-center justify-center"><WhatsappLogo weight="fill" className="w-6 h-6 text-whatsapp" /></div>
                           <div>
-                            <h3 className="font-semibold">{session.name}</h3>
+                            <h3 className="font-semibold">{session.displayName}</h3>
                             <p className="text-sm text-muted-foreground flex items-center gap-1"><Phone weight="fill" className="w-3 h-3" />{session.phone || "-"}</p>
                           </div>
                         </div>
@@ -593,26 +435,87 @@ export default function Connections() {
                       </div>
 
                       <div className="grid grid-cols-1 gap-2">
-                        <Button variant="outline" size="sm" className="w-full gap-2" onClick={() => void handleGenerateQr(session)} disabled={preventQrRegeneration || isDeleting}>
-                          {isRestarting ? <Spinner className="w-4 h-4 animate-spin" /> : <QrCode className="w-4 h-4" />}
-                          {isRestarting ? "Loading" : "Generate QR"}
-                        </Button>
-                        {session.status === "connected" ? (
-                          <Button variant="outline" size="sm" className="w-full gap-2" onClick={() => void handleLogoutSession(session.id)} disabled={isRestarting || isDeleting}>
+                        {(session.resolvedStatus === "qr" || session.resolvedStatus === "connecting") && (
+                          <Button
+                            variant="default"
+                            size="sm"
+                            className="w-full gap-2 bg-amber-600 hover:bg-amber-700 text-white font-medium"
+                            onClick={(e) => {
+                              stopCardClick(e);
+                              setQrModalSessionId(session.id);
+                            }}
+                            disabled={isDeleting}
+                          >
+                            <QrCode className="w-4 h-4" />
+                            Scan QR Code
+                          </Button>
+                        )}
+                        {session.resolvedStatus !== "connected" && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="w-full gap-2"
+                            onClick={(e) => {
+                              stopCardClick(e);
+                              void handleGenerateQr(session.id);
+                            }}
+                            disabled={preventQrRegeneration || isDeleting}
+                          >
+                            {isRestarting ? <Spinner className="w-4 h-4 animate-spin" /> : <QrCode className="w-4 h-4" />}
+                            {isRestarting ? "Loading" : "Generate QR"}
+                          </Button>
+                        )}
+                        {session.resolvedStatus === "connected" ? (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="w-full gap-2"
+                            onClick={(e) => {
+                              stopCardClick(e);
+                              void handleLogoutSession(session.id);
+                            }}
+                            disabled={isRestarting || isDeleting}
+                          >
                             <ArrowClockwise className="w-4 h-4" />Logout
                           </Button>
-                        ) : session.status === "disconnected" ? (
-                          <Button size="sm" className="w-full gap-2" onClick={() => void handleConnectSession(session.id)} disabled={isRestarting || isDeleting}>
+                        ) : session.resolvedStatus === "disconnected" ? (
+                          <Button
+                            size="sm"
+                            className="w-full gap-2"
+                            onClick={(e) => {
+                              stopCardClick(e);
+                              void handleConnectSession(session.id);
+                            }}
+                            disabled={isRestarting || isDeleting}
+                          >
                             {isRestarting ? <Spinner className="w-4 h-4 animate-spin" /> : <ArrowClockwise className="w-4 h-4" />}
                             {isRestarting ? "Loading" : "Connect"}
                           </Button>
                         ) : (
-                          <Button variant="outline" size="sm" className="w-full gap-2" onClick={() => void handleConnectSession(session.id)} disabled={isRestarting || isDeleting}>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="w-full gap-2"
+                            onClick={(e) => {
+                              stopCardClick(e);
+                              void handleConnectSession(session.id);
+                            }}
+                            disabled={isRestarting || isDeleting}
+                          >
                             {isRestarting ? <Spinner className="w-4 h-4 animate-spin" /> : <ArrowClockwise className="w-4 h-4" />}
                             {isRestarting ? "Loading" : "Restart"}
                           </Button>
                         )}
-                        <Button variant="outline" size="sm" className="w-full gap-2" onClick={() => void handleDelete(session.id)} disabled={isDeleting}>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="w-full gap-2"
+                          onClick={(e) => {
+                            stopCardClick(e);
+                            void handleDelete(session.id);
+                          }}
+                          disabled={isDeleting}
+                        >
                           {isDeleting ? <Spinner className="w-4 h-4 animate-spin" /> : <Trash className="w-4 h-4" />}
                           {isDeleting ? "Loading" : "Delete"}
                         </Button>
@@ -622,6 +525,36 @@ export default function Connections() {
                 );
               })}
         </div>
+
+        {!isInitialLoading && sessionsWithStatus.length === 0 && (
+          <div className="mt-8 space-y-6">
+            <Card className="glass-card p-8 text-center">
+              <div className="mx-auto w-16 h-16 rounded-full bg-warning/10 flex items-center justify-center mb-4">
+                <WhatsappLogo weight="fill" className="w-8 h-8 text-warning" />
+              </div>
+              <h3 className="font-display text-lg font-semibold mb-2">Comece testando sua conexão</h3>
+              <p className="text-sm text-muted-foreground mb-1">Clique em "Activate WhatsApp" para criar sua primeira sessão.</p>
+              <p className="text-xs text-muted-foreground">✓ Tenha o celular em mãos</p>
+            </Card>
+
+            <Card className="glass-card p-8 text-center">
+              <div className="mx-auto w-16 h-16 rounded-full bg-success/10 flex items-center justify-center mb-4">
+                <CheckCircle weight="fill" className="w-8 h-8 text-success" />
+              </div>
+              <h3 className="font-display text-lg font-semibold mb-2">Sorria, sua sessão WhatsApp está</h3>
+              <p className="text-sm text-muted-foreground mb-4">prestes a ser configurada. Conecte agora<br />e teste seu primeiro contato.</p>
+              <Button
+                className="gap-2"
+                onClick={() => {
+                  setNewSessionName("");
+                  setCreateOpen(true);
+                }}
+              >
+                <Plus weight="bold" className="w-4 h-4" /> Nova Conexão
+              </Button>
+            </Card>
+          </div>
+        )}
       </motion.div>
     </div>
   );

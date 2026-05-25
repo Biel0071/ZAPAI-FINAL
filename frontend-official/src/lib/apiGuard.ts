@@ -1,6 +1,6 @@
-import { isAdminAuthSessionValid, loadAdminAuthSession } from "@/lib/adminAuthSession";
+import { getAdminAuthTenantId, isAdminAuthSessionValid, loadAdminAuthSession } from "@/lib/adminAuthSession";
 
-export const FIXED_TENANT_ID = "main";
+export const DEFAULT_TENANT_ID = "default";
 
 export const REQUIRED_API_ENDPOINTS = [
   "/api/health",
@@ -11,6 +11,11 @@ export const REQUIRED_API_ENDPOINTS = [
 ] as const;
 
 export const PUBLISH_BLOCKER_ENDPOINTS = ["/api/health", "/api/conversations"] as const;
+
+export function getCurrentTenantId(): string {
+  const session = loadAdminAuthSession();
+  return getAdminAuthTenantId(session) ?? DEFAULT_TENANT_ID;
+}
 
 async function readAccessToken(): Promise<string | null> {
   // Always prefer the admin auth session (backend JWT) over Supabase
@@ -36,7 +41,7 @@ export async function buildApiHeaders(): Promise<Record<string, string>> {
   return {
     Accept: "application/json",
     "Content-Type": "application/json",
-    "x-tenant-id": FIXED_TENANT_ID,
+    "x-tenant-id": getCurrentTenantId(),
     "ngrok-skip-browser-warning": "true",
     ...(token ? { Authorization: `Bearer ${token}` } : {}),
   };

@@ -168,12 +168,26 @@ backendLog('info', 'boot:start', { pid: process.pid });
 
 const app = express();
 const server = http.createServer(app);
+
+// CORS options used by both Express and Socket.IO
+const corsOptions = {
+  origin: validateOrigin,
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+  allowedHeaders: [
+    'Content-Type',
+    'Authorization',
+    'x-tenant-id',
+    'x-company-id',
+    'x-session-id',
+    'x-request-id',
+    'ngrok-skip-browser-warning',
+    'X-Requested-With',
+  ],
+};
+
 const io = new Server(server, {
-  cors: {
-    origin: validateOrigin,
-    credentials: true,
-    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-  },
+  cors: corsOptions,
   pingInterval: Math.max(5_000, Number(process.env.SOCKET_PING_INTERVAL_MS || 25_000)),
   pingTimeout: Math.max(5_000, Number(process.env.SOCKET_PING_TIMEOUT_MS || 20_000)),
 });
@@ -222,21 +236,24 @@ const ENABLE_ADMIN_MASTER_ROUTES = runtimeEnv.enableAdminMasterRoutes;
 const ENABLE_NODE_REGISTRATION_SERVER = runtimeEnv.enableNodeRegistrationServer;
 const ENABLE_NODE_AUTO_REGISTER_CLIENT = runtimeEnv.enableNodeAutoRegisterClient;
 const FRONTEND_URL = runtimeEnv.frontendUrl;
-const ENV_ALLOWED_ORIGINS = runtimeEnv.allowedOriginsFromEnv || process.env.ALLOWED_ORIGINS?.split(',') || [];
+// APP_PUBLIC_URL is the single-source-of-truth for production URL.
+// Set it in .env.production to your VPS IP or domain.
+const APP_PUBLIC_URL = runtimeEnv.appPublicUrl || String(process.env.APP_PUBLIC_URL || '').trim();
+const ENV_ALLOWED_ORIGINS = [...runtimeEnv.allowedOriginsFromEnv];
 const BASE_ALLOWED_ORIGINS = [
-  'https://swift-wa-assist.lovable.app',
-  'https://*.lovable.app',
+  // Development origins — always allowed in non-production
   'http://localhost:8080',
   'http://localhost:5173',
+  'http://localhost:3000',
   'http://127.0.0.1:8080',
   'http://127.0.0.1:5173',
-  'http://209.50.229.68',
-  'http://209.50.229.68:4025',
-  'http://209.50.229.68:80',
-  'https://209.50.229.68',
+  'http://127.0.0.1:3000',
+  // Production: sourced from env vars only (no hardcoded IPs/domains)
+  ...(APP_PUBLIC_URL ? [APP_PUBLIC_URL] : []),
   ...(FRONTEND_URL ? [FRONTEND_URL] : []),
   ...ENV_ALLOWED_ORIGINS,
 ];
+
 let PUBLIC_API_URL = `http://localhost:${PORT}`;
 let heartbeatTimer = null;
 
@@ -451,19 +468,7 @@ app.use(express.urlencoded({ extended: true, limit: DEFAULT_PAYLOAD_LIMIT }));
 
 // CORS: validated via isOriginAllowed (allow-list in production, permissive in dev).
 // The `cors` package handles preflight (OPTIONS) responses automatically.
-const corsOptions = {
-  origin: validateOrigin,
-  credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-  allowedHeaders: [
-    'Content-Type',
-    'Authorization',
-    'x-tenant-id',
-    'x-company-id',
-    'x-session-id',
-    'x-request-id',
-  ],
-};
+// (corsOptions is defined above and shared with Socket.IO)
 
 app.use(helmet({
   contentSecurityPolicy: false, // Disabled for Socket.IO and API flexibility
