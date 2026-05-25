@@ -1,6 +1,7 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef } from "react";
 import { API_ORIGIN, IS_API_URL_CONFIGURED, IS_MIXED_CONTENT_BLOCKED } from "@/lib/backendConfig";
 import { getCurrentTenantId } from "@/lib/apiGuard";
+import { useAppStore } from "@/stores/appStore";
 
 const OFFLINE_BASE_RETRY_MS = 12_000;
 const OFFLINE_MAX_RETRY_MS = 45_000;
@@ -40,10 +41,11 @@ async function pingBackend(signal: AbortSignal): Promise<ApiRuntimeStatus> {
 }
 
 export function useApiRuntimeStatus() {
-  const [status, setStatus] = useState<ApiRuntimeStatus>({
-    online: IS_API_URL_CONFIGURED,
-    latencyMs: null,
-  });
+  const connectionState = useAppStore((state) => state.apiHealth);
+  const latencyMs = useAppStore((state) => state.apiLatency);
+  const isOnline = connectionState === "ONLINE";
+  const apiLabel = isOnline ? "ONLINE" : "OFFLINE";
+
   const retryDelayRef = useRef(OFFLINE_BASE_RETRY_MS);
   const offlineStartedAtRef = useRef<number | null>(null);
   const timerRef = useRef<number | null>(null);
@@ -61,7 +63,7 @@ export function useApiRuntimeStatus() {
     let mounted = true;
 
     if (!IS_API_URL_CONFIGURED || !API_ORIGIN) {
-      setStatus({ online: false, latencyMs: null });
+      useAppStore.getState().updateApiHealth("OFFLINE", null);
       return () => {
         mounted = false;
       };
@@ -83,10 +85,10 @@ export function useApiRuntimeStatus() {
         const nextStatus = await pingBackend(controller.signal);
         if (!mounted) return;
 
-        setStatus(nextStatus);
         if (nextStatus.online) {
           offlineStartedAtRef.current = null;
           retryDelayRef.current = OFFLINE_BASE_RETRY_MS;
+          useAppStore.getState().updateApiHealth("ONLINE", nextStatus.latencyMs);
           schedule(ONLINE_REVALIDATE_MS);
           return;
         }
@@ -95,16 +97,23 @@ export function useApiRuntimeStatus() {
           offlineStartedAtRef.current = Date.now();
         }
 
+        const offlineForMs = Date.now() - (offlineStartedAtRef.current ?? Date.now());
+        const nextState = offlineForMs < 30_000 ? "RECONNECTING" : "OFFLINE";
+        useAppStore.getState().updateApiHealth(nextState, nextStatus.latencyMs);
+
         const nextDelay = Math.min(retryDelayRef.current, OFFLINE_MAX_RETRY_MS);
         schedule(nextDelay);
         retryDelayRef.current = Math.min(Math.round(nextDelay * 1.6), OFFLINE_MAX_RETRY_MS);
       } catch {
         if (!mounted) return;
 
-        setStatus({ online: false, latencyMs: null });
         if (!offlineStartedAtRef.current) {
           offlineStartedAtRef.current = Date.now();
         }
+        const offlineForMs = Date.now() - (offlineStartedAtRef.current ?? Date.now());
+        const nextState = offlineForMs < 30_000 ? "RECONNECTING" : "OFFLINE";
+        useAppStore.getState().updateApiHealth(nextState, null);
+
         const nextDelay = Math.min(retryDelayRef.current, OFFLINE_MAX_RETRY_MS);
         schedule(nextDelay);
         retryDelayRef.current = Math.min(Math.round(nextDelay * 1.6), OFFLINE_MAX_RETRY_MS);
@@ -124,14 +133,6 @@ export function useApiRuntimeStatus() {
     };
   }, []);
 
-  const apiLabel = status.online ? "ONLINE" : "OFFLINE";
-  const offlineForMs = offlineStartedAtRef.current ? Date.now() - offlineStartedAtRef.current : 0;
-  const connectionState: "ONLINE" | "RECONNECTING" | "OFFLINE" = status.online
-    ? "ONLINE"
-    : offlineForMs < 30_000
-      ? "RECONNECTING"
-      : "OFFLINE";
-
   const manualReconnect = () => {
     offlineStartedAtRef.current = null;
     retryDelayRef.current = OFFLINE_BASE_RETRY_MS;
@@ -143,22 +144,22 @@ export function useApiRuntimeStatus() {
 
     void pingBackend(controller.signal)
       .then((nextStatus) => {
-        setStatus(nextStatus);
+        useAppStore.getState().updateApiHealth(nextStatus.online ? "ONLINE" : "OFFLINE", nextStatus.latencyMs);
         clearTimer();
         timerRef.current = window.setTimeout(() => {
           runProbeRef.current();
         }, nextStatus.online ? ONLINE_REVALIDATE_MS : OFFLINE_BASE_RETRY_MS);
       })
       .catch(() => {
-        setStatus({ online: false, latencyMs: null });
+        useAppStore.getState().updateApiHealth("OFFLINE", null);
       });
   };
 
   return {
     apiLabel,
     connectionState,
-    latencyMs: status.latencyMs,
-    isOnline: status.online,
+    latencyMs,
+    isOnline,
     retryIntervalMs: OFFLINE_BASE_RETRY_MS,
     manualReconnect,
   };

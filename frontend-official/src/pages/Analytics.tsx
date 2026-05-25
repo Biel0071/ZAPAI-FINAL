@@ -2,12 +2,13 @@ import { useEffect, useState } from "react";
 import { Header } from "@/components/layout/Header";
 import AnalyticsView from "@/lovable/pages/AnalyticsPageView";
 import { createAnalyticsLovableViewModel } from "@/adapters/lovable/analyticsAdapter";
-import { apiService, type MetricsSummary } from "@/services/apiService";
+import { apiService } from "@/services/apiService";
+import { useAppStore } from "@/stores/appStore";
 
 export default function Analytics() {
-  const [metrics, setMetrics] = useState<MetricsSummary | null>(null);
-  const [conversationCount, setConversationCount] = useState(0);
   const [loading, setLoading] = useState(true);
+  const storeMetrics = useAppStore((state) => state.metrics);
+  const conversations = useAppStore((state) => state.conversations);
 
   useEffect(() => {
     let mounted = true;
@@ -21,12 +22,12 @@ export default function Analytics() {
 
         if (!mounted) return;
 
-        if (metricsResult.status === "fulfilled") {
-          setMetrics(metricsResult.value);
+        if (metricsResult.status === "fulfilled" && metricsResult.value) {
+          useAppStore.getState().setMetrics(metricsResult.value);
         }
 
-        if (conversationsResult.status === "fulfilled") {
-          setConversationCount(Array.isArray(conversationsResult.value) ? conversationsResult.value.length : 0);
+        if (conversationsResult.status === "fulfilled" && Array.isArray(conversationsResult.value)) {
+          useAppStore.getState().setConversations(conversationsResult.value);
         }
       } finally {
         if (mounted) setLoading(false);
@@ -40,8 +41,9 @@ export default function Analytics() {
   }, []);
 
   const analyticsViewModel = createAnalyticsLovableViewModel({
-    metrics,
-    conversationCount,
+    metrics: storeMetrics,
+    conversationCount: conversations.length,
+    conversations,
   });
 
   return (

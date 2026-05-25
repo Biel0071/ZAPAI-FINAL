@@ -17,15 +17,16 @@
  * - Realtime subscriptions for WhatsApp sessions and QR codes
  */
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from "react";
-import { connectInboxSocket, forceReconnectInboxSocket } from "@/services/socketService";
-import { apiService } from "@/services/apiService";
+import { connectInboxSocket, forceReconnectInboxSocket } from "@/runtime/socket/socketManager";
+import { apiService, type ChatMessage } from "@/services/apiService";
 import { useAppStore } from "@/stores/appStore";
 import { API_ORIGIN } from "@/lib/backendConfig";
 import { normalizeSession, getSessionId } from "@/services/normalizeSession";
 import {
   buildRuntimeCoherenceSnapshot,
   persistRuntimeCoherenceSnapshot,
-} from "@/services/runtimeCoherenceService";
+} from "@/runtime/services/runtimeCoherenceService";
+import { parseChatsLoadedPayload, parseContactsLoadedPayload } from "@/runtime/utils/inboxNormalization";
 
 type RuntimeStatus = "online" | "reconnecting" | "offline";
 
@@ -68,21 +69,8 @@ export function RuntimeProvider({ children }: { children: ReactNode }) {
   ).length;
 
   const forceRefresh = useCallback(async () => {
-    try {
-      const response = await apiService.listSessions();
-      const normalized = (response ?? []).map(normalizeSession);
-
-      useAppStore.getState().setSessions(normalized);
-
-      for (const session of normalized) {
-        if (session.status === "connected") {
-          useAppStore.getState().clearLastQr(session.id);
-        }
-      }
-    } catch (err) {
-      console.warn("[Runtime] forceRefresh:error", err);
-    }
-  }, []);
+    await loadFromApi();
+  }, [loadFromApi]);
 
   // Full API refresh — called on mount and on reconnect
   const loadFromApi = useCallback(async () => {
@@ -176,6 +164,8 @@ export function RuntimeProvider({ children }: { children: ReactNode }) {
       onSocketConnected: () => {
         console.info("[Runtime] socket:connected");
         setStatus("online");
+        useAppStore.getState().updateRuntimeStatus("online");
+        useAppStore.getState().updateWebsocketHealth("online");
         disconnectedAtRef.current = null;
         persistRuntimeCoherenceSnapshot(
           buildRuntimeCoherenceSnapshot({
@@ -202,6 +192,10 @@ export function RuntimeProvider({ children }: { children: ReactNode }) {
         const nextStatus = elapsed < 30_000 ? "reconnecting" : "offline";
         console.warn(`[Runtime] socket:disconnected status=${nextStatus} elapsed=${elapsed}ms`);
         setStatus(nextStatus);
+        useAppStore.getState().updateRuntimeStatus(nextStatus);
+        useAppStore.getState().updateWebsocketHealth(
+          nextStatus === "reconnecting" ? "reconnecting" : "offline"
+        );
 
         persistRuntimeCoherenceSnapshot(
           buildRuntimeCoherenceSnapshot({
@@ -263,6 +257,156 @@ export function RuntimeProvider({ children }: { children: ReactNode }) {
       onConversationUpdated: (incoming) => {
         if (!incoming?.id) return;
         useAppStore.getState().upsertConversation(incoming);
+      },
+
+      onChatsLoaded: (payload) => {
+        const loadedChats = parseChatsLoadedPayload(payload);
+        if (!loadedChats.length) return;
+        const store = useAppStore.getState();
+        store.setConversations((prev) => {
+          const nextList = [...prev];
+          for (const chat of loadedChats) {
+            const idx = nextList.findIndex((c) => c.id === chat.id);
+            if (idx === -1) {
+              nextList.push(chat);
+            } else {
+              nextList[idx] = { ...nextList[idx], ...chat };
+            }
+          }
+          return nextList;
+        });
+      },
+
+      onConversationSnapshot: (payload) => {
+        const activeConversationId = useAppStore.getState().activeConversationId;
+        if (!activeConversationId) return;
+
+        const rawMessages = Array.isArray(payload)
+          ? payload
+          : payload && typeof payload === "object" && Array.isArray((payload as any).messages)
+            ? (payload as any).messages
+            : Array.isArray((payload as any).data)
+              ? (payload as any).data
+              : [];
+        if (!rawMessages.length) return;
+
+        const parsedMessages = rawMessages.map((item: any, index: number) => {
+          const mediaUrl = item.mediaUrl || item.media_url || item.url;
+          const mediaType = item.mediaType || item.type;
+          return {
+            id: String(item.id || `snapshot-${activeConversationId}-${index}`),
+            conversationId: String(item.conversationId || item.chatId || activeConversationId),
+            content: String(item.content || item.text || item.body || ""),
+            fromMe: Boolean(item.fromMe || item.sent || false),
+            createdAt: String(item.createdAt || item.created_at || item.timestamp || new Date().toISOString()),
+            timestamp: String(item.timestamp || ""),
+            status: item.status || "sent",
+            isAI: Boolean(item.isAI || false),
+            mediaType: mediaType,
+            mediaUrl: mediaUrl,
+            caption: item.caption,
+          } as ChatMessage;
+        }).filter((m: any) => m.conversationId === activeConversationId);
+
+        if (parsedMessages.length) {
+          useAppStore.getState().setMessages(activeConversationId, parsedMessages);
+        }
+      },
+
+      onContactsLoaded: (payload) => {
+        const contacts = parseContactsLoadedPayload(payload);
+        if (!contacts.length) return;
+        const store = useAppStore.getState();
+        store.setConversations((prev) =>
+          prev.map((c) => {
+            const match = contacts.find((contact) => contact.phone === c.phone);
+            if (match) {
+              return { ...c, contactName: match.name };
+            }
+            return c;
+          })
+        );
+      },
+
+      onAiResponse: (incoming) => {
+        if (!incoming?.id) return;
+        const conversationId = incoming.conversationId || incoming.chatId;
+        if (!conversationId) return;
+        console.info(`[Runtime] ai_response id=${incoming.id} conversation=${conversationId}`);
+        useAppStore.getState().addMessage(conversationId, incoming as ChatMessage);
+
+        const store = useAppStore.getState();
+        store.updateConversationRealtime({
+          id: conversationId,
+          lastMessage: incoming.content || "",
+          updatedAt: incoming.createdAt || new Date().toISOString(),
+        });
+      },
+
+      onChatArchived: ({ chatId, conversationId }) => {
+        const resolvedId = chatId || conversationId;
+        if (!resolvedId) return;
+        useAppStore.getState().updateConversationRealtime({
+          id: resolvedId,
+          status: "archived" as any,
+        });
+      },
+
+      onChatTagUpdated: ({ chatId, conversationId, tag, action }) => {
+        const resolvedId = chatId || conversationId;
+        if (!resolvedId || !tag) return;
+        const store = useAppStore.getState();
+        const conv = store.conversations.find((c) => c.id === resolvedId);
+        if (!conv) return;
+        const currentTags = conv.tags || [];
+        const nextTags = action === "remove"
+          ? currentTags.filter((t) => t !== tag)
+          : Array.from(new Set([...currentTags, tag]));
+        store.updateConversationRealtime({
+          id: resolvedId,
+          tags: nextTags,
+        });
+      },
+
+      // ─── Message events → Zustand store ─────────────────
+      onNewMessage: (incoming) => {
+        if (!incoming?.id) return;
+        const conversationId = incoming.conversationId || incoming.chatId;
+        if (!conversationId) return;
+
+        console.info(`[Runtime] new_message id=${incoming.id} conversation=${conversationId}`);
+        useAppStore.getState().addMessage(conversationId, incoming);
+
+        const store = useAppStore.getState();
+        const isActive = store.activeConversationId === conversationId;
+        const currentConv = store.conversations.find((c) => c.id === conversationId);
+
+        useAppStore.getState().updateConversationRealtime({
+          id: conversationId,
+          lastMessage: incoming.content || "",
+          updatedAt: incoming.createdAt || new Date().toISOString(),
+          unread: isActive ? 0 : (incoming.fromMe ? 0 : 1) + (currentConv?.unread ?? 0),
+        });
+      },
+
+      onMessageStatus: (payload) => {
+        const { messageId, status, conversationId } = payload;
+        if (!messageId || !conversationId) return;
+        console.info(`[Runtime] message_status id=${messageId} status=${status}`);
+        useAppStore.getState().updateMessageStatus(conversationId, messageId, status as ChatMessage["status"]);
+      },
+
+      onMessageDeleted: (payload) => {
+        const { messageId, conversationId } = payload;
+        if (!messageId || !conversationId) return;
+        console.warn(`[Runtime] message_deleted id=${messageId}`);
+        useAppStore.getState().deleteMessage(conversationId, messageId);
+      },
+
+      onTypingStatus: (payload) => {
+        const { conversationId, isTyping } = payload;
+        if (!conversationId) return;
+        useAppStore.getState().updateTypingStatus(conversationId, isTyping);
       },
     });
 

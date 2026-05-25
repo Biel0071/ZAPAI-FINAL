@@ -1,8 +1,8 @@
 /* apiService — FIX applied 2026-05-25T16:59 — error:null guard */
 import { getCache, invalidateCache, setCache } from "@/lib/requestCache";
 import { buildApiHeaders } from "@/lib/apiGuard";
-import { reportFrontendIssue } from "@/services/frontendHealthService";
-import { slog } from "@/lib/structuredLogger";
+import { reportFrontendIssue } from "@/runtime/services/frontendHealthService";
+import { slog } from "@/runtime/logs/structuredLogger";
 import { notify } from "@/services/notifyService";
 import { API_BASE_URL, API_ORIGIN } from "@/lib/backendConfig";
 import { clearAdminAuthSession } from "@/lib/adminAuthSession";

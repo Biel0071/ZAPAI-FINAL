@@ -1,6 +1,6 @@
 import { io, type Socket } from "socket.io-client";
 import type { ChatMessage, Conversation } from "@/services/apiService";
-import { markFrontendHealthy, reportFrontendIssue } from "@/services/frontendHealthService";
+import { markFrontendHealthy, reportFrontendIssue } from "@/runtime/services/frontendHealthService";
 import { loadAdminAuthSession } from "@/lib/adminAuthSession";
 
 type RawRealtimeMessage = {

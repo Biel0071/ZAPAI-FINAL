@@ -1,4 +1,4 @@
-import { slog } from "@/lib/structuredLogger";
+import { slog } from "@/runtime/logs/structuredLogger";
 import { API_BASE_URL } from "@/lib/backendConfig";
 import { buildApiHeaders } from "@/lib/apiGuard";
 

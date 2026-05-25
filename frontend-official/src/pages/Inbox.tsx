@@ -46,7 +46,8 @@ import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { getInboxUnreadTotal, publishInboxUnreadTotal } from "@/lib/inboxUnread";
 import { apiService, API_ORIGIN, type ChatMessage, type Conversation, type MessageSendResponse, type SessionInfo } from "@/services/apiService";
-import { connectInboxSocket, emitInboxSocketEvent, forceReconnectInboxSocket } from "@/services/socketService";
+import { useAppStore } from "@/stores/appStore";
+import { emitInboxSocketEvent, forceReconnectInboxSocket } from "@/runtime/socket/socketManager";
 import { notify } from "@/services/notifyService";
 import { analyzeLeadIntent, type LeadIntentResult } from "@/services/leadAnalyzer";
 import { generateSalesStrategy } from "@/services/salesStrategyEngine";
@@ -1084,9 +1085,25 @@ export default function Inbox() {
   const isMobile = useIsMobile();
   const navigate = useNavigate();
 
-  const [conversations, setConversations] = useState<Conversation[]>(() => dedupeConversationsByScope(loadPersistedConversations(), loadContactDirectory()));
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
-  const [selectedConversationId, setSelectedConversationId] = useState<string | null>(null);
+  const conversations = useAppStore((state) => state.conversations);
+  const setConversations = useCallback((listOrUpdater: Conversation[] | ((prev: Conversation[]) => Conversation[])) => {
+    useAppStore.getState().setConversations(listOrUpdater);
+  }, []);
+
+  const selectedConversationId = useAppStore((state) => state.activeConversationId);
+  const setSelectedConversationId = useCallback((id: string | null) => {
+    useAppStore.getState().setActiveConversationId(id);
+  }, []);
+
+  const messages = useAppStore((state) => state.messagesByConversationId[selectedConversationId || ""] || []);
+  const setMessages = useCallback((updater: ChatMessage[] | ((prev: ChatMessage[]) => ChatMessage[])) => {
+    if (!selectedConversationId) return;
+    const store = useAppStore.getState();
+    const current = store.messagesByConversationId[selectedConversationId] || [];
+    const next = typeof updater === "function" ? updater(current) : updater;
+    store.setMessages(selectedConversationId, next);
+  }, [selectedConversationId]);
+
   const [messageInput, setMessageInput] = useState("");
   const [filter, setFilter] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
@@ -1124,7 +1141,10 @@ export default function Inbox() {
   const [mobileScreen, setMobileScreen] = useState<"conversations" | "chat">("conversations");
   const [isTabletLayout, setIsTabletLayout] = useState<boolean>(() => window.innerWidth < 1024);
   const [keyboardOffset, setKeyboardOffset] = useState(0);
-  const [sessions, setSessions] = useState<SessionInfo[]>([]);
+  const sessions = useAppStore((state) => state.sessions);
+  const setSessions = useCallback((sessionsList: any) => {
+    useAppStore.getState().setSessions(sessionsList);
+  }, []);
   const [preferredSessionId, setPreferredSessionId] = useState<string | null>(() => localStorage.getItem(ACTIVE_SESSION_STORAGE_KEY));
   const [EmojiPickerComponent, setEmojiPickerComponent] = useState<ComponentType<{ data: unknown; onEmojiSelect: (emoji: { native?: string }) => void; previewPosition: "none"; skinTonePosition: "none"; theme: "light" }> | null>(null);
   const [emojiPickerData, setEmojiPickerData] = useState<unknown>(null);
@@ -1132,7 +1152,7 @@ export default function Inbox() {
   const [activeMessageMenuId, setActiveMessageMenuId] = useState<string | null>(null);
   const [activeReactionPickerMessageId, setActiveReactionPickerMessageId] = useState<string | null>(null);
   const [replyingTo, setReplyingTo] = useState<ChatMessage | null>(null);
-  const [typingByConversationId, setTypingByConversationId] = useState<Record<string, boolean>>({});
+  const typingByConversationId = useAppStore((state) => state.typingUsers);
   const [unseenRealtimeCount, setUnseenRealtimeCount] = useState(0);
   const [conversationControls, setConversationControls] = useState<Record<string, ConversationControl>>({});
   const [updatingAiToggle, setUpdatingAiToggle] = useState(false);
@@ -1952,494 +1972,17 @@ export default function Inbox() {
     void run();
   }, [conversationControls, messages, selectedConversation]);
 
+  const globalWebsocketHealth = useAppStore((state) => state.websocketHealth);
+
   useEffect(() => {
-    if (!socketUrl) return;
-
-    // websocket-first: do not force backend refresh after each realtime event
-
-    const disconnect = connectInboxSocket({
-      socketUrl,
-      onNewMessage: (incoming) => {
-        if (isProcessingRealtimeRef.current) return;
-        isProcessingRealtimeRef.current = true;
-
-        try {
-        if (!incoming?.id) return;
-        const incomingTimestampRaw = incoming.timestamp ?? incoming.createdAt;
-        const incomingTimestamp = new Date(String(incomingTimestampRaw ?? "")).getTime();
-        if (Number.isFinite(incomingTimestamp) && incomingTimestamp < lastRealtimeTimestampRef.current) {
-          return;
-        }
-        if (Number.isFinite(incomingTimestamp)) {
-          lastRealtimeTimestampRef.current = incomingTimestamp;
-        }
-        const activeConversation = selectedConversationRef.current;
-        const activeScope = getConversationScope({
-          phone: activeConversation?.phone,
-          sessionId: activeConversation?.sessionId,
-        });
-        const incomingScope = getConversationScope({
-          phone: incoming.phone,
-          sessionId: incoming.sessionId,
-        });
-        const knownConversationById = incoming.conversationId
-          ? conversationsRef.current.find((item) => String(item.id) === String(incoming.conversationId))
-          : null;
-        const knownConversationByScope = incomingScope
-          ? conversationsRef.current.find(
-              (item) =>
-                getConversationScope({
-                  phone: item.phone,
-                  sessionId: item.sessionId,
-                }) === incomingScope,
-            )
-          : null;
-        const resolvedConversationId = resolveIncomingConversationId({
-          incoming: {
-            conversationId: incoming.conversationId,
-            sessionId: incoming.sessionId,
-            phone: incoming.phone,
-            contactId: incoming.contactId,
-          },
-          activeConversation,
-          conversations: conversationsRef.current,
-          preferredSessionId: preferredSessionIdRef.current,
-        });
-        const incomingConversationId = String(
-          knownConversationById?.id ||
-            knownConversationByScope?.id ||
-            (incomingScope && incomingScope === activeScope ? activeConversation?.id : undefined) ||
-            incoming.conversationId ||
-            resolvedConversationId ||
-            buildFallbackConversationId({
-              phone: incoming.phone,
-              sessionId: incoming.sessionId,
-            }),
-        );
-
-        if (!incomingConversationId) return;
-
-        const normalizedIncoming: ChatMessage & { phone?: string; sessionId?: string; messageType?: "text" | "image" | "video" | "audio" | "file" } = {
-          ...incoming,
-          conversationId: incomingConversationId,
-          id: String(incoming.id),
-        };
-
-        const incomingConversationKey = getMessageConversationKey({
-          conversationId: incomingConversationId,
-          chatId: incoming.chatId,
-          sessionId: normalizedIncoming.sessionId,
-          phone: normalizedIncoming.phone,
-          remoteJid: incoming.remoteJid,
-          jid: incoming.jid,
-        });
-        const selectedChatKey = selectedConversationRef.current ? getConversationKey(selectedConversationRef.current) : "";
-        const isActiveConversation = Boolean(selectedChatKey && incomingConversationKey === selectedChatKey);
-
-        const scrollChatToBottom = () => {
-          const root = messagesScrollRef.current?.closest("[data-radix-scroll-area-root]");
-          const viewport = root?.querySelector("[data-radix-scroll-area-viewport]") as HTMLDivElement | null;
-          if (!viewport || !autoScrollRef.current) return false;
-          window.requestAnimationFrame(() => {
-            viewport.scrollTo({ top: viewport.scrollHeight, behavior: "smooth" });
-          });
-          return true;
-        };
-
-        const updateMessages = (conversationId: string, conversationKey: string, message: ChatMessage) => {
-          const normalizedConversationId = String(conversationId);
-          const cached = messageCacheRef.current.get(conversationKey);
-          const base = cached?.messages ?? [];
-
-          const tempIds = pendingOutgoingTempIdsRef.current.get(normalizedConversationId) ?? [];
-          let nextBase = base;
-          if (message.fromMe && tempIds.length > 0) {
-            const [tempIdToRemove, ...rest] = tempIds;
-            if (tempIdToRemove) {
-              nextBase = nextBase.filter((item) => item.id !== tempIdToRemove);
-              clearPendingFallbackTimersForTempId(tempIdToRemove);
-              if (rest.length > 0) {
-                pendingOutgoingTempIdsRef.current.set(normalizedConversationId, rest);
-              } else {
-                pendingOutgoingTempIdsRef.current.delete(normalizedConversationId);
-              }
-            }
-          }
-
-          if (nextBase.some((item) => item.id === message.id)) {
-            return false;
-          }
-
-          const next = sortMessagesAsc([...nextBase, message]);
-          const hasMoreFromCache = cached?.hasMore ?? next.length >= MESSAGE_PAGE_SIZE;
-          updateConversationMessageStore(normalizedConversationId, next, hasMoreFromCache);
-
-          if (isActiveConversation) {
-            messageIdsRef.current.add(message.id);
-            setMessages(next);
-            const scrolled = scrollChatToBottom();
-            if (!scrolled && !message.fromMe) {
-              setUnseenRealtimeCount((prev) => prev + 1);
-            } else if (scrolled) {
-              setUnseenRealtimeCount(0);
-            }
-          }
-
-          return true;
-        };
-
-        const wasInserted = updateMessages(incomingConversationId, incomingConversationKey, normalizedIncoming);
-        if (!wasInserted) return;
-
-        if (!normalizedIncoming.fromMe) {
-          notify.success("New message received");
-        }
-
-        setConversations((prev) => {
-          const existing =
-            prev.find((conversation) => String(conversation.id) === incomingConversationId) ??
-            (incomingScope
-              ? prev.find(
-                  (conversation) =>
-                    getConversationScope({ phone: conversation.phone, sessionId: conversation.sessionId }) === incomingScope,
-                )
-              : undefined);
-          const unreadBase = existing?.unread ?? 0;
-          const lastMessageText = normalizedIncoming.content || (normalizedIncoming.messageType ? `[${normalizedIncoming.messageType}]` : "");
-          const lastMessageTimestamp = normalizedIncoming.createdAt ?? new Date().toISOString();
-          const unread = normalizedIncoming.fromMe ? unreadBase : 0;
-
-          const nextConversation: Conversation = existing
-            ? {
-                ...existing,
-                sessionId: normalizedIncoming.sessionId ?? existing.sessionId,
-                lastMessage: lastMessageText || existing.lastMessage,
-                updatedAt: lastMessageTimestamp,
-                unread,
-                lastMessageType: normalizedIncoming.messageType ?? normalizedIncoming.mediaType ?? existing.lastMessageType ?? "text",
-              }
-            : {
-                id: incomingConversationId,
-                contactName: normalizedIncoming.phone || "Contato",
-                phone: normalizedIncoming.phone || "",
-                sessionId: normalizedIncoming.sessionId,
-                lastMessage: lastMessageText,
-                updatedAt: lastMessageTimestamp,
-                unread: 0,
-                status: "online",
-                tags: [],
-                isAI: false,
-                lastMessageType: normalizedIncoming.messageType ?? normalizedIncoming.mediaType ?? "text",
-              };
-
-          const idsToRemove = new Set([incomingConversationId, existing?.id].filter(Boolean).map((id) => String(id)));
-          const nextList = [nextConversation, ...prev.filter((item) => !idsToRemove.has(String(item.id)))];
-          const normalizedList = dedupeConversationsByScope(nextList, contactDirectoryRef.current);
-
-          if (!selectedConversationRef.current?.id) {
-            setSelectedConversationId(normalizedList[0]?.id ?? null);
-          }
-
-          return normalizedList;
-        });
-        const now = Date.now();
-        if (now - lastBackgroundHydrateAtRef.current >= SOCKET_BACKGROUND_HYDRATE_DEBOUNCE_MS) {
-          lastBackgroundHydrateAtRef.current = now;
-          void loadConversationMessagesRef.current(incomingConversationId, { force: true, background: true });
-        }
-        } finally {
-          isProcessingRealtimeRef.current = false;
-        }
-
-      },
-      onTypingStatus: (payload) => {
-        const activeConversation = selectedConversationRef.current;
-        const resolvedConversationId = resolveIncomingConversationId({
-          incoming: {
-            conversationId: payload.conversationId,
-            phone: payload.phone,
-          },
-          activeConversation,
-          conversations: conversationsRef.current,
-          preferredSessionId: preferredSessionIdRef.current,
-        });
-
-        if (!resolvedConversationId) return;
-
-        setTypingByConversationId((prev) => {
-          if (payload.isTyping === false && !prev[resolvedConversationId]) return prev;
-          if (payload.isTyping === true && prev[resolvedConversationId]) return prev;
-          return { ...prev, [resolvedConversationId]: payload.isTyping };
-        });
-
-        setConversations((prev) =>
-          prev.map((conversation) => {
-            if (String(conversation.id) !== String(resolvedConversationId)) return conversation;
-            const nextStatus = payload.isTyping ? "typing" : conversation.status === "typing" ? "online" : conversation.status;
-            if (nextStatus === conversation.status) return conversation;
-            return { ...conversation, status: nextStatus };
-          }),
-        );
-      },
-      onConversationUpdated: (incoming) => {
-        if (!incoming.id) return;
-        setConversations((prev) => {
-          const incomingId = String(incoming.id);
-          const found = prev.find((item) => String(item.id) === incomingId);
-          const merged: Conversation = found
-            ? { ...found, ...incoming, id: found.id }
-            : {
-                id: incomingId,
-                companyId: incoming.companyId,
-                contactId: incoming.contactId,
-                sessionId: incoming.sessionId,
-                contactName: incoming.contactName || normalizePhone(incoming.phone) || "Contato",
-                lastMessage: incoming.lastMessage || "",
-                updatedAt: incoming.updatedAt || new Date().toISOString(),
-                phone: incoming.phone || "",
-                unread: incoming.unread ?? 0,
-                status: incoming.status ?? "online",
-                tags: incoming.tags ?? [],
-                isAI: incoming.isAI ?? false,
-                lastMessageType: incoming.lastMessageType ?? inferConversationMessageType(incoming),
-              };
-          const withoutCurrent = prev.filter((item) => String(item.id) !== incomingId);
-          return dedupeConversationsByScope([merged, ...withoutCurrent], contactDirectoryRef.current);
-        });
-      },
-      onChatsLoaded: (payload) => {
-        const loadedChats = parseChatsLoadedPayload(payload);
-        if (!loadedChats.length) return;
-
-        const isResetPayload =
-          payload &&
-          typeof payload === "object" &&
-          "type" in payload &&
-          String((payload as { type?: unknown }).type ?? "").toLowerCase() === "reset";
-
-        if (isResetPayload) {
-          const mergedDirectory = mergeContactDirectory(contactDirectoryRef.current, loadedChats);
-          contactDirectoryRef.current = mergedDirectory;
-          persistContactDirectory(mergedDirectory);
-          setConversations(dedupeConversationsByScope(loadedChats, mergedDirectory));
-          return;
-        }
-
-        mergeConversationsSnapshot(loadedChats);
-      },
-      onConversationSnapshot: (payload) => {
-        const snapshotObject = payload && typeof payload === "object" ? (payload as Record<string, unknown>) : null;
-        const rawMessages = Array.isArray(payload)
-          ? payload
-          : Array.isArray(snapshotObject?.messages)
-            ? (snapshotObject.messages as unknown[])
-            : Array.isArray(snapshotObject?.data)
-              ? (snapshotObject.data as unknown[])
-              : [];
-
-        if (!rawMessages.length) return;
-
-        const activeConversationId = String(selectedConversationRef.current?.id ?? "");
-        if (!activeConversationId) return;
-
-        const normalizedSnapshot = sortMessagesAsc(
-          rawMessages
-            .map((entry, index): ChatMessage | null => {
-              if (!entry || typeof entry !== "object") return null;
-              const item = entry as Record<string, unknown>;
-              const messageId = String(item.id ?? `snapshot-${activeConversationId}-${index}`).trim();
-              if (!messageId) return null;
-
-              const messageConversationId = String(
-                item.conversationId ?? item.conversation_id ?? item.chatId ?? item.chat_id ?? activeConversationId,
-              );
-
-              const mediaUrlCandidate =
-                (typeof item.url === "string" && item.url) ||
-                (typeof item.mediaUrl === "string" && item.mediaUrl) ||
-                (typeof item.media_url === "string" && item.media_url) ||
-                undefined;
-              const mediaPathCandidate =
-                (typeof item.mediaPath === "string" && item.mediaPath) ||
-                (typeof item.media_path === "string" && item.media_path) ||
-                undefined;
-              const resolvedUrl = resolveMediaUrl(mediaUrlCandidate ?? mediaPathCandidate);
-
-              const normalizedType = String(item.mediaType ?? item.type ?? "").toLowerCase();
-              const mediaType =
-                normalizedType === "image" || normalizedType === "video" || normalizedType === "audio" || normalizedType === "file"
-                  ? (normalizedType as ChatMessage["mediaType"])
-                  : inferMediaTypeFromSource(resolvedUrl ?? undefined);
-
-              return {
-                id: messageId,
-                conversationId: messageConversationId,
-                chatId: String(item.chatId ?? item.chat_id ?? "") || undefined,
-                content: String(item.content ?? item.text ?? item.body ?? item.caption ?? ""),
-                caption: typeof item.caption === "string" ? item.caption : undefined,
-                fromMe: Boolean(item.fromMe ?? item.sent ?? false),
-                createdAt: String(item.createdAt ?? item.created_at ?? item.timestamp ?? item.time ?? new Date().toISOString()),
-                timestamp: String(item.timestamp ?? item.createdAt ?? item.created_at ?? item.time ?? "") || undefined,
-                status: (String(item.status ?? "sent") as ChatMessage["status"]),
-                isAI: Boolean(item.isAI ?? false),
-                mediaType,
-                mediaPath: mediaPathCandidate,
-                mediaUrl: resolvedUrl ?? undefined,
-                url: resolvedUrl ?? undefined,
-                emoji: typeof item.emoji === "string" ? item.emoji : undefined,
-              } satisfies ChatMessage;
-            })
-            .filter((item): item is ChatMessage => item !== null)
-            .filter((item) => String(item.conversationId ?? "") === activeConversationId),
-        );
-
-        if (!normalizedSnapshot.length) return;
-
-        messageIdsRef.current = new Set(normalizedSnapshot.map((item) => item.id));
-        setMessages(normalizedSnapshot);
-        updateConversationMessageStore(
-          activeConversationId,
-          normalizedSnapshot,
-          messageCacheRef.current.get(activeConversationId)?.hasMore ?? normalizedSnapshot.length >= MESSAGE_PAGE_SIZE,
-        );
-      },
-      onContactsLoaded: (payload) => {
-        const contacts = parseContactsLoadedPayload(payload);
-        if (!contacts.length) return;
-        const nextDirectory = { ...contactDirectoryRef.current };
-        contacts.forEach((contact) => {
-          if (contact.phone && contact.name) {
-            nextDirectory[contact.phone] = contact.name;
-          }
-        });
-        contactDirectoryRef.current = nextDirectory;
-        persistContactDirectory(nextDirectory);
-        setConversations((prev) => dedupeConversationsByScope(prev, nextDirectory));
-      },
-      onAiResponse: (payload) => {
-        const normalizedIncoming = { ...payload, fromMe: true, isAI: true };
-        const incomingConversationId = String(normalizedIncoming.conversationId ?? "");
-        if (!incomingConversationId) return;
-
-        setMessages((prev) => {
-          const selectedId = String(selectedConversationRef.current?.id ?? "");
-          if (selectedId !== incomingConversationId) return prev;
-          if (isPotentialDuplicateMessage(prev, normalizedIncoming)) return prev;
-
-          const next = sortMessagesAsc([...prev, normalizedIncoming]);
-          updateConversationMessageStore(incomingConversationId, next, hasMoreMessages);
-          return next;
-        });
-
-        setConversations((prev) => {
-          const existing = prev.find((conversation) => String(conversation.id) === incomingConversationId);
-          if (!existing) return prev;
-
-          const updated: Conversation = {
-            ...existing,
-            lastMessage: normalizedIncoming.content || existing.lastMessage,
-            lastMessageType: normalizedIncoming.messageType ?? normalizedIncoming.mediaType ?? existing.lastMessageType ?? "text",
-            updatedAt: normalizedIncoming.createdAt ?? new Date().toISOString(),
-          };
-
-          const withoutCurrent = prev.filter((item) => String(item.id) !== incomingConversationId);
-          return dedupeConversationsByScope([updated, ...withoutCurrent], contactDirectoryRef.current);
-        });
-      },
-      onChatArchived: ({ chatId, conversationId }) => {
-        const resolvedId = String(chatId ?? conversationId ?? "");
-        if (!resolvedId) return;
-        setArchivedChatIds((prev) => (prev.includes(resolvedId) ? prev : [...prev, resolvedId]));
-      },
-      onChatTagUpdated: ({ chatId, conversationId, tag, action }) => {
-        const resolvedId = String(chatId ?? conversationId ?? "");
-        const normalizedTag = String(tag ?? "").trim();
-        if (!resolvedId || !normalizedTag) return;
-
-        setConversations((prev) =>
-          prev.map((conversation) => {
-            if (String(conversation.id) !== resolvedId) return conversation;
-            const currentTags = conversation.tags ?? [];
-            if (action === "remove") {
-              return { ...conversation, tags: currentTags.filter((entry) => entry !== normalizedTag) };
-            }
-            return { ...conversation, tags: Array.from(new Set([...currentTags, normalizedTag])) };
-          }),
-        );
-      },
-      onMessageDeleted: ({ messageId, conversationId }) => {
-        if (!messageId) return;
-        const normalizedConversationId = conversationId ? String(conversationId) : null;
-
-        setMessages((prev) => {
-          const next = prev.filter((message) => message.id !== messageId);
-          const selectedId = String(selectedConversationRef.current?.id ?? "");
-          if (!normalizedConversationId || selectedId === normalizedConversationId) {
-            const targetConversationId = normalizedConversationId || selectedId;
-            if (!targetConversationId) return next;
-            updateConversationMessageStore(
-              targetConversationId,
-              next,
-              hasMoreMessages,
-            );
-          }
-          return next;
-        });
-
-        setConversations((prev) =>
-          prev.map((conversation) => {
-            if (normalizedConversationId && String(conversation.id) !== normalizedConversationId) return conversation;
-            if (!conversation.lastMessage) return conversation;
-            return {
-              ...conversation,
-              updatedAt: new Date().toISOString(),
-            };
-          }),
-        );
-      },
-      onMessageStatus: ({ messageId, status, conversationId }) => {
-        if (!messageId || !status) return;
-        const normalizedConversationId = conversationId ? String(conversationId) : null;
-
-        setMessages((prev) => {
-          const next = prev.map((message) =>
-            message.id === messageId ? { ...message, status: status as ChatMessage["status"] } : message,
-          );
-
-          const targetConversationId = normalizedConversationId ?? String(selectedConversationRef.current?.id ?? "");
-          if (targetConversationId) {
-            updateConversationMessageStore(targetConversationId, next, hasMoreMessages);
-          }
-
-          return next;
-        });
-      },
-      onSocketConnected: () => {
-        setIsRealtimeConnected(true);
-        setBackendOnline(true);
-        setError((current) => (current?.startsWith("Realtime:") ? null : current));
-        const now = Date.now();
-        if (now - lastSocketConnectedSyncAtRef.current < SOCKET_CONNECTED_SYNC_DEBOUNCE_MS) {
-          return;
-        }
-        lastSocketConnectedSyncAtRef.current = now;
-        const selectedId = selectedConversationRef.current?.id;
-        if (selectedId) {
-          void loadConversationMessagesRef.current(String(selectedId), { force: true });
-        }
-      },
-      onSocketDisconnected: () => {
-        setIsRealtimeConnected(false);
-      },
-      onError: (message) => {
-        setIsRealtimeConnected(false);
-        setBackendOnline(false);
-        setError(`Realtime: ${message}`);
-      },
-    });
-
-    return () => disconnect();
-  }, [clearPendingFallbackTimersForTempId, refreshSessions, socketUrl, updateConversationMessageStore]);
+    setIsRealtimeConnected(globalWebsocketHealth === "online");
+    setBackendOnline(globalWebsocketHealth !== "offline");
+    if (globalWebsocketHealth === "offline") {
+      setError("Realtime: Socket desconectado do backend.");
+    } else {
+      setError(null);
+    }
+  }, [globalWebsocketHealth]);
 
   useEffect(() => {
     const intervalId = window.setInterval(() => {

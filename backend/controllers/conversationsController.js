@@ -758,6 +758,53 @@ async function getConversationControl(req, res) {
   }
 }
 
+async function updateConversationMeta(req, res) {
+  const { conversationId } = req.params;
+  const fields = {};
+
+  const allowedFields = [
+    'status',
+    'lead_temperature',
+    'funnel_stage',
+    'tags',
+    'summary',
+    'agent_name',
+    'aiEnabled'
+  ];
+
+  for (const field of allowedFields) {
+    if (typeof req.body[field] !== 'undefined') {
+      fields[field] = req.body[field];
+    }
+  }
+
+  try {
+    const updated = await conversationRepository.updateConversationState(conversationId, fields);
+
+    if (!updated) {
+      return res.status(404).json({ error: 'Conversation not found.' });
+    }
+
+    const store = getStore(req);
+
+    if (store?.conversations) {
+      const index = store.conversations.findIndex((item) => item.id === updated.id);
+      if (index >= 0) {
+        store.conversations[index] = updated;
+      } else {
+        store.conversations.push(updated);
+      }
+    }
+
+    const decorated = toConversationStateWithRuntime(store, updated);
+    emitConversationUpdated(store, decorated);
+
+    return res.status(200).json(decorated);
+  } catch (error) {
+    return res.status(500).json({ error: error.message || 'Failed to update conversation metadata.' });
+  }
+}
+
 module.exports = {
   clearConversationDraft,
   createConversation,
@@ -779,4 +826,5 @@ module.exports = {
   listConversationControls,
   upsertConversationControl,
   getConversationControl,
+  updateConversationMeta,
 };

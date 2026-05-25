@@ -49,10 +49,13 @@ export function ensureLogsDir() {
 
 export function getRunningProcesses() {
   if (isWindows()) {
+    const myPid = process.pid;
+    const myPpid = process.ppid;
     const script = [
-      "$ErrorActionPreference = 'Stop'",
-      "$procs = Get-CimInstance Win32_Process | Select-Object ProcessId,ParentProcessId,Name,CommandLine",
-      "$procs | ConvertTo-Json -Depth 3 -Compress",
+      "$ErrorActionPreference = 'SilentlyContinue'",
+      "$listeningPids = Get-NetTCPConnection -State Listen | Where-Object { $_.LocalPort -in 3000,4025,4173,5173,8080 } | Select-Object -ExpandProperty OwningProcess",
+      `$procs = Get-CimInstance Win32_Process | Where-Object { $_.CommandLine -like '*frontend-official*' -or $_.CommandLine -like '*vite*' -or $_.CommandLine -like '*backend*' -or $_.CommandLine -like '*swift-wa-assist*' -or $_.ProcessId -in @($listeningPids) -or $_.ProcessId -eq ${myPid} -or $_.ProcessId -eq ${myPpid} } | Select-Object ProcessId,ParentProcessId,Name,CommandLine`,
+      "ConvertTo-Json -InputObject @($procs) -Depth 3 -Compress",
     ].join("; ");
 
     const raw = execFileSync("powershell.exe", ["-NoProfile", "-Command", script], {
@@ -60,7 +63,9 @@ export function getRunningProcesses() {
       encoding: "utf8",
     });
 
-    const parsed = JSON.parse(raw || "[]");
+    const trimmed = raw.trim();
+    const cleaned = trimmed.replace(/[\x00-\x1F]/g, (m) => m === '\n' ? '\\n' : m === '\r' ? '\\r' : m === '\t' ? '\\t' : '');
+    const parsed = JSON.parse(cleaned || "[]");
     return (Array.isArray(parsed) ? parsed : [parsed])
       .map((item) => ({
         pid: Number(item.ProcessId),
@@ -98,7 +103,7 @@ export function getListeningPorts() {
     const script = [
       "$ErrorActionPreference = 'Stop'",
       "$ports = Get-NetTCPConnection -State Listen | Select-Object LocalPort,OwningProcess",
-      "$ports | ConvertTo-Json -Depth 3 -Compress",
+      "ConvertTo-Json -InputObject @($ports) -Depth 3 -Compress",
     ].join("; ");
 
     const raw = execFileSync("powershell.exe", ["-NoProfile", "-Command", script], {
@@ -106,7 +111,9 @@ export function getListeningPorts() {
       encoding: "utf8",
     });
 
-    const parsed = JSON.parse(raw || "[]");
+    const trimmed = raw.trim();
+    const cleaned = trimmed.replace(/[\x00-\x1F]/g, (m) => m === '\n' ? '\\n' : m === '\r' ? '\\r' : m === '\t' ? '\\t' : '');
+    const parsed = JSON.parse(cleaned || "[]");
     return (Array.isArray(parsed) ? parsed : [parsed])
       .map((item) => ({
         port: Number(item.LocalPort),

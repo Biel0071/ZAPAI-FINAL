@@ -30,10 +30,10 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { apiService, type SessionInfo } from "@/services/apiService";
-import { connectInboxSocket } from "@/services/socketService";
 import { notify } from "@/services/notifyService";
-import { reportFrontendIssue } from "@/services/frontendHealthService";
-import { API_ORIGIN } from "@/lib/backendConfig";
+import { reportFrontendIssue } from "@/runtime/services/frontendHealthService";
+import { useAppStore } from "@/stores/appStore";
+import { normalizeSession as backendNormalizeSession } from "@/services/normalizeSession";
 
 interface Session extends SessionInfo {
   name: string;
@@ -62,7 +62,7 @@ function normalizeBackendStatus(status?: string, connected?: boolean): Session["
   return "disconnected";
 }
 
-function normalizeSession(item: SessionInfo): Session {
+function localNormalizeSession(item: SessionInfo): Session {
   const legacyName = (item as SessionInfo & { session_name?: string; name?: string }).session_name;
   const resolvedName = item.name || legacyName || item.id;
 
@@ -77,11 +77,6 @@ function normalizeSession(item: SessionInfo): Session {
 
 function normalizeSessionName(name: string): string {
   return name.trim().replace(/\s+/g, "_").toLowerCase();
-}
-
-function resolveSessionId(payload?: SessionEventPayload): string | null {
-  if (!payload) return null;
-  return payload.sessionId || payload.name || payload.sessionName || null;
 }
 
 function extractQrPayload(payload?: SessionEventPayload): string | undefined {
@@ -108,13 +103,10 @@ function statusMeta(status: Session["status"]) {
   return { label: "Desconectado", tone: "offline" as const, lineClass: "h-1 bg-muted" };
 }
 
-function resolveSessionName(payload?: SessionEventPayload): string | undefined {
-  if (!payload) return undefined;
-  return payload.sessionName || payload.name;
-}
-
 export default function Connections() {
-  const [sessions, setSessions] = useState<Session[]>([]);
+  const storeSessions = useAppStore((state) => state.sessions);
+  const storeLastQr = useAppStore((state) => state.lastQr);
+
   const [showQRModal, setShowQRModal] = useState(false);
   const [isActivationDialogOpen, setIsActivationDialogOpen] = useState(false);
   const [newSessionName, setNewSessionName] = useState("");
@@ -125,9 +117,18 @@ export default function Connections() {
   const [createStatus, setCreateStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
   const [restartingSessionId, setRestartingSessionId] = useState<string | null>(null);
   const [deletingSessionId, setDeletingSessionId] = useState<string | null>(null);
-  const socketUrl = (API_ORIGIN || (typeof window !== "undefined" ? window.location.origin : "")).trim() || null;
-  const [lastQr, setLastQr] = useState<{ sessionId?: string; qr?: string } | null>(null);
+  const [activeModalSessionId, setActiveModalSessionId] = useState<string | null>(null);
   const sessionLoadInFlightRef = useRef(false);
+
+  const sessions = useMemo(() => {
+    return (storeSessions ?? []).map((s) => ({
+      id: s.id,
+      name: s.name,
+      phone: s.phone ?? undefined,
+      connected: s.status === "connected",
+      status: s.status === "error" || s.status === "unknown" ? "disconnected" as const : s.status as Session["status"],
+    }));
+  }, [storeSessions]);
 
   const safeSessions = useMemo(() => (Array.isArray(sessions) ? sessions : []), [sessions]);
   const sessionsRef = useRef<Session[]>(safeSessions);
@@ -137,30 +138,6 @@ export default function Connections() {
     sessionsRef.current = safeSessions;
   }, [safeSessions]);
 
-  const upsertSession = useCallback((sessionId: string, updates: Partial<Session>) => {
-    setSessions((prev) => {
-      const safePrev = Array.isArray(prev) ? prev : [];
-      const normalizedId = normalizeSessionName(sessionId);
-      const existing = safePrev.find((session) => normalizeSessionName(session.id) === normalizedId);
-      if (existing) {
-        return safePrev.map((session) =>
-          normalizeSessionName(session.id) === normalizedId ? { ...session, ...updates, id: existing.id } : session,
-        );
-      }
-
-      return [
-        {
-          id: sessionId,
-          name: updates.name || sessionId,
-          phone: updates.phone,
-          status: updates.status ?? "connecting",
-          connected: updates.status === "connected",
-        },
-        ...safePrev,
-      ];
-    });
-  }, []);
-
   const loadSessions = useCallback(async (options?: { silent?: boolean }) => {
     if (sessionLoadInFlightRef.current) return;
     sessionLoadInFlightRef.current = true;
@@ -168,26 +145,14 @@ export default function Connections() {
     if (!isSilent) setIsSessionsLoading(true);
     try {
       const sessionsData = await apiService.listSessions();
-      const deduped = new Map<string, Session>();
-
-      (Array.isArray(sessionsData) ? sessionsData : []).forEach((item) => {
-        const normalized = normalizeSession(item);
-        deduped.set(normalizeSessionName(normalized.id), normalized);
-      });
-
-      const normalized = [...deduped.values()];
-      setSessions(normalized);
+      const normalized = (sessionsData ?? []).map(backendNormalizeSession);
+      useAppStore.getState().setSessions(normalized);
 
       const qrReadySession = normalized.find((session) => session.status === "qr");
       if (qrReadySession) {
-        setLastQr((prev) => {
-          if (prev?.sessionId === qrReadySession.id) {
-            return prev;
-          }
-          setShowQRModal(true);
-          setIsActivationDialogOpen(true);
-          return { sessionId: qrReadySession.id, qr: prev?.qr };
-        });
+        setActiveModalSessionId(qrReadySession.id);
+        setShowQRModal(true);
+        setIsActivationDialogOpen(true);
       } else {
         setShowQRModal(false);
       }
@@ -241,52 +206,6 @@ export default function Connections() {
     return () => window.clearInterval(intervalId);
   }, [isActivationDialogOpen, isConnecting, loadSessions, restartingSessionId, showQRModal]);
 
-  useEffect(() => {
-    if (!socketUrl) return;
-
-    const disconnect = connectInboxSocket({
-      socketUrl,
-      onQrGenerated: (payload) => {
-        const sessionId = resolveSessionId(payload);
-        const qr = extractQrPayload(payload);
-        if (!sessionId) return;
-        setLastQr({ sessionId, qr });
-        setShowQRModal(Boolean(qr));
-        setIsActivationDialogOpen(true);
-        upsertSession(sessionId, { status: "qr", connected: false, name: resolveSessionName(payload) });
-      },
-      onSessionConnected: (payload) => {
-        const sessionId = payload.sessionId;
-        if (!sessionId) return;
-        upsertSession(sessionId, { status: "connected", connected: true, phone: payload.phone });
-        setShowQRModal(false);
-        setIsConnecting(false);
-        setRestartingSessionId(null);
-      },
-      onSessionDisconnected: (payload) => {
-        const sessionId = payload.sessionId;
-        if (!sessionId) return;
-        upsertSession(sessionId, { status: "disconnected", connected: false });
-      },
-      onSessionDeleted: (payload) => {
-        const sessionId = payload.sessionId;
-        if (!sessionId) return;
-        const normalizedId = normalizeSessionName(sessionId);
-        setSessions((prev) => prev.filter((session) => normalizeSessionName(session.id) !== normalizedId));
-      },
-      onSessionStatus: (payload) => {
-        const sessionId = payload.sessionId;
-        if (!sessionId) return;
-        upsertSession(sessionId, {
-          status: normalizeBackendStatus(payload.status, payload.status?.toLowerCase() === "connected"),
-          connected: payload.status?.toLowerCase() === "connected",
-        });
-      },
-    });
-
-    return () => disconnect();
-  }, [socketUrl, upsertSession]);
-
   const handleCreateSession = async () => {
     const rawSessionName = newSessionName.trim();
     if (!rawSessionName || isCreating) return;
@@ -317,17 +236,22 @@ export default function Connections() {
     setIsConnecting(true);
     setIsCreating(true);
     setCreateStatus("loading");
+    setActiveModalSessionId(sessionName);
 
-    upsertSession(sessionName, { status: "connecting", name: rawSessionName.trim() });
+    useAppStore.getState().upsertSession(
+      backendNormalizeSession({ id: sessionName, status: "connecting", name: rawSessionName.trim() })
+    );
 
     try {
       const response = await apiService.startSession(rawSessionName.trim());
       const qr = extractQrPayload(response as SessionEventPayload);
 
       if (qr) {
-        setLastQr({ sessionId: sessionName, qr });
+        useAppStore.getState().setLastQr(sessionName, qr);
+        useAppStore.getState().upsertSession(
+          backendNormalizeSession({ id: sessionName, status: "qr", name: rawSessionName.trim() })
+        );
         setShowQRModal(true);
-        upsertSession(sessionName, { status: "qr", connected: false, name: rawSessionName.trim() });
         notify.success("QR gerado com sucesso.");
       } else {
         notify.success("Sessão criada. Aguardando atualização do WhatsApp.");
@@ -358,18 +282,18 @@ export default function Connections() {
 
     setRestartingSessionId(normalizedId);
     setIsConnecting(true);
+    setActiveModalSessionId(normalizedId);
 
     try {
       const response = await apiService.restartSession(sessionId);
       const qr = extractQrPayload(response as SessionEventPayload);
       if (qr) {
-        setLastQr({ sessionId, qr });
+        useAppStore.getState().setLastQr(sessionId, qr);
         setShowQRModal(true);
       }
-      upsertSession(sessionId, {
-        status: qr ? "qr" : "connecting",
-        connected: false,
-      });
+      useAppStore.getState().upsertSession(
+        backendNormalizeSession({ id: sessionId, status: qr ? "qr" : "connecting" })
+      );
       notify.success(qr ? "QR renovado com sucesso." : "Reconexão iniciada.");
       await loadSessions({ silent: true });
     } catch (error) {
@@ -396,7 +320,9 @@ export default function Connections() {
     try {
       await apiService.logoutSession(sessionId);
       notify.success("Sessão desconectada.");
-      upsertSession(sessionId, { status: "disconnected", connected: false });
+      useAppStore.getState().upsertSession(
+        backendNormalizeSession({ id: sessionId, status: "disconnected" })
+      );
       await loadSessions({ silent: true });
     } catch (error) {
       const message = error instanceof Error ? error.message : "Falha ao desconectar sessão";
@@ -417,9 +343,9 @@ export default function Connections() {
     try {
       await apiService.deleteSession(sessionId);
       notify.success("Sessão removida.");
-      setSessions((prev) => prev.filter((session) => normalizeSessionName(session.id) !== normalizedId));
-      if (lastQr?.sessionId === sessionId) {
-        setLastQr(null);
+      useAppStore.getState().removeSession(normalizedId);
+      if (activeModalSessionId === normalizedId) {
+        setActiveModalSessionId(null);
         setShowQRModal(false);
       }
     } catch (error) {
@@ -435,12 +361,9 @@ export default function Connections() {
     }
   };
 
-  const connectedCount = safeSessions.filter((session) => session.status === "connected").length;
-  const connectingCount = safeSessions.filter((session) => session.status === "connecting" || session.status === "qr").length;
-  const disconnectedCount = safeSessions.filter((session) => session.status === "disconnected").length;
-  const activeSessionName = safeSessions.find((session) => session.status === "connected")?.name ?? null;
-  const currentQrImage = resolveQrImage(lastQr?.qr);
-  const currentQrSession = safeSessions.find((session) => session.id === lastQr?.sessionId);
+  const currentQr = activeModalSessionId ? storeLastQr[activeModalSessionId] : null;
+  const currentQrImage = resolveQrImage(currentQr ?? undefined);
+  const currentQrSession = safeSessions.find((session) => session.id === activeModalSessionId);
   const isQrModalVisible = showQRModal && currentQrSession?.status === "qr";
   const showQrImage = isQrModalVisible && Boolean(currentQrImage);
 
@@ -480,7 +403,12 @@ export default function Connections() {
               open={isActivationDialogOpen}
               onOpenChange={(open) => {
                 setIsActivationDialogOpen(open);
-                if (!open) setShowQRModal(false);
+                if (!open) {
+                  setShowQRModal(false);
+                  if (activeModalSessionId) {
+                    useAppStore.getState().clearLastQr(activeModalSessionId);
+                  }
+                }
               }}
             >
               <DialogTrigger asChild>
@@ -495,7 +423,7 @@ export default function Connections() {
                 </DialogHeader>
                 <div className="space-y-4 py-4">
                   <div className="space-y-2">
-                    <Label htmlFor="name">Nome da sessão</Label>
+                     <Label htmlFor="name">Nome da sessão</Label>
                     <Input
                       id="name"
                       placeholder="Ex: vendas_1"
@@ -531,7 +459,7 @@ export default function Connections() {
                       <div className="space-y-2">
                         <OperationalStatusBadge label={currentQrSession ? statusMeta(currentQrSession.status).label : "Aguardando"} tone={currentQrSession ? statusMeta(currentQrSession.status).tone : "warning"} pulse />
                         <p className="text-sm text-muted-foreground">{qrModalDescription}</p>
-                        <p className="text-xs text-muted-foreground/80">Sessão: {lastQr?.sessionId || newSessionName || "session"}</p>
+                        <p className="text-xs text-muted-foreground/80">Sessão: {activeModalSessionId || newSessionName || "session"}</p>
                       </div>
                     </div>
                   )}
@@ -590,7 +518,7 @@ export default function Connections() {
                       <div className="rounded-2xl border border-border/60 bg-background/40 p-3">
                         <p className="text-xs uppercase tracking-wide text-muted-foreground">Estado operacional</p>
                         <div className="mt-2 flex items-center justify-between gap-3">
-                          <span className="text-sm font-medium text-foreground">{session.status === "qr" ? "Aguardando pareamento" : session.status === "connected" ? "Sessão ativa e apta para realtime" : session.status === "connecting" ? "Reconectando no runtime oficial" : "Pronta para nova conexão"}</span>
+                          <span className="text-sm font-medium text-foreground">{session.status === "qr" ? "Aguardando pareamento" : session.status === "connected" ? "Sessão activa e apta para realtime" : session.status === "connecting" ? "Reconectando no runtime oficial" : "Pronta para nova conexão"}</span>
                           <Badge variant="secondary" className="rounded-full border border-border/70 bg-background/60 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
                             {session.id}
                           </Badge>

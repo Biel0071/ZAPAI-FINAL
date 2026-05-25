@@ -12,7 +12,7 @@ import {
   type MetricsSummary,
   type RuntimeHealthState,
 } from "@/services/apiService";
-import { reportFrontendIssue } from "@/services/frontendHealthService";
+import { reportFrontendIssue } from "@/runtime/services/frontendHealthService";
 import { useAppStore } from "@/stores/appStore";
 import { useRuntime } from "@/providers/RuntimeProvider";
 
@@ -34,47 +34,27 @@ export default function Dashboard() {
   const conversations = useAppStore((state) => state.conversations);
   const storeMetrics = useAppStore((state) => state.metrics);
 
-  const [sessionState, setSessionState] = useState<RuntimeHealthState>("offline");
-  const [activeSessions, setActiveSessions] = useState(0);
-  const [totalSessions, setTotalSessions] = useState(0);
-  const [metricsSnapshot, setMetricsSnapshot] = useState<MetricsSummary | null>(null);
   const [activeTab, setActiveTab] = useState<DashboardTab>(() => normalizeTab(searchParams.get("tab")));
   const [activeMapScope, setActiveMapScope] = useState<DashboardMapScope>("regions");
-  const lastHeavyFetchAtRef = useRef(0);
+
+  const activeSessions = useMemo(
+    () => sessions.filter((s) => s.status === "connected").length,
+    [sessions]
+  );
+  const totalSessions = sessions.length;
+  const sessionState = activeSessions > 0 ? "online" : "offline";
 
   const loadStatus = useCallback(async () => {
     try {
-      const shouldRefreshHeavyData = Date.now() - lastHeavyFetchAtRef.current >= HEAVY_REFRESH_MS;
-      const [healthStatusResult, metricsResult] = await Promise.allSettled([
-        apiService.getRuntimeSessionHealth(),
-        shouldRefreshHeavyData ? apiService.getMetrics() : Promise.resolve(null),
-      ]);
-
-      if (shouldRefreshHeavyData) {
-        lastHeavyFetchAtRef.current = Date.now();
-      }
-
-      const healthStatus =
-        healthStatusResult.status === "fulfilled"
-          ? healthStatusResult.value
-          : ({ sessions: "offline", activeSessions: 0, totalSessions: 0 } as const);
-
-      setSessionState(healthStatus.sessions);
-      setActiveSessions(healthStatus.activeSessions);
-      setTotalSessions(healthStatus.totalSessions);
-
-      if (metricsResult.status === "fulfilled" && metricsResult.value) {
-        setMetricsSnapshot(metricsResult.value);
-      }
+      await runtime.forceRefresh();
     } catch (error) {
       reportFrontendIssue({
         type: "unexpected_error",
         service: "dashboard.loadStatus",
         message: error instanceof Error ? error.message : "Falha ao carregar status do dashboard",
       });
-      setSessionState("offline");
     }
-  }, []);
+  }, [runtime]);
 
   useEffect(() => {
     void loadStatus();
@@ -108,14 +88,14 @@ export default function Dashboard() {
     () =>
       createDashboardLovableViewModel({
         conversations,
-        metrics: metricsSnapshot ?? storeMetrics,
+        metrics: storeMetrics,
         sessions,
         runtimeStatus: runtime.status,
         sessionState,
         activeSessions,
         totalSessions,
       }),
-    [activeSessions, conversations, metricsSnapshot, runtime.status, sessionState, sessions, storeMetrics, totalSessions],
+    [conversations, storeMetrics, sessions, runtime.status, sessionState, activeSessions, totalSessions],
   );
 
   const currentMapRows = useMemo(

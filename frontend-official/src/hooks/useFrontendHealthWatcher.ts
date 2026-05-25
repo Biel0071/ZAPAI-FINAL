@@ -4,7 +4,7 @@ import {
   reportFrontendIssue,
   subscribeFrontendHealth,
   type FrontendHealthSnapshot,
-} from "@/services/frontendHealthService";
+} from "@/runtime/services/frontendHealthService";
 
 export function useFrontendHealthWatcher() {
   const [frontendHealth, setFrontendHealth] = useState<FrontendHealthSnapshot>(getFrontendHealthSnapshot);

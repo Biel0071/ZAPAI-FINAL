@@ -72,7 +72,7 @@ const Flows = lazyWithRetry(() => import("./pages/Flows"), "flows");
 const AI = lazyWithRetry(() => import("./pages/AI"), "ai");
 const Analytics = lazyWithRetry(() => import("./pages/Analytics"), "analytics");
 const Campaigns = lazyWithRetry(() => import("./pages/Campaigns"), "campaigns");
-const Diagnostics = lazyWithRetry(() => import("./pages/Diagnostics"), "diagnostics");
+const Diagnostics = lazyWithRetry(() => import("./runtime/diagnostics/Diagnostics"), "diagnostics");
 const Settings = lazyWithRetry(() => import("./pages/Settings"), "settings");
 const Login = lazyWithRetry(() => import("./pages/Login"), "login");
 const MasterNodes = lazyWithRetry(() => import("./pages/MasterNodes"), "master_nodes");

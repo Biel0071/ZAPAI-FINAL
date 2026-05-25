@@ -1,5 +1,5 @@
 import { notify } from "@/services/notifyService";
-import { sendErrorLog } from "@/services/errorLogService";
+import { sendErrorLog } from "@/runtime/logs/errorLogService";
 
 export type FrontendHealthLevel = "healthy" | "warning" | "error";
 export type FrontendIssueType = "socket_disconnection" | "api_timeout" | "unexpected_error";

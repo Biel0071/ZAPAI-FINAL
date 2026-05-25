@@ -9,7 +9,7 @@
  * This is NOT a rewrite of Inbox — it's a protective wrapper.
  */
 import { Component, type ErrorInfo, type ReactNode } from "react";
-import { sendErrorLog } from "@/services/errorLogService";
+import { sendErrorLog } from "@/runtime/logs/errorLogService";
 
 type State = {
   hasError: boolean;

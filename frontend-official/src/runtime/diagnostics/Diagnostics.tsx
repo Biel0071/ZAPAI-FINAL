@@ -7,14 +7,14 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { DownloadSimple, CaretDown, Palette, CopySimple, ArrowClockwise, CheckCircle, WarningCircle, XCircle } from "@phosphor-icons/react";
-import { readRuntimeManifest } from "@/services/runtimeCoherenceService";
+import { readRuntimeManifest } from "@/runtime/services/runtimeCoherenceService";
 import { generateDesignSystemZip } from "@/lib/designSystemExporter";
 import { API_ORIGIN } from "@/services/apiService";
 import { OperationalStatusBadge } from "@/components/enterprise/OperationalStatusBadge";
 import { IS_MIXED_CONTENT_BLOCKED } from "@/lib/backendConfig";
-import { systemControlService, type AiDiagnosticsResponse } from "@/services/systemControlService";
-import { getFrontendHealthSnapshot, subscribeFrontendHealth, type FrontendHealthSnapshot } from "@/services/frontendHealthService";
-import { slog, type StructuredLogEntry } from "@/lib/structuredLogger";
+import { systemControlService, type AiDiagnosticsResponse } from "@/runtime/services/systemControlService";
+import { getFrontendHealthSnapshot, subscribeFrontendHealth, type FrontendHealthSnapshot } from "@/runtime/services/frontendHealthService";
+import { slog, type StructuredLogEntry } from "@/runtime/logs/structuredLogger";
 import { useToast } from "@/hooks/use-toast";
 
 const SYSTEM_API_BASE_URL = API_ORIGIN;
