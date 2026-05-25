@@ -33,6 +33,14 @@ export type AiDiagnosticsResponse = {
   [key: string]: unknown;
 };
 
+export type RuntimeCoherenceResponse = {
+  frontendRuntime?: string;
+  frontendUrl?: string;
+  backendUrl?: string;
+  websocketUrl?: string;
+  [key: string]: unknown;
+};
+
 export type SystemDiagnosticsResponse = {
   [key: string]: unknown;
 };
@@ -173,6 +181,28 @@ function normalizeErrorLog(raw: Record<string, unknown>): SystemErrorLog {
 }
 
 export const systemControlService = {
+  async getRuntimeCoherence(baseUrl?: string) {
+    const [health, websocket] = await Promise.all([
+      requestSystem("/api/health", "GET", baseUrl),
+      requestSystem("/api/websocket/status", "GET", baseUrl),
+    ]);
+
+    const healthData = (health.data && typeof health.data === "object" ? health.data : health) as Record<string, unknown>;
+    const websocketData = (websocket.data && typeof websocket.data === "object" ? websocket.data : websocket) as Record<string, unknown>;
+
+    return {
+      health: healthData,
+      websocket: websocketData,
+      runtimeIdentity:
+        (typeof healthData.runtimeIdentity === "object" && healthData.runtimeIdentity) ||
+        (typeof websocketData.runtimeIdentity === "object" && websocketData.runtimeIdentity) ||
+        {},
+    } as RuntimeCoherenceResponse & {
+      health: Record<string, unknown>;
+      websocket: Record<string, unknown>;
+      runtimeIdentity: Record<string, unknown>;
+    };
+  },
   async getStatus(baseUrl?: string) {
     let data: SystemStatusResponse & Record<string, unknown>;
 

@@ -6,6 +6,8 @@
 
 ## Estrutura Oficial
 
+> Decisão de consolidação: `frontend-official/` é a única fonte de verdade do runtime do frontend. A UI do Lovable deve entrar por fluxo controlado via branch `lovable-sync` e superfície `frontend-official/src/lovable/`, sem manter app paralelo ou runtime concorrente.
+
 ```
 ZAPAI-FINAL/
 ├── backend/                         ← BACKEND OFICIAL
@@ -25,10 +27,10 @@ ZAPAI-FINAL/
 │       ├── run-migrations.js        ← Migration runner
 │       └── seed-admin.js            ← Admin seed
 │
-├── frontend-official/               ← FRONTEND OFICIAL
-│   └── src/                        ← React + Vite + TypeScript
-│       ├── App.tsx                  ← Roteamento principal (18 páginas)
-│       ├── main.tsx                 ← Entrypoint + hardening
+├── frontend-official/               ← FRONTEND OFICIAL ÚNICO
+│   └── src/                         ← React + Vite + TypeScript
+│       ├── App.tsx                  ← Roteamento principal + guards + layout autenticado
+│       ├── main.tsx                 ← Entrypoint + hardening + bootstrap real
 │       ├── pages/                   ← Todas as páginas (Dashboard, Inbox, etc.)
 │       ├── providers/               ← RuntimeProvider (WebSocket + Zustand)
 │       └── lib/runtimeHardening.ts  ← JSON.parse patch + chunk recovery

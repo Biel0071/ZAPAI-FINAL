@@ -32,9 +32,14 @@ function shouldSkipTenantValidation(req) {
     path.startsWith('/api/diagnostics') ||
     path.startsWith('/auth/login') ||
     path.startsWith('/api/auth/login') ||
+    path.startsWith('/auth/forgot-password') ||
+    path.startsWith('/api/auth/forgot-password') ||
     path === '/api' ||
     path.startsWith('/system') ||
-    path.startsWith('/api/system')
+    path.startsWith('/api/system') ||
+    path.startsWith('/api/master/register-node') ||
+    path.startsWith('/api/master/heartbeat') ||
+    path.startsWith('/api/cluster/metrics/ingest')
   );
 }
 

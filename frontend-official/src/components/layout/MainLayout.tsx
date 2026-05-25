@@ -20,15 +20,15 @@ export function MainLayout() {
   }, []);
 
   return (
-    <div className="h-dvh w-full overflow-hidden bg-background flex">
+    <div className="min-h-screen w-full bg-background">
       <Sidebar />
       <main
         className={
           isMobile
-            ? "flex-1 flex flex-col min-w-0 h-dvh overflow-hidden"
+            ? "ml-0 min-h-screen w-full"
             : collapsed
-              ? "ml-[72px] flex-1 flex flex-col min-w-0 h-dvh overflow-hidden transition-all duration-200"
-              : "ml-[260px] flex-1 flex flex-col min-w-0 h-dvh overflow-hidden transition-all duration-200"
+              ? "ml-[88px] min-h-screen transition-all duration-200"
+              : "ml-[288px] min-h-screen transition-all duration-200"
         }
       >
         <Outlet />

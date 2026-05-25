@@ -25,7 +25,6 @@ function createSafeClient(): SupabaseClient<Database> {
 
   // Return a stub client that won't crash when methods are called.
   // In production, all auth goes through the backend API — Supabase is not used.
-  console.info('[Supabase] No VITE_SUPABASE_URL configured — using stub client (backend API mode).');
 
   const stubAuth = {
     getSession: () => Promise.resolve({ data: { session: null }, error: null }),

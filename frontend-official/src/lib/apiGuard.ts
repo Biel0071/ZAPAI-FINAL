@@ -17,26 +17,18 @@ export function getCurrentTenantId(): string {
   return getAdminAuthTenantId(session) ?? DEFAULT_TENANT_ID;
 }
 
-async function readAccessToken(): Promise<string | null> {
-  // Always prefer the admin auth session (backend JWT) over Supabase
+async function readAccessToken(): Promise<{ token: string | null; tenantId: string }> {
   const adminSession = loadAdminAuthSession();
   if (isAdminAuthSessionValid(adminSession) && adminSession?.token) {
-    return adminSession.token;
+    const tenantId = String(adminSession.tenantId ?? adminSession.companyId ?? DEFAULT_TENANT_ID).trim() || DEFAULT_TENANT_ID;
+    return { token: adminSession.token, tenantId };
   }
 
-  // Fallback: try Supabase session (only in environments where Supabase is configured)
-  try {
-    const { supabase } = await import("@/integrations/supabase/client");
-    const { data, error } = await supabase.auth.getSession();
-    if (error) return null;
-    return data.session?.access_token ?? null;
-  } catch {
-    return null;
-  }
+  return { token: null, tenantId: DEFAULT_TENANT_ID };
 }
 
 export async function buildApiHeaders(): Promise<Record<string, string>> {
-  const token = await readAccessToken();
+  const { token, tenantId } = await readAccessToken();
 
   return {
     Accept: "application/json",

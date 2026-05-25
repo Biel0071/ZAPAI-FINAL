@@ -1,21 +1,23 @@
 // ── MUST be first import — patches globals before any other module loads ──
-import "@/lib/runtimeHardening";
+import {
+  injectRuntimeHardening,
+} from "@/lib/runtimeHardening";
 
 import { createRoot } from "react-dom/client";
 import App from "./App.tsx";
 import "./index.css";
-import { zapaiBuildInfo, ZAPAI_BUILD_STORAGE_KEY } from "@/config/buildInfo";
+import {
+  createRuntimeManifest,
+  OFFICIAL_BACKEND_PORT,
+  OFFICIAL_FRONTEND_PORT,
+  zapaiBuildInfo,
+  ZAPAI_RUNTIME_MANIFEST_STORAGE_KEY,
+} from "@/config/buildInfo";
 import { initRuntimeIdentity } from "@/lib/runtimeIdentity";
+import { API_ORIGIN } from "@/lib/backendConfig";
 
-// ── Runtime Safety: patch .replace/.replaceAll on all types ──────
-// The production error "e.replaceAll is not a function" happens when
-// minified code calls .replaceAll() on undefined/null/number.
-// This polyfill covers TWO cases:
-//   1. Browser lacks String.prototype.replaceAll  (Safari < 13.1)
-//   2. esbuild transforms .replace(/g/) → .replaceAll() and the
-//      value is not a string at runtime.
+injectRuntimeHardening(zapaiBuildInfo.hash);
 
-// Ensure String.prototype.replaceAll exists
 if (typeof String.prototype.replaceAll !== "function") {
   String.prototype.replaceAll = function (
     search: string | RegExp,
@@ -30,33 +32,6 @@ if (typeof String.prototype.replaceAll !== "function") {
   };
 }
 
-// Global error trap: intercept "replaceAll is not a function" before
-// React's error boundary can catch it. This prevents full black screen.
-window.addEventListener("error", (event) => {
-  const msg = event.message ?? "";
-  if (
-    msg.includes("replaceAll is not a function") ||
-    msg.includes("replace is not a function") ||
-    msg.includes("Cannot read properties of undefined") ||
-    msg.includes("Cannot read properties of null")
-  ) {
-    console.warn("[ZAPFLOW] Intercepted runtime TypeError:", msg);
-    event.preventDefault(); // Prevent default error handling (black screen)
-  }
-});
-
-window.addEventListener("unhandledrejection", (event) => {
-  const reason = event.reason;
-  const msg = reason instanceof Error ? reason.message : String(reason ?? "");
-  if (
-    msg.includes("replaceAll is not a function") ||
-    msg.includes("replace is not a function")
-  ) {
-    console.warn("[ZAPFLOW] Intercepted unhandled rejection:", msg);
-    event.preventDefault();
-  }
-});
-
 function enforceDarkThemeDom() {
   if (typeof document === "undefined") return;
 
@@ -67,20 +42,38 @@ function enforceDarkThemeDom() {
   root.style.colorScheme = "dark";
 }
 
+function resolveSocketOrigin(): string | null {
+  if (API_ORIGIN) return API_ORIGIN;
+  if (typeof window !== "undefined") {
+    return window.location.origin;
+  }
+  return null;
+}
+
 function persistBuildInfo() {
+  const frontendOrigin = typeof window !== "undefined" ? window.location.origin : null;
+  const socketOrigin = resolveSocketOrigin();
+  const runtimeManifest = createRuntimeManifest({
+    apiOrigin: API_ORIGIN || frontendOrigin,
+    backend: OFFICIAL_BACKEND_PORT,
+    frontend: OFFICIAL_FRONTEND_PORT,
+    frontendOrigin,
+    socketOrigin,
+  });
+
   try {
-    localStorage.setItem(ZAPAI_BUILD_STORAGE_KEY, JSON.stringify(zapaiBuildInfo));
+    localStorage.setItem(ZAPAI_RUNTIME_MANIFEST_STORAGE_KEY, JSON.stringify(runtimeManifest));
   } catch {
     // storage indisponível
   }
 
-  (window as Record<string, unknown>).ZAPAI_BUILD = zapaiBuildInfo;
+  window.ZAPAI_BUILD = zapaiBuildInfo;
+  window.__ZAPFLOW_RUNTIME__ = runtimeManifest;
 }
 
 function renderFatalError(message: string) {
   const root = document.getElementById("root");
   if (!root) return;
-  // Only render fatal screen if root has no children (app hasn't mounted yet)
   if (root.children.length > 0) return;
   root.innerHTML = `
     <div style="display:flex;min-height:100vh;align-items:center;justify-content:center;background:#0a0a0a;color:#e5e5e5;font-family:system-ui,sans-serif;padding:24px;">
@@ -95,15 +88,27 @@ function renderFatalError(message: string) {
   `;
 }
 
+function clearLegacyRuntimeCaches() {
+  try {
+    if ("caches" in window) {
+      void caches.keys().then((keys) =>
+        Promise.all(
+          keys
+            .filter((key) => /lovable|swift-wa-assist|preview|vite/i.test(key))
+            .map((key) => caches.delete(key)),
+        ),
+      );
+    }
+  } catch {
+    // ignore
+  }
+}
+
 async function bootstrap() {
-  console.log("[ZAPFLOW] bootstrap: start", {
-    href: window.location.href,
-    time: new Date().toISOString(),
-    build: zapaiBuildInfo.hash,
-  });
   persistBuildInfo();
   initRuntimeIdentity(zapaiBuildInfo.hash);
   enforceDarkThemeDom();
+  clearLegacyRuntimeCaches();
 
   const url = new URL(window.location.href);
   if (url.searchParams.has("runtime_recover")) {
@@ -118,9 +123,7 @@ async function bootstrap() {
     return;
   }
 
-  console.log("[ZAPFLOW] bootstrap: rendering <App />");
   createRoot(rootEl).render(<App />);
-  console.log("[ZAPFLOW] bootstrap: render() called — React is mounting");
 }
 
 void bootstrap().catch((error) => {

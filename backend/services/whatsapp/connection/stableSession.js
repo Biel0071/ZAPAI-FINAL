@@ -78,7 +78,7 @@ const {
 } = require('../realtime/metrics');
 const { toQrDataUrl } = require('./qr');
 const { sessionPhoneFromSock } = require('./sock');
-const { getConnectionCloseCode, shouldReconnect } = require('./reconnect');
+const { getConnectionCloseCode, isTerminalDisconnect, shouldReconnect } = require('./reconnect');
 const {
   safeCreateSessionRecord,
   safeUpdateSessionStatus,
@@ -428,6 +428,7 @@ function shouldRefreshSummary(messageHistory = []) {
 
 async function createStableSession({
   displayName,
+  generation = 0,
   io,
   onConnectionUpdate = async () => {},
   onIncomingMessage = async () => {},
@@ -470,6 +471,7 @@ async function createStableSession({
   const session = {
     authState: state,
     displayName: displayName || normalizedSessionName,
+    generation: Number(generation || 0),
     io,
     hasEmittedQr: false,
     phone: null,
@@ -502,7 +504,7 @@ async function createStableSession({
   });
 
   await safeCreateSessionRecord(normalizedSessionName, session.sessionName);
-  emitSessionStatus(io, normalizedSessionName, session.status, session.sessionName);
+  emitSessionStatus(io, session);
 
   sock.ev.on('creds.update', saveCreds);
 
@@ -517,8 +519,9 @@ async function createStableSession({
 
     if (connection === 'connecting' && connectionChanged) {
       session.status = 'connecting';
+      session.updatedAt = new Date().toISOString();
       pushConnectionLog(session, 'info', 'connecting', 'Attempting to connect to WhatsApp.');
-      emitSessionStatus(io, normalizedSessionName, session.status, session.sessionName);
+      emitSessionStatus(io, session);
     }
 
     emitConnectionUpdate(io, {
@@ -535,6 +538,7 @@ async function createStableSession({
       session.status = 'qr_ready';
       session.qrCode = qrDataUrl;
       session.qrGeneratedAt = Date.now();
+      session.updatedAt = new Date().toISOString();
       session.hasEmittedQr = true;
       pushConnectionLog(session, 'info', 'qr_ready', 'QR is ready for authentication.');
 
@@ -552,6 +556,7 @@ async function createStableSession({
         session.status = 'disconnected';
         session.qrCode = null;
         session.hasEmittedQr = false;
+        session.updatedAt = new Date().toISOString();
         session.lastError = `QR not scanned within ${QR_TIMEOUT_MS}ms.`;
         pushConnectionLog(session, 'warn', 'qr_timeout', session.lastError);
         logSessionEvent('warn', 'qr_timeout', session, {
@@ -568,7 +573,7 @@ async function createStableSession({
           status: 'disconnected',
           timeoutMs: QR_TIMEOUT_MS,
         });
-        emitSessionStatus(io, normalizedSessionName, session.status, session.sessionName);
+        emitSessionStatus(io, session);
         try {
           sock.end?.(undefined);
         } catch {
@@ -596,7 +601,7 @@ async function createStableSession({
         status: 'qr',
         qr: qrDataUrl,
       });
-      emitSessionStatus(io, normalizedSessionName, session.status, session.sessionName);
+      emitSessionStatus(io, session);
     }
 
     await onConnectionUpdate({
@@ -608,6 +613,7 @@ async function createStableSession({
 
     if (connection === 'open') {
       session.status = 'connected';
+      session.updatedAt = new Date().toISOString();
       sessionStateService.setWhatsappSession(sessionStateService.DEFAULT_TENANT, {
         connected: true,
         status: 'CONNECTED',
@@ -670,7 +676,7 @@ async function createStableSession({
         sessionName: session.sessionName,
         status: 'connected',
       });
-      emitSessionStatus(io, normalizedSessionName, session.status, session.sessionName);
+      emitSessionStatus(io, session);
 
       // Sync to SessionRegistry and RuntimeEngine
       sessionRegistry.setConnected(normalizedSessionName, session.phone);
@@ -723,6 +729,7 @@ async function createStableSession({
       session.hasEmittedQr = false;
       session.qrCode = null;
       const closeCode = getConnectionCloseCode(lastDisconnect);
+      const terminalDisconnect = isTerminalDisconnect(lastDisconnect);
       let willReconnect = !session.isClosing && !session.isDisposed && shouldReconnect(lastDisconnect);
 
       if (willReconnect) {
@@ -761,7 +768,8 @@ async function createStableSession({
       }
 
       if (willReconnect) {
-        session.status = 'error';
+        session.status = 'connecting';
+        session.updatedAt = new Date().toISOString();
         session.lastError = `Connection closed (${closeCode || 'unknown'}), retry scheduled.`;
         pushConnectionLog(session, 'error', 'error', session.lastError);
         logSessionEvent('warn', 'reconnect_scheduled', session, {
@@ -770,17 +778,18 @@ async function createStableSession({
         });
       } else {
         session.status = 'disconnected';
-        session.lastError = shouldReconnect(lastDisconnect)
-          ? 'Connection closed by runtime.'
-          : 'WhatsApp session logged out.';
+        session.updatedAt = new Date().toISOString();
+        session.lastError = terminalDisconnect
+          ? 'WhatsApp session logged out.'
+          : 'Connection closed by runtime.';
         pushConnectionLog(
           session,
-          shouldReconnect(lastDisconnect) ? 'warn' : 'info',
+          terminalDisconnect ? 'info' : 'warn',
           'disconnected',
           session.lastError
         );
         logSessionEvent(
-          shouldReconnect(lastDisconnect) ? 'warn' : 'info',
+          terminalDisconnect ? 'info' : 'warn',
           'disconnected',
           session,
           {
@@ -792,7 +801,7 @@ async function createStableSession({
 
       await safeUpdateSessionStatus(
         normalizedSessionName,
-        'disconnected',
+        willReconnect ? 'connecting' : 'disconnected',
         session.phone,
         session.sessionName
       );
@@ -821,14 +830,21 @@ async function createStableSession({
         sessionName: session.sessionName,
         status: 'disconnected',
       });
-      emitSessionStatus(io, normalizedSessionName, session.status, session.sessionName);
+      emitSessionStatus(io, session);
 
       // Sync to SessionRegistry and RuntimeEngine
-      sessionRegistry.setDisconnected(normalizedSessionName, willReconnect ? 'reconnect' : 'closed');
-      sessionRegistry.persistSession(normalizedSessionName).catch(() => {});
       if (willReconnect) {
+        sessionRegistry.set(normalizedSessionName, {
+          connected: false,
+          phone: session.phone,
+          qrCode: null,
+          status: 'connecting',
+        });
         runtimeEngine.incrementReconnectCounter(normalizedSessionName);
+      } else {
+        sessionRegistry.setDisconnected(normalizedSessionName, terminalDisconnect ? 'logged_out' : 'closed');
       }
+      sessionRegistry.persistSession(normalizedSessionName).catch(() => {});
 
       if (willReconnect) {
         if (session.reconnectRequestPending) {
@@ -842,7 +858,7 @@ async function createStableSession({
           delayMs: reconnectDelayMs,
           closeCode,
         });
-        onReconnectRequested(normalizedSessionName, { closeCode })
+        onReconnectRequested(normalizedSessionName, { closeCode, generation: session.generation })
           .catch((error) => {
             logSessionEvent('error', 'reconnect_failed', session, {
               attempt: session.reconnectRequestCount,
@@ -855,9 +871,9 @@ async function createStableSession({
               error?.message || error
             );
           });
-      } else if (!shouldReconnect(lastDisconnect)) {
+      } else if (terminalDisconnect) {
         delete activeSessions[normalizedSessionName];
-        // loggedOut — clear stale auth so next connect gets a fresh QR
+        // loggedOut / invalid session — clear stale auth so next connect gets a fresh QR
         // eslint-disable-next-line no-console
         console.log(`[WHATSAPP] Logged out: ${normalizedSessionName} — clearing auth state`);
         try {
@@ -1022,7 +1038,9 @@ async function createStableSession({
       console.log(
         `[WHATSAPP] message.saved session=${normalizedSessionName} chat=${remoteJid} id=${savedMessage.id}`
       );
-      emitInboundRealtimeMessage(io, savedMessage, result?.conversation || null);
+      if (result?.conversation) {
+        emitInboundRealtimeMessage(io, savedMessage, result.conversation);
+      }
 
       if (chatStore && formattedRealtimeMessage?.chatId) {
         const realtimeUrl = realtimeMediaPayload?.url || null;

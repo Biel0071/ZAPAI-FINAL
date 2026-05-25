@@ -1,73 +1,53 @@
-# Welcome to your Lovable project
+# frontend-official
 
-## Project info
+Frontend oficial ativo do ZAPFLOW AI.
 
-**URL**: https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID
+## Runtime oficial
+- Esta pasta (`frontend-official/`) é a única fonte de verdade do frontend.
+- Dev server: `npm run dev`
+- Porta local: `8080`
+- Backend esperado em desenvolvimento: `http://127.0.0.1:4025`
+- Em produção, o frontend deve preferir same-origin via Nginx/proxy
+- O visual/UX vindo do Lovable deve ser absorvido aqui, nunca executado como app paralelo.
+- A fonte visual oficial deve entrar pela branch `lovable-sync` e pela superfície `src/lovable/**`, com integração via adapters e wrappers protegidos.
 
-## How can I edit this code?
-
-There are several ways of editing your application.
-
-**Use Lovable**
-
-Simply visit the [Lovable Project](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and start prompting.
-
-Changes made via Lovable will be committed automatically to this repo.
-
-**Use your preferred IDE**
-
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
-
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
-
-Follow these steps:
-
+## Fluxo local recomendado
 ```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
-
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
-
-# Step 3: Install the necessary dependencies.
-npm i
-
-# Step 4: Start the development server with auto-reloading and an instant preview.
+npm install
 npm run dev
 ```
 
-**Edit a file directly in GitHub**
+Ou, a partir da raiz do repositório, use os scripts de runtime único:
+```sh
+npm run stop
+npm run start:official
+# ou: npm run dev:clean
+```
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+Abra:
+- `http://localhost:8080/login`
 
-**Use GitHub Codespaces**
+## Observações importantes
+- Esta pasta é a fonte de verdade do frontend.
+- Não usar `frontend/`, clones do Lovable ou conteúdo em `archive/` como runtime principal.
+- A autenticação oficial é via backend JWT.
+- `apiService`, `socketService`, `RuntimeProvider` e os guards de rota desta pasta são a integração oficial com o backend real.
+- O fallback Supabase não deve ser o caminho principal do sistema.
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+## Testes e validação
+```sh
+npm run build
+npm run test
+npm run test-ui
+```
 
-## What technologies are used for this project?
-
-This project is built with:
-
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
-
-## How can I deploy this project?
-
-Simply open [Lovable](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and click on Share -> Publish.
-
-## Can I connect a custom domain to my Lovable project?
-
-Yes, you can!
-
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
-
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/custom-domain#custom-domain)
+## Rotas principais esperadas
+- `/login`
+- `/dashboard`
+- `/connections`
+- `/inbox`
+- `/settings`
+- `/campaigns`
+- `/analytics`
+- `/diagnostics`
+- `/memory`

@@ -23,6 +23,7 @@ router.post('/conversations/:conversationId/profile-card', conversationsControll
 router.post('/conversations/:conversationId/billing', conversationsController.generateBilling);
 router.get('/conversations/:conversationId/billing/:billingId', conversationsController.getBillingDetails);
 router.patch('/conversations/:phone/ai', conversationsController.updateConversationAI);
+router.patch('/conversations/:conversationId', conversationsController.updateConversationMeta);
 router.get('/public-url', conversationsController.getPublicUrl);
 
 module.exports = router;

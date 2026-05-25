@@ -14,12 +14,14 @@ try {
   io = null;
 }
 
-const BASE_URL = process.env.BASE_URL || 'http://localhost:4000';
+const BASE_URL = process.env.BASE_URL || 'http://127.0.0.1:4025';
 const REQUEST_TIMEOUT_MS = Number(process.env.SMOKE_TIMEOUT_MS || 12000);
 const REAL_PHONE = String(process.env.SMOKE_REAL_PHONE || '').trim();
 const SMOKE_TENANT_ID = String(process.env.SMOKE_TENANT_ID || process.env.DEFAULT_COMPANY_ID || 'default').trim();
 const SMOKE_JWT_SECRET = String(process.env.SMOKE_JWT_SECRET || process.env.JWT_SECRET || '').trim();
 const SMOKE_JWT_TOKEN = String(process.env.SMOKE_JWT_TOKEN || '').trim();
+const SMOKE_USERNAME = String(process.env.SMOKE_USERNAME || 'zapadmin').trim();
+const SMOKE_PASSWORD = String(process.env.SMOKE_PASSWORD || 'zapadmin123').trim();
 const IS_CI_MODE = process.argv.includes('--ci');
 const REPORTS_DIR = path.resolve(process.cwd(), 'reports');
 const REPORT_FILE = path.join(REPORTS_DIR, 'smoke-report.json');
@@ -48,15 +50,20 @@ function createSmokeJwtToken(secret, tenantId) {
   return `${header}.${payload}.${signature}`;
 }
 
-const AUTH_BEARER_TOKEN =
+let AUTH_BEARER_TOKEN =
   SMOKE_JWT_TOKEN || (SMOKE_JWT_SECRET ? createSmokeJwtToken(SMOKE_JWT_SECRET, SMOKE_TENANT_ID) : '');
 
-const AUTH_HEADERS = AUTH_BEARER_TOKEN
-  ? {
-      authorization: `Bearer ${AUTH_BEARER_TOKEN}`,
-      'x-company-id': SMOKE_TENANT_ID,
-    }
-  : {};
+function buildAuthHeaders() {
+  if (!AUTH_BEARER_TOKEN) {
+    return {};
+  }
+
+  return {
+    authorization: `Bearer ${AUTH_BEARER_TOKEN}`,
+    'x-company-id': SMOKE_TENANT_ID,
+    'x-tenant-id': SMOKE_TENANT_ID,
+  };
+}
 
 function nowIso() {
   return new Date().toISOString();
@@ -141,6 +148,45 @@ function unwrapEnvelope(payload) {
   return payload;
 }
 
+async function ensureAuthToken() {
+  if (AUTH_BEARER_TOKEN) {
+    return AUTH_BEARER_TOKEN;
+  }
+
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+
+  try {
+    const response = await fetch(`${BASE_URL}/api/auth/login`, {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        'x-tenant-id': SMOKE_TENANT_ID,
+      },
+      body: JSON.stringify({
+        username: SMOKE_USERNAME,
+        password: SMOKE_PASSWORD,
+        tenantId: SMOKE_TENANT_ID,
+      }),
+      signal: controller.signal,
+    });
+
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      throw new Error(payload?.error || `Login failed with status ${response.status}`);
+    }
+
+    AUTH_BEARER_TOKEN = payload?.token || payload?.accessToken || payload?.data?.token || '';
+    if (!AUTH_BEARER_TOKEN) {
+      throw new Error('Login succeeded but no token was returned.');
+    }
+
+    return AUTH_BEARER_TOKEN;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 async function requestJson(path, options = {}) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
@@ -150,7 +196,7 @@ async function requestJson(path, options = {}) {
       ...options,
       headers: {
         'content-type': 'application/json',
-        ...AUTH_HEADERS,
+        ...buildAuthHeaders(),
         ...(options.headers || {}),
       },
       signal: controller.signal,
@@ -251,7 +297,7 @@ async function connectSocketAndCollect() {
 
   const socket = io(BASE_URL, {
     extraHeaders: {
-      ...AUTH_HEADERS,
+      ...buildAuthHeaders(),
     },
     reconnection: false,
     timeout: REQUEST_TIMEOUT_MS,
@@ -284,6 +330,18 @@ async function connectSocketAndCollect() {
 
 async function run() {
   logHeader();
+
+  try {
+    await ensureAuthToken();
+  } catch (error) {
+    addResult({
+      name: 'Auth bootstrap',
+      status: 'FAIL',
+      details: error.message || String(error),
+      durationMs: 0,
+    });
+    return printResultsAndExit();
+  }
 
   let startedAtMs = Date.now();
   const health = await requestJson('/health');
@@ -323,6 +381,8 @@ async function run() {
   });
 
   check(inbound.ok, 'Receive message endpoint', `HTTP ${inbound.status}`, JSON.stringify(inbound.body), startedAtMs);
+  const inboundMessage = inbound.data?.message || inbound.body?.message || null;
+  const inboundConversationId = inboundMessage?.conversationId || null;
 
   await sleep(1200);
   realtime.socket.disconnect();
@@ -348,7 +408,13 @@ async function run() {
   startedAtMs = Date.now();
   const conversationsAfterResp = await requestJson('/conversations?limit=50');
   const conversationsAfter = Array.isArray(conversationsAfterResp.data) ? conversationsAfterResp.data : [];
-  const targetConversation = conversationsAfter.find((item) => String(item.phone) === String(targetPhone)) || conversationsAfter[0] || null;
+  const targetConversation =
+    (inboundConversationId
+      ? conversationsAfter.find((item) => String(item.id) === String(inboundConversationId))
+      : null) ||
+    conversationsAfter.find((item) => String(item.phone) === String(targetPhone)) ||
+    conversationsAfter[0] ||
+    null;
 
   check(Boolean(targetConversation), 'Target conversation resolution', targetConversation ? `conversationId=${targetConversation.id}` : 'none', JSON.stringify(conversationsAfter.slice(0, 3)), startedAtMs);
 

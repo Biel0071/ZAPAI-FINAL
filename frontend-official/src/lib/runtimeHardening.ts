@@ -7,11 +7,45 @@
  *  3. localStorage/sessionStorage unavailability (incognito, storage full)
  *  4. Stale chunk recovery flags
  *  5. Corrupt storage auto-cleanup
+ *  6. Stale runtime manifest / legacy preview residue
  */
 
-const STORAGE_VERSION = "zapflow_storage_v2";
+import {
+  OFFICIAL_RUNTIME_MARKER,
+  RUNTIME_SCHEMA_VERSION,
+  ZAPAI_RUNTIME_MANIFEST_STORAGE_KEY,
+  ZAPAI_RUNTIME_MARKER_STORAGE_KEY,
+} from "@/config/buildInfo";
 
-// ── 1. Safe JSON.parse ──────────────────────────────────────────────
+const STORAGE_VERSION = "zapflow_storage_v4";
+const LEGACY_STORAGE_KEYS = [
+  "chunk_recovery",
+  "zapflow_chunk_recovery",
+  "zapai:runtime:diag",
+  "lovable-preview-state",
+  "lovable-runtime-state",
+  "swift-wa-assist-runtime",
+  "swift-wa-assist-auth",
+  "zapai:build:active",
+];
+const LEGACY_STORAGE_PREFIXES = [
+  "lovable",
+  "swift-wa-assist",
+  "supabase.auth.",
+];
+const LEGACY_INDEXED_DB_PREFIXES = [
+  "lovable",
+  "swift-wa-assist",
+  "supabase",
+];
+
+type StoredRuntimeManifest = {
+  runtime?: string;
+  marker?: string;
+  hash?: string;
+  schemaVersion?: string;
+};
+
 const _originalParse = JSON.parse;
 JSON.parse = function safeJsonParse(
   text: string,
@@ -19,13 +53,12 @@ JSON.parse = function safeJsonParse(
 ): unknown {
   try {
     return _originalParse(text, reviver);
-  } catch (err) {
+  } catch {
     console.warn(
       "[RuntimeHardening] JSON.parse failed on:",
       typeof text === "string" ? text.substring(0, 80) : typeof text,
     );
 
-    // If the corrupt payload looks like it's from our storage, clear it
     if (typeof text === "string" && /state|token|role|session|zapai/i.test(text)) {
       try {
         console.warn("[RuntimeHardening] Clearing corrupt storage...");
@@ -38,7 +71,6 @@ JSON.parse = function safeJsonParse(
   }
 };
 
-// ── 2. Safe Storage Accessors ───────────────────────────────────────
 function isStorageAvailable(storage: Storage | undefined): boolean {
   if (!storage) return false;
   try {
@@ -79,6 +111,24 @@ function safeSetItem(key: string, value: string): void {
   }
 }
 
+function safeRemoveItem(key: string): void {
+  try {
+    if (isStorageAvailable(window.localStorage)) {
+      window.localStorage.removeItem(key);
+    }
+  } catch {
+    // ignore
+  }
+
+  try {
+    if (isStorageAvailable(window.sessionStorage)) {
+      window.sessionStorage.removeItem(key);
+    }
+  } catch {
+    // ignore
+  }
+}
+
 function safeStorageClear(): void {
   try {
     window.localStorage.clear();
@@ -92,28 +142,110 @@ function safeStorageClear(): void {
   }
 }
 
-// ── 3. Storage Version Migration ────────────────────────────────────
-function migrateStorage(): void {
+function parseStoredRuntimeManifest(raw: string | null): StoredRuntimeManifest | null {
+  if (!raw) return null;
+  try {
+    const parsed = _originalParse(raw) as StoredRuntimeManifest | string;
+    if (parsed && typeof parsed === "object") {
+      return parsed;
+    }
+    if (typeof parsed === "string") {
+      return { marker: parsed };
+    }
+  } catch {
+    return null;
+  }
+  return null;
+}
+
+function shouldResetRuntimeManifest(currentHash: string | null): boolean {
+  const stored = parseStoredRuntimeManifest(safeGetItem(ZAPAI_RUNTIME_MANIFEST_STORAGE_KEY));
+  const storedMarker = safeGetItem(ZAPAI_RUNTIME_MARKER_STORAGE_KEY);
+
+  const runtimeMismatch = stored?.runtime && stored.runtime !== "official";
+  const markerMismatch =
+    (stored?.marker && stored.marker !== OFFICIAL_RUNTIME_MARKER) ||
+    (storedMarker && storedMarker !== OFFICIAL_RUNTIME_MARKER);
+  const schemaMismatch = stored?.schemaVersion && stored.schemaVersion !== RUNTIME_SCHEMA_VERSION;
+  const hashMismatch = Boolean(currentHash && stored?.hash && stored.hash !== currentHash);
+
+  return Boolean(runtimeMismatch || markerMismatch || schemaMismatch || hashMismatch);
+}
+
+function migrateStorage(currentHash: string | null): void {
   try {
     const currentVersion = safeGetItem(STORAGE_VERSION);
-    if (currentVersion === "2") return; // Already current
+    const runtimeManifestResetNeeded = shouldResetRuntimeManifest(currentHash);
+    if (currentVersion === "4" && !runtimeManifestResetNeeded) return;
 
-    // Version mismatch — clear all storage (safe reset)
-    if (currentVersion && currentVersion !== "2") {
-      console.warn("[RuntimeHardening] Storage version mismatch — resetting...");
-      safeStorageClear();
+    if ((currentVersion && currentVersion !== "4") || runtimeManifestResetNeeded) {
+      console.warn("[RuntimeHardening] Storage/runtime mismatch — resetting runtime fragments...");
+      clearLegacyRuntimeFragments();
+      safeRemoveItem(ZAPAI_RUNTIME_MANIFEST_STORAGE_KEY);
+      safeRemoveItem(ZAPAI_RUNTIME_MARKER_STORAGE_KEY);
     }
 
-    safeSetItem(STORAGE_VERSION, "2");
+    safeSetItem(STORAGE_VERSION, "4");
   } catch {
     // ignore
   }
 }
 
-// ── 4. Clean up stale recovery flags ────────────────────────────────
+function clearLegacyRuntimeFragments(): void {
+  if (typeof window === "undefined") return;
+
+  const storages = [window.localStorage, window.sessionStorage].filter(Boolean) as Storage[];
+  for (const storage of storages) {
+    try {
+      const keysToRemove: string[] = [];
+      for (let index = 0; index < storage.length; index += 1) {
+        const key = storage.key(index);
+        if (!key) continue;
+        if (LEGACY_STORAGE_KEYS.includes(key) || LEGACY_STORAGE_PREFIXES.some((prefix) => key.startsWith(prefix))) {
+          keysToRemove.push(key);
+        }
+      }
+      keysToRemove.forEach((key) => storage.removeItem(key));
+    } catch {
+      // ignore
+    }
+  }
+}
+
+function clearLegacyIndexedDb(): void {
+  if (typeof window === "undefined" || typeof indexedDB === "undefined" || typeof indexedDB.databases !== "function") {
+    return;
+  }
+
+  void indexedDB.databases()
+    .then((databases) => {
+      for (const database of databases) {
+        const name = String(database?.name || "").toLowerCase();
+        if (!name) continue;
+        if (LEGACY_INDEXED_DB_PREFIXES.some((prefix) => name.startsWith(prefix))) {
+          try {
+            indexedDB.deleteDatabase(database.name as string);
+          } catch {
+            // ignore
+          }
+        }
+      }
+    })
+    .catch(() => {
+      // ignore
+    });
+}
+
+function enforceOfficialFrontendMarker(): void {
+  try {
+    safeSetItem(ZAPAI_RUNTIME_MARKER_STORAGE_KEY, OFFICIAL_RUNTIME_MARKER);
+  } catch {
+    // ignore
+  }
+}
+
 function cleanRecoveryFlags(): void {
   try {
-    // Remove chunk recovery flag after 5 seconds of successful load
     window.addEventListener(
       "load",
       () => {
@@ -133,7 +265,6 @@ function cleanRecoveryFlags(): void {
   }
 }
 
-// ── 5. Global Safe String Helper ────────────────────────────────────
 function installSafeStringHelper(): void {
   if (typeof window === "undefined") return;
 
@@ -144,11 +275,9 @@ function installSafeStringHelper(): void {
     Array.isArray(val) ? val : [];
 }
 
-// ── 6. Global unhandled error interceptors ──────────────────────────
 function installGlobalErrorInterceptors(): void {
   if (typeof window === "undefined") return;
 
-  // Intercept TypeError crashes that don't make it to ErrorBoundary
   window.addEventListener("error", (event) => {
     const msg = event.message ?? "";
     const isRuntimeTypeError =
@@ -159,12 +288,9 @@ function installGlobalErrorInterceptors(): void {
 
     if (isRuntimeTypeError) {
       console.warn("[RuntimeHardening] Intercepted TypeError:", msg);
-      // Don't prevent default — let ErrorBoundary handle it
-      // But log it for diagnostics
     }
   });
 
-  // Chunk load error from dynamic imports
   window.addEventListener("unhandledrejection", (event) => {
     const reason = event.reason;
     const msg = reason instanceof Error ? reason.message : String(reason ?? "");
@@ -185,17 +311,16 @@ function installGlobalErrorInterceptors(): void {
   });
 }
 
-// ── Execute all hardening on module load ─────────────────────────────
-export function injectRuntimeHardening(): void {
+export function injectRuntimeHardening(currentHash: string | null = null): void {
   if (typeof window === "undefined") return;
 
-  migrateStorage();
+  migrateStorage(currentHash);
+  clearLegacyRuntimeFragments();
+  clearLegacyIndexedDb();
+  enforceOfficialFrontendMarker();
   cleanRecoveryFlags();
   installSafeStringHelper();
   installGlobalErrorInterceptors();
 
-  console.info("[RuntimeHardening] Active — storage v2, error interceptors installed.");
+  console.info("[RuntimeHardening] Active — official frontend marker enforced.");
 }
-
-// Auto-execute on import
-injectRuntimeHardening();

@@ -122,6 +122,35 @@ function getConfiguredCredentials() {
   };
 }
 
+function isProductionEnvironment() {
+  return String(process.env.NODE_ENV || 'development').trim().toLowerCase() === 'production';
+}
+
+function isEnvAuthFallbackAllowed() {
+  if (!isProductionEnvironment()) {
+    return true;
+  }
+
+  return String(process.env.AUTH_ALLOW_ENV_FALLBACK || '').trim().toLowerCase() === 'true';
+}
+
+function getFrontendBaseUrl() {
+  const rawValue = String(process.env.FRONTEND_URL || '').trim();
+  if (!rawValue) {
+    return '';
+  }
+
+  try {
+    const parsed = new URL(rawValue);
+    if (!parsed.protocol || !parsed.host) {
+      return '';
+    }
+    return rawValue.replace(/\/+$/, '');
+  } catch {
+    return '';
+  }
+}
+
 router.post('/auth/login', async (req, res) => {
   const secret = process.env.JWT_SECRET || process.env.AUTH_JWT_SECRET || '';
 
@@ -149,14 +178,18 @@ router.post('/auth/login', async (req, res) => {
     });
   }
 
+  let dbLookupFailed = false;
+  let dbUserExists = false;
+
   // Try database authentication first (production path)
   try {
     const result = await query(
-      'SELECT username, password_hash, tenant_id, role, is_active, blocked FROM users WHERE username = $1 LIMIT 1',
+      'SELECT username, password_hash, tenant_id, role FROM users WHERE username = $1 LIMIT 1',
       [username]
     );
 
     if (result.rows.length > 0) {
+      dbUserExists = true;
       const user = result.rows[0];
 
       if (!user.is_active) {
@@ -195,15 +228,19 @@ router.post('/auth/login', async (req, res) => {
           },
         });
       }
+
+      return res.status(401).json({
+        error: 'Invalid credentials.',
+      });
     }
   } catch (dbError) {
+    dbLookupFailed = true;
     console.error('[AUTH] Database login error:', dbError.message);
-    // Continue to fallback
   }
 
-  // Fallback: environment credentials (only if DB user not found or DB unavailable)
+  // Fallback: environment credentials (development by default, production only with explicit flag)
   const configuredCredentials = getConfiguredCredentials();
-  if (configuredCredentials) {
+  if (configuredCredentials && !dbUserExists && (dbLookupFailed || isEnvAuthFallbackAllowed())) {
     const expectedUsername = configuredCredentials.username;
     const expectedPassword = configuredCredentials.password;
 
@@ -301,18 +338,24 @@ router.post('/auth/forgot-password', async (req, res) => {
 
   // If email configured and user exists, send real recovery email
   if (isEmailConfigured() && userExists) {
-    try {
-      const resetLink = (process.env.FRONTEND_URL || 'https://SEU_DOMINIO.com') + '/reset-password?email=' + encodeURIComponent(email);
-      await sendEmail({
-        to: email,
-        subject: 'Recuperação de senha — ZapAI CRM',
-        text: `Olá,\n\nVocê solicitou a recuperação de senha.\n\nClique no link para redefinir: ${resetLink}\n\nSe não foi você, ignore este e-mail.`,
-        html: `<p>Olá,</p><p>Você solicitou a recuperação de senha.</p><p><a href="${resetLink}">Clique aqui para redefinir sua senha</a></p><p>Se não foi você, ignore este e-mail.</p>`,
-      });
-      console.log('[AUTH] Password recovery email sent to:', email);
-    } catch (emailErr) {
-      console.error('[AUTH] Failed to send recovery email:', emailErr.message);
-      // Return generic success anyway to avoid leaking info
+    const frontendBaseUrl = getFrontendBaseUrl();
+
+    if (!frontendBaseUrl) {
+      console.error('[AUTH] Password recovery skipped: FRONTEND_URL is missing or invalid.');
+    } else {
+      try {
+        const resetLink = `${frontendBaseUrl}/reset-password?email=${encodeURIComponent(email)}`;
+        await sendEmail({
+          to: email,
+          subject: 'Recuperação de senha — ZapAI CRM',
+          text: `Olá,\n\nVocê solicitou a recuperação de senha.\n\nClique no link para redefinir: ${resetLink}\n\nSe não foi você, ignore este e-mail.`,
+          html: `<p>Olá,</p><p>Você solicitou a recuperação de senha.</p><p><a href="${resetLink}">Clique aqui para redefinir sua senha</a></p><p>Se não foi você, ignore este e-mail.</p>`,
+        });
+        console.log('[AUTH] Password recovery email sent to:', email);
+      } catch (emailErr) {
+        console.error('[AUTH] Failed to send recovery email:', emailErr.message);
+        // Return generic success anyway to avoid leaking info
+      }
     }
   }
 

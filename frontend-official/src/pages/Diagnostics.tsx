@@ -7,8 +7,10 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { DownloadSimple, CaretDown, Palette, CopySimple, ArrowClockwise, CheckCircle, WarningCircle, XCircle } from "@phosphor-icons/react";
+import { readRuntimeManifest } from "@/services/runtimeCoherenceService";
 import { generateDesignSystemZip } from "@/lib/designSystemExporter";
 import { API_ORIGIN } from "@/services/apiService";
+import { OperationalStatusBadge } from "@/components/enterprise/OperationalStatusBadge";
 import { IS_MIXED_CONTENT_BLOCKED } from "@/lib/backendConfig";
 import { systemControlService, type AiDiagnosticsResponse } from "@/services/systemControlService";
 import { getFrontendHealthSnapshot, subscribeFrontendHealth, type FrontendHealthSnapshot } from "@/services/frontendHealthService";
@@ -49,11 +51,19 @@ type RouteHealthResult = {
   message: string;
 };
 
+type RuntimeCoherenceCard = {
+  manifest: ReturnType<typeof readRuntimeManifest>;
+  backendUrl: string;
+  frontendUrl: string;
+  websocketUrl: string;
+  mismatchReason: string | null;
+};
+
 const AI_DIAGNOSTIC_DEFINITIONS = [
-  { title: "System Status", keys: ["systemStatus", "system_status"] },
-  { title: "Detected Bugs", keys: ["detectedBugs", "detected_bugs"] },
-  { title: "System Metrics", keys: ["systemMetrics", "system_metrics"] },
-  { title: "AI Recommendations", keys: ["aiRecommendations", "ai_recommendations"] },
+  { title: "Status do sistema", keys: ["systemStatus", "system_status"] },
+  { title: "Bugs detectados", keys: ["detectedBugs", "detected_bugs"] },
+  { title: "Métricas do sistema", keys: ["systemMetrics", "system_metrics"] },
+  { title: "Recomendações da IA", keys: ["aiRecommendations", "ai_recommendations"] },
 ] as const;
 
 const ROUTE_HEALTH_ENDPOINTS = [
@@ -72,9 +82,9 @@ function resolveLevel(status?: string | boolean | null): HealthLevel {
 }
 
 function levelMeta(level: HealthLevel) {
-  if (level === "healthy") return { dotClass: "bg-success", badgeClass: "bg-success/10 text-success", text: "Healthy", Icon: CheckCircle };
-  if (level === "warning") return { dotClass: "bg-warning", badgeClass: "bg-warning/10 text-warning", text: "Warning", Icon: WarningCircle };
-  return { dotClass: "bg-destructive", badgeClass: "bg-destructive/10 text-destructive", text: "Error", Icon: XCircle };
+  if (level === "healthy") return { dotClass: "bg-success", badgeClass: "bg-success/10 text-success", text: "Saudável", Icon: CheckCircle };
+  if (level === "warning") return { dotClass: "bg-warning", badgeClass: "bg-warning/10 text-warning", text: "Atenção", Icon: WarningCircle };
+  return { dotClass: "bg-destructive", badgeClass: "bg-destructive/10 text-destructive", text: "Erro", Icon: XCircle };
 }
 
 function readMetricNumber(source: Record<string, unknown>, keys: string[], fallback = 0): number {
@@ -122,8 +132,8 @@ function readAiEntry(raw: AiDiagnosticsResponse | null, keys: readonly string[])
 function buildAiDiagnosticCards(raw: AiDiagnosticsResponse | null): AiDiagnosticCard[] {
   return AI_DIAGNOSTIC_DEFINITIONS.map(({ title, keys }) => {
     const entry = readAiEntry(raw, keys);
-    const status = readMetricString(entry, ["status", "state", "health"], "No signal");
-    const description = readMetricString(entry, ["description", "details", "message"], "No description available");
+    const status = readMetricString(entry, ["status", "state", "health"], "Sem sinal");
+    const description = readMetricString(entry, ["description", "details", "message"], "Sem descrição disponível");
     const timestamp = readMetricString(entry, ["timestamp", "updatedAt", "updated_at", "createdAt", "created_at"], "--");
     return { title, status, description, timestamp, level: resolveLevel(status) };
   });
@@ -135,14 +145,14 @@ function buildIndicators(status: DiagnosticsStatus | null, frontendHealth: Front
   const connectedSessions = readMetricNumber(raw, ["connectedSessions", "connected_sessions", "sessions_connected"]);
 
   return [
-    { label: "System Runtime", level: status?.active ? "healthy" : "error", details: status?.active ? "Runtime active" : "Runtime inactive" },
-    { label: "PostgreSQL connection", level: resolveLevel(resolveStatusValue(raw, ["database", "db", "postgres", "postgresql"])), details: String(resolveStatusValue(raw, ["database", "db", "postgres", "postgresql"]) ?? "No signal") },
-    { label: "Socket.IO connection", level: resolveLevel(resolveStatusValue(raw, ["socket", "socketIo", "socket_io"])), details: String(resolveStatusValue(raw, ["socket", "socketIo", "socket_io"]) ?? "No signal") },
-    { label: "Active WhatsApp sessions", level: connectedSessions > 0 ? "healthy" : totalSessions > 0 ? "warning" : "error", details: `${connectedSessions}/${totalSessions} connected` },
-    { label: "AI engine status", level: resolveLevel(resolveStatusValue(raw, ["aiEngine", "ai", "ai_status"])), details: String(resolveStatusValue(raw, ["aiEngine", "ai", "ai_status"]) ?? "No signal") },
-    { label: "Campaign queue status", level: resolveLevel(resolveStatusValue(raw, ["campaignQueue", "queue", "campaign_queue"])), details: String(resolveStatusValue(raw, ["campaignQueue", "queue", "campaign_queue"]) ?? "No signal") },
-    { label: "Microtask runner status", level: resolveLevel(resolveStatusValue(raw, ["microtaskRunner", "microtask", "runner"])), details: String(resolveStatusValue(raw, ["microtaskRunner", "microtask", "runner"]) ?? "No signal") },
-    { label: "Frontend health", level: frontendHealth.level, details: frontendHealth.lastIssue?.message ?? "No recent frontend issues" },
+    { label: "Runtime do sistema", level: status?.active ? "healthy" : "error", details: status?.active ? "Runtime ativo" : "Runtime inativo" },
+    { label: "Conexão PostgreSQL", level: resolveLevel(resolveStatusValue(raw, ["database", "db", "postgres", "postgresql"])), details: String(resolveStatusValue(raw, ["database", "db", "postgres", "postgresql"]) ?? "Sem sinal") },
+    { label: "Conexão Socket.IO", level: resolveLevel(resolveStatusValue(raw, ["socket", "socketIo", "socket_io"])), details: String(resolveStatusValue(raw, ["socket", "socketIo", "socket_io"]) ?? "Sem sinal") },
+    { label: "Sessões ativas do WhatsApp", level: connectedSessions > 0 ? "healthy" : totalSessions > 0 ? "warning" : "error", details: `${connectedSessions}/${totalSessions} conectadas` },
+    { label: "Status do motor de IA", level: resolveLevel(resolveStatusValue(raw, ["aiEngine", "ai", "ai_status"])), details: String(resolveStatusValue(raw, ["aiEngine", "ai", "ai_status"]) ?? "Sem sinal") },
+    { label: "Status da fila de campanhas", level: resolveLevel(resolveStatusValue(raw, ["campaignQueue", "queue", "campaign_queue"])), details: String(resolveStatusValue(raw, ["campaignQueue", "queue", "campaign_queue"]) ?? "Sem sinal") },
+    { label: "Status do microtask runner", level: resolveLevel(resolveStatusValue(raw, ["microtaskRunner", "microtask", "runner"])), details: String(resolveStatusValue(raw, ["microtaskRunner", "microtask", "runner"]) ?? "Sem sinal") },
+    { label: "Saúde do frontend", level: frontendHealth.level, details: frontendHealth.lastIssue?.message ?? "Sem incidentes recentes no frontend" },
   ];
 }
 
@@ -180,7 +190,7 @@ async function checkRouteHealth(route: string): Promise<RouteHealthResult> {
       status: isTimeout ? "timeout" : "error",
       responseTime,
       level: "error",
-      message: isTimeout ? "Timeout (8s)" : (err instanceof Error ? err.message : "Network error"),
+      message: isTimeout ? "Timeout (8s)" : (err instanceof Error ? err.message : "Erro de rede"),
     };
   }
 }
@@ -195,13 +205,20 @@ const Diagnostics = memo(function Diagnostics() {
   const [dsLoading, setDsLoading] = useState(false);
   const [routeHealth, setRouteHealth] = useState<RouteHealthResult[]>([]);
   const [routeHealthLoading, setRouteHealthLoading] = useState(true);
+  const [runtimeCoherence, setRuntimeCoherence] = useState<RuntimeCoherenceCard | null>(null);
   const [structuredLogs, setStructuredLogs] = useState<StructuredLogEntry[]>(slog.getLogs);
   const [errorsByRoute, setErrorsByRoute] = useState<Record<string, number>>({});
   const diagnosticsSnapshotRef = useRef("");
   const aiDiagnosticsSnapshotRef = useRef("");
+  const diagnosticsInFlightRef = useRef(false);
+  const aiDiagnosticsInFlightRef = useRef(false);
+  const routeHealthInFlightRef = useRef(false);
+  const runtimeCoherenceInFlightRef = useRef(false);
   const { toast } = useToast();
 
   const loadDiagnostics = useCallback(async () => {
+    if (diagnosticsInFlightRef.current) return;
+    diagnosticsInFlightRef.current = true;
     try {
       const [statusResponse, recentErrors] = await Promise.all([
         systemControlService.getStatus(),
@@ -217,11 +234,14 @@ const Diagnostics = memo(function Diagnostics() {
       setStatus(null);
       setErrors([]);
     } finally {
+      diagnosticsInFlightRef.current = false;
       setLoading(false);
     }
   }, []);
 
   const loadAiDiagnostics = useCallback(async () => {
+    if (aiDiagnosticsInFlightRef.current) return;
+    aiDiagnosticsInFlightRef.current = true;
     try {
       const aiResponse = await systemControlService.getAiDiagnostics();
       const nextSnapshot = JSON.stringify(aiResponse);
@@ -232,17 +252,55 @@ const Diagnostics = memo(function Diagnostics() {
     } catch {
       setAiDiagnostics(null);
     } finally {
+      aiDiagnosticsInFlightRef.current = false;
       setAiLoading(false);
     }
   }, []);
 
   const loadRouteHealth = useCallback(async () => {
+    if (routeHealthInFlightRef.current) return;
+    routeHealthInFlightRef.current = true;
     setRouteHealthLoading(true);
     try {
       const results = await Promise.all(ROUTE_HEALTH_ENDPOINTS.map(checkRouteHealth));
       setRouteHealth(results);
     } finally {
+      routeHealthInFlightRef.current = false;
       setRouteHealthLoading(false);
+    }
+  }, []);
+
+  const loadRuntimeCoherence = useCallback(async () => {
+    if (runtimeCoherenceInFlightRef.current) return;
+    runtimeCoherenceInFlightRef.current = true;
+    try {
+      const coherence = await systemControlService.getRuntimeCoherence();
+      const identity = (coherence.runtimeIdentity ?? {}) as Record<string, unknown>;
+      const frontendUrl = String(identity.frontendUrl ?? "http://localhost:8080");
+      const backendUrl = String(identity.backendUrl ?? API_ORIGIN ?? "http://127.0.0.1:4025");
+      const websocketUrl = String(identity.websocketUrl ?? backendUrl);
+      const manifest = readRuntimeManifest();
+      let mismatchReason: string | null = null;
+
+      if (manifest?.runtime !== "official") {
+        mismatchReason = "Manifest de runtime não oficial detectado.";
+      } else if (manifest?.frontend !== "8080") {
+        mismatchReason = "Porta de frontend divergente do runtime oficial.";
+      } else if (manifest?.backend !== "4025") {
+        mismatchReason = "Porta de backend divergente do runtime oficial.";
+      }
+
+      setRuntimeCoherence({
+        manifest,
+        backendUrl,
+        frontendUrl,
+        websocketUrl,
+        mismatchReason,
+      });
+    } catch {
+      setRuntimeCoherence(null);
+    } finally {
+      runtimeCoherenceInFlightRef.current = false;
     }
   }, []);
 
@@ -280,12 +338,14 @@ const Diagnostics = memo(function Diagnostics() {
 
   useEffect(() => {
     void loadRouteHealth();
+    void loadRuntimeCoherence();
     const intervalId = window.setInterval(() => {
       if (document.visibilityState !== "visible") return;
       void loadRouteHealth();
+      void loadRuntimeCoherence();
     }, 60_000);
     return () => window.clearInterval(intervalId);
-  }, [loadRouteHealth]);
+  }, [loadRouteHealth, loadRuntimeCoherence]);
 
   const indicators = useMemo(() => buildIndicators(status, frontendHealth), [status, frontendHealth]);
   const aiCards = useMemo(() => buildAiDiagnosticCards(aiDiagnostics), [aiDiagnostics]);
@@ -352,36 +412,100 @@ const Diagnostics = memo(function Diagnostics() {
   }, []);
 
   return (
-    <div className="flex flex-1 flex-col overflow-y-auto">
-      <Header title="System Diagnostics" subtitle="Real-time infrastructure health for developers and admins" />
-      <div className="space-y-6 p-6">
+    <div className="min-h-screen">
+      <Header
+        title="Diagnóstico operacional"
+        subtitle="Saúde do runtime, rotas, observabilidade e coerência do frontend oficial"
+        actions={
+          <>
+            <Button variant="outline" size="sm" className="rounded-xl" onClick={() => void loadDiagnostics()}>
+              <ArrowClockwise className="h-4 w-4" />
+              Atualizar sinais
+            </Button>
+            <Button onClick={handleDownloadReport} size="sm" className="rounded-xl shadow-glow gap-2">
+              <DownloadSimple className="h-4 w-4" />
+              Exportar relatório
+            </Button>
+          </>
+        }
+      />
+      <div className="page-container section-stack pb-10">
         <div className="flex flex-wrap items-center justify-end gap-3">
-          <Button onClick={handleCopyLogs} variant="outline" className="gap-2">
+          <Button onClick={handleCopyLogs} variant="outline" className="gap-2 rounded-xl">
             <CopySimple className="h-4 w-4" />
-            Copiar Logs
+            Copiar logs
           </Button>
-          <Button onClick={handleDownloadDesignSystem} variant="outline" className="gap-2">
+          <Button onClick={handleDownloadDesignSystem} variant="outline" className="gap-2 rounded-xl">
             <Palette className="h-4 w-4" />
-            {dsLoading ? "Generating..." : "Download Design System"}
-          </Button>
-          <Button onClick={handleDownloadReport} className="gap-2">
-            <DownloadSimple className="h-4 w-4" />
-            Download system report
+            {dsLoading ? "Gerando design system..." : "Baixar design system"}
           </Button>
         </div>
 
         {/* Metric summary cards */}
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
-          <Card className="metric-card"><CardContent className="p-5"><p className="text-sm text-muted-foreground">Total sessions</p><p className="font-display text-2xl font-bold">{metrics.totalSessions}</p></CardContent></Card>
-          <Card className="metric-card"><CardContent className="p-5"><p className="text-sm text-muted-foreground">Connected sessions</p><p className="font-display text-2xl font-bold">{metrics.connectedSessions}</p></CardContent></Card>
-          <Card className="metric-card"><CardContent className="p-5"><p className="text-sm text-muted-foreground">Messages processed</p><p className="font-display text-2xl font-bold">{metrics.messagesProcessed}</p></CardContent></Card>
-          <Card className="metric-card"><CardContent className="p-5"><p className="text-sm text-muted-foreground">System uptime</p><p className="font-display text-2xl font-bold">{metrics.uptime}</p></CardContent></Card>
+          <Card className="metric-card rounded-2xl border-border/70 bg-card/85"><CardContent className="space-y-2 p-5"><p className="text-[11px] uppercase tracking-wide text-muted-foreground">Total de sessões</p><p className="font-display text-2xl font-bold">{metrics.totalSessions}</p><OperationalStatusBadge label="Sessões registradas" tone="syncing" /></CardContent></Card>
+          <Card className="metric-card rounded-2xl border-border/70 bg-card/85"><CardContent className="space-y-2 p-5"><p className="text-[11px] uppercase tracking-wide text-muted-foreground">Sessões conectadas</p><p className="font-display text-2xl font-bold">{metrics.connectedSessions}</p><OperationalStatusBadge label={metrics.connectedSessions > 0 ? "Runtime oficial saudável" : "Aguardando conexão"} tone={metrics.connectedSessions > 0 ? "online" : "warning"} /></CardContent></Card>
+          <Card className="metric-card rounded-2xl border-border/70 bg-card/85"><CardContent className="space-y-2 p-5"><p className="text-[11px] uppercase tracking-wide text-muted-foreground">Mensagens processadas</p><p className="font-display text-2xl font-bold">{metrics.messagesProcessed}</p><OperationalStatusBadge label="Pipeline ativo" tone="online" /></CardContent></Card>
+          <Card className="metric-card rounded-2xl border-border/70 bg-card/85"><CardContent className="space-y-2 p-5"><p className="text-[11px] uppercase tracking-wide text-muted-foreground">Uptime do sistema</p><p className="font-display text-2xl font-bold">{metrics.uptime}</p><OperationalStatusBadge label="Observabilidade contínua" tone="syncing" /></CardContent></Card>
         </div>
 
-        {/* Route Health Checks */}
+        {runtimeCoherence && (
+          <Card className="glass-card">
+            <CardHeader>
+              <CardTitle className="font-display">Coerência do runtime</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3 text-sm text-muted-foreground">
+              <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
+                <div className="rounded-lg border border-border bg-card p-3">
+                  <p className="text-xs uppercase tracking-wide text-muted-foreground">Runtime oficial</p>
+                  <p className="font-medium text-foreground">{runtimeCoherence.manifest?.runtime ?? "desconhecido"}</p>
+                </div>
+                <div className="rounded-lg border border-border bg-card p-3">
+                  <p className="text-xs uppercase tracking-wide text-muted-foreground">Build hash</p>
+                  <p className="font-medium text-foreground">{runtimeCoherence.manifest?.hash ?? "desconhecido"}</p>
+                </div>
+                <div className="rounded-lg border border-border bg-card p-3">
+                  <p className="text-xs uppercase tracking-wide text-muted-foreground">Commit</p>
+                  <p className="font-medium text-foreground">{runtimeCoherence.manifest?.commit ?? "desconhecido"}</p>
+                </div>
+                <div className="rounded-lg border border-border bg-card p-3">
+                  <p className="text-xs uppercase tracking-wide text-muted-foreground">Schema</p>
+                  <p className="font-medium text-foreground">{runtimeCoherence.manifest?.schemaVersion ?? "desconhecido"}</p>
+                </div>
+              </div>
+              <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+                <div className="rounded-lg border border-border bg-card p-3">
+                  <p className="text-xs uppercase tracking-wide text-muted-foreground">Origem do frontend</p>
+                  <p className="font-mono text-xs text-foreground">{runtimeCoherence.frontendUrl}</p>
+                </div>
+                <div className="rounded-lg border border-border bg-card p-3">
+                  <p className="text-xs uppercase tracking-wide text-muted-foreground">Origem do backend</p>
+                  <p className="font-mono text-xs text-foreground">{runtimeCoherence.backendUrl}</p>
+                </div>
+                <div className="rounded-lg border border-border bg-card p-3">
+                  <p className="text-xs uppercase tracking-wide text-muted-foreground">Origem do socket</p>
+                  <p className="font-mono text-xs text-foreground">{runtimeCoherence.websocketUrl}</p>
+                </div>
+              </div>
+              <div className="rounded-lg border border-border bg-card p-3">
+                <p className="text-xs uppercase tracking-wide text-muted-foreground">Motivo de divergência</p>
+                <div className="mt-2">
+                  <OperationalStatusBadge
+                    label={runtimeCoherence.mismatchReason ?? "Nenhuma divergência detectada com o runtime oficial"}
+                    tone={runtimeCoherence.mismatchReason ? "warning" : "online"}
+                    pulse={Boolean(runtimeCoherence.mismatchReason)}
+                    className="max-w-full"
+                  />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Saúde das rotas */}
         <Card className="glass-card">
           <CardHeader className="flex flex-row items-center justify-between">
-            <CardTitle className="font-display">Route Health Check</CardTitle>
+            <CardTitle className="font-display">Saúde das rotas</CardTitle>
             <Button variant="ghost" size="sm" onClick={() => void loadRouteHealth()} disabled={routeHealthLoading}>
               <ArrowClockwise className={`h-4 w-4 ${routeHealthLoading ? "animate-spin" : ""}`} />
             </Button>
@@ -411,10 +535,10 @@ const Diagnostics = memo(function Diagnostics() {
           </CardContent>
         </Card>
 
-        {/* Health Indicators */}
+        {/* Indicadores de saúde */}
         <Card className="glass-card">
           <CardHeader>
-            <CardTitle className="font-display">Health Indicators</CardTitle>
+            <CardTitle className="font-display">Indicadores de saúde</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
             {loading
@@ -437,7 +561,7 @@ const Diagnostics = memo(function Diagnostics() {
           </CardContent>
         </Card>
 
-        {/* Last Error & Error Counts */}
+        {/* Last Erro & Erro Counts */}
         {lastError && (
           <Card className="border-destructive/30 glass-card">
             <CardHeader>
@@ -473,10 +597,10 @@ const Diagnostics = memo(function Diagnostics() {
           </Card>
         )}
 
-        {/* AI Diagnostics */}
+        {/* Diagnóstico de IA */}
         <Card className="glass-card">
           <CardHeader>
-            <CardTitle className="font-display">AI Diagnostics</CardTitle>
+            <CardTitle className="font-display">Diagnóstico de IA</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
@@ -495,7 +619,7 @@ const Diagnostics = memo(function Diagnostics() {
                             </Badge>
                           </div>
                           <p className="text-sm text-muted-foreground">{card.description}</p>
-                          <p className="text-xs text-muted-foreground">Updated: {card.timestamp}</p>
+                          <p className="text-xs text-muted-foreground">Atualizado: {card.timestamp}</p>
                         </CardContent>
                       </Card>
                     );
@@ -535,16 +659,16 @@ const Diagnostics = memo(function Diagnostics() {
           </CollapsibleContent>
         </Collapsible>
 
-        {/* Recent Errors */}
+        {/* Recent Erros */}
         <Collapsible className="glass-card rounded-lg border border-border">
           <CollapsibleTrigger className="flex w-full items-center justify-between p-4 text-left">
-            <span className="font-display text-lg font-semibold">Recent Backend Errors</span>
+            <span className="font-display text-lg font-semibold">Erros recentes do backend</span>
             <CaretDown className="h-4 w-4 text-muted-foreground" />
           </CollapsibleTrigger>
           <CollapsibleContent>
             <div className="space-y-3 p-4 pt-0">
               {errors.length === 0 ? (
-                <p className="text-sm text-muted-foreground">No recent errors found.</p>
+                <p className="text-sm text-muted-foreground">Nenhum erro recente encontrado.</p>
               ) : (
                 errors.map((error, index) => (
                   <div key={`${error.timestamp}-${index}`} className="rounded-lg border border-border bg-card p-3">

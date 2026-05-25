@@ -720,10 +720,12 @@ async function listMessages(req, res) {
 async function getMessagesByConversationId(req, res) {
   const { conversationId } = req.params;
   const store = getStore(req);
+  const limit = Math.max(1, Math.min(Number(req.query?.limit) || 50, 200));
+  const before = typeof req.query?.before === 'string' ? req.query.before : undefined;
 
   try {
     if (store?.databaseEnabled) {
-      const messages = await messageRepository.findByConversationId(conversationId);
+      const messages = await messageRepository.getMessagesByConversation(conversationId, { limit, before });
       const sortedMessages = normalizeMessagesForApi(messages);
 
       return res.status(200).json(Array.isArray(sortedMessages) ? sortedMessages : []);
@@ -732,8 +734,16 @@ async function getMessagesByConversationId(req, res) {
     const memoryList = Array.isArray(store?.messages)
       ? store.messages
           .filter((entry) => String(entry?.conversationId || '') === String(conversationId || ''))
+          .filter((entry) => {
+            if (!before) return true;
+            const timestamp = new Date(String(entry?.createdAt || entry?.timestamp || ''));
+            return !Number.isNaN(timestamp.getTime()) && timestamp.getTime() < new Date(before).getTime();
+          })
+          .sort((a, b) => new Date(String(b?.createdAt || b?.timestamp || '')).getTime() - new Date(String(a?.createdAt || a?.timestamp || '')).getTime())
+          .slice(0, limit)
           .map((entry) => formatApiMessage(entry))
           .filter(Boolean)
+          .reverse()
       : [];
 
     return res.status(200).json(normalizeMessagesForApi(memoryList));
@@ -928,9 +938,80 @@ async function getMessagesByChatId(req, res) {
   }
 }
 
+async function deleteMessage(req, res) {
+  const { messageId } = req.params;
+  const store = getStore(req);
+
+  try {
+    const existing = store?.databaseEnabled
+      ? await messageRepository.findById(messageId)
+      : Array.isArray(store?.messages)
+        ? store.messages.find((entry) => String(entry?.id) === String(messageId))
+        : null;
+
+    if (!existing) {
+      return res.status(404).json({ error: 'Message not found.' });
+    }
+
+    if (store?.databaseEnabled) {
+      await messageRepository.deleteById(messageId);
+    } else if (Array.isArray(store?.messages)) {
+      store.messages = store.messages.filter((entry) => String(entry?.id) !== String(messageId));
+    }
+
+    emitSocketEvent(req, 'message_deleted', {
+      messageId: String(messageId),
+      conversationId: existing.conversationId || existing.chatId || null,
+    });
+
+    return res.status(200).json({ success: true, messageId: String(messageId) });
+  } catch (error) {
+    return res.status(500).json({ error: error.message || 'Failed to delete message.' });
+  }
+}
+
+async function forwardMessage(req, res) {
+  const { messageId } = req.params;
+  const { phone, conversationId, sessionId } = req.body || {};
+  const store = getStore(req);
+
+  if (!phone) {
+    return res.status(400).json({ error: 'The field phone is required.' });
+  }
+
+  try {
+    const existing = store?.databaseEnabled
+      ? await messageRepository.findById(messageId)
+      : Array.isArray(store?.messages)
+        ? store.messages.find((entry) => String(entry?.id) === String(messageId))
+        : null;
+
+    if (!existing) {
+      return res.status(404).json({ error: 'Message not found.' });
+    }
+
+    req.body = {
+      chatId: phone,
+      phone,
+      text: existing.content || existing.text || '',
+      mediaPath: existing.mediaPath || null,
+      mediaType: existing.mediaType || null,
+      conversationId: conversationId || undefined,
+      sessionId: sessionId || existing.sessionId || undefined,
+      message: existing.content || existing.text || '',
+    };
+
+    return existing.mediaType ? sendMedia(req, res) : sendMessage(req, res);
+  } catch (error) {
+    return res.status(500).json({ error: error.message || 'Failed to forward message.' });
+  }
+}
+
 module.exports = {
   createMessage,
+  deleteMessage,
   extractIncomingMessage: whatsappService.extractIncomingMessage,
+  forwardMessage,
   getChats,
   getMessagesByChatId,
   getMessagesByConversationId,

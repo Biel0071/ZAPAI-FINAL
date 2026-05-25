@@ -1,6 +1,6 @@
 # ZapAI CRM — WhatsApp CRM com IA
 
-> Sistema completo de CRM para WhatsApp com automação por IA, gestão de conversas em tempo real, sessões multi-dispositivo via Baileys e dashboard React PWA.
+> Sistema completo de CRM para WhatsApp com automação por IA, gestão de conversas em tempo real, sessões multi-dispositivo via Baileys e dashboard React.
 
 [![Node](https://img.shields.io/badge/Node-20_LTS-green)](https://nodejs.org)
 [![React](https://img.shields.io/badge/React-18-blue)](https://react.dev)
@@ -18,7 +18,6 @@ O ZapAI CRM conecta múltiplas sessões WhatsApp a um painel centralizado, permi
 - 🤖 **IA integrada** (OpenAI) para sugestões, respostas automáticas e análise
 - 📊 **Analytics e CRM** com leads, campanhas e automações
 - ⚡ **Tempo real** via socket.io (QR gerado ao vivo, mensagens instantâneas)
-- 📲 **PWA** — instalável no celular como app nativo
 
 ---
 
@@ -37,7 +36,7 @@ O ZapAI CRM conecta múltiplas sessões WhatsApp a um painel centralizado, permi
 | Logger | Winston + Pino |
 | Cron | node-cron |
 
-### Frontend (`frontend/`)
+### Frontend (`frontend-official/`)
 | Camada | Tecnologia |
 |---|---|
 | Framework | React 18 + Vite 5 |
@@ -46,7 +45,6 @@ O ZapAI CRM conecta múltiplas sessões WhatsApp a um painel centralizado, permi
 | Ícones | Phosphor Icons + Lucide |
 | Estado | React Query v5 + Zustand |
 | Socket | socket.io-client 4.8 |
-| PWA | vite-plugin-pwa + Workbox |
 | Roteamento | React Router DOM v6 |
 
 ### Infraestrutura
@@ -75,17 +73,17 @@ ZAPAI-FINAL/
 │   ├── .env.example          ← template de variáveis (58 vars)
 │   └── package.json          ← 15 deps de produção
 │
-├── frontend/                 ← SPA React PWA
+├── frontend-official/        ← SPA React ativa
 │   ├── src/
 │   │   ├── pages/            ← Inbox, Dashboard, CRM, AI, Settings…
-│   │   ├── services/         ← apiService, socketService, supabase…
+│   │   ├── services/         ← apiService, socketService, systemControl…
 │   │   ├── components/       ← layout, ui (shadcn), domain
-│   │   └── hooks/            ← use-toast, use-mobile…
-│   ├── .env.example          ← VITE_API_URL, VITE_SUPABASE_*
-│   └── vite.config.ts        ← proxy /api + /auth + /socket.io → backend
+│   │   └── hooks/            ← auth, health, runtime…
+│   ├── package.json          ← scripts de dev/build/test
+│   └── vite.config.ts        ← Vite dev server (porta 8080)
 │
 ├── deploy/
-│   ├── ecosystem.config.js   ← PM2: autorestart, logs, 800MB limit
+│   ├── auto-deploy.sh        ← deploy oficial PM2 + Nginx
 │   ├── nginx.conf            ← HTTPS, proxy API+WS, gzip, cache estático
 │   ├── deploy.sh             ← backup → pull → build → deps → migrate → PM2 → smoke
 │   ├── backup.sh             ← sessions tarball + pg_dump (retém 10)
@@ -118,13 +116,26 @@ npm start
 
 ### Frontend
 ```bash
-cd frontend
-cp .env.example .env
-# Edite .env: VITE_API_URL=http://localhost:4025
+cd frontend-official
+# Opcional: crie um .env.local com VITE_API_URL=http://localhost:4025
 npm install
 npm run dev
 # → http://localhost:8080
 ```
+
+### Runtime único local
+```bash
+# Na raiz do repositório
+npm run stop         # derruba Vites/Node duplicados gerenciados
+npm run start:official
+# ou: npm run dev:clean
+# frontend oficial → http://localhost:8080
+# backend oficial  → http://127.0.0.1:4025
+```
+
+Logs locais gerados pelos scripts:
+- `logs/local-backend.log`
+- `logs/local-frontend.log`
 
 ### Verificar sistema funcionando
 ```bash
@@ -175,8 +186,8 @@ cp backend/.env.example backend/.env
 nano backend/.env          # preencher DATABASE_URL, JWT_SECRET, AUTH_DEFAULT_PASSWORD, etc.
 
 # Frontend env de produção
-cp frontend/.env.example frontend/.env.production
-nano frontend/.env.production
+cp frontend-official/.env.example frontend-official/.env.production
+nano frontend-official/.env.production
 # VITE_API_URL=https://seu-dominio.com
 ```
 
@@ -204,13 +215,13 @@ sudo certbot --nginx -d seu-dominio.com
 ### 5. Primeiro deploy
 ```bash
 chmod +x deploy/*.sh
-./deploy/deploy.sh
-# Acompanhar: pm2 logs zapai-backend
+./deploy/auto-deploy.sh
+# Acompanhar: pm2 logs zapflow-api
 ```
 
 ### Deploys subsequentes
 ```bash
-./deploy/deploy.sh
+./deploy/auto-deploy.sh
 ```
 
 ### Rollback para versão estável
@@ -244,7 +255,7 @@ chmod +x deploy/*.sh
 | `LOG_LEVEL` | `info` / `debug` / `warn` |
 | `DB_RUN_MIGRATIONS_ON_BOOT` | `true` para auto-migrate |
 
-### Frontend (`frontend/.env.production`)
+### Frontend (`frontend-official/.env.production`)
 | Variável | Exemplo | Descrição |
 |---|---|---|
 | `VITE_API_URL` | `https://seu-dominio.com` | Backend URL sem trailing slash |
@@ -288,13 +299,13 @@ sudo ufw enable
 pm2 status
 
 # Logs em tempo real
-pm2 logs zapai-backend
+pm2 logs zapflow-api
 
 # Health check
 curl https://seu-dominio.com/health
 
 # Reiniciar
-pm2 restart zapai-backend
+pm2 restart zapflow-api
 ```
 
 ---

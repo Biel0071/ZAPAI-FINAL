@@ -15,9 +15,12 @@ function runBootstrap() {
   console.log('====================================================');
   console.log('[AUTO-BOOTSTRAP] .env não encontrado. Gerando novo ambiente...');
 
-  const dbPassword = process.env.POSTGRES_PASSWORD || 'zapadmin123';
+  const dbPassword = process.env.POSTGRES_PASSWORD || crypto.randomBytes(16).toString('hex');
+  const dbHost = process.env.POSTGRES_HOST || process.env.DB_HOST || (fs.existsSync('/workspace') ? 'postgres' : 'localhost');
+  const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:8080';
   const jwtSecret = crypto.randomBytes(32).toString('hex');
   const nodeToken = crypto.randomBytes(16).toString('hex');
+  const adminPassword = process.env.AUTH_DEFAULT_PASSWORD || crypto.randomBytes(16).toString('hex');
 
   const envContent = `
 # ============================================================================
@@ -28,14 +31,15 @@ PORT=4025
 HOST=0.0.0.0
 
 # ── CORS / Frontend URL ──────────────────────────────────────
-FRONTEND_URL=http://localhost
-CORS_ALLOWED_ORIGINS=http://localhost
+FRONTEND_URL=${frontendUrl}
+CORS_ALLOWED_ORIGINS=${frontendUrl}
 
 # ── Database (PostgreSQL) ───────────────────────────────────
+POSTGRES_HOST=${dbHost}
 POSTGRES_USER=zapai
 POSTGRES_PASSWORD=${dbPassword}
 POSTGRES_DB=zapai_crm
-DATABASE_URL=postgresql://zapai:${dbPassword}@postgres:5432/zapai_crm
+DATABASE_URL=postgresql://zapai:${dbPassword}@${dbHost}:5432/zapai_crm
 PGSSLMODE=disable
 
 # ── Authentication ──────────────────────────────────────────
@@ -43,7 +47,7 @@ JWT_SECRET=${jwtSecret}
 AUTH_JWT_SECRET=${jwtSecret}
 
 AUTH_DEFAULT_USERNAME=zapadmin
-AUTH_DEFAULT_PASSWORD=zapadmin123
+AUTH_DEFAULT_PASSWORD=${adminPassword}
 AUTH_DEFAULT_TENANT_ID=default
 
 # ── Redis ──────────────────────────────────────────
@@ -65,8 +69,8 @@ CRASH_EXIT_ON_UNHANDLED=true
   try {
     fs.writeFileSync(targetEnv, envContent.trim());
     console.log('[AUTO-BOOTSTRAP] Arquivo .env criado com sucesso!');
-    console.log('[AUTO-BOOTSTRAP] Banco de Dados configurado.');
-    console.log('[AUTO-BOOTSTRAP] Admin Default: zapadmin / zapadmin123');
+    console.log(`[AUTO-BOOTSTRAP] Banco de Dados configurado para host: ${dbHost}`);
+    console.log('[AUTO-BOOTSTRAP] Admin username: zapadmin');
     console.log('[AUTO-BOOTSTRAP] Sistema pronto para uso imediato.');
     console.log('====================================================');
   } catch (err) {

@@ -136,31 +136,48 @@ async function create({
   });
 }
 
-async function getMessagesByConversation(conversationId) {
+async function getMessagesByConversation(conversationId, options = {}) {
+  const limit = Math.max(1, Math.min(Number(options.limit) || 50, 200));
+  const before = options.before ? new Date(String(options.before)) : null;
+  const values = [conversationId, limit];
+  let beforeClause = '';
+
+  if (before && !Number.isNaN(before.getTime())) {
+    values.push(before.toISOString());
+    beforeClause = ` AND COALESCE(m.timestamp, m.created_at) < $${values.length}`;
+  } else {
+    beforeClause = " AND COALESCE(m.timestamp, m.created_at) >= NOW() - INTERVAL '45 days'";
+  }
+
   const result = await db.query(
     `
-      SELECT m.id,
-             m.conversation_id,
-             COALESCE(m.sender, CASE WHEN m.from_me THEN 'agent' ELSE 'client' END) AS sender,
-             COALESCE(m.media_type, m.type, 'text') AS type,
-             COALESCE(m.content, m.text, '') AS content,
-             COALESCE(m.media_path, m.media_url) AS media_url,
-             COALESCE(m.timestamp, m.created_at) AS timestamp,
-             COALESCE(m.status, CASE WHEN m.from_me THEN 'sent' ELSE 'received' END) AS status,
-             m.created_at,
-             COALESCE(m.session_id, conv.session_id) AS session_id,
-             l.phone,
-             m.text,
-             m.media_type,
-             m.media_path,
-             m.from_me
-      FROM messages m
-      INNER JOIN conversations conv ON conv.id = m.conversation_id
-      INNER JOIN leads l ON l.id = conv.lead_id
-      WHERE m.conversation_id = $1
-      ORDER BY m.timestamp ASC, m.id ASC
+      SELECT * FROM (
+        SELECT m.id,
+               m.conversation_id,
+               COALESCE(m.sender, CASE WHEN m.from_me THEN 'agent' ELSE 'client' END) AS sender,
+               COALESCE(m.media_type, m.type, 'text') AS type,
+               COALESCE(m.content, m.text, '') AS content,
+               COALESCE(m.media_path, m.media_url) AS media_url,
+               COALESCE(m.timestamp, m.created_at) AS timestamp,
+               COALESCE(m.status, CASE WHEN m.from_me THEN 'sent' ELSE 'received' END) AS status,
+               m.created_at,
+               COALESCE(m.session_id, conv.session_id) AS session_id,
+               l.phone,
+               m.text,
+               m.media_type,
+               m.media_path,
+               m.from_me
+        FROM messages m
+        INNER JOIN conversations conv ON conv.id = m.conversation_id
+        INNER JOIN leads l ON l.id = conv.lead_id
+        WHERE m.conversation_id = $1
+        ${beforeClause}
+        ORDER BY COALESCE(m.timestamp, m.created_at) DESC, m.id DESC
+        LIMIT $2
+      ) recent
+      ORDER BY recent.timestamp ASC, recent.id ASC
     `,
-    [conversationId]
+    values
   );
 
   return result.rows.map(mapMessage);
@@ -270,10 +287,55 @@ async function listRecentMessages(limit = 2000, companyId) {
   return result.rows.reverse().map(mapMessage);
 }
 
+async function findById(messageId) {
+  const result = await db.query(
+    `
+      SELECT m.id,
+        m.conversation_id,
+        COALESCE(m.sender, CASE WHEN m.from_me THEN 'agent' ELSE 'client' END) AS sender,
+        COALESCE(m.media_type, m.type, 'text') AS type,
+        COALESCE(m.content, m.text, '') AS content,
+        COALESCE(m.media_path, m.media_url) AS media_url,
+        COALESCE(m.timestamp, m.created_at) AS timestamp,
+        COALESCE(m.status, CASE WHEN m.from_me THEN 'sent' ELSE 'received' END) AS status,
+        m.created_at,
+        COALESCE(m.session_id, conv.session_id) AS session_id,
+        l.phone,
+        m.text,
+        m.media_type,
+        m.media_path,
+        m.from_me
+      FROM messages m
+      INNER JOIN conversations conv ON conv.id = m.conversation_id
+      INNER JOIN leads l ON l.id = conv.lead_id
+      WHERE m.id = $1
+      LIMIT 1
+    `,
+    [messageId]
+  );
+
+  return mapMessage(result.rows[0]);
+}
+
+async function deleteById(messageId) {
+  const result = await db.query(
+    `
+      DELETE FROM messages
+      WHERE id = $1
+      RETURNING id
+    `,
+    [messageId]
+  );
+
+  return Boolean(result.rows[0]);
+}
+
 module.exports = {
   create,
   createMessage,
+  deleteById,
   findByConversationId,
+  findById,
   getLastMessage,
   getMessagesByConversation,
   getMessagesByPhone,

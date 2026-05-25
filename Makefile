@@ -1,4 +1,18 @@
-.PHONY: up down restart rebuild logs ps health dev deploy validate doctor recovery backup rollback
+.PHONY: up down restart rebuild logs ps health dev deploy validate doctor recovery backup rollback local-stop local-clean local-start local-restart
+
+# ── Local single-runtime helpers ─────────────────────────────────────────────
+local-stop:
+	npm run stop
+
+local-clean:
+	npm run clean
+
+local-start:
+	npm run start:official
+
+local-restart:
+	npm run restart
+
 
 # ── Quick Reference ──────────────────────────────────────────────────────────
 # make deploy     → deploy/auto-deploy.sh   (git pull → build → pm2 → nginx → health)

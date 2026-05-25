@@ -1,0 +1,25 @@
+name: Lovable Sync Guard
+
+on:
+  pull_request:
+    branches: [ main, lovable-sync ]
+
+jobs:
+  guard:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Check changed files are allowed
+        run: |
+          git fetch origin ${{ github.base_ref }} --depth=1
+          CHANGED=$(git diff --name-only origin/${{ github.base_ref }}...HEAD)
+          echo "$CHANGED"
+          DISALLOWED=$(echo "$CHANGED" | grep '^frontend-official/' | grep -v '^frontend-official/src/lovable/' | grep -v '^frontend-official/src/adapters/lovable/' || true)
+          if [ -n "$DISALLOWED" ]; then
+            echo "Lovable sync touched protected files:"
+            echo "$DISALLOWED"
+            exit 1
+          fi

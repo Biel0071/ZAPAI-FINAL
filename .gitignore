@@ -87,3 +87,6 @@ coverage/
 
 # ── Node agent state ─────────────────────────────────────────
 .zapai-agent-state
+
+# ── Claude local workspace artifacts ──────────────────────────
+.claude/

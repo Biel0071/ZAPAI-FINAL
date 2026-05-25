@@ -11,7 +11,7 @@ import {
 import { API_ORIGIN } from "@/lib/backendConfig";
 import { getCurrentTenantId } from "@/lib/apiGuard";
 
-const SESSION_TTL_MS = 1000 * 60 * 60 * 12;
+const DEFAULT_SESSION_TTL_MS = 1000 * 60 * 60 * 8;
 const LOGIN_TIMEOUT_MS = 12_000;
 
 type LoginInput = {
@@ -33,9 +33,8 @@ type ParsedAuthPayload = {
   username: string | null;
   tenantId: string | null;
   companyId: string | null;
+  expiresAt: number | null;
 };
-
-let memorySession: AdminAuthSession | null = null;
 
 function normalizeRole(value: unknown): AdminSessionRole {
   const normalized = String(value ?? "").trim().toLowerCase();
@@ -44,27 +43,57 @@ function normalizeRole(value: unknown): AdminSessionRole {
   return "user";
 }
 
-function buildSession(params: {
-  username: string;
-  role: AdminSessionRole;
-  remember: boolean;
-  token: string;
-  tenantId?: string | null;
-  companyId?: string | null;
-}): AdminAuthSession {
+function decodeJwtExpiry(token: string | null): number | null {
+  if (!token) return null;
+
+  const parts = token.split(".");
+  if (parts.length < 2) return null;
+
+  try {
+    const base64 = parts[1].replace(/-/g, "+").replace(/_/g, "/");
+    const padded = base64.padEnd(Math.ceil(base64.length / 4) * 4, "=");
+    const payload = JSON.parse(window.atob(padded)) as { exp?: number };
+    if (typeof payload.exp !== "number" || !Number.isFinite(payload.exp) || payload.exp <= 0) {
+      return null;
+    }
+    return payload.exp * 1000;
+  } catch {
+    return null;
+  }
+}
+
+function normalizeExpiryTimestamp(value: unknown): number | null {
+  const numeric = Number(value ?? 0);
+  if (!Number.isFinite(numeric) || numeric <= 0) return null;
+  return numeric > 1_000_000_000_000 ? numeric : numeric * 1000;
+}
+
+function buildSession(
+  username: string,
+  role: AdminSessionRole,
+  remember: boolean,
+  token: string,
+  tenantId?: string | null,
+  companyId?: string | null,
+  expiresAt?: number | null,
+): AdminAuthSession {
   const issuedAt = Date.now();
-  const tenantId = String(params.tenantId ?? "").trim();
-  const companyId = String(params.companyId ?? tenantId).trim();
+  const normalizedTenantId = String(tenantId ?? "").trim();
+  const normalizedCompanyId = String(companyId ?? normalizedTenantId).trim();
+  const resolvedExpiresAt =
+    typeof expiresAt === "number" && Number.isFinite(expiresAt) && expiresAt > issuedAt
+      ? expiresAt
+      : decodeJwtExpiry(token) ?? issuedAt + DEFAULT_SESSION_TTL_MS;
 
   return {
-    token: params.token,
-    username: params.username,
-    role: params.role,
-    ...(tenantId ? { tenantId } : {}),
-    ...(companyId ? { companyId } : {}),
+    token,
+    username,
+    role,
+    ...(normalizedTenantId ? { tenantId: normalizedTenantId } : {}),
+    ...(normalizedCompanyId ? { companyId: normalizedCompanyId } : {}),
     issuedAt,
-    expiresAt: issuedAt + SESSION_TTL_MS,
-    remember: params.remember,
+    expiresAt: resolvedExpiresAt,
+    remember,
   };
 }
 
@@ -87,16 +116,18 @@ function parseAuthPayload(raw: unknown): ParsedAuthPayload {
   const userObj = data.user && typeof data.user === "object" ? (data.user as Record<string, unknown>) : null;
   const rawRole = data.role ?? userObj?.role;
   const username = normalizeToken(data.username) ?? normalizeToken(userObj?.username);
-  const tenantId =
-    normalizeToken(data.tenantId) ??
-    normalizeToken(userObj?.tenantId) ??
-    normalizeToken(data.companyId) ??
-    normalizeToken(userObj?.companyId);
-  const companyId =
-    normalizeToken(data.companyId) ??
-    normalizeToken(userObj?.companyId) ??
-    normalizeToken(data.tenantId) ??
-    normalizeToken(userObj?.tenantId);
+
+  const tenantId = normalizeToken(data.tenantId) ?? normalizeToken(data.companyId) ?? normalizeToken(userObj?.tenantId) ?? normalizeToken(userObj?.companyId);
+  const companyId = normalizeToken(data.companyId) ?? normalizeToken(data.tenantId) ?? normalizeToken(userObj?.companyId) ?? normalizeToken(userObj?.tenantId);
+  const expiresAt =
+    normalizeExpiryTimestamp(data.expiresAt) ??
+    normalizeExpiryTimestamp(data.expires_at) ??
+    (() => {
+      const expiresIn = Number(data.expiresIn ?? data.expires_in ?? 0);
+      return Number.isFinite(expiresIn) && expiresIn > 0 ? Date.now() + expiresIn * 1000 : null;
+    })() ??
+    normalizeExpiryTimestamp((data as { exp?: unknown }).exp) ??
+    normalizeExpiryTimestamp(userObj?.expiresAt);
 
   const explicitOk = typeof envelope.success === "boolean" ? envelope.success : (typeof data.ok === "boolean" ? data.ok : null);
   const hasAuthTokens = Boolean(token);
@@ -111,6 +142,7 @@ function parseAuthPayload(raw: unknown): ParsedAuthPayload {
     username,
     tenantId,
     companyId,
+    expiresAt,
   };
 }
 
@@ -162,7 +194,6 @@ async function verifyCredentials(
           return { ...payload, ok: false };
         }
       } catch (err) {
-        // tenta próximo endpoint
         console.warn(`[Login] Attempt failed for ${target}:`, err);
       }
     }
@@ -171,17 +202,7 @@ async function verifyCredentials(
   };
 
   const invoke = async () => {
-    const { supabase } = await import("@/integrations/supabase/client");
-    const { data, error } = await supabase.functions.invoke("admin-auth", {
-      body: {
-        username,
-        password,
-      },
-    });
-
-    if (error) throw new Error(error.message || "Falha ao validar credenciais.");
-    const parsed = parseAuthPayload(data);
-    return parsed;
+    throw new Error("Backend de autenticação indisponível no ambiente atual.");
   };
 
   const timeout = new Promise<never>((_, reject) => {
@@ -192,7 +213,8 @@ async function verifyCredentials(
     (async () => {
       try {
         return await tryBackendLogin();
-      } catch {
+      } catch (error) {
+        console.warn("[Login] Backend auth failed:", error);
         return invoke();
       }
     })(),
@@ -205,31 +227,27 @@ export function useAdminAuth() {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    const current = loadAdminAuthSession() ?? memorySession;
+    const current = loadAdminAuthSession();
 
     if (isAdminAuthSessionValid(current)) {
       setSession(current);
-      memorySession = current;
       setIsLoading(false);
       return;
     }
 
     clearAdminAuthSession();
-    memorySession = null;
     setSession(null);
     setIsLoading(false);
   }, []);
 
   useEffect(() => {
     const onAuthChanged = () => {
-      const current = loadAdminAuthSession() ?? memorySession;
+      const current = loadAdminAuthSession();
       if (isAdminAuthSessionValid(current)) {
         setSession(current);
-        memorySession = current;
         return;
       }
 
-      memorySession = null;
       setSession(null);
     };
 
@@ -255,38 +273,35 @@ export function useAdminAuth() {
     }
 
     const next = {
-      ...buildSession({
-        username: check.username ?? safeUsername,
-        role: check.role,
+      ...buildSession(
+        check.username ?? safeUsername,
+        check.role,
         remember,
-        token: check.token,
-        tenantId: check.tenantId,
-        companyId: check.companyId,
-      }),
+        check.token,
+        check.tenantId,
+        check.companyId,
+        check.expiresAt,
+      ),
       ...(check.refreshToken ? { refreshToken: check.refreshToken } : {}),
     };
     persistAdminAuthSession(next);
-    memorySession = next;
     setSession(next);
     return { ok: true, session: next };
   }, []);
 
   const logout = useCallback(() => {
     clearAdminAuthSession();
-    memorySession = null;
     setSession(null);
   }, []);
 
   const refresh = useCallback(() => {
-    const current = loadAdminAuthSession() ?? memorySession;
+    const current = loadAdminAuthSession();
     if (isAdminAuthSessionValid(current)) {
       setSession(current);
-      memorySession = current;
       return;
     }
 
     clearAdminAuthSession();
-    memorySession = null;
     setSession(null);
   }, []);
 

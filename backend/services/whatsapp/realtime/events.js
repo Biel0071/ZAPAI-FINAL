@@ -1,15 +1,10 @@
 /**
  * Realtime socket event emitters for WhatsApp.
- * Extracted from whatsappService.legacy.js (Phase 2b-1).
  *
- * These functions write to Socket.IO (`io || global.io`) but have no other
- * module-scoped state. They preserve the legacy emission pattern (multiple
- * alias events for the same payload) so existing frontends keep receiving
- * the same names while we migrate to single-event semantics.
- *
- * NOTE: these are NOT tenant-scoped yet. A follow-up will wrap them with
- * `services/realtime/tenantRooms.emitToTenant` once all call-sites know
- * their tenant.
+ * Centralizes session-status/runtime-status normalization so the frontend sees
+ * one coherent lifecycle model: connected | qr_ready | connecting | disconnected.
+ * Alias events are still emitted for backwards compatibility, but the payload
+ * is computed in exactly one place.
  */
 
 const { ensureWhatsAppJid } = require('../shared/identifiers');
@@ -20,6 +15,66 @@ const {
 
 function resolveSocket(io) {
   return io || global.io;
+}
+
+function normalizeSessionStatus(status = 'disconnected') {
+  const value = String(status || '').toLowerCase();
+
+  if (value === 'connected') {
+    return 'connected';
+  }
+
+  if (['qr', 'qr_ready', 'awaiting_qr'].includes(value)) {
+    return 'qr_ready';
+  }
+
+  if (['connecting', 'creating', 'error', 'reconnecting'].includes(value)) {
+    return 'connecting';
+  }
+
+  return 'disconnected';
+}
+
+function isLiveSessionStatus(status = 'disconnected') {
+  return ['connected', 'qr_ready', 'connecting'].includes(normalizeSessionStatus(status));
+}
+
+function buildSessionStatusPayload(input = {}) {
+  const normalizedStatus = normalizeSessionStatus(input.status);
+  const updatedAt = input.updatedAt || new Date().toISOString();
+  const qr = normalizedStatus === 'qr_ready' ? input.qr || input.qrCode || null : null;
+  const sessionId = input.sessionId || input.id || input.sessionName || input.name || null;
+  const sessionName = input.sessionName || input.name || sessionId;
+
+  return {
+    connected: normalizedStatus === 'connected',
+    eventAt: Date.now(),
+    name: sessionName,
+    phone: input.phone || null,
+    qr,
+    sessionId,
+    sessionName,
+    status: normalizedStatus,
+    type: 'status',
+    updatedAt,
+  };
+}
+
+function buildRuntimeStatusPayload(sessions = [], options = {}) {
+  const normalizedSessions = (Array.isArray(sessions) ? sessions : [])
+    .map((session) => buildSessionStatusPayload(session))
+    .filter((session) => Boolean(session.sessionId) && isLiveSessionStatus(session.status));
+
+  const runtimeActive = options.runtimeActive !== false;
+  const isOnline = runtimeActive && normalizedSessions.length > 0;
+
+  return {
+    sessions: normalizedSessions,
+    status: isOnline ? 'online' : 'offline',
+    updatedAt: new Date().toISOString(),
+    workersActive: options.workersActive,
+    uptimeSeconds: options.uptimeSeconds,
+  };
 }
 
 function emitRealtimeEvent(io, eventName, payload) {
@@ -88,60 +143,42 @@ function emitConnectionUpdate(io, payload) {
   socketServer.emit('connection-update', payload);
 }
 
-function emitSessionStatus(io, sessionId, status, sessionName = null) {
+function emitSessionStatus(io, sessionOrPayload, legacyStatus, legacySessionName = null, legacyExtras = {}) {
   const socketServer = resolveSocket(io);
 
   if (!socketServer) {
-    return;
+    return null;
   }
 
-  const normalizedStatus = (() => {
-    const value = String(status || '').toLowerCase();
+  const input =
+    sessionOrPayload && typeof sessionOrPayload === 'object' && !Array.isArray(sessionOrPayload)
+      ? sessionOrPayload
+      : {
+          ...legacyExtras,
+          sessionId: sessionOrPayload,
+          sessionName: legacySessionName || sessionOrPayload,
+          status: legacyStatus,
+        };
 
-    if (value === 'qr_ready') {
-      return 'qr';
-    }
-
-    if (value === 'error') {
-      return 'error';
-    }
-
-    if (['connected', 'connecting', 'qr', 'disconnected', 'creating'].includes(value)) {
-      return value;
-    }
-
-    return 'disconnected';
-  })();
-
-  const payload = {
-    eventAt: Date.now(),
-    type: 'status',
-    name: sessionName || sessionId,
-    sessionId,
-    sessionName: sessionName || sessionId,
-    status: normalizedStatus,
-  };
+  const payload = buildSessionStatusPayload(input);
 
   socketServer.emit('session_status', payload);
   socketServer.emit('session:status', payload);
   socketServer.emit('connection:event', payload);
 
-  const isOnline = ['connected', 'connecting', 'qr', 'creating'].includes(normalizedStatus);
-  const activeSessions = isOnline
-    ? [
-        {
-          name: payload.name,
-          sessionId: payload.sessionId,
-          sessionName: payload.sessionName,
-          status: payload.status,
-        },
-      ]
-    : [];
+  return payload;
+}
 
-  socketServer.emit('system:runtime-status', {
-    sessions: activeSessions,
-    status: isOnline ? 'online' : 'offline',
-  });
+function emitRuntimeStatus(io, sessions = [], options = {}) {
+  const socketServer = resolveSocket(io);
+
+  if (!socketServer) {
+    return null;
+  }
+
+  const payload = buildRuntimeStatusPayload(sessions, options);
+  socketServer.emit('system:runtime-status', payload);
+  return payload;
 }
 
 async function emitMessageUpdates(io, updates = [], sessionId) {
@@ -191,7 +228,6 @@ function emitInboundRealtimeMessage(io, savedMessage, conversation = null) {
     return;
   }
 
-  // Legacy order preserved: prefer global.io if present.
   const socketServer = global.io || io;
 
   if (!socketServer) {
@@ -206,11 +242,16 @@ function emitInboundRealtimeMessage(io, savedMessage, conversation = null) {
 }
 
 module.exports = {
+  buildRuntimeStatusPayload,
+  buildSessionStatusPayload,
   emitChatsLoaded,
   emitChatUpdated,
   emitConnectionUpdate,
   emitInboundRealtimeMessage,
   emitMessageUpdates,
   emitRealtimeEvent,
+  emitRuntimeStatus,
   emitSessionStatus,
+  isLiveSessionStatus,
+  normalizeSessionStatus,
 };

@@ -55,24 +55,6 @@ export class GlobalErrorBoundary extends Component<{ children: ReactNode }, Erro
     console.error("[ZAPFLOW ErrorBoundary] Caught:", error);
     console.error("[ZAPFLOW ErrorBoundary] Component Stack:", componentStack);
 
-    // ── Auto-recovery for chunk load errors ──
-    const msg = error?.message || "";
-    const isChunkError =
-      msg.includes("dynamically imported module") ||
-      msg.includes("ChunkLoadError") ||
-      msg.includes("Importing a module script failed") ||
-      msg.includes("Failed to fetch");
-
-    if (isChunkError) {
-      const recoveryCount = Number(sessionStorage.getItem("zapflow_chunk_recovery") || "0");
-      if (recoveryCount < MAX_AUTO_RETRIES) {
-        sessionStorage.setItem("zapflow_chunk_recovery", String(recoveryCount + 1));
-        console.warn("[ZAPFLOW] Chunk load error — auto-reloading...");
-        window.location.reload();
-        return;
-      }
-    }
-
     // ── Try to report to backend (best-effort) ──
     this.reportError(error.message, componentStack);
   }

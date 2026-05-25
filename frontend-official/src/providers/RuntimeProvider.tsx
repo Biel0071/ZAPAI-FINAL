@@ -15,10 +15,6 @@
  * - Initial API hydration (sessions, conversations, metrics)
  * - Re-hydration on reconnect
  * - Realtime subscriptions for WhatsApp sessions and QR codes
- *
- * What this provider does NOT own:
- * - Message events (Inbox.tsx manages those with its own subscriber — correct by design)
- * - Per-page UI state (each page manages its own local state)
  */
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from "react";
 import { connectInboxSocket, forceReconnectInboxSocket } from "@/services/socketService";
@@ -26,6 +22,10 @@ import { apiService } from "@/services/apiService";
 import { useAppStore } from "@/stores/appStore";
 import { API_ORIGIN } from "@/lib/backendConfig";
 import { normalizeSession, getSessionId } from "@/services/normalizeSession";
+import {
+  buildRuntimeCoherenceSnapshot,
+  persistRuntimeCoherenceSnapshot,
+} from "@/services/runtimeCoherenceService";
 
 type RuntimeStatus = "online" | "reconnecting" | "offline";
 
@@ -102,7 +102,11 @@ export function RuntimeProvider({ children }: { children: ReactNode }) {
       });
 
       const store = useAppStore.getState();
-      if (sessionsResult.status === "fulfilled" && Array.isArray(sessionsResult.value)) {
+      const sessionsOk = sessionsResult.status === "fulfilled" && Array.isArray(sessionsResult.value);
+      const conversationsOk = conversationsResult.status === "fulfilled" && Array.isArray(conversationsResult.value);
+      const metricsOk = metricsResult.status === "fulfilled" && Boolean(metricsResult.value);
+
+      if (sessionsOk) {
         const normalized = sessionsResult.value.map(normalizeSession);
         store.setSessions(normalized);
         for (const session of normalized) {
@@ -111,12 +115,22 @@ export function RuntimeProvider({ children }: { children: ReactNode }) {
           }
         }
       }
-      if (conversationsResult.status === "fulfilled" && Array.isArray(conversationsResult.value)) {
+      if (conversationsOk) {
         store.setConversations(conversationsResult.value);
       }
-      if (metricsResult.status === "fulfilled" && metricsResult.value) {
+      if (metricsOk) {
         store.setMetrics(metricsResult.value);
       }
+
+      const apiHealthy = sessionsOk && conversationsOk && metricsOk;
+      persistRuntimeCoherenceSnapshot(
+        buildRuntimeCoherenceSnapshot({
+          apiHealthy,
+          mismatchReason: apiHealthy ? null : "Carregamento parcial do backend oficial detectado.",
+          socketOrigin: socketUrl,
+          websocketHealthy: status === "online",
+        }),
+      );
 
       setHydrated(true);
       const elapsed = Math.round(performance.now() - t0);
@@ -125,8 +139,16 @@ export function RuntimeProvider({ children }: { children: ReactNode }) {
       console.info(`[Runtime] hydration:done sessions=${sCount} conversations=${cCount} elapsed=${elapsed}ms`);
     } catch (err) {
       console.warn("[Runtime] hydration:error", err instanceof Error ? err.message : err);
+      persistRuntimeCoherenceSnapshot(
+        buildRuntimeCoherenceSnapshot({
+          apiHealthy: false,
+          mismatchReason: "Falha ao carregar dados do backend oficial.",
+          socketOrigin: socketUrl,
+          websocketHealthy: status === "online",
+        }),
+      );
     }
-  }, []);
+  }, [status]);
 
   const forceReconnect = useCallback(() => {
     forceReconnectInboxSocket();
@@ -155,6 +177,14 @@ export function RuntimeProvider({ children }: { children: ReactNode }) {
         console.info("[Runtime] socket:connected");
         setStatus("online");
         disconnectedAtRef.current = null;
+        persistRuntimeCoherenceSnapshot(
+          buildRuntimeCoherenceSnapshot({
+            apiHealthy: true,
+            mismatchReason: null,
+            socketOrigin: socketUrl,
+            websocketHealthy: true,
+          }),
+        );
 
         // Re-hydrate on reconnect (not on first connect — loadFromApi handles that)
         if (hydratedRef.current) {
@@ -172,6 +202,18 @@ export function RuntimeProvider({ children }: { children: ReactNode }) {
         const nextStatus = elapsed < 30_000 ? "reconnecting" : "offline";
         console.warn(`[Runtime] socket:disconnected status=${nextStatus} elapsed=${elapsed}ms`);
         setStatus(nextStatus);
+
+        persistRuntimeCoherenceSnapshot(
+          buildRuntimeCoherenceSnapshot({
+            apiHealthy: true,
+            mismatchReason:
+              nextStatus === "reconnecting"
+                ? "Socket desconectado do runtime oficial; aguardando reconnect controlado."
+                : "Socket offline em relação ao runtime oficial.",
+            socketOrigin: socketUrl,
+            websocketHealthy: false,
+          }),
+        );
       },
 
       // ─── Session events → Zustand store ──────────────────

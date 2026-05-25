@@ -156,6 +156,52 @@ export interface SessionInfo {
   status?: string;
 }
 
+export interface CampaignContact {
+  id: string;
+  name?: string;
+  phone?: string;
+  status?: string;
+}
+
+export interface CampaignMessage {
+  id?: string;
+  type: "text" | "image" | "audio" | "video" | "file";
+  content: string;
+  mediaUrl?: string | null;
+  delaySeconds?: number;
+}
+
+export interface CampaignSettings {
+  intervalSeconds: number;
+  pauseEvery: number;
+  pauseSeconds: number;
+  typingDelaySeconds: number;
+  startAt?: string | null;
+}
+
+export interface CampaignQueue {
+  total: number;
+  processed: number;
+  sent: number;
+  failed: number;
+  paused: boolean;
+}
+
+export interface CampaignRecord {
+  id: string;
+  name: string;
+  status: string;
+  selectedContacts: CampaignContact[];
+  messages: CampaignMessage[];
+  settings: CampaignSettings;
+  queue: CampaignQueue;
+  tags: string[];
+  startedAt?: string | null;
+  completedAt?: string | null;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
 export interface ImproveRequest {
   customerQuestion: string;
   aiResponse: string;
@@ -274,7 +320,7 @@ function isEndpointTemporarilyUnavailable(endpoint: string): boolean {
   return true;
 }
 
-function markEndpointTemporarilyUnavailable(endpoint: string) {
+function updateEndpointCooldown(endpoint: string) {
   unavailableGetEndpoints.set(endpoint, Date.now() + ENDPOINT_404_COOLDOWN_MS);
 }
 
@@ -432,7 +478,7 @@ async function request<T>({ endpoint, method, body, timeoutMs = REQUEST_TIMEOUT_
               return raw;
             }
           })()
-        : {};
+          : {};
 
       if (response.status < 200 || response.status >= 300) {
         const details =
@@ -450,16 +496,17 @@ async function request<T>({ endpoint, method, body, timeoutMs = REQUEST_TIMEOUT_
         });
 
         if (response.status === 404 && method === "GET") {
-          markEndpointTemporarilyUnavailable(normalizedEndpoint);
+          updateEndpointCooldown(normalizedEndpoint);
         }
 
         throw new Error(`HTTP_${response.status}:${details || "Request failed"}`);
       }
 
-      // Only throw if the response contains a truthy error value.
-      // The backend envelope often includes "error": null on success — we must NOT throw on that.
-      if (parsed && typeof parsed === "object" && (parsed as Record<string, unknown>).error) {
-        throw new Error(String((parsed as Record<string, unknown>).error ?? "Request failed"));
+      if (parsed && typeof parsed === "object" && "error" in (parsed as Record<string, unknown>)) {
+        const errorValue = (parsed as Record<string, unknown>).error;
+        if (typeof errorValue === "string" && errorValue.trim()) {
+          throw new Error(errorValue);
+        }
       }
 
       slog.apiRequest(endpoint, response.status);
@@ -655,6 +702,68 @@ function normalizeSessionInfo(item: RawSession, index: number): SessionInfo {
   };
 }
 
+function normalizeCampaignContact(item: unknown, index: number): CampaignContact {
+  const raw = item && typeof item === "object" ? (item as Record<string, unknown>) : {};
+  const id = normalizeIdentifier((raw.id ?? raw.contactId ?? raw.contact_id ?? raw.phone) as string | number | undefined) ?? `contact-${index}`;
+  return {
+    id,
+    name: typeof raw.name === "string" ? raw.name : typeof raw.contactName === "string" ? raw.contactName : undefined,
+    phone: typeof raw.phone === "string" ? raw.phone : undefined,
+    status: typeof raw.status === "string" ? raw.status : undefined,
+  };
+}
+
+function normalizeCampaignMessage(item: unknown, index: number): CampaignMessage {
+  const raw = item && typeof item === "object" ? (item as Record<string, unknown>) : {};
+  const type = String(raw.type ?? "text").trim().toLowerCase();
+  return {
+    id: typeof raw.id === "string" ? raw.id : `message-${index}`,
+    type: type === "image" || type === "audio" || type === "video" || type === "file" ? type : "text",
+    content: String(raw.content ?? raw.text ?? raw.caption ?? "").trim(),
+    mediaUrl: typeof raw.mediaUrl === "string" ? raw.mediaUrl : typeof raw.media_url === "string" ? raw.media_url : null,
+    delaySeconds: Number(raw.delaySeconds ?? raw.delay_seconds ?? 0),
+  };
+}
+
+function normalizeCampaignRecord(item: unknown, index: number): CampaignRecord {
+  const raw = item && typeof item === "object" ? (item as Record<string, unknown>) : {};
+  const selectedContacts = Array.isArray(raw.selectedContacts)
+    ? raw.selectedContacts.map(normalizeCampaignContact)
+    : Array.isArray(raw.selected_contacts)
+      ? raw.selected_contacts.map(normalizeCampaignContact)
+      : [];
+  const messages = Array.isArray(raw.messages) ? raw.messages.map(normalizeCampaignMessage) : [];
+  const settingsRaw = raw.settings && typeof raw.settings === "object" ? (raw.settings as Record<string, unknown>) : {};
+  const queueRaw = raw.queue && typeof raw.queue === "object" ? (raw.queue as Record<string, unknown>) : {};
+
+  return {
+    id: String(raw.id ?? `campaign-${index}`),
+    name: String(raw.name ?? "Nova campanha").trim(),
+    status: String(raw.status ?? "draft").trim(),
+    selectedContacts,
+    messages,
+    settings: {
+      intervalSeconds: Number(settingsRaw.intervalSeconds ?? raw.intervalSeconds ?? 10),
+      pauseEvery: Number(settingsRaw.pauseEvery ?? raw.pauseEvery ?? 10),
+      pauseSeconds: Number(settingsRaw.pauseSeconds ?? raw.pauseSeconds ?? 60),
+      typingDelaySeconds: Number(settingsRaw.typingDelaySeconds ?? raw.typingDelaySeconds ?? 3),
+      startAt: typeof settingsRaw.startAt === "string" ? settingsRaw.startAt : typeof raw.scheduledFor === "string" ? raw.scheduledFor : null,
+    },
+    queue: {
+      total: Number(queueRaw.total ?? selectedContacts.length ?? 0),
+      processed: Number(queueRaw.processed ?? 0),
+      sent: Number(queueRaw.sent ?? raw.sent ?? 0),
+      failed: Number(queueRaw.failed ?? 0),
+      paused: Boolean(queueRaw.paused ?? false),
+    },
+    tags: Array.isArray(raw.tags) ? raw.tags.map(String) : [],
+    startedAt: typeof raw.startedAt === "string" ? raw.startedAt : null,
+    completedAt: typeof raw.completedAt === "string" ? raw.completedAt : null,
+    createdAt: typeof raw.createdAt === "string" ? raw.createdAt : undefined,
+    updatedAt: typeof raw.updatedAt === "string" ? raw.updatedAt : undefined,
+  };
+}
+
 function parseSessionStatusPayload(payload: unknown): RawSession[] {
   if (Array.isArray(payload)) return payload as RawSession[];
   if (!payload || typeof payload !== "object") return [];
@@ -697,7 +806,6 @@ function isSessionConnected(session: SessionInfo): boolean {
 
 function resolveRuntimeFromHealthPayload(payload: unknown): RuntimeHealthState {
   if (!payload || typeof payload !== "object") return "offline";
-  // Backend responded with any payload → online
   return "online";
 }
 
@@ -756,7 +864,6 @@ export const apiService = {
         ? resolveRuntimeFromHealthPayload(runtimePayload)
         : "offline";
 
-    // Try dedicated session endpoints first
     let sessions =
       sessionsStatusResult.status === "fulfilled"
         ? parseSessionStatusPayload(sessionsStatusResult.value).map(normalizeSessionInfo)
@@ -773,7 +880,6 @@ export const apiService = {
       }
     }
 
-    // Fallback: extract session info from /api/health response
     if (totalSessions === 0 && healthResult.status === "fulfilled") {
       const healthData = healthResult.value as Record<string, unknown>;
       const data = (healthData.data ?? healthData) as Record<string, unknown>;
@@ -803,54 +909,32 @@ export const apiService = {
   },
 
   async getSessionStatus(): Promise<SessionStatusResponse> {
-    const endpoints = ["/status-whatsapp", "/api/status-whatsapp", "/api/session-status", "/session-status", "/sessions"];
+    const payload = await request<unknown>({ endpoint: "/api/session-status", method: "GET" });
 
-    for (const endpoint of endpoints) {
-      try {
-        const payload = await request<unknown>({ endpoint, method: "GET" });
+    if (Array.isArray(payload)) {
+      const sessions = payload.map((item, index) => normalizeSessionInfo((item ?? {}) as RawSession, index));
+      return {
+        connected: sessions.some(isSessionConnected),
+        lastUpdate: Date.now(),
+      };
+    }
 
-        if (Array.isArray(payload)) {
-          const sessions = payload.map((item, index) => normalizeSessionInfo((item ?? {}) as RawSession, index));
-          return {
-            connected: sessions.some(isSessionConnected),
-            lastUpdate: Date.now(),
-          };
-        }
+    if (payload && typeof payload === "object") {
+      const raw = payload as Record<string, unknown>;
+      const connectedFromStatus = resolveConnectedFromStatusPayload(raw);
+      if (connectedFromStatus !== null) {
+        return {
+          connected: connectedFromStatus,
+          lastUpdate: typeof raw.lastUpdate === "number" ? raw.lastUpdate : Date.now(),
+        };
+      }
 
-        if (payload && typeof payload === "object") {
-          const raw = payload as Record<string, unknown>;
-          const connectedFromStatus = resolveConnectedFromStatusPayload(raw);
-          if (connectedFromStatus !== null) {
-            return {
-              connected: connectedFromStatus,
-              lastUpdate: typeof raw.lastUpdate === "number" ? raw.lastUpdate : Date.now(),
-            };
-          }
-
-          const connected =
-            typeof raw.connected === "boolean"
-              ? raw.connected
-              : typeof raw.status === "string"
-                ? ["connected", "online", "active", "open", "running"].includes(raw.status.toLowerCase())
-                : false;
-
-          if (connected) {
-            return {
-              connected: true,
-              lastUpdate: typeof raw.lastUpdate === "number" ? raw.lastUpdate : Date.now(),
-            };
-          }
-
-          const sessions = parseSessionStatusPayload(raw).map(normalizeSessionInfo);
-          if (sessions.length > 0) {
-            return {
-              connected: sessions.some(isSessionConnected),
-              lastUpdate: Date.now(),
-            };
-          }
-        }
-      } catch {
-        // tenta próximo endpoint
+      const sessions = parseSessionStatusPayload(raw).map(normalizeSessionInfo);
+      if (sessions.length > 0) {
+        return {
+          connected: sessions.some(isSessionConnected),
+          lastUpdate: Date.now(),
+        };
       }
     }
 
@@ -888,51 +972,14 @@ export const apiService = {
   },
 
   async getMessages(conversationId: string, options?: { limit?: number; before?: string }) {
-    // Backend real responde mensagens em /api/conversations/:id/messages.
-    // /api/messages/:id existe mas devolve 200 + data:[] (vazio) — se ficasse
-    // como primário, NUNCA cairíamos no fallback que tem os dados reais.
     const primaryEndpoint = withQuery(`/api/conversations/${encodeURIComponent(conversationId)}/messages`, {
       limit: options?.limit,
       before: options?.before,
     });
 
-    const fallbackEndpoints = [
-      withQuery(`/api/messages/${encodeURIComponent(conversationId)}`, {
-        limit: options?.limit,
-        before: options?.before,
-      }),
-      withQuery("/messages", {
-        conversationId,
-        limit: options?.limit,
-        before: options?.before,
-      }),
-    ];
-
-    const tryEndpoint = async (endpoint: string) => {
-      const data = await request<RawMessage[] | { messages?: RawMessage[] }>({ endpoint, method: "GET" });
-      const entries = Array.isArray(data) ? data : Array.isArray(data?.messages) ? data.messages : [];
-      return entries.map((item, index) => normalizeMessage(item, index, String(conversationId)));
-    };
-
-    try {
-      const result = await tryEndpoint(primaryEndpoint);
-      if (result.length > 0) return result;
-    } catch {
-      // tenta fallbacks
-    }
-
-    for (const endpoint of fallbackEndpoints) {
-      try {
-        const result = await tryEndpoint(endpoint);
-        if (result.length > 0) return result;
-      } catch {
-        // próximo
-      }
-    }
-
-    // Nenhum endpoint trouxe mensagens — devolve [] em vez de lançar,
-    // para o Inbox exibir "sem mensagens" em vez de erro.
-    return [];
+    const data = await request<RawMessage[] | { messages?: RawMessage[] }>({ endpoint: primaryEndpoint, method: "GET" });
+    const entries = Array.isArray(data) ? data : Array.isArray(data?.messages) ? data.messages : [];
+    return entries.map((item, index) => normalizeMessage(item, index, String(conversationId)));
   },
 
   async sendMessage(payload: { phone: string; text: string; conversationId?: string; contactId?: string; sessionId?: string }) {
@@ -1058,7 +1105,6 @@ export const apiService = {
       }
     }
 
-    // Fallback: extract basic metrics from /api/health
     try {
       const health = await request<Record<string, unknown>>({ endpoint: "/api/health", method: "GET" });
       const data = (health as Record<string, unknown>).data as Record<string, unknown> | undefined;
@@ -1072,7 +1118,7 @@ export const apiService = {
         } as MetricsSummary;
       }
     } catch {
-      // health also failed
+      // ignore
     }
 
     throw lastError;
@@ -1211,7 +1257,8 @@ export const apiService = {
   logoutSession: (sessionId: string) =>
     request<{ success?: boolean; sessionId?: string }>({ endpoint: "/session/logout", method: "POST", body: { sessionId: normalizeSessionName(sessionId) } }),
   createSession: (sessionId: string) =>
-    request<{ success?: boolean; sessionId?: string; qr?: string }>({ endpoint: "/sessions/create", method: "POST", body: { sessionId: normalizeSessionName(sessionId) } }),
+    request<{ success?: boolean; sessionId?: string; qr?: string }>({ endpoint: "/session/start", method: "POST", body: { sessionId: normalizeSessionName(sessionId), name: normalizeSessionName(sessionId) } }),
+  
   async listSessions() {
     const endpoints = ["/api/sessions/status", "/sessions"];
     for (const endpoint of endpoints) {
@@ -1222,7 +1269,6 @@ export const apiService = {
           const candidate = raw.sessions ?? (raw.data as Record<string, unknown> | undefined)?.sessions ?? [];
           return parseSessionStatusPayload(candidate).map(normalizeSessionInfo);
         }
-        // /api/sessions/status wraps sessions in data.sessions
         const raw = data as Record<string, unknown>;
         const nested = raw.data as Record<string, unknown> | undefined;
         if (nested?.sessions && Array.isArray(nested.sessions)) {
@@ -1231,16 +1277,17 @@ export const apiService = {
         return parseSessionStatusPayload(data).map(normalizeSessionInfo);
       } catch (error) {
         if (!is404Error(error)) throw error;
-        // try next endpoint
       }
     }
 
     throw new Error("Falha ao carregar sessões");
   },
+
   deleteSession: (sessionId: string) =>
     request<{ success?: boolean }>({ endpoint: `/session/${encodeURIComponent(normalizeSessionName(sessionId))}`, method: "DELETE" }),
   removeSession: (sessionId: string) =>
     request<{ success?: boolean }>({ endpoint: `/sessions/${encodeURIComponent(normalizeSessionName(sessionId))}`, method: "DELETE" }),
+  
   getSessionQr: (sessionId: string) =>
     request<{ qr?: string; status?: string }>({ endpoint: `/sessions/${encodeURIComponent(normalizeSessionName(sessionId))}/qr`, method: "GET" }),
   async updateConversationAI(phone: string, aiEnabled: boolean) {
@@ -1250,8 +1297,40 @@ export const apiService = {
       body: { aiEnabled },
     });
   },
+
+  getCampaigns: async () => {
+    const data = await request<unknown>({ endpoint: "/api/campaigns", method: "GET" });
+    const entries = Array.isArray(data)
+      ? data
+      : data && typeof data === "object" && Array.isArray((data as { data?: unknown[] }).data)
+        ? (data as { data?: unknown[] }).data ?? []
+        : [];
+    return entries.map(normalizeCampaignRecord);
+  },
+  createCampaign: (payload: Partial<CampaignRecord> & Record<string, unknown>) =>
+    request<CampaignRecord>({ endpoint: "/api/campaigns", method: "POST", body: payload }),
+  updateCampaign: (campaignId: string, payload: Partial<CampaignRecord> & Record<string, unknown>) =>
+    request<CampaignRecord>({ endpoint: `/api/campaigns/${encodeURIComponent(campaignId)}`, method: "PUT", body: payload }),
+  deleteCampaign: (campaignId: string) =>
+    request<{ success?: boolean }>({ endpoint: `/api/campaigns/${encodeURIComponent(campaignId)}`, method: "DELETE" }),
+  startCampaignDispatch: (campaignId: string) =>
+    request<Record<string, unknown>>({ endpoint: `/api/campaigns/${encodeURIComponent(campaignId)}/start`, method: "POST" }),
+  pauseCampaignDispatch: (campaignId: string) =>
+    request<Record<string, unknown>>({ endpoint: `/api/campaigns/${encodeURIComponent(campaignId)}/pause`, method: "POST" }),
+  resumeCampaignDispatch: (campaignId: string) =>
+    request<Record<string, unknown>>({ endpoint: `/api/campaigns/${encodeURIComponent(campaignId)}/resume`, method: "POST" }),
+  cancelCampaignDispatch: (campaignId: string) =>
+    request<Record<string, unknown>>({ endpoint: `/api/campaigns/${encodeURIComponent(campaignId)}/cancel`, method: "POST" }),
+  getCampaignDispatchStatus: (campaignId: string) =>
+    request<Record<string, unknown>>({ endpoint: `/api/campaigns/${encodeURIComponent(campaignId)}/status`, method: "GET" }),
+  patchConversation: (conversationId: string, payload: { status?: string; lead_temperature?: string; funnel_stage?: string; tags?: string[] }) =>
+    request<Record<string, unknown>>({ endpoint: `/api/conversations/${encodeURIComponent(conversationId)}`, method: "PATCH", body: payload }),
+  deleteMessage: (messageId: string) =>
+    request<{ success?: boolean; messageId?: string }>({ endpoint: `/api/messages/${encodeURIComponent(messageId)}`, method: "DELETE" }),
+  forwardMessage: (messageId: string, payload: { phone: string; conversationId?: string; sessionId?: string }) =>
+    request<Record<string, unknown>>({ endpoint: `/api/messages/${encodeURIComponent(messageId)}/forward`, method: "POST", body: payload }),
 };
 
-export async function requestApiEndpoint<T>(endpoint: string, method: "GET" | "POST" = "GET", body?: unknown): Promise<T> {
-  return request<T>({ endpoint, method, body: body as Record<string, unknown> | undefined });
+export async function requestApiEndpoint<T>(endpoint: string, method: "GET" | "POST" | "PUT" | "PATCH" | "DELETE" = "GET", body?: unknown): Promise<T> {
+  return request<T>({ endpoint, method: method as ProxyRequest["method"], body: body as Record<string, unknown> | undefined });
 }

@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
 import { NavLink, useLocation } from "react-router-dom";
-import { motion, AnimatePresence } from "framer-motion";
 import {
   Gear,
   CaretLeft,
@@ -14,15 +13,19 @@ import {
   Robot,
   ChartLineUp,
   Megaphone,
+  Users,
   Database,
   Pulse,
   HardDrives,
+  Queue,
   ShieldCheck,
   TrendUp,
+  Cpu,
   Broadcast,
   FileText,
   CaretDown,
   CaretUp,
+  Sparkle,
 } from "@phosphor-icons/react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -31,6 +34,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { cn } from "@/lib/utils";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { type AppUserRole, useUserRole } from "@/hooks/useUserRole";
+import { OperationalStatusBadge } from "@/components/enterprise/OperationalStatusBadge";
 
 const SIDEBAR_COLLAPSE_EVENT = "sidebar:collapsed";
 
@@ -44,26 +48,29 @@ type SidebarNavItem = {
 
 const crmItems: SidebarNavItem[] = [
   { icon: SquaresFour, label: "Dashboard", path: "/dashboard", minRole: "user" },
-  { icon: ChatCircleDots, label: "Inbox", path: "/inbox", minRole: "user", badge: "Live" },
-  { icon: Lightning, label: "Conexões", path: "/connections", minRole: "user" },
-  { icon: AddressBook, label: "Contatos", path: "/contacts", minRole: "user" },
+  { icon: ChatCircleDots, label: "Conversas", path: "/inbox", minRole: "user" },
+  { icon: AddressBook, label: "Conexões", path: "/connections", minRole: "user" },
+  { icon: Users, label: "Leads CRM / Contatos", path: "/contacts", minRole: "user" },
   { icon: Megaphone, label: "Campanhas", path: "/campaigns", minRole: "user" },
-  { icon: Robot, label: "IA & Automação", path: "/ai", minRole: "user" },
-  { icon: TreeStructure, label: "Fluxos", path: "/flows", minRole: "user" },
-  { icon: Database, label: "Memória IA", path: "/memory", minRole: "user" },
+  { icon: Robot, label: "IA / Automação", path: "/ai", minRole: "user" },
   { icon: ChartLineUp, label: "Analytics", path: "/analytics", minRole: "user" },
 ];
 
 const systemItems: SidebarNavItem[] = [
-  { icon: HardDrives, label: "Gerenciar VPS", path: "/nodes", minRole: "master" },
-  { icon: Broadcast, label: "Sessões Ativas", path: "/system/runtime", minRole: "admin" },
-  { icon: ShieldCheck, label: "Controle de Acesso", path: "/users", minRole: "master" },
-  { icon: TrendUp, label: "Métricas Globais", path: "/system/metrics", minRole: "admin" },
-  { icon: FileText, label: "Logs do Sistema", path: "/logs", minRole: "master" },
+  { icon: HardDrives, label: "Cluster", path: "/nodes", minRole: "master" },
+  { icon: Pulse, label: "Runtime", path: "/system/runtime", minRole: "admin" },
+  { icon: Cpu, label: "Performance", path: "/system/performance", minRole: "admin" },
+  { icon: Broadcast, label: "WebSocket", path: "/system/websocket", minRole: "admin" },
+  { icon: Database, label: "Banco", path: "/system/database", minRole: "admin" },
+  { icon: Queue, label: "Files", path: "/system/files", minRole: "admin" },
+  { icon: Pulse, label: "Health", path: "/system/health", minRole: "admin" },
+  { icon: ChartLineUp, label: "Métricas", path: "/system/metrics", minRole: "admin" },
+  { icon: TrendUp, label: "Deployments", path: "/deployments", minRole: "master" },
+  { icon: FileText, label: "Logs", path: "/logs", minRole: "master" },
 ];
 
 const bottomItems: SidebarNavItem[] = [
-  { icon: Pulse, label: "Status & Saúde", path: "/diagnostics", minRole: "admin" },
+  { icon: ShieldCheck, label: "Usuários", path: "/users", minRole: "master" },
   { icon: Gear, label: "Configurações", path: "/settings", minRole: "user" },
 ];
 
@@ -102,44 +109,46 @@ export function Sidebar() {
     setMobileOpen(false);
   }, [location.pathname]);
 
-  const sidebarWidth = useMemo(() => (collapsed ? 72 : 260), [collapsed]);
+  const sidebarWidth = useMemo(() => (collapsed ? 88 : 288), [collapsed]);
 
   const renderNavItem = (item: SidebarNavItem, compact: boolean, keyPrefix: string) => {
     const targetPathname = item.path.split("?")[0];
-    const isSystemAlias = item.path.startsWith("/system/");
-    const isActive = isSystemAlias
-      ? location.pathname === targetPathname
-      : location.pathname === targetPathname;
+    const isActive = location.pathname === targetPathname;
 
     return (
       <NavLink
         key={`${keyPrefix}:${item.label}:${item.path}`}
         to={item.path}
-        className={cn("sidebar-item group relative", isActive && "sidebar-item-active bg-primary/[0.08]", compact && "justify-center px-2")}
+        className={cn(
+          "sidebar-item group relative min-h-[46px]",
+          isActive && "sidebar-item-active",
+          compact && "justify-center px-2.5",
+        )}
       >
         <item.icon
           weight={isActive ? "fill" : "regular"}
           className={cn(
-            "w-[18px] h-[18px] flex-shrink-0 transition-colors",
+            "h-[18px] w-[18px] flex-shrink-0 transition-colors",
             isActive ? "text-primary" : "text-sidebar-muted group-hover:text-sidebar-foreground",
           )}
         />
-        <AnimatePresence>
-          {!compact && (
-            <motion.span
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className={cn("text-[13px] font-medium whitespace-nowrap", isActive && "text-sidebar-foreground")}
-            >
+        {!compact && (
+          <>
+            <span className={cn("min-w-0 flex-1 truncate text-[13px] font-medium", isActive && "text-sidebar-foreground")}>
               {item.label}
-            </motion.span>
-          )}
-        </AnimatePresence>
-        {!compact && item.badge && (
-          <Badge variant="default" className="ml-auto h-5 rounded-md px-1.5 text-[9px] font-semibold uppercase tracking-wide">
-            {item.badge}
-          </Badge>
+            </span>
+            {item.badge && (
+              <Badge
+                variant="secondary"
+                className={cn(
+                  "rounded-full border border-border/70 bg-background/60 px-2 py-0.5 text-[9px] uppercase tracking-wide",
+                  isActive ? "text-primary" : "text-muted-foreground",
+                )}
+              >
+                {item.badge}
+              </Badge>
+            )}
+          </>
         )}
       </NavLink>
     );
@@ -147,66 +156,74 @@ export function Sidebar() {
 
   const sidebarBody = (compact: boolean, mobileMode: boolean) => (
     <aside
-      className="h-full w-full z-50 flex flex-col"
+      className="z-50 flex h-full w-full flex-col"
       style={{
         background: "var(--gradient-sidebar)",
         boxShadow: "inset -1px 0 0 hsl(var(--sidebar-border)), 0 20px 40px -30px hsl(0 0% 0% / 0.9)",
       }}
     >
-      <div className="flex items-center gap-2.5 px-4 h-16 border-b border-sidebar-border/60">
-        <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center flex-shrink-0">
-          <Lightning weight="fill" className="w-4 h-4 text-primary-foreground" />
-        </div>
-        <AnimatePresence>
+      <div className="border-b border-sidebar-border/60 px-4 py-4">
+        <div className="flex items-start gap-3">
+          <div className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-2xl bg-primary/15 shadow-glow">
+            <Lightning weight="fill" className="h-5 w-5 text-primary" />
+          </div>
           {!compact && (
-            <motion.div initial={{ opacity: 0, x: -8 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -8 }} transition={{ duration: 0.15 }}>
-              <h1 className="font-display text-[15px] font-bold text-sidebar-foreground leading-tight">ZAPFLOW AI</h1>
-              <div className="mt-1 flex items-center gap-1.5">
-                <p className="text-[10px] text-sidebar-muted leading-none">CRM Enterprise</p>
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center gap-2">
+                <h1 className="truncate font-display text-[15px] font-bold leading-tight text-sidebar-foreground">ZAPFLOW AI</h1>
+                <Sparkle weight="fill" className="h-3.5 w-3.5 text-primary" />
+              </div>
+              <p className="mt-1 text-[10px] uppercase tracking-[0.24em] text-sidebar-muted">CRM Enterprise</p>
+              <div className="mt-3 flex flex-wrap items-center gap-2">
+                <span className="flex items-center gap-1.5 rounded-full border border-sidebar-border/80 bg-muted/20 px-2 py-1 text-[9px] font-semibold uppercase tracking-wide text-sidebar-foreground">
+                  <span className="h-1.5 w-1.5 rounded-full bg-success" />
+                  VSTABLE
+                </span>
                 {!isLoading && (
-                  <Badge variant="outline" className="h-4 rounded-sm border-sidebar-border/80 bg-muted/20 px-1.5 text-[9px] uppercase tracking-wide text-sidebar-foreground">
+                  <Badge variant="outline" className="h-6 rounded-full border-sidebar-border/80 bg-muted/20 px-2.5 text-[10px] uppercase tracking-wide text-sidebar-foreground">
                     {role}
                   </Badge>
                 )}
               </div>
-            </motion.div>
+            </div>
           )}
-        </AnimatePresence>
+        </div>
       </div>
 
-      <nav className="flex-1 px-2 py-3 space-y-2 overflow-y-auto scrollbar-thin">
-        {!compact && <p className="px-3 text-[10px] font-semibold uppercase tracking-wider text-sidebar-muted/60">CRM</p>}
-        <div className="space-y-0.5">{visibleCrmItems.map((item) => renderNavItem(item, compact, "crm"))}</div>
+
+      <nav className="scrollbar-thin flex-1 space-y-4 overflow-y-auto px-3 py-4">
+        {!compact && <p className="px-2 text-[10px] font-semibold uppercase tracking-[0.22em] text-sidebar-muted/60">CRM</p>}
+        <div className="space-y-1">{visibleCrmItems.map((item) => renderNavItem(item, compact, "crm"))}</div>
 
         {shouldShowSystemMenu && (
           <Collapsible open={systemOpen} onOpenChange={setSystemOpen}>
             {!compact && (
-              <CollapsibleTrigger className="mt-3 flex w-full items-center justify-between rounded-md px-3 py-2 text-left text-[10px] font-semibold uppercase tracking-wider text-sidebar-muted/70 hover:bg-sidebar-accent/40">
-                <span>Administração</span>
+              <CollapsibleTrigger className="flex w-full items-center justify-between rounded-xl px-2 py-2 text-left text-[10px] font-semibold uppercase tracking-[0.22em] text-sidebar-muted/70 hover:bg-sidebar-accent/40">
+                <span>Sistema</span>
                 {systemOpen ? <CaretUp className="h-3.5 w-3.5" /> : <CaretDown className="h-3.5 w-3.5" />}
               </CollapsibleTrigger>
             )}
-            <CollapsibleContent className="space-y-0.5">
+            <CollapsibleContent className="space-y-1">
               {visibleSystemItems.map((item) => renderNavItem(item, compact, "system"))}
             </CollapsibleContent>
           </Collapsible>
         )}
       </nav>
 
-      <div className="px-2 py-3 border-t border-sidebar-border/60 space-y-0.5">
+      <div className="space-y-1 border-t border-sidebar-border/60 px-3 py-3">
         {visibleBottomItems.map((item) => renderNavItem(item, compact, "bottom"))}
 
         {!mobileMode && (
           <button
             onClick={() => setCollapsed(!collapsed)}
-            className={cn("sidebar-item w-full mt-1", compact && "justify-center px-2")}
+            className={cn("sidebar-item mt-1 w-full", compact && "justify-center px-2.5")}
             aria-label={collapsed ? "Expandir menu" : "Recolher menu"}
           >
             {collapsed ? (
-              <CaretRight className="w-4 h-4 text-sidebar-muted" />
+              <CaretRight className="h-4 w-4 text-sidebar-muted" />
             ) : (
               <>
-                <CaretLeft className="w-4 h-4 text-sidebar-muted" />
+                <CaretLeft className="h-4 w-4 text-sidebar-muted" />
                 <span className="text-[13px] text-sidebar-muted">Recolher</span>
               </>
             )}
@@ -223,25 +240,23 @@ export function Sidebar() {
           <Button
             variant="outline"
             size="icon"
-            className="fixed left-3 top-3 z-[60] h-10 w-10 border-border bg-card/90 backdrop-blur"
+            className="fixed left-3 top-3 z-[60] h-10 w-10 rounded-2xl border-border bg-card/90 backdrop-blur"
             aria-label="Abrir menu"
           >
             <List className="h-5 w-5" />
           </Button>
         </DrawerTrigger>
-        <DrawerContent className="h-[88dvh] p-0 border-border bg-sidebar">{sidebarBody(false, true)}</DrawerContent>
+        <DrawerContent className="h-[88dvh] border-border bg-sidebar p-0">{sidebarBody(false, true)}</DrawerContent>
       </Drawer>
     );
   }
 
   return (
-    <motion.aside
-      initial={false}
-      animate={{ width: sidebarWidth }}
-      transition={{ duration: 0.2, ease: "easeInOut" }}
-      className="fixed left-0 top-0 h-screen z-50 flex flex-col overflow-hidden"
+    <aside
+      className="fixed left-0 top-0 z-50 flex h-screen flex-col overflow-hidden transition-[width] duration-200 ease-in-out"
+      style={{ width: sidebarWidth }}
     >
       {sidebarBody(collapsed, false)}
-    </motion.aside>
+    </aside>
   );
 }
