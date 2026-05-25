@@ -51,26 +51,27 @@ export function useRuntime() {
 }
 
 export function RuntimeProvider({ children }: { children: ReactNode }) {
+  // Resolve socket URL once
+  const socketUrl = API_ORIGIN || (typeof window !== "undefined" ? window.location.origin : "");
+
   const [status, setStatus] = useState<RuntimeStatus>("offline");
   const [hydrated, setHydrated] = useState(false);
 
   // Refs for values used inside socket callbacks — prevents effect re-runs
   const disconnectedAtRef = useRef<number | null>(null);
   const hydratedRef = useRef(false);
+  const statusRef = useRef<RuntimeStatus>("offline");
   const refreshTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Keep hydratedRef in sync
+  // Keep refs in sync
   hydratedRef.current = hydrated;
+  statusRef.current = status;
 
   const sessions = useAppStore((s) => s.sessions);
 
   const connectedSessions = sessions.filter(
     (s) => s.status === "connected",
   ).length;
-
-  const forceRefresh = useCallback(async () => {
-    await loadFromApi();
-  }, [loadFromApi]);
 
   // Full API refresh — called on mount and on reconnect
   const loadFromApi = useCallback(async () => {
@@ -116,11 +117,10 @@ export function RuntimeProvider({ children }: { children: ReactNode }) {
           apiHealthy,
           mismatchReason: apiHealthy ? null : "Carregamento parcial do backend oficial detectado.",
           socketOrigin: socketUrl,
-          websocketHealthy: status === "online",
+          websocketHealthy: statusRef.current === "online",
         }),
       );
 
-      setHydrated(true);
       const elapsed = Math.round(performance.now() - t0);
       const sCount = sessionsResult.status === "fulfilled" && Array.isArray(sessionsResult.value) ? sessionsResult.value.length : 0;
       const cCount = conversationsResult.status === "fulfilled" && Array.isArray(conversationsResult.value) ? conversationsResult.value.length : 0;
@@ -132,11 +132,17 @@ export function RuntimeProvider({ children }: { children: ReactNode }) {
           apiHealthy: false,
           mismatchReason: "Falha ao carregar dados do backend oficial.",
           socketOrigin: socketUrl,
-          websocketHealthy: status === "online",
+          websocketHealthy: statusRef.current === "online",
         }),
       );
+    } finally {
+      setHydrated(true);
     }
-  }, [status]);
+  }, []);
+
+  const forceRefresh = useCallback(async () => {
+    await loadFromApi();
+  }, [loadFromApi]);
 
   const forceReconnect = useCallback(() => {
     forceReconnectInboxSocket();
@@ -147,9 +153,6 @@ export function RuntimeProvider({ children }: { children: ReactNode }) {
     if (refreshTimerRef.current) clearTimeout(refreshTimerRef.current);
     refreshTimerRef.current = setTimeout(() => void loadFromApi(), 3000);
   }, [loadFromApi]);
-
-  // Resolve socket URL once
-  const socketUrl = API_ORIGIN || (typeof window !== "undefined" ? window.location.origin : "");
 
   // ─── Main effect: WebSocket subscription ─────────────────────
   useEffect(() => {
