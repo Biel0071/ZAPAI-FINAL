@@ -4,6 +4,7 @@ import AnalyticsView from "@/lovable/pages/AnalyticsPageView";
 import { createAnalyticsLovableViewModel } from "@/adapters/lovable/analyticsAdapter";
 import { apiService } from "@/services/apiService";
 import { useAppStore } from "@/stores/appStore";
+import { SafeRender } from "@/components/system/SafeRender";
 
 export default function Analytics() {
   const [loading, setLoading] = useState(true);
@@ -42,14 +43,16 @@ export default function Analytics() {
 
   const analyticsViewModel = createAnalyticsLovableViewModel({
     metrics: storeMetrics,
-    conversationCount: conversations.length,
-    conversations,
+    conversationCount: Array.isArray(conversations) ? conversations.length : 0,
+    conversations: Array.isArray(conversations) ? conversations : [],
   });
 
   return (
     <div className="min-h-screen">
       <Header title="Analytics Enterprise" subtitle="Deep intelligence e indicadores operacionais" />
-      <AnalyticsView loading={loading} viewModel={analyticsViewModel} />
+      <SafeRender scope="analytics-view">
+        <AnalyticsView loading={loading} viewModel={analyticsViewModel} />
+      </SafeRender>
     </div>
   );
 }

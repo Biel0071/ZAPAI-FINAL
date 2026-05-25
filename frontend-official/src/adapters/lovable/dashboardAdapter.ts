@@ -284,10 +284,11 @@ export function createDashboardLovableViewModel(params: {
     totalSessions: providedTotalSessions,
   } = params;
 
+  const safeSessions = Array.isArray(sessions) ? sessions : [];
   const activeSessions = typeof providedActiveSessions === "number"
     ? providedActiveSessions
-    : sessions.filter((session) => session.connected || (session.status ?? "").toLowerCase() === "connected").length;
-  const totalSessions = typeof providedTotalSessions === "number" ? providedTotalSessions : sessions.length;
+    : safeSessions.filter((session) => session && (session.connected || (session.status ?? "").toLowerCase() === "connected")).length;
+  const totalSessions = typeof providedTotalSessions === "number" ? providedTotalSessions : safeSessions.length;
   const activeChats = resolveMetricNumber(metrics, ["activeChats", "chats"]);
   const newLeads = resolveMetricNumber(metrics, ["newLeads", "leads"]);
   const { totalMapped, regionRows, stateRows, dddRows, points } = buildAggregates(conversations);

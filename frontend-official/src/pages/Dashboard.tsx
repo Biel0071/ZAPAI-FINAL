@@ -38,10 +38,10 @@ export default function Dashboard() {
   const [activeMapScope, setActiveMapScope] = useState<DashboardMapScope>("regions");
 
   const activeSessions = useMemo(
-    () => sessions.filter((s) => s.status === "connected").length,
+    () => (Array.isArray(sessions) ? sessions.filter((s) => s && s.status === "connected").length : 0),
     [sessions]
   );
-  const totalSessions = sessions.length;
+  const totalSessions = Array.isArray(sessions) ? sessions.length : 0;
   const sessionState = activeSessions > 0 ? "online" : "offline";
 
   const loadStatus = useCallback(async () => {

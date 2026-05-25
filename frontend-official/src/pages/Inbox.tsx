@@ -84,17 +84,19 @@ const SOCKET_FORCE_RECONNECT_DEBOUNCE_MS = 15_000;
 const SOCKET_BACKGROUND_HYDRATE_DEBOUNCE_MS = 10_000;
 
 function isSessionActive(session: SessionInfo): boolean {
+  if (!session) return false;
   const normalizedStatus = (session.status ?? "").toLowerCase();
   return Boolean(session.connected || normalizedStatus === "connected" || normalizedStatus === "active" || normalizedStatus === "open");
 }
 
 function pickActiveSession(sessions: SessionInfo[], preferredSessionId?: string | null): SessionInfo | null {
+  const safeSessions = Array.isArray(sessions) ? sessions : [];
   if (preferredSessionId) {
-    const preferred = sessions.find((session) => session.id === preferredSessionId);
+    const preferred = safeSessions.find((session) => session && session.id === preferredSessionId);
     if (preferred && isSessionActive(preferred)) return preferred;
   }
 
-  return sessions.find(isSessionActive) ?? null;
+  return safeSessions.find((session) => session && isSessionActive(session)) ?? null;
 }
 
 type ComposerAttachment = {
@@ -2410,14 +2412,15 @@ export default function Inbox() {
     const pendingTempIds = new Set<string>();
 
     try {
-      const latestSessions = sessions.length > 0 ? sessions : await refreshSessions();
+      const safeSessions = Array.isArray(sessions) ? sessions : [];
+      const latestSessions = safeSessions.length > 0 ? safeSessions : await refreshSessions();
       const resolvedActiveSession = pickActiveSession(
         latestSessions,
         selectedConversation.sessionId ?? preferredSessionId,
       );
       const fallbackSession =
-        latestSessions.find((session) => session.id === (selectedConversation.sessionId ?? preferredSessionId)) ??
-        latestSessions[0] ??
+        (Array.isArray(latestSessions) ? latestSessions : []).find((session) => session && session.id === (selectedConversation.sessionId ?? preferredSessionId)) ??
+        (Array.isArray(latestSessions) ? latestSessions[0] : null) ??
         null;
       const targetSession = resolvedActiveSession ?? fallbackSession;
 

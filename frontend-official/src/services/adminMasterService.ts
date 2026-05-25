@@ -269,8 +269,9 @@ function buildMetrics(input: {
   databaseStatus: BackendHealthStatus;
   heartbeatAt: string | null;
 }): AdminMetric[] {
-  const onlineSessions = input.sessions.filter((session) => String(session.status ?? "").toLowerCase().includes("connected") || session.connected).length;
-  const offlineSessions = Math.max(input.sessions.length - onlineSessions, 0);
+  const safeSessions = Array.isArray(input.sessions) ? input.sessions : [];
+  const onlineSessions = safeSessions.filter((session) => session && (String(session.status ?? "").toLowerCase().includes("connected") || session.connected)).length;
+  const offlineSessions = Math.max(safeSessions.length - onlineSessions, 0);
   const blockedUsers = input.users.filter((user) => String(user.status ?? "").toLowerCase().includes("block")).length;
   const onlineUsers = input.users.filter((user) => String(user.status ?? "").toLowerCase().includes("online")).length;
 

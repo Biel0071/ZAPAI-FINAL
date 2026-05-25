@@ -1,6 +1,18 @@
 import { create } from "zustand";
 import type { Conversation, MetricsSummary, ChatMessage } from "@/services/apiService";
 
+function isSessionItemValid(item: any): boolean {
+  return item && typeof item === "object" && typeof item.id === "string";
+}
+
+function isConversationValid(item: any): boolean {
+  return item && typeof item === "object" && typeof item.id === "string";
+}
+
+function isMessageValid(item: any): boolean {
+  return item && typeof item === "object" && typeof item.id === "string";
+}
+
 export type RuntimeStatus =
   | "offline"
   | "connecting"
@@ -48,7 +60,7 @@ type AppState = {
   upsertConversation: (conv: Conversation) => void;
   setMetrics: (metrics: MetricsSummary | null) => void;
 
-  setSessions: (sessions: SessionItem[]) => void;
+  setSessions: (sessionsOrUpdater: SessionItem[] | ((prev: SessionItem[]) => SessionItem[])) => void;
   upsertSession: (session: SessionItem) => void;
   removeSession: (sessionId: string) => void;
 
@@ -88,16 +100,25 @@ export const useAppStore = create<AppState>((set) => ({
   typingUsers: {},
 
   setConversations: (listOrUpdater) =>
-    set((state) => ({
-      conversations:
+    set((state) => {
+      const resolved =
         typeof listOrUpdater === "function"
           ? listOrUpdater(state.conversations)
-          : listOrUpdater,
-      lastSyncAt: Date.now(),
-    })),
+          : listOrUpdater;
+      if (!Array.isArray(resolved)) {
+        console.warn("[Zustand Store] Invalid conversations payload (not an array):", resolved);
+        return {};
+      }
+      const valid = resolved.filter(isConversationValid);
+      return { conversations: valid, lastSyncAt: Date.now() };
+    }),
 
   upsertConversation: (conv) =>
     set((state) => {
+      if (!isConversationValid(conv)) {
+        console.warn("[Zustand Store] Invalid conversation ignored in upsertConversation:", conv);
+        return {};
+      }
       const idx = state.conversations.findIndex((c) => c.id === conv.id);
       if (idx === -1) {
         return { conversations: [conv, ...state.conversations] };
@@ -107,12 +128,35 @@ export const useAppStore = create<AppState>((set) => ({
       return { conversations: next };
     }),
 
-  setMetrics: (metrics) => set({ metrics, lastSyncAt: Date.now() }),
+  setMetrics: (metrics) =>
+    set(() => {
+      if (metrics !== null && (typeof metrics !== "object" || Array.isArray(metrics))) {
+        console.warn("[Zustand Store] Invalid metrics payload (not an object/null):", metrics);
+        return {};
+      }
+      return { metrics, lastSyncAt: Date.now() };
+    }),
 
-  setSessions: (sessions) => set(() => ({ sessions, lastSyncAt: Date.now() })),
+  setSessions: (sessionsOrUpdater) =>
+    set((state) => {
+      const resolved =
+        typeof sessionsOrUpdater === "function"
+          ? sessionsOrUpdater(state.sessions)
+          : sessionsOrUpdater;
+      if (!Array.isArray(resolved)) {
+        console.warn("[Zustand Store] Invalid sessions payload (not an array):", resolved);
+        return {};
+      }
+      const valid = resolved.filter(isSessionItemValid);
+      return { sessions: valid, lastSyncAt: Date.now() };
+    }),
 
   upsertSession: (session) =>
     set((state) => {
+      if (!isSessionItemValid(session)) {
+        console.warn("[Zustand Store] Invalid session item ignored in upsertSession:", session);
+        return {};
+      }
       const index = state.sessions.findIndex((s) => s.id === session.id);
       if (index === -1) {
         return { sessions: [session, ...state.sessions], lastSyncAt: Date.now() };
@@ -171,15 +215,26 @@ export const useAppStore = create<AppState>((set) => ({
   setActiveConversationId: (activeConversationId) => set({ activeConversationId }),
 
   setMessages: (conversationId, messages) =>
-    set((state) => ({
-      messagesByConversationId: {
-        ...state.messagesByConversationId,
-        [conversationId]: messages,
-      },
-    })),
+    set((state) => {
+      if (!Array.isArray(messages)) {
+        console.warn(`[Zustand Store] Invalid messages payload for ${conversationId} ignored (not an array):`, messages);
+        return {};
+      }
+      const valid = messages.filter(isMessageValid);
+      return {
+        messagesByConversationId: {
+          ...state.messagesByConversationId,
+          [conversationId]: valid,
+        },
+      };
+    }),
 
   addMessage: (conversationId, message) =>
     set((state) => {
+      if (!isMessageValid(message)) {
+        console.warn(`[Zustand Store] Invalid message ignored in addMessage for ${conversationId}:`, message);
+        return {};
+      }
       const current = state.messagesByConversationId[conversationId] ?? [];
       
       // If we already have this message by ID, do nothing
@@ -244,9 +299,17 @@ export const useAppStore = create<AppState>((set) => ({
 
   updateConversationRealtime: (conv) =>
     set((state) => {
+      if (!conv || typeof conv !== "object" || typeof conv.id !== "string") {
+        console.warn("[Zustand Store] Invalid conversation ignored in updateConversationRealtime:", conv);
+        return {};
+      }
       const idx = state.conversations.findIndex((c) => c.id === conv.id);
       if (idx === -1) {
         // Se a conversa não existir na lista, adicionamos como nova (cast parcial para Conversation)
+        if (!isConversationValid(conv)) {
+          console.warn("[Zustand Store] Invalid conversation shape in updateConversationRealtime add ignored:", conv);
+          return {};
+        }
         return { conversations: [conv as Conversation, ...state.conversations] };
       }
       const next = state.conversations.slice();

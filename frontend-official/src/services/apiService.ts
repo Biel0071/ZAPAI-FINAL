@@ -869,8 +869,9 @@ export const apiService = {
         ? parseSessionStatusPayload(sessionsStatusResult.value).map(normalizeSessionInfo)
         : [];
 
-    let totalSessions = sessions.length;
-    let activeSessions = sessions.filter(isSessionConnected).length;
+    const safeSessions = Array.isArray(sessions) ? sessions : [];
+    let totalSessions = safeSessions.length;
+    let activeSessions = safeSessions.filter((s) => s && isSessionConnected(s)).length;
 
     if (sessionsStatusResult.status === "fulfilled" && totalSessions === 0) {
       const connected = resolveConnectedFromStatusPayload(sessionsStatusResult.value);

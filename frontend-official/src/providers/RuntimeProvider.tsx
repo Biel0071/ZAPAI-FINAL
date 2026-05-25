@@ -69,9 +69,9 @@ export function RuntimeProvider({ children }: { children: ReactNode }) {
 
   const sessions = useAppStore((s) => s.sessions);
 
-  const connectedSessions = sessions.filter(
-    (s) => s.status === "connected",
-  ).length;
+  const connectedSessions = Array.isArray(sessions)
+    ? sessions.filter((s) => s && s.status === "connected").length
+    : 0;
 
   // Full API refresh — called on mount and on reconnect
   const loadFromApi = useCallback(async () => {
