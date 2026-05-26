@@ -40,7 +40,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
-import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
@@ -3440,6 +3440,7 @@ export default function Inbox() {
         previewDialog={
           <Dialog open={Boolean(previewMedia)} onOpenChange={(open) => !open && setPreviewMedia(null)}>
             <DialogContent className="h-screen w-screen max-w-none border-none bg-black/95 p-0 shadow-none">
+              <DialogTitle className="sr-only">Visualização de Mídia</DialogTitle>
               <div className="flex h-full w-full items-center justify-center" onClick={() => setPreviewMedia(null)}>
                 {previewMedia?.type === "image" && (
                   <img

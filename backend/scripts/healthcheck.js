@@ -140,20 +140,24 @@ function checkFilesystem() {
   }
 
   // Disk space (Linux only)
-  try {
-    const df = execSync('df -h / 2>/dev/null | tail -1', { encoding: 'utf8', timeout: 3000 }).trim();
-    const parts = df.split(/\s+/);
-    const used = parts[4] || 'N/A';
-    const pctNum = parseInt(used, 10);
-    if (pctNum >= 90) {
-      result('disk_space', 'fail', `${used} used — CRITICAL`);
-    } else if (pctNum >= 80) {
-      result('disk_space', 'warn', `${used} used`);
-    } else {
-      result('disk_space', 'ok', `${used} used`);
+  if (process.platform !== 'win32') {
+    try {
+      const df = execSync('df -h / 2>/dev/null | tail -1', { encoding: 'utf8', timeout: 3000 }).trim();
+      const parts = df.split(/\s+/);
+      const used = parts[4] || 'N/A';
+      const pctNum = parseInt(used, 10);
+      if (pctNum >= 90) {
+        result('disk_space', 'fail', `${used} used — CRITICAL`);
+      } else if (pctNum >= 80) {
+        result('disk_space', 'warn', `${used} used`);
+      } else {
+        result('disk_space', 'ok', `${used} used`);
+      }
+    } catch {
+      result('disk_space', 'warn', 'Could not check disk');
     }
-  } catch {
-    result('disk_space', 'warn', 'Could not check disk (non-Linux?)');
+  } else {
+    result('disk_space', 'ok', 'Windows Host — disk check skipped');
   }
 }
 
@@ -172,17 +176,21 @@ function checkMemory() {
     result('memory_heap', 'ok', `heap=${heapUsedMB}MB rss=${rssMB}MB`);
   }
 
-  // System free memory (Linux)
-  try {
-    const freeMem = execSync('free -m 2>/dev/null | grep Mem', { encoding: 'utf8', timeout: 3000 });
-    const parts = freeMem.trim().split(/\s+/);
-    const totalMB = parseInt(parts[1], 10);
-    const availMB = parseInt(parts[6] || parts[3], 10);
-    const usedPct = Math.round(((totalMB - availMB) / totalMB) * 100);
-    const status = usedPct > 90 ? 'fail' : usedPct > 80 ? 'warn' : 'ok';
-    result('memory_system', status, `${availMB}MB free of ${totalMB}MB (${usedPct}% used)`);
-  } catch {
-    result('memory_system', 'warn', 'Could not check system memory');
+  // System free memory (Linux only)
+  if (process.platform !== 'win32') {
+    try {
+      const freeMem = execSync('free -m 2>/dev/null | grep Mem', { encoding: 'utf8', timeout: 3000 });
+      const parts = freeMem.trim().split(/\s+/);
+      const totalMB = parseInt(parts[1], 10);
+      const availMB = parseInt(parts[6] || parts[3], 10);
+      const usedPct = Math.round(((totalMB - availMB) / totalMB) * 100);
+      const status = usedPct > 90 ? 'fail' : usedPct > 80 ? 'warn' : 'ok';
+      result('memory_system', status, `${availMB}MB free of ${totalMB}MB (${usedPct}% used)`);
+    } catch {
+      result('memory_system', 'warn', 'Could not check system memory');
+    }
+  } else {
+    result('memory_system', 'ok', 'Windows Host — system memory check skipped');
   }
 }
 
@@ -291,7 +299,8 @@ function checkBaileySessions() {
 
 function checkPm2() {
   try {
-    const out = execSync('pm2 jlist 2>/dev/null', { encoding: 'utf8', timeout: 5000 });
+    const pm2Cmd = process.platform === 'win32' ? 'pm2 jlist 2>nul' : 'pm2 jlist 2>/dev/null';
+    const out = execSync(pm2Cmd, { encoding: 'utf8', timeout: 5000 });
     const procs = JSON.parse(out || '[]');
     const zapflow = procs.find((p) => p.name === 'zapflow-api');
     if (!zapflow) {
@@ -317,63 +326,71 @@ function checkPm2() {
 // ─── 9. CPU ──────────────────────────────────────────────────────────────────
 
 function checkCpu() {
-  try {
-    // Read /proc/stat twice with 500ms gap for accurate CPU usage
-    const read1 = fs.readFileSync('/proc/stat', 'utf8').split('\n')[0].trim().split(/\s+/);
-    const [, u1, n1, s1, i1, w1] = read1.map(Number);
-    const idle1 = i1 + (w1 || 0);
-    const total1 = u1 + n1 + s1 + idle1;
-
-    // Brief sleep via synchronous approach
-    const start = Date.now();
-    while (Date.now() - start < 300) { /* busy wait */ }
-
-    const read2 = fs.readFileSync('/proc/stat', 'utf8').split('\n')[0].trim().split(/\s+/);
-    const [, u2, n2, s2, i2, w2] = read2.map(Number);
-    const idle2 = i2 + (w2 || 0);
-    const total2 = u2 + n2 + s2 + idle2;
-
-    const idleDelta = idle2 - idle1;
-    const totalDelta = total2 - total1;
-    const cpuUsedPct = totalDelta > 0 ? Math.round((1 - idleDelta / totalDelta) * 100) : 0;
-
-    const status = cpuUsedPct > 90 ? 'fail' : cpuUsedPct > 75 ? 'warn' : 'ok';
-    result('cpu_usage', status, `${cpuUsedPct}% used`);
-  } catch {
-    // Non-Linux or /proc not available
+  if (process.platform !== 'win32') {
     try {
-      const loadavg = fs.readFileSync('/proc/loadavg', 'utf8').split(' ');
-      result('cpu_usage', 'ok', `loadavg=${loadavg[0]} ${loadavg[1]} ${loadavg[2]}`);
+      // Read /proc/stat twice with 500ms gap for accurate CPU usage
+      const read1 = fs.readFileSync('/proc/stat', 'utf8').split('\n')[0].trim().split(/\s+/);
+      const [, u1, n1, s1, i1, w1] = read1.map(Number);
+      const idle1 = i1 + (w1 || 0);
+      const total1 = u1 + n1 + s1 + idle1;
+
+      // Brief sleep via synchronous approach
+      const start = Date.now();
+      while (Date.now() - start < 300) { /* busy wait */ }
+
+      const read2 = fs.readFileSync('/proc/stat', 'utf8').split('\n')[0].trim().split(/\s+/);
+      const [, u2, n2, s2, i2, w2] = read2.map(Number);
+      const idle2 = i2 + (w2 || 0);
+      const total2 = u2 + n2 + s2 + idle2;
+
+      const idleDelta = idle2 - idle1;
+      const totalDelta = total2 - total1;
+      const cpuUsedPct = totalDelta > 0 ? Math.round((1 - idleDelta / totalDelta) * 100) : 0;
+
+      const status = cpuUsedPct > 90 ? 'fail' : cpuUsedPct > 75 ? 'warn' : 'ok';
+      result('cpu_usage', status, `${cpuUsedPct}% used`);
     } catch {
-      result('cpu_usage', 'warn', 'Cannot read CPU stats (non-Linux?)');
+      // Non-Linux or /proc not available
+      try {
+        const loadavg = fs.readFileSync('/proc/loadavg', 'utf8').split(' ');
+        result('cpu_usage', 'ok', `loadavg=${loadavg[0]} ${loadavg[1]} ${loadavg[2]}`);
+      } catch {
+        result('cpu_usage', 'warn', 'Cannot read CPU stats');
+      }
     }
+  } else {
+    result('cpu_usage', 'ok', 'Windows Host — CPU check skipped');
   }
 }
 
 // ─── 10. Nginx ────────────────────────────────────────────────────────────────
 
 function checkNginx() {
-  try {
-    const status = execSync('systemctl is-active nginx 2>/dev/null', { encoding: 'utf8', timeout: 3000 }).trim();
-    if (status === 'active') {
-      // Also check config
-      try {
-        execSync('nginx -t 2>/dev/null', { encoding: 'utf8', timeout: 5000 });
-        result('nginx', 'ok', 'active + config valid');
-      } catch {
-        result('nginx', 'warn', 'active but config test failed');
-      }
-    } else {
-      result('nginx', 'fail', `nginx status: ${status}`);
-    }
-  } catch {
-    // systemctl not available — try process check
+  if (process.platform !== 'win32') {
     try {
-      execSync('pgrep nginx', { encoding: 'utf8', timeout: 3000 });
-      result('nginx', 'ok', 'process running (no systemctl)');
+      const status = execSync('systemctl is-active nginx 2>/dev/null', { encoding: 'utf8', timeout: 3000 }).trim();
+      if (status === 'active') {
+        // Also check config
+        try {
+          execSync('nginx -t 2>/dev/null', { encoding: 'utf8', timeout: 5000 });
+          result('nginx', 'ok', 'active + config valid');
+        } catch {
+          result('nginx', 'warn', 'active but config test failed');
+        }
+      } else {
+        result('nginx', 'fail', `nginx status: ${status}`);
+      }
     } catch {
-      result('nginx', 'warn', 'nginx not found — may be proxied externally');
+      // systemctl not available — try process check
+      try {
+        execSync('pgrep nginx', { encoding: 'utf8', timeout: 3000 });
+        result('nginx', 'ok', 'process running (no systemctl)');
+      } catch {
+        result('nginx', 'warn', 'nginx not found — may be proxied externally');
+      }
     }
+  } else {
+    result('nginx', 'ok', 'Windows Host — nginx status check skipped');
   }
 }
 

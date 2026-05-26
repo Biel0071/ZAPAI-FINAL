@@ -1,13 +1,13 @@
 {
-  "timestamp": "2026-05-25T22:28:31.325Z",
+  "timestamp": "2026-05-26T13:34:33.627Z",
   "backendHealth": {
     "success": true,
-    "timestamp": "2026-05-25T22:28:31.815Z",
+    "timestamp": "2026-05-26T13:34:34.027Z",
     "summary": {
       "total": 16,
-      "passed": 9,
+      "passed": 13,
       "failed": 0,
-      "warned": 7
+      "warned": 3
     },
     "services": {
       "pm2": {
@@ -15,14 +15,14 @@
         "detail": "PM2 not available or not running"
       },
       "nginx": {
-        "status": "warn",
-        "detail": "nginx not found — may be proxied externally"
+        "status": "ok",
+        "detail": "Windows Host — nginx status check skipped"
       }
     },
     "database": {
       "postgres": {
         "status": "ok",
-        "detail": "SELECT 1 in 190ms | server_time=Mon May 25 2026 19:28:31 GMT-0300 (Horário Padrão de Brasília)"
+        "detail": "SELECT 1 in 94ms | server_time=Tue May 26 2026 10:34:33 GMT-0300 (Horário Padrão de Brasília)"
       },
       "migrations": {
         "status": "ok",
@@ -32,19 +32,19 @@
     "memory": {
       "heap": {
         "status": "ok",
-        "detail": "heap=7MB rss=57MB"
+        "detail": "heap=7MB rss=50MB"
       },
       "system": {
-        "status": "warn",
-        "detail": "Could not check system memory"
+        "status": "ok",
+        "detail": "Windows Host — system memory check skipped"
       },
       "disk": {
-        "status": "warn",
-        "detail": "Could not check disk (non-Linux?)"
+        "status": "ok",
+        "detail": "Windows Host — disk check skipped"
       },
       "cpu": {
-        "status": "warn",
-        "detail": "Cannot read CPU stats (non-Linux?)"
+        "status": "ok",
+        "detail": "Windows Host — CPU check skipped"
       }
     },
     "sessions": {
@@ -63,98 +63,98 @@
       {
         "name": "postgres",
         "status": "ok",
-        "detail": "SELECT 1 in 190ms | server_time=Mon May 25 2026 19:28:31 GMT-0300 (Horário Padrão de Brasília)",
-        "timestamp": "2026-05-25T22:28:31.611Z"
+        "detail": "SELECT 1 in 94ms | server_time=Tue May 26 2026 10:34:33 GMT-0300 (Horário Padrão de Brasília)",
+        "timestamp": "2026-05-26T13:34:33.883Z"
       },
       {
         "name": "postgres_tables",
         "status": "ok",
         "detail": "37 public tables",
-        "timestamp": "2026-05-25T22:28:31.618Z"
+        "timestamp": "2026-05-26T13:34:33.898Z"
       },
       {
         "name": "redis",
         "status": "warn",
         "detail": "REDIS_URL not configured — Redis disabled",
-        "timestamp": "2026-05-25T22:28:31.618Z"
+        "timestamp": "2026-05-26T13:34:33.899Z"
       },
       {
         "name": "sessions_dir",
         "status": "ok",
         "detail": "C:\\projetos\\ZAPAI-FINAL\\backend\\sessions",
-        "timestamp": "2026-05-25T22:28:31.619Z"
+        "timestamp": "2026-05-26T13:34:33.900Z"
       },
       {
         "name": "logs_dir",
         "status": "ok",
         "detail": "C:\\projetos\\ZAPAI-FINAL\\backend\\logs",
-        "timestamp": "2026-05-25T22:28:31.620Z"
+        "timestamp": "2026-05-26T13:34:33.900Z"
       },
       {
         "name": "uploads_dir",
         "status": "ok",
         "detail": "C:\\projetos\\ZAPAI-FINAL\\backend\\uploads",
-        "timestamp": "2026-05-25T22:28:31.621Z"
+        "timestamp": "2026-05-26T13:34:33.901Z"
       },
       {
         "name": "disk_space",
-        "status": "warn",
-        "detail": "Could not check disk (non-Linux?)",
-        "timestamp": "2026-05-25T22:28:31.645Z"
+        "status": "ok",
+        "detail": "Windows Host — disk check skipped",
+        "timestamp": "2026-05-26T13:34:33.901Z"
       },
       {
         "name": "memory_heap",
         "status": "ok",
-        "detail": "heap=7MB rss=57MB",
-        "timestamp": "2026-05-25T22:28:31.645Z"
+        "detail": "heap=7MB rss=50MB",
+        "timestamp": "2026-05-26T13:34:33.901Z"
       },
       {
         "name": "memory_system",
-        "status": "warn",
-        "detail": "Could not check system memory",
-        "timestamp": "2026-05-25T22:28:31.668Z"
+        "status": "ok",
+        "detail": "Windows Host — system memory check skipped",
+        "timestamp": "2026-05-26T13:34:33.901Z"
       },
       {
         "name": "cpu_usage",
-        "status": "warn",
-        "detail": "Cannot read CPU stats (non-Linux?)",
-        "timestamp": "2026-05-25T22:28:31.668Z"
+        "status": "ok",
+        "detail": "Windows Host — CPU check skipped",
+        "timestamp": "2026-05-26T13:34:33.901Z"
       },
       {
         "name": "backend_http",
         "status": "ok",
-        "detail": "HTTP 200 in 13ms | has_system=true",
-        "timestamp": "2026-05-25T22:28:31.681Z"
+        "detail": "HTTP 200 in 16ms | has_system=true",
+        "timestamp": "2026-05-26T13:34:33.917Z"
       },
       {
         "name": "websocket_route",
         "status": "ok",
         "detail": "Socket.IO polling: HTTP 200",
-        "timestamp": "2026-05-25T22:28:31.685Z"
+        "timestamp": "2026-05-26T13:34:33.919Z"
       },
       {
         "name": "baileys_sessions",
         "status": "warn",
         "detail": "8 session dirs but 0 with valid creds.json — scan QR to pair",
-        "timestamp": "2026-05-25T22:28:31.687Z"
+        "timestamp": "2026-05-26T13:34:33.919Z"
       },
       {
         "name": "pm2_process",
         "status": "warn",
         "detail": "PM2 not available or not running",
-        "timestamp": "2026-05-25T22:28:31.712Z"
+        "timestamp": "2026-05-26T13:34:33.955Z"
       },
       {
         "name": "nginx",
-        "status": "warn",
-        "detail": "nginx not found — may be proxied externally",
-        "timestamp": "2026-05-25T22:28:31.757Z"
+        "status": "ok",
+        "detail": "Windows Host — nginx status check skipped",
+        "timestamp": "2026-05-26T13:34:33.956Z"
       },
       {
         "name": "migrations",
         "status": "ok",
         "detail": "11 migrations applied",
-        "timestamp": "2026-05-25T22:28:31.815Z"
+        "timestamp": "2026-05-26T13:34:34.026Z"
       }
     ]
   },
