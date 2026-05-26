@@ -1,5 +1,5 @@
 import { AddressBook, ChatCircleDots, Phone } from "@phosphor-icons/react";
-import { ContactGrid } from "@/components/contacts/ContactGrid";
+import { ContactGrid, type ContactGridItem } from "@/components/contacts/ContactGrid";
 import { ContactSidebar, type ContactSegment } from "@/components/contacts/ContactSidebar";
 import { ChatSearchBar } from "@/components/inbox/ChatSearchBar";
 import { Card, CardContent } from "@/components/ui/card";
@@ -24,6 +24,7 @@ export interface ContactsViewProps {
   onSegmentChange: (segment: ContactSegment) => void;
   onRefresh: () => void;
   onGoToChat: (contact: { phone: string; id: string }) => void;
+  onEditContact?: (contact: ContactGridItem) => void;
 }
 
 export function ContactsView({
@@ -39,6 +40,7 @@ export function ContactsView({
   onSegmentChange,
   onRefresh,
   onGoToChat,
+  onEditContact,
 }: ContactsViewProps) {
   return (
     <div className="page-container section-stack">
@@ -64,14 +66,17 @@ export function ContactsView({
           <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
             <div className="flex flex-1 flex-col gap-3 sm:flex-row">
               <ChatSearchBar value={searchQuery} onChange={onSearchChange} placeholder="Buscar contatos..." />
-              <Input value={tagFilter} onChange={(event) => onTagFilterChange(event.target.value)} placeholder="Filtrar por tag" className="max-w-xs" />
+              <Input value={tagFilter} onChange={(event) => onTagFilterChange(event.target.value)} placeholder="Filtrar por tag" className="max-w-xs rounded-xl" />
             </div>
             <Button variant="outline" className="rounded-xl" onClick={onRefresh}>Atualizar</Button>
           </div>
 
           {error ? (
-            <Card className="glass-card rounded-2xl border-border/70 bg-card/85">
-              <CardContent className="p-5 text-sm text-destructive">{error}</CardContent>
+            <Card className="glass-card rounded-2xl border-destructive/30">
+              <CardContent className="flex flex-col items-center gap-3 p-6 text-center">
+                <p className="text-sm font-medium text-destructive">{error}</p>
+                <Button variant="outline" size="sm" className="rounded-xl" onClick={onRefresh}>Tentar novamente</Button>
+              </CardContent>
             </Card>
           ) : null}
 
@@ -97,9 +102,9 @@ export function ContactsView({
             <div className="space-y-4">
               <div className="flex items-center justify-between">
                 <OperationalStatusBadge label="Base sincronizada" tone="online" />
-                <Badge variant="secondary">{viewModel.contacts.length} registros</Badge>
+                <Badge variant="secondary" className="rounded-full">{viewModel.contacts.length} registros</Badge>
               </div>
-              <ContactGrid contacts={viewModel.contacts} onContactClick={onGoToChat} />
+              <ContactGrid contacts={viewModel.contacts} onContactClick={onGoToChat} onEditContact={onEditContact} />
             </div>
           )}
         </div>
@@ -107,3 +112,5 @@ export function ContactsView({
     </div>
   );
 }
+
+export default ContactsView;

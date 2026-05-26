@@ -16,7 +16,7 @@
  * - Re-hydration on reconnect
  * - Realtime subscriptions for WhatsApp sessions and QR codes
  */
-import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { connectInboxSocket, forceReconnectInboxSocket } from "@/runtime/socket/socketManager";
 import { apiService, type ChatMessage } from "@/services/apiService";
 import { useAppStore } from "@/stores/appStore";
@@ -441,13 +441,34 @@ export function RuntimeProvider({ children }: { children: ReactNode }) {
     return () => document.removeEventListener("visibilitychange", onVisibilityChange);
   }, [loadFromApi]);
 
-  const contextValue: RuntimeContextValue = {
+  const contextValue: RuntimeContextValue = useMemo(() => ({
     status,
     connectedSessions,
     hydrated,
     forceRefresh,
     forceReconnect,
-  };
+  }), [status, connectedSessions, hydrated, forceRefresh, forceReconnect]);
 
-  return <RuntimeContext.Provider value={contextValue}>{children}</RuntimeContext.Provider>;
+  return (
+    <RuntimeContext.Provider value={contextValue}>
+      {hydrated ? (
+        children
+      ) : (
+        <div className="flex min-h-screen w-full flex-col items-center justify-center bg-[#0C0F14] text-white">
+          <div className="flex flex-col items-center gap-4">
+            <div className="relative flex h-16 w-16 items-center justify-center rounded-2xl bg-[#25D366]/10 shadow-[0_0_20px_rgba(37,211,102,0.15)]">
+              <span className="relative flex h-3.5 w-3.5">
+                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[#25D366] opacity-75"></span>
+                <span className="relative inline-flex h-3.5 w-3.5 rounded-full bg-[#25D366]"></span>
+              </span>
+            </div>
+            <div className="flex flex-col items-center gap-1 text-center">
+              <h2 className="font-display text-sm font-bold tracking-wider text-[#94a3b8] uppercase">Zapflow AI</h2>
+              <p className="text-xs text-[#94a3b8]/60">Inicializando runtime do sistema…</p>
+            </div>
+          </div>
+        </div>
+      )}
+    </RuntimeContext.Provider>
+  );
 }

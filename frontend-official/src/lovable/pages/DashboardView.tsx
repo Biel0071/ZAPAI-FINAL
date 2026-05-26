@@ -272,6 +272,136 @@ export function DashboardView({
           )}
         </div>
       )}
+      {activeTab === "performance" && (
+        <div className="space-y-6 animate-in fade-in-0 duration-300">
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+            {viewModel.overviewCards.map((card) => (
+              <Card key={card.label} className="metric-card rounded-2xl border-border/70 bg-card/85">
+                <CardContent className="space-y-2 p-5">
+                  <div className="flex items-center justify-between gap-4">
+                    <div>
+                      <p className="text-[11px] uppercase tracking-wide text-muted-foreground">{card.label}</p>
+                      <h3 className="mt-2 font-display text-2xl font-bold">{card.value}</h3>
+                    </div>
+                    {card.badgeLabel ? (
+                      <Badge variant="secondary" className={`rounded-full border px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide ${toneClasses(card.tone)}`}>
+                        {card.badgeLabel}
+                      </Badge>
+                    ) : null}
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+          <Card className="glass-card rounded-2xl border-border/70 bg-card/85">
+            <CardContent className="flex flex-col items-center gap-3 p-8 text-center">
+              <ShieldCheck className="h-8 w-8 text-primary" weight="duotone" />
+              <div>
+                <p className="font-display text-lg font-semibold">Performance operacional em tempo real</p>
+                <p className="mt-1 text-sm text-muted-foreground">Métricas de desempenho baseadas nos dados atuais da operação com {viewModel.map.summaryCards[0]?.value ?? "0"} leads mapeados.</p>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {activeTab === "conversations" && (
+        <div className="space-y-6 animate-in fade-in-0 duration-300">
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+            <Card className="metric-card rounded-2xl border-border/70 bg-card/85">
+              <CardContent className="space-y-2 p-5">
+                <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Total Mapeado</p>
+                <h3 className="font-display text-2xl font-bold">{viewModel.map.summaryCards[0]?.value ?? "0"}</h3>
+              </CardContent>
+            </Card>
+            <Card className="metric-card rounded-2xl border-border/70 bg-card/85">
+              <CardContent className="space-y-2 p-5">
+                <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Estados Ativos</p>
+                <h3 className="font-display text-2xl font-bold">{viewModel.map.summaryCards[1]?.value ?? "0"}</h3>
+              </CardContent>
+            </Card>
+            <Card className="metric-card rounded-2xl border-border/70 bg-card/85">
+              <CardContent className="space-y-2 p-5">
+                <p className="text-[11px] uppercase tracking-wide text-muted-foreground">DDDs Identificados</p>
+                <h3 className="font-display text-2xl font-bold">{viewModel.map.summaryCards[2]?.value ?? "0"}</h3>
+              </CardContent>
+            </Card>
+          </div>
+          <Card className="glass-card rounded-2xl border-border/70 bg-card/85">
+            <CardContent className="space-y-3 p-5">
+              {viewModel.map.stateRows.length === 0 ? (
+                <p className="text-sm text-muted-foreground">Nenhuma conversa com localização identificada.</p>
+              ) : (
+                viewModel.map.stateRows.slice(0, 10).map((row) => (
+                  <div key={row.id} className="flex items-center justify-between rounded-xl border border-border/60 bg-background/30 px-4 py-3">
+                    <div>
+                      <p className="text-sm font-semibold">{row.label}</p>
+                      <p className="text-xs text-muted-foreground">{row.meta}</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-sm font-semibold">{row.count} leads</p>
+                      <p className="text-xs text-muted-foreground">{row.share}%</p>
+                    </div>
+                  </div>
+                ))
+              )}
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {activeTab === "ai" && (
+        <div className="space-y-6 animate-in fade-in-0 duration-300">
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+            {viewModel.overviewCards.map((card) => (
+              <Card key={card.label} className="metric-card rounded-2xl border-border/70 bg-card/85">
+                <CardContent className="space-y-2 p-5">
+                  <p className="text-[11px] uppercase tracking-wide text-muted-foreground">{card.label}</p>
+                  <h3 className="mt-2 font-display text-2xl font-bold">{card.value}</h3>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+          <Card className="glass-card rounded-2xl border-border/70 bg-card/85">
+            <CardContent className="flex flex-col items-center gap-3 p-8 text-center">
+              <ShieldCheck className="h-8 w-8 text-info" weight="duotone" />
+              <div>
+                <p className="font-display text-lg font-semibold">Inteligência Artificial ativa</p>
+                <p className="mt-1 text-sm text-muted-foreground">A camada de IA está {viewModel.overviewCards[1]?.value === "Online" ? "operando em tempo real" : "em modo de contingência"}. Para configurar prompts, providers e memória, acesse a tela de IA.</p>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {activeTab === "schedule" && (
+        <div className="space-y-6 animate-in fade-in-0 duration-300">
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+            <Card className="glass-card rounded-2xl border-border/70 bg-card/85">
+              <CardContent className="flex items-center gap-4 p-5">
+                <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/10">
+                  <ShieldCheck className="h-6 w-6 text-primary" weight="duotone" />
+                </div>
+                <div>
+                  <p className="font-display font-semibold">Horário comercial</p>
+                  <p className="text-sm text-muted-foreground">Para configurar horários de atendimento e mensagens de ausência, acesse a tela de IA → Horário Comercial.</p>
+                </div>
+              </CardContent>
+            </Card>
+            <Card className="glass-card rounded-2xl border-border/70 bg-card/85">
+              <CardContent className="flex items-center gap-4 p-5">
+                <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-success/10">
+                  <Export className="h-6 w-6 text-success" weight="duotone" />
+                </div>
+                <div>
+                  <p className="font-display font-semibold">Estado da operação</p>
+                  <p className="text-sm text-muted-foreground">{viewModel.overviewCards[3]?.badgeLabel ?? "Verificando estado..."}</p>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

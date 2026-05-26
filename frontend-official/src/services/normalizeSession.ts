@@ -1,14 +1,17 @@
 import type { SessionItem } from "@/stores/appStore";
 
 export function getSessionId(input: any): string {
-  return String(
+  const rawId = String(
     input?.id ??
     input?.sessionId ??
     input?.session_id ??
     input?.name ??
     input?.session ??
     ""
-  );
+  ).trim();
+
+  if (!rawId) return "";
+  return rawId.replace(/\s+/g, "_").toLowerCase();
 }
 
 export function normalizeSessionStatus(input: any): SessionItem["status"] {

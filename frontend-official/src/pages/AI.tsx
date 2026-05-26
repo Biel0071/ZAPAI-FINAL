@@ -4,10 +4,12 @@ import AIView from "@/lovable/pages/AIPageView";
 import { createAILovableViewModel } from "@/adapters/lovable/aiAdapter";
 import { useToast } from "@/hooks/use-toast";
 import { apiService, type AIStatusResponse } from "@/services/apiService";
+import type { AIProviderConfig } from "@/lovable/pages/AIView";
 
 type SectionId =
   | "status"
   | "prompt"
+  | "providers"
   | "business-hours"
   | "absence"
   | "reactivation"
@@ -15,6 +17,16 @@ type SectionId =
   | "learning"
   | "memory"
   | "advanced";
+
+const DEFAULT_PROVIDERS: AIProviderConfig[] = [
+  { id: "openai", name: "OpenAI", apiKey: "", model: "gpt-4o-mini", active: false },
+  { id: "groq", name: "Groq", apiKey: "", model: "llama-3.1-70b-versatile", active: false },
+  { id: "claude", name: "Claude (Anthropic)", apiKey: "", model: "claude-sonnet-4-20250514", active: false },
+  { id: "gemini", name: "Gemini (Google)", apiKey: "", model: "gemini-2.0-flash", active: false },
+  { id: "deepseek", name: "Deepseek", apiKey: "", model: "deepseek-chat", active: false },
+  { id: "openrouter", name: "OpenRouter", apiKey: "", model: "auto", active: false },
+  { id: "ollama", name: "Ollama (Local)", apiKey: "", model: "llama3.1", active: false },
+];
 
 type PromptVersion = {
   id: string;
@@ -105,6 +117,8 @@ export default function AI() {
   const [responseDelay, setResponseDelay] = useState([2]);
   const [autoFollowUp, setAutoFollowUp] = useState(true);
 
+  const [providers, setProviders] = useState<AIProviderConfig[]>(DEFAULT_PROVIDERS);
+
   const lostCount = useMemo(() => trainingRows.filter((row) => row.status === "lost").length, [trainingRows]);
 
   useEffect(() => {
@@ -169,6 +183,14 @@ export default function AI() {
           setMaxTokens([advanced.maxTokens ?? 500]);
           setResponseDelay([advanced.responseDelaySeconds ?? 2]);
           setAutoFollowUp(Boolean(advanced.autoFollowUp));
+          if (Array.isArray(advanced.providers) && advanced.providers.length > 0) {
+            setProviders((prev) =>
+              prev.map((p) => {
+                const saved = (advanced.providers as AIProviderConfig[]).find((s: AIProviderConfig) => s.id === p.id);
+                return saved ? { ...p, ...saved } : p;
+              }),
+            );
+          }
         }
       } catch {
         // defaults
@@ -306,10 +328,37 @@ export default function AI() {
         maxTokens: maxTokens[0],
         responseDelaySeconds: responseDelay[0],
         autoFollowUp,
+        providers,
       });
       notifySaved();
     } catch {
       toast({ title: "Erro ao salvar configurações avançadas.", variant: "destructive" });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleProviderChange = (updated: AIProviderConfig) => {
+    setProviders((prev) => prev.map((p) => (p.id === updated.id ? updated : p)));
+  };
+
+  const handleProviderToggle = (providerId: string, active: boolean) => {
+    setProviders((prev) => prev.map((p) => (p.id === providerId ? { ...p, active } : p)));
+  };
+
+  const saveProviders = async () => {
+    setSaving(true);
+    try {
+      await apiService.saveAdvancedAISettings({
+        temperature: temperature[0],
+        maxTokens: maxTokens[0],
+        responseDelaySeconds: responseDelay[0],
+        autoFollowUp,
+        providers,
+      });
+      notifySaved();
+    } catch {
+      toast({ title: "Erro ao salvar provedores.", variant: "destructive" });
     } finally {
       setSaving(false);
     }
@@ -418,6 +467,10 @@ export default function AI() {
         onImprovedTextChange={setImprovedText}
         onImproveResponse={() => void improveResponse()}
         onSaveImprovedResponse={saveImprovedResponse}
+        providers={providers}
+        onProviderChange={handleProviderChange}
+        onProviderToggle={handleProviderToggle}
+        onSaveProviders={() => void saveProviders()}
       />
     </div>
   );

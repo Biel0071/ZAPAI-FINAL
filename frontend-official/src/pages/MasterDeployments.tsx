@@ -24,7 +24,7 @@ export default function MasterDeployments() {
     <div className="flex flex-1 flex-col overflow-y-auto">
       <Header title="Deploy Center" subtitle="Deploy remoto multi-node com progresso e histórico" runtimeState="running" />
       <div className="page-container section-stack">
-        <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
           <Card className="metric-card rounded-lg"><CardContent className="p-4"><p className="text-xs text-muted-foreground">Nodes em deploy</p><p className="text-2xl font-bold font-display">{safeRows.filter((row) => normalizeStatus(row.status).includes("progress") || normalizeStatus(row.status).includes("deploy")).length}</p></CardContent></Card>
           <Card className="metric-card rounded-lg"><CardContent className="p-4"><p className="text-xs text-muted-foreground">Falhas</p><p className="text-2xl font-bold font-display">{safeRows.filter((row) => normalizeStatus(row.status).includes("fail") || normalizeStatus(row.status).includes("error")).length}</p></CardContent></Card>
           <Card className="metric-card rounded-lg"><CardContent className="p-4"><p className="text-xs text-muted-foreground">Concluídos</p><p className="text-2xl font-bold font-display">{safeRows.filter((row) => normalizeStatus(row.status).includes("done") || normalizeStatus(row.status).includes("success")).length}</p></CardContent></Card>

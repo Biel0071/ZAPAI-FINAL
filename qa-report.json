@@ -1,0 +1,218 @@
+{
+  "timestamp": "2026-05-25T22:28:31.325Z",
+  "backendHealth": {
+    "success": true,
+    "timestamp": "2026-05-25T22:28:31.815Z",
+    "summary": {
+      "total": 16,
+      "passed": 9,
+      "failed": 0,
+      "warned": 7
+    },
+    "services": {
+      "pm2": {
+        "status": "warn",
+        "detail": "PM2 not available or not running"
+      },
+      "nginx": {
+        "status": "warn",
+        "detail": "nginx not found — may be proxied externally"
+      }
+    },
+    "database": {
+      "postgres": {
+        "status": "ok",
+        "detail": "SELECT 1 in 190ms | server_time=Mon May 25 2026 19:28:31 GMT-0300 (Horário Padrão de Brasília)"
+      },
+      "migrations": {
+        "status": "ok",
+        "detail": "11 migrations applied"
+      }
+    },
+    "memory": {
+      "heap": {
+        "status": "ok",
+        "detail": "heap=7MB rss=57MB"
+      },
+      "system": {
+        "status": "warn",
+        "detail": "Could not check system memory"
+      },
+      "disk": {
+        "status": "warn",
+        "detail": "Could not check disk (non-Linux?)"
+      },
+      "cpu": {
+        "status": "warn",
+        "detail": "Cannot read CPU stats (non-Linux?)"
+      }
+    },
+    "sessions": {
+      "baileys": {
+        "status": "warn",
+        "detail": "8 session dirs but 0 with valid creds.json — scan QR to pair"
+      }
+    },
+    "websocket": {
+      "route": {
+        "status": "ok",
+        "detail": "Socket.IO polling: HTTP 200"
+      }
+    },
+    "checks": [
+      {
+        "name": "postgres",
+        "status": "ok",
+        "detail": "SELECT 1 in 190ms | server_time=Mon May 25 2026 19:28:31 GMT-0300 (Horário Padrão de Brasília)",
+        "timestamp": "2026-05-25T22:28:31.611Z"
+      },
+      {
+        "name": "postgres_tables",
+        "status": "ok",
+        "detail": "37 public tables",
+        "timestamp": "2026-05-25T22:28:31.618Z"
+      },
+      {
+        "name": "redis",
+        "status": "warn",
+        "detail": "REDIS_URL not configured — Redis disabled",
+        "timestamp": "2026-05-25T22:28:31.618Z"
+      },
+      {
+        "name": "sessions_dir",
+        "status": "ok",
+        "detail": "C:\\projetos\\ZAPAI-FINAL\\backend\\sessions",
+        "timestamp": "2026-05-25T22:28:31.619Z"
+      },
+      {
+        "name": "logs_dir",
+        "status": "ok",
+        "detail": "C:\\projetos\\ZAPAI-FINAL\\backend\\logs",
+        "timestamp": "2026-05-25T22:28:31.620Z"
+      },
+      {
+        "name": "uploads_dir",
+        "status": "ok",
+        "detail": "C:\\projetos\\ZAPAI-FINAL\\backend\\uploads",
+        "timestamp": "2026-05-25T22:28:31.621Z"
+      },
+      {
+        "name": "disk_space",
+        "status": "warn",
+        "detail": "Could not check disk (non-Linux?)",
+        "timestamp": "2026-05-25T22:28:31.645Z"
+      },
+      {
+        "name": "memory_heap",
+        "status": "ok",
+        "detail": "heap=7MB rss=57MB",
+        "timestamp": "2026-05-25T22:28:31.645Z"
+      },
+      {
+        "name": "memory_system",
+        "status": "warn",
+        "detail": "Could not check system memory",
+        "timestamp": "2026-05-25T22:28:31.668Z"
+      },
+      {
+        "name": "cpu_usage",
+        "status": "warn",
+        "detail": "Cannot read CPU stats (non-Linux?)",
+        "timestamp": "2026-05-25T22:28:31.668Z"
+      },
+      {
+        "name": "backend_http",
+        "status": "ok",
+        "detail": "HTTP 200 in 13ms | has_system=true",
+        "timestamp": "2026-05-25T22:28:31.681Z"
+      },
+      {
+        "name": "websocket_route",
+        "status": "ok",
+        "detail": "Socket.IO polling: HTTP 200",
+        "timestamp": "2026-05-25T22:28:31.685Z"
+      },
+      {
+        "name": "baileys_sessions",
+        "status": "warn",
+        "detail": "8 session dirs but 0 with valid creds.json — scan QR to pair",
+        "timestamp": "2026-05-25T22:28:31.687Z"
+      },
+      {
+        "name": "pm2_process",
+        "status": "warn",
+        "detail": "PM2 not available or not running",
+        "timestamp": "2026-05-25T22:28:31.712Z"
+      },
+      {
+        "name": "nginx",
+        "status": "warn",
+        "detail": "nginx not found — may be proxied externally",
+        "timestamp": "2026-05-25T22:28:31.757Z"
+      },
+      {
+        "name": "migrations",
+        "status": "ok",
+        "detail": "11 migrations applied",
+        "timestamp": "2026-05-25T22:28:31.815Z"
+      }
+    ]
+  },
+  "frontendServed": true,
+  "websocketRouteOk": true,
+  "buildSuccess": true,
+  "testsSuccess": true,
+  "whatsappSessions": [
+    {
+      "id": "1010",
+      "hasAuth": false,
+      "status": "No credentials"
+    },
+    {
+      "id": "111",
+      "hasAuth": false,
+      "status": "No credentials"
+    },
+    {
+      "id": "main",
+      "hasAuth": false,
+      "status": "No credentials"
+    },
+    {
+      "id": "qa",
+      "hasAuth": false,
+      "status": "No credentials"
+    },
+    {
+      "id": "qa_final_1774914031657",
+      "hasAuth": false,
+      "status": "No credentials"
+    },
+    {
+      "id": "qa_final_1774914047489",
+      "hasAuth": false,
+      "status": "No credentials"
+    },
+    {
+      "id": "qa_live_1774913435828",
+      "hasAuth": false,
+      "status": "No credentials"
+    },
+    {
+      "id": "t18274",
+      "hasAuth": false,
+      "status": "No credentials"
+    }
+  ],
+  "pagesStatus": {
+    "Dashboard": "Homologado",
+    "Inbox": "Homologado",
+    "Connections": "Homologado",
+    "Analytics": "Homologado",
+    "Runtime": "Homologado",
+    "WebSocket": "Homologado",
+    "Mapa": "Homologado",
+    "Performance": "Homologado"
+  },
+  "failures": []
+}

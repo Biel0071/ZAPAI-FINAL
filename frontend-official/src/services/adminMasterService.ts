@@ -412,13 +412,21 @@ export async function executeInstanceAction(instanceId: string, action: string) 
 }
 
 function toList(payload: unknown): JsonRecord[] {
-  const list = Array.isArray(payload)
-    ? payload
-    : payload && typeof payload === "object" && Array.isArray((payload as JsonRecord).data)
-      ? ((payload as JsonRecord).data as unknown[])
-      : [];
+  if (Array.isArray(payload)) {
+    return payload.filter((item): item is JsonRecord => Boolean(item && typeof item === "object"));
+  }
 
-  return list.filter((item): item is JsonRecord => Boolean(item && typeof item === "object"));
+  if (payload && typeof payload === "object") {
+    const record = payload as JsonRecord;
+    const candidates = [record.data, record.entries, record.logs, record.items];
+    for (const cand of candidates) {
+      if (Array.isArray(cand)) {
+        return cand.filter((item): item is JsonRecord => Boolean(item && typeof item === "object"));
+      }
+    }
+  }
+
+  return [];
 }
 
 export type MasterVersionRow = {

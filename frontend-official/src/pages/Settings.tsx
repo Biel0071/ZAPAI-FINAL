@@ -131,7 +131,7 @@ export default function Settings() {
                     <Avatar className="w-20 h-20"><AvatarFallback className="bg-primary text-primary-foreground text-2xl font-bold">AD</AvatarFallback></Avatar>
                     <div><Button variant="outline" size="sm">Alterar foto</Button><p className="mt-2 text-xs text-muted-foreground">JPG, PNG ou GIF. Máx 2MB.</p></div>
                   </div>
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                     <div className="space-y-2"><Label htmlFor="name">Nome completo</Label><Input id="name" defaultValue="Admin User" /></div>
                     <div className="space-y-2"><Label htmlFor="email">E-mail</Label><Input id="email" type="email" defaultValue="admin@empresa.com" /></div>
                     <div className="space-y-2"><Label htmlFor="phone">Telefone</Label><Input id="phone" defaultValue="+55 11 99999-0000" /></div>

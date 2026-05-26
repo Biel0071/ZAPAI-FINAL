@@ -73,7 +73,7 @@ export default function MasterNodes() {
     <div className="flex flex-1 flex-col overflow-y-auto">
       <Header title="Control Plane · Nodes" subtitle="Orquestração multi-VPS com monitoramento em tempo real" runtimeState="running" />
       <div className="page-container section-stack">
-        <div className="grid grid-cols-2 gap-3 xl:grid-cols-5">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-5">
           {clusterCards.map((item) => (
             <Card key={item.label} className="metric-card rounded-lg">
               <CardContent className="p-4">

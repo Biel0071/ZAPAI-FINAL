@@ -16,7 +16,11 @@ import {
   Queue,
   Info,
   GraduationCap,
+  Plugs,
+  Eye,
+  EyeSlash,
 } from "@phosphor-icons/react";
+import { useState } from "react";
 import {
   Card,
   CardContent,
@@ -49,6 +53,7 @@ import type { AILovableViewModel } from "@/adapters/lovable/aiAdapter";
 export type AISectionId =
   | "status"
   | "prompt"
+  | "providers"
   | "business-hours"
   | "absence"
   | "reactivation"
@@ -56,6 +61,14 @@ export type AISectionId =
   | "learning"
   | "memory"
   | "advanced";
+
+export type AIProviderConfig = {
+  id: string;
+  name: string;
+  apiKey: string;
+  model: string;
+  active: boolean;
+};
 
 export type TrainingRow = {
   id: string;
@@ -113,6 +126,7 @@ export interface AIViewProps {
   responseDelay: number[];
   autoFollowUp: boolean;
   lostCount: number;
+  providers: AIProviderConfig[];
   onSectionChange: (value: AISectionId) => void;
   onStatusToggle: (enabled: boolean) => void;
   onPromptChange: (value: string) => void;
@@ -146,6 +160,9 @@ export interface AIViewProps {
   onImprovedTextChange: (value: string) => void;
   onImproveResponse: () => void;
   onSaveImprovedResponse: () => void;
+  onProviderChange: (provider: AIProviderConfig) => void;
+  onProviderToggle: (providerId: string, active: boolean) => void;
+  onSaveProviders: () => void;
 }
 
 export function AIView(props: AIViewProps) {
@@ -212,7 +229,13 @@ export function AIView(props: AIViewProps) {
     onImprovedTextChange,
     onImproveResponse,
     onSaveImprovedResponse,
+    providers,
+    onProviderChange,
+    onProviderToggle,
+    onSaveProviders,
   } = props;
+
+  const [visibleKeys, setVisibleKeys] = useState<Record<string, boolean>>({});
 
   return (
     <div className="min-h-screen bg-background">
@@ -328,6 +351,67 @@ export function AIView(props: AIViewProps) {
                         )}
                       </div>
                     </div>
+                  </CardContent>
+                </Card>
+              </TabsContent>
+
+              <TabsContent value="providers" className="m-0">
+                <Card className="glass-card">
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <Plugs className="h-5 w-5 text-primary" />Provedores de IA
+                      <TitleInfo text="Configure qual provedor de IA processa as respostas automáticas." />
+                    </CardTitle>
+                    <CardDescription>Configure API keys, modelos e providers ativos.</CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    {providers.map((provider) => (
+                      <div key={provider.id} className="rounded-xl border border-border/70 bg-background/30 p-4 space-y-3">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <Badge variant={provider.active ? "secondary" : "outline"} className="gap-1 rounded-full">
+                              {provider.active ? <CheckCircle className="h-3.5 w-3.5" /> : <XCircle className="h-3.5 w-3.5" />}
+                              {provider.active ? "Ativo" : "Inativo"}
+                            </Badge>
+                            <span className="font-display font-semibold">{provider.name}</span>
+                          </div>
+                          <Switch checked={provider.active} onCheckedChange={(val) => onProviderToggle(provider.id, val)} />
+                        </div>
+                        <div className="grid gap-3 sm:grid-cols-2">
+                          <div className="space-y-1.5">
+                            <Label className="text-xs">API Key</Label>
+                            <div className="relative">
+                              <Input
+                                type={visibleKeys[provider.id] ? "text" : "password"}
+                                value={provider.apiKey}
+                                onChange={(e) => onProviderChange({ ...provider, apiKey: e.target.value })}
+                                placeholder="sk-..."
+                                className="rounded-xl pr-10"
+                              />
+                              <button
+                                type="button"
+                                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                                onClick={() => setVisibleKeys((prev) => ({ ...prev, [provider.id]: !prev[provider.id] }))}
+                              >
+                                {visibleKeys[provider.id] ? <EyeSlash className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                              </button>
+                            </div>
+                          </div>
+                          <div className="space-y-1.5">
+                            <Label className="text-xs">Modelo</Label>
+                            <Input
+                              value={provider.model}
+                              onChange={(e) => onProviderChange({ ...provider, model: e.target.value })}
+                              placeholder="gpt-4o-mini"
+                              className="rounded-xl"
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                    <Button onClick={onSaveProviders} disabled={saving} className="gap-2 rounded-xl shadow-glow">
+                      <FloppyDisk className="h-4 w-4" />Salvar provedores
+                    </Button>
                   </CardContent>
                 </Card>
               </TabsContent>

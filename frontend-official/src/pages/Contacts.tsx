@@ -6,6 +6,18 @@ import { createContactsLovableViewModel } from "@/adapters/lovable/contactsAdapt
 import { type ContactGridItem } from "@/components/contacts/ContactGrid";
 import { type ContactSegment } from "@/components/contacts/ContactSidebar";
 import { apiService, type Conversation } from "@/services/apiService";
+import { useToast } from "@/hooks/use-toast";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { X } from "@phosphor-icons/react";
 
 type ContactRow = {
   id: string;
@@ -114,12 +126,20 @@ function matchesSegment(contact: ContactRow, segment: ContactSegment): boolean {
 
 export default function Contacts() {
   const navigate = useNavigate();
+  const { toast } = useToast();
   const [contacts, setContacts] = useState<ContactRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [tagFilter, setTagFilter] = useState("");
   const [activeSegment, setActiveSegment] = useState<ContactSegment>("all");
+
+  // Edit contact modal state
+  const [editContact, setEditContact] = useState<ContactRow | null>(null);
+  const [editName, setEditName] = useState("");
+  const [editTags, setEditTags] = useState<string[]>([]);
+  const [newTag, setNewTag] = useState("");
+  const [editSaving, setEditSaving] = useState(false);
 
   const loadContacts = useCallback(async () => {
     try {
@@ -272,6 +292,46 @@ export default function Contacts() {
     individualCount,
   });
 
+  const openEditModal = (gridItem: ContactGridItem) => {
+    const source = contacts.find((c) => c.id === gridItem.id);
+    if (!source) return;
+    setEditContact(source);
+    setEditName(source.name);
+    setEditTags([...source.tags]);
+    setNewTag("");
+  };
+
+  const handleAddTag = () => {
+    const trimmed = newTag.trim();
+    if (!trimmed || editTags.includes(trimmed)) return;
+    setEditTags((prev) => [...prev, trimmed]);
+    setNewTag("");
+  };
+
+  const handleRemoveTag = (tag: string) => {
+    setEditTags((prev) => prev.filter((t) => t !== tag));
+  };
+
+  const handleSaveEdit = async () => {
+    if (!editContact?.conversationId) {
+      toast({ title: "Contato sem conversa vinculada — não é possível editar.", variant: "destructive" });
+      return;
+    }
+    setEditSaving(true);
+    try {
+      await apiService.patchConversation(editContact.conversationId, { tags: editTags });
+      setContacts((prev) =>
+        prev.map((c) => (c.id === editContact.id ? { ...c, name: editName, tags: editTags } : c)),
+      );
+      toast({ title: "Contato atualizado com sucesso." });
+      setEditContact(null);
+    } catch {
+      toast({ title: "Erro ao salvar contato.", variant: "destructive" });
+    } finally {
+      setEditSaving(false);
+    }
+  };
+
   return (
     <div className="min-h-screen">
       <Header title="Leads CRM / Contatos" subtitle="Gestão de base e qualificação de leads" />
@@ -291,7 +351,59 @@ export default function Contacts() {
           const source = filteredContacts.find((contact) => contact.id === item.id);
           if (source) goToChat(source);
         }}
+        onEditContact={openEditModal}
       />
+
+      {/* Edit Contact Dialog */}
+      <Dialog open={editContact !== null} onOpenChange={(open) => { if (!open) setEditContact(null); }}>
+        <DialogContent className="sm:max-w-md border-border/80 bg-card/95 backdrop-blur-xl">
+          <DialogHeader>
+            <DialogTitle className="font-display">Editar contato</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-2">
+              <Label htmlFor="edit-name">Nome</Label>
+              <Input
+                id="edit-name"
+                value={editName}
+                onChange={(e) => setEditName(e.target.value)}
+                placeholder="Nome do contato"
+                className="rounded-xl"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Telefone</Label>
+              <Input value={editContact?.phone ?? ""} disabled className="rounded-xl bg-muted/30" />
+            </div>
+            <div className="space-y-2">
+              <Label>Tags</Label>
+              <div className="flex flex-wrap gap-2">
+                {editTags.map((tag) => (
+                  <Badge key={tag} variant="secondary" className="gap-1 rounded-full">
+                    {tag}
+                    <button onClick={() => handleRemoveTag(tag)} className="ml-0.5 hover:text-destructive">
+                      <X className="h-3 w-3" />
+                    </button>
+                  </Badge>
+                ))}
+              </div>
+              <div className="flex gap-2">
+                <Input
+                  value={newTag}
+                  onChange={(e) => setNewTag(e.target.value)}
+                  placeholder="Nova tag"
+                  className="rounded-xl"
+                  onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); handleAddTag(); } }}
+                />
+                <Button variant="outline" size="sm" className="rounded-xl" onClick={handleAddTag} disabled={!newTag.trim()}>Adicionar</Button>
+              </div>
+            </div>
+            <Button className="w-full rounded-xl shadow-glow" onClick={() => void handleSaveEdit()} disabled={editSaving}>
+              {editSaving ? "Salvando..." : "Salvar alterações"}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

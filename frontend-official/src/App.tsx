@@ -147,12 +147,9 @@ const App = () => {
                       <Route path="/analytics" element={<Analytics />} />
                       <Route path="/campaigns" element={<Campaigns />} />
                       <Route path="/automation" element={<Navigate to="/flows" replace />} />
-                      <Route path="/integrations" element={<Navigate to="/settings" replace />} />
-                      <Route path="/dev-tools" element={<Navigate to="/diagnostics" replace />} />
-                      <Route path="/memory" element={<Memory />} />
-                      <Route path="/automation" element={<Navigate to="/flows" replace />} />
                       <Route path="/integrations" element={<Navigate to="/connections" replace />} />
                       <Route path="/dev-tools" element={<ProtectedRoute minRole="admin"><Navigate to="/diagnostics" replace /></ProtectedRoute>} />
+                      <Route path="/memory" element={<Memory />} />
                       <Route path="/users" element={<ProtectedRoute minRole="master"><MasterAdmins /></ProtectedRoute>} />
 
                       <Route path="/nodes" element={<ProtectedRoute minRole="master"><MasterNodes /></ProtectedRoute>} />

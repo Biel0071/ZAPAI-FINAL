@@ -26,6 +26,7 @@ import {
   CaretDown,
   CaretUp,
   Sparkle,
+  Brain,
 } from "@phosphor-icons/react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -48,36 +49,32 @@ type SidebarNavItem = {
 
 const crmItems: SidebarNavItem[] = [
   { icon: SquaresFour, label: "Dashboard", path: "/dashboard", minRole: "user" },
-  { icon: ChatCircleDots, label: "Conversas", path: "/inbox", minRole: "user" },
-  { icon: AddressBook, label: "Conexões", path: "/connections", minRole: "user" },
-  { icon: Users, label: "Leads CRM / Contatos", path: "/contacts", minRole: "user" },
+  { icon: ChatCircleDots, label: "Inbox", path: "/inbox", minRole: "user", badge: "LIVE" },
+  { icon: Broadcast, label: "Conexões", path: "/connections", minRole: "user" },
+  { icon: Users, label: "Contatos", path: "/contacts", minRole: "user" },
   { icon: Megaphone, label: "Campanhas", path: "/campaigns", minRole: "user" },
-  { icon: Robot, label: "IA / Automação", path: "/ai", minRole: "user" },
+  { icon: Robot, label: "IA & Automação", path: "/ai", minRole: "user" },
+  { icon: TreeStructure, label: "Fluxos", path: "/flows", minRole: "user" },
+  { icon: Brain, label: "Memória IA", path: "/memory", minRole: "user" },
   { icon: ChartLineUp, label: "Analytics", path: "/analytics", minRole: "user" },
 ];
 
-const systemItems: SidebarNavItem[] = [
+const adminItems: SidebarNavItem[] = [
   { icon: HardDrives, label: "Cluster", path: "/nodes", minRole: "master" },
-  { icon: Pulse, label: "Runtime", path: "/system/runtime", minRole: "admin" },
-  { icon: Cpu, label: "Performance", path: "/system/performance", minRole: "admin" },
-  { icon: Broadcast, label: "WebSocket", path: "/system/websocket", minRole: "admin" },
-  { icon: Database, label: "Banco", path: "/system/database", minRole: "admin" },
-  { icon: Queue, label: "Files", path: "/system/files", minRole: "admin" },
-  { icon: Pulse, label: "Health", path: "/system/health", minRole: "admin" },
-  { icon: ChartLineUp, label: "Métricas", path: "/system/metrics", minRole: "admin" },
+  { icon: ShieldCheck, label: "Usuários", path: "/users", minRole: "master" },
   { icon: TrendUp, label: "Deployments", path: "/deployments", minRole: "master" },
   { icon: FileText, label: "Logs", path: "/logs", minRole: "master" },
 ];
 
 const bottomItems: SidebarNavItem[] = [
-  { icon: ShieldCheck, label: "Usuários", path: "/users", minRole: "master" },
+  { icon: Pulse, label: "Status & Saúde", path: "/diagnostics", minRole: "admin" },
   { icon: Gear, label: "Configurações", path: "/settings", minRole: "user" },
 ];
 
 export function Sidebar() {
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
-  const [systemOpen, setSystemOpen] = useState(true);
+  const [adminOpen, setAdminOpen] = useState(false);
   const location = useLocation();
   const isMobile = useIsMobile();
   const { role, isLoading, roleLevel } = useUserRole();
@@ -87,8 +84,8 @@ export function Sidebar() {
     [role, roleLevel],
   );
 
-  const visibleSystemItems = useMemo(
-    () => systemItems.filter((item) => roleLevel[role] >= roleLevel[item.minRole ?? "admin"]),
+  const visibleAdminItems = useMemo(
+    () => adminItems.filter((item) => roleLevel[role] >= roleLevel[item.minRole ?? "admin"]),
     [role, roleLevel],
   );
 
@@ -97,7 +94,7 @@ export function Sidebar() {
     [role, roleLevel],
   );
 
-  const shouldShowSystemMenu = roleLevel[role] >= roleLevel.admin && visibleSystemItems.length > 0;
+  const shouldShowAdminMenu = roleLevel[role] >= roleLevel.admin && visibleAdminItems.length > 0;
 
   useEffect(() => {
     if (!isMobile) {
@@ -120,7 +117,7 @@ export function Sidebar() {
         key={`${keyPrefix}:${item.label}:${item.path}`}
         to={item.path}
         className={cn(
-          "sidebar-item group relative min-h-[46px]",
+          "sidebar-item group relative min-h-[38px]",
           isActive && "sidebar-item-active",
           compact && "justify-center px-2.5",
         )}
@@ -139,10 +136,11 @@ export function Sidebar() {
             </span>
             {item.badge && (
               <Badge
-                variant="secondary"
                 className={cn(
-                  "rounded-full border border-border/70 bg-background/60 px-2 py-0.5 text-[9px] uppercase tracking-wide",
-                  isActive ? "text-primary" : "text-muted-foreground",
+                  "rounded-full px-2 py-0.5 text-[9px] uppercase tracking-wide font-bold",
+                  item.badge === "LIVE"
+                    ? "bg-[#25D366]/20 text-[#25D366] border border-[#25D366]/30 animate-pulse"
+                    : "border border-border/70 bg-background/60 text-muted-foreground",
                 )}
               >
                 {item.badge}
@@ -162,7 +160,7 @@ export function Sidebar() {
         boxShadow: "inset -1px 0 0 hsl(var(--sidebar-border)), 0 20px 40px -30px hsl(0 0% 0% / 0.9)",
       }}
     >
-      <div className="border-b border-sidebar-border/60 px-4 py-4">
+      <div className="border-b border-sidebar-border/60 px-4 py-3">
         <div className="flex items-start gap-3">
           <div className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-2xl bg-primary/15 shadow-glow">
             <Lightning weight="fill" className="h-5 w-5 text-primary" />
@@ -174,7 +172,7 @@ export function Sidebar() {
                 <Sparkle weight="fill" className="h-3.5 w-3.5 text-primary" />
               </div>
               <p className="mt-1 text-[10px] uppercase tracking-[0.24em] text-sidebar-muted">CRM Enterprise</p>
-              <div className="mt-3 flex flex-wrap items-center gap-2">
+              <div className="mt-2 flex flex-wrap items-center gap-2">
                 <span className="flex items-center gap-1.5 rounded-full border border-sidebar-border/80 bg-muted/20 px-2 py-1 text-[9px] font-semibold uppercase tracking-wide text-sidebar-foreground">
                   <span className="h-1.5 w-1.5 rounded-full bg-success" />
                   VSTABLE
@@ -191,20 +189,19 @@ export function Sidebar() {
       </div>
 
 
-      <nav className="scrollbar-thin flex-1 space-y-4 overflow-y-auto px-3 py-4">
-        {!compact && <p className="px-2 text-[10px] font-semibold uppercase tracking-[0.22em] text-sidebar-muted/60">CRM</p>}
+      <nav className="scrollbar-thin flex-1 space-y-2 overflow-y-auto px-3 py-3">
         <div className="space-y-1">{visibleCrmItems.map((item) => renderNavItem(item, compact, "crm"))}</div>
 
-        {shouldShowSystemMenu && (
-          <Collapsible open={systemOpen} onOpenChange={setSystemOpen}>
+        {shouldShowAdminMenu && (
+          <Collapsible open={adminOpen} onOpenChange={setAdminOpen}>
             {!compact && (
               <CollapsibleTrigger className="flex w-full items-center justify-between rounded-xl px-2 py-2 text-left text-[10px] font-semibold uppercase tracking-[0.22em] text-sidebar-muted/70 hover:bg-sidebar-accent/40">
-                <span>Sistema</span>
-                {systemOpen ? <CaretUp className="h-3.5 w-3.5" /> : <CaretDown className="h-3.5 w-3.5" />}
+                <span>Administração</span>
+                {adminOpen ? <CaretUp className="h-3.5 w-3.5" /> : <CaretDown className="h-3.5 w-3.5" />}
               </CollapsibleTrigger>
             )}
             <CollapsibleContent className="space-y-1">
-              {visibleSystemItems.map((item) => renderNavItem(item, compact, "system"))}
+              {visibleAdminItems.map((item) => renderNavItem(item, compact, "system"))}
             </CollapsibleContent>
           </Collapsible>
         )}

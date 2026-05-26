@@ -28,7 +28,7 @@ function normalizeTab(candidate: string | null): DashboardTab {
 
 export default function Dashboard() {
   const [searchParams, setSearchParams] = useSearchParams();
-  const runtime = useRuntime();
+  const { forceRefresh, status: runtimeStatus } = useRuntime();
 
   const sessions = useAppStore((state) => state.sessions);
   const conversations = useAppStore((state) => state.conversations);
@@ -46,7 +46,7 @@ export default function Dashboard() {
 
   const loadStatus = useCallback(async () => {
     try {
-      await runtime.forceRefresh();
+      await forceRefresh();
     } catch (error) {
       reportFrontendIssue({
         type: "unexpected_error",
@@ -54,7 +54,7 @@ export default function Dashboard() {
         message: error instanceof Error ? error.message : "Falha ao carregar status do dashboard",
       });
     }
-  }, [runtime]);
+  }, [forceRefresh]);
 
   useEffect(() => {
     void loadStatus();
@@ -90,12 +90,12 @@ export default function Dashboard() {
         conversations,
         metrics: storeMetrics,
         sessions,
-        runtimeStatus: runtime.status,
+        runtimeStatus,
         sessionState,
         activeSessions,
         totalSessions,
       }),
-    [conversations, storeMetrics, sessions, runtime.status, sessionState, activeSessions, totalSessions],
+    [conversations, storeMetrics, sessions, runtimeStatus, sessionState, activeSessions, totalSessions],
   );
 
   const currentMapRows = useMemo(

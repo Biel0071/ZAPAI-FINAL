@@ -59,7 +59,7 @@ import { listConversationControls, upsertConversationControl, type ConversationC
 const CONVERSATIONS_PAGE_SIZE = 20;
 const MESSAGE_PAGE_SIZE = 50;
 const MESSAGE_CACHE_TTL_MS = 30_000;
-const CONVERSATION_ROW_HEIGHT = 102;
+const CONVERSATION_ROW_HEIGHT = 82;
 const MOBILE_TOUCH_TARGET_CLASS = "h-11 min-h-11";
 const DRAFT_TTL_MS = 5 * 60 * 1000;
 const DRAFT_KEY_PREFIX = "draft_";
@@ -1048,7 +1048,7 @@ function ConversationRow(props: RowComponentProps<ConversationRowData>) {
     <div style={style} className="px-1">
       <button type="button" onClick={() => onSelect(conversation.id)} className={cn("inbox-message w-full text-left", MOBILE_TOUCH_TARGET_CLASS, "md:h-auto md:min-h-0", normalizeId(selectedId) === normalizeId(conversation.id) && "inbox-message-active")}>
         <div className="relative shrink-0">
-          <Avatar className="h-11 w-11">
+          <Avatar className="h-10 w-10">
             {conversation.avatar ? <AvatarImage src={conversation.avatar} alt={conversation.contactName} loading="lazy" /> : null}
             <AvatarFallback className="bg-primary/10 font-semibold text-primary">{getInitials(conversation.contactName)}</AvatarFallback>
           </Avatar>
@@ -1082,8 +1082,14 @@ function ConversationRow(props: RowComponentProps<ConversationRowData>) {
   );
 }
 
+const EMPTY_MESSAGES_ARRAY: ChatMessage[] = [];
+
 export default function Inbox() {
   const { toast } = useToast();
+  const toastRef = useRef(toast);
+  useEffect(() => {
+    toastRef.current = toast;
+  }, [toast]);
   const isMobile = useIsMobile();
   const navigate = useNavigate();
 
@@ -1093,11 +1099,13 @@ export default function Inbox() {
   }, []);
 
   const selectedConversationId = useAppStore((state) => state.activeConversationId);
-  const setSelectedConversationId = useCallback((id: string | null) => {
-    useAppStore.getState().setActiveConversationId(id);
+  const setSelectedConversationId = useCallback((idOrUpdater: string | null | ((prev: string | null) => string | null)) => {
+    const store = useAppStore.getState();
+    const next = typeof idOrUpdater === "function" ? idOrUpdater(store.activeConversationId) : idOrUpdater;
+    store.setActiveConversationId(next);
   }, []);
 
-  const messages = useAppStore((state) => state.messagesByConversationId[selectedConversationId || ""] || []);
+  const messages = useAppStore((state) => state.messagesByConversationId[selectedConversationId || ""] || EMPTY_MESSAGES_ARRAY);
   const setMessages = useCallback((updater: ChatMessage[] | ((prev: ChatMessage[]) => ChatMessage[])) => {
     if (!selectedConversationId) return;
     const store = useAppStore.getState();
@@ -1429,9 +1437,9 @@ export default function Inbox() {
       const lastAt = errorToastThrottleRef.current.get(key) ?? 0;
       if (now - lastAt < 4_000) return;
       errorToastThrottleRef.current.set(key, now);
-      toast({ title, variant: "destructive" });
+      toastRef.current({ title, variant: "destructive" });
     },
-    [toast],
+    [],
   );
 
   useEffect(() => {
@@ -1724,12 +1732,16 @@ export default function Inbox() {
       }
     }
 
+    // Bug 3 fix: always reset auto-scroll when switching conversations
+    autoScrollRef.current = true;
+    // Bug 4 fix: clear loading if we hydrated from cache/persisted above
+    setLoadingMessages(false);
     setPendingBackgroundUpdates(0);
     setUnseenRealtimeCount(0);
     setActiveMessageMenuId(null);
     setActiveReactionPickerMessageId(null);
     setReplyingTo(null);
-  }, [loadConversationMessages, selectedConversation?.id]);
+  }, [selectedConversation?.id]);
 
   useEffect(() => {
     if (!selectedConversation?.id) return;
@@ -1743,7 +1755,7 @@ export default function Inbox() {
       if (activeId && activeMessageRequestRef.current.has(activeId)) return;
       isPolling = true;
       try {
-        await loadConversationMessages(selectedConversation.id, { force: true });
+        await loadConversationMessagesRef.current(selectedConversation.id, { force: true });
       } catch {
         // handled inside loadConversationMessages
       } finally {
@@ -1760,7 +1772,7 @@ export default function Inbox() {
       isMounted = false;
       window.clearInterval(intervalId);
     };
-  }, [isRealtimeConnected, loadConversationMessages, selectedConversation?.id]);
+  }, [isRealtimeConnected, selectedConversation?.id]);
 
   const applyPendingBackgroundUpdates = useCallback(async () => {
     if (!selectedConversation?.id) return;
@@ -1885,12 +1897,17 @@ export default function Inbox() {
   }, [handleLoadOlderMessages, hasMoreMessages, loadingOlderMessages, selectedConversation?.id]);
 
   useEffect(() => {
-    const root = messagesScrollRef.current?.closest("[data-radix-scroll-area-root]");
-    const viewport = root?.querySelector("[data-radix-scroll-area-viewport]") as HTMLDivElement | null;
-    if (!viewport) return;
-    viewport.scrollTo({ top: viewport.scrollHeight, behavior: "auto" });
-    autoScrollRef.current = true;
-    setUnseenRealtimeCount(0);
+    // Bug 2 fix: defer scroll to next animation frame so React has time to render
+    // the messages before we measure scrollHeight.
+    const frameId = window.requestAnimationFrame(() => {
+      const root = messagesScrollRef.current?.closest("[data-radix-scroll-area-root]");
+      const viewport = root?.querySelector("[data-radix-scroll-area-viewport]") as HTMLDivElement | null;
+      if (!viewport) return;
+      viewport.scrollTo({ top: viewport.scrollHeight, behavior: "auto" });
+      autoScrollRef.current = true;
+      setUnseenRealtimeCount(0);
+    });
+    return () => window.cancelAnimationFrame(frameId);
   }, [selectedConversation?.id]);
 
   useEffect(() => {
@@ -2124,9 +2141,10 @@ export default function Inbox() {
         void loadConversationMessages(normalizedId, { force: true });
         if (isMobile) setMobileScreen("chat");
         window.requestAnimationFrame(() => messageInputRef.current?.focus());
-        setConversations((prev) =>
-          prev.map((conversation) => (normalizeId(conversation.id) === normalizedId ? { ...conversation, unread: 0 } : conversation)),
-        );
+        useAppStore.getState().updateConversationRealtime({
+          id: normalizedId,
+          unread: 0,
+        });
       },
       leadByConversationId,
     }),
@@ -3026,13 +3044,13 @@ export default function Inbox() {
   );
 
   return (
-    <div className="min-h-screen">
+    <div className="min-h-screen inbox-layout">
       <Header title="Inbox" subtitle={`${lovableInboxViewModel.conversationCount} conversas ativas`} />
 
       <InboxView
         leftPanel={
-          <div className={cn("flex min-h-0 flex-col border-r border-border bg-card/50 lg:overflow-auto lg:min-w-[280px] lg:max-w-[460px]", isMobile && mobileScreen !== "conversations" && "hidden")}>
-          <div className="space-y-3 border-b border-border p-4">
+          <div className={cn("flex min-h-0 flex-col border-r border-border bg-card/50 lg:overflow-auto", isMobile && mobileScreen !== "conversations" && "hidden")}>
+          <div className="space-y-2 border-b border-border p-3">
             <ChatSearchBar
               value={searchQuery}
               onChange={setSearchQuery}
@@ -3362,7 +3380,7 @@ export default function Inbox() {
             "hidden min-h-0 border-l border-border bg-card/40 transition-[width,padding] duration-300 ease-out lg:flex lg:flex-col",
             rightPanelCollapsed
               ? "lg:w-12 lg:min-w-[3rem] lg:max-w-[3rem] lg:p-2"
-              : "lg:w-[340px] lg:min-w-[300px] lg:max-w-[480px] lg:resize-x lg:overflow-auto lg:p-4",
+              : "lg:w-[320px] lg:overflow-auto lg:p-4",
           )}
         >
           {rightPanelCollapsed ? (

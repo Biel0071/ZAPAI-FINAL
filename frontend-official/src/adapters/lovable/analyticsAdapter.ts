@@ -48,8 +48,8 @@ export function createAnalyticsLovableViewModel(params: {
 }): AnalyticsLovableViewModel {
   const { metrics, conversationCount, conversations = [] } = params;
 
-  const messagesToday = resolveMetric(metrics, ["messagesToday", "todayMessages", "totalMessages", "messages"]);
-  const activeChats = resolveMetric(metrics, ["activeChats", "chats"]);
+  const messagesToday = resolveMetric(metrics, ["messagesToday", "todayMessages", "messages", "totalMessages"]);
+  const activeChats = resolveMetric(metrics, ["activeChats", "activeConversations", "totalConversations", "chats"]);
   const aiResponses = resolveMetric(metrics, ["aiResponses", "ai", "botResponses"]);
 
   // Calcular distribuição de temperatura baseando-se nas conversas reais

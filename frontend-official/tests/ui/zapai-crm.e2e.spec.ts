@@ -66,6 +66,12 @@ async function expectRouteScreenshot(page: Page, name: string) {
 
 test.describe("ZapAI CRM UI visual regression", () => {
   test.beforeEach(async ({ page }) => {
+    page.on("console", (msg) => {
+      console.log(`[BROWSER CONSOLE] [${msg.type()}] ${msg.text()}`);
+    });
+    page.on("pageerror", (err) => {
+      console.error(`[BROWSER ERROR] ${err.name}: ${err.message}\nStack:\n${err.stack}`);
+    });
     await login(page);
   });
 

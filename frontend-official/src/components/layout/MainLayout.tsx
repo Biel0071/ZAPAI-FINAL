@@ -25,10 +25,10 @@ export function MainLayout() {
       <main
         className={
           isMobile
-            ? "ml-0 min-h-screen w-full"
+            ? "ml-0 min-h-screen w-full overflow-x-hidden"
             : collapsed
-              ? "ml-[88px] min-h-screen transition-all duration-200"
-              : "ml-[288px] min-h-screen transition-all duration-200"
+              ? "ml-[88px] min-h-screen w-full overflow-x-hidden transition-all duration-200"
+              : "ml-[288px] min-h-screen w-full overflow-x-hidden transition-all duration-200"
         }
       >
         <Outlet />

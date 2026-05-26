@@ -2,6 +2,7 @@ export type AILovableSection = {
   id:
     | "status"
     | "prompt"
+    | "providers"
     | "business-hours"
     | "absence"
     | "reactivation"
@@ -25,6 +26,7 @@ export function createAILovableViewModel(): AILovableViewModel {
     sections: [
       { id: "status", label: "Status da IA" },
       { id: "prompt", label: "Editor de Prompt" },
+      { id: "providers", label: "Provedores de IA" },
       { id: "business-hours", label: "Horário Comercial" },
       { id: "absence", label: "Mensagem de Ausência" },
       { id: "reactivation", label: "Fila de Reativação" },

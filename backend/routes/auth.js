@@ -184,7 +184,7 @@ router.post('/auth/login', async (req, res) => {
   // Try database authentication first (production path)
   try {
     const result = await query(
-      'SELECT username, password_hash, tenant_id, role FROM users WHERE username = $1 LIMIT 1',
+      'SELECT username, password_hash, tenant_id, role, is_active, blocked FROM users WHERE username = $1 LIMIT 1',
       [username]
     );
 

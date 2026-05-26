@@ -139,6 +139,21 @@ export default function Connections() {
     sessionsRef.current = safeSessions;
   }, [safeSessions]);
 
+  // Fechar a modal de pareamento automaticamente quando a sessão ativa conectar
+  useEffect(() => {
+    if (!activeModalSessionId || !isActivationDialogOpen) return;
+    const session = safeSessions.find((s) => s.id === activeModalSessionId);
+    if (session && session.status === "connected") {
+      notify.success(`WhatsApp pareado com sucesso na sessão "${session.name}"!`);
+      const timer = window.setTimeout(() => {
+        setIsActivationDialogOpen(false);
+        setShowQRModal(false);
+        setActiveModalSessionId(null);
+      }, 1500);
+      return () => window.clearTimeout(timer);
+    }
+  }, [activeModalSessionId, isActivationDialogOpen, safeSessions]);
+
   const loadSessions = useCallback(async (options?: { silent?: boolean }) => {
     if (sessionLoadInFlightRef.current) return;
     sessionLoadInFlightRef.current = true;
@@ -149,14 +164,15 @@ export default function Connections() {
       const normalized = (sessionsData ?? []).map(backendNormalizeSession);
       useAppStore.getState().setSessions(normalized);
 
-      const qrReadySession = normalized.find((session) => session.status === "qr");
-      if (qrReadySession) {
-        setActiveModalSessionId(qrReadySession.id);
-        setShowQRModal(true);
-        setIsActivationDialogOpen(true);
-      } else {
-        setShowQRModal(false);
-      }
+      // Sync QR codes for any QR-ready sessions into the store's lastQr map
+      normalized.forEach((session) => {
+        if (session.status === "qr") {
+          const qr = extractQrPayload(session.raw);
+          if (qr) {
+            useAppStore.getState().setLastQr(session.id, qr);
+          }
+        }
+      });
     } catch (error) {
       reportFrontendIssue({
         type: "unexpected_error",
@@ -284,6 +300,7 @@ export default function Connections() {
     setRestartingSessionId(normalizedId);
     setIsConnecting(true);
     setActiveModalSessionId(normalizedId);
+    setIsActivationDialogOpen(true); // Abrir a modal de status/QR code automaticamente
 
     try {
       const response = await apiService.restartSession(sessionId);

@@ -278,7 +278,7 @@ function checkBaileySessions() {
     if (sessionCount === 0) {
       result('baileys_sessions', 'warn', 'No sessions found — scan QR to connect WhatsApp');
     } else if (healthySessions === 0) {
-      result('baileys_sessions', 'fail', `${sessionCount} session dirs but 0 with valid creds.json`);
+      result('baileys_sessions', 'warn', `${sessionCount} session dirs but 0 with valid creds.json — scan QR to pair`);
     } else {
       result('baileys_sessions', 'ok', `${healthySessions}/${sessionCount} sessions with valid auth`);
     }
@@ -406,7 +406,9 @@ async function checkMigrations() {
 // ─── Main ────────────────────────────────────────────────────────────────────
 
 async function main() {
-  console.log(`\n🔍 ZAPAI Healthcheck — ${new Date().toISOString()}\n`);
+  if (!IS_JSON) {
+    console.log(`\n🔍 ZAPAI Healthcheck — ${new Date().toISOString()}\n`);
+  }
 
   await checkPostgres();
   await checkRedis();

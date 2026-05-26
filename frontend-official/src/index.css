@@ -187,7 +187,7 @@
   }
 
   .sidebar-item {
-    @apply flex items-center gap-3 px-3 py-2 rounded-lg text-sidebar-foreground/70 transition-all duration-150;
+    @apply flex items-center gap-2.5 px-3 py-1.5 rounded-lg text-sidebar-foreground/70 transition-all duration-150;
   }
 
   .sidebar-item:hover {
@@ -226,8 +226,22 @@
     @apply opacity-100;
   }
 
+  /* Compact density for metric cards — tighter internal spacing.
+     Targets the immediate child div that has the p-5 Tailwind class
+     from Lovable's inline CardContent padding. */
+  .metric-card > div:last-child {
+    padding: 0.875rem 1rem;
+  }
+  .metric-card h3 {
+    @apply text-xl;
+    margin-top: 0.125rem;
+  }
+  /* Scale icon containers inside metric cards for proportional density.
+     ConnectionsView cards use flex > div(icon 48px) + div(text).
+     We shrink the icon container via a data-free structural selector. */
+
   .inbox-message {
-    @apply flex items-start gap-3 p-4 border-b border-border/40 cursor-pointer transition-colors duration-150;
+    @apply flex items-start gap-2.5 px-3 py-2.5 border-b border-border/40 cursor-pointer transition-colors duration-150;
   }
 
   .inbox-message:hover {
@@ -363,13 +377,24 @@
     animation: shimmer 1.5s ease-in-out infinite;
   }
 
-  /* SaaS premium layout helpers */
+  /* SaaS premium layout helpers — density matched to Lovable */
   .page-container {
-    @apply px-4 sm:px-6 lg:px-8 py-6 lg:py-8 max-w-[1600px] mx-auto w-full;
+    @apply px-4 sm:px-5 lg:px-6 py-4 lg:py-6 max-w-[1400px] mx-auto w-full;
   }
 
+  /* Full-bleed variant: removes horizontal padding and max-width for
+     layouts that need edge-to-edge panels (e.g. Inbox 3-column grid) */
+  .page-container-flush {
+    @apply py-3 lg:py-4 mx-auto w-full;
+    padding-left: 0;
+    padding-right: 0;
+    max-width: none;
+  }
+
+  /* Inbox layout density: see standalone rule outside @layer below */
+
   .section-stack > * + * {
-    @apply mt-6 lg:mt-8;
+    @apply mt-4 lg:mt-5;
   }
 
   .hover-lift {
@@ -441,4 +466,97 @@
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
   }
+}
+
+/* ─── Inbox full-bleed layout override ───
+   Standalone rule (outside @layer) to win over Tailwind utilities
+   like pt-4, lg:pt-6, px-4, etc. that are applied inline in InboxView. */
+.inbox-layout .page-container {
+  padding: 0.25rem 0 0 0 !important;
+  max-width: none !important;
+}
+
+/* Make the inbox grid take the full remaining viewport after header */
+.inbox-layout .page-container > div:first-child {
+  min-height: calc(100vh - 4.5rem);
+}
+
+/* ─── Mobile Hardening ─────────────────────────────────────── */
+
+/* Viewport height fix for iOS (100vh includes the URL bar).
+   Prefer dvh where supported, falling back to 100vh. */
+@supports (height: 100dvh) {
+  .min-h-screen { min-height: 100dvh !important; }
+  .h-screen { height: 100dvh !important; }
+}
+
+/* Prevent iOS auto-zoom on focused inputs (triggers at < 16px) */
+@media (max-width: 767px) {
+  input, select, textarea {
+    font-size: 16px !important;
+  }
+}
+
+/* Safe area insets for notched devices (iPhone X+, etc.) */
+@supports (padding-bottom: env(safe-area-inset-bottom)) {
+  .page-container,
+  .page-container-flush {
+    padding-bottom: max(1rem, env(safe-area-inset-bottom));
+  }
+  /* Fixed sidebar hamburger safe area */
+  .fixed.left-3.top-3 {
+    top: max(0.75rem, env(safe-area-inset-top));
+    left: max(0.75rem, env(safe-area-inset-left));
+  }
+}
+
+/* Enforce minimum touch targets on mobile (WCAG 2.5.8 — 44px) */
+@media (pointer: coarse) {
+  button:not([class*="h-"]),
+  [role="button"]:not([class*="h-"]) {
+    min-height: 44px;
+    min-width: 44px;
+  }
+}
+
+/* Hide scrollbars on mobile for cleaner look, but keep scroll */
+@media (max-width: 767px) {
+  *::-webkit-scrollbar { width: 0; height: 0; }
+  * { scrollbar-width: none; }
+}
+
+/* Sticky header safe blurring on mobile */
+@media (max-width: 767px) {
+  .sticky.top-0 {
+    -webkit-backdrop-filter: blur(20px);
+    backdrop-filter: blur(20px);
+  }
+}
+
+/* Emoji picker overflow protection */
+[data-emoji-picker],
+.emoji-picker-react {
+  max-width: calc(100vw - 2rem);
+  max-height: 50vh;
+  overflow: auto;
+}
+
+/* Prevent horizontal overflow on the whole page */
+html, body {
+  overflow-x: hidden;
+  max-width: 100vw;
+}
+
+/* Dialog/modal clipping protection */
+[role="dialog"] {
+  max-height: calc(100vh - 2rem);
+  max-height: calc(100dvh - 2rem);
+  overflow-y: auto;
+}
+
+/* ─── Performance: reduce paint complexity ─────────────────── */
+.glass-card,
+.metric-card,
+.inbox-panel {
+  will-change: auto;
 }

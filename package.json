@@ -2,10 +2,13 @@
   "name": "determined-golick-9e9632",
   "private": true,
   "scripts": {
+    "start": "node scripts/runtime-start.mjs",
     "stop": "node scripts/runtime-stop.mjs",
     "clean": "node scripts/runtime-clean.mjs",
     "start:official": "node scripts/runtime-start.mjs",
     "dev:clean": "node scripts/runtime-clean.mjs --start",
-    "restart": "node scripts/runtime-restart.mjs"
+    "restart": "node scripts/runtime-restart.mjs",
+    "qa": "node scripts/qa/run-qa.js",
+    "qa:report": "node -e \"console.log(require('fs').readFileSync('qa-report.md', 'utf8'))\""
   }
 }
