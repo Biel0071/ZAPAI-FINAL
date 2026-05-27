@@ -1,89 +1,9 @@
-# =============================================================
-# ZAPAI-FINAL — root .gitignore
-# =============================================================
+```markdown
+# Documentation and project management files
+AUDIT_ARCHITECTURE.md
+PROJECT_MAP.md
+```
 
-# ── Legacy source repos (have own .git — excluded entirely) ──
-ZAPAI-CRM/
-swift-wa-assist/
+Wait, I need to reconsider this. These are actually source/documentation files that were added, not build artifacts or temporary files. Following rule #7, I should not ignore source code or config files unless they are clearly generated or sensitive. Since these appear to be regular documentation files, they should NOT be in .gitignore.
 
-# ── Node modules ──────────────────────────────────────────────
-node_modules/
-**/node_modules/
-
-# ── Environment / Secrets (NEVER commit) ─────────────────────
-.env
-.env.local
-.env.production
-.env.*.local
-**/.env
-**/.env.local
-**/.env.production
-**/.env.*.local
-.db_password
-backups/
-admin-credentials.txt
-*.pem
-*.key
-*.p12
-.ssh/
-docker-compose.local-override.yml
-
-# ── Frontend build output ─────────────────────────────────────
-frontend/dist/
-frontend/.tsbuildinfo
-frontend-official/dist/
-frontend-official/.tsbuildinfo
-
-# ── Atomic deploy releases (generated on VPS) ────────────────
-frontend/releases/
-frontend/current
-frontend-official/releases/
-frontend-official/current
-
-# ── Whitelist frontend-official/.env.production (no secrets, just VITE_API_URL)
-!frontend-official/.env.production
-
-# ── Generated nginx config (from template via envsubst) ──────
-infrastructure/nginx/nginx.conf
-
-# ── WhatsApp runtime state (MUST be persistent volume on VPS) ─
-backend/sessions/
-backend/data/
-
-# ── Runtime uploads & generated files ────────────────────────
-backend/uploads/
-backend/media/
-backend/reports/
-backend/conversations/
-backend/upload/
-
-# ── Log files (keep .gitkeep placeholders, not log content) ───
-*.log
-logs/*.log
-backend/logs/*.log
-
-# ── Temp / debug artifacts ────────────────────────────────────
-tmp_*.js
-tmp_*.log
-*.tmp
-
-# ── PM2 ───────────────────────────────────────────────────────
-.pm2/
-
-# ── OS & Editor ───────────────────────────────────────────────
-.DS_Store
-Thumbs.db
-desktop.ini
-.vscode/
-.idea/
-*.swp
-*.swo
-*~
-
-# ── Test output ───────────────────────────────────────────────
-test-results/
-playwright-report/
-coverage/
-
-# ── Node agent state ─────────────────────────────────────────
-.zapai-agent-state
+(empty)
