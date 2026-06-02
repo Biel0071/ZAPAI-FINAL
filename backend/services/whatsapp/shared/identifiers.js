@@ -26,18 +26,33 @@ function normalizePhone(phone = '') {
     .replace(/\s+/g, '');
 }
 
-function ensureWhatsAppJid(phone = '') {
+function normalizeWhatsappJid(phone = '') {
   const value = String(phone || '').trim();
-
   if (!value) {
+    throw new Error('JID inválido: número de telefone vazio');
+  }
+
+  if (value.endsWith('@g.us')) {
     return value;
   }
 
-  if (value.includes('@')) {
-    return value;
+  let clean = value;
+  if (clean.includes('@')) {
+    clean = clean.split('@')[0];
   }
 
-  return `${normalizePhone(value)}@s.whatsapp.net`;
+  // Remove + spaces ( ) -
+  clean = clean.replace(/[+\s().-]/g, '');
+
+  if (!clean || !/^\d+$/.test(clean)) {
+    throw new Error('JID inválido: o número de telefone está vazio ou contém caracteres inválidos');
+  }
+
+  return `${clean}@s.whatsapp.net`;
+}
+
+function ensureWhatsAppJid(phone = '') {
+  return normalizeWhatsappJid(phone);
 }
 
 module.exports = {
@@ -46,4 +61,5 @@ module.exports = {
   getCompanyId,
   normalizePhone,
   normalizeSessionName,
+  normalizeWhatsappJid,
 };

@@ -82,6 +82,11 @@ function startBackgroundServices(store) {
     store.learningJob = aiLearningEngine.startDailyAnalysis(store);
   }
 
+  // Warm up AI learning dashboard cache asynchronously at startup
+  aiLearningEngine.analyzeAndStore(store).catch((err) => {
+    console.error('[STARTUP] Initial AI Learning analysis failed:', err.message);
+  });
+
   if (!store.campaignJob) {
     store.campaignJob = startCampaignRuntime(store);
   }
@@ -123,6 +128,10 @@ async function startSystem(store) {
     try {
       sessionManager.setRuntimeActive(true);
       const restoredSessions = await sessionManager.restoreSessions();
+      // Reconcile: clean ghost sessions, stuck-connecting, orphan registry entries
+      await sessionManager.reconcileSessions().catch(err =>
+        console.error('[STARTUP] reconcileSessions error:', err.message)
+      );
       startBackgroundServices(store);
 
       systemState.active = true;

@@ -393,9 +393,41 @@ export function RuntimeProvider({ children }: { children: ReactNode }) {
       },
 
       onMessageStatus: (payload) => {
-        const { messageId, status, conversationId } = payload;
-        if (!messageId || !conversationId) return;
-        console.info(`[Runtime] message_status id=${messageId} status=${status}`);
+        const { messageId, status } = payload;
+        let conversationId = payload.conversationId;
+        if (!messageId) return;
+
+        // If conversationId is not provided, or looks like a phone number/JID, let's find the conversation UUID in the store
+        if (!conversationId || conversationId.includes("@") || /^\+?\d+$/.test(conversationId)) {
+          const target = conversationId || "";
+          const cleanTarget = target.replace(/@s\.whatsapp\.net$/i, "").replace(/\D/g, "");
+
+          const state = useAppStore.getState();
+          // Try to find by chatId or phone
+          const found = state.conversations.find(
+            (c) =>
+              (c.chatId && c.chatId.replace(/@s\.whatsapp\.net$/i, "") === cleanTarget) ||
+              (c.phone && c.phone.replace(/\D/g, "") === cleanTarget) ||
+              c.id === target
+          );
+          if (found) {
+            conversationId = found.id;
+          } else {
+            // Fallback: search messagesByConversationId for this messageId to see which conversation it belongs to
+            const entries = Object.entries(state.messagesByConversationId);
+            const foundEntry = entries.find(([_, messages]) => messages.some((m) => m.id === messageId));
+            if (foundEntry) {
+              conversationId = foundEntry[0];
+            } else {
+              // If still not found, check if target was passed, otherwise skip
+              conversationId = target;
+            }
+          }
+        }
+
+        if (!conversationId) return;
+
+        console.info(`[Runtime] message_status id=${messageId} status=${status} resolvedConversationId=${conversationId}`);
         useAppStore.getState().updateMessageStatus(conversationId, messageId, status as ChatMessage["status"]);
       },
 
@@ -441,13 +473,22 @@ export function RuntimeProvider({ children }: { children: ReactNode }) {
     return () => document.removeEventListener("visibilitychange", onVisibilityChange);
   }, [loadFromApi]);
 
-  const contextValue: RuntimeContextValue = useMemo(() => ({
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  const contextValue = useMemo(() => ({
     status,
     connectedSessions,
     hydrated,
     forceRefresh,
     forceReconnect,
   }), [status, connectedSessions, hydrated, forceRefresh, forceReconnect]);
+
+  if (!mounted) {
+    return null;
+  }
 
   return (
     <RuntimeContext.Provider value={contextValue}>

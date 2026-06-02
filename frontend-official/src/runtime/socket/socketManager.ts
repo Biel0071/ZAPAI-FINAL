@@ -685,14 +685,15 @@ function bindSharedSocketEvents() {
 
   const messageStatusEvents = ["message_status", "message:status", "messages.update", "whatsapp:message_status"];
   messageStatusEvents.forEach((eventName) => {
-    sharedSocket?.on(eventName, (payload: { id?: string; messageId?: string; message_id?: string; status?: string; conversationId?: string; conversation_id?: string }) => {
+    sharedSocket?.on(eventName, (payload: { id?: string; messageId?: string; message_id?: string; status?: string; conversationId?: string; conversation_id?: string; chatId?: string; chat_id?: string; phone?: string }) => {
       const messageId = payload.id ?? payload.messageId ?? payload.message_id;
       const status = payload.status;
+      const conversationId = payload.conversationId ?? payload.conversation_id ?? payload.chatId ?? payload.chat_id ?? payload.phone;
       if (messageId && status) {
         notifySubscribers((subscriber) => subscriber.onMessageStatus?.({
           messageId,
           status,
-          conversationId: payload.conversationId ?? payload.conversation_id,
+          conversationId,
         }));
       }
     });

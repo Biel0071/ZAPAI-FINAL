@@ -16,6 +16,8 @@ import { useFrontendHealthWatcher } from "@/hooks/useFrontendHealthWatcher";
 import { RuntimeProvider } from "@/providers/RuntimeProvider";
 import { InboxRuntimeBoundary } from "@/components/system/InboxRuntimeBoundary";
 
+import { PageRouteBoundary } from "@/components/system/PageRouteBoundary";
+
 function AppSplash() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-background">
@@ -138,24 +140,24 @@ const App = () => {
                     <Route path="/login" element={<LoginRoute />} />
                     <Route element={<RequireAdminAuth><RuntimeProvider><MainLayout /></RuntimeProvider></RequireAdminAuth>}>
                       <Route path="/" element={<RootRoute />} />
-                      <Route path="/dashboard" element={<Dashboard />} />
+                      <Route path="/dashboard" element={<PageRouteBoundary pageName="Dashboard"><Dashboard /></PageRouteBoundary>} />
                       <Route path="/inbox" element={<InboxRuntimeBoundary><Inbox /></InboxRuntimeBoundary>} />
-                      <Route path="/connections" element={<Connections />} />
-                      <Route path="/contacts" element={<Contacts />} />
-                      <Route path="/flows" element={<Flows />} />
-                      <Route path="/ai" element={<AI />} />
-                      <Route path="/analytics" element={<Analytics />} />
-                      <Route path="/campaigns" element={<Campaigns />} />
+                      <Route path="/connections" element={<PageRouteBoundary pageName="Conexões"><Connections /></PageRouteBoundary>} />
+                      <Route path="/contacts" element={<PageRouteBoundary pageName="Contatos"><Contacts /></PageRouteBoundary>} />
+                      <Route path="/flows" element={<PageRouteBoundary pageName="Fluxos"><Flows /></PageRouteBoundary>} />
+                      <Route path="/ai" element={<PageRouteBoundary pageName="Inteligência Artificial"><AI /></PageRouteBoundary>} />
+                      <Route path="/analytics" element={<PageRouteBoundary pageName="Relatórios & Métricas"><Analytics /></PageRouteBoundary>} />
+                      <Route path="/campaigns" element={<PageRouteBoundary pageName="Campanhas"><Campaigns /></PageRouteBoundary>} />
                       <Route path="/automation" element={<Navigate to="/flows" replace />} />
                       <Route path="/integrations" element={<Navigate to="/connections" replace />} />
                       <Route path="/dev-tools" element={<ProtectedRoute minRole="admin"><Navigate to="/diagnostics" replace /></ProtectedRoute>} />
-                      <Route path="/memory" element={<Memory />} />
-                      <Route path="/users" element={<ProtectedRoute minRole="master"><MasterAdmins /></ProtectedRoute>} />
+                      <Route path="/memory" element={<PageRouteBoundary pageName="Memória de Sistema"><Memory /></PageRouteBoundary>} />
+                      <Route path="/users" element={<ProtectedRoute minRole="master"><PageRouteBoundary pageName="Usuários Master"><MasterAdmins /></PageRouteBoundary></ProtectedRoute>} />
 
-                      <Route path="/nodes" element={<ProtectedRoute minRole="master"><MasterNodes /></ProtectedRoute>} />
-                      <Route path="/nodes/:id" element={<ProtectedRoute minRole="master"><NodeDetails /></ProtectedRoute>} />
-                      <Route path="/deployments" element={<ProtectedRoute minRole="master"><MasterDeployments /></ProtectedRoute>} />
-                      <Route path="/logs" element={<ProtectedRoute minRole="master"><MasterLogs /></ProtectedRoute>} />
+                      <Route path="/nodes" element={<ProtectedRoute minRole="master"><PageRouteBoundary pageName="Nós do Cluster"><MasterNodes /></PageRouteBoundary></ProtectedRoute>} />
+                      <Route path="/nodes/:id" element={<ProtectedRoute minRole="master"><PageRouteBoundary pageName="Detalhes do Nó"><NodeDetails /></PageRouteBoundary></ProtectedRoute>} />
+                      <Route path="/deployments" element={<ProtectedRoute minRole="master"><PageRouteBoundary pageName="Implantações"><MasterDeployments /></PageRouteBoundary></ProtectedRoute>} />
+                      <Route path="/logs" element={<ProtectedRoute minRole="master"><PageRouteBoundary pageName="Logs do Cluster"><MasterLogs /></PageRouteBoundary></ProtectedRoute>} />
                       <Route path="/system/runtime" element={<Navigate to="/diagnostics" replace />} />
                       <Route path="/system/performance" element={<Navigate to="/diagnostics" replace />} />
                       <Route path="/system/websocket" element={<Navigate to="/diagnostics" replace />} />
@@ -168,12 +170,14 @@ const App = () => {
                         path="/diagnostics"
                         element={
                           <ProtectedRoute minRole="admin">
-                            <Diagnostics />
+                            <PageRouteBoundary pageName="Status & Saúde">
+                              <Diagnostics />
+                            </PageRouteBoundary>
                           </ProtectedRoute>
                         }
                       />
 
-                      <Route path="/settings" element={<Settings />} />
+                      <Route path="/settings" element={<PageRouteBoundary pageName="Configurações"><Settings /></PageRouteBoundary>} />
                     </Route>
                     <Route path="*" element={<CatchAllRoute />} />
                   </Routes>

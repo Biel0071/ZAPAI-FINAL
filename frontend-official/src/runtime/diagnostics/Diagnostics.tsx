@@ -9,7 +9,10 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { DownloadSimple, CaretDown, Palette, CopySimple, ArrowClockwise, CheckCircle, WarningCircle, XCircle } from "@phosphor-icons/react";
 import { readRuntimeManifest } from "@/runtime/services/runtimeCoherenceService";
 import { generateDesignSystemZip } from "@/lib/designSystemExporter";
-import { API_ORIGIN } from "@/services/apiService";
+import { API_ORIGIN, apiService } from "@/services/apiService";
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
+import { User, Broadcast, Warning } from "@phosphor-icons/react";
+import { cn } from "@/lib/utils";
 import { OperationalStatusBadge } from "@/components/enterprise/OperationalStatusBadge";
 import { IS_MIXED_CONTENT_BLOCKED } from "@/lib/backendConfig";
 import { systemControlService, type AiDiagnosticsResponse } from "@/runtime/services/systemControlService";
@@ -195,6 +198,19 @@ async function checkRouteHealth(route: string): Promise<RouteHealthResult> {
   }
 }
 
+function formatDuration(ms: number) {
+  if (!ms || ms <= 0) return "Sem sinal";
+  const seconds = Math.floor(ms / 1000);
+  const minutes = Math.floor(seconds / 60);
+  const hours = Math.floor(minutes / 60);
+  const days = Math.floor(hours / 24);
+
+  if (days > 0) return `${days}d ${hours % 24}h`;
+  if (hours > 0) return `${hours}h ${minutes % 60}m`;
+  if (minutes > 0) return `${minutes}m ${seconds % 60}s`;
+  return `${seconds}s`;
+}
+
 const Diagnostics = memo(function Diagnostics() {
   const [status, setStatus] = useState<DiagnosticsStatus | null>(null);
   const [errors, setErrors] = useState<SystemErrorLog[]>([]);
@@ -214,15 +230,19 @@ const Diagnostics = memo(function Diagnostics() {
   const aiDiagnosticsInFlightRef = useRef(false);
   const routeHealthInFlightRef = useRef(false);
   const runtimeCoherenceInFlightRef = useRef(false);
+  const [waSessions, setWaSessions] = useState<any[]>([]);
+  const [loadingWaSessions, setLoadingWaSessions] = useState(false);
   const { toast } = useToast();
 
   const loadDiagnostics = useCallback(async () => {
     if (diagnosticsInFlightRef.current) return;
     diagnosticsInFlightRef.current = true;
+    setLoadingWaSessions(true);
     try {
-      const [statusResponse, recentErrors] = await Promise.all([
+      const [statusResponse, recentErrors, listedSessions] = await Promise.all([
         systemControlService.getStatus(),
         systemControlService.getErrorLogs(),
+        apiService.listSessions().catch(() => []),
       ]);
       const nextSnapshot = JSON.stringify({ statusResponse, recentErrors });
       if (nextSnapshot !== diagnosticsSnapshotRef.current) {
@@ -230,12 +250,14 @@ const Diagnostics = memo(function Diagnostics() {
         setStatus(statusResponse);
         setErrors(recentErrors);
       }
+      setWaSessions(listedSessions);
     } catch {
       setStatus(null);
       setErrors([]);
     } finally {
       diagnosticsInFlightRef.current = false;
       setLoading(false);
+      setLoadingWaSessions(false);
     }
   }, []);
 
@@ -502,6 +524,114 @@ const Diagnostics = memo(function Diagnostics() {
           </Card>
         )}
 
+        {/* Painel Técnico Diagnóstico do WhatsApp */}
+        <Card className="glass-card overflow-hidden">
+          <CardHeader className="border-b border-border/40 pb-3 flex flex-row items-center justify-between">
+            <div>
+              <CardTitle className="font-display text-base flex items-center gap-2">
+                <Broadcast className="h-4 w-4 text-primary animate-pulse" />
+                Painel de Conexões WhatsApp
+              </CardTitle>
+              <p className="text-[11px] text-muted-foreground mt-0.5">Diagnósticos e métricas em tempo real das sessões Baileys ativas</p>
+            </div>
+            <Badge variant="outline" className="text-[10px] uppercase font-mono py-0.5">
+              {waSessions.length} Registradas
+            </Badge>
+          </CardHeader>
+          <CardContent className="p-0 divide-y divide-border/40">
+            {loading && waSessions.length === 0 ? (
+              <div className="p-4 space-y-3">
+                <Skeleton className="h-16 w-full rounded-xl" />
+                <Skeleton className="h-16 w-full rounded-xl" />
+              </div>
+            ) : waSessions.length === 0 ? (
+              <div className="p-6 text-center text-xs text-muted-foreground">
+                Nenhuma conexão cadastrada no sistema. Adicione uma conexão na página de Conexões.
+              </div>
+            ) : (
+              (Array.isArray(waSessions) ? waSessions : []).map((session) => {
+                const isOnline = session.status === "connected";
+                const isConnecting = session.status === "connecting";
+                const isQr = session.status === "qr" || session.status === "qr_ready";
+                const isBanned = session.isBanned;
+                const hasConflict = session.hasConflict;
+                
+                return (
+                  <div key={session.sessionId} className="p-4 flex flex-col md:flex-row md:items-center justify-between gap-4 hover:bg-muted/10 transition-colors">
+                    <div className="flex items-start gap-3 min-w-0">
+                      <Avatar className="h-11 w-11 rounded-xl border border-border bg-muted shrink-0 shadow-sm">
+                        <AvatarImage src={session.profilePictureUrl ?? undefined} alt={session.name} />
+                        <AvatarFallback className="rounded-xl bg-primary/10 text-primary">
+                          <User className="h-5 w-5" />
+                        </AvatarFallback>
+                      </Avatar>
+                      <div className="min-w-0 space-y-1">
+                        <div className="flex flex-wrap items-center gap-1.5">
+                          <h4 className="font-semibold text-sm truncate flex items-center gap-1.5">
+                            {session.name}
+                            <span className="text-[10px] text-muted-foreground font-mono">({session.sessionId})</span>
+                          </h4>
+                          <OperationalStatusBadge 
+                            label={isOnline ? "Conectado" : isConnecting ? "Conectando..." : isQr ? "Aguardando QR" : "Desconectado"}
+                            tone={isOnline ? "online" : isConnecting ? "syncing" : isQr ? "warning" : "degraded"}
+                            pulse={isConnecting}
+                          />
+                          {hasConflict && (
+                            <Badge variant="destructive" className="bg-amber-500/10 text-amber-500 hover:bg-amber-500/10 border-amber-500/20 text-[9px] font-semibold animate-pulse">
+                              <Warning className="mr-0.5 h-3 w-3 shrink-0" />
+                              Conflito (409)
+                            </Badge>
+                          )}
+                          {isBanned && (
+                            <Badge variant="destructive" className="bg-destructive/10 text-destructive hover:bg-destructive/10 border-destructive/20 text-[9px] font-semibold animate-pulse">
+                              <Warning className="mr-0.5 h-3 w-3 shrink-0" />
+                              Possível Banimento
+                            </Badge>
+                          )}
+                        </div>
+                        <p className="text-xs text-muted-foreground flex items-center gap-1">
+                          <span className="font-medium text-foreground">Número:</span> {session.phone || "Não configurado"}
+                        </p>
+                        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-muted-foreground">
+                          <span className="flex items-center gap-1">
+                            <span className="font-semibold text-foreground">Uptime:</span> 
+                            {session.connectedAt ? formatDuration(Date.now() - session.connectedAt) : "Offline"}
+                          </span>
+                          <span className="flex items-center gap-1">
+                            <span className="font-semibold text-foreground">Ping:</span> 
+                            {session.lastPingAt ? formatDuration(Date.now() - session.lastPingAt) + " atrás" : "Sem sinal"}
+                          </span>
+                          <span className="flex items-center gap-1">
+                            <span className="font-semibold text-foreground">Reconexões:</span> {session.reconnectCount}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                    
+                    <div className="flex flex-col items-end gap-1.5 shrink-0">
+                      <div className="flex items-center gap-2">
+                        <span className="text-[10px] text-muted-foreground font-medium uppercase tracking-wider">Websocket:</span>
+                        <Badge variant="outline" className={cn(
+                          "text-[9px] font-semibold py-0 px-2", 
+                          session.websocketStatus === "connected" ? "bg-success/10 text-success border-success/20" : "bg-muted text-muted-foreground"
+                        )}>
+                          {session.websocketStatus === "connected" ? "Ativo" : "Inativo"}
+                        </Badge>
+                      </div>
+                      
+                      {session.lastDisconnectReason && (
+                        <div className="text-[10px] text-destructive/80 font-medium max-w-xs text-right truncate" title={session.lastDisconnectReason}>
+                          Queda: {session.lastDisconnectReason}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                );
+              })
+            )}
+          </CardContent>
+        </Card>
+
         {/* Saúde das rotas */}
         <Card className="glass-card">
           <CardHeader className="flex flex-row items-center justify-between">
@@ -513,7 +643,7 @@ const Diagnostics = memo(function Diagnostics() {
           <CardContent className="space-y-2">
             {routeHealthLoading && routeHealth.length === 0
               ? Array.from({ length: 6 }).map((_, i) => <Skeleton key={`rh-skel-${i}`} className="h-12 w-full" />)
-              : routeHealth.map((rh) => {
+              : (Array.isArray(routeHealth) ? routeHealth : []).map((rh) => {
                   const meta = levelMeta(rh.level);
                   const errorCount = errorsByRoute[rh.route] ?? 0;
                   return (
@@ -584,7 +714,7 @@ const Diagnostics = memo(function Diagnostics() {
             </CardHeader>
             <CardContent>
               <div className="space-y-2">
-                {Object.entries(errorsByRoute)
+                {Object.entries(errorsByRoute || {})
                   .sort(([, a], [, b]) => b - a)
                   .map(([route, count]) => (
                     <div key={route} className="flex items-center justify-between rounded-lg border border-border bg-card p-2">
@@ -639,7 +769,7 @@ const Diagnostics = memo(function Diagnostics() {
               {structuredLogs.length === 0 ? (
                 <p className="text-sm text-muted-foreground">Nenhum log registrado.</p>
               ) : (
-                [...structuredLogs].reverse().slice(0, 50).map((entry, index) => (
+                [...(Array.isArray(structuredLogs) ? structuredLogs : [])].reverse().slice(0, 50).map((entry, index) => (
                   <div key={`log-${index}`} className="rounded-lg border border-border bg-card p-2 font-mono text-xs">
                     <div className="flex items-center gap-2">
                       <Badge variant={entry.level === "error" ? "destructive" : entry.level === "warn" ? "secondary" : "default"} className="text-[10px] px-1.5 py-0">
@@ -670,7 +800,7 @@ const Diagnostics = memo(function Diagnostics() {
               {errors.length === 0 ? (
                 <p className="text-sm text-muted-foreground">Nenhum erro recente encontrado.</p>
               ) : (
-                errors.map((error, index) => (
+                (Array.isArray(errors) ? errors : []).map((error, index) => (
                   <div key={`${error.timestamp}-${index}`} className="rounded-lg border border-border bg-card p-3">
                     <p className="text-xs text-muted-foreground">{error.timestamp}</p>
                     <p className="text-sm font-medium">{error.service}</p>

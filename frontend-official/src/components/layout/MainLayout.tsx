@@ -27,8 +27,8 @@ export function MainLayout() {
           isMobile
             ? "ml-0 min-h-screen w-full overflow-x-hidden"
             : collapsed
-              ? "ml-[88px] min-h-screen w-full overflow-x-hidden transition-all duration-200"
-              : "ml-[288px] min-h-screen w-full overflow-x-hidden transition-all duration-200"
+              ? "ml-[88px] min-h-screen w-[calc(100%-88px)] overflow-x-hidden transition-all duration-200"
+              : "ml-[288px] min-h-screen w-[calc(100%-288px)] overflow-x-hidden transition-all duration-200"
         }
       >
         <Outlet />

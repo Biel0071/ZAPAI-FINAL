@@ -1,0 +1,119 @@
+{
+  "timestamp": "2026-05-26T13:44:43.226Z",
+  "status": "PASS",
+  "summary": {
+    "pass": 16,
+    "fail": 0,
+    "skip": 2
+  },
+  "tests": [
+    {
+      "name": "API health",
+      "status": "PASS",
+      "duration": "14ms",
+      "error": null
+    },
+    {
+      "name": "Session status endpoint",
+      "status": "PASS",
+      "duration": "5ms",
+      "error": null
+    },
+    {
+      "name": "AI enable endpoint",
+      "status": "PASS",
+      "duration": "19ms",
+      "error": null
+    },
+    {
+      "name": "Conversations list endpoint",
+      "status": "PASS",
+      "duration": "37ms",
+      "error": null
+    },
+    {
+      "name": "Receive message endpoint",
+      "status": "PASS",
+      "duration": "48ms",
+      "error": null
+    },
+    {
+      "name": "Realtime message event",
+      "status": "SKIP",
+      "duration": "0ms",
+      "error": null
+    },
+    {
+      "name": "Target conversation resolution",
+      "status": "PASS",
+      "duration": "8ms",
+      "error": null
+    },
+    {
+      "name": "Conversation runtime fetch",
+      "status": "PASS",
+      "duration": "3ms",
+      "error": null
+    },
+    {
+      "name": "Handoff to human",
+      "status": "PASS",
+      "duration": "6ms",
+      "error": null
+    },
+    {
+      "name": "Runtime set to human_active",
+      "status": "PASS",
+      "duration": "4ms",
+      "error": null
+    },
+    {
+      "name": "Resume AI handoff",
+      "status": "PASS",
+      "duration": "6ms",
+      "error": null
+    },
+    {
+      "name": "Runtime set to ai_active",
+      "status": "PASS",
+      "duration": "3ms",
+      "error": null
+    },
+    {
+      "name": "Conversation message persistence",
+      "status": "PASS",
+      "duration": "7ms",
+      "error": null
+    },
+    {
+      "name": "Decision contract: greeting",
+      "status": "PASS",
+      "duration": "0ms",
+      "error": null
+    },
+    {
+      "name": "Decision contract: price",
+      "status": "PASS",
+      "duration": "0ms",
+      "error": null
+    },
+    {
+      "name": "Decision contract: support",
+      "status": "PASS",
+      "duration": "0ms",
+      "error": null
+    },
+    {
+      "name": "Decision contract: acknowledgement",
+      "status": "PASS",
+      "duration": "0ms",
+      "error": null
+    },
+    {
+      "name": "Live WhatsApp outbound check",
+      "status": "SKIP",
+      "duration": "0ms",
+      "error": null
+    }
+  ]
+}

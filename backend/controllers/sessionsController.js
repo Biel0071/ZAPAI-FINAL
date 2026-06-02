@@ -49,10 +49,8 @@ async function create(req, res) {
       session: targetSessionId,
       sessionId: targetSessionId,
       sessionName: session.sessionName || requestedDisplayName,
-      status: session.status,
-      connected: session.connected,
-      health: session.health,
-      alreadyRunning: Boolean(session.alreadyRunning),
+      status: connectionService.toPublicStatus(session.status),
+      success: true,
     });
   } catch (error) {
     return res.status(500).json({
@@ -67,7 +65,6 @@ async function start(req, res) {
 
 async function list(req, res) {
   const result = await connectionService.listConnections();
-
   return res.status(200).json(result);
 }
 
@@ -220,6 +217,73 @@ async function reconnect(req, res) {
   }
 }
 
+async function resetError(req, res) {
+  const targetSessionId = getTargetSessionId(req);
+
+  try {
+    const result = await sessionManager.resetSessionError(targetSessionId);
+    return res.status(200).json({ success: true, ...result });
+  } catch (error) {
+    return res.status(500).json({
+      error: error.message || 'Failed to reset session error.',
+      success: false,
+    });
+  }
+}
+
+async function purge(req, res) {
+  const targetSessionId = getTargetSessionId(req);
+  const purgeData = req.query.purgeData === 'true' || req.body?.purgeData === true;
+
+  // 1. Remove the session first
+  const removed = await connectionService.deleteConnection(targetSessionId);
+  if (!removed) {
+    return res.status(404).json({ error: 'Session not found.' });
+  }
+
+  const purged = { session: true, conversations: 0, contacts: 0, aiMemory: 0 };
+
+  // 2. If purgeData requested, cascade-delete related data
+  if (purgeData) {
+    try {
+      const db = require('../config/database');
+      // Delete conversations by sessionId
+      const convResult = await db.query(
+        'DELETE FROM conversations WHERE session_id = $1',
+        [targetSessionId]
+      );
+      purged.conversations = convResult.rowCount || 0;
+
+      // Delete contacts by sessionId
+      const contactResult = await db.query(
+        'DELETE FROM contacts WHERE session_id = $1',
+        [targetSessionId]
+      );
+      purged.contacts = contactResult.rowCount || 0;
+
+      // Delete AI conversation memory by sessionId
+      const aiResult = await db.query(
+        'DELETE FROM ai_conversation_memory WHERE session_id = $1',
+        [targetSessionId]
+      );
+      purged.aiMemory = aiResult.rowCount || 0;
+    } catch (dbError) {
+      // If specific tables don't exist or query fails, log and continue
+      console.warn(`[sessions:purge] DB cleanup partial for "${targetSessionId}":`, dbError.message);
+    }
+  }
+
+  return res.status(200).json({ success: true, purged });
+}
+async function reconcile(req, res) {
+  try {
+    const summary = await sessionManager.reconcileSessions();
+    return res.status(200).json({ success: true, data: summary });
+  } catch (error) {
+    return res.status(500).json({ error: error.message || 'Failed to reconcile sessions.' });
+  }
+}
+
 module.exports = {
   connectSystem,
   create,
@@ -228,9 +292,11 @@ module.exports = {
   getStatus,
   list,
   logout,
+  purge,
+  reconcile,
   remove,
   reconnect,
+  resetError,
   restart,
   start,
 };
-

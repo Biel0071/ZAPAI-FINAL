@@ -32,7 +32,7 @@ async function persistOutgoingMessageRecord(store, payload) {
     messageType: payload.mediaType || 'text',
     phone: payload.phone,
     sessionId: payload.sessionId || sessionManager.DEFAULT_SESSION,
-    status: 'sent',
+    status: payload.status || 'sent',
   });
 
   if (!savedMessage) {

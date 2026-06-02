@@ -17,6 +17,7 @@ export default defineConfig({
     trace: "on-first-retry",
     viewport: { width: 1600, height: 900 },
     colorScheme: "dark",
+    video: "on",
   },
   projects: [
     {

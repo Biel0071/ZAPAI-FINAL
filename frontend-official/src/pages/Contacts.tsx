@@ -141,6 +141,14 @@ export default function Contacts() {
   const [newTag, setNewTag] = useState("");
   const [editSaving, setEditSaving] = useState(false);
 
+  // New multi-select and view layout states
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
+
+  useEffect(() => {
+    setSelectedIds(new Set());
+  }, [activeSegment, searchQuery, tagFilter]);
+
   const loadContacts = useCallback(async () => {
     try {
       setError(null);
@@ -260,6 +268,105 @@ export default function Contacts() {
   const groupCount = useMemo(() => contacts.filter((contact) => contact.isGroup).length, [contacts]);
   const individualCount = useMemo(() => contacts.filter((contact) => !contact.isGroup).length, [contacts]);
 
+  const handleToggleSelect = (id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      return next;
+    });
+  };
+
+  const handleToggleSelectAll = () => {
+    const filteredIds = filteredContacts.map((c) => c.id);
+    const allSelected = filteredIds.every((id) => selectedIds.has(id));
+    if (allSelected) {
+      setSelectedIds((prev) => {
+        const next = new Set(prev);
+        filteredIds.forEach((id) => next.delete(id));
+        return next;
+      });
+    } else {
+      setSelectedIds((prev) => {
+        const next = new Set(prev);
+        filteredIds.forEach((id) => next.add(id));
+        return next;
+      });
+    }
+  };
+
+  const handleBulkUpdate = async (action: {
+    status?: string;
+    temperature?: string;
+    addTag?: string;
+    removeTag?: string;
+  }) => {
+    if (selectedIds.size === 0) return;
+
+    if (Object.keys(action).length === 0) {
+      setSelectedIds(new Set());
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const promises = Array.from(selectedIds).map(async (id) => {
+        const contact = contacts.find((c) => c.id === id);
+        if (!contact?.conversationId) return;
+
+        let newTags = [...contact.tags];
+        if (action.addTag) {
+          const trimmed = action.addTag.trim();
+          if (trimmed && !newTags.includes(trimmed)) {
+            newTags.push(trimmed);
+          }
+        }
+        if (action.removeTag) {
+          newTags = newTags.filter((t) => t !== action.removeTag);
+        }
+
+        const payload: Parameters<typeof apiService.patchConversation>[1] = {};
+        if (action.status !== undefined) payload.status = action.status;
+        if (action.temperature !== undefined) payload.lead_temperature = action.temperature;
+        if (action.addTag || action.removeTag) payload.tags = newTags;
+
+        await apiService.patchConversation(contact.conversationId, payload);
+      });
+
+      await Promise.all(promises);
+      toast({ title: "Contatos atualizados com sucesso!" });
+      setSelectedIds(new Set());
+      await loadContacts();
+    } catch (err) {
+      console.error("Erro ao atualizar contatos em lote:", err);
+      toast({ title: "Erro ao atualizar contatos em lote.", variant: "destructive" });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleUpdateContact = async (id: string, payload: { status?: string; lead_temperature?: string; tags?: string[] }) => {
+    const contact = contacts.find((c) => c.id === id);
+    if (!contact?.conversationId) {
+      toast({ title: "Contato sem conversa vinculada.", variant: "destructive" });
+      return;
+    }
+    setLoading(true);
+    try {
+      await apiService.patchConversation(contact.conversationId, payload);
+      toast({ title: "Contato atualizado." });
+      await loadContacts();
+    } catch (err) {
+      console.error("Erro ao atualizar contato:", err);
+      toast({ title: "Erro ao atualizar contato.", variant: "destructive" });
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const goToChat = useCallback(
     (contact: ContactRow | ContactGridItem) => {
       const normalizedPhone = normalizePhone(contact.phone);
@@ -352,6 +459,13 @@ export default function Contacts() {
           if (source) goToChat(source);
         }}
         onEditContact={openEditModal}
+        selectedIds={selectedIds}
+        onToggleSelect={handleToggleSelect}
+        onToggleSelectAll={handleToggleSelectAll}
+        onBulkUpdate={handleBulkUpdate}
+        viewMode={viewMode}
+        onViewModeChange={setViewMode}
+        onUpdateContact={handleUpdateContact}
       />
 
       {/* Edit Contact Dialog */}

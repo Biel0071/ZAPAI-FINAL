@@ -81,6 +81,7 @@ function createAckEntry(messageId, chatId, sessionId) {
   const now = new Date().toISOString();
   return {
     messageId,
+    dbMessageId: null,
     chatId: chatId || '',
     sessionId: sessionId || 'default',
     status: ACK_STATES.PENDING,
@@ -129,6 +130,13 @@ function transitionAck(messageId, nextState, metadata = {}) {
     evictOldEntries();
   }
 
+  if (metadata.chatId && !entry.chatId) {
+    entry.chatId = metadata.chatId;
+  }
+  if (metadata.sessionId && !entry.sessionId) {
+    entry.sessionId = metadata.sessionId;
+  }
+
   if (!isValidTransition(entry.status, nextState)) {
     // Allow forward-only transitions (don't go backward)
     return entry;
@@ -162,6 +170,11 @@ function transitionAck(messageId, nextState, metadata = {}) {
       entry.retryCount += 1;
       break;
   }
+
+  // Trigger PostgreSQL update asynchronously
+  void persistAckState(messageId).catch(err => {
+    console.error(`[AckPipeline] Async persist transition failed for ${messageId}:`, err);
+  });
 
   return entry;
 }
@@ -270,16 +283,36 @@ async function persistAckState(messageId) {
   if (!entry) return;
 
   try {
-    await db.query(
-      `UPDATE messages SET status = $1, updated_at = NOW() WHERE id = $2 OR external_message_id = $2`,
-      [entry.status, messageId]
-    );
+    if (entry.dbMessageId) {
+      await db.query(
+        `UPDATE messages SET status = $1, updated_at = NOW() WHERE id = $2`,
+        [entry.status, entry.dbMessageId]
+      );
+    }
   } catch (err) {
     // Non-fatal — in-memory is the primary source
     if (err?.code !== '42P01') {
-      console.error(`[AckPipeline] Persist failed for ${messageId}:`, err?.message || err);
+      console.error(`[AckPipeline] Persist failed for ${messageId} (dbMessageId: ${entry.dbMessageId}):`, err?.message || err);
     }
   }
+}
+
+function registerDbMapping(messageId, dbMessageId) {
+  if (!messageId) return null;
+  let entry = ackEntries.get(messageId);
+  if (!entry) {
+    entry = createAckEntry(messageId);
+    ackEntries.set(messageId, entry);
+    evictOldEntries();
+  }
+  entry.dbMessageId = dbMessageId;
+
+  // Asynchronously update the database to match the dbMessageId
+  void persistAckState(messageId).catch(err => {
+    console.error(`[AckPipeline] Async persist mapping failed for ${messageId}:`, err);
+  });
+
+  return entry;
 }
 
 // ─── WebSocket Emission ───
@@ -288,7 +321,7 @@ function emitAckUpdate(io, entry) {
   if (!io || !entry) return;
 
   io.emit('message_status', {
-    messageId: entry.messageId,
+    messageId: entry.dbMessageId || entry.messageId,
     chatId: entry.chatId,
     status: entry.status,
     deliveryLatencyMs: entry.deliveryLatencyMs,
@@ -296,7 +329,7 @@ function emitAckUpdate(io, entry) {
   });
 
   io.emit('message:ack', {
-    id: entry.messageId,
+    id: entry.dbMessageId || entry.messageId,
     chatId: entry.chatId,
     status: entry.status,
   });
@@ -344,5 +377,6 @@ module.exports = {
   processBaileysStatusBatch,
   processBaileysStatusUpdate,
   reconcilePendingMessages,
+  registerDbMapping,
   transitionAck,
 };

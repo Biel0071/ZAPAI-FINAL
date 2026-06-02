@@ -13,6 +13,7 @@ const webhookService = require('../services/webhookService');
 const aiIntelligenceService = require('../services/aiIntelligenceService');
 
 const messageDedupeService = require('../services/messageDedupeService');
+const messageAckPipeline = require('../services/messageAckPipeline');
 
 // Phase 2a: pure helpers live under ./messages/*. Names are destructured here
 // so all internal callers and module.exports stay byte-compatible.
@@ -140,8 +141,29 @@ async function sendMessage(req, res) {
     sessionName || sessionId || requestedSessionId || sessionManager.DEFAULT_SESSION
   );
   const existingSession = sessionManager.getSession(targetSessionName);
-  const fallbackDefaultSession = existingSession ? null : await sessionManager.getDefaultSession();
-  const session = existingSession || fallbackDefaultSession;
+
+  const isSessionConnected = (s) => s && String(s.status || '').toLowerCase() === 'connected';
+
+  let session = existingSession;
+  if (!isSessionConnected(session)) {
+    const defaultSession = await sessionManager.getDefaultSession();
+    if (isSessionConnected(defaultSession)) {
+      session = defaultSession;
+    } else {
+      const allSessions = sessionManager.listSessions();
+      const connectedSessionInfo = allSessions.find(
+        (s) => String(s.status || '').toLowerCase() === 'connected'
+      );
+      if (connectedSessionInfo) {
+        session = sessionManager.getSession(connectedSessionInfo.sessionId);
+      }
+    }
+  }
+
+  if (!session) {
+    session = existingSession || (await sessionManager.getDefaultSession());
+  }
+
   const sock = session?.sock || store.sock;
   const normalizedSessionStatus = String(session?.status || 'disconnected').toLowerCase();
 
@@ -204,15 +226,15 @@ async function sendMessage(req, res) {
       sendResult = await whatsappService.sendMessage(sock, normalizedPhone, resolvedText);
     }
 
-    if (!sendResult) {
+    if (!sendResult || !sendResult.key || !sendResult.key.id) {
       MessageAuditService.log('message_failed', {
-        error: 'Message send failed',
+        error: 'Message send failed: Baileys did not return a valid key ID',
         phone: normalizedPhone,
         text: resolvedText,
       });
 
       return res.status(500).json({
-        error: 'Message send failed',
+        error: 'Message send failed: Baileys confirmation missing.',
         success: false,
       });
     }
@@ -227,7 +249,7 @@ async function sendMessage(req, res) {
         mediaType: resolvedMediaType || null,
         sessionId: session?.sessionId || targetSessionName,
         conversationId: `chat-${normalizedPhone}`,
-        status: 'sent',
+        status: 'sending',
       });
 
       MessageAuditService.log('message_sent_memory', {
@@ -235,19 +257,13 @@ async function sendMessage(req, res) {
         text: resolvedText,
       });
 
-      emitSocketEvent(req, 'message_sent', {
-        chatId: normalizedPhone,
-        conversationId: memEntry?.conversationId || `chat-${normalizedPhone}`,
-        id: memEntry?.id,
-        message: resolvedText,
-        phone: normalizedPhone,
-        timestamp: memEntry?.createdAt || new Date().toISOString(),
-      });
-      emitSocketEvent(req, 'message:update', {
-        conversationId: memEntry?.conversationId || `chat-${normalizedPhone}`,
-        id: memEntry?.id,
-        status: 'sent',
-      });
+      if (sendResult?.key?.id && memEntry?.id) {
+        messageAckPipeline.registerDbMapping(sendResult.key.id, memEntry.id);
+        messageAckPipeline.transitionAck(sendResult.key.id, messageAckPipeline.ACK_STATES.SENT, {
+          chatId: normalizedPhone,
+          sessionId: session?.sessionId || targetSessionName,
+        });
+      }
 
       const inboxPayload = {
         conversationId: memEntry?.conversationId || `chat-${normalizedPhone}`,
@@ -258,7 +274,7 @@ async function sendMessage(req, res) {
         mediaPath: messageService.toPublicMediaPath(memEntry?.mediaPath || persistedMediaPath || null),
         mediaType: memEntry?.mediaType || null,
         phone: normalizedPhone,
-        status: 'sent',
+        status: 'sending',
       };
 
       if (!inboxPayload.id) {
@@ -267,8 +283,6 @@ async function sendMessage(req, res) {
           success: false,
         });
       }
-
-      emitInboxRealtimeEvent(req, inboxPayload);
 
       void aiIntelligenceService
         .captureMessageEvent(store, {
@@ -302,6 +316,7 @@ async function sendMessage(req, res) {
       sessionId: session?.sessionId || targetSessionName,
       source: 'human',
       text: resolvedText,
+      status: 'sending',
     });
 
     if (!persistedResult?.message) {
@@ -328,19 +343,13 @@ async function sendMessage(req, res) {
 
     console.log('MESSAGE SAVED', apiMessage);
 
-    emitSocketEvent(req, 'message_sent', {
-      chatId: normalizedPhone,
-      conversationId: apiMessage.conversationId,
-      id: apiMessage.id,
-      message: apiMessage.content,
-      phone: apiMessage.phone,
-      timestamp: apiMessage.createdAt,
-    });
-    emitSocketEvent(req, 'message:update', {
-      conversationId: apiMessage.conversationId,
-      id: apiMessage.id,
-      status: 'sent',
-    });
+    if (sendResult?.key?.id && apiMessage?.id) {
+      messageAckPipeline.registerDbMapping(sendResult.key.id, apiMessage.id);
+      messageAckPipeline.transitionAck(sendResult.key.id, messageAckPipeline.ACK_STATES.SENT, {
+        chatId: normalizedPhone,
+        sessionId: session?.sessionId || targetSessionName,
+      });
+    }
 
     return res.status(200).json({
       chatId: normalizeChatId(normalizedPhone),
@@ -364,9 +373,9 @@ async function sendMessage(req, res) {
       });
     }
 
-    if (error?.code === 'SESSION_UNAVAILABLE' || /socket is not initialized/i.test(message)) {
+    if (error?.code === 'SESSION_UNAVAILABLE' || /socket is not initialized|WhatsApp socket offline/i.test(message)) {
       return res.status(409).json({
-        error: 'No active WhatsApp session is available.',
+        error: /WhatsApp socket offline/i.test(message) ? 'WhatsApp socket offline' : 'No active WhatsApp session is available.',
         success: false,
       });
     }

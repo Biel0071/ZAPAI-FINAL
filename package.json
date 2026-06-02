@@ -9,6 +9,13 @@
     "dev:clean": "node scripts/runtime-clean.mjs --start",
     "restart": "node scripts/runtime-restart.mjs",
     "qa": "node scripts/qa/run-qa.js",
-    "qa:report": "node -e \"console.log(require('fs').readFileSync('qa-report.md', 'utf8'))\""
+    "qa:report": "node -e \"console.log(require('fs').readFileSync('qa-report.md', 'utf8'))\"",
+    "hardening": "npx playwright test --config=frontend-official/playwright.config.ts frontend-official/tests/ui/hardening-stress.spec.ts",
+    "audit:full": "node scripts/qa/run-full-audit.js"
+  },
+  "devDependencies": {
+    "axe-core": "^4.11.4",
+    "fs-extra": "^11.3.5",
+    "sharp": "^0.34.5"
   }
 }

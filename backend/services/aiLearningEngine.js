@@ -1,4 +1,6 @@
 const cron = require('node-cron');
+const messageRepository = require('../repositories/messageRepository');
+const conversationRepository = require('../repositories/conversationRepository');
 
 function normalizeQuestion(text = '') {
   return String(text)
@@ -207,7 +209,30 @@ function analyzeConversationsSnapshot(messages = [], conversations = []) {
 }
 
 async function analyzeAndStore(store) {
-  const analysis = analyzeConversationsSnapshot(store.messages, store.conversations);
+  let messages = store.messages || [];
+  let conversations = store.conversations || [];
+
+  try {
+    const dbMessages = await messageRepository.listRecentMessages(2000);
+    if (dbMessages && dbMessages.length > 0) {
+      messages = dbMessages;
+      store.messages = dbMessages;
+    }
+  } catch (err) {
+    console.error('[AI LEARNING] Failed to load messages from DB:', err.message);
+  }
+
+  try {
+    const dbConversations = await conversationRepository.listConversations('default', 500);
+    if (dbConversations && dbConversations.length > 0) {
+      conversations = dbConversations;
+      store.conversations = dbConversations;
+    }
+  } catch (err) {
+    console.error('[AI LEARNING] Failed to load conversations from DB:', err.message);
+  }
+
+  const analysis = analyzeConversationsSnapshot(messages, conversations);
   const appliedCount = (store.aiLearningLogs || []).filter((log) => log.status === 'applied').length;
   analysis.metrics.promptImprovementsApplied = appliedCount;
 

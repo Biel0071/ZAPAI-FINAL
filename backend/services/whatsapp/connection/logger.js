@@ -28,8 +28,8 @@ function pushConnectionLog(session, level, event, message) {
     timestamp: new Date().toISOString(),
   });
 
-  if (session.connectionLogs.length > 25) {
-    session.connectionLogs = session.connectionLogs.slice(-25);
+  if (session.connectionLogs.length > 50) {
+    session.connectionLogs = session.connectionLogs.slice(-50);
   }
 }
 

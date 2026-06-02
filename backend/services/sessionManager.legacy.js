@@ -23,7 +23,7 @@ const startupPromises = new Map();
 const reconnectTimers = new Map();
 const reconnectAttempts = new Map();
 const reconnectInFlight = new Set();
-const MAX_RECONNECT_ATTEMPTS = 5;
+const MAX_RECONNECT_ATTEMPTS = 10;
 
 // Latest QR code for the single session (expires after 60 s)
 let _latestQr = null;
@@ -292,6 +292,7 @@ async function disposeSession(sessionName, options = {}) {
 
   clearReconnectTimer(normalizedName);
   reconnectInFlight.delete(normalizedName);
+  startupPromises.delete(normalizedName);
 
   if (options.preserveReconnectAttempts !== true) {
     resetReconnectAttempts(normalizedName);
@@ -469,6 +470,10 @@ async function startSession(sessionName = DEFAULT_SESSION, options = {}) {
 
           // Re-check guards before actually reconnecting
           const freshSession = getSession(normalizedTarget);
+          if (freshSession !== targetSession) {
+            console.log(`[WHATSAPP] Reconnect aborted for ${normalizedTarget} (session instance changed)`);
+            return;
+          }
           if (!runtimeActive || freshSession?.isDisposed || reconnectInFlight.has(normalizedTarget)) {
             console.log(`[WHATSAPP] Reconnect aborted for ${normalizedTarget} (post-backoff guard)`);
             return;
@@ -704,11 +709,226 @@ async function stopAllSessions() {
   }
 }
 
+/**
+ * Removes zombie sessions: sessions whose auth directory is empty or missing.
+ * Should be called before restoreSessions() during startup.
+ */
+async function cleanupZombieSessions() {
+  const cleaned = [];
+
+  try {
+    const entries = await fs.readdir(SESSIONS_DIRECTORY, { withFileTypes: true });
+
+    for (const entry of entries) {
+      if (!entry.isDirectory()) continue;
+
+      const sessionDir = path.join(SESSIONS_DIRECTORY, entry.name);
+      const normalizedName = normalizeSessionName(entry.name);
+
+      // Never clean the default session directory — it should always exist
+      if (normalizedName === DEFAULT_SESSION) continue;
+
+      try {
+        const files = await fs.readdir(sessionDir);
+        const hasAuthFiles = files.some((f) =>
+          f.endsWith('.json') || f === 'creds.json' || f.startsWith('pre-key') || f.startsWith('sender-key')
+        );
+
+        if (!hasAuthFiles) {
+          // Empty session dir — remove it and its in-memory/registry entry
+          console.log(`[SESSION CLEANUP] Removing zombie session: ${normalizedName} (empty auth dir)`);
+
+          // Remove from in-memory map
+          const session = sessions.get(normalizedName);
+          if (session) {
+            session.isDisposed = true;
+            session.status = 'disconnected';
+            sessions.delete(normalizedName);
+            delete activeSessions[normalizedName];
+          }
+
+          // Remove from registry
+          try { await sessionRegistry.removeSession(normalizedName); } catch {}
+          try { await sessionRepository.updateSessionStatus(normalizedName, 'disconnected'); } catch {}
+
+          // Remove directory
+          await fs.rm(sessionDir, { force: true, recursive: true });
+          cleaned.push(normalizedName);
+        }
+      } catch {
+        // Ignore per-session errors
+      }
+    }
+  } catch (err) {
+    console.error('[SESSION CLEANUP] Failed to scan sessions directory:', err.message || err);
+  }
+
+  // Also clean in-memory sessions that don't have a corresponding directory
+  for (const [sessionName, session] of sessions.entries()) {
+    if (sessionName === DEFAULT_SESSION) continue;
+
+    const sessionDir = path.join(SESSIONS_DIRECTORY, sessionName);
+    try {
+      await fs.access(sessionDir);
+    } catch {
+      // Directory doesn't exist — remove the in-memory session
+      console.log(`[SESSION CLEANUP] Removing orphan in-memory session: ${sessionName}`);
+      session.isDisposed = true;
+      session.status = 'disconnected';
+      sessions.delete(sessionName);
+      delete activeSessions[sessionName];
+      cleaned.push(sessionName);
+    }
+  }
+
+  if (cleaned.length > 0) {
+    console.log(`[SESSION CLEANUP] Cleaned ${cleaned.length} zombie sessions: ${cleaned.join(', ')}`);
+  } else {
+    console.log('[SESSION CLEANUP] No zombie sessions found.');
+  }
+
+  return cleaned;
+}
+
+/**
+ * Comprehensive session reconciliation — called at system startup.
+ *
+ * 1. Runs cleanupZombieSessions (filesystem/memory orphans)
+ * 2. Removes sessions stuck in "connecting" without a socket for > 5 min
+ * 3. Removes duplicate/orphan sessionRegistry entries
+ * 4. Clears stale reconnect timers
+ *
+ * Returns a summary of all cleaned entries.
+ */
+async function reconcileSessions() {
+  const summary = { zombies: [], stale: [], orphanRegistry: [] };
+
+  // Phase 1: filesystem & memory orphans
+  try {
+    const zombies = await cleanupZombieSessions();
+    summary.zombies = zombies;
+  } catch (err) {
+    console.error('[RECONCILE] cleanupZombieSessions error:', err.message);
+  }
+
+  // Phase 2: sessions stuck in "connecting" without a real socket
+  const STALE_THRESHOLD_MS = 5 * 60 * 1000; // 5 minutes
+  const now = Date.now();
+  for (const [name, session] of sessions.entries()) {
+    if (name === DEFAULT_SESSION) continue;
+
+    const status = String(session?.status || '').toLowerCase();
+    const hasSock = Boolean(session?.sock);
+    const isStale = (status === 'connecting' || status === 'qr_ready' || status === 'qr')
+      && !hasSock;
+
+    // Check how long it's been in this state
+    const sessionAge = session?.connectedAt
+      ? now - session.connectedAt
+      : session?.createdAt
+        ? now - session.createdAt
+        : STALE_THRESHOLD_MS + 1;
+
+    if (isStale && sessionAge > STALE_THRESHOLD_MS) {
+      console.log(`[RECONCILE] Removing stale session: ${name} (status=${status}, age=${Math.round(sessionAge / 1000)}s, hasSock=${hasSock})`);
+      session.isDisposed = true;
+      session.status = 'disconnected';
+      sessions.delete(name);
+      delete activeSessions[name];
+      summary.stale.push(name);
+
+      // Clear reconnect state
+      resetReconnectAttempts(name);
+      clearReconnectTimer(name);
+      reconnectInFlight.delete(name);
+
+      // Remove from registry
+      try { await sessionRegistry.removeSession(name); } catch {}
+      try { await sessionRepository.updateSessionStatus(name, 'disconnected'); } catch {}
+    }
+  }
+
+  // Phase 3: clean orphan entries in sessionRegistry not present in sessions map
+  try {
+    const registryList = sessionRegistry.list ? sessionRegistry.list() : [];
+    for (const entry of registryList) {
+      const regName = typeof entry === 'string' ? entry : entry?.sessionId || entry?.name;
+      if (!regName || regName === DEFAULT_SESSION) continue;
+      if (!sessions.has(regName)) {
+        console.log(`[RECONCILE] Removing orphan registry entry: ${regName}`);
+        try { await sessionRegistry.removeSession(regName); } catch {}
+        summary.orphanRegistry.push(regName);
+      }
+    }
+  } catch (err) {
+    // sessionRegistry may not have a list method
+    console.warn('[RECONCILE] Could not enumerate sessionRegistry:', err.message);
+  }
+
+  const total = summary.zombies.length + summary.stale.length + summary.orphanRegistry.length;
+  if (total > 0) {
+    console.log(`[RECONCILE] Cleaned ${total} entries — zombies: ${summary.zombies.length}, stale: ${summary.stale.length}, orphanRegistry: ${summary.orphanRegistry.length}`);
+  } else {
+    console.log('[RECONCILE] All sessions are healthy. No cleanup needed.');
+  }
+
+  return summary;
+}
+
+/**
+ * Resets a session that reached the reconnect error limit.
+ * Clears the error state and allows reconnection.
+ */
+async function resetSessionError(sessionName = DEFAULT_SESSION) {
+  const normalizedName = normalizeSessionName(sessionName);
+  const session = getSession(normalizedName);
+
+  if (session) {
+    session.status = 'disconnected';
+    session.lastError = null;
+    session.retryCount = 0;
+    setSession(normalizedName, session);
+  }
+
+  resetReconnectAttempts(normalizedName);
+  clearReconnectTimer(normalizedName);
+  reconnectInFlight.delete(normalizedName);
+
+  emitSessionStatusCompat({
+    sessionId: normalizedName,
+    sessionName: session?.sessionName || normalizedName,
+    status: 'disconnected',
+    lastError: null,
+  });
+
+  return { sessionId: normalizedName, status: 'disconnected', message: 'Error state cleared. Ready for reconnection.' };
+}
+
+/**
+ * Returns the first truly connected session, or null.
+ */
+function getConnectedSessionOrNull() {
+  for (const [, session] of sessions.entries()) {
+    if (
+      session &&
+      !session.isDisposed &&
+      !session.isClosing &&
+      session.sock &&
+      String(session.status || '').toLowerCase() === 'connected'
+    ) {
+      return session;
+    }
+  }
+  return null;
+}
+
 module.exports = {
+  cleanupZombieSessions,
   clearLatestQr,
   configureSessionManager,
   createSession,
   DEFAULT_SESSION,
+  getConnectedSessionOrNull,
   getDefaultSession,
   getLatestQr,
   getSession,
@@ -718,8 +938,10 @@ module.exports = {
   listSessions,
   logoutSession,
   normalizeSessionName,
+  reconcileSessions,
   removeSession,
   reconnectSession,
+  resetSessionError,
   restartSession,
   restoreSessions,
   sessions,

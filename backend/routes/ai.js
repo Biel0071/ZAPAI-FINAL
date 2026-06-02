@@ -13,6 +13,11 @@ router.post('/ai/learning/analyze', aiController.runLearningAnalysis);
 router.post('/ai/learning/:id/apply', aiController.applyLearningSuggestion);
 router.put('/ai/learning/:id', aiController.editLearningSuggestion);
 router.post('/ai/learning/:id/ignore', aiController.ignoreLearningSuggestion);
+
+// Frontend compatibility aliases to resolve 404s
+router.post('/ai/learning/suggestions/:id/approve', aiController.applyLearningSuggestion);
+router.post('/ai/learning/suggestions/:id/reject', aiController.ignoreLearningSuggestion);
+router.post('/ai/learning/train', aiController.runLearningAnalysis);
 router.get('/ai/prompt-history', aiController.promptHistory);
 router.get('/ai/project-analyze', aiController.projectAnalyze);
 router.get('/ai/architecture-map', aiController.architectureMap);
@@ -120,6 +125,60 @@ router.post('/ai/generate-response', async (req, res) => {
     }
 
     res.json({ success: true, data: { response: responseText } });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// GET conversation memory from Postgres or Fallback
+router.get('/ai/conversation-memory/:contactId', async (req, res) => {
+  try {
+    const { contactId } = req.params;
+    if (!contactId) return res.status(400).json({ error: 'contactId required' });
+
+    const pool = req.app.get('pool');
+    let entry = null;
+    if (pool) {
+      const result = await pool.query(
+        `SELECT contact_id, phone, name, intent, sentiment, tags, summary, metrics, messages, last_updated
+         FROM ai_conversation_memory
+         WHERE contact_id = $1`,
+        [contactId]
+      );
+      if (result.rows.length > 0) {
+        const row = result.rows[0];
+        entry = {
+          contact_id: row.contact_id,
+          phone: row.phone,
+          name: row.name,
+          intent: row.intent || 'information',
+          sentiment: row.sentiment || 'neutral',
+          tags: row.tags || [],
+          summary: row.summary || '',
+          metrics: typeof row.metrics === 'object' ? row.metrics : {},
+          messages: Array.isArray(row.messages) ? row.messages : [],
+          last_updated: row.last_updated ? new Date(row.last_updated).toISOString() : null,
+        };
+      }
+    }
+
+    if (!entry) {
+      const aiConversationMemoryService = require('../services/aiConversationMemoryService');
+      const store = req.app.locals.store || { conversationMemory: [] };
+      entry = aiConversationMemoryService.findMemoryByContact(store, contactId);
+    }
+
+    if (!entry) {
+      return res.json({
+        success: false,
+        error: 'Conversation memory not found',
+      });
+    }
+
+    res.json({
+      success: true,
+      data: entry,
+    });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

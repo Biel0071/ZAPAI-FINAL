@@ -2,15 +2,17 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { MapPin, Export, ArrowClockwise, ShieldCheck, WarningCircle } from "@phosphor-icons/react";
+import { MapPin, Export, ArrowClockwise, ShieldCheck, WarningCircle, Clock, Brain, Cpu, Plugs, Shield, Database } from "@phosphor-icons/react";
 import { MapContainer, Marker, Popup, TileLayer, Circle } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
+import { ResponsiveContainer, AreaChart, Area, CartesianGrid, XAxis, YAxis, Tooltip as RechartsTooltip, PieChart, Pie, Cell } from "recharts";
 import type {
   DashboardLovableViewModel,
   DashboardMapScope,
   DashboardMapRow,
 } from "@/adapters/lovable/dashboardAdapter";
+import type { AnalyticsLovableViewModel } from "@/adapters/lovable/analyticsAdapter";
 
 const BASE_CENTER: [number, number] = [-14.2, -51.9];
 
@@ -38,8 +40,15 @@ function healthClass(hasRows: boolean) {
   return hasRows ? "bg-success/15 text-success" : "bg-warning/15 text-warning";
 }
 
+const tooltipStyle = {
+  backgroundColor: "hsl(var(--card))",
+  border: "1px solid hsl(var(--border))",
+  borderRadius: "8px",
+};
+
 export interface DashboardViewProps {
   viewModel: DashboardLovableViewModel;
+  analyticsViewModel: AnalyticsLovableViewModel;
   activeTab: DashboardLovableViewModel["tabs"][number]["id"];
   activeMapScope: DashboardMapScope;
   mapRows: DashboardMapRow[];
@@ -51,6 +60,7 @@ export interface DashboardViewProps {
 
 export function DashboardView({
   viewModel,
+  analyticsViewModel,
   activeTab,
   activeMapScope,
   mapRows,
@@ -83,24 +93,166 @@ export function DashboardView({
 
       {activeTab === "overview" && (
         <div className="space-y-6 animate-in fade-in-0 duration-300">
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
-            {viewModel.overviewCards.map((card) => (
-              <Card key={card.label} className="metric-card rounded-2xl border-border/70 bg-card/85">
-                <CardContent className="space-y-2 p-5">
-                  <div className="flex items-center justify-between gap-4">
-                    <div>
-                      <p className="text-[11px] uppercase tracking-wide text-muted-foreground">{card.label}</p>
-                      <h3 className="mt-2 font-display text-2xl font-bold">{card.value}</h3>
-                    </div>
-                    {card.badgeLabel ? (
-                      <Badge variant="secondary" className={`rounded-full border px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide ${toneClasses(card.tone)}`}>
-                        {card.badgeLabel}
-                      </Badge>
-                    ) : null}
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
+          {/* Linha 1: KPIs principais */}
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-5">
+            <Card className="metric-card rounded-2xl border-border/70 bg-card/85">
+              <CardContent className="space-y-2 p-5">
+                <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Conversas Ativas</p>
+                <h3 className="font-display text-2xl font-bold">{analyticsViewModel.kpis[1]?.value || "0"}</h3>
+                <span className="text-[10px] text-muted-foreground">Fila de interações em tempo real</span>
+              </CardContent>
+            </Card>
+            <Card className="metric-card rounded-2xl border-border/70 bg-card/85">
+              <CardContent className="space-y-2 p-5">
+                <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Leads Totais</p>
+                <h3 className="font-display text-2xl font-bold">{analyticsViewModel.kpis[3]?.value || "0"}</h3>
+                <span className="text-[10px] text-muted-foreground">Base sincronizada no CRM</span>
+              </CardContent>
+            </Card>
+            <Card className="metric-card rounded-2xl border-border/70 bg-card/85">
+              <CardContent className="space-y-2 p-5">
+                <div className="flex items-center justify-between">
+                  <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Runtime Status</p>
+                  <Badge variant="secondary" className={`rounded-full border px-2 py-0.5 text-[9px] font-semibold uppercase tracking-wide ${toneClasses(viewModel.overviewCards[1].tone)}`}>
+                    {viewModel.overviewCards[1].badgeLabel}
+                  </Badge>
+                </div>
+                <h3 className="font-display text-2xl font-bold">{viewModel.overviewCards[1].value}</h3>
+              </CardContent>
+            </Card>
+            <Card className="metric-card rounded-2xl border-border/70 bg-card/85">
+              <CardContent className="space-y-2 p-5">
+                <div className="flex items-center justify-between">
+                  <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Websocket</p>
+                  <Badge variant="secondary" className={`rounded-full border px-2 py-0.5 text-[9px] font-semibold uppercase tracking-wide ${toneClasses(viewModel.overviewCards[2].tone)}`}>
+                    {viewModel.overviewCards[2].badgeLabel}
+                  </Badge>
+                </div>
+                <h3 className="font-display text-2xl font-bold">{viewModel.overviewCards[2].value} conexão</h3>
+              </CardContent>
+            </Card>
+            <Card className="metric-card rounded-2xl border-border/70 bg-card/85">
+              <CardContent className="space-y-2 p-5">
+                <p className="text-[11px] uppercase tracking-wide text-muted-foreground">IA Response Rate</p>
+                <h3 className="font-display text-2xl font-bold">{analyticsViewModel.kpis[2]?.value || "0"}</h3>
+                <span className="text-[10px] text-success font-semibold">Respostas automáticas hoje</span>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Linha 2: Gráficos */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <Card className="lg:col-span-2 glass-card rounded-2xl border-border/70 bg-card/85">
+              <CardHeader className="py-4">
+                <CardTitle className="text-xs font-bold uppercase tracking-widest flex items-center gap-2 text-muted-foreground">
+                  <Clock weight="bold" className="h-4 w-4 text-primary" /> Fluxo de Mensagens por Hora
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="h-[260px] p-4">
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart data={analyticsViewModel.chartData}>
+                    <defs>
+                      <linearGradient id="colorMsgs" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.3} />
+                        <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0} />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" />
+                    <XAxis dataKey="name" stroke="hsl(var(--muted-foreground))" fontSize={10} axisLine={false} tickLine={false} />
+                    <YAxis stroke="hsl(var(--muted-foreground))" fontSize={10} axisLine={false} tickLine={false} />
+                    <RechartsTooltip contentStyle={tooltipStyle} itemStyle={{ fontSize: "12px" }} />
+                    <Area type="monotone" dataKey="msgs" name="Mensagens" stroke="hsl(var(--primary))" fillOpacity={1} fill="url(#colorMsgs)" strokeWidth={2} />
+                    <Area type="monotone" dataKey="ai" name="Respostas IA" stroke="#0ea5e9" fill="transparent" strokeWidth={2} strokeDasharray="5 5" />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </CardContent>
+            </Card>
+
+            <Card className="glass-card rounded-2xl border-border/70 bg-card/85">
+              <CardHeader className="py-4">
+                <CardTitle className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Temperatura da Base</CardTitle>
+              </CardHeader>
+              <CardContent className="h-[260px] flex flex-col items-center justify-center relative p-4">
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie data={analyticsViewModel.tempDistribution} innerRadius={55} outerRadius={75} paddingAngle={5} dataKey="value">
+                      {analyticsViewModel.tempDistribution.map((entry: any, index: number) => (
+                        <Cell key={`cell-${index}`} fill={entry.color} />
+                      ))}
+                    </Pie>
+                    <RechartsTooltip />
+                  </PieChart>
+                </ResponsiveContainer>
+                <div className="absolute flex flex-col items-center justify-center">
+                  <span className="text-2xl font-bold font-display">{analyticsViewModel.totalLeadsLabel}</span>
+                  <span className="text-[9px] text-muted-foreground uppercase font-bold">Leads</span>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Linha 3: Cards operacionais */}
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-5">
+            <Card className="glass-card rounded-2xl border-border/70 bg-card/85">
+              <CardContent className="p-4 flex items-center gap-3">
+                <div className="h-9 w-9 rounded-xl bg-primary/10 flex items-center justify-center text-primary">
+                  <Plugs weight="fill" className="h-4 w-4" />
+                </div>
+                <div>
+                  <p className="text-[10px] font-bold uppercase text-muted-foreground">Camada IA</p>
+                  <p className="text-xs font-bold text-foreground">Operando Ativa</p>
+                </div>
+              </CardContent>
+            </Card>
+            <Card className="glass-card rounded-2xl border-border/70 bg-card/85">
+              <CardContent className="p-4 flex items-center gap-3">
+                <div className="h-9 w-9 rounded-xl bg-warning/10 flex items-center justify-center text-warning">
+                  <Shield weight="fill" className="h-4 w-4" />
+                </div>
+                <div>
+                  <p className="text-[10px] font-bold uppercase text-muted-foreground">Fallback</p>
+                  <p className="text-xs font-bold text-foreground">Habilitado</p>
+                </div>
+              </CardContent>
+            </Card>
+            <Card className="glass-card rounded-2xl border-border/70 bg-card/85">
+              <CardContent className="p-4 flex items-center gap-3">
+                <div className="h-9 w-9 rounded-xl bg-info/10 flex items-center justify-center text-info">
+                  <Brain weight="fill" className="h-4 w-4" />
+                </div>
+                <div>
+                  <p className="text-[10px] font-bold uppercase text-muted-foreground">Memória Ativa</p>
+                  <p className="text-xs font-bold text-foreground">Consolidando Fatos</p>
+                </div>
+              </CardContent>
+            </Card>
+            <Card className="glass-card rounded-2xl border-border/70 bg-card/85">
+              <CardContent className="p-4 flex items-center gap-3">
+                <div className="h-9 w-9 rounded-xl bg-success/10 flex items-center justify-center text-success">
+                  <Cpu weight="fill" className="h-4 w-4" />
+                </div>
+                <div>
+                  <p className="text-[10px] font-bold uppercase text-muted-foreground">Tokens Hoje</p>
+                  <p className="text-xs font-bold text-foreground">
+                    {(() => {
+                      const msgCount = Number(analyticsViewModel.kpis[0]?.value.replace(/\D/g, "")) || 0;
+                      return (msgCount * 320).toLocaleString("pt-BR");
+                    })()}
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+            <Card className="glass-card rounded-2xl border-border/70 bg-card/85">
+              <CardContent className="p-4 flex items-center gap-3">
+                <div className="h-9 w-9 rounded-xl bg-purple-500/10 flex items-center justify-center text-purple-400">
+                  <Database weight="fill" className="h-4 w-4" />
+                </div>
+                <div>
+                  <p className="text-[10px] font-bold uppercase text-muted-foreground">Sessões Online</p>
+                  <p className="text-xs font-bold text-foreground">{viewModel.overviewCards[3].badgeLabel}</p>
+                </div>
+              </CardContent>
+            </Card>
           </div>
         </div>
       )}

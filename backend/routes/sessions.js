@@ -22,11 +22,16 @@ router.post('/sessions/logout', sessionsController.logout);
 router.post('/sessions/restart', sessionsController.restart);
 router.post('/sessions/:id/reconnect', sessionsController.reconnect);
 router.post('/session/:sessionId/reconnect', sessionsController.reconnect);
+router.post('/sessions/:id/reset-error', sessionsController.resetError);
+router.post('/session/:sessionId/reset-error', sessionsController.resetError);
 router.post('/sessions/disconnect-system', sessionsController.disconnectSystem);
 router.post('/sessions/connect-system', sessionsController.connectSystem);
 router.post('/session/:sessionId/disconnect-system', sessionsController.disconnectSystem);
 router.post('/session/:sessionId/connect-system', sessionsController.connectSystem);
 router.delete('/session/:sessionId', sessionsController.remove);
 router.delete('/sessions/:id', sessionsController.remove);
+router.delete('/session/:sessionId/purge', sessionsController.purge);
+router.delete('/sessions/:id/purge', sessionsController.purge);
+router.post('/sessions/reconcile', sessionsController.reconcile);
 
 module.exports = router;

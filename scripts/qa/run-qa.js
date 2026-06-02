@@ -162,12 +162,30 @@ function checkWhatsAppSessions() {
   }
 }
 
+// 6. Executar crawler E2E Playwright (Mapeamento e Auditoria Completa)
+function checkE2EDiscovery() {
+  console.log("➡️ Executando crawler E2E Playwright (Mapeamento e Auditoria)...");
+  try {
+    execSync("npx playwright test tests/ui/discovery-crawler.spec.ts", {
+      cwd: path.join(root, "frontend-official"),
+      stdio: "inherit"
+    });
+    report.e2eDiscoverySuccess = true;
+    console.log("✅ Mapeamento E2E concluído com sucesso.");
+  } catch (err) {
+    report.e2eDiscoverySuccess = false;
+    report.failures.push(`Falha no crawler E2E Playwright: ${err.message}`);
+    console.error("❌ Falha no crawler E2E.");
+  }
+}
+
 async function run() {
   await checkFrontend();
   await checkWebSocketProbe();
   checkWhatsAppSessions();
   checkBuild();
   checkTests();
+  checkE2EDiscovery();
 
   // Escrever relatório final em JSON
   const reportPath = path.join(root, "qa-report.json");
@@ -185,6 +203,7 @@ async function run() {
 * **WebSocket Handshake (4025):** ${report.websocketRouteOk ? "✅ ONLINE" : "❌ FALHA"}
 * **Build de Produção:** ${report.buildSuccess ? "✅ COMPILADO" : "❌ FALHA DE COMPILAÇÃO"}
 * **Testes Unitários:** ${report.testsSuccess ? "✅ PASSARAM" : "❌ FALHAS DETECTADAS"}
+* **Auditoria E2E (Crawler):** ${report.e2eDiscoverySuccess ? "✅ CONCLUÍDO (Veja [discovery-report.md](file:///c:/projetos/ZAPAI-FINAL/tests/discovery-report.md))" : "❌ FALHA NA EXECUÇÃO"}
 
 ## 🗺️ Homologação de Páginas / Recursos
 ${Object.entries(report.pagesStatus).map(([page, status]) => `- **${page}:** ${status === "Homologado" ? "🟢 Homologado" : status.startsWith("Parcial") ? "🟡 Parcial" : "🔴 Falha"}`).join("\n")}
@@ -202,7 +221,7 @@ Relatório gerado automaticamente pela suíte de QA oficial do Zapflow.
   console.log(`📝 Relatório legível salvo em: ${mdPath}\n`);
 
   console.log("──────────────────────────────────────────────────");
-  if (report.failures.length === 0 && report.buildSuccess && report.testsSuccess) {
+  if (report.failures.length === 0 && report.buildSuccess && report.testsSuccess && report.e2eDiscoverySuccess) {
     console.log("🟢 SUÍTE DE QA CONCLUÍDA COM SUCESSO! SISTEMA ESTÁVEL.");
   } else {
     console.warn(`🔴 SUÍTE DE QA CONCLUÍDA COM ${report.failures.length} ALERTA(S)/FALHA(S).`);

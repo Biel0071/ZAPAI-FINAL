@@ -1,0 +1,122 @@
+[
+  {
+    "path": "/dashboard",
+    "title": "ZAPFLOW AI — Plataforma Inteligente de Atendimento",
+    "status": "ok",
+    "redirectedTo": null,
+    "error": null,
+    "loadTimeMs": 1093
+  },
+  {
+    "path": "/inbox",
+    "title": "ZAPFLOW AI — Plataforma Inteligente de Atendimento",
+    "status": "ok",
+    "redirectedTo": null,
+    "error": null,
+    "loadTimeMs": 1271
+  },
+  {
+    "path": "/connections",
+    "title": "ZAPFLOW AI — Plataforma Inteligente de Atendimento",
+    "status": "ok",
+    "redirectedTo": null,
+    "error": null,
+    "loadTimeMs": 1230
+  },
+  {
+    "path": "/contacts",
+    "title": "ZAPFLOW AI — Plataforma Inteligente de Atendimento",
+    "status": "ok",
+    "redirectedTo": null,
+    "error": null,
+    "loadTimeMs": 1653
+  },
+  {
+    "path": "/flows",
+    "title": "ZAPFLOW AI — Plataforma Inteligente de Atendimento",
+    "status": "ok",
+    "redirectedTo": null,
+    "error": null,
+    "loadTimeMs": 1224
+  },
+  {
+    "path": "/ai",
+    "title": "ZAPFLOW AI — Plataforma Inteligente de Atendimento",
+    "status": "ok",
+    "redirectedTo": null,
+    "error": null,
+    "loadTimeMs": 1358
+  },
+  {
+    "path": "/analytics",
+    "title": "ZAPFLOW AI — Plataforma Inteligente de Atendimento",
+    "status": "ok",
+    "redirectedTo": null,
+    "error": null,
+    "loadTimeMs": 1228
+  },
+  {
+    "path": "/campaigns",
+    "title": "ZAPFLOW AI — Plataforma Inteligente de Atendimento",
+    "status": "ok",
+    "redirectedTo": null,
+    "error": null,
+    "loadTimeMs": 1220
+  },
+  {
+    "path": "/memory",
+    "title": "ZAPFLOW AI — Plataforma Inteligente de Atendimento",
+    "status": "ok",
+    "redirectedTo": null,
+    "error": null,
+    "loadTimeMs": 1174
+  },
+  {
+    "path": "/users",
+    "title": "ZAPFLOW AI — Plataforma Inteligente de Atendimento",
+    "status": "ok",
+    "redirectedTo": null,
+    "error": null,
+    "loadTimeMs": 1219
+  },
+  {
+    "path": "/nodes",
+    "title": "ZAPFLOW AI — Plataforma Inteligente de Atendimento",
+    "status": "ok",
+    "redirectedTo": null,
+    "error": null,
+    "loadTimeMs": 1342
+  },
+  {
+    "path": "/deployments",
+    "title": "ZAPFLOW AI — Plataforma Inteligente de Atendimento",
+    "status": "ok",
+    "redirectedTo": null,
+    "error": null,
+    "loadTimeMs": 1217
+  },
+  {
+    "path": "/logs",
+    "title": "ZAPFLOW AI — Plataforma Inteligente de Atendimento",
+    "status": "ok",
+    "redirectedTo": null,
+    "error": null,
+    "loadTimeMs": 1100
+  },
+  {
+    "path": "/diagnostics",
+    "title": "ZAPFLOW AI — Plataforma Inteligente de Atendimento",
+    "status": "ok",
+    "redirectedTo": null,
+    "error": null,
+    "loadTimeMs": 1394
+  },
+  {
+    "path": "/settings",
+    "title": "ZAPFLOW AI — Plataforma Inteligente de Atendimento",
+    "status": "ok",
+    "redirectedTo": null,
+    "error": null,
+    "loadTimeMs": 1206
+  }
+]

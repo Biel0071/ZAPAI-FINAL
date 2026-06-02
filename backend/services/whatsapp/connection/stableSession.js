@@ -42,7 +42,7 @@ const {
   normalizeSessionName,
 } = require('../shared/identifiers');
 const { toUnixMillis } = require('../shared/time');
-const { getMediaDescriptor, unwrapMessageContent } = require('../inbound/parser');
+const { extractMessageText, getMediaDescriptor, unwrapMessageContent } = require('../inbound/parser');
 const { buildInboundDebugPayload } = require('../inbound/debug');
 const {
   buildRealtimeDeduplicationKey,
@@ -91,6 +91,8 @@ const contactsEngine = require('../../contactsEngine');
 const runtimeEngine = require('../../runtimeEngine');
 const sessionRegistry = require('../../sessionRegistry');
 const messageAckPipeline = require('../../messageAckPipeline');
+const messageRepository = require('../../../repositories/messageRepository');
+const conversationRepository = require('../../../repositories/conversationRepository');
 
 const SESSIONS_DIRECTORY = path.join(__dirname, '..', '..', '..', 'sessions');
 const DEFAULT_RECONNECT_DELAY_MS = 3000;
@@ -506,9 +508,17 @@ async function createStableSession({
   await safeCreateSessionRecord(normalizedSessionName, session.sessionName);
   emitSessionStatus(io, session);
 
-  sock.ev.on('creds.update', saveCreds);
+  sock.ev.on('creds.update', () => {
+    session.lastPingAt = Date.now();
+    saveCreds();
+  });
 
   sock.ev.on('connection.update', async (update) => {
+    session.lastPingAt = Date.now();
+    if (session.isDisposed || session.isClosing) {
+      console.log(`[WHATSAPP] connection.update ignored: session is disposed or closing (${normalizedSessionName})`);
+      return;
+    }
     const { connection, lastDisconnect, qr } = update;
     const qrDataUrl = qr ? await toQrDataUrl(qr) : null;
     const connectionChanged = connection && connection !== session.lastConnectionState;
@@ -625,6 +635,21 @@ async function createStableSession({
       session.reconnecting = false;
       session.reconnectRequestCount = 0;
       session.reconnectRequestPending = false;
+      session.connectedAt = Date.now();
+      session.lastPingAt = Date.now();
+      session.whatsAppName = sock.user?.name || null;
+      session.hasConflict = false;
+      session.isBanned = false;
+      session.lastDisconnectCode = null;
+      session.lastDisconnectReason = null;
+      try {
+        const jid = sock.user.id.split(':')[0] + '@s.whatsapp.net';
+        sock.profilePictureUrl(jid, 'image')
+          .then((url) => {
+            session.profilePictureUrl = url;
+          })
+          .catch(() => {});
+      } catch (e) {}
       if (session.reconnectCooldownTimer) {
         clearTimeout(session.reconnectCooldownTimer);
         session.reconnectCooldownTimer = null;
@@ -705,10 +730,16 @@ async function createStableSession({
     }
 
     if (connection === 'close') {
-      sessionStateService.setWhatsappSession(sessionStateService.DEFAULT_TENANT, {
-        connected: false,
-        status: 'DISCONNECTED',
-      });
+      // Only set global tenant status to DISCONNECTED if no other session is connected
+      const anyConnected = Object.values(activeSessions).some(
+        (s) => s && s.sessionName !== session.sessionName && (s.status === 'connected' || s.connected === true)
+      );
+      if (!anyConnected) {
+        sessionStateService.setWhatsappSession(sessionStateService.DEFAULT_TENANT, {
+          connected: false,
+          status: 'DISCONNECTED',
+        });
+      }
       if (session.heartbeatTimer) {
         clearInterval(session.heartbeatTimer);
         session.heartbeatTimer = null;
@@ -731,6 +762,15 @@ async function createStableSession({
       const closeCode = getConnectionCloseCode(lastDisconnect);
       const terminalDisconnect = isTerminalDisconnect(lastDisconnect);
       let willReconnect = !session.isClosing && !session.isDisposed && shouldReconnect(lastDisconnect);
+
+      session.lastDisconnectCode = closeCode;
+      session.lastDisconnectReason = lastDisconnect?.error?.message || lastDisconnect?.error || null;
+      if (closeCode === 409) {
+        session.hasConflict = true;
+      }
+      if (closeCode === 401 || closeCode === 403) {
+        session.isBanned = true;
+      }
 
       if (willReconnect) {
         if (session.reconnecting) {
@@ -897,6 +937,8 @@ async function createStableSession({
   });
 
   sock.ev.on('messages.upsert', async ({ messages, type }) => {
+    session.lastPingAt = Date.now();
+    if (session.isDisposed || session.isClosing) return;
     const batchCount = Array.isArray(messages) ? messages.length : 0;
 
     if (batchCount > 0) {
@@ -954,6 +996,27 @@ async function createStableSession({
         `[WHATSAPP] message.received session=${normalizedSessionName} chat=${remoteJid} id=${messageId || 'n/a'} fromMe=${fromMe}`
       );
 
+      try {
+        const text = extractMessageText(incomingMessage);
+        const { mediaType } = getMediaDescriptor(incomingMessage.message);
+        let desc = text || '';
+        if (mediaType) {
+          const typeLabel = mediaType === 'audio' ? 'Áudio' : mediaType === 'image' ? 'Imagem' : mediaType === 'video' ? 'Vídeo' : 'Arquivo';
+          desc = `[${typeLabel}]${text ? ' ' + text : ''}`;
+        }
+        if (!desc.trim()) {
+          desc = '[Mensagem]';
+        }
+        const cleanedPhone = String(remoteJid).split('@')[0];
+        if (fromMe) {
+          pushConnectionLog(session, 'info', 'message_sent', `Mensagem enviada para ${cleanedPhone}: ${desc.slice(0, 80)}`);
+        } else {
+          pushConnectionLog(session, 'info', 'message_received', `Mensagem recebida de ${incomingMessage.pushName || cleanedPhone}: ${desc.slice(0, 80)}`);
+        }
+      } catch (logErr) {
+        console.error('[WHATSAPP] Failed to push message connection log:', logErr);
+      }
+
       await enterpriseQueueService.enqueue(
         queueName,
         {
@@ -974,14 +1037,76 @@ async function createStableSession({
       let result = null;
 
       if (fromMe) {
-        try {
-          result = await persistRealtimeMessage({
-            incomingMessage,
-            sessionId: normalizedSessionName,
-          });
-        } catch (error) {
-          // eslint-disable-next-line no-console
-          console.error('[WHATSAPP] outbound realtime persistence failed:', error?.message || error);
+        // This is an outbound message sent from Baileys
+        // Transition state to SENT
+        const existingAck = messageAckPipeline.getAckState(messageId);
+        let dbId = existingAck?.dbMessageId;
+
+        if (!existingAck || !dbId) {
+          // If not in memory mapping (e.g. sent from another device), save to DB
+          try {
+            result = await persistRealtimeMessage({
+              incomingMessage,
+              sessionId: normalizedSessionName,
+            });
+            if (result?.message?.id) {
+              dbId = result.message.id;
+              messageAckPipeline.registerDbMapping(messageId, dbId);
+            }
+          } catch (error) {
+            console.error('[WHATSAPP] outbound realtime persistence failed:', error?.message || error);
+          }
+        } else {
+          // If it IS in the memory mapping (sent from our API), result is null.
+          // BUT we can load the message from the repository so we can populate `result`
+          // and let formatInboundSavedMessage create a correct savedMessage object!
+          try {
+            const dbMessage = await messageRepository.findById(dbId);
+            if (dbMessage) {
+              const dbConversation = await conversationRepository.getConversationById(dbMessage.conversationId);
+              result = {
+                message: dbMessage,
+                conversation: dbConversation
+              };
+            }
+          } catch (err) {
+            console.error('[WHATSAPP] failed to retrieve existing message/conversation:', err?.message || err);
+          }
+        }
+
+        // Transition the state to SENT and save/emit
+        const ackEntry = messageAckPipeline.transitionAck(messageId, messageAckPipeline.ACK_STATES.SENT, {
+          chatId: remoteJid,
+          sessionId: normalizedSessionName,
+        });
+
+        // Emit the real-time event to socket
+        if (ackEntry) {
+          messageAckPipeline.emitAckUpdate(io || global.io, ackEntry);
+        }
+
+        // Also emit literal 'message:sent' as requested
+        (io || global.io)?.emit('message:sent', {
+          id: dbId || messageId,
+          chatId: remoteJid,
+          status: 'sent',
+        });
+
+        // If we still don't have a result (e.g. DB fetch failed), fallback mock to prevent skipping realtime store/events
+        if (!result) {
+          result = {
+            message: {
+              id: dbId || messageId,
+              fromMe: true,
+              from: 'agent',
+              status: 'sent',
+              content: inboundDebugPayload.text,
+              text: inboundDebugPayload.text,
+              phone: inboundDebugPayload.phone,
+              timestamp: inboundDebugPayload.timestamp,
+              createdAt: new Date(inboundDebugPayload.timestamp).toISOString(),
+            }
+          };
         }
       } else {
         try {
@@ -1130,6 +1255,8 @@ async function createStableSession({
   });
 
   sock.ev.on('messages.update', async (updates) => {
+    session.lastPingAt = Date.now();
+    if (session.isDisposed || session.isClosing) return;
     await emitMessageUpdates(io, updates, normalizedSessionName);
 
     // Phase 5: Track ACK state transitions
@@ -1152,6 +1279,34 @@ async function createStableSession({
     });
   });
 
+  sock.ev.on('message-receipt.update', async (receipts) => {
+    session.lastPingAt = Date.now();
+    if (session.isDisposed || session.isClosing) return;
+    for (const receipt of receipts || []) {
+      const messageId = receipt?.key?.id;
+      if (!messageId) continue;
+
+      const remoteJid = receipt?.key?.remoteJid;
+      // Map Baileys receipt updates to ack status
+      let mappedStatus = null;
+      if (receipt.receipt?.readTimestamp) {
+        mappedStatus = messageAckPipeline.ACK_STATES.READ;
+      } else if (receipt.receipt?.receiptTimestamp) {
+        mappedStatus = messageAckPipeline.ACK_STATES.DEVICE_ACK;
+      }
+
+      if (mappedStatus) {
+        const ackEntry = messageAckPipeline.transitionAck(messageId, mappedStatus, {
+          chatId: remoteJid,
+          sessionId: normalizedSessionName,
+        });
+        if (ackEntry) {
+          messageAckPipeline.emitAckUpdate(io || global.io, ackEntry);
+        }
+      }
+    }
+  });
+
   // ── Chats sync (fired after initial connection) ─────────────────────────
   // Baileys emits 'chats.set' when the initial chat list arrives after
   // authentication. We capture this to ensure:
@@ -1161,6 +1316,8 @@ async function createStableSession({
   // Without (2), restarting PM2 empties the Inbox because GET /api/conversations
   // reads from the DB — not from the in-memory store.
   sock.ev.on('chats.set', ({ chats: chatList = [] }) => {
+    session.lastPingAt = Date.now();
+    if (session.isDisposed || session.isClosing) return;
     if (!Array.isArray(chatList) || chatList.length === 0) {
       return;
     }
@@ -1259,6 +1416,8 @@ async function createStableSession({
 
   // ── Chats update (name/archive changes) ─────────────────────────────────
   sock.ev.on('chats.update', (updates) => {
+    session.lastPingAt = Date.now();
+    if (session.isDisposed || session.isClosing) return;
     const store = ensureRealtimeStore(session);
 
     for (const update of updates || []) {
@@ -1278,6 +1437,8 @@ async function createStableSession({
 
   // ── Contacts sync ──────────────────────────────────────────────────────
   sock.ev.on('contacts.update', (updates) => {
+    session.lastPingAt = Date.now();
+    if (session.isDisposed || session.isClosing) return;
     const store = ensureRealtimeStore(session);
     if (!store.contacts) {
       store.contacts = Object.create(null);

@@ -91,6 +91,10 @@ function toSystemPathFromPublicPath(value = '') {
     return path.join(UPLOADS_DIRECTORY, normalized.replace(/^\/uploads\//, ''));
   }
 
+  if (normalized.startsWith('/upload/')) {
+    return path.join(UPLOAD_DIRECTORY, normalized.replace(/^\/upload\//, ''));
+  }
+
   if (normalized.startsWith('/media/')) {
     return path.join(PROJECT_ROOT, normalized.replace(/^\//, ''));
   }

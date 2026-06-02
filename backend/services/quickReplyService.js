@@ -1,5 +1,6 @@
 const fs = require('fs/promises');
 const path = require('path');
+const crypto = require('crypto');
 
 const DATA_FILE = path.join(__dirname, '..', 'data', 'quick_replies.json');
 
@@ -34,13 +35,88 @@ function normalizeCategory(value) {
   return String(value || 'general').trim().toLowerCase();
 }
 
+async function processBase64Items(items) {
+  if (!Array.isArray(items)) return [];
+
+  const processed = [];
+  const uploadDir = path.join(__dirname, '..', 'upload', 'quick-replies');
+  await fs.mkdir(uploadDir, { recursive: true });
+
+  for (const item of items) {
+    if (!item || typeof item !== 'object') continue;
+
+    const { type, value, filename } = item;
+
+    // Check if value is base64 string
+    if (type !== 'text' && typeof value === 'string' && value.startsWith('data:')) {
+      const match = value.match(/^data:([^;]+);base64,(.+)$/);
+      if (match) {
+        const mimeType = match[1];
+        const base64Data = match[2];
+        const buffer = Buffer.from(base64Data, 'base64');
+
+        // Map mime type to extension
+        const mimeMap = {
+          'image/png': 'png',
+          'image/jpeg': 'jpg',
+          'image/gif': 'gif',
+          'image/webp': 'webp',
+          'video/mp4': 'mp4',
+          'audio/mpeg': 'mp3',
+          'audio/mp3': 'mp3',
+          'audio/ogg': 'ogg',
+          'audio/wav': 'wav',
+          'audio/webm': 'webm',
+          'audio/opus': 'opus',
+          'application/pdf': 'pdf',
+        };
+        const ext = mimeMap[mimeType] || mimeType.split('/')[1] || 'bin';
+        const uuid = crypto.randomUUID();
+        const baseName = filename ? path.parse(filename).name.replace(/[^a-zA-Z0-9_-]/g, '') : 'media';
+        const savedFileName = `${baseName}_${uuid}.${ext}`;
+        const filePath = path.join(uploadDir, savedFileName);
+
+        await fs.writeFile(filePath, buffer);
+
+        processed.push({
+          type,
+          value: `/upload/quick-replies/${savedFileName}`,
+          filename: filename || savedFileName,
+        });
+        continue;
+      }
+    }
+
+    processed.push({ type, value, filename });
+  }
+
+  return processed;
+}
+
 function normalizeQuickReply(payload = {}) {
+  let items = [];
+  if (Array.isArray(payload.items)) {
+    items = payload.items.map((item) => ({
+      type: String(item.type || 'text').trim().toLowerCase(),
+      value: String(item.value || '').trim(),
+      filename: item.filename ? String(item.filename).trim() : undefined,
+    }));
+  } else {
+    // backward compatibility
+    items = [{
+      type: 'text',
+      value: String(payload.content || '').trim(),
+    }];
+  }
+
   return {
     id: String(payload.id || `qr-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`).trim(),
     title: String(payload.title || '').trim(),
-    content: String(payload.content || '').trim(),
+    content: items.filter(i => i.type === 'text').map(i => i.value).join('\n') || String(payload.content || '').trim(),
+    items,
     category: normalizeCategory(payload.category),
     tags: Array.isArray(payload.tags) ? payload.tags.map((item) => String(item || '').trim()).filter(Boolean) : [],
+    favorite: Boolean(payload.favorite),
     updatedAt: new Date().toISOString(),
     createdAt: payload.createdAt || new Date().toISOString(),
   };
@@ -51,8 +127,10 @@ function assertPayload(payload = {}) {
     throw new Error('title is required.');
   }
 
-  if (!String(payload.content || '').trim()) {
-    throw new Error('content is required.');
+  const hasContent = String(payload.content || '').trim();
+  const hasItems = Array.isArray(payload.items) && payload.items.length > 0;
+  if (!hasContent && !hasItems) {
+    throw new Error('content or items is required.');
   }
 }
 
@@ -71,10 +149,17 @@ async function listQuickReplies(filters = {}) {
       const haystack = [item.title, item.content, item.category, ...(item.tags || [])].join(' ').toLowerCase();
       return haystack.includes(term);
     })
-    .sort((a, b) => String(b.updatedAt).localeCompare(String(a.updatedAt)));
+    .sort((a, b) => {
+      if (a.favorite && !b.favorite) return -1;
+      if (!a.favorite && b.favorite) return 1;
+      return String(b.updatedAt).localeCompare(String(a.updatedAt));
+    });
 }
 
 async function createQuickReply(payload = {}) {
+  if (payload.items) {
+    payload.items = await processBase64Items(payload.items);
+  }
   assertPayload(payload);
   const all = await readQuickReplies();
   const next = normalizeQuickReply(payload);
@@ -89,6 +174,10 @@ async function updateQuickReply(id, payload = {}) {
 
   if (index < 0) {
     return null;
+  }
+
+  if (payload.items) {
+    payload.items = await processBase64Items(payload.items);
   }
 
   const merged = {

@@ -1,8 +1,8 @@
 {
-  "timestamp": "2026-05-26T13:34:33.627Z",
+  "timestamp": "2026-05-29T19:54:09.422Z",
   "backendHealth": {
     "success": true,
-    "timestamp": "2026-05-26T13:34:34.027Z",
+    "timestamp": "2026-05-29T19:54:09.926Z",
     "summary": {
       "total": 16,
       "passed": 13,
@@ -22,7 +22,7 @@
     "database": {
       "postgres": {
         "status": "ok",
-        "detail": "SELECT 1 in 94ms | server_time=Tue May 26 2026 10:34:33 GMT-0300 (Horário Padrão de Brasília)"
+        "detail": "SELECT 1 in 113ms | server_time=Fri May 29 2026 16:54:09 GMT-0300 (Horário Padrão de Brasília)"
       },
       "migrations": {
         "status": "ok",
@@ -32,7 +32,7 @@
     "memory": {
       "heap": {
         "status": "ok",
-        "detail": "heap=7MB rss=50MB"
+        "detail": "heap=7MB rss=49MB"
       },
       "system": {
         "status": "ok",
@@ -50,7 +50,7 @@
     "sessions": {
       "baileys": {
         "status": "warn",
-        "detail": "8 session dirs but 0 with valid creds.json — scan QR to pair"
+        "detail": "1 session dirs but 0 with valid creds.json — scan QR to pair"
       }
     },
     "websocket": {
@@ -63,98 +63,98 @@
       {
         "name": "postgres",
         "status": "ok",
-        "detail": "SELECT 1 in 94ms | server_time=Tue May 26 2026 10:34:33 GMT-0300 (Horário Padrão de Brasília)",
-        "timestamp": "2026-05-26T13:34:33.883Z"
+        "detail": "SELECT 1 in 113ms | server_time=Fri May 29 2026 16:54:09 GMT-0300 (Horário Padrão de Brasília)",
+        "timestamp": "2026-05-29T19:54:09.703Z"
       },
       {
         "name": "postgres_tables",
         "status": "ok",
         "detail": "37 public tables",
-        "timestamp": "2026-05-26T13:34:33.898Z"
+        "timestamp": "2026-05-29T19:54:09.723Z"
       },
       {
         "name": "redis",
         "status": "warn",
         "detail": "REDIS_URL not configured — Redis disabled",
-        "timestamp": "2026-05-26T13:34:33.899Z"
+        "timestamp": "2026-05-29T19:54:09.723Z"
       },
       {
         "name": "sessions_dir",
         "status": "ok",
         "detail": "C:\\projetos\\ZAPAI-FINAL\\backend\\sessions",
-        "timestamp": "2026-05-26T13:34:33.900Z"
+        "timestamp": "2026-05-29T19:54:09.725Z"
       },
       {
         "name": "logs_dir",
         "status": "ok",
         "detail": "C:\\projetos\\ZAPAI-FINAL\\backend\\logs",
-        "timestamp": "2026-05-26T13:34:33.900Z"
+        "timestamp": "2026-05-29T19:54:09.726Z"
       },
       {
         "name": "uploads_dir",
         "status": "ok",
         "detail": "C:\\projetos\\ZAPAI-FINAL\\backend\\uploads",
-        "timestamp": "2026-05-26T13:34:33.901Z"
+        "timestamp": "2026-05-29T19:54:09.727Z"
       },
       {
         "name": "disk_space",
         "status": "ok",
         "detail": "Windows Host — disk check skipped",
-        "timestamp": "2026-05-26T13:34:33.901Z"
+        "timestamp": "2026-05-29T19:54:09.727Z"
       },
       {
         "name": "memory_heap",
         "status": "ok",
-        "detail": "heap=7MB rss=50MB",
-        "timestamp": "2026-05-26T13:34:33.901Z"
+        "detail": "heap=7MB rss=49MB",
+        "timestamp": "2026-05-29T19:54:09.727Z"
       },
       {
         "name": "memory_system",
         "status": "ok",
         "detail": "Windows Host — system memory check skipped",
-        "timestamp": "2026-05-26T13:34:33.901Z"
+        "timestamp": "2026-05-29T19:54:09.727Z"
       },
       {
         "name": "cpu_usage",
         "status": "ok",
         "detail": "Windows Host — CPU check skipped",
-        "timestamp": "2026-05-26T13:34:33.901Z"
+        "timestamp": "2026-05-29T19:54:09.727Z"
       },
       {
         "name": "backend_http",
         "status": "ok",
-        "detail": "HTTP 200 in 16ms | has_system=true",
-        "timestamp": "2026-05-26T13:34:33.917Z"
+        "detail": "HTTP 200 in 37ms | has_system=true",
+        "timestamp": "2026-05-29T19:54:09.764Z"
       },
       {
         "name": "websocket_route",
         "status": "ok",
         "detail": "Socket.IO polling: HTTP 200",
-        "timestamp": "2026-05-26T13:34:33.919Z"
+        "timestamp": "2026-05-29T19:54:09.793Z"
       },
       {
         "name": "baileys_sessions",
         "status": "warn",
-        "detail": "8 session dirs but 0 with valid creds.json — scan QR to pair",
-        "timestamp": "2026-05-26T13:34:33.919Z"
+        "detail": "1 session dirs but 0 with valid creds.json — scan QR to pair",
+        "timestamp": "2026-05-29T19:54:09.794Z"
       },
       {
         "name": "pm2_process",
         "status": "warn",
         "detail": "PM2 not available or not running",
-        "timestamp": "2026-05-26T13:34:33.955Z"
+        "timestamp": "2026-05-29T19:54:09.829Z"
       },
       {
         "name": "nginx",
         "status": "ok",
         "detail": "Windows Host — nginx status check skipped",
-        "timestamp": "2026-05-26T13:34:33.956Z"
+        "timestamp": "2026-05-29T19:54:09.829Z"
       },
       {
         "name": "migrations",
         "status": "ok",
         "detail": "11 migrations applied",
-        "timestamp": "2026-05-26T13:34:34.026Z"
+        "timestamp": "2026-05-29T19:54:09.926Z"
       }
     ]
   },
@@ -164,42 +164,7 @@
   "testsSuccess": true,
   "whatsappSessions": [
     {
-      "id": "1010",
-      "hasAuth": false,
-      "status": "No credentials"
-    },
-    {
-      "id": "111",
-      "hasAuth": false,
-      "status": "No credentials"
-    },
-    {
       "id": "main",
-      "hasAuth": false,
-      "status": "No credentials"
-    },
-    {
-      "id": "qa",
-      "hasAuth": false,
-      "status": "No credentials"
-    },
-    {
-      "id": "qa_final_1774914031657",
-      "hasAuth": false,
-      "status": "No credentials"
-    },
-    {
-      "id": "qa_final_1774914047489",
-      "hasAuth": false,
-      "status": "No credentials"
-    },
-    {
-      "id": "qa_live_1774913435828",
-      "hasAuth": false,
-      "status": "No credentials"
-    },
-    {
-      "id": "t18274",
       "hasAuth": false,
       "status": "No credentials"
     }
@@ -214,5 +179,6 @@
     "Mapa": "Homologado",
     "Performance": "Homologado"
   },
-  "failures": []
+  "failures": [],
+  "e2eDiscoverySuccess": true
 }

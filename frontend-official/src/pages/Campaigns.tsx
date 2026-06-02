@@ -45,9 +45,9 @@ type CampaignAction = "save" | "launch" | "start" | "pause" | "resume" | "delete
 const STEP_LABELS = [
   "Público",
   "Mensagem",
-  "Mídia",
   "Delays",
   "Revisão",
+  "Lançar",
 ] as const;
 
 const DEFAULT_MESSAGES = [
@@ -130,12 +130,58 @@ export default function Campaigns() {
   const loadPageData = useCallback(async (options?: { silent?: boolean }) => {
     if (!options?.silent) setLoading(true);
     try {
-      const [campaignList, contactList] = await Promise.all([
+      const [campaignList, contactList, conversationsData] = await Promise.all([
         apiService.getCampaigns(),
         apiService.getContacts(true),
+        apiService.getConversations(true, { limit: 500 }).catch(() => []),
       ]);
       setCampaigns(Array.isArray(campaignList) ? campaignList : []);
-      setContacts(uniqueContacts(Array.isArray(contactList) ? contactList : []));
+
+      const conversationsByPhone = new Map<string, any>();
+      (Array.isArray(conversationsData) ? conversationsData : []).forEach((conversation) => {
+        const key = conversation.phone || conversation.id;
+        if (!key) return;
+        const existing = conversationsByPhone.get(key);
+        if (!existing || new Date(conversation.updatedAt).getTime() > new Date(existing.updatedAt).getTime()) {
+          conversationsByPhone.set(key, conversation);
+        }
+      });
+
+      const normalizedContacts = (Array.isArray(contactList) ? contactList : []).map((contact) => {
+        const conversation = conversationsByPhone.get(contact.phone || contact.id);
+        return {
+          id: contact.id,
+          name: contact.name || conversation?.contactName || contact.phone || "Contato",
+          phone: contact.phone || conversation?.phone || "",
+          status: conversation?.status,
+          updatedAt: conversation?.updatedAt || new Date().toISOString(),
+        };
+      });
+
+      const orphanConversations = (Array.isArray(conversationsData) ? conversationsData : [])
+        .filter((conversation) => {
+          const conversationPhone = conversation.phone || conversation.id;
+          return !normalizedContacts.some((contact) => (contact.phone || contact.id) === conversationPhone);
+        })
+        .map((conv) => ({
+          id: conv.id,
+          name: conv.contactName || conv.phone || "Contato",
+          phone: conv.phone || "",
+          status: conv.status,
+          updatedAt: conv.updatedAt || new Date().toISOString(),
+        }));
+
+      const byPhone = new Map<string, any>();
+      [...normalizedContacts, ...orphanConversations].forEach((contact) => {
+        const key = contact.phone || contact.id;
+        const existing = byPhone.get(key);
+        if (!existing || new Date(contact.updatedAt).getTime() > new Date(existing.updatedAt).getTime()) {
+          byPhone.set(key, contact);
+        }
+      });
+
+      const mergedContacts = [...byPhone.values()];
+      setContacts(uniqueContacts(mergedContacts));
     } catch (error) {
       notify.error(error instanceof Error ? error.message : "Falha ao carregar campanhas");
       if (!options?.silent) {

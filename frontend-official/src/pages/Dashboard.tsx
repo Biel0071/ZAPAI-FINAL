@@ -7,6 +7,7 @@ import {
   getDashboardMapRows,
   type DashboardMapScope,
 } from "@/adapters/lovable/dashboardAdapter";
+import { createAnalyticsLovableViewModel } from "@/adapters/lovable/analyticsAdapter";
 import {
   apiService,
   type MetricsSummary,
@@ -98,6 +99,16 @@ export default function Dashboard() {
     [conversations, storeMetrics, sessions, runtimeStatus, sessionState, activeSessions, totalSessions],
   );
 
+  const analyticsViewModel = useMemo(
+    () =>
+      createAnalyticsLovableViewModel({
+        metrics: storeMetrics,
+        conversationCount: conversations.length,
+        conversations,
+      }),
+    [storeMetrics, conversations],
+  );
+
   const currentMapRows = useMemo(
     () => getDashboardMapRows(dashboardViewModel.map, activeMapScope),
     [activeMapScope, dashboardViewModel.map],
@@ -129,6 +140,7 @@ export default function Dashboard() {
       <div className="page-container section-stack">
         <DashboardView
           viewModel={dashboardViewModel}
+          analyticsViewModel={analyticsViewModel}
           activeTab={activeTab}
           activeMapScope={activeMapScope}
           mapRows={currentMapRows}

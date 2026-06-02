@@ -168,9 +168,12 @@ async function ensureMemoryTable() {
 // ─── Memory Search ───
 
 function searchMemory(store, query = '') {
-  if (!query || !Array.isArray(store?.conversationMemory)) return [];
+  if (!Array.isArray(store?.conversationMemory)) return [];
 
   const normalized = String(query).toLowerCase().trim();
+  if (!normalized) {
+    return store.conversationMemory;
+  }
   return store.conversationMemory.filter((entry) => {
     if (!entry) return false;
     return (

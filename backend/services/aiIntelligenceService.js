@@ -256,6 +256,13 @@ async function captureMessageEvent(store, event = {}) {
   rebuildLearningMetrics(state);
   await persistState(store);
 
+  try {
+    const aiMemoryEngine = require('./aiMemoryEngine');
+    await aiMemoryEngine.persistMemoryEntry(result.memory);
+  } catch (err) {
+    console.error('[captureMessageEvent] Postgres persist memory entry failed:', err);
+  }
+
   return result.memory;
 }
 

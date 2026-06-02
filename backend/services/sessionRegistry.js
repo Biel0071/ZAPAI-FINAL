@@ -253,7 +253,7 @@ async function loadFromPostgres() {
     const result = await db.query(
       `SELECT session_id, session_name, company_id, phone_number, status, connected, created_at, updated_at
        FROM sessions
-       WHERE session_id IS NOT NULL
+       WHERE session_id IS NOT NULL AND (status IS NULL OR status != 'deleted')
        ORDER BY COALESCE(updated_at, created_at) DESC
        LIMIT 100`
     );

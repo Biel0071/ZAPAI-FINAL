@@ -31,12 +31,31 @@ function isWhatsAppConnected() {
     // service not initialised yet — fall through.
   }
 
-  return global.whatsappSession?.connected === true;
+  if (global.whatsappSession?.connected === true) {
+    return true;
+  }
+
+  // Fallback: check if ANY active session in the registry is connected
+  try {
+    const { activeSessions } = require('../state/registry');
+    if (activeSessions) {
+      const anyConnected = Object.values(activeSessions).some(
+        (session) => session && (session.status === 'connected' || session.connected === true)
+      );
+      if (anyConnected) {
+        return true;
+      }
+    }
+  } catch (_err) {
+    // ignore
+  }
+
+  return false;
 }
 
 function ensureSocket(sock) {
-  if (!sock) {
-    throw new Error('Baileys socket is not initialized yet.');
+  if (!sock || !sock.user || !sock.ws || (sock.ws.readyState !== undefined && sock.ws.readyState !== 1)) {
+    throw new Error('WhatsApp socket offline');
   }
 
   if (!isWhatsAppConnected()) {
@@ -44,15 +63,31 @@ function ensureSocket(sock) {
   }
 }
 
+const withTimeout = (promise, ms, errorMessage = 'Operation timed out') => {
+  let timeoutId;
+  const timeoutPromise = new Promise((_, reject) => {
+    timeoutId = setTimeout(() => {
+      reject(new Error(errorMessage));
+    }, ms);
+  });
+  return Promise.race([
+    promise,
+    timeoutPromise
+  ]).finally(() => {
+    clearTimeout(timeoutId);
+  });
+};
+
 async function sendWithRetry(fn, retries = 3) {
   const totalRetries = Math.max(1, Number(retries) || 3);
 
   for (let i = 0; i < totalRetries; i += 1) {
     try {
-      return await fn();
+      const promise = fn();
+      return await withTimeout(promise, 15000, 'WhatsApp send timeout');
     } catch (error) {
       // eslint-disable-next-line no-console
-      console.error('retry', i);
+      console.error(`Send message attempt ${i + 1} failed:`, error.message || error);
 
       if (i === totalRetries - 1) {
         throw error;
@@ -98,13 +133,14 @@ async function sendVideo(sock, phone, videoPath, caption = '') {
   );
 }
 
-async function sendAudio(sock, phone, audioPath, ptt = false) {
+async function sendAudio(sock, phone, audioPath, ptt = false, mimetype) {
   ensureSocket(sock);
 
   return sendWithRetry(
     () =>
       sock.sendMessage(ensureWhatsAppJid(phone), {
         audio: toMediaPayload(audioPath),
+        mimetype: mimetype || (ptt ? 'audio/ogg; codecs=opus' : 'audio/mp4'),
         ptt,
       }),
     3
@@ -138,7 +174,7 @@ async function sendMediaMessage(
     case 'video':
       return sendVideo(sock, phone, mediaPath, caption);
     case 'audio':
-      return sendAudio(sock, phone, mediaPath, ptt);
+      return sendAudio(sock, phone, mediaPath, ptt, mimetype);
     case 'document':
       return sendDocument(sock, phone, mediaPath, fileName, mimetype);
     default:

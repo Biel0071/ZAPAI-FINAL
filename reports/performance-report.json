@@ -1,0 +1,117 @@
+{
+  "timestamp": "2026-05-28T16:14:07.155Z",
+  "metrics": {
+    "averageApiLatencyMs": 67,
+    "totalApisCount": 113,
+    "slowApisCount": 0,
+    "brokenApisCount": 4
+  },
+  "slowApis": [],
+  "brokenApis": [
+    {
+      "method": "GET",
+      "url": "/api/cluster/nodes",
+      "status": 404,
+      "latencyMs": 72,
+      "error": "{\"success\":false,\"data\":null,\"error\":\"Route not found: GET /api/cluster/nodes\"}"
+    },
+    {
+      "method": "GET",
+      "url": "/api/cluster/overview",
+      "status": 404,
+      "latencyMs": 75,
+      "error": "{\"success\":false,\"data\":null,\"error\":\"Route not found: GET /api/cluster/overview\"}"
+    },
+    {
+      "method": "GET",
+      "url": "/api/cluster/nodes",
+      "status": 404,
+      "latencyMs": 87,
+      "error": "{\"success\":false,\"data\":null,\"error\":\"Route not found: GET /api/cluster/nodes\"}"
+    },
+    {
+      "method": "GET",
+      "url": "/api/cluster/overview",
+      "status": 404,
+      "latencyMs": 90,
+      "error": "{\"success\":false,\"data\":null,\"error\":\"Route not found: GET /api/cluster/overview\"}"
+    }
+  ],
+  "routeLoadTimes": [
+    {
+      "path": "/contacts",
+      "loadTimeMs": 1815,
+      "status": "ok"
+    },
+    {
+      "path": "/inbox",
+      "loadTimeMs": 1702,
+      "status": "ok"
+    },
+    {
+      "path": "/flows",
+      "loadTimeMs": 1666,
+      "status": "ok"
+    },
+    {
+      "path": "/ai",
+      "loadTimeMs": 1288,
+      "status": "ok"
+    },
+    {
+      "path": "/diagnostics",
+      "loadTimeMs": 1283,
+      "status": "ok"
+    },
+    {
+      "path": "/deployments",
+      "loadTimeMs": 1241,
+      "status": "ok"
+    },
+    {
+      "path": "/nodes",
+      "loadTimeMs": 1201,
+      "status": "ok"
+    },
+    {
+      "path": "/connections",
+      "loadTimeMs": 1188,
+      "status": "ok"
+    },
+    {
+      "path": "/analytics",
+      "loadTimeMs": 1172,
+      "status": "ok"
+    },
+    {
+      "path": "/campaigns",
+      "loadTimeMs": 1164,
+      "status": "ok"
+    },
+    {
+      "path": "/settings",
+      "loadTimeMs": 1161,
+      "status": "ok"
+    },
+    {
+      "path": "/memory",
+      "loadTimeMs": 1144,
+      "status": "ok"
+    },
+    {
+      "path": "/users",
+      "loadTimeMs": 1115,
+      "status": "ok"
+    },
+    {
+      "path": "/logs",
+      "loadTimeMs": 1110,
+      "status": "ok"
+    },
+    {
+      "path": "/dashboard",
+      "loadTimeMs": 1077,
+      "status": "ok"
+    }
+  ]
+}

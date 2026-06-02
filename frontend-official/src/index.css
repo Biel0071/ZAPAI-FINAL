@@ -241,7 +241,7 @@
      We shrink the icon container via a data-free structural selector. */
 
   .inbox-message {
-    @apply flex items-start gap-2.5 px-3 py-2.5 border-b border-border/40 cursor-pointer transition-colors duration-150;
+    @apply flex items-start gap-2 px-2.5 py-1.5 border-b border-border/40 cursor-pointer transition-colors duration-150;
   }
 
   .inbox-message:hover {
@@ -559,4 +559,53 @@ html, body {
 .metric-card,
 .inbox-panel {
   will-change: auto;
+}
+
+/* ==========================================================================
+   WHATSAPP WEB THEME & FUSION STYLES
+   ========================================================================== */
+
+.chat-area-bg {
+  background-color: #0b141a !important;
+  position: relative;
+}
+
+.chat-area-bg::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image: url("https://user-images.githubusercontent.com/15075759/28719144-86dc0f70-73b1-11e7-911d-60d70fcded21.png") !important;
+  background-repeat: repeat !important;
+  background-size: 350px !important;
+  opacity: 0.06;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.chat-bubble {
+  max-width: 65% !important;
+  padding: 8px 12px 6px 12px !important;
+  border-radius: 8px !important;
+  font-size: 14px !important;
+  line-height: 1.4 !important;
+  box-shadow: 0 1px 0.5px rgba(11,20,26,.13) !important;
+}
+
+.chat-bubble-sent {
+  background-color: #005c4b !important;
+  color: #e9edef !important;
+  margin-left: auto;
+  border-top-left-radius: 8px !important;
+  border-top-right-radius: 0px !important;
+  border-bottom-left-radius: 8px !important;
+  border-bottom-right-radius: 8px !important;
+}
+
+.chat-bubble-received {
+  background-color: #202c33 !important;
+  color: #e9edef !important;
+  border-top-left-radius: 0px !important;
+  border-top-right-radius: 8px !important;
+  border-bottom-left-radius: 8px !important;
+  border-bottom-right-radius: 8px !important;
 }

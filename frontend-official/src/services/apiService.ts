@@ -269,6 +269,40 @@ export interface MemorySettings {
   rememberPreferences: boolean;
 }
 
+export interface MemoryEntry {
+  contact_id: string;
+  phone?: string;
+  name: string;
+  intent: string;
+  sentiment: string;
+  tags: string[];
+  summary: string;
+  metrics?: {
+    totalMessages?: number;
+    audioRequests?: number;
+    [key: string]: unknown;
+  };
+  messages?: Array<{
+    role: "user" | "assistant" | "system";
+    content: string;
+    timestamp?: string;
+  }>;
+  last_updated?: string;
+}
+
+export interface MemoryAnalytics {
+  totalContacts: number;
+  totalMessages: number;
+  totalAudioRequests: number;
+  sentiments: {
+    positive: number;
+    negative: number;
+    neutral: number;
+  };
+  intents: Record<string, number>;
+  topTags: Array<{ tag: string; count: number }>;
+}
+
 export interface AdvancedAISettings {
   temperature: number;
   maxTokens: number;
@@ -1229,6 +1263,18 @@ export const apiService = {
   saveMemorySettings: (payload: MemorySettings) =>
     request<{ success?: boolean }>({ endpoint: "/ai/memory", method: "POST", body: payload }),
 
+  getMemoryAnalytics: () =>
+    request<{ success: boolean; data: MemoryAnalytics }>({ endpoint: "/ai/memory/analytics", method: "GET" }),
+
+  searchMemory: (query: string) =>
+    request<{ success: boolean; data: MemoryEntry[] }>({ endpoint: `/ai/memory/search?q=${encodeURIComponent(query)}`, method: "GET" }),
+  getMemoryByContact: (contactId: string) =>
+    request<{ success: boolean; data?: any }>({ endpoint: `/ai/conversation-memory/${encodeURIComponent(contactId)}`, method: "GET" }),
+
+  flushMemory: () =>
+    request<{ success: boolean; data: { flushed: number } }>({ endpoint: "/ai/memory/flush", method: "POST" }),
+
+
   async getAdvancedAISettings(forceRefresh = false) {
     const cacheKey = "advanced-ai";
     if (!forceRefresh) {
@@ -1255,6 +1301,8 @@ export const apiService = {
   },
   restartSession: (sessionId: string) =>
     request<{ success?: boolean; sessionId?: string; qr?: string }>({ endpoint: "/session/restart", method: "POST", body: { sessionId: normalizeSessionName(sessionId) } }),
+  reconnectSession: (sessionId: string) =>
+    request<{ success?: boolean; sessionId?: string; qr?: string }>({ endpoint: `/session/${encodeURIComponent(normalizeSessionName(sessionId))}/reconnect`, method: "POST" }),
   logoutSession: (sessionId: string) =>
     request<{ success?: boolean; sessionId?: string }>({ endpoint: "/session/logout", method: "POST", body: { sessionId: normalizeSessionName(sessionId) } }),
   createSession: (sessionId: string) =>
@@ -1288,9 +1336,36 @@ export const apiService = {
     request<{ success?: boolean }>({ endpoint: `/session/${encodeURIComponent(normalizeSessionName(sessionId))}`, method: "DELETE" }),
   removeSession: (sessionId: string) =>
     request<{ success?: boolean }>({ endpoint: `/sessions/${encodeURIComponent(normalizeSessionName(sessionId))}`, method: "DELETE" }),
+  purgeSession: (sessionId: string) =>
+    request<{ success?: boolean; purged?: { session: boolean; conversations: number; contacts: number; aiMemory: number } }>({
+      endpoint: `/session/${encodeURIComponent(normalizeSessionName(sessionId))}/purge?purgeData=true`,
+      method: "DELETE",
+    }),
   
   getSessionQr: (sessionId: string) =>
     request<{ qr?: string; status?: string }>({ endpoint: `/sessions/${encodeURIComponent(normalizeSessionName(sessionId))}/qr`, method: "GET" }),
+  async getSessionStatusDetails(sessionId: string) {
+    return request<{
+      sessionId: string;
+      sessionName: string;
+      status: string;
+      connected: boolean;
+      systemConnected: boolean;
+      retryCount: number;
+      health: string;
+      qrReady: boolean;
+      lastError: string | null;
+      logs: Array<{
+        event: string;
+        level: string;
+        message: string;
+        timestamp: string;
+      }>;
+    }>({
+      endpoint: `/sessions/${encodeURIComponent(normalizeSessionName(sessionId))}/status`,
+      method: "GET",
+    });
+  },
   async updateConversationAI(phone: string, aiEnabled: boolean) {
     return request<Conversation>({
       endpoint: `/conversations/${encodeURIComponent(phone)}/ai`,
@@ -1330,6 +1405,23 @@ export const apiService = {
     request<{ success?: boolean; messageId?: string }>({ endpoint: `/api/messages/${encodeURIComponent(messageId)}`, method: "DELETE" }),
   forwardMessage: (messageId: string, payload: { phone: string; conversationId?: string; sessionId?: string }) =>
     request<Record<string, unknown>>({ endpoint: `/api/messages/${encodeURIComponent(messageId)}/forward`, method: "POST", body: payload }),
+  async getQuickReplies() {
+    try {
+      const data = await request<any[]>({ endpoint: "/api/quick-replies", method: "GET" });
+      return Array.isArray(data) ? data : [];
+    } catch {
+      return [];
+    }
+  },
+  async createQuickReply(payload: any) {
+    return request<any>({ endpoint: "/api/quick-replies", method: "POST", body: payload });
+  },
+  async updateQuickReply(id: string, payload: any) {
+    return request<any>({ endpoint: `/api/quick-replies/${encodeURIComponent(id)}`, method: "PUT", body: payload });
+  },
+  async deleteQuickReply(id: string) {
+    return request<any>({ endpoint: `/api/quick-replies/${encodeURIComponent(id)}`, method: "DELETE" });
+  },
 };
 
 export async function requestApiEndpoint<T>(endpoint: string, method: "GET" | "POST" | "PUT" | "PATCH" | "DELETE" = "GET", body?: unknown): Promise<T> {
