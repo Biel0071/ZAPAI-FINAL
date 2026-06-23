@@ -91,6 +91,18 @@ async function getStatus(req, res) {
   return res.status(200).json(status);
 }
 
+async function getHealth(req, res) {
+  const targetSessionId = getTargetSessionId(req);
+  try {
+    const health = await connectionService.getSessionHealth(targetSessionId);
+    return res.status(200).json(health);
+  } catch (error) {
+    return res.status(500).json({
+      error: error.message || 'Failed to get session health.',
+    });
+  }
+}
+
 async function getQr(req, res) {
   const targetSessionId = getTargetSessionId(req);
   const qrResult = await connectionService.getConnectionQr(targetSessionId);
@@ -267,6 +279,27 @@ async function purge(req, res) {
         [targetSessionId]
       );
       purged.aiMemory = aiResult.rowCount || 0;
+
+      // Delete AI short memory
+      const aiShortResult = await db.query(
+        'DELETE FROM ai_memory_short WHERE session_id = $1',
+        [targetSessionId]
+      );
+      purged.aiMemory += aiShortResult.rowCount || 0;
+
+      // Delete AI long memory
+      const aiLongResult = await db.query(
+        'DELETE FROM ai_memory_long WHERE session_id = $1',
+        [targetSessionId]
+      );
+      purged.aiMemory += aiLongResult.rowCount || 0;
+
+      // Delete AI context
+      const aiCtxResult = await db.query(
+        'DELETE FROM ai_context WHERE session_id = $1',
+        [targetSessionId]
+      );
+      purged.aiMemory += aiCtxResult.rowCount || 0;
     } catch (dbError) {
       // If specific tables don't exist or query fails, log and continue
       console.warn(`[sessions:purge] DB cleanup partial for "${targetSessionId}":`, dbError.message);
@@ -283,17 +316,45 @@ async function reconcile(req, res) {
     return res.status(500).json({ error: error.message || 'Failed to reconcile sessions.' });
   }
 }
+async function recover(req, res) {
+  if (!sessionManager.isRuntimeActive()) {
+    try {
+      await systemManager.startSystem(req.app.locals.store);
+    } catch (error) {
+      return res.status(500).json({
+        error: error.message || 'Failed to start system.',
+        success: false,
+      });
+    }
+  }
+
+  try {
+    const sessionRecoveryService = require('../services/sessionRecoveryService');
+    const recovered = await sessionRecoveryService.recoverSessions();
+    return res.status(200).json({
+      success: true,
+      recovered,
+    });
+  } catch (error) {
+    return res.status(500).json({
+      error: error.message || 'Failed to recover sessions.',
+      success: false,
+    });
+  }
+}
 
 module.exports = {
   connectSystem,
   create,
   disconnectSystem,
+  getHealth,
   getQr,
   getStatus,
   list,
   logout,
   purge,
   reconcile,
+  recover,
   remove,
   reconnect,
   resetError,

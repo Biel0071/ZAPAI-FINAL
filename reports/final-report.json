@@ -1,25 +1,25 @@
 {
-  "timestamp": "2026-05-28T17:23:54.230Z",
+  "timestamp": "2026-06-15T19:08:40.906Z",
   "scoreGeneral": 0,
   "scores": {
-    "frontend": 100,
+    "frontend": 87,
     "backend": 100,
     "ux": 0,
     "accessibility": 0,
-    "messaging": 100
+    "messaging": 0
   },
   "metrics": {
     "totalRoutes": 15,
-    "healthyRoutes": 15,
-    "brokenRoutes": 0,
-    "redirectedRoutes": 0,
-    "totalButtons": 120,
-    "functionalButtons": 120,
+    "healthyRoutes": 13,
+    "brokenRoutes": 1,
+    "redirectedRoutes": 1,
+    "totalButtons": 112,
+    "functionalButtons": 112,
     "brokenButtons": 0,
-    "consoleErrorsCount": 3828,
+    "consoleErrorsCount": 5787,
     "pageErrorsCount": 0,
-    "apiFailuresCount": 39,
-    "accessibilityViolationsCount": 68
+    "apiFailuresCount": 36,
+    "accessibilityViolationsCount": 65
   },
   "systemStatus": {
     "frontendOnline": true,

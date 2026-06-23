@@ -16,6 +16,8 @@ router.get('/connections', sessionsController.list);
 router.get('/sessions/status', sessionsController.getStatus);
 router.get('/session/status', sessionsController.getStatus);
 router.get('/sessions/:id/status', sessionsController.getStatus);
+router.get('/sessions/:id/health', sessionsController.getHealth);
+router.get('/session/:sessionId/health', sessionsController.getHealth);
 router.get('/sessions/qr', sessionsController.getQr);
 router.get('/sessions/:id/qr', sessionsController.getQr);
 router.post('/sessions/logout', sessionsController.logout);
@@ -33,5 +35,6 @@ router.delete('/sessions/:id', sessionsController.remove);
 router.delete('/session/:sessionId/purge', sessionsController.purge);
 router.delete('/sessions/:id/purge', sessionsController.purge);
 router.post('/sessions/reconcile', sessionsController.reconcile);
+router.post('/sessions/recover', sessionsController.recover);
 
 module.exports = router;

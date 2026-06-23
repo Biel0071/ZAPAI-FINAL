@@ -89,9 +89,19 @@ ZAPAI-FINAL/
 │   ├── backup.sh             ← sessions tarball + pg_dump (retém 10)
 │   └── rollback.sh           ← git checkout tag + restore backup + PM2
 │
-├── logs/                     ← runtime logs (gitignored, .gitkeep)
-├── docs/                     ← documentação técnica
-├── archive/                  ← código legado arquivado
+├── docs/                     ← Documentação técnica organizada
+│   ├── architecture/         ← Documentos de arquitetura e design
+│   ├── deployment/           ← Manuais de instalação e deploy
+│   ├── runtime/              ← Mapas e fluxos do runtime do sistema
+│   └── audits/               ← Relatórios de auditoria e relatórios de QA
+│       └── reports/          ← Relatórios gerados e capturas de tela
+│
+├── storage/                  ← Dados e artefatos gerados pelo runtime
+│   ├── logs/                 ← Logs operacionais do sistema
+│   ├── backups/              ← Cópias de segurança do banco e sessões
+│   ├── releases/             ← Controle de lançamentos de produção
+│   └── archive/              ← Códigos e scripts legados isolados
+│
 └── README.md
 ```
 

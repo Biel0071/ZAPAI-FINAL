@@ -5,15 +5,15 @@
     "status": "ok",
     "redirectedTo": null,
     "error": null,
-    "loadTimeMs": 1093
+    "loadTimeMs": 1201
   },
   {
     "path": "/inbox",
-    "title": "ZAPFLOW AI — Plataforma Inteligente de Atendimento",
-    "status": "ok",
+    "title": "",
+    "status": "broken",
     "redirectedTo": null,
-    "error": null,
-    "loadTimeMs": 1271
+    "error": "page.goto: Timeout 20000ms exceeded.\nCall log:\n\u001b[2m  - navigating to \"http://localhost:8080/inbox\", waiting until \"networkidle\"\u001b[22m\n",
+    "loadTimeMs": 0
   },
   {
     "path": "/connections",
@@ -21,7 +21,7 @@
     "status": "ok",
     "redirectedTo": null,
     "error": null,
-    "loadTimeMs": 1230
+    "loadTimeMs": 1313
   },
   {
     "path": "/contacts",
@@ -29,7 +29,7 @@
     "status": "ok",
     "redirectedTo": null,
     "error": null,
-    "loadTimeMs": 1653
+    "loadTimeMs": 1536
   },
   {
     "path": "/flows",
@@ -37,15 +37,15 @@
     "status": "ok",
     "redirectedTo": null,
     "error": null,
-    "loadTimeMs": 1224
+    "loadTimeMs": 1280
   },
   {
     "path": "/ai",
     "title": "ZAPFLOW AI — Plataforma Inteligente de Atendimento",
-    "status": "ok",
-    "redirectedTo": null,
+    "status": "redirected",
+    "redirectedTo": "/ai?tab=dashboard",
     "error": null,
-    "loadTimeMs": 1358
+    "loadTimeMs": 1368
   },
   {
     "path": "/analytics",
@@ -53,7 +53,7 @@
     "status": "ok",
     "redirectedTo": null,
     "error": null,
-    "loadTimeMs": 1228
+    "loadTimeMs": 1150
   },
   {
     "path": "/campaigns",
@@ -61,7 +61,7 @@
     "status": "ok",
     "redirectedTo": null,
     "error": null,
-    "loadTimeMs": 1220
+    "loadTimeMs": 1063
   },
   {
     "path": "/memory",
@@ -69,7 +69,7 @@
     "status": "ok",
     "redirectedTo": null,
     "error": null,
-    "loadTimeMs": 1174
+    "loadTimeMs": 1108
   },
   {
     "path": "/users",
@@ -77,7 +77,7 @@
     "status": "ok",
     "redirectedTo": null,
     "error": null,
-    "loadTimeMs": 1219
+    "loadTimeMs": 1074
   },
   {
     "path": "/nodes",
@@ -85,7 +85,7 @@
     "status": "ok",
     "redirectedTo": null,
     "error": null,
-    "loadTimeMs": 1342
+    "loadTimeMs": 1040
   },
   {
     "path": "/deployments",
@@ -93,7 +93,7 @@
     "status": "ok",
     "redirectedTo": null,
     "error": null,
-    "loadTimeMs": 1217
+    "loadTimeMs": 1154
   },
   {
     "path": "/logs",
@@ -101,7 +101,7 @@
     "status": "ok",
     "redirectedTo": null,
     "error": null,
-    "loadTimeMs": 1100
+    "loadTimeMs": 1054
   },
   {
     "path": "/diagnostics",
@@ -109,7 +109,7 @@
     "status": "ok",
     "redirectedTo": null,
     "error": null,
-    "loadTimeMs": 1394
+    "loadTimeMs": 1193
   },
   {
     "path": "/settings",
@@ -117,6 +117,6 @@
     "status": "ok",
     "redirectedTo": null,
     "error": null,
-    "loadTimeMs": 1206
+    "loadTimeMs": 979
   }
 ]

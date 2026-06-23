@@ -42,11 +42,15 @@ async function appendAiMemory(entry = {}) {
   await fs.writeFile(AI_MEMORY_FILE, JSON.stringify(data, null, 2), 'utf8');
 }
 
-async function evaluateInboundAi({ agent, chatId, conversationHistory = [], customerMessage, store }) {
+async function evaluateInboundAi({ agent, chatId, conversationHistory = [], customerMessage, store, forceAutoReply = false, conversationId = null }) {
   const recentHistory = Array.isArray(conversationHistory) ? conversationHistory.slice(-10) : [];
   const lead = analyzeLeadIntent(customerMessage, recentHistory);
   const confidence = Math.max(0, Math.min(1, Number(lead?.confidence || 0)));
-  const action = classifyDecisionFromConfidence(confidence);
+  let action = classifyDecisionFromConfidence(confidence);
+
+  if (forceAutoReply) {
+    action = 'auto_reply';
+  }
 
   let aiReply = null;
 
@@ -54,7 +58,7 @@ async function evaluateInboundAi({ agent, chatId, conversationHistory = [], cust
     aiReply = await generateAIResponse({
       agent,
       conversation: {
-        id: chatId,
+        id: conversationId || chatId,
         phone: chatId,
       },
       conversationHistory: recentHistory,

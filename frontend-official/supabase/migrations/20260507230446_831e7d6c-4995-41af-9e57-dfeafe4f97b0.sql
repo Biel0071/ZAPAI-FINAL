@@ -1,1 +1,0 @@
-REVOKE ALL ON FUNCTION public.set_admin_accounts_updated_at() FROM PUBLIC, anon, authenticated;

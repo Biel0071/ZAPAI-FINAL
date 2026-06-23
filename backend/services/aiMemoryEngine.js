@@ -17,7 +17,11 @@ const db = require('../config/database');
 const aiConversationMemoryService = require('./aiConversationMemoryService');
 
 const DEFAULT_COMPANY_ID = String(process.env.DEFAULT_COMPANY_ID || 'default').trim();
-const FLUSH_BATCH_SIZE = 50;
+const FLUSH_BATCH_SIZE = Math.max(1, Number(process.env.AI_MEMORY_FLUSH_BATCH_SIZE) || 20);
+const FLUSH_MAX_ENTRIES = Math.max(FLUSH_BATCH_SIZE, Number(process.env.AI_MEMORY_FLUSH_MAX_ENTRIES) || FLUSH_BATCH_SIZE * 5);
+const MIN_FLUSH_INTERVAL_MS = Math.max(60_000, Number(process.env.AI_MEMORY_MIN_FLUSH_MS) || 300_000);
+let flushInFlight = null;
+let lastFlushAt = 0;
 
 // ─── PostgreSQL Persistence ───
 
@@ -119,21 +123,38 @@ async function loadMemoryFromPostgres(store, companyId = DEFAULT_COMPANY_ID) {
 
 async function flushMemoryToPostgres(store, companyId = DEFAULT_COMPANY_ID) {
   if (!Array.isArray(store?.conversationMemory)) return 0;
+  if (store?.databaseEnabled === false) return 0;
 
-  let flushed = 0;
-  const entries = store.conversationMemory.slice(0, FLUSH_BATCH_SIZE * 10);
-
-  for (let i = 0; i < entries.length; i += FLUSH_BATCH_SIZE) {
-    const batch = entries.slice(i, i + FLUSH_BATCH_SIZE);
-    for (const entry of batch) {
-      if (entry?.contact_id) {
-        await persistMemoryEntry(entry, companyId);
-        flushed += 1;
-      }
-    }
+  const now = Date.now();
+  if (flushInFlight) {
+    return flushInFlight;
   }
 
-  return flushed;
+  if ((now - lastFlushAt) < MIN_FLUSH_INTERVAL_MS) {
+    return 0;
+  }
+
+  flushInFlight = (async () => {
+    let flushed = 0;
+    const entries = store.conversationMemory.slice(0, FLUSH_MAX_ENTRIES);
+
+    for (let i = 0; i < entries.length; i += FLUSH_BATCH_SIZE) {
+      const batch = entries.slice(i, i + FLUSH_BATCH_SIZE);
+      for (const entry of batch) {
+        if (entry?.contact_id) {
+          await persistMemoryEntry(entry, companyId);
+          flushed += 1;
+        }
+      }
+    }
+
+    lastFlushAt = Date.now();
+    return flushed;
+  })().finally(() => {
+    flushInFlight = null;
+  });
+
+  return flushInFlight;
 }
 
 // ─── Ensure Database Table ───

@@ -74,17 +74,19 @@ function verifyHs256Jwt(token, secret) {
 function getAuthToken(req) {
   const authorization = String(req.headers?.authorization || '').trim();
 
-  if (!authorization) {
-    return '';
+  if (authorization) {
+    const [scheme, token] = authorization.split(/\s+/, 2);
+
+    if (scheme && scheme.toLowerCase() === 'bearer' && token) {
+      return token;
+    }
   }
 
-  const [scheme, token] = authorization.split(/\s+/, 2);
-
-  if (!scheme || scheme.toLowerCase() !== 'bearer' || !token) {
-    return '';
+  if (req.query?.token) {
+    return String(req.query.token).trim();
   }
 
-  return token;
+  return '';
 }
 
 function hasTenantMismatch(req, tokenTenantId) {

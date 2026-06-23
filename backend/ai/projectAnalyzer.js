@@ -224,7 +224,7 @@ function matchEndpoint(endpoint, routeDefinitions) {
 async function analyzeProject(options = {}) {
   const backendRoot = path.resolve(__dirname, '..');
   const projectRoot = path.resolve(backendRoot, '..', '..');
-  const frontendRoot = path.join(projectRoot, 'frontend');
+  const frontendRoot = path.join(projectRoot, 'frontend-official');
   const frontendSrcRoot = path.join(frontendRoot, 'src');
 
   const pagesDir = path.join(frontendSrcRoot, 'pages');

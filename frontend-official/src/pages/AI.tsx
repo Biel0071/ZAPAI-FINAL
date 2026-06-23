@@ -1,22 +1,20 @@
 import { useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { Header } from "@/components/layout/Header";
 import AIView from "@/lovable/pages/AIPageView";
 import { createAILovableViewModel } from "@/adapters/lovable/aiAdapter";
 import { useToast } from "@/hooks/use-toast";
-import { apiService, type AIStatusResponse } from "@/services/apiService";
+import { apiService, type AIConnectionTestResult, type AIStatusResponse } from "@/services/apiService";
 import type { AIProviderConfig } from "@/lovable/pages/AIView";
+import { useAppStore } from "@/stores/appStore";
 
 type SectionId =
-  | "status"
-  | "prompt"
-  | "providers"
-  | "business-hours"
-  | "absence"
-  | "reactivation"
-  | "training"
-  | "learning"
-  | "memory"
-  | "advanced";
+  | "dashboard"
+  | "atendentes"
+  | "provedores"
+  | "conhecimento"
+  | "operacao"
+  | "analise";
 
 const DEFAULT_PROVIDERS: AIProviderConfig[] = [
   { id: "openai", name: "OpenAI", apiKey: "", model: "gpt-4o-mini", active: false },
@@ -39,6 +37,12 @@ type TrainingRow = {
   customerQuestion: string;
   aiResponse: string;
   status: "closed" | "lost";
+};
+
+type AIHealthItem = {
+  label: string;
+  ok: boolean;
+  detail: string;
 };
 
 const DEFAULT_PROMPT = "Você é Camila, assistente de vendas do Depósito Vista Alegre.";
@@ -68,6 +72,7 @@ function resolveAIEnabled(status: AIStatusResponse | null): boolean {
   if (!status) return false;
   if (typeof status.enabled === "boolean") return status.enabled;
   if (typeof status.active === "boolean") return status.active;
+  if (typeof status.ai === "boolean") return status.ai;
   if (typeof status.status === "string") {
     const normalized = status.status.toLowerCase();
     return normalized === "on" || normalized === "enabled" || normalized === "active";
@@ -77,7 +82,22 @@ function resolveAIEnabled(status: AIStatusResponse | null): boolean {
 
 export default function AI() {
   const { toast } = useToast();
-  const [activeSection, setActiveSection] = useState<SectionId>("status");
+  const [searchParams, setSearchParams] = useSearchParams();
+  const tabParam = searchParams.get("tab") as SectionId | null;
+  const [activeSection, setActiveSection] = useState<SectionId>("dashboard");
+
+  useEffect(() => {
+    if (tabParam && ["dashboard", "atendentes", "provedores", "conhecimento", "operacao", "analise"].includes(tabParam)) {
+      setActiveSection(tabParam);
+    } else if (!tabParam) {
+      setSearchParams({ tab: "dashboard" });
+    }
+  }, [tabParam, setSearchParams]);
+
+  const handleSectionChange = (section: SectionId) => {
+    setActiveSection(section);
+    setSearchParams({ tab: section });
+  };
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
@@ -118,8 +138,66 @@ export default function AI() {
   const [autoFollowUp, setAutoFollowUp] = useState(true);
 
   const [providers, setProviders] = useState<AIProviderConfig[]>(DEFAULT_PROVIDERS);
+  const [aiLogs, setAiLogs] = useState<any[]>([]);
+  const [runtimeHealth, setRuntimeHealth] = useState<{ runtime: string; sessions: string; activeSessions: number; totalSessions: number } | null>(null);
+  const [webhooks, setWebhooks] = useState<Array<Record<string, unknown>>>([]);
+  const [testMessage, setTestMessage] = useState("Olá, preciso validar se a IA está respondendo.");
+  const [testPrompt, setTestPrompt] = useState(DEFAULT_PROMPT);
+  const [testModel, setTestModel] = useState("gpt-4o-mini");
+  const [testProviderId, setTestProviderId] = useState("openai");
+  const [testingAI, setTestingAI] = useState(false);
+  const [providerTesting, setProviderTesting] = useState(false);
+  const [aiTestResult, setAiTestResult] = useState<AIConnectionTestResult | null>(null);
+  const [providerTestResults, setProviderTestResults] = useState<AIConnectionTestResult[]>([]);
+  const [aiMetrics, setAiMetrics] = useState<any>({
+    tokensToday: 0,
+    promptTokensToday: 0,
+    completionTokensToday: 0,
+    messagesToday: 0,
+    tokensPerConversation: {},
+  });
+
+  const [agents, setAgents] = useState<any[]>([]);
+  const [loadingAgents, setLoadingAgents] = useState(false);
+
+  const websocketHealth = useAppStore((state) => state.websocketHealth);
 
   const lostCount = useMemo(() => trainingRows.filter((row) => row.status === "lost").length, [trainingRows]);
+  const aiHealthItems = useMemo<any[]>(() => {
+    const activeProvider = providers.find((provider) => provider.active);
+    return [
+      {
+        label: "Banco",
+        ok: runtimeHealth?.runtime === "online",
+        detail: runtimeHealth?.runtime === "online" ? "Conectado" : "Desconectado",
+      },
+      {
+        label: "Socket",
+        ok: websocketHealth === "online",
+        detail: websocketHealth === "online" ? "Conectado" : websocketHealth === "reconnecting" ? "Reconectando" : "Desconectado",
+      },
+      {
+        label: "Baileys",
+        ok: runtimeHealth?.sessions === "online" || (runtimeHealth?.activeSessions ?? 0) > 0,
+        detail: `${runtimeHealth?.activeSessions ?? 0}/${runtimeHealth?.totalSessions ?? 0} ativas`,
+      },
+      {
+        label: "OpenAI",
+        ok: Boolean(activeProvider?.apiKey || activeProvider?.id === "ollama"),
+        detail: activeProvider ? `${activeProvider.name} (${activeProvider.model})` : "Nenhum provider ativo",
+      },
+      {
+        label: "Filas",
+        ok: queueWaiting >= 0,
+        detail: `${queueWaiting} aguardando`,
+      },
+      {
+        label: "Inbox",
+        ok: runtimeHealth?.runtime === "online" && websocketHealth === "online",
+        detail: runtimeHealth?.runtime === "online" && websocketHealth === "online" ? "Operacional" : "Indisponível",
+      },
+    ];
+  }, [providers, queueWaiting, runtimeHealth, websocketHealth]);
 
   useEffect(() => {
     let mounted = true;
@@ -127,7 +205,7 @@ export default function AI() {
     const loadData = async () => {
       setLoading(true);
       try {
-        const [status, promptData, businessHours, absence, queue, memory, advanced] = await Promise.all([
+        const [status, promptData, businessHours, absence, queue, memory, advanced, logsData, metricsData, runtimeData, webhooksData, agentsData, userProvidersData] = await Promise.all([
           apiService.getAIStatus(),
           apiService.getAIPrompt(),
           apiService.getBusinessHours(),
@@ -135,11 +213,24 @@ export default function AI() {
           apiService.getQueueStats(),
           apiService.getMemorySettings(),
           apiService.getAdvancedAISettings(),
+          apiService.getAILogs().catch(() => ({ logs: [] })),
+          apiService.getAIMetrics().catch(() => ({ tokensToday: 0, promptTokensToday: 0, completionTokensToday: 0, messagesToday: 0, tokensPerConversation: {} })),
+          apiService.getRuntimeSessionHealth().catch(() => null),
+          apiService.getWebhooks().catch(() => ({ webhooks: [] })),
+          apiService.getAIAgents().catch(() => ({ success: false, agents: [] })),
+          apiService.getUserProviders().catch(() => ({ success: false, providers: [] })),
         ]);
 
         if (!mounted) return;
 
         setAiEnabled(resolveAIEnabled(status));
+        setAiLogs(logsData?.logs || []);
+        setAiMetrics(metricsData || {});
+        setRuntimeHealth(runtimeData);
+        setWebhooks(Array.isArray(webhooksData?.webhooks) ? webhooksData.webhooks : []);
+        if (agentsData?.success) {
+          setAgents(agentsData.agents || []);
+        }
 
         if (promptData?.prompt) setPrompt(promptData.prompt);
         if (Array.isArray(promptData?.versions)) {
@@ -183,14 +274,34 @@ export default function AI() {
           setMaxTokens([advanced.maxTokens ?? 500]);
           setResponseDelay([advanced.responseDelaySeconds ?? 2]);
           setAutoFollowUp(Boolean(advanced.autoFollowUp));
-          if (Array.isArray(advanced.providers) && advanced.providers.length > 0) {
-            setProviders((prev) =>
-              prev.map((p) => {
-                const saved = (advanced.providers as AIProviderConfig[]).find((s: AIProviderConfig) => s.id === p.id);
-                return saved ? { ...p, ...saved } : p;
-              }),
-            );
+        }
+
+        const userProviders = Array.isArray(userProvidersData?.providers) ? userProvidersData.providers : [];
+        const mergedProviders = DEFAULT_PROVIDERS.map((p) => {
+          const saved = userProviders.find((s: any) => String(s.provider).toLowerCase() === p.id.toLowerCase());
+          if (saved) {
+            return {
+              ...p,
+              apiKey: saved.api_key || "",
+              model: saved.model || p.model,
+              active: Boolean(saved.enabled),
+            };
           }
+          if (advanced && Array.isArray(advanced.providers)) {
+            const legacy = (advanced.providers as AIProviderConfig[]).find((s: AIProviderConfig) => s.id === p.id);
+            if (legacy) {
+              return { ...p, ...legacy };
+            }
+          }
+          return p;
+        });
+
+        setProviders(mergedProviders);
+
+        const activeProvider = mergedProviders.find((provider) => provider.active) || mergedProviders[0];
+        if (activeProvider) {
+          setTestProviderId(activeProvider.id);
+          setTestModel(activeProvider.model || "gpt-4o-mini");
         }
       } catch {
         // defaults
@@ -203,8 +314,16 @@ export default function AI() {
 
     const interval = window.setInterval(async () => {
       try {
-        const status = await apiService.getAIStatus();
-        if (mounted) setAiEnabled(resolveAIEnabled(status));
+        const [status, logsData, metricsData] = await Promise.all([
+          apiService.getAIStatus(),
+          apiService.getAILogs().catch(() => ({ logs: [] })),
+          apiService.getAIMetrics().catch(() => ({ tokensToday: 0, promptTokensToday: 0, completionTokensToday: 0, messagesToday: 0, tokensPerConversation: {} })),
+        ]);
+        if (mounted) {
+          setAiEnabled(resolveAIEnabled(status));
+          setAiLogs(logsData?.logs || []);
+          setAiMetrics(metricsData || {});
+        }
       } catch {
         // ignore
       }
@@ -349,18 +468,76 @@ export default function AI() {
   const saveProviders = async () => {
     setSaving(true);
     try {
-      await apiService.saveAdvancedAISettings({
-        temperature: temperature[0],
-        maxTokens: maxTokens[0],
-        responseDelaySeconds: responseDelay[0],
-        autoFollowUp,
-        providers,
-      });
+      await Promise.all(
+        providers
+          .filter((p) => p.apiKey && p.apiKey.trim() !== "")
+          .map((p) =>
+            apiService.saveUserProvider({
+              provider: p.id,
+              api_key: p.apiKey,
+              model: p.model,
+              enabled: p.active,
+            })
+          )
+      );
       notifySaved();
     } catch {
       toast({ title: "Erro ao salvar provedores.", variant: "destructive" });
     } finally {
       setSaving(false);
+    }
+  };
+
+  const runAITest = async () => {
+    if (!testMessage.trim()) {
+      toast({ title: "Informe uma mensagem de teste.", variant: "destructive" });
+      return;
+    }
+
+    setTestingAI(true);
+    setAiTestResult(null);
+    try {
+      const response = await apiService.testAIMessage({
+        message: testMessage,
+        prompt: testPrompt,
+        model: testModel,
+        providerId: testProviderId,
+      });
+      setAiTestResult(response.result ?? {
+        ok: Boolean(response.success),
+        provider: testProviderId,
+        model: testModel,
+        status: response.success ? "connected" : "error",
+        error: response.error,
+      });
+    } catch (error) {
+      setAiTestResult({
+        ok: false,
+        provider: testProviderId,
+        model: testModel,
+        status: "error",
+        error: error instanceof Error ? error.message : String(error),
+      });
+    } finally {
+      setTestingAI(false);
+    }
+  };
+
+  const runProviderTests = async () => {
+    setProviderTesting(true);
+    try {
+      const response = await apiService.testAIProviders();
+      setProviderTestResults(response.results ?? []);
+    } catch (error) {
+      setProviderTestResults([
+        {
+          ok: false,
+          status: "error",
+          error: error instanceof Error ? error.message : String(error),
+        },
+      ]);
+    } finally {
+      setProviderTesting(false);
     }
   };
 
@@ -399,6 +576,90 @@ export default function AI() {
     notifySaved();
   };
 
+  const handleLoadAgents = async () => {
+    setLoadingAgents(true);
+    try {
+      const response = await apiService.getAIAgents();
+      if (response && response.success) {
+        setAgents(response.agents || []);
+      }
+    } catch {
+      toast({ title: "Erro ao carregar atendentes.", variant: "destructive" });
+    } finally {
+      setLoadingAgents(false);
+    }
+  };
+
+  const handleCreateAgent = async (agentPayload: any) => {
+    try {
+      const response = await apiService.createAIAgent(agentPayload);
+      if (response && response.success) {
+        toast({ title: "Atendente criado com sucesso." });
+        await handleLoadAgents();
+        return true;
+      }
+    } catch (err: any) {
+      toast({ title: err?.message || "Erro ao criar atendente.", variant: "destructive" });
+    }
+    return false;
+  };
+
+  const handleUpdateAgent = async (key: string, agentPayload: any) => {
+    try {
+      const response = await apiService.updateAIAgent(key, agentPayload);
+      if (response && response.success) {
+        toast({ title: "Atendente atualizado com sucesso." });
+        await handleLoadAgents();
+        return true;
+      }
+    } catch (err: any) {
+      toast({ title: err?.message || "Erro ao atualizar atendente.", variant: "destructive" });
+    }
+    return false;
+  };
+
+  const handleToggleAgent = async (key: string, active: boolean) => {
+    try {
+      const response = await apiService.toggleAIAgent(key, active);
+      if (response && response.success) {
+        toast({ title: active ? "Atendente ativado." : "Atendente desativado." });
+        await handleLoadAgents();
+        return true;
+      }
+    } catch {
+      toast({ title: "Erro ao alterar status do atendente.", variant: "destructive" });
+    }
+    return false;
+  };
+
+  const handleDeleteAgent = async (key: string) => {
+    try {
+      const response = await apiService.deleteAIAgent(key);
+      if (response && response.success) {
+        toast({ title: "Atendente excluído com sucesso." });
+        await handleLoadAgents();
+        return true;
+      }
+    } catch (err: any) {
+      toast({ title: err?.message || "Erro ao excluir atendente.", variant: "destructive" });
+    }
+    return false;
+  };
+
+  const handleCloneAgent = async (key: string) => {
+    try {
+      const response = await apiService.cloneAIAgent(key);
+      if (response && response.success) {
+        toast({ title: "Atendente clonado com sucesso." });
+        await handleLoadAgents();
+        return true;
+      }
+    } catch (err: any) {
+      toast({ title: err?.message || "Erro ao clonar atendente.", variant: "destructive" });
+    }
+    return false;
+  };
+
   const aiViewModel = createAILovableViewModel();
 
   return (
@@ -434,8 +695,10 @@ export default function AI() {
         responseDelay={responseDelay}
         autoFollowUp={autoFollowUp}
         lostCount={lostCount}
-        onSectionChange={setActiveSection}
+        onSectionChange={handleSectionChange}
         onStatusToggle={(value) => void handleStatusToggle(value)}
+        onDeleteAgent={handleDeleteAgent}
+        onCloneAgent={handleCloneAgent}
         onPromptChange={setPrompt}
         onSelectPromptVersion={setPrompt}
         onRestorePrompt={() => setPrompt(DEFAULT_PROMPT)}
@@ -459,6 +722,11 @@ export default function AI() {
         onRememberPreferencesChange={setRememberPreferences}
         onSaveMemory={() => void saveMemory()}
         onTemperatureChange={setTemperature}
+        agents={agents}
+        loadingAgents={loadingAgents}
+        onCreateAgent={handleCreateAgent}
+        onUpdateAgent={handleUpdateAgent}
+        onToggleAgent={handleToggleAgent}
         onMaxTokensChange={setMaxTokens}
         onResponseDelayChange={setResponseDelay}
         onAutoFollowUpChange={setAutoFollowUp}
@@ -471,6 +739,23 @@ export default function AI() {
         onProviderChange={handleProviderChange}
         onProviderToggle={handleProviderToggle}
         onSaveProviders={() => void saveProviders()}
+        testMessage={testMessage}
+        testPrompt={testPrompt}
+        testModel={testModel}
+        testProviderId={testProviderId}
+        testingAI={testingAI}
+        aiTestResult={aiTestResult}
+        providerTesting={providerTesting}
+        providerTestResults={providerTestResults}
+        aiHealthItems={aiHealthItems}
+        onTestMessageChange={setTestMessage}
+        onTestPromptChange={setTestPrompt}
+        onTestModelChange={setTestModel}
+        onTestProviderIdChange={setTestProviderId}
+        onRunAITest={() => void runAITest()}
+        onRunProviderTests={() => void runProviderTests()}
+        aiLogs={aiLogs}
+        aiMetrics={aiMetrics}
       />
     </div>
   );

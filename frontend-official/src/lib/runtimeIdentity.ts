@@ -30,7 +30,7 @@ export interface ZapflowRuntimeIdentity {
 
 declare global {
   interface Window {
-    __ZAPFLOW_RUNTIME__?: ZapflowRuntimeIdentity;
+    __ZAPFLOW_RUNTIME_IDENTITY__?: ZapflowRuntimeIdentity;
   }
 }
 
@@ -41,9 +41,9 @@ let initialized = false;
  */
 export function initRuntimeIdentity(buildHash: string): ZapflowRuntimeIdentity {
   // Guard: don't re-initialize on HMR hot reload
-  if (initialized && window.__ZAPFLOW_RUNTIME__) {
-    window.__ZAPFLOW_RUNTIME__.isHmr = true;
-    return window.__ZAPFLOW_RUNTIME__;
+  if (initialized && window.__ZAPFLOW_RUNTIME_IDENTITY__) {
+    window.__ZAPFLOW_RUNTIME_IDENTITY__.isHmr = true;
+    return window.__ZAPFLOW_RUNTIME_IDENTITY__;
   }
 
   const identity: ZapflowRuntimeIdentity = {
@@ -56,7 +56,7 @@ export function initRuntimeIdentity(buildHash: string): ZapflowRuntimeIdentity {
     isHmr: false,
   };
 
-  window.__ZAPFLOW_RUNTIME__ = identity;
+  window.__ZAPFLOW_RUNTIME_IDENTITY__ = identity;
   initialized = true;
 
   // Structured log — always visible in DevTools

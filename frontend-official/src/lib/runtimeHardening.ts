@@ -268,10 +268,10 @@ function cleanRecoveryFlags(): void {
 function installSafeStringHelper(): void {
   if (typeof window === "undefined") return;
 
-  (window as Record<string, unknown>).__safeString = (val: unknown): string =>
+  (window as unknown as Record<string, unknown>).__safeString = (val: unknown): string =>
     val === null || val === undefined ? "" : String(val);
 
-  (window as Record<string, unknown>).__safeArray = (val: unknown): unknown[] =>
+  (window as unknown as Record<string, unknown>).__safeArray = (val: unknown): unknown[] =>
     Array.isArray(val) ? val : [];
 }
 

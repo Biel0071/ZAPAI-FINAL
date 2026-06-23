@@ -84,11 +84,13 @@ function mapConversation(row) {
     lastMessage: row.last_message || '',
     lastMessageType: row.last_message_type || 'text',
     lead_id: row.lead_id,
+    remote_jid: row.remote_jid,
     lead_confidence: Number(row.lead_confidence) || 0,
     lead_intent: row.lead_intent || 'information',
     lead_temperature: row.lead_temperature || 'cold',
     name: row.name || 'Unknown',
     next_action: row.next_action || 'educate',
+    notes: row.notes || '',
     phone: row.phone,
     session_id: row.session_id,
     status: row.status || 'open',
@@ -97,6 +99,7 @@ function mapConversation(row) {
     unreadCount: Number(row.unread_count) || 0,
     updatedAt: row.updated_at,
     lastMessageAt: row.updated_at,
+    isBlocked: !!row.is_blocked,
   };
 }
 
@@ -106,6 +109,7 @@ function getBaseSelect() {
       conv.id,
       conv.company_id,
       conv.lead_id,
+      conv.remote_jid,
       conv.session_id,
       conv.status,
       conv.lead_temperature,
@@ -119,11 +123,13 @@ function getBaseSelect() {
       conv.lead_intent,
       conv.lead_confidence,
       conv.next_action,
+      conv.notes,
       conv.unread_count,
       conv.created_at,
       conv.updated_at,
       l.phone,
-      l.name
+      l.name,
+      l.is_blocked
     FROM conversations conv
     INNER JOIN leads l ON l.id = conv.lead_id
   `;
@@ -133,6 +139,7 @@ async function createConversation({
   aiEnabled = true,
   companyId,
   contactId,
+  remote_jid,
   lastMessage = '',
   lastMessageType = 'text',
   assignedAgent = 'Camila',
@@ -147,11 +154,26 @@ async function createConversation({
   tags = [],
   unreadCount = 0,
 }) {
+  let resolvedJid = remote_jid;
+  if (!resolvedJid) {
+    const contactResult = await query(
+      'SELECT phone FROM leads WHERE id = $1 LIMIT 1',
+      [contactId]
+    );
+    if (contactResult.rows[0]?.phone) {
+      const { normalizeWhatsappJid } = require('../services/whatsapp/shared/identifiers');
+      resolvedJid = normalizeWhatsappJid(contactResult.rows[0].phone);
+    } else {
+      resolvedJid = `unknown_lead_${contactId}@s.whatsapp.net`;
+    }
+  }
+
   const result = await query(
     `
       INSERT INTO conversations (
         company_id,
         lead_id,
+        remote_jid,
         session_id,
         status,
         lead_temperature,
@@ -168,12 +190,15 @@ async function createConversation({
         unread_count,
         updated_at
       )
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, NOW())
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, NOW())
+      ON CONFLICT (company_id, session_id, remote_jid)
+      DO UPDATE SET updated_at = NOW()
       RETURNING id
     `,
     [
       getCompanyId(companyId),
       contactId,
+      resolvedJid,
       sessionId,
       status,
       leadTemperature,
@@ -193,7 +218,10 @@ async function createConversation({
 
   invalidateConversationCache(companyId);
 
-  return getConversationById(result.rows[0].id);
+  const convId = result.rows[0].id;
+  console.log(`[TEMP_LOG] conversation.created - CONVERSATION_ID: "${convId}", PHONE: "${resolvedJid}", REMOTE_JID: "${resolvedJid}", SESSION_ID: "${sessionId}", MESSAGE_ID: "N/A", SOURCE: "conversationRepository.createConversation"`);
+
+  return getConversationById(convId);
 }
 
 async function getConversationById(id) {
@@ -223,8 +251,10 @@ async function getConversationByContact(contactId, companyId, sessionId) {
 }
 
 async function getConversationByPhone(phone, companyId, sessionId) {
-  const values = [phone, getCompanyId(companyId)];
-  let whereClause = 'WHERE l.phone = $1 AND conv.company_id = $2';
+  const { getPhoneAliases } = require('../services/whatsapp/shared/identifiers');
+  const aliases = getPhoneAliases(phone);
+  const values = [aliases, getCompanyId(companyId)];
+  let whereClause = 'WHERE l.phone = ANY($1::text[]) AND conv.company_id = $2';
 
   if (sessionId) {
     values.push(sessionId);
@@ -251,19 +281,22 @@ async function findOrCreateConversationByPhone({
   phone,
   sessionId,
 }) {
-  let conversation = await getConversationByPhone(phone, companyId, sessionId);
+  const { normalizePhone } = require('../services/whatsapp/shared/identifiers');
+  const normalizedPhone = normalizePhone(phone);
+
+  let conversation = await getConversationByPhone(normalizedPhone, companyId, sessionId);
 
   if (conversation) {
     return conversation;
   }
 
-  let contact = await contactRepository.findContactByPhone(phone, companyId);
+  let contact = await contactRepository.findContactByPhone(normalizedPhone, companyId);
 
   if (!contact) {
     contact = await contactRepository.createContact({
       companyId,
-      name: contactName || phone,
-      phone,
+      name: contactName || normalizedPhone,
+      phone: normalizedPhone,
     });
   }
 
@@ -349,6 +382,7 @@ async function updateConversationState(conversationId, fields = {}) {
     lead_intent: 'lead_intent',
     lead_temperature: 'lead_temperature',
     next_action: 'next_action',
+    notes: 'notes',
     session_id: 'session_id',
     status: 'status',
     summary: 'summary',
@@ -395,6 +429,8 @@ async function updateConversationState(conversationId, fields = {}) {
 
   const updatedConversation = await getConversationById(result.rows[0].id);
   invalidateConversationCache(updatedConversation.company_id);
+
+  console.log(`[TEMP_LOG] conversation.updated - CONVERSATION_ID: "${updatedConversation.id}", PHONE: "${updatedConversation.phone || ''}", REMOTE_JID: "${updatedConversation.remoteJid || updatedConversation.remote_jid || ''}", SESSION_ID: "${updatedConversation.sessionId || updatedConversation.session_id || ''}", MESSAGE_ID: "N/A", SOURCE: "conversationRepository.updateConversationState"`);
 
   return updatedConversation;
 }
@@ -472,9 +508,43 @@ async function listConversations(companyId, limit = 50, options = {}) {
 
   const result = await query(
     `
-      ${getBaseSelect()}
-      ${whereClause}
-      ORDER BY conv.updated_at DESC
+      SELECT *
+      FROM (
+        SELECT DISTINCT ON (conv.company_id, conv.lead_id, COALESCE(NULLIF(conv.session_id, ''), 'main'))
+          conv.id,
+          conv.company_id,
+          conv.lead_id,
+          conv.session_id,
+          conv.status,
+          conv.lead_temperature,
+          conv.funnel_stage,
+          conv.agent_name,
+          conv.tags,
+          conv.summary,
+          conv.last_message,
+          conv.last_message_type,
+          conv.ai_enabled,
+          conv.lead_intent,
+          conv.lead_confidence,
+          conv.next_action,
+          conv.notes,
+          conv.unread_count,
+          conv.created_at,
+          conv.updated_at,
+          l.phone,
+          l.name,
+          l.is_blocked
+        FROM conversations conv
+        INNER JOIN leads l ON l.id = conv.lead_id
+        ${whereClause}
+        ORDER BY
+          conv.company_id,
+          conv.lead_id,
+          COALESCE(NULLIF(conv.session_id, ''), 'main'),
+          conv.updated_at DESC,
+          conv.id DESC
+      ) deduplicated
+      ORDER BY updated_at DESC
       LIMIT $${values.length}
     `,
     values
@@ -487,9 +557,21 @@ async function listConversations(companyId, limit = 50, options = {}) {
   return conversations.slice();
 }
 
+async function deleteConversation(conversationId) {
+  const result = await query('DELETE FROM conversations WHERE id = $1 RETURNING company_id', [conversationId]);
+  await query('DELETE FROM messages WHERE conversation_id = $1', [conversationId]);
+
+  if (result.rows[0]) {
+    invalidateConversationCache(result.rows[0].company_id);
+    return true;
+  }
+  return false;
+}
+
 module.exports = {
   create,
   createConversation,
+  deleteConversation,
   findByPhone,
   findOrCreateConversationByPhone,
   getConversationByContact,

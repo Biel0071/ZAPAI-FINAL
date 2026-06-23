@@ -1,13 +1,13 @@
 {
-  "timestamp": "2026-05-29T19:54:09.422Z",
+  "timestamp": "2026-06-23T15:09:23.749Z",
   "backendHealth": {
     "success": true,
-    "timestamp": "2026-05-29T19:54:09.926Z",
+    "timestamp": "2026-06-23T15:09:24.610Z",
     "summary": {
       "total": 16,
-      "passed": 13,
+      "passed": 14,
       "failed": 0,
-      "warned": 3
+      "warned": 2
     },
     "services": {
       "pm2": {
@@ -22,17 +22,17 @@
     "database": {
       "postgres": {
         "status": "ok",
-        "detail": "SELECT 1 in 113ms | server_time=Fri May 29 2026 16:54:09 GMT-0300 (Horário Padrão de Brasília)"
+        "detail": "SELECT 1 in 280ms | server_time=Tue Jun 23 2026 12:09:24 GMT-0300 (Horário Padrão de Brasília)"
       },
       "migrations": {
         "status": "ok",
-        "detail": "11 migrations applied"
+        "detail": "23 migrations applied"
       }
     },
     "memory": {
       "heap": {
         "status": "ok",
-        "detail": "heap=7MB rss=49MB"
+        "detail": "heap=6MB rss=49MB"
       },
       "system": {
         "status": "ok",
@@ -49,8 +49,8 @@
     },
     "sessions": {
       "baileys": {
-        "status": "warn",
-        "detail": "1 session dirs but 0 with valid creds.json — scan QR to pair"
+        "status": "ok",
+        "detail": "1/2 sessions with valid auth"
       }
     },
     "websocket": {
@@ -63,98 +63,98 @@
       {
         "name": "postgres",
         "status": "ok",
-        "detail": "SELECT 1 in 113ms | server_time=Fri May 29 2026 16:54:09 GMT-0300 (Horário Padrão de Brasília)",
-        "timestamp": "2026-05-29T19:54:09.703Z"
+        "detail": "SELECT 1 in 280ms | server_time=Tue Jun 23 2026 12:09:24 GMT-0300 (Horário Padrão de Brasília)",
+        "timestamp": "2026-06-23T15:09:24.222Z"
       },
       {
         "name": "postgres_tables",
         "status": "ok",
-        "detail": "37 public tables",
-        "timestamp": "2026-05-29T19:54:09.723Z"
+        "detail": "43 public tables",
+        "timestamp": "2026-06-23T15:09:24.259Z"
       },
       {
         "name": "redis",
         "status": "warn",
         "detail": "REDIS_URL not configured — Redis disabled",
-        "timestamp": "2026-05-29T19:54:09.723Z"
+        "timestamp": "2026-06-23T15:09:24.259Z"
       },
       {
         "name": "sessions_dir",
         "status": "ok",
         "detail": "C:\\projetos\\ZAPAI-FINAL\\backend\\sessions",
-        "timestamp": "2026-05-29T19:54:09.725Z"
+        "timestamp": "2026-06-23T15:09:24.261Z"
       },
       {
         "name": "logs_dir",
         "status": "ok",
         "detail": "C:\\projetos\\ZAPAI-FINAL\\backend\\logs",
-        "timestamp": "2026-05-29T19:54:09.726Z"
+        "timestamp": "2026-06-23T15:09:24.263Z"
       },
       {
         "name": "uploads_dir",
         "status": "ok",
         "detail": "C:\\projetos\\ZAPAI-FINAL\\backend\\uploads",
-        "timestamp": "2026-05-29T19:54:09.727Z"
+        "timestamp": "2026-06-23T15:09:24.264Z"
       },
       {
         "name": "disk_space",
         "status": "ok",
         "detail": "Windows Host — disk check skipped",
-        "timestamp": "2026-05-29T19:54:09.727Z"
+        "timestamp": "2026-06-23T15:09:24.264Z"
       },
       {
         "name": "memory_heap",
         "status": "ok",
-        "detail": "heap=7MB rss=49MB",
-        "timestamp": "2026-05-29T19:54:09.727Z"
+        "detail": "heap=6MB rss=49MB",
+        "timestamp": "2026-06-23T15:09:24.264Z"
       },
       {
         "name": "memory_system",
         "status": "ok",
         "detail": "Windows Host — system memory check skipped",
-        "timestamp": "2026-05-29T19:54:09.727Z"
+        "timestamp": "2026-06-23T15:09:24.264Z"
       },
       {
         "name": "cpu_usage",
         "status": "ok",
         "detail": "Windows Host — CPU check skipped",
-        "timestamp": "2026-05-29T19:54:09.727Z"
+        "timestamp": "2026-06-23T15:09:24.264Z"
       },
       {
         "name": "backend_http",
         "status": "ok",
-        "detail": "HTTP 200 in 37ms | has_system=true",
-        "timestamp": "2026-05-29T19:54:09.764Z"
+        "detail": "HTTP 200 in 11ms | has_system=true",
+        "timestamp": "2026-06-23T15:09:24.276Z"
       },
       {
         "name": "websocket_route",
         "status": "ok",
         "detail": "Socket.IO polling: HTTP 200",
-        "timestamp": "2026-05-29T19:54:09.793Z"
+        "timestamp": "2026-06-23T15:09:24.279Z"
       },
       {
         "name": "baileys_sessions",
-        "status": "warn",
-        "detail": "1 session dirs but 0 with valid creds.json — scan QR to pair",
-        "timestamp": "2026-05-29T19:54:09.794Z"
+        "status": "ok",
+        "detail": "1/2 sessions with valid auth",
+        "timestamp": "2026-06-23T15:09:24.297Z"
       },
       {
         "name": "pm2_process",
         "status": "warn",
         "detail": "PM2 not available or not running",
-        "timestamp": "2026-05-29T19:54:09.829Z"
+        "timestamp": "2026-06-23T15:09:24.374Z"
       },
       {
         "name": "nginx",
         "status": "ok",
         "detail": "Windows Host — nginx status check skipped",
-        "timestamp": "2026-05-29T19:54:09.829Z"
+        "timestamp": "2026-06-23T15:09:24.374Z"
       },
       {
         "name": "migrations",
         "status": "ok",
-        "detail": "11 migrations applied",
-        "timestamp": "2026-05-29T19:54:09.926Z"
+        "detail": "23 migrations applied",
+        "timestamp": "2026-06-23T15:09:24.610Z"
       }
     ]
   },
@@ -167,6 +167,11 @@
       "id": "main",
       "hasAuth": false,
       "status": "No credentials"
+    },
+    {
+      "id": "teste1010",
+      "hasAuth": true,
+      "status": "Pre-authenticated"
     }
   ],
   "pagesStatus": {

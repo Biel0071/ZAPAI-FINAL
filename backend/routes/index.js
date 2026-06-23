@@ -20,7 +20,6 @@ const clusterRouter = require('./cluster');
 const campaignDispatchRouter = require('./campaignDispatch');
 
 // ── NEW: Frontend-compatibility routers ──────────────────────────────────────
-const campaignsRouter = require('./campaigns');
 const logsRouter = require('./logs');
 const whatsappRouter = require('./whatsapp');
 const adminUsersRouter = require('./adminUsers');
@@ -90,8 +89,6 @@ function registerRoutes(app, options = {}) {
   app.use('/api', campaignDispatchRouter);
 
   // ── NEW: Frontend-compatibility endpoints ────────────────────────────────
-  // /api/campaigns — CRUD + launch/pause
-  app.use('/api', campaignsRouter);
 
   // /api/logs — system log read/export/clear
   app.use('/api', logsRouter);

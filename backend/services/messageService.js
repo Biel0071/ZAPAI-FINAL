@@ -3,14 +3,34 @@ const path = require('path');
 const conversationRepository = require('../repositories/conversationRepository');
 const messageRepository = require('../repositories/messageRepository');
 const whatsappService = require('./whatsappService');
+const MessageAuditService = require('./messageAuditService');
 
 const PROJECT_ROOT = path.join(__dirname, '..');
 const UPLOADS_DIRECTORY = path.join(PROJECT_ROOT, 'uploads');
 const UPLOAD_DIRECTORY = path.join(PROJECT_ROOT, 'upload');
-const MEDIA_TEMP_DIRECTORY = path.join(PROJECT_ROOT, 'media', 'temp');
+const MEDIA_TEMP_DIRECTORY = path.resolve(PROJECT_ROOT, '..', 'storage', 'media', 'temp');
 
 function toIsoTimestamp(value) {
-  const parsed = value ? Date.parse(String(value)) : NaN;
+  if (!value) {
+    return new Date().toISOString();
+  }
+
+  if (value instanceof Date) {
+    return value.toISOString();
+  }
+
+  const str = String(value).trim();
+  if (/^\d+$/.test(str)) {
+    const num = Number(str);
+    if (num > 1e9 && num < 9e9) {
+      return new Date(num * 1000).toISOString();
+    }
+    if (num >= 1e12 && num < 9e12) {
+      return new Date(num).toISOString();
+    }
+  }
+
+  const parsed = Date.parse(str);
   if (!Number.isNaN(parsed)) {
     return new Date(parsed).toISOString();
   }
@@ -96,7 +116,7 @@ function toSystemPathFromPublicPath(value = '') {
   }
 
   if (normalized.startsWith('/media/')) {
-    return path.join(PROJECT_ROOT, normalized.replace(/^\//, ''));
+    return path.resolve(PROJECT_ROOT, '..', 'storage', 'media', normalized.replace(/^\/media\//, ''));
   }
 
   return normalized;
@@ -120,6 +140,7 @@ const ALLOWED_MEDIA_ROOTS = [
   UPLOADS_DIRECTORY,
   UPLOAD_DIRECTORY,
   path.join(PROJECT_ROOT, 'media'),
+  path.resolve(PROJECT_ROOT, '..', 'storage', 'media'),
 ];
 
 function isPathInsideRoot(absolutePath, rootPath) {
@@ -187,9 +208,11 @@ async function resolveOutboundMediaPath(inputPath = '') {
     path.resolve(PROJECT_ROOT, 'upload', normalized),
     path.resolve(PROJECT_ROOT, 'uploads', normalized),
     path.resolve(PROJECT_ROOT, 'media', normalized),
+    path.resolve(PROJECT_ROOT, '..', 'storage', 'media', normalized),
     path.resolve(PROJECT_ROOT, 'upload', path.basename(normalized)),
     path.resolve(PROJECT_ROOT, 'uploads', path.basename(normalized)),
     path.resolve(PROJECT_ROOT, 'media', path.basename(normalized)),
+    path.resolve(PROJECT_ROOT, '..', 'storage', 'media', path.basename(normalized)),
   ];
 
   for (const candidate of candidates) {
@@ -250,8 +273,11 @@ function toPublicMediaPath(resolvedPath = '') {
   const rawValue = decodeSafe(String(resolvedPath || '').trim());
   const extractedUploadTokenPath = extractUploadTokenPath(rawValue);
 
-  if (/^uploads?:/i.test(rawValue) || /^\/?uploads?[/\\]/i.test(rawValue)) {
+  if (/^uploads:/i.test(rawValue) || /^\/?uploads[/\\]/i.test(rawValue)) {
     return `/uploads/${path.basename(extractedUploadTokenPath)}`;
+  }
+  if (/^upload:/i.test(rawValue) || /^\/?upload[/\\]/i.test(rawValue)) {
+    return `/upload/${path.basename(extractedUploadTokenPath)}`;
   }
 
   const normalized = toSystemPathFromPublicPath(extractedUploadTokenPath);
@@ -260,24 +286,47 @@ function toPublicMediaPath(resolvedPath = '') {
     return normalized;
   }
 
-  const uploadsPrefix = `${UPLOADS_DIRECTORY}${path.sep}`;
-  const uploadPrefix = `${UPLOAD_DIRECTORY}${path.sep}`;
-  const mediaPrefix = `${path.join(PROJECT_ROOT, 'media')}${path.sep}`;
+  // Windows drive letter and slash normalization
+  let cleanPath = normalized.replace(/\\/g, '/');
+  if (/^[a-zA-Z]:/i.test(cleanPath)) {
+    cleanPath = cleanPath.replace(/^[a-zA-Z]:/i, '');
+  }
+  const lowerClean = cleanPath.toLowerCase();
 
-  if (normalized.startsWith(uploadPrefix)) {
-    return `/uploads/${path.basename(normalized)}`;
+  if (lowerClean.startsWith('/uploads/') || lowerClean.startsWith('uploads/')) {
+    return `/uploads/${path.basename(cleanPath)}`;
+  }
+  if (lowerClean.startsWith('/upload/') || lowerClean.startsWith('upload/')) {
+    return `/upload/${path.basename(cleanPath)}`;
+  }
+  if (lowerClean.startsWith('/media/') || lowerClean.startsWith('media/')) {
+    return lowerClean.startsWith('/') ? cleanPath : '/' + cleanPath;
   }
 
-  if (normalized.startsWith(uploadsPrefix)) {
+  const lowerNormalized = normalized.toLowerCase().replace(/\\/g, '/');
+  const lowerUploadsPrefix = UPLOADS_DIRECTORY.toLowerCase().replace(/\\/g, '/') + '/';
+  const lowerUploadPrefix = UPLOAD_DIRECTORY.toLowerCase().replace(/\\/g, '/') + '/';
+  const lowerMediaPrefix = path.join(PROJECT_ROOT, 'media').toLowerCase().replace(/\\/g, '/') + '/';
+  const lowerStorageMediaPrefix = path.resolve(PROJECT_ROOT, '..', 'storage', 'media').toLowerCase().replace(/\\/g, '/') + '/';
+
+  if (lowerNormalized.startsWith(lowerUploadsPrefix)) {
     return `/uploads/${path.basename(normalized)}`;
   }
+  if (lowerNormalized.startsWith(lowerUploadPrefix)) {
+    return `/upload/${path.basename(normalized)}`;
+  }
 
-  if (normalized.startsWith(mediaPrefix)) {
-    const relative = normalized.slice(mediaPrefix.length).replace(/\\/g, '/');
+  if (lowerNormalized.startsWith(lowerMediaPrefix)) {
+    const relative = normalized.replace(/\\/g, '/').slice(lowerMediaPrefix.length);
     return `/media/${relative}`;
   }
 
-  return normalized;
+  if (lowerNormalized.startsWith(lowerStorageMediaPrefix)) {
+    const relative = normalized.replace(/\\/g, '/').slice(lowerStorageMediaPrefix.length);
+    return `/media/${relative}`;
+  }
+
+  return normalized ? String(normalized).replace(/\\/g, '/') : normalized;
 }
 
 function safeSocketEmit(ioLike, eventName, payload, aliases = []) {
@@ -302,6 +351,26 @@ async function persistIncomingMessage(payload = {}) {
   const phone = whatsappService.normalizePhone(payload.phone || '');
   const companyId = payload.companyId || process.env.DEFAULT_COMPANY_ID || 'default';
   const sessionId = payload.sessionId || 'main';
+
+  // Log conversation upsert key details
+  const rawJid = payload.phone || '';
+  const rawLid = rawJid.includes('@lid') ? rawJid : '';
+  console.log(`[CONVERSATION-UPSERT-KEY] INBOUND Message - Raw JID: "${rawJid}", Raw LID: "${rawLid}", Normalized Canonical Phone Key: "${phone}"`);
+
+  // If number is a raw unresolved LID, queue it instead of creating thread
+  const { isRawLid } = require('./whatsapp/shared/identifiers');
+  if (isRawLid(phone)) {
+    const lidMapper = require('./whatsapp/shared/lidMapper');
+    await lidMapper.savePendingMessage(phone, companyId, sessionId, payload);
+    console.log(`[LID-RECONCILE] Message from unresolved LID ${phone} saved to pending queue.`);
+    return {
+      conversation: null,
+      message: null,
+      queued: true,
+      isNewConversation: false,
+    };
+  }
+
   const normalizedTimestamp = toIsoTimestamp(payload.timestamp);
   const normalizedMediaPath = toPublicMediaPath(payload.mediaPath || null);
   const messageType = inferIncomingType({
@@ -316,14 +385,20 @@ async function persistIncomingMessage(payload = {}) {
     throw new Error('Incoming message missing phone.');
   }
 
-  const conversation = await conversationRepository.findOrCreateConversationByPhone({
-    companyId,
-    contactName: payload.name || phone,
-    lastMessage: preview,
-    lastMessageType: messageType,
-    phone,
-    sessionId,
-  });
+  let conversation = null;
+  if (payload.conversationId) {
+    conversation = await conversationRepository.getConversationById(payload.conversationId).catch(() => null);
+  }
+  if (!conversation) {
+    conversation = await conversationRepository.findOrCreateConversationByPhone({
+      companyId,
+      contactName: payload.name || phone,
+      lastMessage: preview,
+      lastMessageType: messageType,
+      phone,
+      sessionId,
+    });
+  }
 
   const savedMessage = await messageRepository.create({
     companyId,
@@ -343,6 +418,23 @@ async function persistIncomingMessage(payload = {}) {
     timestamp: normalizedTimestamp,
   });
 
+  // Log STORED_DATABASE step
+  try {
+    await MessageAuditService.logStep({
+      messageId: savedMessage?.id || null,
+      conversationId: conversation?.id || null,
+      phone: phone,
+      step: 'STORED_DATABASE',
+      status: 'success',
+      details: {
+        messageType,
+        mediaPath: normalizedMediaPath,
+      }
+    });
+  } catch (err) {
+    console.error('[MESSAGE AUDIT] Failed to log STORED_DATABASE:', err);
+  }
+
   const unreadCount = (Number(conversation.unreadCount) || 0) + 1;
   let updatedConversation = null;
 
@@ -360,6 +452,23 @@ async function persistIncomingMessage(payload = {}) {
       preview,
       messageType
     );
+  }
+
+  // Log CONVERSATION_UPDATED step
+  try {
+    await MessageAuditService.logStep({
+      messageId: savedMessage?.id || null,
+      conversationId: conversation?.id || null,
+      phone: phone,
+      step: 'CONVERSATION_UPDATED',
+      status: 'success',
+      details: {
+        unreadCount,
+        lastMessage: preview
+      }
+    });
+  } catch (err) {
+    console.error('[MESSAGE AUDIT] Failed to log CONVERSATION_UPDATED:', err);
   }
 
   return {

@@ -5,6 +5,7 @@ const outboundQueueController = require('../controllers/outboundQueueController'
 
 router.get('/messages', messagesController.listMessages);
 router.get('/chats', messagesController.getChats);
+router.get('/stickers', messagesController.listStickers);
 router.get('/chats/:chatId/messages', messagesController.getMessagesByChatId);
 router.get('/messages/by-phone/:phone', messagesController.getMessagesByPhone);
 router.get('/messages/:chatId', messagesController.getMessagesByChatId);

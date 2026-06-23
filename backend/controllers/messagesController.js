@@ -1,6 +1,7 @@
 const fs = require('fs/promises');
 const path = require('path');
 const { randomUUID } = require('crypto');
+const { query: dbQuery } = require('../config/database');
 
 const sessionManager = require('../services/sessionManager');
 const messageService = require('../services/messageService');
@@ -119,6 +120,8 @@ async function sendMessage(req, res) {
   const {
     _transportMediaPath,
     chatId,
+    contactId,
+    conversationId,
     fileName,
     mediaPath = null,
     mediaType = null,
@@ -133,7 +136,10 @@ async function sendMessage(req, res) {
   const store = getStore(req);
   const normalizedPhone = whatsappService.normalizePhone(chatId || phone);
   const mediaTransportPath = await messageService.resolveOutboundMediaPath(_transportMediaPath || mediaPath);
-  const resolvedMediaType = mediaType || inferMediaType(mediaTransportPath || mediaPath);
+  const resolvedMediaType =
+    String(mediaType || '').toLowerCase() === 'file'
+      ? 'document'
+      : (mediaType || inferMediaType(mediaTransportPath || mediaPath));
   const resolvedText = toExactMessageText(message || text || null) || null;
   const persistedMediaPath = messageService.toPublicMediaPath(mediaPath || mediaTransportPath);
   const requestedSessionId = getRequestedSessionId(req);
@@ -248,8 +254,8 @@ async function sendMessage(req, res) {
         mediaPath: persistedMediaPath || mediaTransportPath || mediaPath || null,
         mediaType: resolvedMediaType || null,
         sessionId: session?.sessionId || targetSessionName,
-        conversationId: `chat-${normalizedPhone}`,
-        status: 'sending',
+        conversationId: conversationId || `chat-${normalizedPhone}`,
+        status: 'sent',
       });
 
       MessageAuditService.log('message_sent_memory', {
@@ -259,10 +265,14 @@ async function sendMessage(req, res) {
 
       if (sendResult?.key?.id && memEntry?.id) {
         messageAckPipeline.registerDbMapping(sendResult.key.id, memEntry.id);
-        messageAckPipeline.transitionAck(sendResult.key.id, messageAckPipeline.ACK_STATES.SENT, {
+        const ackEntry = messageAckPipeline.transitionAck(sendResult.key.id, messageAckPipeline.ACK_STATES.SENT, {
           chatId: normalizedPhone,
           sessionId: session?.sessionId || targetSessionName,
         });
+        const io = store?.io || global.io || req.app?.get?.('io') || req.app?.locals?.io;
+        if (io && ackEntry) {
+          messageAckPipeline.emitAckUpdate(io, ackEntry);
+        }
       }
 
       const inboxPayload = {
@@ -274,7 +284,7 @@ async function sendMessage(req, res) {
         mediaPath: messageService.toPublicMediaPath(memEntry?.mediaPath || persistedMediaPath || null),
         mediaType: memEntry?.mediaType || null,
         phone: normalizedPhone,
-        status: 'sending',
+        status: 'sent',
       };
 
       if (!inboxPayload.id) {
@@ -309,6 +319,8 @@ async function sendMessage(req, res) {
 
     const persistedResult = await registerOutgoingMessage(store, {
       companyId: req.body?.companyId,
+      contactId,
+      conversationId,
       mediaPath: persistedMediaPath || mediaPath,
       mediaType: resolvedMediaType,
       name: session?.phone || 'Unknown',
@@ -316,7 +328,7 @@ async function sendMessage(req, res) {
       sessionId: session?.sessionId || targetSessionName,
       source: 'human',
       text: resolvedText,
-      status: 'sending',
+      status: 'sent',
     });
 
     if (!persistedResult?.message) {
@@ -345,10 +357,14 @@ async function sendMessage(req, res) {
 
     if (sendResult?.key?.id && apiMessage?.id) {
       messageAckPipeline.registerDbMapping(sendResult.key.id, apiMessage.id);
-      messageAckPipeline.transitionAck(sendResult.key.id, messageAckPipeline.ACK_STATES.SENT, {
+      const ackEntry = messageAckPipeline.transitionAck(sendResult.key.id, messageAckPipeline.ACK_STATES.SENT, {
         chatId: normalizedPhone,
         sessionId: session?.sessionId || targetSessionName,
       });
+      const io = store?.io || global.io || req.app?.get?.('io') || req.app?.locals?.io;
+      if (io && ackEntry) {
+        messageAckPipeline.emitAckUpdate(io, ackEntry);
+      }
     }
 
     return res.status(200).json({
@@ -358,6 +374,21 @@ async function sendMessage(req, res) {
     });
   } catch (error) {
     const message = String(error?.message || '');
+
+    const errMsg = message.toLowerCase();
+    const isBlockedError = errMsg.includes('blocked') || errMsg.includes('forbidden') || errMsg.includes('recipient unavailable');
+    if (isBlockedError && store.databaseEnabled) {
+      try {
+        const companyId = req.body?.companyId || req.companyId || req.tenantId || 'default';
+        await dbQuery(
+          'UPDATE leads SET is_blocked = TRUE WHERE phone = $1 AND company_id = $2',
+          [normalizedPhone, companyId]
+        );
+        console.log(`[CRM] Contact ${normalizedPhone} marked as blocked due to error: ${message}`);
+      } catch (dbErr) {
+        console.error('[CRM] Failed to update blocked status for lead:', dbErr.message);
+      }
+    }
 
     if (error?.code === 'MEDIA_FILE_NOT_FOUND') {
       return res.status(404).json({
@@ -418,8 +449,12 @@ async function sendMedia(req, res) {
   try {
     await messageService.ensureUploadDirectories();
 
+    const base64Data = isBase64MediaInput(file) ? file : (isBase64MediaInput(mediaPath) ? mediaPath : null);
     const resolvedMediaPath = mediaPath || file || null;
-    const resolvedMediaType = type || inferMediaType(resolvedMediaPath);
+    const resolvedMediaType =
+      String(type || '').toLowerCase() === 'file'
+        ? 'document'
+        : (type || inferMediaType(resolvedMediaPath));
 
     if (!resolvedMediaPath || !resolvedMediaType) {
       return res.status(400).json({
@@ -428,7 +463,7 @@ async function sendMedia(req, res) {
       });
     }
 
-    const tempFile = await saveBase64MediaToTempFile(resolvedMediaPath, {
+    const tempFile = await saveBase64MediaToTempFile(base64Data || resolvedMediaPath, {
       mediaType: resolvedMediaType,
       mimetype,
     });
@@ -829,6 +864,8 @@ async function createMessage(req, res) {
     if (direction === 'outbound') {
       result = await registerOutgoingMessage(store, {
         companyId,
+        contactId: req.body?.contactId,
+        conversationId,
         mediaPath,
         mediaType,
         name: name || normalizedPhone,
@@ -1016,6 +1053,60 @@ async function forwardMessage(req, res) {
   }
 }
 
+async function listStickers(req, res) {
+  const store = getStore(req);
+  try {
+    const enterpriseMediaService = require('../services/enterprise/media-service');
+    const tenantId = enterpriseMediaService.normalizeTenantId(req.query.tenantId || req.companyId || 'default');
+    
+    // Path: storage/media/<tenantId>/stickers
+    const PROJECT_ROOT = path.join(__dirname, '..');
+    const MEDIA_ROOT = path.resolve(PROJECT_ROOT, '..', 'storage', 'media');
+    const stickersDir = path.join(MEDIA_ROOT, tenantId, 'stickers');
+    
+    const urls = new Set();
+    const { existsSync } = require('fs');
+    
+    // 1. Read from local directory if it exists
+    if (existsSync(stickersDir)) {
+      const files = await fs.readdir(stickersDir);
+      for (const file of files) {
+        if (file.endsWith('.webp')) {
+          urls.add(`/media/${tenantId}/stickers/${file}`);
+        }
+      }
+    }
+    
+    // 2. Query from database if enabled
+    if (store.databaseEnabled) {
+      const dbResult = await dbQuery(
+        `SELECT DISTINCT media_path FROM messages WHERE message_type = 'sticker' AND media_path IS NOT NULL AND company_id = $1`,
+        [tenantId]
+      );
+      for (const row of dbResult.rows) {
+        if (row.media_path) {
+          urls.add(row.media_path);
+        }
+      }
+    }
+    
+    const stickers = Array.from(urls).map(url => {
+      const parts = url.split('/');
+      const id = parts[parts.length - 1];
+      return {
+        id,
+        url,
+        name: id
+      };
+    });
+    
+    return res.status(200).json({ stickers, success: true });
+  } catch (error) {
+    console.error('[STICKERS] Failed to list stickers:', error);
+    return res.status(500).json({ error: error.message || 'Failed to list stickers', success: false });
+  }
+}
+
 module.exports = {
   createMessage,
   deleteMessage,
@@ -1031,4 +1122,5 @@ module.exports = {
   registerOutgoingMessage,
   sendMedia,
   sendMessage,
+  listStickers,
 };

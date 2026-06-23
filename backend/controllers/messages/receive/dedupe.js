@@ -6,7 +6,7 @@
 const messageDedupeService = require('../../../services/messageDedupeService');
 
 function shouldPersistExternalMessageId(messageId = '') {
-  return messageDedupeService.markSeen('inbound', messageId);
+  return messageDedupeService.markSeen('inbound_persist', messageId);
 }
 
 module.exports = {

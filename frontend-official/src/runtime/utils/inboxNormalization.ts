@@ -1,4 +1,5 @@
 import { API_ORIGIN } from "@/lib/backendConfig";
+import { loadAdminAuthSession } from "@/lib/adminAuthSession";
 import type { Conversation, ChatMessage } from "@/services/apiService";
 
 const BACKEND_BASE_URL = API_ORIGIN;
@@ -10,12 +11,14 @@ export function normalizeId(id: unknown): string {
 export function normalizePhone(phone?: string): string {
   const normalized = String(phone ?? "").trim().toLowerCase();
   if (!normalized) return "";
-  if (normalized.includes("@g.us")) return normalized;
-  return normalized.replace(/\D/g, "");
+  if (normalized.includes("@g.us") || normalized.includes("@lid")) return normalized;
+  const digits = normalized.replace(/\D/g, "");
+  if (digits.length >= 14 && !digits.startsWith("55")) return `${digits}@lid`;
+  return digits;
 }
 
 export function normalizePhoneKey(phone: unknown): string {
-  return String(phone ?? "").trim().toLowerCase();
+  return normalizePhone(String(phone ?? ""));
 }
 
 export function getConversationKey(conversation: Partial<Conversation> & { conversationId?: unknown; remoteJid?: unknown; jid?: unknown; chatId?: unknown }): string {
@@ -47,10 +50,32 @@ export function getMessageConversationKey(message: Partial<ChatMessage> & { sess
 }
 
 export function resolveMediaUrl(url?: string | null): string | null {
-  const normalized = String(url ?? "").trim();
-  if (!normalized) return null;
-  if (/^https?:\/\//i.test(normalized)) return normalized;
-  return `${BACKEND_BASE_URL}/${normalized.replace(/^\/+/, "")}`;
+  let normalized = String(url ?? "").trim().replace(/\\/g, "/");
+  if (!normalized || (normalized.startsWith("[") && normalized.endsWith("]"))) return null;
+  if (/^https?:\/\/(localhost|127\.0\.0\.1):4025/i.test(normalized)) {
+    normalized = normalized.replace(/^https?:\/\/(localhost|127\.0\.0\.1):4025/i, BACKEND_BASE_URL);
+  }
+  let finalUrl = normalized;
+  if (!/^https?:\/\//i.test(normalized)) {
+    if (/^[a-zA-Z]:/i.test(normalized)) {
+      normalized = normalized.replace(/^[a-zA-Z]:/i, "");
+    }
+    finalUrl = `${BACKEND_BASE_URL}/${normalized.replace(/^\/+/, "")}`;
+  }
+
+  const isBackendMedia =
+    finalUrl.startsWith(BACKEND_BASE_URL) ||
+    /^(https?:\/\/[^\/]+)?\/(media|upload|uploads)\//i.test(finalUrl);
+
+  if (isBackendMedia) {
+    const session = loadAdminAuthSession();
+    if (session && session.token && !finalUrl.includes("token=")) {
+      const separator = finalUrl.includes("?") ? "&" : "?";
+      finalUrl = `${finalUrl}${separator}token=${encodeURIComponent(session.token)}`;
+    }
+  }
+
+  return finalUrl;
 }
 
 export function inferMediaTypeFromSource(source?: string): "image" | "video" | "audio" | "file" | undefined {
@@ -63,7 +88,7 @@ export function inferMediaTypeFromSource(source?: string): "image" | "video" | "
   return "file";
 }
 
-export function inferConversationMessageType(conversation: Conversation): "text" | "image" | "video" | "audio" | "file" {
+export function inferConversationMessageType(conversation: Conversation): "text" | "image" | "video" | "audio" | "file" | "sticker" {
   if (conversation.lastMessageType && conversation.lastMessageType !== "text") return conversation.lastMessageType;
   const normalized = (conversation.lastMessage ?? "").trim().toLowerCase();
   if (normalized.includes("image") || normalized.startsWith("[image]")) return "image";

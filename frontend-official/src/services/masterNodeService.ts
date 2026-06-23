@@ -230,7 +230,7 @@ function aggregateCluster(nodes: NodeControlPlane[], payload: JsonRecord): Clust
 
 export async function loadNodesControlPlane() {
   const [nodesPayload, clusterPayload] = await Promise.all([
-    requestJson("/api/cluster/nodes", "GET"),
+    requestJson("/api/cluster/nodes", "GET").catch(() => ({ nodes: [] })),
     requestJson("/api/cluster/overview", "GET").catch(() => ({})),
   ]);
 

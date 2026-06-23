@@ -18,8 +18,8 @@
  */
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { connectInboxSocket, forceReconnectInboxSocket } from "@/runtime/socket/socketManager";
-import { apiService, type ChatMessage } from "@/services/apiService";
-import { useAppStore } from "@/stores/appStore";
+import { apiService, type ChatMessage, type Conversation } from "@/services/apiService";
+import { useAppStore, isPhoneMatch } from "@/stores/appStore";
 import { API_ORIGIN } from "@/lib/backendConfig";
 import { normalizeSession, getSessionId } from "@/services/normalizeSession";
 import {
@@ -27,8 +27,18 @@ import {
   persistRuntimeCoherenceSnapshot,
 } from "@/runtime/services/runtimeCoherenceService";
 import { parseChatsLoadedPayload, parseContactsLoadedPayload } from "@/runtime/utils/inboxNormalization";
+import type { SessionItem } from "@/stores/appStore";
 
 type RuntimeStatus = "online" | "reconnecting" | "offline";
+const RUNTIME_DEBUG_LOGS = import.meta.env.DEV;
+
+function runtimeInfo(...args: Parameters<typeof console.info>) {
+  if (RUNTIME_DEBUG_LOGS) console.info(...args);
+}
+
+function runtimeWarn(...args: Parameters<typeof console.warn>) {
+  if (RUNTIME_DEBUG_LOGS) console.warn(...args);
+}
 
 type RuntimeContextValue = {
   status: RuntimeStatus;
@@ -45,6 +55,98 @@ const RuntimeContext = createContext<RuntimeContextValue>({
   forceRefresh: async () => {},
   forceReconnect: () => {},
 });
+
+function isConnectedSession(session: SessionItem): boolean {
+  return session.status === "connected";
+}
+
+function getPreferredConversationSessionId(sessions: SessionItem[]): string | undefined {
+  return sessions.find(isConnectedSession)?.id || sessions[0]?.id || undefined;
+}
+
+function normalizeRuntimeIdentityPart(value: unknown): string {
+  return String(value ?? "").trim().toLowerCase();
+}
+
+function isSessionMatch(convSessionId?: string, incomingSessionId?: string): boolean {
+  if (!incomingSessionId) return true;
+  const cSess = String(convSessionId || "main").trim().toLowerCase();
+  const iSess = String(incomingSessionId || "main").trim().toLowerCase();
+  return cSess === iSess;
+}
+
+function resolveConversationIdForRealtimeMessage(
+  incoming: Partial<ChatMessage> & {
+    contactId?: string;
+    phone?: string;
+    remoteJid?: string;
+    sessionId?: string;
+  },
+  conversations: Conversation[],
+): string | null {
+  console.log(`[INBOX REALTIME] [REALTIME_MESSAGE] Resolving conversation for message: id=${incoming.id} phone=${incoming.phone} chatId=${incoming.chatId} conversationId=${incoming.conversationId} sessionId=${incoming.sessionId}`);
+  
+  const incomingId = incoming.conversationId || incoming.chatId;
+  const incomingPhone = incoming.phone || incoming.chatId || incoming.remoteJid;
+
+  // Check active conversation first to avoid mismatches
+  const activeId = useAppStore.getState().activeConversationId;
+  console.log(`[INBOX REALTIME] [ACTIVE_CONVERSATION] Current active conversation: ${activeId}`);
+  if (activeId) {
+    const activeConv = conversations.find((c) => String(c.id) === String(activeId));
+    if (activeConv) {
+      const isIdMatch = incomingId && (String(activeConv.id) === String(incomingId) || String(activeConv.chatId) === String(incomingId));
+      const isPhoneMatched = incomingPhone && (isPhoneMatch(activeConv.phone, incomingPhone) || isPhoneMatch(activeConv.chatId, incomingPhone));
+      const sessMatch = isSessionMatch(activeConv.sessionId, incoming.sessionId);
+      
+      if ((isIdMatch || isPhoneMatched) && sessMatch) {
+        console.log(`[INBOX REALTIME] [SESSION MATCH] [CONVERSATION RESOLVED] Matched incoming message to active conversation: activeId=${activeId}`);
+        return activeId;
+      }
+    }
+  }
+
+  // 1. Direct ID match
+  if (incomingId) {
+    const directMatch = conversations.find((c) => 
+      (String(c.id) === String(incomingId) || String(c.chatId) === String(incomingId)) &&
+      isSessionMatch(c.sessionId, incoming.sessionId)
+    );
+    if (directMatch) {
+      console.log(`[INBOX REALTIME] [SESSION MATCH] [CONVERSATION RESOLVED] Direct match found: ${directMatch.id}`);
+      return directMatch.id;
+    }
+  }
+
+  // 2. Phone match
+  if (incomingPhone) {
+    const phoneMatch = conversations.find((c) => 
+      (isPhoneMatch(c.phone, incomingPhone) || isPhoneMatch(c.chatId, incomingPhone)) &&
+      isSessionMatch(c.sessionId, incoming.sessionId)
+    );
+    if (phoneMatch) {
+      console.log(`[INBOX REALTIME] [SESSION MATCH] [CONVERSATION RESOLVED] Phone match found: ${phoneMatch.id}`);
+      return phoneMatch.id;
+    }
+  }
+
+  // 3. Contact ID match
+  const incomingContactId = normalizeRuntimeIdentityPart(incoming.contactId);
+  if (incomingContactId) {
+    const contactMatch = conversations.find((c) => 
+      normalizeRuntimeIdentityPart(c.contactId) === incomingContactId &&
+      isSessionMatch(c.sessionId, incoming.sessionId)
+    );
+    if (contactMatch) {
+      console.log(`[INBOX REALTIME] [SESSION MATCH] [CONVERSATION RESOLVED] Contact ID match found: ${contactMatch.id}`);
+      return contactMatch.id;
+    }
+  }
+
+  const fallback = incoming.conversationId || incoming.chatId || null;
+  console.log(`[INBOX REALTIME] [CONVERSATION RESOLVED] No database match found. Fallback: ${fallback}`);
+  return fallback;
+}
 
 export function useRuntime() {
   return useContext(RuntimeContext);
@@ -76,15 +178,26 @@ export function RuntimeProvider({ children }: { children: ReactNode }) {
   // Full API refresh — called on mount and on reconnect
   const loadFromApi = useCallback(async () => {
     const t0 = performance.now();
-    console.info("[Runtime] hydration:start");
+    runtimeInfo("[Runtime] hydration:start");
     try {
-      const [sessionsResult, conversationsResult, metricsResult] = await Promise.allSettled([
+      const [sessionsResult, metricsResult] = await Promise.allSettled([
         apiService.listSessions(),
-        apiService.getConversations(false),
         apiService.getMetrics(),
       ]);
 
-      console.info("[Runtime] hydration:raw", {
+      const normalizedSessions =
+        sessionsResult.status === "fulfilled" && Array.isArray(sessionsResult.value)
+          ? sessionsResult.value.map(normalizeSession)
+          : [];
+      const conversationSessionId = getPreferredConversationSessionId(normalizedSessions);
+      const conversationsResult = await Promise.resolve(
+        apiService.getConversations(false, { sessionId: conversationSessionId }),
+      ).then(
+        (value) => ({ status: "fulfilled" as const, value }),
+        (reason) => ({ status: "rejected" as const, reason }),
+      );
+
+      runtimeInfo("[Runtime] hydration:raw", {
         sessions: sessionsResult.status === "fulfilled" ? sessionsResult.value : sessionsResult,
         conversations: conversationsResult.status === "fulfilled" ? `${Array.isArray(conversationsResult.value) ? conversationsResult.value.length : 'NOT_ARRAY'} items` : conversationsResult,
         metrics: metricsResult.status === "fulfilled" ? metricsResult.value : metricsResult,
@@ -96,9 +209,8 @@ export function RuntimeProvider({ children }: { children: ReactNode }) {
       const metricsOk = metricsResult.status === "fulfilled" && Boolean(metricsResult.value);
 
       if (sessionsOk) {
-        const normalized = sessionsResult.value.map(normalizeSession);
-        store.setSessions(normalized);
-        for (const session of normalized) {
+        store.setSessions(normalizedSessions);
+        for (const session of normalizedSessions) {
           if (session.status === "connected") {
             store.clearLastQr(session.id);
           }
@@ -124,9 +236,9 @@ export function RuntimeProvider({ children }: { children: ReactNode }) {
       const elapsed = Math.round(performance.now() - t0);
       const sCount = sessionsResult.status === "fulfilled" && Array.isArray(sessionsResult.value) ? sessionsResult.value.length : 0;
       const cCount = conversationsResult.status === "fulfilled" && Array.isArray(conversationsResult.value) ? conversationsResult.value.length : 0;
-      console.info(`[Runtime] hydration:done sessions=${sCount} conversations=${cCount} elapsed=${elapsed}ms`);
+      runtimeInfo(`[Runtime] hydration:done sessions=${sCount} conversations=${cCount} elapsed=${elapsed}ms`);
     } catch (err) {
-      console.warn("[Runtime] hydration:error", err instanceof Error ? err.message : err);
+      runtimeWarn("[Runtime] hydration:error", err instanceof Error ? err.message : err);
       persistRuntimeCoherenceSnapshot(
         buildRuntimeCoherenceSnapshot({
           apiHealthy: false,
@@ -165,7 +277,7 @@ export function RuntimeProvider({ children }: { children: ReactNode }) {
       socketUrl,
 
       onSocketConnected: () => {
-        console.info("[Runtime] socket:connected");
+        runtimeInfo("[Runtime] socket:connected");
         setStatus("online");
         useAppStore.getState().updateRuntimeStatus("online");
         useAppStore.getState().updateWebsocketHealth("online");
@@ -181,7 +293,7 @@ export function RuntimeProvider({ children }: { children: ReactNode }) {
 
         // Re-hydrate on reconnect (not on first connect — loadFromApi handles that)
         if (hydratedRef.current) {
-          console.info("[Runtime] reconnect:rehydrating");
+          runtimeInfo("[Runtime] reconnect:rehydrating");
           debouncedRefresh();
         }
       },
@@ -193,7 +305,7 @@ export function RuntimeProvider({ children }: { children: ReactNode }) {
         }
         const elapsed = now - (disconnectedAtRef.current ?? now);
         const nextStatus = elapsed < 30_000 ? "reconnecting" : "offline";
-        console.warn(`[Runtime] socket:disconnected status=${nextStatus} elapsed=${elapsed}ms`);
+        runtimeWarn(`[Runtime] socket:disconnected status=${nextStatus} elapsed=${elapsed}ms`);
         setStatus(nextStatus);
         useAppStore.getState().updateRuntimeStatus(nextStatus);
         useAppStore.getState().updateWebsocketHealth(
@@ -219,7 +331,7 @@ export function RuntimeProvider({ children }: { children: ReactNode }) {
         const qr = payload?.qr ?? payload?.base64 ?? null;
         if (!sessionId || !qr) return;
 
-        console.info(`[Runtime] qr:generated session=${sessionId}`);
+        runtimeInfo(`[Runtime] qr:generated session=${sessionId}`);
         useAppStore.getState().setLastQr(sessionId, qr);
         useAppStore.getState().upsertSession(
           normalizeSession({ ...payload, id: sessionId, status: "qr" })
@@ -228,20 +340,20 @@ export function RuntimeProvider({ children }: { children: ReactNode }) {
 
       onSessionConnected: (payload) => {
         const session = normalizeSession({ ...payload, status: "connected" });
-        console.info(`[Runtime] session:connected id=${session.id} phone=${session.phone ?? "??"}`);
+        runtimeInfo(`[Runtime] session:connected id=${session.id} phone=${session.phone ?? "??"}`);
         useAppStore.getState().upsertSession(session);
         useAppStore.getState().clearLastQr(session.id);
       },
 
       onSessionDisconnected: (payload) => {
         const session = normalizeSession({ ...payload, status: "disconnected" });
-        console.warn(`[Runtime] session:disconnected id=${session.id}`);
+        runtimeWarn(`[Runtime] session:disconnected id=${session.id}`);
         useAppStore.getState().upsertSession(session);
       },
 
       onSessionStatus: (payload) => {
         const session = normalizeSession(payload);
-        console.info(`[Runtime] session:status id=${session.id} status=${session.status}`);
+        runtimeInfo(`[Runtime] session:status id=${session.id} status=${session.status}`);
         useAppStore.getState().upsertSession(session);
 
         if (session.status === "connected") {
@@ -252,7 +364,7 @@ export function RuntimeProvider({ children }: { children: ReactNode }) {
       onSessionDeleted: (payload) => {
         const sessionId = getSessionId(payload);
         if (!sessionId) return;
-        console.warn(`[Runtime] session:deleted id=${sessionId}`);
+        runtimeWarn(`[Runtime] session:deleted id=${sessionId}`);
         useAppStore.getState().removeSession(sessionId);
       },
 
@@ -266,18 +378,7 @@ export function RuntimeProvider({ children }: { children: ReactNode }) {
         const loadedChats = parseChatsLoadedPayload(payload);
         if (!loadedChats.length) return;
         const store = useAppStore.getState();
-        store.setConversations((prev) => {
-          const nextList = [...prev];
-          for (const chat of loadedChats) {
-            const idx = nextList.findIndex((c) => c.id === chat.id);
-            if (idx === -1) {
-              nextList.push(chat);
-            } else {
-              nextList[idx] = { ...nextList[idx], ...chat };
-            }
-          }
-          return nextList;
-        });
+        loadedChats.forEach((chat) => store.upsertConversation(chat));
       },
 
       onConversationSnapshot: (payload) => {
@@ -294,7 +395,7 @@ export function RuntimeProvider({ children }: { children: ReactNode }) {
         if (!rawMessages.length) return;
 
         const parsedMessages = rawMessages.map((item: any, index: number) => {
-          const mediaUrl = item.mediaUrl || item.media_url || item.url;
+          const mediaUrl = item.mediaUrl || item.media_url || item.fileUrl || item.file_url || item.url;
           const mediaType = item.mediaType || item.type;
           return {
             id: String(item.id || `snapshot-${activeConversationId}-${index}`),
@@ -312,6 +413,20 @@ export function RuntimeProvider({ children }: { children: ReactNode }) {
         }).filter((m: any) => m.conversationId === activeConversationId);
 
         if (parsedMessages.length) {
+          const sampleMedia = parsedMessages.find((message) => message.mediaType && message.mediaType !== "text");
+        runtimeInfo("[Runtime] conversation_snapshot", {
+            conversationId: activeConversationId,
+            count: parsedMessages.length,
+            sampleMedia: sampleMedia
+              ? {
+                  id: sampleMedia.id,
+                  mediaType: sampleMedia.mediaType,
+                  mediaUrl: sampleMedia.mediaUrl ?? null,
+                  content: sampleMedia.content ?? null,
+                  caption: sampleMedia.caption ?? null,
+                }
+              : null,
+          });
           useAppStore.getState().setMessages(activeConversationId, parsedMessages);
         }
       },
@@ -333,16 +448,28 @@ export function RuntimeProvider({ children }: { children: ReactNode }) {
 
       onAiResponse: (incoming) => {
         if (!incoming?.id) return;
-        const conversationId = incoming.conversationId || incoming.chatId;
-        if (!conversationId) return;
-        console.info(`[Runtime] ai_response id=${incoming.id} conversation=${conversationId}`);
-        useAppStore.getState().addMessage(conversationId, incoming as ChatMessage);
-
         const store = useAppStore.getState();
+        console.log(`[INBOX REALTIME] [REALTIME_MESSAGE] AI Response event received: id=${incoming.id}`);
+        const conversationId = resolveConversationIdForRealtimeMessage(incoming, store.conversations);
+        if (!conversationId) return;
+        console.log(`[INBOX REALTIME] [STORE_TARGET] Setting store target for AI Response: conversationId=${conversationId}`);
+        const currentConv = store.conversations.find((c) => String(c.id) === String(conversationId));
+        const message = {
+          ...incoming,
+          conversationId,
+          chatId: incoming.chatId || currentConv?.chatId || currentConv?.phone,
+        } as ChatMessage;
+        runtimeInfo(`[Runtime] ai_response id=${incoming.id} conversation=${conversationId}`);
+        store.addMessage(conversationId, message);
+
         store.updateConversationRealtime({
           id: conversationId,
           lastMessage: incoming.content || "",
           updatedAt: incoming.createdAt || new Date().toISOString(),
+          phone: incoming.phone || incoming.remoteJid || currentConv?.phone,
+          chatId: incoming.chatId || incoming.remoteJid || currentConv?.chatId || currentConv?.phone,
+          contactId: incoming.contactId || currentConv?.contactId,
+          sessionId: incoming.sessionId || currentConv?.sessionId,
         });
       },
 
@@ -359,7 +486,7 @@ export function RuntimeProvider({ children }: { children: ReactNode }) {
         const resolvedId = chatId || conversationId;
         if (!resolvedId || !tag) return;
         const store = useAppStore.getState();
-        const conv = store.conversations.find((c) => c.id === resolvedId);
+        const conv = store.conversations.find((c) => String(c.id) === String(resolvedId));
         if (!conv) return;
         const currentTags = conv.tags || [];
         const nextTags = action === "remove"
@@ -374,21 +501,41 @@ export function RuntimeProvider({ children }: { children: ReactNode }) {
       // ─── Message events → Zustand store ─────────────────
       onNewMessage: (incoming) => {
         if (!incoming?.id) return;
-        const conversationId = incoming.conversationId || incoming.chatId;
-        if (!conversationId) return;
-
-        console.info(`[Runtime] new_message id=${incoming.id} conversation=${conversationId}`);
-        useAppStore.getState().addMessage(conversationId, incoming);
-
         const store = useAppStore.getState();
-        const isActive = store.activeConversationId === conversationId;
-        const currentConv = store.conversations.find((c) => c.id === conversationId);
+        console.log(`[INBOX REALTIME] [REALTIME_MESSAGE] New message event received: id=${incoming.id}`);
+        const conversationId = resolveConversationIdForRealtimeMessage(incoming, store.conversations);
+        if (!conversationId) return;
+        console.log(`[INBOX REALTIME] [STORE_TARGET] Setting store target for New message: conversationId=${conversationId}`);
+        const currentConv = store.conversations.find((c) => String(c.id) === String(conversationId));
+        const message = {
+          ...incoming,
+          conversationId,
+          chatId: incoming.chatId || currentConv?.chatId || currentConv?.phone,
+        } as ChatMessage;
 
-        useAppStore.getState().updateConversationRealtime({
+        runtimeInfo("[Runtime] new_message", {
+          id: incoming.id,
+          conversationId,
+          status: incoming.status ?? null,
+          fromMe: incoming.fromMe ?? null,
+          mediaType: incoming.mediaType ?? incoming.messageType ?? null,
+          mediaUrl: (incoming as ChatMessage & { fileUrl?: string; file_url?: string }).mediaUrl ?? (incoming as ChatMessage & { fileUrl?: string; file_url?: string }).url ?? (incoming as ChatMessage & { fileUrl?: string; file_url?: string }).fileUrl ?? (incoming as ChatMessage & { fileUrl?: string; file_url?: string }).file_url ?? null,
+          content: incoming.content ?? null,
+          caption: incoming.caption ?? null,
+        });
+        store.addMessage(conversationId, message);
+
+        const isActive = store.activeConversationId === conversationId;
+
+        store.updateConversationRealtime({
           id: conversationId,
           lastMessage: incoming.content || "",
           updatedAt: incoming.createdAt || new Date().toISOString(),
           unread: isActive ? 0 : (incoming.fromMe ? 0 : 1) + (currentConv?.unread ?? 0),
+          phone: incoming.phone || incoming.remoteJid || currentConv?.phone,
+          chatId: incoming.chatId || incoming.remoteJid || currentConv?.chatId || currentConv?.phone,
+          contactId: incoming.contactId || currentConv?.contactId,
+          sessionId: incoming.sessionId || currentConv?.sessionId,
         });
       },
 
@@ -399,7 +546,7 @@ export function RuntimeProvider({ children }: { children: ReactNode }) {
 
         // If conversationId is not provided, or looks like a phone number/JID, let's find the conversation UUID in the store
         if (!conversationId || conversationId.includes("@") || /^\+?\d+$/.test(conversationId)) {
-          const target = conversationId || "";
+          const target = conversationId || payload.chatId || payload.phone || "";
           const cleanTarget = target.replace(/@s\.whatsapp\.net$/i, "").replace(/\D/g, "");
 
           const state = useAppStore.getState();
@@ -408,7 +555,7 @@ export function RuntimeProvider({ children }: { children: ReactNode }) {
             (c) =>
               (c.chatId && c.chatId.replace(/@s\.whatsapp\.net$/i, "") === cleanTarget) ||
               (c.phone && c.phone.replace(/\D/g, "") === cleanTarget) ||
-              c.id === target
+              String(c.id) === String(target)
           );
           if (found) {
             conversationId = found.id;
@@ -427,14 +574,18 @@ export function RuntimeProvider({ children }: { children: ReactNode }) {
 
         if (!conversationId) return;
 
-        console.info(`[Runtime] message_status id=${messageId} status=${status} resolvedConversationId=${conversationId}`);
+        runtimeInfo("[Runtime] message_status", {
+          messageId,
+          status,
+          resolvedConversationId: conversationId,
+        });
         useAppStore.getState().updateMessageStatus(conversationId, messageId, status as ChatMessage["status"]);
       },
 
       onMessageDeleted: (payload) => {
         const { messageId, conversationId } = payload;
         if (!messageId || !conversationId) return;
-        console.warn(`[Runtime] message_deleted id=${messageId}`);
+        runtimeWarn(`[Runtime] message_deleted id=${messageId}`);
         useAppStore.getState().deleteMessage(conversationId, messageId);
       },
 
@@ -464,7 +615,7 @@ export function RuntimeProvider({ children }: { children: ReactNode }) {
 
       // Only re-hydrate if tab was hidden for > 30 seconds
       if (elapsed > 30_000 && hydratedRef.current) {
-        console.info(`[Runtime] tab:focused elapsed=${elapsed}ms rehydrating`);
+        runtimeInfo(`[Runtime] tab:focused elapsed=${elapsed}ms rehydrating`);
         void loadFromApi();
       }
     };

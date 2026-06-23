@@ -1,0 +1,28 @@
+{
+  "timestamp": "2026-05-28T17:23:54.230Z",
+  "scoreGeneral": 0,
+  "scores": {
+    "frontend": 100,
+    "backend": 100,
+    "ux": 0,
+    "accessibility": 0,
+    "messaging": 100
+  },
+  "metrics": {
+    "totalRoutes": 15,
+    "healthyRoutes": 15,
+    "brokenRoutes": 0,
+    "redirectedRoutes": 0,
+    "totalButtons": 120,
+    "functionalButtons": 120,
+    "brokenButtons": 0,
+    "consoleErrorsCount": 3828,
+    "pageErrorsCount": 0,
+    "apiFailuresCount": 39,
+    "accessibilityViolationsCount": 68
+  },
+  "systemStatus": {
+    "frontendOnline": true,
+    "backendOnline": true
+  }
+}

@@ -9,6 +9,14 @@ let lastMetricsSnapshot = {
   totalMessages: 0,
   uptime: 0,
 };
+let metricsRecalcInFlight = null;
+let lastDbMetricsAt = 0;
+
+const isProduction = String(process.env.NODE_ENV || '').trim().toLowerCase() === 'production';
+const MIN_DB_METRICS_INTERVAL_MS = Math.max(
+  10_000,
+  Number(process.env.METRICS_MIN_DB_INTERVAL_MS) || (isProduction ? 30_000 : 120_000)
+);
 
 function buildMetricsSnapshot(store = {}) {
   const conversations = Array.isArray(store.conversations) ? store.conversations : [];
@@ -69,37 +77,56 @@ async function recalcMetricsFromDB(store = {}, options = {}) {
     return store.metricsSnapshot;
   }
 
-  const companyId = process.env.DEFAULT_COMPANY_ID || 'default';
-  const connectedSessions = Array.from(store.sessionManager?.sessions?.values?.() || []).filter(
-    (session) => session?.status === 'connected'
-  ).length;
-  const [conversationCount, messageCount, openConversationCount] = await Promise.all([
-    db.query('SELECT COUNT(*)::int AS total FROM conversations WHERE company_id = $1', [companyId]),
-    db.query(
-      'SELECT COUNT(*)::int AS total FROM messages m INNER JOIN conversations c ON c.id = m.conversation_id WHERE c.company_id = $1',
-      [companyId]
-    ),
-    db.query('SELECT COUNT(*)::int AS total FROM conversations WHERE company_id = $1 AND status <> $2', [companyId, 'closed']),
-  ]);
+  const now = Date.now();
+  if (metricsRecalcInFlight) {
+    return metricsRecalcInFlight;
+  }
 
-  const snapshot = {
-    activeConversations: Number(openConversationCount.rows?.[0]?.total) || 0,
-    connectedSessions,
-    generatedAt: new Date().toISOString(),
-    messagesProcessed: Number(messageCount.rows?.[0]?.total) || 0,
-    totalConversations: Number(conversationCount.rows?.[0]?.total) || 0,
-    totalMessages: Number(messageCount.rows?.[0]?.total) || 0,
-    uptime: Number(process.uptime().toFixed(3)),
-  };
+  if (store.metricsSnapshot && (now - lastDbMetricsAt) < MIN_DB_METRICS_INTERVAL_MS) {
+    return store.metricsSnapshot;
+  }
 
-  persistMetricsSnapshot(store, snapshot);
-  emitMetrics(store, snapshot);
+  metricsRecalcInFlight = (async () => {
+    const companyId = process.env.DEFAULT_COMPANY_ID || 'default';
+    const connectedSessions = Array.from(store.sessionManager?.sessions?.values?.() || []).filter(
+      (session) => session?.status === 'connected'
+    ).length;
+    const [conversationCount, messageCount, openConversationCount] = await Promise.all([
+      db.query('SELECT COUNT(*)::int AS total FROM conversations WHERE company_id = $1', [companyId]),
+      db.query(
+        'SELECT COUNT(*)::int AS total FROM messages m INNER JOIN conversations c ON c.id = m.conversation_id WHERE c.company_id = $1',
+        [companyId]
+      ),
+      db.query('SELECT COUNT(*)::int AS total FROM conversations WHERE company_id = $1 AND status <> $2', [companyId, 'closed']),
+    ]);
 
-  return snapshot;
+    const snapshot = {
+      activeConversations: Number(openConversationCount.rows?.[0]?.total) || 0,
+      connectedSessions,
+      generatedAt: new Date().toISOString(),
+      messagesProcessed: Number(messageCount.rows?.[0]?.total) || 0,
+      totalConversations: Number(conversationCount.rows?.[0]?.total) || 0,
+      totalMessages: Number(messageCount.rows?.[0]?.total) || 0,
+      uptime: Number(process.uptime().toFixed(3)),
+    };
+
+    lastDbMetricsAt = Date.now();
+    persistMetricsSnapshot(store, snapshot);
+    emitMetrics(store, snapshot);
+
+    return snapshot;
+  })().finally(() => {
+    metricsRecalcInFlight = null;
+  });
+
+  return metricsRecalcInFlight;
 }
 
 function startMetricsTracking(store, options = {}) {
-  const intervalMs = Number(options.intervalMs) || 30000;
+  const intervalMs = Math.max(
+    30_000,
+    Number(options.intervalMs) || Number(process.env.METRICS_TRACKING_INTERVAL_MS) || (isProduction ? 30_000 : 120_000)
+  );
 
   const run = async () => {
     try {

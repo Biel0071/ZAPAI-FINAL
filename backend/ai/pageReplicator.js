@@ -32,7 +32,7 @@ async function exists(filePath) {
 async function resolveFrontendPaths() {
   const backendRoot = path.resolve(__dirname, '..');
   const projectRoot = path.resolve(backendRoot, '..', '..');
-  const frontendRoot = path.join(projectRoot, 'frontend');
+  const frontendRoot = path.join(projectRoot, 'frontend-official');
   const pagesDir = path.join(frontendRoot, 'src', 'pages');
   const appFile = path.join(frontendRoot, 'src', 'App.tsx');
 

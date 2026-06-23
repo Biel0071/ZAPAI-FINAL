@@ -41,9 +41,9 @@ type RawRealtimeMessage = {
   time?: string;
   status?: "sending" | "sent" | "delivered" | "read";
   isAI?: boolean;
-  messageType?: "text" | "image" | "video" | "audio" | "file" | "document";
-  mediaType?: "image" | "video" | "audio" | "file" | "document";
-  type?: "text" | "image" | "video" | "audio" | "file" | "document";
+  messageType?: "text" | "image" | "video" | "audio" | "file" | "document" | "sticker";
+  mediaType?: "image" | "video" | "audio" | "file" | "document" | "sticker";
+  type?: "text" | "image" | "video" | "audio" | "file" | "document" | "sticker";
   mimeType?: string;
   mimetype?: string;
   hasMedia?: boolean;
@@ -51,14 +51,20 @@ type RawRealtimeMessage = {
   media_path?: string;
   mediaUrl?: string;
   media_url?: string;
+  fileUrl?: string;
+  file_url?: string;
   url?: string;
   thumbnail?: string;
+  fileName?: string;
+  filename?: string;
   media?: {
     path?: string;
     url?: string;
-    type?: "image" | "video" | "audio" | "file" | "document";
+    type?: "image" | "video" | "audio" | "file" | "document" | "sticker";
     mimeType?: string;
     mimetype?: string;
+    fileName?: string;
+    filename?: string;
   };
   message?: {
     id?: string;
@@ -90,12 +96,16 @@ type RawRealtimeMessage = {
     media_path?: string;
     mediaUrl?: string;
     media_url?: string;
+    fileUrl?: string;
+    file_url?: string;
     url?: string;
     thumbnail?: string;
     mimeType?: string;
     mimetype?: string;
     type?: "text" | "image" | "video" | "audio" | "file" | "document";
     mediaType?: "image" | "video" | "audio" | "file" | "document";
+    fileName?: string;
+    filename?: string;
   };
 };
 
@@ -126,6 +136,8 @@ type RawMessageEnvelope = {
   ticketId?: string;
   sessionId?: string;
   session_id?: string;
+  phone?: string;
+  phone_number?: string;
   message?: RawRealtimeMessage;
   data?:
     | RawRealtimeMessage
@@ -202,19 +214,24 @@ type RealtimeMessage = ChatMessage & {
   contactId?: string;
   sessionId?: string;
   phone?: string;
-  messageType?: "text" | "image" | "video" | "audio" | "file";
+  messageType?: "text" | "image" | "video" | "audio" | "file" | "sticker";
   caption?: string;
   timestamp?: string;
   url?: string;
+  mimeType?: string;
+  mimetype?: string;
+  fileName?: string;
+  filename?: string;
 };
 
 function toCanonicalMediaType(
   value?: string,
-): "text" | "image" | "video" | "audio" | "file" {
+): "text" | "image" | "video" | "audio" | "file" | "sticker" {
   const normalized = String(value ?? "").trim().toLowerCase();
   if (normalized === "image") return "image";
   if (normalized === "video") return "video";
   if (normalized === "audio") return "audio";
+  if (normalized === "sticker") return "sticker";
   if (normalized === "file" || normalized === "document") return "file";
   return "text";
 }
@@ -228,14 +245,14 @@ type SocketSubscriber = {
   onAiResponse?: (payload: RealtimeMessage) => void;
   onChatArchived?: (payload: { chatId?: string; conversationId?: string }) => void;
   onChatTagUpdated?: (payload: { chatId?: string; conversationId?: string; tag?: string; action?: "add" | "remove" }) => void;
-  onQrGenerated?: (payload: { sessionId?: string; qr?: string }) => void;
+  onQrGenerated?: (payload: { sessionId?: string; qr?: string; base64?: string }) => void;
   onSessionConnected?: (payload: { sessionId?: string; phone?: string; status?: string }) => void;
   onSessionDisconnected?: (payload: { sessionId?: string; status?: string; reason?: string }) => void;
   onSessionDeleted?: (payload: { sessionId?: string; status?: string }) => void;
   onSessionStatus?: (payload: { sessionId?: string; status?: string }) => void;
   onMessageDeleted?: (payload: { messageId: string; conversationId?: string }) => void;
   onMessageStatus?: (payload: { messageId: string; status: string; conversationId?: string }) => void;
-  onTypingStatus?: (payload: { conversationId?: string; phone?: string; isTyping: boolean }) => void;
+  onTypingStatus?: (payload: { conversationId?: string; phone?: string; isTyping: boolean | "composing" | "recording" }) => void;
   onSocketConnected?: () => void;
   onSocketDisconnected?: () => void;
   onError?: (message: string) => void;
@@ -273,15 +290,16 @@ function extractDigits(value?: string): string {
 function extractChatIdentifier(value?: string): string | undefined {
   const raw = String(value ?? "").trim().toLowerCase();
   if (!raw) return undefined;
-  if (raw.includes("@g.us")) return raw;
+  if (raw.includes("@g.us") || raw.includes("@lid")) return raw;
   const digits = extractDigits(raw);
+  if (digits.length >= 14 && !digits.startsWith("55")) return `${digits}@lid`;
   return digits || undefined;
 }
 
 function normalizeRealtimeMessage(input: RawRealtimeMessage): RealtimeMessage {
   const nestedMessage = input.message;
   const nestedMime = nestedMessage?.mimeType ?? nestedMessage?.mimetype;
-  const canonicalType = toCanonicalMediaType(
+  let canonicalType = toCanonicalMediaType(
     input.messageType ??
     input.mediaType ??
     input.type ??
@@ -318,10 +336,42 @@ function normalizeRealtimeMessage(input: RawRealtimeMessage): RealtimeMessage {
     input.url ??
     input.mediaUrl ??
     input.media_url ??
+    input.fileUrl ??
+    input.file_url ??
     nestedMessage?.url ??
     nestedMessage?.mediaUrl ??
     nestedMessage?.media_url ??
+    nestedMessage?.fileUrl ??
+    nestedMessage?.file_url ??
     input.media?.url;
+
+  const sourceString = `${resolvedMediaPath ?? ""} ${resolvedMediaUrl ?? ""}`.toLowerCase();
+  const contentLower = resolvedContent.toLowerCase();
+
+  let refinedType: "image" | "video" | "audio" | "file" | "sticker" | undefined = undefined;
+  if (contentLower.includes("[image]")) {
+    refinedType = "image";
+  } else if (contentLower.includes("[video]")) {
+    refinedType = "video";
+  } else if (contentLower.includes("[audio]")) {
+    refinedType = "audio";
+  } else if (contentLower.includes("[sticker]")) {
+    refinedType = "sticker";
+  } else if (contentLower.includes("[document]") || contentLower.includes("[file]")) {
+    refinedType = "file";
+  } else if (/(\.webp)($|\?|#)/.test(sourceString) || sourceString.includes("sticker")) {
+    refinedType = "sticker";
+  } else if (/(\.png|\.jpe?g|\.gif|\.bmp|\.svg)($|\?|#)/.test(sourceString)) {
+    refinedType = "image";
+  } else if (/(\.mp4|\.mov|\.avi|\.mkv|\.webm|\.m4v)($|\?|#)/.test(sourceString)) {
+    refinedType = "video";
+  } else if (/(\.mp3|\.wav|\.ogg|\.m4a|\.aac|\.opus)($|\?|#)/.test(sourceString)) {
+    refinedType = "audio";
+  }
+
+  if (refinedType) {
+    canonicalType = refinedType;
+  }
   const resolvedPhone =
     extractChatIdentifier(input.phone) ||
     extractChatIdentifier(input.phoneNumber) ||
@@ -370,6 +420,10 @@ function normalizeRealtimeMessage(input: RawRealtimeMessage): RealtimeMessage {
     mediaUrl: resolvedMediaUrl,
     url: resolvedMediaUrl ?? resolvedMediaPath,
     caption: input.caption ?? nestedMessage?.caption,
+    mimeType: input.mimeType ?? input.mimetype ?? nestedMime ?? input.media?.mimeType ?? input.media?.mimetype ?? undefined,
+    mimetype: input.mimeType ?? input.mimetype ?? nestedMime ?? input.media?.mimeType ?? input.media?.mimetype ?? undefined,
+    fileName: input.fileName ?? input.filename ?? nestedMessage?.fileName ?? nestedMessage?.filename ?? input.media?.fileName ?? input.media?.filename ?? undefined,
+    filename: input.fileName ?? input.filename ?? nestedMessage?.fileName ?? nestedMessage?.filename ?? input.media?.fileName ?? input.media?.filename ?? undefined,
   };
 }
 
@@ -516,7 +570,17 @@ function resolveRealtimeMessagePayload(payload: RawRealtimeMessage | RawMessageE
     envelope.new ??
     envelope.msg;
 
-  const rawMessage = nestedCandidate ?? (payload as RawRealtimeMessage);
+  const rawMessageBase = nestedCandidate ?? (payload as RawRealtimeMessage);
+  const rawMessage = { ...rawMessageBase };
+
+  if (rawMessageBase !== (envelope as any)) {
+    if (!rawMessage.chatId && envelope.chatId) rawMessage.chatId = envelope.chatId;
+    if (!rawMessage.conversationId && envelope.conversationId) rawMessage.conversationId = envelope.conversationId;
+    if (!rawMessage.phone && envelope.phone) rawMessage.phone = envelope.phone;
+    if (!rawMessage.sessionId && envelope.sessionId) rawMessage.sessionId = envelope.sessionId;
+    if (!rawMessage.session_id && envelope.session_id) rawMessage.session_id = envelope.session_id;
+  }
+
   const normalized = normalizeRealtimeMessage(rawMessage);
 
   const envelopeConversationId =
@@ -717,18 +781,20 @@ function bindSharedSocketEvents() {
         chat_id?: string;
         remoteJid?: string;
         phone?: string;
-        isTyping?: boolean;
-        typing?: boolean;
+        isTyping?: boolean | string;
+        typing?: boolean | string;
         status?: string;
         state?: string;
       }) => {
-        const rawState = String(payload.status ?? payload.state ?? "").toLowerCase();
-        const isTyping =
-          typeof payload.isTyping === "boolean"
-            ? payload.isTyping
-            : typeof payload.typing === "boolean"
-              ? payload.typing
-              : rawState === "typing";
+        const rawState = String(payload.status ?? payload.state ?? payload.isTyping ?? payload.typing ?? "").toLowerCase();
+        let isTyping: boolean | "composing" | "recording" = false;
+        if (rawState === "composing" || rawState === "typing") {
+          isTyping = "composing";
+        } else if (rawState === "recording") {
+          isTyping = "recording";
+        } else if (payload.isTyping === true || payload.typing === true) {
+          isTyping = "composing";
+        }
 
         notifySubscribers((subscriber) =>
           subscriber.onTypingStatus?.({
@@ -841,14 +907,14 @@ export function connectInboxSocket(params: {
   onAiResponse?: (payload: RealtimeMessage) => void;
   onChatArchived?: (payload: { chatId?: string; conversationId?: string }) => void;
   onChatTagUpdated?: (payload: { chatId?: string; conversationId?: string; tag?: string; action?: "add" | "remove" }) => void;
-  onQrGenerated?: (payload: { sessionId?: string; qr?: string }) => void;
+  onQrGenerated?: (payload: { sessionId?: string; qr?: string; base64?: string }) => void;
   onSessionConnected?: (payload: { sessionId?: string; phone?: string; status?: string }) => void;
   onSessionDisconnected?: (payload: { sessionId?: string; status?: string; reason?: string }) => void;
   onSessionDeleted?: (payload: { sessionId?: string; status?: string }) => void;
   onSessionStatus?: (payload: { sessionId?: string; status?: string }) => void;
   onMessageDeleted?: (payload: { messageId: string; conversationId?: string }) => void;
   onMessageStatus?: (payload: { messageId: string; status: string; conversationId?: string }) => void;
-  onTypingStatus?: (payload: { conversationId?: string; phone?: string; isTyping: boolean }) => void;
+  onTypingStatus?: (payload: { conversationId?: string; phone?: string; isTyping: boolean | "composing" | "recording" }) => void;
   onSocketConnected?: () => void;
   onSocketDisconnected?: () => void;
   onError?: (message: string) => void;
@@ -908,4 +974,3 @@ export function emitInboxSocketEvent(event: string, payload?: unknown): boolean 
   sharedSocket.emit(event, payload);
   return true;
 }
-

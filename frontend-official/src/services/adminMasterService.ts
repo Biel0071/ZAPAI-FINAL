@@ -158,7 +158,7 @@ function mapUsers(payload: unknown): AdminUserRow[] {
     .filter((item): item is JsonRecord => Boolean(item && typeof item === "object"))
     .map((item, index) => ({
       id: String(item.id ?? item.userId ?? item.user_id ?? `user-${index}`),
-      name: String(item.name ?? item.fullName ?? item.displayName ?? item.email ?? "Usuário"),
+      name: String(item.username ?? item.name ?? item.fullName ?? item.displayName ?? item.email ?? "Usuário"),
       company: toText(item.company ?? item.companyName ?? item.tenant),
       email: toText(item.email),
       plan: toText(item.plan ?? item.subscriptionPlan),
@@ -315,6 +315,7 @@ export async function loadAdminMasterSnapshot(): Promise<AdminMasterSnapshot> {
     probeMasterEndpoint("/api/health"),
     probeMasterEndpoint("/api/session-status"),
     probeMasterEndpoint("/api/system/error-log"),
+    probeMasterEndpoint("/api/admin/users"),
   ]);
 
   const probeByEndpoint = new Map(probes.map((probe) => [probe.endpoint, probe]));
@@ -347,7 +348,7 @@ export async function loadAdminMasterSnapshot(): Promise<AdminMasterSnapshot> {
   const heartbeatProbe = probeByEndpoint.get("/api/health");
   const runtimeProbe = probeByEndpoint.get("/api/system/runtime/status");
   const instancesProbe = probeByEndpoint.get("/api/cluster/nodes");
-  const usersProbe = undefined;
+  const usersProbe = probeByEndpoint.get("/api/admin/users");
 
   const metrics = metricsProbe?.ok ? (extractDataObject(metricsProbe.payload) as MetricsSummary) : null;
   const heartbeatPayload = heartbeatProbe?.ok ? heartbeatProbe.payload : null;
@@ -523,13 +524,13 @@ export async function loadMasterBilling(): Promise<MasterBillingRow[]> {
 }
 
 export async function loadMasterAdmins(): Promise<MasterAdminRow[]> {
-  const payload = await requestJson("/api/session-status", "GET");
+  const payload = await requestJson("/api/admin/users", "GET");
   return toList(payload).map((item, index) => ({
     id: String(item.id ?? `admin-${index}`),
-    name: String(item.name ?? item.sessionName ?? item.phone ?? "Operador"),
-    email: null,
-    role: "admin",
-    status: toText(item.status ?? item.connected),
-    lastAccess: toText(item.lastAccess ?? item.updatedAt ?? item.last_seen_at),
+    name: String(item.username ?? item.name ?? "Operador"),
+    email: toText(item.email),
+    role: toText(item.role) ?? "admin",
+    status: item.blocked ? "Bloqueado" : "Ativo",
+    lastAccess: toText(item.last_login_at ?? item.lastLoginAt ?? item.updated_at ?? item.updatedAt),
   }));
 }

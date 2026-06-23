@@ -549,7 +549,7 @@ const Diagnostics = memo(function Diagnostics() {
                 Nenhuma conexão cadastrada no sistema. Adicione uma conexão na página de Conexões.
               </div>
             ) : (
-              (Array.isArray(waSessions) ? waSessions : []).map((session) => {
+              (Array.isArray(waSessions) ? waSessions : []).map((session, index) => {
                 const isOnline = session.status === "connected";
                 const isConnecting = session.status === "connecting";
                 const isQr = session.status === "qr" || session.status === "qr_ready";
@@ -557,7 +557,7 @@ const Diagnostics = memo(function Diagnostics() {
                 const hasConflict = session.hasConflict;
                 
                 return (
-                  <div key={session.sessionId} className="p-4 flex flex-col md:flex-row md:items-center justify-between gap-4 hover:bg-muted/10 transition-colors">
+                  <div key={session.sessionId || `session-${index}`} className="p-4 flex flex-col md:flex-row md:items-center justify-between gap-4 hover:bg-muted/10 transition-colors">
                     <div className="flex items-start gap-3 min-w-0">
                       <Avatar className="h-11 w-11 rounded-xl border border-border bg-muted shrink-0 shadow-sm">
                         <AvatarImage src={session.profilePictureUrl ?? undefined} alt={session.name} />
@@ -643,11 +643,11 @@ const Diagnostics = memo(function Diagnostics() {
           <CardContent className="space-y-2">
             {routeHealthLoading && routeHealth.length === 0
               ? Array.from({ length: 6 }).map((_, i) => <Skeleton key={`rh-skel-${i}`} className="h-12 w-full" />)
-              : (Array.isArray(routeHealth) ? routeHealth : []).map((rh) => {
+              : (Array.isArray(routeHealth) ? routeHealth : []).map((rh, index) => {
                   const meta = levelMeta(rh.level);
                   const errorCount = errorsByRoute[rh.route] ?? 0;
                   return (
-                    <div key={rh.route} className="flex items-center justify-between gap-3 rounded-lg border border-border bg-card p-3">
+                    <div key={rh.route || `route-${index}`} className="flex items-center justify-between gap-3 rounded-lg border border-border bg-card p-3">
                       <div className="min-w-0 flex-1">
                         <p className="font-mono text-sm font-medium">{rh.route}</p>
                         <p className="truncate text-xs text-muted-foreground">
@@ -673,10 +673,10 @@ const Diagnostics = memo(function Diagnostics() {
           <CardContent className="space-y-3">
             {loading
               ? Array.from({ length: 8 }).map((_, index) => <Skeleton key={`diagnostics-skeleton-${index}`} className="h-14 w-full" />)
-              : indicators.map((indicator) => {
+              : indicators.map((indicator, index) => {
                   const meta = levelMeta(indicator.level);
                   return (
-                    <div key={indicator.label} className="flex items-center justify-between gap-3 rounded-lg border border-border bg-card p-3">
+                    <div key={indicator.label || `indicator-${index}`} className="flex items-center justify-between gap-3 rounded-lg border border-border bg-card p-3">
                       <div className="min-w-0">
                         <p className="font-medium">{indicator.label}</p>
                         <p className="truncate text-sm text-muted-foreground">{indicator.details}</p>
@@ -736,10 +736,10 @@ const Diagnostics = memo(function Diagnostics() {
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
               {aiLoading
                 ? Array.from({ length: 4 }).map((_, index) => <Skeleton key={`ai-diagnostics-skeleton-${index}`} className="h-32 w-full" />)
-                : aiCards.map((card) => {
+                : aiCards.map((card, index) => {
                     const meta = levelMeta(card.level);
                     return (
-                      <Card key={card.title} className="border-border bg-card">
+                      <Card key={card.title || `aicard-${index}`} className="border-border bg-card">
                         <CardContent className="space-y-2 p-4">
                           <div className="flex items-center justify-between gap-3">
                             <p className="font-medium">{card.title}</p>

@@ -220,7 +220,7 @@ async function syncToPostgres(sessionId) {
       `INSERT INTO sessions (session_id, session_name, company_id, phone_number, status, connected, created_at, updated_at)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
        ON CONFLICT (session_id) DO UPDATE SET
-         phone_number = EXCLUDED.phone_number,
+         phone_number = COALESCE(EXCLUDED.phone_number, sessions.phone_number),
          status = EXCLUDED.status,
          connected = EXCLUDED.connected,
          updated_at = EXCLUDED.updated_at`,
@@ -293,10 +293,9 @@ async function removeSession(sessionId) {
   remove(sessionId);
   await Promise.allSettled([
     removeFromRedis(sessionId),
-    // Don't delete from Postgres — keep audit trail. Mark as disconnected.
     db.query(
-      'UPDATE sessions SET status = $1, connected = false, updated_at = NOW() WHERE session_id = $2',
-      ['deleted', sessionId]
+      'DELETE FROM sessions WHERE session_id = $1',
+      [sessionId]
     ).catch(() => {}),
   ]);
 }

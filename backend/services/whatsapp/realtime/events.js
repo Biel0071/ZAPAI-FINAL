@@ -93,8 +93,7 @@ function emitRealtimeEvent(io, eventName, payload) {
 
     if (requiresUrl && !eventPayload?.url) {
       // eslint-disable-next-line no-console
-      console.error('SEM URL:', eventPayload);
-      return;
+      console.warn('[WHATSAPP] [REALTIME EVENT] Missing URL for media message, but proceeding to emit event anyway:', eventPayload);
     }
   }
 

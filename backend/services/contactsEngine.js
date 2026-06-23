@@ -12,6 +12,7 @@
  */
 
 const db = require('../config/database');
+const { normalizePhone } = require('./whatsapp/shared/identifiers');
 
 const DEFAULT_COMPANY_ID = String(process.env.DEFAULT_COMPANY_ID || 'default').trim();
 
@@ -28,14 +29,6 @@ const contactCache = new Map(); // phone → ContactEntry
  * @property {string} sessionId
  * @property {string} updatedAt
  */
-
-function normalizePhone(rawPhone) {
-  return String(rawPhone || '')
-    .trim()
-    .replace(/@s\.whatsapp\.net$/i, '')
-    .replace(/@g\.us$/i, rawPhone || '') // keep group JIDs intact
-    .replace(/\s+/g, '');
-}
 
 function isGroupJid(jid) {
   return String(jid || '').toLowerCase().includes('@g.us');
@@ -147,25 +140,27 @@ async function persistContactsBatch(contacts = []) {
     let paramIndex = 1;
 
     for (const contact of batch) {
-      values.push(`($${paramIndex}, $${paramIndex + 1}, $${paramIndex + 2}, $${paramIndex + 3}, $${paramIndex + 4}, NOW(), NOW())`);
+      values.push(`($${paramIndex}, $${paramIndex + 1}, $${paramIndex + 2}, $${paramIndex + 3}, $${paramIndex + 4}, $${paramIndex + 5}, NOW(), NOW())`);
       params.push(
         contact.phone,
         contact.companyId || DEFAULT_COMPANY_ID,
         contact.name,
         contact.avatar || null,
-        contact.isGroup || false
+        contact.isGroup || false,
+        contact.sessionId || 'default'
       );
-      paramIndex += 5;
+      paramIndex += 6;
     }
 
     try {
       await db.query(
-        `INSERT INTO contacts (phone, company_id, name, avatar_url, is_group, created_at, updated_at)
+        `INSERT INTO contacts (phone, company_id, name, avatar_url, is_group, session_id, created_at, updated_at)
          VALUES ${values.join(', ')}
          ON CONFLICT (phone, company_id) DO UPDATE SET
            name = EXCLUDED.name,
            avatar_url = COALESCE(EXCLUDED.avatar_url, contacts.avatar_url),
            is_group = EXCLUDED.is_group,
+           session_id = EXCLUDED.session_id,
            updated_at = NOW()`,
         params
       );

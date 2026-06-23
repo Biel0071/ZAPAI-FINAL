@@ -345,7 +345,7 @@ async function createModule(name) {
 
   const backendRoot = path.resolve(__dirname, '..');
   const projectRoot = path.resolve(backendRoot, '..', '..');
-  const frontendRoot = path.join(projectRoot, 'frontend');
+  const frontendRoot = path.join(projectRoot, 'frontend-official');
 
   const files = {
     frontendPage: path.join(frontendRoot, 'src', 'pages', `${pascalName}.tsx`),

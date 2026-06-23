@@ -24,6 +24,7 @@ import { OperationalStatusBadge } from "@/components/enterprise/OperationalStatu
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
@@ -247,7 +248,7 @@ export default function Connections() {
           reportFrontendIssue({
             type: "unexpected_error",
             service: "connections.loadInitialData",
-            message: sessionsResult.reason instanceof Error ? sessionsResult.reason.message : "Falha no carregamento inicial de sessões",
+            message: sessionsResult[0].reason instanceof Error ? sessionsResult[0].reason.message : "Falha no carregamento inicial de sessões",
           });
         }
       } catch (error) {
@@ -505,6 +506,9 @@ export default function Connections() {
                 <DialogContent className="sm:max-w-md border-border/80 bg-card/95 backdrop-blur-xl">
                   <DialogHeader>
                     <DialogTitle className="font-display">Conectar WhatsApp oficial</DialogTitle>
+                    <DialogDescription>
+                      Crie uma nova sessão e escaneie o QR Code para conectar o número do WhatsApp.
+                    </DialogDescription>
                   </DialogHeader>
                   <div className="space-y-4 py-4">
                     {!activeModalSessionId ? (
@@ -715,11 +719,11 @@ export default function Connections() {
               <Trash className="h-5 w-5 text-destructive" />
               Excluir sessão{deleteConfirmSessionId ? `: ${deleteConfirmSessionId}` : ""}
             </DialogTitle>
+            <DialogDescription className="text-sm leading-relaxed">
+              Escolha como deseja excluir esta sessão:
+            </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 pt-2">
-            <p className="text-sm text-muted-foreground leading-relaxed">
-              Escolha como deseja excluir esta sessão:
-            </p>
 
             <div className="space-y-3">
               <button
@@ -773,7 +777,7 @@ export default function Connections() {
                 </span>
                 Logs de Conexão WhatsApp
               </DialogTitle>
-              <p className="text-xs text-muted-foreground">Monitoramento de eventos e mensagens em tempo real</p>
+              <DialogDescription className="text-xs">Monitoramento de eventos e mensagens em tempo real</DialogDescription>
             </div>
           </DialogHeader>
           <div className="space-y-4 pt-4">

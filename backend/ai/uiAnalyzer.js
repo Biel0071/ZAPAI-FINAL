@@ -127,7 +127,7 @@ function inferLayout(source) {
 async function analyzeUIScreens(options = {}) {
   const backendRoot = path.resolve(__dirname, '..');
   const projectRoot = path.resolve(backendRoot, '..', '..');
-  const frontendRoot = path.join(projectRoot, 'frontend', 'src');
+  const frontendRoot = path.join(projectRoot, 'frontend-official', 'src');
   const pagesDir = path.join(frontendRoot, 'pages');
 
   const pageFiles = await walkFiles(pagesDir);

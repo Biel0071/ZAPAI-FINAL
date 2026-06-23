@@ -48,10 +48,20 @@ function getBusinessHoursSettings() {
   };
 }
 
-function saveBusinessHoursSettings(payload = {}) {
+function saveBusinessHoursSettings(store, payload = {}) {
   businessHours.open = String(payload.openTime || businessHours.open);
   businessHours.close = String(payload.closeTime || businessHours.close);
   businessHours.timezone = String(payload.timezone || businessHours.timezone);
+
+  if (store) {
+    const config = ensureStoreConfig(store);
+    config.businessHours = {
+      open: businessHours.open,
+      close: businessHours.close,
+      timezone: businessHours.timezone,
+      absenceMessage: businessHours.absenceMessage,
+    };
+  }
 
   return getBusinessHoursSettings();
 }
@@ -63,8 +73,18 @@ function getAbsenceMessageSettings() {
   };
 }
 
-function saveAbsenceMessageSettings(payload = {}) {
+function saveAbsenceMessageSettings(store, payload = {}) {
   businessHours.absenceMessage = String(payload.message || businessHours.absenceMessage);
+
+  if (store) {
+    const config = ensureStoreConfig(store);
+    config.businessHours = {
+      open: businessHours.open,
+      close: businessHours.close,
+      timezone: businessHours.timezone,
+      absenceMessage: businessHours.absenceMessage,
+    };
+  }
 
   return getAbsenceMessageSettings();
 }

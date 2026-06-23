@@ -1,6 +1,6 @@
 
 # Relatório de Garantia de Qualidade (QA) - ZAPFLOW AI
-**Executado em:** 29/05/2026, 16:54:09
+**Executado em:** 23/06/2026, 12:09:23
 
 ## 📊 Resumo Executivo
 * **Frontend Servido (8080):** ✅ ONLINE
@@ -21,6 +21,7 @@
 
 ## 🔌 Sessões WhatsApp Detectadas localmente
 - Sessão `main`: status=No credentials (autenticação=false)
+- Sessão `teste1010`: status=Pre-authenticated (autenticação=true)
 
 ## 🚨 Falhas / Alertas Registrados
 _Nenhum erro grave detectado._

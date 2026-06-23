@@ -7,6 +7,8 @@ import {
   waitForHttp,
 } from "./runtime-lib.mjs";
 
+const shouldClean = process.argv.includes("--clean");
+
 const stopped = stopManagedProcesses();
 if (stopped.killed.length > 0) {
   console.log("[runtime:start] Processos encerrados:");
@@ -19,9 +21,11 @@ if (stopped.failed.length > 0) {
   }
 }
 
-const removed = cleanRuntimeArtifacts();
-if (removed.length > 0) {
-  console.log(`[runtime:start] Artefatos limpos: ${removed.join(", ")}`);
+if (shouldClean) {
+  const removed = cleanRuntimeArtifacts();
+  if (removed.length > 0) {
+    console.log(`[runtime:start] Artefatos limpos: ${removed.join(", ")}`);
+  }
 }
 
 const started = startOfficialRuntime();
@@ -40,4 +44,8 @@ if (!backendStatus.ok || !frontendStatus.ok) {
   process.exitCode = 1;
 } else {
   console.log(`[runtime:start] Runtime oficial ativo em http://127.0.0.1:${officialPorts.frontend} com backend em http://127.0.0.1:${officialPorts.backend}.`);
+  if (process.argv.includes("--keep-alive")) {
+    console.log("[runtime:start] Mantendo processo pai ativo (--keep-alive)...");
+    setInterval(() => {}, 60000);
+  }
 }

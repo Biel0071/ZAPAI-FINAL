@@ -11,7 +11,18 @@
  * Source code belongs here.
  */
 
-const { DisconnectReason } = require('@whiskeysockets/baileys');
+const DisconnectReason = {
+  connectionClosed: 428,
+  connectionLost: 408,
+  connectionReplaced: 440,
+  timedOut: 408,
+  loggedOut: 401,
+  badSession: 500,
+  restartRequired: 515,
+  multideviceMismatch: 411,
+  forbidden: 403,
+  unavailableService: 503
+};
 
 const TERMINAL_DISCONNECT_CODES = new Set(
   [

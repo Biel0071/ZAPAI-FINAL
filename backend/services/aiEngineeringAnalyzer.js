@@ -185,7 +185,7 @@ function buildNextSteps(problems = [], improvements = []) {
 async function analyzeEngineering(options = {}) {
   const backendRoot = path.resolve(__dirname, '..');
   const projectRoot = path.resolve(backendRoot, '..', '..');
-  const frontendRoot = path.join(projectRoot, 'frontend');
+  const frontendRoot = path.join(projectRoot, 'frontend-official');
   const frontendSourceRoot = path.join(frontendRoot, 'src');
 
   const [projectAnalysis, architectScan, runtimeHealth, backendFiles, frontendFiles] =

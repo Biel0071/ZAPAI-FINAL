@@ -60,6 +60,7 @@ async function registerIncomingMessage(store, payload) {
     if (result?.message) {
       // eslint-disable-next-line no-console
       console.log('MESSAGE SAVED');
+      console.log(`[TEMP_LOG] message.received - CONVERSATION_ID: "${result.message.conversationId || result.conversation?.id || ''}", PHONE: "${payload.phone}", REMOTE_JID: "${payload.phone || ''}", SESSION_ID: "${result.message.sessionId || payload.sessionId || ''}", MESSAGE_ID: "${result.message.id || ''}", SOURCE: "inbound_baileys"`);
     }
   } catch (err) {
     // eslint-disable-next-line no-console
@@ -130,6 +131,8 @@ async function registerOutgoingMessage(store, payload) {
   if (!result?.message?.id) {
     throw new Error('Outgoing message persistence did not return a valid id.');
   }
+
+  console.log(`[TEMP_LOG] message.sent - CONVERSATION_ID: "${result?.message?.conversationId || result?.conversation?.id || ''}", PHONE: "${payload.phone}", REMOTE_JID: "${payload.phone || ''}", SESSION_ID: "${result?.message?.sessionId || payload.sessionId || ''}", MESSAGE_ID: "${result?.message?.id || ''}", SOURCE: "${payload.source || 'human_agent'}"`);
 
   if (result?.message) {
     if (payload.source === 'human' && result?.conversation?.id) {

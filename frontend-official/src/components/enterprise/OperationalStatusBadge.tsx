@@ -1,13 +1,14 @@
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 
-type OperationalTone = "online" | "offline" | "syncing" | "warning";
+type OperationalTone = "online" | "offline" | "syncing" | "warning" | "degraded";
 
 const toneClassMap: Record<OperationalTone, string> = {
   online: "bg-success/15 text-success border-success/30",
   offline: "bg-muted/70 text-muted-foreground border-border",
   syncing: "bg-info/15 text-info border-info/30",
   warning: "bg-warning/15 text-warning border-warning/30",
+  degraded: "bg-destructive/10 text-destructive border-destructive/25",
 };
 
 interface OperationalStatusBadgeProps {
@@ -37,7 +38,9 @@ export function OperationalStatusBadge({ label, tone, pulse = false, className }
               ? "bg-info"
               : tone === "warning"
                 ? "bg-warning"
-                : "bg-muted-foreground",
+                : tone === "degraded"
+                  ? "bg-destructive"
+                  : "bg-muted-foreground",
         )}
       />
       {label}

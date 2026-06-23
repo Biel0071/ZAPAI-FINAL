@@ -12,6 +12,7 @@ async function run() {
         name VARCHAR(255),
         avatar_url TEXT,
         is_group BOOLEAN DEFAULT FALSE,
+        session_id VARCHAR(100),
         created_at TIMESTAMPTZ DEFAULT NOW(),
         updated_at TIMESTAMPTZ DEFAULT NOW(),
         UNIQUE(phone, company_id)

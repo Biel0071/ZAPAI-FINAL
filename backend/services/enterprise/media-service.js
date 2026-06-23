@@ -6,18 +6,40 @@ const { spawn } = require('child_process');
 const sharp = require('sharp');
 const { getJson, setJson } = require('./cache-service');
 
+const useS3 = process.env.S3_ENABLED === 'true';
+let s3Client = null;
+if (useS3) {
+  try {
+    const { S3Client } = require('@aws-sdk/client-s3');
+    s3Client = new S3Client({
+      endpoint: process.env.S3_ENDPOINT,
+      region: process.env.S3_REGION || 'us-east-1',
+      credentials: {
+        accessKeyId: process.env.S3_ACCESS_KEY_ID,
+        secretAccessKey: process.env.S3_SECRET_ACCESS_KEY,
+      },
+      forcePathStyle: process.env.S3_FORCE_PATH_STYLE === 'true',
+    });
+    console.log('[MEDIA] S3 storage client initialized successfully');
+  } catch (err) {
+    console.error('[MEDIA] Failed to initialize S3 client. Make sure "@aws-sdk/client-s3" is installed. Falling back to local storage.', err.message);
+  }
+}
+
 const PROJECT_ROOT = path.join(__dirname, '..', '..');
-const MEDIA_ROOT = path.join(PROJECT_ROOT, 'media');
+const MEDIA_ROOT = path.resolve(PROJECT_ROOT, '..', 'storage', 'media');
 const MEDIA_TYPE_DIRECTORY = {
   audio: 'audios',
   document: 'documents',
   image: 'images',
+  sticker: 'stickers',
   video: 'videos',
 };
 const MEDIA_FALLBACK_EXTENSION = {
   audio: '.mp3',
   document: '.bin',
   image: '.jpg',
+  sticker: '.webp',
   video: '.mp4',
 };
 const mediaMetadataIndex = new Map();
@@ -36,6 +58,7 @@ function normalizeMediaType(type = '') {
   if (value.includes('image')) return 'image';
   if (value.includes('video')) return 'video';
   if (value.includes('audio')) return 'audio';
+  if (value.includes('sticker')) return 'sticker';
   return 'document';
 }
 
@@ -95,7 +118,7 @@ async function generateVideoThumbnail({ sourcePath, thumbnailPath }) {
 }
 
 async function maybeGenerateThumbnail({ absolutePath, mediaId, mediaType, tenantId }) {
-  if (!['image', 'video'].includes(mediaType)) {
+  if (!['image', 'video', 'sticker'].includes(mediaType)) {
     return null;
   }
 
@@ -104,7 +127,7 @@ async function maybeGenerateThumbnail({ absolutePath, mediaId, mediaType, tenant
   const thumbnailAbsolutePath = path.join(thumbnailDirectory, thumbnailFileName);
 
   try {
-    if (mediaType === 'image') {
+    if (mediaType === 'image' || mediaType === 'sticker') {
       await generateImageThumbnail({ sourcePath: absolutePath, thumbnailPath: thumbnailAbsolutePath });
       return `/media/${normalizeTenantId(tenantId)}/thumbnails/${thumbnailFileName}`;
     }
@@ -130,6 +153,8 @@ function buildMediaMetadata({
   tenantId,
   relativePath,
   thumbnail,
+  hash,
+  filename,
 }) {
   return {
     absolutePath,
@@ -141,6 +166,8 @@ function buildMediaMetadata({
     thumbnail: thumbnail || null,
     type: mediaType,
     url: relativePath,
+    hash: hash || null,
+    filename: filename || null,
   };
 }
 
@@ -189,6 +216,7 @@ async function saveBuffer({ buffer, tenantId, type, mimeType, sourceFileName }) 
   const absolutePath = path.join(directory, fileName);
   await fsp.writeFile(absolutePath, buffer);
 
+  const hash = crypto.createHash('md5').update(buffer).digest('hex');
   const relativePath = `/media/${normalizedTenantId}/${mediaFolder}/${fileName}`;
   const thumbnail = await maybeGenerateThumbnail({
     absolutePath,
@@ -197,15 +225,74 @@ async function saveBuffer({ buffer, tenantId, type, mimeType, sourceFileName }) 
     tenantId: normalizedTenantId,
   });
 
+  let finalUrl = relativePath;
+  let finalThumbnail = thumbnail;
+
+  if (s3Client) {
+    const bucket = process.env.S3_BUCKET;
+    try {
+      const { PutObjectCommand } = require('@aws-sdk/client-s3');
+      
+      // Upload main file
+      const mainS3Key = `media/${normalizedTenantId}/${mediaFolder}/${fileName}`;
+      await s3Client.send(new PutObjectCommand({
+        Bucket: bucket,
+        Key: mainS3Key,
+        Body: buffer,
+        ContentType: mimeType || 'application/octet-stream',
+      }));
+
+      const s3Domain = process.env.S3_CUSTOM_DOMAIN || `${bucket}.s3.amazonaws.com`;
+      const baseS3Url = s3Domain.startsWith('http') ? s3Domain : `https://${s3Domain}`;
+      finalUrl = `${baseS3Url}/${mainS3Key}`;
+
+      // Upload thumbnail if present
+      if (thumbnail) {
+        const thumbFileName = `${mediaId}.jpg`;
+        const thumbnailDirectory = path.join(MEDIA_ROOT, normalizedTenantId, 'thumbnails');
+        const thumbnailAbsolutePath = path.join(thumbnailDirectory, thumbFileName);
+        
+        try {
+          const thumbBuffer = await fsp.readFile(thumbnailAbsolutePath);
+          const thumbS3Key = `media/${normalizedTenantId}/thumbnails/${thumbFileName}`;
+          
+          await s3Client.send(new PutObjectCommand({
+            Bucket: bucket,
+            Key: thumbS3Key,
+            Body: thumbBuffer,
+            ContentType: 'image/jpeg',
+          }));
+          
+          finalThumbnail = `${baseS3Url}/${thumbS3Key}`;
+          
+          // Clean up local thumbnail
+          await fsp.unlink(thumbnailAbsolutePath).catch(() => {});
+        } catch (thumbErr) {
+          console.warn('[MEDIA] S3 thumbnail upload failed:', thumbErr.message);
+        }
+      }
+      
+      // Clean up local main file
+      await fsp.unlink(absolutePath).catch(() => {});
+      
+    } catch (s3Err) {
+      console.error('[MEDIA] S3 upload failed, keeping local file as fallback:', s3Err.message);
+      finalUrl = relativePath;
+      finalThumbnail = thumbnail;
+    }
+  }
+
   const metadata = buildMediaMetadata({
-    absolutePath,
+    absolutePath: s3Client ? '' : absolutePath,
     mediaId,
     mediaType,
     mimeType,
     size: buffer.length,
     tenantId: normalizedTenantId,
-    relativePath,
-    thumbnail,
+    relativePath: finalUrl,
+    thumbnail: finalThumbnail,
+    hash,
+    filename: fileName,
   });
 
   await cacheMetadata(metadata);
@@ -217,6 +304,8 @@ async function saveBuffer({ buffer, tenantId, type, mimeType, sourceFileName }) 
     thumbnail: metadata.thumbnail,
     type: metadata.type,
     url: metadata.url,
+    hash: metadata.hash,
+    filename: metadata.filename,
   };
 }
 
@@ -240,15 +329,28 @@ async function downloadFromWhatsApp({
       {},
       {}
     );
-  } catch {
-    const stream = await downloadContentFromMessage(mediaMessage, mediaType);
-    const chunks = [];
+    console.log(`[MEDIA-SVC] downloadMediaMessage OK for ${mediaType}, size=${buffer?.length || 0}`);
+  } catch (primaryErr) {
+    console.warn(`[MEDIA-SVC] downloadMediaMessage failed for ${mediaType}:`, primaryErr?.message || primaryErr);
+    try {
+      const stream = await downloadContentFromMessage(mediaMessage, mediaType);
+      const chunks = [];
 
-    for await (const chunk of stream) {
-      chunks.push(chunk);
+      for await (const chunk of stream) {
+        chunks.push(chunk);
+      }
+
+      buffer = Buffer.concat(chunks);
+      console.log(`[MEDIA-SVC] downloadContentFromMessage OK for ${mediaType}, size=${buffer?.length || 0}`);
+    } catch (fallbackErr) {
+      console.error(`[MEDIA-SVC] Both download methods failed for ${mediaType}:`, fallbackErr?.message || fallbackErr);
+      return null;
     }
+  }
 
-    buffer = Buffer.concat(chunks);
+  if (!buffer || buffer.length === 0) {
+    console.warn(`[MEDIA-SVC] Empty buffer for ${mediaType}, skipping save`);
+    return null;
   }
 
   const saved = await saveBuffer({
@@ -259,6 +361,8 @@ async function downloadFromWhatsApp({
     type: mediaType,
   });
 
+  console.log(`[MEDIA-SVC] Saved ${mediaType}: ${saved.url}`);
+
   return {
     fileName: path.basename(saved.url || ''),
     filePath: saved.url,
@@ -268,6 +372,7 @@ async function downloadFromWhatsApp({
     thumbnail: saved.thumbnail,
     type: saved.type,
     url: saved.url,
+    hash: saved.hash,
   };
 }
 

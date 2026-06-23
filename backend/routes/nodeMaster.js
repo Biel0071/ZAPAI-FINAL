@@ -62,11 +62,16 @@ async function registerNodeHandler(req, res) {
       }
     }
 
-    const explicitNodeId = String(req.body.node_id || '').trim();
-    const hostname = String(req.body.hostname || req.body.name || '').trim();
-    const ipAddress = String(req.body.ip || req.body.ip_address || '').trim();
-    const version = String(req.body.version || '1.0.0').trim();
+    let explicitNodeId = String(req.body.node_id || '').trim();
+    let hostname = String(req.body.hostname || req.body.name || '').trim();
+    let ipAddress = String(req.body.ip || req.body.ip_address || '').trim();
+    let version = String(req.body.version || '1.0.0').trim();
     const port = Number(req.body.port || req.body.api_port || 4025);
+
+    if (explicitNodeId.length > 95) explicitNodeId = explicitNodeId.substring(0, 95);
+    if (hostname.length > 250) hostname = hostname.substring(0, 250);
+    if (ipAddress.length > 45) ipAddress = ipAddress.substring(0, 45);
+    if (version.length > 45) version = version.substring(0, 45);
 
     if (!hostname || !ipAddress) {
       return res.status(400).json({ success: false, error: 'hostname and ip are required' });

@@ -24,6 +24,7 @@ router.post('/conversations/:conversationId/billing', conversationsController.ge
 router.get('/conversations/:conversationId/billing/:billingId', conversationsController.getBillingDetails);
 router.patch('/conversations/:phone/ai', conversationsController.updateConversationAI);
 router.patch('/conversations/:conversationId', conversationsController.updateConversationMeta);
+router.delete('/conversations/:conversationId', conversationsController.deleteConversation);
 router.get('/public-url', conversationsController.getPublicUrl);
 
 module.exports = router;

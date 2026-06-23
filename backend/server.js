@@ -45,6 +45,7 @@ const outboundQueueService = require('./services/outboundQueueService');
 const enterpriseQueueService = require('./services/enterprise/queue-service');
 const aiIntelligenceService = require('./services/aiIntelligenceService');
 const { processAI } = require('./services/ai.service');
+const { isAIEnabled } = require('./config/aiToggle');
 const { backendLog, errorLog } = require('./services/logger');
 const { DEFAULT_SESSION } = whatsappService;
 const nodeRegisterService = require('./services/nodeRegister');
@@ -242,12 +243,14 @@ const APP_PUBLIC_URL = runtimeEnv.appPublicUrl || String(process.env.APP_PUBLIC_
 const ENV_ALLOWED_ORIGINS = [...runtimeEnv.allowedOriginsFromEnv];
 const BASE_ALLOWED_ORIGINS = [
   // Development origins — always allowed in non-production
-  'http://localhost:8080',
-  'http://localhost:5173',
-  'http://localhost:3000',
-  'http://127.0.0.1:8080',
-  'http://127.0.0.1:5173',
-  'http://127.0.0.1:3000',
+  ...(!IS_PRODUCTION ? [
+    'http://localhost:8080',
+    'http://localhost:5173',
+    'http://localhost:3000',
+    'http://127.0.0.1:8080',
+    'http://127.0.0.1:5173',
+    'http://127.0.0.1:3000',
+  ] : []),
   // Production: sourced from env vars only (no hardcoded IPs/domains)
   ...(APP_PUBLIC_URL ? [APP_PUBLIC_URL] : []),
   ...(FRONTEND_URL ? [FRONTEND_URL] : []),
@@ -457,9 +460,16 @@ function buildSessionStatusPayload() {
   };
 }
 
-const DEFAULT_PAYLOAD_LIMIT = process.env.DEFAULT_PAYLOAD_LIMIT || '1mb';
-const MEDIA_PAYLOAD_LIMIT = process.env.MEDIA_PAYLOAD_LIMIT || '25mb';
-const mediaPayloadPaths = ['/send-media', '/api/send-media', '/receive-message', '/api/receive-message'];
+const DEFAULT_PAYLOAD_LIMIT = process.env.DEFAULT_PAYLOAD_LIMIT || '2mb';
+const MEDIA_PAYLOAD_LIMIT = process.env.MEDIA_PAYLOAD_LIMIT || '150mb';
+const mediaPayloadPaths = [
+  '/send-media',
+  '/api/send-media',
+  '/receive-message',
+  '/api/receive-message',
+  '/media/upload',
+  '/api/quick-replies',
+];
 
 app.use(mediaPayloadPaths, express.json({ limit: MEDIA_PAYLOAD_LIMIT }));
 app.use(mediaPayloadPaths, express.urlencoded({ extended: true, limit: MEDIA_PAYLOAD_LIMIT }));
@@ -530,15 +540,6 @@ app.use(inputSanitizerMiddleware);
 app.use(requestContextMiddleware);
 app.use(tenantContextMiddleware);
 app.use(apiEnvelopeMiddleware);
-app.use('/media', express.static(path.join(__dirname, 'media')));
-app.use('/upload', express.static(path.join(__dirname, 'upload')));
-app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
-app.use('/diagnostics', devOnlyRoute);
-app.use('/receive-message', devOnlyRoute);
-app.use('/api/receive-message', devOnlyRoute);
-app.use('/system/runtime/debug', devOnlyRoute);
-app.use('/system/ai-diagnostics', devOnlyRoute);
-
 const requireJwtAuth = createJwtAuthMiddleware({
   // Exact-match public endpoints (healthcheck, login, liveness probes).
   publicPaths: [
@@ -554,15 +555,51 @@ const requireJwtAuth = createJwtAuthMiddleware({
     '/api/session-status',
   ],
   // Prefix-match (covers mounted sub-routes like /auth/refresh).
-  // NOTE: /api/ and /system/ are public because the frontend has no login UI
-  // yet. When a login page is added, remove these and send Bearer tokens.
-  publicPrefixes: ['/auth/', '/api/', '/system/'],
+  publicPrefixes: [
+    '/auth/',
+    '/api/auth/',
+    '/api/node/',
+    '/api/master/',
+    '/api/system/',
+    '/api/cluster/metrics/',
+    '/system/'
+  ],
   protectedPrefixes: ['/api/admin/', '/admin/'],
 });
 
 // Auth enforcement is now centralized in createJwtAuthMiddleware.
 // Dev bypass requires explicit ALLOW_DEV_AUTH_BYPASS=true (NODE_ENV != production).
 const authMiddleware = requireJwtAuth;
+
+// Dynamic CORS middleware for static files to restrict to allowed origins
+function corsForStatic(req, res, next) {
+  const origin = req.headers.origin;
+  if (origin && isOriginAllowed(origin)) {
+    res.setHeader('Access-Control-Allow-Origin', origin);
+    res.setHeader('Access-Control-Allow-Credentials', 'true');
+  } else if (!origin) {
+    // direct navigation
+  } else {
+    res.setHeader('Access-Control-Allow-Origin', 'null');
+  }
+  res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, HEAD, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Authorization, Content-Type, x-tenant-id');
+  
+  if (req.method === 'OPTIONS') {
+    return res.sendStatus(204);
+  }
+  next();
+}
+
+app.use('/media', corsForStatic, requireJwtAuth, express.static(path.join(__dirname, '..', 'storage', 'media')));
+app.use('/upload', corsForStatic, requireJwtAuth, express.static(path.join(__dirname, 'upload')));
+app.use('/uploads', corsForStatic, requireJwtAuth, express.static(path.join(__dirname, 'uploads')));
+app.use('/diagnostics', devOnlyRoute);
+app.use('/receive-message', devOnlyRoute);
+app.use('/api/receive-message', devOnlyRoute);
+app.use('/system/runtime/debug', devOnlyRoute);
+app.use('/system/ai-diagnostics', devOnlyRoute);
 
 app.locals.store = {
   aiIntelligence: null,
@@ -575,11 +612,21 @@ app.locals.store = {
   metricsSnapshot: null,
   publicUrl: PUBLIC_API_URL,
   saveState: async () => Promise.resolve(),
-  saveAiState: async () =>
-    saveStoreState({
+  saveAiState: async () => {
+    await saveStoreState({
       aiLearningLogs: app.locals.store.aiLearningLogs,
       promptHistory: app.locals.store.promptHistory,
-    }),
+      aiConfig: app.locals.store.aiConfig,
+    });
+    if (app.locals.store.databaseEnabled) {
+      try {
+        const systemSettingsRepository = require('./repositories/systemSettingsRepository');
+        await systemSettingsRepository.setSetting('ai_config', JSON.stringify(app.locals.store.aiConfig || {}));
+      } catch (err) {
+        console.warn('[AI] failed to save ai_config to db:', err.message);
+      }
+    }
+  },
   saveAiIntelligenceState: async () =>
     aiIntelligenceService.ensureState(app.locals.store) &&
     saveAiIntelligenceState(app.locals.store.aiIntelligence),
@@ -1274,10 +1321,7 @@ async function legacyIncomingMessageFlow({ incomingMessage, sessionId, sock }) {
   }
 
   const remoteJid = incomingMessage?.key?.remoteJid || '';
-
-  if (remoteJid.endsWith('@g.us')) {
-    return;
-  }
+  const isGroup = remoteJid.endsWith('@g.us');
 
   const payload = await messagesController.extractIncomingMessage(incomingMessage);
 
@@ -1386,12 +1430,31 @@ async function legacyIncomingMessageFlow({ incomingMessage, sessionId, sock }) {
 
     if (result?.message) {
       const io = app.get('io');
+      const { formatApiMessage } = require('./controllers/messages/shared');
 
       io?.emit('message:new', {
         phone: incoming.phone,
         conversationId: result.message.conversationId,
-        message: result.message,
+        sessionId: result.message.sessionId || sessionId || null,
+        message: formatApiMessage(result.message),
       });
+
+      const MessageAuditService = require('./services/messageAuditService');
+      try {
+        await MessageAuditService.logStep({
+          messageId: result.message.id || null,
+          conversationId: result.message.conversationId || null,
+          phone: incoming.phone,
+          step: 'INBOX_UPDATED',
+          status: 'success',
+          details: {
+            phone: incoming.phone,
+            sessionId: result.message.sessionId || sessionId || null
+          }
+        });
+      } catch (err) {
+        console.error('[MESSAGE AUDIT] Failed to log INBOX_UPDATED:', err);
+      }
 
       console.log('[INBOX] realtime event emitted');
     }
@@ -1404,82 +1467,16 @@ async function legacyIncomingMessageFlow({ incomingMessage, sessionId, sock }) {
     };
   }
 
-  if (!isBusinessOpen()) {
-    const conversationKey = String(result?.conversation?.id || payload.phone || '');
-    const shouldReply = shouldSendAbsenceReply(app.locals.store, conversationKey);
-
-    if (shouldReply) {
-      markAbsenceReplyState(app.locals.store, conversationKey, { pending: true, sent: false });
-      await waitMs(10_000);
-      await whatsappService.sendMessage(sock, payload.phone, businessHours.absenceMessage);
-      await messagesController.registerOutgoingMessage(app.locals.store, {
-        companyId: payload.companyId,
-        name: result.agent?.name || payload.name,
-        phone: payload.phone,
-        sessionId,
-        source: 'system',
-        systemTag: 'absence',
-        text: businessHours.absenceMessage,
-      });
-      markAbsenceReplyState(app.locals.store, conversationKey, {
-        pending: false,
-        sent: true,
-        sentAt: new Date().toISOString(),
-      });
-    }
-
-    return result;
-  }
-
-  const conversation = result?.conversation || null;
-  const incomingText = payload?.text || '';
-  const conversationId = conversation?.id || null;
-  const aiEnabled = Boolean(conversation?.aiEnabled);
-
-  if (!aiEnabled || !incomingText || !conversationId) {
-    return result;
-  }
-
-  const history = await messageRepository
-    .getMessagesByConversation(conversationId)
-    .then((messages) =>
-      messages.slice(-20).map((message) => ({
-        content: message.content || message.text || '',
-        role: message.fromMe ? 'assistant' : 'user',
-        timestamp: message.createdAt || message.timestamp || new Date().toISOString(),
-      }))
-    )
-    .catch(() => []);
-
-  const ai = await processAI({
-    contact: {
-      name: conversation?.name || payload?.name || payload.phone,
-      phone: payload.phone,
-    },
-    history,
-    message: incomingText,
-  });
-
-  if (!ai) {
-    return result;
-  }
-
-  await conversationRepository.updateConversationState(conversationId, {
-    lead_confidence: ai.leadScore,
-    lead_intent: ai.intent,
-    lead_temperature: mapLeadTemperature(ai.leadScore),
-    next_action: ai.suggestion || conversation?.next_action || 'educate',
-  });
-
-  if (ai.reply) {
-    await whatsappService.sendMessage(sock, payload.phone, ai.reply);
-    await messagesController.registerOutgoingMessage(app.locals.store, {
-      companyId: payload.companyId,
-      name: conversation?.name || payload?.name,
-      phone: payload.phone,
-      sessionId,
-      source: 'ai',
-      text: ai.reply,
+  const automationEngine = require('./services/automationEngine');
+  if (!isGroup) {
+    void automationEngine.processMessage({
+      payload: messagePayload,
+      conversation: result?.conversation || { phone: payload.phone, company_id: payload.companyId },
+      store: app.locals.store,
+      sock,
+      sessionId
+    }).catch((err) => {
+      console.error('[AutomationEngine] Pipeline execution failed:', err);
     });
   }
 
@@ -1496,9 +1493,24 @@ function handleSessionConnected(session) {
   }
 
   console.log(`[WHATSAPP] session ${session.sessionId} connected`);
+
+  const { consolidateLidConversations } = require('./services/whatsapp/persistence/conversationMerger');
+  consolidateLidConversations(session.companyId || 'default').catch(err => {
+    console.error('[CONSOLIDATION] Failed to consolidate LID conversations on session connect:', err);
+  });
 }
 
 async function bootstrap() {
+  const envResult = envValidator.validateEnvironment();
+  if (!envResult.valid) {
+    if (process.env.NODE_ENV === 'production') {
+      console.error('[SERVER] Critical: Environment validation failed in production. Aborting boot process.');
+      process.exit(1);
+    } else {
+      console.warn('[SERVER] Warning: Environment validation failed in development. Booting will continue, but expect instability.');
+    }
+  }
+
   const uploadDir = path.join(__dirname, 'upload');
   const uploadsDir = path.join(__dirname, 'uploads');
 
@@ -1522,6 +1534,9 @@ async function bootstrap() {
     app.locals.store.databaseEnabled = true;
     app.locals.store.databaseError = null;
     console.log('[DB] PostgreSQL connected');
+
+    const lidMapper = require('./services/whatsapp/shared/lidMapper');
+    await lidMapper.init();
 
     if (dbInitResult?.mode === 'migration-runner') {
       console.log(`[DB] Migrations executed on boot: ${dbInitResult.executed?.length || 0}`);
@@ -1547,6 +1562,44 @@ async function bootstrap() {
     console.warn('[DB] PostgreSQL unavailable. Running in degraded mode:', error?.code || error?.message || error);
   }
 
+  // Set initial AI configuration
+  app.locals.store.aiConfig = persistedState.aiConfig || {};
+
+  // If database is enabled, initialize AI toggle and try to fetch config from db
+  if (app.locals.store.databaseEnabled) {
+    try {
+      const { initAIToggle } = require('./config/aiToggle');
+      await initAIToggle();
+      console.log('[AI] Initialized toggle status to:', isAIEnabled());
+
+      const systemSettingsRepository = require('./repositories/systemSettingsRepository');
+      const dbAiConfig = await systemSettingsRepository.getSetting('ai_config');
+      if (dbAiConfig && dbAiConfig.value) {
+        try {
+          app.locals.store.aiConfig = {
+            ...app.locals.store.aiConfig,
+            ...JSON.parse(dbAiConfig.value),
+          };
+          console.log('[AI] Config loaded from PostgreSQL successfully');
+        } catch (e) {
+          console.warn('[AI] Failed to parse db ai_config:', e.message);
+        }
+      }
+    } catch (err) {
+      console.warn('[AI] Failed during boot configuration lookup:', err.message);
+    }
+  }
+
+  // Apply business hours from loaded config
+  const aiConfig = app.locals.store.aiConfig;
+  if (aiConfig && aiConfig.businessHours) {
+    businessHours.open = aiConfig.businessHours.open || businessHours.open;
+    businessHours.close = aiConfig.businessHours.close || businessHours.close;
+    businessHours.timezone = aiConfig.businessHours.timezone || businessHours.timezone;
+    businessHours.absenceMessage = aiConfig.businessHours.absenceMessage || businessHours.absenceMessage;
+    console.log('[AI] Applied loaded business hours:', businessHours.open, '-', businessHours.close);
+  }
+
   app.locals.store.aiLearningLogs = persistedState.aiLearningLogs || [];
   app.locals.store.promptHistory = persistedState.promptHistory || [];
   app.locals.store.aiIntelligence = persistedAiIntelligence;
@@ -1562,7 +1615,11 @@ async function bootstrap() {
 
   sessionManager.setRuntimeActive(false);
   app.locals.store.learningJob = null;
-  await outboundQueueService.initializeOutboundQueue({ store: app.locals.store });
+  if (process.env.ENABLE_QUEUE_LEGACY !== 'false') {
+    await outboundQueueService.initializeOutboundQueue({ store: app.locals.store });
+  } else {
+    console.log('[SERVER] Legacy outbound queue is disabled by ENABLE_QUEUE_LEGACY flag.');
+  }
   await enterpriseQueueService.initialize();
 
   server.listen(PORT, '0.0.0.0', async () => {
@@ -1596,7 +1653,11 @@ async function bootstrap() {
       console.log(`[SERVER] Session lifecycle initialized. Restored sessions: ${restored}`);
 
       // Start RuntimeEngine workers (heartbeat, cleanup, metrics, diagnostics)
-      runtimeEngine.startRuntimeEngine(app.locals.store);
+      if (process.env.ENABLE_RUNTIME_ENGINE !== 'false') {
+        runtimeEngine.startRuntimeEngine(app.locals.store);
+      } else {
+        console.log('[SERVER] Runtime Engine is disabled by ENABLE_RUNTIME_ENGINE flag.');
+      }
 
       // Hydrate SessionRegistry from persistent storage
       sessionRegistry.hydrate().catch((err) => {
@@ -1616,13 +1677,14 @@ async function bootstrap() {
       workerSupervisor.startAll();
 
       // Phase 5: Start SocketSafety periodic audit
-      socketSafetyGuard.startAuditWorker(io);
+      if (process.env.ENABLE_SOCKET_GUARD !== 'false') {
+        socketSafetyGuard.startAuditWorker(io);
+      } else {
+        console.log('[SERVER] Socket Safety Guard is disabled by ENABLE_SOCKET_GUARD flag.');
+      }
 
       // Phase 6: WebSocket Gateway initialization
       websocketGateway.init(io);
-
-      // Phase 6: Validate environment
-      envValidator.validateEnvironment();
 
       // Phase 6: AI Memory table + hydration
       aiMemoryEngine.ensureMemoryTable().then(() => {
@@ -1634,18 +1696,32 @@ async function bootstrap() {
       // Phase 6: Register AI memory flush worker
       workerSupervisor.registerWorker('ai_memory_flush', async () => {
         await aiMemoryEngine.flushMemoryToPostgres(app.locals.store);
-      }, 300_000); // Every 5 minutes
+      }, Math.max(300_000, Number(process.env.AI_MEMORY_FLUSH_MS) || 900_000), { runImmediately: false });
       workerSupervisor.startWorker('ai_memory_flush');
 
       // Phase 7: Session Watchdog worker
-      workerSupervisor.registerWorker('session_watchdog', () => {
-        const audit = sessionWatchdog.auditSessions();
-        if (audit.zombies.length > 0 || audit.stuck.length > 0 || audit.stale.length > 0) {
-          console.warn(`[WATCHDOG] Issues found: ${audit.zombies.length} zombies, ${audit.stuck.length} stuck, ${audit.stale.length} stale`);
-          sessionWatchdog.cleanupZombieSessions(audit, io);
-        }
-      }, 60_000); // Every 60 seconds
-      workerSupervisor.startWorker('session_watchdog');
+      if (process.env.ENABLE_SESSION_WATCHDOG !== 'false') {
+        workerSupervisor.registerWorker('session_watchdog', () => {
+          const audit = sessionWatchdog.auditSessions();
+          if (audit.zombies.length > 0 || audit.stuck.length > 0 || audit.stale.length > 0) {
+            console.warn(`[WATCHDOG] Issues found: ${audit.zombies.length} zombies, ${audit.stuck.length} stuck, ${audit.stale.length} stale`);
+            sessionWatchdog.cleanupZombieSessions(audit, io);
+            sessionWatchdog.restartStuckSessions(audit, async (id) => {
+              return sessionManager.startSession(id, { allowInactive: true });
+            }, io);
+          }
+        }, Math.max(60_000, Number(process.env.SESSION_WATCHDOG_MS) || 180_000));
+        workerSupervisor.startWorker('session_watchdog');
+      } else {
+        console.log('[SERVER] Session Watchdog is disabled by ENABLE_SESSION_WATCHDOG flag.');
+      }
+
+      // Connection Recovery service
+      const connectionRecoveryService = require('./services/connectionRecoveryService');
+      workerSupervisor.registerWorker('connection_recovery', async () => {
+        await connectionRecoveryService.checkAndRecoverSessions();
+      }, 25_000, { runImmediately: false });
+      workerSupervisor.startWorker('connection_recovery');
 
       // Phase 8: Retention worker — daily message cleanup
       // Groups: messages > 24h | Individuals: messages > 60 days
@@ -1660,7 +1736,7 @@ async function bootstrap() {
         } catch (err) {
           console.error('[SERVER] Retention worker error:', err?.message || err);
         }
-      }, 24 * 60 * 60 * 1000); // Every 24 hours
+      }, 24 * 60 * 60 * 1000, { runImmediately: false }); // Every 24 hours
       workerSupervisor.startWorker('message_retention');
 
       // Signal PM2 that the process is fully ready (wait_ready: true)
@@ -1783,5 +1859,3 @@ process.on('unhandledRejection', (reason) => {
 });
 
 module.exports = app;
-
-

@@ -34,7 +34,9 @@ const {
 } = require('../ai/saasArchitectEngine');
 const { generateAutoReply } = require('../config/ai');
 const aiIntelligenceService = require('../services/aiIntelligenceService');
-const { processAI } = require('../services/ai.service');
+const { processAI, testAIConnection, testProviderConnection } = require('../services/ai.service');
+const aiLogService = require('../services/aiLogService');
+
 
 function getStore(req) {
   return req.app.locals.store;
@@ -118,9 +120,98 @@ async function toggle(req, res) {
   });
 }
 
-function status(req, res) {
-  return res.status(200).json({ ai: isAIEnabled() });
+async function status(req, res) {
+  try {
+    const aiService = require('../services/ai.service');
+    const companyId = req.headers['x-company-id'] || req.headers['x-tenant-id'] || req.auth?.tenantId || 'default';
+    const store = req.app.locals.store;
+    const integration = await aiService.getAIIntegrationStatus(store, companyId);
+    const active = isAIEnabled() && integration.aiOn;
+    const isGlobalEnabled = isAIEnabled();
+    
+    return res.status(200).json({
+      ai: isGlobalEnabled,
+      enabled: isGlobalEnabled,
+      active: active,
+      status: isGlobalEnabled ? 'on' : 'off',
+      ...integration
+    });
+  } catch (err) {
+    console.error('[aiController] status failed:', err);
+    return res.status(500).json({ error: err.message });
+  }
 }
+
+async function getAiLogs(req, res) {
+  try {
+    const store = getStore(req);
+    const logs = await aiLogService.getLogs(store);
+    return res.status(200).json({ logs });
+  } catch (error) {
+    return res.status(500).json({ error: error.message || 'Failed to fetch AI logs.' });
+  }
+}
+
+async function getAiMetrics(req, res) {
+  try {
+    const store = getStore(req);
+    const metrics = await aiLogService.getMetrics(store);
+    return res.status(200).json(metrics);
+  } catch (error) {
+    return res.status(500).json({ error: error.message || 'Failed to fetch AI metrics.' });
+  }
+}
+
+async function testReply(req, res) {
+  try {
+    const store = getStore(req);
+    const result = await testAIConnection({
+      store,
+      providerId: req.body?.providerId,
+      model: req.body?.model,
+      message: req.body?.message,
+      prompt: req.body?.prompt,
+      agentKey: req.body?.agentKey,
+      agentName: req.body?.agentName,
+    });
+
+    return res.status(200).json({
+      success: Boolean(result.ok),
+      result,
+      error: result.ok ? null : result.error || 'AI test failed.',
+    });
+  } catch (error) {
+    return res.status(500).json({ success: false, error: error.message || 'AI test failed.' });
+  }
+}
+
+async function testProviders(req, res) {
+  try {
+    const store = getStore(req);
+    const configuredProviders = store?.aiConfig?.advancedAISettings?.providers || [];
+    const providerIds = ['openai', 'gemini', 'claude', 'groq'];
+    const results = await Promise.all(providerIds.map(async (providerId) => {
+      const provider = configuredProviders.find((item) => String(item.id).toLowerCase() === providerId);
+      if (!provider) {
+        return {
+          ok: false,
+          provider: providerId,
+          status: 'error',
+          error: 'Provider nao configurado.',
+        };
+      }
+      return testProviderConnection(provider, {
+        message: 'Responda apenas OK.',
+        prompt: 'Teste tecnico de conectividade.',
+      });
+    }));
+
+    return res.status(200).json({ success: true, results });
+  } catch (error) {
+    return res.status(500).json({ success: false, error: error.message || 'Provider test failed.' });
+  }
+}
+
 
 async function learningDashboard(req, res) {
   return res.status(200).json(aiLearningEngine.buildDashboard(getStore(req)));
@@ -269,6 +360,7 @@ async function reply(req, res) {
       contact: { name, phone },
       history: contextualHistory,
       message: text,
+      store,
     });
 
     if (aiEngineResponse?.reply) {
@@ -743,4 +835,8 @@ module.exports = {
   savePrompt,
   status,
   toggle,
+  getAiLogs,
+  getAiMetrics,
+  testReply,
+  testProviders,
 };

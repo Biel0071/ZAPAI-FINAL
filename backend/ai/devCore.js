@@ -26,7 +26,7 @@ async function exists(filePath) {
 async function detectMissingModules() {
   const backendRoot = path.resolve(__dirname, '..');
   const projectRoot = path.resolve(backendRoot, '..', '..');
-  const frontendPagesDir = path.join(projectRoot, 'frontend', 'src', 'pages');
+  const frontendPagesDir = path.join(projectRoot, 'frontend-official', 'src', 'pages');
 
   const missing = [];
 
@@ -46,7 +46,7 @@ async function detectMissingModules() {
 async function fixBrokenImports() {
   const backendRoot = path.resolve(__dirname, '..');
   const projectRoot = path.resolve(backendRoot, '..', '..');
-  const frontendSrc = path.join(projectRoot, 'frontend', 'src');
+  const frontendSrc = path.join(projectRoot, 'frontend-official', 'src');
   const analysis = await analyzeProject({ autoCreateMissingPages: false });
 
   const applied = [];

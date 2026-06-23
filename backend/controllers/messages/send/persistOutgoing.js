@@ -8,13 +8,51 @@ const conversationRepository = require('../../../repositories/conversationReposi
 const messageRepository = require('../../../repositories/messageRepository');
 const { toExactMessageText } = require('../shared');
 
-async function ensureConversationForMessage({ companyId, mediaType, name, phone, sessionId, text }) {
+function getMessagePreviewLabel(mediaType) {
+  switch (String(mediaType || '').toLowerCase()) {
+    case 'image':
+      return 'Imagem';
+    case 'video':
+      return 'Vídeo';
+    case 'audio':
+      return 'Áudio';
+    case 'document':
+    case 'file':
+      return 'Documento';
+    case 'sticker':
+      return 'Sticker';
+    default:
+      return 'Mídia';
+  }
+}
+
+async function ensureConversationForMessage({ companyId, contactId, conversationId, mediaType, name, phone, sessionId, text }) {
+  const rawJid = phone || '';
+  const rawLid = rawJid.includes('@lid') ? rawJid : '';
+  const { normalizePhone } = require('../../../services/whatsapp/shared/identifiers');
+  const normalizedPhone = normalizePhone(phone);
+  console.log(`[CONVERSATION-UPSERT-KEY] OUTBOUND Message - Raw JID: "${rawJid}", Raw LID: "${rawLid}", Normalized Canonical Phone Key: "${normalizedPhone}"`);
+
+  if (conversationId) {
+    const existingConversation = await conversationRepository.getConversationById(conversationId);
+    if (existingConversation) {
+      return existingConversation;
+    }
+  }
+
+  if (contactId) {
+    const existingConversation = await conversationRepository.getConversationByContact(contactId, companyId, sessionId);
+    if (existingConversation) {
+      return existingConversation;
+    }
+  }
+
   return conversationRepository.findOrCreateConversationByPhone({
     companyId: companyId || process.env.DEFAULT_COMPANY_ID || 'default',
-    contactName: name || phone,
+    contactName: name || normalizedPhone,
     lastMessage: text || '',
     lastMessageType: mediaType || 'text',
-    phone,
+    phone: normalizedPhone,
     sessionId,
   });
 }
@@ -22,7 +60,7 @@ async function ensureConversationForMessage({ companyId, mediaType, name, phone,
 async function persistOutgoingMessageRecord(store, payload) {
   const conversation = await ensureConversationForMessage(payload);
   const exactText = toExactMessageText(payload.text);
-  const messagePreview = exactText || `[${payload.mediaType || 'text'}]`;
+  const messagePreview = exactText || getMessagePreviewLabel(payload.mediaType);
   const savedMessage = await messageRepository.create({
     content: exactText || messagePreview,
     conversationId: conversation.id,

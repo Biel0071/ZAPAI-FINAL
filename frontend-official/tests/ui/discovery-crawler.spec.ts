@@ -157,7 +157,13 @@ test.describe("ZapAI CRM E2E Auto-Discovery Crawler & Auditor", () => {
       console.log(`🔍 Crawling route: ${currentRoute}`);
 
       try {
-        const response = await page.goto(targetUrl, { waitUntil: "networkidle", timeout: 10000 });
+        // NOTE: use "domcontentloaded" instead of "networkidle". Pages that hold a
+        // persistent connection or poll on an interval (e.g. /inbox via WebSocket +
+        // setInterval) never reach network-idle, which previously produced a false
+        // "broken route" timeout. We wait for the DOM, then give the SPA a short
+        // window to render/hydrate.
+        const response = await page.goto(targetUrl, { waitUntil: "domcontentloaded", timeout: 15000 });
+        await page.waitForTimeout(800);
         const finalUrl = page.url();
         const finalRoute = finalUrl.replace("http://localhost:8080", "");
         

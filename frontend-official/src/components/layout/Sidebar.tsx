@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { NavLink, useLocation } from "react-router-dom";
+import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import {
   Gear,
   CaretLeft,
@@ -10,7 +10,6 @@ import {
   ChatCircleDots,
   AddressBook,
   TreeStructure,
-  Robot,
   ChartLineUp,
   Megaphone,
   Users,
@@ -28,6 +27,7 @@ import {
   Sparkle,
   Brain,
 } from "@phosphor-icons/react";
+import { AIIcon } from "@/components/ai/AIIcon";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Drawer, DrawerContent, DrawerTrigger } from "@/components/ui/drawer";
@@ -36,6 +36,7 @@ import { cn } from "@/lib/utils";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { type AppUserRole, useUserRole } from "@/hooks/useUserRole";
 import { OperationalStatusBadge } from "@/components/enterprise/OperationalStatusBadge";
+import { useAppStore } from "@/stores/appStore";
 
 const SIDEBAR_COLLAPSE_EVENT = "sidebar:collapsed";
 
@@ -53,7 +54,7 @@ const crmItems: SidebarNavItem[] = [
   { icon: Broadcast, label: "Conexões", path: "/connections", minRole: "user" },
   { icon: Users, label: "Contatos", path: "/contacts", minRole: "user" },
   { icon: Megaphone, label: "Campanhas", path: "/campaigns", minRole: "user" },
-  { icon: Robot, label: "IA & Automação", path: "/ai", minRole: "user" },
+  { icon: AIIcon, label: "IA & Automação", path: "/ai", minRole: "user" },
   { icon: TreeStructure, label: "Fluxos", path: "/flows", minRole: "user" },
   { icon: Brain, label: "Memória IA", path: "/memory", minRole: "user" },
   { icon: ChartLineUp, label: "Analytics", path: "/analytics", minRole: "user" },
@@ -75,9 +76,33 @@ export function Sidebar() {
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [adminOpen, setAdminOpen] = useState(false);
+  const [aiMenuOpen, setAiMenuOpen] = useState(false);
   const location = useLocation();
+  const navigate = useNavigate();
   const isMobile = useIsMobile();
   const { role, isLoading, roleLevel } = useUserRole();
+  const activeConversationId = useAppStore((state) => state.activeConversationId);
+
+  useEffect(() => {
+    if (isMobile) return;
+    
+    let lastWidth = window.innerWidth;
+    
+    const handleResize = () => {
+      const currentWidth = window.innerWidth;
+      if (currentWidth < 1024 && lastWidth >= 1024) {
+        setCollapsed(true);
+      }
+      lastWidth = currentWidth;
+    };
+    
+    if (window.innerWidth < 1024) {
+      setCollapsed(true);
+    }
+    
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, [isMobile]);
 
   const visibleCrmItems = useMemo(
     () => crmItems.filter((item) => roleLevel[role] >= roleLevel[item.minRole ?? "user"]),
@@ -125,7 +150,7 @@ export function Sidebar() {
         <item.icon
           weight={isActive ? "fill" : "regular"}
           className={cn(
-            "h-[18px] w-[18px] flex-shrink-0 transition-colors",
+            "h-[14px] w-[14px] flex-shrink-0 transition-colors",
             isActive ? "text-primary" : "text-sidebar-muted group-hover:text-sidebar-foreground",
           )}
         />
@@ -149,6 +174,78 @@ export function Sidebar() {
           </>
         )}
       </NavLink>
+    );
+  };
+
+  const renderAiCollapsibleMenu = (item: SidebarNavItem, compact: boolean) => {
+    if (compact) {
+      return renderNavItem({ ...item, path: "/ai?tab=dashboard" }, compact, "crm");
+    }
+
+    const aiSubitems = [
+      { label: "Dashboard", tab: "dashboard" },
+      { label: "Atendentes", tab: "atendentes" },
+      { label: "Provedores", tab: "provedores" },
+      { label: "Conhecimento", tab: "conhecimento" },
+      { label: "Operação", tab: "operacao" },
+      { label: "Análises", tab: "analise" },
+    ];
+
+    const isSubActive = (tab: string) => {
+      const searchParams = new URLSearchParams(location.search);
+      return location.pathname === "/ai" && searchParams.get("tab") === tab;
+    };
+
+    const isAnyActive = location.pathname === "/ai";
+
+    return (
+      <Collapsible
+        key="crm:ai-collapsible"
+        open={aiMenuOpen || isAnyActive}
+        onOpenChange={setAiMenuOpen}
+        className="w-full space-y-1"
+      >
+        <CollapsibleTrigger
+          className={cn(
+            "sidebar-item group relative w-full min-h-[38px] flex items-center justify-between text-left",
+            isAnyActive && "sidebar-item-active",
+          )}
+          onClick={(e) => {
+            navigate("/ai?tab=dashboard");
+          }}
+        >
+          <div className="flex items-center gap-3">
+            <item.icon
+              weight={isAnyActive ? "fill" : "regular"}
+              className={cn(
+                "h-[14px] w-[14px] flex-shrink-0 transition-colors",
+                isAnyActive ? "text-primary" : "text-sidebar-muted group-hover:text-sidebar-foreground",
+              )}
+            />
+            <span className={cn("min-w-0 flex-1 truncate text-[13px] font-medium", isAnyActive && "text-sidebar-foreground")}>
+              {item.label}
+            </span>
+          </div>
+          {aiMenuOpen || isAnyActive ? <CaretUp className="h-3 w-3 text-sidebar-muted" /> : <CaretDown className="h-3 w-3 text-sidebar-muted" />}
+        </CollapsibleTrigger>
+        <CollapsibleContent className="pl-6 space-y-1 border-l border-sidebar-border/30 ml-3.5 mt-1">
+          {aiSubitems.map((sub) => {
+            const active = isSubActive(sub.tab);
+            return (
+              <NavLink
+                key={`ai-sub:${sub.tab}`}
+                to={`/ai?tab=${sub.tab}`}
+                className={cn(
+                  "flex h-8 items-center rounded-lg px-3 text-[12px] font-medium text-sidebar-muted transition-colors hover:bg-sidebar-accent/30 hover:text-sidebar-foreground",
+                  active && "bg-sidebar-accent/50 text-sidebar-foreground font-semibold",
+                )}
+              >
+                {sub.label}
+              </NavLink>
+            );
+          })}
+        </CollapsibleContent>
+      </Collapsible>
     );
   };
 
@@ -190,7 +287,14 @@ export function Sidebar() {
 
 
       <nav className="scrollbar-thin flex-1 space-y-2 overflow-y-auto px-3 py-3">
-        <div className="space-y-1">{visibleCrmItems.map((item) => renderNavItem(item, compact, "crm"))}</div>
+        <div className="space-y-1">
+          {visibleCrmItems.map((item) => {
+            if (item.path === "/ai") {
+              return renderNavItem({ ...item, path: "/ai?tab=dashboard" }, compact, "crm");
+            }
+            return renderNavItem(item, compact, "crm");
+          })}
+        </div>
 
         {shouldShowAdminMenu && (
           <Collapsible open={adminOpen} onOpenChange={setAdminOpen}>
@@ -231,6 +335,9 @@ export function Sidebar() {
   );
 
   if (isMobile) {
+    const showTrigger = !(location.pathname === "/inbox" && activeConversationId);
+    if (!showTrigger) return null;
+
     return (
       <Drawer open={mobileOpen} onOpenChange={setMobileOpen}>
         <DrawerTrigger asChild>

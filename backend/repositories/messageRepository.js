@@ -47,6 +47,7 @@ function mapMessage(row) {
         ? row.media_type || row.type
         : null,
     mimeType: parsedMetadata.mimeType || null,
+    hash: parsedMetadata.hash || null,
     phone: row.phone,
     sessionId: row.session_id || 'default',
     size: typeof parsedMetadata.size === 'number' ? parsedMetadata.size : null,
@@ -64,8 +65,9 @@ async function createMessage(data) {
     fileName: data.fileName || null,
     mimeType: data.mimeType || null,
     size: typeof data.size === 'number' ? data.size : null,
+    hash: data.hash || null,
   };
-  const hasMetadata = Boolean(metadata.fileName || metadata.mimeType || metadata.size);
+  const hasMetadata = Boolean(metadata.fileName || metadata.mimeType || metadata.size || metadata.hash);
   const safeText = data.text || '';
   const storedText = hasMetadata
     ? `${safeText}\n[META]${JSON.stringify(metadata)}`
@@ -104,8 +106,10 @@ async function createMessage(data) {
   ];
 
   const result = await db.query(query, values);
+  const msgRow = result.rows[0];
+  console.log(`[TEMP_LOG] message.created - CONVERSATION_ID: "${msgRow.conversation_id}", PHONE: "${msgRow.phone}", REMOTE_JID: "${msgRow.phone || ''}", SESSION_ID: "${msgRow.session_id}", MESSAGE_ID: "${msgRow.id}", SOURCE: "messageRepository.createMessage"`);
 
-  return mapMessage(result.rows[0]);
+  return mapMessage(msgRow);
 }
 
 async function create({
@@ -113,26 +117,34 @@ async function create({
   content = '',
   conversationId,
   createdAt,
+  fileName = null,
   fromMe = false,
   mediaPath = null,
+  mimeType = null,
   messageType = 'text',
   phone = null,
   sessionId,
+  size = null,
   status = 'received',
   timestamp,
+  hash = null,
 }) {
   return createMessage({
     companyId,
     conversationId,
     createdAt,
+    fileName,
     fromMe,
     mediaPath,
     mediaType: messageType || 'text',
+    mimeType,
     phone,
     sessionId,
+    size,
     status,
     timestamp,
     text: content,
+    hash,
   });
 }
 

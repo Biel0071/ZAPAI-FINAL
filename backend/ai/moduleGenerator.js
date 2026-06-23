@@ -337,7 +337,7 @@ async function generateModule(moduleName) {
 
   const backendRoot = path.resolve(__dirname, '..');
   const projectRoot = path.resolve(backendRoot, '..', '..');
-  const frontendRoot = path.join(projectRoot, 'frontend');
+  const frontendRoot = path.join(projectRoot, 'frontend-official');
 
   const targets = {
     frontendPage: path.join(frontendRoot, 'src', 'pages', `${pascalName}Page.tsx`),

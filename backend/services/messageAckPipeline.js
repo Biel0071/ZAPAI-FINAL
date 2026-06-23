@@ -285,7 +285,7 @@ async function persistAckState(messageId) {
   try {
     if (entry.dbMessageId) {
       await db.query(
-        `UPDATE messages SET status = $1, updated_at = NOW() WHERE id = $2`,
+        `UPDATE messages SET status = $1 WHERE id = $2`,
         [entry.status, entry.dbMessageId]
       );
     }
@@ -307,10 +307,12 @@ function registerDbMapping(messageId, dbMessageId) {
   }
   entry.dbMessageId = dbMessageId;
 
-  // Asynchronously update the database to match the dbMessageId
-  void persistAckState(messageId).catch(err => {
-    console.error(`[AckPipeline] Async persist mapping failed for ${messageId}:`, err);
-  });
+  // Only update database if status has actually progressed beyond pending
+  if (entry.status !== ACK_STATES.PENDING) {
+    void persistAckState(messageId).catch(err => {
+      console.error(`[AckPipeline] Async persist mapping failed for ${messageId}:`, err);
+    });
+  }
 
   return entry;
 }

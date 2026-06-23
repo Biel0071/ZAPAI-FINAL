@@ -3,6 +3,7 @@ const aiLearningEngine = require('./aiLearningEngine');
 const { startCampaignRuntime } = require('./campaignRuntime');
 const metricsTracker = require('./metricsTracker');
 const sessionManager = require('./sessionManager');
+const sessionRecoveryService = require('./sessionRecoveryService');
 
 function getConnectedSessionsCount() {
   return sessionManager
@@ -78,21 +79,29 @@ function getSystemStatus(store) {
 }
 
 function startBackgroundServices(store) {
-  if (!store.learningJob) {
-    store.learningJob = aiLearningEngine.startDailyAnalysis(store);
-  }
+  if (process.env.ENABLE_AI_LEARNING !== 'false') {
+    if (!store.learningJob) {
+      store.learningJob = aiLearningEngine.startDailyAnalysis(store);
+    }
 
-  // Warm up AI learning dashboard cache asynchronously at startup
-  aiLearningEngine.analyzeAndStore(store).catch((err) => {
-    console.error('[STARTUP] Initial AI Learning analysis failed:', err.message);
-  });
+    // Warm up AI learning dashboard cache asynchronously at startup
+    aiLearningEngine.analyzeAndStore(store).catch((err) => {
+      console.error('[STARTUP] Initial AI Learning analysis failed:', err.message);
+    });
+  } else {
+    console.log('[STARTUP] AI Learning Engine is disabled by ENABLE_AI_LEARNING flag.');
+  }
 
   if (!store.campaignJob) {
     store.campaignJob = startCampaignRuntime(store);
   }
 
-  if (!store.metricsJob) {
-    store.metricsJob = metricsTracker.startMetricsTracking(store);
+  if (process.env.ENABLE_METRICS_TRACKER !== 'false') {
+    if (!store.metricsJob) {
+      store.metricsJob = metricsTracker.startMetricsTracking(store);
+    }
+  } else {
+    console.log('[STARTUP] Metrics Tracker is disabled by ENABLE_METRICS_TRACKER flag.');
   }
 }
 
@@ -128,6 +137,10 @@ async function startSystem(store) {
     try {
       sessionManager.setRuntimeActive(true);
       const restoredSessions = await sessionManager.restoreSessions();
+      // Auto-reconnect valid sessions via session recovery service
+      await sessionRecoveryService.recoverSessions().catch(err =>
+        console.error('[STARTUP] sessionRecoveryService error:', err.message)
+      );
       // Reconcile: clean ghost sessions, stuck-connecting, orphan registry entries
       await sessionManager.reconcileSessions().catch(err =>
         console.error('[STARTUP] reconcileSessions error:', err.message)

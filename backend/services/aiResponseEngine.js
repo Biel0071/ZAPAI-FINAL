@@ -1,5 +1,4 @@
 const { getClient } = require('../config/ai');
-const { getActivePrompt } = require('../config/promptManager');
 const { buildPersonalityPrompt } = require('../ai-agents/engine/personalityEngine');
 const { processEvent } = require('../inbox-core/ai/AIEventBridge');
 
@@ -49,13 +48,55 @@ async function generateAIResponse({
   store,
 }) {
   const resolvedAgent = ensureAgent(agent);
+
+  // Call processAI as the main path
+  try {
+    const systemSettingsRepository = require('../repositories/systemSettingsRepository');
+    const { processAI } = require('./ai.service');
+    
+    let aiConfig = {};
+    const raw = await systemSettingsRepository.getSetting('ai_config');
+    if (raw) {
+      aiConfig = JSON.parse(raw);
+    }
+
+    const processStore = {
+      ...store,
+      aiConfig
+    };
+
+    const contactData = {
+      name: store?.contact?.name || conversation?.phone || 'Cliente',
+      phone: conversation?.phone || 'unknown',
+    };
+
+    const history = conversationHistory.map(h => ({
+      role: h.role || (h.from === 'agent' ? 'assistant' : 'user'),
+      content: h.content || h.text || '',
+    }));
+
+    const aiResult = await processAI({
+      contact: contactData,
+      history,
+      message: customerMessage,
+      store: processStore,
+      agentName: resolvedAgent?.name || 'Camila'
+    });
+
+    if (aiResult && aiResult.reply) {
+      return aiResult.reply;
+    }
+  } catch (err) {
+    console.error('[AI RESPONSE ENGINE] processAI failed, using fallback:', err.message);
+  }
+
+  // Fallback if processAI fails or returns no reply
   const openai = getClient();
 
   if (!openai) {
     return buildFallbackResponse(resolvedAgent, leadAnalysis, salesStrategy);
   }
 
-  const activePrompt = getActivePrompt(store);
   const personalityPrompt = buildPersonalityPrompt(resolvedAgent);
 
   try {
@@ -71,7 +112,7 @@ async function generateAIResponse({
           funnelStage: conversation?.funnel_stage || 'new_lead',
           leadAnalysis: leadAnalysis || {},
           salesStrategy: salesStrategy || {},
-          activePrompt,
+          activePrompt: personalityPrompt,
           personalityPrompt,
           conversationHistory: buildConversationHistory(conversationHistory),
         },

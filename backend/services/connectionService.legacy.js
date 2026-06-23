@@ -1,5 +1,8 @@
+const fs = require('fs');
+const path = require('path');
 const sessionManager = require('./sessionManager');
 const sessionRepository = require('../repositories/sessionRepository');
+const outboundQueueService = require('./outboundQueueService');
 
 const DEFAULT_SESSION = sessionManager.DEFAULT_SESSION || 'main';
 
@@ -72,12 +75,19 @@ function extractPhoneNumber(session) {
 function normalizeSession(session) {
   if (!session) return { status: 'disconnected', connected: false };
 
+  const hasSocket = !!(
+    session.sock &&
+    session.sock.ws &&
+    (session.sock.ws.readyState === undefined || session.sock.ws.readyState === 1)
+  );
+
   const isReallyConnected = !!(
-    session.sock?.user ||
-    session.connected === true ||
-    session.connection === 'open' ||
-    session.state === 'CONNECTED' ||
-    session.status === 'connected'
+    hasSocket &&
+    session.sock?.user &&
+    (session.connected === true ||
+     session.connection === 'open' ||
+     session.state === 'CONNECTED' ||
+     session.status === 'connected')
   );
 
   let status = 'disconnected';
@@ -110,6 +120,9 @@ function normalizeSession(session) {
     status = 'offline';
   } else {
     status = session.status || 'disconnected';
+    if (status === 'connected') {
+      status = 'disconnected';
+    }
   }
 
   return {
@@ -172,7 +185,18 @@ function mapSession(session = {}, sessionId = DEFAULT_SESSION) {
     lastDisconnectReason: session.lastDisconnectReason || session.lastError || null,
     reconnectCount: session.reconnectRequestCount || 0,
     isBanned: Boolean(session.isBanned || String(session.lastError || '').toLowerCase().includes('ban') || String(session.lastDisconnectReason || '').toLowerCase().includes('ban')),
-    hasConflict: Boolean(session.hasConflict || session.lastDisconnectCode === 409)
+    hasConflict: Boolean(session.hasConflict || session.lastDisconnectCode === 409),
+    webhookUrl: process.env.WEBHOOK_URL || 'http://localhost:4025/api/receive-message',
+    queueCount: (typeof outboundQueueService.listPending === 'function') ? outboundQueueService.listPending(1000).filter(item => String(item.sessionId) === String(id)).length : 0,
+    aiAgentName: (() => {
+      try {
+        const aiAgentService = require('../ai-agents/services/aiAgentService');
+        const agents = aiAgentService.getAgentsSync() || [];
+        if (agents.length > 0) return agents.map(a => a.name).join(', ');
+      } catch (err) {}
+      return 'Camila (Geral)';
+    })(),
+    lastActivity: session.lastPingAt || session.connectedAt || session.createdAt || new Date().toISOString()
   };
 }
 
@@ -203,7 +227,7 @@ async function listConnections() {
       merged.set(id, {
         sessionId: id,
         sessionName: dbSession.sessionName || dbSession.name || id,
-        status: dbSession.status || 'disconnected',
+        status: 'disconnected',
         phone: dbSession.phone || null,
         systemConnected: false,
       });
@@ -358,11 +382,36 @@ async function getConnectionQr(sessionId = DEFAULT_SESSION) {
   return { status: session ? toPublicStatus(session.status) : 'qr_ready', qr };
 }
 
+async function getSessionHealth(sessionId = DEFAULT_SESSION) {
+  const session = getSessionCompat(sessionId);
+  const SESSIONS_DIRECTORY = path.join(__dirname, '..', 'sessions');
+  const credsPath = path.join(SESSIONS_DIRECTORY, sessionId, 'creds.json');
+  const hasCreds = fs.existsSync(credsPath);
+
+  const websocketConnected = !!(
+    session?.sock?.ws && 
+    (session.sock.ws.readyState === undefined || session.sock.ws.readyState === 1)
+  );
+
+  return {
+    sessionId,
+    status: session ? normalizeStatus(session.status) : 'disconnected',
+    websocket: websocketConnected ? 'connected' : 'disconnected',
+    phone: session?.phone || null,
+    lastSeen: session?.lastPingAt || session?.connectedAt || null,
+    reconnectAttempts: session?.reconnectRequestCount || 0,
+    hasCreds,
+    hasSocket: !!session?.sock,
+    hasUser: !!session?.sock?.user,
+  };
+}
+
 module.exports = {
   createConnection,
   deleteConnection,
   getConnectionQr,
   getConnectionStatus,
+  getSessionHealth,
   listConnections,
   mapSession,
   normalizeStatus,

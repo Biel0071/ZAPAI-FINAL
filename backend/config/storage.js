@@ -6,6 +6,7 @@ const conversationsFilePath = path.join(dataDirectory, 'conversations.json');
 const messagesFilePath = path.join(dataDirectory, 'messages.json');
 const aiLearningLogsFilePath = path.join(dataDirectory, 'ai_learning_logs.json');
 const promptHistoryFilePath = path.join(dataDirectory, 'prompt_history.json');
+const aiConfigFilePath = path.join(dataDirectory, 'ai_config.json');
 
 async function ensureDataFiles() {
   await fs.mkdir(dataDirectory, { recursive: true });
@@ -14,14 +15,15 @@ async function ensureDataFiles() {
     ensureJsonFile(messagesFilePath),
     ensureJsonFile(aiLearningLogsFilePath),
     ensureJsonFile(promptHistoryFilePath),
+    ensureJsonFile(aiConfigFilePath, '{}'),
   ]);
 }
 
-async function ensureJsonFile(filePath) {
+async function ensureJsonFile(filePath, defaultContent = '[]') {
   try {
     await fs.access(filePath);
   } catch {
-    await fs.writeFile(filePath, '[]', 'utf8');
+    await fs.writeFile(filePath, defaultContent, 'utf8');
   }
 }
 
@@ -35,14 +37,25 @@ async function readJsonArray(filePath) {
   }
 }
 
+async function readJsonObject(filePath) {
+  try {
+    const raw = await fs.readFile(filePath, 'utf8');
+    const parsed = JSON.parse(raw || '{}');
+    return parsed && typeof parsed === 'object' ? parsed : {};
+  } catch {
+    return {};
+  }
+}
+
 async function loadStoreState() {
   await ensureDataFiles();
 
-  const [conversations, messages, aiLearningLogs, promptHistory] = await Promise.all([
+  const [conversations, messages, aiLearningLogs, promptHistory, aiConfig] = await Promise.all([
     readJsonArray(conversationsFilePath),
     readJsonArray(messagesFilePath),
     readJsonArray(aiLearningLogsFilePath),
     readJsonArray(promptHistoryFilePath),
+    readJsonObject(aiConfigFilePath),
   ]);
 
   return {
@@ -50,6 +63,7 @@ async function loadStoreState() {
     conversations,
     messages,
     promptHistory,
+    aiConfig,
   };
 }
 
@@ -58,6 +72,7 @@ async function saveStoreState({
   conversations,
   messages,
   promptHistory,
+  aiConfig,
 }) {
   await ensureDataFiles();
 
@@ -84,6 +99,12 @@ async function saveStoreState({
   if (Array.isArray(promptHistory)) {
     writes.push(
       fs.writeFile(promptHistoryFilePath, JSON.stringify(promptHistory, null, 2), 'utf8')
+    );
+  }
+
+  if (aiConfig && typeof aiConfig === 'object') {
+    writes.push(
+      fs.writeFile(aiConfigFilePath, JSON.stringify(aiConfig, null, 2), 'utf8')
     );
   }
 

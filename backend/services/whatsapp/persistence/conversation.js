@@ -121,7 +121,12 @@ function getConversationPreview(text, mediaType) {
   }
 
   if (mediaType) {
-    return `[${mediaType}]`;
+    if (mediaType === 'image') return 'Imagem';
+    if (mediaType === 'video') return 'Vídeo';
+    if (mediaType === 'audio') return 'Áudio';
+    if (mediaType === 'document' || mediaType === 'file') return 'Documento';
+    if (mediaType === 'sticker') return 'Sticker';
+    return 'Mídia';
   }
 
   return '';
@@ -187,10 +192,13 @@ async function persistConversationMessage(store, payload) {
   console.log('Saving message to database');
   taskPayload = await runTask('saveMessage', {
     ...taskPayload,
+    fileName: payload.fileName || null,
     from: payload.from,
     mediaPath: payload.mediaPath,
     mediaType: payload.mediaType,
+    mimeType: payload.mimeType || null,
     messagePreview,
+    size: payload.size || null,
     text: payload.text || messagePreview,
     timestamp: payload.timestamp || getMessageTimestamp(),
   });

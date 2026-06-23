@@ -3,7 +3,7 @@ function toContact(row = {}) {
     id: String(row.id || row.phone || '').trim(),
     name: String(row.contactName || row.name || row.phone || 'Contato').trim(),
     phone: String(row.phone || '').trim(),
-    status: String(row.status || 'online').trim(),
+    status: String(row.status || '').trim(),
   };
 }
 

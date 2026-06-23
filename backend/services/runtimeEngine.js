@@ -19,11 +19,12 @@ const messageDedupeService = require('./messageDedupeService');
 const { emitRuntimeStatus: emitRealtimeRuntimeStatus } = require('./whatsapp/realtime/events');
 
 // ─── Configuration ───
-const HEARTBEAT_INTERVAL_MS = Math.max(5_000, Number(process.env.RUNTIME_HEARTBEAT_MS) || 15_000);
+const isProduction = String(process.env.NODE_ENV || '').trim().toLowerCase() === 'production';
+const HEARTBEAT_INTERVAL_MS = Math.max(5_000, Number(process.env.RUNTIME_HEARTBEAT_MS) || (isProduction ? 15_000 : 60_000));
 const STALE_SESSION_THRESHOLD_MS = Math.max(30_000, Number(process.env.STALE_SESSION_MS) || 90_000);
-const CLEANUP_INTERVAL_MS = Math.max(30_000, Number(process.env.RUNTIME_CLEANUP_MS) || 60_000);
-const METRICS_EMIT_INTERVAL_MS = Math.max(10_000, Number(process.env.RUNTIME_METRICS_EMIT_MS) || 30_000);
-const DIAGNOSTICS_INTERVAL_MS = Math.max(15_000, Number(process.env.RUNTIME_DIAGNOSTICS_MS) || 45_000);
+const CLEANUP_INTERVAL_MS = Math.max(30_000, Number(process.env.RUNTIME_CLEANUP_MS) || (isProduction ? 60_000 : 180_000));
+const METRICS_EMIT_INTERVAL_MS = Math.max(10_000, Number(process.env.RUNTIME_METRICS_EMIT_MS) || (isProduction ? 30_000 : 120_000));
+const DIAGNOSTICS_INTERVAL_MS = Math.max(15_000, Number(process.env.RUNTIME_DIAGNOSTICS_MS) || (isProduction ? 45_000 : 180_000));
 
 // ─── Runtime State ───
 const runtimeState = {

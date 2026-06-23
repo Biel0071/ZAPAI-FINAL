@@ -8,45 +8,129 @@ import { requestApiEndpoint } from "@/services/apiService";
 
 export interface LearningSuggestion {
   id: string;
-  type: "response" | "prompt" | "flow";
-  source: string;
-  suggestion: string;
-  confidence: number;
-  status: "pending" | "approved" | "rejected";
+  issueType: string;
+  problemDetected: string;
+  suggestedResponse?: string;
+  suggestedPromptImprovement?: string;
+  suggestedNewFlow?: string;
+  status: "pending" | "edited" | "applied" | "ignored";
   createdAt: string;
 }
 
 export interface LearningDashboardData {
   suggestions: LearningSuggestion[];
-  totalApproved: number;
-  totalRejected: number;
-  totalPending: number;
-  accuracy: number;
+  issues: LearningSuggestion[];
+  frequentQuestions: Array<{ question: string; count: number }>;
+  dropPoints: Array<{ point: string; count: number }>;
+  metrics: {
+    totalConversationsAnalyzed: number;
+    missingResponses: number;
+    lostLeads: number;
+    conversionRate: number;
+    promptImprovementsApplied: number;
+  };
+}
+
+type RawLearningSuggestion = LearningSuggestion & {
+  suggestedImprovement?: {
+    suggestedResponse?: string;
+    suggestedPromptImprovement?: string;
+    suggestedNewFlow?: string;
+  };
+};
+
+function normalizeSuggestion(item: RawLearningSuggestion): LearningSuggestion {
+  return {
+    ...item,
+    suggestedResponse: item.suggestedResponse ?? item.suggestedImprovement?.suggestedResponse,
+    suggestedPromptImprovement:
+      item.suggestedPromptImprovement ?? item.suggestedImprovement?.suggestedPromptImprovement,
+    suggestedNewFlow: item.suggestedNewFlow ?? item.suggestedImprovement?.suggestedNewFlow,
+  };
+}
+
+function emptyDashboard(): LearningDashboardData {
+  return {
+    suggestions: [],
+    issues: [],
+    frequentQuestions: [],
+    dropPoints: [],
+    metrics: {
+      totalConversationsAnalyzed: 0,
+      missingResponses: 0,
+      lostLeads: 0,
+      conversionRate: 0,
+      promptImprovementsApplied: 0,
+    },
+  };
 }
 
 export const aiLearningService = {
   async getDashboardData(): Promise<LearningDashboardData> {
     try {
-      const data = await requestApiEndpoint<LearningDashboardData>(
+      const data = await requestApiEndpoint<any>(
         "/api/ai/learning/dashboard",
         "GET",
       );
-      return data ?? {
-        suggestions: [],
-        totalApproved: 0,
-        totalRejected: 0,
-        totalPending: 0,
-        accuracy: 0,
+      if (!data) return emptyDashboard();
+      const suggestions = Array.isArray(data.suggestions)
+        ? data.suggestions.map(normalizeSuggestion)
+        : [];
+      const issues = Array.isArray(data.dailyDetectedIssues)
+        ? data.dailyDetectedIssues.map(normalizeSuggestion)
+        : suggestions;
+      return {
+        suggestions,
+        issues,
+        frequentQuestions: Array.isArray(data.frequentCustomerQuestions)
+          ? data.frequentCustomerQuestions
+          : [],
+        dropPoints: Array.isArray(data.conversationDropPoints)
+          ? data.conversationDropPoints
+          : [],
+        metrics: {
+          ...emptyDashboard().metrics,
+          ...(data.metrics ?? {}),
+        },
       };
     } catch {
-      return {
-        suggestions: [],
-        totalApproved: 0,
-        totalRejected: 0,
-        totalPending: 0,
-        accuracy: 0,
-      };
+      return emptyDashboard();
     }
+  },
+
+  async getDashboard(): Promise<LearningDashboardData> {
+    return this.getDashboardData();
+  },
+
+  async runAnalysisNow(): Promise<void> {
+    await requestApiEndpoint("/api/ai/learning/analyze", "POST");
+  },
+
+  async applyImprovement(id: string, _newPrompt: string): Promise<{ promptVersionId: string }> {
+    const result = await requestApiEndpoint<any>(
+      `/api/ai/learning/${encodeURIComponent(id)}/apply`,
+      "POST",
+    );
+    return {
+      promptVersionId: String(result?.promptVersion?.id ?? result?.promptVersion?.version ?? ""),
+    };
+  },
+
+  async editSuggestion(id: string, updates: Partial<LearningSuggestion>): Promise<boolean> {
+    await requestApiEndpoint(
+      `/api/ai/learning/${encodeURIComponent(id)}`,
+      "PUT",
+      updates,
+    );
+    return true;
+  },
+
+  async ignoreSuggestion(id: string): Promise<boolean> {
+    await requestApiEndpoint(
+      `/api/ai/learning/${encodeURIComponent(id)}/ignore`,
+      "POST",
+    );
+    return true;
   },
 
   async approveSuggestion(id: string, updates: Partial<LearningSuggestion>): Promise<boolean> {

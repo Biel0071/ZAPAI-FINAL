@@ -33,7 +33,7 @@ async function createSession({ companyId, phoneNumber = null, sessionId, session
         company_id = EXCLUDED.company_id,
         session_name = EXCLUDED.session_name,
         status = EXCLUDED.status,
-        phone_number = EXCLUDED.phone_number
+        phone_number = COALESCE(EXCLUDED.phone_number, sessions.phone_number)
       RETURNING id, company_id, session_id, session_name, status, phone_number, created_at
     `,
     [getCompanyId(companyId), normalizedSessionId, displayName, status, phoneNumber]

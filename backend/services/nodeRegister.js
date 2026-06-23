@@ -29,21 +29,32 @@ class NodeRegisterService {
   }
 
   getPublicIP() {
-    return new Promise((resolve, reject) => {
+    return new Promise((resolve) => {
       const options = {
         hostname: 'ifconfig.me',
         port: 80,
-        path: '/',
+        path: '/ip',
         method: 'GET',
+        timeout: 3000,
+        headers: {
+          'User-Agent': 'curl/7.81.0'
+        }
       };
 
       const req = http.request(options, (res) => {
         let data = '';
         res.on('data', (chunk) => data += chunk);
-        res.on('end', () => resolve(data.trim()));
+        res.on('end', () => {
+          const ip = data.trim();
+          resolve(ip.length > 0 && ip.length <= 45 ? ip : '127.0.0.1');
+        });
       });
 
-      req.on('error', reject);
+      req.on('error', () => resolve('127.0.0.1'));
+      req.on('timeout', () => {
+        req.destroy();
+        resolve('127.0.0.1');
+      });
       req.end();
     });
   }

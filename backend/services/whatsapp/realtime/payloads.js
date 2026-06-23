@@ -42,6 +42,9 @@ function buildRealtimeMessagePayload(message = {}) {
     timestamp: toRealtimeTimestamp(message.timestamp),
     type: resolvedType,
     url: message.url,
+    mediaType: message.mediaType || message.type || null,
+    mimeType: message.mimeType || message.mimetype || null,
+    filename: message.filename || message.fileName || null,
   };
 }
 
@@ -60,6 +63,7 @@ function buildStandardNewMessageEnvelope({ chatId, message = {} }) {
 
   return {
     chatId,
+    sessionId: message.sessionId || message.session_id || null,
     message: {
       caption: message.caption || normalizedContent,
       content: normalizedContent,
@@ -72,6 +76,10 @@ function buildStandardNewMessageEnvelope({ chatId, message = {} }) {
       timestamp: normalizedTimestamp,
       type: normalizedType,
       url: message.url || null,
+      sessionId: message.sessionId || message.session_id || null,
+      mediaType: message.mediaType || message.type || null,
+      mimeType: message.mimeType || message.mimetype || null,
+      filename: message.filename || message.fileName || null,
     },
   };
 }
@@ -113,6 +121,7 @@ function buildRealtimeMediaPayload({ messageData = {}, savedMessage = {}, sessio
       messageData.message?.videoMessage?.mimetype ||
       messageData.message?.audioMessage?.mimetype ||
       messageData.message?.documentMessage?.mimetype ||
+      messageData.message?.stickerMessage?.mimetype ||
       null,
     participant: messageData.key?.participant || messageData.participant || messageData.pushName || null,
     sessionId: normalizeSessionName(sessionId || savedMessage.sessionId || DEFAULT_SESSION),

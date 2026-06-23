@@ -1,26 +1,52 @@
 import { motion } from "framer-motion";
 import {
-  Robot,
-  Clock,
-  NotePencil,
-  WarningCircle,
-  Repeat,
-  Brain,
-  Sliders,
-  Sparkle,
-  CheckCircle,
-  XCircle,
+  CaretRight,
+  CaretLeft,
+  PaperPlaneTilt,
   FloppyDisk,
-  ArrowCounterClockwise,
-  MagicWand,
-  Queue,
-  Info,
-  GraduationCap,
-  Plugs,
-  Eye,
-  EyeSlash,
+  WarningCircle,
 } from "@phosphor-icons/react";
-import { useState } from "react";
+import {
+  Plus,
+  Pencil,
+  Trash,
+  Sparkles,
+  Loader2,
+  Play,
+  LayoutDashboard,
+  Users,
+  Cpu,
+  UserPlus,
+  Terminal,
+  FileCode,
+  FileSignature,
+  Clock,
+  Sliders,
+  BrainCircuit,
+  GraduationCap,
+  BarChart3,
+  History as HistoryIcon,
+  CheckCircle,
+  AlertCircle,
+  Eye,
+  EyeOff,
+  Info,
+  Settings,
+  ShieldCheck,
+  ToggleLeft,
+  X,
+  BookOpen,
+  User,
+  Bot,
+  Flame,
+  Code,
+  Heart,
+  Target,
+  Stethoscope,
+  Palette,
+  Copy,
+} from "lucide-react";
+import { useState, useMemo, useEffect } from "react";
 import {
   Card,
   CardContent,
@@ -36,8 +62,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Slider } from "@/components/ui/slider";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import {
   Select,
   SelectContent,
@@ -52,14 +76,26 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
+  DialogTrigger,
 } from "@/components/ui/dialog";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
 import { AILearningDashboard } from "@/components/ai/AILearningDashboard";
 import type { AILovableViewModel } from "@/adapters/lovable/aiAdapter";
+import { apiService } from "@/services/apiService";
+import { useToast } from "@/hooks/use-toast";
+import { AIIcon } from "@/components/ai/AIIcon";
+import { cn } from "@/lib/utils";
 
 export type AISectionId =
   | "status"
   | "prompt"
+  | "test"
   | "providers"
   | "business-hours"
   | "absence"
@@ -77,35 +113,46 @@ export type AIProviderConfig = {
   active: boolean;
 };
 
-export type TrainingRow = {
-  id: string;
-  customerQuestion: string;
-  aiResponse: string;
-  status: "closed" | "lost";
+export type AIConnectionTestResult = {
+  ok: boolean;
+  provider?: string;
+  model?: string;
+  status?: string;
+  response?: string;
+  responseTimeMs?: number;
+  promptTokens?: number;
+  completionTokens?: number;
+  totalTokens?: number;
+  error?: string;
+  httpStatus?: number | null;
+  fullPrompt?: string;
+  memoriesUsed?: string;
+  rulesTriggered?: string;
 };
 
-function TitleInfo({ text }: { text: string }) {
-  return (
-    <TooltipProvider>
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <button
-            type="button"
-            className="inline-flex h-5 w-5 items-center justify-center rounded-full border border-border bg-muted text-muted-foreground hover:text-foreground"
-            aria-label="Informação"
-          >
-            <Info className="h-3.5 w-3.5" />
-          </button>
-        </TooltipTrigger>
-        <TooltipContent>{text}</TooltipContent>
-      </Tooltip>
-    </TooltipProvider>
-  );
-}
+export type AILog = {
+  id: string;
+  timestamp: string;
+  conversationId: string;
+  contactName: string;
+  messageReceived: string;
+  messageSent: string;
+  provider: string;
+  model: string;
+  totalTokens: number;
+};
 
-export interface AIViewProps {
+export type AIMetrics = {
+  tokensToday: number;
+  promptTokensToday: number;
+  completionTokensToday: number;
+  messagesToday: number;
+  tokensPerConversation: Record<string, number>;
+};
+
+interface AIViewProps {
   viewModel: AILovableViewModel;
-  activeSection: AISectionId;
+  activeSection: string;
   loading: boolean;
   saving: boolean;
   aiEnabled: boolean;
@@ -122,7 +169,7 @@ export interface AIViewProps {
   queueMessage: string;
   queueWaiting: number;
   queueSentToday: number;
-  trainingRows: TrainingRow[];
+  trainingRows: Array<{ id: string; customerQuestion: string; aiResponse: string; status: "closed" | "lost" }>;
   improveModalOpen: boolean;
   improvedText: string;
   memoryEnabled: boolean;
@@ -133,9 +180,8 @@ export interface AIViewProps {
   responseDelay: number[];
   autoFollowUp: boolean;
   lostCount: number;
-  providers: AIProviderConfig[];
-  onSectionChange: (value: AISectionId) => void;
-  onStatusToggle: (enabled: boolean) => void;
+  onSectionChange: (section: any) => void;
+  onStatusToggle: (value: boolean) => void;
   onPromptChange: (value: string) => void;
   onSelectPromptVersion: (value: string) => void;
   onRestorePrompt: () => void;
@@ -152,104 +198,162 @@ export interface AIViewProps {
   onQueueDelaySecondsChange: (value: number) => void;
   onQueueMessageChange: (value: string) => void;
   onProcessQueue: () => void;
-  onOpenImproveModal: (row: TrainingRow) => void;
+  onOpenImproveModal: (row: any) => void;
   onPromptApplied: (payload: { newPrompt: string; promptVersionId: string }) => void;
   onMemoryEnabledChange: (value: boolean) => void;
   onRememberLastOrderChange: (value: boolean) => void;
   onRememberPreferencesChange: (value: boolean) => void;
   onSaveMemory: () => void;
   onTemperatureChange: (value: number[]) => void;
+  agents: any[];
+  loadingAgents: boolean;
+  onCreateAgent: (agentPayload: any) => Promise<boolean>;
+  onUpdateAgent: (key: string, agentPayload: any) => Promise<boolean>;
+  onToggleAgent: (key: string, active: boolean) => Promise<boolean>;
+  onDeleteAgent?: (key: string) => Promise<boolean>;
+  onCloneAgent?: (key: string) => Promise<boolean>;
   onMaxTokensChange: (value: number[]) => void;
   onResponseDelayChange: (value: number[]) => void;
   onAutoFollowUpChange: (value: boolean) => void;
   onSaveAdvanced: () => void;
-  onImproveModalOpenChange: (value: boolean) => void;
-  onImprovedTextChange: (value: string) => void;
+  onImproveModalOpenChange: (open: boolean) => void;
+  onImprovedTextChange: (text: string) => void;
   onImproveResponse: () => void;
   onSaveImprovedResponse: () => void;
+  providers: AIProviderConfig[];
   onProviderChange: (provider: AIProviderConfig) => void;
-  onProviderToggle: (providerId: string, active: boolean) => void;
+  onProviderToggle: (id: string, active: boolean) => void;
   onSaveProviders: () => void;
+  testMessage: string;
+  testPrompt: string;
+  testModel: string;
+  testProviderId: string;
+  testingAI: boolean;
+  aiTestResult: AIConnectionTestResult | null;
+  providerTesting: boolean;
+  providerTestResults: AIConnectionTestResult[];
+  aiHealthItems: Array<{ label: string; ok: boolean; detail: string }>;
+  onTestMessageChange: (text: string) => void;
+  onTestPromptChange: (text: string) => void;
+  onTestModelChange: (model: string) => void;
+  onTestProviderIdChange: (providerId: string) => void;
+  onRunAITest: () => void;
+  onRunProviderTests: () => void;
+  aiLogs?: AILog[];
+  aiMetrics?: AIMetrics;
 }
+
+const emojiToKeyMap: Record<string, string> = {
+  "👩‍💼": "user",
+  "👨‍💼": "user",
+  "🤖": "bot",
+  "🧑‍💻": "code",
+  "👩‍⚕️": "stethoscope",
+  "👨‍🎨": "palette",
+  "💫": "sparkles",
+  "✨": "sparkles",
+  "🔥": "flame"
+};
+
+const getAgentAvatarIcon = (avatarKey: string, className?: string) => {
+  const key = emojiToKeyMap[avatarKey] || avatarKey || "user";
+  const iconProps = { className: className || "h-4 w-4" };
+  switch (key.toLowerCase()) {
+    case "user":
+      return <User {...iconProps} />;
+    case "bot":
+      return <Bot {...iconProps} />;
+    case "flame":
+      return <Flame {...iconProps} />;
+    case "sparkles":
+      return <Sparkles {...iconProps} />;
+    case "code":
+      return <Code {...iconProps} />;
+    case "heart":
+      return <Heart {...iconProps} />;
+    case "target":
+      return <Target {...iconProps} />;
+    case "stethoscope":
+      return <Stethoscope {...iconProps} />;
+    case "palette":
+      return <Palette {...iconProps} />;
+    default:
+      return <User {...iconProps} />;
+  }
+};
 
 const PROMPT_TEMPLATES = [
   {
     id: "vendas",
+    title: "Vendas e Conversão",
     category: "Vendas",
-    title: "Assistente de Vendas Comercial",
-    description: "Focado em conduzir o cliente pelo funil de vendas, contornar objeções e fechar negócios.",
-    prompt: "Você é um assistente de vendas altamente persuasivo e simpático. Seu objetivo é entender a dor do cliente, apresentar nossos benefícios e conduzi-lo para o agendamento de uma demonstração ou fechamento de compra. Seja cordial, use gatilhos mentais de escassez e urgência de forma sutil, e faça perguntas abertas para qualificar o lead."
-  },
-  {
-    id: "sdr",
-    category: "SDR",
-    title: "Qualificador de Leads (SDR)",
-    description: "Qualificação inicial rápida, agendamento de reuniões para os closers.",
-    prompt: "Você é um SDR (Sales Development Representative) focado em triagem rápida. Seu papel é fazer perguntas chaves para descobrir o orçamento, autoridade, necessidade e prazo do lead (BANT). Assim que identificar que o lead é qualificado, sugira imediatamente um link de agendamento na agenda do consultor principal."
+    description: "Focado em qualificar leads rapidamente, oferecer alternativas e conduzir para o fechamento de pedidos de materiais de construção.",
+    prompt: `Você é a Camila, vendedora do Depósito Vista Alegre.
+Foco principal: converter perguntas de preços em pedidos fechados.
+Regras:
+1. Sempre pergunte as quantidades e local de entrega antes de passar orçamento final.
+2. Seja prestativa, objetiva e comercial. Termine sempre com uma pergunta instigando a ação.`,
   },
   {
     id: "suporte",
+    title: "Suporte Técnico e Dúvidas",
     category: "Suporte",
-    title: "Suporte Técnico e Helpdesk",
-    description: "Atendimento empático, focado em resolver problemas e consultar manuais.",
-    prompt: "Você é um analista de suporte técnico focado em resolução de problemas e satisfação do cliente. Ouça atentamente o problema do usuário, seja empático (use frases como 'entendo sua frustração'), e forneça instruções passo-a-passo claras. Se o problema persistir, solicite dados básicos para abrir um ticket interno."
+    description: "Focado em sanar dúvidas de materiais, logística de entrega e especificações de tijolos, cimento e blocos.",
+    prompt: `Você é o Rafael, especialista de pós-venda e suporte do Depósito Vista Alegre.
+Foco principal: resolver problemas e tirar dúvidas técnicas sobre materiais de construção.
+Regras:
+1. Explique com calma os prazos de frete e especificações de blocos e telhas.
+2. Mantenha tom prestativo e calmo.`,
   },
   {
     id: "cobranca",
-    category: "Cobrança",
-    title: "Recuperação de Vendas e Cobrança",
-    description: "Abordagem amigável para negociação de boletos ou pix pendentes.",
-    prompt: "Você é um assistente financeiro focado em negociação e cobrança amigável. Nunca seja agressivo ou intimidador. Explique que identificamos uma pendência no sistema (como um Pix expirado ou boleto vencido) e ofereça opções flexíveis de parcelamento ou desconto à vista. Incentive a regularização para não perder o acesso ao serviço."
-  },
-  {
-    id: "clinicas",
-    category: "Clínicas & Consultórios",
-    title: "Secretária de Saúde e Consultas",
-    description: "Agendamento de consultas médicas, odontológicas ou estéticas.",
-    prompt: "Você é a secretária virtual de um consultório de saúde. Seja extremamente atenciosa, formal e use um tom calmo. Ajude o paciente a escolher o melhor dia e horário para a consulta, explique brevemente as instruções de preparo para exames, se houver, e confirme os dados do plano de saúde ou particular."
-  },
-  {
-    id: "imobiliaria",
-    category: "Imobiliária",
-    title: "Corretor de Imóveis Virtual",
-    description: "Filtro de preferências de compra ou aluguel de imóveis.",
-    prompt: "Você é um corretor de imóveis virtual premium. Descubra o perfil ideal de imóvel que o cliente busca: número de quartos, vagas, faixa de preço, e bairros de preferência. Apresente os diferenciais da nossa carteira e agende visitas presenciais aos imóveis decorados."
-  },
-  {
-    id: "delivery",
-    category: "Delivery & Restaurantes",
-    title: "Atendente de Delivery de Comida",
-    description: "Cardápio, promoções do dia e fechamento de pedidos.",
-    prompt: "Você é o atendente super animado de um restaurante delivery. Apresente as promoções especiais de hoje, tire dúvidas sobre ingredientes e ajude o cliente a montar o combo ideal. Encaminhe o link para o pagamento via Pix ou pergunte a forma de entrega preferida."
-  },
-  {
-    id: "construcao",
-    category: "Construção & Reformas",
-    title: "Orçamentista de Projetos",
-    description: "Levantamento de materiais, medições iniciais e escopo de reforma.",
-    prompt: "Você é um especialista em atendimento para empreiteira e materiais de construção. Seu foco é obter as dimensões da obra, o tipo de acabamento desejado e os prazos esperados pelo cliente, para encaminhar um orçamento preliminar sob medida."
-  },
-  {
-    id: "turismo",
-    category: "Turismo & Viagens",
-    title: "Consultor de Viagens e Destinos",
-    description: "Recomendação de hotéis, passagens e pacotes de turismo.",
-    prompt: "Você é um agente de viagens virtual focado em roteiros inesquecíveis. Pergunte ao cliente o tipo de destino que ele sonha (praia, montanha, aventura ou cultural), com quem vai viajar, e a duração planejada. Crie sugestões de pacotes e passeios imperdíveis para engajá-lo."
-  },
-  {
-    id: "ecommerce",
-    category: "E-commerce & Lojas Virtuais",
-    title: "Fidelização e Rastreio de E-commerce",
-    description: "Dúvidas sobre entregas, cupons de desconto e trocas de produtos.",
-    prompt: "Você é a assistente de suporte de uma loja online dinâmica. Ajude o cliente com o status do rastreio de seu pedido (solicite o CPF/número do pedido), tire dúvidas sobre trocas e devoluções gratuitas dentro do prazo, e envie cupons de primeira compra para incentivar novas conversões."
+    title: "Cobrança e Financeiro",
+    category: "Financeiro",
+    description: "Focado em negociar faturas em aberto, enviar códigos Pix e agendar acertos presenciais na loja física.",
+    prompt: `Você é a Julia, do setor financeiro e cobrança do Depósito Vista Alegre.
+Foco principal: receber pagamentos e regularizar cadastros de faturamento.
+Regras:
+1. Seja educada mas firme. Envie a chave Pix cópia e cola quando solicitada.
+2. Agende o acerto na loja quando o cliente preferir pagamento presencial.`,
   }
 ];
 
+const PROVIDER_MODELS: Record<string, Array<{ value: string; label: string }>> = {
+  openai: [
+    { value: "gpt-4o-mini", label: "GPT-4o Mini (Recomendado/Rápido)" },
+    { value: "gpt-4o", label: "GPT-4o (Alta Inteligência)" },
+    { value: "o1-mini", label: "o1-mini (Raciocínio Rápido)" },
+  ],
+  groq: [
+    { value: "llama-3.1-70b-versatile", label: "Llama 3.1 70B (Groq)" },
+    { value: "llama-3.1-8b-instant", label: "Llama 3.1 8B (Groq - Instantâneo)" },
+    { value: "mixtral-8x7b-32768", label: "Mixtral 8x7B (Groq)" },
+  ],
+  claude: [
+    { value: "claude-sonnet-4-20250514", label: "Claude 3.5 Sonnet (Recomendado)" },
+    { value: "claude-haiku-3-20240307", label: "Claude 3 Haiku (Mais rápido)" },
+  ],
+  gemini: [
+    { value: "gemini-2.0-flash", label: "Gemini 2.0 Flash (Mais recente)" },
+    { value: "gemini-1.5-pro", label: "Gemini 1.5 Pro (Janela Gigante)" },
+  ],
+  deepseek: [
+    { value: "deepseek-chat", label: "DeepSeek Chat (V3)" },
+    { value: "deepseek-coder", label: "DeepSeek Coder" },
+  ],
+  openrouter: [
+    { value: "auto", label: "Auto-Routing (Melhor Custo-Benefício)" },
+    { value: "meta-llama/llama-3.1-405b", label: "Llama 3.1 405B (OpenRouter)" },
+  ],
+  ollama: [
+    { value: "llama3.1", label: "Llama 3.1 (Local)" },
+    { value: "mistral", label: "Mistral (Local)" },
+    { value: "phi3", label: "Phi 3 (Microsoft - Leve)" },
+  ]
+};
+
 export function AIView(props: AIViewProps) {
   const {
-    viewModel,
-    activeSection,
-    loading,
     saving,
     aiEnabled,
     prompt,
@@ -276,7 +380,6 @@ export function AIView(props: AIViewProps) {
     responseDelay,
     autoFollowUp,
     lostCount,
-    onSectionChange,
     onStatusToggle,
     onPromptChange,
     onSelectPromptVersion,
@@ -301,6 +404,13 @@ export function AIView(props: AIViewProps) {
     onRememberPreferencesChange,
     onSaveMemory,
     onTemperatureChange,
+    agents = [],
+    loadingAgents = false,
+    onCreateAgent,
+    onUpdateAgent,
+    onToggleAgent,
+    onDeleteAgent,
+    onCloneAgent,
     onMaxTokensChange,
     onResponseDelayChange,
     onAutoFollowUpChange,
@@ -313,11 +423,145 @@ export function AIView(props: AIViewProps) {
     onProviderChange,
     onProviderToggle,
     onSaveProviders,
+    testMessage,
+    testPrompt,
+    testModel,
+    testProviderId,
+    testingAI,
+    aiTestResult,
+    providerTesting,
+    providerTestResults,
+    aiHealthItems,
+    onTestMessageChange,
+    onTestPromptChange,
+    onTestModelChange,
+    onTestProviderIdChange,
+    onRunAITest,
+    onRunProviderTests,
+    aiLogs = [],
+    aiMetrics = { tokensToday: 0, promptTokensToday: 0, completionTokensToday: 0, messagesToday: 0, tokensPerConversation: {} },
   } = props;
 
-  const [visibleKeys, setVisibleKeys] = useState<Record<string, boolean>>({});
-  const [selectedProviderId, setSelectedProviderId] = useState<string>("");
+  const { toast } = useToast();
 
+  // Internal Navigation Tab
+  const [activeInternalTab, setActiveInternalTab] = useState<string>("dashboard");
+  const [activeAtendentesSubTab, setActiveAtendentesSubTab] = useState<"lista" | "simulador">("lista");
+  const [activeConhecimentoSubTab, setActiveConhecimentoSubTab] = useState<"templates" | "treinamento">("templates");
+  const [activeAnaliseSubTab, setActiveAnaliseSubTab] = useState<"evolucao" | "logs">("evolucao");
+
+  const [evolutionData, setEvolutionData] = useState<any[]>([]);
+  const [pipelineLogs, setPipelineLogs] = useState<any[]>([]);
+  const [loadingEvolution, setLoadingEvolution] = useState(false);
+  const [loadingPipelineLogs, setLoadingPipelineLogs] = useState(false);
+  const [showApiKeyMap, setShowApiKeyMap] = useState<Record<string, boolean>>({});
+
+  // States for the Testar IA simulation
+  const [isTestModalOpen, setIsTestModalOpen] = useState(false);
+  const [localTestAttendant, setLocalTestAttendant] = useState("");
+  const [localTestMessage, setLocalTestMessage] = useState("");
+  const [localTestingAI, setLocalTestingAI] = useState(false);
+  const [localTestResult, setLocalTestResult] = useState<any | null>(null);
+
+  // Automatically select the first agent when modal opens
+  useEffect(() => {
+    if (isTestModalOpen && !localTestAttendant && agents && agents.length > 0) {
+      setLocalTestAttendant(agents[0].key);
+    }
+  }, [isTestModalOpen, localTestAttendant, agents]);
+
+  const handleRunAITest = async () => {
+    if (!localTestMessage.trim()) {
+      toast({
+        title: "Mensagem vazia",
+        description: "Por favor, digite uma mensagem para testar.",
+        variant: "destructive",
+      });
+      return;
+    }
+    setLocalTestingAI(true);
+    setLocalTestResult(null);
+    try {
+      const selectedAgent = (agents || []).find((a) => a.key === localTestAttendant);
+      const res = await apiService.testAIMessage({
+        message: localTestMessage,
+        agentKey: localTestAttendant,
+        agentName: selectedAgent?.name,
+        prompt: selectedAgent?.personality || selectedAgent?.prompt,
+      });
+
+      if (res?.success && res.result) {
+        setLocalTestResult({
+          ok: true,
+          response: res.result.response || "Sem resposta do modelo.",
+          responseTimeMs: res.result.responseTimeMs || 0,
+          model: res.result.model || "Desconhecido",
+          status: "Sucesso (200)",
+        });
+      } else {
+        setLocalTestResult({
+          ok: false,
+          error: res?.error || "Erro na simulação do atendente.",
+          status: `Erro (500) - ${res?.error || "Internal Server Error"}`,
+          responseTimeMs: 0,
+          model: "Falha",
+        });
+      }
+    } catch (err: any) {
+      setLocalTestResult({
+        ok: false,
+        error: err.message || "Erro de conexão com o servidor.",
+        status: `Erro - Conexão falhou`,
+        responseTimeMs: 0,
+        model: "Erro",
+      });
+    } finally {
+      setLocalTestingAI(false);
+    }
+  };
+
+  useEffect(() => {
+    if (props.activeSection) {
+      setActiveInternalTab(props.activeSection);
+    }
+  }, [props.activeSection]);
+
+  const onSectionChange = (section: any) => {
+    setActiveInternalTab(section);
+    if (props.onSectionChange) {
+      props.onSectionChange(section);
+    }
+  };
+
+  const fetchAnalysisData = async () => {
+    setLoadingEvolution(true);
+    setLoadingPipelineLogs(true);
+    try {
+      const [evoRes, logsRes] = await Promise.all([
+        apiService.getAIEvolution().catch(() => ({ success: false, evolution: [] })),
+        apiService.getPipelineLogs().catch(() => ({ success: false, logs: [] }))
+      ]);
+      if (evoRes?.success) {
+        setEvolutionData(evoRes.evolution || []);
+      }
+      if (logsRes?.success) {
+        setPipelineLogs(logsRes.logs || []);
+      }
+    } catch (err) {
+      console.error("Error loading analysis data:", err);
+    } finally {
+      setLoadingEvolution(false);
+      setLoadingPipelineLogs(false);
+    }
+  };
+
+  useEffect(() => {
+    if (activeInternalTab === "analise") {
+      void fetchAnalysisData();
+    }
+  }, [activeInternalTab]);
+
+  const [selectedProviderId, setSelectedProviderId] = useState<string>("");
   const [templateSearch, setTemplateSearch] = useState("");
   const [favoriteTemplates, setFavoriteTemplates] = useState<string[]>(() => {
     try {
@@ -326,9 +570,65 @@ export function AIView(props: AIViewProps) {
       return [];
     }
   });
+
   const [lastUsedTemplateId, setLastUsedTemplateId] = useState<string | null>(() => {
     return window.localStorage.getItem("zapai_last_used_prompt_template");
   });
+
+  // Agent Wizard & Form States
+  const [isAgentDialogOpen, setIsAgentDialogOpen] = useState(false);
+  const [editingAgentKey, setEditingAgentKey] = useState<string | null>(null);
+  const [wizardStep, setWizardStep] = useState(1);
+  const [agentFormName, setAgentFormName] = useState("");
+  const [agentFormSector, setAgentFormSector] = useState("Comercial");
+  const [agentFormObjective, setAgentFormObjective] = useState("Qualificar Leads");
+  const [agentFormPrompt, setAgentFormPrompt] = useState("");
+  const [agentFormTemp, setAgentFormTemp] = useState(0.7);
+  const [agentFormResponseDelayMin, setAgentFormResponseDelayMin] = useState(2);
+  const [agentFormResponseDelayMax, setAgentFormResponseDelayMax] = useState(8);
+  const [agentFormTypingDelayMin, setAgentFormTypingDelayMin] = useState(1);
+  const [agentFormTypingDelayMax, setAgentFormTypingDelayMax] = useState(3);
+  const [agentFormAvatar, setAgentFormAvatar] = useState("user");
+  const [agentFormActive, setAgentFormActive] = useState(true);
+  const [agentFormHours, setAgentFormHours] = useState("");
+  const [agentFormRules, setAgentFormRules] = useState("");
+  const [agentFormMemory, setAgentFormMemory] = useState("");
+  
+  // Extra business context states
+  const [agentFormCompany, setAgentFormCompany] = useState("");
+  const [agentFormCompanyDesc, setAgentFormCompanyDesc] = useState("");
+  const [agentFormProducts, setAgentFormProducts] = useState("");
+  const [agentFormServices, setAgentFormServices] = useState("");
+  const [agentFormFaq, setAgentFormFaq] = useState("");
+  const [agentFormPolicies, setAgentFormPolicies] = useState("");
+
+  // Escalation configurations
+  const [agentFormEscalationPhone, setAgentFormEscalationPhone] = useState("");
+  const [agentFormEscalationWhatsapp, setAgentFormEscalationWhatsapp] = useState("");
+  const [agentFormEscalationActive, setAgentFormEscalationActive] = useState(false);
+  const [agentFormEscalationMode, setAgentFormEscalationMode] = useState<number>(1);
+  const [agentFormEscalationTriggers, setAgentFormEscalationTriggers] = useState<string[]>([]);
+
+  // Chat Simulator states
+  const [simSelectedAgent, setSimSelectedAgent] = useState<string>("");
+  const [simMessages, setSimMessages] = useState<Array<{ sender: "user" | "bot"; content: string }>>([
+    { sender: "bot", content: "Olá! Como posso ajudar você hoje?" }
+  ]);
+  const [simInput, setSimInput] = useState("");
+  const [simLoading, setSimLoading] = useState(false);
+  const [simMetrics, setSimMetrics] = useState<AIConnectionTestResult | null>(null);
+
+  useEffect(() => {
+    if (!Array.isArray(agents) || agents.length === 0) {
+      if (!simSelectedAgent) setSimSelectedAgent("camila");
+      return;
+    }
+
+    const selectedStillExists = agents.some((agent: any) => (agent.key || agent.name) === simSelectedAgent);
+    if (!selectedStillExists) {
+      setSimSelectedAgent(agents[0].key || agents[0].name);
+    }
+  }, [agents, simSelectedAgent]);
 
   const toggleFavoriteTemplate = (id: string) => {
     setFavoriteTemplates((prev) => {
@@ -355,502 +655,1982 @@ export function AIView(props: AIViewProps) {
   const currentProviderId = selectedProviderId || providers.find((p) => p.active)?.id || providers[0]?.id || "";
   const selectedProvider = providers.find((p) => p.id === currentProviderId);
 
+  // Agent CRUD & Wizard handlers
+  const handleOpenAddAgent = () => {
+    setEditingAgentKey(null);
+    setAgentFormName("");
+    setAgentFormSector("Comercial");
+    setAgentFormObjective("Qualificar Leads");
+    setAgentFormPrompt("Você é um atendente focado em auxiliar o cliente com simpatia e clareza.");
+    setAgentFormTemp(0.7);
+    setAgentFormResponseDelayMin(2);
+    setAgentFormResponseDelayMax(8);
+    setAgentFormTypingDelayMin(1);
+    setAgentFormTypingDelayMax(3);
+    setAgentFormAvatar("user");
+    setAgentFormActive(true);
+    setAgentFormHours("");
+    setAgentFormRules("");
+    setAgentFormMemory("");
+    setAgentFormCompany("");
+    setAgentFormCompanyDesc("");
+    setAgentFormProducts("");
+    setAgentFormServices("");
+    setAgentFormFaq("");
+    setAgentFormPolicies("");
+    setAgentFormEscalationPhone("");
+    setAgentFormEscalationWhatsapp("");
+    setAgentFormEscalationActive(false);
+    setAgentFormEscalationMode(1);
+    setAgentFormEscalationTriggers([]);
+    setWizardStep(1);
+    setIsAgentDialogOpen(true);
+  };
+
+  const handleOpenEditAgent = (agent: any) => {
+    setEditingAgentKey(agent.key || agent.name);
+    setAgentFormName(agent.name);
+    setAgentFormSector(agent.sector || "Comercial");
+    setAgentFormObjective(agent.objective || "Qualificar Leads");
+    setAgentFormPrompt(agent.personality || agent.prompt || "");
+    setAgentFormTemp(agent.temperature !== undefined ? agent.temperature : 0.7);
+    setAgentFormResponseDelayMin(Math.max(0, Math.round((agent.delayProfile?.minMs ?? 2000) / 1000)));
+    setAgentFormResponseDelayMax(Math.max(0, Math.round((agent.delayProfile?.maxMs ?? 8000) / 1000)));
+    setAgentFormTypingDelayMin(Math.max(0, Math.round((agent.typingDelayProfile?.minMs ?? 1000) / 1000)));
+    setAgentFormTypingDelayMax(Math.max(0, Math.round((agent.typingDelayProfile?.maxMs ?? 3000) / 1000)));
+    setAgentFormAvatar(agent.avatar || "user");
+    setAgentFormActive(agent.active !== false);
+    setAgentFormHours(agent.hours || "");
+    setAgentFormRules(agent.rules || "");
+    setAgentFormMemory(agent.memory || "");
+    setAgentFormCompany(agent.company || "");
+    setAgentFormCompanyDesc(agent.companyDescription || "");
+    setAgentFormProducts(agent.products || "");
+    setAgentFormServices(agent.services || "");
+    setAgentFormFaq(agent.faq || "");
+    setAgentFormPolicies(agent.policies || "");
+    setAgentFormEscalationPhone(agent.escalationPhone || "");
+    setAgentFormEscalationWhatsapp(agent.escalationWhatsapp || "");
+    setAgentFormEscalationActive(Boolean(agent.escalationActive));
+    setAgentFormEscalationMode(Number(agent.escalationMode || 1));
+    setAgentFormEscalationTriggers(Array.isArray(agent.escalationTriggers) ? agent.escalationTriggers : []);
+    setWizardStep(1);
+    setIsAgentDialogOpen(true);
+  };
+
+  const handleSaveAgent = async () => {
+    if (!agentFormName.trim()) {
+      toast({ title: "O nome do atendente é obrigatório.", variant: "destructive" });
+      return;
+    }
+    if (!agentFormPrompt.trim()) {
+      toast({ title: "O prompt de personalidade é obrigatório.", variant: "destructive" });
+      return;
+    }
+
+    const payload = {
+      name: agentFormName.trim(),
+      sector: agentFormSector.trim(),
+      objective: agentFormObjective.trim(),
+      personality: agentFormPrompt.trim(),
+      temperature: agentFormTemp,
+      delayProfile: {
+        minMs: Math.max(0, Math.min(agentFormResponseDelayMin, agentFormResponseDelayMax) * 1000),
+        maxMs: Math.max(agentFormResponseDelayMin, agentFormResponseDelayMax) * 1000,
+      },
+      typingDelayProfile: {
+        minMs: Math.max(0, Math.min(agentFormTypingDelayMin, agentFormTypingDelayMax) * 1000),
+        maxMs: Math.max(agentFormTypingDelayMin, agentFormTypingDelayMax) * 1000,
+      },
+      avatar: agentFormAvatar,
+      active: agentFormActive,
+      hours: agentFormHours.trim(),
+      rules: agentFormRules.trim(),
+      memory: agentFormMemory.trim(),
+      company: agentFormCompany.trim(),
+      companyDescription: agentFormCompanyDesc.trim(),
+      products: agentFormProducts.trim(),
+      services: agentFormServices.trim(),
+      faq: agentFormFaq.trim(),
+      policies: agentFormPolicies.trim(),
+      escalationPhone: agentFormEscalationPhone.trim(),
+      escalationWhatsapp: agentFormEscalationWhatsapp.trim(),
+      escalationActive: agentFormEscalationActive,
+      escalationMode: agentFormEscalationMode,
+      escalationTriggers: agentFormEscalationTriggers,
+    };
+
+    let success = false;
+    if (editingAgentKey) {
+      if (onUpdateAgent) {
+        success = await onUpdateAgent(editingAgentKey, payload);
+      }
+    } else {
+      if (onCreateAgent) {
+        success = await onCreateAgent(payload);
+      }
+    }
+
+    if (success) {
+      setIsAgentDialogOpen(false);
+    }
+  };
+
+  const toggleTrigger = (trigger: string) => {
+    setAgentFormEscalationTriggers((prev) =>
+      prev.includes(trigger) ? prev.filter((t) => t !== trigger) : [...prev, trigger]
+    );
+  };
+
+  // Chat Simulator helpers
+  const handleSimSend = async () => {
+    if (!simInput.trim()) return;
+    const userMsg = simInput.trim();
+    setSimMessages((prev) => [...prev, { sender: "user", content: userMsg }]);
+    setSimInput("");
+    setSimLoading(true);
+    setSimMetrics(null);
+
+    try {
+      const agentObj = (agents || []).find(
+        (a: any) =>
+          a.key === simSelectedAgent ||
+          a.name?.toLowerCase() === simSelectedAgent.toLowerCase()
+      );
+      const agentPrompt = agentObj?.personality || agentObj?.prompt || prompt;
+      const agentModel = testModel || "gpt-4o-mini";
+      const agentProvider = testProviderId || "openai";
+
+      const response = await apiService.testAIMessage({
+        message: userMsg,
+        prompt: agentPrompt,
+        model: agentModel,
+        providerId: agentProvider,
+        agentKey: agentObj?.key,
+        agentName: agentObj?.name,
+      });
+
+      if (response && response.success && response.result) {
+        setSimMessages((prev) => [
+          ...prev,
+          { sender: "bot", content: response.result?.response || "Sem resposta do atendente." }
+        ]);
+        setSimMetrics({ ...response.result, ok: true });
+      } else {
+        const errorMessage = response?.error || response?.result?.error || "Sem resposta.";
+        setSimMessages((prev) => [
+          ...prev,
+          { sender: "bot", content: `Erro na simulação: ${errorMessage}` }
+        ]);
+        setSimMetrics({
+          ...(response?.result || {}),
+          ok: false,
+          provider: response?.result?.provider || agentProvider,
+          model: response?.result?.model || agentModel,
+          status: response?.result?.status || "error",
+          error: errorMessage,
+        });
+      }
+    } catch (err: any) {
+      const errorMessage = err.message || String(err);
+      setSimMessages((prev) => [
+        ...prev,
+        { sender: "bot", content: `Falha na simulação: ${errorMessage}` }
+      ]);
+      setSimMetrics({
+        ok: false,
+        provider: agentProvider,
+        model: agentModel,
+        status: "error",
+        error: errorMessage,
+      });
+    } finally {
+      setSimLoading(false);
+    }
+  };
+
+  const handleClearSim = () => {
+    setSimMessages([{ sender: "bot", content: "Olá! Como posso ajudar você hoje?" }]);
+    setSimMetrics(null);
+  };
+
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background pb-12">
       <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="page-container section-stack">
-        <div className="rounded-2xl border border-border/60 bg-card/70 p-3 backdrop-blur-xl md:p-5">
-          <Tabs
-            value={activeSection}
-            onValueChange={(value) => onSectionChange(value as AISectionId)}
-            orientation="vertical"
-            className="grid gap-4 md:grid-cols-[260px_minmax(0,1fr)]"
-          >
-            <TabsList className="h-auto w-full flex-col items-stretch rounded-xl bg-muted/60 p-2">
-              {viewModel.sections.map((section) => (
-                <TabsTrigger
-                  key={section.id}
-                  value={section.id}
-                  className="w-full justify-start gap-2 px-3 py-2.5 data-[state=active]:shadow-none"
-                >
-                  <span>{section.label}</span>
-                </TabsTrigger>
-              ))}
-            </TabsList>
+        <div className="rounded-2xl border border-border/60 bg-card/70 p-3 backdrop-blur-xl md:p-6 space-y-6">
+          
+          {/* Summary Dashboard Cards */}
+          <div className="grid gap-3 sm:grid-cols-3">
+            <Card className="metric-card rounded-2xl border-border/70 bg-card/85 shadow-sm">
+              <CardContent className="space-y-2 p-4">
+                <div>
+                  <p className="text-[11px] uppercase tracking-wide text-muted-foreground font-semibold">Status Geral da IA</p>
+                  <p className="text-lg font-bold mt-1 text-foreground">{aiEnabled ? "Ativada" : "Desativada"}</p>
+                </div>
+                <OperationalStatusBadge label={aiEnabled ? "Assistente online" : "Assistente offline"} tone={aiEnabled ? "online" : "offline"} />
+              </CardContent>
+            </Card>
 
-            <div className="space-y-4">
-              <div className="grid gap-3 sm:grid-cols-3">
-                <Card className="metric-card rounded-2xl border-border/70 bg-card/85">
-                  <CardContent className="space-y-2 p-4">
-                    <div>
-                      <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Status da IA</p>
-                      <p className="text-lg font-semibold">{aiEnabled ? "Ativada" : "Desativada"}</p>
+            <Card className="metric-card rounded-2xl border-border/70 bg-card/85 shadow-sm">
+              <CardContent className="space-y-2 p-4">
+                <p className="text-[11px] uppercase tracking-wide text-muted-foreground font-semibold">Tráfego de Respostas</p>
+                <p className="text-lg font-bold mt-1 text-foreground">{aiMetrics?.messagesToday ?? 0} hoje</p>
+                <OperationalStatusBadge label="Tráfego ativo" tone="online" />
+              </CardContent>
+            </Card>
+
+            <Card className="metric-card rounded-2xl border-border/70 bg-card/85 shadow-sm">
+              <CardContent className="space-y-2 p-4">
+                <p className="text-[11px] uppercase tracking-wide text-muted-foreground font-semibold">Fila de Reativação</p>
+                <p className="text-lg font-bold mt-1 text-foreground">{queueWaiting} leads</p>
+                <OperationalStatusBadge label="Reativação monitorada" tone="syncing" />
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Internal Navigation Menu & Content Panel Split */}
+          <div className="flex flex-col lg:flex-row gap-6 items-start w-full min-h-[600px]">
+            
+            {/* Sidebar Menu */}
+            <aside className="w-full lg:w-[240px] shrink-0 bg-card/50 border border-border/60 rounded-2xl p-4 space-y-1">
+              <div className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground px-3 mb-2">IA & Automação</div>
+              
+              <button
+                onClick={() => onSectionChange("dashboard")}
+                className={cn(
+                  "w-full flex items-center gap-2.5 px-3 py-2 text-xs font-semibold rounded-xl transition-all text-left",
+                  activeInternalTab === "dashboard" ? "bg-primary text-primary-foreground shadow-sm shadow-primary/20" : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                )}
+              >
+                <LayoutDashboard className="h-4 w-4" />
+                <span>Dashboard IA</span>
+              </button>
+
+              <button
+                onClick={() => onSectionChange("atendentes")}
+                className={cn(
+                  "w-full flex items-center gap-2.5 px-3 py-2 text-xs font-semibold rounded-xl transition-all text-left",
+                  activeInternalTab === "atendentes" ? "bg-primary text-primary-foreground shadow-sm shadow-primary/20" : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                )}
+              >
+                <Users className="h-4 w-4" />
+                <span>Atendentes</span>
+              </button>
+
+              <button
+                onClick={() => onSectionChange("provedores")}
+                className={cn(
+                  "w-full flex items-center gap-2.5 px-3 py-2 text-xs font-semibold rounded-xl transition-all text-left",
+                  activeInternalTab === "provedores" ? "bg-primary text-primary-foreground shadow-sm shadow-primary/20" : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                )}
+              >
+                <Cpu className="h-4 w-4" />
+                <span>Provedores</span>
+              </button>
+
+              <button
+                onClick={() => onSectionChange("conhecimento")}
+                className={cn(
+                  "w-full flex items-center gap-2.5 px-3 py-2 text-xs font-semibold rounded-xl transition-all text-left",
+                  activeInternalTab === "conhecimento" ? "bg-primary text-primary-foreground shadow-sm shadow-primary/20" : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                )}
+              >
+                <GraduationCap className="h-4 w-4" />
+                <span>Conhecimento</span>
+              </button>
+
+              <button
+                onClick={() => onSectionChange("operacao")}
+                className={cn(
+                  "w-full flex items-center gap-2.5 px-3 py-2 text-xs font-semibold rounded-xl transition-all text-left",
+                  activeInternalTab === "operacao" ? "bg-primary text-primary-foreground shadow-sm shadow-primary/20" : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                )}
+              >
+                <Sliders className="h-4 w-4" />
+                <span>Operação</span>
+              </button>
+
+              <button
+                onClick={() => onSectionChange("analise")}
+                className={cn(
+                  "w-full flex items-center gap-2.5 px-3 py-2 text-xs font-semibold rounded-xl transition-all text-left",
+                  activeInternalTab === "analise" ? "bg-primary text-primary-foreground shadow-sm shadow-primary/20" : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                )}
+              >
+                <BarChart3 className="h-4 w-4" />
+                <span>Análise</span>
+              </button>
+            </aside>
+
+            {/* Content Display */}
+            <main className="flex-1 w-full min-w-0 bg-card/20 border border-border/50 rounded-2xl p-4 md:p-6 shadow-sm min-h-[500px]">
+              
+              {/* TAB 1: DASHBOARD IA */}
+              {activeInternalTab === "dashboard" && (
+                <div className="space-y-6">
+                  <div className="flex items-center justify-between pb-3 border-b border-border/60">
+                    <h3 className="text-sm font-bold flex items-center gap-2 text-foreground">
+                      <LayoutDashboard className="h-4 w-4 text-primary" /> Painel de Controle IA
+                    </h3>
+                  </div>
+
+                  <div className="grid gap-6 md:grid-cols-2">
+                    {/* Status Toggle & Health */}
+                    <div className="space-y-4">
+                      <Card className="glass-card">
+                        <CardHeader className="p-4 pb-2">
+                          <CardTitle className="text-xs font-semibold flex items-center gap-2">
+                            <CheckCircle className="h-4 w-4 text-primary" /> Ativar Atendimento Automático
+                          </CardTitle>
+                          <CardDescription className="text-[11px]">Controle a resposta automática global do chatbot.</CardDescription>
+                        </CardHeader>
+                        <CardContent className="p-4 pt-1 flex items-center justify-between">
+                          <span className="text-xs text-muted-foreground">Atendimento ativo pelo motor de IA</span>
+                          <Switch checked={aiEnabled} onCheckedChange={onStatusToggle} />
+                        </CardContent>
+                      </Card>
+
+                      <Card className="glass-card">
+                        <CardHeader className="p-4 pb-2 flex flex-row items-center justify-between space-y-0">
+                          <div>
+                            <CardTitle className="text-xs font-semibold flex items-center gap-2">
+                              <ShieldCheck className="h-4 w-4 text-primary" /> Saúde e Integridade do Sistema
+                            </CardTitle>
+                            <CardDescription className="text-[11px] mt-0.5">Diagnósticos das integrações e serviços críticos.</CardDescription>
+                          </div>
+                          <Dialog open={isTestModalOpen} onOpenChange={setIsTestModalOpen}>
+                            <DialogTrigger asChild>
+                              <Button size="sm" variant="outline" className="h-7 text-[11px] px-2.5 rounded-lg flex items-center gap-1">
+                                <Terminal className="h-3.5 w-3.5" /> Testar IA
+                              </Button>
+                            </DialogTrigger>
+                            <DialogContent className="max-w-md rounded-2xl border-border bg-card">
+                              <DialogHeader>
+                                <DialogTitle className="text-sm font-bold flex items-center gap-2 text-foreground">
+                                  <Terminal className="h-4 w-4 text-primary" /> Testar Resposta da IA
+                                </DialogTitle>
+                                <DialogDescription className="text-xs">
+                                  Envie uma mensagem simulando o comportamento de um atendente selecionado.
+                                </DialogDescription>
+                              </DialogHeader>
+                              <div className="space-y-4 py-2">
+                                <div className="space-y-1.5">
+                                  <Label className="text-xs font-semibold">Selecionar Atendente</Label>
+                                                                  <Select value={localTestAttendant} onValueChange={setLocalTestAttendant}>
+                                    <SelectTrigger className="h-9 text-xs">
+                                      <SelectValue placeholder="Selecione o atendente para o teste" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      {(agents || []).map((agent) => (
+                                        <SelectItem key={agent.key} value={agent.key} className="text-xs">
+                                          {agent.name} ({agent.sector})
+                                        </SelectItem>
+                                      ))}
+                                      {(agents || []).length === 0 && (
+                                        <SelectItem value="default" className="text-xs">
+                                          Nenhum atendente cadastrado (Simulador padrão)
+                                        </SelectItem>
+                                      )}
+                                    </SelectContent>
+                                  </Select>
+                                </div>
+                                <div className="space-y-1.5">
+                                  <Label className="text-xs font-semibold">Mensagem de Teste</Label>
+                                  <Textarea
+                                    value={localTestMessage}
+                                    onChange={(e) => setLocalTestMessage(e.target.value)}
+                                    placeholder="Digite a mensagem que o cliente enviaria..."
+                                    className="min-h-[80px] text-xs resize-none"
+                                  />
+                                </div>
+
+                                {localTestResult && (
+                                  <div className="p-3.5 rounded-xl border border-border/80 bg-muted/40 space-y-3">
+                                    <h4 className="text-[11px] font-bold text-foreground">Resultado da Simulação</h4>
+                                    <div className="grid grid-cols-3 gap-2 text-center">
+                                      <div className="p-2 rounded-lg bg-background border border-border/40">
+                                        <span className="block text-[8px] uppercase tracking-wide text-muted-foreground">Tempo</span>
+                                        <span className="text-xs font-bold text-foreground">
+                                          {localTestResult.responseTimeMs > 0 ? `${localTestResult.responseTimeMs}ms` : "--"}
+                                        </span>
+                                      </div>
+                                      <div className="p-2 rounded-lg bg-background border border-border/40">
+                                        <span className="block text-[8px] uppercase tracking-wide text-muted-foreground">Modelo</span>
+                                        <span className="text-xs font-bold text-foreground truncate block">
+                                          {localTestResult.model || "N/A"}
+                                        </span>
+                                      </div>
+                                      <div className="p-2 rounded-lg bg-background border border-border/40">
+                                        <span className="block text-[8px] uppercase tracking-wide text-muted-foreground">Status</span>
+                                        <span className={cn(
+                                          "text-xs font-bold block truncate",
+                                          localTestResult.ok ? "text-emerald-500" : "text-destructive"
+                                        )}>
+                                          {localTestResult.status}
+                                        </span>
+                                      </div>
+                                    </div>
+                                    <div className="mt-2 text-xs">
+                                      <span className="font-semibold block text-muted-foreground mb-1">Resposta do Atendente:</span>
+                                      <div className="p-2.5 rounded-lg bg-background border border-border/60 text-foreground leading-relaxed whitespace-pre-wrap">
+                                        {localTestResult.ok ? localTestResult.response : localTestResult.error}
+                                      </div>
+                                    </div>
+                                  </div>
+                                )}
+                              </div>
+                              <DialogFooter className="gap-2 sm:gap-0 mt-2">
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => setIsTestModalOpen(false)}
+                                  className="text-xs"
+                                >
+                                  Fechar
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  disabled={localTestingAI}
+                                  onClick={handleRunAITest}
+                                  className="text-xs flex items-center gap-1"
+                                >
+                                  {localTestingAI ? (
+                                    <>
+                                      <Loader2 className="h-3 w-3 animate-spin" /> Testando...
+                                    </>
+                                  ) : (
+                                    "Simular Mensagem"
+                                  )}
+                                </Button>
+                              </DialogFooter>
+                            </DialogContent>
+                          </Dialog>
+                        </CardHeader>
+                        <CardContent className="p-4 pt-2 space-y-2">
+                          {aiHealthItems.map((item) => (
+                            <div key={item.label} className="flex items-center justify-between text-xs py-1 border-b border-border/30 last:border-0">
+                              <span className="text-muted-foreground">{item.label}</span>
+                              <div className="flex items-center gap-1.5">
+                                <span className="text-[10px] text-muted-foreground">{item.detail}</span>
+                                <span className={cn("h-2 w-2 rounded-full", item.ok ? "bg-emerald-500" : "bg-destructive")} />
+                              </div>
+                            </div>
+                          ))}
+                        </CardContent>
+                      </Card>
                     </div>
-                    <OperationalStatusBadge label={aiEnabled ? "Assistente online" : "Assistente offline"} tone={aiEnabled ? "online" : "offline"} />
-                  </CardContent>
-                </Card>
-                <Card className="metric-card rounded-2xl border-border/70 bg-card/85">
-                  <CardContent className="space-y-2 p-4">
-                    <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Conversas perdidas</p>
-                    <p className="text-lg font-semibold">{lostCount}</p>
-                    <OperationalStatusBadge label="Treinamento ativo" tone={lostCount > 0 ? "warning" : "online"} />
-                  </CardContent>
-                </Card>
-                <Card className="metric-card rounded-2xl border-border/70 bg-card/85">
-                  <CardContent className="space-y-2 p-4">
-                    <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Fila aguardando</p>
-                    <p className="text-lg font-semibold">{queueWaiting}</p>
-                    <OperationalStatusBadge label="Reativação monitorada" tone="syncing" />
-                  </CardContent>
-                </Card>
-              </div>
 
-              <TabsContent value="status" className="m-0">
-                <Card className="glass-card">
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <Robot className="h-5 w-5 text-primary" />Status da IA
-                      <TitleInfo text="Controla se a IA está ativa para responder automaticamente." />
-                    </CardTitle>
-                    <CardDescription>Acompanhe e altere o estado da IA em tempo real.</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <Collapsible defaultOpen>
-                      <div className="flex items-center justify-between rounded-xl border border-border p-4">
-                        <div>
-                          <p className="font-medium">Ativar ou desativar IA</p>
-                          <p className="text-sm text-muted-foreground">Escolha se o atendimento automático fica ligado.</p>
-                        </div>
-                        <div className="flex items-center gap-3">
-                          <Badge variant={aiEnabled ? "secondary" : "destructive"} className="gap-1">
-                            {aiEnabled ? <CheckCircle className="h-3.5 w-3.5" /> : <XCircle className="h-3.5 w-3.5" />}
-                            {aiEnabled ? "Ativada" : "Desativada"}
-                          </Badge>
-                          <Switch checked={aiEnabled} onCheckedChange={onStatusToggle} disabled={loading} />
-                        </div>
-                      </div>
-                      <CollapsibleTrigger asChild>
-                        <Button variant="ghost" size="sm" className="mt-2">Ver mais</Button>
-                      </CollapsibleTrigger>
-                      <CollapsibleContent className="pt-2 text-sm text-muted-foreground">
-                        O status é atualizado periodicamente para manter o painel sempre sincronizado.
-                      </CollapsibleContent>
-                    </Collapsible>
-                  </CardContent>
-                </Card>
-              </TabsContent>
+                    {/* Overview / Stats */}
+                    <div className="space-y-4">
+                      <Card className="glass-card">
+                        <CardHeader className="p-4 pb-2">
+                          <CardTitle className="text-xs font-semibold flex items-center gap-2">
+                            <Sparkles className="h-4 w-4 text-primary" /> Visão Geral do Sistema
+                          </CardTitle>
+                          <CardDescription className="text-[11px]">Estatísticas de uso e tráfego da IA no dia de hoje.</CardDescription>
+                        </CardHeader>
+                        <CardContent className="p-4 pt-2 space-y-3">
+                          <div className="grid grid-cols-2 gap-3">
+                            <div className="rounded border border-border/40 p-2.5 bg-background/20">
+                              <span className="block text-[10px] text-muted-foreground">Mensagens de IA</span>
+                              <span className="text-sm font-bold text-foreground">{aiMetrics?.messagesToday ?? 0}</span>
+                            </div>
+                            <div className="rounded border border-border/40 p-2.5 bg-background/20">
+                              <span className="block text-[10px] text-muted-foreground">Tokens Utilizados</span>
+                              <span className="text-sm font-bold text-foreground">{aiMetrics?.tokensToday ?? 0}</span>
+                            </div>
+                          </div>
+                          <div className="text-[11px] text-muted-foreground leading-relaxed p-2.5 rounded-lg bg-primary/5 border border-primary/10">
+                            A IA do ZAPFLOW opera com atendentes segmentados para qualificação, suporte e financeiro, integrados com memórias de cliente e regras de transbordo automatizadas.
+                          </div>
+                        </CardContent>
+                      </Card>
+                    </div>
+                  </div>
+                </div>
+              )}
 
-              <TabsContent value="prompt" className="m-0">
-                <Card className="glass-card">
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <NotePencil className="h-5 w-5 text-primary" />Editor de Prompt
-                      <TitleInfo text="Define como a IA deve se comportar e falar com os clientes." />
-                    </CardTitle>
-                    <CardDescription>Edite o texto base e mantenha versões salvas.</CardDescription>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    {/* Templates Selector */}
-                    <div className="rounded-xl border border-border p-4 bg-muted/10 space-y-3">
+              {/* TAB 2: ATENDENTES */}
+              {activeInternalTab === "atendentes" && (
+                <div className="space-y-6">
+                  {/* Subtabs Menu */}
+                  <div className="flex gap-2 border-b border-border/60 pb-2">
+                    <button
+                      onClick={() => setActiveAtendentesSubTab("lista")}
+                      className={cn(
+                        "px-3 py-1.5 text-xs font-semibold rounded-lg transition-all",
+                        activeAtendentesSubTab === "lista" ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                      )}
+                    >
+                      Meus Atendentes
+                    </button>
+                    <button
+                      onClick={() => setActiveAtendentesSubTab("simulador")}
+                      className={cn(
+                        "px-3 py-1.5 text-xs font-semibold rounded-lg transition-all",
+                        activeAtendentesSubTab === "simulador" ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                      )}
+                    >
+                      Simulador de Conversa
+                    </button>
+                  </div>
+
+                  {activeAtendentesSubTab === "lista" ? (
+                    <div className="space-y-6">
                       <div className="flex items-center justify-between">
-                        <Label className="text-sm font-semibold flex items-center gap-1.5 text-primary">
-                          <Sparkle className="h-4 w-4" weight="fill" /> Galeria de Templates de Prompt
-                        </Label>
-                        <Badge variant="secondary" className="text-[10px] rounded-full">10 presets prontos</Badge>
+                        <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Atendentes Ativos</h3>
+                        <Button onClick={handleOpenAddAgent} size="sm" className="h-8 gap-1">
+                          <Plus className="h-4 w-4" /> Novo Atendente
+                        </Button>
                       </div>
-                      
-                      <div className="grid gap-2 sm:grid-cols-[1fr_auto]">
+
+                      {loadingAgents ? (
+                        <div className="flex h-36 items-center justify-center">
+                          <Loader2 className="h-6 w-6 animate-spin text-primary" />
+                        </div>
+                      ) : (
+                        <div className="grid gap-4 sm:grid-cols-2">
+                          {(agents || []).map((agent) => (
+                            <Card key={agent.key || agent.name} className="relative overflow-hidden border border-border/60 bg-card/45 hover:border-primary/20 transition-all shadow-sm">
+                              <CardHeader className="flex flex-row items-center gap-3 p-4 pb-2">
+                                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 text-primary shrink-0">
+                                  {getAgentAvatarIcon(agent.avatar, "h-5 w-5")}
+                                </div>
+                                <div className="min-w-0 flex-grow">
+                                  <CardTitle className="text-xs font-bold text-foreground truncate">{agent.name}</CardTitle>
+                                  <CardDescription className="text-[10px] text-muted-foreground truncate">{agent.sector || "Comercial"}</CardDescription>
+                                </div>
+                                <Switch
+                                  checked={agent.active !== false}
+                                  onCheckedChange={(checked) => void onToggleAgent(agent.key || agent.name, checked)}
+                                />
+                              </CardHeader>
+                              <CardContent className="p-4 pt-1 space-y-2 text-xs">
+                                <p className="line-clamp-2 text-[11px] text-muted-foreground">
+                                  {agent.personality || agent.prompt || "Sem personalidade definida."}
+                                </p>
+                                <div className="flex items-center justify-between pt-2 border-t border-border/30">
+                                  <span className="text-[10px] text-muted-foreground font-semibold uppercase">Temp: {agent.temperature ?? 0.7}</span>
+                                  <TooltipProvider>
+                                    <div className="flex gap-1">
+                                      <Tooltip>
+                                        <TooltipTrigger asChild>
+                                          <Button
+                                            variant="ghost"
+                                            size="icon"
+                                            className="h-6 w-6 text-muted-foreground hover:text-foreground"
+                                            onClick={() => handleOpenEditAgent(agent)}
+                                          >
+                                            <Pencil className="h-3.5 w-3.5" />
+                                          </Button>
+                                        </TooltipTrigger>
+                                        <TooltipContent>
+                                          <p className="text-[10px]">Editar atendente</p>
+                                        </TooltipContent>
+                                      </Tooltip>
+
+                                      <Tooltip>
+                                        <TooltipTrigger asChild>
+                                          <Button
+                                            variant="ghost"
+                                            size="icon"
+                                            className="h-6 w-6 text-muted-foreground hover:text-foreground"
+                                            onClick={() => {
+                                              if (onCloneAgent) {
+                                                void onCloneAgent(agent.key || agent.name);
+                                              }
+                                            }}
+                                          >
+                                            <Copy className="h-3.5 w-3.5" />
+                                          </Button>
+                                        </TooltipTrigger>
+                                        <TooltipContent>
+                                          <p className="text-[10px]">Clonar atendente</p>
+                                        </TooltipContent>
+                                      </Tooltip>
+
+                                      <Tooltip>
+                                        <TooltipTrigger asChild>
+                                          <Button
+                                            variant="ghost"
+                                            size="icon"
+                                            className="h-6 w-6 text-destructive hover:text-destructive/80"
+                                            onClick={() => {
+                                              if (window.confirm(`Tem certeza que deseja excluir o atendente ${agent.name}?`)) {
+                                                if (onDeleteAgent) {
+                                                  void onDeleteAgent(agent.key || agent.name);
+                                                }
+                                              }
+                                            }}
+                                          >
+                                            <Trash className="h-3.5 w-3.5" />
+                                          </Button>
+                                        </TooltipTrigger>
+                                        <TooltipContent>
+                                          <p className="text-[10px]">Excluir atendente</p>
+                                        </TooltipContent>
+                                      </Tooltip>
+                                    </div>
+                                  </TooltipProvider>
+                                </div>
+                              </CardContent>
+                            </Card>
+                          ))}
+                          {(agents || []).length === 0 && (
+                            <div className="sm:col-span-2 py-8 text-center text-xs text-muted-foreground bg-background/20 rounded-xl border border-dashed border-border">
+                              Nenhum atendente cadastrado. Crie um novo para iniciar.
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="space-y-6">
+                      <div className="grid gap-6 md:grid-cols-3">
+                        {/* Chat Box */}
+                        <Card className="md:col-span-2 flex flex-col h-[480px] border border-border/60 bg-background/25">
+                          <CardHeader className="p-3 border-b border-border/50 flex flex-row items-center justify-between shrink-0">
+                            <div className="flex items-center gap-2">
+                              <Select value={simSelectedAgent} onValueChange={setSimSelectedAgent}>
+                                <SelectTrigger className="h-7 text-[11px] w-48 bg-background/50">
+                                  <SelectValue placeholder="Selecione Atendente" />
+                                </SelectTrigger>
+                                <SelectContent className="bg-card border-border">
+                                  {(agents || []).map((a) => (
+                                    <SelectItem key={a.key || a.name} value={a.key || a.name} className="text-xs">
+                                      <div className="flex items-center gap-2">
+                                        {getAgentAvatarIcon(a.avatar, "h-3.5 w-3.5 text-primary")}
+                                        <span>{a.name}</span>
+                                      </div>
+                                    </SelectItem>
+                                  ))}
+                                  {agents.length === 0 && (
+                                    <SelectItem value="camila" className="text-xs">
+                                      <div className="flex items-center gap-2">
+                                        {getAgentAvatarIcon("user", "h-3.5 w-3.5 text-primary")}
+                                        <span>Simulador padrão</span>
+                                      </div>
+                                    </SelectItem>
+                                  )}
+                                </SelectContent>
+                              </Select>
+                              <Badge variant="outline" className="h-5 rounded-full text-[9px] uppercase">Simulando</Badge>
+                            </div>
+                            <Button variant="ghost" size="sm" onClick={handleClearSim} className="h-7 text-[10px] text-destructive hover:bg-destructive/10">
+                              Limpar
+                            </Button>
+                          </CardHeader>
+                          
+                          {/* Messages Container */}
+                          <CardContent className="flex-1 p-3 overflow-y-auto space-y-3 scrollbar-thin">
+                            {simMessages.map((msg, index) => (
+                              <div
+                                key={index}
+                                className={cn(
+                                  "flex flex-col max-w-[85%] rounded-2xl p-3 text-xs leading-normal shadow-sm",
+                                  msg.sender === "user"
+                                    ? "bg-primary text-primary-foreground ml-auto rounded-tr-none"
+                                    : "bg-card border border-border/60 text-foreground mr-auto rounded-tl-none"
+                                )}
+                              >
+                                <span className="font-bold text-[9px] uppercase tracking-wide opacity-75 mb-1">
+                                  {msg.sender === "user" ? "Cliente (Você)" : "Atendente IA"}
+                                </span>
+                                <p className="whitespace-pre-wrap">{msg.content}</p>
+                              </div>
+                            ))}
+                            {simLoading && (
+                              <div className="bg-card border border-border/60 text-foreground mr-auto rounded-2xl rounded-tl-none p-3 text-xs flex items-center gap-2">
+                                <Loader2 className="h-3.5 w-3.5 animate-spin text-primary" />
+                                <span className="text-[10px] text-muted-foreground animate-pulse">Pensando...</span>
+                              </div>
+                            )}
+                          </CardContent>
+
+                          <div className="p-3 border-t border-border/50 flex gap-2 shrink-0">
+                            <Input
+                              placeholder="Digite como se fosse um cliente no WhatsApp..."
+                              value={simInput}
+                              onChange={(e) => setSimInput(e.target.value)}
+                              onKeyDown={(e) => e.key === "Enter" && handleSimSend()}
+                              className="bg-background h-9 text-xs"
+                              disabled={simLoading}
+                            />
+                            <Button size="icon" onClick={handleSimSend} disabled={simLoading || !simInput.trim()} className="h-9 w-9">
+                              <PaperPlaneTilt className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </Card>
+
+                        {/* Observability Box */}
+                        <Card className="rounded-xl border border-border bg-background/25 p-3 text-xs flex flex-col justify-between h-[480px] overflow-y-auto">
+                          <div>
+                            <h5 className="font-bold text-[10px] uppercase text-muted-foreground tracking-wider pb-2 border-b border-border/50">Métricas de Observabilidade</h5>
+                            {simMetrics ? (
+                              <div className="space-y-4 mt-3">
+                                <div className="grid grid-cols-2 gap-2 text-[10px]">
+                                  <div className="rounded border border-border/50 p-2 bg-background/30">
+                                    <span className="block text-muted-foreground text-[9px]">Latência</span>
+                                    <span className="font-bold text-foreground text-xs">{simMetrics.responseTimeMs ? `${simMetrics.responseTimeMs}ms` : "n/d"}</span>
+                                  </div>
+                                  <div className="rounded border border-border/50 p-2 bg-background/30">
+                                    <span className="block text-muted-foreground text-[9px]">Tokens Totais</span>
+                                    <span className="font-bold text-foreground text-xs">{simMetrics.totalTokens ?? "n/d"}</span>
+                                  </div>
+                                </div>
+                                
+                                <div className="space-y-1">
+                                  <span className="block text-muted-foreground text-[9px]">Provedor / Modelo</span>
+                                  <span className="font-semibold text-foreground text-[10px] uppercase">{simMetrics.provider || "openai"} ({simMetrics.model || "padrão"})</span>
+                                </div>
+
+                                {!simMetrics.ok && simMetrics.error && (
+                                  <div className="rounded border border-destructive/30 bg-destructive/10 p-2 text-[10px] text-destructive">
+                                    <span className="block font-bold uppercase text-[9px] mb-1">Falha no teste</span>
+                                    <p className="whitespace-pre-wrap break-words">{simMetrics.error}</p>
+                                  </div>
+                                )}
+
+                                {simMetrics.promptTokens && (
+                                  <div className="text-[9px] text-muted-foreground flex justify-between p-1.5 rounded bg-background/40">
+                                    <span>Input: {simMetrics.promptTokens}</span>
+                                    <span>Output: {simMetrics.completionTokens}</span>
+                                  </div>
+                                )}
+
+                                <div className="space-y-1">
+                                  <span className="block text-muted-foreground text-[9px]">Memórias Utilizadas</span>
+                                  <p className="text-[10px] bg-background/40 p-2 rounded text-foreground border border-border/30 line-clamp-3" title={simMetrics.memoriesUsed}>
+                                    {simMetrics.memoriesUsed || "Padrão global (último pedido, preferências)"}
+                                  </p>
+                                </div>
+
+                                <div className="space-y-1">
+                                  <span className="block text-muted-foreground text-[9px]">Regras de Negócio Disparadas</span>
+                                  <p className="text-[10px] bg-background/40 p-2 rounded text-foreground border border-border/30 line-clamp-3" title={simMetrics.rulesTriggered}>
+                                    {simMetrics.rulesTriggered || "Padrão global (reativação automática)"}
+                                  </p>
+                                </div>
+
+                                {simMetrics.fullPrompt && (
+                                  <Dialog>
+                                    <DialogTrigger asChild>
+                                      <Button size="sm" variant="outline" className="w-full text-[9px] h-7 gap-1">
+                                        <BookOpen className="h-3 w-3" /> Ver Prompt Final Montado
+                                      </Button>
+                                    </DialogTrigger>
+                                    <DialogContent className="max-w-2xl bg-card border-border text-foreground">
+                                      <DialogHeader>
+                                        <DialogTitle className="text-xs font-bold">Prompt Final Enviado ao LLM</DialogTitle>
+                                        <DialogDescription className="text-[11px]">
+                                          Este é o prompt compilado com as diretrizes do atendente, regras do negócio, horas e memórias.
+                                        </DialogDescription>
+                                      </DialogHeader>
+                                      <pre className="text-[10px] bg-background p-3 rounded-lg overflow-y-auto max-h-[350px] whitespace-pre-wrap font-mono border border-border/50 text-muted-foreground">
+                                        {simMetrics.fullPrompt}
+                                      </pre>
+                                    </DialogContent>
+                                  </Dialog>
+                                )}
+                              </div>
+                            ) : (
+                              <div className="flex flex-col items-center justify-center text-center text-[10px] text-muted-foreground h-72">
+                                <AIIcon className="h-8 w-8 mb-2 text-muted-foreground/40 animate-pulse" />
+                                <span>Envie uma mensagem no simulador ao lado para auditar a montagem do prompt final e consumo de tokens.</span>
+                              </div>
+                            )}
+                          </div>
+                          
+                          {simMetrics && (
+                            <div
+                              className={cn(
+                                "text-[9px] rounded p-1.5 text-center flex items-center justify-center gap-1.5 shrink-0 mt-3 border",
+                                simMetrics.ok
+                                  ? "text-emerald-400 bg-emerald-500/10 border-emerald-500/20"
+                                  : "text-destructive bg-destructive/10 border-destructive/20"
+                              )}
+                            >
+                              {simMetrics.ok ? <CheckCircle className="h-3 w-3" /> : <AlertCircle className="h-3 w-3" />}
+                              {simMetrics.ok ? "Resposta concluída com sucesso" : "Teste concluído com falha"}
+                            </div>
+                          )}
+                        </Card>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* TAB 3: CONHECIMENTO */}
+              {activeInternalTab === "conhecimento" && (
+                <div className="space-y-6">
+                  {/* Subtabs Menu */}
+                  <div className="flex gap-2 border-b border-border/60 pb-2">
+                    <button
+                      onClick={() => setActiveConhecimentoSubTab("templates")}
+                      className={cn(
+                        "px-3 py-1.5 text-xs font-semibold rounded-lg transition-all",
+                        activeConhecimentoSubTab === "templates" ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                      )}
+                    >
+                      Templates de Prompt
+                    </button>
+                    <button
+                      onClick={() => setActiveConhecimentoSubTab("treinamento")}
+                      className={cn(
+                        "px-3 py-1.5 text-xs font-semibold rounded-lg transition-all",
+                        activeConhecimentoSubTab === "treinamento" ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                      )}
+                    >
+                      Treinamento de Casos
+                    </button>
+                  </div>
+
+                  {activeConhecimentoSubTab === "templates" ? (
+                    <div className="space-y-4">
+                      <div className="flex justify-between items-center">
+                        <Label className="text-xs text-muted-foreground">Escolha um template rápido para o prompt de personalidade</Label>
                         <Input
-                          placeholder="Buscar templates por categoria ou título..."
+                          placeholder="Buscar templates..."
                           value={templateSearch}
                           onChange={(e) => setTemplateSearch(e.target.value)}
-                          className="h-9 text-xs rounded-xl"
+                          className="bg-background h-8 text-xs max-w-xs"
                         />
+                      </div>
+                      <div className="grid gap-4 sm:grid-cols-3">
+                        {filteredTemplates.map((template) => (
+                          <Card key={template.id} className="border border-border/60 bg-card/45 hover:border-primary/20 transition-all flex flex-col justify-between p-3.5 text-xs shadow-sm">
+                            <div>
+                              <div className="flex items-center justify-between mb-1.5">
+                                <span className="font-semibold text-foreground">{template.title}</span>
+                                <Badge className="text-[8px] h-4">{template.category}</Badge>
+                              </div>
+                              <p className="text-[10px] text-muted-foreground mb-3 leading-relaxed">{template.description}</p>
+                            </div>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="w-full text-[10px] h-7"
+                              onClick={() => {
+                                onPromptChange(template.prompt);
+                                toast({ title: `Template "${template.title}" copiado. Cole no campo correspondente.` });
+                              }}
+                            >
+                              Copiar Instruções
+                            </Button>
+                          </Card>
+                        ))}
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="space-y-4">
+                      <Card className="glass-card shadow-sm">
+                        <CardHeader className="p-4 pb-2">
+                          <CardTitle className="text-xs font-semibold">Tabela de Interações de Clientes</CardTitle>
+                          <CardDescription className="text-[10px]">Ajuste e revise respostas sugeridas baseando-se em casos reais de leads perdidos.</CardDescription>
+                        </CardHeader>
+                        <CardContent className="p-0">
+                          <div className="overflow-x-auto text-xs">
+                            <table className="w-full text-left">
+                              <thead className="bg-muted/30 text-[10px] uppercase text-muted-foreground tracking-wider border-b border-border/60">
+                                <tr>
+                                  <th className="p-3">Pergunta do Cliente</th>
+                                  <th className="p-3">Resposta Atual da IA</th>
+                                  <th className="p-3">Ações</th>
+                                </tr>
+                              </thead>
+                              <tbody className="divide-y divide-border/30">
+                                {trainingRows.map((row) => (
+                                  <tr key={row.id} className="hover:bg-muted/10">
+                                    <td className="p-3 font-medium text-foreground">{row.customerQuestion}</td>
+                                    <td className="p-3 text-muted-foreground">{row.aiResponse}</td>
+                                    <td className="p-3">
+                                      <Button size="sm" variant="ghost" onClick={() => onOpenImproveModal(row)} className="h-7 px-2 text-[10px]">
+                                        Revisar
+                                      </Button>
+                                    </td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* TAB 4: OPERAÇÃO */}
+              {activeInternalTab === "operacao" && (
+                <div className="space-y-6">
+                  <div className="flex items-center justify-between pb-3 border-b border-border/60">
+                    <h3 className="text-sm font-bold flex items-center gap-2 text-foreground">
+                      <Sliders className="h-4 w-4 text-primary" /> Configurações de Operação e Funcionamento
+                    </h3>
+                  </div>
+
+                  <Accordion type="single" collapsible className="w-full space-y-3">
+                    {/* 1. Funcionamento (Horários) */}
+                    <AccordionItem value="business-hours" className="border border-border/60 rounded-xl px-4 bg-card/30">
+                      <AccordionTrigger className="text-xs font-bold hover:no-underline py-3">
+                        <div className="flex items-center gap-2">
+                          <Clock className="h-4 w-4 text-primary" />
+                          <span>Funcionamento (Horários de Atendimento)</span>
+                        </div>
+                      </AccordionTrigger>
+                      <AccordionContent className="pt-2 pb-4 text-xs space-y-4">
+                        <div className="grid gap-4 sm:grid-cols-3">
+                          <div className="space-y-1.5">
+                            <Label className="text-[10px]">Horário de Abertura</Label>
+                            <Input value={openingHour} onChange={(e) => onOpeningHourChange(e.target.value)} className="bg-background h-8 text-xs" />
+                          </div>
+                          <div className="space-y-1.5">
+                            <Label className="text-[10px]">Horário de Fechamento</Label>
+                            <Input value={closingHour} onChange={(e) => onClosingHourChange(e.target.value)} className="bg-background h-8 text-xs" />
+                          </div>
+                          <div className="space-y-1.5">
+                            <Label className="text-[10px]">Fuso Horário</Label>
+                            <Input value={timezone} onChange={(e) => onTimezoneChange(e.target.value)} className="bg-background h-8 text-xs" />
+                          </div>
+                        </div>
+                        <div className="flex items-center justify-between py-2 border-t border-border/30">
+                          <div>
+                            <p className="font-semibold text-foreground">Responder fora do horário</p>
+                            <p className="text-[10px] text-muted-foreground">Enviar resposta de ausência automaticamente.</p>
+                          </div>
+                          <Switch checked={outsideHoursAutoReply} onCheckedChange={onOutsideHoursAutoReplyChange} />
+                        </div>
+                        <Button onClick={onSaveBusinessHours} disabled={saving} size="sm" className="gap-1 h-8">
+                          <FloppyDisk className="h-3.5 w-3.5" /> Salvar Configuração
+                        </Button>
+                      </AccordionContent>
+                    </AccordionItem>
+
+                    {/* 2. Mensagem de Ausência (Absence) */}
+                    <AccordionItem value="absence" className="border border-border/60 rounded-xl px-4 bg-card/30">
+                      <AccordionTrigger className="text-xs font-bold hover:no-underline py-3">
+                        <div className="flex items-center gap-2">
+                          <AlertCircle className="h-4 w-4 text-primary" />
+                          <span>Mensagem de Ausência (Handoff)</span>
+                        </div>
+                      </AccordionTrigger>
+                      <AccordionContent className="pt-2 pb-4 text-xs space-y-3">
+                        <div className="flex items-center justify-between">
+                          <span className="text-muted-foreground text-[11px]">Habilitar mensagem de ausência</span>
+                          <Switch checked={absenceEnabled} onCheckedChange={onAbsenceEnabledChange} />
+                        </div>
+                        <Textarea
+                          value={absenceMessage}
+                          onChange={(e) => onAbsenceMessageChange(e.target.value)}
+                          className="min-h-[90px] bg-background text-xs"
+                          placeholder="Escreva a mensagem..."
+                        />
+                        <Button onClick={onSaveAbsenceMessage} disabled={saving} size="sm" className="w-full h-8 gap-1">
+                          <FloppyDisk className="h-3.5 w-3.5" /> Salvar Mensagem
+                        </Button>
+                      </AccordionContent>
+                    </AccordionItem>
+
+                    {/* 3. Reativação (Queue) */}
+                    <AccordionItem value="reactivation" className="border border-border/60 rounded-xl px-4 bg-card/30">
+                      <AccordionTrigger className="text-xs font-bold hover:no-underline py-3">
+                        <div className="flex items-center gap-2">
+                          <Play className="h-4 w-4 text-primary" />
+                          <span>Reativação Automática (Fila)</span>
+                        </div>
+                      </AccordionTrigger>
+                      <AccordionContent className="pt-2 pb-4 text-xs space-y-3">
+                        <div className="grid gap-3 grid-cols-2">
+                          <div className="space-y-1">
+                            <Label className="text-[10px]">Tamanho do Lote</Label>
+                            <Input
+                              type="number"
+                              value={queueBatchSize}
+                              onChange={(e) => onQueueBatchSizeChange(Number(e.target.value))}
+                              className="bg-background h-8 text-xs"
+                            />
+                          </div>
+                          <div className="space-y-1">
+                            <Label className="text-[10px]">Intervalo (segundos)</Label>
+                            <Input
+                              type="number"
+                              value={queueDelaySeconds}
+                              onChange={(e) => onQueueDelaySecondsChange(Number(e.target.value))}
+                              className="bg-background h-8 text-xs"
+                            />
+                          </div>
+                        </div>
+                        <div className="space-y-1">
+                          <Label className="text-[10px]">Mensagem de Reativação</Label>
+                          <Textarea
+                            value={queueMessage}
+                            onChange={(e) => onQueueMessageChange(e.target.value)}
+                            className="min-h-[60px] bg-background text-xs"
+                          />
+                        </div>
+                        <Button onClick={onProcessQueue} disabled={saving} size="sm" className="w-full h-8 gap-1">
+                          <Play className="h-3.5 w-3.5" /> Processar Fila ({queueWaiting} pendentes)
+                        </Button>
+                      </AccordionContent>
+                    </AccordionItem>
+
+                    {/* 4. Memória */}
+                    <AccordionItem value="memory" className="border border-border/60 rounded-xl px-4 bg-card/30">
+                      <AccordionTrigger className="text-xs font-bold hover:no-underline py-3">
+                        <div className="flex items-center gap-2">
+                          <BrainCircuit className="h-4 w-4 text-primary" />
+                          <span>Memória da IA</span>
+                        </div>
+                      </AccordionTrigger>
+                      <AccordionContent className="pt-2 pb-4 text-xs space-y-4">
+                        <div className="flex items-center justify-between py-2 border-b border-border/30">
+                          <div>
+                            <p className="font-semibold text-foreground">Lembrar preferências</p>
+                            <p className="text-[10px] text-muted-foreground">Gravar e consultar gostos e formas de atendimento de clientes.</p>
+                          </div>
+                          <Switch checked={rememberPreferences} onCheckedChange={onRememberPreferencesChange} />
+                        </div>
+
+                        <div className="flex items-center justify-between py-2 border-b border-border/30">
+                          <div>
+                            <p className="font-semibold text-foreground">Lembrar último pedido</p>
+                            <p className="text-[10px] text-muted-foreground">Manter histórico do que o cliente solicitou na última conversa.</p>
+                          </div>
+                          <Switch checked={rememberLastOrder} onCheckedChange={onRememberLastOrderChange} />
+                        </div>
+
+                        <div className="flex items-center justify-between py-2">
+                          <div>
+                            <p className="font-semibold text-foreground">Memória de Contexto Ativa</p>
+                            <p className="text-[10px] text-muted-foreground">Habilitar a IA a consultar memórias passadas globalmente.</p>
+                          </div>
+                          <Switch checked={memoryEnabled} onCheckedChange={onMemoryEnabledChange} />
+                        </div>
+
+                        <Button onClick={onSaveMemory} disabled={saving} size="sm" className="gap-1 h-8">
+                          <FloppyDisk className="h-3.5 w-3.5" /> Salvar Memória
+                        </Button>
+                      </AccordionContent>
+                    </AccordionItem>
+
+                    {/* 5. Advanced Settings */}
+                    <AccordionItem value="advanced" className="border border-border/60 rounded-xl px-4 bg-card/30">
+                      <AccordionTrigger className="text-xs font-bold hover:no-underline py-3">
+                        <div className="flex items-center gap-2">
+                          <Settings className="h-4 w-4 text-primary" />
+                          <span>Configurações Avançadas da IA</span>
+                        </div>
+                      </AccordionTrigger>
+                      <AccordionContent className="pt-2 pb-4 text-xs space-y-4">
+                        <div className="space-y-4">
+                          <div className="space-y-2">
+                            <div className="flex justify-between text-[11px] font-bold">
+                              <span>Temperatura (Criatividade): {temperature[0]}</span>
+                            </div>
+                            <Slider
+                              value={temperature}
+                              onValueChange={onTemperatureChange}
+                              min={0}
+                              max={1}
+                              step={0.1}
+                            />
+                          </div>
+
+                          <div className="space-y-2">
+                            <div className="flex justify-between text-[11px] font-bold">
+                              <span>Tokens Máximos de Resposta: {maxTokens[0]}</span>
+                            </div>
+                            <Slider
+                              value={maxTokens}
+                              onValueChange={onMaxTokensChange}
+                              min={100}
+                              max={2000}
+                              step={50}
+                            />
+                          </div>
+
+                          <div className="space-y-2">
+                            <div className="flex justify-between text-[11px] font-bold">
+                              <span>Atraso na Resposta (segundos): {responseDelay[0]}s</span>
+                            </div>
+                            <Slider
+                              value={responseDelay}
+                              onValueChange={onResponseDelayChange}
+                              min={0}
+                              max={10}
+                              step={1}
+                            />
+                          </div>
+
+                          <div className="flex items-center justify-between py-2 border-t border-border/30">
+                            <div>
+                              <p className="font-semibold text-foreground">Follow-up Automático</p>
+                              <p className="text-[10px] text-muted-foreground">Cobrar retorno do cliente após período de inatividade.</p>
+                            </div>
+                            <Switch checked={autoFollowUp} onCheckedChange={onAutoFollowUpChange} />
+                          </div>
+                        </div>
+
+                        <Button onClick={onSaveAdvanced} disabled={saving} size="sm" className="gap-1 h-8">
+                          <FloppyDisk className="h-3.5 w-3.5" /> Salvar Configurações Avançadas
+                        </Button>
+                      </AccordionContent>
+                    </AccordionItem>
+                  </Accordion>
+                </div>
+              )}
+
+              {/* TAB 4.5: PROVEDORES */}
+              {activeInternalTab === "provedores" && (
+                <div className="space-y-6 animate-fade-in">
+                  <div className="flex items-center justify-between pb-3 border-b border-border/60">
+                    <h3 className="text-sm font-bold flex items-center gap-2 text-foreground">
+                      <Cpu className="h-4 w-4 text-primary" /> Provedores de Inteligência Artificial
+                    </h3>
+                  </div>
+
+                  <Card className="glass-card p-6">
+                    <div className="space-y-4">
+                      <div className="space-y-1.5">
+                        <div className="flex items-center gap-1.5">
+                          <Label className="text-[10px] text-muted-foreground">Selecione o Provedor</Label>
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <button type="button" className="text-muted-foreground hover:text-foreground">
+                                  <Info className="h-3.5 w-3.5" />
+                                </button>
+                              </TooltipTrigger>
+                              <TooltipContent className="bg-popover border border-border text-popover-foreground text-xs p-2 rounded-md">
+                                Escolha qual provedor de inteligência artificial deseja configurar.
+                              </TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
+                        </div>
                         <Select
+                          value={currentProviderId}
                           onValueChange={(val) => {
-                            const found = PROMPT_TEMPLATES.find(t => t.id === val);
-                            if (found) {
-                              onPromptChange(found.prompt);
-                              setLastUsedTemplateId(found.id);
-                              window.localStorage.setItem("zapai_last_used_prompt_template", found.id);
-                            }
+                            setSelectedProviderId(val);
+                            const firstModel = PROVIDER_MODELS[val]?.[0]?.value || "";
+                            onTestProviderIdChange(val);
+                            onTestModelChange(firstModel);
                           }}
                         >
-                          <SelectTrigger className="w-full sm:w-48 h-9 text-xs rounded-xl bg-background/50">
-                            <SelectValue placeholder="Selecione um template" />
+                          <SelectTrigger className="bg-background/50 h-8 text-xs">
+                            <SelectValue placeholder="Escolha um provedor" />
                           </SelectTrigger>
-                          <SelectContent className="rounded-xl border-border bg-card">
-                            {filteredTemplates.map((t) => (
-                              <SelectItem key={t.id} value={t.id} className="text-xs">
-                                {t.title}
+                          <SelectContent className="bg-card border-border">
+                            {providers.map((p) => (
+                              <SelectItem key={p.id} value={p.id} className="text-xs">
+                                {p.name} {p.active ? "(Ativo)" : ""}
                               </SelectItem>
                             ))}
                           </SelectContent>
                         </Select>
                       </div>
 
-                      <div className="grid grid-cols-1 gap-2 max-h-56 overflow-y-auto pr-1">
-                        {filteredTemplates.map((t) => {
-                          const isFavorite = favoriteTemplates.includes(t.id);
-                          const isLastUsed = lastUsedTemplateId === t.id;
-                          return (
-                            <div key={t.id} className="flex flex-col gap-1.5 rounded-xl border border-border/60 bg-background/40 p-3 hover:border-primary/50 transition-colors">
-                              <div className="flex items-center justify-between">
-                                <div className="flex items-center gap-1.5">
-                                  <Badge variant="secondary" className="rounded-full text-[9px] px-2 py-0.5">{t.category}</Badge>
-                                  <span className="font-semibold text-xs text-foreground">{t.title}</span>
-                                  {isLastUsed && (
-                                    <Badge variant="outline" className="border-success/30 text-success text-[8px] px-1 py-0">Último Usado</Badge>
-                                  )}
-                                </div>
-                                <div className="flex items-center gap-1">
-                                  <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    className={`h-6 w-6 rounded-lg ${isFavorite ? 'text-amber-500' : 'text-muted-foreground'}`}
-                                    onClick={() => toggleFavoriteTemplate(t.id)}
-                                    title={isFavorite ? "Remover dos favoritos" : "Adicionar aos favoritos"}
-                                  >
-                                    <Sparkle weight={isFavorite ? "fill" : "regular"} className="h-3.5 w-3.5" />
-                                  </Button>
-                                  <Button
-                                    variant="outline"
-                                    size="sm"
-                                    className="h-6 rounded-lg text-[10px] px-2 hover:bg-primary hover:text-white"
-                                    onClick={() => {
-                                      onPromptChange(t.prompt);
-                                      setLastUsedTemplateId(t.id);
-                                      window.localStorage.setItem("zapai_last_used_prompt_template", t.id);
-                                    }}
-                                  >
-                                    Aplicar
-                                  </Button>
-                                </div>
-                              </div>
-                              <p className="text-[11px] text-muted-foreground leading-relaxed">{t.description}</p>
+                      {selectedProvider && (
+                        <div className="space-y-3 p-4 rounded-lg border border-border/50 bg-background/25">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-1.5">
+                              <span className="text-xs font-semibold text-foreground">Ativar Provedor</span>
+                              <TooltipProvider>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <button type="button" className="text-muted-foreground hover:text-foreground">
+                                      <Info className="h-3.5 w-3.5" />
+                                    </button>
+                                  </TooltipTrigger>
+                                  <TooltipContent className="bg-popover border border-border text-popover-foreground text-xs p-2 rounded-md">
+                                    Habilita ou desabilita o uso deste provedor no sistema.
+                                  </TooltipContent>
+                                </Tooltip>
+                              </TooltipProvider>
                             </div>
-                          );
-                        })}
-                      </div>
-                    </div>
-
-                    <Textarea value={prompt} onChange={(event) => onPromptChange(event.target.value)} className="min-h-48" />
-                    <div className="flex flex-wrap items-center gap-2">
-                      <Button onClick={onSavePrompt} disabled={saving} className="gap-2"><FloppyDisk className="h-4 w-4" />Salvar</Button>
-                      <Button type="button" variant="outline" onClick={onRestorePrompt} className="gap-2"><ArrowCounterClockwise className="h-4 w-4" />Restaurar padrão</Button>
-                    </div>
-                    <div className="rounded-xl border border-border p-3">
-                      <p className="text-sm font-medium mb-2">Histórico de versões</p>
-                      <div className="space-y-2 max-h-40 overflow-auto scrollbar-thin">
-                        {promptVersions.length === 0 ? (
-                           <p className="text-xs text-muted-foreground">Nenhuma versão salva ainda.</p>
-                        ) : (
-                          promptVersions.map((version) => (
-                            <button key={version.id} className="w-full rounded-lg border border-border p-2 text-left hover:bg-muted/60" onClick={() => onSelectPromptVersion(version.content)}>
-                              <p className="text-xs text-muted-foreground">{new Date(version.savedAt).toLocaleString("pt-BR")}</p>
-                              <p className="text-sm truncate">{version.content}</p>
-                            </button>
-                          ))
-                        )}
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              </TabsContent>
-
-              <TabsContent value="providers" className="m-0">
-                <Card className="glass-card">
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <Plugs className="h-5 w-5 text-primary" />Provedores de IA
-                      <TitleInfo text="Configure qual provedor de IA processa as respostas automáticas." />
-                    </CardTitle>
-                    <CardDescription>Configure API keys, modelos e providers ativos.</CardDescription>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <div className="space-y-1.5 mb-4">
-                      <Label className="text-sm font-medium">Selecione o Provedor de IA para configurar</Label>
-                      <Select
-                        value={currentProviderId}
-                        onValueChange={(val) => setSelectedProviderId(val)}
-                      >
-                        <SelectTrigger className="w-full rounded-xl bg-background/50">
-                          <SelectValue placeholder="Selecione um provedor" />
-                        </SelectTrigger>
-                        <SelectContent className="rounded-xl border-border bg-card">
-                          {providers.map((p) => (
-                            <SelectItem key={p.id} value={p.id}>
-                              {p.name} {p.active ? " (Ativo)" : ""}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-
-                    {selectedProvider && (
-                      <div className="rounded-xl border border-border/70 bg-background/30 p-4 space-y-3">
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-2">
-                            <Badge variant={selectedProvider.active ? "secondary" : "outline"} className="gap-1 rounded-full">
-                              {selectedProvider.active ? <CheckCircle className="h-3.5 w-3.5" /> : <XCircle className="h-3.5 w-3.5" />}
-                              {selectedProvider.active ? "Ativo" : "Inativo"}
-                            </Badge>
-                            <span className="font-display font-semibold">{selectedProvider.name}</span>
+                            <Switch
+                              checked={selectedProvider.active}
+                              onCheckedChange={(checked) => onProviderToggle(selectedProvider.id, checked)}
+                            />
                           </div>
-                          <Switch checked={selectedProvider.active} onCheckedChange={(val) => onProviderToggle(selectedProvider.id, val)} />
-                        </div>
-                        <div className="grid gap-3 sm:grid-cols-2">
-                          <div className="space-y-1.5">
-                            <Label className="text-xs">API Key</Label>
-                            <div className="relative">
+
+                          <div className="space-y-1">
+                            <div className="flex items-center gap-1.5 mb-1">
+                              <Label className="text-[10px] text-muted-foreground">API Key</Label>
+                              <TooltipProvider>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <button type="button" className="text-muted-foreground hover:text-foreground">
+                                      <Info className="h-3.5 w-3.5" />
+                                    </button>
+                                  </TooltipTrigger>
+                                  <TooltipContent className="bg-popover border border-border text-popover-foreground text-xs p-2 rounded-md">
+                                    Insira a chave secreta de autenticação gerada no painel do provedor.
+                                  </TooltipContent>
+                                </Tooltip>
+                              </TooltipProvider>
+                            </div>
+                            <div className="relative flex items-center">
                               <Input
-                                type={visibleKeys[selectedProvider.id] ? "text" : "password"}
+                                type={showApiKeyMap[selectedProvider.id] ? "text" : "password"}
+                                placeholder="Chave da API"
                                 value={selectedProvider.apiKey}
                                 onChange={(e) => onProviderChange({ ...selectedProvider, apiKey: e.target.value })}
-                                placeholder="sk-..."
-                                className="rounded-xl pr-10"
+                                className="bg-background h-8 text-xs font-mono pr-8"
                               />
                               <button
                                 type="button"
-                                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                                onClick={() => setVisibleKeys((prev) => ({ ...prev, [selectedProvider.id]: !prev[selectedProvider.id] }))}
+                                onClick={() =>
+                                  setShowApiKeyMap((prev) => ({
+                                    ...prev,
+                                    [selectedProvider.id]: !prev[selectedProvider.id],
+                                  }))
+                                }
+                                className="absolute right-2.5 text-muted-foreground hover:text-foreground"
                               >
-                                {visibleKeys[selectedProvider.id] ? <EyeSlash className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                                {showApiKeyMap[selectedProvider.id] ? (
+                                  <EyeOff className="h-3.5 w-3.5" />
+                                ) : (
+                                  <Eye className="h-3.5 w-3.5" />
+                                )}
                               </button>
                             </div>
                           </div>
+
                           <div className="space-y-1.5">
-                            <Label className="text-xs">Modelo</Label>
-                            <Input
+                            <div className="flex items-center gap-1.5">
+                              <Label className="text-[10px] text-muted-foreground">Modelo Padrão</Label>
+                              <TooltipProvider>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <button type="button" className="text-muted-foreground hover:text-foreground">
+                                      <Info className="h-3.5 w-3.5" />
+                                    </button>
+                                  </TooltipTrigger>
+                                  <TooltipContent className="bg-popover border border-border text-popover-foreground text-xs p-2 rounded-md">
+                                    Selecione o modelo padrão da IA a ser utilizado para as chamadas.
+                                  </TooltipContent>
+                                </Tooltip>
+                              </TooltipProvider>
+                            </div>
+                            <Select
                               value={selectedProvider.model}
-                              onChange={(e) => onProviderChange({ ...selectedProvider, model: e.target.value })}
-                              placeholder="gpt-4o-mini"
-                              className="rounded-xl"
-                            />
+                              onValueChange={(val) => onProviderChange({ ...selectedProvider, model: val })}
+                            >
+                              <SelectTrigger className="bg-background h-8 text-xs">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent className="bg-card border-border">
+                                {(PROVIDER_MODELS[selectedProvider.id] || []).map((m) => (
+                                  <SelectItem key={m.value} value={m.value} className="text-xs">
+                                    {m.label}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
                           </div>
+                          <Button
+                            size="sm"
+                            className="w-full text-xs h-8 gap-1 mt-2"
+                            onClick={onSaveProviders}
+                            disabled={saving}
+                          >
+                            <FloppyDisk className="h-3.5 w-3.5" /> Salvar Provedor
+                          </Button>
                         </div>
-                      </div>
-                    )}
+                      )}
+                    </div>
+                  </Card>
+                </div>
+              )}
 
-                    <Button onClick={onSaveProviders} disabled={saving} className="gap-2 rounded-xl shadow-glow">
-                      <FloppyDisk className="h-4 w-4" />Salvar provedores
-                    </Button>
-                  </CardContent>
-                </Card>
-              </TabsContent>
+              {/* TAB 5: ANÁLISE */}
+              {activeInternalTab === "analise" && (
+                <div className="space-y-6">
+                  {/* Subtabs Menu */}
+                  <div className="flex gap-2 border-b border-border/60 pb-2">
+                    <button
+                      onClick={() => setActiveAnaliseSubTab("evolucao")}
+                      className={cn(
+                        "px-3 py-1.5 text-xs font-semibold rounded-lg transition-all",
+                        activeAnaliseSubTab === "evolucao" ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                      )}
+                    >
+                      Evolução IA
+                    </button>
+                    <button
+                      onClick={() => setActiveAnaliseSubTab("logs")}
+                      className={cn(
+                        "px-3 py-1.5 text-xs font-semibold rounded-lg transition-all",
+                        activeAnaliseSubTab === "logs" ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                      )}
+                    >
+                      Logs de Auditoria IA
+                    </button>
+                  </div>
 
-              <TabsContent value="business-hours" className="m-0">
-                <Card className="glass-card">
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <Clock className="h-5 w-5 text-primary" />Horário Comercial
-                      <TitleInfo text="Define o período de atendimento e o comportamento fora do horário." />
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <Collapsible defaultOpen>
-                      <CollapsibleTrigger asChild>
-                        <Button variant="outline" className="w-full justify-between">Configurar horários</Button>
-                      </CollapsibleTrigger>
-                      <CollapsibleContent className="pt-4 space-y-4">
+                  {activeAnaliseSubTab === "evolucao" ? (
+                    <div className="space-y-4">
+                      {loadingEvolution ? (
+                        <div className="flex h-36 items-center justify-center">
+                          <Loader2 className="h-6 w-6 animate-spin text-primary" />
+                        </div>
+                      ) : (
                         <div className="grid gap-4 sm:grid-cols-2">
-                          <div className="space-y-2">
-                            <Label>Abertura</Label>
-                            <Input type="time" value={openingHour} onChange={(e) => onOpeningHourChange(e.target.value)} />
-                          </div>
-                          <div className="space-y-2">
-                            <Label>Fechamento</Label>
-                            <Input type="time" value={closingHour} onChange={(e) => onClosingHourChange(e.target.value)} />
-                          </div>
+                          {evolutionData.map((agent) => (
+                            <Card key={agent.agent_key} className="border border-border/60 bg-card/45 p-4 text-xs space-y-3 shadow-sm">
+                              <div className="flex items-center justify-between">
+                                <span className="font-bold text-foreground capitalize">{agent.agent_key}</span>
+                                <Badge variant="outline" className="text-[10px] text-primary border-primary/20 bg-primary/5">
+                                  Score: {agent.evolution_score}/100
+                                </Badge>
+                              </div>
+                              <div className="grid grid-cols-2 gap-2 text-[10px]">
+                                <div className="rounded border border-border/40 p-2 bg-background/20">
+                                  <span className="block text-muted-foreground">Conversas Analisadas</span>
+                                  <span className="font-bold text-foreground">{agent.conversations_analyzed}</span>
+                                </div>
+                                <div className="rounded border border-border/40 p-2 bg-background/20">
+                                  <span className="block text-muted-foreground">Conversões</span>
+                                  <span className="font-bold text-foreground text-emerald-500">{agent.conversions}</span>
+                                </div>
+                                <div className="rounded border border-border/40 p-2 bg-background/20">
+                                  <span className="block text-muted-foreground">Objeções Capturadas</span>
+                                  <span className="font-bold text-foreground text-amber-500">{agent.objections}</span>
+                                </div>
+                                <div className="rounded border border-border/40 p-2 bg-background/20">
+                                  <span className="block text-muted-foreground">Taxa de Sucesso</span>
+                                  <span className="font-bold text-foreground">{agent.success_rate}%</span>
+                                </div>
+                              </div>
+                              {agent.faq_data?.top_questions && (
+                                <div className="space-y-1.5 pt-2 border-t border-border/30">
+                                  <span className="block text-[10px] font-bold text-muted-foreground uppercase">Tópicos Mais Frequentes</span>
+                                  <div className="space-y-1">
+                                    {agent.faq_data.top_questions.map((q: any, idx: number) => (
+                                      <div key={idx} className="flex justify-between text-[10px] text-muted-foreground">
+                                        <span className="truncate max-w-[80%]">"{q.question}"</span>
+                                        <span className="font-semibold text-foreground">{q.count}x</span>
+                                      </div>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
+                            </Card>
+                          ))}
+                          {evolutionData.length === 0 && (
+                            <div className="sm:col-span-2 py-8 text-center text-xs text-muted-foreground bg-background/20 rounded-xl border border-dashed border-border">
+                              Nenhuma métrica de evolução disponível ainda. As métricas são coletadas conforme as conversas são processadas.
+                            </div>
+                          )}
                         </div>
-                        <div className="space-y-2">
-                          <Label>Fuso horário</Label>
-                          <Input value={timezone} onChange={(e) => onTimezoneChange(e.target.value)} />
+                      )}
+                    </div>
+                  ) : (
+                    <div className="space-y-4">
+                      {loadingPipelineLogs ? (
+                        <div className="flex h-36 items-center justify-center">
+                          <Loader2 className="h-6 w-6 animate-spin text-primary" />
                         </div>
-                        <div className="flex items-center justify-between rounded-lg border border-border p-3">
-                          <div>
-                            <p className="font-medium">Responder fora do horário</p>
-                            <p className="text-xs text-muted-foreground">Ativa resposta automática quando não houver atendimento.</p>
-                          </div>
-                          <Switch checked={outsideHoursAutoReply} onCheckedChange={onOutsideHoursAutoReplyChange} />
-                        </div>
-                      </CollapsibleContent>
-                    </Collapsible>
-                    <Button onClick={onSaveBusinessHours} disabled={saving}>Salvar horário</Button>
-                  </CardContent>
-                </Card>
-              </TabsContent>
+                      ) : (
+                        <Card className="border border-border/60 bg-card/45 shadow-sm">
+                          <CardContent className="p-0">
+                            <div className="overflow-x-auto text-xs">
+                              <table className="w-full text-left">
+                                <thead className="bg-muted/30 text-[10px] uppercase text-muted-foreground tracking-wider border-b border-border/60">
+                                  <tr>
+                                    <th className="p-3">Horário</th>
+                                    <th className="p-3">Mensagem ID</th>
+                                    <th className="p-3">Gargalo / Passo</th>
+                                    <th className="p-3">Status</th>
+                                    <th className="p-3">Erro</th>
+                                  </tr>
+                                </thead>
+                                <tbody className="divide-y divide-border/30">
+                                  {pipelineLogs.map((log) => (
+                                    <tr key={log.id} className="hover:bg-muted/10">
+                                      <td className="p-3 text-muted-foreground whitespace-nowrap">
+                                        {new Date(log.timestamp).toLocaleString("pt-BR")}
+                                      </td>
+                                      <td className="p-3 font-mono text-[10px] text-foreground max-w-[120px] truncate" title={log.message_id}>
+                                        {log.message_id}
+                                      </td>
+                                      <td className="p-3 font-semibold text-foreground uppercase text-[10px] tracking-wider">
+                                        {log.step}
+                                      </td>
+                                      <td className="p-3">
+                                        <Badge
+                                          variant="outline"
+                                          className={cn(
+                                            "text-[9px] uppercase font-bold",
+                                            log.status === "success"
+                                              ? "border-emerald-500/20 bg-emerald-500/5 text-emerald-500"
+                                              : "border-destructive/20 bg-destructive/5 text-destructive"
+                                          )}
+                                        >
+                                          {log.status === "success" ? "Sucesso" : "Falhou"}
+                                        </Badge>
+                                      </td>
+                                      <td className="p-3 text-destructive max-w-[200px] truncate" title={log.error_message || ""}>
+                                        {log.error_message || "-"}
+                                      </td>
+                                    </tr>
+                                  ))}
+                                  {pipelineLogs.length === 0 && (
+                                    <tr>
+                                      <td colSpan={5} className="p-6 text-center text-xs text-muted-foreground">
+                                        Nenhum log de auditoria encontrado.
+                                      </td>
+                                    </tr>
+                                  )}
+                                </tbody>
+                              </table>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
 
-              <TabsContent value="absence" className="m-0">
-                <Card className="glass-card">
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <WarningCircle className="h-5 w-5 text-primary" />Mensagem de Ausência
-                      <TitleInfo text="Mensagem enviada quando o cliente chama fora do horário de atendimento." />
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <div className="flex items-center justify-between rounded-lg border border-border p-3">
-                      <div>
-                        <p className="font-medium">Ativar mensagem automática</p>
-                        <p className="text-xs text-muted-foreground">Liga ou desliga a resposta de ausência.</p>
-                      </div>
-                      <Switch checked={absenceEnabled} onCheckedChange={onAbsenceEnabledChange} />
-                    </div>
-                    <Textarea value={absenceMessage} onChange={(event) => onAbsenceMessageChange(event.target.value)} className="min-h-32" />
-                    <div className="flex flex-wrap gap-2">
-                      <Button onClick={onSaveAbsenceMessage} disabled={saving}>Salvar mensagem</Button>
-                      <TooltipProvider>
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <Button variant="outline" type="button">Testar mensagem</Button>
-                          </TooltipTrigger>
-                          <TooltipContent>Use para validar o texto antes do uso em produção.</TooltipContent>
-                        </Tooltip>
-                      </TooltipProvider>
-                    </div>
-                  </CardContent>
-                </Card>
-              </TabsContent>
+            </main>
+          </div>
 
-              <TabsContent value="reactivation" className="m-0">
-                <Card className="glass-card">
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <Repeat className="h-5 w-5 text-primary" />Fila de Reativação
-                      <TitleInfo text="Retoma contato com clientes que ficaram sem resposta." />
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <div className="grid gap-4 sm:grid-cols-2">
-                      <div className="space-y-2">
-                        <Label>Tamanho do lote</Label>
-                        <Input type="number" min={1} value={queueBatchSize} onChange={(event) => onQueueBatchSizeChange(Number(event.target.value || 1))} />
-                      </div>
-                      <div className="space-y-2">
-                        <Label>Intervalo entre lotes (segundos)</Label>
-                        <Input type="number" min={0} value={queueDelaySeconds} onChange={(event) => onQueueDelaySecondsChange(Number(event.target.value || 0))} />
-                      </div>
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Mensagem de reativação</Label>
-                      <Textarea value={queueMessage} onChange={(event) => onQueueMessageChange(event.target.value)} className="min-h-24" />
-                    </div>
-                    <div className="grid gap-3 sm:grid-cols-2">
-                      <div className="rounded-xl border border-border p-3">
-                        <p className="text-xs text-muted-foreground">Clientes aguardando</p>
-                        <p className="text-xl font-semibold">{queueWaiting}</p>
-                      </div>
-                      <div className="rounded-xl border border-border p-3">
-                        <p className="text-xs text-muted-foreground">Mensagens enviadas hoje</p>
-                        <p className="text-xl font-semibold">{queueSentToday}</p>
-                      </div>
-                    </div>
-                    <Button onClick={onProcessQueue} disabled={saving} className="gap-2"><MagicWand className="h-4 w-4" />Processar fila</Button>
-                  </CardContent>
-                </Card>
-              </TabsContent>
-
-              <TabsContent value="training" className="m-0">
-                <Card className="glass-card">
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <Sparkle className="h-5 w-5 text-primary" />Central de Treinamento
-                      <TitleInfo text="Melhora respostas da IA com base em conversas reais." />
-                    </CardTitle>
-                    <CardDescription>Revise respostas e aplique melhorias com um clique.</CardDescription>
-                  </CardHeader>
-                  <CardContent className="space-y-3">
-                    {trainingRows.map((row) => (
-                      <div key={row.id} className="rounded-xl border border-border p-3 space-y-2">
-                        <div className="flex items-center justify-between gap-2">
-                          <Badge variant={row.status === "lost" ? "destructive" : "secondary"}>{row.status === "lost" ? "perdida" : "encerrada"}</Badge>
-                          <Button size="sm" variant="outline" onClick={() => onOpenImproveModal(row)}>Melhorar resposta</Button>
-                        </div>
-                        <p className="text-sm"><span className="text-muted-foreground">Pergunta do cliente:</span> {row.customerQuestion}</p>
-                        <p className="text-sm"><span className="text-muted-foreground">Resposta da IA:</span> {row.aiResponse}</p>
-                      </div>
-                    ))}
-                  </CardContent>
-                </Card>
-              </TabsContent>
-
-              <TabsContent value="learning" className="m-0">
-                <AILearningDashboard onPromptApplied={onPromptApplied} />
-              </TabsContent>
-
-              <TabsContent value="memory" className="m-0">
-                <Card className="glass-card">
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <Brain className="h-5 w-5 text-primary" />Configuração de Memória
-                      <TitleInfo text="Guarda contexto importante para personalizar o atendimento." />
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-3">
-                    <div className="flex items-center justify-between rounded-lg border border-border p-3">
-                      <p className="font-medium">Ativar memória</p>
-                      <Switch checked={memoryEnabled} onCheckedChange={onMemoryEnabledChange} />
-                    </div>
-                    <div className="flex items-center justify-between rounded-lg border border-border p-3">
-                      <p className="font-medium">Lembrar último pedido</p>
-                      <Switch checked={rememberLastOrder} onCheckedChange={onRememberLastOrderChange} />
-                    </div>
-                    <div className="flex items-center justify-between rounded-lg border border-border p-3">
-                      <p className="font-medium">Lembrar preferências</p>
-                      <Switch checked={rememberPreferences} onCheckedChange={onRememberPreferencesChange} />
-                    </div>
-                    <Button onClick={onSaveMemory} disabled={saving}>Salvar memória</Button>
-                  </CardContent>
-                </Card>
-              </TabsContent>
-
-              <TabsContent value="advanced" className="m-0">
-                <Card className="glass-card">
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <Sliders className="h-5 w-5 text-primary" />Ajustes Avançados
-                      <TitleInfo text="Controla estilo, tamanho e tempo das respostas automáticas." />
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-5">
-                    <div className="space-y-2">
-                      <div className="flex items-center justify-between"><Label>Temperatura</Label><span className="text-sm text-muted-foreground">{temperature[0].toFixed(1)}</span></div>
-                      <Slider value={temperature} onValueChange={onTemperatureChange} min={0} max={1} step={0.1} />
-                    </div>
-                    <div className="space-y-2">
-                      <div className="flex items-center justify-between"><Label>Máximo de tokens</Label><span className="text-sm text-muted-foreground">{maxTokens[0]}</span></div>
-                      <Slider value={maxTokens} onValueChange={onMaxTokensChange} min={100} max={2000} step={50} />
-                    </div>
-                    <div className="space-y-2">
-                      <div className="flex items-center justify-between"><Label>Atraso de resposta (segundos)</Label><span className="text-sm text-muted-foreground">{responseDelay[0]}</span></div>
-                      <Slider value={responseDelay} onValueChange={onResponseDelayChange} min={0} max={10} step={1} />
-                    </div>
-                    <div className="flex items-center justify-between rounded-lg border border-border p-3">
-                      <p className="font-medium">Follow-up automático</p>
-                      <Switch checked={autoFollowUp} onCheckedChange={onAutoFollowUpChange} />
-                    </div>
-                    <Button onClick={onSaveAdvanced} disabled={saving}>Salvar ajustes</Button>
-                  </CardContent>
-                </Card>
-              </TabsContent>
-            </div>
-          </Tabs>
         </div>
       </motion.div>
 
+      {/* Training row suggestions modal */}
       <Dialog open={improveModalOpen} onOpenChange={onImproveModalOpenChange}>
-        <DialogContent>
+        <DialogContent className="rounded-2xl bg-card border-border p-6 text-foreground max-w-md">
           <DialogHeader>
             <DialogTitle>Editar resposta melhorada</DialogTitle>
             <DialogDescription>Revise o texto antes de aplicar a melhoria.</DialogDescription>
           </DialogHeader>
-          <Textarea value={improvedText} onChange={(event) => onImprovedTextChange(event.target.value)} className="min-h-40" />
-          <DialogFooter className="gap-2 sm:gap-0">
-            <Button variant="outline" onClick={onImproveResponse} disabled={saving}>Gerar sugestão</Button>
-            <Button onClick={onSaveImprovedResponse}>Salvar melhoria</Button>
+          <div className="space-y-4 py-2">
+            <Textarea
+              value={improvedText}
+              onChange={(e) => onImprovedTextChange(e.target.value)}
+              className="min-h-[140px] bg-background text-xs"
+            />
+          </div>
+          <DialogFooter className="gap-2 sm:gap-0 pt-2">
+            <Button variant="outline" onClick={() => onImproveModalOpenChange(false)} size="sm">
+              Cancelar
+            </Button>
+            <Button onClick={onImproveResponse} disabled={saving} variant="outline" size="sm">
+              Melhorar com IA
+            </Button>
+            <Button onClick={onSaveImprovedResponse} size="sm">
+              Aplicar Resposta
+            </Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Agent Creation/Editing Dialog (9-Step Wizard) */}
+      <Dialog open={isAgentDialogOpen} onOpenChange={setIsAgentDialogOpen}>
+        <DialogContent className="max-w-lg rounded-2xl bg-card border-border p-6 text-foreground shadow-lg flex flex-col justify-between min-h-[480px]">
+          
+          <DialogHeader className="shrink-0">
+            <DialogTitle>{editingAgentKey ? "Editar Atendente" : "Adicionar Atendente"}</DialogTitle>
+            <DialogDescription className="text-xs">
+              Configure o perfil da IA seguindo o assistente passo a passo.
+            </DialogDescription>
+            
+            {/* Visual Step Progress Bar */}
+            <div className="mt-4">
+              <div className="flex items-center justify-between text-[9px] text-muted-foreground font-semibold pb-1">
+                <span>Passo {wizardStep} de 9: {
+                  wizardStep === 1 ? "Identificação" :
+                  wizardStep === 2 ? "Contexto da Empresa" :
+                  wizardStep === 3 ? "Produtos & Serviços" :
+                  wizardStep === 4 ? "FAQ & Políticas" :
+                  wizardStep === 5 ? "Personalidade" :
+                  wizardStep === 6 ? "Horários de Trabalho" :
+                  wizardStep === 7 ? "Regras Customizadas" :
+                  wizardStep === 8 ? "Transbordo Humano" : "Revisão Geral e Ativação"
+                }</span>
+                <span>{Math.round((wizardStep / 9) * 100)}%</span>
+              </div>
+              <div className="h-1.5 w-full bg-muted rounded-full overflow-hidden">
+                <div
+                  className="h-full bg-primary transition-all duration-300"
+                  style={{ width: `${(wizardStep / 9) * 100}%` }}
+                />
+              </div>
+            </div>
+          </DialogHeader>
+
+          {/* Wizard Content container */}
+          <div className="flex-1 my-4 text-xs overflow-y-auto pr-1">
+            
+            {/* PASSO 1: Identificação */}
+            {wizardStep === 1 && (
+              <div className="space-y-4 animate-fade-in">
+                <div className="space-y-1">
+                  <Label htmlFor="agent-name" className="text-[11px] font-bold">Nome do Atendente</Label>
+                  <Input
+                    id="agent-name"
+                    placeholder="Ex: Camila, Rafael"
+                    value={agentFormName}
+                    onChange={(e) => setAgentFormName(e.target.value)}
+                    disabled={!!editingAgentKey}
+                    className="bg-background h-8 text-xs"
+                  />
+                  <p className="text-[9px] text-muted-foreground">Nome público que o bot usará para se apresentar.</p>
+                </div>
+                <div className="space-y-1">
+                  <Label htmlFor="agent-avatar" className="text-[11px] font-bold">Avatar (Ícone)</Label>
+                  <Select value={agentFormAvatar} onValueChange={setAgentFormAvatar}>
+                    <SelectTrigger id="agent-avatar" className="bg-background h-8 text-xs">
+                      <SelectValue placeholder="Selecione um ícone" />
+                    </SelectTrigger>
+                    <SelectContent className="bg-card border-border">
+                      {[
+                        { value: "user", label: "Usuário/Atendente" },
+                        { value: "bot", label: "Robô/IA" },
+                        { value: "flame", label: "Destaque/Fogo" },
+                        { value: "sparkles", label: "Brilho/Inteligência" },
+                        { value: "code", label: "Desenvolvedor/Técnico" },
+                        { value: "heart", label: "Saúde/Cuidado" },
+                        { value: "target", label: "Objetivo/Comercial" },
+                        { value: "stethoscope", label: "Especialista/Médico" },
+                        { value: "palette", label: "Design/Criativo" }
+                      ].map((opt) => (
+                        <SelectItem key={opt.value} value={opt.value} className="text-xs">
+                          <div className="flex items-center gap-2">
+                            {getAgentAvatarIcon(opt.value, "h-3.5 w-3.5 text-primary")}
+                            <span>{opt.label}</span>
+                          </div>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2 pt-2">
+                  <Label className="text-[11px] font-bold">Setor de Atuação / Cargo</Label>
+                  <div className="grid grid-cols-2 gap-2">
+                    {["Comercial", "Suporte", "Financeiro", "Cobrança"].map((s) => (
+                      <Button
+                        key={s}
+                        type="button"
+                        variant={agentFormSector === s ? "default" : "outline"}
+                        className="h-8 text-xs font-normal"
+                        onClick={() => setAgentFormSector(s)}
+                      >
+                        {s}
+                      </Button>
+                    ))}
+                  </div>
+                  <div className="space-y-1 pt-1">
+                    <Label htmlFor="agent-sector-custom" className="text-[10px] text-muted-foreground">Setor Personalizado</Label>
+                    <Input
+                      id="agent-sector-custom"
+                      placeholder="Ex: Pós-venda, Diretoria"
+                      value={agentFormSector}
+                      onChange={(e) => setAgentFormSector(e.target.value)}
+                      className="bg-background h-8 text-xs"
+                    />
+                  </div>
+                </div>
+                <div className="space-y-1 pt-2">
+                  <Label htmlFor="agent-objective" className="text-[11px] font-bold">Objetivo Principal</Label>
+                  <Input
+                    id="agent-objective"
+                    placeholder="Ex: Vender materiais de construção, agendar visitas"
+                    value={agentFormObjective}
+                    onChange={(e) => setAgentFormObjective(e.target.value)}
+                    className="bg-background h-8 text-xs"
+                  />
+                </div>
+              </div>
+            )}
+
+            {/* PASSO 2: Contexto da Empresa */}
+            {wizardStep === 2 && (
+              <div className="space-y-4 animate-fade-in">
+                <div className="space-y-1">
+                  <Label htmlFor="agent-company" className="text-[11px] font-bold">Nome da Empresa</Label>
+                  <Input
+                    id="agent-company"
+                    placeholder="Ex: Depósito Vista Alegre"
+                    value={agentFormCompany}
+                    onChange={(e) => setAgentFormCompany(e.target.value)}
+                    className="bg-background h-8 text-xs"
+                  />
+                </div>
+                <div className="space-y-1 pt-2">
+                  <Label htmlFor="agent-company-desc" className="text-[11px] font-bold">Descrição da Empresa</Label>
+                  <Textarea
+                    id="agent-company-desc"
+                    placeholder="Descreva o que a empresa faz, sua história, localização e diferenciais..."
+                    value={agentFormCompanyDesc}
+                    onChange={(e) => setAgentFormCompanyDesc(e.target.value)}
+                    className="min-h-[140px] bg-background text-xs"
+                  />
+                  <p className="text-[9px] text-muted-foreground">Essa descrição ajudará a IA a se situar no contexto institucional.</p>
+                </div>
+              </div>
+            )}
+
+            {/* PASSO 3: Produtos & Serviços */}
+            {wizardStep === 3 && (
+              <div className="space-y-4 animate-fade-in">
+                <div className="space-y-1">
+                  <Label htmlFor="agent-products" className="text-[11px] font-bold">Tabela de Produtos e Preços</Label>
+                  <Textarea
+                    id="agent-products"
+                    placeholder="Ex: Tijolo 8 furos - R$ 780,00 (milheiro)&#10;Cimento Liz - R$ 21,90..."
+                    value={agentFormProducts}
+                    onChange={(e) => setAgentFormProducts(e.target.value)}
+                    className="min-h-[100px] bg-background text-xs font-mono"
+                  />
+                </div>
+                <div className="space-y-1 pt-2">
+                  <Label htmlFor="agent-services" className="text-[11px] font-bold">Serviços Prestados</Label>
+                  <Textarea
+                    id="agent-services"
+                    placeholder="Ex: Entrega rápida de materiais, fabricação de churrasqueiras pré-moldadas..."
+                    value={agentFormServices}
+                    onChange={(e) => setAgentFormServices(e.target.value)}
+                    className="min-h-[100px] bg-background text-xs"
+                  />
+                </div>
+              </div>
+            )}
+
+            {/* PASSO 4: FAQ & Políticas */}
+            {wizardStep === 4 && (
+              <div className="space-y-4 animate-fade-in">
+                <div className="space-y-1">
+                  <Label htmlFor="agent-faq" className="text-[11px] font-bold">FAQ (Perguntas Frequentes)</Label>
+                  <Textarea
+                    id="agent-faq"
+                    placeholder="Ex: P: Qual o frete? R: O frete varia de acordo com a quilometragem...&#10;P: Aceita boleto? R: Apenas mediante cadastro aprovado..."
+                    value={agentFormFaq}
+                    onChange={(e) => setAgentFormFaq(e.target.value)}
+                    className="min-h-[100px] bg-background text-xs"
+                  />
+                </div>
+                <div className="space-y-1 pt-2">
+                  <Label htmlFor="agent-policies" className="text-[11px] font-bold">Políticas Comerciais e Garantia</Label>
+                  <Textarea
+                    id="agent-policies"
+                    placeholder="Ex: Troca de tijolos apenas se danificados no transporte. Garantia de 3 meses para ferramentas elétricas..."
+                    value={agentFormPolicies}
+                    onChange={(e) => setAgentFormPolicies(e.target.value)}
+                    className="min-h-[100px] bg-background text-xs"
+                  />
+                </div>
+              </div>
+            )}
+
+            {/* PASSO 5: Personalidade */}
+            {wizardStep === 5 && (
+              <div className="space-y-4 animate-fade-in">
+                <div className="space-y-1">
+                  <Label htmlFor="agent-prompt" className="text-[11px] font-bold">Personalidade do Atendente (Instruções Principais)</Label>
+                  <Textarea
+                    id="agent-prompt"
+                    placeholder="Ex: Você é um atendente simpático, cordial e focado em fechar vendas de materiais..."
+                    value={agentFormPrompt}
+                    onChange={(e) => setAgentFormPrompt(e.target.value)}
+                    className="min-h-[120px] bg-background text-xs"
+                  />
+                </div>
+                <div className="space-y-1.5 pt-2">
+                  <Label className="text-[11px] font-bold">Temperatura (Criatividade): {agentFormTemp}</Label>
+                  <Slider
+                    id="agent-temp"
+                    value={[agentFormTemp]}
+                    onValueChange={(val) => setAgentFormTemp(val[0])}
+                    min={0}
+                    max={1}
+                    step={0.1}
+                  />
+                  <div className="flex justify-between text-[9px] text-muted-foreground">
+                    <span>Mais Conservador</span>
+                    <span>Mais Criativo</span>
+                  </div>
+                </div>
+
+                <div className="space-y-3 rounded-lg border border-border/50 bg-background/20 p-3">
+                  <div>
+                    <Label className="text-[11px] font-bold">Delay humanizado</Label>
+                    <p className="text-[9px] text-muted-foreground">Variação aleatória usada antes de responder e enquanto aparece como digitando.</p>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="space-y-1">
+                      <Label htmlFor="response-delay-min" className="text-[10px]">Responder após mín. (s)</Label>
+                      <Input
+                        id="response-delay-min"
+                        type="number"
+                        min={0}
+                        value={agentFormResponseDelayMin}
+                        onChange={(e) => setAgentFormResponseDelayMin(Number(e.target.value) || 0)}
+                        className="bg-background h-8 text-xs"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label htmlFor="response-delay-max" className="text-[10px]">Responder após máx. (s)</Label>
+                      <Input
+                        id="response-delay-max"
+                        type="number"
+                        min={0}
+                        value={agentFormResponseDelayMax}
+                        onChange={(e) => setAgentFormResponseDelayMax(Number(e.target.value) || 0)}
+                        className="bg-background h-8 text-xs"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label htmlFor="typing-delay-min" className="text-[10px]">Digitando mín. (s)</Label>
+                      <Input
+                        id="typing-delay-min"
+                        type="number"
+                        min={0}
+                        value={agentFormTypingDelayMin}
+                        onChange={(e) => setAgentFormTypingDelayMin(Number(e.target.value) || 0)}
+                        className="bg-background h-8 text-xs"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label htmlFor="typing-delay-max" className="text-[10px]">Digitando máx. (s)</Label>
+                      <Input
+                        id="typing-delay-max"
+                        type="number"
+                        min={0}
+                        value={agentFormTypingDelayMax}
+                        onChange={(e) => setAgentFormTypingDelayMax(Number(e.target.value) || 0)}
+                        className="bg-background h-8 text-xs"
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* PASSO 6: Horários de Trabalho */}
+            {wizardStep === 6 && (
+              <div className="space-y-4 animate-fade-in">
+                <div className="space-y-1">
+                  <Label htmlFor="agent-hours" className="text-[11px] font-bold">Instruções de Horário Personalizado</Label>
+                  <Textarea
+                    id="agent-hours"
+                    placeholder="Ex: Atendimento online das 7h às 20h. Fora do horário, informar educadamente que responderemos no próximo dia útil."
+                    value={agentFormHours}
+                    onChange={(e) => setAgentFormHours(e.target.value)}
+                    className="min-h-[140px] bg-background text-xs"
+                  />
+                </div>
+              </div>
+            )}
+
+            {/* PASSO 7: Regras Customizadas */}
+            {wizardStep === 7 && (
+              <div className="space-y-4 animate-fade-in">
+                <div className="space-y-1">
+                  <Label htmlFor="agent-rules" className="text-[11px] font-bold">Regras e Restrições Comerciais</Label>
+                  <Textarea
+                    id="agent-rules"
+                    placeholder="Ex: Proibido conceder mais de 5% de desconto para pagamento à vista. Direcionar para cadastro se quiser parcelar."
+                    value={agentFormRules}
+                    onChange={(e) => setAgentFormRules(e.target.value)}
+                    className="min-h-[100px] bg-background text-xs"
+                  />
+                </div>
+                <div className="space-y-1 pt-2">
+                  <Label htmlFor="agent-memory" className="text-[11px] font-bold">Instruções de Memória Específicas</Label>
+                  <Textarea
+                    id="agent-memory"
+                    placeholder="Ex: Recordar o nome do cliente e referências de locais de entrega citadas anteriormente..."
+                    value={agentFormMemory}
+                    onChange={(e) => setAgentFormMemory(e.target.value)}
+                    className="min-h-[100px] bg-background text-xs"
+                  />
+                </div>
+              </div>
+            )}
+
+            {/* PASSO 8: Transbordo Humano */}
+            {wizardStep === 8 && (
+              <div className="space-y-4 animate-fade-in">
+                <div className="flex items-center justify-between rounded-lg border border-border p-2.5 bg-background/10">
+                  <div>
+                    <Label htmlFor="escalation-active" className="text-xs font-semibold cursor-pointer">Ativar Transbordo Humano</Label>
+                    <p className="text-[9px] text-muted-foreground">Se ativo, a IA poderá acionar ou passar para um operador humano.</p>
+                  </div>
+                  <Switch
+                    id="escalation-active"
+                    checked={agentFormEscalationActive}
+                    onCheckedChange={setAgentFormEscalationActive}
+                  />
+                </div>
+
+                {agentFormEscalationActive && (
+                  <>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div className="space-y-1">
+                        <Label htmlFor="escalation-phone" className="text-[10px] font-bold">Telefone do Responsável</Label>
+                        <Input
+                          id="escalation-phone"
+                          placeholder="Ex: 5511999999999"
+                          value={agentFormEscalationPhone}
+                          onChange={(e) => setAgentFormEscalationPhone(e.target.value)}
+                          className="bg-background h-8 text-xs"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <Label htmlFor="escalation-whatsapp" className="text-[10px] font-bold">WhatsApp do Responsável</Label>
+                        <Input
+                          id="escalation-whatsapp"
+                          placeholder="Ex: 5511999999999"
+                          value={agentFormEscalationWhatsapp}
+                          onChange={(e) => setAgentFormEscalationWhatsapp(e.target.value)}
+                          className="bg-background h-8 text-xs"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="space-y-1">
+                      <Label htmlFor="escalation-mode" className="text-[10px] font-bold">Modo de Transbordo</Label>
+                      <Select
+                        value={String(agentFormEscalationMode)}
+                        onValueChange={(val) => setAgentFormEscalationMode(Number(val))}
+                      >
+                        <SelectTrigger id="escalation-mode" className="bg-background h-8 text-xs">
+                          <SelectValue placeholder="Selecione o modo" />
+                        </SelectTrigger>
+                        <SelectContent className="bg-card border-border">
+                          <SelectItem value="1" className="text-xs">Modo 1: Notificar humano e IA continua</SelectItem>
+                          <SelectItem value="2" className="text-xs">Modo 2: Notificar humano e IA pausa</SelectItem>
+                          <SelectItem value="3" className="text-xs">Modo 3: Transferir totalmente para humano</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div className="space-y-2 pt-1 border-t border-border/30">
+                      <Label className="text-[10px] font-bold">Gatilhos de Ativação do Transbordo</Label>
+                      <div className="space-y-2">
+                        {[
+                          "cliente pediu humano",
+                          "cliente pediu ligação",
+                          "cliente reclamou",
+                          "cliente pediu orçamento complexo",
+                          "IA sem resposta"
+                        ].map((trigger) => {
+                          const isChecked = agentFormEscalationTriggers.includes(trigger);
+                          return (
+                            <label key={trigger} className="flex items-center gap-2 cursor-pointer select-none text-[10px] hover:text-foreground">
+                              <input
+                                type="checkbox"
+                                checked={isChecked}
+                                onChange={() => toggleTrigger(trigger)}
+                                className="rounded border-border text-primary focus:ring-primary bg-background h-3.5 w-3.5"
+                              />
+                              <span className="capitalize">{trigger}</span>
+                            </label>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  </>
+                )}
+              </div>
+            )}
+
+            {/* PASSO 9: Revisão Geral e Ativação */}
+            {wizardStep === 9 && (
+              <div className="space-y-4 animate-fade-in">
+                <div className="flex flex-col items-center justify-center text-center py-2 space-y-2 border-b border-border/30 pb-3">
+                  <CheckCircle className="h-8 w-8 text-emerald-500 animate-bounce" />
+                  <h4 className="font-bold text-foreground text-xs">Revisão do Atendente</h4>
+                  <p className="text-[9px] text-muted-foreground max-w-xs">Revise o resumo antes de salvar as configurações de {agentFormName}.</p>
+                </div>
+
+                <div className="space-y-2 text-[10px] leading-relaxed">
+                  <div className="grid grid-cols-2 gap-2 bg-background/30 p-2 rounded border border-border/40">
+                    <div>
+                      <span className="block text-muted-foreground text-[8px]">Perfil</span>
+                      <div className="flex items-center gap-1.5 font-bold text-foreground">
+                        {getAgentAvatarIcon(agentFormAvatar, "h-3.5 w-3.5 text-primary")}
+                        <span>{agentFormName} ({agentFormSector})</span>
+                      </div>
+                    </div>
+                    <div>
+                      <span className="block text-muted-foreground text-[8px]">Empresa</span>
+                      <span className="font-bold text-foreground">{agentFormCompany || "Vista Alegre"}</span>
+                    </div>
+                  </div>
+
+                  <div className="bg-background/30 p-2 rounded border border-border/40">
+                    <span className="block text-muted-foreground text-[8px]">Transbordo Humano</span>
+                    <span className="font-medium text-foreground">
+                      {agentFormEscalationActive 
+                        ? `Ativo - Modo ${agentFormEscalationMode} (${agentFormEscalationTriggers.length} gatilhos)` 
+                        : "Inativo"}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between rounded-lg border border-border p-2.5 bg-background/10 mt-2">
+                  <div className="text-left">
+                    <p className="text-xs font-semibold">Atendente Ativo</p>
+                    <p className="text-[10px] text-muted-foreground">Define se este atendente responderá interações automaticamente.</p>
+                  </div>
+                  <Switch checked={agentFormActive} onCheckedChange={setAgentFormActive} />
+                </div>
+              </div>
+            )}
+
+          </div>
+
+          {/* Wizard Footer controls */}
+          <DialogFooter className="gap-2 sm:gap-0 pt-3 border-t border-border/40 shrink-0">
+            {wizardStep > 1 && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setWizardStep((prev) => prev - 1)}
+                className="h-8 text-xs"
+              >
+                Voltar
+              </Button>
+            )}
+            {wizardStep < 9 ? (
+              <Button
+                size="sm"
+                onClick={() => {
+                  if (wizardStep === 1 && !agentFormName.trim()) {
+                    toast({ title: "O nome é obrigatório.", variant: "destructive" });
+                    return;
+                  }
+                  if (wizardStep === 5 && !agentFormPrompt.trim()) {
+                    toast({ title: "O prompt é obrigatório.", variant: "destructive" });
+                    return;
+                  }
+                  setWizardStep((prev) => prev + 1);
+                }}
+                className="h-8 text-xs ml-auto"
+              >
+                Avançar
+              </Button>
+            ) : (
+              <Button
+                onClick={handleSaveAgent}
+                disabled={saving}
+                size="sm"
+                className="h-8 text-xs ml-auto"
+              >
+                Concluir & Salvar
+              </Button>
+            )}
+          </DialogFooter>
+          
         </DialogContent>
       </Dialog>
     </div>
   );
 }
+
+export default AIView;

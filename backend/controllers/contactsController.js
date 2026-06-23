@@ -9,6 +9,8 @@ const conversationRepository = require('../repositories/conversationRepository')
 const contactsService = require('../services/contactsService');
 const { query } = require('../config/database');
 const { backendLog, errorLog } = require('../services/logger');
+const sessionManager = require('../services/sessionManager');
+const conversationRuntimeService = require('../inbox-core/inbox/services/ConversationRuntimeService');
 
 function getStore(req) {
   return req.app.locals.store;
@@ -74,7 +76,7 @@ async function listContacts(req, res) {
  */
 async function createContact(req, res) {
   try {
-    const { name, phone, email, region, state, ddd, notes } = req.body || {};
+    const { name, phone } = req.body || {};
 
     if (!phone) {
       return res.status(400).json({
@@ -86,16 +88,14 @@ async function createContact(req, res) {
     if (hasDatabaseEnabled(req)) {
       try {
         const result = await query(
-          `INSERT INTO contacts (name, phone, email, region, state, ddd, notes, company_id, created_at, updated_at)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW(), NOW())
-           ON CONFLICT (phone) DO UPDATE SET name = EXCLUDED.name, updated_at = NOW()
+          `INSERT INTO leads (company_id, phone, name, created_at)
+           VALUES ($1, $2, $3, NOW())
+           ON CONFLICT (company_id, phone) DO UPDATE SET name = EXCLUDED.name
            RETURNING *`,
-          [name || null, phone, email || null, region || null, state || null, ddd || null, notes || null,
-           req.auth?.tenantId || process.env.DEFAULT_COMPANY_ID || 'default']
+          [req.auth?.tenantId || process.env.DEFAULT_COMPANY_ID || 'default', phone, name || 'Unknown']
         );
         return res.status(201).json({ ok: true, data: result.rows[0] });
       } catch (dbError) {
-        // Table might not exist yet — return graceful error
         backendLog('warn', 'contacts:create:db_error', { error: dbError?.message });
         return res.status(200).json({
           ok: false,
@@ -141,7 +141,7 @@ async function updateContact(req, res) {
         let idx = 1;
 
         for (const [key, val] of Object.entries(updates)) {
-          if (['name', 'phone', 'email', 'region', 'state', 'ddd', 'notes'].includes(key)) {
+          if (['name', 'phone'].includes(key)) {
             fields.push(`${key} = $${idx++}`);
             values.push(val);
           }
@@ -154,11 +154,10 @@ async function updateContact(req, res) {
           });
         }
 
-        fields.push(`updated_at = NOW()`);
         values.push(id);
 
         const result = await query(
-          `UPDATE contacts SET ${fields.join(', ')} WHERE id = $${idx} RETURNING *`,
+          `UPDATE leads SET ${fields.join(', ')} WHERE id = $${idx} RETURNING *`,
           values
         );
 
@@ -210,7 +209,7 @@ async function deleteContact(req, res) {
     if (hasDatabaseEnabled(req)) {
       try {
         const result = await query(
-          `DELETE FROM contacts WHERE id = $1 RETURNING id`,
+          `DELETE FROM leads WHERE id = $1 RETURNING id`,
           [id]
         );
 
@@ -302,6 +301,130 @@ async function exportContacts(req, res) {
   }
 }
 
+async function blockContact(req, res) {
+  try {
+    const { phone } = req.params;
+    const companyId = req.query?.companyId || req.auth?.tenantId || process.env.DEFAULT_COMPANY_ID || 'default';
+    if (!phone) {
+      return res.status(400).json({ ok: false, error: { message: 'Phone is required' } });
+    }
+
+    const cleanPhone = phone.replace(/\D/g, '');
+    const jid = `${cleanPhone}@s.whatsapp.net`;
+
+    let session = sessionManager.getSession('main');
+    const isSessionConnected = (s) => s && String(s.status || '').toLowerCase() === 'connected';
+    if (!isSessionConnected(session)) {
+      const defaultSession = await sessionManager.getDefaultSession();
+      if (isSessionConnected(defaultSession)) {
+        session = defaultSession;
+      } else {
+        const allSessions = sessionManager.listSessions();
+        const connectedSessionInfo = allSessions.find(
+          (s) => String(s.status || '').toLowerCase() === 'connected'
+        );
+        if (connectedSessionInfo) {
+          session = sessionManager.getSession(connectedSessionInfo.sessionId);
+        }
+      }
+    }
+
+    if (!session || !session.sock) {
+      return res.status(409).json({ ok: false, error: { message: 'No active WhatsApp session connected. Cannot block contact.' } });
+    }
+
+    await session.sock.updateBlockStatus(jid, 'block');
+
+    if (hasDatabaseEnabled(req)) {
+      await query(
+        `UPDATE leads SET is_blocked = TRUE WHERE phone = $1 AND company_id = $2`,
+        [cleanPhone, companyId]
+      );
+    }
+
+    conversationRepository.invalidateConversationCache(companyId);
+
+    const conversation = await conversationRepository.getConversationByPhone(cleanPhone, companyId);
+    if (conversation) {
+      const store = getStore(req);
+      const io = store?.io || req.app.get('io') || global.io;
+      if (io) {
+        const payload = conversationRuntimeService.decorateConversation(store, conversation);
+        io.emit('conversation:update', payload);
+        io.emit('conversation_updated', payload);
+        io.emit('conversation-update', payload);
+      }
+    }
+
+    return res.status(200).json({ ok: true, data: { phone: cleanPhone, isBlocked: true } });
+  } catch (error) {
+    errorLog(error, { scope: 'contacts', action: 'block' });
+    return res.status(500).json({ ok: false, error: { message: error.message } });
+  }
+}
+
+async function unblockContact(req, res) {
+  try {
+    const { phone } = req.params;
+    const companyId = req.query?.companyId || req.auth?.tenantId || process.env.DEFAULT_COMPANY_ID || 'default';
+    if (!phone) {
+      return res.status(400).json({ ok: false, error: { message: 'Phone is required' } });
+    }
+
+    const cleanPhone = phone.replace(/\D/g, '');
+    const jid = `${cleanPhone}@s.whatsapp.net`;
+
+    let session = sessionManager.getSession('main');
+    const isSessionConnected = (s) => s && String(s.status || '').toLowerCase() === 'connected';
+    if (!isSessionConnected(session)) {
+      const defaultSession = await sessionManager.getDefaultSession();
+      if (isSessionConnected(defaultSession)) {
+        session = defaultSession;
+      } else {
+        const allSessions = sessionManager.listSessions();
+        const connectedSessionInfo = allSessions.find(
+          (s) => String(s.status || '').toLowerCase() === 'connected'
+        );
+        if (connectedSessionInfo) {
+          session = sessionManager.getSession(connectedSessionInfo.sessionId);
+        }
+      }
+    }
+
+    if (!session || !session.sock) {
+      return res.status(409).json({ ok: false, error: { message: 'No active WhatsApp session connected. Cannot unblock contact.' } });
+    }
+
+    await session.sock.updateBlockStatus(jid, 'unblock');
+
+    if (hasDatabaseEnabled(req)) {
+      await query(
+        `UPDATE leads SET is_blocked = FALSE WHERE phone = $1 AND company_id = $2`,
+        [cleanPhone, companyId]
+      );
+    }
+
+    conversationRepository.invalidateConversationCache(companyId);
+
+    const conversation = await conversationRepository.getConversationByPhone(cleanPhone, companyId);
+    if (conversation) {
+      const store = getStore(req);
+      const io = store?.io || req.app.get('io') || global.io;
+      if (io) {
+        const payload = conversationRuntimeService.decorateConversation(store, conversation);
+        io.emit('conversation:update', payload);
+        io.emit('conversation_updated', payload);
+        io.emit('conversation-update', payload);
+      }
+    }
+
+    return res.status(200).json({ ok: true, data: { phone: cleanPhone, isBlocked: false } });
+  } catch (error) {
+    errorLog(error, { scope: 'contacts', action: 'unblock' });
+    return res.status(500).json({ ok: false, error: { message: error.message } });
+  }
+}
+
 module.exports = {
   listContacts,
   createContact,
@@ -309,4 +432,6 @@ module.exports = {
   deleteContact,
   importContacts,
   exportContacts,
+  blockContact,
+  unblockContact,
 };

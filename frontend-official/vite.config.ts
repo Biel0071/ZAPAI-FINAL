@@ -19,6 +19,7 @@ export default defineConfig(({ mode }) => {
   const stableVersionLabel = env.VITE_APP_VERSION_LABEL?.trim() || stableVersion;
   const buildTime = env.VITE_BUILD_TIME?.trim() || new Date().toISOString();
   const buildCommit = env.VITE_BUILD_COMMIT?.trim() || resolveBuildCommit();
+  const enableLovableTagger = env.VITE_ENABLE_LOVABLE_TAGGER?.trim().toLowerCase() === "true";
   
   const backendTarget = env.VITE_API_URL?.trim() || "http://127.0.0.1:4025";
 
@@ -52,6 +53,16 @@ export default defineConfig(({ mode }) => {
     port: 8080,
     hmr: {
       overlay: false,
+    },
+    watch: {
+      ignored: [
+        "**/.claude/**",
+        "**/archive/**",
+        "**/backups/**",
+        "**/logs/**",
+        "**/reports/**",
+        "**/node_modules/**",
+      ],
     },
     proxy: {
       "/api": {
@@ -128,7 +139,7 @@ export default defineConfig(({ mode }) => {
   },
   plugins: [
     react(),
-    mode === "development" && componentTagger(),
+    mode === "development" && enableLovableTagger && componentTagger(),
   ].filter(Boolean),
   resolve: {
     alias: {

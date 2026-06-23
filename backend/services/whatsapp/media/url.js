@@ -13,7 +13,7 @@ function getBaseUrl() {
 function buildMediaUrl(mediaPath = '') {
   const rawPath = String(mediaPath || '').trim();
 
-  if (!rawPath) {
+  if (!rawPath || (rawPath.startsWith('[') && rawPath.endsWith(']'))) {
     return null;
   }
 
@@ -22,14 +22,31 @@ function buildMediaUrl(mediaPath = '') {
   }
 
   const normalizedPath = rawPath.replace(/^\/+/, '');
+  const publicUrl = process.env.PUBLIC_URL;
+  if (!publicUrl || publicUrl.includes('localhost') || publicUrl.includes('127.0.0.1')) {
+    return `/${normalizedPath}`;
+  }
+
   return `${getBaseUrl()}/${normalizedPath}`;
 }
 
 function normalizeRealtimeMediaType(type = '') {
   const normalized = String(type || '').toLowerCase();
 
-  if (normalized === 'document') {
+  if (normalized === 'document' || normalized === 'documentmessage' || normalized === 'file') {
     return 'file';
+  }
+  if (normalized === 'sticker' || normalized === 'stickermessage') {
+    return 'sticker';
+  }
+  if (normalized === 'audiomessage' || normalized === 'audio') {
+    return 'audio';
+  }
+  if (normalized === 'videomessage' || normalized === 'video') {
+    return 'video';
+  }
+  if (normalized === 'imagemessage' || normalized === 'image') {
+    return 'image';
   }
 
   return normalized || 'text';

@@ -17,8 +17,12 @@ function inferMediaType(mediaPath = '') {
     return null;
   }
 
-  if (/\.(png|jpg|jpeg|gif|webp)$/i.test(normalizedPath)) {
+  if (/\.(png|jpg|jpeg|gif)$/i.test(normalizedPath)) {
     return 'image';
+  }
+
+  if (/(\.webp|sticker)/i.test(normalizedPath)) {
+    return 'sticker';
   }
 
   if (/\.(mp4|mov|avi|mkv|webm)$/i.test(normalizedPath)) {
@@ -104,6 +108,8 @@ function extensionFromMimeType(mimetype = '', mediaType = 'document') {
   switch (mediaType) {
     case 'image':
       return '.jpg';
+    case 'sticker':
+      return '.webp';
     case 'video':
       return '.mp4';
     case 'audio':

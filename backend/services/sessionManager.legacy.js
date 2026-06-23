@@ -2,6 +2,7 @@ const fs = require('fs/promises');
 const path = require('path');
 const sessionRepository = require('../repositories/sessionRepository');
 const sessionRegistry = require('./sessionRegistry');
+const { validateSession } = require('./whatsapp/connection/sessionPersistenceValidator');
 // NOTE: whatsappService is required lazily inside startSession() to break the
 // circular dependency: sessionManager → whatsappService → sessionManager.
 // A top-level require would cause whatsappService.createStableSession to be
@@ -23,7 +24,7 @@ const startupPromises = new Map();
 const reconnectTimers = new Map();
 const reconnectAttempts = new Map();
 const reconnectInFlight = new Set();
-const MAX_RECONNECT_ATTEMPTS = 10;
+const MAX_RECONNECT_ATTEMPTS = 1000;
 
 // Latest QR code for the single session (expires after 60 s)
 let _latestQr = null;
@@ -236,7 +237,12 @@ async function deleteSessionFolder(sessionName) {
   const normalizedName = normalizeSessionName(sessionName);
   const sessionPath = path.join(SESSIONS_DIRECTORY, normalizedName);
 
-  await fs.rm(sessionPath, { force: true, recursive: true });
+  try {
+    await fs.rm(sessionPath, { force: true, recursive: true });
+    console.log(`Deleted session folder: ${sessionPath}`);
+  } catch (error) {
+    console.warn(`[WHATSAPP] Failed to delete session folder "${sessionPath}":`, error.message);
+  }
 }
 
 function clearReconnectTimer(sessionName) {
@@ -330,16 +336,18 @@ async function disposeSession(sessionName, options = {}) {
   }
 
   // Try-catch database status fallback
-  try {
-    await sessionRepository.updateSessionStatus(
-      normalizedName,
-      'disconnected',
-      session?.phone || null,
-      undefined,
-      session?.displayName || session?.sessionName || normalizedName
-    );
-  } catch (err) {
-    // ignore
+  if (options.logout !== true && options.deleteFolder !== true) {
+    try {
+      await sessionRepository.updateSessionStatus(
+        normalizedName,
+        'disconnected',
+        session?.phone || null,
+        undefined,
+        session?.displayName || session?.sessionName || normalizedName
+      );
+    } catch (err) {
+      // ignore
+    }
   }
 
   if (options.deleteFolder === true) {
@@ -349,7 +357,7 @@ async function disposeSession(sessionName, options = {}) {
 
 async function listStoredSessionNames() {
   const sessionMap = new Map();
-  const activeOnly = String(process.env.WHATSAPP_RESTORE_ACTIVE_ONLY || 'true').toLowerCase() !== 'false';
+  const activeOnly = false; // Always query all sessions (not deleted) to restore them after shutdown
 
   try {
     const persistedSessions = await sessionRepository.getSessions(undefined, { activeOnly });
@@ -461,8 +469,8 @@ async function startSession(sessionName = DEFAULT_SESSION, options = {}) {
           return;
         }
 
-        // Exponential backoff: 3s, 6s, 12s, 24s, 30s (capped)
-        const backoffMs = Math.min(3000 * Math.pow(2, attempt - 1), 30000);
+        // Exponential backoff: 5s, 10s, 20s, 30s, 60s (capped)
+        const backoffMs = Math.min(5000 * Math.pow(2, attempt - 1), 60000);
         console.log(`[WHATSAPP] Reconnect scheduled for ${normalizedTarget} in ${backoffMs}ms (attempt ${attempt}/${MAX_RECONNECT_ATTEMPTS}, closeCode=${closeCode || 'n/a'})`);
 
         const timer = setTimeout(async () => {
@@ -596,18 +604,6 @@ async function removeSession(name = DEFAULT_SESSION) {
   await disposeSession(normalizedName, { logout: true, deleteFolder: true });
   resetReconnectAttempts(normalizedName);
 
-  try {
-    await sessionRepository.updateSessionStatus(
-      normalizedName,
-      'disconnected',
-      session?.phone || null,
-      undefined,
-      session?.displayName || session?.sessionName || normalizedName
-    );
-  } catch {
-    // ignore persistence errors
-  }
-
   managerOptions.io?.emit('session_deleted', {
     name: session?.displayName || session?.sessionName || normalizedName,
     sessionId: normalizedName,
@@ -654,7 +650,7 @@ async function restoreSessions() {
     .split(',')
     .map((item) => normalizeSessionName(item))
     .filter(Boolean);
-  const maxRestore = Math.max(1, Number(process.env.WHATSAPP_RESTORE_MAX_SESSIONS || 1));
+  const maxRestore = Math.max(1, Number(process.env.WHATSAPP_RESTORE_MAX_SESSIONS || 10));
 
   let sessionsToRestore = [{ sessionId: DEFAULT_SESSION, sessionName: DEFAULT_SESSION }];
 
@@ -683,6 +679,12 @@ async function restoreSessions() {
     const displayName = candidate?.sessionName || sessionId;
 
     try {
+      const validation = await validateSession(sessionId);
+      if (!validation.ok) {
+        console.log(`[WHATSAPP] Skipping auto-restore for session ${sessionId} (no valid/complete creds.json found).`);
+        continue;
+      }
+
       const session = await startSession(sessionId, {
         displayName,
       });
@@ -749,7 +751,6 @@ async function cleanupZombieSessions() {
 
           // Remove from registry
           try { await sessionRegistry.removeSession(normalizedName); } catch {}
-          try { await sessionRepository.updateSessionStatus(normalizedName, 'disconnected'); } catch {}
 
           // Remove directory
           await fs.rm(sessionDir, { force: true, recursive: true });
@@ -844,7 +845,6 @@ async function reconcileSessions() {
 
       // Remove from registry
       try { await sessionRegistry.removeSession(name); } catch {}
-      try { await sessionRepository.updateSessionStatus(name, 'disconnected'); } catch {}
     }
   }
 
@@ -928,6 +928,7 @@ module.exports = {
   configureSessionManager,
   createSession,
   DEFAULT_SESSION,
+  disposeSession,
   getConnectedSessionOrNull,
   getDefaultSession,
   getLatestQr,

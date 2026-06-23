@@ -1,12 +1,15 @@
 import { cleanRuntimeArtifacts, formatProcessSummary, officialPorts, startOfficialRuntime, stopManagedProcesses, waitForHttp } from "./runtime-lib.mjs";
 
+const shouldClean = process.argv.includes("--clean");
 const stopResult = stopManagedProcesses();
-const removed = cleanRuntimeArtifacts();
+const removed = shouldClean ? cleanRuntimeArtifacts() : [];
 const started = startOfficialRuntime();
 
 console.log("[runtime:restart] Processos encerrados:");
 console.log(formatProcessSummary(stopResult.killed));
-console.log(`[runtime:restart] Artefatos limpos: ${removed.length > 0 ? removed.join(", ") : "nenhum"}`);
+if (shouldClean) {
+  console.log(`[runtime:restart] Artefatos limpos: ${removed.length > 0 ? removed.join(", ") : "nenhum"}`);
+}
 console.log(`[runtime:restart] Backend iniciado com PID ${started.backendPid}.`);
 console.log(`[runtime:restart] Frontend iniciado com PID ${started.frontendPid}.`);
 

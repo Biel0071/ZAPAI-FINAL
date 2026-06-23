@@ -23,11 +23,7 @@
 const fs = require('fs/promises');
 const path = require('path');
 const pino = require('pino');
-const {
-  default: makeWASocket,
-  fetchLatestBaileysVersion,
-  useMultiFileAuthState,
-} = require('@whiskeysockets/baileys');
+
 
 const sessionStateService = require('../../sessionStateService');
 const enterpriseQueueService = require('../../enterprise/queue-service');
@@ -35,6 +31,7 @@ const enterpriseAiService = require('../../enterprise/ai-service');
 const enterpriseMessageService = require('../../enterprise/message-service');
 const enterpriseRealtimeService = require('../../enterprise/realtime-service');
 const { getAgentByName, pickRandomAgent } = require('../../../config/agents');
+const MessageAuditService = require('../../messageAuditService');
 
 const {
   DEFAULT_SESSION,
@@ -93,6 +90,7 @@ const sessionRegistry = require('../../sessionRegistry');
 const messageAckPipeline = require('../../messageAckPipeline');
 const messageRepository = require('../../../repositories/messageRepository');
 const conversationRepository = require('../../../repositories/conversationRepository');
+const { isAIEnabled } = require('../../../config/aiToggle');
 
 const SESSIONS_DIRECTORY = path.join(__dirname, '..', '..', '..', 'sessions');
 const DEFAULT_RECONNECT_DELAY_MS = 3000;
@@ -106,7 +104,7 @@ const RECONNECT_BACKOFF_MAX_MS = Math.max(
 );
 const MAX_RECONNECT_REQUESTS = Math.max(
   1,
-  Number(process.env.WHATSAPP_MAX_RECONNECT_REQUESTS || 5)
+  Number(process.env.WHATSAPP_MAX_RECONNECT_REQUESTS || 1000)
 );
 // QR timeout: if the user does not scan the QR within this window the session
 // is closed (but auth folder IS preserved so future start reuses credentials).
@@ -116,10 +114,26 @@ const QR_TIMEOUT_MS = Math.max(
 );
 const INITIAL_CHAT_HISTORY_LIMIT = 50;
 
+function toFiniteNumber(value, fallback) {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : fallback;
+}
+
+function randomDelayFromProfile(profile = {}, defaults = { minMs: 1000, maxMs: 3000 }) {
+  const minMs = Math.max(0, toFiniteNumber(profile.minMs, defaults.minMs));
+  const maxMs = Math.max(minMs, toFiniteNumber(profile.maxMs, defaults.maxMs));
+  if (maxMs === minMs) return minMs;
+  return Math.floor(Math.random() * (maxMs - minMs + 1)) + minMs;
+}
+
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, Math.max(0, Number(ms) || 0)));
+}
+
 function computeReconnectDelay(attempt) {
   const safeAttempt = Math.max(1, Number(attempt) || 1);
-  const exponential = RECONNECT_BACKOFF_BASE_MS * Math.pow(2, safeAttempt - 1);
-  return Math.min(exponential, RECONNECT_BACKOFF_MAX_MS);
+  const delays = [5000, 15000, 30000, 60000, 120000];
+  return delays[safeAttempt - 1] || 120000;
 }
 
 // --- Enterprise queue bootstrap (once per process) ------------------------
@@ -191,7 +205,7 @@ async function buildMediaEventPayload(msg = {}) {
   const normalizedMessage = unwrapMessageContent(msg.message || {});
   const { mediaMessage, mediaType } = getMediaDescriptor(normalizedMessage);
 
-  if (!mediaMessage || !mediaType || !['image', 'audio', 'video', 'document'].includes(mediaType)) {
+  if (!mediaMessage || !mediaType || !['image', 'audio', 'video', 'document', 'sticker'].includes(mediaType)) {
     return null;
   }
 
@@ -323,13 +337,55 @@ async function loadRealtimeHistory({ io, session, sock }) {
 // --- AI auto-reply --------------------------------------------------------
 
 async function runAIForChat({ chatId, incomingFormattedMessage, session, sock }) {
+  // Short-circuit automated replies if:
+  // (0) it is a group chat
+  if (String(chatId).endsWith('@g.us')) {
+    console.log(`[WHATSAPP_AI] Skipping AI auto-reply for group chat ${chatId}`);
+    return null;
+  }
+
+  // (a) global AI toggle is OFF
+  if (!isAIEnabled()) {
+    console.log(`[WHATSAPP_AI] Global AI toggle is OFF. Short-circuiting response for ${chatId}.`);
+    return null;
+  }
+
+  // (b) session systemConnected is OFF
+  if (session && session.systemConnected === false) {
+    console.log(`[WHATSAPP_AI] Session ${session.sessionId || 'unknown'} is not enabled for AI. Short-circuiting response for ${chatId}.`);
+    return null;
+  }
+
   const store = ensureRealtimeStore(session);
   const chat = store.chats?.[chatId];
+
+  // (c) conversation AI is OFF (checking authoritative database value)
+  let conversationAIEnabled = chat ? chat.aiEnabled !== false : true;
+  let fresh = null;
+  try {
+    const normalizedPhone = normalizePhone(chatId);
+    if (incomingFormattedMessage?.conversationId) {
+      fresh = await conversationRepository.getConversationById(incomingFormattedMessage.conversationId).catch(() => null);
+    }
+    if (!fresh) {
+      fresh = await conversationRepository.getConversationByPhone(
+        normalizedPhone,
+        process.env.DEFAULT_COMPANY_ID || 'default',
+        session?.sessionId || DEFAULT_SESSION
+      ).catch(() => null);
+    }
+    if (fresh) {
+      conversationAIEnabled = fresh.aiEnabled !== false && fresh.ai_enabled !== false;
+    }
+  } catch (err) {
+    console.error('[WHATSAPP_AI] Failed to fetch authoritative chat AI setting from database:', err.message);
+  }
 
   if (
     !chat ||
     chat.archived === true ||
     chat.aiEnabled === false ||
+    !conversationAIEnabled ||
     incomingFormattedMessage?.fromMe
   ) {
     return null;
@@ -343,17 +399,59 @@ async function runAIForChat({ chatId, incomingFormattedMessage, session, sock })
 
   const contact = resolveContactForChat(store, chatId);
   const agent = getAgentByName(chat.assignedTo) || pickRandomAgent();
-  const aiResult = await enterpriseAiService.evaluateInboundAi({
-    agent,
-    chatId,
-    conversationHistory: getRecentChatHistory(chat, 10),
-    customerMessage: messageText,
-    store: {
-      activePrompt: session.activePrompt,
-      contact,
-      isGroup: Boolean(chat?.isGroup),
-    },
-  });
+
+  // Log AI_TRIGGERED step
+  try {
+    await MessageAuditService.logStep({
+      messageId: incomingFormattedMessage?.id || null,
+      conversationId: chat?.conversationId || null,
+      phone: normalizePhone(chatId),
+      step: 'AI_TRIGGERED',
+      status: 'success',
+      details: {
+        agentName: agent?.name || chat.assignedTo || 'unknown',
+        agentKey: agent?.key || 'unknown',
+        chatId
+      }
+    });
+  } catch (err) {
+    console.error('[WHATSAPP] Failed to log AI_TRIGGERED:', err);
+  }
+
+  let aiResult;
+  try {
+    aiResult = await enterpriseAiService.evaluateInboundAi({
+      agent,
+      chatId,
+      conversationHistory: getRecentChatHistory(chat, 10),
+      customerMessage: messageText,
+      store: {
+        activePrompt: session.activePrompt,
+        contact,
+        isGroup: Boolean(chat?.isGroup),
+      },
+      forceAutoReply: conversationAIEnabled,
+      conversationId: fresh?.id || incomingFormattedMessage?.conversationId || null,
+    });
+  } catch (error) {
+    try {
+      await MessageAuditService.logStep({
+        messageId: incomingFormattedMessage?.id || null,
+        conversationId: chat?.conversationId || null,
+        phone: normalizePhone(chatId),
+        step: 'AI_TRIGGERED',
+        status: 'failed',
+        errorMessage: error?.message || String(error),
+        details: {
+          agentName: agent?.name || chat.assignedTo || 'unknown',
+          chatId
+        }
+      });
+    } catch (err) {
+      console.error('[WHATSAPP] Failed to log failed AI_TRIGGERED:', err);
+    }
+    throw error;
+  }
 
   const safeResponse = String(aiResult?.response || '').trim();
 
@@ -371,6 +469,22 @@ async function runAIForChat({ chatId, incomingFormattedMessage, session, sock })
     return null;
   }
 
+  const responseDelayMs = randomDelayFromProfile(agent?.delayProfile, { minMs: 1000, maxMs: 5000 });
+  const typingDelayMs = randomDelayFromProfile(agent?.typingDelayProfile, { minMs: 1000, maxMs: 3000 });
+
+  if (responseDelayMs > 0) {
+    await sleep(responseDelayMs);
+  }
+
+  try {
+    await sock.presenceSubscribe(chatId).catch(() => {});
+    await sock.sendPresenceUpdate('composing', chatId).catch(() => {});
+    await sleep(typingDelayMs);
+    await sock.sendPresenceUpdate('paused', chatId).catch(() => {});
+  } catch (presenceError) {
+    console.warn('[WHATSAPP] Humanized typing presence failed:', presenceError?.message || presenceError);
+  }
+
   const sent = await sendMessage(sock, chatId, safeResponse);
 
   const persisted = await enterpriseMessageService.persistInboundMessage({
@@ -385,8 +499,11 @@ async function runAIForChat({ chatId, incomingFormattedMessage, session, sock })
     text: safeResponse,
     timestamp: new Date().toISOString(),
     type: 'text',
+    conversationId: fresh?.id || incomingFormattedMessage?.conversationId || null,
   });
   const savedOutgoingMessage = persisted?.message || null;
+
+  console.log(`[TEMP_LOG] message.sent - CONVERSATION_ID: "${savedOutgoingMessage?.conversationId || persisted?.conversation?.id || ''}", PHONE: "${normalizePhone(chatId)}", REMOTE_JID: "${chatId}", SESSION_ID: "${session?.sessionId || ''}", MESSAGE_ID: "${savedOutgoingMessage?.id || ''}", SOURCE: "ai_reply"`);
 
   if (!savedOutgoingMessage?.id) {
     // eslint-disable-next-line no-console
@@ -414,6 +531,24 @@ async function runAIForChat({ chatId, incomingFormattedMessage, session, sock })
     chatId,
     response: safeResponse,
   });
+
+  // Log RESPONSE_SENT step
+  try {
+    await MessageAuditService.logStep({
+      messageId: outgoingMessage.id,
+      conversationId: outgoingMessage.conversationId,
+      phone: normalizePhone(chatId),
+      step: 'RESPONSE_SENT',
+      status: 'success',
+      details: {
+        response: safeResponse,
+        originalMessageId: incomingFormattedMessage?.id || null,
+        agentName: agent?.name || 'unknown'
+      }
+    });
+  } catch (err) {
+    console.error('[WHATSAPP] Failed to log RESPONSE_SENT:', err);
+  }
 
   if (shouldEmitMetricsForMessage({ savedMessage: savedOutgoingMessage, session })) {
     emitRealtimeMetrics(session.io || global.io, store);
@@ -459,6 +594,11 @@ async function createStableSession({
     } catch { /* ignore cleanup errors */ }
     delete activeSessions[normalizedSessionName];
   }
+
+  const baileys = await import('@whiskeysockets/baileys');
+  const makeWASocket = baileys.default || baileys;
+  const fetchLatestBaileysVersion = baileys.fetchLatestBaileysVersion;
+  const useMultiFileAuthState = baileys.useMultiFileAuthState;
 
   const { state, saveCreds } = await useMultiFileAuthState(sessionPath);
   const { version } = await fetchLatestBaileysVersion();
@@ -638,6 +778,7 @@ async function createStableSession({
       session.connectedAt = Date.now();
       session.lastPingAt = Date.now();
       session.whatsAppName = sock.user?.name || null;
+      scanLidMapping(sock);
       session.hasConflict = false;
       session.isBanned = false;
       session.lastDisconnectCode = null;
@@ -726,6 +867,41 @@ async function createStableSession({
       }
 
       await onSessionConnected(session);
+
+      // Sync Blocklist on Connected (BUG 1 & 10)
+      try {
+        if (typeof sock.fetchBlocklist === 'function') {
+          const blockedJids = await sock.fetchBlocklist();
+          const blockedPhones = (blockedJids || [])
+            .map((jid) => String(jid).split('@')[0])
+            .filter(Boolean);
+
+          const companyId = process.env.DEFAULT_COMPANY_ID || 'default';
+          const database = require('../../../config/database');
+          await database.query(
+            `UPDATE leads SET is_blocked = FALSE WHERE company_id = $1`,
+            [companyId]
+          );
+
+          if (blockedPhones.length > 0) {
+            await database.query(
+              `UPDATE leads SET is_blocked = TRUE WHERE phone = ANY($1) AND company_id = $2`,
+              [blockedPhones, companyId]
+            );
+          }
+
+          const conversationRepository = require('../../../repositories/conversationRepository');
+          conversationRepository.invalidateConversationCache(companyId);
+
+          const ioServer = io || global.io;
+          if (ioServer) {
+            ioServer.emit('conversation:revalidated', { sessionId: normalizedSessionName });
+          }
+        }
+      } catch (blocklistError) {
+        console.warn('[BLOCKLIST] Failed to sync blocklist on connection open:', blocklistError?.message || blocklistError);
+      }
+
       return;
     }
 
@@ -913,17 +1089,21 @@ async function createStableSession({
           });
       } else if (terminalDisconnect) {
         delete activeSessions[normalizedSessionName];
-        // loggedOut / invalid session — clear stale auth so next connect gets a fresh QR
-        // eslint-disable-next-line no-console
-        console.log(`[WHATSAPP] Logged out: ${normalizedSessionName} — clearing auth state`);
-        try {
-          await fs.rm(sessionPath, { force: true, recursive: true });
-        } catch (rmErr) {
+        if (closeCode === 401) {
+          // loggedOut / invalid session — clear stale auth so next connect gets a fresh QR
           // eslint-disable-next-line no-console
-          console.warn(
-            `[WHATSAPP] Could not clear auth state for ${normalizedSessionName}:`,
-            rmErr.message
-          );
+          console.log(`[WHATSAPP] Logged out: ${normalizedSessionName} — clearing auth state`);
+          try {
+            await fs.rm(sessionPath, { force: true, recursive: true });
+          } catch (rmErr) {
+            // eslint-disable-next-line no-console
+            console.warn(
+              `[WHATSAPP] Could not clear auth state for ${normalizedSessionName}:`,
+              rmErr.message
+            );
+          }
+        } else {
+          console.log(`[WHATSAPP] Terminal disconnect (${closeCode}) for ${normalizedSessionName} — keeping credentials`);
         }
         (io || global.io)?.emit('session_logged_out', {
           name: session.sessionName,
@@ -939,6 +1119,7 @@ async function createStableSession({
   sock.ev.on('messages.upsert', async ({ messages, type }) => {
     session.lastPingAt = Date.now();
     if (session.isDisposed || session.isClosing) return;
+    scanLidMapping(sock);
     const batchCount = Array.isArray(messages) ? messages.length : 0;
 
     if (batchCount > 0) {
@@ -989,6 +1170,20 @@ async function createStableSession({
 
       if (!shouldProcessRealtimeMessage(session, dedupeKey)) {
         continue;
+      }
+
+      // Log RECEIVED_FROM_BAILEYS step
+      try {
+        await MessageAuditService.logStep({
+          messageId: messageId,
+          conversationId: null,
+          phone: remoteJid ? String(remoteJid).split('@')[0] : null,
+          step: 'RECEIVED_FROM_BAILEYS',
+          status: 'success',
+          details: { sessionId: normalizedSessionName, fromMe }
+        });
+      } catch (err) {
+        console.error('[WHATSAPP] Failed to log RECEIVED_FROM_BAILEYS:', err);
       }
 
       // eslint-disable-next-line no-console
@@ -1147,6 +1342,7 @@ async function createStableSession({
       const formattedRealtimeMessage = {
         ...buildRealtimeIncomingMessage(incomingMessage),
         id: savedMessage.id,
+        conversationId: savedMessage.conversationId || result?.conversation?.id || null,
       };
       const chatStore = addMessageToRealtimeStore(session, formattedRealtimeMessage);
 
@@ -1174,8 +1370,7 @@ async function createStableSession({
 
         if (requiresUrl && !realtimeUrl) {
           // eslint-disable-next-line no-console
-          console.error('SEM URL:', formattedRealtimeMessage);
-          continue;
+          console.warn('[WHATSAPP] [REALTIME EVENT] Missing URL for media message, but proceeding to emit event anyway:', formattedRealtimeMessage);
         }
 
         enterpriseRealtimeService.emitNewMessage(io || global.io, {
@@ -1186,6 +1381,9 @@ async function createStableSession({
           content: formattedRealtimeMessage.text || '',
           phone: inboundDebugPayload.phone,
           url: realtimeUrl,
+          sessionId: normalizedSessionName,
+          mimeType: realtimeMediaPayload?.mimetype || null,
+          filename: realtimeMediaPayload?.fileName || realtimeMediaPayload?.filename || null,
         });
       }
 
@@ -1436,6 +1634,14 @@ async function createStableSession({
   });
 
   // ── Contacts sync ──────────────────────────────────────────────────────
+  sock.ev.on('contacts.upsert', (contacts) => {
+    session.lastPingAt = Date.now();
+    if (session.isDisposed || session.isClosing) return;
+    for (const contact of contacts || []) {
+      processContactForLidMapping(contact);
+    }
+  });
+
   sock.ev.on('contacts.update', (updates) => {
     session.lastPingAt = Date.now();
     if (session.isDisposed || session.isClosing) return;
@@ -1449,6 +1655,8 @@ async function createStableSession({
       if (!id) {
         continue;
       }
+
+      processContactForLidMapping(contact);
 
       store.contacts[id] = { ...(store.contacts[id] || {}), ...contact };
       const normalizedId = normalizeContactKey(id);
@@ -1474,7 +1682,109 @@ async function createStableSession({
     );
   });
 
+  sock.ev.on('presence.update', async (presence) => {
+    session.lastPingAt = Date.now();
+    if (session.isDisposed || session.isClosing) return;
+
+    const remoteJid = presence?.id;
+    if (!remoteJid) return;
+
+    const phone = remoteJid.split('@')[0];
+    const companyId = process.env.DEFAULT_COMPANY_ID || 'default';
+
+    const participantPresences = presence.presences || {};
+    let status = 'unavailable';
+    if (participantPresences[remoteJid]?.lastKnownPresence) {
+      status = participantPresences[remoteJid].lastKnownPresence;
+    } else if (presence.presence) {
+      status = presence.presence;
+    }
+
+    const presenceState = ['available', 'composing', 'recording'].includes(status) ? 'online' : 'offline';
+
+    try {
+      const conversationRepository = require('../../../repositories/conversationRepository');
+      const conversationRuntimeService = require('../../../inbox-core/inbox/services/ConversationRuntimeService');
+      const conversation = await conversationRepository.getConversationByPhone(phone, companyId);
+      if (conversation) {
+        const decorated = conversationRuntimeService.decorateConversation(session, conversation);
+        decorated.presence = presenceState;
+
+        const ioServer = io || global.io;
+        if (ioServer) {
+          ioServer.emit('conversation:update', decorated);
+          ioServer.emit('conversation_updated', decorated);
+          ioServer.emit('conversation-update', decorated);
+
+          // Emit typing event for composing/recording
+          const isTypingVal = status === 'composing' ? 'composing' : status === 'recording' ? 'recording' : false;
+          ioServer.emit('typing', {
+            conversationId: conversation.id,
+            phone: phone,
+            isTyping: isTypingVal
+          });
+        }
+      }
+    } catch (err) {
+      // ignore
+    }
+  });
+
   return session;
+}
+
+const lidMapper = require('../shared/lidMapper');
+
+function processContactForLidMapping(contact) {
+  if (!contact) return;
+  const id = contact.id || contact.jid || '';
+  const lid = contact.lid || '';
+  if (id && lid) {
+    const idIsLid = id.endsWith('@lid');
+    const lidIsLid = lid.endsWith('@lid');
+    const idIsJid = id.endsWith('@s.whatsapp.net');
+    const lidIsJid = lid.endsWith('@s.whatsapp.net');
+
+    let lidStr = null;
+    let jidStr = null;
+
+    if (idIsLid) lidStr = id;
+    if (lidIsLid) lidStr = lid;
+    if (idIsJid) jidStr = id;
+    if (lidIsJid) jidStr = lid;
+
+    if (lidStr && jidStr) {
+      const lidDigits = lidStr.split('@')[0];
+      const jidDigits = jidStr.split('@')[0];
+      lidMapper.saveMapping(lidDigits, jidDigits).catch(err => {
+        console.error('[LID-MAPPER] Failed to save mapping:', err);
+      });
+    }
+  }
+}
+
+function scanLidMapping(sockInstance) {
+  if (!sockInstance) return;
+  const mapping = sockInstance.lidMapping;
+  if (mapping) {
+    if (mapping instanceof Map) {
+      for (const [lid, jid] of mapping.entries()) {
+        const lidDigits = String(lid).split('@')[0];
+        const jidDigits = String(jid).split('@')[0];
+        lidMapper.saveMapping(lidDigits, jidDigits).catch(err => {
+          console.error('[LID-MAPPER] Failed to save mapping from Map:', err);
+        });
+      }
+    } else if (typeof mapping === 'object') {
+      for (const [lid, jid] of Object.entries(mapping)) {
+        const lidDigits = String(lid).split('@')[0];
+        const jidDigits = String(jid).split('@')[0];
+        lidMapper.saveMapping(lidDigits, jidDigits).catch(err => {
+          console.error('[LID-MAPPER] Failed to save mapping from Object:', err);
+        });
+      }
+    }
+  }
 }
 
 module.exports = {
@@ -1487,4 +1797,6 @@ module.exports = {
   loadRealtimeHistory,
   runAIForChat,
   shouldRefreshSummary,
+  scanLidMapping,
+  processContactForLidMapping,
 };

@@ -1,4 +1,5 @@
 const { query } = require('../config/database');
+const { getPhoneAliases, normalizePhone } = require('../services/whatsapp/shared/identifiers');
 
 function getCompanyId(companyId) {
   return companyId || process.env.DEFAULT_COMPANY_ID || 'default';
@@ -19,20 +20,33 @@ function mapContact(row) {
 }
 
 async function findContactByPhone(phone, companyId) {
+  const normalizedPhone = normalizePhone(phone);
+  if (!normalizedPhone) {
+    return null;
+  }
+
+  const phoneAliases = getPhoneAliases(normalizedPhone);
+
   const result = await query(
     `
       SELECT id, company_id, name, phone, created_at
       FROM leads
-      WHERE phone = $1 AND company_id = $2
+      WHERE phone = ANY($1::text[]) AND company_id = $2
+      ORDER BY id ASC, created_at DESC
       LIMIT 1
     `,
-    [phone, getCompanyId(companyId)]
+    [phoneAliases, getCompanyId(companyId)]
   );
 
   return mapContact(result.rows[0]);
 }
 
 async function createContact({ companyId, name, phone }) {
+  const normalizedPhone = normalizePhone(phone);
+  if (!normalizedPhone) {
+    throw new Error('phone is required.');
+  }
+
   const result = await query(
     `
       INSERT INTO leads (company_id, name, phone)
@@ -42,13 +56,18 @@ async function createContact({ companyId, name, phone }) {
         name = COALESCE(EXCLUDED.name, leads.name)
       RETURNING id, company_id, name, phone, created_at
     `,
-    [getCompanyId(companyId), name || 'Unknown', phone]
+    [getCompanyId(companyId), name || 'Unknown', normalizedPhone]
   );
 
   return mapContact(result.rows[0]);
 }
 
 async function updateContactName(phone, name, companyId) {
+  const normalizedPhone = normalizePhone(phone);
+  if (!normalizedPhone) {
+    return null;
+  }
+
   const result = await query(
     `
       UPDATE leads
@@ -56,7 +75,7 @@ async function updateContactName(phone, name, companyId) {
       WHERE phone = $2 AND company_id = $3
       RETURNING id, company_id, name, phone, created_at
     `,
-    [name || 'Unknown', phone, getCompanyId(companyId)]
+    [name || 'Unknown', normalizedPhone, getCompanyId(companyId)]
   );
 
   return mapContact(result.rows[0]);

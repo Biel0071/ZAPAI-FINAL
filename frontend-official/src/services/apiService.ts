@@ -17,6 +17,7 @@ const INITIAL_BACKOFF_MS = 700;
 const ENDPOINT_404_COOLDOWN_MS = 120_000;
 
 const unavailableGetEndpoints = new Map<string, number>();
+const pendingGetRequests = new Map<string, Promise<unknown>>();
 
 const api = axios.create({
   baseURL: API_BASE_URL,
@@ -88,11 +89,17 @@ export interface Conversation {
   status?: "online" | "offline" | "typing";
   tags?: string[];
   isAI?: boolean;
-  lastMessageType?: "text" | "image" | "video" | "audio" | "file";
+  lastMessageType?: "text" | "image" | "video" | "audio" | "file" | "sticker";
   aiEnabled?: boolean;
   summary?: string;
+  notes?: string;
+  funnel_stage?: string;
   controlMode?: string;
   humanActive?: boolean;
+  assignedAgentName?: string;
+  agent_name?: string;
+  isBlocked?: boolean;
+  assigned_to?: string;
 }
 
 export interface ChatMessage {
@@ -104,9 +111,9 @@ export interface ChatMessage {
   fromMe: boolean;
   createdAt: string;
   timestamp?: string;
-  status?: "sending" | "sent" | "delivered" | "read";
+  status?: "pending" | "sending" | "sent" | "server_ack" | "device_ack" | "delivered" | "read" | "played" | "failed" | "retry";
   isAI?: boolean;
-  mediaType?: "image" | "video" | "audio" | "file";
+  mediaType?: "image" | "video" | "audio" | "file" | "sticker";
   mediaPath?: string;
   mediaUrl?: string;
   url?: string;
@@ -118,6 +125,7 @@ export interface Contact {
   name: string;
   phone: string;
   status: string;
+  updatedAt?: string;
 }
 
 export interface AnalyticsSummary {
@@ -146,6 +154,43 @@ export interface AIStatusResponse {
   enabled?: boolean;
   active?: boolean;
   status?: string;
+  ai?: boolean;
+}
+
+export interface AILogEntry {
+  id?: string | number;
+  timestamp: string;
+  conversationId?: string;
+  provider?: string;
+  model?: string;
+  promptTokens?: number;
+  completionTokens?: number;
+  totalTokens?: number;
+}
+
+export interface AIMetricsResponse {
+  tokensToday?: number;
+  promptTokensToday?: number;
+  completionTokensToday?: number;
+  messagesToday?: number;
+  tokensPerConversation?: Record<string, number>;
+}
+
+export interface AIConnectionTestResult {
+  ok: boolean;
+  provider?: string;
+  model?: string;
+  status?: string;
+  response?: string;
+  responseTimeMs?: number;
+  promptTokens?: number;
+  completionTokens?: number;
+  totalTokens?: number;
+  error?: string;
+  httpStatus?: number | null;
+  fullPrompt?: string;
+  memoriesUsed?: string;
+  rulesTriggered?: string;
 }
 
 export interface SessionInfo {
@@ -154,6 +199,10 @@ export interface SessionInfo {
   phone?: string;
   connected?: boolean;
   status?: string;
+  webhookUrl?: string | null;
+  queueCount?: number;
+  aiAgentName?: string | null;
+  lastActivity?: string | null;
 }
 
 export interface CampaignContact {
@@ -165,7 +214,7 @@ export interface CampaignContact {
 
 export interface CampaignMessage {
   id?: string;
-  type: "text" | "image" | "audio" | "video" | "file";
+  type: "text" | "image" | "audio" | "video" | "file" | "sticker";
   content: string;
   mediaUrl?: string | null;
   delaySeconds?: number;
@@ -308,10 +357,17 @@ export interface AdvancedAISettings {
   maxTokens: number;
   responseDelaySeconds: number;
   autoFollowUp: boolean;
+  providers?: Array<{
+    id: string;
+    name?: string;
+    model?: string;
+    active?: boolean;
+  }>;
 }
 
 export interface PersistedMessagePayload {
   id: string;
+  key?: { id?: string };
   conversationId?: string;
   content?: string;
   text?: string;
@@ -321,7 +377,8 @@ export interface PersistedMessagePayload {
   createdAt?: string;
   timestamp?: string;
   status?: "sent" | "delivered" | "read";
-  mediaType?: "image" | "video" | "audio" | "file";
+  caption?: string;
+  mediaType?: "image" | "video" | "audio" | "file" | "sticker";
   type?: "text" | "image" | "video" | "audio" | "file";
   mediaPath?: string | null;
   mediaUrl?: string | null;
@@ -337,7 +394,7 @@ export interface MessageSendResponse {
 
 type ProxyRequest = {
   endpoint: string;
-  method: "GET" | "POST" | "DELETE";
+  method: "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
   body?: unknown;
   timeoutMs?: number;
 };
@@ -400,14 +457,19 @@ type RawConversation = {
   status?: "online" | "offline" | "typing";
   tags?: string[];
   isAI?: boolean;
-  lastMessageType?: "text" | "image" | "video" | "audio" | "file";
-  messageType?: "text" | "image" | "video" | "audio" | "file";
-  mediaType?: "image" | "video" | "audio" | "file";
+  lastMessageType?: "text" | "image" | "video" | "audio" | "file" | "sticker" | "document" | "media";
+  messageType?: "text" | "image" | "video" | "audio" | "file" | "sticker" | "document" | "media";
+  mediaType?: "image" | "video" | "audio" | "file" | "sticker" | "document" | "media";
   aiEnabled?: boolean;
   ai_enabled?: boolean;
   summary?: string;
+  notes?: string;
+  funnel_stage?: string;
   controlMode?: string;
   humanActive?: boolean;
+  assigned_to?: string;
+  agent_name?: string;
+  assignedAgentName?: string;
 };
 
 type RawMessage = {
@@ -427,18 +489,44 @@ type RawMessage = {
   createdAt?: string;
   created_at?: string;
   time?: string;
-  status?: "sent" | "delivered" | "read";
+  status?: "pending" | "sending" | "sent" | "server_ack" | "device_ack" | "delivered" | "read" | "played" | "failed" | "retry";
   isAI?: boolean;
-  mediaType?: "image" | "video" | "audio" | "file";
-  type?: "text" | "image" | "video" | "audio" | "file";
+  mediaType?: "image" | "video" | "audio" | "file" | "sticker" | "document" | "media";
+  type?: "text" | "image" | "video" | "audio" | "file" | "sticker" | "document" | "media";
   mediaPath?: string;
   media_path?: string;
   mediaUrl?: string;
   media_url?: string;
+  fileUrl?: string;
+  file_url?: string;
   url?: string;
   thumbnail?: string;
   emoji?: string;
 };
+
+const LEGACY_MEDIA_PLACEHOLDERS = new Set([
+  "[image]",
+  "[video]",
+  "[audio]",
+  "[media]",
+  "[file]",
+  "[document]",
+  "[sticker]",
+]);
+
+function sanitizeLegacyPlaceholder(value: unknown, mediaType?: string | null): string {
+  const normalized = typeof value === "string" ? value.trim() : "";
+  if (!normalized) return "";
+  if (!LEGACY_MEDIA_PLACEHOLDERS.has(normalized.toLowerCase())) return normalized;
+
+  const normalizedType = String(mediaType ?? "").trim().toLowerCase();
+  if (normalizedType === "image") return "Imagem";
+  if (normalizedType === "video") return "Vídeo";
+  if (normalizedType === "audio") return "Áudio";
+  if (normalizedType === "sticker") return "Sticker";
+  if (normalizedType === "document" || normalizedType === "file" || normalizedType === "media") return "Documento";
+  return "";
+}
 
 type RawSession = {
   id?: string;
@@ -454,7 +542,7 @@ type RawSession = {
   status?: string;
 };
 
-async function request<T>({ endpoint, method, body, timeoutMs = REQUEST_TIMEOUT_MS }: ProxyRequest): Promise<T> {
+async function executeRequest<T>({ endpoint, method, body, timeoutMs = REQUEST_TIMEOUT_MS }: ProxyRequest): Promise<T> {
   if (!API_BASE_URL) {
     throw new Error("API_ORIGIN_UNAVAILABLE: configure VITE_API_URL para o backend oficial");
   }
@@ -610,6 +698,33 @@ async function request<T>({ endpoint, method, body, timeoutMs = REQUEST_TIMEOUT_
   throw new Error("Falha de comunicação com o backend");
 }
 
+async function request<T>(params: ProxyRequest): Promise<T> {
+  if (params.method !== "GET") {
+    return executeRequest<T>(params);
+  }
+
+  const normalizedEndpoint = (() => {
+    if (!/^https?:\/\//i.test(params.endpoint)) return params.endpoint;
+
+    try {
+      const parsed = new URL(params.endpoint);
+      return `${parsed.pathname}${parsed.search}`;
+    } catch {
+      return params.endpoint;
+    }
+  })();
+  const requestKey = `${normalizedEndpoint}::${params.timeoutMs ?? REQUEST_TIMEOUT_MS}`;
+  const pending = pendingGetRequests.get(requestKey);
+
+  if (pending) return pending as Promise<T>;
+
+  const nextRequest = executeRequest<T>(params).finally(() => {
+    pendingGetRequests.delete(requestKey);
+  });
+  pendingGetRequests.set(requestKey, nextRequest);
+  return nextRequest;
+}
+
 function resolvePublicUrlFromApiBase(): string {
   if (API_ORIGIN) return API_ORIGIN;
   return "";
@@ -624,8 +739,9 @@ function normalizeIdentifier(value: string | number | null | undefined): string 
 function extractChatIdentifier(value: string | number | null | undefined): string | undefined {
   const raw = String(value ?? "").trim().toLowerCase();
   if (!raw) return undefined;
-  if (raw.includes("@g.us") || raw.includes("@s.whatsapp.net")) return raw;
+  if (raw.includes("@g.us") || raw.includes("@lid")) return raw;
   const digits = raw.replace(/\D/g, "");
+  if (digits.length >= 14 && !digits.startsWith("55")) return `${digits}@lid`;
   return digits || undefined;
 }
 
@@ -653,7 +769,7 @@ function normalizeConversation(item: RawConversation, index: number): Conversati
     contactName: item.contactName ?? item.name ?? item.pushName ?? resolvedPhone ?? "Contato",
     avatar: item.avatar ?? item.profilePictureUrl ?? item.profile_picture_url,
     isGroup: item.isGroup ?? resolvedPhone.includes("@g.us"),
-    lastMessage: item.lastMessage ?? item.last_message ?? "",
+    lastMessage: sanitizeLegacyPlaceholder(item.lastMessage ?? item.last_message ?? "", String(normalizedType)),
     updatedAt: item.updatedAt ?? item.updated_at ?? new Date().toISOString(),
     phone: resolvedPhone,
     unread: item.unread ?? item.unread_count ?? item.unreadCount ?? 0,
@@ -661,40 +777,70 @@ function normalizeConversation(item: RawConversation, index: number): Conversati
     tags: item.tags ?? [],
     isAI: item.isAI ?? false,
     lastMessageType:
-      normalizedType === "image" || normalizedType === "video" || normalizedType === "audio" || normalizedType === "file"
-        ? normalizedType
+      normalizedType === "image" || normalizedType === "video" || normalizedType === "audio" || normalizedType === "file" || normalizedType === "sticker" || normalizedType === "document" || normalizedType === "media"
+        ? (normalizedType === "document" || normalizedType === "media" ? "file" : normalizedType)
         : "text",
     aiEnabled: item.aiEnabled ?? item.ai_enabled ?? true,
     summary: item.summary ?? "",
+    notes: item.notes ?? "",
+    funnel_stage: item.funnel_stage,
     controlMode: item.controlMode,
     humanActive: item.humanActive,
+    assignedAgentName: item.agent_name ?? item.assigned_to ?? item.assignedAgentName ?? null,
+    agent_name: item.agent_name ?? item.assigned_to ?? item.assignedAgentName ?? null,
   };
 }
 
 function normalizeMessage(item: RawMessage, index: number, defaultConversationId?: string): ChatMessage {
   const normalizedMediaType = item.mediaType ?? item.type;
   const mediaPath = item.mediaPath ?? item.media_path;
-  const mediaUrl = item.url ?? item.mediaUrl ?? item.media_url;
+  const mediaUrl = item.url ?? item.mediaUrl ?? item.media_url ?? item.fileUrl ?? item.file_url;
   const source = `${mediaPath ?? ""} ${mediaUrl ?? ""}`.toLowerCase();
+  const contentStr = String(item.content ?? item.text ?? item.body ?? item.caption ?? "").toLowerCase();
 
-  const inferredMediaType =
-    normalizedMediaType === "image" || normalizedMediaType === "video" || normalizedMediaType === "audio" || normalizedMediaType === "file"
-      ? normalizedMediaType
-      : /\.(png|jpe?g|webp|gif|bmp|svg)(\?|$)/.test(source)
-        ? "image"
-        : /\.(mp4|mov|avi|mkv|webm|m4v)(\?|$)/.test(source)
-          ? "video"
-          : /\.(mp3|wav|ogg|m4a|aac|opus|webm)(\?|$)/.test(source)
-            ? "audio"
-            : mediaPath || mediaUrl
-              ? "file"
-              : undefined;
+  let inferredMediaType: "image" | "video" | "audio" | "file" | "sticker" | undefined = undefined;
+
+  if (contentStr.includes("[image]")) {
+    inferredMediaType = "image";
+  } else if (contentStr.includes("[video]")) {
+    inferredMediaType = "video";
+  } else if (contentStr.includes("[audio]")) {
+    inferredMediaType = "audio";
+  } else if (contentStr.includes("[sticker]")) {
+    inferredMediaType = "sticker";
+  } else if (contentStr.includes("[document]") || contentStr.includes("[file]")) {
+    inferredMediaType = "file";
+  } else if (/\.(webp)($|\?|#)/.test(source) || source.includes("sticker")) {
+    inferredMediaType = "sticker";
+  } else if (/\.(png|jpe?g|gif|bmp|svg)($|\?|#)/.test(source)) {
+    inferredMediaType = "image";
+  } else if (/\.(mp4|mov|avi|mkv|webm|m4v)($|\?|#)/.test(source)) {
+    inferredMediaType = "video";
+  } else if (/\.(mp3|wav|ogg|m4a|aac|opus)($|\?|#)/.test(source)) {
+    inferredMediaType = "audio";
+  }
+
+  if (!inferredMediaType) {
+    if (
+      normalizedMediaType === "image" ||
+      normalizedMediaType === "video" ||
+      normalizedMediaType === "audio" ||
+      normalizedMediaType === "file" ||
+      normalizedMediaType === "sticker"
+    ) {
+      inferredMediaType = normalizedMediaType;
+    } else if (normalizedMediaType === "document" || normalizedMediaType === "media") {
+      inferredMediaType = "file";
+    } else if (mediaPath || mediaUrl) {
+      inferredMediaType = "file";
+    }
+  }
 
   return {
     id: normalizeIdentifier(item.id as string | number | undefined) ?? `message-${index}`,
     conversationId: normalizeIdentifier((item.conversationId ?? item.conversation_id) as string | number | undefined) ?? defaultConversationId,
     chatId: normalizeIdentifier((item.chatId ?? item.chat_id) as string | number | undefined) ?? extractChatIdentifier(item.remoteJid ?? item.jid),
-    content: item.content ?? item.text ?? item.body ?? item.caption ?? "",
+    content: sanitizeLegacyPlaceholder(item.content ?? item.text ?? item.body ?? item.caption ?? "", inferredMediaType),
     caption: item.caption,
     fromMe: item.fromMe ?? item.sent ?? false,
     createdAt: item.createdAt ?? item.created_at ?? item.time ?? new Date().toISOString(),
@@ -733,6 +879,10 @@ function normalizeSessionInfo(item: RawSession, index: number): SessionInfo {
     phone: item.phone ?? item.phoneNumber ?? item.phone_number,
     connected: item.connected,
     status: item.status,
+    webhookUrl: (item as any).webhookUrl || null,
+    queueCount: (item as any).queueCount || 0,
+    aiAgentName: (item as any).aiAgentName || null,
+    lastActivity: (item as any).lastActivity || null,
   };
 }
 
@@ -849,6 +999,23 @@ function is404Error(error: unknown): boolean {
 }
 
 export const apiService = {
+  async getAdminUsers(): Promise<{ id: number; username: string; email: string | null; role: string }[]> {
+    const res = await request<{ ok: boolean; data: any[] }>({
+      endpoint: "/api/admin/users",
+      method: "GET",
+    });
+    return res?.data ?? [];
+  },
+
+  async updateAdminUser(id: number, payload: { email?: string; role?: string; password?: string }): Promise<any> {
+    const res = await request<{ ok: boolean; data: any }>({
+      endpoint: `/api/admin/users/${id}`,
+      method: "PATCH",
+      body: payload,
+    });
+    return res?.data;
+  },
+
   async getPublicUrl() {
     const cacheKey = "public-url";
     const cached = getCache<{ publicUrl: string }>(cacheKey);
@@ -976,14 +1143,19 @@ export const apiService = {
     return { connected: false, lastUpdate: Date.now() };
   },
 
-  async getConversations(forceRefresh = false, options?: { limit?: number }) {
-    const cacheKey = options?.limit ? `conversations:${options.limit}` : "conversations";
+  async getConversations(forceRefresh = false, options?: { limit?: number; sessionId?: string }) {
+    const normalizedSessionId = String(options?.sessionId ?? "").trim();
+    const cacheKey = [
+      "conversations",
+      options?.limit ? `limit:${options.limit}` : "",
+      normalizedSessionId ? `session:${normalizedSessionId}` : "",
+    ].filter(Boolean).join(":");
     if (!forceRefresh) {
       const cached = getCache<Conversation[]>(cacheKey);
       if (cached) return cached;
     }
 
-    const endpoints = [withQuery("/api/conversations", { limit: options?.limit })];
+    const endpoints = [withQuery("/api/conversations", { limit: options?.limit, sessionId: normalizedSessionId })];
 
     let normalized: Conversation[] = [];
     let lastError: unknown = new Error("Falha ao carregar conversas");
@@ -1006,6 +1178,13 @@ export const apiService = {
     return normalized;
   },
 
+  async markConversationRead(conversationId: string) {
+    const endpoint = `/api/conversations/${encodeURIComponent(conversationId)}/read`;
+    const response = await request<{ success: boolean }>({ endpoint, method: "POST" });
+    invalidateCache("conversations");
+    return response;
+  },
+
   async getMessages(conversationId: string, options?: { limit?: number; before?: string }) {
     const primaryEndpoint = withQuery(`/api/conversations/${encodeURIComponent(conversationId)}/messages`, {
       limit: options?.limit,
@@ -1017,8 +1196,16 @@ export const apiService = {
     return entries.map((item, index) => normalizeMessage(item, index, String(conversationId)));
   },
 
+  async getStickers(): Promise<{ id: string; url: string; name: string }[]> {
+    const res = await request<{ stickers: any[]; success: boolean }>({
+      endpoint: "/api/stickers",
+      method: "GET",
+    });
+    return res?.stickers ?? [];
+  },
+
   async sendMessage(payload: { phone: string; text: string; conversationId?: string; contactId?: string; sessionId?: string }) {
-    const response = await request<MessageSendResponse>({ endpoint: "/send-message", method: "POST", body: payload });
+    const response = await request<MessageSendResponse>({ endpoint: "/api/send-message", method: "POST", body: payload });
     invalidateCache("conversations");
     return response;
   },
@@ -1028,7 +1215,7 @@ export const apiService = {
     caption?: string;
     fileName: string;
     mimeType: string;
-    mediaType: "image" | "video" | "audio" | "file";
+    mediaType: "image" | "video" | "audio" | "file" | "sticker";
     dataBase64: string;
     conversationId?: string;
     contactId?: string;
@@ -1036,7 +1223,7 @@ export const apiService = {
   }) {
     const normalizedCaption = (payload.caption ?? "").trim();
     const normalizedBase64 = String(payload.dataBase64 ?? "").trim();
-    const normalizedPhone = String(payload.phone ?? "").replace(/\D/g, "");
+    const normalizedPhone = extractChatIdentifier(payload.phone) ?? "";
 
     if (!normalizedBase64) {
       throw new Error("Arquivo de mídia inválido. Tente selecionar o arquivo novamente.");
@@ -1046,16 +1233,17 @@ export const apiService = {
       throw new Error("Telefone inválido para envio de mídia.");
     }
 
-    const mediaTypeMap: Record<string, "image" | "video" | "audio" | "file"> = {
+    const mediaTypeMap: Record<string, "image" | "video" | "audio" | "document" | "sticker"> = {
       image: "image",
       video: "video",
       audio: "audio",
-      file: "file",
+      file: "document",
+      sticker: "sticker",
     };
-    const mappedType = mediaTypeMap[payload.mediaType] ?? "file";
+    const mappedType = mediaTypeMap[payload.mediaType] ?? "document";
 
     const requestBody: Record<string, unknown> = {
-      chatId: `${normalizedPhone}@s.whatsapp.net`,
+      chatId: normalizedPhone.includes("@") ? normalizedPhone : `${normalizedPhone}@s.whatsapp.net`,
       type: mappedType,
       file: normalizedBase64,
       mediaPath: `upload://${payload.fileName}`,
@@ -1171,6 +1359,40 @@ export const apiService = {
     return data;
   },
 
+  async getAILogs() {
+    return request<{ logs?: AILogEntry[] }>({ endpoint: "/ai/logs", method: "GET" });
+  },
+
+  async getAIMetrics() {
+    return request<AIMetricsResponse>({ endpoint: "/ai/metrics", method: "GET" });
+  },
+
+  testAIMessage: (payload: { message: string; prompt?: string; model?: string; providerId?: string; agentKey?: string; agentName?: string }) =>
+    request<{ success?: boolean; result?: AIConnectionTestResult; error?: string }>({
+      endpoint: "/ai/test",
+      method: "POST",
+      body: payload,
+      timeoutMs: 60_000,
+    }),
+
+  testAIProviders: () =>
+    request<{ success?: boolean; results?: AIConnectionTestResult[]; error?: string }>({
+      endpoint: "/ai/providers/test",
+      method: "POST",
+    }),
+
+  getConversationInsights: (conversationId: string) =>
+    request<Record<string, unknown>>({
+      endpoint: `/api/conversations/${encodeURIComponent(conversationId)}/insights`,
+      method: "GET",
+    }),
+
+  getConversationRuntime: (conversationId: string) =>
+    request<{ conversationId: string; runtime?: { controlMode?: string; aiPausedUntil?: string | null }; success?: boolean }>({
+      endpoint: `/api/conversations/${encodeURIComponent(conversationId)}/runtime`,
+      method: "GET",
+    }),
+
   async enableAI() {
     const data = await request<{ success?: boolean; [key: string]: unknown }>({ endpoint: "/ai/enable", method: "POST" });
     invalidateCache("ai-status");
@@ -1203,6 +1425,38 @@ export const apiService = {
     return data;
   },
 
+  async getAIAgents() {
+    return request<{ success: boolean; agents: any[] }>({ endpoint: "/config/ai-agents", method: "GET" });
+  },
+
+  async createAIAgent(payload: any) {
+    return request<{ success: boolean; agent: any }>({ endpoint: "/config/ai-agents", method: "POST", body: payload });
+  },
+
+  async updateAIAgent(key: string, payload: any) {
+    return request<{ success: boolean; agent: any }>({ endpoint: `/config/ai-agents/${encodeURIComponent(key)}`, method: "PUT", body: payload });
+  },
+
+  async toggleAIAgent(key: string, active: boolean) {
+    return request<{ success: boolean; agent: any }>({ endpoint: `/config/ai-agents/${encodeURIComponent(key)}/active`, method: "PATCH", body: { active } });
+  },
+
+  async deleteAIAgent(key: string) {
+    return request<{ success: boolean; agent: any }>({ endpoint: `/config/ai-agents/${encodeURIComponent(key)}`, method: "DELETE" });
+  },
+
+  async cloneAIAgent(key: string) {
+    return request<{ success: boolean; agent: any }>({ endpoint: `/config/ai-agents/${encodeURIComponent(key)}/clone`, method: "POST" });
+  },
+
+  async getAIEvolution() {
+    return request<{ success: boolean; evolution: any[] }>({ endpoint: "/config/ai/evolution", method: "GET" });
+  },
+
+  async getPipelineLogs() {
+    return request<{ success: boolean; logs: any[] }>({ endpoint: "/config/ai/pipeline-logs", method: "GET" });
+  },
+
   async getBusinessHours(forceRefresh = false) {
     const cacheKey = "business-hours";
     if (!forceRefresh) {
@@ -1215,8 +1469,11 @@ export const apiService = {
     return data;
   },
 
-  saveBusinessHours: (payload: BusinessHoursSettings) =>
-    request<{ success?: boolean }>({ endpoint: "/config/business-hours", method: "POST", body: payload }),
+  async saveBusinessHours(payload: BusinessHoursSettings) {
+    const data = await request<{ success?: boolean }>({ endpoint: "/config/business-hours", method: "POST", body: payload });
+    invalidateCache("business-hours");
+    return data;
+  },
 
   async getAbsenceMessage(forceRefresh = false) {
     const cacheKey = "absence-message";
@@ -1230,8 +1487,11 @@ export const apiService = {
     return data;
   },
 
-  saveAbsenceMessage: (payload: AbsenceMessageSettings) =>
-    request<{ success?: boolean }>({ endpoint: "/config/absence-message", method: "POST", body: payload }),
+  async saveAbsenceMessage(payload: AbsenceMessageSettings) {
+    const data = await request<{ success?: boolean }>({ endpoint: "/config/absence-message", method: "POST", body: payload });
+    invalidateCache("absence-message");
+    return data;
+  },
 
   async getQueueStats(forceRefresh = false) {
     const cacheKey = "queue-stats";
@@ -1260,8 +1520,11 @@ export const apiService = {
     return data;
   },
 
-  saveMemorySettings: (payload: MemorySettings) =>
-    request<{ success?: boolean }>({ endpoint: "/ai/memory", method: "POST", body: payload }),
+  async saveMemorySettings(payload: MemorySettings) {
+    const data = await request<{ success?: boolean }>({ endpoint: "/ai/memory", method: "POST", body: payload });
+    invalidateCache("memory-settings");
+    return data;
+  },
 
   getMemoryAnalytics: () =>
     request<{ success: boolean; data: MemoryAnalytics }>({ endpoint: "/ai/memory/analytics", method: "GET" }),
@@ -1270,6 +1533,9 @@ export const apiService = {
     request<{ success: boolean; data: MemoryEntry[] }>({ endpoint: `/ai/memory/search?q=${encodeURIComponent(query)}`, method: "GET" }),
   getMemoryByContact: (contactId: string) =>
     request<{ success: boolean; data?: any }>({ endpoint: `/ai/conversation-memory/${encodeURIComponent(contactId)}`, method: "GET" }),
+
+  getWebhooks: () =>
+    request<{ tenantId?: string; webhooks?: Array<Record<string, unknown>> }>({ endpoint: "/api/integrations/webhooks", method: "GET" }),
 
   flushMemory: () =>
     request<{ success: boolean; data: { flushed: number } }>({ endpoint: "/ai/memory/flush", method: "POST" }),
@@ -1287,8 +1553,12 @@ export const apiService = {
     return data;
   },
 
-  saveAdvancedAISettings: (payload: AdvancedAISettings) =>
-    request<{ success?: boolean }>({ endpoint: "/config/advanced-ai", method: "POST", body: payload }),
+  async saveAdvancedAISettings(payload: AdvancedAISettings) {
+    const data = await request<{ success?: boolean }>({ endpoint: "/config/advanced-ai", method: "POST", body: payload });
+    invalidateCache("advanced-ai");
+    invalidateCache("ai-status");
+    return data;
+  },
 
   startSession: (input: string | { name: string }) => {
     const rawName = typeof input === "string" ? input : input.name;
@@ -1307,6 +1577,8 @@ export const apiService = {
     request<{ success?: boolean; sessionId?: string }>({ endpoint: "/session/logout", method: "POST", body: { sessionId: normalizeSessionName(sessionId) } }),
   createSession: (sessionId: string) =>
     request<{ success?: boolean; sessionId?: string; qr?: string }>({ endpoint: "/session/start", method: "POST", body: { sessionId: normalizeSessionName(sessionId), name: normalizeSessionName(sessionId) } }),
+  recoverSessions: () =>
+    request<{ success?: boolean; recovered?: string[] }>({ endpoint: "/sessions/recover", method: "POST" }),
   
   async listSessions() {
     const endpoints = ["/api/sessions/status", "/sessions"];
@@ -1399,8 +1671,17 @@ export const apiService = {
     request<Record<string, unknown>>({ endpoint: `/api/campaigns/${encodeURIComponent(campaignId)}/cancel`, method: "POST" }),
   getCampaignDispatchStatus: (campaignId: string) =>
     request<Record<string, unknown>>({ endpoint: `/api/campaigns/${encodeURIComponent(campaignId)}/status`, method: "GET" }),
-  patchConversation: (conversationId: string, payload: { status?: string; lead_temperature?: string; funnel_stage?: string; tags?: string[] }) =>
+  patchConversation: (conversationId: string, payload: { status?: string; lead_temperature?: string; funnel_stage?: string; tags?: string[]; name?: string; notes?: string }) =>
     request<Record<string, unknown>>({ endpoint: `/api/conversations/${encodeURIComponent(conversationId)}`, method: "PATCH", body: payload }),
+  createConversation: (payload: { phone: string; name?: string; sessionId?: string }) => {
+    invalidateCache("conversations");
+    return request<Conversation>({ endpoint: "/api/conversations", method: "POST", body: payload });
+  },
+  async deleteConversation(conversationId: string) {
+    const data = await request<{ success?: boolean }>({ endpoint: `/api/conversations/${encodeURIComponent(conversationId)}`, method: "DELETE" });
+    invalidateCache("conversations");
+    return data;
+  },
   deleteMessage: (messageId: string) =>
     request<{ success?: boolean; messageId?: string }>({ endpoint: `/api/messages/${encodeURIComponent(messageId)}`, method: "DELETE" }),
   forwardMessage: (messageId: string, payload: { phone: string; conversationId?: string; sessionId?: string }) =>
@@ -1421,6 +1702,12 @@ export const apiService = {
   },
   async deleteQuickReply(id: string) {
     return request<any>({ endpoint: `/api/quick-replies/${encodeURIComponent(id)}`, method: "DELETE" });
+  },
+  async getUserProviders() {
+    return request<{ success: boolean; providers: any[] }>({ endpoint: "/config/user-providers", method: "GET" });
+  },
+  async saveUserProvider(payload: { provider: string; api_key: string; model?: string; enabled?: boolean }) {
+    return request<{ success: boolean; provider: any }>({ endpoint: "/config/user-providers", method: "POST", body: payload });
   },
 };
 

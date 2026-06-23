@@ -1,6 +1,8 @@
 const recentMessages = new Set();
 const messageRepository = require('../../repositories/messageRepository');
 const BASE_URL = process.env.PUBLIC_URL || 'http://localhost:4025';
+const { normalizePhone } = require('../whatsapp/shared/identifiers');
+const { normalizeRealtimeMediaType } = require('../whatsapp/media/url');
 
 function buildMediaUrl(mediaPath = '') {
   const rawPath = String(mediaPath || '').trim();
@@ -13,27 +15,18 @@ function buildMediaUrl(mediaPath = '') {
     return rawPath;
   }
 
-  const base = String(BASE_URL).trim().replace(/\/+$/, '');
   const normalizedPath = rawPath.replace(/^\/+/, '');
+  const publicUrl = process.env.PUBLIC_URL;
+  if (!publicUrl || publicUrl.includes('localhost') || publicUrl.includes('127.0.0.1')) {
+    return `/${normalizedPath}`;
+  }
 
+  const base = String(BASE_URL).trim().replace(/\/+$/, '');
   return `${base}/${normalizedPath}`;
 }
 
 function normalizeRealtimeType(type = '') {
-  const normalized = String(type || '').toLowerCase();
-
-  if (normalized === 'document') {
-    return 'file';
-  }
-
-  return normalized || 'text';
-}
-
-function normalizePhone(phone = '') {
-  return String(phone || '')
-    .trim()
-    .replace(/@s\.whatsapp\.net$/i, '')
-    .replace(/\s+/g, '');
+  return normalizeRealtimeMediaType(type);
 }
 
 function sortMessagesAsc(messages = []) {
@@ -144,6 +137,9 @@ function buildRealtimeMessageEnvelope(message = {}) {
       timestamp: resolvedTimestamp,
       type: normalizedType,
       url: message.url || null,
+      sessionId: message.sessionId || message.session_id || null,
+      mimeType: message.mimeType || message.mimetype || null,
+      filename: message.filename || message.fileName || null,
     },
   };
 }
@@ -190,8 +186,7 @@ function emitNewMessage(ioLike, message = {}) {
   const envelope = buildRealtimeMessageEnvelope(ensuredMessage);
 
   if (['image', 'video', 'audio', 'file'].includes(String(envelope?.message?.type || '').toLowerCase()) && !envelope?.message?.url) {
-    console.error('SEM URL:', envelope?.message);
-    return;
+    console.warn('[REALTIME] Media message without URL, emitting anyway:', envelope?.message);
   }
 
   console.log('EMIT:', envelope.message.id);

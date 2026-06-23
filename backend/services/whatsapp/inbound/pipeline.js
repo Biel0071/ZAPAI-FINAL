@@ -19,10 +19,7 @@
  * legacy file no longer uses it we can collapse the duplication.
  */
 
-const {
-  downloadContentFromMessage,
-  downloadMediaMessage,
-} = require('@whiskeysockets/baileys');
+
 const conversationRepository = require('../../../repositories/conversationRepository');
 const messageRepository = require('../../../repositories/messageRepository');
 const messageDedupeService = require('../../messageDedupeService');
@@ -47,25 +44,34 @@ async function downloadMedia(mediaMessage, mediaType) {
     return null;
   }
 
-  const downloaded = await enterpriseMediaService.downloadFromWhatsApp({
-    downloadContentFromMessage,
-    downloadMediaMessage,
-    mediaMessage,
-    mediaType,
-    tenantId: process.env.DEFAULT_COMPANY_ID || 'default',
-  });
+  try {
+    const { downloadContentFromMessage, downloadMediaMessage } = await import('@whiskeysockets/baileys');
 
-  if (!downloaded) {
+    const downloaded = await enterpriseMediaService.downloadFromWhatsApp({
+      downloadContentFromMessage,
+      downloadMediaMessage,
+      mediaMessage,
+      mediaType,
+      tenantId: process.env.DEFAULT_COMPANY_ID || 'default',
+    });
+
+    if (!downloaded) {
+      console.warn(`[MEDIA] downloadFromWhatsApp returned null for type=${mediaType}`);
+      return null;
+    }
+
+    const absoluteUrl = buildMediaUrl(downloaded.url || downloaded.filePath || '');
+    console.log(`[MEDIA] Downloaded ${mediaType}: ${absoluteUrl}`);
+
+    return {
+      ...downloaded,
+      type: normalizeRealtimeMediaType(downloaded.type || mediaType),
+      url: absoluteUrl || null,
+    };
+  } catch (error) {
+    console.error(`[MEDIA] Failed to download ${mediaType}:`, error?.message || error);
     return null;
   }
-
-  const absoluteUrl = buildMediaUrl(downloaded.url || downloaded.filePath || '');
-
-  return {
-    ...downloaded,
-    type: normalizeRealtimeMediaType(downloaded.type || mediaType),
-    url: absoluteUrl || null,
-  };
 }
 
 async function extractIncomingMessage(messageData = {}) {
@@ -79,15 +85,21 @@ async function extractIncomingMessage(messageData = {}) {
     ? (messageData.key?.participant || messageData.participant || messageData.pushName || null)
     : null;
 
-  if (!phone || (!phone.endsWith('@s.whatsapp.net') && !phone.endsWith('@g.us'))) {
+  if (!phone || (!phone.endsWith('@s.whatsapp.net') && !phone.endsWith('@g.us') && !phone.endsWith('@lid'))) {
     return null;
   }
 
   const normalizedMessage = unwrapMessageContent(messageData.message || {});
   const { mediaMessage, mediaType } = getMediaDescriptor(normalizedMessage);
   const text = extractMessageText(messageData);
-  const mediaInfo = mediaMessage ? await downloadMedia(mediaMessage, mediaType) : null;
+  let mediaInfo = null;
+  try {
+    mediaInfo = mediaMessage ? await downloadMedia(mediaMessage, mediaType) : null;
+  } catch (error) {
+    console.error('[PIPELINE] Media download failed during extraction:', error?.message || error);
+  }
   const mediaPath = mediaInfo?.filePath || null;
+  const mediaUrl = mediaInfo?.url || null;
 
   return {
     companyId: process.env.DEFAULT_COMPANY_ID || 'default',
@@ -95,6 +107,7 @@ async function extractIncomingMessage(messageData = {}) {
     fileName: mediaInfo?.fileName || null,
     isGroup,
     mediaPath,
+    mediaUrl,
     mediaType,
     mimeType: mediaInfo?.mimeType || null,
     name,
@@ -104,6 +117,7 @@ async function extractIncomingMessage(messageData = {}) {
     text,
     timestamp: new Date(timestamp).toISOString(),
     type: mediaInfo?.type || mediaType || 'text',
+    hash: mediaInfo?.hash || null,
   };
 }
 
@@ -134,6 +148,13 @@ function formatInboundSavedMessage(result = {}, fallback = {}) {
       fallback.timestamp ||
       new Date().toISOString(),
     whatsappMessageId: fallback.id || null,
+    mediaPath: result.message.mediaPath || fallback.mediaPath || null,
+    mediaType: result.message.mediaType || result.message.type || fallback.mediaType || fallback.type || null,
+    mimeType: result.message.mimeType || fallback.mimeType || null,
+    fileName: result.message.fileName || fallback.fileName || null,
+    size: result.message.size || fallback.size || null,
+    mediaUrl: result.message.mediaUrl || result.message.url || fallback.mediaUrl || fallback.url || null,
+    url: result.message.url || result.message.mediaUrl || fallback.url || fallback.mediaUrl || null,
   };
 }
 
@@ -182,7 +203,7 @@ function shouldProcessRealtimeMessage(session, dedupeKey) {
 
 function shouldProcessGlobalMessageId(messageId = '') {
   // Bugfix#3: unified TTL-based dedupe shared with messagesController.
-  return messageDedupeService.markSeen('inbound', messageId);
+  return messageDedupeService.markSeen('inbound_event', messageId);
 }
 
 async function persistRealtimeMessage({ incomingMessage, sessionId }) {
@@ -192,20 +213,31 @@ async function persistRealtimeMessage({ incomingMessage, sessionId }) {
     return null;
   }
 
+  if (payload.mediaType) {
+    console.log(`[MEDIA] [MEDIA_RECEIVED] Inbound media detected: type=${payload.mediaType} mimeType=${payload.mimeType}`);
+    console.log(`[MEDIA] [MEDIA_PATH] File path: ${payload.mediaPath}`);
+    console.log(`[MEDIA] [MEDIA_URL] URL: ${payload.mediaUrl}`);
+    console.log(`[MEDIA] [MEDIA_STATUS] Download status: ${payload.mediaPath ? 'SUCCESS' : 'FAILED'}`);
+  }
+
   return enterpriseMessageService.persistInboundMessage({
     companyId: payload.companyId,
+    fileName: payload.fileName,
     fromMe: Boolean(incomingMessage.key?.fromMe),
     mediaPath: payload.mediaPath,
     mediaType: payload.mediaType,
+    mimeType: payload.mimeType,
     name: payload.name,
     participant: payload.participant,
     phone: payload.phone,
     sessionId,
+    size: payload.size,
     status: incomingMessage.key?.fromMe ? 'sent' : 'received',
     text: payload.text,
     timestamp: payload.timestamp || new Date().toISOString(),
     type: payload.type,
-    url: payload.mediaPath,
+    url: payload.mediaUrl || payload.mediaPath,
+    hash: payload.hash || null,
   });
 }
 
@@ -216,12 +248,25 @@ async function persistInboundMessageFallback(sessionId, incomingMessage, debugPa
     return null;
   }
 
-  const text = debugPayload.text || '[media]';
+  const { mediaType } = getMediaDescriptor(incomingMessage?.message || {});
+  let resolvedType = mediaType;
+  if (!resolvedType && debugPayload.text === '[media]') {
+    const msgKeys = Object.keys(unwrapMessageContent(incomingMessage?.message || {}));
+    if (msgKeys.some(k => k.includes('image') || k.includes('Image'))) resolvedType = 'image';
+    else if (msgKeys.some(k => k.includes('video') || k.includes('Video'))) resolvedType = 'video';
+    else if (msgKeys.some(k => k.includes('audio') || k.includes('Audio'))) resolvedType = 'audio';
+    else if (msgKeys.some(k => k.includes('sticker') || k.includes('Sticker'))) resolvedType = 'sticker';
+    else resolvedType = 'media';
+  }
+  if (!resolvedType) resolvedType = 'text';
+
+  const text = debugPayload.text || (resolvedType !== 'text' ? `[${resolvedType}]` : '');
+
   const conversation = await conversationRepository.findOrCreateConversationByPhone({
     companyId: process.env.DEFAULT_COMPANY_ID || 'default',
     contactName: incomingMessage.pushName || phone,
     lastMessage: text,
-    lastMessageType: text === '[media]' ? 'media' : 'text',
+    lastMessageType: resolvedType,
     phone,
     sessionId,
   });
@@ -231,7 +276,7 @@ async function persistInboundMessageFallback(sessionId, incomingMessage, debugPa
     conversationId: conversation.id,
     createdAt: new Date(debugPayload.timestamp).toISOString(),
     fromMe: false,
-    messageType: text === '[media]' ? 'media' : 'text',
+    messageType: resolvedType,
     phone,
     sessionId,
     status: 'received',
@@ -248,7 +293,7 @@ async function persistInboundMessageFallback(sessionId, incomingMessage, debugPa
     conversation.id,
     {
       lastMessage: text,
-      lastMessageType: text === '[media]' ? 'media' : 'text',
+      lastMessageType: resolvedType,
       session_id: sessionId,
       status: 'open',
       unreadCount: (Number(conversation.unreadCount) || 0) + 1,

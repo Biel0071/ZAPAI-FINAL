@@ -151,6 +151,8 @@ async function sendAutomatedConversationMessage({ conversation, store, text }) {
 
   const persistedResult = await registerOutgoingMessage(store, {
     companyId: conversation.company_id,
+    contactId: conversation.contactId || conversation.contact_id,
+    conversationId,
     mediaPath: null,
     mediaType: 'text',
     name: conversation.name || conversation.phone,
@@ -686,6 +688,7 @@ async function listConversationControls(req, res) {
       assigned_to: conv.agent_name || 'Camila',
       tags: conv.tags || [],
       summary: conv.summary || '',
+      notes: conv.notes || '',
       updated_at: conv.updatedAt,
     }));
     return res.status(200).json(mapped);
@@ -696,7 +699,7 @@ async function listConversationControls(req, res) {
 
 async function upsertConversationControl(req, res) {
   try {
-    const { conversation_id, conversationId, ai_enabled, aiEnabled, assigned_to, tags, summary } = req.body || {};
+    const { conversation_id, conversationId, ai_enabled, aiEnabled, assigned_to, notes, tags, summary } = req.body || {};
     const targetId = conversationId || conversation_id;
 
     if (!targetId) {
@@ -707,6 +710,7 @@ async function upsertConversationControl(req, res) {
     if (typeof aiEnabled !== 'undefined') fields.aiEnabled = Boolean(aiEnabled);
     else if (typeof ai_enabled !== 'undefined') fields.aiEnabled = Boolean(ai_enabled);
     if (typeof summary !== 'undefined') fields.summary = summary;
+    if (typeof notes !== 'undefined') fields.notes = notes;
     if (Array.isArray(tags)) fields.tags = tags;
     if (typeof assigned_to !== 'undefined') fields.agent_name = assigned_to;
 
@@ -723,6 +727,7 @@ async function upsertConversationControl(req, res) {
       assigned_to: updated.agent_name || 'Camila',
       tags: updated.tags || [],
       summary: updated.summary || '',
+      notes: updated.notes || '',
       updated_at: updated.updatedAt,
     };
 
@@ -750,6 +755,7 @@ async function getConversationControl(req, res) {
       assigned_to: conv.agent_name || 'Camila',
       tags: conv.tags || [],
       summary: conv.summary || '',
+      notes: conv.notes || '',
       updated_at: conv.updatedAt,
     };
     return res.status(200).json(responsePayload);
@@ -769,7 +775,8 @@ async function updateConversationMeta(req, res) {
     'tags',
     'summary',
     'agent_name',
-    'aiEnabled'
+    'aiEnabled',
+    'notes'
   ];
 
   for (const field of allowedFields) {
@@ -779,6 +786,23 @@ async function updateConversationMeta(req, res) {
   }
 
   try {
+    if (typeof req.body.name !== 'undefined') {
+      const { query } = require('../config/database');
+      const conv = await conversationRepository.getConversationById(conversationId);
+      if (conv) {
+        if (conv.lead_id) {
+          await query('UPDATE leads SET name = $1 WHERE id = $2', [req.body.name, conv.lead_id]);
+        }
+        if (conv.phone) {
+          const companyId = req.auth?.tenantId || process.env.DEFAULT_COMPANY_ID || 'default';
+          await query(
+            'UPDATE contacts SET name = $1 WHERE phone = $2 AND company_id = $3',
+            [req.body.name, conv.phone, companyId]
+          ).catch(() => {});
+        }
+      }
+    }
+
     const updated = await conversationRepository.updateConversationState(conversationId, fields);
 
     if (!updated) {
@@ -805,9 +829,35 @@ async function updateConversationMeta(req, res) {
   }
 }
 
+async function deleteConversation(req, res) {
+  try {
+    const { conversationId } = req.params;
+    const store = getStore(req);
+
+    const success = await conversationRepository.deleteConversation(conversationId);
+
+    if (store) {
+      if (Array.isArray(store.conversations)) {
+        store.conversations = store.conversations.filter(c => c.id !== conversationId);
+      }
+      if (Array.isArray(store.messages)) {
+        store.messages = store.messages.filter(m => m.conversationId !== conversationId);
+      }
+    }
+
+    const io = req.app.get('io') || global.io;
+    io?.emit('conversation:deleted', { conversationId });
+
+    return res.status(200).json({ success });
+  } catch (error) {
+    return res.status(500).json({ error: error.message || 'Failed to delete conversation.' });
+  }
+}
+
 module.exports = {
   clearConversationDraft,
   createConversation,
+  deleteConversation,
   generateBilling,
   generateProfileCard,
   getBillingDetails,

@@ -18,8 +18,8 @@ import { API_ORIGIN } from "@/lib/backendConfig";
 
 injectRuntimeHardening(zapaiBuildInfo.hash);
 
-if (typeof String.prototype.replaceAll !== "function") {
-  String.prototype.replaceAll = function (
+if (typeof (String.prototype as any).replaceAll !== "function") {
+  (String.prototype as any).replaceAll = function (
     search: string | RegExp,
     replacement: string | ((match: string, ...args: unknown[]) => string),
   ): string {

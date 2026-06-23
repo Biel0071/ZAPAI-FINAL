@@ -10,21 +10,19 @@ Telas que levaram mais de 1.0 segundo para renderização inicial e sincronismo 
 
 | Tela | Tempo de Carga | Status |
 |---|---|---|
-| `/contacts` | `1653ms` | 🟢 OK |
-| `/diagnostics` | `1394ms` | 🟢 OK |
-| `/ai` | `1358ms` | 🟢 OK |
-| `/nodes` | `1342ms` | 🟢 OK |
-| `/inbox` | `1271ms` | 🟢 OK |
-| `/connections` | `1230ms` | 🟢 OK |
-| `/analytics` | `1228ms` | 🟢 OK |
-| `/flows` | `1224ms` | 🟢 OK |
-| `/campaigns` | `1220ms` | 🟢 OK |
-| `/users` | `1219ms` | 🟢 OK |
-| `/deployments` | `1217ms` | 🟢 OK |
-| `/settings` | `1206ms` | 🟢 OK |
-| `/memory` | `1174ms` | 🟢 OK |
-| `/logs` | `1100ms` | 🟢 OK |
-| `/dashboard` | `1093ms` | 🟢 OK |
+| `/contacts` | `1536ms` | 🟢 OK |
+| `/ai` | `1368ms` | 🔴 Falha |
+| `/connections` | `1313ms` | 🟢 OK |
+| `/flows` | `1280ms` | 🟢 OK |
+| `/dashboard` | `1201ms` | 🟢 OK |
+| `/diagnostics` | `1193ms` | 🟢 OK |
+| `/deployments` | `1154ms` | 🟢 OK |
+| `/analytics` | `1150ms` | 🟢 OK |
+| `/memory` | `1108ms` | 🟢 OK |
+| `/users` | `1074ms` | 🟢 OK |
+| `/campaigns` | `1063ms` | 🟢 OK |
+| `/logs` | `1054ms` | 🟢 OK |
+| `/nodes` | `1040ms` | 🟢 OK |
 
 
 **Sugestão:** Implementar skeletons de carregamento eficientes e adiar o fetch de logs ou dados históricos pesados nas telas Master.
@@ -68,44 +66,6 @@ Rotas com maiores violações de contraste ou falta de tags de acessibilidade (c
 
 
 
-### Rota: `/inbox` (7 violações)
-
-* **Regra:** `aria-required-children` (Impacto: **critical**)
-  - *Descrição:* Ensure elements with an ARIA role that require child roles contain them (`Certain ARIA roles must contain particular children`)
-  - *Afetados:* 1 elementos.
-
-
-* **Regra:** `aria-valid-attr-value` (Impacto: **critical**)
-  - *Descrição:* Ensure all ARIA attributes have valid values (`ARIA attributes must conform to valid values`)
-  - *Afetados:* 1 elementos.
-
-
-* **Regra:** `button-name` (Impacto: **critical**)
-  - *Descrição:* Ensure buttons have discernible text (`Buttons must have discernible text`)
-  - *Afetados:* 1 elementos.
-
-
-* **Regra:** `color-contrast` (Impacto: **serious**)
-  - *Descrição:* Ensure the contrast between foreground and background colors meets WCAG 2 AA minimum contrast ratio thresholds (`Elements must meet minimum color contrast ratio thresholds`)
-  - *Afetados:* 15 elementos.
-
-
-* **Regra:** `heading-order` (Impacto: **moderate**)
-  - *Descrição:* Ensure the order of headings is semantically correct (`Heading levels should only increase by one`)
-  - *Afetados:* 1 elementos.
-
-
-* **Regra:** `landmark-complementary-is-top-level` (Impacto: **moderate**)
-  - *Descrição:* Ensure the complementary landmark or aside is at top level (`Aside should not be contained in another landmark`)
-  - *Afetados:* 1 elementos.
-
-
-* **Regra:** `landmark-unique` (Impacto: **moderate**)
-  - *Descrição:* Ensure landmarks are unique (`Landmarks should have a unique role or role/label/title (i.e. accessible name) combination`)
-  - *Afetados:* 1 elementos.
-
-
-
 ### Rota: `/connections` (4 violações)
 
 * **Regra:** `button-name` (Impacto: **critical**)
@@ -115,7 +75,7 @@ Rotas com maiores violações de contraste ou falta de tags de acessibilidade (c
 
 * **Regra:** `color-contrast` (Impacto: **serious**)
   - *Descrição:* Ensure the contrast between foreground and background colors meets WCAG 2 AA minimum contrast ratio thresholds (`Elements must meet minimum color contrast ratio thresholds`)
-  - *Afetados:* 26 elementos.
+  - *Afetados:* 3 elementos.
 
 
 * **Regra:** `heading-order` (Impacto: **moderate**)
@@ -133,7 +93,7 @@ Rotas com maiores violações de contraste ou falta de tags de acessibilidade (c
 
 * **Regra:** `button-name` (Impacto: **critical**)
   - *Descrição:* Ensure buttons have discernible text (`Buttons must have discernible text`)
-  - *Afetados:* 130 elementos.
+  - *Afetados:* 36 elementos.
 
 
 * **Regra:** `color-contrast` (Impacto: **serious**)
@@ -180,7 +140,7 @@ Rotas com maiores violações de contraste ou falta de tags de acessibilidade (c
 
 
 
-### Rota: `/ai` (4 violações)
+### Rota: `/ai` (7 violações)
 
 * **Regra:** `button-name` (Impacto: **critical**)
   - *Descrição:* Ensure buttons have discernible text (`Buttons must have discernible text`)
@@ -189,7 +149,7 @@ Rotas com maiores violações de contraste ou falta de tags de acessibilidade (c
 
 * **Regra:** `color-contrast` (Impacto: **serious**)
   - *Descrição:* Ensure the contrast between foreground and background colors meets WCAG 2 AA minimum contrast ratio thresholds (`Elements must meet minimum color contrast ratio thresholds`)
-  - *Afetados:* 1 elementos.
+  - *Afetados:* 2 elementos.
 
 
 * **Regra:** `heading-order` (Impacto: **moderate**)
@@ -200,6 +160,21 @@ Rotas com maiores violações de contraste ou falta de tags de acessibilidade (c
 * **Regra:** `landmark-complementary-is-top-level` (Impacto: **moderate**)
   - *Descrição:* Ensure the complementary landmark or aside is at top level (`Aside should not be contained in another landmark`)
   - *Afetados:* 1 elementos.
+
+
+* **Regra:** `landmark-main-is-top-level` (Impacto: **moderate**)
+  - *Descrição:* Ensure the main landmark is at top level (`Main landmark should not be contained in another landmark`)
+  - *Afetados:* 1 elementos.
+
+
+* **Regra:** `landmark-no-duplicate-main` (Impacto: **moderate**)
+  - *Descrição:* Ensure the document has at most one main landmark (`Document should not have more than one main landmark`)
+  - *Afetados:* 1 elementos.
+
+
+* **Regra:** `landmark-unique` (Impacto: **moderate**)
+  - *Descrição:* Ensure landmarks are unique (`Landmarks should have a unique role or role/label/title (i.e. accessible name) combination`)
+  - *Afetados:* 2 elementos.
 
 
 
@@ -222,15 +197,15 @@ Rotas com maiores violações de contraste ou falta de tags de acessibilidade (c
 
 * **Regra:** `svg-img-alt` (Impacto: **serious**)
   - *Descrição:* Ensure <svg> elements with an img, graphics-document or graphics-symbol role have accessible text (`<svg> elements with an img role must have alternative text`)
-  - *Afetados:* 3 elementos.
+  - *Afetados:* 2 elementos.
 
 
 
-### Rota: `/campaigns` (4 violações)
+### Rota: `/campaigns` (5 violações)
 
 * **Regra:** `button-name` (Impacto: **critical**)
   - *Descrição:* Ensure buttons have discernible text (`Buttons must have discernible text`)
-  - *Afetados:* 1 elementos.
+  - *Afetados:* 36 elementos.
 
 
 * **Regra:** `color-contrast` (Impacto: **serious**)
@@ -246,6 +221,11 @@ Rotas com maiores violações de contraste ou falta de tags de acessibilidade (c
 * **Regra:** `landmark-complementary-is-top-level` (Impacto: **moderate**)
   - *Descrição:* Ensure the complementary landmark or aside is at top level (`Aside should not be contained in another landmark`)
   - *Afetados:* 1 elementos.
+
+
+* **Regra:** `nested-interactive` (Impacto: **serious**)
+  - *Descrição:* Ensure interactive controls are not nested as they are not always announced by screen readers or can cause focus problems for assistive technologies (`Interactive controls must not be nested`)
+  - *Afetados:* 35 elementos.
 
 
 

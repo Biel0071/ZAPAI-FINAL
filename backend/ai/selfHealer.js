@@ -6,7 +6,7 @@ const { replicatePage } = require('./pageReplicator');
 const { isDeniedText } = require('./safeCodeRules');
 
 const PROJECT_ROOT = path.resolve(__dirname, '..', '..', '..');
-const FRONTEND_SRC = path.join(PROJECT_ROOT, 'frontend', 'src');
+const FRONTEND_SRC = path.join(PROJECT_ROOT, 'frontend-official', 'src');
 const GENERATED_ROUTES_FILE = path.join(__dirname, '..', 'routes', 'aiGeneratedFixes.js');
 
 async function exists(filePath) {

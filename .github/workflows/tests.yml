@@ -23,6 +23,10 @@ jobs:
         working-directory: ./frontend-official
         run: npm ci
 
+      - name: Run Frontend Type Check (TSC)
+        working-directory: ./frontend-official
+        run: npm run tsc
+
       - name: Build Frontend
         working-directory: ./frontend-official
         run: npm run build

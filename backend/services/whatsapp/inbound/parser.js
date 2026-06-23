@@ -65,6 +65,10 @@ function getMediaDescriptor(message = {}) {
     return { mediaMessage: normalizedMessage.documentMessage, mediaType: 'document' };
   }
 
+  if (normalizedMessage.stickerMessage) {
+    return { mediaMessage: normalizedMessage.stickerMessage, mediaType: 'sticker' };
+  }
+
   return { mediaMessage: null, mediaType: null };
 }
 

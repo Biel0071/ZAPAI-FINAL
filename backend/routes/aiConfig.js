@@ -16,6 +16,13 @@ router.get('/config/ai-agents', aiConfigController.getAIAgents);
 router.post('/config/ai-agents', aiConfigController.createAIAgent);
 router.put('/config/ai-agents/:key', aiConfigController.updateAIAgent);
 router.patch('/config/ai-agents/:key/active', aiConfigController.toggleAIAgent);
+router.delete('/config/ai-agents/:key', aiConfigController.deleteAIAgent);
+router.post('/config/ai-agents/:key/clone', aiConfigController.cloneAIAgent);
+router.get('/config/ai/evolution', aiConfigController.getAIEvolution);
+router.get('/config/ai/pipeline-logs', aiConfigController.getPipelineLogs);
+
+router.get('/config/user-providers', aiConfigController.getUserProviders);
+router.post('/config/user-providers', aiConfigController.saveUserProvider);
 
 router.get('/queue', aiConfigController.getQueue);
 router.post('/queue/process', aiConfigController.processQueue);

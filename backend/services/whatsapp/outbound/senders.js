@@ -161,6 +161,18 @@ async function sendDocument(sock, phone, docPath, fileName, mimetype) {
   );
 }
 
+async function sendSticker(sock, phone, stickerPath) {
+  ensureSocket(sock);
+
+  return sendWithRetry(
+    () =>
+      sock.sendMessage(ensureWhatsAppJid(phone), {
+        sticker: toMediaPayload(stickerPath),
+      }),
+    3
+  );
+}
+
 async function sendMediaMessage(
   sock,
   phone,
@@ -177,8 +189,10 @@ async function sendMediaMessage(
       return sendAudio(sock, phone, mediaPath, ptt, mimetype);
     case 'document':
       return sendDocument(sock, phone, mediaPath, fileName, mimetype);
+    case 'sticker':
+      return sendSticker(sock, phone, mediaPath);
     default:
-      throw new Error('Unsupported mediaType. Use image, video, audio, or document.');
+      throw new Error('Unsupported mediaType. Use image, video, audio, document, or sticker.');
   }
 }
 
@@ -190,6 +204,7 @@ module.exports = {
   sendImage,
   sendMediaMessage,
   sendMessage,
+  sendSticker,
   sendVideo,
   sendWithRetry,
 };

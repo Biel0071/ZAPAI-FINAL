@@ -58,10 +58,49 @@ export function getRunningProcesses() {
       "ConvertTo-Json -InputObject @($procs) -Depth 3 -Compress",
     ].join("; ");
 
-    const raw = execFileSync("powershell.exe", ["-NoProfile", "-Command", script], {
-      cwd: repoRoot,
-      encoding: "utf8",
-    });
+    let raw = "";
+    try {
+      raw = execFileSync("powershell.exe", ["-NoProfile", "-Command", script], {
+        cwd: repoRoot,
+        encoding: "utf8",
+      });
+    } catch {
+      let tasklist = "";
+      try {
+        tasklist = execFileSync("tasklist.exe", ["/FO", "CSV", "/NH"], {
+          cwd: repoRoot,
+          encoding: "utf8",
+        });
+      } catch {
+        return [
+          {
+            pid: process.pid,
+            ppid: process.ppid,
+            name: path.basename(process.execPath),
+            commandLine: process.argv.join(" "),
+          },
+        ];
+      }
+
+      return tasklist
+        .split(/\r?\n/)
+        .map((line) => line.trim())
+        .filter(Boolean)
+        .map((line) => {
+          const columns = line
+            .match(/("([^"]|"")*"|[^,]+)/g)
+            ?.map((value) => value.replace(/^"|"$/g, "").replaceAll('""', '"')) || [];
+          const name = columns[0] || "";
+          const pid = Number(columns[1]);
+          return {
+            pid,
+            ppid: Number.NaN,
+            name: safeTrim(name),
+            commandLine: "",
+          };
+        })
+        .filter((item) => Number.isFinite(item.pid));
+    }
 
     const trimmed = raw.trim();
     const cleaned = trimmed.replace(/[\x00-\x1F]/g, (m) => m === '\n' ? '\\n' : m === '\r' ? '\\r' : m === '\t' ? '\\t' : '');
@@ -106,10 +145,36 @@ export function getListeningPorts() {
       "ConvertTo-Json -InputObject @($ports) -Depth 3 -Compress",
     ].join("; ");
 
-    const raw = execFileSync("powershell.exe", ["-NoProfile", "-Command", script], {
-      cwd: repoRoot,
-      encoding: "utf8",
-    });
+    let raw = "";
+    try {
+      raw = execFileSync("powershell.exe", ["-NoProfile", "-Command", script], {
+        cwd: repoRoot,
+        encoding: "utf8",
+      });
+    } catch {
+      let netstat = "";
+      try {
+        netstat = execFileSync("netstat.exe", ["-ano", "-p", "TCP"], {
+          cwd: repoRoot,
+          encoding: "utf8",
+        });
+      } catch {
+        return [];
+      }
+
+      return netstat
+        .split(/\r?\n/)
+        .map((line) => line.trim())
+        .filter((line) => /\bLISTENING\b/i.test(line))
+        .map((line) => {
+          const parts = line.split(/\s+/);
+          const localAddress = parts[1] || "";
+          const pid = Number(parts.at(-1));
+          const port = Number(localAddress.split(":").at(-1));
+          return { pid, port };
+        })
+        .filter((item) => Number.isFinite(item.port) && Number.isFinite(item.pid));
+    }
 
     const trimmed = raw.trim();
     const cleaned = trimmed.replace(/[\x00-\x1F]/g, (m) => m === '\n' ? '\\n' : m === '\r' ? '\\r' : m === '\t' ? '\\t' : '');
@@ -280,15 +345,21 @@ export function removePath(targetPath) {
 
 export function cleanRuntimeArtifacts() {
   const removed = [];
+  const cleanDependencyCache = String(process.env.RUNTIME_CLEAN_DEP_CACHE || "").toLowerCase() === "true";
   const candidates = [
-    path.join(frontendDir, "dist"),
-    path.join(frontendDir, "node_modules", ".vite"),
     path.join(repoRoot, "playwright-report"),
     path.join(repoRoot, "test-results"),
     path.join(repoRoot, "coverage"),
     path.join(logsDir, "local-backend.log"),
     path.join(logsDir, "local-frontend.log"),
   ];
+
+  if (cleanDependencyCache) {
+    candidates.push(
+      path.join(frontendDir, "dist"),
+      path.join(frontendDir, "node_modules", ".vite"),
+    );
+  }
 
   for (const candidate of candidates) {
     if (removePath(candidate)) {
@@ -325,9 +396,20 @@ export function spawnDetached(command, args, options = {}) {
 export function startOfficialRuntime() {
   ensureLogsDir();
 
+  const nodeVersion = process.version;
+  const match = nodeVersion.match(/^v(\d+)\.(\d+)\./);
+  const major = match ? parseInt(match[1], 10) : 0;
+  const minor = match ? parseInt(match[2], 10) : 0;
+
+  const backendArgs = [];
+  if (major > 22 || major === 22 || (major === 20 && minor >= 17)) {
+    backendArgs.push("--experimental-require-module");
+  }
+  backendArgs.push(path.join(backendDir, "server.js"));
+
   const backendPid = spawnDetached(
     process.execPath,
-    [path.join(backendDir, "server.js")],
+    backendArgs,
     {
       name: "local-backend",
       cwd: backendDir,
@@ -336,6 +418,15 @@ export function startOfficialRuntime() {
         PORT: String(officialPorts.backend),
         FRONTEND_URL: `http://127.0.0.1:${officialPorts.frontend}`,
         MASTER_API_URL: `http://127.0.0.1:${officialPorts.backend}`,
+        METRICS_TRACKING_INTERVAL_MS: process.env.METRICS_TRACKING_INTERVAL_MS || "120000",
+        RUNTIME_HEARTBEAT_MS: process.env.RUNTIME_HEARTBEAT_MS || "60000",
+        RUNTIME_CLEANUP_MS: process.env.RUNTIME_CLEANUP_MS || "180000",
+        RUNTIME_METRICS_EMIT_MS: process.env.RUNTIME_METRICS_EMIT_MS || "120000",
+        RUNTIME_DIAGNOSTICS_MS: process.env.RUNTIME_DIAGNOSTICS_MS || "180000",
+        WORKER_HEARTBEAT_STALE_MS: process.env.WORKER_HEARTBEAT_STALE_MS || "300000",
+        AI_MEMORY_FLUSH_MS: process.env.AI_MEMORY_FLUSH_MS || "900000",
+        AI_MEMORY_FLUSH_BATCH_SIZE: process.env.AI_MEMORY_FLUSH_BATCH_SIZE || "20",
+        SESSION_WATCHDOG_MS: process.env.SESSION_WATCHDOG_MS || "180000",
       },
     },
   );

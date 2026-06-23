@@ -1,0 +1,4242 @@
+{
+  "totalFilesScanned": 7489,
+  "orphans": [
+    {
+      "file": "backend/ai/acebot.js",
+      "refs": 2,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "backend/ai/agents/architectAgent.js",
+      "refs": 1,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "backend/ai/agents/codeGeneratorAgent.js",
+      "refs": 1,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "backend/ai/agents/modulePlannerAgent.js",
+      "refs": 1,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "backend/ai/agents/testAgent.js",
+      "refs": 1,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "backend/ai/agents/uiAnalyzerAgent.js",
+      "refs": 1,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "backend/ai/chatAssistant.js",
+      "refs": 2,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "backend/ai/codeCurator.js",
+      "refs": 1,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "backend/ai/copilotSuperPrompt.js",
+      "refs": 1,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "backend/ai/devAssistant.js",
+      "refs": 2,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "backend/ai/devCore.js",
+      "refs": 2,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "backend/ai/devPipeline.js",
+      "refs": 3,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "backend/ai/docAnalyzer.js",
+      "refs": 1,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "backend/ai/engines/codeEngine.js",
+      "refs": 1,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "backend/ai/engines/moduleEngine.js",
+      "refs": 1,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "backend/ai/engines/projectAnalyzer.js",
+      "refs": 14,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "backend/ai/engines/uiEngine.js",
+      "refs": 1,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "backend/ai/errorAnalyzer.js",
+      "refs": 3,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "backend/ai/errorLogger.js",
+      "refs": 2,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "backend/ai/featureEngine.js",
+      "refs": 5,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "backend/ai/featureGenerator.js",
+      "refs": 1,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "backend/ai/featureRoadmapGenerator.js",
+      "refs": 4,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "backend/ai/integration/engineClient.js",
+      "refs": 0,
+      "status": "ÓRFÃO",
+      "reason": "Nenhuma referência ou importação detectada"
+    },
+    {
+      "file": "backend/ai/moduleGenerator.js",
+      "refs": 0,
+      "status": "ÓRFÃO",
+      "reason": "Nenhuma referência ou importação detectada"
+    },
+    {
+      "file": "backend/ai/pageLoopGenerator.js",
+      "refs": 2,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "backend/ai/pageReplicator.js",
+      "refs": 5,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "backend/ai/projectAnalyzer.js",
+      "refs": 15,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "backend/ai/saasArchitectEngine.js",
+      "refs": 2,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "backend/ai/safeCodeRules.js",
+      "refs": 2,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "backend/ai/selfHealer.js",
+      "refs": 2,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "backend/ai/systemDiagnostics.js",
+      "refs": 1,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "backend/ai/systemHealthAnalyzer.js",
+      "refs": 3,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "backend/ai/testFailureAnalyzer.js",
+      "refs": 0,
+      "status": "ÓRFÃO",
+      "reason": "Nenhuma referência ou importação detectada"
+    },
+    {
+      "file": "backend/ai/uiAnalyzer.js",
+      "refs": 4,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "backend/ai-agents/agents/camilaAgent.js",
+      "refs": 1,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "backend/ai-agents/agents/juliaAgent.js",
+      "refs": 1,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "backend/ai-agents/agents/pedroAgent.js",
+      "refs": 1,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "backend/ai-agents/agents/rafaelAgent.js",
+      "refs": 1,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "backend/ai-agents/engine/agentSelector.js",
+      "refs": 1,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "backend/ai-agents/engine/delayEngine.js",
+      "refs": 1,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "backend/ai-agents/engine/personalityEngine.js",
+      "refs": 2,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "backend/ai-agents/services/aiAgentService.js",
+      "refs": 2,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "backend/autoBootstrap.js",
+      "refs": 3,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "backend/config/agents.js",
+      "refs": 5,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "backend/config/ai.js",
+      "refs": 75,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "backend/config/aiIntelligenceStorage.js",
+      "refs": 2,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "backend/config/aiToggle.js",
+      "refs": 5,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "backend/config/basePrompt.js",
+      "refs": 3,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "backend/config/businessHours.js",
+      "refs": 3,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "backend/config/database.js",
+      "refs": 45,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "backend/config/ngrok.js",
+      "refs": 4,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "backend/config/promptManager.js",
+      "refs": 6,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "backend/config/runtimeEnv.js",
+      "refs": 2,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "backend/config/storage.js",
+      "refs": 1,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "backend/controllers/acebotController.js",
+      "refs": 2,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "backend/controllers/aiConfigController.js",
+      "refs": 3,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "backend/controllers/aiController.js",
+      "refs": 3,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "backend/controllers/aiIntelligenceController.js",
+      "refs": 1,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "backend/controllers/analyticsController.js",
+      "refs": 4,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "backend/controllers/automationController.js",
+      "refs": 6,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "backend/controllers/contactsController.js",
+      "refs": 4,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "backend/controllers/conversationsController.js",
+      "refs": 3,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "backend/controllers/integrationsController.js",
+      "refs": 2,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "backend/controllers/leadsController.js",
+      "refs": 2,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "backend/controllers/mediaController.js",
+      "refs": 1,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "backend/controllers/messages/index.js",
+      "refs": 12,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "backend/controllers/messages/media/helpers.js",
+      "refs": 3,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "backend/controllers/messages/realtime/inboxEvents.js",
+      "refs": 3,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "backend/controllers/messages/receive/dedupe.js",
+      "refs": 3,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "backend/controllers/messages/receive/persistMemory.js",
+      "refs": 2,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "backend/controllers/messages/receive/register.js",
+      "refs": 4,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "backend/controllers/messages/send/persistOutgoing.js",
+      "refs": 3,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "backend/controllers/messages/shared.js",
+      "refs": 27,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "backend/controllers/messages/sync/collectionOps.js",
+      "refs": 3,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "backend/controllers/messages/sync/loadMessagesForChat.js",
+      "refs": 3,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "backend/controllers/messagesController.js",
+      "refs": 23,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "backend/controllers/outboundQueueController.js",
+      "refs": 1,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "backend/controllers/quickRepliesController.js",
+      "refs": 1,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "backend/controllers/sessionsController.js",
+      "refs": 3,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "backend/controllers/systemController.js",
+      "refs": 2,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "backend/core/architectureMap.js",
+      "refs": 4,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "backend/core/moduleRegistry.js",
+      "refs": 2,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "backend/delete_all_sessions.js",
+      "refs": 0,
+      "status": "ÓRFÃO",
+      "reason": "Nenhuma referência ou importação detectada"
+    },
+    {
+      "file": "backend/docs/generateArchitectureDoc.js",
+      "refs": 0,
+      "status": "ÓRFÃO",
+      "reason": "Nenhuma referência ou importação detectada"
+    },
+    {
+      "file": "backend/ecosystem.config.js",
+      "refs": 10,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "backend/inbox-core/ai/AIEngineClient.js",
+      "refs": 2,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "backend/inbox-core/ai/AIEventBridge.js",
+      "refs": 2,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "backend/inbox-core/controllers/index.js",
+      "refs": 12,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "backend/inbox-core/inbox/controllers/ConversationInsightsController.js",
+      "refs": 0,
+      "status": "ÓRFÃO",
+      "reason": "Nenhuma referência ou importação detectada"
+    },
+    {
+      "file": "backend/inbox-core/inbox/events/InboxRealtimeService.js",
+      "refs": 1,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "backend/inbox-core/inbox/repositories/ConversationRepository.js",
+      "refs": 2,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "backend/inbox-core/inbox/services/ConversationRuntimeService.js",
+      "refs": 2,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "backend/inbox-core/inbox/services/ConversationService.js",
+      "refs": 2,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "backend/inbox-core/index.js",
+      "refs": 12,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "backend/inbox-core/infrastructure/database/index.js",
+      "refs": 12,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "backend/inbox-core/infrastructure/queue/index.js",
+      "refs": 12,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "backend/inbox-core/infrastructure/realtime/index.js",
+      "refs": 12,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "backend/inbox-core/modules/ai/index.js",
+      "refs": 12,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "backend/inbox-core/modules/analytics/index.js",
+      "refs": 12,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "backend/inbox-core/modules/automation/index.js",
+      "refs": 12,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "backend/inbox-core/modules/campaigns/index.js",
+      "refs": 12,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "backend/inbox-core/modules/contacts/index.js",
+      "refs": 12,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "backend/inbox-core/modules/index.js",
+      "refs": 12,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "backend/inbox-core/modules/messaging/index.js",
+      "refs": 12,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "backend/inbox-core/repositories/index.js",
+      "refs": 12,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "backend/inbox-core/routes/index.js",
+      "refs": 12,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "backend/inbox-core/services/index.js",
+      "refs": 12,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "backend/inbox-core/shared/index.js",
+      "refs": 12,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "backend/inspect_db.js",
+      "refs": 0,
+      "status": "ÓRFÃO",
+      "reason": "Nenhuma referência ou importação detectada"
+    },
+    {
+      "file": "backend/microtasks/createConversation.js",
+      "refs": 2,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "backend/microtasks/createLead.js",
+      "refs": 2,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "backend/microtasks/emitSocketEvent.js",
+      "refs": 1,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "backend/microtasks/saveMessage.js",
+      "refs": 2,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "backend/microtasks/updateConversation.js",
+      "refs": 2,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "backend/microtasks/updateMetrics.js",
+      "refs": 1,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "backend/middleware/apiEnvelope.js",
+      "refs": 1,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "backend/middleware/inputSanitizer.js",
+      "refs": 1,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "backend/middleware/jwtAuth.js",
+      "refs": 2,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "backend/middleware/rateLimiter.js",
+      "refs": 3,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "backend/middleware/requestContext.js",
+      "refs": 2,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "backend/middleware/requestLogger.js",
+      "refs": 2,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "backend/migrations/0000000000000_fake_placeholder.js",
+      "refs": 1,
+      "status": "USADO",
+      "reason": "Migration de banco de dados executada sequencialmente"
+    },
+    {
+      "file": "backend/migrations/001_initial_schema.js",
+      "refs": 1,
+      "status": "USADO",
+      "reason": "Migration de banco de dados executada sequencialmente"
+    },
+    {
+      "file": "backend/migrations/002_seed_data.js",
+      "refs": 1,
+      "status": "USADO",
+      "reason": "Migration de banco de dados executada sequencialmente"
+    },
+    {
+      "file": "backend/migrations/003_admin_master_tables.js",
+      "refs": 1,
+      "status": "USADO",
+      "reason": "Migration de banco de dados executada sequencialmente"
+    },
+    {
+      "file": "backend/migrations/004_master_node_tables.js",
+      "refs": 1,
+      "status": "USADO",
+      "reason": "Migration de banco de dados executada sequencialmente"
+    },
+    {
+      "file": "backend/migrations/005_full_master_schema.js",
+      "refs": 1,
+      "status": "USADO",
+      "reason": "Migration de banco de dados executada sequencialmente"
+    },
+    {
+      "file": "backend/migrations/006_fix_master_node_schema.js",
+      "refs": 1,
+      "status": "USADO",
+      "reason": "Migration de banco de dados executada sequencialmente"
+    },
+    {
+      "file": "backend/migrations/007_system_info.js",
+      "refs": 1,
+      "status": "USADO",
+      "reason": "Migration de banco de dados executada sequencialmente"
+    },
+    {
+      "file": "backend/migrations/008_cluster_engine_tables.js",
+      "refs": 1,
+      "status": "USADO",
+      "reason": "Migration de banco de dados executada sequencialmente"
+    },
+    {
+      "file": "backend/migrations/009_cluster_orchestration.js",
+      "refs": 1,
+      "status": "USADO",
+      "reason": "Migration de banco de dados executada sequencialmente"
+    },
+    {
+      "file": "backend/migrations/010_ai_memory_tables.js",
+      "refs": 1,
+      "status": "USADO",
+      "reason": "Migration de banco de dados executada sequencialmente"
+    },
+    {
+      "file": "backend/migrations/011_production_indexes.js",
+      "refs": 1,
+      "status": "USADO",
+      "reason": "Migration de banco de dados executada sequencialmente"
+    },
+    {
+      "file": "backend/migrations/012_add_session_id_to_contacts.js",
+      "refs": 1,
+      "status": "USADO",
+      "reason": "Migration de banco de dados executada sequencialmente"
+    },
+    {
+      "file": "backend/migrations/013_add_ai_logs.js",
+      "refs": 1,
+      "status": "USADO",
+      "reason": "Migration de banco de dados executada sequencialmente"
+    },
+    {
+      "file": "backend/migrations/014_add_conversation_notes.js",
+      "refs": 1,
+      "status": "USADO",
+      "reason": "Migration de banco de dados executada sequencialmente"
+    },
+    {
+      "file": "backend/migrations/015_merge_duplicate_conversations.js",
+      "refs": 1,
+      "status": "USADO",
+      "reason": "Migration de banco de dados executada sequencialmente"
+    },
+    {
+      "file": "backend/migrations/016_merge_whatsapp_identity_aliases.js",
+      "refs": 1,
+      "status": "USADO",
+      "reason": "Migration de banco de dados executada sequencialmente"
+    },
+    {
+      "file": "backend/modules/analytics/index.js",
+      "refs": 12,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "backend/modules/automation/index.js",
+      "refs": 12,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "backend/modules/campaigns/index.js",
+      "refs": 12,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "backend/modules/contacts/index.js",
+      "refs": 12,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "backend/modules/conversations/index.js",
+      "refs": 12,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "backend/modules/messaging/index.js",
+      "refs": 12,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "backend/query_api.js",
+      "refs": 0,
+      "status": "ÓRFÃO",
+      "reason": "Nenhuma referência ou importação detectada"
+    },
+    {
+      "file": "backend/realtime/socketServer.js",
+      "refs": 0,
+      "status": "ÓRFÃO",
+      "reason": "Nenhuma referência ou importação detectada"
+    },
+    {
+      "file": "backend/repositories/auditLogRepository.js",
+      "refs": 1,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "backend/repositories/campaignRepository.js",
+      "refs": 2,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "backend/repositories/contactRepository.js",
+      "refs": 8,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "backend/repositories/conversationRepository.js",
+      "refs": 21,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "backend/repositories/flowRepository.js",
+      "refs": 1,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "backend/repositories/messageRepository.js",
+      "refs": 17,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "backend/repositories/sessionRepository.js",
+      "refs": 5,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "backend/repositories/systemSettingsRepository.js",
+      "refs": 6,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "backend/repositories/userRepository.js",
+      "refs": 2,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "backend/routes/acebot.js",
+      "refs": 3,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "backend/routes/adminMaster.js",
+      "refs": 4,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "backend/routes/adminUsers.js",
+      "refs": 1,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "backend/routes/ai.js",
+      "refs": 74,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "backend/routes/aiConfig.js",
+      "refs": 3,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "backend/routes/aiGeneratedFixes.js",
+      "refs": 2,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "backend/routes/aiIntelligence.js",
+      "refs": 2,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "backend/routes/analytics.js",
+      "refs": 17,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "backend/routes/auth.js",
+      "refs": 16,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "backend/routes/automation.js",
+      "refs": 10,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "backend/routes/campaignDispatch.js",
+      "refs": 2,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "backend/routes/cluster.js",
+      "refs": 6,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "backend/routes/contacts.js",
+      "refs": 21,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "backend/routes/conversations.js",
+      "refs": 25,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "backend/routes/index.js",
+      "refs": 12,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "backend/routes/integrations.js",
+      "refs": 7,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "backend/routes/leads.js",
+      "refs": 11,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "backend/routes/logs.js",
+      "refs": 50,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "backend/routes/media.js",
+      "refs": 25,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "backend/routes/messages.js",
+      "refs": 21,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "backend/routes/metrics.js",
+      "refs": 24,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "backend/routes/nodeMaster.js",
+      "refs": 2,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "backend/routes/quickReplies.js",
+      "refs": 2,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "backend/routes/sessions.js",
+      "refs": 31,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "backend/routes/system.js",
+      "refs": 55,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "backend/routes/whatsapp.js",
+      "refs": 23,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "backend/scratch_query.js",
+      "refs": 0,
+      "status": "ÓRFÃO",
+      "reason": "Nenhuma referência ou importação detectada"
+    },
+    {
+      "file": "backend/scripts/audit-production-data.js",
+      "refs": 1,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "backend/scripts/check-schema.js",
+      "refs": 0,
+      "status": "ÓRFÃO",
+      "reason": "Nenhuma referência ou importação detectada"
+    },
+    {
+      "file": "backend/scripts/db-clean-mocks.js",
+      "refs": 0,
+      "status": "ÓRFÃO",
+      "reason": "Nenhuma referência ou importação detectada"
+    },
+    {
+      "file": "backend/scripts/db-performance-maintenance.js",
+      "refs": 2,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "backend/scripts/ensure-contacts-table.js",
+      "refs": 0,
+      "status": "ÓRFÃO",
+      "reason": "Nenhuma referência ou importação detectada"
+    },
+    {
+      "file": "backend/scripts/healthcheck.js",
+      "refs": 10,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "backend/scripts/init-database.js",
+      "refs": 2,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "backend/scripts/inspect-tables.js",
+      "refs": 0,
+      "status": "ÓRFÃO",
+      "reason": "Nenhuma referência ou importação detectada"
+    },
+    {
+      "file": "backend/scripts/merge-duplicate-leads.js",
+      "refs": 0,
+      "status": "ÓRFÃO",
+      "reason": "Nenhuma referência ou importação detectada"
+    },
+    {
+      "file": "backend/scripts/protect-whatsapp-sessions.js",
+      "refs": 1,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "backend/scripts/query-db.js",
+      "refs": 0,
+      "status": "ÓRFÃO",
+      "reason": "Nenhuma referência ou importação detectada"
+    },
+    {
+      "file": "backend/scripts/run-migrations.js",
+      "refs": 6,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "backend/scripts/run_automated_tests.js",
+      "refs": 0,
+      "status": "ÓRFÃO",
+      "reason": "Nenhuma referência ou importação detectada"
+    },
+    {
+      "file": "backend/scripts/safe-cleanup-production.js",
+      "refs": 0,
+      "status": "ÓRFÃO",
+      "reason": "Nenhuma referência ou importação detectada"
+    },
+    {
+      "file": "backend/scripts/seed-admin.js",
+      "refs": 3,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "backend/scripts/verify-final.js",
+      "refs": 0,
+      "status": "ÓRFÃO",
+      "reason": "Nenhuma referência ou importação detectada"
+    },
+    {
+      "file": "backend/search_db.js",
+      "refs": 0,
+      "status": "ÓRFÃO",
+      "reason": "Nenhuma referência ou importação detectada"
+    },
+    {
+      "file": "backend/server.js",
+      "refs": 999,
+      "status": "USADO",
+      "reason": "Arquivo de entrypoint principal do runtime"
+    },
+    {
+      "file": "backend/services/activationConfirmationService.js",
+      "refs": 2,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "backend/services/activationLoggerService.js",
+      "refs": 2,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "backend/services/ai.service.js",
+      "refs": 2,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "backend/services/aiConfigService.js",
+      "refs": 2,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "backend/services/aiConversationMemoryService.js",
+      "refs": 3,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "backend/services/aiDiagnosticsService.js",
+      "refs": 3,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "backend/services/aiDocumentationService.js",
+      "refs": 1,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "backend/services/aiEngineeringAnalyzer.js",
+      "refs": 1,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "backend/services/aiInspector/index.js",
+      "refs": 12,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "backend/services/aiIntelligenceService.js",
+      "refs": 7,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "backend/services/aiLearningEngine.js",
+      "refs": 5,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "backend/services/aiLogService.js",
+      "refs": 2,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "backend/services/aiMemoryEngine.js",
+      "refs": 3,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "backend/services/aiResponseEngine.js",
+      "refs": 3,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "backend/services/analyticsService.js",
+      "refs": 4,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "backend/services/automationDecisionEngine.js",
+      "refs": 1,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "backend/services/automationService.js",
+      "refs": 5,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "backend/services/backpressureController.js",
+      "refs": 4,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "backend/services/bugWatcher.js",
+      "refs": 2,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "backend/services/campaignDispatchEngine.js",
+      "refs": 3,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "backend/services/campaignEngine.js",
+      "refs": 6,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "backend/services/campaignRuntime.js",
+      "refs": 5,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "backend/services/campaignService.js",
+      "refs": 2,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "backend/services/connectionService.js",
+      "refs": 1,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "backend/services/connectionService.legacy.js",
+      "refs": 1,
+      "status": "POSSIVELMENTE USADO",
+      "reason": "Arquivo com pouca referência e marcado como legado"
+    },
+    {
+      "file": "backend/services/contactsEngine.js",
+      "refs": 1,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "backend/services/contactsService.js",
+      "refs": 3,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "backend/services/conversationService.js",
+      "refs": 1,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "backend/services/conversationSummarizer.js",
+      "refs": 2,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "backend/services/correlationTracker.js",
+      "refs": 1,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "backend/services/diagnosticsEngine.js",
+      "refs": 1,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "backend/services/emailService.js",
+      "refs": 1,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "backend/services/enterprise/ai-service.js",
+      "refs": 1,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "backend/services/enterprise/cache-service.js",
+      "refs": 1,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "backend/services/enterprise/media-service.js",
+      "refs": 2,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "backend/services/enterprise/message-service.js",
+      "refs": 2,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "backend/services/enterprise/queue-service.js",
+      "refs": 2,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "backend/services/enterprise/realtime-service.js",
+      "refs": 1,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "backend/services/envValidator.js",
+      "refs": 1,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "backend/services/leadAnalyzer.js",
+      "refs": 6,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "backend/services/leadsService.js",
+      "refs": 3,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "backend/services/logger.js",
+      "refs": 12,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "backend/services/messageAckPipeline.js",
+      "refs": 4,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "backend/services/messageAuditService.js",
+      "refs": 3,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "backend/services/messageDedupeService.js",
+      "refs": 5,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "backend/services/messageEmoji.js",
+      "refs": 1,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "backend/services/messageService.js",
+      "refs": 10,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "backend/services/messagingService.js",
+      "refs": 3,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "backend/services/metricsTracker.js",
+      "refs": 6,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "backend/services/microtaskRunner.js",
+      "refs": 4,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "backend/services/migrationRunner.js",
+      "refs": 4,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "backend/services/nodeRegister.js",
+      "refs": 1,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "backend/services/outboundQueueService.js",
+      "refs": 3,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "backend/services/quickReplyService.js",
+      "refs": 1,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "backend/services/realtime/tenantRooms.js",
+      "refs": 2,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "backend/services/retentionService.js",
+      "refs": 1,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "backend/services/runtimeEngine.js",
+      "refs": 4,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "backend/services/runtimeLogger.js",
+      "refs": 2,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "backend/services/runtimeManager.js",
+      "refs": 3,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "backend/services/salesFunnel.js",
+      "refs": 1,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "backend/services/salesStrategyEngine.js",
+      "refs": 1,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "backend/services/sessionManager.js",
+      "refs": 23,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "backend/services/sessionManager.legacy.js",
+      "refs": 3,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "backend/services/sessionRegistry.js",
+      "refs": 6,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "backend/services/sessionStateService.js",
+      "refs": 5,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "backend/services/sessionWatchdog.js",
+      "refs": 2,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "backend/services/socketSafetyGuard.js",
+      "refs": 1,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "backend/services/systemManager.js",
+      "refs": 5,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "backend/services/tenantContext.js",
+      "refs": 2,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "backend/services/webhookService.js",
+      "refs": 4,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "backend/services/websocketGateway.js",
+      "refs": 2,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "backend/services/whatsapp/chat/operations.js",
+      "refs": 2,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "backend/services/whatsapp/connection/logger.js",
+      "refs": 11,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "backend/services/whatsapp/connection/persistence.js",
+      "refs": 3,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "backend/services/whatsapp/connection/qr.js",
+      "refs": 21,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "backend/services/whatsapp/connection/reconnect.js",
+      "refs": 7,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "backend/services/whatsapp/connection/sessionPersistenceValidator.js",
+      "refs": 1,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "backend/services/whatsapp/connection/sock.js",
+      "refs": 13,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "backend/services/whatsapp/connection/stableSession.js",
+      "refs": 5,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "backend/services/whatsapp/inbound/debug.js",
+      "refs": 6,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "backend/services/whatsapp/inbound/parser.js",
+      "refs": 6,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "backend/services/whatsapp/inbound/pipeline.js",
+      "refs": 4,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "backend/services/whatsapp/index.js",
+      "refs": 12,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "backend/services/whatsapp/media/payload.js",
+      "refs": 4,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "backend/services/whatsapp/media/url.js",
+      "refs": 25,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "backend/services/whatsapp/outbound/senders.js",
+      "refs": 2,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "backend/services/whatsapp/persistence/conversation.js",
+      "refs": 4,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "backend/services/whatsapp/realtime/chatState.js",
+      "refs": 4,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "backend/services/whatsapp/realtime/events.js",
+      "refs": 6,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "backend/services/whatsapp/realtime/metrics.js",
+      "refs": 24,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "backend/services/whatsapp/realtime/payloads.js",
+      "refs": 4,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "backend/services/whatsapp/shared/identifiers.js",
+      "refs": 15,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "backend/services/whatsapp/shared/serialization.js",
+      "refs": 3,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "backend/services/whatsapp/shared/time.js",
+      "refs": 40,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "backend/services/whatsapp/state/registry.js",
+      "refs": 9,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "backend/services/whatsappService.js",
+      "refs": 15,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "backend/services/whatsappService.legacy.js",
+      "refs": 24,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "backend/services/workerSupervisor.js",
+      "refs": 2,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "backend/store/messageStore.js",
+      "refs": 6,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "backend/tests/route-smoke.js",
+      "refs": 0,
+      "status": "ÓRFÃO",
+      "reason": "Nenhuma referência ou importação detectada"
+    },
+    {
+      "file": "backend/tests/stabilizationSmokeTest.js",
+      "refs": 0,
+      "status": "ÓRFÃO",
+      "reason": "Nenhuma referência ou importação detectada"
+    },
+    {
+      "file": "backend/tests/testRunner.js",
+      "refs": 5,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "backend/workers/campaignWorker.js",
+      "refs": 1,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "backend/workers/messageWorker.js",
+      "refs": 1,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "frontend-official/src/adapters/lovable/aiAdapter.ts",
+      "refs": 2,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "frontend-official/src/adapters/lovable/analyticsAdapter.ts",
+      "refs": 4,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "frontend-official/src/adapters/lovable/campaignsAdapter.ts",
+      "refs": 1,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "frontend-official/src/adapters/lovable/connectionsAdapter.ts",
+      "refs": 1,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "frontend-official/src/adapters/lovable/contactsAdapter.ts",
+      "refs": 2,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "frontend-official/src/adapters/lovable/dashboardAdapter.ts",
+      "refs": 2,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "frontend-official/src/adapters/lovable/flowsAdapter.ts",
+      "refs": 2,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "frontend-official/src/adapters/lovable/inboxAdapter.ts",
+      "refs": 1,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "frontend-official/src/adapters/lovable/settingsAdapter.ts",
+      "refs": 1,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "frontend-official/src/App.css",
+      "refs": 12,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "frontend-official/src/App.tsx",
+      "refs": 999,
+      "status": "USADO",
+      "reason": "Arquivo de entrypoint principal do runtime"
+    },
+    {
+      "file": "frontend-official/src/components/ai/AILearningDashboard.tsx",
+      "refs": 1,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "frontend-official/src/components/contacts/ContactGrid.tsx",
+      "refs": 3,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "frontend-official/src/components/contacts/ContactSidebar.tsx",
+      "refs": 3,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "frontend-official/src/components/conversations/TemperatureBadge.tsx",
+      "refs": 2,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "frontend-official/src/components/enterprise/OperationalStatusBadge.tsx",
+      "refs": 8,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "frontend-official/src/components/inbox/ChatHeaderBar.tsx",
+      "refs": 1,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "frontend-official/src/components/inbox/ChatSearchBar.tsx",
+      "refs": 2,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "frontend-official/src/components/inbox/NewMessagesBanner.tsx",
+      "refs": 1,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "frontend-official/src/components/layout/Header.tsx",
+      "refs": 22,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "frontend-official/src/components/layout/MainLayout.tsx",
+      "refs": 1,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "frontend-official/src/components/layout/PageFallback.tsx",
+      "refs": 1,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "frontend-official/src/components/layout/Sidebar.tsx",
+      "refs": 7,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "frontend-official/src/components/layout/UnderConstruction.tsx",
+      "refs": 1,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "frontend-official/src/components/NavLink.tsx",
+      "refs": 0,
+      "status": "ÓRFÃO",
+      "reason": "Nenhuma referência ou importação detectada"
+    },
+    {
+      "file": "frontend-official/src/components/system/GlobalErrorBoundary.tsx",
+      "refs": 1,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "frontend-official/src/components/system/InboxRuntimeBoundary.tsx",
+      "refs": 1,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "frontend-official/src/components/system/InboxSectionBoundary.tsx",
+      "refs": 1,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "frontend-official/src/components/system/PageRouteBoundary.tsx",
+      "refs": 1,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "frontend-official/src/components/system/SafeRender.tsx",
+      "refs": 4,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "frontend-official/src/components/theme/ThemeProvider.tsx",
+      "refs": 1,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "frontend-official/src/components/ui/accordion.tsx",
+      "refs": 2,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "frontend-official/src/components/ui/alert-dialog.tsx",
+      "refs": 1,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "frontend-official/src/components/ui/alert.tsx",
+      "refs": 2,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "frontend-official/src/components/ui/aspect-ratio.tsx",
+      "refs": 0,
+      "status": "ÓRFÃO",
+      "reason": "Nenhuma referência ou importação detectada"
+    },
+    {
+      "file": "frontend-official/src/components/ui/avatar.tsx",
+      "refs": 7,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "frontend-official/src/components/ui/badge.tsx",
+      "refs": 23,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "frontend-official/src/components/ui/breadcrumb.tsx",
+      "refs": 1,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "frontend-official/src/components/ui/button.tsx",
+      "refs": 41,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "frontend-official/src/components/ui/calendar.tsx",
+      "refs": 1,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "frontend-official/src/components/ui/card.tsx",
+      "refs": 20,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "frontend-official/src/components/ui/carousel.tsx",
+      "refs": 1,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "frontend-official/src/components/ui/chart.tsx",
+      "refs": 1,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "frontend-official/src/components/ui/checkbox.tsx",
+      "refs": 7,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "frontend-official/src/components/ui/collapsible.tsx",
+      "refs": 4,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "frontend-official/src/components/ui/command.tsx",
+      "refs": 12,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "frontend-official/src/components/ui/context-menu.tsx",
+      "refs": 1,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "frontend-official/src/components/ui/dialog.tsx",
+      "refs": 10,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "frontend-official/src/components/ui/drawer.tsx",
+      "refs": 2,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "frontend-official/src/components/ui/dropdown-menu.tsx",
+      "refs": 7,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "frontend-official/src/components/ui/empty-state.tsx",
+      "refs": 4,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "frontend-official/src/components/ui/error-fallback.tsx",
+      "refs": 0,
+      "status": "ÓRFÃO",
+      "reason": "Nenhuma referência ou importação detectada"
+    },
+    {
+      "file": "frontend-official/src/components/ui/form.tsx",
+      "refs": 14,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "frontend-official/src/components/ui/hover-card.tsx",
+      "refs": 1,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "frontend-official/src/components/ui/input-otp.tsx",
+      "refs": 1,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "frontend-official/src/components/ui/input.tsx",
+      "refs": 18,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "frontend-official/src/components/ui/label.tsx",
+      "refs": 13,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "frontend-official/src/components/ui/loading-skeleton.tsx",
+      "refs": 5,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "frontend-official/src/components/ui/menubar.tsx",
+      "refs": 1,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "frontend-official/src/components/ui/navigation-menu.tsx",
+      "refs": 1,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "frontend-official/src/components/ui/pagination.tsx",
+      "refs": 1,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "frontend-official/src/components/ui/popover.tsx",
+      "refs": 1,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "frontend-official/src/components/ui/progress.tsx",
+      "refs": 2,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "frontend-official/src/components/ui/radio-group.tsx",
+      "refs": 1,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "frontend-official/src/components/ui/resizable.tsx",
+      "refs": 1,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "frontend-official/src/components/ui/scroll-area.tsx",
+      "refs": 3,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "frontend-official/src/components/ui/select.tsx",
+      "refs": 5,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "frontend-official/src/components/ui/separator.tsx",
+      "refs": 3,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "frontend-official/src/components/ui/sheet.tsx",
+      "refs": 5,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "frontend-official/src/components/ui/sidebar.tsx",
+      "refs": 2,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "frontend-official/src/components/ui/skeleton.tsx",
+      "refs": 12,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "frontend-official/src/components/ui/slider.tsx",
+      "refs": 3,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "frontend-official/src/components/ui/sonner.tsx",
+      "refs": 3,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "frontend-official/src/components/ui/switch.tsx",
+      "refs": 7,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "frontend-official/src/components/ui/table.tsx",
+      "refs": 12,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "frontend-official/src/components/ui/tabs.tsx",
+      "refs": 6,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "frontend-official/src/components/ui/textarea.tsx",
+      "refs": 5,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "frontend-official/src/components/ui/toast.tsx",
+      "refs": 4,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "frontend-official/src/components/ui/toaster.tsx",
+      "refs": 2,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "frontend-official/src/components/ui/toggle-group.tsx",
+      "refs": 1,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "frontend-official/src/components/ui/toggle.tsx",
+      "refs": 3,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "frontend-official/src/components/ui/tooltip.tsx",
+      "refs": 7,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "frontend-official/src/components/ui/use-toast.ts",
+      "refs": 9,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "frontend-official/src/config/buildInfo.ts",
+      "refs": 4,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "frontend-official/src/hooks/use-mobile.tsx",
+      "refs": 4,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "frontend-official/src/hooks/use-toast.ts",
+      "refs": 10,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "frontend-official/src/hooks/useAdminAuth.ts",
+      "refs": 5,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "frontend-official/src/hooks/useApiRuntimeStatus.ts",
+      "refs": 2,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "frontend-official/src/hooks/useFrontendHealthWatcher.ts",
+      "refs": 2,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "frontend-official/src/hooks/useMasterNodesControlPlane.ts",
+      "refs": 3,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "frontend-official/src/hooks/useNodeDetailsControlPlane.ts",
+      "refs": 1,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "frontend-official/src/hooks/useUserRole.ts",
+      "refs": 3,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "frontend-official/src/index.css",
+      "refs": 14,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "frontend-official/src/lib/adminAuthSession.ts",
+      "refs": 5,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "frontend-official/src/lib/apiGuard.ts",
+      "refs": 9,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "frontend-official/src/lib/backendConfig.ts",
+      "refs": 12,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "frontend-official/src/lib/designSystemExporter.ts",
+      "refs": 1,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "frontend-official/src/lib/inboxUnread.ts",
+      "refs": 1,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "frontend-official/src/lib/queryClient.ts",
+      "refs": 1,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "frontend-official/src/lib/requestCache.ts",
+      "refs": 1,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "frontend-official/src/lib/runtimeHardening.ts",
+      "refs": 2,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "frontend-official/src/lib/runtimeIdentity.ts",
+      "refs": 1,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "frontend-official/src/lib/utils.ts",
+      "refs": 68,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "frontend-official/src/lovable/layout/AppShell.tsx",
+      "refs": 0,
+      "status": "ÓRFÃO",
+      "reason": "Nenhuma referência ou importação detectada"
+    },
+    {
+      "file": "frontend-official/src/lovable/layout/HeaderShell.tsx",
+      "refs": 1,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "frontend-official/src/lovable/layout/SidebarShell.tsx",
+      "refs": 0,
+      "status": "ÓRFÃO",
+      "reason": "Nenhuma referência ou importação detectada"
+    },
+    {
+      "file": "frontend-official/src/lovable/pages/AIPageView.tsx",
+      "refs": 1,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "frontend-official/src/lovable/pages/AIView.tsx",
+      "refs": 2,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "frontend-official/src/lovable/pages/AnalyticsPageView.tsx",
+      "refs": 1,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "frontend-official/src/lovable/pages/AnalyticsView.tsx",
+      "refs": 1,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "frontend-official/src/lovable/pages/CampaignsPageView.tsx",
+      "refs": 1,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "frontend-official/src/lovable/pages/CampaignsView.tsx",
+      "refs": 1,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "frontend-official/src/lovable/pages/ConnectionsPageView.tsx",
+      "refs": 1,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "frontend-official/src/lovable/pages/ConnectionsView.tsx",
+      "refs": 1,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "frontend-official/src/lovable/pages/ContactsPageView.tsx",
+      "refs": 1,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "frontend-official/src/lovable/pages/ContactsView.tsx",
+      "refs": 1,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "frontend-official/src/lovable/pages/DashboardView.tsx",
+      "refs": 1,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "frontend-official/src/lovable/pages/FlowsPageView.tsx",
+      "refs": 1,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "frontend-official/src/lovable/pages/FlowsView.tsx",
+      "refs": 1,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "frontend-official/src/lovable/pages/InboxPageView.tsx",
+      "refs": 1,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "frontend-official/src/lovable/pages/InboxView.tsx",
+      "refs": 1,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "frontend-official/src/lovable/pages/SettingsPageView.tsx",
+      "refs": 1,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "frontend-official/src/lovable/pages/SettingsView.tsx",
+      "refs": 1,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "frontend-official/src/lovable/theme/index.css",
+      "refs": 14,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "frontend-official/src/main.tsx",
+      "refs": 999,
+      "status": "USADO",
+      "reason": "Arquivo de entrypoint principal do runtime"
+    },
+    {
+      "file": "frontend-official/src/pages/AI.tsx",
+      "refs": 57,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "frontend-official/src/pages/Analytics.tsx",
+      "refs": 13,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "frontend-official/src/pages/Campaigns.tsx",
+      "refs": 4,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "frontend-official/src/pages/Connections.tsx",
+      "refs": 6,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "frontend-official/src/pages/Contacts.tsx",
+      "refs": 7,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "frontend-official/src/pages/Dashboard.tsx",
+      "refs": 14,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "frontend-official/src/pages/Flows.tsx",
+      "refs": 3,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "frontend-official/src/pages/Inbox/components/ActiveChatPane.tsx",
+      "refs": 1,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "frontend-official/src/pages/Inbox/components/ChatListPanel.tsx",
+      "refs": 1,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "frontend-official/src/pages/Inbox/components/ConversationRow.tsx",
+      "refs": 1,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "frontend-official/src/pages/Inbox/components/MessageRow.tsx",
+      "refs": 1,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "frontend-official/src/pages/Inbox/components/SidebarPanel.tsx",
+      "refs": 1,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "frontend-official/src/pages/Inbox/hooks/useInboxSocket.ts",
+      "refs": 1,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "frontend-official/src/pages/Inbox/hooks/useInboxState.ts",
+      "refs": 1,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "frontend-official/src/pages/Inbox/types.ts",
+      "refs": 15,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "frontend-official/src/pages/Inbox/utils.tsx",
+      "refs": 66,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "frontend-official/src/pages/Inbox.tsx",
+      "refs": 19,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "frontend-official/src/pages/Login.tsx",
+      "refs": 4,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "frontend-official/src/pages/MasterAdmins.tsx",
+      "refs": 2,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "frontend-official/src/pages/MasterDeployments.tsx",
+      "refs": 2,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "frontend-official/src/pages/MasterLogs.tsx",
+      "refs": 2,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "frontend-official/src/pages/MasterNodes.tsx",
+      "refs": 2,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "frontend-official/src/pages/Memory.tsx",
+      "refs": 11,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "frontend-official/src/pages/NodeDetails.tsx",
+      "refs": 2,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "frontend-official/src/pages/Settings.tsx",
+      "refs": 7,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "frontend-official/src/providers/RuntimeProvider.tsx",
+      "refs": 9,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "frontend-official/src/runtime/diagnostics/Diagnostics.tsx",
+      "refs": 6,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "frontend-official/src/runtime/logs/errorLogService.ts",
+      "refs": 5,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "frontend-official/src/runtime/logs/structuredLogger.ts",
+      "refs": 3,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "frontend-official/src/runtime/services/frontendHealthService.ts",
+      "refs": 7,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "frontend-official/src/runtime/services/runtimeCoherenceService.ts",
+      "refs": 2,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "frontend-official/src/runtime/services/systemControlService.ts",
+      "refs": 1,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "frontend-official/src/runtime/socket/socketManager.ts",
+      "refs": 2,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "frontend-official/src/runtime/utils/inboxNormalization.ts",
+      "refs": 1,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "frontend-official/src/services/adminMasterService.ts",
+      "refs": 2,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "frontend-official/src/services/aiLearningService.ts",
+      "refs": 1,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "frontend-official/src/services/apiService.ts",
+      "refs": 37,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "frontend-official/src/services/conversationAnalyzer.ts",
+      "refs": 2,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "frontend-official/src/services/conversationControlStore.ts",
+      "refs": 2,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "frontend-official/src/services/engines/masterWebsocketService.ts",
+      "refs": 2,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "frontend-official/src/services/leadAnalyzer.ts",
+      "refs": 6,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "frontend-official/src/services/leadIntelligenceStore.ts",
+      "refs": 1,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "frontend-official/src/services/masterNodeService.ts",
+      "refs": 4,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "frontend-official/src/services/normalizeSession.ts",
+      "refs": 2,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "frontend-official/src/services/notifyService.ts",
+      "refs": 8,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "frontend-official/src/services/responseEngine.ts",
+      "refs": 1,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "frontend-official/src/services/salesStrategyEngine.ts",
+      "refs": 1,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "frontend-official/src/stores/appStore.ts",
+      "refs": 8,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "frontend-official/src/stores/masterNodeStore.ts",
+      "refs": 2,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "frontend-official/src/test/example.test.ts",
+      "refs": 0,
+      "status": "ÓRFÃO",
+      "reason": "Nenhuma referência ou importação detectada"
+    },
+    {
+      "file": "frontend-official/src/test/setup.ts",
+      "refs": 7,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "frontend-official/src/types/adminMaster.ts",
+      "refs": 3,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "frontend-official/src/types/masterNode.ts",
+      "refs": 5,
+      "status": "USADO",
+      "reason": "Importado ou referenciado ativamente"
+    },
+    {
+      "file": "frontend-official/src/vite-env.d.ts",
+      "refs": 0,
+      "status": "ÓRFÃO",
+      "reason": "Nenhuma referência ou importação detectada"
+    }
+  ],
+  "duplicates": [
+    {
+      "fileA": "backend/inbox-core/repositories/index.js",
+      "fileB": "backend/modules/analytics/index.js",
+      "size": 396,
+      "similarity": 100,
+      "action": "Remover duplicado após consolidar referências"
+    }
+  ],
+  "dependencies": [
+    {
+      "scope": "Root (Dev)",
+      "dependency": "axe-core",
+      "version": "^4.11.4",
+      "used": "Não",
+      "status": "Removível"
+    },
+    {
+      "scope": "Root (Dev)",
+      "dependency": "fs-extra",
+      "version": "^11.3.5",
+      "used": "Não",
+      "status": "Removível"
+    },
+    {
+      "scope": "Root (Dev)",
+      "dependency": "sharp",
+      "version": "^0.34.5",
+      "used": "Sim",
+      "status": "Manter"
+    },
+    {
+      "scope": "Backend",
+      "dependency": "@whiskeysockets/baileys",
+      "version": "6.7.21",
+      "used": "Sim",
+      "status": "Manter"
+    },
+    {
+      "scope": "Backend",
+      "dependency": "axios",
+      "version": "1.13.6",
+      "used": "Sim",
+      "status": "Manter"
+    },
+    {
+      "scope": "Backend",
+      "dependency": "bcryptjs",
+      "version": "^3.0.3",
+      "used": "Sim",
+      "status": "Manter"
+    },
+    {
+      "scope": "Backend",
+      "dependency": "compression",
+      "version": "^1.8.1",
+      "used": "Sim",
+      "status": "Manter"
+    },
+    {
+      "scope": "Backend",
+      "dependency": "cors",
+      "version": "2.8.6",
+      "used": "Sim",
+      "status": "Manter"
+    },
+    {
+      "scope": "Backend",
+      "dependency": "docx",
+      "version": "9.6.1",
+      "used": "Sim",
+      "status": "Manter"
+    },
+    {
+      "scope": "Backend",
+      "dependency": "dotenv",
+      "version": "16.6.1",
+      "used": "Sim",
+      "status": "Manter"
+    },
+    {
+      "scope": "Backend",
+      "dependency": "express",
+      "version": "4.22.1",
+      "used": "Sim",
+      "status": "Manter"
+    },
+    {
+      "scope": "Backend",
+      "dependency": "express-rate-limit",
+      "version": "^8.4.0",
+      "used": "Não",
+      "status": "Removível"
+    },
+    {
+      "scope": "Backend",
+      "dependency": "helmet",
+      "version": "^8.1.0",
+      "used": "Sim",
+      "status": "Manter"
+    },
+    {
+      "scope": "Backend",
+      "dependency": "mammoth",
+      "version": "1.12.0",
+      "used": "Sim",
+      "status": "Manter"
+    },
+    {
+      "scope": "Backend",
+      "dependency": "node-cron",
+      "version": "4.2.1",
+      "used": "Sim",
+      "status": "Manter"
+    },
+    {
+      "scope": "Backend",
+      "dependency": "nodemailer",
+      "version": "6.10.0",
+      "used": "Sim",
+      "status": "Manter"
+    },
+    {
+      "scope": "Backend",
+      "dependency": "openai",
+      "version": "6.32.0",
+      "used": "Sim",
+      "status": "Manter"
+    },
+    {
+      "scope": "Backend",
+      "dependency": "pg",
+      "version": "8.20.0",
+      "used": "Sim",
+      "status": "Manter"
+    },
+    {
+      "scope": "Backend",
+      "dependency": "pino",
+      "version": "9.14.0",
+      "used": "Sim",
+      "status": "Manter"
+    },
+    {
+      "scope": "Backend",
+      "dependency": "qrcode",
+      "version": "1.5.4",
+      "used": "Sim",
+      "status": "Manter"
+    },
+    {
+      "scope": "Backend",
+      "dependency": "sharp",
+      "version": "0.34.5",
+      "used": "Sim",
+      "status": "Manter"
+    },
+    {
+      "scope": "Backend",
+      "dependency": "socket.io",
+      "version": "4.8.3",
+      "used": "Sim",
+      "status": "Manter"
+    },
+    {
+      "scope": "Backend",
+      "dependency": "winston",
+      "version": "3.19.0",
+      "used": "Sim",
+      "status": "Manter"
+    },
+    {
+      "scope": "Backend (Opt)",
+      "dependency": "redis",
+      "version": "^4.7.0",
+      "used": "Sim",
+      "status": "Manter"
+    },
+    {
+      "scope": "Backend (Opt)",
+      "dependency": "ioredis",
+      "version": "^5.4.0",
+      "used": "Sim",
+      "status": "Manter"
+    },
+    {
+      "scope": "Backend (Opt)",
+      "dependency": "bullmq",
+      "version": "^5.0.0",
+      "used": "Sim",
+      "status": "Manter"
+    },
+    {
+      "scope": "Frontend",
+      "dependency": "@emoji-mart/data",
+      "version": "^1.2.1",
+      "used": "Sim",
+      "status": "Manter"
+    },
+    {
+      "scope": "Frontend",
+      "dependency": "@emoji-mart/react",
+      "version": "^1.1.1",
+      "used": "Sim",
+      "status": "Manter"
+    },
+    {
+      "scope": "Frontend",
+      "dependency": "@hookform/resolvers",
+      "version": "^3.10.0",
+      "used": "Não",
+      "status": "Removível"
+    },
+    {
+      "scope": "Frontend",
+      "dependency": "@phosphor-icons/react",
+      "version": "^2.1.10",
+      "used": "Sim",
+      "status": "Manter"
+    },
+    {
+      "scope": "Frontend",
+      "dependency": "@playwright/test",
+      "version": "^1.58.2",
+      "used": "Não",
+      "status": "Removível"
+    },
+    {
+      "scope": "Frontend",
+      "dependency": "@radix-ui/react-accordion",
+      "version": "^1.2.11",
+      "used": "Sim",
+      "status": "Manter"
+    },
+    {
+      "scope": "Frontend",
+      "dependency": "@radix-ui/react-alert-dialog",
+      "version": "^1.1.14",
+      "used": "Sim",
+      "status": "Manter"
+    },
+    {
+      "scope": "Frontend",
+      "dependency": "@radix-ui/react-aspect-ratio",
+      "version": "^1.1.7",
+      "used": "Sim",
+      "status": "Manter"
+    },
+    {
+      "scope": "Frontend",
+      "dependency": "@radix-ui/react-avatar",
+      "version": "^1.1.10",
+      "used": "Sim",
+      "status": "Manter"
+    },
+    {
+      "scope": "Frontend",
+      "dependency": "@radix-ui/react-checkbox",
+      "version": "^1.3.2",
+      "used": "Sim",
+      "status": "Manter"
+    },
+    {
+      "scope": "Frontend",
+      "dependency": "@radix-ui/react-collapsible",
+      "version": "^1.1.11",
+      "used": "Sim",
+      "status": "Manter"
+    },
+    {
+      "scope": "Frontend",
+      "dependency": "@radix-ui/react-context-menu",
+      "version": "^2.2.15",
+      "used": "Sim",
+      "status": "Manter"
+    },
+    {
+      "scope": "Frontend",
+      "dependency": "@radix-ui/react-dialog",
+      "version": "^1.1.14",
+      "used": "Sim",
+      "status": "Manter"
+    },
+    {
+      "scope": "Frontend",
+      "dependency": "@radix-ui/react-dropdown-menu",
+      "version": "^2.1.15",
+      "used": "Sim",
+      "status": "Manter"
+    },
+    {
+      "scope": "Frontend",
+      "dependency": "@radix-ui/react-hover-card",
+      "version": "^1.1.14",
+      "used": "Sim",
+      "status": "Manter"
+    },
+    {
+      "scope": "Frontend",
+      "dependency": "@radix-ui/react-label",
+      "version": "^2.1.7",
+      "used": "Sim",
+      "status": "Manter"
+    },
+    {
+      "scope": "Frontend",
+      "dependency": "@radix-ui/react-menubar",
+      "version": "^1.1.15",
+      "used": "Sim",
+      "status": "Manter"
+    },
+    {
+      "scope": "Frontend",
+      "dependency": "@radix-ui/react-navigation-menu",
+      "version": "^1.2.13",
+      "used": "Sim",
+      "status": "Manter"
+    },
+    {
+      "scope": "Frontend",
+      "dependency": "@radix-ui/react-popover",
+      "version": "^1.1.14",
+      "used": "Sim",
+      "status": "Manter"
+    },
+    {
+      "scope": "Frontend",
+      "dependency": "@radix-ui/react-progress",
+      "version": "^1.1.7",
+      "used": "Sim",
+      "status": "Manter"
+    },
+    {
+      "scope": "Frontend",
+      "dependency": "@radix-ui/react-radio-group",
+      "version": "^1.3.7",
+      "used": "Sim",
+      "status": "Manter"
+    },
+    {
+      "scope": "Frontend",
+      "dependency": "@radix-ui/react-scroll-area",
+      "version": "^1.2.9",
+      "used": "Sim",
+      "status": "Manter"
+    },
+    {
+      "scope": "Frontend",
+      "dependency": "@radix-ui/react-select",
+      "version": "^2.2.5",
+      "used": "Sim",
+      "status": "Manter"
+    },
+    {
+      "scope": "Frontend",
+      "dependency": "@radix-ui/react-separator",
+      "version": "^1.1.7",
+      "used": "Sim",
+      "status": "Manter"
+    },
+    {
+      "scope": "Frontend",
+      "dependency": "@radix-ui/react-slider",
+      "version": "^1.3.5",
+      "used": "Sim",
+      "status": "Manter"
+    },
+    {
+      "scope": "Frontend",
+      "dependency": "@radix-ui/react-slot",
+      "version": "^1.2.3",
+      "used": "Sim",
+      "status": "Manter"
+    },
+    {
+      "scope": "Frontend",
+      "dependency": "@radix-ui/react-switch",
+      "version": "^1.2.5",
+      "used": "Sim",
+      "status": "Manter"
+    },
+    {
+      "scope": "Frontend",
+      "dependency": "@radix-ui/react-tabs",
+      "version": "^1.1.12",
+      "used": "Sim",
+      "status": "Manter"
+    },
+    {
+      "scope": "Frontend",
+      "dependency": "@radix-ui/react-toast",
+      "version": "^1.2.14",
+      "used": "Sim",
+      "status": "Manter"
+    },
+    {
+      "scope": "Frontend",
+      "dependency": "@radix-ui/react-toggle",
+      "version": "^1.1.9",
+      "used": "Sim",
+      "status": "Manter"
+    },
+    {
+      "scope": "Frontend",
+      "dependency": "@radix-ui/react-toggle-group",
+      "version": "^1.1.10",
+      "used": "Sim",
+      "status": "Manter"
+    },
+    {
+      "scope": "Frontend",
+      "dependency": "@radix-ui/react-tooltip",
+      "version": "^1.2.7",
+      "used": "Sim",
+      "status": "Manter"
+    },
+    {
+      "scope": "Frontend",
+      "dependency": "@supabase/supabase-js",
+      "version": "^2.99.0",
+      "used": "Não",
+      "status": "Removível"
+    },
+    {
+      "scope": "Frontend",
+      "dependency": "@tanstack/react-query",
+      "version": "^5.83.0",
+      "used": "Sim",
+      "status": "Manter"
+    },
+    {
+      "scope": "Frontend",
+      "dependency": "axios",
+      "version": "^1.16.0",
+      "used": "Sim",
+      "status": "Manter"
+    },
+    {
+      "scope": "Frontend",
+      "dependency": "class-variance-authority",
+      "version": "^0.7.1",
+      "used": "Sim",
+      "status": "Manter"
+    },
+    {
+      "scope": "Frontend",
+      "dependency": "clsx",
+      "version": "^2.1.1",
+      "used": "Sim",
+      "status": "Manter"
+    },
+    {
+      "scope": "Frontend",
+      "dependency": "cmdk",
+      "version": "^1.1.1",
+      "used": "Sim",
+      "status": "Manter"
+    },
+    {
+      "scope": "Frontend",
+      "dependency": "date-fns",
+      "version": "^3.6.0",
+      "used": "Não",
+      "status": "Removível"
+    },
+    {
+      "scope": "Frontend",
+      "dependency": "embla-carousel-react",
+      "version": "^8.6.0",
+      "used": "Sim",
+      "status": "Manter"
+    },
+    {
+      "scope": "Frontend",
+      "dependency": "emoji-mart",
+      "version": "^5.6.0",
+      "used": "Não",
+      "status": "Removível"
+    },
+    {
+      "scope": "Frontend",
+      "dependency": "esbuild",
+      "version": "^0.28.0",
+      "used": "Não",
+      "status": "Removível"
+    },
+    {
+      "scope": "Frontend",
+      "dependency": "framer-motion",
+      "version": "^12.33.0",
+      "used": "Sim",
+      "status": "Manter"
+    },
+    {
+      "scope": "Frontend",
+      "dependency": "input-otp",
+      "version": "^1.4.2",
+      "used": "Sim",
+      "status": "Manter"
+    },
+    {
+      "scope": "Frontend",
+      "dependency": "jszip",
+      "version": "^3.10.1",
+      "used": "Sim",
+      "status": "Manter"
+    },
+    {
+      "scope": "Frontend",
+      "dependency": "leaflet",
+      "version": "^1.9.4",
+      "used": "Sim",
+      "status": "Manter"
+    },
+    {
+      "scope": "Frontend",
+      "dependency": "lucide-react",
+      "version": "^0.462.0",
+      "used": "Sim",
+      "status": "Manter"
+    },
+    {
+      "scope": "Frontend",
+      "dependency": "next-themes",
+      "version": "^0.3.0",
+      "used": "Sim",
+      "status": "Manter"
+    },
+    {
+      "scope": "Frontend",
+      "dependency": "react",
+      "version": "^18.3.1",
+      "used": "Sim",
+      "status": "Manter"
+    },
+    {
+      "scope": "Frontend",
+      "dependency": "react-day-picker",
+      "version": "^8.10.1",
+      "used": "Sim",
+      "status": "Manter"
+    },
+    {
+      "scope": "Frontend",
+      "dependency": "react-dom",
+      "version": "^18.3.1",
+      "used": "Sim",
+      "status": "Manter"
+    },
+    {
+      "scope": "Frontend",
+      "dependency": "react-hook-form",
+      "version": "^7.61.1",
+      "used": "Sim",
+      "status": "Manter"
+    },
+    {
+      "scope": "Frontend",
+      "dependency": "react-leaflet",
+      "version": "^4.2.1",
+      "used": "Sim",
+      "status": "Manter"
+    },
+    {
+      "scope": "Frontend",
+      "dependency": "react-leaflet-cluster",
+      "version": "^4.1.3",
+      "used": "Não",
+      "status": "Removível"
+    },
+    {
+      "scope": "Frontend",
+      "dependency": "react-resizable-panels",
+      "version": "^2.1.9",
+      "used": "Sim",
+      "status": "Manter"
+    },
+    {
+      "scope": "Frontend",
+      "dependency": "react-router-dom",
+      "version": "^6.30.1",
+      "used": "Sim",
+      "status": "Manter"
+    },
+    {
+      "scope": "Frontend",
+      "dependency": "react-window",
+      "version": "^2.2.7",
+      "used": "Sim",
+      "status": "Manter"
+    },
+    {
+      "scope": "Frontend",
+      "dependency": "recharts",
+      "version": "^2.15.4",
+      "used": "Sim",
+      "status": "Manter"
+    },
+    {
+      "scope": "Frontend",
+      "dependency": "socket.io-client",
+      "version": "^4.8.3",
+      "used": "Sim",
+      "status": "Manter"
+    },
+    {
+      "scope": "Frontend",
+      "dependency": "sonner",
+      "version": "^1.7.4",
+      "used": "Sim",
+      "status": "Manter"
+    },
+    {
+      "scope": "Frontend",
+      "dependency": "tailwind-merge",
+      "version": "^2.6.0",
+      "used": "Sim",
+      "status": "Manter"
+    },
+    {
+      "scope": "Frontend",
+      "dependency": "tailwindcss-animate",
+      "version": "^1.0.7",
+      "used": "Sim",
+      "status": "Manter"
+    },
+    {
+      "scope": "Frontend",
+      "dependency": "vaul",
+      "version": "^0.9.9",
+      "used": "Sim",
+      "status": "Manter"
+    },
+    {
+      "scope": "Frontend",
+      "dependency": "zod",
+      "version": "^3.25.76",
+      "used": "Não",
+      "status": "Removível"
+    },
+    {
+      "scope": "Frontend",
+      "dependency": "zustand",
+      "version": "^5.0.12",
+      "used": "Sim",
+      "status": "Manter"
+    },
+    {
+      "scope": "Frontend (Dev)",
+      "dependency": "@eslint/js",
+      "version": "^9.32.0",
+      "used": "Não",
+      "status": "Removível"
+    },
+    {
+      "scope": "Frontend (Dev)",
+      "dependency": "@tailwindcss/typography",
+      "version": "^0.5.16",
+      "used": "Não",
+      "status": "Removível"
+    },
+    {
+      "scope": "Frontend (Dev)",
+      "dependency": "@testing-library/jest-dom",
+      "version": "^6.6.0",
+      "used": "Sim",
+      "status": "Manter"
+    },
+    {
+      "scope": "Frontend (Dev)",
+      "dependency": "@testing-library/react",
+      "version": "^16.0.0",
+      "used": "Não",
+      "status": "Removível"
+    },
+    {
+      "scope": "Frontend (Dev)",
+      "dependency": "@types/node",
+      "version": "^22.16.5",
+      "used": "Não",
+      "status": "Removível"
+    },
+    {
+      "scope": "Frontend (Dev)",
+      "dependency": "@types/react",
+      "version": "^18.3.23",
+      "used": "Não",
+      "status": "Removível"
+    },
+    {
+      "scope": "Frontend (Dev)",
+      "dependency": "@types/react-dom",
+      "version": "^18.3.7",
+      "used": "Não",
+      "status": "Removível"
+    },
+    {
+      "scope": "Frontend (Dev)",
+      "dependency": "@vitejs/plugin-react-swc",
+      "version": "^3.11.0",
+      "used": "Não",
+      "status": "Removível"
+    },
+    {
+      "scope": "Frontend (Dev)",
+      "dependency": "autoprefixer",
+      "version": "^10.4.21",
+      "used": "Não",
+      "status": "Removível"
+    },
+    {
+      "scope": "Frontend (Dev)",
+      "dependency": "eslint",
+      "version": "^9.32.0",
+      "used": "Não",
+      "status": "Removível"
+    },
+    {
+      "scope": "Frontend (Dev)",
+      "dependency": "eslint-plugin-react-hooks",
+      "version": "^5.2.0",
+      "used": "Não",
+      "status": "Removível"
+    },
+    {
+      "scope": "Frontend (Dev)",
+      "dependency": "eslint-plugin-react-refresh",
+      "version": "^0.4.20",
+      "used": "Não",
+      "status": "Removível"
+    },
+    {
+      "scope": "Frontend (Dev)",
+      "dependency": "globals",
+      "version": "^15.15.0",
+      "used": "Não",
+      "status": "Removível"
+    },
+    {
+      "scope": "Frontend (Dev)",
+      "dependency": "jsdom",
+      "version": "^20.0.3",
+      "used": "Não",
+      "status": "Removível"
+    },
+    {
+      "scope": "Frontend (Dev)",
+      "dependency": "lovable-tagger",
+      "version": "^1.1.13",
+      "used": "Não",
+      "status": "Removível"
+    },
+    {
+      "scope": "Frontend (Dev)",
+      "dependency": "postcss",
+      "version": "^8.5.6",
+      "used": "Não",
+      "status": "Removível"
+    },
+    {
+      "scope": "Frontend (Dev)",
+      "dependency": "tailwindcss",
+      "version": "^3.4.17",
+      "used": "Sim",
+      "status": "Manter"
+    },
+    {
+      "scope": "Frontend (Dev)",
+      "dependency": "typescript",
+      "version": "^5.8.3",
+      "used": "Não",
+      "status": "Removível"
+    },
+    {
+      "scope": "Frontend (Dev)",
+      "dependency": "typescript-eslint",
+      "version": "^8.38.0",
+      "used": "Não",
+      "status": "Removível"
+    },
+    {
+      "scope": "Frontend (Dev)",
+      "dependency": "vite",
+      "version": "^5.4.19",
+      "used": "Não",
+      "status": "Removível"
+    },
+    {
+      "scope": "Frontend (Dev)",
+      "dependency": "vitest",
+      "version": "^3.2.4",
+      "used": "Sim",
+      "status": "Manter"
+    }
+  ],
+  "envVars": [
+    {
+      "variable": "NODE_ENV",
+      "used": "Sim",
+      "files": ".env, .env.example, .env.production, .env.production.example, .env.production.local",
+      "status": "Ativa"
+    },
+    {
+      "variable": "PORT",
+      "used": "Sim",
+      "files": ".env, .env.example, .env.production, .env.production.example",
+      "status": "Ativa"
+    },
+    {
+      "variable": "HOST",
+      "used": "Sim",
+      "files": ".env, .env.production, .env.production.example",
+      "status": "Ativa"
+    },
+    {
+      "variable": "FRONTEND_URL",
+      "used": "Sim",
+      "files": ".env, .env.example, .env.production, .env.production.example, .env.production.local",
+      "status": "Ativa"
+    },
+    {
+      "variable": "CORS_ALLOWED_ORIGINS",
+      "used": "Sim",
+      "files": ".env, .env.example, .env.production, .env.production.example, .env.production.local",
+      "status": "Ativa"
+    },
+    {
+      "variable": "POSTGRES_USER",
+      "used": "Sim",
+      "files": ".env, .env.example, .env.production, .env.production.example, .env.production.local",
+      "status": "Ativa"
+    },
+    {
+      "variable": "POSTGRES_PASSWORD",
+      "used": "Sim",
+      "files": ".env, .env.example, .env.production, .env.production.example, .env.production.local",
+      "status": "Ativa"
+    },
+    {
+      "variable": "POSTGRES_DB",
+      "used": "Sim",
+      "files": ".env, .env.example, .env.production, .env.production.example, .env.production.local",
+      "status": "Ativa"
+    },
+    {
+      "variable": "DATABASE_URL",
+      "used": "Sim",
+      "files": ".env, .env.example, .env.production, .env.production.example",
+      "status": "Ativa"
+    },
+    {
+      "variable": "PGSSLMODE",
+      "used": "Sim",
+      "files": ".env, .env.example, .env.production.local",
+      "status": "Ativa"
+    },
+    {
+      "variable": "JWT_SECRET",
+      "used": "Sim",
+      "files": ".env, .env.example, .env.production, .env.production.example, .env.production.local",
+      "status": "Ativa"
+    },
+    {
+      "variable": "AUTH_JWT_SECRET",
+      "used": "Sim",
+      "files": ".env, .env.example, .env.production, .env.production.example, .env.production.local",
+      "status": "Ativa"
+    },
+    {
+      "variable": "AUTH_DEFAULT_USERNAME",
+      "used": "Sim",
+      "files": ".env, .env.example, .env.production, .env.production.example, .env.production.local",
+      "status": "Ativa"
+    },
+    {
+      "variable": "AUTH_DEFAULT_PASSWORD",
+      "used": "Sim",
+      "files": ".env, .env.example, .env.production, .env.production.example, .env.production.local",
+      "status": "Ativa"
+    },
+    {
+      "variable": "AUTH_DEFAULT_TENANT_ID",
+      "used": "Sim",
+      "files": ".env, .env.example, .env.production, .env.production.example, .env.production.local",
+      "status": "Ativa"
+    },
+    {
+      "variable": "REDIS_URL",
+      "used": "Sim",
+      "files": ".env, .env.example",
+      "status": "Ativa"
+    },
+    {
+      "variable": "MASTER",
+      "used": "Sim",
+      "files": ".env, .env.example, .env.production, .env.production.example, .env.production.local",
+      "status": "Ativa"
+    },
+    {
+      "variable": "NODE_ROLE",
+      "used": "Sim",
+      "files": ".env, .env.production, .env.production.example, .env.production.local",
+      "status": "Ativa"
+    },
+    {
+      "variable": "MASTER_HOSTNAME",
+      "used": "Sim",
+      "files": ".env, .env.example, .env.production, .env.production.example, .env.production.local",
+      "status": "Ativa"
+    },
+    {
+      "variable": "MASTER_VPS_IP",
+      "used": "Sim",
+      "files": ".env, .env.example, .env.production.local",
+      "status": "Ativa"
+    },
+    {
+      "variable": "MASTER_API_URL",
+      "used": "Sim",
+      "files": ".env",
+      "status": "Ativa"
+    },
+    {
+      "variable": "NODE_TOKEN",
+      "used": "Sim",
+      "files": ".env",
+      "status": "Ativa"
+    },
+    {
+      "variable": "FEATURE_ADMIN_MASTER",
+      "used": "Sim",
+      "files": ".env, .env.production, .env.production.example, .env.production.local",
+      "status": "Ativa"
+    },
+    {
+      "variable": "LOG_LEVEL",
+      "used": "Sim",
+      "files": ".env, .env.example, .env.production, .env.production.example, .env.production.local",
+      "status": "Ativa"
+    },
+    {
+      "variable": "CRASH_EXIT_ON_UNHANDLED",
+      "used": "Sim",
+      "files": ".env, .env.example, .env.production, .env.production.example, .env.production.local",
+      "status": "Ativa"
+    },
+    {
+      "variable": "API_PORT",
+      "used": "Não",
+      "files": ".env.example",
+      "status": "Não utilizada"
+    },
+    {
+      "variable": "TZ",
+      "used": "Sim",
+      "files": ".env.example",
+      "status": "Ativa"
+    },
+    {
+      "variable": "DOMAIN",
+      "used": "Não",
+      "files": ".env.example, .env.production.local",
+      "status": "Não utilizada"
+    },
+    {
+      "variable": "LETSENCRYPT_EMAIL",
+      "used": "Não",
+      "files": ".env.example, .env.production.local",
+      "status": "Não utilizada"
+    },
+    {
+      "variable": "VITE_API_URL",
+      "used": "Sim",
+      "files": ".env.example, .env.production.local",
+      "status": "Ativa"
+    },
+    {
+      "variable": "VITE_APP_VERSION",
+      "used": "Sim",
+      "files": ".env.example",
+      "status": "Ativa"
+    },
+    {
+      "variable": "VITE_APP_VERSION_LABEL",
+      "used": "Sim",
+      "files": ".env.example",
+      "status": "Ativa"
+    },
+    {
+      "variable": "VITE_ENABLE_DEMO_DATA",
+      "used": "Não",
+      "files": ".env.example",
+      "status": "Não utilizada"
+    },
+    {
+      "variable": "NGINX_PORT",
+      "used": "Não",
+      "files": ".env.example",
+      "status": "Não utilizada"
+    },
+    {
+      "variable": "DB_SSL",
+      "used": "Sim",
+      "files": ".env.example",
+      "status": "Ativa"
+    },
+    {
+      "variable": "DB_WAIT_TIMEOUT_SECONDS",
+      "used": "Não",
+      "files": ".env.example, .env.production.local",
+      "status": "Não utilizada"
+    },
+    {
+      "variable": "DB_WAIT_INTERVAL_SECONDS",
+      "used": "Não",
+      "files": ".env.example, .env.production.local",
+      "status": "Não utilizada"
+    },
+    {
+      "variable": "DB_RUN_MIGRATIONS_ON_BOOT",
+      "used": "Sim",
+      "files": ".env.example",
+      "status": "Ativa"
+    },
+    {
+      "variable": "SESSION_SECRET",
+      "used": "Não",
+      "files": ".env.example",
+      "status": "Não utilizada"
+    },
+    {
+      "variable": "AUTH_DEFAULT_EMAIL",
+      "used": "Sim",
+      "files": ".env.example, .env.production, .env.production.example, .env.production.local",
+      "status": "Ativa"
+    },
+    {
+      "variable": "AUTH_DEFAULT_ROLE",
+      "used": "Sim",
+      "files": ".env.example, .env.production, .env.production.example, .env.production.local",
+      "status": "Ativa"
+    },
+    {
+      "variable": "MASTER_PANEL_TOKEN",
+      "used": "Sim",
+      "files": ".env.example, .env.production.local",
+      "status": "Ativa"
+    },
+    {
+      "variable": "NODE_REGISTRATION_TOKEN",
+      "used": "Sim",
+      "files": ".env.example, .env.production.local",
+      "status": "Ativa"
+    },
+    {
+      "variable": "DEFAULT_COMPANY_ID",
+      "used": "Sim",
+      "files": ".env.example, .env.production, .env.production.example, .env.production.local",
+      "status": "Ativa"
+    },
+    {
+      "variable": "WHATSAPP_PROVIDER",
+      "used": "Não",
+      "files": ".env.example",
+      "status": "Não utilizada"
+    },
+    {
+      "variable": "WHATSAPP_DATA_DIR",
+      "used": "Não",
+      "files": ".env.example",
+      "status": "Não utilizada"
+    },
+    {
+      "variable": "BACKUP_SCHEDULE",
+      "used": "Não",
+      "files": ".env.example, .env.production.local",
+      "status": "Não utilizada"
+    },
+    {
+      "variable": "BACKUP_KEEP_DAYS",
+      "used": "Não",
+      "files": ".env.example, .env.production.local",
+      "status": "Não utilizada"
+    },
+    {
+      "variable": "BACKUP_KEEP_WEEKS",
+      "used": "Não",
+      "files": ".env.example, .env.production.local",
+      "status": "Não utilizada"
+    },
+    {
+      "variable": "BACKUP_KEEP_MONTHS",
+      "used": "Não",
+      "files": ".env.example, .env.production.local",
+      "status": "Não utilizada"
+    },
+    {
+      "variable": "APP_PUBLIC_URL",
+      "used": "Sim",
+      "files": ".env.production, .env.production.example",
+      "status": "Ativa"
+    },
+    {
+      "variable": "ALLOWED_ORIGINS",
+      "used": "Sim",
+      "files": ".env.production, .env.production.example",
+      "status": "Ativa"
+    },
+    {
+      "variable": "FEATURE_NODE_MASTER_API",
+      "used": "Sim",
+      "files": ".env.production, .env.production.example, .env.production.local",
+      "status": "Ativa"
+    },
+    {
+      "variable": "FEATURE_NODE_AUTO_REGISTER",
+      "used": "Sim",
+      "files": ".env.production, .env.production.example, .env.production.local",
+      "status": "Ativa"
+    },
+    {
+      "variable": "OPENAI_API_KEY",
+      "used": "Sim",
+      "files": ".env.production, .env.production.example, .env.production.local",
+      "status": "Ativa"
+    },
+    {
+      "variable": "PM2_READY_SIGNAL",
+      "used": "Sim",
+      "files": ".env.production.example",
+      "status": "Ativa"
+    },
+    {
+      "variable": "HEALTH_CHECK_INTERVAL_MS",
+      "used": "Sim",
+      "files": ".env.production.example",
+      "status": "Ativa"
+    },
+    {
+      "variable": "POSTGRES_PUBLIC_PORT",
+      "used": "Não",
+      "files": ".env.production.local",
+      "status": "Não utilizada"
+    },
+    {
+      "variable": "REDIS_PUBLIC_PORT",
+      "used": "Não",
+      "files": ".env.production.local",
+      "status": "Não utilizada"
+    }
+  ],
+  "storage": {
+    "directories": [
+      {
+        "directory": "logs",
+        "filesCount": 12,
+        "sizeBytes": 962238,
+        "sizeMB": "0.92"
+      },
+      {
+        "directory": "archive",
+        "filesCount": 1652,
+        "sizeBytes": 955307036,
+        "sizeMB": "911.05"
+      },
+      {
+        "directory": "backups",
+        "filesCount": 8,
+        "sizeBytes": 39444,
+        "sizeMB": "0.04"
+      },
+      {
+        "directory": "releases",
+        "filesCount": 1,
+        "sizeBytes": 46,
+        "sizeMB": "0.00"
+      }
+    ],
+    "totalBytes": 956308764,
+    "totalMB": "912.01"
+  },
+  "scriptsMap": [
+    {
+      "script": "START-ZAPAI.bat",
+      "type": "Root Script (.bat)",
+      "calledBy": "Ninguém (Órfão)",
+      "status": "Inativo/Removível"
+    },
+    {
+      "script": "start-zapflow.bat",
+      "type": "Root Script (.bat)",
+      "calledBy": "Ninguém (Órfão)",
+      "status": "Inativo/Removível"
+    },
+    {
+      "script": "STATUS-ZAPAI.bat",
+      "type": "Root Script (.bat)",
+      "calledBy": "Ninguém (Órfão)",
+      "status": "Inativo/Removível"
+    },
+    {
+      "script": "ZAPAI-CONTROL.bat",
+      "type": "Root Script (.bat)",
+      "calledBy": "Ninguém (Órfão)",
+      "status": "Inativo/Removível"
+    },
+    {
+      "script": "ZAPFLOW-CONTROL.bat",
+      "type": "Root Script (.bat)",
+      "calledBy": "Ninguém (Órfão)",
+      "status": "Inativo/Removível"
+    },
+    {
+      "script": "scripts/backup.sh",
+      "type": "Utility Script",
+      "calledBy": "scripts/backup.sh, scripts/deploy.sh, scripts/update.sh",
+      "status": "Ativo"
+    },
+    {
+      "script": "scripts/deploy.sh",
+      "type": "Utility Script",
+      "calledBy": "scripts/deploy.sh",
+      "status": "Ativo"
+    },
+    {
+      "script": "scripts/install.sh",
+      "type": "Utility Script",
+      "calledBy": "scripts/install.sh",
+      "status": "Ativo"
+    },
+    {
+      "script": "scripts/logs.sh",
+      "type": "Utility Script",
+      "calledBy": "scripts/install.sh, scripts/logs.sh, scripts/restart.sh",
+      "status": "Ativo"
+    },
+    {
+      "script": "scripts/restart.sh",
+      "type": "Utility Script",
+      "calledBy": "scripts/restart.sh",
+      "status": "Ativo"
+    },
+    {
+      "script": "scripts/runtime-clean.mjs",
+      "type": "Utility Script",
+      "calledBy": "package.json [clean], package.json [dev:clean], start-zapflow.bat",
+      "status": "Ativo"
+    },
+    {
+      "script": "scripts/runtime-lib.mjs",
+      "type": "Utility Script",
+      "calledBy": "Ninguém (Órfão)",
+      "status": "Inativo/Removível"
+    },
+    {
+      "script": "scripts/runtime-restart.mjs",
+      "type": "Utility Script",
+      "calledBy": "package.json [restart], start-zapflow.bat, ZAPFLOW-CONTROL.bat",
+      "status": "Ativo"
+    },
+    {
+      "script": "scripts/runtime-start.mjs",
+      "type": "Utility Script",
+      "calledBy": "package.json [start], package.json [start:official], START-ZAPAI.bat, start-zapflow.bat, ZAPAI-CONTROL.bat, ZAPFLOW-CONTROL.bat",
+      "status": "Ativo"
+    },
+    {
+      "script": "scripts/runtime-stop.mjs",
+      "type": "Utility Script",
+      "calledBy": "package.json [stop], start-zapflow.bat, ZAPAI-CONTROL.bat, ZAPFLOW-CONTROL.bat",
+      "status": "Ativo"
+    },
+    {
+      "script": "scripts/update.sh",
+      "type": "Utility Script",
+      "calledBy": "scripts/update.sh",
+      "status": "Ativo"
+    },
+    {
+      "script": "deploy/auto-deploy.sh",
+      "type": "Deploy Script",
+      "calledBy": "deploy/deploy.sh, deploy/doctor.sh, deploy/install.sh, deploy/rollback.sh, deploy/vps-setup.sh, deploy/watcher.sh",
+      "status": "Ativo"
+    },
+    {
+      "script": "deploy/deploy.sh",
+      "type": "Deploy Script",
+      "calledBy": "scripts/deploy.sh, deploy/auto-deploy.sh, deploy/doctor.sh, deploy/install.sh, deploy/rollback.sh, deploy/vps-setup.sh, deploy/watcher.sh",
+      "status": "Ativo"
+    },
+    {
+      "script": "deploy/doctor.sh",
+      "type": "Deploy Script",
+      "calledBy": "Ninguém (Órfão)",
+      "status": "Inativo/Removível"
+    },
+    {
+      "script": "deploy/install.sh",
+      "type": "Deploy Script",
+      "calledBy": "scripts/install.sh, deploy/doctor.sh, deploy/nginx.conf",
+      "status": "Ativo"
+    },
+    {
+      "script": "deploy/logs.sh",
+      "type": "Deploy Script",
+      "calledBy": "scripts/install.sh, scripts/logs.sh, scripts/restart.sh",
+      "status": "Ativo"
+    },
+    {
+      "script": "deploy/nginx.conf",
+      "type": "Deploy Script",
+      "calledBy": "deploy/install.sh",
+      "status": "Ativo"
+    },
+    {
+      "script": "deploy/restart.sh",
+      "type": "Deploy Script",
+      "calledBy": "scripts/restart.sh",
+      "status": "Ativo"
+    },
+    {
+      "script": "deploy/rollback.sh",
+      "type": "Deploy Script",
+      "calledBy": "Ninguém (Órfão)",
+      "status": "Inativo/Removível"
+    },
+    {
+      "script": "deploy/vps-setup.sh",
+      "type": "Deploy Script",
+      "calledBy": "Ninguém (Órfão)",
+      "status": "Ativo"
+    },
+    {
+      "script": "deploy/watcher.sh",
+      "type": "Deploy Script",
+      "calledBy": "deploy/install.sh",
+      "status": "Ativo"
+    }
+  ]
+}

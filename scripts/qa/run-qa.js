@@ -8,6 +8,9 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const root = path.resolve(__dirname, "../..");
 
+// Garantir que o diretório do executável do Node está no PATH para execuções de sub-processos (como npm/npx)
+process.env.PATH = path.dirname(process.execPath) + path.delimiter + process.env.PATH;
+
 console.log("🧪 [QA Run] Iniciando suíte de testes operacionais e checagem de saúde...");
 
 const report = {

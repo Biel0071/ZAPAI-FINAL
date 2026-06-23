@@ -20,4 +20,10 @@ router.post('/contacts/import', contactsController.importContacts);
 // GET /api/contacts/export — export contacts
 router.get('/contacts/export', contactsController.exportContacts);
 
+// POST /api/contacts/:phone/block - block contact
+router.post('/contacts/:phone/block', contactsController.blockContact);
+
+// POST /api/contacts/:phone/unblock - unblock contact
+router.post('/contacts/:phone/unblock', contactsController.unblockContact);
+
 module.exports = router;

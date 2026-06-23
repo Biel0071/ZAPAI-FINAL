@@ -38,11 +38,12 @@ const workers = new Map(); // name → WorkerEntry
  * @property {boolean} processing
  */
 
-function createWorkerEntry(name, handler, intervalMs) {
+function createWorkerEntry(name, handler, intervalMs, options = {}) {
   return {
     name,
     handler,
     intervalMs: Math.max(1000, intervalMs),
+    runImmediately: options.runImmediately !== false,
     timer: null,
     status: 'stopped',
     restartCount: 0,
@@ -52,6 +53,10 @@ function createWorkerEntry(name, handler, intervalMs) {
     startedAt: null,
     processing: false,
   };
+}
+
+function getWorkerStaleThreshold(entry) {
+  return Math.max(HEARTBEAT_STALE_MS, (Number(entry?.intervalMs) || 0) * 2 + 10_000);
 }
 
 // ─── Worker Execution ───
@@ -94,8 +99,9 @@ function startWorkerTimer(entry) {
   entry.startedAt = new Date().toISOString();
   entry.lastHeartbeat = Date.now();
 
-  // Run first tick immediately
-  executeWorkerTick(entry).catch(() => {});
+  if (entry.runImmediately) {
+    executeWorkerTick(entry).catch(() => {});
+  }
 }
 
 // ─── Crash Recovery ───
@@ -138,7 +144,7 @@ function handleWorkerCrash(entry) {
 
 // ─── Public API ───
 
-function registerWorker(name, handler, intervalMs = 30_000) {
+function registerWorker(name, handler, intervalMs = 30_000, options = {}) {
   if (workers.has(name)) {
     console.warn(`[WorkerSupervisor] Worker "${name}" already registered. Replacing.`);
     stopWorker(name);
@@ -148,7 +154,7 @@ function registerWorker(name, handler, intervalMs = 30_000) {
     throw new Error(`Worker "${name}" handler must be a function`);
   }
 
-  const entry = createWorkerEntry(name, handler, intervalMs);
+  const entry = createWorkerEntry(name, handler, intervalMs, options);
   workers.set(name, entry);
 
   console.log(`[WorkerSupervisor] Registered worker "${name}" (interval=${intervalMs}ms)`);
@@ -212,7 +218,7 @@ function getWorkerStatus(name) {
     lastHeartbeat: entry.lastHeartbeat,
     lastError: entry.lastError,
     startedAt: entry.startedAt,
-    isStale: entry.lastHeartbeat > 0 && (Date.now() - entry.lastHeartbeat) > HEARTBEAT_STALE_MS,
+    isStale: entry.lastHeartbeat > 0 && (Date.now() - entry.lastHeartbeat) > getWorkerStaleThreshold(entry),
     processing: entry.processing,
   };
 }
@@ -253,7 +259,7 @@ function checkStaleWorkers() {
 
   for (const [name, entry] of workers) {
     if (entry.status === 'running' && entry.lastHeartbeat > 0) {
-      if ((now - entry.lastHeartbeat) > HEARTBEAT_STALE_MS) {
+      if ((now - entry.lastHeartbeat) > getWorkerStaleThreshold(entry)) {
         stale.push(name);
         console.warn(`[WorkerSupervisor] Worker "${name}" is stale (last heartbeat ${Math.round((now - entry.lastHeartbeat) / 1000)}s ago)`);
       }

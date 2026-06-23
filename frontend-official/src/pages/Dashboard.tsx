@@ -119,7 +119,7 @@ export default function Dashboard() {
     const scopeLabel = activeMapScope === "regions" ? "região" : activeMapScope === "states" ? "estado" : "ddd";
     const lines = currentMapRows.map((row) => [scopeLabel, row.label, row.meta, String(row.count), `${row.share}%`]);
     const csv = [header, ...lines]
-      .map((columns) => columns.map((value) => `"${String(value).replaceAll('"', '""')}"`).join(","))
+      .map((columns) => columns.map((value) => `"${String(value).split('"').join('""')}"`).join(","))
       .join("\n");
 
     const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });

@@ -90,3 +90,13 @@ coverage/
 
 # ── Claude local workspace artifacts ──────────────────────────
 .claude/
+
+# ── Local data, temporary folders, and backups ─────────────────
+storage/
+scratch/
+backup_reorg_temp/
+archive/legacy/
+node.exe
+releases/
+logs/
+*.webm

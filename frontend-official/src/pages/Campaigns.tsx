@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState, useRef } from "react";
 import {
   Megaphone,
   PaperPlaneTilt,
@@ -30,10 +30,13 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { EmptyState } from "@/components/ui/empty-state";
 import { StatGridSkeleton } from "@/components/ui/loading-skeleton";
 import { OperationalStatusBadge } from "@/components/enterprise/OperationalStatusBadge";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
 import {
   apiService,
   type CampaignContact,
   type CampaignRecord,
+  type Conversation,
   type Contact,
 } from "@/services/apiService";
 import { notify } from "@/services/notifyService";
@@ -96,10 +99,17 @@ function formatInputDateTime(value?: string | null) {
   return new Date(parsed.getTime() - timezoneOffsetMs).toISOString().slice(0, 16);
 }
 
+function normalizePhone(value?: string | null) {
+  const normalized = String(value ?? "").trim().toLowerCase();
+  if (!normalized) return "";
+  if (normalized.includes("@g.us")) return normalized;
+  return normalized.replace(/\D/g, "");
+}
+
 function uniqueContacts(contacts: Contact[]) {
   const seen = new Set<string>();
   return contacts.filter((contact) => {
-    const key = String(contact.phone || contact.id || "").trim();
+    const key = normalizePhone(contact.phone) || String(contact.id || "").trim();
     if (!key || seen.has(key)) return false;
     seen.add(key);
     return true;
@@ -107,6 +117,9 @@ function uniqueContacts(contacts: Contact[]) {
 }
 
 export default function Campaigns() {
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [isTagModalOpen, setIsTagModalOpen] = useState(false);
+  const [tagInputVal, setTagInputVal] = useState("");
   const [loading, setLoading] = useState(true);
   const [campaigns, setCampaigns] = useState<CampaignRecord[]>([]);
   const [contacts, setContacts] = useState<Contact[]>([]);
@@ -137,9 +150,9 @@ export default function Campaigns() {
       ]);
       setCampaigns(Array.isArray(campaignList) ? campaignList : []);
 
-      const conversationsByPhone = new Map<string, any>();
+      const conversationsByPhone = new Map<string, Conversation>();
       (Array.isArray(conversationsData) ? conversationsData : []).forEach((conversation) => {
-        const key = conversation.phone || conversation.id;
+        const key = normalizePhone(conversation.phone) || String(conversation.id || "").trim();
         if (!key) return;
         const existing = conversationsByPhone.get(key);
         if (!existing || new Date(conversation.updatedAt).getTime() > new Date(existing.updatedAt).getTime()) {
@@ -148,7 +161,7 @@ export default function Campaigns() {
       });
 
       const normalizedContacts = (Array.isArray(contactList) ? contactList : []).map((contact) => {
-        const conversation = conversationsByPhone.get(contact.phone || contact.id);
+        const conversation = conversationsByPhone.get(normalizePhone(contact.phone) || String(contact.id || "").trim());
         return {
           id: contact.id,
           name: contact.name || conversation?.contactName || contact.phone || "Contato",
@@ -160,8 +173,8 @@ export default function Campaigns() {
 
       const orphanConversations = (Array.isArray(conversationsData) ? conversationsData : [])
         .filter((conversation) => {
-          const conversationPhone = conversation.phone || conversation.id;
-          return !normalizedContacts.some((contact) => (contact.phone || contact.id) === conversationPhone);
+          const conversationPhone = normalizePhone(conversation.phone) || String(conversation.id || "").trim();
+          return !normalizedContacts.some((contact) => (normalizePhone(contact.phone) || String(contact.id || "").trim()) === conversationPhone);
         })
         .map((conv) => ({
           id: conv.id,
@@ -171,9 +184,9 @@ export default function Campaigns() {
           updatedAt: conv.updatedAt || new Date().toISOString(),
         }));
 
-      const byPhone = new Map<string, any>();
+      const byPhone = new Map<string, Contact>();
       [...normalizedContacts, ...orphanConversations].forEach((contact) => {
-        const key = contact.phone || contact.id;
+        const key = normalizePhone(contact.phone) || String(contact.id || "").trim();
         const existing = byPhone.get(key);
         if (!existing || new Date(contact.updatedAt).getTime() > new Date(existing.updatedAt).getTime()) {
           byPhone.set(key, contact);
@@ -443,11 +456,134 @@ export default function Campaigns() {
     setSelectedContactIds((current) => Array.from(new Set([...current, ...visibleKeys])));
   }, [filteredContacts, selectedContactIds]);
 
+  const handleCsvImport = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const text = e.target?.result as string;
+      if (!text) return;
+
+      const lines = text.split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
+      if (lines.length === 0) {
+        notify.error("Arquivo CSV vazio.");
+        return;
+      }
+
+      const separator = lines[0].includes(";") ? ";" : ",";
+      const headers = lines[0].split(separator).map((h) => h.trim().toLowerCase());
+
+      const nameIdx = headers.findIndex((h) => h.includes("nome") || h.includes("name"));
+      const phoneIdx = headers.findIndex((h) => h.includes("fone") || h.includes("phone") || h.includes("tel"));
+
+      const importedContacts: Contact[] = [];
+      const newSelectedIds: string[] = [];
+
+      let importedCount = 0;
+      let ignoredCount = 0;
+      let duplicateCount = 0;
+
+      const seenInCsv = new Set<string>();
+      const existingPhones = new Set(contacts.map((c) => normalizePhone(c.phone)));
+
+      for (let i = 1; i < lines.length; i++) {
+        const parts = lines[i].split(separator).map((p) => p.trim());
+        const phoneRaw = phoneIdx !== -1 ? parts[phoneIdx] : parts[0];
+        const nameRaw = nameIdx !== -1 ? parts[nameIdx] : parts[1];
+
+        const cleanPhone = phoneRaw?.replace(/\D/g, "");
+        if (!cleanPhone || cleanPhone.length < 8) {
+          ignoredCount++;
+          continue;
+        }
+
+        const phoneKey = cleanPhone;
+
+        if (seenInCsv.has(phoneKey) || existingPhones.has(phoneKey)) {
+          duplicateCount++;
+          if (existingPhones.has(phoneKey) && !selectedContactIds.includes(phoneKey)) {
+            newSelectedIds.push(phoneKey);
+          }
+          continue;
+        }
+
+        seenInCsv.add(phoneKey);
+
+        const newContact: Contact = {
+          id: `csv-${phoneKey}`,
+          name: nameRaw || `Importado ${phoneKey}`,
+          phone: phoneKey,
+          status: "Importado",
+          updatedAt: new Date().toISOString(),
+        };
+
+        importedContacts.push(newContact);
+        newSelectedIds.push(phoneKey);
+        importedCount++;
+      }
+
+      if (importedContacts.length > 0) {
+        setContacts((prev) => [...prev, ...importedContacts]);
+      }
+
+      if (newSelectedIds.length > 0) {
+        setSelectedContactIds((current) => Array.from(new Set([...current, ...newSelectedIds])));
+      }
+
+      notify.success(
+        `Importação concluída. Importados: ${importedCount} | Ignorados: ${ignoredCount} | Duplicados: ${duplicateCount}`,
+      );
+
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
+    };
+    reader.readAsText(file);
+  };
+
+  const handleApplyTagSelection = async () => {
+    const tag = tagInputVal.trim();
+    if (!tag) return;
+
+    const normalizedTag = tag.toLowerCase();
+    try {
+      const conversations = await apiService.getConversations(false);
+      const matchingPhones = conversations
+        .filter((conv) => conv.tags?.some((t) => t.toLowerCase() === normalizedTag))
+        .map((conv) => normalizePhone(conv.phone))
+        .filter(Boolean);
+
+      const matchedContactKeys = contacts
+        .filter((c) => matchingPhones.includes(normalizePhone(c.phone)))
+        .map((c) => String(c.phone || c.id));
+
+      if (matchedContactKeys.length === 0) {
+        notify.error(`Nenhum contato encontrado com a tag "${tag}" na lista atual.`);
+      } else {
+        setSelectedContactIds((current) => Array.from(new Set([...current, ...matchedContactKeys])));
+        notify.success(`${matchedContactKeys.length} contatos com a tag "${tag}" selecionados.`);
+        setIsTagModalOpen(false);
+        setTagInputVal("");
+      }
+    } catch (err) {
+      console.error(err);
+      notify.error("Erro ao filtrar contatos por etiquetas.");
+    }
+  };
+
   const stepProgress = (campaignStep / STEP_LABELS.length) * 100;
   const lovableCampaignsViewModel = createCampaignsLovableViewModel(campaigns);
 
   return (
     <div className="min-h-screen">
+      <input
+        type="file"
+        ref={fileInputRef}
+        onChange={handleCsvImport}
+        accept=".csv"
+        className="hidden"
+      />
       <Header
         title="Campanhas"
         subtitle="Disparos em massa e campanhas programadas"
@@ -456,7 +592,7 @@ export default function Campaigns() {
             <Button variant="outline" size="sm" className="rounded-xl" onClick={() => void persistCampaign("save")}>
               Salvar Rascunho
             </Button>
-            <Button variant="outline" size="sm" className="rounded-xl">
+            <Button variant="outline" size="sm" className="rounded-xl" onClick={() => fileInputRef.current?.click()}>
               Importar Contatos
             </Button>
             <Button size="sm" className="rounded-xl shadow-glow" onClick={resetComposer}>
@@ -546,7 +682,7 @@ export default function Campaigns() {
                       <h2 className="mt-1 font-display text-2xl font-semibold">Nova Campanha de Alta Conversão</h2>
                     </div>
                     <div className="flex flex-wrap gap-2">
-                      <Button variant="outline" className="rounded-xl">
+                      <Button variant="outline" className="rounded-xl" onClick={() => fileInputRef.current?.click()}>
                         Importar CSV
                       </Button>
                       <Button variant="outline" className="rounded-xl" onClick={() => void persistCampaign("save")}>
@@ -591,21 +727,21 @@ export default function Campaigns() {
                       </div>
 
                       <div className="grid gap-4 md:grid-cols-3">
-                        <button type="button" className="rounded-2xl border border-success/20 bg-success/5 p-6 text-left transition-colors hover:bg-success/10">
+                        <button type="button" onClick={() => { setSelectedContactIds(contacts.map(c => String(c.phone || c.id))); notify.success("Todos os leads da base foram selecionados!"); }} className="rounded-2xl border border-success/20 bg-success/5 p-6 text-left transition-colors hover:bg-success/10">
                           <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-success/10">
                             <Users className="h-6 w-6 text-success" />
                           </div>
                           <p className="mt-5 text-2xl font-semibold">Filtro Atual</p>
                           <p className="mt-3 text-sm text-muted-foreground">Usar leads do mapa ou CRM</p>
                         </button>
-                        <button type="button" className="rounded-2xl border border-border/70 bg-background/30 p-6 text-left transition-colors hover:bg-card/60">
+                        <button type="button" onClick={() => fileInputRef.current?.click()} className="rounded-2xl border border-border/70 bg-background/30 p-6 text-left transition-colors hover:bg-card/60">
                           <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-background/60">
                             <ArrowClockwise className="h-6 w-6 text-muted-foreground" />
                           </div>
                           <p className="mt-5 text-2xl font-semibold">Importar Lista</p>
                           <p className="mt-3 text-sm text-muted-foreground">Planilha .xlsx ou .csv</p>
                         </button>
-                        <button type="button" className="rounded-2xl border border-border/70 bg-background/30 p-6 text-left transition-colors hover:bg-card/60">
+                        <button type="button" onClick={() => setIsTagModalOpen(true)} className="rounded-2xl border border-border/70 bg-background/30 p-6 text-left transition-colors hover:bg-card/60">
                           <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-background/60">
                             <Badge variant="secondary" className="h-10 rounded-xl px-3 text-sm">#</Badge>
                           </div>
@@ -636,12 +772,19 @@ export default function Campaigns() {
                               const key = String(contact.phone || contact.id);
                               const checked = selectedContactIds.includes(key);
                               return (
-                                <button
+                                <div
                                   key={key}
-                                  type="button"
+                                  role="button"
+                                  tabIndex={0}
                                   onClick={() => toggleContact(key)}
+                                  onKeyDown={(event) => {
+                                    if (event.key === "Enter" || event.key === " ") {
+                                      event.preventDefault();
+                                      toggleContact(key);
+                                    }
+                                  }}
                                   className={cn(
-                                    "flex w-full items-start gap-3 rounded-2xl border px-3 py-3 text-left transition-colors",
+                                    "flex w-full cursor-pointer items-start gap-3 rounded-2xl border px-3 py-3 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40",
                                     checked
                                       ? "border-primary/40 bg-primary/10"
                                       : "border-border/70 bg-card/60 hover:border-border hover:bg-card/80",
@@ -653,7 +796,7 @@ export default function Campaigns() {
                                     <p className="truncate text-xs text-muted-foreground">{contact.phone || "Sem telefone"}</p>
                                   </div>
                                   {contact.status ? <Badge variant="secondary">{contact.status}</Badge> : null}
-                                </button>
+                                </div>
                               );
                             })
                           )}
@@ -1085,6 +1228,34 @@ export default function Campaigns() {
           />
         )}
       </div>
+
+      <Dialog open={isTagModalOpen} onOpenChange={setIsTagModalOpen}>
+        <DialogContent className="max-w-md rounded-2xl border-border/70 bg-card/95">
+          <DialogHeader>
+            <DialogTitle className="font-display text-xl font-bold">Selecionar por Etiqueta</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-3">
+            <div className="space-y-2">
+              <Label htmlFor="tag-input" className="text-sm font-medium">Nome da etiqueta (tag)</Label>
+              <Input
+                id="tag-input"
+                placeholder="Ex: cliente, pendente, etc"
+                value={tagInputVal}
+                onChange={(e) => setTagInputVal(e.target.value)}
+                className="rounded-xl"
+              />
+            </div>
+            <div className="flex justify-end gap-2 pt-2">
+              <Button variant="outline" className="rounded-xl" onClick={() => setIsTagModalOpen(false)}>
+                Cancelar
+              </Button>
+              <Button className="rounded-xl shadow-glow" onClick={handleApplyTagSelection}>
+                Aplicar Filtro
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

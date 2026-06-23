@@ -12,6 +12,8 @@ interface ChatHeaderBarProps {
   onBack?: () => void;
   rightActions?: ReactNode;
   statusLabel?: string;
+  phoneLabel?: string;
+  statusBadges?: ReactNode;
 }
 
 export function ChatHeaderBar({
@@ -22,11 +24,13 @@ export function ChatHeaderBar({
   onBack,
   rightActions,
   statusLabel,
+  phoneLabel,
+  statusBadges,
 }: ChatHeaderBarProps) {
   const isOnlineOrTyping = statusLabel === "online" || statusLabel === "digitando...";
 
   return (
-    <div className="flex h-16 items-center justify-between border-b border-border/70 bg-card/85 px-3 md:px-4 backdrop-blur supports-[backdrop-filter]:bg-card/50 select-none">
+    <div className="flex min-h-16 items-center justify-between gap-3 border-b border-border/70 bg-card/85 px-3 py-2 md:px-4 backdrop-blur supports-[backdrop-filter]:bg-card/50 select-none relative z-20">
       <div className="flex items-center gap-2 md:gap-3">
         {isMobile && (
           <Button variant="ghost" size="icon" className="h-11 min-h-11" onClick={onBack} aria-label="Voltar para conversas">
@@ -40,15 +44,19 @@ export function ChatHeaderBar({
         </Avatar>
 
         <div className="min-w-0 flex flex-col justify-center">
-          <h3 className="font-semibold text-sm md:text-base leading-tight text-foreground">{contactName}</h3>
-          {statusLabel && (
-            <span className={cn(
-              "text-xs leading-tight text-muted-foreground",
-              isOnlineOrTyping && "text-emerald-400 font-medium animate-pulse"
-            )}>
-              {statusLabel}
-            </span>
-          )}
+          <h3 className="truncate font-semibold text-sm md:text-base leading-tight text-foreground">{contactName}</h3>
+          {phoneLabel && <span className="truncate text-[11px] leading-tight text-muted-foreground">{phoneLabel}</span>}
+          <div className="mt-1 flex min-w-0 flex-wrap items-center gap-1.5">
+            {statusLabel && (
+              <span className={cn(
+                "text-[10px] leading-tight text-muted-foreground",
+                isOnlineOrTyping && "text-emerald-400 font-medium"
+              )}>
+                {statusLabel}
+              </span>
+            )}
+            {statusBadges}
+          </div>
         </div>
       </div>
 

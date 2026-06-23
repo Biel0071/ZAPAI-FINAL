@@ -8,6 +8,9 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const root = path.resolve(__dirname, "../..");
 
+// Garantir que o diretório do executável do Node está no PATH para execuções de sub-processos (como npm/npx)
+process.env.PATH = path.dirname(process.execPath) + path.delimiter + process.env.PATH;
+
 function getSafeSlug(route) {
   let name = route.replace(/^\//, "").replace(/\//g, "-").replace(/[^a-zA-Z0-9\-]/g, "");
   return name || "dashboard";

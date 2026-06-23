@@ -15,6 +15,10 @@ import type {
 import type { AnalyticsLovableViewModel } from "@/adapters/lovable/analyticsAdapter";
 
 const BASE_CENTER: [number, number] = [-14.2, -51.9];
+const LeafletMapContainer = MapContainer as any;
+const LeafletTileLayer = TileLayer as any;
+const LeafletCircle = Circle as any;
+const LeafletMarker = Marker as any;
 
 function markerIcon() {
   return L.divIcon({
@@ -283,14 +287,14 @@ export function DashboardView({
               <CardContent className="space-y-4 p-0">
                 {hasMappedRows ? (
                   <div className="h-[520px] w-full">
-                    <MapContainer center={BASE_CENTER} zoom={4} minZoom={3} className="h-full w-full bg-background" worldCopyJump>
-                      <TileLayer
+                    <LeafletMapContainer center={BASE_CENTER} zoom={4} minZoom={3} className="h-full w-full bg-background" worldCopyJump>
+                      <LeafletTileLayer
                         url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
                         attribution='&copy; <a href="https://carto.com/">CARTO</a>'
                       />
 
                       {viewModel.map.points.map((point) => (
-                        <Circle
+                        <LeafletCircle
                           key={`heat-${point.id}`}
                           center={[point.lat, point.lng]}
                           radius={Math.max(50000, point.count * 8000)}
@@ -304,16 +308,16 @@ export function DashboardView({
                       ))}
 
                       {viewModel.map.points.map((point) => (
-                        <Marker key={point.id} position={[point.lat, point.lng]} icon={markerIcon()}>
+                        <LeafletMarker key={point.id} position={[point.lat, point.lng]} icon={markerIcon()}>
                           <Popup>
                             <div className="space-y-1 text-xs">
                               <p className="font-semibold">{point.label}</p>
                               <p>{point.count} leads</p>
                             </div>
                           </Popup>
-                        </Marker>
+                        </LeafletMarker>
                       ))}
-                    </MapContainer>
+                    </LeafletMapContainer>
                   </div>
                 ) : (
                   <div className="flex min-h-[360px] flex-col items-center justify-center gap-3 p-8 text-center">

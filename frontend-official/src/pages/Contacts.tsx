@@ -159,7 +159,7 @@ export default function Contacts() {
 
       const conversationsByPhone = new Map<string, Conversation>();
       (Array.isArray(conversationsData) ? conversationsData : []).forEach((conversation) => {
-        const key = conversation.phone || conversation.id;
+        const key = normalizePhone(conversation.phone) || String(conversation.id || "").trim();
         if (!key) return;
         const existing = conversationsByPhone.get(key);
         if (!existing || new Date(conversation.updatedAt).getTime() > new Date(existing.updatedAt).getTime()) {
@@ -168,7 +168,8 @@ export default function Contacts() {
       });
 
       const normalizedContacts = (Array.isArray(contactsData) ? contactsData : []).map((contact) => {
-        const conversation = conversationsByPhone.get(contact.phone || contact.id);
+        const contactPhone = normalizePhone(contact.phone);
+        const conversation = conversationsByPhone.get(contactPhone || String(contact.id || "").trim());
         return {
           id: contact.id,
           name: contact.name || conversation?.contactName || contact.phone || "Contato",
@@ -188,14 +189,14 @@ export default function Contacts() {
 
       const orphanConversations = (Array.isArray(conversationsData) ? conversationsData : [])
         .filter((conversation) => {
-          const conversationPhone = conversation.phone || conversation.id;
-          return !normalizedContacts.some((contact) => (contact.phone || contact.id) === conversationPhone);
+          const conversationPhone = normalizePhone(conversation.phone) || String(conversation.id || "").trim();
+          return !normalizedContacts.some((contact) => (normalizePhone(contact.phone) || String(contact.id || "").trim()) === conversationPhone);
         })
         .map(normalizeConversationToContact);
 
       const byPhone = new Map<string, ContactRow>();
       [...normalizedContacts, ...orphanConversations].forEach((contact) => {
-        const key = contact.phone || contact.id;
+        const key = normalizePhone(contact.phone) || String(contact.id || "").trim();
         const existing = byPhone.get(key);
         if (!existing || new Date(contact.updatedAt).getTime() > new Date(existing.updatedAt).getTime()) {
           byPhone.set(key, contact);
@@ -426,7 +427,7 @@ export default function Contacts() {
     }
     setEditSaving(true);
     try {
-      await apiService.patchConversation(editContact.conversationId, { tags: editTags });
+      await apiService.patchConversation(editContact.conversationId, { name: editName, tags: editTags });
       setContacts((prev) =>
         prev.map((c) => (c.id === editContact.id ? { ...c, name: editName, tags: editTags } : c)),
       );

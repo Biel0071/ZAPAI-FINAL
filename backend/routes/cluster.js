@@ -4,12 +4,15 @@ const { query } = require('../config/database');
 const router = express.Router();
 
 function requireMasterAdmin(req, res, next) {
+  console.log('[DEBUG] requireMasterAdmin - req.auth:', req.auth);
   const role = String(req.auth?.role || '').trim().toLowerCase();
   if (role !== 'master_admin') {
+    console.log('[DEBUG] requireMasterAdmin - Denied role:', role);
     return res.status(403).json({ success: false, error: 'master_admin role required.' });
   }
   return next();
 }
+
 
 // ── GET /api/cluster/overview ─────────────────────────────────────────────
 router.get('/overview', requireMasterAdmin, async (_req, res) => {
