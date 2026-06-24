@@ -628,9 +628,27 @@ export function useInboxState() {
         if (cancelled) return;
 
         const logs = Array.isArray(logsResponse?.logs) ? logsResponse.logs : [];
-        const conversationLogs = logs.filter(
-          (entry) => String(entry.conversationId ?? "") === String(selectedConversation.id),
-        );
+        const normalizeAiIdentity = (value: unknown) => {
+          const raw = String(value ?? "").trim().toLowerCase();
+          if (!raw) return "";
+          if (raw.includes("@g.us")) return raw;
+          const withoutSuffix = raw.replace(/@(s\.whatsapp\.net|c\.us|lid)$/i, "");
+          const digits = withoutSuffix.replace(/\D/g, "");
+          return digits.length >= 8 ? digits : raw;
+        };
+        const conversationIdentities = [
+          selectedConversation.id,
+          selectedConversation.chatId,
+          selectedConversation.phone,
+          selectedConversation.contactId,
+        ].map(normalizeAiIdentity).filter(Boolean);
+        const conversationLogs = logs.filter((entry) => {
+          const entryIdentity = normalizeAiIdentity(entry.conversationId);
+          return conversationIdentities.some((identity) =>
+            identity === entryIdentity ||
+            (identity.length >= 8 && entryIdentity.length >= 8 && identity.slice(-8) === entryIdentity.slice(-8)),
+          );
+        });
         const latestLog = conversationLogs[0] ?? null;
         const activeProvider =
           advancedSettings.providers?.find((provider: any) => provider.active) ??
@@ -659,7 +677,27 @@ export function useInboxState() {
     return () => {
       cancelled = true;
     };
-  }, [selectedConversation?.id]);
+  }, [selectedConversation?.id, selectedConversation?.chatId, selectedConversation?.phone, selectedConversation?.contactId]);
+
+  useEffect(() => {
+    const aiMessages = messages.filter((message) => message.isAI);
+    const latestAiMessage = aiMessages.at(-1);
+    if (!latestAiMessage) return;
+
+    const promptTokens = aiMessages.reduce((total, message) => total + Number(message.aiPromptTokens || 0), 0);
+    const completionTokens = aiMessages.reduce((total, message) => total + Number(message.aiCompletionTokens || 0), 0);
+
+    setAiRuntime((current) => ({
+      ...current,
+      provider: latestAiMessage.aiProvider || current.provider,
+      model: latestAiMessage.aiModel || current.model,
+      lastResponseAt: latestAiMessage.createdAt || current.lastResponseAt,
+      lastResponseTimeMs: latestAiMessage.aiResponseTimeMs ?? current.lastResponseTimeMs,
+      promptTokens: Math.max(current.promptTokens, promptTokens),
+      completionTokens: Math.max(current.completionTokens, completionTokens),
+      loading: false,
+    }));
+  }, [messages, selectedConversation?.id]);
 
   useEffect(() => {
     if (!selectedConversation) return;
@@ -1109,8 +1147,22 @@ export function useInboxState() {
   }, [messages, selectedConversationId]);
 
 
+  const selectedConversationIdForEffect = selectedConversation?.id || null;
+  const selectedConversationUnread = selectedConversation?.unread || 0;
+
   useEffect(() => {
-    if (!selectedConversation?.id) {
+    if (!selectedConversationIdForEffect) return;
+    if (selectedConversationUnread > 0) {
+      try {
+        void apiService.markConversationRead(selectedConversationIdForEffect);
+      } catch (e) {
+        console.warn("Failed to mark conversation read:", e);
+      }
+    }
+  }, [selectedConversationIdForEffect, selectedConversationUnread]);
+
+  useEffect(() => {
+    if (!selectedConversationIdForEffect) {
       setHasMoreMessages(false);
       setPendingBackgroundUpdates(0);
       setUnseenRealtimeCount(0);
@@ -1119,24 +1171,18 @@ export function useInboxState() {
       return;
     }
 
-    const normalizedId = String(selectedConversation.id);
-    
-    // Sync unread confirmation with backend database
-    try {
-      void apiService.markConversationRead(normalizedId);
-    } catch (e) {
-      console.warn("Failed to mark conversation read:", e);
-    }
+    const normalizedId = String(selectedConversationIdForEffect);
+    const activeConversation = selectedConversation!;
 
     const resolvedId = resolveStoreConversationId(useAppStore.getState().conversations, normalizedId);
     const storeMessages = useAppStore.getState().messagesByConversationId[resolvedId] || [];
 
     if (storeMessages.length > 0) {
       messageIdsRef.current = new Set(storeMessages.map((m) => m.id));
-      const cached = messageCacheRef.current.get(getConversationKey(selectedConversation));
+      const cached = messageCacheRef.current.get(getConversationKey(activeConversation));
       setHasMoreMessages(cached ? cached.hasMore : storeMessages.length >= MESSAGE_PAGE_SIZE);
     } else {
-      const cached = messageCacheRef.current.get(getConversationKey(selectedConversation));
+      const cached = messageCacheRef.current.get(getConversationKey(activeConversation));
       if (cached && cached.messages.length > 0) {
         setMessagesForConversation(normalizedId, cached.messages);
         setHasMoreMessages(cached.hasMore);
@@ -1144,8 +1190,8 @@ export function useInboxState() {
       } else {
         const persisted = loadPersistedConversationMessages({
           conversationId: normalizedId,
-          sessionId: selectedConversation.sessionId,
-          phone: selectedConversation.phone,
+          sessionId: activeConversation.sessionId,
+          phone: activeConversation.phone,
         })
           .map((item, index) => normalizeLoadedMessage(item, normalizedId, index))
           .filter((item) => normalizeId(item.conversationId) === normalizeId(normalizedId));
@@ -1172,7 +1218,13 @@ export function useInboxState() {
     setActiveReactionPickerMessageId(null);
     setReplyingTo(null);
     scheduleScrollToBottom("auto");
-  }, [scheduleScrollToBottom, selectedConversation, setMessagesForConversation]);
+  }, [
+    scheduleScrollToBottom,
+    selectedConversationIdForEffect,
+    selectedConversation?.sessionId,
+    selectedConversation?.phone,
+    setMessagesForConversation
+  ]);
 
   // Offline sync fallbacks
   useEffect(() => {

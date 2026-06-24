@@ -81,7 +81,11 @@ function formatUptime(seconds) {
 }
 
 function buildHealthPayload() {
-  const session = sessionManager.getSession(DEFAULT_SESSION);
+  const liveSessions = sessionManager.listSessions();
+  const session =
+    liveSessions.find((item) => String(item?.status || '').toLowerCase() === 'connected') ||
+    liveSessions[0] ||
+    null;
   const databaseOnline = Boolean(app.locals.store.databaseEnabled);
   const databaseError = app.locals.store.databaseError || null;
   const whatsappConnected = String(session?.status || '').toLowerCase() === 'connected';
@@ -431,7 +435,10 @@ function sendSafeJson(res, payload, status = 200) {
 }
 
 function buildSessionStatusPayload() {
-  const session = sessionManager.getSession(DEFAULT_SESSION);
+  const sessions = typeof sessionManager.listSessions === 'function' ? sessionManager.listSessions() : [];
+  const session = sessions.find((candidate) => String(candidate?.status || '').toLowerCase() === 'connected')
+    || sessionManager.getSession(DEFAULT_SESSION)
+    || sessions[0];
   const sessionStatus = String(session?.status || '').toLowerCase();
   // Phase 2c: tenant-indexed state service replaces legacy global.whatsappSession.
   const tenantState = sessionStateService.getWhatsappSession();
@@ -696,9 +703,13 @@ app.get('/api', (_req, res) => {
 app.get('/api/health', (_req, res) => {
   try {
     const base = buildHealthPayload();
-    const session = sessionManager.getSession(DEFAULT_SESSION);
-    const sessionsTotal = app.locals.store?.sessions?.length ?? (session ? 1 : 0);
-    const sessionsConnected = session && String(session.status || '').toLowerCase() === 'connected' ? 1 : 0;
+    const liveSessions = sessionManager.listSessions();
+    const connectedSessions = liveSessions.filter(
+      (item) => String(item?.status || '').toLowerCase() === 'connected'
+    );
+    const session = connectedSessions[0] || liveSessions[0] || null;
+    const sessionsTotal = liveSessions.length;
+    const sessionsConnected = connectedSessions.length;
 
     // Standardized envelope: { success, status, data: { system: { sessions, websocket, database, whatsapp } }, ...legacy }
     const envelope = {
@@ -1469,15 +1480,19 @@ async function legacyIncomingMessageFlow({ incomingMessage, sessionId, sock }) {
 
   const automationEngine = require('./services/automationEngine');
   if (!isGroup) {
-    void automationEngine.processMessage({
-      payload: messagePayload,
-      conversation: result?.conversation || { phone: payload.phone, company_id: payload.companyId },
-      store: app.locals.store,
-      sock,
-      sessionId
-    }).catch((err) => {
+    try {
+      result.automationResult = await automationEngine.processMessage({
+        payload: messagePayload,
+        conversation: result?.conversation || { phone: payload.phone, company_id: payload.companyId },
+        store: app.locals.store,
+        sock,
+        sessionId
+      });
+      result.automationHandled = true;
+    } catch (err) {
       console.error('[AutomationEngine] Pipeline execution failed:', err);
-    });
+      result.automationHandled = false;
+    }
   }
 
   return result;
@@ -1596,6 +1611,7 @@ async function bootstrap() {
     businessHours.open = aiConfig.businessHours.open || businessHours.open;
     businessHours.close = aiConfig.businessHours.close || businessHours.close;
     businessHours.timezone = aiConfig.businessHours.timezone || businessHours.timezone;
+    businessHours.autoReplyOutsideHours = aiConfig.businessHours.autoReplyOutsideHours !== undefined ? aiConfig.businessHours.autoReplyOutsideHours : businessHours.autoReplyOutsideHours;
     businessHours.absenceMessage = aiConfig.businessHours.absenceMessage || businessHours.absenceMessage;
     console.log('[AI] Applied loaded business hours:', businessHours.open, '-', businessHours.close);
   }

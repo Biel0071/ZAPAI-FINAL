@@ -33,7 +33,7 @@ export function InboxView({
             "flex flex-col h-full overflow-hidden",
             isMobile 
               ? (mobileScreen === "conversations" ? "w-full" : "hidden")
-              : "w-[320px] shrink-0 xl:w-[360px]"
+              : "w-[280px] shrink-0 2xl:w-[340px]"
           )}
         >
           {leftPanel}

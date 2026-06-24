@@ -68,6 +68,7 @@ async function generateAIResponse({
     const contactData = {
       name: store?.contact?.name || conversation?.phone || 'Cliente',
       phone: conversation?.phone || 'unknown',
+      conversationId: conversation?.id || conversation?.phone || 'unknown',
     };
 
     const history = conversationHistory.map(h => ({
@@ -84,7 +85,16 @@ async function generateAIResponse({
     });
 
     if (aiResult && aiResult.reply) {
-      return aiResult.reply;
+      return {
+        response: aiResult.reply,
+        provider: aiResult.provider,
+        model: aiResult.model,
+        responseTimeMs: aiResult.responseTimeMs,
+        promptTokens: aiResult.promptTokens,
+        completionTokens: aiResult.completionTokens,
+        totalTokens: aiResult.totalTokens,
+        agentName: aiResult.agentName || resolvedAgent?.name,
+      };
     }
   } catch (err) {
     console.error('[AI RESPONSE ENGINE] processAI failed, using fallback:', err.message);
@@ -123,9 +133,19 @@ async function generateAIResponse({
       }
     );
 
-    return result?.response || buildFallbackResponse(resolvedAgent, leadAnalysis, salesStrategy);
+    return {
+      response: result?.response || buildFallbackResponse(resolvedAgent, leadAnalysis, salesStrategy),
+      provider: 'openai',
+      model: process.env.OPENAI_MODEL || 'gpt-4.1-mini',
+      agentName: resolvedAgent?.name,
+    };
   } catch {
-    return buildFallbackResponse(resolvedAgent, leadAnalysis, salesStrategy);
+    return {
+      response: buildFallbackResponse(resolvedAgent, leadAnalysis, salesStrategy),
+      provider: 'fallback',
+      model: 'local',
+      agentName: resolvedAgent?.name,
+    };
   }
 }
 

@@ -164,6 +164,24 @@ export function RuntimeProvider({ children }: { children: ReactNode }) {
   const hydratedRef = useRef(false);
   const statusRef = useRef<RuntimeStatus>("offline");
   const refreshTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const typingTimersRef = useRef<Map<string, any>>(new Map());
+
+  const clearTypingTimeout = useCallback((conversationId: string) => {
+    const existingTimer = typingTimersRef.current.get(conversationId);
+    if (existingTimer) {
+      clearTimeout(existingTimer);
+      typingTimersRef.current.delete(conversationId);
+    }
+  }, []);
+
+  const setTypingTimeout = useCallback((conversationId: string) => {
+    clearTypingTimeout(conversationId);
+    const timer = setTimeout(() => {
+      useAppStore.getState().updateTypingStatus(conversationId, false);
+      typingTimersRef.current.delete(conversationId);
+    }, 15000);
+    typingTimersRef.current.set(conversationId, timer);
+  }, [clearTypingTimeout]);
 
   // Keep refs in sync
   hydratedRef.current = hydrated;
@@ -452,6 +470,11 @@ export function RuntimeProvider({ children }: { children: ReactNode }) {
         console.log(`[INBOX REALTIME] [REALTIME_MESSAGE] AI Response event received: id=${incoming.id}`);
         const conversationId = resolveConversationIdForRealtimeMessage(incoming, store.conversations);
         if (!conversationId) return;
+
+        // Clear typing status immediately
+        store.updateTypingStatus(conversationId, false);
+        clearTypingTimeout(conversationId);
+
         console.log(`[INBOX REALTIME] [STORE_TARGET] Setting store target for AI Response: conversationId=${conversationId}`);
         const currentConv = store.conversations.find((c) => String(c.id) === String(conversationId));
         const message = {
@@ -505,6 +528,11 @@ export function RuntimeProvider({ children }: { children: ReactNode }) {
         console.log(`[INBOX REALTIME] [REALTIME_MESSAGE] New message event received: id=${incoming.id}`);
         const conversationId = resolveConversationIdForRealtimeMessage(incoming, store.conversations);
         if (!conversationId) return;
+
+        // Clear typing status immediately
+        store.updateTypingStatus(conversationId, false);
+        clearTypingTimeout(conversationId);
+
         console.log(`[INBOX REALTIME] [STORE_TARGET] Setting store target for New message: conversationId=${conversationId}`);
         const currentConv = store.conversations.find((c) => String(c.id) === String(conversationId));
         const message = {
@@ -593,12 +621,19 @@ export function RuntimeProvider({ children }: { children: ReactNode }) {
         const { conversationId, isTyping } = payload;
         if (!conversationId) return;
         useAppStore.getState().updateTypingStatus(conversationId, isTyping);
+        if (isTyping) {
+          setTypingTimeout(conversationId);
+        } else {
+          clearTypingTimeout(conversationId);
+        }
       },
     });
 
     return () => {
       disconnect();
       if (refreshTimerRef.current) clearTimeout(refreshTimerRef.current);
+      typingTimersRef.current.forEach((timer) => clearTimeout(timer));
+      typingTimersRef.current.clear();
     };
   }, [socketUrl, loadFromApi, debouncedRefresh]);
 

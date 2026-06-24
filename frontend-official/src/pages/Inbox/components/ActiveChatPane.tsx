@@ -32,6 +32,7 @@ import {
   DropdownMenuItem,
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ChatHeaderBar } from "@/components/inbox/ChatHeaderBar";
 import { NewMessagesBanner } from "@/components/inbox/NewMessagesBanner";
 import { MessageRow } from "./MessageRow";
@@ -132,6 +133,9 @@ interface ActiveChatPaneProps {
   applyPendingBackgroundUpdates: () => Promise<void>;
   pendingBackgroundUpdates: number;
   error: string | null;
+  aiAgents?: any[];
+  loadingAgents?: boolean;
+  handleSetConversationAgent?: (agentName: string) => Promise<void>;
 }
 
 const MOBILE_TOUCH_TARGET_CLASS = "h-11 min-h-11";
@@ -221,6 +225,9 @@ export function ActiveChatPane({
   applyPendingBackgroundUpdates,
   pendingBackgroundUpdates,
   error,
+  aiAgents = [],
+  loadingAgents = false,
+  handleSetConversationAgent,
 }: ActiveChatPaneProps) {
   const [activeSlashIndex, setActiveSlashIndex] = useState(0);
   const [activeTab, setActiveTab] = useState<'emoji' | 'sticker'>('emoji');
@@ -430,12 +437,12 @@ export function ActiveChatPane({
                     : "offline"
             }
             rightActions={
-              <div className="flex items-center gap-2">
+              <div className="flex min-w-0 items-center gap-1.5">
                 <Button
                   type="button"
                   variant="ghost"
                   size="sm"
-                  className="h-8 px-2 text-[11px] font-semibold text-muted-foreground hover:text-foreground hover:bg-muted gap-1"
+                  className="hidden h-8 px-2 text-[11px] font-semibold text-muted-foreground hover:text-foreground hover:bg-muted gap-1 2xl:flex"
                   onClick={() => setConversationSearchOpen(true)}
                   title="Buscar na conversa"
                 >
@@ -461,6 +468,31 @@ export function ActiveChatPane({
                   <Brain className="h-4 w-4" />
                   {aiEnabledForConversation ? "IA ON" : "IA OFF"}
                 </Button>
+
+                {aiEnabledForConversation && aiAgents && aiAgents.length > 0 && handleSetConversationAgent && (
+                  <div className="flex min-w-0 items-center gap-1 bg-[#1C2028] border border-border/40 rounded-md px-2 py-0.5 text-[10px]">
+                    <span className="hidden text-[10px] text-muted-foreground uppercase font-semibold xl:inline">Agente:</span>
+                    <Select
+                      value={selectedConversation?.agent_name || (selectedConversation as any)?.assignedAgentName || "Camila"}
+                      onValueChange={(val) => void handleSetConversationAgent(val)}
+                    >
+                      <SelectTrigger className="h-6 min-w-[62px] max-w-[96px] bg-transparent border-none text-[11px] font-semibold text-primary focus:ring-0 p-0 gap-1 hover:text-primary-foreground justify-between">
+                        <SelectValue placeholder="Selecione..." />
+                      </SelectTrigger>
+                      <SelectContent className="bg-[#1C2028]/95 border-border/80 text-foreground">
+                        {aiAgents.map((agent) => (
+                          <SelectItem
+                            key={agent.id || agent.name}
+                            value={agent.name}
+                            className="text-xs cursor-pointer hover:bg-muted text-foreground focus:bg-muted focus:text-foreground"
+                          >
+                            {agent.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
 
                 {isTabletLayout && (
                   <Button

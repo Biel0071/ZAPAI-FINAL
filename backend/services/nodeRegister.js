@@ -65,54 +65,56 @@ class NodeRegisterService {
     const freemem = os.freemem();
     const uptime = process.uptime();
 
-    const diskProbe = (() => {
+    const diskProbe = await new Promise((resolve) => {
       try {
         if (process.platform === 'win32') {
-          const result = spawnSync('wmic', ['logicaldisk', 'where', "DeviceID='C:'", 'get', 'Size,FreeSpace', '/value'], {
+          const { exec } = require('child_process');
+          exec('wmic logicaldisk where "DeviceID=\'C:\'" get Size,FreeSpace /value', {
             timeout: 2000,
-            windowsHide: true,
-            encoding: 'utf8',
+            windowsHide: true
+          }, (err, stdout) => {
+            if (err) {
+              return resolve({ total: 0, used: 0, free: 0, usedPercent: 0 });
+            }
+            const output = String(stdout || '');
+            const size = Number((output.match(/Size=(\d+)/) || [])[1] || 0);
+            const free = Number((output.match(/FreeSpace=(\d+)/) || [])[1] || 0);
+            const used = size > 0 ? size - free : 0;
+            const usedPercent = size > 0 ? Math.round((used / size) * 100) : 0;
+            resolve({
+              total: Math.round(size / 1024 / 1024),
+              used: Math.round(used / 1024 / 1024),
+              free: Math.round(free / 1024 / 1024),
+              usedPercent,
+            });
           });
-          const output = String(result.stdout || '');
-          const size = Number((output.match(/Size=(\d+)/) || [])[1] || 0);
-          const free = Number((output.match(/FreeSpace=(\d+)/) || [])[1] || 0);
-          const used = size > 0 ? size - free : 0;
-          const usedPercent = size > 0 ? Math.round((used / size) * 100) : 0;
-          return {
-            total: Math.round(size / 1024 / 1024),
-            used: Math.round(used / 1024 / 1024),
-            free: Math.round(free / 1024 / 1024),
-            usedPercent,
-          };
+        } else {
+          const { exec } = require('child_process');
+          exec('df -k /', {
+            timeout: 2000,
+            windowsHide: true
+          }, (err, stdout) => {
+            if (err) {
+              return resolve({ total: 0, used: 0, free: 0, usedPercent: 0 });
+            }
+            const lines = String(stdout || '').trim().split(/\r?\n/);
+            const data = String(lines[1] || '').trim().split(/\s+/);
+            const totalKb = Number(data[1] || 0);
+            const usedKb = Number(data[2] || 0);
+            const freeKb = Number(data[3] || 0);
+            const usedPercent = totalKb > 0 ? Math.round((usedKb / totalKb) * 100) : 0;
+            resolve({
+              total: Math.round(totalKb / 1024),
+              used: Math.round(usedKb / 1024),
+              free: Math.round(freeKb / 1024),
+              usedPercent,
+            });
+          });
         }
-
-        const result = spawnSync('df', ['-k', '/'], {
-          timeout: 2000,
-          windowsHide: true,
-          encoding: 'utf8',
-        });
-        const lines = String(result.stdout || '').trim().split(/\r?\n/);
-        const data = String(lines[1] || '').trim().split(/\s+/);
-        const totalKb = Number(data[1] || 0);
-        const usedKb = Number(data[2] || 0);
-        const freeKb = Number(data[3] || 0);
-        const usedPercent = totalKb > 0 ? Math.round((usedKb / totalKb) * 100) : 0;
-
-        return {
-          total: Math.round(totalKb / 1024),
-          used: Math.round(usedKb / 1024),
-          free: Math.round(freeKb / 1024),
-          usedPercent,
-        };
       } catch {
-        return {
-          total: 0,
-          used: 0,
-          free: 0,
-          usedPercent: 0,
-        };
+        resolve({ total: 0, used: 0, free: 0, usedPercent: 0 });
       }
-    })();
+    });
 
     return {
       cpu: {

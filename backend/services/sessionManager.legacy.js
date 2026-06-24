@@ -353,6 +353,16 @@ async function disposeSession(sessionName, options = {}) {
   if (options.deleteFolder === true) {
     await deleteSessionFolder(normalizedName);
   }
+
+  // Trigger Node.js garbage collection if exposed (via --expose-gc) to immediately free socket/connection memory
+  if (typeof global.gc === 'function') {
+    try {
+      global.gc();
+      console.log(`[SYSTEM] Garbage collection triggered successfully after disposing session: ${normalizedName}`);
+    } catch (e) {
+      console.warn(`[SYSTEM] Failed to run garbage collection:`, e.message);
+    }
+  }
 }
 
 async function listStoredSessionNames() {

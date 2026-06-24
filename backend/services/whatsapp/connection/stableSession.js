@@ -293,9 +293,20 @@ async function loadRealtimeHistory({ io, session, sock }) {
   const chatsFromSocket = typeof sock.getChats === 'function' ? await sock.getChats() : [];
   const chatList = Array.isArray(chatsFromSocket) ? chatsFromSocket : [];
 
+  // Sort chats by last activity timestamp descending to prioritize active chats
+  const sortedChats = [...chatList].sort((a, b) => {
+    const timeA = Number(a?.conversationTimestamp || a?.lastMsgTimestamp || a?.tc || 0);
+    const timeB = Number(b?.conversationTimestamp || b?.lastMsgTimestamp || b?.tc || 0);
+    return timeB - timeA;
+  });
+
   store.chats = Object.create(null);
 
-  for (const chat of chatList) {
+  // We only fetch history from WhatsApp for the top 15 most recent chats or chats with unread messages to avoid event loop blocking, CPU spikes, and memory bloat
+  const MAX_HISTORICAL_FETCH_LIMIT = 15;
+  let fetchCount = 0;
+
+  for (const chat of sortedChats) {
     const chatId = chat?.id;
 
     if (!isValidRealtimeChatId(chatId)) {
@@ -303,10 +314,13 @@ async function loadRealtimeHistory({ io, session, sock }) {
     }
 
     let historicalMessages = [];
+    const hasUnread = Number(chat?.unreadCount || 0) > 0;
+    const shouldFetchHistory = fetchCount < MAX_HISTORICAL_FETCH_LIMIT || hasUnread;
 
-    if (typeof sock.fetchMessagesFromWA === 'function') {
+    if (shouldFetchHistory && typeof sock.fetchMessagesFromWA === 'function') {
       try {
         historicalMessages = await sock.fetchMessagesFromWA(chatId, INITIAL_CHAT_HISTORY_LIMIT);
+        fetchCount++;
       } catch {
         historicalMessages = [];
       }
@@ -318,15 +332,17 @@ async function loadRealtimeHistory({ io, session, sock }) {
 
     const messages = pruneChatMessages(formattedHistory);
     const latestMessage = messages.length > 0 ? messages[messages.length - 1] : null;
+    const fallbackTimestamp = Number(chat?.conversationTimestamp || chat?.lastMsgTimestamp || chat?.tc || 0) * 1000;
+
     store.chats[chatId] = {
       ...createRealtimeChatState({
         chatId,
         isGroup: String(chatId).endsWith('@g.us'),
         name: chat?.name || chat?.pushName || chat?.subject || chatId,
       }),
-      lastMessage: latestMessage ? getMessagePreview(latestMessage) : '',
+      lastMessage: latestMessage ? getMessagePreview(latestMessage) : (chat?.lastMessage || ''),
       messages,
-      updatedAt: latestMessage ? toUnixMillis(latestMessage.timestamp) : Date.now(),
+      updatedAt: latestMessage ? toUnixMillis(latestMessage.timestamp) : (fallbackTimestamp || Date.now()),
     };
   }
 
@@ -527,9 +543,20 @@ async function runAIForChat({ chatId, incomingFormattedMessage, session, sock })
   addMessageToRealtimeStore(session, outgoingMessage);
   enterpriseRealtimeService.emitNewMessage(session.io || global.io, outgoingMessage);
   (session.io || global.io)?.emit('ai_response', {
+    ...outgoingMessage,
     confidence: aiResult?.confidence,
-    chatId,
     response: safeResponse,
+    content: safeResponse,
+    isAI: true,
+    sessionId: session?.sessionId || DEFAULT_SESSION,
+    phone: normalizePhone(chatId),
+    aiProvider: aiResult?.provider,
+    aiModel: aiResult?.model,
+    aiAgentName: aiResult?.agentName || agent?.name || chat.assignedTo || 'Camila',
+    aiResponseTimeMs: aiResult?.responseTimeMs,
+    aiPromptTokens: aiResult?.promptTokens,
+    aiCompletionTokens: aiResult?.completionTokens,
+    aiTotalTokens: aiResult?.totalTokens,
   });
 
   // Log RESPONSE_SENT step
@@ -608,6 +635,7 @@ async function createStableSession({
     browser: ['Windows', 'Chrome', '122.0.0'],
     logger: pino({ level: 'silent' }),
     version,
+    shouldSyncHistoryMessage: () => false,
   });
 
   const session = {
@@ -1436,12 +1464,14 @@ async function createStableSession({
           }
         );
 
-        await runAIForChat({
-          chatId: formattedRealtimeMessage.chatId,
-          incomingFormattedMessage: formattedRealtimeMessage,
-          session,
-          sock,
-        });
+        if (!result?.automationHandled) {
+          await runAIForChat({
+            chatId: formattedRealtimeMessage.chatId,
+            incomingFormattedMessage: formattedRealtimeMessage,
+            session,
+            sock,
+          });
+        }
       } catch (error) {
         // eslint-disable-next-line no-console
         console.warn(

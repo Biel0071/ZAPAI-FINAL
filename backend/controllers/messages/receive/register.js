@@ -89,8 +89,8 @@ async function registerIncomingMessage(store, payload) {
     },
   });
 
-  void aiIntelligenceService
-    .captureMessageEvent(store, {
+  try {
+    await aiIntelligenceService.captureMessageEvent(store, {
       conversationId: result?.message?.conversationId || result?.conversation?.id || null,
       direction: 'incoming',
       mediaType: result?.message?.mediaType || payload.mediaType || null,
@@ -101,14 +101,13 @@ async function registerIncomingMessage(store, payload) {
       text: exactText || '',
       timestamp:
         result?.message?.createdAt || payload.timestamp || new Date().toISOString(),
-    })
-    .catch((error) => {
-      // eslint-disable-next-line no-console
-      console.error(
-        '[AI INTELLIGENCE] Failed to capture inbound message:',
-        error?.message || error
-      );
     });
+  } catch (error) {
+    console.error(
+      '[AI INTELLIGENCE] Failed to capture inbound message:',
+      error?.message || error
+    );
+  }
 
   return result;
 }

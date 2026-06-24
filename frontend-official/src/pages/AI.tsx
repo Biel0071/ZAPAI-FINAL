@@ -140,6 +140,7 @@ export default function AI() {
   const [providers, setProviders] = useState<AIProviderConfig[]>(DEFAULT_PROVIDERS);
   const [aiLogs, setAiLogs] = useState<any[]>([]);
   const [runtimeHealth, setRuntimeHealth] = useState<{ runtime: string; sessions: string; activeSessions: number; totalSessions: number } | null>(null);
+  const [providerOnline, setProviderOnline] = useState(false);
   const [webhooks, setWebhooks] = useState<Array<Record<string, unknown>>>([]);
   const [testMessage, setTestMessage] = useState("Olá, preciso validar se a IA está respondendo.");
   const [testPrompt, setTestPrompt] = useState(DEFAULT_PROMPT);
@@ -183,8 +184,8 @@ export default function AI() {
       },
       {
         label: "OpenAI",
-        ok: Boolean(activeProvider?.apiKey || activeProvider?.id === "ollama"),
-        detail: activeProvider ? `${activeProvider.name} (${activeProvider.model})` : "Nenhum provider ativo",
+        ok: providerOnline || Boolean(activeProvider?.apiKey || activeProvider?.id === "ollama"),
+        detail: activeProvider ? `${activeProvider.name} (${activeProvider.model})` : providerOnline ? "Provider configurado no servidor" : "Nenhum provider ativo",
       },
       {
         label: "Filas",
@@ -197,7 +198,7 @@ export default function AI() {
         detail: runtimeHealth?.runtime === "online" && websocketHealth === "online" ? "Operacional" : "Indisponível",
       },
     ];
-  }, [providers, queueWaiting, runtimeHealth, websocketHealth]);
+  }, [providerOnline, providers, queueWaiting, runtimeHealth, websocketHealth]);
 
   useEffect(() => {
     let mounted = true;
@@ -206,13 +207,13 @@ export default function AI() {
       setLoading(true);
       try {
         const [status, promptData, businessHours, absence, queue, memory, advanced, logsData, metricsData, runtimeData, webhooksData, agentsData, userProvidersData] = await Promise.all([
-          apiService.getAIStatus(),
-          apiService.getAIPrompt(),
-          apiService.getBusinessHours(),
-          apiService.getAbsenceMessage(),
-          apiService.getQueueStats(),
-          apiService.getMemorySettings(),
-          apiService.getAdvancedAISettings(),
+          apiService.getAIStatus().catch(() => ({})),
+          apiService.getAIPrompt().catch(() => null),
+          apiService.getBusinessHours().catch(() => null),
+          apiService.getAbsenceMessage().catch(() => null),
+          apiService.getQueueStats().catch(() => null),
+          apiService.getMemorySettings().catch(() => null),
+          apiService.getAdvancedAISettings().catch(() => null),
           apiService.getAILogs().catch(() => ({ logs: [] })),
           apiService.getAIMetrics().catch(() => ({ tokensToday: 0, promptTokensToday: 0, completionTokensToday: 0, messagesToday: 0, tokensPerConversation: {} })),
           apiService.getRuntimeSessionHealth().catch(() => null),
@@ -224,6 +225,7 @@ export default function AI() {
         if (!mounted) return;
 
         setAiEnabled(resolveAIEnabled(status));
+        setProviderOnline(Boolean((status as any)?.providerConfigured ?? (status as any)?.providerOnline ?? (status as any)?.online));
         setAiLogs(logsData?.logs || []);
         setAiMetrics(metricsData || {});
         setRuntimeHealth(runtimeData);
@@ -314,20 +316,23 @@ export default function AI() {
 
     const interval = window.setInterval(async () => {
       try {
-        const [status, logsData, metricsData] = await Promise.all([
-          apiService.getAIStatus(),
+        const [status, logsData, metricsData, runtimeData] = await Promise.all([
+          apiService.getAIStatus().catch(() => ({})),
           apiService.getAILogs().catch(() => ({ logs: [] })),
           apiService.getAIMetrics().catch(() => ({ tokensToday: 0, promptTokensToday: 0, completionTokensToday: 0, messagesToday: 0, tokensPerConversation: {} })),
+          apiService.getRuntimeSessionHealth().catch(() => null),
         ]);
         if (mounted) {
           setAiEnabled(resolveAIEnabled(status));
+          setProviderOnline(Boolean((status as any)?.providerConfigured ?? (status as any)?.providerOnline ?? (status as any)?.online));
           setAiLogs(logsData?.logs || []);
           setAiMetrics(metricsData || {});
+          if (runtimeData) setRuntimeHealth(runtimeData);
         }
       } catch {
         // ignore
       }
-    }, 10_000);
+    }, 30_000);
 
     return () => {
       mounted = false;

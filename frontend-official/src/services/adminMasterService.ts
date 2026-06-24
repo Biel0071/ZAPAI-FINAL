@@ -413,20 +413,22 @@ export async function executeInstanceAction(instanceId: string, action: string) 
 }
 
 function toList(payload: unknown): JsonRecord[] {
-  if (Array.isArray(payload)) {
-    return payload.filter((item): item is JsonRecord => Boolean(item && typeof item === "object"));
-  }
-
-  if (payload && typeof payload === "object") {
-    const record = payload as JsonRecord;
-    const candidates = [record.data, record.entries, record.logs, record.items];
-    for (const cand of candidates) {
-      if (Array.isArray(cand)) {
-        return cand.filter((item): item is JsonRecord => Boolean(item && typeof item === "object"));
+  let current = payload;
+  for (let depth = 0; depth < 3; depth += 1) {
+    if (Array.isArray(current)) {
+      return current.filter((item): item is JsonRecord => Boolean(item && typeof item === "object"));
+    }
+    if (!current || typeof current !== "object") return [];
+    const record = current as JsonRecord;
+    for (const key of ["entries", "logs", "items", "nodes", "deployments", "users"]) {
+      const candidate = record[key];
+      if (Array.isArray(candidate)) {
+        return candidate.filter((item): item is JsonRecord => Boolean(item && typeof item === "object"));
       }
     }
+    if (!record.data || typeof record.data !== "object") return [];
+    current = record.data;
   }
-
   return [];
 }
 

@@ -41,6 +41,20 @@ type RawRealtimeMessage = {
   time?: string;
   status?: "sending" | "sent" | "delivered" | "read";
   isAI?: boolean;
+  aiProvider?: string;
+  provider?: string;
+  aiModel?: string;
+  model?: string;
+  aiAgentName?: string;
+  agentName?: string;
+  aiResponseTimeMs?: number;
+  responseTimeMs?: number;
+  aiPromptTokens?: number;
+  promptTokens?: number;
+  aiCompletionTokens?: number;
+  completionTokens?: number;
+  aiTotalTokens?: number;
+  totalTokens?: number;
   messageType?: "text" | "image" | "video" | "audio" | "file" | "document" | "sticker";
   mediaType?: "image" | "video" | "audio" | "file" | "document" | "sticker";
   type?: "text" | "image" | "video" | "audio" | "file" | "document" | "sticker";
@@ -413,6 +427,13 @@ function normalizeRealtimeMessage(input: RawRealtimeMessage): RealtimeMessage {
     timestamp: resolvedCreatedAt,
     status: input.status ?? "sent",
     isAI: input.isAI ?? false,
+    aiProvider: input.aiProvider ?? input.provider,
+    aiModel: input.aiModel ?? input.model,
+    aiAgentName: input.aiAgentName ?? input.agentName,
+    aiResponseTimeMs: Number(input.aiResponseTimeMs ?? input.responseTimeMs) || undefined,
+    aiPromptTokens: Number(input.aiPromptTokens ?? input.promptTokens) || 0,
+    aiCompletionTokens: Number(input.aiCompletionTokens ?? input.completionTokens) || 0,
+    aiTotalTokens: Number(input.aiTotalTokens ?? input.totalTokens) || 0,
     phone: resolvedPhone,
     messageType: canonicalType,
     mediaType: canonicalType !== "text" ? canonicalType : undefined,

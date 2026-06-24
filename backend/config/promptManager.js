@@ -45,8 +45,19 @@ async function applyPromptImprovement(store, improvementText, reason = 'Applied 
   return version;
 }
 
+async function updateActivePrompt(store, nextPrompt, reason = 'Manual save') {
+  const history = ensurePromptHistory(store);
+  const version = createPromptVersion(nextPrompt, reason);
+
+  history.push(version);
+  await persistPromptHistory(store);
+
+  return version;
+}
+
 module.exports = {
   applyPromptImprovement,
+  updateActivePrompt,
   ensurePromptHistory,
   getActivePrompt,
   getPromptHistory,

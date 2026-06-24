@@ -192,10 +192,9 @@ router.get('/info', async (req, res) => {
  * GET /api/system/resources
  * Returns CPU, memory, disk usage
  */
-router.get('/resources', (req, res) => {
+router.get('/resources', async (req, res) => {
   try {
     const os = require('os');
-    const { spawnSync } = require('child_process');
 
     const totalMem = os.totalmem();
     const freeMem = os.freemem();
@@ -208,18 +207,23 @@ router.get('/resources', (req, res) => {
     let disk = { total: 0, used: 0, free: 0, usedPercent: 0 };
     try {
       if (process.platform !== 'win32') {
-        const result = spawnSync('df', ['-k', '/'], { timeout: 1500, encoding: 'utf8' });
-        const lines = String(result.stdout || '').trim().split(/\r?\n/);
-        const cols = (lines[1] || '').trim().split(/\s+/);
-        const totalKb = Number(cols[1] || 0);
-        const usedKb = Number(cols[2] || 0);
-        const freeKb = Number(cols[3] || 0);
-        disk = {
-          total: totalKb * 1024,
-          used: usedKb * 1024,
-          free: freeKb * 1024,
-          usedPercent: totalKb > 0 ? Math.round((usedKb / totalKb) * 100) : 0,
-        };
+        const { exec } = require('child_process');
+        disk = await new Promise((resolve) => {
+          exec('df -k /', { timeout: 1500, windowsHide: true }, (err, stdout) => {
+            if (err) return resolve({ total: 0, used: 0, free: 0, usedPercent: 0 });
+            const lines = String(stdout || '').trim().split(/\r?\n/);
+            const cols = (lines[1] || '').trim().split(/\s+/);
+            const totalKb = Number(cols[1] || 0);
+            const usedKb = Number(cols[2] || 0);
+            const freeKb = Number(cols[3] || 0);
+            resolve({
+              total: totalKb * 1024,
+              used: usedKb * 1024,
+              free: freeKb * 1024,
+              usedPercent: totalKb > 0 ? Math.round((usedKb / totalKb) * 100) : 0,
+            });
+          });
+        });
       }
     } catch { /* ignore disk errors */ }
 

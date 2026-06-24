@@ -1,6 +1,7 @@
 const aiConfigService = require('../services/aiConfigService');
 const aiAgentService = require('../ai-agents/services/aiAgentService');
 const { query } = require('../config/database');
+const aiMemoryEngine = require('../services/aiMemoryEngine');
 
 function getStore(req) {
   return req.app.locals.store;
@@ -435,6 +436,38 @@ async function saveUserProvider(req, res) {
   }
 }
 
+async function getMemoryAnalytics(req, res) {
+  try {
+    const store = getStore(req);
+    const analytics = aiMemoryEngine.getMemoryAnalytics(store);
+    return res.status(200).json({ success: true, data: analytics });
+  } catch (error) {
+    return res.status(500).json({ success: false, error: error.message || 'Failed to load memory analytics.' });
+  }
+}
+
+async function searchMemory(req, res) {
+  try {
+    const store = getStore(req);
+    const queryStr = req.query?.q || '';
+    const results = aiMemoryEngine.searchMemory(store, queryStr);
+    return res.status(200).json({ success: true, data: results });
+  } catch (error) {
+    return res.status(500).json({ success: false, error: error.message || 'Memory search failed.' });
+  }
+}
+
+async function flushMemory(req, res) {
+  try {
+    const store = getStore(req);
+    const companyId = req.headers['x-company-id'] || req.headers['x-tenant-id'] || req.auth?.tenantId || 'default';
+    const flushedCount = await aiMemoryEngine.flushMemoryToPostgres(store, companyId);
+    return res.status(200).json({ success: true, data: { flushed: flushedCount } });
+  } catch (error) {
+    return res.status(500).json({ success: false, error: error.message || 'Memory flush failed.' });
+  }
+}
+
 module.exports = {
   createAIAgent,
   getAbsenceMessage,
@@ -457,5 +490,8 @@ module.exports = {
   getPipelineLogs,
   getUserProviders,
   saveUserProvider,
+  getMemoryAnalytics,
+  searchMemory,
+  flushMemory,
 };
 

@@ -40,13 +40,21 @@ async function requireNodeToken(req, res, next) {
     return res.status(401).json({ success: false, error: 'Node token required' });
   }
 
-  const check = await query('SELECT node_id FROM nodes WHERE node_id = $1 AND token = $2 LIMIT 1', [bodyNodeId, token]);
-  if (!check.rows.length) {
-    return res.status(401).json({ success: false, error: 'Invalid node credentials' });
-  }
+  try {
+    const check = await query(
+      'SELECT node_id FROM nodes WHERE node_id = $1 AND token = $2 LIMIT 1',
+      [bodyNodeId, token]
+    );
+    if (!check.rows.length) {
+      return res.status(401).json({ success: false, error: 'Invalid node credentials' });
+    }
 
-  req.nodeId = bodyNodeId;
-  return next();
+    req.nodeId = bodyNodeId;
+    return next();
+  } catch (error) {
+    console.error('[NodeMaster] Node authentication unavailable:', error?.message || error);
+    return res.status(503).json({ success: false, error: 'Node authentication temporarily unavailable' });
+  }
 }
 
 function generateNodeToken() {

@@ -5,6 +5,9 @@ const aiConfigController = require('../controllers/aiConfigController');
 router.post('/ai/improve', aiConfigController.improve);
 router.get('/ai/memory', aiConfigController.getMemory);
 router.post('/ai/memory', aiConfigController.saveMemory);
+router.get('/ai/memory/analytics', aiConfigController.getMemoryAnalytics);
+router.get('/ai/memory/search', aiConfigController.searchMemory);
+router.post('/ai/memory/flush', aiConfigController.flushMemory);
 
 router.get('/config/business-hours', aiConfigController.getBusinessHours);
 router.post('/config/business-hours', aiConfigController.saveBusinessHours);

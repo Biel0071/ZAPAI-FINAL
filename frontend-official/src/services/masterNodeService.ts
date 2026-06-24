@@ -94,14 +94,32 @@ function normalizeHealth(value: unknown): NodeHealthState {
   return "unknown";
 }
 
-function toList(payload: unknown): JsonRecord[] {
-  const list = Array.isArray(payload)
-    ? payload
-    : payload && typeof payload === "object" && Array.isArray((payload as JsonRecord).data)
-      ? ((payload as JsonRecord).data as unknown[])
-      : [];
+function unwrapData(payload: unknown): unknown {
+  let current = payload;
+  for (let depth = 0; depth < 3; depth += 1) {
+    if (!current || typeof current !== "object" || Array.isArray(current)) break;
+    const data = (current as JsonRecord).data;
+    if (!data || typeof data !== "object") break;
+    current = data;
+  }
+  return current;
+}
 
-  return list.filter((item): item is JsonRecord => Boolean(item && typeof item === "object"));
+function toList(payload: unknown): JsonRecord[] {
+  const unwrapped = unwrapData(payload);
+  if (Array.isArray(unwrapped)) {
+    return unwrapped.filter((item): item is JsonRecord => Boolean(item && typeof item === "object"));
+  }
+  if (!unwrapped || typeof unwrapped !== "object") return [];
+
+  const record = unwrapped as JsonRecord;
+  for (const key of ["nodes", "metrics", "deployments", "logs", "entries", "sessions", "items"]) {
+    const candidate = record[key];
+    if (Array.isArray(candidate)) {
+      return candidate.filter((item): item is JsonRecord => Boolean(item && typeof item === "object"));
+    }
+  }
+  return [];
 }
 
 async function requestJson(endpoint: string, method: "GET" | "POST", body?: JsonRecord): Promise<unknown> {
@@ -183,14 +201,14 @@ function mapNode(item: JsonRecord): NodeControlPlane {
   const services = (item.services && typeof item.services === "object" ? item.services : {}) as JsonRecord;
 
   return {
-    id: String(item.id ?? item.nodeId ?? crypto.randomUUID()),
-    name: String(item.name ?? item.nodeName ?? "Node"),
+    id: String(item.id ?? item.nodeId ?? item.node_id ?? crypto.randomUUID()),
+    name: String(item.name ?? item.nodeName ?? item.hostname ?? item.node_id ?? "Node"),
     hostname: toText(item.hostname ?? item.domain ?? item.host),
     provider: normalizeProvider(item.provider ?? item.cloudProvider),
-    publicIp: toText(item.publicIp ?? item.ip ?? item.public_ip),
-    uptime: toText(item.uptime ?? item.systemUptime),
+    publicIp: toText(item.publicIp ?? item.ip ?? item.public_ip ?? item.ip_address),
+    uptime: toText(item.uptime ?? item.systemUptime ?? item.uptime_seconds),
     status: normalizeLifecycleStatus(item.status ?? runtime.status),
-    health: normalizeHealth(item.health ?? runtime.health),
+    health: normalizeHealth(item.health ?? item.health_status ?? runtime.health),
     infra: {
       docker: normalizeServiceState(services.docker ?? item.dockerStatus ?? runtime.docker),
       nginx: normalizeServiceState(services.nginx ?? item.nginxStatus ?? runtime.nginx),
@@ -198,12 +216,12 @@ function mapNode(item: JsonRecord): NodeControlPlane {
       postgres: normalizeServiceState(services.postgres ?? services.db ?? item.postgresStatus ?? runtime.postgres),
       websocket: normalizeServiceState(services.websocket ?? item.websocketStatus ?? runtime.websocket),
     },
-    whatsappSessions: toNumber(item.whatsappSessions ?? item.sessions ?? runtime.activeSessions),
+    whatsappSessions: toNumber(item.whatsappSessions ?? item.sessions ?? item.sessions_active ?? runtime.activeSessions),
     latencyMs: toNumber(item.latencyMs ?? item.latency ?? runtime.ping),
-    lastSyncAt: toText(item.lastSyncAt ?? item.lastHeartbeat ?? item.updatedAt),
+    lastSyncAt: toText(item.lastSyncAt ?? item.lastHeartbeat ?? item.last_heartbeat ?? item.updatedAt ?? item.updated_at),
     build: {
       version: toText(item.version ?? item.buildVersion ?? item.release),
-      buildHash: toText(item.buildHash ?? item.hash ?? item.commit),
+      buildHash: toText(item.buildHash ?? item.build_hash ?? item.hash ?? item.commit),
     },
     metrics: item.metrics && typeof item.metrics === "object" ? mapMetricsSnapshot(item.metrics as JsonRecord, toText(item.updatedAt) ?? undefined) : null,
   };
@@ -215,13 +233,13 @@ function aggregateCluster(nodes: NodeControlPlane[], payload: JsonRecord): Clust
   const redisUsageMb = nodes.reduce((acc, node) => acc + (node.metrics?.redisMemoryMb ?? 0), 0);
 
   return {
-    totalNodes: toNumber(payload.totalNodes) ?? nodes.length,
-    onlineNodes: toNumber(payload.onlineNodes) ?? nodes.filter((node) => node.status === "ONLINE").length,
+    totalNodes: toNumber(payload.totalNodes ?? payload.nodes_total) ?? nodes.length,
+    onlineNodes: toNumber(payload.onlineNodes ?? payload.nodes_online) ?? nodes.filter((node) => node.status === "ONLINE").length,
     totalSessions: toNumber(payload.totalSessions) ?? totalSessions,
     totalMessages: toNumber(payload.totalMessages) ?? 0,
     queueSize: toNumber(payload.queueSize) ?? queueSize,
     websocketConnections: toNumber(payload.websocketConnections) ?? 0,
-    unhealthyNodes: toNumber(payload.unhealthyNodes) ?? nodes.filter((node) => node.health === "unhealthy").length,
+    unhealthyNodes: toNumber(payload.unhealthyNodes ?? payload.nodes_degraded) ?? nodes.filter((node) => node.health === "unhealthy").length,
     failedDeploys: toNumber(payload.failedDeploys) ?? 0,
     redisUsageMb: toNumber(payload.redisUsageMb) ?? redisUsageMb,
     postgresUsageMb: toNumber(payload.postgresUsageMb) ?? 0,
@@ -235,7 +253,9 @@ export async function loadNodesControlPlane() {
   ]);
 
   const nodes = toList(nodesPayload).map(mapNode);
-  const clusterRaw = (clusterPayload && typeof clusterPayload === "object" ? clusterPayload : {}) as JsonRecord;
+  const clusterRoot = unwrapData(clusterPayload);
+  const clusterRecord = (clusterRoot && typeof clusterRoot === "object" ? clusterRoot : {}) as JsonRecord;
+  const clusterRaw = (clusterRecord.cluster && typeof clusterRecord.cluster === "object" ? clusterRecord.cluster : clusterRecord) as JsonRecord;
   const cluster = aggregateCluster(nodes, clusterRaw);
 
   return { nodes, cluster, wsChannels: WS_CHANNELS };
@@ -267,11 +287,11 @@ function mapSessionRouting(item: JsonRecord): NodeSessionRouting {
 function mapDeployment(item: JsonRecord): NodeDeploymentEvent {
   return {
     id: String(item.id ?? item.deploymentId ?? crypto.randomUUID()),
-    nodeId: String(item.nodeId ?? item.instanceId ?? ""),
-    action: String(item.action ?? item.operation ?? "deploy"),
+    nodeId: String(item.nodeId ?? item.node_id ?? item.instanceId ?? ""),
+    action: String(item.action ?? item.operation ?? item.deployment_type ?? "deploy"),
     status: String(item.status ?? "pending"),
-    startedAt: toText(item.startedAt ?? item.createdAt),
-    finishedAt: toText(item.finishedAt ?? item.updatedAt),
+    startedAt: toText(item.startedAt ?? item.started_at ?? item.createdAt ?? item.created_at),
+    finishedAt: toText(item.finishedAt ?? item.completed_at ?? item.updatedAt ?? item.updated_at),
     buildVersion: toText(item.version ?? item.buildVersion),
     buildHash: toText(item.buildHash ?? item.hash),
     healthcheckProgress: toNumber(item.healthcheckProgress ?? item.progress),

@@ -69,7 +69,8 @@ async function evaluateInboundAi({ agent, chatId, conversationHistory = [], cust
     });
   }
 
-  const safeReply = String(aiReply || '').trim() || null;
+  const aiTelemetry = aiReply && typeof aiReply === 'object' ? aiReply : {};
+  const safeReply = String(aiTelemetry.response || aiReply || '').trim() || null;
 
   await appendAiMemory({
     chatId,
@@ -85,6 +86,13 @@ async function evaluateInboundAi({ agent, chatId, conversationHistory = [], cust
     decision: action,
     lead,
     response: safeReply || '',
+    provider: aiTelemetry.provider,
+    model: aiTelemetry.model,
+    responseTimeMs: Number(aiTelemetry.responseTimeMs) || null,
+    promptTokens: Number(aiTelemetry.promptTokens) || 0,
+    completionTokens: Number(aiTelemetry.completionTokens) || 0,
+    totalTokens: Number(aiTelemetry.totalTokens) || 0,
+    agentName: aiTelemetry.agentName || agent?.name || null,
   };
 }
 

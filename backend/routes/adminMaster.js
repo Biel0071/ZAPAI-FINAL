@@ -156,7 +156,17 @@ async function loadDatabaseStats() {
   };
 }
 
-function loadInfraStats() {
+function probeAsync(command, args = []) {
+  return new Promise((resolve) => {
+    const { exec } = require('child_process');
+    const cmdStr = `${command} ${args.join(' ')}`.trim();
+    exec(cmdStr, { timeout: 1200, windowsHide: true }, (err) => {
+      resolve(!err);
+    });
+  });
+}
+
+async function loadInfraStats() {
   const totalMem = os.totalmem();
   const freeMem = os.freemem();
   const usedMemPct = totalMem > 0 ? Math.round(((totalMem - freeMem) / totalMem) * 100) : 0;
@@ -164,54 +174,51 @@ function loadInfraStats() {
   const cpuCount = os.cpus()?.length || 1;
   const cpuPct = Math.max(0, Math.min(100, Math.round((cpuLoad / cpuCount) * 100)));
 
-  const diskProbe = (() => {
+  const diskProbe = await new Promise((resolve) => {
     try {
+      const { exec } = require('child_process');
       if (process.platform === 'win32') {
-        const result = spawnSync('wmic', ['logicaldisk', 'where', "DeviceID='C:'", 'get', 'Size,FreeSpace', '/value'], {
+        exec('wmic logicaldisk where "DeviceID=\'C:\'" get Size,FreeSpace /value', {
           timeout: 1500,
-          windowsHide: true,
-          encoding: 'utf8',
+          windowsHide: true
+        }, (err, stdout) => {
+          if (err) return resolve({ usedPercent: null, totalBytes: null, freeBytes: null });
+          const output = String(stdout || '');
+          const size = Number((output.match(/Size=(\d+)/) || [])[1] || 0);
+          const free = Number((output.match(/FreeSpace=(\d+)/) || [])[1] || 0);
+          const usedPct = size > 0 ? Math.round(((size - free) / size) * 100) : null;
+          resolve({ usedPercent: usedPct, totalBytes: size || null, freeBytes: free || null });
         });
-        const output = String(result.stdout || '');
-        const size = Number((output.match(/Size=(\d+)/) || [])[1] || 0);
-        const free = Number((output.match(/FreeSpace=(\d+)/) || [])[1] || 0);
-        const usedPct = size > 0 ? Math.round(((size - free) / size) * 100) : null;
-        return { usedPercent: usedPct, totalBytes: size || null, freeBytes: free || null };
+      } else {
+        exec('df -k /', {
+          timeout: 1500,
+          windowsHide: true
+        }, (err, stdout) => {
+          if (err) return resolve({ usedPercent: null, totalBytes: null, freeBytes: null });
+          const lines = String(stdout || '').trim().split(/\r?\n/);
+          const data = lines[1] || '';
+          const columns = data.trim().split(/\s+/);
+          const totalKb = Number(columns[1] || 0);
+          const usedKb = Number(columns[2] || 0);
+          const usedPct = totalKb > 0 ? Math.round((usedKb / totalKb) * 100) : null;
+          resolve({
+            usedPercent: usedPct,
+            totalBytes: totalKb > 0 ? totalKb * 1024 : null,
+            freeBytes: Number(columns[3] || 0) > 0 ? Number(columns[3]) * 1024 : null,
+          });
+        });
       }
-
-      const result = spawnSync('df', ['-k', '/'], {
-        timeout: 1500,
-        windowsHide: true,
-        encoding: 'utf8',
-      });
-      const lines = String(result.stdout || '').trim().split(/\r?\n/);
-      const data = lines[1] || '';
-      const columns = data.trim().split(/\s+/);
-      const totalKb = Number(columns[1] || 0);
-      const usedKb = Number(columns[2] || 0);
-      const usedPct = totalKb > 0 ? Math.round((usedKb / totalKb) * 100) : null;
-      return {
-        usedPercent: usedPct,
-        totalBytes: totalKb > 0 ? totalKb * 1024 : null,
-        freeBytes: Number(columns[3] || 0) > 0 ? Number(columns[3]) * 1024 : null,
-      };
     } catch {
-      return { usedPercent: null, totalBytes: null, freeBytes: null };
+      resolve({ usedPercent: null, totalBytes: null, freeBytes: null });
     }
-  })();
+  });
 
-  const probe = (command, args = []) => {
-    try {
-      const result = spawnSync(command, args, {
-        timeout: 1200,
-        windowsHide: true,
-        stdio: 'ignore',
-      });
-      return result.status === 0;
-    } catch {
-      return false;
-    }
-  };
+  const [pm2Ok, dockerOk, nginxOk, openrestyOk] = await Promise.all([
+    probeAsync('pm2', ['ping']),
+    probeAsync('docker', ['info']),
+    probeAsync('nginx', ['-v']).then((ok) => ok || probeAsync('nginx.exe', ['-v'])),
+    probeAsync('openresty', ['-v']).then((ok) => ok || probeAsync('openresty.exe', ['-v'])),
+  ]);
 
   return {
     cpuPercent: cpuPct,
@@ -221,10 +228,10 @@ function loadInfraStats() {
     platform: `${os.platform()} ${os.release()}`,
     disk: diskProbe,
     services: {
-      pm2: probe('pm2', ['ping']),
-      docker: probe('docker', ['info']),
-      nginx: probe('nginx', ['-v']) || probe('nginx.exe', ['-v']),
-      openresty: probe('openresty', ['-v']) || probe('openresty.exe', ['-v']),
+      pm2: pm2Ok,
+      docker: dockerOk,
+      nginx: nginxOk,
+      openresty: openrestyOk,
     },
   };
 }
@@ -290,7 +297,7 @@ router.get('/master/overview', async (req, res) => {
   try {
     const [database, infra, nodeData] = await Promise.all([
       loadDatabaseStats(),
-      Promise.resolve(loadInfraStats()),
+      loadInfraStats(),
       loadNodesStats(),
     ]);
 
@@ -555,7 +562,7 @@ router.post('/master/whatsapp/:id/disconnect', async (req, res) => {
 
 router.get('/master/system', async (req, res) => {
   try {
-    const infra = loadInfraStats();
+    const infra = await loadInfraStats();
     const backend = loadBackendStats(req);
     const database = await loadDatabaseStats();
 

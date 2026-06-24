@@ -196,6 +196,11 @@ function compileSystemPrompt(agent, store, contact = null) {
     compiled += `[DADOS DO CLIENTE]\n`;
     compiled += `- Nome do Cliente: ${contact.name || 'Cliente'}\n`;
     compiled += `- Telefone/WhatsApp do Cliente: ${contact.phone || ''}\n`;
+    if (contact.funnelStage) compiled += `- Estagio atual do funil: ${contact.funnelStage}\n`;
+    if (contact.nextAction) compiled += `- Proxima acao recomendada: ${contact.nextAction}\n`;
+    if (contact.leadAnalysis?.intent) compiled += `- Intencao atual: ${contact.leadAnalysis.intent}\n`;
+    if (contact.leadAnalysis?.lead_temperature) compiled += `- Temperatura do lead: ${contact.leadAnalysis.lead_temperature}\n`;
+    if (contact.salesStrategy?.goal) compiled += `- Objetivo comercial desta resposta: ${contact.salesStrategy.goal}\n`;
     compiled += `\n`;
   }
 
@@ -231,9 +236,24 @@ function compileSystemPrompt(agent, store, contact = null) {
     compiled += `- Regras Customizadas: ${agent.rules}\n`;
   }
   const memorySettings = store?.aiConfig?.memorySettings || {};
-  compiled += `- Memória Ativa: ${memorySettings.enabled ? 'Sim' : 'Não'}\n`;
+  compiled += `- Memoria Ativa: ${memorySettings.enabled !== false ? 'Sim' : 'Nao'}\n`;
+  const memoryContext = contact?.memoryContext;
+  if (memorySettings.enabled !== false && memoryContext) {
+    if (memoryContext.summary) compiled += `- Resumo acumulado: ${memoryContext.summary}\n`;
+    if (memoryContext.intent) compiled += `- Intencao lembrada: ${memoryContext.intent}\n`;
+    if (memoryContext.sentiment) compiled += `- Sentimento percebido: ${memoryContext.sentiment}\n`;
+    if (memoryContext.tags?.length) compiled += `- Marcadores lembrados: ${memoryContext.tags.join(', ')}\n`;
+    if (memoryContext.prefersAudio) compiled += '- Preferencia: cliente demonstra preferencia por audio.\n';
+    const rememberedHistory = Array.isArray(memoryContext.history) ? memoryContext.history.slice(-8) : [];
+    if (rememberedHistory.length) {
+      compiled += '- Contexto recente consolidado:\n';
+      for (const entry of rememberedHistory) {
+        compiled += `  - ${entry.role === 'assistant' ? 'Atendente' : 'Cliente'}: ${String(entry.content || '').slice(0, 260)}\n`;
+      }
+    }
+  }
   if (agent?.memory) {
-    compiled += `- Memória do Atendente: ${agent.memory}\n`;
+    compiled += `- Memoria do Atendente: ${agent.memory}\n`;
   }
   compiled += `\n`;
 
@@ -251,6 +271,9 @@ function compileSystemPrompt(agent, store, contact = null) {
   compiled += `- Responda sempre em português brasileiro de forma direta, simpática e profissional.\n`;
   compiled += `- Nunca mencione que você é um robô ou IA, a menos que seja estritamente necessário para transbordo.\n`;
   compiled += `- Se não souber a informação, ofereça transferir para um atendente humano.\n`;
+  compiled += '- Continue o atendimento do ponto atual; nao reinicie com saudacao se ja existe historico.\n';
+  compiled += '- Nao repita perguntas que o cliente ja respondeu. Use quantidades, produtos e preferencias presentes no contexto.\n';
+  compiled += '- Siga a proxima acao do funil sem inventar dados, precos ou condicoes ausentes.\n';
 
   return compiled.trim();
 }
@@ -483,6 +506,7 @@ async function testAIConnection({ store, providerId, model, message, prompt, age
 }
 
 async function processAI({ contact, history, message, store, agentName, companyId }) {
+  const startedAt = Date.now();
   if (!store || !store.aiConfig) {
     console.warn('[AI SERVICE] No store or aiConfig available');
     return null;
@@ -682,7 +706,7 @@ async function processAI({ contact, history, message, store, agentName, companyI
     // Save log entry asynchronously
     await aiLogService.saveLogEntry(
       {
-        conversationId: contact.phone,
+        conversationId: contact.conversationId || contact.phone,
         contactName: contact.name,
         messageSent: message,
         messageReceived: reply,
@@ -700,6 +724,13 @@ async function processAI({ contact, history, message, store, agentName, companyI
       leadScore: 0.5,
       reply,
       suggestion: null,
+      provider: providerId,
+      model: model || 'default',
+      responseTimeMs: Date.now() - startedAt,
+      promptTokens,
+      completionTokens,
+      totalTokens,
+      agentName: resolvedAgent?.name || agentName || 'Camila',
     };
   } catch (error) {
     const errorMsg = error.response?.data?.error?.message || error.message;

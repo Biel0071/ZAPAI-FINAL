@@ -54,6 +54,7 @@ export function useMasterNodesControlPlane() {
 
   useEffect(() => {
     mountedRef.current = true;
+    let active = true;
     void refresh();
 
     const timer = window.setInterval(() => {
@@ -66,7 +67,8 @@ export function useMasterNodesControlPlane() {
     let deploymentsSub: Awaited<ReturnType<typeof masterWebsocketService.subscribe>> | null = null;
 
     const bootWs = async () => {
-      nodesSub = await masterWebsocketService.subscribe("nodes", (payload) => {
+      const sub1 = await masterWebsocketService.subscribe("nodes", (payload) => {
+        if (!active) return;
         const nextNode = normalizeWsNode(payload);
         if (!nextNode) return;
         const currentNodes = useMasterNodeStore.getState().nodes;
@@ -76,23 +78,41 @@ export function useMasterNodesControlPlane() {
           .sort((a, b) => a.name.localeCompare(b.name));
         setNodes(merged);
       });
+      if (!active) {
+        masterWebsocketService.unsubscribe(sub1);
+        return;
+      }
+      nodesSub = sub1;
 
-      metricsSub = await masterWebsocketService.subscribe("metrics", (payload) => {
+      const sub2 = await masterWebsocketService.subscribe("metrics", (payload) => {
+        if (!active) return;
         const parsed = normalizeWsMetric(payload);
         if (!parsed) return;
         pushMetric(parsed.nodeId, parsed.metric);
       });
+      if (!active) {
+        masterWebsocketService.unsubscribe(sub2);
+        return;
+      }
+      metricsSub = sub2;
 
-      deploymentsSub = await masterWebsocketService.subscribe("deployments", (payload) => {
+      const sub3 = await masterWebsocketService.subscribe("deployments", (payload) => {
+        if (!active) return;
         const event = normalizeWsDeployment(payload);
         if (!event) return;
         upsertDeployment(event);
       });
+      if (!active) {
+        masterWebsocketService.unsubscribe(sub3);
+        return;
+      }
+      deploymentsSub = sub3;
     };
 
     void bootWs();
 
     return () => {
+      active = false;
       mountedRef.current = false;
       window.clearInterval(timer);
       if (nodesSub) masterWebsocketService.unsubscribe(nodesSub);

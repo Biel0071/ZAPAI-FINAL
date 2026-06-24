@@ -113,6 +113,13 @@ export interface ChatMessage {
   timestamp?: string;
   status?: "pending" | "sending" | "sent" | "server_ack" | "device_ack" | "delivered" | "read" | "played" | "failed" | "retry";
   isAI?: boolean;
+  aiProvider?: string;
+  aiModel?: string;
+  aiAgentName?: string;
+  aiResponseTimeMs?: number;
+  aiPromptTokens?: number;
+  aiCompletionTokens?: number;
+  aiTotalTokens?: number;
   mediaType?: "image" | "video" | "audio" | "file" | "sticker";
   mediaPath?: string;
   mediaUrl?: string;

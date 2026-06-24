@@ -4,7 +4,7 @@ const {
   isAIEnabled,
   setAIEnabled,
 } = require('../config/aiToggle');
-const { applyPromptImprovement, getPromptHistory, getActivePrompt } = require('../config/promptManager');
+const { applyPromptImprovement, updateActivePrompt, getPromptHistory, getActivePrompt } = require('../config/promptManager');
 const aiLearningEngine = require('../services/aiLearningEngine');
 const { analyzeProject } = require('../ai/projectAnalyzer');
 const devPipeline = require('../ai/devPipeline');
@@ -310,7 +310,7 @@ async function savePrompt(req, res) {
   const store = getStore(req);
 
   try {
-    const version = await applyPromptImprovement(store, prompt.trim(), 'Manual save');
+    const version = await updateActivePrompt(store, prompt.trim(), 'Manual save');
     return res.status(200).json({ success: true, version });
   } catch (error) {
     return res.status(500).json({ error: error.message || 'Failed to save prompt.' });

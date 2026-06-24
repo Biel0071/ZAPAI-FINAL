@@ -729,6 +729,11 @@ export function saveDraftToStorage(conversationId: string, draft: string): Store
     return null;
   }
 
+  const current = loadDraftSnapshotFromStorage(conversationId);
+  if (current?.draft === normalizedDraft) {
+    return current;
+  }
+
   const snapshot = { draft: normalizedDraft, timestamp: Date.now() };
   localStorage.setItem(getDraftStorageKey(conversationId), JSON.stringify(snapshot));
   return snapshot;

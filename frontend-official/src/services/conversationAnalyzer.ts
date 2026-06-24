@@ -20,11 +20,12 @@ export async function analyzeConversation(
   messages: Array<{ text: string; fromMe: boolean }>,
 ): Promise<ConversationAnalysis | null> {
   try {
-    return await requestApiEndpoint<ConversationAnalysis>(
+    const result = await requestApiEndpoint<{ success: boolean; data?: ConversationAnalysis }>(
       "/api/ai/analyze-conversation",
       "POST",
       { conversationId, messages },
     );
+    return result?.data ?? null;
   } catch (error) {
     console.warn("[ConversationAnalyzer] Analysis failed:", error);
     return null;
@@ -36,12 +37,12 @@ export async function generateResponse(
   context: { messages?: Array<{ text: string; fromMe: boolean }>; prompt?: string },
 ): Promise<string | null> {
   try {
-    const result = await requestApiEndpoint<{ response?: string }>(
+    const result = await requestApiEndpoint<{ success: boolean; data?: { response?: string } }>(
       "/api/ai/generate-response",
       "POST",
       { conversationId, ...context },
     );
-    return result?.response ?? null;
+    return result?.data?.response ?? null;
   } catch (error) {
     console.warn("[ConversationAnalyzer] Response generation failed:", error);
     return null;

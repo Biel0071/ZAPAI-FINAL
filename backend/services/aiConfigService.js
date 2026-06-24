@@ -41,7 +41,7 @@ function ensureStoreConfig(store) {
 
 function getBusinessHoursSettings() {
   return {
-    autoReplyOutsideHours: true,
+    autoReplyOutsideHours: businessHours.autoReplyOutsideHours !== false,
     closeTime: businessHours.close,
     openTime: businessHours.open,
     timezone: businessHours.timezone,
@@ -52,6 +52,7 @@ function saveBusinessHoursSettings(store, payload = {}) {
   businessHours.open = String(payload.openTime || businessHours.open);
   businessHours.close = String(payload.closeTime || businessHours.close);
   businessHours.timezone = String(payload.timezone || businessHours.timezone);
+  businessHours.autoReplyOutsideHours = payload.autoReplyOutsideHours !== undefined ? Boolean(payload.autoReplyOutsideHours) : businessHours.autoReplyOutsideHours;
 
   if (store) {
     const config = ensureStoreConfig(store);
@@ -59,6 +60,7 @@ function saveBusinessHoursSettings(store, payload = {}) {
       open: businessHours.open,
       close: businessHours.close,
       timezone: businessHours.timezone,
+      autoReplyOutsideHours: businessHours.autoReplyOutsideHours,
       absenceMessage: businessHours.absenceMessage,
     };
   }

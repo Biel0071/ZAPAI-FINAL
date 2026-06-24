@@ -520,6 +520,9 @@ export default function Inbox() {
             aiEnabledForConversation={state.aiEnabledForConversation}
             conversationAiOverrideEnabled={state.conversationAiOverrideEnabled}
             handleSetConversationAiEnabled={state.handleSetConversationAiEnabled}
+            aiAgents={state.aiAgents}
+            loadingAgents={state.loadingAgents}
+            handleSetConversationAgent={state.handleSetConversationAgent}
             isTabletLayout={state.isTabletLayout}
             setShowLeadPanel={state.setShowLeadPanel}
             onBack={() => {

@@ -1,6 +1,12 @@
-const PRICE_REQUEST_PATTERNS = ['quanto custa', 'preco', 'preço', 'valor'];
-const PURCHASE_INTENT_PATTERNS = ['quero comprar', 'manda o pix', 'como pagar'];
-const OBJECTION_PATTERNS = ['muito caro', 'vou pensar'];
+const PRICE_REQUEST_PATTERNS = [
+  'quanto custa', 'quanto fica', 'fica quanto', 'qual o valor', 'preco', 'valor',
+  'orcamento', 'tabela', 'desconto',
+];
+const PURCHASE_INTENT_PATTERNS = [
+  'quero comprar', 'quero fechar', 'pode fechar', 'pode separar', 'vou levar',
+  'manda o pix', 'chave pix', 'como pagar', 'forma de pagamento', 'cartao',
+];
+const OBJECTION_PATTERNS = ['muito caro', 'vou pensar', 'tem desconto', 'consegue melhorar'];
 const QUESTION_HINTS = ['como', 'qual', 'quais', 'quando', 'onde', 'tem', 'tem?', 'possui'];
 
 function normalizeText(value = '') {
@@ -49,7 +55,10 @@ function analyzeLeadIntent(message, conversationHistory = []) {
   const normalizedMessage = normalizeText(message);
   const historySignals = getHistorySignals(conversationHistory);
 
-  if (includesPattern(normalizedMessage, PURCHASE_INTENT_PATTERNS)) {
+  const quantityIntent = /\b(quero|preciso|separa|reserve|manda)\s+(?:de\s+)?\d+\b/.test(normalizedMessage);
+  const confirmationIntent = /\b(fechado|confirmado|pode mandar|vamos fechar)\b/.test(normalizedMessage);
+
+  if (includesPattern(normalizedMessage, PURCHASE_INTENT_PATTERNS) || quantityIntent || confirmationIntent) {
     return {
       confidence: historySignals.priceRequests > 0 ? 0.99 : 0.96,
       intent: 'purchase_intent',

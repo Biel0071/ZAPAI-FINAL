@@ -224,7 +224,7 @@ async function persistSuccessfulSend(item) {
     name: session?.phone || 'Unknown',
     phone: normalizedPhone,
     sessionId: item.sessionId,
-    source: 'human',
+    source: item.metadata?.ai_response ? 'ai' : (item.metadata?.source || 'human'),
     text: item.text,
   });
 
@@ -254,6 +254,20 @@ async function executeOutbound(item) {
   }
 
   const { session, sock } = getSessionSocket(item.sessionId);
+  if (item.metadata?.ai_response) {
+    const responseDelayMs = Math.max(0, Number(item.metadata.responseDelayMs) || 0);
+    const typingDelayMs = Math.max(0, Number(item.metadata.typingDelayMs) || 0);
+    if (responseDelayMs > 0) {
+      await new Promise((resolve) => setTimeout(resolve, responseDelayMs));
+    }
+    if (typingDelayMs > 0) {
+      const jid = String(item.phone).includes('@') ? item.phone : `${item.phone}@s.whatsapp.net`;
+      await sock.presenceSubscribe?.(jid).catch(() => {});
+      await sock.sendPresenceUpdate?.('composing', jid).catch(() => {});
+      await new Promise((resolve) => setTimeout(resolve, typingDelayMs));
+      await sock.sendPresenceUpdate?.('paused', jid).catch(() => {});
+    }
+  }
   const sendResult = await whatsappService.sendMessage(sock, item.phone, item.text);
 
   if (!sendResult) {
@@ -309,6 +323,11 @@ async function enqueue(payload = {}) {
   const item = buildQueuedItem(payload);
   queueState.items.push(item);
   await saveQueueState();
+  queueMicrotask(() => {
+    processOneItem().catch((error) => {
+      console.error('[OUTBOUND_QUEUE] Immediate worker cycle failed:', error?.message || error);
+    });
+  });
   return cloneItem(item);
 }
 
@@ -359,7 +378,32 @@ async function processOneItem() {
     await saveQueueState();
 
     try {
-      await executeOutbound(item);
+      const executionResult = await executeOutbound(item);
+      if (item.metadata?.ai_response && executionResult?.message) {
+        const message = executionResult.message;
+        const io = storeRef?.io || global.io;
+        io?.emit('ai_response', {
+          id: message.id,
+          conversationId: message.conversationId,
+          chatId: item.phone,
+          phone: item.phone,
+          sessionId: item.sessionId,
+          content: message.content || message.text || item.text,
+          text: message.content || message.text || item.text,
+          createdAt: message.createdAt || message.timestamp || nowIso(),
+          timestamp: message.createdAt || message.timestamp || nowIso(),
+          fromMe: true,
+          isAI: true,
+          status: message.status || 'sent',
+          aiProvider: item.metadata.provider,
+          aiModel: item.metadata.model,
+          aiAgentName: item.metadata.agentName,
+          aiResponseTimeMs: item.metadata.responseTimeMs,
+          aiPromptTokens: item.metadata.promptTokens,
+          aiCompletionTokens: item.metadata.completionTokens,
+          aiTotalTokens: item.metadata.totalTokens,
+        });
+      }
       item.state = STATES.SENT;
       item.sentAt = nowIso();
       item.updatedAt = nowIso();
@@ -388,6 +432,13 @@ async function processOneItem() {
     }
   } finally {
     processingTick = false;
+    if (pickNextProcessableItem()) {
+      queueMicrotask(() => {
+        processOneItem().catch((error) => {
+          console.error('[OUTBOUND_QUEUE] Queue drain failed:', error?.message || error);
+        });
+      });
+    }
   }
 }
 

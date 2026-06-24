@@ -204,24 +204,38 @@ export const systemControlService = {
     };
   },
   async getStatus(baseUrl?: string) {
-    let data: SystemStatusResponse & Record<string, unknown>;
+    const [runtimeResult, healthResult] = await Promise.allSettled([
+      runtimeStatusEndpointUnavailable
+        ? Promise.resolve({} as Record<string, unknown>)
+        : requestSystem("/api/system/runtime/status", "GET", baseUrl),
+      requestSystem("/api/system/status", "GET", baseUrl),
+    ]);
 
-    if (!runtimeStatusEndpointUnavailable) {
-      try {
-        data = (await requestSystem("/api/system/runtime/status", "GET", baseUrl)) as SystemStatusResponse & Record<string, unknown>;
-        const state = resolveRuntimeUiState(data);
-        return { active: state === "running", state, raw: data };
-      } catch {
-        runtimeStatusEndpointUnavailable = true;
-      }
-    }
+    if (runtimeResult.status === "rejected") runtimeStatusEndpointUnavailable = true;
+    if (healthResult.status === "rejected" && runtimeResult.status === "rejected") throw healthResult.reason;
 
-    {
-      data = (await requestSystem("/api/health", "GET", baseUrl)) as SystemStatusResponse & Record<string, unknown>;
-    }
-
-    const state = resolveRuntimeUiState(data);
-    return { active: state === "running", state, raw: data };
+    const runtime = runtimeResult.status === "fulfilled" ? runtimeResult.value : {};
+    const health = healthResult.status === "fulfilled" ? healthResult.value : {};
+    const system = (health.system && typeof health.system === "object" ? health.system : health) as Record<string, unknown>;
+    const sessions = (system.sessions && typeof system.sessions === "object" ? system.sessions : {}) as Record<string, unknown>;
+    const metrics = (system.metrics && typeof system.metrics === "object" ? system.metrics : {}) as Record<string, unknown>;
+    const whatsapp = (system.whatsapp && typeof system.whatsapp === "object" ? system.whatsapp : {}) as Record<string, unknown>;
+    const merged = {
+      ...health,
+      ...runtime,
+      runtime: String(runtime.runtime ?? runtime.status ?? health.runtime ?? "running"),
+      database: system.database ?? health.database ?? "unknown",
+      socket: system.socket ?? health.socket ?? "unknown",
+      aiEngine: system.aiEngine ?? health.aiEngine ?? "unknown",
+      campaignQueue: system.campaignQueue ?? health.campaignQueue ?? "unknown",
+      microtaskRunner: system.microtaskRunner ?? health.microtaskRunner ?? "unknown",
+      totalSessions: Number(sessions.total ?? (whatsapp.connected ? 1 : 0)) || 0,
+      connectedSessions: Number(sessions.connected ?? (whatsapp.connected ? 1 : 0)) || 0,
+      messagesProcessed: Number(metrics.messagesProcessed ?? metrics.messages ?? 0) || 0,
+      uptime: Number(metrics.uptime ?? health.uptimeSeconds ?? health.uptime ?? system.uptime ?? 0) || 0,
+    } as SystemStatusResponse & Record<string, unknown>;
+    const state = resolveRuntimeUiState(merged);
+    return { active: state === "running", state, raw: merged };
   },
 
   async getErrorLogs(baseUrl?: string) {
@@ -238,7 +252,14 @@ export const systemControlService = {
       data = [];
     }
 
-    const entries = Array.isArray(data) ? data : Array.isArray((data as { errors?: unknown }).errors) ? ((data as { errors?: unknown }).errors as unknown[]) : [];
+    const dataRecord = data && typeof data === "object" ? (data as Record<string, unknown>) : {};
+    const entries = Array.isArray(data)
+      ? data
+      : Array.isArray(dataRecord.entries)
+        ? dataRecord.entries
+        : Array.isArray(dataRecord.errors)
+          ? dataRecord.errors
+          : [];
     return entries
       .filter((entry): entry is Record<string, unknown> => Boolean(entry && typeof entry === "object"))
       .map(normalizeErrorLog)
@@ -247,13 +268,25 @@ export const systemControlService = {
   },
 
   async getAiDiagnostics(baseUrl?: string) {
-    void baseUrl;
-    return {} as AiDiagnosticsResponse;
+    const [healthResult, statusResult] = await Promise.allSettled([
+      requestSystem("/ai/system-health", "GET", baseUrl),
+      requestSystem("/ai/status", "GET", baseUrl),
+    ]);
+    const health = healthResult.status === "fulfilled" ? healthResult.value : {};
+    const status = statusResult.status === "fulfilled" ? statusResult.value : {};
+    const now = new Date().toISOString();
+    const active = Boolean(status.enabled ?? status.active ?? status.aiEnabled);
+    return {
+      ...health,
+      systemStatus: { status: active ? "healthy" : "warning", description: active ? "Motor de IA ativo" : "Motor de IA desativado", timestamp: now },
+      detectedBugs: { status: healthResult.status === "fulfilled" ? "healthy" : "warning", description: healthResult.status === "fulfilled" ? "Diagnóstico disponível" : "Diagnóstico parcial", timestamp: now },
+      systemMetrics: { status: "healthy", description: "Métricas conectadas ao runtime oficial", timestamp: now },
+      aiRecommendations: { status: active ? "healthy" : "warning", description: active ? "Nenhuma ação crítica pendente" : "Ative a IA para responder automaticamente", timestamp: now },
+    } as AiDiagnosticsResponse;
   },
 
   async getDiagnostics(baseUrl?: string) {
-    void baseUrl;
-    return {} as SystemDiagnosticsResponse;
+    return (await requestSystem("/api/health/full", "GET", baseUrl)) as SystemDiagnosticsResponse;
   },
 
   async activate(baseUrl?: string) {

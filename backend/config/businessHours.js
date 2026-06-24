@@ -2,6 +2,7 @@ const businessHours = {
   open: '07:00',
   close: '20:00',
   timezone: 'America/Sao_Paulo',
+  autoReplyOutsideHours: true,
   absenceMessage:
     'Obrigada pelo contato! No momento estamos fora do horário de atendimento online. Nosso atendimento ocorre das 7h às 20h e atendimento na loja das 7h às 18h. Retorne dentro do horário para que eu possa te ajudar.',
 };

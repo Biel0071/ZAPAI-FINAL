@@ -7,6 +7,10 @@ const outboundQueueService = require('./outboundQueueService');
 const whatsappService = require('./whatsappService');
 const messagesController = require('../controllers/messagesController');
 const { query } = require('../config/database');
+const aiIntelligenceService = require('./aiIntelligenceService');
+const { analyzeLeadIntent } = require('./leadAnalyzer');
+const { buildLeadTags, getNextFunnelStage } = require('./salesFunnel');
+const { generateSalesStrategy } = require('./salesStrategyEngine');
 
 function matchEscalationTrigger(text, triggers = []) {
   if (!text || !Array.isArray(triggers) || triggers.length === 0) return null;
@@ -54,12 +58,16 @@ function mapLeadTemperature(score) {
   return 'cold';
 }
 
+function randomProfileDelay(profile) {
+  if (!profile || typeof profile !== 'object') return 0;
+  const minMs = Math.max(0, Number(profile.minMs) || 0);
+  const maxMs = Math.max(minMs, Number(profile.maxMs) || minMs);
+  return maxMs === minMs ? minMs : Math.floor(Math.random() * (maxMs - minMs + 1)) + minMs;
+}
+
 function isBusinessOpen() {
-  // Simple check for business hours. Can be expanded if settings are active.
-  const now = new Date();
-  const hr = now.getHours();
-  // By default, open between 8:00 and 18:00
-  return hr >= 8 && hr < 18;
+  const businessHoursConfig = require('../config/businessHours');
+  return businessHoursConfig.isBusinessOpen();
 }
 
 async function checkLeadBlocked(phone) {
@@ -123,7 +131,8 @@ async function processMessage({ payload, conversation, store, sock, sessionId })
   }
 
   // 2. Rules Engine: Business Hours Check
-  if (!isBusinessOpen()) {
+  const { businessHours: bhConfig } = require('../config/businessHours');
+  if (bhConfig.autoReplyOutsideHours !== false && !isBusinessOpen()) {
     const systemSettingsRepository = require('../repositories/systemSettingsRepository');
     let businessHours = { absenceMessage: 'No momento estamos fechados. Retornaremos em breve!' };
     try {
@@ -136,7 +145,7 @@ async function processMessage({ payload, conversation, store, sock, sessionId })
       companyId,
       phone,
       sessionId,
-      text: businessHours.absenceMessage,
+      text: businessHours.absenceMessage || bhConfig.absenceMessage,
       metadata: { systemTag: 'absence' }
     });
     return { success: true, action: 'absence_reply_queued' };
@@ -220,15 +229,65 @@ async function processMessage({ payload, conversation, store, sock, sessionId })
     )
     .catch(() => []);
 
+  const leadHistory = history.map((entry) => ({
+    from: entry.role === 'assistant' ? 'agent' : 'client',
+    text: entry.content,
+  }));
+  const leadAnalysis = analyzeLeadIntent(incomingText, leadHistory);
+  const funnelStage = getNextFunnelStage(
+    conversation?.funnel_stage || 'new_lead',
+    leadAnalysis,
+    incomingText
+  );
+  const salesStrategy = generateSalesStrategy(leadAnalysis);
+  const memoryContext =
+    aiIntelligenceService.getOpenAIContextForContact(store, conversationId) ||
+    aiIntelligenceService.getOpenAIContextForContact(store, phone);
+  const tags = Array.from(new Set([
+    ...(Array.isArray(conversation?.tags) ? conversation.tags : []),
+    ...buildLeadTags(leadAnalysis, funnelStage),
+    ...(Array.isArray(memoryContext?.tags) ? memoryContext.tags : []),
+  ]));
+
+  const crmState = await conversationRepository.updateConversationState(conversationId, {
+    funnel_stage: funnelStage,
+    lead_confidence: leadAnalysis.confidence,
+    lead_intent: leadAnalysis.intent,
+    lead_temperature: leadAnalysis.lead_temperature,
+    next_action: leadAnalysis.next_action,
+    summary: memoryContext?.summary || conversation?.summary,
+    tags,
+  });
+
+  const io = store?.io || global.io;
+  io?.emit('lead_updated', {
+    conversationId,
+    intent: leadAnalysis.intent,
+    lead_temperature: leadAnalysis.lead_temperature,
+    next_action: leadAnalysis.next_action,
+    phone,
+    tags,
+  });
+  io?.emit('funnel_updated', { conversationId, funnel_stage: funnelStage, phone });
+
   console.log(`[AutomationEngine] Calling AI Engine for conversation ${conversationId}`);
   let ai = null;
   try {
     ai = await processAI({
       contact: {
         name: conversation?.name || phone,
-        phone: phone,
+        phone,
+        conversationId,
+        memoryContext,
+        funnelStage,
+        nextAction: leadAnalysis.next_action,
+        leadAnalysis,
+        salesStrategy,
       },
-      history,
+      history: history.filter((entry, index) => {
+        if (index !== history.length - 1) return true;
+        return String(entry.content || '').trim() !== String(incomingText || '').trim();
+      }),
       message: incomingText,
       store,
       agentName: conversation?.agent_name || 'Camila',
@@ -271,13 +330,8 @@ async function processMessage({ payload, conversation, store, sock, sessionId })
     return { success: false, reason: 'ai_empty_reply' };
   }
 
-  // 7. Update Lead CRM status
-  await conversationRepository.updateConversationState(conversationId, {
-    lead_confidence: ai.leadScore,
-    lead_intent: ai.intent,
-    lead_temperature: mapLeadTemperature(ai.leadScore),
-    next_action: ai.suggestion || conversation?.next_action || 'educate',
-  });
+  // 7. CRM state was updated before generation so the prompt and UI share the same context.
+  void crmState;
 
   // 8. Queue: Enqueue AI response message (Queue -> SendMessage)
   console.log(`[AutomationEngine] Enqueueing AI response message: "${ai.reply}"`);
@@ -288,7 +342,19 @@ async function processMessage({ payload, conversation, store, sock, sessionId })
     text: ai.reply,
     metadata: {
       ai_response: true,
-      agentName: conversation?.agent_name || 'Camila'
+      source: 'ai',
+      agentName: conversation?.agent_name || 'Camila',
+      provider: ai.provider,
+      model: ai.model,
+      responseTimeMs: ai.responseTimeMs,
+      promptTokens: ai.promptTokens,
+      completionTokens: ai.completionTokens,
+      totalTokens: ai.totalTokens,
+      funnelStage,
+      leadAnalysis,
+      salesStrategy,
+      responseDelayMs: randomProfileDelay(matchedAgent.delayProfile),
+      typingDelayMs: randomProfileDelay(matchedAgent.typingDelayProfile),
     }
   });
 

@@ -22,7 +22,7 @@ function getCompanyId(companyId) {
 function isRawLid(phone) {
   if (!phone) return false;
   const str = String(phone).toLowerCase();
-  return str.includes('@lid') || (/^15\d{13}$/.test(str.replace(/\D/g, '')));
+  return str.includes('@lid') || (/^\d{15}$/.test(str.replace(/\D/g, '')));
 }
 
 function normalizePhone(phone = '') {
@@ -39,7 +39,7 @@ function normalizePhone(phone = '') {
   }
   clean = clean.replace(/\D/g, '');
 
-  const isLidDigits = /^15\d{13}$/.test(clean);
+  const isLidDigits = /^\d{15}$/.test(clean);
 
   if (isLidDigits || lowerValue.includes('@lid')) {
     const rawLid = clean;

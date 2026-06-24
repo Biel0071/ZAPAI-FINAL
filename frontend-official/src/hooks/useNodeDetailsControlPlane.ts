@@ -39,11 +39,13 @@ export function useNodeDetailsControlPlane(nodeId: string | undefined) {
   useEffect(() => {
     if (!nodeId) return;
 
+    let active = true;
     let metricsSub: Awaited<ReturnType<typeof masterWebsocketService.subscribe>> | null = null;
     let deploymentsSub: Awaited<ReturnType<typeof masterWebsocketService.subscribe>> | null = null;
 
     const boot = async () => {
-      metricsSub = await masterWebsocketService.subscribe("metrics", (payload) => {
+      const sub1 = await masterWebsocketService.subscribe("metrics", (payload) => {
+        if (!active) return;
         const data = payload && typeof payload === "object" ? (payload as Record<string, unknown>) : null;
         const eventNodeId = String(data?.nodeId ?? data?.node_id ?? "");
         if (!data || eventNodeId !== nodeId || !data.metric || typeof data.metric !== "object") return;
@@ -53,8 +55,14 @@ export function useNodeDetailsControlPlane(nodeId: string | undefined) {
           metricsSeries: [...prev.metricsSeries, data.metric as NodeMetricsSnapshot].slice(-80),
         }));
       });
+      if (!active) {
+        masterWebsocketService.unsubscribe(sub1);
+        return;
+      }
+      metricsSub = sub1;
 
-      deploymentsSub = await masterWebsocketService.subscribe("deployments", (payload) => {
+      const sub2 = await masterWebsocketService.subscribe("deployments", (payload) => {
+        if (!active) return;
         const data = payload && typeof payload === "object" ? (payload as Record<string, unknown>) : null;
         if (!data || !data.deployment || typeof data.deployment !== "object") return;
         const deploy = data.deployment as NodeDeploymentEvent;
@@ -70,11 +78,17 @@ export function useNodeDetailsControlPlane(nodeId: string | undefined) {
           return { ...prev, deployments };
         });
       });
+      if (!active) {
+        masterWebsocketService.unsubscribe(sub2);
+        return;
+      }
+      deploymentsSub = sub2;
     };
 
     void boot();
 
     return () => {
+      active = false;
       if (metricsSub) masterWebsocketService.unsubscribe(metricsSub);
       if (deploymentsSub) masterWebsocketService.unsubscribe(deploymentsSub);
     };
