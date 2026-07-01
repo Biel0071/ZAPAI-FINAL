@@ -46,6 +46,32 @@ router.post('/config/ai/restart', async (req, res) => {
   }
 });
 
+router.post('/config/ai/deploy-vps', async (req, res) => {
+  try {
+    const { exec } = require('child_process');
+    const path = require('path');
+    const rootDir = path.join(__dirname, '..', '..');
+
+    console.log('[AI DEPLOY] Triggered self-deployment on server.');
+    
+    // Execute auto-deploy.sh locally on the server
+    const deployScript = path.join(rootDir, 'deploy', 'auto-deploy.sh');
+    
+    // Run asynchronously to allow connection to return status first (PM2 restart kills the connection)
+    exec(`bash "${deployScript}"`, (error, stdout, stderr) => {
+      if (error) {
+        console.error(`[AI DEPLOY] Failed: ${error.message}`);
+        return;
+      }
+      console.log('[AI DEPLOY] Completed successfully.');
+    });
+
+    return res.status(200).json({ success: true, message: 'Deployment triggered successfully on VPS.' });
+  } catch (error) {
+    return res.status(500).json({ success: false, error: error.message });
+  }
+});
+
 router.get('/queue', aiConfigController.getQueue);
 router.post('/queue/process', aiConfigController.processQueue);
 

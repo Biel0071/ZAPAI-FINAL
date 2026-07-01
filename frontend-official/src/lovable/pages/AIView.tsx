@@ -492,6 +492,34 @@ export function AIView(props: AIViewProps) {
       setRestartingAI(false);
     }
   };
+  const [deployingVPS, setDeployingVPS] = useState(false);
+
+  const handleDeployVPS = async () => {
+    setDeployingVPS(true);
+    try {
+      const res = await apiService.deployVPS();
+      if (res?.success) {
+        toast({
+          title: "Deploy Iniciado",
+          description: "O script de deploy automático foi disparado na VPS. O sistema será reiniciado em instantes.",
+        });
+      } else {
+        toast({
+          title: "Erro no deploy",
+          description: res?.message || "Não foi possível disparar o deploy na VPS.",
+          variant: "destructive",
+        });
+      }
+    } catch (err: any) {
+      toast({
+        title: "Erro de conexão",
+        description: err.message || "Erro ao conectar com o servidor.",
+        variant: "destructive",
+      });
+    } finally {
+      setDeployingVPS(false);
+    }
+  };
 
   // States for the Testar IA simulation
   const [isTestModalOpen, setIsTestModalOpen] = useState(false);
@@ -1636,6 +1664,21 @@ export function AIView(props: AIViewProps) {
                             <CardDescription className="text-[11px] mt-0.5">Diagnósticos das integrações e serviços críticos.</CardDescription>
                           </div>
                           <div className="flex gap-2">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="h-7 text-[11px] px-2.5 rounded-lg flex items-center gap-1 hover:text-primary"
+                              onClick={handleDeployVPS}
+                              disabled={deployingVPS}
+                            >
+                              {deployingVPS ? (
+                                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                              ) : (
+                                <Sparkles className="h-3.5 w-3.5" />
+                              )}
+                              <span>Deploy VPS</span>
+                            </Button>
+
                             <Button
                               size="sm"
                               variant="outline"

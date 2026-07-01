@@ -1743,6 +1743,12 @@ export const apiService = {
       method: "POST",
     });
   },
+  async deployVPS() {
+    return request<{ success: boolean; message: string }>({
+      endpoint: "/config/ai/deploy-vps",
+      method: "POST",
+    });
+  },
 };
 
 export async function requestApiEndpoint<T>(endpoint: string, method: "GET" | "POST" | "PUT" | "PATCH" | "DELETE" = "GET", body?: unknown): Promise<T> {
