@@ -93,6 +93,62 @@ async function processBase64Items(items) {
   return processed;
 }
 
+async function processBase64Steps(steps) {
+  if (!Array.isArray(steps)) return [];
+
+  const processed = [];
+  const uploadDir = path.join(__dirname, '..', 'upload', 'quick-replies');
+  await fs.mkdir(uploadDir, { recursive: true });
+
+  for (const step of steps) {
+    if (!step || typeof step !== 'object') continue;
+
+    const { type, value, filename } = step;
+
+    if (type !== 'text' && typeof value === 'string' && value.startsWith('data:')) {
+      const match = value.match(/^data:([^;]+);base64,(.+)$/);
+      if (match) {
+        const mimeType = match[1];
+        const base64Data = match[2];
+        const buffer = Buffer.from(base64Data, 'base64');
+
+        const mimeMap = {
+          'image/png': 'png',
+          'image/jpeg': 'jpg',
+          'image/gif': 'gif',
+          'image/webp': 'webp',
+          'video/mp4': 'mp4',
+          'audio/mpeg': 'mp3',
+          'audio/mp3': 'mp3',
+          'audio/ogg': 'ogg',
+          'audio/wav': 'wav',
+          'audio/webm': 'webm',
+          'audio/opus': 'opus',
+          'application/pdf': 'pdf',
+        };
+        const ext = mimeMap[mimeType] || mimeType.split('/')[1] || 'bin';
+        const uuid = crypto.randomUUID();
+        const baseName = filename ? path.parse(filename).name.replace(/[^a-zA-Z0-9_-]/g, '') : 'media';
+        const savedFileName = `${baseName}_${uuid}.${ext}`;
+        const filePath = path.join(uploadDir, savedFileName);
+
+        await fs.writeFile(filePath, buffer);
+
+        processed.push({
+          ...step,
+          value: `/upload/quick-replies/${savedFileName}`,
+          filename: filename || savedFileName,
+        });
+        continue;
+      }
+    }
+
+    processed.push(step);
+  }
+
+  return processed;
+}
+
 function normalizeQuickReply(payload = {}) {
   let items = [];
   if (Array.isArray(payload.items)) {
@@ -100,12 +156,16 @@ function normalizeQuickReply(payload = {}) {
       type: String(item.type || 'text').trim().toLowerCase(),
       value: String(item.value || '').trim(),
       filename: item.filename ? String(item.filename).trim() : undefined,
+      delayMs: item.delayMs !== undefined ? Number(item.delayMs) : 0,
+      typingMs: item.typingMs !== undefined ? Number(item.typingMs) : 1500,
+      caption: item.caption ? String(item.caption).trim() : undefined,
     }));
   } else {
-    // backward compatibility
     items = [{
       type: 'text',
       value: String(payload.content || '').trim(),
+      delayMs: 0,
+      typingMs: 1500,
     }];
   }
 
@@ -117,6 +177,20 @@ function normalizeQuickReply(payload = {}) {
     category: normalizeCategory(payload.category),
     tags: Array.isArray(payload.tags) ? payload.tags.map((item) => String(item || '').trim()).filter(Boolean) : [],
     favorite: Boolean(payload.favorite),
+    isFlow: Boolean(payload.isFlow),
+    steps: Array.isArray(payload.steps) ? payload.steps.map((step) => ({
+      id: step.id || `step-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+      type: String(step.type || 'text').trim().toLowerCase(),
+      value: String(step.value || '').trim(),
+      filename: step.filename ? String(step.filename).trim() : undefined,
+      delayMs: Number(step.delayMs || 0),
+      typingMs: step.typingMs !== undefined ? Number(step.typingMs) : 1500,
+      caption: step.caption ? String(step.caption).trim() : undefined,
+      actions: step.actions ? {
+        addTags: Array.isArray(step.actions.addTags) ? step.actions.addTags.map(t => String(t || '').trim()).filter(Boolean) : undefined,
+        archiveContact: step.actions.archiveContact !== undefined ? Boolean(step.actions.archiveContact) : undefined
+      } : undefined
+    })) : [],
     updatedAt: new Date().toISOString(),
     createdAt: payload.createdAt || new Date().toISOString(),
   };
@@ -129,8 +203,9 @@ function assertPayload(payload = {}) {
 
   const hasContent = String(payload.content || '').trim();
   const hasItems = Array.isArray(payload.items) && payload.items.length > 0;
-  if (!hasContent && !hasItems) {
-    throw new Error('content or items is required.');
+  const hasSteps = Array.isArray(payload.steps) && payload.steps.length > 0;
+  if (!hasContent && !hasItems && !hasSteps) {
+    throw new Error('content, items or steps is required.');
   }
 }
 
@@ -160,6 +235,9 @@ async function createQuickReply(payload = {}) {
   if (payload.items) {
     payload.items = await processBase64Items(payload.items);
   }
+  if (payload.steps) {
+    payload.steps = await processBase64Steps(payload.steps);
+  }
   assertPayload(payload);
   const all = await readQuickReplies();
   const next = normalizeQuickReply(payload);
@@ -178,6 +256,9 @@ async function updateQuickReply(id, payload = {}) {
 
   if (payload.items) {
     payload.items = await processBase64Items(payload.items);
+  }
+  if (payload.steps) {
+    payload.steps = await processBase64Steps(payload.steps);
   }
 
   const merged = {

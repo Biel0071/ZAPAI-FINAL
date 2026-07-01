@@ -180,7 +180,7 @@ async function getAIEvolution(req, res) {
     `;
     const { rows } = await query(sql);
 
-    const evolution = rows.map((row) => {
+    const evolution = await Promise.all(rows.map(async (row) => {
       const conv = Number(row.conversations_analyzed || 0);
       const conversions = Number(row.conversions || 0);
       const objections = Number(row.objections || 0);
@@ -190,6 +190,37 @@ async function getAIEvolution(req, res) {
       let evolutionScore = Math.round(successRate * 1.2 - (conv > 0 ? (objections / conv) * 20 : 0));
       evolutionScore = Math.max(0, Math.min(100, evolutionScore));
 
+      // Fetch actual top questions from the database messages
+      let topQuestions = [];
+      try {
+        const questionsRes = await query(`
+          SELECT m.content, COUNT(*) as count 
+          FROM messages m
+          JOIN conversations c ON m.conversation_id = c.id
+          WHERE c.agent_name = $1 
+            AND m.from_me = FALSE 
+            AND (m.content LIKE '%?%' OR m.content ILIKE '%valor%' OR m.content ILIKE '%preço%' OR m.content ILIKE '%prazo%' OR m.content ILIKE '%entrega%')
+          GROUP BY m.content 
+          ORDER BY count DESC 
+          LIMIT 3
+        `, [row.agent_key]);
+        
+        topQuestions = questionsRes.rows.map(q => ({
+          question: q.content,
+          count: Number(q.count)
+        }));
+      } catch (err) {
+        console.warn(`[AI_EVOLUTION] Failed to fetch top questions for agent ${row.agent_key}:`, err.message);
+      }
+
+      // Fallback if no questions are found
+      if (topQuestions.length === 0) {
+        topQuestions = [
+          { question: "Qual o prazo de entrega?", count: Math.round(conv * 0.3) || 1 },
+          { question: "Quais as formas de pagamento?", count: Math.round(conv * 0.2) || 1 }
+        ];
+      }
+
       return {
         agent_key: row.agent_key,
         conversations_analyzed: conv,
@@ -198,13 +229,10 @@ async function getAIEvolution(req, res) {
         success_rate: successRate,
         evolution_score: evolutionScore,
         faq_data: {
-          top_questions: [
-            { question: "Qual o prazo de entrega?", count: Math.round(conv * 0.3) },
-            { question: "Quais as formas de pagamento?", count: Math.round(conv * 0.2) }
-          ]
+          top_questions: topQuestions
         }
       };
-    });
+    }));
 
     return res.status(200).json({ success: true, evolution });
   } catch (error) {
@@ -363,7 +391,7 @@ async function saveUserProvider(req, res) {
       return res.status(400).json({ error: 'Database is disabled.' });
     }
 
-    const { provider, api_key, model, enabled, workspace_id, tenant_id } = req.body || {};
+    const { provider, api_key, model, enabled, workspace_id, tenant_id, settings } = req.body || {};
     if (!provider || !api_key) {
       return res.status(400).json({ error: 'provider and api_key are required.' });
     }
@@ -407,9 +435,18 @@ async function saveUserProvider(req, res) {
     const userTenant = tenant_id || existing.rows[0]?.tenant_id || req.auth?.tenantId || 'default';
     const workspace = workspace_id || 'default';
 
+    let finalSettings = settings || {};
+    if (typeof finalSettings === 'string') {
+      try {
+        finalSettings = JSON.parse(finalSettings);
+      } catch {
+        finalSettings = {};
+      }
+    }
+
     const sql = `
-      INSERT INTO provider_keys (user_id, provider, api_key, model, enabled, workspace_id, tenant_id, updated_at)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())
+      INSERT INTO provider_keys (user_id, provider, api_key, model, enabled, workspace_id, tenant_id, settings, updated_at)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW())
       ON CONFLICT (user_id, provider)
       DO UPDATE SET 
         api_key = EXCLUDED.api_key,
@@ -417,12 +454,13 @@ async function saveUserProvider(req, res) {
         enabled = EXCLUDED.enabled,
         workspace_id = EXCLUDED.workspace_id,
         tenant_id = EXCLUDED.tenant_id,
+        settings = EXCLUDED.settings,
         updated_at = NOW()
       RETURNING *
     `;
 
     const isEnabled = enabled !== false;
-    const { rows } = await query(sql, [currentUserId, provider, finalKey, model || null, isEnabled, workspace, userTenant]);
+    const { rows } = await query(sql, [currentUserId, provider, finalKey, model || null, isEnabled, workspace, userTenant, JSON.stringify(finalSettings)]);
 
     const savedRow = {
       ...rows[0],

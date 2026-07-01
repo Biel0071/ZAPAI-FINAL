@@ -13,7 +13,7 @@ import {
   File as FileIcon,
   Waveform,
 } from "@phosphor-icons/react";
-import { Folder, History, UserRound, Workflow, type LucideIcon } from "lucide-react";
+import { Folder, History, UserRound, Workflow, type LucideIcon, Sparkles, Cpu, Bot, Brain } from "lucide-react";
 import { AIIcon } from "@/components/ai/AIIcon";
 import {
   Accordion,
@@ -50,6 +50,14 @@ import {
 } from "../utils";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
+
+function getProviderIcon(provider?: string): LucideIcon {
+  const norm = String(provider ?? "").toLowerCase();
+  if (norm.includes("openai")) return Brain;
+  if (norm.includes("gemini") || norm.includes("google")) return Sparkles;
+  if (norm.includes("anthropic") || norm.includes("claude")) return Bot;
+  return Cpu;
+}
 
 interface SidebarPanelProps {
   selectedConversation: Conversation | null;
@@ -96,12 +104,14 @@ interface SidebarPanelProps {
   aiAgents?: any[];
   loadingAgents?: boolean;
   handleSetConversationAgent?: (agentName: string) => Promise<void> | void;
+  isDrawer?: boolean;
+  onSaveTimelineToMemory?: (evt: { title: string; description: string; timestamp: string }) => Promise<void> | void;
 }
 
 const RIGHT_PANEL_SECTIONS = [
   { id: "ai", label: "IA", icon: AIIcon, shortcut: "Alt+1" },
   { id: "lead", label: "Lead", icon: UserRound, shortcut: "Alt+2" },
-  { id: "qr", label: "Automação", icon: Workflow, shortcut: "Alt+4" },
+  { id: "qr", label: "Respostas Rápidas", icon: Workflow, shortcut: "Alt+4" },
   { id: "history", label: "Histórico", icon: History, shortcut: "Alt+5" },
   { id: "files", label: "Arquivos", icon: Folder, shortcut: "Alt+3" },
 ] as const;
@@ -176,7 +186,7 @@ const SharedMediaCard = memo(function SharedMediaCard({
 
   return (
     <div className="rounded-lg border border-border/40 bg-muted/20 p-2 transition-all duration-200 hover:border-primary/35 hover:bg-muted/30">
-      <div className="flex h-24 items-center justify-center overflow-hidden rounded-md border border-border/30 bg-card/40">
+      <div className="relative aspect-square w-full flex items-center justify-center overflow-hidden rounded-md border border-border/30 bg-card/40">
         {mediaType === "image" && mediaUrl && !assetError ? (
           <img
             src={mediaUrl}
@@ -213,51 +223,34 @@ const SharedMediaCard = memo(function SharedMediaCard({
           />
         ) : mediaType === "audio" && mediaUrl && !assetError ? (
           <div className="flex h-full w-full flex-col items-center justify-center gap-2 px-2">
-            <Waveform className="h-7 w-7 text-muted-foreground" />
-            <audio
-              controls
-              src={mediaUrl}
-              className="w-full"
-              onError={() =>
-                setAssetError("O audio nao pode ser carregado ou o codec nao e suportado.")
-              }
-            />
+            <Waveform className="h-8 w-8 text-primary/70 animate-pulse" />
+            <span className="text-[10px] text-muted-foreground truncate max-w-full px-1">{fileName}</span>
           </div>
         ) : (
           <div className="flex h-full w-full flex-col items-center justify-center gap-2 px-2 text-center">
             {mediaType === "audio" ? (
-              <Waveform className="h-7 w-7 text-muted-foreground" />
+              <Waveform className="h-8 w-8 text-muted-foreground/70" />
             ) : (
-              <FileIcon className="h-7 w-7 text-muted-foreground" />
+              <FileIcon className="h-8 w-8 text-muted-foreground/70" />
             )}
-            <span
-              className={cn(
-                "text-[10px]",
-                assetError ? "text-destructive" : "text-muted-foreground",
-              )}
-            >
-              {assetError ||
-                (mediaType === "file" ? "Visualizar documento" : getMediaTypeLabel(mediaType))}
+            <span className="text-[10px] text-muted-foreground truncate max-w-full px-1">
+              {getMediaTypeLabel(mediaType)}
             </span>
           </div>
         )}
       </div>
       <div className="mt-2 space-y-1">
-        <p className="truncate text-[11px] font-semibold text-foreground">{fileName}</p>
-        <div className="grid grid-cols-3 gap-1 text-[10px] text-muted-foreground">
-          <span>{getMediaTypeLabel(mediaType)}</span>
-          <span className="truncate text-center">
-            {assetSize ? formatFileSize(assetSize) : "Tamanho n/d"}
-          </span>
-          <span>{toConversationDateLabel(message.createdAt)}</span>
-        </div>
+        <p className="truncate text-[11px] font-semibold text-foreground" title={fileName}>{fileName}</p>
+        <p className="truncate text-[10px] text-muted-foreground">
+          {getMediaTypeLabel(mediaType)} • {assetSize ? formatFileSize(assetSize) : "Tamanho n/d"} • {toConversationDateLabel(message.createdAt)}
+        </p>
       </div>
-      <div className="mt-2 flex items-center gap-2">
+      <div className="mt-2 flex items-center gap-1.5">
         <Button
           type="button"
           variant="ghost"
           size="sm"
-          className="h-7 flex-1 text-[10px]"
+          className="h-7 flex-1 text-[10px] disabled:opacity-40 disabled:cursor-not-allowed"
           disabled={!mediaUrl || Boolean(assetError)}
           onClick={() => {
             if (!mediaUrl) return;
@@ -270,13 +263,20 @@ const SharedMediaCard = memo(function SharedMediaCard({
           type="button"
           variant="ghost"
           size="sm"
-          className="h-7 flex-1 text-[10px]"
+          className="h-7 flex-1 text-[10px] disabled:opacity-40 disabled:cursor-not-allowed"
           disabled={!mediaUrl || Boolean(assetError)}
           onClick={() => onDownloadMedia(message)}
         >
           Baixar
         </Button>
       </div>
+      {assetError && (
+        <div className="mt-1.5 flex justify-center">
+          <Badge variant="outline" className="border-destructive/30 bg-destructive/5 text-destructive text-[8px] px-1 py-0 h-4 scale-90 truncate max-w-full">
+            {assetError.includes("Backend nao retornou URL") ? "Sem URL" : "Erro Mídia"}
+          </Badge>
+        </div>
+      )}
     </div>
   );
 });
@@ -371,8 +371,24 @@ export function SidebarPanel({
   aiAgents = [],
   loadingAgents = false,
   handleSetConversationAgent,
+  isDrawer = false,
+  onSaveTimelineToMemory,
 }: SidebarPanelProps) {
   const { toast } = useToast();
+  const [fileFilter, setFileFilter] = useState<"all" | "image" | "video" | "file">("all");
+  const [expandedTimeline, setExpandedTimeline] = useState<Set<string>>(new Set());
+
+  const toggleTimelineItem = (id: string) => {
+    setExpandedTimeline((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      return next;
+    });
+  };
 
   const conversationVariableContext = useMemo(
     () => ({
@@ -599,8 +615,13 @@ export function SidebarPanel({
       className="group rounded-md border border-border/50 bg-background/30 p-1.5 transition-all hover:border-border hover:bg-background/60 hover:shadow-sm cursor-pointer active:scale-[0.98] select-none"
     >
       <div className="flex items-start justify-between gap-1.5">
-        <h4 className="font-semibold text-[11.5px] text-foreground truncate flex-grow">
-          {item.title || getQuickReplyPreviewText(item, conversationVariableContext).split("\n")[0]}
+        <h4 className="font-semibold text-[11.5px] text-foreground truncate flex-grow flex items-center gap-1.5">
+          {item.isFlow && (
+            <Badge className="bg-purple-600 hover:bg-purple-700 text-white text-[9px] px-1 py-0 h-4 leading-none font-semibold shrink-0">
+              Fluxo
+            </Badge>
+          )}
+          <span className="truncate">{item.title || getQuickReplyPreviewText(item, conversationVariableContext).split("\n")[0]}</span>
         </h4>
         {item.tags && item.tags.length > 0 && (
           <div className="flex gap-0.5 max-w-[50%] overflow-hidden shrink-0">
@@ -635,13 +656,24 @@ export function SidebarPanel({
       <div className="mt-1.5 flex items-center gap-0.5 opacity-70 transition-opacity group-hover:opacity-100">
         <Button
           size="sm"
-          className="h-6 flex-grow text-[10px]"
+          className={cn(
+            "h-6 flex-grow text-[10px]",
+            item.isFlow && "bg-purple-600 hover:bg-purple-700 text-white border-none shadow-sm"
+          )}
           onClick={(e) => {
             e.stopPropagation();
             void sendQuickReply(item);
           }}
         >
-          <PaperPlaneTilt className="mr-1 h-3 w-3" weight="fill" /> Enviar
+          {item.isFlow ? (
+            <>
+              <PaperPlaneTilt className="mr-1 h-3 w-3" weight="fill" /> Disparar Fluxo
+            </>
+          ) : (
+            <>
+              <PaperPlaneTilt className="mr-1 h-3 w-3" weight="fill" /> Enviar
+            </>
+          )}
         </Button>
         <Button
           size="icon"
@@ -730,7 +762,7 @@ export function SidebarPanel({
                 value="qr"
                 className="text-xs px-2.5 h-7 transition-all data-[state=active]:shadow-sm"
               >
-                Automação
+                Respostas Rápidas
               </TabsTrigger>
               <TabsTrigger
                 value="history"
@@ -754,80 +786,98 @@ export function SidebarPanel({
           className="mt-0 max-h-[calc(100vh-300px)] shrink-0 space-y-3 overflow-y-auto p-2 scrollbar-thin animate-fade-in data-[state=inactive]:hidden"
         >
           <InboxSectionBoundary fallbackLabel="Insights IA">
-            <Accordion type="single" defaultValue="ai-status" collapsible className="space-y-1.5">
+            <Accordion type="multiple" defaultValue={["ai-status", "ai-action", "ai-analysis"]} className="space-y-1.5">
               <AccordionItem
                 value="ai-status"
                 className="rounded-md border border-border/60 bg-card/40 px-2.5"
               >
-                <AccordionTrigger className="py-2 text-xs font-semibold hover:no-underline">
+                <AccordionTrigger className="py-1.5 text-xs font-semibold hover:no-underline">
                   Status e modelo
                 </AccordionTrigger>
-                <AccordionContent className="pb-2.5">
+                <AccordionContent className="pb-2">
                   <div className="space-y-2 text-[11px]">
-                    <div
-                      className={cn(
-                        "rounded-lg border p-3 transition-all duration-200",
-                        aiEnabledForConversation
-                          ? "border-emerald-500/25 bg-emerald-500/10"
-                          : "border-red-500/25 bg-red-500/10",
-                      )}
-                    >
-                      <div className="flex items-center justify-between gap-2">
-                        <span
-                          className={cn(
-                            "text-xs font-bold uppercase",
-                            aiEnabledForConversation ? "text-emerald-400" : "text-red-400",
-                          )}
-                        >
-                          {aiEnabledForConversation ? "🟢 IA ATIVA" : "🔴 IA PAUSADA"}
+                    <div className="flex items-center justify-between py-1 border-b border-border/30">
+                      <div className="flex items-center gap-1.5">
+                        <span className={cn("h-2 w-2 rounded-full", aiEnabledForConversation ? "bg-emerald-500" : "bg-neutral-500")} />
+                        <span className="font-semibold text-foreground">
+                          {aiEnabledForConversation ? "IA Ativa" : "IA Pausada"}
                         </span>
-                        <Badge variant="outline" className="h-5 rounded-full px-2 text-[9px]">
-                          {!aiRuntime.globalEnabled
-                            ? "Global off"
-                            : !conversationAiOverrideEnabled
-                              ? "Conversa off"
-                              : "Global"}
-                        </Badge>
                       </div>
+                      <Badge variant="outline" className="h-5 rounded-full px-2 text-[9px] border-border/60">
+                        {!aiRuntime.globalEnabled
+                          ? "Global off"
+                          : !conversationAiOverrideEnabled
+                            ? "Conversa off"
+                            : "Global"}
+                      </Badge>
                     </div>
-                    <div className="grid grid-cols-2 gap-2">
-                      <div className="rounded-md border border-border/50 bg-muted/25 p-2">
-                        <span className="block text-muted-foreground">Modelo</span>
-                        <span className="font-semibold text-foreground">
-                          {aiRuntime.loading ? "Carregando..." : aiRuntime.model}
+
+                    <div className="grid grid-cols-3 gap-1.5 mt-1">
+                      <div className="rounded-md border border-border/50 bg-muted/25 p-2 min-w-0">
+                        <span className="block text-muted-foreground text-[9px] uppercase tracking-wider font-semibold">Modelo</span>
+                        <span className="font-semibold text-foreground text-[11px] truncate block">
+                          {aiRuntime.loading ? "..." : aiRuntime.model}
                         </span>
                       </div>
-                      <div className="rounded-md border border-border/50 bg-muted/25 p-2">
-                        <span className="block text-muted-foreground">Provedor</span>
-                        <span className="font-semibold text-foreground">
-                          {aiRuntime.loading ? "Carregando..." : aiRuntime.provider}
-                        </span>
+                      <div className="rounded-md border border-border/50 bg-muted/25 p-2 min-w-0 flex items-center gap-1">
+                        {(() => {
+                          const IconComp = getProviderIcon(aiRuntime.provider);
+                          return <IconComp className="h-3.5 w-3.5 text-muted-foreground shrink-0" />;
+                        })()}
+                        <div className="min-w-0 flex-1">
+                          <span className="block text-muted-foreground text-[9px] uppercase tracking-wider font-semibold">Provedor</span>
+                          <span className="font-semibold text-foreground text-[11px] truncate block">
+                            {aiRuntime.loading ? "..." : aiRuntime.provider}
+                          </span>
+                        </div>
                       </div>
-                      <div className="rounded-md border border-border/50 bg-muted/25 p-2">
-                        <span className="block text-muted-foreground">Memória</span>
-                        <span className="font-semibold text-foreground">
-                          {aiRuntime.memoryEnabled ? "Ativa" : "Desativada"}
-                        </span>
-                      </div>
-                      <div className="rounded-md border border-border/50 bg-muted/25 p-2">
-                        <span className="block text-muted-foreground">Última resposta</span>
-                        <span className="font-semibold text-foreground">
+                      <div className="rounded-md border border-border/50 bg-muted/25 p-2 min-w-0">
+                        <span className="block text-muted-foreground text-[9px] uppercase tracking-wider font-semibold">Última Resp.</span>
+                        <span className="font-semibold text-foreground text-[11px] truncate block">
                           {aiRuntime.lastResponseAt ? formatTime(aiRuntime.lastResponseAt) : "Sem registro"}
                         </span>
                       </div>
-                      <div className="rounded-md border border-border/50 bg-muted/25 p-2">
-                        <span className="block text-muted-foreground">Tempo</span>
-                        <span className="font-semibold text-foreground">
-                          {formatDurationMs(aiRuntime.lastResponseTimeMs)}
-                        </span>
-                      </div>
-                      <div className="rounded-md border border-border/50 bg-muted/25 p-2">
-                        <span className="block text-muted-foreground">Tokens</span>
-                        <span className="font-semibold tabular-nums text-foreground">
-                          {aiRuntime.promptTokens + aiRuntime.completionTokens}
-                        </span>
-                      </div>
                     </div>
+
+                    {/* Collapsible details for secondary metrics */}
+                    <details className="mt-2 text-[11px] group">
+                      <summary className="cursor-pointer text-muted-foreground hover:text-foreground text-[10px] select-none list-none flex items-center gap-1 font-semibold py-1">
+                        <span className="transition-transform group-open:rotate-90">▶</span>
+                        Mais Métricas
+                      </summary>
+                      <div className="grid grid-cols-2 gap-2 mt-1.5 border-t border-border/30 pt-1.5">
+                        <div className="rounded-md border border-border/40 bg-muted/15 p-2">
+                          <span className="block text-muted-foreground text-[10px]">Memória</span>
+                          <span className="font-semibold text-foreground">
+                            {aiRuntime.memoryEnabled ? "Ativa" : "Desativada"}
+                          </span>
+                        </div>
+                        <div className="rounded-md border border-border/40 bg-muted/15 p-2">
+                          <span className="block text-muted-foreground text-[10px]">Tempo</span>
+                          <span className="font-semibold text-foreground">
+                            {formatDurationMs(aiRuntime.lastResponseTimeMs)}
+                          </span>
+                        </div>
+                        <div className="rounded-md border border-border/40 bg-muted/15 p-2">
+                          <span className="block text-muted-foreground text-[10px]">Tokens Entrada</span>
+                          <span className="font-semibold tabular-nums text-foreground">
+                            {aiRuntime.promptTokens}
+                          </span>
+                        </div>
+                        <div className="rounded-md border border-border/40 bg-muted/15 p-2">
+                          <span className="block text-muted-foreground text-[10px]">Tokens Saída</span>
+                          <span className="font-semibold tabular-nums text-foreground">
+                            {aiRuntime.completionTokens}
+                          </span>
+                        </div>
+                        <div className="rounded-md border border-border/40 bg-muted/15 p-2">
+                          <span className="block text-muted-foreground text-[10px]">Tokens Total</span>
+                          <span className="font-semibold tabular-nums text-foreground">
+                            {aiRuntime.promptTokens + aiRuntime.completionTokens}
+                          </span>
+                        </div>
+                      </div>
+                    </details>
 
                     <div className="mt-3 space-y-1.5 border-t border-border/40 pt-3">
                       <span className="block text-[10px] uppercase font-bold text-muted-foreground/80">Atendente Designado</span>
@@ -841,7 +891,7 @@ export function SidebarPanel({
                         ) : (
                           <>
                             <option value="">Não atribuído</option>
-                            {selectedConversation?.assignedAgentName && !aiAgents.some((a) => a.name === selectedConversation.assignedAgentName) && (
+                            {selectedConversation?.assignedAgentName && !aiAgents.some((a: any) => a.name === selectedConversation.assignedAgentName) && (
                               <option value={selectedConversation.assignedAgentName}>
                                 {selectedConversation.assignedAgentName}
                               </option>
@@ -859,51 +909,13 @@ export function SidebarPanel({
                 </AccordionContent>
               </AccordionItem>
               <AccordionItem
-                value="ai-metrics"
-                className="rounded-md border border-border/60 bg-card/40 px-2.5"
-              >
-                <AccordionTrigger className="py-2 text-xs font-semibold hover:no-underline">
-                  Métricas
-                </AccordionTrigger>
-                <AccordionContent className="pb-2.5">
-                  <div className="grid grid-cols-2 gap-2 text-[11px]">
-                    <div className="rounded-md bg-muted/30 p-2">
-                      <span className="block text-muted-foreground">Última resposta IA</span>
-                      <span className="font-semibold text-foreground">
-                        {aiRuntime.lastResponseAt
-                          ? new Date(aiRuntime.lastResponseAt).toLocaleString("pt-BR")
-                          : "Sem registro"}
-                      </span>
-                    </div>
-                    <div className="rounded-md bg-muted/30 p-2">
-                      <span className="block text-muted-foreground">Tempo</span>
-                      <span className="font-semibold text-foreground">
-                        {formatDurationMs(aiRuntime.lastResponseTimeMs)}
-                      </span>
-                    </div>
-                    <div className="rounded-md bg-muted/30 p-2">
-                      <span className="block text-muted-foreground">Tokens entrada</span>
-                      <span className="font-semibold tabular-nums text-foreground">
-                        {aiRuntime.promptTokens}
-                      </span>
-                    </div>
-                    <div className="rounded-md bg-muted/30 p-2">
-                      <span className="block text-muted-foreground">Tokens saída</span>
-                      <span className="font-semibold tabular-nums text-foreground">
-                        {aiRuntime.completionTokens}
-                      </span>
-                    </div>
-                  </div>
-                </AccordionContent>
-              </AccordionItem>
-              <AccordionItem
                 value="ai-action"
                 className="rounded-md border border-border/60 bg-card/40 px-2.5"
               >
-                <AccordionTrigger className="py-2 text-xs font-semibold hover:no-underline">
+                <AccordionTrigger className="py-1.5 text-xs font-semibold hover:no-underline">
                   Ação recomendada
                 </AccordionTrigger>
-                <AccordionContent className="space-y-2 pb-2.5 text-xs">
+                <AccordionContent className="space-y-2 pb-2 text-xs">
                   <p className="leading-relaxed text-muted-foreground">
                     {selectedLead?.next_action === "close_sale"
                       ? "Conduzir o lead para fechamento."
@@ -928,10 +940,10 @@ export function SidebarPanel({
                 value="ai-analysis"
                 className="rounded-md border border-border/60 bg-card/40 px-2.5"
               >
-                <AccordionTrigger className="py-2 text-xs font-semibold hover:no-underline">
+                <AccordionTrigger className="py-1.5 text-xs font-semibold hover:no-underline">
                   Análise
                 </AccordionTrigger>
-                <AccordionContent className="space-y-1.5 pb-2.5 text-[11px]">
+                <AccordionContent className="space-y-1.5 pb-2 text-[11px]">
                   <p>
                     <span className="text-muted-foreground">Intenção: </span>
                     <span className="text-foreground">{aiLiveInsights.objective}</span>
@@ -971,15 +983,15 @@ export function SidebarPanel({
           className="mt-0 max-h-[calc(100vh-300px)] shrink-0 space-y-3 overflow-y-auto p-2 scrollbar-thin animate-fade-in data-[state=inactive]:hidden"
         >
           <InboxSectionBoundary fallbackLabel="Lead CRM">
-            <Accordion type="single" defaultValue="lead-contact" collapsible className="space-y-1.5">
+            <Accordion type="multiple" defaultValue={["lead-contact", "lead-tags", "lead-funnel", "lead-notes"]} className="space-y-1.5">
               <AccordionItem
                 value="lead-contact"
                 className="rounded-md border border-border/60 bg-card/40 px-2.5"
               >
-                <AccordionTrigger className="py-2 text-xs font-semibold hover:no-underline">
+                <AccordionTrigger className="py-1.5 text-xs font-semibold hover:no-underline">
                   Dados do contato
                 </AccordionTrigger>
-                <AccordionContent className="space-y-2 pb-2.5 text-[11px]">
+                <AccordionContent className="space-y-2 pb-2 text-[11px]">
                   <div>
                     <span className="block text-muted-foreground">Nome</span>
                     <span className="font-semibold text-foreground">{selectedConversation.contactName}</span>
@@ -1008,10 +1020,10 @@ export function SidebarPanel({
                 value="lead-tags"
                 className="rounded-md border border-border/60 bg-card/40 px-2.5"
               >
-                <AccordionTrigger className="py-2 text-xs font-semibold hover:no-underline">
+                <AccordionTrigger className="py-1.5 text-xs font-semibold hover:no-underline">
                   Etiquetas
                 </AccordionTrigger>
-                <AccordionContent className="space-y-2 pb-2.5">
+                <AccordionContent className="space-y-2 pb-2">
                   <div className="flex flex-wrap gap-1">
                     {(selectedConversation.tags ?? []).map((tag) => (
                       <Badge
@@ -1057,10 +1069,10 @@ export function SidebarPanel({
                 value="lead-funnel"
                 className="rounded-md border border-border/60 bg-card/40 px-2.5"
               >
-                <AccordionTrigger className="py-2 text-xs font-semibold hover:no-underline">
+                <AccordionTrigger className="py-1.5 text-xs font-semibold hover:no-underline">
                   Funil
                 </AccordionTrigger>
-                <AccordionContent className="pb-2.5">
+                <AccordionContent className="pb-2">
                   <select
                     value={selectedConversationFunnelStage}
                     onChange={(event) => {
@@ -1089,10 +1101,10 @@ export function SidebarPanel({
                 value="lead-notes"
                 className="rounded-md border border-border/60 bg-card/40 px-2.5"
               >
-                <AccordionTrigger className="py-2 text-xs font-semibold hover:no-underline">
+                <AccordionTrigger className="py-1.5 text-xs font-semibold hover:no-underline">
                   Observações
                 </AccordionTrigger>
-                <AccordionContent className="space-y-2 pb-2.5">
+                <AccordionContent className="space-y-2 pb-2">
                   <textarea
                     value={leadNotes}
                     onChange={(event) => setLeadNotes(event.target.value)}
@@ -1117,7 +1129,7 @@ export function SidebarPanel({
         <RightPanelSectionTrigger
           active={rightPanelTab === "qr"}
           icon={Workflow}
-          label="Automação"
+          label="Respostas Rápidas"
           onSelect={() => setRightPanelTab(rightPanelTab === "qr" ? null : "qr")}
         />
         <TabsContent
@@ -1125,22 +1137,6 @@ export function SidebarPanel({
           className="mt-0 max-h-[calc(100vh-300px)] shrink-0 space-y-2.5 overflow-y-auto p-2 scrollbar-thin animate-fade-in data-[state=inactive]:hidden"
         >
           <InboxSectionBoundary fallbackLabel="Quick Replies">
-            <div className="rounded-xl border border-border bg-card/40 p-3 shadow-sm mb-3">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-xs font-semibold text-foreground">IA Automática</p>
-                  <p className="text-[10px] text-muted-foreground">
-                    {aiEnabledForConversation ? "Respondendo automaticamente" : "Atendimento manual"}
-                  </p>
-                </div>
-                <Switch
-                  checked={aiEnabledForConversation}
-                  onCheckedChange={(checked) => void handleSetConversationAiEnabled(checked)}
-                  disabled={updatingAiToggle}
-                />
-              </div>
-            </div>
-
             <div className="flex gap-2">
               <div className="relative flex-grow">
                 <MagnifyingGlass className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
@@ -1186,7 +1182,7 @@ export function SidebarPanel({
               </div>
             )}
 
-            <Accordion type="single" defaultValue="saudação" collapsible className="space-y-2">
+            <Accordion type="multiple" defaultValue={["saudação", "vendas", "suporte"]} className="space-y-1.5">
               {(["saudação", "vendas", "suporte"] as const).map((cat) => {
                 const items = quickRepliesByCategory[cat] ?? [];
                 if (items.length === 0) return null;
@@ -1196,7 +1192,7 @@ export function SidebarPanel({
                     value={cat}
                     className="rounded-xl border border-border bg-card/40 px-3 py-0.5"
                   >
-                    <AccordionTrigger className="py-2 text-xs font-semibold capitalize hover:no-underline text-foreground">
+                    <AccordionTrigger className="py-1.5 text-xs font-semibold capitalize hover:no-underline text-foreground">
                       <span className="flex items-center gap-2">
                         {cat}
                         <Badge variant="secondary" className="h-4 px-1.5 text-[10px] bg-muted">
@@ -1204,7 +1200,7 @@ export function SidebarPanel({
                         </Badge>
                       </span>
                     </AccordionTrigger>
-                    <AccordionContent className="space-y-1.5 pb-3">
+                    <AccordionContent className="space-y-1.5 pb-2">
                       {items.map(renderQuickReplyRow)}
                     </AccordionContent>
                   </AccordionItem>
@@ -1239,15 +1235,45 @@ export function SidebarPanel({
                   </p>
                 ) : (
                   conversationTimeline.map((evt) => (
-                    <div key={evt.id} className="relative">
+                    <div key={evt.id} className="relative group">
                       <span className="absolute -left-[21px] top-1.5 flex h-2 w-2 rounded-full bg-primary ring-4 ring-[#0C0F14]" />
                       <div className="flex items-center justify-between gap-2">
-                        <span className="font-semibold text-foreground">{evt.title}</span>
-                        <span className="text-[10px] text-muted-foreground/70">
-                          {formatTime(evt.timestamp)}
-                        </span>
+                        <div
+                          onClick={() => toggleTimelineItem(evt.id)}
+                          className="flex items-center gap-1 cursor-pointer hover:text-primary transition-colors flex-grow min-w-0"
+                        >
+                          <CaretRight
+                            className={cn(
+                              "h-3 w-3 text-muted-foreground transition-transform duration-200 shrink-0",
+                              expandedTimeline.has(evt.id) ? "rotate-90 text-primary" : "rotate-0"
+                            )}
+                          />
+                          <span className="font-semibold text-foreground truncate">{evt.title}</span>
+                        </div>
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          <span className="text-[10px] text-muted-foreground/70">
+                            {formatTime(evt.timestamp)}
+                          </span>
+                          {onSaveTimelineToMemory && (
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              className="h-5 w-5 opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-primary p-0"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                void onSaveTimelineToMemory(evt);
+                              }}
+                              title="Salvar na Memória"
+                            >
+                              <Star className="h-3 w-3" />
+                            </Button>
+                          )}
+                        </div>
                       </div>
-                      <p className="text-muted-foreground/80 mt-0.5">{evt.description}</p>
+                      <p className={cn("text-muted-foreground/80 mt-0.5 transition-all duration-200 pl-4", expandedTimeline.has(evt.id) ? "" : "line-clamp-1")}>
+                        {evt.description}
+                      </p>
                     </div>
                   ))
                 )}
@@ -1269,7 +1295,29 @@ export function SidebarPanel({
         >
           <InboxSectionBoundary fallbackLabel="Arquivos">
             <div className="rounded-xl border border-border bg-card/40 p-3 shadow-sm">
-              <p className="mb-2 text-xs font-semibold text-foreground">Arquivos e Mídias Compartilhados</p>
+              <p className="mb-2 text-xs font-semibold text-foreground font-display">Arquivos e Mídias Compartilhados</p>
+              
+              <div className="flex flex-wrap gap-1 mb-3">
+                {(
+                  [
+                    { value: "all", label: "Todos" },
+                    { value: "image", label: "Imagens" },
+                    { value: "video", label: "Vídeos" },
+                    { value: "document", label: "Documentos" },
+                  ] as const
+                ).map((option) => (
+                  <Button
+                    key={option.value}
+                    size="sm"
+                    variant={fileFilter === option.value ? "default" : "outline"}
+                    className="h-6 rounded-full px-2.5 text-[10px]"
+                    onClick={() => setFileFilter(option.value)}
+                  >
+                    {option.label}
+                  </Button>
+                ))}
+              </div>
+
               {(() => {
                 const mediaMessages = messages.filter((message) => {
                   const mediaType =
@@ -1277,16 +1325,28 @@ export function SidebarPanel({
                     inferMediaTypeFromSource(String(extractMessageAssetUrl(message) ?? ""));
                   return Boolean(extractMessageAssetUrl(message) || mediaType);
                 });
-                if (mediaMessages.length === 0) {
+
+                const filteredMedia = mediaMessages.filter((message) => {
+                  const mediaType =
+                    message.mediaType ??
+                    inferMediaTypeFromSource(String(extractMessageAssetUrl(message) ?? ""));
+                  if (fileFilter === "all") return true;
+                  if (fileFilter === "image") return mediaType === "image" || mediaType === "sticker";
+                  if (fileFilter === "video") return mediaType === "video";
+                  if (fileFilter === "document") return mediaType === "file" || mediaType === "audio";
+                  return true;
+                });
+
+                if (filteredMedia.length === 0) {
                   return (
                     <p className="text-xs text-muted-foreground/70 text-center py-6">
-                      Nenhuma mídia encontrada neste chat.
+                      Nenhuma mídia encontrada com este filtro.
                     </p>
                   );
                 }
                 return (
-                  <div className="grid grid-cols-2 gap-2">
-                    {mediaMessages.map((msg) => (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    {filteredMedia.map((msg) => (
                       <SharedMediaCard
                         key={msg.id}
                         message={msg}
@@ -1303,8 +1363,12 @@ export function SidebarPanel({
       </Tabs>
     </div>
   ) : (
-    <div className="text-sm text-muted-foreground">Selecione uma conversa para ver detalhes.</div>
+    <div className="text-sm text-muted-foreground p-4">Selecione uma conversa para ver detalhes.</div>
   );
+
+  if (isDrawer) {
+    return <div className="h-full w-full flex flex-col min-h-0 overflow-y-auto">{leadPanelContent}</div>;
+  }
 
   return (
     <aside

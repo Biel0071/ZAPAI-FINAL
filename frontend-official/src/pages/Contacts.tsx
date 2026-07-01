@@ -143,7 +143,7 @@ export default function Contacts() {
 
   // New multi-select and view layout states
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
-  const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
+  const [viewMode, setViewMode] = useState<"grid" | "list" | "kanban">("grid");
 
   useEffect(() => {
     setSelectedIds(new Set());
@@ -349,22 +349,38 @@ export default function Contacts() {
     }
   };
 
-  const handleUpdateContact = async (id: string, payload: { status?: string; lead_temperature?: string; tags?: string[] }) => {
+  const handleUpdateContact = async (id: string, payload: { status?: string; lead_temperature?: string; tags?: string[]; funnel_stage?: string }) => {
     const contact = contacts.find((c) => c.id === id);
     if (!contact?.conversationId) {
       toast({ title: "Contato sem conversa vinculada.", variant: "destructive" });
       return;
     }
-    setLoading(true);
+    const originalContacts = [...contacts];
+
+    // Optimistic Update
+    setContacts((prev) =>
+      prev.map((c) => {
+        if (c.id === id) {
+          return {
+            ...c,
+            status: payload.status !== undefined ? payload.status : c.status,
+            temperature: payload.lead_temperature !== undefined ? payload.lead_temperature : c.temperature,
+            tags: payload.tags !== undefined ? payload.tags : c.tags,
+            funnelStage: payload.funnel_stage !== undefined ? payload.funnel_stage : c.funnelStage,
+          };
+        }
+        return c;
+      })
+    );
+
     try {
       await apiService.patchConversation(contact.conversationId, payload);
       toast({ title: "Contato atualizado." });
       await loadContacts();
     } catch (err) {
       console.error("Erro ao atualizar contato:", err);
-      toast({ title: "Erro ao atualizar contato.", variant: "destructive" });
-    } finally {
-      setLoading(false);
+      toast({ title: "Erro ao atualizar contato. Revertendo...", variant: "destructive" });
+      setContacts(originalContacts);
     }
   };
 
@@ -394,6 +410,8 @@ export default function Contacts() {
       status: contact.status,
       unread: contact.unread,
       lastMessage: contact.lastMessage,
+      conversationId: contact.conversationId,
+      funnelStage: contact.funnelStage,
     })),
     totalContacts: contacts.length,
     groupCount,

@@ -1308,10 +1308,15 @@ export const apiService = {
     return data;
   },
 
-  getAnalytics: () => request<AnalyticsSummary>({ endpoint: "/api/analytics", method: "GET" }),
+  getAnalytics: (sessionId?: string | null) =>
+    request<AnalyticsSummary>({
+      endpoint: `/api/analytics${sessionId ? `?sessionId=${encodeURIComponent(sessionId)}` : ""}`,
+      method: "GET",
+    }),
 
-  async getMetrics() {
-    const candidateEndpoints = ["/api/metrics"];
+  async getMetrics(sessionId?: string | null) {
+    const queryParam = sessionId ? `?sessionId=${encodeURIComponent(sessionId)}` : "";
+    const candidateEndpoints = [`/api/metrics${queryParam}`];
     let lastError: unknown = new Error("Falha ao carregar métricas");
 
     for (const endpoint of candidateEndpoints) {
@@ -1336,7 +1341,7 @@ export const apiService = {
     }
 
     try {
-      const health = await request<Record<string, unknown>>({ endpoint: "/api/health", method: "GET" });
+      const health = await request<Record<string, unknown>>({ endpoint: `/api/health${queryParam}`, method: "GET" });
       const data = (health as Record<string, unknown>).data as Record<string, unknown> | undefined;
       const system = (data?.system ?? data) as Record<string, unknown> | undefined;
       const metrics = system?.metrics as Record<string, unknown> | undefined;
@@ -1366,12 +1371,14 @@ export const apiService = {
     return data;
   },
 
-  async getAILogs() {
-    return request<{ logs?: AILogEntry[] }>({ endpoint: "/ai/logs", method: "GET" });
+  async getAILogs(sessionId?: string | null) {
+    const queryParam = sessionId ? `?sessionId=${encodeURIComponent(sessionId)}` : "";
+    return request<{ logs?: AILogEntry[] }>({ endpoint: `/ai/logs${queryParam}`, method: "GET" });
   },
 
-  async getAIMetrics() {
-    return request<AIMetricsResponse>({ endpoint: "/ai/metrics", method: "GET" });
+  async getAIMetrics(sessionId?: string | null) {
+    const queryParam = sessionId ? `?sessionId=${encodeURIComponent(sessionId)}` : "";
+    return request<AIMetricsResponse>({ endpoint: `/ai/metrics${queryParam}`, method: "GET" });
   },
 
   testAIMessage: (payload: { message: string; prompt?: string; model?: string; providerId?: string; agentKey?: string; agentName?: string }) =>
@@ -1710,11 +1717,31 @@ export const apiService = {
   async deleteQuickReply(id: string) {
     return request<any>({ endpoint: `/api/quick-replies/${encodeURIComponent(id)}`, method: "DELETE" });
   },
+  async executeQuickReplyFlow(id: string, payload: { phone: string; sessionId?: string; companyId?: string }) {
+    return request<{ success: boolean; stepsCount: number }>({
+      endpoint: `/api/quick-replies/${encodeURIComponent(id)}/execute`,
+      method: "POST",
+      body: payload,
+    });
+  },
   async getUserProviders() {
     return request<{ success: boolean; providers: any[] }>({ endpoint: "/config/user-providers", method: "GET" });
   },
   async saveUserProvider(payload: { provider: string; api_key: string; model?: string; enabled?: boolean }) {
     return request<{ success: boolean; provider: any }>({ endpoint: "/config/user-providers", method: "POST", body: payload });
+  },
+  async testVoice(text: string, voiceId: string) {
+    return request<{ success: boolean; url: string }>({
+      endpoint: "/api/ai/voices/test",
+      method: "POST",
+      body: { text, voiceId },
+    });
+  },
+  async restartAI() {
+    return request<{ success: boolean; message: string }>({
+      endpoint: "/config/ai/restart",
+      method: "POST",
+    });
   },
 };
 

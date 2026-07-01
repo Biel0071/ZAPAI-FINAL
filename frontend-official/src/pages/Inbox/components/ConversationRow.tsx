@@ -86,7 +86,33 @@ export function ConversationRow(props: RowComponentProps<ConversationRowData>) {
   const conversation = conversations[index];
   if (!conversation) return null;
   
-  const typingState = typingByConversationId?.[conversation.id] || (conversation.status === "typing" ? "composing" : null);
+  const getTypingState = () => {
+    if (!typingByConversationId) return null;
+    const byId = typingByConversationId[conversation.id];
+    if (byId !== undefined && byId !== false) return byId;
+
+    if (conversation.chatId) {
+      const byChatId = typingByConversationId[conversation.chatId];
+      if (byChatId !== undefined && byChatId !== false) return byChatId;
+      
+      const cleanChatId = conversation.chatId.replace(/@s\.whatsapp\.net$/i, "");
+      const byCleanChatId = typingByConversationId[cleanChatId];
+      if (byCleanChatId !== undefined && byCleanChatId !== false) return byCleanChatId;
+    }
+
+    if (conversation.phone) {
+      const byPhone = typingByConversationId[conversation.phone];
+      if (byPhone !== undefined && byPhone !== false) return byPhone;
+      
+      const cleanPhone = conversation.phone.replace(/\D/g, "");
+      const byCleanPhone = typingByConversationId[cleanPhone];
+      if (byCleanPhone !== undefined && byCleanPhone !== false) return byCleanPhone;
+    }
+
+    return conversation.status === "typing" ? "composing" : null;
+  };
+  
+  const typingState = getTypingState();
   const isTyping = Boolean(typingState);
   const draftPreview = draftsByConversationId?.[conversation.id]?.draft?.trim() || "";
   const isSelected = selectedChatIds.includes(conversation.id);

@@ -27,7 +27,7 @@ export function ChatHeaderBar({
   phoneLabel,
   statusBadges,
 }: ChatHeaderBarProps) {
-  const isOnlineOrTyping = statusLabel === "online" || statusLabel === "digitando...";
+  const isOnlineOrTyping = statusLabel === "online" || statusLabel === "digitando..." || statusLabel === "gravando áudio...";
 
   return (
     <div className="flex min-h-16 items-center justify-between gap-3 border-b border-border/70 bg-card/85 px-3 py-2 md:px-4 backdrop-blur supports-[backdrop-filter]:bg-card/50 select-none relative z-20">

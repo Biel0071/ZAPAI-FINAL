@@ -278,6 +278,22 @@ let eventBindingsReady = false;
 let lastForcedReconnectAt = 0;
 const MIN_FORCE_RECONNECT_INTERVAL_MS = 5000;
 const subscribers = new Map<string, SocketSubscriber>();
+const typingTimers = new Map<string, any>();
+
+function clearTypingStatus(conversationId: string) {
+  const timer = typingTimers.get(conversationId);
+  if (timer) {
+    clearTimeout(timer);
+    typingTimers.delete(conversationId);
+  }
+  notifySubscribers((subscriber) =>
+    subscriber.onTypingStatus?.({
+      conversationId,
+      isTyping: false,
+    }),
+  );
+}
+
 
 function toStableHash(value: string): string {
   let hash = 0;
@@ -661,6 +677,10 @@ function bindSharedSocketEvents() {
     const normalizedMessages = resolveRealtimeMessagePayload(payload);
     normalizedMessages.forEach((normalized) => {
       notifySubscribers((subscriber) => subscriber.onNewMessage?.(normalized));
+      const convId = normalized.conversationId ?? normalized.chatId ?? normalized.phone;
+      if (convId) {
+        clearTypingStatus(convId);
+      }
     });
   };
 
@@ -809,7 +829,19 @@ function bindSharedSocketEvents() {
       }) => {
         const rawState = String(payload.status ?? payload.state ?? payload.isTyping ?? payload.typing ?? "").toLowerCase();
         let isTyping: boolean | "composing" | "recording" = false;
-        if (rawState === "composing" || rawState === "typing") {
+        
+        const isStopState = 
+          rawState === "paused" ||
+          rawState === "available" ||
+          rawState === "unavailable" ||
+          rawState === "stop" ||
+          rawState === "stopped" ||
+          payload.isTyping === false ||
+          payload.typing === false;
+
+        if (isStopState) {
+          isTyping = false;
+        } else if (rawState === "composing" || rawState === "typing") {
           isTyping = "composing";
         } else if (rawState === "recording") {
           isTyping = "recording";
@@ -817,14 +849,32 @@ function bindSharedSocketEvents() {
           isTyping = "composing";
         }
 
+        const conversationId =
+          payload.conversationId ??
+          payload.conversation_id ??
+          payload.chatId ??
+          payload.chat_id ??
+          payload.remoteJid ??
+          payload.phone;
+
+        if (conversationId) {
+          const existing = typingTimers.get(conversationId);
+          if (existing) {
+            clearTimeout(existing);
+            typingTimers.delete(conversationId);
+          }
+
+          if (isTyping) {
+            const timer = setTimeout(() => {
+              clearTypingStatus(conversationId);
+            }, 10000); // 10s timeout
+            typingTimers.set(conversationId, timer);
+          }
+        }
+
         notifySubscribers((subscriber) =>
           subscriber.onTypingStatus?.({
-            conversationId:
-              payload.conversationId ??
-              payload.conversation_id ??
-              payload.chatId ??
-              payload.chat_id ??
-              payload.remoteJid,
+            conversationId,
             phone: payload.phone,
             isTyping,
           }),
@@ -839,6 +889,12 @@ function bindSharedSocketEvents() {
 function destroySharedSocket() {
   if (!sharedSocket) return;
   console.info(`[Socket] destroying socket subscribers=${subscribers.size}`);
+  
+  for (const timer of typingTimers.values()) {
+    clearTimeout(timer);
+  }
+  typingTimers.clear();
+
   sharedSocket.removeAllListeners();
   sharedSocket.disconnect();
   sharedSocket = null;

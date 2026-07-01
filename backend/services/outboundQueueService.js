@@ -166,9 +166,10 @@ function getSessionSocket(sessionId) {
 function buildQueuedItem(payload = {}) {
   const phone = normalizePhone(payload.phone || payload.chatId);
   const text = String(payload.text || payload.message || '').trim();
+  const isMedia = payload.mediaType && payload.mediaPath;
 
-  if (!phone || !text) {
-    throw Object.assign(new Error('The fields phone/chatId and text/message are required.'), {
+  if (!phone || (!text && !isMedia)) {
+    throw Object.assign(new Error('The fields phone/chatId and text/message/media are required.'), {
       code: 'INVALID_QUEUE_PAYLOAD',
     });
   }
@@ -184,13 +185,17 @@ function buildQueuedItem(payload = {}) {
     id: `oq_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`,
     lastFailure: null,
     maxAttempts: Math.max(1, Number(payload.maxAttempts) || DEFAULT_CONFIG.maxAttempts),
-    nextAttemptAt: timestamp,
+    nextAttemptAt: payload.nextAttemptAt || timestamp,
     phone,
     processingStartedAt: null,
     sentAt: null,
     sessionId: sessionManager.normalizeSessionName(payload.sessionId || sessionManager.DEFAULT_SESSION),
     state: STATES.QUEUED,
     text,
+    mediaType: payload.mediaType || null,
+    mediaPath: payload.mediaPath || null,
+    fileName: payload.fileName || null,
+    actions: payload.actions || null,
     updatedAt: timestamp,
     metadata: payload.metadata || {},
     testing: payload.testing || {},
@@ -205,8 +210,8 @@ async function persistSuccessfulSend(item) {
       content: item.text,
       createdAt: nowIso(),
       fromMe: true,
-      mediaPath: null,
-      mediaType: null,
+      mediaPath: item.mediaPath || null,
+      mediaType: item.mediaType || null,
       sessionId: item.sessionId,
       conversationId: `chat-${normalizedPhone}`,
       status: 'sent',
@@ -226,6 +231,8 @@ async function persistSuccessfulSend(item) {
     sessionId: item.sessionId,
     source: item.metadata?.ai_response ? 'ai' : (item.metadata?.source || 'human'),
     text: item.text,
+    mediaPath: item.mediaPath || null,
+    mediaType: item.mediaType || null,
   });
 
   return {
@@ -254,21 +261,33 @@ async function executeOutbound(item) {
   }
 
   const { session, sock } = getSessionSocket(item.sessionId);
-  if (item.metadata?.ai_response) {
-    const responseDelayMs = Math.max(0, Number(item.metadata.responseDelayMs) || 0);
-    const typingDelayMs = Math.max(0, Number(item.metadata.typingDelayMs) || 0);
-    if (responseDelayMs > 0) {
-      await new Promise((resolve) => setTimeout(resolve, responseDelayMs));
-    }
-    if (typingDelayMs > 0) {
-      const jid = String(item.phone).includes('@') ? item.phone : `${item.phone}@s.whatsapp.net`;
-      await sock.presenceSubscribe?.(jid).catch(() => {});
-      await sock.sendPresenceUpdate?.('composing', jid).catch(() => {});
-      await new Promise((resolve) => setTimeout(resolve, typingDelayMs));
-      await sock.sendPresenceUpdate?.('paused', jid).catch(() => {});
-    }
+
+  // Handle delay/typing simulator for any item in outbound queue (AI, flows, quick replies, campaigns)
+  const responseDelayMs = Math.max(0, Number(item.metadata?.responseDelayMs || item.metadata?.delayMs) || 0);
+  const typingDelayMs = Math.max(0, Number(item.metadata?.typingDelayMs || item.metadata?.typingMs) || 0);
+
+  if (responseDelayMs > 0) {
+    await new Promise((resolve) => setTimeout(resolve, responseDelayMs));
   }
-  const sendResult = await whatsappService.sendMessage(sock, item.phone, item.text);
+
+  if (typingDelayMs > 0) {
+    const jid = String(item.phone).includes('@') ? item.phone : `${item.phone}@s.whatsapp.net`;
+    const presenceType = item.mediaType === 'audio' ? 'recording' : 'composing';
+    await sock.presenceSubscribe?.(jid).catch(() => {});
+    await sock.sendPresenceUpdate?.(presenceType, jid).catch(() => {});
+    await new Promise((resolve) => setTimeout(resolve, typingDelayMs));
+    await sock.sendPresenceUpdate?.('paused', jid).catch(() => {});
+  }
+
+  let sendResult;
+  if (item.mediaType && item.mediaPath) {
+    sendResult = await whatsappService.sendMediaMessage(sock, item.phone, item.mediaType, item.mediaPath, {
+      caption: item.text,
+      fileName: item.fileName,
+    });
+  } else {
+    sendResult = await whatsappService.sendMessage(sock, item.phone, item.text);
+  }
 
   if (!sendResult) {
     throw Object.assign(new Error('Message send failed.'), {
@@ -379,6 +398,37 @@ async function processOneItem() {
 
     try {
       const executionResult = await executeOutbound(item);
+
+      // Execute actions (like tagging or archiving)
+      if (item.actions) {
+        try {
+          const conversationRepository = require('../repositories/conversationRepository');
+          const conv = await conversationRepository.getConversationByPhone(item.phone, item.companyId);
+          if (conv) {
+            const fields = {};
+            if (Array.isArray(item.actions.addTags) && item.actions.addTags.length > 0) {
+              const currentTags = Array.isArray(conv.tags) ? conv.tags : [];
+              fields.tags = Array.from(new Set([...currentTags, ...item.actions.addTags]));
+            }
+            if (item.actions.archiveContact) {
+              fields.status = 'archived';
+            }
+            if (Object.keys(fields).length > 0) {
+              await conversationRepository.updateConversationState(conv.id, fields);
+              const io = storeRef?.io || global.io;
+              if (io) {
+                const decorated = { ...conv, ...fields };
+                io.emit('conversation:update', decorated);
+                io.emit('conversation_updated', decorated);
+                io.emit('conversation-update', decorated);
+              }
+            }
+          }
+        } catch (actionErr) {
+          console.error('[OUTBOUND_QUEUE] Failed to run step actions:', actionErr.message);
+        }
+      }
+
       if (item.metadata?.ai_response && executionResult?.message) {
         const message = executionResult.message;
         const io = storeRef?.io || global.io;

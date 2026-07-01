@@ -9,6 +9,7 @@ export type ComposerAttachment = {
   file: File;
   mediaType: "image" | "video" | "audio" | "file" | "sticker";
   previewUrl: string;
+  caption?: string;
 };
 
 export type PreviewMediaState = {
@@ -60,6 +61,23 @@ export interface QuickReplyMediaItem {
   type: "text" | "image" | "video" | "audio" | "file" | "pdf" | "document" | "sticker";
   value: string;
   filename?: string;
+  typingMs?: number;
+  delayMs?: number;
+  caption?: string;
+}
+
+export interface FlowStep {
+  id: string;
+  type: "text" | "image" | "video" | "audio" | "file";
+  value: string;
+  filename?: string;
+  delayMs: number;
+  typingMs?: number;
+  caption?: string;
+  actions?: {
+    addTags?: string[];
+    archiveContact?: boolean;
+  };
 }
 
 export interface QuickReplyItem {
@@ -70,6 +88,8 @@ export interface QuickReplyItem {
   favorite?: boolean;
   items?: QuickReplyMediaItem[];
   tags?: string[];
+  isFlow?: boolean;
+  steps?: FlowStep[];
   createdAt?: string;
   updatedAt?: string;
 }

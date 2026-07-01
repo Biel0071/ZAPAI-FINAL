@@ -41,6 +41,7 @@ import {
 } from "@/services/apiService";
 import { notify } from "@/services/notifyService";
 import { cn } from "@/lib/utils";
+import type { QuickReplyItem } from "./Inbox/types";
 
 type ComposerMode = "create" | "edit" | "duplicate";
 type CampaignAction = "save" | "launch" | "start" | "pause" | "resume" | "delete" | "refresh" | null;
@@ -122,6 +123,8 @@ export default function Campaigns() {
   const [tagInputVal, setTagInputVal] = useState("");
   const [loading, setLoading] = useState(true);
   const [campaigns, setCampaigns] = useState<CampaignRecord[]>([]);
+  const [quickReplies, setQuickReplies] = useState<QuickReplyItem[]>([]);
+  const [selectedFlowId, setSelectedFlowId] = useState<string | null>(null);
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [campaignStep, setCampaignStep] = useState(1);
   const [composerMode, setComposerMode] = useState<ComposerMode>("create");
@@ -135,6 +138,10 @@ export default function Campaigns() {
   const [intervalSeconds, setIntervalSeconds] = useState<number[]>([10]);
   const [pauseEvery, setPauseEvery] = useState("10");
   const [pauseSeconds, setPauseSeconds] = useState("60");
+  const [warmupMessages, setWarmupMessages] = useState("5");
+  const [warmupDelayMultiplier, setWarmupDelayMultiplier] = useState("3");
+  const [dailyLimit, setDailyLimit] = useState("");
+  const [hourlyLimit, setHourlyLimit] = useState("");
   const [startAt, setStartAt] = useState("");
   const [tagsInput, setTagsInput] = useState("");
   const [actionCampaignId, setActionCampaignId] = useState<string | null>(null);
@@ -143,12 +150,14 @@ export default function Campaigns() {
   const loadPageData = useCallback(async (options?: { silent?: boolean }) => {
     if (!options?.silent) setLoading(true);
     try {
-      const [campaignList, contactList, conversationsData] = await Promise.all([
+      const [campaignList, contactList, conversationsData, quickRepliesData] = await Promise.all([
         apiService.getCampaigns(),
         apiService.getContacts(true),
         apiService.getConversations(true, { limit: 500 }).catch(() => []),
+        apiService.getQuickReplies().catch(() => []),
       ]);
       setCampaigns(Array.isArray(campaignList) ? campaignList : []);
+      setQuickReplies(Array.isArray(quickRepliesData) ? quickRepliesData : []);
 
       const conversationsByPhone = new Map<string, Conversation>();
       (Array.isArray(conversationsData) ? conversationsData : []).forEach((conversation) => {
@@ -225,6 +234,7 @@ export default function Campaigns() {
     setTagsInput("");
     setCampaignStep(1);
     setSearchQuery("");
+    setSelectedFlowId(null);
   }, []);
 
   const hydrateComposer = useCallback((campaign: CampaignRecord, mode: ComposerMode) => {
@@ -246,9 +256,14 @@ export default function Campaigns() {
     setIntervalSeconds([campaign.settings?.intervalSeconds ?? 10]);
     setPauseEvery(String(campaign.settings?.pauseEvery ?? 10));
     setPauseSeconds(String(campaign.settings?.pauseSeconds ?? 60));
+    setWarmupMessages(String(campaign.settings?.warmupMessages ?? 5));
+    setWarmupDelayMultiplier(String(campaign.settings?.warmupDelayMultiplier ?? 3));
+    setDailyLimit(campaign.settings?.dailyLimit ? String(campaign.settings.dailyLimit) : "");
+    setHourlyLimit(campaign.settings?.hourlyLimit ? String(campaign.settings.hourlyLimit) : "");
     setStartAt(formatInputDateTime(campaign.settings?.startAt));
     setTagsInput(Array.isArray(campaign.tags) ? campaign.tags.join(", ") : "");
     setCampaignStep(1);
+    setSelectedFlowId(campaign.settings?.flowId || null);
   }, []);
 
   const filteredContacts = useMemo(() => {
@@ -301,9 +316,9 @@ export default function Campaigns() {
     const missing: string[] = [];
     if (!campaignName.trim()) missing.push("Defina um nome");
     if (selectedContactCount === 0) missing.push("Selecione contatos");
-    if (cleanMessages.length === 0) missing.push("Crie ao menos uma mensagem");
+    if (!selectedFlowId && cleanMessages.length === 0) missing.push("Crie ao menos uma mensagem ou selecione um fluxo");
     return missing;
-  }, [campaignName, cleanMessages.length, selectedContactCount]);
+  }, [campaignName, cleanMessages.length, selectedContactCount, selectedFlowId]);
 
   const isSaving = actionType === "save" || actionType === "launch";
 
@@ -315,19 +330,26 @@ export default function Campaigns() {
         name: campaignName.trim(),
         status: nextStatus,
         selectedContacts,
-        messages: cleanMessages.map((content, index) => ({
-          id: editingCampaign?.messages?.[index]?.id,
-          type: "text" as const,
-          content,
-          delaySeconds: intervalSeconds[0],
-        })),
+        messages: selectedFlowId
+          ? []
+          : cleanMessages.map((content, index) => ({
+              id: editingCampaign?.messages?.[index]?.id,
+              type: "text" as const,
+              content,
+              delaySeconds: intervalSeconds[0],
+            })),
         settings: {
+          flowId: selectedFlowId || undefined,
           intervalSeconds: intervalSeconds[0],
           pauseEvery: Math.max(1, Number(pauseEvery) || 1),
           pauseSeconds: Math.max(0, Number(pauseSeconds) || 0),
           typingDelaySeconds: typingDelay[0],
           startAt: startAt ? new Date(startAt).toISOString() : null,
-          shuffleEnabled,
+          shuffleEnabled: selectedFlowId ? false : shuffleEnabled,
+          warmupMessages: Number(warmupMessages) || 0,
+          warmupDelayMultiplier: Number(warmupDelayMultiplier) || 1,
+          dailyLimit: dailyLimit ? Number(dailyLimit) : null,
+          hourlyLimit: hourlyLimit ? Number(hourlyLimit) : null,
         },
         queue: {
           total: selectedContacts.length,
@@ -342,7 +364,7 @@ export default function Campaigns() {
           .filter(Boolean),
       };
     },
-    [campaignName, cleanMessages, editingCampaign, editingCampaignId, intervalSeconds, pauseEvery, pauseSeconds, selectedContacts, shuffleEnabled, startAt, tagsInput, typingDelay],
+    [campaignName, cleanMessages, editingCampaign, editingCampaignId, intervalSeconds, pauseEvery, pauseSeconds, selectedContacts, shuffleEnabled, startAt, tagsInput, typingDelay, warmupMessages, warmupDelayMultiplier, dailyLimit, hourlyLimit],
   );
 
   const persistCampaign = useCallback(
@@ -807,55 +829,139 @@ export default function Campaigns() {
 
                   {campaignStep === 2 && (
                     <div className="space-y-4">
-                      <div className="flex items-center justify-between rounded-2xl border border-border/70 bg-background/40 px-4 py-3">
-                        <div>
-                          <p className="text-sm font-medium">Variantes da mensagem</p>
-                          <p className="text-xs text-muted-foreground">Crie textos alternativos reais para personalizar os envios.</p>
+                      {/* Selection between Normal Messages or Flow */}
+                      <div className="flex items-center gap-4 bg-background/40 border border-border/70 p-3 rounded-2xl">
+                        <div className="flex-1">
+                          <Label className="text-sm font-medium">Tipo de Conteúdo</Label>
+                          <p className="text-xs text-muted-foreground">Escolha se quer enviar mensagens avulsas ou disparar um fluxo sequencial de respostas rápidas.</p>
                         </div>
-                        <Button
-                          variant="outline"
-                          className="rounded-xl"
-                          onClick={() => setMessageVariants((current) => [...current, ""])}
-                        >
-                          <Plus className="h-4 w-4" />
-                          Adicionar variante
-                        </Button>
+                        <div className="flex gap-2 shrink-0">
+                          <Button
+                            type="button"
+                            variant={!selectedFlowId ? "default" : "outline"}
+                            size="sm"
+                            className="rounded-xl h-8"
+                            onClick={() => setSelectedFlowId(null)}
+                          >
+                            Mensagens Avulsas
+                          </Button>
+                          <Button
+                            type="button"
+                            variant={selectedFlowId ? "default" : "outline"}
+                            size="sm"
+                            className="rounded-xl h-8 text-foreground"
+                            onClick={() => {
+                              const flows = quickReplies.filter(q => q.isFlow);
+                              if (flows.length > 0) {
+                                if (!selectedFlowId) {
+                                  setSelectedFlowId(flows[0].id);
+                                }
+                              } else {
+                                notify.error("Nenhum fluxo de resposta rápida cadastrado.");
+                              }
+                            }}
+                          >
+                            Fluxo Sequencial
+                          </Button>
+                        </div>
                       </div>
 
-                      <div className="space-y-3">
-                        {messageVariants.map((variant, index) => (
-                          <Card key={`variant-${index}`} className="rounded-2xl border-border/70 bg-background/30">
-                            <CardContent className="space-y-3 p-4">
-                              <div className="flex items-center justify-between gap-3">
-                                <div>
-                                  <p className="text-sm font-medium">Mensagem {index + 1}</p>
-                                  <p className="text-xs text-muted-foreground">Texto enviado para o contato durante a campanha.</p>
+                      {!selectedFlowId ? (
+                        <>
+                          <div className="flex items-center justify-between rounded-2xl border border-border/70 bg-background/40 px-4 py-3">
+                            <div>
+                              <p className="text-sm font-medium">Variantes da mensagem</p>
+                              <p className="text-xs text-muted-foreground">Crie textos alternativos reais para personalizar os envios.</p>
+                            </div>
+                            <Button
+                              variant="outline"
+                              className="rounded-xl"
+                              onClick={() => setMessageVariants((current) => [...current, ""])}
+                            >
+                              <Plus className="h-4 w-4" />
+                              Adicionar variante
+                            </Button>
+                          </div>
+
+                          <div className="space-y-3">
+                            {messageVariants.map((variant, index) => (
+                              <Card key={`variant-${index}`} className="rounded-2xl border-border/70 bg-background/30">
+                                <CardContent className="space-y-3 p-4">
+                                  <div className="flex items-center justify-between gap-3">
+                                    <div>
+                                      <p className="text-sm font-medium">Mensagem {index + 1}</p>
+                                      <p className="text-xs text-muted-foreground">Texto enviado para o contato durante a campanha.</p>
+                                    </div>
+                                    {messageVariants.length > 1 && (
+                                      <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        className="rounded-xl"
+                                        onClick={() => setMessageVariants((current) => current.filter((_, itemIndex) => itemIndex !== index))}
+                                      >
+                                        <X className="h-4 w-4" />
+                                      </Button>
+                                    )}
+                                  </div>
+                                  <Textarea
+                                    value={variant}
+                                    onChange={(event) =>
+                                      setMessageVariants((current) =>
+                                        current.map((entry, itemIndex) => (itemIndex === index ? event.target.value : entry)),
+                                      )
+                                    }
+                                    placeholder="Escreva a mensagem da variante"
+                                    className="min-h-[120px]"
+                                  />
+                                </CardContent>
+                              </Card>
+                            ))}
+                          </div>
+                        </>
+                      ) : (
+                        <Card className="rounded-2xl border border-border/70 bg-background/30 p-4 space-y-4">
+                          <div>
+                            <Label className="text-sm font-medium text-foreground">Selecionar Fluxo de Resposta Rápida</Label>
+                            <p className="text-xs text-muted-foreground mb-3">Escolha qual fluxo sequencial de resposta rápida será disparado para cada contato.</p>
+                          </div>
+                          
+                          <select
+                            value={selectedFlowId}
+                            onChange={(e) => setSelectedFlowId(e.target.value)}
+                            className="w-full rounded-xl border border-border bg-background px-3 py-2 text-sm text-foreground focus:border-primary focus:outline-none"
+                          >
+                            {quickReplies.filter(q => q.isFlow).map((flow) => (
+                              <option key={flow.id} value={flow.id}>
+                                {flow.title} ({flow.steps?.length || 0} passos)
+                              </option>
+                            ))}
+                          </select>
+
+                          {(() => {
+                            const flowObj = quickReplies.find(q => q.id === selectedFlowId);
+                            if (!flowObj) return null;
+                            return (
+                              <div className="mt-4 border-t border-border/45 pt-3 space-y-2">
+                                <p className="text-xs font-semibold text-foreground uppercase tracking-wider">Passos do Fluxo:</p>
+                                <div className="space-y-2 max-h-[220px] overflow-y-auto pr-1">
+                                  {flowObj.steps?.map((step, idx) => (
+                                    <div key={step.id || idx} className="text-xs flex items-center justify-between bg-card/60 border border-border/45 p-2 rounded-lg gap-2">
+                                      <div className="flex items-center gap-2 truncate min-w-0">
+                                        <span className="bg-muted px-1.5 py-0.5 rounded text-[10px] font-mono shrink-0">#{idx+1}</span>
+                                        <span className="capitalize font-semibold text-primary shrink-0">[{step.type}]:</span>
+                                        <span className="truncate text-foreground font-medium">{step.value}</span>
+                                      </div>
+                                      <span className="text-[10px] text-muted-foreground shrink-0 bg-background/40 px-1.5 py-0.5 rounded border border-border/30">
+                                        {Math.round((step.delayMs || 0) / 1000)}s
+                                      </span>
+                                    </div>
+                                  ))}
                                 </div>
-                                {messageVariants.length > 1 && (
-                                  <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    className="rounded-xl"
-                                    onClick={() => setMessageVariants((current) => current.filter((_, itemIndex) => itemIndex !== index))}
-                                  >
-                                    <X className="h-4 w-4" />
-                                  </Button>
-                                )}
                               </div>
-                              <Textarea
-                                value={variant}
-                                onChange={(event) =>
-                                  setMessageVariants((current) =>
-                                    current.map((entry, itemIndex) => (itemIndex === index ? event.target.value : entry)),
-                                  )
-                                }
-                                placeholder="Escreva a mensagem da variante"
-                                className="min-h-[120px]"
-                              />
-                            </CardContent>
-                          </Card>
-                        ))}
-                      </div>
+                            );
+                          })()}
+                        </Card>
+                      )}
                     </div>
                   )}
 
@@ -894,8 +1000,8 @@ export default function Campaigns() {
                       </Card>
 
                       <Card className="rounded-2xl border-border/70 bg-background/30">
-                        <CardContent className="space-y-4 p-4">
-                          <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-1">
+                        <CardContent className="space-y-4 p-4 text-xs">
+                          <div className="grid gap-3 md:grid-cols-2">
                             <div>
                               <label className="mb-2 block text-sm font-medium">Pausar a cada X envios</label>
                               <Input value={pauseEvery} onChange={(event) => setPauseEvery(event.target.value)} inputMode="numeric" />
@@ -904,10 +1010,31 @@ export default function Campaigns() {
                               <label className="mb-2 block text-sm font-medium">Tempo da pausa (s)</label>
                               <Input value={pauseSeconds} onChange={(event) => setPauseSeconds(event.target.value)} inputMode="numeric" />
                             </div>
-                            <div className="md:col-span-2 lg:col-span-1">
+                            <div>
+                              <label className="mb-2 block text-sm font-medium">Mensagens de Aquecimento (Warmup)</label>
+                              <Input value={warmupMessages} onChange={(event) => setWarmupMessages(event.target.value)} inputMode="numeric" placeholder="Ex: 5" />
+                            </div>
+                            <div>
+                              <label className="mb-2 block text-sm font-medium">Multiplicador do Delay de Aquecimento</label>
+                              <Input value={warmupDelayMultiplier} onChange={(event) => setWarmupDelayMultiplier(event.target.value)} inputMode="numeric" placeholder="Ex: 3" />
+                            </div>
+                            <div>
+                              <label className="mb-2 block text-sm font-medium">Limite Diário de Envios</label>
+                              <Input value={dailyLimit} onChange={(event) => setDailyLimit(event.target.value)} inputMode="numeric" placeholder="Ex: 100 (opcional)" />
+                            </div>
+                            <div>
+                              <label className="mb-2 block text-sm font-medium">Limite por Hora de Envios</label>
+                              <Input value={hourlyLimit} onChange={(event) => setHourlyLimit(event.target.value)} inputMode="numeric" placeholder="Ex: 20 (opcional)" />
+                            </div>
+                            <div className="md:col-span-2">
                               <label className="mb-2 block text-sm font-medium">Agendamento opcional</label>
                               <Input type="datetime-local" value={startAt} onChange={(event) => setStartAt(event.target.value)} />
                             </div>
+                          </div>
+
+                          <div className="rounded-xl border border-info/20 bg-info/5 p-3 text-muted-foreground text-xs leading-relaxed space-y-1 mt-2">
+                            <p className="font-bold text-info flex items-center gap-1.5">💡 Dica Anti-Ban e Aquecimento</p>
+                            <p>O aquecimento de número (warmup) envia as primeiras X mensagens com um atraso maior (multiplicado pelo fator escolhido) para simular atividade humana gradual e evitar bloqueios. Definir limites diários/por hora previne picos de envio que violam as políticas do WhatsApp.</p>
                           </div>
                         </CardContent>
                       </Card>
@@ -933,16 +1060,33 @@ export default function Campaigns() {
                             </div>
                             <div className="rounded-2xl border border-border/70 bg-card/80 p-4">
                               <p className="text-xs uppercase tracking-wide text-muted-foreground">Mensagens ativas</p>
-                              <p className="mt-1 font-display text-2xl font-bold">{cleanMessages.length}</p>
+                              <p className="mt-1 font-display text-2xl font-bold">
+                                {selectedFlowId ? "Fluxo Sequencial" : `${cleanMessages.length} variantes`}
+                              </p>
                             </div>
                           </div>
                           <div className="space-y-2">
-                            {cleanMessages.map((message, index) => (
-                              <div key={`preview-${index}`} className="rounded-2xl border border-border/70 bg-card/80 p-4 text-sm text-muted-foreground">
-                                <p className="mb-2 text-xs uppercase tracking-wide text-muted-foreground">Variante {index + 1}</p>
-                                <p className="text-foreground">{message}</p>
-                              </div>
-                            ))}
+                            {selectedFlowId ? (
+                              (() => {
+                                const flowObj = quickReplies.find(q => q.id === selectedFlowId);
+                                return (
+                                  <div className="rounded-2xl border border-border/70 bg-card/80 p-4 text-sm">
+                                    <p className="mb-2 text-xs uppercase tracking-wide text-muted-foreground">Fluxo Sequencial Ativo</p>
+                                    <p className="font-semibold text-foreground">{flowObj?.title || "Fluxo selecionado"}</p>
+                                    <p className="text-xs text-muted-foreground mt-1">
+                                      {flowObj?.steps?.length || 0} passos de mensagem serão disparados sequencialmente com seus respectivos delays.
+                                    </p>
+                                  </div>
+                                );
+                              })()
+                            ) : (
+                              cleanMessages.map((message, index) => (
+                                <div key={`preview-${index}`} className="rounded-2xl border border-border/70 bg-card/80 p-4 text-sm text-muted-foreground">
+                                  <p className="mb-2 text-xs uppercase tracking-wide text-muted-foreground">Variante {index + 1}</p>
+                                  <p className="text-foreground">{message}</p>
+                                </div>
+                              ))
+                            )}
                           </div>
                         </CardContent>
                       </Card>
@@ -951,12 +1095,13 @@ export default function Campaigns() {
                         <CardContent className="space-y-4 p-4">
                           <p className="text-sm font-medium">Checklist operacional</p>
                           <div className="space-y-2 text-sm text-muted-foreground">
-                            <p>• Typing delay: <span className="font-medium text-foreground">{typingDelay[0].toFixed(1)}s</span></p>
+                            <p>• Tipo de Envio: <span className="font-medium text-foreground">{selectedFlowId ? "Fluxo de Resposta Rápida" : "Mensagens Avulsas"}</span></p>
+                            {!selectedFlowId && <p>• Typing delay: <span className="font-medium text-foreground">{typingDelay[0].toFixed(1)}s</span></p>}
                             <p>• Intervalo por contato: <span className="font-medium text-foreground">{intervalSeconds[0]}s</span></p>
                             <p>• Pausa a cada: <span className="font-medium text-foreground">{pauseEvery} envios</span></p>
                             <p>• Tempo da pausa: <span className="font-medium text-foreground">{pauseSeconds}s</span></p>
                             <p>• Agendamento: <span className="font-medium text-foreground">{startAt ? formatDateTime(new Date(startAt).toISOString()) : "Imediato"}</span></p>
-                            <p>• Shuffle: <span className="font-medium text-foreground">{shuffleEnabled ? "Ativo" : "Desligado"}</span></p>
+                            {!selectedFlowId && <p>• Shuffle: <span className="font-medium text-foreground">{shuffleEnabled ? "Ativo" : "Desligado"}</span></p>}
                           </div>
                           <div className="rounded-2xl border border-border/70 bg-card/80 p-4">
                             <p className="text-xs uppercase tracking-wide text-muted-foreground">Tags</p>

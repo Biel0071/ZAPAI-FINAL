@@ -7,7 +7,8 @@ function getStore(req) {
 
 function getSummary(req, res) {
   try {
-    const summary = analyticsService.buildAnalyticsSummary(getStore(req));
+    const sessionId = req.query.sessionId || req.query.session_id || null;
+    const summary = analyticsService.buildAnalyticsSummary(getStore(req), sessionId);
     return res.status(200).json(summary);
   } catch (error) {
     return res.status(500).json({ error: error.message || 'Failed to load analytics summary.' });
@@ -17,10 +18,16 @@ function getSummary(req, res) {
 async function getMetrics(req, res) {
   try {
     const store = getStore(req);
-    let snapshot = metricsTracker.getMetrics(store);
-
-    if (!snapshot?.generatedAt) {
-      snapshot = await metricsTracker.recalcMetricsFromDB(store, { force: true });
+    const sessionId = req.query.sessionId || req.query.session_id || null;
+    
+    let snapshot;
+    if (sessionId && sessionId !== 'all') {
+      snapshot = await metricsTracker.recalcMetricsFromDB(store, { force: true, sessionId });
+    } else {
+      snapshot = metricsTracker.getMetrics(store);
+      if (!snapshot?.generatedAt) {
+        snapshot = await metricsTracker.recalcMetricsFromDB(store, { force: true });
+      }
     }
 
     return res.status(200).json({
@@ -40,7 +47,8 @@ async function getMetrics(req, res) {
 
 function getDashboard(req, res) {
   try {
-    const summary = analyticsService.buildAnalyticsSummary(getStore(req));
+    const sessionId = req.query.sessionId || req.query.session_id || null;
+    const summary = analyticsService.buildAnalyticsSummary(getStore(req), sessionId);
     return res.status(200).json({
       charts: summary?.charts || { daily: [] },
       metrics: {

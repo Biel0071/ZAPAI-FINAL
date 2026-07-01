@@ -24,6 +24,7 @@ const DEFAULT_PROVIDERS: AIProviderConfig[] = [
   { id: "deepseek", name: "Deepseek", apiKey: "", model: "deepseek-chat", active: false },
   { id: "openrouter", name: "OpenRouter", apiKey: "", model: "auto", active: false },
   { id: "ollama", name: "Ollama (Local)", apiKey: "", model: "llama3.1", active: false },
+  { id: "elevenlabs", name: "ElevenLabs (Voz)", apiKey: "", model: "eleven_multilingual_v2", active: false, settings: { voice_id: "21m00Tcm4TlvDq8ikWAM", stability: 0.5, similarity_boost: 0.75, style: 0.0, use_speaker_boost: true, voice_rule: "always" } },
 ];
 
 type PromptVersion = {
@@ -85,6 +86,7 @@ export default function AI() {
   const [searchParams, setSearchParams] = useSearchParams();
   const tabParam = searchParams.get("tab") as SectionId | null;
   const [activeSection, setActiveSection] = useState<SectionId>("dashboard");
+  const activeSessionId = useAppStore((state) => state.activeSessionId);
 
   useEffect(() => {
     if (tabParam && ["dashboard", "atendentes", "provedores", "conhecimento", "operacao", "analise"].includes(tabParam)) {
@@ -214,8 +216,8 @@ export default function AI() {
           apiService.getQueueStats().catch(() => null),
           apiService.getMemorySettings().catch(() => null),
           apiService.getAdvancedAISettings().catch(() => null),
-          apiService.getAILogs().catch(() => ({ logs: [] })),
-          apiService.getAIMetrics().catch(() => ({ tokensToday: 0, promptTokensToday: 0, completionTokensToday: 0, messagesToday: 0, tokensPerConversation: {} })),
+          apiService.getAILogs(activeSessionId).catch(() => ({ logs: [] })),
+          apiService.getAIMetrics(activeSessionId).catch(() => ({ tokensToday: 0, promptTokensToday: 0, completionTokensToday: 0, messagesToday: 0, tokensPerConversation: {} })),
           apiService.getRuntimeSessionHealth().catch(() => null),
           apiService.getWebhooks().catch(() => ({ webhooks: [] })),
           apiService.getAIAgents().catch(() => ({ success: false, agents: [] })),
@@ -287,6 +289,7 @@ export default function AI() {
               apiKey: saved.api_key || "",
               model: saved.model || p.model,
               active: Boolean(saved.enabled),
+              settings: saved.settings || p.settings,
             };
           }
           if (advanced && Array.isArray(advanced.providers)) {
@@ -318,8 +321,8 @@ export default function AI() {
       try {
         const [status, logsData, metricsData, runtimeData] = await Promise.all([
           apiService.getAIStatus().catch(() => ({})),
-          apiService.getAILogs().catch(() => ({ logs: [] })),
-          apiService.getAIMetrics().catch(() => ({ tokensToday: 0, promptTokensToday: 0, completionTokensToday: 0, messagesToday: 0, tokensPerConversation: {} })),
+          apiService.getAILogs(activeSessionId).catch(() => ({ logs: [] })),
+          apiService.getAIMetrics(activeSessionId).catch(() => ({ tokensToday: 0, promptTokensToday: 0, completionTokensToday: 0, messagesToday: 0, tokensPerConversation: {} })),
           apiService.getRuntimeSessionHealth().catch(() => null),
         ]);
         if (mounted) {
@@ -338,7 +341,7 @@ export default function AI() {
       mounted = false;
       window.clearInterval(interval);
     };
-  }, []);
+  }, [activeSessionId]);
 
   const notifySaved = () => {
     toast({ title: "Configuração salva com sucesso." });
@@ -482,6 +485,7 @@ export default function AI() {
               api_key: p.apiKey,
               model: p.model,
               enabled: p.active,
+              settings: p.settings || null,
             })
           )
       );

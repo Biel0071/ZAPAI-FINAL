@@ -261,6 +261,7 @@ type AppState = {
   unreadCounters: Record<string, number>;
   reconnectState: { attempts: number; lastAttemptAt: number | null };
   typingUsers: Record<string, boolean | "composing" | "recording">;
+  activeSessionId: string | null;
 
   setConversations: (listOrUpdater: Conversation[] | ((prev: Conversation[]) => Conversation[])) => void;
   upsertConversation: (conv: Conversation) => void;
@@ -279,6 +280,7 @@ type AppState = {
   updateWebsocketHealth: (health: "online" | "offline" | "reconnecting") => void;
   updateApiHealth: (health: "ONLINE" | "RECONNECTING" | "OFFLINE", latency?: number | null) => void;
   setActiveConversationId: (id: string | null) => void;
+  setActiveSessionId: (id: string | null) => void;
   setMessages: (conversationId: string, messages: ChatMessage[]) => void;
   addMessage: (conversationId: string, message: ChatMessage) => void;
   updateMessageStatus: (conversationId: string, messageId: string, status: ChatMessage["status"]) => void;
@@ -304,6 +306,27 @@ export const useAppStore = create<AppState>((set) => ({
   unreadCounters: {},
   reconnectState: { attempts: 0, lastAttemptAt: null },
   typingUsers: {},
+  activeSessionId: (() => {
+    try {
+      return localStorage.getItem("zapai_inbox_active_session") || null;
+    } catch {
+      return null;
+    }
+  })(),
+
+  setActiveSessionId: (id) =>
+    set(() => {
+      try {
+        if (id) {
+          localStorage.setItem("zapai_inbox_active_session", id);
+        } else {
+          localStorage.removeItem("zapai_inbox_active_session");
+        }
+      } catch {
+        // ignore
+      }
+      return { activeSessionId: id };
+    }),
 
   setConversations: (listOrUpdater) =>
     set((state) => {

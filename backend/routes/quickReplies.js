@@ -6,5 +6,6 @@ router.get('/api/quick-replies', quickRepliesController.listQuickReplies);
 router.post('/api/quick-replies', quickRepliesController.createQuickReply);
 router.put('/api/quick-replies/:id', quickRepliesController.updateQuickReply);
 router.delete('/api/quick-replies/:id', quickRepliesController.deleteQuickReply);
+router.post('/api/quick-replies/:id/execute', quickRepliesController.executeQuickReplyFlow);
 
 module.exports = router;

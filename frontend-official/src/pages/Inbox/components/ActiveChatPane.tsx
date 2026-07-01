@@ -63,6 +63,7 @@ interface ActiveChatPaneProps {
   setReplyingTo: (val: ChatMessage | null) => void;
   attachments: ComposerAttachment[];
   removeAttachment: (id: string) => void;
+  updateAttachmentCaption?: (id: string, caption: string) => void;
   handleAttachFiles: (e: any) => void;
   isRecording: boolean;
   recordingTime: number;
@@ -155,6 +156,7 @@ export function ActiveChatPane({
   setReplyingTo,
   attachments,
   removeAttachment,
+  updateAttachmentCaption,
   handleAttachFiles,
   isRecording,
   recordingTime,
@@ -432,7 +434,7 @@ export function ActiveChatPane({
                 ? "gravando áudio..."
                 : isTyping
                   ? "digitando..."
-                  : selectedConversation.status === "online"
+                  : isWhatsappConnected
                     ? "online"
                     : "offline"
             }
@@ -898,6 +900,17 @@ export function ActiveChatPane({
                         <audio src={attachment.previewUrl} controls className="mt-2 w-full" />
                       )}
                       {attachment.mediaType === "file" && <FileIcon className="mt-2 h-8 w-8 text-muted-foreground" />}
+                      {(attachment.mediaType === "image" || attachment.mediaType === "video") && (
+                        <div className="mt-2">
+                          <input
+                            type="text"
+                            placeholder="Legenda..."
+                            value={attachment.caption || ""}
+                            onChange={(e) => updateAttachmentCaption?.(attachment.id, e.target.value)}
+                            className="w-full text-[10px] bg-background/50 rounded border border-border/30 px-2 py-1 text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-1 focus:ring-ring"
+                          />
+                        </div>
+                      )}
                       <button
                         type="button"
                         onClick={() => removeAttachment(attachment.id)}
@@ -909,6 +922,44 @@ export function ActiveChatPane({
                   ))}
                 </div>
               )}
+              {!selectedConversation?.isBlocked && canSendMessages && !isRecording && (() => {
+                const list = (quickReplies && quickReplies.length > 0)
+                  ? quickReplies.map(qr => typeof qr === "string" ? { label: qr, text: qr } : { label: qr.cmd || qr.label || qr.text, text: qr.text })
+                  : [
+                      { label: "Olá, como posso ajudar?", text: "Olá, como posso ajudar?" },
+                      { label: "Aguarde um momento por favor.", text: "Aguarde um momento por favor." },
+                      { label: "Obrigado pelo contato!", text: "Obrigado pelo contato!" }
+                    ];
+
+                return (
+                  <div className="flex flex-wrap items-center gap-1.5 px-1 py-1 mb-0.5 select-none w-full max-w-full overflow-x-auto no-scrollbar scroll-smooth">
+                    {list.map((item, idx) => (
+                      <button
+                        key={idx}
+                        type="button"
+                        title="Clique para usar. Shift+Clique envia direto."
+                        onClick={(e) => {
+                          if (e.shiftKey) {
+                            setMessageInput(item.text);
+                            void handleSendMessage(item.text);
+                          } else {
+                            setMessageInput(item.text);
+                            if (messageInputRef.current) {
+                              messageInputRef.current.focus();
+                            }
+                          }
+                        }}
+                        className="px-2.5 py-1 text-[11px] font-medium text-muted-foreground hover:text-foreground bg-muted/30 hover:bg-muted/70 border border-border/40 rounded-full transition-all duration-150 active:scale-95 shrink-0"
+                      >
+                        {item.label}
+                      </button>
+                    ))}
+                    <span className="text-[9px] text-muted-foreground/40 italic ml-auto shrink-0 select-none hidden md:inline">
+                      Shift+Clique envia direto
+                    </span>
+                  </div>
+                );
+              })()}
 
               <div className="relative flex items-center gap-2 w-full">
                 {isRecording ? (

@@ -26,6 +26,7 @@ async function saveLogEntry(entry, store) {
     promptTokens: Number(entry.promptTokens) || 0,
     completionTokens: Number(entry.completionTokens) || 0,
     totalTokens: Number(entry.totalTokens) || 0,
+    sessionId: entry.sessionId || null,
   };
 
   // 1. Save to in-memory store
@@ -63,8 +64,8 @@ async function saveLogEntry(entry, store) {
   if (store?.databaseEnabled !== false) {
     try {
       await query(
-        `INSERT INTO ai_logs (conversation_id, contact_name, message_sent, message_received, provider, model, prompt_tokens, completion_tokens, total_tokens, timestamp)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+        `INSERT INTO ai_logs (conversation_id, contact_name, message_sent, message_received, provider, model, prompt_tokens, completion_tokens, total_tokens, timestamp, session_id)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
         [
           logEntry.conversationId,
           logEntry.contactName,
@@ -76,6 +77,7 @@ async function saveLogEntry(entry, store) {
           logEntry.completionTokens,
           logEntry.totalTokens,
           logEntry.timestamp,
+          logEntry.sessionId,
         ]
       );
     } catch (err) {
@@ -84,19 +86,23 @@ async function saveLogEntry(entry, store) {
   }
 }
 
-async function getLogs(store) {
+async function getLogs(store, sessionId) {
   // If DB is enabled, load from DB
   if (store?.databaseEnabled !== false) {
     try {
-      const res = await query(
-        `SELECT id, timestamp, conversation_id as "conversationId", contact_name as "contactName",
+      let q = `SELECT id, timestamp, conversation_id as "conversationId", contact_name as "contactName",
                 message_sent as "messageSent", message_received as "messageReceived",
                 provider, model, prompt_tokens as "promptTokens", completion_tokens as "completionTokens",
                 total_tokens as "totalTokens"
-         FROM ai_logs
-         ORDER BY timestamp DESC
-         LIMIT 100`
-      );
+         FROM ai_logs`;
+      const params = [];
+      if (sessionId && sessionId !== 'all') {
+        q += ` WHERE session_id = $1`;
+        params.push(sessionId);
+      }
+      q += ` ORDER BY timestamp DESC LIMIT 100`;
+
+      const res = await query(q, params);
       return res.rows;
     } catch (err) {
       console.warn('[aiLogService] Failed to query database logs, falling back to JSON:', err.message);
@@ -108,13 +114,21 @@ async function getLogs(store) {
     await ensureLogsFile();
     const content = await fs.readFile(logsFilePath, 'utf8');
     const parsed = JSON.parse(content || '[]');
-    return Array.isArray(parsed) ? parsed.slice(0, 100) : [];
+    let logs = Array.isArray(parsed) ? parsed : [];
+    if (sessionId && sessionId !== 'all') {
+      logs = logs.filter(log => log.sessionId === sessionId);
+    }
+    return logs.slice(0, 100);
   } catch {
-    return store?.aiLogs || [];
+    let logs = store?.aiLogs || [];
+    if (sessionId && sessionId !== 'all') {
+      logs = logs.filter(log => log.sessionId === sessionId);
+    }
+    return logs;
   }
 }
 
-async function getMetrics(store) {
+async function getMetrics(store, sessionId) {
   let tokensToday = 0;
   let promptTokensToday = 0;
   let completionTokensToday = 0;
@@ -124,14 +138,19 @@ async function getMetrics(store) {
   if (store?.databaseEnabled !== false) {
     try {
       // 1. Get tokens consumed today
-      const todayRes = await query(
-        `SELECT COALESCE(SUM(total_tokens), 0) as total,
+      let todayQuery = `SELECT COALESCE(SUM(total_tokens), 0) as total,
                 COALESCE(SUM(prompt_tokens), 0) as prompt,
                 COALESCE(SUM(completion_tokens), 0) as completion,
                 COUNT(*) as count
          FROM ai_logs
-         WHERE timestamp >= CURRENT_DATE`
-      );
+         WHERE timestamp >= CURRENT_DATE`;
+      const todayParams = [];
+      if (sessionId && sessionId !== 'all') {
+        todayQuery += ` AND session_id = $1`;
+        todayParams.push(sessionId);
+      }
+
+      const todayRes = await query(todayQuery, todayParams);
       if (todayRes.rows.length > 0) {
         const row = todayRes.rows[0];
         tokensToday = Number(row.total);
@@ -141,12 +160,17 @@ async function getMetrics(store) {
       }
 
       // 2. Get tokens per conversation (last 30 days)
-      const convRes = await query(
-        `SELECT conversation_id, COALESCE(SUM(total_tokens), 0) as total
+      let convQuery = `SELECT conversation_id, COALESCE(SUM(total_tokens), 0) as total
          FROM ai_logs
-         WHERE timestamp >= NOW() - INTERVAL '30 days'
-         GROUP BY conversation_id`
-      );
+         WHERE timestamp >= NOW() - INTERVAL '30 days'`;
+      const convParams = [];
+      if (sessionId && sessionId !== 'all') {
+        convQuery += ` AND session_id = $1`;
+        convParams.push(sessionId);
+      }
+      convQuery += ` GROUP BY conversation_id`;
+
+      const convRes = await query(convQuery, convParams);
       convRes.rows.forEach((row) => {
         tokensPerConversation[row.conversation_id] = Number(row.total);
       });
@@ -171,6 +195,9 @@ async function getMetrics(store) {
     const todayStr = new Date().toISOString().split('T')[0];
 
     logs.forEach((log) => {
+      if (sessionId && sessionId !== 'all' && log.sessionId !== sessionId) {
+        return;
+      }
       const logDate = String(log.timestamp || '').split('T')[0];
       if (logDate === todayStr) {
         tokensToday += Number(log.totalTokens) || 0;

@@ -67,37 +67,60 @@ function emitMetrics(store, snapshot) {
 }
 
 async function recalcMetricsFromDB(store = {}, options = {}) {
+  const sessionId = options.sessionId || null;
+  const isFiltered = sessionId && sessionId !== 'all';
+
   if (!store?.databaseEnabled) {
-    const snapshot = persistMetricsSnapshot(store, buildMetricsSnapshot(store));
-    emitMetrics(store, snapshot);
+    const snapshot = buildMetricsSnapshot(store);
+    if (!isFiltered) {
+      persistMetricsSnapshot(store, snapshot);
+      emitMetrics(store, snapshot);
+    }
     return snapshot;
   }
 
-  if (options.force !== true && store.metricsSnapshot) {
+  if (!isFiltered && options.force !== true && store.metricsSnapshot) {
     return store.metricsSnapshot;
   }
 
   const now = Date.now();
-  if (metricsRecalcInFlight) {
+  if (!isFiltered && metricsRecalcInFlight) {
     return metricsRecalcInFlight;
   }
 
-  if (store.metricsSnapshot && (now - lastDbMetricsAt) < MIN_DB_METRICS_INTERVAL_MS) {
+  if (!isFiltered && store.metricsSnapshot && (now - lastDbMetricsAt) < MIN_DB_METRICS_INTERVAL_MS) {
     return store.metricsSnapshot;
   }
 
-  metricsRecalcInFlight = (async () => {
+  const fetchFunc = async () => {
     const companyId = process.env.DEFAULT_COMPANY_ID || 'default';
     const connectedSessions = Array.from(store.sessionManager?.sessions?.values?.() || []).filter(
       (session) => session?.status === 'connected'
     ).length;
+
+    let conversationQuery = 'SELECT COUNT(*)::int AS total FROM conversations WHERE company_id = $1';
+    let messageQuery = 'SELECT COUNT(*)::int AS total FROM messages m INNER JOIN conversations c ON c.id = m.conversation_id WHERE c.company_id = $1';
+    let openConversationQuery = 'SELECT COUNT(*)::int AS total FROM conversations WHERE company_id = $1 AND status <> $2';
+
+    const convParams = [companyId];
+    const msgParams = [companyId];
+    const openParams = [companyId, 'closed'];
+
+    if (isFiltered) {
+      conversationQuery += ' AND session_id = $2';
+      convParams.push(sessionId);
+
+      messageQuery += ' AND c.session_id = $2';
+      msgParams.push(sessionId);
+
+      openConversationQuery += ' AND session_id = $3';
+      openParams.push(sessionId);
+    }
+
     const [conversationCount, messageCount, openConversationCount] = await Promise.all([
-      db.query('SELECT COUNT(*)::int AS total FROM conversations WHERE company_id = $1', [companyId]),
-      db.query(
-        'SELECT COUNT(*)::int AS total FROM messages m INNER JOIN conversations c ON c.id = m.conversation_id WHERE c.company_id = $1',
-        [companyId]
-      ),
-      db.query('SELECT COUNT(*)::int AS total FROM conversations WHERE company_id = $1 AND status <> $2', [companyId, 'closed']),
+      db.query(conversationQuery, convParams),
+      db.query(messageQuery, msgParams),
+      db.query(openConversationQuery, openParams),
     ]);
 
     const snapshot = {
@@ -110,12 +133,20 @@ async function recalcMetricsFromDB(store = {}, options = {}) {
       uptime: Number(process.uptime().toFixed(3)),
     };
 
-    lastDbMetricsAt = Date.now();
-    persistMetricsSnapshot(store, snapshot);
-    emitMetrics(store, snapshot);
+    if (!isFiltered) {
+      lastDbMetricsAt = Date.now();
+      persistMetricsSnapshot(store, snapshot);
+      emitMetrics(store, snapshot);
+    }
 
     return snapshot;
-  })().finally(() => {
+  };
+
+  if (isFiltered) {
+    return fetchFunc();
+  }
+
+  metricsRecalcInFlight = fetchFunc().finally(() => {
     metricsRecalcInFlight = null;
   });
 

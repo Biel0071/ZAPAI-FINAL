@@ -170,6 +170,7 @@ export function useInboxState() {
   const [qrDialogTags, setQrDialogTags] = useState<string[]>([]);
   const [qrDialogNewTag, setQrDialogNewTag] = useState("");
   const [qrDialogItems, setQrDialogItems] = useState<QuickReplyMediaItem[]>([]);
+  const [qrDialogIsFlow, setQrDialogIsFlow] = useState(false);
 
   // AI & Memory states
   const [aiMemory, setAiMemory] = useState<AiMemoryRecord | null>(null);
@@ -458,10 +459,31 @@ export function useInboxState() {
     [conversationControls, conversations],
   );
 
-  const isTyping = useMemo(
-    () => selectedConversation ? typingByConversationId[selectedConversation.id] ?? false : false,
-    [selectedConversation, typingByConversationId],
-  );
+  const isTyping = useMemo(() => {
+    if (!selectedConversation) return false;
+    const byId = typingByConversationId[selectedConversation.id];
+    if (byId !== undefined && byId !== false) return byId;
+
+    if (selectedConversation.chatId) {
+      const byChatId = typingByConversationId[selectedConversation.chatId];
+      if (byChatId !== undefined && byChatId !== false) return byChatId;
+      
+      const cleanChatId = selectedConversation.chatId.replace(/@s\.whatsapp\.net$/i, "");
+      const byCleanChatId = typingByConversationId[cleanChatId];
+      if (byCleanChatId !== undefined && byCleanChatId !== false) return byCleanChatId;
+    }
+
+    if (selectedConversation.phone) {
+      const byPhone = typingByConversationId[selectedConversation.phone];
+      if (byPhone !== undefined && byPhone !== false) return byPhone;
+      
+      const cleanPhone = selectedConversation.phone.replace(/\D/g, "");
+      const byCleanPhone = typingByConversationId[cleanPhone];
+      if (byCleanPhone !== undefined && byCleanPhone !== false) return byCleanPhone;
+    }
+
+    return (selectedConversation as any).status === "typing" ? "composing" : false;
+  }, [selectedConversation, typingByConversationId]);
 
   const selectedConversationKey = useMemo(
     () => (selectedConversation ? getConversationKey(selectedConversation) : null),
@@ -1725,7 +1747,7 @@ export function useInboxState() {
             return {
               id: tempId,
               conversationId: selectedConversation.id,
-              content: index === 0 ? textWithReply : "",
+              content: attachment.caption || (index === 0 ? textWithReply : ""),
               fromMe: true,
               createdAt: now,
               status: "sending",
@@ -1795,7 +1817,7 @@ export function useInboxState() {
         const response: MessageSendResponse = attachment
           ? await apiService.sendMediaMessage({
               phone: selectedConversation.phone,
-              caption: i === 0 ? textWithReply : "",
+              caption: attachment.caption || (i === 0 ? textWithReply : ""),
               fileName: attachment.file.name,
               mimeType: attachment.file.type || "application/octet-stream",
               mediaType: attachment.mediaType,
@@ -2185,6 +2207,12 @@ export function useInboxState() {
       if (found) URL.revokeObjectURL(found.previewUrl);
       return prev.filter((item) => item.id !== attachmentId);
     });
+  }, []);
+
+  const updateAttachmentCaption = useCallback((attachmentId: string, caption: string) => {
+    setAttachments((prev) =>
+      prev.map((item) => (item.id === attachmentId ? { ...item, caption } : item))
+    );
   }, []);
 
   const handleDrop = useCallback((event: React.DragEvent<HTMLDivElement>) => {
@@ -2596,6 +2624,8 @@ export function useInboxState() {
             text: qr.content || qr.items?.[0]?.value || qr.title || "",
             favorite: qr.favorite,
             items: qr.items || [{ type: "text", value: qr.content || qr.title }],
+            steps: qr.steps || [],
+            isFlow: qr.isFlow,
             tags: qr.tags || [],
           }));
           setQuickReplies(mapped);
@@ -2624,6 +2654,23 @@ export function useInboxState() {
       return;
     }
 
+    if (arg.isFlow) {
+      setSending(true);
+      try {
+        await apiService.executeQuickReplyFlow(arg.id, {
+          phone: selectedConversation.phone,
+          sessionId: selectedConversation.sessionId || preferredSessionId || undefined,
+        });
+        notify.success("Fluxo disparado com sucesso.");
+      } catch (err: any) {
+        notify.error("Falha ao disparar o fluxo.");
+        console.error(err);
+      } finally {
+        setSending(false);
+      }
+      return;
+    }
+
     const items = (arg.items || [{ type: "text", value: arg.text }]).map((item) => ({
       ...item,
       value: item.type === "text" ? interpolateTemplateVariables(item.value, conversationVariableContext) : item.value,
@@ -2640,6 +2687,20 @@ export function useInboxState() {
           contactId: selectedConversation.contactId,
           sessionId: selectedConversation.sessionId || preferredSessionId || undefined,
         };
+
+        const typingMs = typeof item.typingMs === "number" ? item.typingMs : 1500;
+        const delayMs = typeof item.delayMs === "number" ? item.delayMs : 0;
+
+        if (delayMs > 0) {
+          await new Promise((resolve) => setTimeout(resolve, delayMs));
+        }
+
+        if (typingMs > 0) {
+          const state = item.type === "audio" ? "recording" : "composing";
+          socketActions.emitTyping(selectedConversation.id, state);
+          await new Promise((resolve) => setTimeout(resolve, typingMs));
+          socketActions.emitTyping(selectedConversation.id, "paused");
+        }
 
         if (item.type === "text") {
           await apiService.sendMessage({
@@ -2658,10 +2719,9 @@ export function useInboxState() {
             fileName: item.filename || `${item.type}_file`,
             mimeType: "",
             dataBase64: item.value,
+            caption: item.caption || undefined,
           });
         }
-
-        await new Promise((resolve) => setTimeout(resolve, 600));
       }
       notify.success("Automação enviada com sucesso.");
     } catch (err) {
@@ -2734,7 +2794,8 @@ export function useInboxState() {
     setQrDialogCategory("saudação");
     setQrDialogFavorite(false);
     setQrDialogTags([]);
-    setQrDialogItems([{ id: `item-${Date.now()}-initial`, type: "text", value: "" }]);
+    setQrDialogIsFlow(false);
+    setQrDialogItems([{ id: `item-${Date.now()}-initial`, type: "text", value: "", delayMs: 0, typingMs: 1500, caption: "", actions: { addTags: [], archiveContact: false } }]);
     setIsQuickReplyDialogOpen(true);
   };
 
@@ -2744,10 +2805,16 @@ export function useInboxState() {
     setQrDialogCategory(reply.category);
     setQrDialogFavorite(Boolean(reply.favorite));
     setQrDialogTags(reply.tags || []);
+    setQrDialogIsFlow(Boolean(reply.isFlow));
 
-    const itemsWithIds = (reply.items || [{ type: "text", value: reply.text }]).map((item, index) => ({
+    const sourceItems = reply.isFlow ? (reply.steps || []) : (reply.items || [{ type: "text", value: reply.text }]);
+    const itemsWithIds = sourceItems.map((item: any, index) => ({
       ...item,
       id: item.id || `item-${Date.now()}-${index}-${Math.random().toString(36).substring(2, 7)}`,
+      delayMs: item.delayMs ?? 0,
+      typingMs: item.typingMs ?? 1500,
+      caption: item.caption ?? "",
+      actions: item.actions || { addTags: [], archiveContact: false },
     }));
     setQrDialogItems(itemsWithIds);
     setIsQuickReplyDialogOpen(true);
@@ -2775,7 +2842,25 @@ export function useInboxState() {
       category: qrDialogCategory,
       favorite: qrDialogFavorite,
       tags: qrDialogTags,
-      items,
+      isFlow: qrDialogIsFlow,
+      items: qrDialogIsFlow ? undefined : items.map(item => ({
+        type: item.type,
+        value: item.value,
+        filename: item.filename,
+        delayMs: item.delayMs ?? 0,
+        typingMs: item.typingMs ?? 1500,
+        caption: item.caption ?? "",
+      })),
+      steps: qrDialogIsFlow ? items.map(item => ({
+        id: item.id,
+        type: item.type,
+        value: item.value,
+        filename: item.filename,
+        delayMs: item.delayMs || 0,
+        typingMs: item.typingMs ?? 1500,
+        caption: item.caption ?? "",
+        actions: item.actions || { addTags: [], archiveContact: false },
+      })) : undefined,
     };
 
     try {
@@ -2792,6 +2877,8 @@ export function useInboxState() {
                   favorite: updated.favorite,
                   items: updated.items,
                   tags: updated.tags || [],
+                  isFlow: updated.isFlow,
+                  steps: updated.steps,
                 }
               : item
           )
@@ -2809,6 +2896,8 @@ export function useInboxState() {
             favorite: created.favorite,
             items: created.items,
             tags: created.tags || [],
+            isFlow: created.isFlow,
+            steps: created.steps,
           },
         ]);
         notify.success("Resposta rápida criada.");
@@ -2820,7 +2909,15 @@ export function useInboxState() {
   };
 
   const addQrDialogTextItem = () => {
-    setQrDialogItems((prev) => [...prev, { id: `item-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`, type: "text", value: "" }]);
+    setQrDialogItems((prev) => [...prev, {
+      id: `item-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
+      type: "text",
+      value: "",
+      delayMs: 0,
+      typingMs: 1500,
+      caption: "",
+      actions: { addTags: [], archiveContact: false },
+    }]);
   };
 
   const removeQrDialogItem = (index: number) => {
@@ -2856,7 +2953,19 @@ export function useInboxState() {
       try {
         const base64 = await fileToBase64(file);
         const value = `data:${file.type};base64,${base64}`;
-        setQrDialogItems((prev) => [...prev, { id: `item-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`, type, value, filename: file.name }]);
+        setQrDialogItems((prev) => [
+          ...prev,
+          {
+            id: `item-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
+            type,
+            value,
+            filename: file.name,
+            delayMs: 0,
+            typingMs: 1500,
+            caption: "",
+            actions: { addTags: [], archiveContact: false },
+          },
+        ]);
       } catch (err) {
         notify.error(`Erro ao carregar arquivo: ${file.name}`);
       }
@@ -2937,6 +3046,7 @@ export function useInboxState() {
     qrDialogTags, setQrDialogTags,
     qrDialogNewTag, setQrDialogNewTag,
     qrDialogItems, setQrDialogItems,
+    qrDialogIsFlow, setQrDialogIsFlow,
     aiMemory,
     aiRuntime,
     attachments, setAttachments,
@@ -3025,6 +3135,7 @@ export function useInboxState() {
     handleToggleReactionPicker,
     handleToggleAudioPlayback,
     removeAttachment,
+    updateAttachmentCaption,
     handleDrop,
     handleCancelRecording,
     handleToggleRecording,

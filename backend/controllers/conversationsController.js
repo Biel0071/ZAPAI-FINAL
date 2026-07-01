@@ -809,6 +809,29 @@ async function updateConversationMeta(req, res) {
       return res.status(404).json({ error: 'Conversation not found.' });
     }
 
+    if (updated && typeof fields.status !== 'undefined') {
+      const isArchived = fields.status === 'archived';
+      try {
+        const preferredSessionId = sessionManager.normalizeSessionName(
+          updated.session_id || sessionManager.DEFAULT_SESSION
+        );
+        const preferredSession = sessionManager.getSession(preferredSessionId);
+        const fallbackSession = await sessionManager.getDefaultSession();
+        const activeSession = preferredSession?.sock ? preferredSession : fallbackSession;
+        const sock = activeSession?.sock;
+
+        if (sock) {
+          const jid = updated.phone.includes('@') ? updated.phone : `${updated.phone}@s.whatsapp.net`;
+          console.log(`[WHATSAPP_ARCHIVE] Syncing archive state (${isArchived}) to WhatsApp for ${jid}`);
+          await sock.chatModify({ archive: isArchived }, jid).catch((err) => {
+            console.warn('[WHATSAPP_ARCHIVE] Failed to chatModify archive:', err.message);
+          });
+        }
+      } catch (archiveErr) {
+        console.warn('[WHATSAPP_ARCHIVE] Failed to sync archive state:', archiveErr.message);
+      }
+    }
+
     const store = getStore(req);
 
     if (store?.conversations) {

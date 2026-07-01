@@ -49,7 +49,9 @@ function normalizeAgent(agent = {}) {
     responseStyle: String(agent.responseStyle || 'short_natural').trim(),
     tone: String(agent.tone || 'professional').trim(),
     objective: String(agent.objective || '').trim(),
-    temperature: typeof agent.temperature === 'number' ? agent.temperature : 0.7,
+    temperature: typeof agent.temperature === 'number'
+      ? agent.temperature
+      : (isNaN(Number(agent.temperature)) ? 0.7 : Number(agent.temperature)),
     sector: String(agent.sector || '').trim(),
     avatar: String(agent.avatar || '').trim(),
     hours: String(agent.hours || '').trim(),
@@ -66,6 +68,11 @@ function normalizeAgent(agent = {}) {
     escalationActive: Boolean(agent.escalationActive ?? false),
     escalationMode: Number(agent.escalationMode ?? 1),
     escalationTriggers: Array.isArray(agent.escalationTriggers) ? agent.escalationTriggers : [],
+    voiceEnabled: Boolean(agent.voiceEnabled ?? false),
+    voiceRule: String(agent.voiceRule || 'always').trim(),
+    voiceId: String(agent.voiceId || '').trim(),
+    voiceProvider: String(agent.voiceProvider || 'default').trim(),
+    voiceGender: String(agent.voiceGender || 'female').trim(),
   };
 }
 
@@ -216,6 +223,11 @@ async function cloneAgent(agentKey) {
   return cloned;
 }
 
+function resetCache() {
+  cacheHydrated = false;
+  console.log('[AI AGENT SERVICE] Cache hydration reset.');
+}
+
 module.exports = {
   buildPersonalityPrompt,
   createAgent,
@@ -231,4 +243,5 @@ module.exports = {
   deleteAgent,
   cloneAgent,
   wait,
+  resetCache,
 };

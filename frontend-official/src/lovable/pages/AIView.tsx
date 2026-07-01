@@ -45,6 +45,7 @@ import {
   Stethoscope,
   Palette,
   Copy,
+  RefreshCw,
 } from "lucide-react";
 import { useState, useMemo, useEffect } from "react";
 import {
@@ -87,7 +88,7 @@ import {
 } from "@/components/ui/accordion";
 import { AILearningDashboard } from "@/components/ai/AILearningDashboard";
 import type { AILovableViewModel } from "@/adapters/lovable/aiAdapter";
-import { apiService } from "@/services/apiService";
+import { apiService, API_ORIGIN } from "@/services/apiService";
 import { useToast } from "@/hooks/use-toast";
 import { AIIcon } from "@/components/ai/AIIcon";
 import { cn } from "@/lib/utils";
@@ -111,6 +112,7 @@ export type AIProviderConfig = {
   apiKey: string;
   model: string;
   active: boolean;
+  settings?: any;
 };
 
 export type AIConnectionTestResult = {
@@ -349,6 +351,11 @@ const PROVIDER_MODELS: Record<string, Array<{ value: string; label: string }>> =
     { value: "llama3.1", label: "Llama 3.1 (Local)" },
     { value: "mistral", label: "Mistral (Local)" },
     { value: "phi3", label: "Phi 3 (Microsoft - Leve)" },
+  ],
+  elevenlabs: [
+    { value: "eleven_multilingual_v2", label: "Eleven Multilingual v2 (Recomendado)" },
+    { value: "eleven_monolingual_v1", label: "Eleven Monolingual v1" },
+    { value: "eleven_turbo_v2", label: "Eleven Turbo v2 (Mais Rápido)" },
   ]
 };
 
@@ -455,6 +462,36 @@ export function AIView(props: AIViewProps) {
   const [loadingEvolution, setLoadingEvolution] = useState(false);
   const [loadingPipelineLogs, setLoadingPipelineLogs] = useState(false);
   const [showApiKeyMap, setShowApiKeyMap] = useState<Record<string, boolean>>({});
+
+  const [restartingAI, setRestartingAI] = useState(false);
+
+  const handleRestartAI = async () => {
+    setRestartingAI(true);
+    try {
+      const res = await apiService.restartAI();
+      if (res?.success) {
+        toast({
+          title: "IA Reiniciada",
+          description: "O cache de respostas e os atendentes foram recarregados com sucesso.",
+        });
+        handleClearSim();
+      } else {
+        toast({
+          title: "Erro ao reiniciar",
+          description: res?.message || "Não foi possível reiniciar o motor de IA.",
+          variant: "destructive",
+        });
+      }
+    } catch (err: any) {
+      toast({
+        title: "Erro de conexão",
+        description: err.message || "Erro ao conectar com o servidor.",
+        variant: "destructive",
+      });
+    } finally {
+      setRestartingAI(false);
+    }
+  };
 
   // States for the Testar IA simulation
   const [isTestModalOpen, setIsTestModalOpen] = useState(false);
@@ -593,6 +630,15 @@ export function AIView(props: AIViewProps) {
   const [agentFormHours, setAgentFormHours] = useState("");
   const [agentFormRules, setAgentFormRules] = useState("");
   const [agentFormMemory, setAgentFormMemory] = useState("");
+  const [agentFormVoiceEnabled, setAgentFormVoiceEnabled] = useState(false);
+  const [agentFormVoiceRule, setAgentFormVoiceRule] = useState("always");
+  const [agentFormVoiceId, setAgentFormVoiceId] = useState("");
+  const [agentFormVoiceProvider, setAgentFormVoiceProvider] = useState("default");
+  const [agentFormVoiceGender, setAgentFormVoiceGender] = useState("female");
+  const [wizardViewMode, setWizardViewMode] = useState<"steps" | "accordion">("steps");
+  const [voiceTestText, setVoiceTestText] = useState("Olá! Sou o seu assistente de voz e estou pronto para conversar com você.");
+  const [testingVoice, setTestingVoice] = useState(false);
+  const [voiceAudioUrl, setVoiceAudioUrl] = useState<string | null>(null);
   
   // Extra business context states
   const [agentFormCompany, setAgentFormCompany] = useState("");
@@ -683,6 +729,11 @@ export function AIView(props: AIViewProps) {
     setAgentFormEscalationActive(false);
     setAgentFormEscalationMode(1);
     setAgentFormEscalationTriggers([]);
+    setAgentFormVoiceEnabled(false);
+    setAgentFormVoiceRule("always");
+    setAgentFormVoiceId("");
+    setAgentFormVoiceProvider("default");
+    setAgentFormVoiceGender("female");
     setWizardStep(1);
     setIsAgentDialogOpen(true);
   };
@@ -714,6 +765,11 @@ export function AIView(props: AIViewProps) {
     setAgentFormEscalationActive(Boolean(agent.escalationActive));
     setAgentFormEscalationMode(Number(agent.escalationMode || 1));
     setAgentFormEscalationTriggers(Array.isArray(agent.escalationTriggers) ? agent.escalationTriggers : []);
+    setAgentFormVoiceEnabled(Boolean(agent.voiceEnabled));
+    setAgentFormVoiceRule(agent.voiceRule || "always");
+    setAgentFormVoiceId(agent.voiceId || "");
+    setAgentFormVoiceProvider(agent.voiceProvider || "default");
+    setAgentFormVoiceGender(agent.voiceGender || "female");
     setWizardStep(1);
     setIsAgentDialogOpen(true);
   };
@@ -758,6 +814,11 @@ export function AIView(props: AIViewProps) {
       escalationActive: agentFormEscalationActive,
       escalationMode: agentFormEscalationMode,
       escalationTriggers: agentFormEscalationTriggers,
+      voiceEnabled: agentFormVoiceEnabled,
+      voiceRule: agentFormVoiceRule,
+      voiceId: agentFormVoiceId.trim(),
+      voiceProvider: agentFormVoiceProvider,
+      voiceGender: agentFormVoiceGender,
     };
 
     let success = false;
@@ -780,6 +841,27 @@ export function AIView(props: AIViewProps) {
     setAgentFormEscalationTriggers((prev) =>
       prev.includes(trigger) ? prev.filter((t) => t !== trigger) : [...prev, trigger]
     );
+  };
+
+  const handleTestVoice = async () => {
+    if (!voiceTestText.trim()) return;
+    setTestingVoice(true);
+    setVoiceAudioUrl(null);
+    try {
+      const selectedVoice = agentFormVoiceId === "custom" ? "" : agentFormVoiceId;
+      const data = await apiService.testVoice(voiceTestText.trim(), selectedVoice || "21m00Tcm4TlvDq8ikWAM");
+      if (data && data.url) {
+        const audioUrl = data.url.startsWith("http") ? data.url : `${API_ORIGIN || ""}${data.url}`;
+        setVoiceAudioUrl(audioUrl);
+        toast({ title: "Áudio de teste gerado com sucesso!", variant: "default" });
+      } else {
+        toast({ title: "Erro ao testar voz: resposta vazia.", variant: "destructive" });
+      }
+    } catch (err: any) {
+      toast({ title: err?.message || "Erro ao testar voz.", variant: "destructive" });
+    } finally {
+      setTestingVoice(false);
+    }
   };
 
   // Chat Simulator helpers
@@ -853,6 +935,561 @@ export function AIView(props: AIViewProps) {
     setSimMessages([{ sender: "bot", content: "Olá! Como posso ajudar você hoje?" }]);
     setSimMetrics(null);
   };
+
+  const renderStepIdentificacao = () => (
+    <div className="space-y-4">
+      <div className="space-y-1">
+        <Label htmlFor="agent-name" className="text-[11px] font-bold">Nome do Atendente</Label>
+        <Input
+          id="agent-name"
+          placeholder="Ex: Camila, Rafael"
+          value={agentFormName}
+          onChange={(e) => setAgentFormName(e.target.value)}
+          disabled={!!editingAgentKey}
+          className="bg-background h-8 text-xs"
+        />
+        <p className="text-[9px] text-muted-foreground">Nome público que o bot usará para se apresentar.</p>
+      </div>
+      <div className="space-y-1">
+        <Label htmlFor="agent-avatar" className="text-[11px] font-bold">Avatar (Ícone)</Label>
+        <Select value={agentFormAvatar} onValueChange={setAgentFormAvatar}>
+          <SelectTrigger id="agent-avatar" className="bg-background h-8 text-xs">
+            <SelectValue placeholder="Selecione um ícone" />
+          </SelectTrigger>
+          <SelectContent className="bg-card border-border">
+            {[
+              { value: "user", label: "Usuário/Atendente" },
+              { value: "bot", label: "Robô/IA" },
+              { value: "flame", label: "Destaque/Fogo" },
+              { value: "sparkles", label: "Brilho/Inteligência" },
+              { value: "code", label: "Desenvolvedor/Técnico" },
+              { value: "heart", label: "Saúde/Cuidado" },
+              { value: "target", label: "Objetivo/Comercial" },
+              { value: "stethoscope", label: "Especialista/Médico" },
+              { value: "palette", label: "Design/Criativo" }
+            ].map((opt) => (
+              <SelectItem key={opt.value} value={opt.value} className="text-xs">
+                <div className="flex items-center gap-2">
+                  {getAgentAvatarIcon(opt.value, "h-3.5 w-3.5 text-primary")}
+                  <span>{opt.label}</span>
+                </div>
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+      <div className="space-y-2 pt-2">
+        <Label className="text-[11px] font-bold">Setor de Atuação / Cargo</Label>
+        <div className="grid grid-cols-2 gap-2">
+          {["Comercial", "Suporte", "Financeiro", "Cobrança"].map((s) => (
+            <Button
+              key={s}
+              type="button"
+              variant={agentFormSector === s ? "default" : "outline"}
+              className="h-8 text-xs font-normal"
+              onClick={() => setAgentFormSector(s)}
+            >
+              {s}
+            </Button>
+          ))}
+        </div>
+        <div className="space-y-1 pt-1">
+          <Label htmlFor="agent-sector-custom" className="text-[10px] text-muted-foreground">Setor Personalizado</Label>
+          <Input
+            id="agent-sector-custom"
+            placeholder="Ex: Pós-venda, Diretoria"
+            value={agentFormSector}
+            onChange={(e) => setAgentFormSector(e.target.value)}
+            className="bg-background h-8 text-xs"
+          />
+        </div>
+      </div>
+      <div className="space-y-1 pt-2">
+        <Label htmlFor="agent-objective" className="text-[11px] font-bold">Objetivo Principal</Label>
+        <Input
+          id="agent-objective"
+          placeholder="Ex: Vender materiais de construção, agendar visitas"
+          value={agentFormObjective}
+          onChange={(e) => setAgentFormObjective(e.target.value)}
+          className="bg-background h-8 text-xs"
+        />
+      </div>
+    </div>
+  );
+
+  const renderStepContextoEmpresa = () => (
+    <div className="space-y-4 animate-fade-in">
+      <div className="space-y-1">
+        <Label htmlFor="agent-company" className="text-[11px] font-bold">Nome da Empresa</Label>
+        <Input
+          id="agent-company"
+          placeholder="Ex: Depósito Vista Alegre"
+          value={agentFormCompany}
+          onChange={(e) => setAgentFormCompany(e.target.value)}
+          className="bg-background h-8 text-xs"
+        />
+      </div>
+      <div className="space-y-1 pt-2">
+        <Label htmlFor="agent-company-desc" className="text-[11px] font-bold">Descrição da Empresa</Label>
+        <Textarea
+          id="agent-company-desc"
+          placeholder="Descreva o que a empresa faz, sua história, localização e diferenciais..."
+          value={agentFormCompanyDesc}
+          onChange={(e) => setAgentFormCompanyDesc(e.target.value)}
+          className="min-h-[140px] bg-background text-xs"
+        />
+        <p className="text-[9px] text-muted-foreground">Essa descrição ajudará a IA a se situar no contexto institucional.</p>
+      </div>
+    </div>
+  );
+
+  const renderStepProdutosServicos = () => (
+    <div className="space-y-4 animate-fade-in">
+      <div className="space-y-1">
+        <Label htmlFor="agent-products" className="text-[11px] font-bold">Tabela de Produtos e Preços</Label>
+        <Textarea
+          id="agent-products"
+          placeholder="Ex: Tijolo 8 furos - R$ 780,00 (milheiro)&#10;Cimento Liz - R$ 21,90..."
+          value={agentFormProducts}
+          onChange={(e) => setAgentFormProducts(e.target.value)}
+          className="min-h-[100px] bg-background text-xs font-mono"
+        />
+      </div>
+      <div className="space-y-1 pt-2">
+        <Label htmlFor="agent-services" className="text-[11px] font-bold">Serviços Prestados</Label>
+        <Textarea
+          id="agent-services"
+          placeholder="Ex: Entrega rápida de materiais, fabricação de churrasqueiras pré-moldadas..."
+          value={agentFormServices}
+          onChange={(e) => setAgentFormServices(e.target.value)}
+          className="min-h-[100px] bg-background text-xs"
+        />
+      </div>
+    </div>
+  );
+
+  const renderStepFaqPoliticas = () => (
+    <div className="space-y-4 animate-fade-in">
+      <div className="space-y-1">
+        <Label htmlFor="agent-faq" className="text-[11px] font-bold">FAQ (Perguntas Frequentes)</Label>
+        <Textarea
+          id="agent-faq"
+          placeholder="Ex: P: Qual o frete? R: O frete varia de acordo com a quilometragem...&#10;P: Aceita boleto? R: Apenas mediante cadastro aprovado..."
+          value={agentFormFaq}
+          onChange={(e) => setAgentFormFaq(e.target.value)}
+          className="min-h-[100px] bg-background text-xs"
+        />
+      </div>
+      <div className="space-y-1 pt-2">
+        <Label htmlFor="agent-policies" className="text-[11px] font-bold">Políticas Comerciais e Garantia</Label>
+        <Textarea
+          id="agent-policies"
+          placeholder="Ex: Troca de tijolos apenas se danificados no transporte. Garantia de 3 meses para ferramentas elétricas..."
+          value={agentFormPolicies}
+          onChange={(e) => setAgentFormPolicies(e.target.value)}
+          className="min-h-[100px] bg-background text-xs"
+        />
+      </div>
+    </div>
+  );
+
+  const renderStepPersonalidade = () => (
+    <div className="space-y-4 animate-fade-in">
+      <div className="space-y-1">
+        <Label htmlFor="agent-prompt" className="text-[11px] font-bold">Personalidade do Atendente (Instruções Principais)</Label>
+        <Textarea
+          id="agent-prompt"
+          placeholder="Ex: Você é um atendente simpático, cordial e focado em fechar vendas de materiais..."
+          value={agentFormPrompt}
+          onChange={(e) => setAgentFormPrompt(e.target.value)}
+          className="min-h-[120px] bg-background text-xs"
+        />
+      </div>
+      <div className="space-y-1.5 pt-2">
+        <Label className="text-[11px] font-bold">Temperatura (Criatividade): {agentFormTemp}</Label>
+        <Slider
+          id="agent-temp"
+          value={[agentFormTemp]}
+          onValueChange={(val) => setAgentFormTemp(val[0])}
+          min={0}
+          max={1}
+          step={0.1}
+        />
+        <div className="flex justify-between text-[9px] text-muted-foreground">
+          <span>Mais Conservador</span>
+          <span>Mais Criativo</span>
+        </div>
+      </div>
+
+      <div className="space-y-3 rounded-lg border border-border/50 bg-background/20 p-3">
+        <div>
+          <Label className="text-[11px] font-bold">Delay humanizado</Label>
+          <p className="text-[9px] text-muted-foreground">Variação aleatória usada antes de responder e enquanto aparece como digitando.</p>
+        </div>
+        <div className="grid grid-cols-2 gap-2">
+          <div className="space-y-1">
+            <Label htmlFor="response-delay-min" className="text-[10px]">Responder após mín. (s)</Label>
+            <Input
+              id="response-delay-min"
+              type="number"
+              min={0}
+              value={agentFormResponseDelayMin}
+              onChange={(e) => setAgentFormResponseDelayMin(Number(e.target.value) || 0)}
+              className="bg-background h-8 text-xs"
+            />
+          </div>
+          <div className="space-y-1">
+            <Label htmlFor="response-delay-max" className="text-[10px]">Responder após máx. (s)</Label>
+            <Input
+              id="response-delay-max"
+              type="number"
+              min={0}
+              value={agentFormResponseDelayMax}
+              onChange={(e) => setAgentFormResponseDelayMax(Number(e.target.value) || 0)}
+              className="bg-background h-8 text-xs"
+            />
+          </div>
+          <div className="space-y-1">
+            <Label htmlFor="typing-delay-min" className="text-[10px]">Digitando mín. (s)</Label>
+            <Input
+              id="typing-delay-min"
+              type="number"
+              min={0}
+              value={agentFormTypingDelayMin}
+              onChange={(e) => setAgentFormTypingDelayMin(Number(e.target.value) || 0)}
+              className="bg-background h-8 text-xs"
+            />
+          </div>
+          <div className="space-y-1">
+            <Label htmlFor="typing-delay-max" className="text-[10px]">Digitando máx. (s)</Label>
+            <Input
+              id="typing-delay-max"
+              type="number"
+              min={0}
+              value={agentFormTypingDelayMax}
+              onChange={(e) => setAgentFormTypingDelayMax(Number(e.target.value) || 0)}
+              className="bg-background h-8 text-xs"
+            />
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+
+  const renderStepHorariosTrabalho = () => (
+    <div className="space-y-4 animate-fade-in">
+      <div className="space-y-1">
+        <Label htmlFor="agent-hours" className="text-[11px] font-bold">Instruções de Horário Personalizado</Label>
+        <Textarea
+          id="agent-hours"
+          placeholder="Ex: Atendimento online das 7h às 20h. Fora do horário, informar educadamente que responderemos no próximo dia útil."
+          value={agentFormHours}
+          onChange={(e) => setAgentFormHours(e.target.value)}
+          className="min-h-[140px] bg-background text-xs"
+        />
+      </div>
+    </div>
+  );
+
+  const renderStepRegrasCustomizadas = () => (
+    <div className="space-y-4 animate-fade-in">
+      <div className="space-y-1">
+        <Label htmlFor="agent-rules" className="text-[11px] font-bold">Regras e Restrições Comerciais</Label>
+        <Textarea
+          id="agent-rules"
+          placeholder="Ex: Proibido conceder mais de 5% de desconto para pagamento à vista. Direcionar para cadastro se quiser parcelar."
+          value={agentFormRules}
+          onChange={(e) => setAgentFormRules(e.target.value)}
+          className="min-h-[100px] bg-background text-xs"
+        />
+      </div>
+      <div className="space-y-1 pt-2">
+        <Label htmlFor="agent-memory" className="text-[11px] font-bold">Instruções de Memória Específicas</Label>
+        <Textarea
+          id="agent-memory"
+          placeholder="Ex: Recordar o nome do cliente e referências de locais de entrega citadas anteriormente..."
+          value={agentFormMemory}
+          onChange={(e) => setAgentFormMemory(e.target.value)}
+          className="min-h-[100px] bg-background text-xs"
+        />
+      </div>
+    </div>
+  );
+
+  const renderStepTransbordoHumano = () => (
+    <div className="space-y-4 animate-fade-in">
+      <div className="flex items-center justify-between rounded-lg border border-border p-2.5 bg-background/10">
+        <div>
+          <Label htmlFor="escalation-active" className="text-xs font-semibold cursor-pointer">Ativar Transbordo Humano</Label>
+          <p className="text-[9px] text-muted-foreground">Se ativo, a IA poderá acionar ou passar para um operador humano.</p>
+        </div>
+        <Switch
+          id="escalation-active"
+          checked={agentFormEscalationActive}
+          onCheckedChange={setAgentFormEscalationActive}
+        />
+      </div>
+
+      {agentFormEscalationActive && (
+        <div className="space-y-3 pt-2 animate-fade-in">
+          <div className="grid grid-cols-2 gap-2">
+            <div className="space-y-1">
+              <Label htmlFor="escalation-phone" className="text-[10px] font-bold">Telefone do Responsável</Label>
+              <Input
+                id="escalation-phone"
+                placeholder="Ex: 5511999999999"
+                value={agentFormEscalationPhone}
+                onChange={(e) => setAgentFormEscalationPhone(e.target.value)}
+                className="bg-background h-8 text-xs"
+              />
+            </div>
+            <div className="space-y-1">
+              <Label htmlFor="escalation-whatsapp" className="text-[10px] font-bold">WhatsApp do Responsável</Label>
+              <Input
+                id="escalation-whatsapp"
+                placeholder="Ex: 5511999999999"
+                value={agentFormEscalationWhatsapp}
+                onChange={(e) => setAgentFormEscalationWhatsapp(e.target.value)}
+                className="bg-background h-8 text-xs"
+              />
+            </div>
+          </div>
+
+          <div className="space-y-1">
+            <Label htmlFor="escalation-mode" className="text-[10px] font-bold">Modo de Transbordo</Label>
+            <Select
+              value={String(agentFormEscalationMode)}
+              onValueChange={(val) => setAgentFormEscalationMode(Number(val))}
+            >
+              <SelectTrigger id="escalation-mode" className="bg-background h-8 text-xs">
+                <SelectValue placeholder="Selecione o modo" />
+              </SelectTrigger>
+              <SelectContent className="bg-card border-border">
+                <SelectItem value="1" className="text-xs">Modo 1: Notificar humano e IA continua</SelectItem>
+                <SelectItem value="2" className="text-xs">Modo 2: Notificar humano e IA pausa</SelectItem>
+                <SelectItem value="3" className="text-xs">Modo 3: Transferir totalmente para humano</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="space-y-2 pt-1 border-t border-border/30">
+            <Label className="text-[10px] font-bold">Gatilhos de Ativação do Transbordo</Label>
+            <div className="space-y-2">
+              {[
+                "cliente pediu humano",
+                "cliente pediu ligação",
+                "cliente reclamou",
+                "cliente pediu orçamento complexo",
+                "IA sem resposta"
+              ].map((trigger) => {
+                const isChecked = agentFormEscalationTriggers.includes(trigger);
+                return (
+                  <label key={trigger} className="flex items-center gap-2 cursor-pointer select-none text-[10px] hover:text-foreground">
+                    <input
+                      type="checkbox"
+                      checked={isChecked}
+                      onChange={() => toggleTrigger(trigger)}
+                      className="rounded border-border text-primary focus:ring-primary bg-background h-3.5 w-3.5"
+                    />
+                    <span className="capitalize">{trigger}</span>
+                  </label>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+
+  const renderStepConfiguracaoVoz = () => (
+    <div className="space-y-4 animate-fade-in">
+      <div className="flex items-center justify-between rounded-lg border border-border p-2.5 bg-background/10">
+        <div>
+          <Label htmlFor="voice-enabled" className="text-xs font-semibold cursor-pointer">Responder com Voz (ElevenLabs)</Label>
+          <p className="text-[9px] text-muted-foreground">Se ativo, as respostas deste atendente serão enviadas como mensagens de áudio gravadas.</p>
+        </div>
+        <Switch
+          id="voice-enabled"
+          checked={agentFormVoiceEnabled}
+          onCheckedChange={setAgentFormVoiceEnabled}
+        />
+      </div>
+
+      {agentFormVoiceEnabled && (
+        <div className="space-y-3 pt-2 animate-fade-in">
+          <div className="space-y-1">
+            <Label htmlFor="voice-provider" className="text-[10px] font-bold">Provedor de Voz</Label>
+            <Select
+              value={agentFormVoiceProvider}
+              onValueChange={setAgentFormVoiceProvider}
+            >
+              <SelectTrigger id="voice-provider" className="bg-background h-8 text-xs">
+                <SelectValue placeholder="Selecione o provedor" />
+              </SelectTrigger>
+              <SelectContent className="bg-card border-border">
+                <SelectItem value="default" className="text-xs">Padrão Neural Grátis (Edge TTS)</SelectItem>
+                <SelectItem value="elevenlabs" className="text-xs">ElevenLabs (Customizado)</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          {agentFormVoiceProvider === "default" ? (
+            <div className="space-y-1">
+              <Label htmlFor="voice-gender" className="text-[10px] font-bold">Gênero da Voz Padrão</Label>
+              <Select
+                value={agentFormVoiceGender}
+                onValueChange={setAgentFormVoiceGender}
+              >
+                <SelectTrigger id="voice-gender" className="bg-background h-8 text-xs">
+                  <SelectValue placeholder="Selecione o gênero" />
+                </SelectTrigger>
+                <SelectContent className="bg-card border-border">
+                  <SelectItem value="female" className="text-xs">Feminino BR (Francisca)</SelectItem>
+                  <SelectItem value="male" className="text-xs">Masculino BR (Antonio)</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          ) : (
+            <div className="space-y-1">
+              <Label htmlFor="voice-id" className="text-[10px] font-bold">Voice ID (ElevenLabs)</Label>
+              <Select
+                value={agentFormVoiceId}
+                onValueChange={setAgentFormVoiceId}
+              >
+                <SelectTrigger id="voice-id" className="bg-background h-8 text-xs">
+                  <SelectValue placeholder="Selecione uma voz" />
+                </SelectTrigger>
+                <SelectContent className="bg-card border-border">
+                  <SelectItem value="21m00Tcm4TlvDq8ikWAM" className="text-xs">Rachel (Padrão)</SelectItem>
+                  <SelectItem value="AZnzlk1XvdvUeBnXmlld" className="text-xs">Domi</SelectItem>
+                  <SelectItem value="EXAVITQu4vr4xnSDxMaL" className="text-xs">Bella</SelectItem>
+                  <SelectItem value="ErXwobaYiN019PkySvjV" className="text-xs">Antoni</SelectItem>
+                  <SelectItem value="MF3mGyEYCl7XYW7tl59X" className="text-xs">Rachel (Multilingual)</SelectItem>
+                  <SelectItem value="custom" className="text-xs">Outra voz (Customizada...)</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+
+          <div className="space-y-1">
+            <Label htmlFor="voice-rule" className="text-[10px] font-bold">Regra de Envio de Voz</Label>
+            <Select
+              value={agentFormVoiceRule}
+              onValueChange={setAgentFormVoiceRule}
+            >
+              <SelectTrigger id="voice-rule" className="bg-background h-8 text-xs">
+                <SelectValue placeholder="Selecione uma regra" />
+              </SelectTrigger>
+              <SelectContent className="bg-card border-border">
+                <SelectItem value="always" className="text-xs">Sempre responder em áudio</SelectItem>
+                <SelectItem value="voice_in" className="text-xs">Responder em áudio somente quando receber áudio</SelectItem>
+                <SelectItem value="smart" className="text-xs">Inteligente (Smart - Texto longo/saudação/áudio)</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          {(agentFormVoiceId === "custom" || !["21m00Tcm4TlvDq8ikWAM", "AZnzlk1XvdvUeBnXmlld", "EXAVITQu4vr4xnSDxMaL", "ErXwobaYiN019PkySvjV", "MF3mGyEYCl7XYW7tl59X"].includes(agentFormVoiceId)) && (
+            <div className="space-y-1 animate-fade-in">
+              <Label htmlFor="custom-voice-id" className="text-[10px] font-bold">Voice ID Personalizado</Label>
+              <Input
+                id="custom-voice-id"
+                placeholder="Digite o ElevenLabs Voice ID"
+                value={agentFormVoiceId === "custom" ? "" : agentFormVoiceId}
+                onChange={(e) => setAgentFormVoiceId(e.target.value)}
+                className="bg-background h-8 text-xs"
+              />
+            </div>
+          )}
+
+          <div className="space-y-2 pt-2 border-t border-border/30">
+            <Label htmlFor="voice-test-text" className="text-[10px] font-bold">Texto de Teste para Voz</Label>
+            <div className="flex gap-2">
+              <Input
+                id="voice-test-text"
+                placeholder="Olá! Sou o seu assistente de voz e estou pronto para conversar."
+                value={voiceTestText}
+                onChange={(e) => setVoiceTestText(e.target.value)}
+                className="bg-background h-8 text-xs flex-1"
+              />
+              <Button
+                type="button"
+                size="sm"
+                onClick={handleTestVoice}
+                disabled={testingVoice || !voiceTestText.trim()}
+                className="h-8 text-xs"
+              >
+                {testingVoice ? "Gerando..." : "Testar Voz"}
+              </Button>
+            </div>
+            {voiceAudioUrl && (
+              <div className="pt-2 animate-fade-in">
+                <audio src={voiceAudioUrl} controls className="w-full h-8" />
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+
+  const renderStepRevisaoGeral = () => (
+    <div className="space-y-4 animate-fade-in">
+      <div className="flex flex-col items-center justify-center text-center py-2 space-y-2 border-b border-border/30 pb-3">
+        <CheckCircle className="h-8 w-8 text-emerald-500 animate-bounce" />
+        <h4 className="font-bold text-foreground text-xs">Revisão do Atendente</h4>
+        <p className="text-[9px] text-muted-foreground max-w-xs">Revise o resumo antes de salvar as configurações de {agentFormName}.</p>
+      </div>
+
+      <div className="space-y-2 text-[10px] leading-relaxed">
+        <div className="grid grid-cols-2 gap-2 bg-background/30 p-2 rounded border border-border/40">
+          <div>
+            <span className="block text-muted-foreground text-[8px]">Perfil</span>
+            <div className="flex items-center gap-1.5 font-bold text-foreground">
+              {getAgentAvatarIcon(agentFormAvatar, "h-3.5 w-3.5 text-primary")}
+              <span>{agentFormName} ({agentFormSector})</span>
+            </div>
+          </div>
+          <div>
+            <span className="block text-muted-foreground text-[8px]">Empresa</span>
+            <span className="font-bold text-foreground">{agentFormCompany || "Vista Alegre"}</span>
+          </div>
+        </div>
+
+        <div className="bg-background/30 p-2 rounded border border-border/40">
+          <span className="block text-muted-foreground text-[8px]">Transbordo Humano</span>
+          <span className="font-medium text-foreground">
+            {agentFormEscalationActive 
+              ? `Ativo - Modo ${agentFormEscalationMode} (${agentFormEscalationTriggers.length} gatilhos)` 
+              : "Inativo"}
+          </span>
+        </div>
+
+        <div className="bg-background/30 p-2 rounded border border-border/40">
+          <span className="block text-muted-foreground text-[8px]">IA de Voz</span>
+          <span className="font-medium text-foreground">
+            {agentFormVoiceEnabled 
+              ? `Ativo (${agentFormVoiceProvider === "default" ? `Voz Padrão ${agentFormVoiceGender === "male" ? "Masc" : "Fem"}` : "ElevenLabs"}) - Regra: ${
+                  agentFormVoiceRule === "always" 
+                    ? "Sempre" 
+                    : agentFormVoiceRule === "voice_in"
+                    ? "Se receber áudio"
+                    : "Smart"
+                }` 
+              : "Inativo"}
+          </span>
+        </div>
+      </div>
+
+      <div className="flex items-center justify-between rounded-lg border border-border p-2.5 bg-background/10 mt-2">
+        <div className="text-left">
+          <p className="text-xs font-semibold">Atendente Ativo</p>
+          <p className="text-[10px] text-muted-foreground">Define se este atendente responderá interações automaticamente.</p>
+        </div>
+        <Switch checked={agentFormActive} onCheckedChange={setAgentFormActive} />
+      </div>
+    </div>
+  );
 
   return (
     <div className="min-h-screen bg-background pb-12">
@@ -998,12 +1635,28 @@ export function AIView(props: AIViewProps) {
                             </CardTitle>
                             <CardDescription className="text-[11px] mt-0.5">Diagnósticos das integrações e serviços críticos.</CardDescription>
                           </div>
-                          <Dialog open={isTestModalOpen} onOpenChange={setIsTestModalOpen}>
-                            <DialogTrigger asChild>
-                              <Button size="sm" variant="outline" className="h-7 text-[11px] px-2.5 rounded-lg flex items-center gap-1">
-                                <Terminal className="h-3.5 w-3.5" /> Testar IA
-                              </Button>
-                            </DialogTrigger>
+                          <div className="flex gap-2">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="h-7 text-[11px] px-2.5 rounded-lg flex items-center gap-1 hover:text-primary"
+                              onClick={handleRestartAI}
+                              disabled={restartingAI}
+                            >
+                              {restartingAI ? (
+                                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                              ) : (
+                                <RefreshCw className="h-3.5 w-3.5" />
+                              )}
+                              <span>Reiniciar IA</span>
+                            </Button>
+                            
+                            <Dialog open={isTestModalOpen} onOpenChange={setIsTestModalOpen}>
+                              <DialogTrigger asChild>
+                                <Button size="sm" variant="outline" className="h-7 text-[11px] px-2.5 rounded-lg flex items-center gap-1">
+                                  <Terminal className="h-3.5 w-3.5" /> Testar IA
+                                </Button>
+                              </DialogTrigger>
                             <DialogContent className="max-w-md rounded-2xl border-border bg-card">
                               <DialogHeader>
                                 <DialogTitle className="text-sm font-bold flex items-center gap-2 text-foreground">
@@ -1105,7 +1758,8 @@ export function AIView(props: AIViewProps) {
                               </DialogFooter>
                             </DialogContent>
                           </Dialog>
-                        </CardHeader>
+                        </div>
+                      </CardHeader>
                         <CardContent className="p-4 pt-2 space-y-2">
                           {aiHealthItems.map((item) => (
                             <div key={item.label} className="flex items-center justify-between text-xs py-1 border-b border-border/30 last:border-0">
@@ -1316,9 +1970,25 @@ export function AIView(props: AIViewProps) {
                               </Select>
                               <Badge variant="outline" className="h-5 rounded-full text-[9px] uppercase">Simulando</Badge>
                             </div>
-                            <Button variant="ghost" size="sm" onClick={handleClearSim} className="h-7 text-[10px] text-destructive hover:bg-destructive/10">
-                              Limpar
-                            </Button>
+                            <div className="flex gap-2">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={handleRestartAI}
+                                disabled={restartingAI}
+                                className="h-7 text-[10px] text-muted-foreground hover:text-primary hover:bg-primary/10 flex items-center gap-1"
+                              >
+                                {restartingAI ? (
+                                  <Loader2 className="h-3 w-3 animate-spin" />
+                                ) : (
+                                  <RefreshCw className="h-3 w-3" />
+                                )}
+                                <span>Reiniciar IA</span>
+                              </Button>
+                              <Button variant="ghost" size="sm" onClick={handleClearSim} className="h-7 text-[10px] text-destructive hover:bg-destructive/10">
+                                Limpar
+                              </Button>
+                            </div>
                           </CardHeader>
                           
                           {/* Messages Container */}
@@ -1929,6 +2599,118 @@ export function AIView(props: AIViewProps) {
                               </SelectContent>
                             </Select>
                           </div>
+                          {selectedProvider.id === "elevenlabs" && (
+                            <div className="space-y-3 pt-3 border-t border-border/40">
+                              <div className="space-y-1">
+                                <Label className="text-[10px] text-muted-foreground">Voice ID (Rachel por padrão: 21m00Tcm4TlvDq8ikWAM)</Label>
+                                <Input
+                                  placeholder="Voice ID do ElevenLabs"
+                                  value={selectedProvider.settings?.voice_id || ""}
+                                  onChange={(e) => onProviderChange({
+                                    ...selectedProvider,
+                                    settings: {
+                                      ...(selectedProvider.settings || {}),
+                                      voice_id: e.target.value
+                                    }
+                                  })}
+                                  className="bg-background h-8 text-xs"
+                                />
+                              </div>
+
+                              <div className="space-y-1">
+                                <div className="flex justify-between text-[9px] text-muted-foreground font-bold">
+                                  <span>Estabilidade: {selectedProvider.settings?.stability ?? 0.5}</span>
+                                </div>
+                                <Slider
+                                  value={[selectedProvider.settings?.stability ?? 0.5]}
+                                  onValueChange={(val) => onProviderChange({
+                                    ...selectedProvider,
+                                    settings: {
+                                      ...(selectedProvider.settings || {}),
+                                      stability: val[0]
+                                    }
+                                  })}
+                                  min={0}
+                                  max={1}
+                                  step={0.05}
+                                />
+                              </div>
+
+                              <div className="space-y-1">
+                                <div className="flex justify-between text-[9px] text-muted-foreground font-bold">
+                                  <span>Clareza / Similaridade: {selectedProvider.settings?.similarity_boost ?? 0.75}</span>
+                                </div>
+                                <Slider
+                                  value={[selectedProvider.settings?.similarity_boost ?? 0.75]}
+                                  onValueChange={(val) => onProviderChange({
+                                    ...selectedProvider,
+                                    settings: {
+                                      ...(selectedProvider.settings || {}),
+                                      similarity_boost: val[0]
+                                    }
+                                  })}
+                                  min={0}
+                                  max={1}
+                                  step={0.05}
+                                />
+                              </div>
+
+                              <div className="space-y-1">
+                                <div className="flex justify-between text-[9px] text-muted-foreground font-bold">
+                                  <span>Estilo (Exageração): {selectedProvider.settings?.style ?? 0}</span>
+                                </div>
+                                <Slider
+                                  value={[selectedProvider.settings?.style ?? 0]}
+                                  onValueChange={(val) => onProviderChange({
+                                    ...selectedProvider,
+                                    settings: {
+                                      ...(selectedProvider.settings || {}),
+                                      style: val[0]
+                                    }
+                                  })}
+                                  min={0}
+                                  max={1}
+                                  step={0.05}
+                                />
+                              </div>
+
+                              <div className="flex items-center justify-between">
+                                <span className="text-[10px] text-muted-foreground font-semibold">Boost do Falante (Speaker Boost)</span>
+                                <Switch
+                                  checked={selectedProvider.settings?.use_speaker_boost !== false}
+                                  onCheckedChange={(checked) => onProviderChange({
+                                    ...selectedProvider,
+                                    settings: {
+                                      ...(selectedProvider.settings || {}),
+                                      use_speaker_boost: checked
+                                    }
+                                  })}
+                                />
+                              </div>
+
+                              <div className="space-y-1.5">
+                                <Label className="text-[10px] text-muted-foreground">Regra Global de Voz</Label>
+                                <Select
+                                  value={selectedProvider.settings?.voice_rule || "always"}
+                                  onValueChange={(val) => onProviderChange({
+                                    ...selectedProvider,
+                                    settings: {
+                                      ...(selectedProvider.settings || {}),
+                                      voice_rule: val
+                                    }
+                                  })}
+                                >
+                                  <SelectTrigger className="bg-background h-8 text-xs">
+                                    <SelectValue />
+                                  </SelectTrigger>
+                                  <SelectContent className="bg-card border-border">
+                                    <SelectItem value="always" className="text-xs">Sempre responder com áudio</SelectItem>
+                                    <SelectItem value="audio_inbound" className="text-xs">Responder com áudio apenas se receber áudio</SelectItem>
+                                  </SelectContent>
+                                </Select>
+                              </div>
+                            </div>
+                          )}
                           <Button
                             size="sm"
                             className="w-full text-xs h-8 gap-1 mt-2"
@@ -2128,493 +2910,174 @@ export function AIView(props: AIViewProps) {
         </DialogContent>
       </Dialog>
 
-      {/* Agent Creation/Editing Dialog (9-Step Wizard) */}
+      {/* Agent Creation/Editing Dialog (9-Step Wizard / Accordion Form) */}
       <Dialog open={isAgentDialogOpen} onOpenChange={setIsAgentDialogOpen}>
         <DialogContent className="max-w-lg rounded-2xl bg-card border-border p-6 text-foreground shadow-lg flex flex-col justify-between min-h-[480px]">
           
           <DialogHeader className="shrink-0">
-            <DialogTitle>{editingAgentKey ? "Editar Atendente" : "Adicionar Atendente"}</DialogTitle>
-            <DialogDescription className="text-xs">
-              Configure o perfil da IA seguindo o assistente passo a passo.
-            </DialogDescription>
-            
-            {/* Visual Step Progress Bar */}
-            <div className="mt-4">
-              <div className="flex items-center justify-between text-[9px] text-muted-foreground font-semibold pb-1">
-                <span>Passo {wizardStep} de 9: {
-                  wizardStep === 1 ? "Identificação" :
-                  wizardStep === 2 ? "Contexto da Empresa" :
-                  wizardStep === 3 ? "Produtos & Serviços" :
-                  wizardStep === 4 ? "FAQ & Políticas" :
-                  wizardStep === 5 ? "Personalidade" :
-                  wizardStep === 6 ? "Horários de Trabalho" :
-                  wizardStep === 7 ? "Regras Customizadas" :
-                  wizardStep === 8 ? "Transbordo Humano" : "Revisão Geral e Ativação"
-                }</span>
-                <span>{Math.round((wizardStep / 9) * 100)}%</span>
-              </div>
-              <div className="h-1.5 w-full bg-muted rounded-full overflow-hidden">
-                <div
-                  className="h-full bg-primary transition-all duration-300"
-                  style={{ width: `${(wizardStep / 9) * 100}%` }}
-                />
+            <div className="flex items-center justify-between">
+              <DialogTitle>{editingAgentKey ? "Editar Atendente" : "Adicionar Atendente"}</DialogTitle>
+              {/* Toggle switch between modes */}
+              <div className="flex items-center gap-1.5 bg-background/50 rounded-lg p-0.5 border border-border/30">
+                <button
+                  type="button"
+                  onClick={() => setWizardViewMode("steps")}
+                  className={cn(
+                    "px-2.5 py-1 text-[10px] font-semibold rounded transition-all",
+                    wizardViewMode === "steps" ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
+                  )}
+                >
+                  Etapas
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setWizardViewMode("accordion")}
+                  className={cn(
+                    "px-2.5 py-1 text-[10px] font-semibold rounded transition-all",
+                    wizardViewMode === "accordion" ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
+                  )}
+                >
+                  Página Única
+                </button>
               </div>
             </div>
+            <DialogDescription className="text-xs">
+              {wizardViewMode === "steps" 
+                ? "Configure o perfil da IA seguindo o assistente passo a passo." 
+                : "Configure todas as opções em uma única página usando seções expansíveis."}
+            </DialogDescription>
+            
+            {/* Visual Step Progress Bar (only show in steps mode) */}
+            {wizardViewMode === "steps" && (
+              <div className="mt-4">
+                <div className="flex items-center justify-between text-[9px] text-muted-foreground font-semibold pb-1">
+                  <span>Passo {wizardStep} de 10: {
+                    wizardStep === 1 ? "Identificação" :
+                    wizardStep === 2 ? "Contexto da Empresa" :
+                    wizardStep === 3 ? "Produtos & Serviços" :
+                    wizardStep === 4 ? "FAQ & Políticas" :
+                    wizardStep === 5 ? "Personalidade" :
+                    wizardStep === 6 ? "Horários de Trabalho" :
+                    wizardStep === 7 ? "Regras Customizadas" :
+                    wizardStep === 8 ? "Transbordo Humano" :
+                    wizardStep === 9 ? "Configuração de Voz" : "Revisão Geral e Ativação"
+                  }</span>
+                  <span>{Math.round((wizardStep / 10) * 100)}%</span>
+                </div>
+                <div className="h-1.5 w-full bg-muted rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-primary transition-all duration-300"
+                    style={{ width: `${(wizardStep / 10) * 100}%` }}
+                  />
+                </div>
+              </div>
+            )}
           </DialogHeader>
 
-          {/* Wizard Content container */}
+          {/* Wizard/Accordion Content container */}
           <div className="flex-1 my-4 text-xs overflow-y-auto pr-1">
-            
-            {/* PASSO 1: Identificação */}
-            {wizardStep === 1 && (
-              <div className="space-y-4 animate-fade-in">
-                <div className="space-y-1">
-                  <Label htmlFor="agent-name" className="text-[11px] font-bold">Nome do Atendente</Label>
-                  <Input
-                    id="agent-name"
-                    placeholder="Ex: Camila, Rafael"
-                    value={agentFormName}
-                    onChange={(e) => setAgentFormName(e.target.value)}
-                    disabled={!!editingAgentKey}
-                    className="bg-background h-8 text-xs"
-                  />
-                  <p className="text-[9px] text-muted-foreground">Nome público que o bot usará para se apresentar.</p>
-                </div>
-                <div className="space-y-1">
-                  <Label htmlFor="agent-avatar" className="text-[11px] font-bold">Avatar (Ícone)</Label>
-                  <Select value={agentFormAvatar} onValueChange={setAgentFormAvatar}>
-                    <SelectTrigger id="agent-avatar" className="bg-background h-8 text-xs">
-                      <SelectValue placeholder="Selecione um ícone" />
-                    </SelectTrigger>
-                    <SelectContent className="bg-card border-border">
-                      {[
-                        { value: "user", label: "Usuário/Atendente" },
-                        { value: "bot", label: "Robô/IA" },
-                        { value: "flame", label: "Destaque/Fogo" },
-                        { value: "sparkles", label: "Brilho/Inteligência" },
-                        { value: "code", label: "Desenvolvedor/Técnico" },
-                        { value: "heart", label: "Saúde/Cuidado" },
-                        { value: "target", label: "Objetivo/Comercial" },
-                        { value: "stethoscope", label: "Especialista/Médico" },
-                        { value: "palette", label: "Design/Criativo" }
-                      ].map((opt) => (
-                        <SelectItem key={opt.value} value={opt.value} className="text-xs">
-                          <div className="flex items-center gap-2">
-                            {getAgentAvatarIcon(opt.value, "h-3.5 w-3.5 text-primary")}
-                            <span>{opt.label}</span>
-                          </div>
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2 pt-2">
-                  <Label className="text-[11px] font-bold">Setor de Atuação / Cargo</Label>
-                  <div className="grid grid-cols-2 gap-2">
-                    {["Comercial", "Suporte", "Financeiro", "Cobrança"].map((s) => (
-                      <Button
-                        key={s}
-                        type="button"
-                        variant={agentFormSector === s ? "default" : "outline"}
-                        className="h-8 text-xs font-normal"
-                        onClick={() => setAgentFormSector(s)}
-                      >
-                        {s}
-                      </Button>
-                    ))}
-                  </div>
-                  <div className="space-y-1 pt-1">
-                    <Label htmlFor="agent-sector-custom" className="text-[10px] text-muted-foreground">Setor Personalizado</Label>
-                    <Input
-                      id="agent-sector-custom"
-                      placeholder="Ex: Pós-venda, Diretoria"
-                      value={agentFormSector}
-                      onChange={(e) => setAgentFormSector(e.target.value)}
-                      className="bg-background h-8 text-xs"
-                    />
-                  </div>
-                </div>
-                <div className="space-y-1 pt-2">
-                  <Label htmlFor="agent-objective" className="text-[11px] font-bold">Objetivo Principal</Label>
-                  <Input
-                    id="agent-objective"
-                    placeholder="Ex: Vender materiais de construção, agendar visitas"
-                    value={agentFormObjective}
-                    onChange={(e) => setAgentFormObjective(e.target.value)}
-                    className="bg-background h-8 text-xs"
-                  />
-                </div>
-              </div>
+            {wizardViewMode === "steps" ? (
+              <>
+                {wizardStep === 1 && renderStepIdentificacao()}
+                {wizardStep === 2 && renderStepContextoEmpresa()}
+                {wizardStep === 3 && renderStepProdutosServicos()}
+                {wizardStep === 4 && renderStepFaqPoliticas()}
+                {wizardStep === 5 && renderStepPersonalidade()}
+                {wizardStep === 6 && renderStepHorariosTrabalho()}
+                {wizardStep === 7 && renderStepRegrasCustomizadas()}
+                {wizardStep === 8 && renderStepTransbordoHumano()}
+                {wizardStep === 9 && renderStepConfiguracaoVoz()}
+                {wizardStep === 10 && renderStepRevisaoGeral()}
+              </>
+            ) : (
+              <Accordion type="multiple" defaultValue={["step-1"]} className="space-y-2">
+                <AccordionItem value="step-1" className="border border-border/50 bg-background/25 rounded-xl px-4 py-2">
+                  <AccordionTrigger className="py-1 text-xs font-bold text-foreground hover:no-underline">1. Identificação</AccordionTrigger>
+                  <AccordionContent className="pb-2 pt-2">{renderStepIdentificacao()}</AccordionContent>
+                </AccordionItem>
+                <AccordionItem value="step-2" className="border border-border/50 bg-background/25 rounded-xl px-4 py-2">
+                  <AccordionTrigger className="py-1 text-xs font-bold text-foreground hover:no-underline">2. Contexto da Empresa</AccordionTrigger>
+                  <AccordionContent className="pb-2 pt-2">{renderStepContextoEmpresa()}</AccordionContent>
+                </AccordionItem>
+                <AccordionItem value="step-3" className="border border-border/50 bg-background/25 rounded-xl px-4 py-2">
+                  <AccordionTrigger className="py-1 text-xs font-bold text-foreground hover:no-underline">3. Produtos & Serviços</AccordionTrigger>
+                  <AccordionContent className="pb-2 pt-2">{renderStepProdutosServicos()}</AccordionContent>
+                </AccordionItem>
+                <AccordionItem value="step-4" className="border border-border/50 bg-background/25 rounded-xl px-4 py-2">
+                  <AccordionTrigger className="py-1 text-xs font-bold text-foreground hover:no-underline">4. FAQ & Políticas</AccordionTrigger>
+                  <AccordionContent className="pb-2 pt-2">{renderStepFaqPoliticas()}</AccordionContent>
+                </AccordionItem>
+                <AccordionItem value="step-5" className="border border-border/50 bg-background/25 rounded-xl px-4 py-2">
+                  <AccordionTrigger className="py-1 text-xs font-bold text-foreground hover:no-underline">5. Personalidade</AccordionTrigger>
+                  <AccordionContent className="pb-2 pt-2">{renderStepPersonalidade()}</AccordionContent>
+                </AccordionItem>
+                <AccordionItem value="step-6" className="border border-border/50 bg-background/25 rounded-xl px-4 py-2">
+                  <AccordionTrigger className="py-1 text-xs font-bold text-foreground hover:no-underline">6. Horários de Trabalho</AccordionTrigger>
+                  <AccordionContent className="pb-2 pt-2">{renderStepHorariosTrabalho()}</AccordionContent>
+                </AccordionItem>
+                <AccordionItem value="step-7" className="border border-border/50 bg-background/25 rounded-xl px-4 py-2">
+                  <AccordionTrigger className="py-1 text-xs font-bold text-foreground hover:no-underline">7. Regras Customizadas</AccordionTrigger>
+                  <AccordionContent className="pb-2 pt-2">{renderStepRegrasCustomizadas()}</AccordionContent>
+                </AccordionItem>
+                <AccordionItem value="step-8" className="border border-border/50 bg-background/25 rounded-xl px-4 py-2">
+                  <AccordionTrigger className="py-1 text-xs font-bold text-foreground hover:no-underline">8. Transbordo Humano</AccordionTrigger>
+                  <AccordionContent className="pb-2 pt-2">{renderStepTransbordoHumano()}</AccordionContent>
+                </AccordionItem>
+                <AccordionItem value="step-9" className="border border-border/50 bg-background/25 rounded-xl px-4 py-2">
+                  <AccordionTrigger className="py-1 text-xs font-bold text-foreground hover:no-underline">9. Configuração de Voz</AccordionTrigger>
+                  <AccordionContent className="pb-2 pt-2">{renderStepConfiguracaoVoz()}</AccordionContent>
+                </AccordionItem>
+                <AccordionItem value="step-10" className="border border-border/50 bg-background/25 rounded-xl px-4 py-2">
+                  <AccordionTrigger className="py-1 text-xs font-bold text-foreground hover:no-underline">10. Revisão Geral e Ativação</AccordionTrigger>
+                  <AccordionContent className="pb-2 pt-2">{renderStepRevisaoGeral()}</AccordionContent>
+                </AccordionItem>
+              </Accordion>
             )}
-
-            {/* PASSO 2: Contexto da Empresa */}
-            {wizardStep === 2 && (
-              <div className="space-y-4 animate-fade-in">
-                <div className="space-y-1">
-                  <Label htmlFor="agent-company" className="text-[11px] font-bold">Nome da Empresa</Label>
-                  <Input
-                    id="agent-company"
-                    placeholder="Ex: Depósito Vista Alegre"
-                    value={agentFormCompany}
-                    onChange={(e) => setAgentFormCompany(e.target.value)}
-                    className="bg-background h-8 text-xs"
-                  />
-                </div>
-                <div className="space-y-1 pt-2">
-                  <Label htmlFor="agent-company-desc" className="text-[11px] font-bold">Descrição da Empresa</Label>
-                  <Textarea
-                    id="agent-company-desc"
-                    placeholder="Descreva o que a empresa faz, sua história, localização e diferenciais..."
-                    value={agentFormCompanyDesc}
-                    onChange={(e) => setAgentFormCompanyDesc(e.target.value)}
-                    className="min-h-[140px] bg-background text-xs"
-                  />
-                  <p className="text-[9px] text-muted-foreground">Essa descrição ajudará a IA a se situar no contexto institucional.</p>
-                </div>
-              </div>
-            )}
-
-            {/* PASSO 3: Produtos & Serviços */}
-            {wizardStep === 3 && (
-              <div className="space-y-4 animate-fade-in">
-                <div className="space-y-1">
-                  <Label htmlFor="agent-products" className="text-[11px] font-bold">Tabela de Produtos e Preços</Label>
-                  <Textarea
-                    id="agent-products"
-                    placeholder="Ex: Tijolo 8 furos - R$ 780,00 (milheiro)&#10;Cimento Liz - R$ 21,90..."
-                    value={agentFormProducts}
-                    onChange={(e) => setAgentFormProducts(e.target.value)}
-                    className="min-h-[100px] bg-background text-xs font-mono"
-                  />
-                </div>
-                <div className="space-y-1 pt-2">
-                  <Label htmlFor="agent-services" className="text-[11px] font-bold">Serviços Prestados</Label>
-                  <Textarea
-                    id="agent-services"
-                    placeholder="Ex: Entrega rápida de materiais, fabricação de churrasqueiras pré-moldadas..."
-                    value={agentFormServices}
-                    onChange={(e) => setAgentFormServices(e.target.value)}
-                    className="min-h-[100px] bg-background text-xs"
-                  />
-                </div>
-              </div>
-            )}
-
-            {/* PASSO 4: FAQ & Políticas */}
-            {wizardStep === 4 && (
-              <div className="space-y-4 animate-fade-in">
-                <div className="space-y-1">
-                  <Label htmlFor="agent-faq" className="text-[11px] font-bold">FAQ (Perguntas Frequentes)</Label>
-                  <Textarea
-                    id="agent-faq"
-                    placeholder="Ex: P: Qual o frete? R: O frete varia de acordo com a quilometragem...&#10;P: Aceita boleto? R: Apenas mediante cadastro aprovado..."
-                    value={agentFormFaq}
-                    onChange={(e) => setAgentFormFaq(e.target.value)}
-                    className="min-h-[100px] bg-background text-xs"
-                  />
-                </div>
-                <div className="space-y-1 pt-2">
-                  <Label htmlFor="agent-policies" className="text-[11px] font-bold">Políticas Comerciais e Garantia</Label>
-                  <Textarea
-                    id="agent-policies"
-                    placeholder="Ex: Troca de tijolos apenas se danificados no transporte. Garantia de 3 meses para ferramentas elétricas..."
-                    value={agentFormPolicies}
-                    onChange={(e) => setAgentFormPolicies(e.target.value)}
-                    className="min-h-[100px] bg-background text-xs"
-                  />
-                </div>
-              </div>
-            )}
-
-            {/* PASSO 5: Personalidade */}
-            {wizardStep === 5 && (
-              <div className="space-y-4 animate-fade-in">
-                <div className="space-y-1">
-                  <Label htmlFor="agent-prompt" className="text-[11px] font-bold">Personalidade do Atendente (Instruções Principais)</Label>
-                  <Textarea
-                    id="agent-prompt"
-                    placeholder="Ex: Você é um atendente simpático, cordial e focado em fechar vendas de materiais..."
-                    value={agentFormPrompt}
-                    onChange={(e) => setAgentFormPrompt(e.target.value)}
-                    className="min-h-[120px] bg-background text-xs"
-                  />
-                </div>
-                <div className="space-y-1.5 pt-2">
-                  <Label className="text-[11px] font-bold">Temperatura (Criatividade): {agentFormTemp}</Label>
-                  <Slider
-                    id="agent-temp"
-                    value={[agentFormTemp]}
-                    onValueChange={(val) => setAgentFormTemp(val[0])}
-                    min={0}
-                    max={1}
-                    step={0.1}
-                  />
-                  <div className="flex justify-between text-[9px] text-muted-foreground">
-                    <span>Mais Conservador</span>
-                    <span>Mais Criativo</span>
-                  </div>
-                </div>
-
-                <div className="space-y-3 rounded-lg border border-border/50 bg-background/20 p-3">
-                  <div>
-                    <Label className="text-[11px] font-bold">Delay humanizado</Label>
-                    <p className="text-[9px] text-muted-foreground">Variação aleatória usada antes de responder e enquanto aparece como digitando.</p>
-                  </div>
-                  <div className="grid grid-cols-2 gap-2">
-                    <div className="space-y-1">
-                      <Label htmlFor="response-delay-min" className="text-[10px]">Responder após mín. (s)</Label>
-                      <Input
-                        id="response-delay-min"
-                        type="number"
-                        min={0}
-                        value={agentFormResponseDelayMin}
-                        onChange={(e) => setAgentFormResponseDelayMin(Number(e.target.value) || 0)}
-                        className="bg-background h-8 text-xs"
-                      />
-                    </div>
-                    <div className="space-y-1">
-                      <Label htmlFor="response-delay-max" className="text-[10px]">Responder após máx. (s)</Label>
-                      <Input
-                        id="response-delay-max"
-                        type="number"
-                        min={0}
-                        value={agentFormResponseDelayMax}
-                        onChange={(e) => setAgentFormResponseDelayMax(Number(e.target.value) || 0)}
-                        className="bg-background h-8 text-xs"
-                      />
-                    </div>
-                    <div className="space-y-1">
-                      <Label htmlFor="typing-delay-min" className="text-[10px]">Digitando mín. (s)</Label>
-                      <Input
-                        id="typing-delay-min"
-                        type="number"
-                        min={0}
-                        value={agentFormTypingDelayMin}
-                        onChange={(e) => setAgentFormTypingDelayMin(Number(e.target.value) || 0)}
-                        className="bg-background h-8 text-xs"
-                      />
-                    </div>
-                    <div className="space-y-1">
-                      <Label htmlFor="typing-delay-max" className="text-[10px]">Digitando máx. (s)</Label>
-                      <Input
-                        id="typing-delay-max"
-                        type="number"
-                        min={0}
-                        value={agentFormTypingDelayMax}
-                        onChange={(e) => setAgentFormTypingDelayMax(Number(e.target.value) || 0)}
-                        className="bg-background h-8 text-xs"
-                      />
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* PASSO 6: Horários de Trabalho */}
-            {wizardStep === 6 && (
-              <div className="space-y-4 animate-fade-in">
-                <div className="space-y-1">
-                  <Label htmlFor="agent-hours" className="text-[11px] font-bold">Instruções de Horário Personalizado</Label>
-                  <Textarea
-                    id="agent-hours"
-                    placeholder="Ex: Atendimento online das 7h às 20h. Fora do horário, informar educadamente que responderemos no próximo dia útil."
-                    value={agentFormHours}
-                    onChange={(e) => setAgentFormHours(e.target.value)}
-                    className="min-h-[140px] bg-background text-xs"
-                  />
-                </div>
-              </div>
-            )}
-
-            {/* PASSO 7: Regras Customizadas */}
-            {wizardStep === 7 && (
-              <div className="space-y-4 animate-fade-in">
-                <div className="space-y-1">
-                  <Label htmlFor="agent-rules" className="text-[11px] font-bold">Regras e Restrições Comerciais</Label>
-                  <Textarea
-                    id="agent-rules"
-                    placeholder="Ex: Proibido conceder mais de 5% de desconto para pagamento à vista. Direcionar para cadastro se quiser parcelar."
-                    value={agentFormRules}
-                    onChange={(e) => setAgentFormRules(e.target.value)}
-                    className="min-h-[100px] bg-background text-xs"
-                  />
-                </div>
-                <div className="space-y-1 pt-2">
-                  <Label htmlFor="agent-memory" className="text-[11px] font-bold">Instruções de Memória Específicas</Label>
-                  <Textarea
-                    id="agent-memory"
-                    placeholder="Ex: Recordar o nome do cliente e referências de locais de entrega citadas anteriormente..."
-                    value={agentFormMemory}
-                    onChange={(e) => setAgentFormMemory(e.target.value)}
-                    className="min-h-[100px] bg-background text-xs"
-                  />
-                </div>
-              </div>
-            )}
-
-            {/* PASSO 8: Transbordo Humano */}
-            {wizardStep === 8 && (
-              <div className="space-y-4 animate-fade-in">
-                <div className="flex items-center justify-between rounded-lg border border-border p-2.5 bg-background/10">
-                  <div>
-                    <Label htmlFor="escalation-active" className="text-xs font-semibold cursor-pointer">Ativar Transbordo Humano</Label>
-                    <p className="text-[9px] text-muted-foreground">Se ativo, a IA poderá acionar ou passar para um operador humano.</p>
-                  </div>
-                  <Switch
-                    id="escalation-active"
-                    checked={agentFormEscalationActive}
-                    onCheckedChange={setAgentFormEscalationActive}
-                  />
-                </div>
-
-                {agentFormEscalationActive && (
-                  <>
-                    <div className="grid grid-cols-2 gap-2">
-                      <div className="space-y-1">
-                        <Label htmlFor="escalation-phone" className="text-[10px] font-bold">Telefone do Responsável</Label>
-                        <Input
-                          id="escalation-phone"
-                          placeholder="Ex: 5511999999999"
-                          value={agentFormEscalationPhone}
-                          onChange={(e) => setAgentFormEscalationPhone(e.target.value)}
-                          className="bg-background h-8 text-xs"
-                        />
-                      </div>
-                      <div className="space-y-1">
-                        <Label htmlFor="escalation-whatsapp" className="text-[10px] font-bold">WhatsApp do Responsável</Label>
-                        <Input
-                          id="escalation-whatsapp"
-                          placeholder="Ex: 5511999999999"
-                          value={agentFormEscalationWhatsapp}
-                          onChange={(e) => setAgentFormEscalationWhatsapp(e.target.value)}
-                          className="bg-background h-8 text-xs"
-                        />
-                      </div>
-                    </div>
-
-                    <div className="space-y-1">
-                      <Label htmlFor="escalation-mode" className="text-[10px] font-bold">Modo de Transbordo</Label>
-                      <Select
-                        value={String(agentFormEscalationMode)}
-                        onValueChange={(val) => setAgentFormEscalationMode(Number(val))}
-                      >
-                        <SelectTrigger id="escalation-mode" className="bg-background h-8 text-xs">
-                          <SelectValue placeholder="Selecione o modo" />
-                        </SelectTrigger>
-                        <SelectContent className="bg-card border-border">
-                          <SelectItem value="1" className="text-xs">Modo 1: Notificar humano e IA continua</SelectItem>
-                          <SelectItem value="2" className="text-xs">Modo 2: Notificar humano e IA pausa</SelectItem>
-                          <SelectItem value="3" className="text-xs">Modo 3: Transferir totalmente para humano</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-
-                    <div className="space-y-2 pt-1 border-t border-border/30">
-                      <Label className="text-[10px] font-bold">Gatilhos de Ativação do Transbordo</Label>
-                      <div className="space-y-2">
-                        {[
-                          "cliente pediu humano",
-                          "cliente pediu ligação",
-                          "cliente reclamou",
-                          "cliente pediu orçamento complexo",
-                          "IA sem resposta"
-                        ].map((trigger) => {
-                          const isChecked = agentFormEscalationTriggers.includes(trigger);
-                          return (
-                            <label key={trigger} className="flex items-center gap-2 cursor-pointer select-none text-[10px] hover:text-foreground">
-                              <input
-                                type="checkbox"
-                                checked={isChecked}
-                                onChange={() => toggleTrigger(trigger)}
-                                className="rounded border-border text-primary focus:ring-primary bg-background h-3.5 w-3.5"
-                              />
-                              <span className="capitalize">{trigger}</span>
-                            </label>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  </>
-                )}
-              </div>
-            )}
-
-            {/* PASSO 9: Revisão Geral e Ativação */}
-            {wizardStep === 9 && (
-              <div className="space-y-4 animate-fade-in">
-                <div className="flex flex-col items-center justify-center text-center py-2 space-y-2 border-b border-border/30 pb-3">
-                  <CheckCircle className="h-8 w-8 text-emerald-500 animate-bounce" />
-                  <h4 className="font-bold text-foreground text-xs">Revisão do Atendente</h4>
-                  <p className="text-[9px] text-muted-foreground max-w-xs">Revise o resumo antes de salvar as configurações de {agentFormName}.</p>
-                </div>
-
-                <div className="space-y-2 text-[10px] leading-relaxed">
-                  <div className="grid grid-cols-2 gap-2 bg-background/30 p-2 rounded border border-border/40">
-                    <div>
-                      <span className="block text-muted-foreground text-[8px]">Perfil</span>
-                      <div className="flex items-center gap-1.5 font-bold text-foreground">
-                        {getAgentAvatarIcon(agentFormAvatar, "h-3.5 w-3.5 text-primary")}
-                        <span>{agentFormName} ({agentFormSector})</span>
-                      </div>
-                    </div>
-                    <div>
-                      <span className="block text-muted-foreground text-[8px]">Empresa</span>
-                      <span className="font-bold text-foreground">{agentFormCompany || "Vista Alegre"}</span>
-                    </div>
-                  </div>
-
-                  <div className="bg-background/30 p-2 rounded border border-border/40">
-                    <span className="block text-muted-foreground text-[8px]">Transbordo Humano</span>
-                    <span className="font-medium text-foreground">
-                      {agentFormEscalationActive 
-                        ? `Ativo - Modo ${agentFormEscalationMode} (${agentFormEscalationTriggers.length} gatilhos)` 
-                        : "Inativo"}
-                    </span>
-                  </div>
-                </div>
-
-                <div className="flex items-center justify-between rounded-lg border border-border p-2.5 bg-background/10 mt-2">
-                  <div className="text-left">
-                    <p className="text-xs font-semibold">Atendente Ativo</p>
-                    <p className="text-[10px] text-muted-foreground">Define se este atendente responderá interações automaticamente.</p>
-                  </div>
-                  <Switch checked={agentFormActive} onCheckedChange={setAgentFormActive} />
-                </div>
-              </div>
-            )}
-
           </div>
 
           {/* Wizard Footer controls */}
           <DialogFooter className="gap-2 sm:gap-0 pt-3 border-t border-border/40 shrink-0">
-            {wizardStep > 1 && (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setWizardStep((prev) => prev - 1)}
-                className="h-8 text-xs"
-              >
-                Voltar
-              </Button>
-            )}
-            {wizardStep < 9 ? (
-              <Button
-                size="sm"
-                onClick={() => {
-                  if (wizardStep === 1 && !agentFormName.trim()) {
-                    toast({ title: "O nome é obrigatório.", variant: "destructive" });
-                    return;
-                  }
-                  if (wizardStep === 5 && !agentFormPrompt.trim()) {
-                    toast({ title: "O prompt é obrigatório.", variant: "destructive" });
-                    return;
-                  }
-                  setWizardStep((prev) => prev + 1);
-                }}
-                className="h-8 text-xs ml-auto"
-              >
-                Avançar
-              </Button>
+            {wizardViewMode === "steps" ? (
+              <>
+                {wizardStep > 1 && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setWizardStep((prev) => prev - 1)}
+                    className="h-8 text-xs"
+                  >
+                    Voltar
+                  </Button>
+                )}
+                {wizardStep < 10 ? (
+                  <Button
+                    size="sm"
+                    onClick={() => {
+                      if (wizardStep === 1 && !agentFormName.trim()) {
+                        toast({ title: "O nome é obrigatório.", variant: "destructive" });
+                        return;
+                      }
+                      if (wizardStep === 5 && !agentFormPrompt.trim()) {
+                        toast({ title: "O prompt é obrigatório.", variant: "destructive" });
+                        return;
+                      }
+                      setWizardStep((prev) => prev + 1);
+                    }}
+                    className="h-8 text-xs ml-auto"
+                  >
+                    Avançar
+                  </Button>
+                ) : (
+                  <Button
+                    onClick={handleSaveAgent}
+                    disabled={saving}
+                    size="sm"
+                    className="h-8 text-xs ml-auto"
+                  >
+                    Concluir & Salvar
+                  </Button>
+                )}
+              </>
             ) : (
               <Button
                 onClick={handleSaveAgent}

@@ -12,6 +12,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { useAppStore } from "@/stores/appStore";
 
 export interface HeaderShellProps {
   title: string;
@@ -40,6 +41,10 @@ export function HeaderShell({
   onLogout,
   onNavigateProfile,
 }: HeaderShellProps) {
+  const sessions = useAppStore((state) => state.sessions);
+  const activeSessionId = useAppStore((state) => state.activeSessionId);
+  const setActiveSessionId = useAppStore((state) => state.setActiveSessionId);
+
   return (
     <header className="sticky top-0 z-40 shrink-0 border-b border-border/70 bg-card/60 backdrop-blur-xl">
       <div className="flex h-16 items-center justify-between gap-3 px-4 pl-14 md:gap-4 md:px-6 md:pl-6">
@@ -75,6 +80,20 @@ export function HeaderShell({
               Reconectar
             </Button>
           ) : null}
+          {sessions && sessions.length > 0 && (
+            <select
+              value={activeSessionId || "all"}
+              onChange={(e) => setActiveSessionId(e.target.value === "all" ? null : e.target.value)}
+              className="h-8 rounded-xl border border-border/65 bg-background/80 px-2 text-xs font-semibold text-foreground/90 hover:text-foreground focus:outline-none focus:ring-1 focus:ring-primary backdrop-blur-sm"
+            >
+              <option value="all" className="bg-[#181d25] text-foreground">Todas as Conexões</option>
+              {sessions.map((session) => (
+                <option key={session.id} value={session.id} className="bg-[#181d25] text-foreground">
+                  {session.name || session.id} ({session.status === "connected" ? "Online" : "Offline"})
+                </option>
+              ))}
+            </select>
+          )}
         </div>
 
         <div className="flex shrink-0 items-center gap-1 md:gap-2">

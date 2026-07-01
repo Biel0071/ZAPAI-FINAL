@@ -1,13 +1,13 @@
 {
-  "timestamp": "2026-06-23T15:09:23.749Z",
+  "timestamp": "2026-07-01T11:45:17.642Z",
   "backendHealth": {
-    "success": true,
-    "timestamp": "2026-06-23T15:09:24.610Z",
+    "success": false,
+    "timestamp": "2026-07-01T11:45:18.861Z",
     "summary": {
       "total": 16,
-      "passed": 14,
-      "failed": 0,
-      "warned": 2
+      "passed": 12,
+      "failed": 1,
+      "warned": 3
     },
     "services": {
       "pm2": {
@@ -22,17 +22,17 @@
     "database": {
       "postgres": {
         "status": "ok",
-        "detail": "SELECT 1 in 280ms | server_time=Tue Jun 23 2026 12:09:24 GMT-0300 (Horário Padrão de Brasília)"
+        "detail": "SELECT 1 in 260ms | server_time=Wed Jul 01 2026 08:45:18 GMT-0300 (Horário Padrão de Brasília)"
       },
       "migrations": {
         "status": "ok",
-        "detail": "23 migrations applied"
+        "detail": "24 migrations applied"
       }
     },
     "memory": {
       "heap": {
         "status": "ok",
-        "detail": "heap=6MB rss=49MB"
+        "detail": "heap=6MB rss=43MB"
       },
       "system": {
         "status": "ok",
@@ -50,119 +50,124 @@
     "sessions": {
       "baileys": {
         "status": "ok",
-        "detail": "1/2 sessions with valid auth"
+        "detail": "1/3 sessions with valid auth"
       }
     },
     "websocket": {
       "route": {
-        "status": "ok",
-        "detail": "Socket.IO polling: HTTP 200"
+        "status": "warn",
+        "detail": "WS route error: connect ECONNREFUSED 127.0.0.1:4025"
       }
     },
     "checks": [
       {
         "name": "postgres",
         "status": "ok",
-        "detail": "SELECT 1 in 280ms | server_time=Tue Jun 23 2026 12:09:24 GMT-0300 (Horário Padrão de Brasília)",
-        "timestamp": "2026-06-23T15:09:24.222Z"
+        "detail": "SELECT 1 in 260ms | server_time=Wed Jul 01 2026 08:45:18 GMT-0300 (Horário Padrão de Brasília)",
+        "timestamp": "2026-07-01T11:45:18.555Z"
       },
       {
         "name": "postgres_tables",
         "status": "ok",
-        "detail": "43 public tables",
-        "timestamp": "2026-06-23T15:09:24.259Z"
+        "detail": "47 public tables",
+        "timestamp": "2026-07-01T11:45:18.669Z"
       },
       {
         "name": "redis",
         "status": "warn",
         "detail": "REDIS_URL not configured — Redis disabled",
-        "timestamp": "2026-06-23T15:09:24.259Z"
+        "timestamp": "2026-07-01T11:45:18.670Z"
       },
       {
         "name": "sessions_dir",
         "status": "ok",
         "detail": "C:\\projetos\\ZAPAI-FINAL\\backend\\sessions",
-        "timestamp": "2026-06-23T15:09:24.261Z"
+        "timestamp": "2026-07-01T11:45:18.673Z"
       },
       {
         "name": "logs_dir",
         "status": "ok",
         "detail": "C:\\projetos\\ZAPAI-FINAL\\backend\\logs",
-        "timestamp": "2026-06-23T15:09:24.263Z"
+        "timestamp": "2026-07-01T11:45:18.676Z"
       },
       {
         "name": "uploads_dir",
         "status": "ok",
         "detail": "C:\\projetos\\ZAPAI-FINAL\\backend\\uploads",
-        "timestamp": "2026-06-23T15:09:24.264Z"
+        "timestamp": "2026-07-01T11:45:18.678Z"
       },
       {
         "name": "disk_space",
         "status": "ok",
         "detail": "Windows Host — disk check skipped",
-        "timestamp": "2026-06-23T15:09:24.264Z"
+        "timestamp": "2026-07-01T11:45:18.678Z"
       },
       {
         "name": "memory_heap",
         "status": "ok",
-        "detail": "heap=6MB rss=49MB",
-        "timestamp": "2026-06-23T15:09:24.264Z"
+        "detail": "heap=6MB rss=43MB",
+        "timestamp": "2026-07-01T11:45:18.679Z"
       },
       {
         "name": "memory_system",
         "status": "ok",
         "detail": "Windows Host — system memory check skipped",
-        "timestamp": "2026-06-23T15:09:24.264Z"
+        "timestamp": "2026-07-01T11:45:18.679Z"
       },
       {
         "name": "cpu_usage",
         "status": "ok",
         "detail": "Windows Host — CPU check skipped",
-        "timestamp": "2026-06-23T15:09:24.264Z"
+        "timestamp": "2026-07-01T11:45:18.679Z"
       },
       {
         "name": "backend_http",
-        "status": "ok",
-        "detail": "HTTP 200 in 11ms | has_system=true",
-        "timestamp": "2026-06-23T15:09:24.276Z"
+        "status": "fail",
+        "detail": "Connection refused: connect ECONNREFUSED 127.0.0.1:4025",
+        "timestamp": "2026-07-01T11:45:18.690Z"
       },
       {
         "name": "websocket_route",
-        "status": "ok",
-        "detail": "Socket.IO polling: HTTP 200",
-        "timestamp": "2026-06-23T15:09:24.279Z"
+        "status": "warn",
+        "detail": "WS route error: connect ECONNREFUSED 127.0.0.1:4025",
+        "timestamp": "2026-07-01T11:45:18.693Z"
       },
       {
         "name": "baileys_sessions",
         "status": "ok",
-        "detail": "1/2 sessions with valid auth",
-        "timestamp": "2026-06-23T15:09:24.297Z"
+        "detail": "1/3 sessions with valid auth",
+        "timestamp": "2026-07-01T11:45:18.706Z"
       },
       {
         "name": "pm2_process",
         "status": "warn",
         "detail": "PM2 not available or not running",
-        "timestamp": "2026-06-23T15:09:24.374Z"
+        "timestamp": "2026-07-01T11:45:18.752Z"
       },
       {
         "name": "nginx",
         "status": "ok",
         "detail": "Windows Host — nginx status check skipped",
-        "timestamp": "2026-06-23T15:09:24.374Z"
+        "timestamp": "2026-07-01T11:45:18.752Z"
       },
       {
         "name": "migrations",
         "status": "ok",
-        "detail": "23 migrations applied",
-        "timestamp": "2026-06-23T15:09:24.610Z"
+        "detail": "24 migrations applied",
+        "timestamp": "2026-07-01T11:45:18.860Z"
       }
     ]
   },
-  "frontendServed": true,
-  "websocketRouteOk": true,
+  "frontendServed": false,
+  "websocketRouteOk": false,
   "buildSuccess": true,
   "testsSuccess": true,
   "whatsappSessions": [
+    {
+      "id": "111",
+      "hasAuth": false,
+      "status": "No credentials"
+    },
     {
       "id": "main",
       "hasAuth": false,
@@ -175,15 +180,20 @@
     }
   ],
   "pagesStatus": {
-    "Dashboard": "Homologado",
+    "Dashboard": "Falha",
     "Inbox": "Homologado",
     "Connections": "Homologado",
     "Analytics": "Homologado",
-    "Runtime": "Homologado",
-    "WebSocket": "Homologado",
-    "Mapa": "Homologado",
-    "Performance": "Homologado"
+    "Runtime": "Falha",
+    "WebSocket": "Falha",
+    "Mapa": "Pendente",
+    "Performance": "Pendente"
   },
-  "failures": [],
-  "e2eDiscoverySuccess": true
+  "failures": [
+    "Healthcheck do backend retornou falha estrutural.",
+    "Frontend não responde em localhost:8080: connect ECONNREFUSED 127.0.0.1:8080",
+    "Falha no handshake do Socket.IO: connect ECONNREFUSED 127.0.0.1:4025",
+    "Falha no crawler E2E Playwright: Command failed: npx playwright test tests/ui/discovery-crawler.spec.ts"
+  ],
+  "e2eDiscoverySuccess": false
 }

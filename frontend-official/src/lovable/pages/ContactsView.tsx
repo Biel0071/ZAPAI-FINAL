@@ -1,4 +1,5 @@
-import { AddressBook, ChatCircleDots, Phone, SquaresFour, List, DotsThreeVertical, Tag, ChatCircle, PencilSimple } from "@phosphor-icons/react";
+import { useMemo } from "react";
+import { AddressBook, ChatCircleDots, Phone, SquaresFour, List, DotsThreeVertical, Tag, ChatCircle, PencilSimple, Kanban } from "@phosphor-icons/react";
 import { ContactGrid, type ContactGridItem } from "@/components/contacts/ContactGrid";
 import { ContactSidebar, type ContactSegment } from "@/components/contacts/ContactSidebar";
 import { ChatSearchBar } from "@/components/inbox/ChatSearchBar";
@@ -42,9 +43,9 @@ export interface ContactsViewProps {
   onToggleSelect: (id: string) => void;
   onToggleSelectAll: () => void;
   onBulkUpdate: (action: { status?: string; temperature?: string; addTag?: string; removeTag?: string }) => void;
-  viewMode: "grid" | "list";
-  onViewModeChange: (mode: "grid" | "list") => void;
-  onUpdateContact?: (id: string, payload: { status?: string; lead_temperature?: string; tags?: string[] }) => void;
+  viewMode: "grid" | "list" | "kanban";
+  onViewModeChange: (mode: "grid" | "list" | "kanban") => void;
+  onUpdateContact?: (id: string, payload: { status?: string; lead_temperature?: string; tags?: string[]; funnel_stage?: string }) => void;
 }
 
 export function ContactsView({
@@ -70,6 +71,33 @@ export function ContactsView({
   onUpdateContact,
 }: ContactsViewProps) {
   const allFilteredSelected = viewModel.contacts.length > 0 && viewModel.contacts.every(c => selectedIds.has(c.id));
+
+  const stages = useMemo(() => {
+    const list = Array.from(
+      new Set(
+        viewModel.contacts
+          .map((c: any) => c.funnelStage || "")
+          .filter(Boolean)
+      )
+    ) as string[];
+
+    const standard = ["new_lead", "qualification", "price_sent", "negotiation", "closed", "lost"];
+    standard.forEach(s => {
+      if (!list.includes(s)) list.push(s);
+    });
+    return list;
+  }, [viewModel.contacts]);
+
+  const stageLabels: Record<string, string> = {
+    new_lead: "Novo Lead",
+    qualification: "Em Qualificação",
+    price_sent: "Preço Enviado",
+    negotiation: "Negociação",
+    closed: "Fechamento",
+    lost: "Perdido",
+    meio: "Meio de Funil",
+    fundo: "Fundo (Fechamento)",
+  };
 
   return (
     <div className="page-container section-stack">
@@ -117,6 +145,15 @@ export function ContactsView({
                   title="Visualização em Lista"
                 >
                   <List className="h-4 w-4" />
+                </Button>
+                <Button
+                  variant={viewMode === "kanban" ? "secondary" : "ghost"}
+                  size="icon"
+                  className="h-8 w-8 rounded-lg"
+                  onClick={() => onViewModeChange("kanban")}
+                  title="Painel Kanban CRM"
+                >
+                  <Kanban className="h-4 w-4" />
                 </Button>
               </div>
               <Button variant="outline" className="rounded-xl" onClick={onRefresh}>Atualizar</Button>
@@ -264,8 +301,7 @@ export function ContactsView({
                   <Badge variant="secondary" className="rounded-full">{viewModel.contacts.length} registros</Badge>
                 </div>
               </div>
-              
-              {viewMode === "grid" ? (
+                       {viewMode === "grid" ? (
                 <ContactGrid
                   contacts={viewModel.contacts}
                   onContactClick={onGoToChat}
@@ -274,6 +310,98 @@ export function ContactsView({
                   onToggleSelect={onToggleSelect}
                   onUpdateContact={onUpdateContact}
                 />
+              ) : viewMode === "kanban" ? (
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-4 overflow-x-auto pb-4">
+                  {stages.map((stage) => {
+                    const stageContacts = viewModel.contacts.filter(
+                      (c: any) => (c.funnelStage || "new_lead") === stage
+                    );
+                    return (
+                      <div
+                        key={stage}
+                        className="rounded-2xl border border-border/75 bg-card/65 p-3 min-w-[250px] flex flex-col gap-2 min-h-[500px]"
+                        onDragOver={(e) => e.preventDefault()}
+                        onDrop={(e) => {
+                          e.preventDefault();
+                          const contactId = e.dataTransfer.getData("contactId");
+                          if (contactId && onUpdateContact) {
+                            onUpdateContact(contactId, { funnel_stage: stage });
+                          }
+                        }}
+                      >
+                        <div className="flex items-center justify-between pb-2 border-b border-border/40 mb-1">
+                          <span className="font-bold text-xs capitalize text-foreground">
+                            {stageLabels[stage] || stage}
+                          </span>
+                          <Badge variant="secondary" className="text-[10px] rounded-full">
+                            {stageContacts.length}
+                          </Badge>
+                        </div>
+                        <div className="flex-1 space-y-2 overflow-y-auto max-h-[600px] scrollbar-thin">
+                          {stageContacts.map((contact: any) => {
+                            const hasConv = Boolean(contact.conversationId);
+                            return (
+                              <div
+                                key={contact.id}
+                                draggable={hasConv}
+                                onDragStart={(e) => {
+                                  if (!hasConv) {
+                                    e.preventDefault();
+                                    return;
+                                  }
+                                  e.dataTransfer.setData("contactId", contact.id);
+                                }}
+                                className={`rounded-xl border border-border/50 bg-background/55 p-3 space-y-2 transition-all select-none ${
+                                  hasConv
+                                    ? "cursor-grab active:cursor-grabbing hover:border-primary/45 hover:shadow-sm"
+                                    : "opacity-60 cursor-not-allowed"
+                                }`}
+                              >
+                                <div className="flex items-start justify-between gap-1">
+                                  <div className="min-w-0">
+                                    <h4 className="font-bold text-xs text-foreground truncate">
+                                      {contact.name}
+                                    </h4>
+                                    <p className="text-[10px] text-muted-foreground">{contact.phone}</p>
+                                  </div>
+                                  {!hasConv && (
+                                    <Badge variant="destructive" className="text-[8px] px-1 h-4">
+                                      Sem chat
+                                    </Badge>
+                                  )}
+                                </div>
+                                {contact.lastMessage && (
+                                  <p className="text-[10px] text-muted-foreground line-clamp-2 italic">
+                                    "{contact.lastMessage}"
+                                  </p>
+                                )}
+                                <div className="flex items-center justify-between pt-1 border-t border-border/30">
+                                  <TemperatureBadge temperature={contact.temperature} />
+                                  <div className="flex gap-1">
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      className="h-6 w-6 text-primary hover:bg-primary/10"
+                                      onClick={() => onGoToChat(contact)}
+                                      title="Ir para conversa"
+                                    >
+                                      <ChatCircle className="h-3.5 w-3.5" />
+                                    </Button>
+                                  </div>
+                                </div>
+                              </div>
+                            );
+                          })}
+                          {stageContacts.length === 0 && (
+                            <p className="text-center text-[10px] text-muted-foreground/60 py-8">
+                              Arraste um lead para cá
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
               ) : (
                 <div className="overflow-x-auto rounded-2xl border border-border/70 bg-card/85">
                   <Table>
@@ -392,7 +520,7 @@ export function ContactsView({
                                             ))}
                                           </DropdownMenuSubContent>
                                         </DropdownMenuSub>
-
+ 
                                         <DropdownMenuSub>
                                           <DropdownMenuSubTrigger className="gap-2 text-xs">
                                             <Tag className="h-4 w-4" />

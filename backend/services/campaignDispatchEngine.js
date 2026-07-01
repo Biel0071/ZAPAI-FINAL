@@ -55,6 +55,7 @@ function createCampaignState(campaign) {
     processing: false,
     sessionId: settings.sessionId || null,
     messages: Array.isArray(campaign.messages) ? campaign.messages : [],
+    flowId: settings.flowId || null,
     settings: {
       intervalMs: Math.max(3000, (Number(settings.intervalSeconds) || 10) * 1000),
       pauseEvery: Math.max(1, Number(settings.pauseEvery) || 10),
@@ -65,6 +66,8 @@ function createCampaignState(campaign) {
       maxRetries: Math.max(1, Number(settings.maxRetries) || 3),
       warmupMessages: Math.max(0, Number(settings.warmupMessages) || 5),
       warmupDelayMultiplier: Number(settings.warmupDelayMultiplier) || 3,
+      dailyLimit: settings.dailyLimit ? Number(settings.dailyLimit) : null,
+      hourlyLimit: settings.hourlyLimit ? Number(settings.hourlyLimit) : null,
     },
     metrics: {
       total: contacts.length,
@@ -110,6 +113,67 @@ async function dispatchSingleMessage(state, contact, io) {
     return { success: false, error: 'no_phone' };
   }
 
+  if (state.flowId) {
+    try {
+      const quickReplyService = require('./quickReplyService');
+      const allReplies = await quickReplyService.listQuickReplies();
+      const flow = allReplies.find((item) => item.id === state.flowId);
+
+      if (!flow) {
+        throw new Error(`Flow ${state.flowId} not found`);
+      }
+
+      const outboundQueueService = require('./outboundQueueService');
+      let cumulativeDelayMs = 0;
+      const now = Date.now();
+
+      const steps = flow.steps || [];
+      for (const step of steps) {
+        cumulativeDelayMs += Number(step.delayMs || 0);
+        const scheduledTime = new Date(now + cumulativeDelayMs).toISOString();
+
+        const itemPayload = {
+          phone,
+          sessionId: state.sessionId || 'main',
+          companyId: state.companyId || 'default',
+          text: step.type === 'text' ? step.value : '',
+          mediaType: step.type !== 'text' ? step.type : undefined,
+          mediaPath: step.type !== 'text' ? step.value : undefined,
+          fileName: step.filename,
+          nextAttemptAt: scheduledTime,
+          metadata: {
+            campaignId: state.id,
+            flowId: flow.id,
+            stepId: step.id,
+            isFlowStep: true,
+            source: 'campaign_flow',
+          },
+          actions: step.actions,
+        };
+        await outboundQueueService.enqueue(itemPayload);
+      }
+
+      const deliveryMs = 0;
+      state.sentQueue.push({
+        contact,
+        phone,
+        deliveryMs,
+        at: new Date().toISOString(),
+      });
+      state.metrics.sent += 1;
+      return { success: true, deliveryMs };
+    } catch (err) {
+      state.failedQueue.push({
+        contact,
+        phone,
+        error: err?.message || String(err),
+        at: new Date().toISOString(),
+      });
+      state.metrics.failed += 1;
+      return { success: false, error: err?.message || String(err) };
+    }
+  }
+
   const messageText = selectMessageForContact(state, contact);
   if (!messageText) {
     state.failedQueue.push({ contact, error: 'no_message', at: new Date().toISOString() });
@@ -135,6 +199,34 @@ async function dispatchSingleMessage(state, contact, io) {
       state.failedQueue.push({ contact, error: 'no_session', at: new Date().toISOString() });
       state.metrics.failed += 1;
       return { success: false, error: 'no_session' };
+    }
+
+    // Check hourly and daily limits if set
+    if (state.settings.dailyLimit || state.settings.hourlyLimit) {
+      const { query } = require('../config/database');
+      const sessionId = session.id || state.sessionId || 'main';
+      
+      if (state.settings.hourlyLimit) {
+        const { rows } = await query(
+          `SELECT COUNT(*) FROM messages WHERE session_id = $1 AND from_me = TRUE AND created_at > NOW() - INTERVAL '1 hour'`,
+          [sessionId]
+        );
+        const sentInLastHour = Number(rows[0]?.count || 0);
+        if (sentInLastHour >= state.settings.hourlyLimit) {
+          throw new Error(`Limite de envios por hora atingido para a conexão (${state.settings.hourlyLimit} msgs/hora)`);
+        }
+      }
+      
+      if (state.settings.dailyLimit) {
+        const { rows } = await query(
+          `SELECT COUNT(*) FROM messages WHERE session_id = $1 AND from_me = TRUE AND created_at > NOW() - INTERVAL '24 hours'`,
+          [sessionId]
+        );
+        const sentInLastDay = Number(rows[0]?.count || 0);
+        if (sentInLastDay >= state.settings.dailyLimit) {
+          throw new Error(`Limite de envios diário atingido para a conexão (${state.settings.dailyLimit} msgs/dia)`);
+        }
+      }
     }
 
     // Normalize phone for WhatsApp

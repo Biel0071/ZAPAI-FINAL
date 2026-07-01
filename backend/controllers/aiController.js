@@ -145,7 +145,8 @@ async function status(req, res) {
 async function getAiLogs(req, res) {
   try {
     const store = getStore(req);
-    const logs = await aiLogService.getLogs(store);
+    const sessionId = req.query.sessionId || req.query.session_id || null;
+    const logs = await aiLogService.getLogs(store, sessionId);
     return res.status(200).json({ logs });
   } catch (error) {
     return res.status(500).json({ error: error.message || 'Failed to fetch AI logs.' });
@@ -155,7 +156,8 @@ async function getAiLogs(req, res) {
 async function getAiMetrics(req, res) {
   try {
     const store = getStore(req);
-    const metrics = await aiLogService.getMetrics(store);
+    const sessionId = req.query.sessionId || req.query.session_id || null;
+    const metrics = await aiLogService.getMetrics(store, sessionId);
     return res.status(200).json(metrics);
   } catch (error) {
     return res.status(500).json({ error: error.message || 'Failed to fetch AI metrics.' });
@@ -793,7 +795,60 @@ async function assistantCommand(req, res) {
   }
 }
 
+async function testVoice(req, res) {
+  try {
+    const { text, voiceId, companyId } = req.body;
+    if (!text) {
+      return res.status(400).json({ error: 'Text is required for voice testing.' });
+    }
+    if (!voiceId) {
+      return res.status(400).json({ error: 'Voice ID is required.' });
+    }
+
+    const audioGenerationService = require('../services/audioGenerationService');
+    const resolvedCompanyId = companyId || 'default';
+    
+    // Fetch default settings to get the Elevenlabs api key
+    let dbSettings = null;
+    try {
+      dbSettings = await audioGenerationService.getVoiceSettingsFromDb(resolvedCompanyId);
+    } catch (e) {
+      console.warn('[VOICE_TEST] Could not load DB voice settings:', e.message);
+    }
+
+    const apiKey = dbSettings?.apiKey || process.env.ELEVENLABS_API_KEY;
+    if (!apiKey) {
+      return res.status(400).json({ error: 'ElevenLabs API Key not configured. Please configure ElevenLabs integration in provider settings.' });
+    }
+
+    const customVoiceSettings = {
+      apiKey,
+      voiceId,
+      model: dbSettings?.model || 'eleven_multilingual_v2',
+      stability: dbSettings?.stability ?? 0.5,
+      similarityBoost: dbSettings?.similarityBoost ?? 0.75,
+      style: dbSettings?.style ?? 0.0,
+      useSpeakerBoost: dbSettings?.useSpeakerBoost ?? true,
+    };
+
+    const result = await audioGenerationService.generateVoice({
+      text,
+      companyId: resolvedCompanyId,
+      customVoiceSettings,
+    });
+
+    res.json({
+      success: true,
+      url: result.url,
+    });
+  } catch (err) {
+    console.error('[VOICE_TEST_ERROR]', err);
+    res.status(500).json({ error: err.message });
+  }
+}
+
 module.exports = {
+  testVoice,
   architectFullScan,
   assistantChat,
   applyLearningSuggestion,

@@ -46,6 +46,7 @@ async function generateAIResponse({
   leadAnalysis,
   salesStrategy,
   store,
+  sessionId,
 }) {
   const resolvedAgent = ensureAgent(agent);
 
@@ -69,6 +70,7 @@ async function generateAIResponse({
       name: store?.contact?.name || conversation?.phone || 'Cliente',
       phone: conversation?.phone || 'unknown',
       conversationId: conversation?.id || conversation?.phone || 'unknown',
+      sessionId: sessionId || store?.sessionId || null,
     };
 
     const history = conversationHistory.map(h => ({

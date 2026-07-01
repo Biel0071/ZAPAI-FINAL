@@ -81,7 +81,7 @@ const {
   safeUpdateSessionStatus,
 } = require('./persistence');
 const { logSessionEvent, pushConnectionLog } = require('./logger');
-const { sendMessage } = require('../outbound/senders');
+const { sendMessage, sendAudio } = require('../outbound/senders');
 const { saveMessage } = require('../chat/operations');
 const { activeSessions } = require('../state/registry');
 const contactsEngine = require('../../contactsEngine');
@@ -408,8 +408,10 @@ async function runAIForChat({ chatId, incomingFormattedMessage, session, sock })
   }
 
   const messageText = String(incomingFormattedMessage?.text || '').trim();
+  const messageType = incomingFormattedMessage?.mediaType || incomingFormattedMessage?.type || 'text';
 
-  if (!messageText) {
+  if (!messageText || !isMessageActionable(messageText, messageType)) {
+    console.log(`[WHATSAPP_AI] Skipping AI for non-actionable message (text: "${messageText}", type: "${messageType}").`);
     return null;
   }
 
@@ -445,9 +447,11 @@ async function runAIForChat({ chatId, incomingFormattedMessage, session, sock })
         activePrompt: session.activePrompt,
         contact,
         isGroup: Boolean(chat?.isGroup),
+        conversationSummary: fresh?.summary || chat?.summary || null,
       },
       forceAutoReply: conversationAIEnabled,
       conversationId: fresh?.id || incomingFormattedMessage?.conversationId || null,
+      sessionId: session?.sessionId || DEFAULT_SESSION,
     });
   } catch (error) {
     try {
@@ -485,44 +489,135 @@ async function runAIForChat({ chatId, incomingFormattedMessage, session, sock })
     return null;
   }
 
-  const responseDelayMs = randomDelayFromProfile(agent?.delayProfile, { minMs: 1000, maxMs: 5000 });
-  const typingDelayMs = randomDelayFromProfile(agent?.typingDelayProfile, { minMs: 1000, maxMs: 3000 });
+  const delayProfile = agent?.delayProfile || { minMs: 1000, maxMs: 3000 };
+  const typingDelayProfile = agent?.typingDelayProfile || { minMs: 1000, maxMs: 2500 };
 
-  if (responseDelayMs > 0) {
-    await sleep(responseDelayMs);
-  }
+  const responseDelayMs = Math.floor(Math.random() * (delayProfile.maxMs - delayProfile.minMs + 1)) + delayProfile.minMs;
+  const msPorCaractere = agent?.msPorCaractere || 40;
+  const typingDelayMs = Math.min(
+    Math.max(safeResponse.length * msPorCaractere, typingDelayProfile.minMs),
+    typingDelayProfile.maxMs
+  );
+
+  let mediaPath = null;
+  let mediaType = 'text';
+  let mimeType = null;
+  let responseText = safeResponse;
+  let sent = null;
+
+  let shouldSendVoice = false;
+  let voiceSettings = null;
+  const companyId = process.env.DEFAULT_COMPANY_ID || 'default';
 
   try {
-    await sock.presenceSubscribe(chatId).catch(() => {});
-    await sock.sendPresenceUpdate('composing', chatId).catch(() => {});
-    await sleep(typingDelayMs);
-    await sock.sendPresenceUpdate('paused', chatId).catch(() => {});
-  } catch (presenceError) {
-    console.warn('[WHATSAPP] Humanized typing presence failed:', presenceError?.message || presenceError);
+    const audioGenerationService = require('../../../services/audioGenerationService');
+    const dbVoiceSettings = await audioGenerationService.getVoiceSettingsFromDb(companyId);
+    
+    // Merge agent specific settings with db settings
+    voiceSettings = {
+      ...(dbVoiceSettings || {}),
+      voiceProvider: agent?.voiceProvider || dbVoiceSettings?.voiceProvider || 'default',
+      voiceGender: agent?.voiceGender || dbVoiceSettings?.voiceGender || 'female',
+      voiceId: agent?.voiceId || dbVoiceSettings?.voiceId || '',
+      voiceRule: agent?.voiceRule || dbVoiceSettings?.voiceRule || 'always',
+    };
+
+    const isAgentVoiceEnabled = agent?.voiceEnabled === true;
+    if (isAgentVoiceEnabled) {
+      const voiceRule = voiceSettings.voiceRule;
+      const incomingType = incomingFormattedMessage?.mediaType || incomingFormattedMessage?.type;
+
+      if (voiceRule === 'always') {
+        shouldSendVoice = true;
+      } else if (voiceRule === 'audio_inbound' || voiceRule === 'voice_in') {
+        shouldSendVoice = incomingType === 'audio';
+      } else if (voiceRule === 'smart') {
+        const isAudioInbound = incomingType === 'audio';
+        const isLongResponse = safeResponse.length > 150;
+        const isGreeting = /^(ol[aá]|oi|bom\s+dia|boa\s+tarde|boa\s+noite)/i.test(safeResponse.trim());
+        shouldSendVoice = isAudioInbound || isLongResponse || isGreeting;
+        console.log(`[WHATSAPP_AI] Smart voice rule checked. isAudioInbound: ${isAudioInbound}, isLongResponse: ${isLongResponse}, isGreeting: ${isGreeting}. shouldSendVoice: ${shouldSendVoice}`);
+      }
+    }
+  } catch (voiceCheckErr) {
+    console.warn('[WHATSAPP_AI] Voice settings check failed:', voiceCheckErr.message);
   }
 
-  const sent = await sendMessage(sock, chatId, safeResponse);
+  if (shouldSendVoice && voiceSettings) {
+    try {
+      console.log(`[WHATSAPP_AI] Voice is enabled. Generating audio reply for chat: ${chatId}`);
+      // 1. Emit presence "recording"
+      await sock.presenceSubscribe(chatId).catch(() => {});
+      await sock.sendPresenceUpdate('recording', chatId).catch(() => {});
+
+      // 2. Rewrite text to spoken tone
+      const spokenText = await rewriteToSpokenTone(safeResponse, companyId);
+      responseText = spokenText;
+
+      // 3. Generate voice note (cached or fresh)
+      const audioGenerationService = require('../../../services/audioGenerationService');
+      const voiceResult = await audioGenerationService.generateVoice({
+        text: spokenText,
+        companyId,
+        customVoiceSettings: voiceSettings
+      });
+
+      if (voiceResult && voiceResult.url) {
+        // 4. Send as voice note
+        sent = await sendAudio(sock, chatId, voiceResult.filePath, true, 'audio/ogg; codecs=opus');
+        mediaPath = voiceResult.url;
+        mediaType = 'audio';
+        mimeType = 'audio/ogg; codecs=opus';
+      } else {
+        throw new Error('Audio generation failed to return a URL.');
+      }
+    } catch (voiceErr) {
+      console.error('[WHATSAPP_AI] Voice pipeline failed, falling back to text. Error:', voiceErr.message);
+      // Fallback: send text
+      await sock.presenceSubscribe(chatId).catch(() => {});
+      await sock.sendPresenceUpdate('composing', chatId).catch(() => {});
+      await sleep(typingDelayMs || 1500);
+      sent = await sendMessage(sock, chatId, safeResponse);
+    } finally {
+      await sock.sendPresenceUpdate('paused', chatId).catch(() => {});
+    }
+  } else {
+    // Normal text path
+    if (responseDelayMs > 0) {
+      await sleep(responseDelayMs);
+    }
+    try {
+      await sock.presenceSubscribe(chatId).catch(() => {});
+      await sock.sendPresenceUpdate('composing', chatId).catch(() => {});
+      await sleep(typingDelayMs);
+      await sock.sendPresenceUpdate('paused', chatId).catch(() => {});
+    } catch (presenceError) {
+      console.warn('[WHATSAPP] Humanized typing presence failed:', presenceError?.message || presenceError);
+    }
+    sent = await sendMessage(sock, chatId, safeResponse);
+  }
 
   const persisted = await enterpriseMessageService.persistInboundMessage({
-    companyId: process.env.DEFAULT_COMPANY_ID || 'default',
+    companyId,
     fromMe: true,
-    mediaPath: null,
-    mediaType: 'text',
+    mediaPath,
+    mediaType,
+    mimeType,
     name: session?.phone || 'AI',
     phone: normalizePhone(chatId),
     sessionId: session?.sessionId || DEFAULT_SESSION,
     status: 'sent',
-    text: safeResponse,
+    text: responseText,
     timestamp: new Date().toISOString(),
-    type: 'text',
+    type: mediaType,
     conversationId: fresh?.id || incomingFormattedMessage?.conversationId || null,
   });
+
   const savedOutgoingMessage = persisted?.message || null;
 
   console.log(`[TEMP_LOG] message.sent - CONVERSATION_ID: "${savedOutgoingMessage?.conversationId || persisted?.conversation?.id || ''}", PHONE: "${normalizePhone(chatId)}", REMOTE_JID: "${chatId}", SESSION_ID: "${session?.sessionId || ''}", MESSAGE_ID: "${savedOutgoingMessage?.id || ''}", SOURCE: "ai_reply"`);
 
   if (!savedOutgoingMessage?.id) {
-    // eslint-disable-next-line no-console
     console.error('ERRO: mensagem sem ID');
     return null;
   }
@@ -530,14 +625,14 @@ async function runAIForChat({ chatId, incomingFormattedMessage, session, sock })
   const outgoingMessage = {
     chatId,
     conversationId: savedOutgoingMessage.conversationId || persisted?.conversation?.id || null,
-    content: safeResponse,
+    content: responseText,
     fromMe: true,
     id: savedOutgoingMessage.id || sent?.key?.id || `ai-${Date.now()}`,
     status: savedOutgoingMessage.status || 'sent',
-    text: safeResponse,
+    text: responseText,
     timestamp: savedOutgoingMessage.timestamp || savedOutgoingMessage.createdAt || Date.now(),
-    type: 'text',
-    url: null,
+    type: mediaType,
+    url: mediaPath,
   };
 
   addMessageToRealtimeStore(session, outgoingMessage);
@@ -545,8 +640,8 @@ async function runAIForChat({ chatId, incomingFormattedMessage, session, sock })
   (session.io || global.io)?.emit('ai_response', {
     ...outgoingMessage,
     confidence: aiResult?.confidence,
-    response: safeResponse,
-    content: safeResponse,
+    response: responseText,
+    content: responseText,
     isAI: true,
     sessionId: session?.sessionId || DEFAULT_SESSION,
     phone: normalizePhone(chatId),
@@ -1465,7 +1560,7 @@ async function createStableSession({
         );
 
         if (!result?.automationHandled) {
-          await runAIForChat({
+          await runAIForChatDebounced({
             chatId: formattedRealtimeMessage.chatId,
             incomingFormattedMessage: formattedRealtimeMessage,
             session,
@@ -1659,6 +1754,13 @@ async function createStableSession({
       }
       if (typeof update.archived === 'boolean') {
         store.chats[chatId].archived = update.archived;
+        // Sync to database
+        const conversationRepository = require('../../../repositories/conversationRepository');
+        conversationRepository.updateConversationState(chatId, {
+          status: update.archived ? 'archived' : 'active'
+        }).catch((err) => {
+          console.error('[WHATSAPP_SYNC] Failed to sync archive state to database:', err.message);
+        });
       }
     }
   });
@@ -1814,6 +1916,169 @@ function scanLidMapping(sockInstance) {
         });
       }
     }
+  }
+}
+
+const aiDebounceTimers = new Map();
+const aiDebounceMessages = new Map();
+
+function isMessageActionable(text, type) {
+  if (type === 'sticker') return false;
+  if (!text) return false;
+  
+  const cleanText = text.trim().toLowerCase();
+  if (cleanText === '') return false;
+
+  const nonActionableWords = [
+    'ok', 'blz', 'valeu', 'joinha', 'show', 'obg', 'tudo bem',
+    'tbm', 'dnd', 'joia', 'vlw', 'sim', 'nao', 'não', 'obrigado', 'obrigada'
+  ];
+  if (nonActionableWords.includes(cleanText)) return false;
+
+  const hasAlphanumeric = /[a-zA-Z0-9]/.test(cleanText);
+  if (!hasAlphanumeric) {
+    return false;
+  }
+
+  return true;
+}
+
+async function runAIForChatDebounced({ chatId, incomingFormattedMessage, session, sock }) {
+  const key = `${session.sessionId}:${chatId}`;
+  const currentText = String(incomingFormattedMessage?.text || '').trim();
+  if (!currentText) return;
+
+  if (!aiDebounceMessages.has(key)) {
+    aiDebounceMessages.set(key, []);
+  }
+  aiDebounceMessages.get(key).push(incomingFormattedMessage);
+
+  if (aiDebounceTimers.has(key)) {
+    clearTimeout(aiDebounceTimers.get(key));
+  }
+
+  const timer = setTimeout(async () => {
+    aiDebounceTimers.delete(key);
+    const messages = aiDebounceMessages.get(key) || [];
+    aiDebounceMessages.delete(key);
+
+    if (messages.length === 0) return;
+
+    const concatenatedText = messages.map(m => m.text).join('\n');
+    const lastMessage = messages[messages.length - 1];
+
+    const mergedMessage = {
+      ...lastMessage,
+      text: concatenatedText,
+    };
+
+    try {
+      await runAIForChat({
+        chatId,
+        incomingFormattedMessage: mergedMessage,
+        session,
+        sock
+      });
+    } catch (err) {
+      console.error('[DEBOUNCED AI] Failed to run AI for chat:', chatId, err.message);
+    }
+  }, 3500);
+
+  aiDebounceTimers.set(key, timer);
+}
+
+const IV_LENGTH = 16;
+function getEncryptionKey() {
+  const rawKey = process.env.ENCRYPTION_KEY || '';
+  return require('crypto').createHash('sha256').update(rawKey).digest();
+}
+
+function decrypt(text) {
+  if (!text) return '';
+  if (!text.includes(':')) {
+    return text;
+  }
+  const currentKey = getEncryptionKey();
+  try {
+    const parts = text.split(':');
+    const iv = Buffer.from(parts.shift(), 'hex');
+    const encryptedText = Buffer.from(parts.join(':'), 'hex');
+    const decipher = require('crypto').createDecipheriv('aes-256-cbc', currentKey, iv);
+    let decrypted = decipher.update(encryptedText);
+    decrypted = Buffer.concat([decrypted, decipher.final()]);
+    return decrypted.toString();
+  } catch (err) {
+    try {
+      const legacyKey = require('crypto').createHash('sha256').update(process.env.JWT_SECRET || 'ZAPFLOW_SECURE_SALT_KEY_2026').digest();
+      const parts = text.split(':');
+      const iv = Buffer.from(parts.shift(), 'hex');
+      const encryptedText = Buffer.from(parts.join(':'), 'hex');
+      const decipher = require('crypto').createDecipheriv('aes-256-cbc', legacyKey, iv);
+      let decrypted = decipher.update(encryptedText);
+      decrypted = Buffer.concat([decrypted, decipher.final()]);
+      return decrypted.toString();
+    } catch (legacyErr) {
+      return text;
+    }
+  }
+}
+
+function resolveProviderBaseUrl(providerId) {
+  if (providerId === 'gemini') return 'https://generativelanguage.googleapis.com/v1beta/openai';
+  if (providerId === 'groq') return 'https://api.groq.com/openai/v1';
+  if (providerId === 'deepseek') return 'https://api.deepseek.com/v1';
+  if (providerId === 'openrouter') return 'https://openrouter.ai/api/v1';
+  if (providerId === 'ollama') return 'http://localhost:11434/v1';
+  return 'https://api.openai.com/v1';
+}
+
+async function rewriteToSpokenTone(text, companyId) {
+  try {
+    const axios = require('axios');
+    const { query } = require('../../../config/database');
+    const { rows } = await query(
+      `SELECT * FROM provider_keys WHERE tenant_id = $1 AND enabled = TRUE LIMIT 1`,
+      [companyId || 'default']
+    );
+    if (rows.length === 0) return text;
+    const dbProvider = rows[0];
+    const apiKey = decrypt(dbProvider.api_key);
+    const model = dbProvider.model || 'gpt-4o-mini';
+    const providerId = dbProvider.provider.toLowerCase();
+
+    if (providerId !== 'openai' && providerId !== 'google' && providerId !== 'gemini' && providerId !== 'groq' && providerId !== 'deepseek') {
+      return text;
+    }
+
+    const baseURL = resolveProviderBaseUrl(providerId);
+
+    const response = await axios.post(
+      `${baseURL}/chat/completions`,
+      {
+        model,
+        messages: [
+          {
+            role: 'system',
+            content: 'Você é um assistente de vendas humanizado. Sua tarefa é reescrever o texto a seguir para um tom falado, natural, coloquial e humanizado, como se estivesse gravando um áudio rápido, dinâmico e direto no WhatsApp. Remova qualquer formatação markdown (como negritos ou itálicos), não use hashtags, evite emojis e não use saudações formais.'
+          },
+          { role: 'user', content: text }
+        ],
+        temperature: 0.7,
+        max_tokens: 300,
+      },
+      {
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          'Content-Type': 'application/json',
+        },
+        timeout: 10000,
+      }
+    );
+    const rewritten = response.data?.choices?.[0]?.message?.content;
+    return rewritten ? rewritten.trim() : text;
+  } catch (err) {
+    console.warn('[WHATSAPP_AI] Failed to rewrite text for voice, using original text:', err.message);
+    return text;
   }
 }
 

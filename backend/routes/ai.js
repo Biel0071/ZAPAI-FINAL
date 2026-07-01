@@ -52,6 +52,7 @@ router.get('/ai/code-curation', aiController.codeCuration);
 router.post('/ai/run-tests', aiController.runAITests);
 router.post('/ai/log-error', aiController.logFrontendError);
 router.get('/ai/error-logs', aiController.getFrontendErrorLogs);
+router.post('/ai/voices/test', aiController.testVoice);
 
 // Conversation analysis endpoint used by frontend lead panel
 router.post('/ai/analyze-conversation', async (req, res) => {

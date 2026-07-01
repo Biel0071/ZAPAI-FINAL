@@ -27,6 +27,25 @@ router.get('/config/ai/pipeline-logs', aiConfigController.getPipelineLogs);
 router.get('/config/user-providers', aiConfigController.getUserProviders);
 router.post('/config/user-providers', aiConfigController.saveUserProvider);
 
+router.post('/config/ai/restart', async (req, res) => {
+  try {
+    const aiService = require('../services/ai.service');
+    const aiAgentService = require('../ai-agents/services/aiAgentService');
+
+    if (typeof aiService.clearResponseCache === 'function') {
+      aiService.clearResponseCache();
+    }
+
+    if (typeof aiAgentService.resetCache === 'function') {
+      aiAgentService.resetCache();
+    }
+
+    return res.status(200).json({ success: true, message: 'AI restarted successfully.' });
+  } catch (error) {
+    return res.status(500).json({ success: false, error: error.message });
+  }
+});
+
 router.get('/queue', aiConfigController.getQueue);
 router.post('/queue/process', aiConfigController.processQueue);
 

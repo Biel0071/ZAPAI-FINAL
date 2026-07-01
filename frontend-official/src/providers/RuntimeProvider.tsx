@@ -179,7 +179,7 @@ export function RuntimeProvider({ children }: { children: ReactNode }) {
     const timer = setTimeout(() => {
       useAppStore.getState().updateTypingStatus(conversationId, false);
       typingTimersRef.current.delete(conversationId);
-    }, 15000);
+    }, 10000); // 10s timeout
     typingTimersRef.current.set(conversationId, timer);
   }, [clearTypingTimeout]);
 
@@ -529,9 +529,24 @@ export function RuntimeProvider({ children }: { children: ReactNode }) {
         const conversationId = resolveConversationIdForRealtimeMessage(incoming, store.conversations);
         if (!conversationId) return;
 
-        // Clear typing status immediately
+        // Clear typing status immediately for UUID, phone and chatId
         store.updateTypingStatus(conversationId, false);
         clearTypingTimeout(conversationId);
+        
+        if (incoming.chatId) {
+          store.updateTypingStatus(incoming.chatId, false);
+          clearTypingTimeout(incoming.chatId);
+          const cleanChatId = incoming.chatId.replace(/@s\.whatsapp\.net$/i, "");
+          store.updateTypingStatus(cleanChatId, false);
+          clearTypingTimeout(cleanChatId);
+        }
+        if (incoming.phone) {
+          store.updateTypingStatus(incoming.phone, false);
+          clearTypingTimeout(incoming.phone);
+          const cleanPhone = incoming.phone.replace(/\D/g, "");
+          store.updateTypingStatus(cleanPhone, false);
+          clearTypingTimeout(cleanPhone);
+        }
 
         console.log(`[INBOX REALTIME] [STORE_TARGET] Setting store target for New message: conversationId=${conversationId}`);
         const currentConv = store.conversations.find((c) => String(c.id) === String(conversationId));
@@ -618,13 +633,31 @@ export function RuntimeProvider({ children }: { children: ReactNode }) {
       },
 
       onTypingStatus: (payload) => {
-        const { conversationId, isTyping } = payload;
+        const { conversationId, phone, isTyping } = payload;
         if (!conversationId) return;
-        useAppStore.getState().updateTypingStatus(conversationId, isTyping);
+        
+        const store = useAppStore.getState();
+        const resolvedId = resolveConversationIdForRealtimeMessage(
+          { conversationId, phone, remoteJid: conversationId },
+          store.conversations
+        ) || conversationId;
+
+        // Update for both resolved UUID and raw ID (for safety/backward compatibility)
+        store.updateTypingStatus(resolvedId, isTyping);
+        if (resolvedId !== conversationId) {
+          store.updateTypingStatus(conversationId, isTyping);
+        }
+        
         if (isTyping) {
-          setTypingTimeout(conversationId);
+          setTypingTimeout(resolvedId);
+          if (resolvedId !== conversationId) {
+            setTypingTimeout(conversationId);
+          }
         } else {
-          clearTypingTimeout(conversationId);
+          clearTypingTimeout(resolvedId);
+          if (resolvedId !== conversationId) {
+            clearTypingTimeout(conversationId);
+          }
         }
       },
     });

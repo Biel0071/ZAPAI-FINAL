@@ -3,6 +3,9 @@ const aiLogService = require('./aiLogService');
 const { getActivePrompt } = require('../config/promptManager');
 const { DEFAULT_SYSTEM_PROMPT } = require('../config/basePrompt');
 
+const responseCache = new Map();
+const RESPONSE_CACHE_TTL_MS = 60 * 1000;
+
 function resolveProviderBaseUrl(providerId) {
   if (providerId === 'gemini') return 'https://generativelanguage.googleapis.com/v1beta/openai';
   if (providerId === 'groq') return 'https://api.groq.com/openai/v1';
@@ -183,67 +186,97 @@ function compileSystemPrompt(agent, store, contact = null) {
 
   // 1. IDENTIDADE DO ATENDENTE
   let compiled = `[IDENTIDADE DO ATENDENTE]\n`;
-  compiled += `- Nome do Atendente: ${agentName}\n`;
+  compiled += `- Nome: ${agentName}\n`;
   compiled += `- Cargo/Setor: ${sector}\n`;
-  compiled += `- Objetivo do Atendente: ${objective}\n`;
+  compiled += `- Objetivo: ${objective}\n`;
+  compiled += `\n`;
+
+  // 2. TOM/PERSONALIDADE
+  compiled += `[TOM/PERSONALIDADE]\n`;
   if (personality) {
-    compiled += `- Instruções/Personalidade: ${personality}\n`;
+    compiled += `${personality}\n`;
+  } else {
+    compiled += `Atendimento amigável, direto, simpático e profissional.\n`;
   }
   compiled += `\n`;
 
-  // 1b. DADOS DO CLIENTE
+  // 3. DADOS DO CLIENTE
   if (contact) {
     compiled += `[DADOS DO CLIENTE]\n`;
     compiled += `- Nome do Cliente: ${contact.name || 'Cliente'}\n`;
     compiled += `- Telefone/WhatsApp do Cliente: ${contact.phone || ''}\n`;
-    if (contact.funnelStage) compiled += `- Estagio atual do funil: ${contact.funnelStage}\n`;
-    if (contact.nextAction) compiled += `- Proxima acao recomendada: ${contact.nextAction}\n`;
-    if (contact.leadAnalysis?.intent) compiled += `- Intencao atual: ${contact.leadAnalysis.intent}\n`;
+    if (contact.funnelStage) compiled += `- Estágio atual do funil: ${contact.funnelStage}\n`;
+    if (contact.nextAction) compiled += `- Próxima ação recomendada: ${contact.nextAction}\n`;
+    if (contact.leadAnalysis?.intent) compiled += `- Intenção atual: ${contact.leadAnalysis.intent}\n`;
     if (contact.leadAnalysis?.lead_temperature) compiled += `- Temperatura do lead: ${contact.leadAnalysis.lead_temperature}\n`;
     if (contact.salesStrategy?.goal) compiled += `- Objetivo comercial desta resposta: ${contact.salesStrategy.goal}\n`;
     compiled += `\n`;
   }
 
-  // 2. CONFIGURAÇÃO DA EMPRESA
-  compiled += `[CONFIGURAÇÃO DA EMPRESA]\n`;
-  if (agent?.company) {
-    compiled += `- Empresa: ${agent.company}\n`;
-  } else {
-    compiled += `- Empresa: Depósito Vista Alegre\n`;
-  }
-  if (agent?.companyDescription) {
-    compiled += `- Descrição da Empresa: ${agent.companyDescription}\n`;
-  } else {
-    compiled += `- Descrição da Empresa: O Depósito Vista Alegre atua no mercado de materiais de construção.\n`;
-  }
-  if (agent?.products) {
-    compiled += `- Produtos/Tabela de Preços:\n${agent.products}\n`;
-  }
-  if (agent?.services) {
-    compiled += `- Serviços:\n${agent.services}\n`;
-  }
-  if (agent?.faq) {
-    compiled += `- FAQ (Dúvidas Frequentes):\n${agent.faq}\n`;
-  }
-  if (agent?.policies) {
-    compiled += `- Políticas da Empresa: ${agent.policies}\n`;
+  // 4. CONTEXTO DA EMPRESA
+  compiled += `[CONTEXTO DA EMPRESA]\n`;
+  const companyName = agent?.company || 'Depósito Vista Alegre';
+  const companyDesc = agent?.companyDescription || 'O Depósito Vista Alegre atua no mercado de materiais de construção.';
+  const policies = agent?.policies || '';
+  compiled += `- Nome da Empresa: ${companyName}\n`;
+  compiled += `- Descrição da Empresa: ${companyDesc}\n`;
+  if (policies) {
+    compiled += `- Políticas: ${policies}\n`;
   }
   compiled += `\n`;
 
-  // 3. REGRAS CUSTOMIZADAS E MEMÓRIA
-  compiled += `[REGRAS E MEMÓRIA]\n`;
+  // 5. PRODUTOS/SERVIÇOS
+  compiled += `[PRODUTOS/SERVIÇOS]\n`;
+  let hasProductsOrServices = false;
+  if (agent?.products) {
+    compiled += `Produtos/Tabela de Preços:\n${agent.products}\n`;
+    hasProductsOrServices = true;
+  }
+  if (agent?.services) {
+    compiled += `Serviços:\n${agent.services}\n`;
+    hasProductsOrServices = true;
+  }
+  if (!hasProductsOrServices) {
+    compiled += `Nenhum produto ou serviço específico configurado.\n`;
+  }
+  compiled += `\n`;
+
+  // 6. FAQ & DÚVIDAS FREQUENTES
+  compiled += `[FAQ & DÚVIDAS FREQUENTES]\n`;
+  if (agent?.faq) {
+    compiled += `${agent.faq}\n`;
+  } else {
+    compiled += `Nenhuma dúvida cadastrada no FAQ.\n`;
+  }
+  compiled += `\n`;
+
+  // 7. REGRAS DE NEGÓCIO CUSTOMIZADAS
+  compiled += `[REGRAS DE NEGÓCIO CUSTOMIZADAS]\n`;
   if (agent?.rules) {
     compiled += `- Regras Customizadas: ${agent.rules}\n`;
   }
+  const businessHoursSettings = store?.aiConfig?.businessHours || {};
+  compiled += `- Horário de Funcionamento: de ${businessHoursSettings.open || '07:00'} às ${businessHoursSettings.close || '18:00'}\n`;
+  if (agent?.hours) {
+    compiled += `- Instruções de Horários: ${agent.hours}\n`;
+  }
+  compiled += `\n`;
+
+  // 8. MEMÓRIA
+  compiled += `[MEMÓRIA DO ATENDENTE E CONTEXTO]\n`;
+  const conversationSummary = store?.conversationSummary || null;
+  if (conversationSummary) {
+    compiled += `- Resumo Geral da Conversa (Contexto Histórico): ${conversationSummary}\n`;
+  }
   const memorySettings = store?.aiConfig?.memorySettings || {};
-  compiled += `- Memoria Ativa: ${memorySettings.enabled !== false ? 'Sim' : 'Nao'}\n`;
+  compiled += `- Memória Ativa: ${memorySettings.enabled !== false ? 'Sim' : 'Não'}\n`;
   const memoryContext = contact?.memoryContext;
   if (memorySettings.enabled !== false && memoryContext) {
-    if (memoryContext.summary) compiled += `- Resumo acumulado: ${memoryContext.summary}\n`;
-    if (memoryContext.intent) compiled += `- Intencao lembrada: ${memoryContext.intent}\n`;
+    if (memoryContext.summary) compiled += `- Resumo acumulado do cliente: ${memoryContext.summary}\n`;
+    if (memoryContext.intent) compiled += `- Intenção lembrada: ${memoryContext.intent}\n`;
     if (memoryContext.sentiment) compiled += `- Sentimento percebido: ${memoryContext.sentiment}\n`;
     if (memoryContext.tags?.length) compiled += `- Marcadores lembrados: ${memoryContext.tags.join(', ')}\n`;
-    if (memoryContext.prefersAudio) compiled += '- Preferencia: cliente demonstra preferencia por audio.\n';
+    if (memoryContext.prefersAudio) compiled += '- Preferência: cliente demonstra preferência por áudio.\n';
     const rememberedHistory = Array.isArray(memoryContext.history) ? memoryContext.history.slice(-8) : [];
     if (rememberedHistory.length) {
       compiled += '- Contexto recente consolidado:\n';
@@ -253,27 +286,37 @@ function compileSystemPrompt(agent, store, contact = null) {
     }
   }
   if (agent?.memory) {
-    compiled += `- Memoria do Atendente: ${agent.memory}\n`;
+    compiled += `- Memória Fixa do Atendente: ${agent.memory}\n`;
   }
   compiled += `\n`;
 
-  // 4. HORÁRIOS
-  compiled += `[HORÁRIOS]\n`;
-  const businessHoursSettings = store?.aiConfig?.businessHours || {};
-  compiled += `- Horário de Funcionamento: de ${businessHoursSettings.open || '07:00'} às ${businessHoursSettings.close || '18:00'}\n`;
-  if (agent?.hours) {
-    compiled += `- Instruções de Horários: ${agent.hours}\n`;
+  // 9. DIRETRIZES DE TRANSBORDO HUMANO
+  compiled += `[DIRETRIZES DE TRANSBORDO HUMANO]\n`;
+  if (agent?.escalationActive) {
+    compiled += `- Transbordo Ativo: Sim\n`;
+    compiled += `- Modo de Escalação: ${agent.escalationMode || 1}\n`;
+    if (agent.escalationPhone) compiled += `- Telefone de Transbordo: ${agent.escalationPhone}\n`;
+    if (agent.escalationWhatsapp) compiled += `- WhatsApp de Transbordo: ${agent.escalationWhatsapp}\n`;
+    if (agent.escalationTriggers && agent.escalationTriggers.length > 0) {
+      compiled += `- Gatilhos de Escalação: ${agent.escalationTriggers.join(', ')}\n`;
+    }
+    compiled += `- Regra: Se o cliente acionar algum gatilho de transbordo, solicitar atendimento humano ou se você não souber responder, solicite transbordo humano imediatamente.\n`;
+  } else {
+    compiled += `- Transbordo Ativo: Não\n`;
+    compiled += `- Regra: Se o cliente insistir muito em falar com um humano, informe que no momento o canal é automatizado mas que a equipe analisará o caso.\n`;
   }
   compiled += `\n`;
 
-  // 5. DIRETRIZES GLOBAIS DE ATENDIMENTO
+  // 10. DIRETRIZES GLOBAIS DE ATENDIMENTO
   compiled += `[DIRETRIZES GLOBAIS DE ATENDIMENTO]\n`;
-  compiled += `- Responda sempre em português brasileiro de forma direta, simpática e profissional.\n`;
-  compiled += `- Nunca mencione que você é um robô ou IA, a menos que seja estritamente necessário para transbordo.\n`;
-  compiled += `- Se não souber a informação, ofereça transferir para um atendente humano.\n`;
-  compiled += '- Continue o atendimento do ponto atual; nao reinicie com saudacao se ja existe historico.\n';
-  compiled += '- Nao repita perguntas que o cliente ja respondeu. Use quantidades, produtos e preferencias presentes no contexto.\n';
-  compiled += '- Siga a proxima acao do funil sem inventar dados, precos ou condicoes ausentes.\n';
+  compiled += `- Sempre responda em português brasileiro de forma natural, calorosa, empática, simpática e profissional.\n`;
+  compiled += `- Use uma variedade de palavras e expressões para evitar respostas repetitivas ou mecânicas. Adapte o tom ao humor e estilo de escrita do cliente.\n`;
+  compiled += `- Sinta-se livre para conversar sobre assuntos gerais ou saudações do dia a dia, mantendo um diálogo agradável e prestativo, mesmo que as respostas exatas não estejam descritas no prompt.\n`;
+  compiled += `- Nunca mencione que você é um robô ou inteligência artificial, a menos que seja estritamente necessário para realizar o transbordo humano.\n`;
+  compiled += `- Se o cliente solicitar atendimento humano ou se a IA não souber responder sobre preços ou condições críticas que você não tem acesso, acione o transbordo imediatamente.\n`;
+  compiled += `- Continue o atendimento do ponto atual; não reinicie com saudações repetidas se já existe histórico.\n`;
+  compiled += `- Não repita perguntas que o cliente já respondeu. Use as quantidades, produtos e preferências presentes no contexto.\n`;
+  compiled += `- Seja flexível e criativo nas respostas gerais, mas evite inventar preços específicos, prazos de entrega ou condições financeiras que não estejam configurados no seu contexto.\n`;
 
   return compiled.trim();
 }
@@ -496,7 +539,11 @@ async function testAIConnection({ store, providerId, model, message, prompt, age
     message,
     prompt: fullPrompt,
     maxTokens: Number(store?.aiConfig?.advancedAISettings?.maxTokens) || 500,
-    temperature: typeof matchedAgent?.temperature === 'number' ? matchedAgent.temperature : Number(store?.aiConfig?.advancedAISettings?.temperature) || 0.6,
+    temperature: typeof matchedAgent?.temperature === 'number'
+      ? matchedAgent.temperature
+      : (store?.aiConfig?.advancedAISettings && typeof store.aiConfig.advancedAISettings.temperature === 'number'
+         ? store.aiConfig.advancedAISettings.temperature
+         : 0.6),
     timeoutMs: 45000,
   });
   result.fullPrompt = fullPrompt;
@@ -589,6 +636,27 @@ async function processAI({ contact, history, message, store, agentName, companyI
   }
 
   const systemPrompt = compileSystemPrompt(resolvedAgent, store, contact);
+  const slicedHistory = Array.isArray(history) ? history.slice(-8) : [];
+
+  // Response Caching (60s TTL)
+  const historyHashString = slicedHistory.map(h => `${h.role}:${h.content}`).join('|');
+  const cacheKeySource = `${contact.phone || 'unknown'}:${message || ''}:${historyHashString}:${systemPrompt}`;
+  const cacheKey = crypto.createHash('md5').update(cacheKeySource).digest('hex');
+
+  // Clean up expired cache items
+  for (const [k, v] of responseCache.entries()) {
+    if (Date.now() - v.timestamp > RESPONSE_CACHE_TTL_MS) {
+      responseCache.delete(k);
+    }
+  }
+
+  const cached = responseCache.get(cacheKey);
+  if (cached && (Date.now() - cached.timestamp < RESPONSE_CACHE_TTL_MS)) {
+    console.log(`[AI SERVICE] Cache hit for message: "${message.substring(0, 30)}..." from contact: ${contact.phone}`);
+    const hitResult = { ...cached.result };
+    hitResult.responseTimeMs = Date.now() - startedAt;
+    return hitResult;
+  }
 
   const agentTemperature = resolvedAgent?.temperature;
   try {
@@ -599,7 +667,7 @@ async function processAI({ contact, history, message, store, agentName, companyI
 
     const messages = [
       { role: 'system', content: systemPrompt },
-      ...history.map((h) => ({
+      ...slicedHistory.map((h) => ({
         role: h.role === 'assistant' ? 'assistant' : 'user',
         content: h.content || '',
       })),
@@ -609,7 +677,9 @@ async function processAI({ contact, history, message, store, agentName, companyI
     const maxTokens = Number(store.aiConfig.advancedAISettings?.maxTokens) || 600;
     const temperature = typeof agentTemperature === 'number'
       ? agentTemperature
-      : (Number(store.aiConfig.advancedAISettings?.temperature) || 0.6);
+      : (store.aiConfig?.advancedAISettings && typeof store.aiConfig.advancedAISettings.temperature === 'number'
+         ? store.aiConfig.advancedAISettings.temperature
+         : 0.6);
 
     if (providerId === 'claude') {
       // Claude Anthropic API
@@ -715,11 +785,12 @@ async function processAI({ contact, history, message, store, agentName, companyI
         promptTokens,
         completionTokens,
         totalTokens,
+        sessionId: contact.sessionId || store?.sessionId || null,
       },
       store
     );
 
-    return {
+    const finalResult = {
       intent: 'information',
       leadScore: 0.5,
       reply,
@@ -732,6 +803,13 @@ async function processAI({ contact, history, message, store, agentName, companyI
       totalTokens,
       agentName: resolvedAgent?.name || agentName || 'Camila',
     };
+
+    responseCache.set(cacheKey, {
+      timestamp: Date.now(),
+      result: finalResult
+    });
+
+    return finalResult;
   } catch (error) {
     const errorMsg = error.response?.data?.error?.message || error.message;
     console.error(`[AI SERVICE] API Error calling ${providerId}:`, errorMsg);
@@ -749,6 +827,7 @@ async function processAI({ contact, history, message, store, agentName, companyI
           promptTokens: 0,
           completionTokens: 0,
           totalTokens: 0,
+          sessionId: contact.sessionId || store?.sessionId || null,
         },
         store
       )
@@ -758,5 +837,10 @@ async function processAI({ contact, history, message, store, agentName, companyI
   }
 }
 
-module.exports = { processAI, testAIConnection, testProviderConnection, getAIIntegrationStatus };
+function clearResponseCache() {
+  responseCache.clear();
+  console.log('[AI SERVICE] Response cache cleared successfully.');
+}
+
+module.exports = { processAI, testAIConnection, testProviderConnection, getAIIntegrationStatus, clearResponseCache };
 
