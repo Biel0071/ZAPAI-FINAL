@@ -3,7 +3,7 @@
 ## 📋 PRÉ-DEPLOYMENT (Antes de ligar)
 
 ### 1️⃣ Preparar Infraestrutura VPS
-- [ ] VPS Ubuntu 22.04 LTS provisionada
+- [ ] VPS Linux (Ubuntu 22.04/24.04, Debian 12, AlmaLinux 8/9, Rocky Linux, RHEL ou CentOS Stream)
 - [ ] SSH acesso confirmado (root@209.50.229.68)
 - [ ] 50GB+ disco disponível
 - [ ] 4GB+ RAM (recomendado 8GB)
@@ -11,9 +11,9 @@
 
 ### 2️⃣ Clonar Projeto
 ```bash
-cd /tmp
-git clone https://github.com/SEU-REPO/zapai-final.git
-cd zapai-final
+cd /opt
+git clone https://github.com/Biel0071/ZAPAI-FINAL.git zapai
+cd zapai
 ```
 
 ### 3️⃣ Gerar Secrets

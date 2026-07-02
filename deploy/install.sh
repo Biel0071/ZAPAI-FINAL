@@ -55,7 +55,74 @@ warn() { echo -e "${YELLOW}[INSTALL $(date +%H:%M:%S)] ⚠ $*${NC}"; }
 err()  { echo -e "${RED}[INSTALL $(date +%H:%M:%S)] ✖ $*${NC}"; exit 1; }
 step() { echo -e "\n${CYAN}━━━ $* ━━━${NC}"; }
 
+# ─── Recovery & Error Handler ──────────────────────────────────────────────────
+error_handler() {
+  local exit_code=$?
+  local line_no="$1"
+  local bash_cmd="$2"
+  echo -e "\n${RED}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+  echo -e "${RED}[ERRO CRÍTICO] FALHA NA INSTALAÇÃO!${NC}"
+  echo -e "  Arquivo:      ${BASH_SOURCE[0]}"
+  echo -e "  Linha:        ${line_no}"
+  echo -e "  Comando:      ${bash_cmd}"
+  echo -e "  Retorno:      ${exit_code}"
+  echo -e "${RED}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}\n"
+  exit $exit_code
+}
+trap 'error_handler ${LINENO} "$BASH_COMMAND"' ERR
+
 [[ $EUID -eq 0 ]] || err "Run as root: sudo bash deploy/install.sh"
+
+# ─── OS Detection & EPEL Setup ────────────────────────────────────────────────
+OS_FAMILY="debian"
+OS_NAME="Debian/Ubuntu"
+
+if [ -f /etc/os-release ]; then
+  . /etc/os-release
+  OS_NAME="$NAME $VERSION_ID"
+  if [[ "$ID" == "almalinux" || "$ID" == "rocky" || "$ID" == "rhel" || "$ID" == "centos" || "$ID_LIKE" =~ "rhel" || "$ID_LIKE" =~ "fedora" ]]; then
+    OS_FAMILY="rhel"
+  fi
+fi
+
+log "Detectado: $OS_NAME ($OS_FAMILY)"
+
+# Enable EPEL repository on RHEL-based systems (EPEL is required for fail2ban, redis, htop, etc.)
+if [ "$OS_FAMILY" = "rhel" ]; then
+  if ! dnf repolist | grep -q "epel"; then
+    log "Instalando repositório EPEL para suporte a pacotes de produção..."
+    dnf install -y epel-release -q || true
+  fi
+fi
+
+# ─── Package Manager Functions ───────────────────────────────────────────────
+update_packages() {
+  if [ "$OS_FAMILY" = "debian" ]; then
+    apt-get update -qq
+  else
+    dnf check-update -q || true
+  fi
+}
+
+install_packages() {
+  if [ "$OS_FAMILY" = "debian" ]; then
+    apt-get install -y -qq "$@" 2>&1 | tail -3
+  else
+    dnf install -y -q "$@" 2>&1 | tail -3
+  fi
+}
+
+enable_service() {
+  systemctl enable "$1" 2>/dev/null || true
+}
+
+start_service() {
+  systemctl start "$1" 2>/dev/null || true
+}
+
+restart_service() {
+  systemctl restart "$1" 2>/dev/null || true
+}
 
 # ─── AUTO-DETECT PUBLIC IP ────────────────────────────────────────────────────
 # The public IP is used for BACKEND_URL, FRONTEND_URL, CORS_ORIGIN in .env
@@ -328,15 +395,23 @@ echo ""
 
 # ─── 1. System packages ───────────────────────────────────────────────────────
 step "1. SYSTEM PACKAGES"
-apt-get update -qq
-apt-get install -y -qq \
-  curl wget git build-essential \
-  nginx certbot python3-certbot-nginx \
-  ufw fail2ban \
-  htop iotop \
-  logrotate cron \
-  ca-certificates gnupg lsb-release \
-  2>&1 | tail -3
+update_packages
+if [ "$OS_FAMILY" = "debian" ]; then
+  install_packages \
+    curl wget git build-essential \
+    nginx certbot python3-certbot-nginx \
+    ufw fail2ban \
+    htop iotop \
+    logrotate cron \
+    ca-certificates gnupg lsb-release
+else
+  install_packages \
+    curl wget git gcc gcc-c++ make \
+    nginx certbot python3-certbot-nginx \
+    fail2ban \
+    htop iotop \
+    logrotate cronie
+fi
 log "Base packages installed"
 
 # ─── 2. Node.js ───────────────────────────────────────────────────────────────
@@ -344,9 +419,18 @@ step "2. NODE.JS v${NODE_VERSION}"
 if command -v node >/dev/null 2>&1 && node --version | grep -q "^v${NODE_VERSION}"; then
   log "Node.js $(node --version) already installed"
 else
-  curl -fsSL "https://deb.nodesource.com/setup_${NODE_VERSION}.x" | bash - 2>&1 | tail -3
-  apt-get install -y -qq nodejs 2>&1 | tail -3
-  log "Node.js $(node --version) installed"
+  log "Instalando Node.js v${NODE_VERSION}..."
+  if [ "$OS_FAMILY" = "debian" ]; then
+    curl -fsSL "https://deb.nodesource.com/setup_${NODE_VERSION}.x" | bash - 2>&1 | tail -3
+    install_packages nodejs
+  else
+    dnf module reset nodejs -y -q || true
+    dnf module enable nodejs:20 -y -q || true
+    dnf install -y nodejs -q
+  fi
+  # Enable corepack for npm/pnpm/yarn management
+  corepack enable 2>/dev/null || true
+  log "Node.js $(node --version) instalado"
 fi
 
 # ─── 3. PM2 ───────────────────────────────────────────────────────────────────
@@ -372,7 +456,11 @@ if $SKIP_POSTGRES; then
   warn "PostgreSQL install skipped (--skip-postgres)"
 else
   if ! command -v psql >/dev/null 2>&1; then
-    apt-get install -y -qq postgresql postgresql-contrib 2>&1 | tail -3
+    if [ "$OS_FAMILY" = "debian" ]; then
+      install_packages postgresql postgresql-contrib
+    else
+      install_packages postgresql-server postgresql-contrib
+    fi
     log "PostgreSQL installed"
   else
     log "PostgreSQL $(psql --version | head -1) already installed"
@@ -381,8 +469,13 @@ else
   # Self-healing boot: retry up to 5 times with backoff
   PG_READY=false
   for attempt in 1 2 3 4 5; do
-    systemctl enable postgresql 2>/dev/null || true
-    systemctl start postgresql 2>/dev/null || true
+    if [ "$OS_FAMILY" = "rhel" ]; then
+      if [ ! -f /var/lib/pgsql/data/PG_VERSION ]; then
+        postgresql-setup --initdb || true
+      fi
+    fi
+    enable_service postgresql
+    start_service postgresql
     sleep $((attempt * 2))
     if sudo -u postgres psql -c 'SELECT 1' >/dev/null 2>&1; then
       PG_READY=true
@@ -415,20 +508,30 @@ fi
 
 # ─── 5. Redis (graceful fallback — system continues if Redis unavailable) ─────
 step "5. REDIS"
+REDIS_SVC="redis-server"
+if [ "$OS_FAMILY" = "rhel" ]; then
+  REDIS_SVC="redis"
+fi
+
 if $SKIP_REDIS; then
   warn "Redis install skipped (--skip-redis)"
 else
-  if ! command -v redis-server >/dev/null 2>&1; then
-    apt-get install -y -qq redis-server 2>&1 | tail -3
+  if ! command -v redis-server >/dev/null 2>&1 && ! command -v redis-cli >/dev/null 2>&1; then
+    if [ "$OS_FAMILY" = "debian" ]; then
+      install_packages redis-server
+    else
+      install_packages redis
+    fi
     sed -i 's/^# bind 127.0.0.1/bind 127.0.0.1/' /etc/redis/redis.conf 2>/dev/null || true
-    systemctl enable redis-server
+    sed -i 's/^# bind 127.0.0.1/bind 127.0.0.1/' /etc/redis.conf 2>/dev/null || true
+    enable_service "$REDIS_SVC"
     log "Redis installed"
   else
     log "Redis already installed"
   fi
 
   # Start with graceful fallback (Redis failure is non-fatal)
-  systemctl start redis-server 2>/dev/null || true
+  start_service "$REDIS_SVC"
   sleep 2
   if redis-cli ping 2>/dev/null | grep -q PONG; then
     log "Redis: PONG received — online"
@@ -713,7 +816,18 @@ fi
 
 # ─── 12. Nginx ────────────────────────────────────────────────────────────────
 step "12. NGINX"
-systemctl enable nginx 2>/dev/null || true
+enable_service nginx
+start_service nginx
+
+# Ensure Debian-style site directories exist (compatibility layer for RHEL)
+if [ ! -d /etc/nginx/sites-available ]; then
+  mkdir -p /etc/nginx/sites-available /etc/nginx/sites-enabled
+  if [ -f /etc/nginx/nginx.conf ] && ! grep -q "sites-enabled" /etc/nginx/nginx.conf; then
+    # Inject sites-enabled config inside the http block of nginx.conf
+    sed -i 's|include /etc/nginx/conf.d/\*\.conf;|include /etc/nginx/conf.d/*.conf;\n    include /etc/nginx/sites-enabled/*;|' /etc/nginx/nginx.conf
+    log "Configurada diretiva sites-enabled no nginx.conf"
+  fi
+fi
 
 if [ -n "$DOMAIN" ] && [ -f "$DEPLOY_DIR/nginx.conf" ]; then
   cp "$DEPLOY_DIR/nginx.conf" /etc/nginx/sites-available/zapai
@@ -811,29 +925,45 @@ fi
 
 ln -sf /etc/nginx/sites-available/zapai /etc/nginx/sites-enabled/zapai 2>/dev/null || true
 rm -f /etc/nginx/sites-enabled/default 2>/dev/null || true
-nginx -t && systemctl reload nginx
-log "Nginx: valid config, reloaded"
+nginx -t && restart_service nginx
+log "Nginx: valid config, reloaded/restarted"
 
 ln -sf /var/log/nginx/access.log "$LOGS_DIR/nginx/access.log" 2>/dev/null || true
 ln -sf /var/log/nginx/error.log  "$LOGS_DIR/nginx/error.log"  2>/dev/null || true
 
 # ─── 13. Firewall ─────────────────────────────────────────────────────────────
-step "13. FIREWALL (UFW)"
-if $PANEL_SAFE_MODE; then
-  warn "PANEL SAFE MODE: skipping UFW reset ($DETECTED_PANEL manages firewall)"
-  # Only deny backend port if UFW is already active
-  if ufw status 2>/dev/null | grep -q 'Status: active'; then
-    ufw deny "${BACKEND_PORT}/tcp" comment "Block direct ZAPAI backend" 2>/dev/null || true
-    log "UFW: blocked direct access to port $BACKEND_PORT"
+step "13. FIREWALL"
+if command -v ufw >/dev/null 2>&1; then
+  if $PANEL_SAFE_MODE; then
+    warn "PANEL SAFE MODE: skipping UFW reset ($DETECTED_PANEL manages firewall)"
+    if ufw status 2>/dev/null | grep -q 'Status: active'; then
+      ufw deny "${BACKEND_PORT}/tcp" comment "Block direct ZAPAI backend" 2>/dev/null || true
+      log "UFW: blocked direct access to port $BACKEND_PORT"
+    fi
+  else
+    ufw --force reset 2>/dev/null || true
+    ufw allow 22/tcp   comment "SSH"
+    ufw allow 80/tcp   comment "HTTP"
+    ufw allow 443/tcp  comment "HTTPS"
+    ufw deny  "${BACKEND_PORT}/tcp" comment "Block direct backend"
+    ufw --force enable 2>/dev/null || true
+    log "UFW: 22/80/443 open | ${BACKEND_PORT} blocked"
+  fi
+elif command -v firewall-cmd >/dev/null 2>&1; then
+  if $PANEL_SAFE_MODE; then
+    warn "PANEL SAFE MODE: skipping firewalld configuration ($DETECTED_PANEL manages firewall)"
+  else
+    enable_service firewalld
+    start_service firewalld
+    firewall-cmd --permanent --add-port=22/tcp 2>/dev/null || true
+    firewall-cmd --permanent --add-port=80/tcp 2>/dev/null || true
+    firewall-cmd --permanent --add-port=443/tcp 2>/dev/null || true
+    firewall-cmd --permanent --remove-port=${BACKEND_PORT}/tcp 2>/dev/null || true
+    firewall-cmd --reload 2>/dev/null || true
+    log "Firewalld: 22/80/443 open | ${BACKEND_PORT} blocked/removed"
   fi
 else
-  ufw --force reset 2>/dev/null || true
-  ufw allow 22/tcp   comment "SSH"
-  ufw allow 80/tcp   comment "HTTP"
-  ufw allow 443/tcp  comment "HTTPS"
-  ufw deny  "${BACKEND_PORT}/tcp" comment "Block direct backend"
-  ufw --force enable 2>/dev/null || true
-  log "UFW: 22/80/443 open | ${BACKEND_PORT} blocked"
+  warn "Nenhum firewall suportado (UFW/Firewalld) encontrado. Pulando regras de rede."
 fi
 
 systemctl enable fail2ban 2>/dev/null || true
