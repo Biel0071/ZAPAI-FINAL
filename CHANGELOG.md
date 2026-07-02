@@ -18,6 +18,9 @@ All notable changes to this project will be documented in this file.
   - Used `certbot certonly --webroot` to request Let's Encrypt certificates without letting Certbot inject buggy auto-redirect rules into the configuration.
   - The installer now generates an HTTP-only Nginx configuration initially, ensuring Nginx starts cleanly without missing SSL files, and dynamically upgrades it to full SSL/HTTPS configuration with smart redirects once the certificates exist on disk.
   - Disabled RHEL default port 80 server block inside `/etc/nginx/nginx.conf` by renaming its `default_server` directives, avoiding port 80 conflicts.
+  - Refactored the entire deployment script into a fully modular layout with dedicated modules in `deploy/lib/` (`common.sh`, `os.sh`, `packages.sh`, `node.sh`, `postgres.sh`, `redis.sh`, `nginx.sh`, `pm2.sh`, `firewall.sh`, `env.sh`, `health.sh`, `utils.sh`, `validate.sh`).
+  - Added a validation script `deploy/lib/validate.sh` that checks for the existence of all expected functions before running `main()` to guarantee a fail-fast, clean execution.
+  - Created an automated test suite script `deploy/test-install.sh` that checks module syntax and imports to verify layout integrity before deployment.
 
 ## [1.1.0] - 2026-07-02
 

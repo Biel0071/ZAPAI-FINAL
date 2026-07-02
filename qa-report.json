@@ -1,8 +1,8 @@
 {
-  "timestamp": "2026-07-02T18:42:49.671Z",
+  "timestamp": "2026-07-02T19:15:13.182Z",
   "backendHealth": {
     "success": false,
-    "timestamp": "2026-07-02T18:42:51.154Z",
+    "timestamp": "2026-07-02T19:15:14.483Z",
     "summary": {
       "total": 16,
       "passed": 12,
@@ -22,7 +22,7 @@
     "database": {
       "postgres": {
         "status": "ok",
-        "detail": "SELECT 1 in 112ms | server_time=Thu Jul 02 2026 15:42:50 GMT-0300 (Horário Padrão de Brasília)"
+        "detail": "SELECT 1 in 183ms | server_time=Thu Jul 02 2026 16:15:14 GMT-0300 (Horário Padrão de Brasília)"
       },
       "migrations": {
         "status": "ok",
@@ -63,98 +63,98 @@
       {
         "name": "postgres",
         "status": "ok",
-        "detail": "SELECT 1 in 112ms | server_time=Thu Jul 02 2026 15:42:50 GMT-0300 (Horário Padrão de Brasília)",
-        "timestamp": "2026-07-02T18:42:50.978Z"
+        "detail": "SELECT 1 in 183ms | server_time=Thu Jul 02 2026 16:15:14 GMT-0300 (Horário Padrão de Brasília)",
+        "timestamp": "2026-07-02T19:15:14.173Z"
       },
       {
         "name": "postgres_tables",
         "status": "ok",
         "detail": "47 public tables",
-        "timestamp": "2026-07-02T18:42:51.023Z"
+        "timestamp": "2026-07-02T19:15:14.208Z"
       },
       {
         "name": "redis",
         "status": "warn",
         "detail": "REDIS_URL not configured — Redis disabled",
-        "timestamp": "2026-07-02T18:42:51.023Z"
+        "timestamp": "2026-07-02T19:15:14.208Z"
       },
       {
         "name": "sessions_dir",
         "status": "ok",
         "detail": "C:\\projetos\\ZAPAI-FINAL\\backend\\sessions",
-        "timestamp": "2026-07-02T18:42:51.026Z"
+        "timestamp": "2026-07-02T19:15:14.210Z"
       },
       {
         "name": "logs_dir",
         "status": "ok",
         "detail": "C:\\projetos\\ZAPAI-FINAL\\backend\\logs",
-        "timestamp": "2026-07-02T18:42:51.028Z"
+        "timestamp": "2026-07-02T19:15:14.213Z"
       },
       {
         "name": "uploads_dir",
         "status": "ok",
         "detail": "C:\\projetos\\ZAPAI-FINAL\\backend\\uploads",
-        "timestamp": "2026-07-02T18:42:51.030Z"
+        "timestamp": "2026-07-02T19:15:14.218Z"
       },
       {
         "name": "disk_space",
         "status": "ok",
         "detail": "Windows Host — disk check skipped",
-        "timestamp": "2026-07-02T18:42:51.030Z"
+        "timestamp": "2026-07-02T19:15:14.218Z"
       },
       {
         "name": "memory_heap",
         "status": "ok",
         "detail": "heap=6MB rss=42MB",
-        "timestamp": "2026-07-02T18:42:51.030Z"
+        "timestamp": "2026-07-02T19:15:14.218Z"
       },
       {
         "name": "memory_system",
         "status": "ok",
         "detail": "Windows Host — system memory check skipped",
-        "timestamp": "2026-07-02T18:42:51.030Z"
+        "timestamp": "2026-07-02T19:15:14.218Z"
       },
       {
         "name": "cpu_usage",
         "status": "ok",
         "detail": "Windows Host — CPU check skipped",
-        "timestamp": "2026-07-02T18:42:51.030Z"
+        "timestamp": "2026-07-02T19:15:14.219Z"
       },
       {
         "name": "backend_http",
         "status": "fail",
         "detail": "Connection refused: connect ECONNREFUSED 127.0.0.1:4025",
-        "timestamp": "2026-07-02T18:42:51.036Z"
+        "timestamp": "2026-07-02T19:15:14.226Z"
       },
       {
         "name": "websocket_route",
         "status": "warn",
         "detail": "WS route error: connect ECONNREFUSED 127.0.0.1:4025",
-        "timestamp": "2026-07-02T18:42:51.038Z"
+        "timestamp": "2026-07-02T19:15:14.228Z"
       },
       {
         "name": "baileys_sessions",
         "status": "ok",
         "detail": "1/3 sessions with valid auth",
-        "timestamp": "2026-07-02T18:42:51.049Z"
+        "timestamp": "2026-07-02T19:15:14.231Z"
       },
       {
         "name": "pm2_process",
         "status": "warn",
         "detail": "PM2 not available or not running",
-        "timestamp": "2026-07-02T18:42:51.086Z"
+        "timestamp": "2026-07-02T19:15:14.302Z"
       },
       {
         "name": "nginx",
         "status": "ok",
         "detail": "Windows Host — nginx status check skipped",
-        "timestamp": "2026-07-02T18:42:51.086Z"
+        "timestamp": "2026-07-02T19:15:14.302Z"
       },
       {
         "name": "migrations",
         "status": "ok",
         "detail": "24 migrations applied",
-        "timestamp": "2026-07-02T18:42:51.154Z"
+        "timestamp": "2026-07-02T19:15:14.483Z"
       }
     ]
   },
