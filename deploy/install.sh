@@ -954,51 +954,84 @@ if [ ! -d /etc/nginx/sites-available ]; then
   fi
 fi
 
-if [ -n "$DOMAIN" ] && [ -f "$DEPLOY_DIR/nginx.conf" ]; then
-  cp "$DEPLOY_DIR/nginx.conf" /etc/nginx/sites-available/zapai
-  sed -i "s/YOUR_DOMAIN/$DOMAIN/g" /etc/nginx/sites-available/zapai
-  # Also update the frontend path in case the template has a wrong path
-  sed -i "s|/opt/ZAPAI-FINAL/frontend/dist|${FRONTEND_DIR}/dist|g" /etc/nginx/sites-available/zapai
-  log "Nginx configured for $DOMAIN (HTTPS-ready)"
-else
-  # Build inline nginx config (HTTP-only, no domain)
-  # NGINX_EOF is unquoted so FRONTEND_DIR and BACKEND_PORT are expanded.
-  # Nginx special chars ($, \) are escaped with backslash.
-  cat > /etc/nginx/sites-available/zapai <<NGINX_EOF
+# Disable conflicting default_servers in RHEL nginx.conf to prevent conflicts with zapai default_server
+if [ -f /etc/nginx/nginx.conf ]; then
+  sed -i 's/listen       80 default_server;/listen       80;/g' /etc/nginx/nginx.conf 2>/dev/null || true
+  sed -i 's/listen       \[::\]:80 default_server;/listen       \[::\]:80;/g' /etc/nginx/nginx.conf 2>/dev/null || true
+fi
+
+write_nginx_config() {
+  local domain="$1"
+  local enable_ssl="$2"
+  local dest="/etc/nginx/sites-available/zapai"
+
+  log "Gerando configuração do Nginx (domain: ${domain:-none}, SSL: ${enable_ssl})..."
+
+  # Header & Limits
+  cat > "$dest" << NGINX_EOF
 limit_req_zone \$binary_remote_addr zone=auth_limit:10m rate=5r/s;
 limit_req_zone \$binary_remote_addr zone=api_limit:10m  rate=30r/s;
+NGINX_EOF
+
+  # Port 80 Block
+  cat >> "$dest" << NGINX_EOF
 
 server {
     listen 80 default_server;
-    server_name _;
+    server_name ${domain:-_} _;
 
     client_max_body_size 50m;
     gzip on;
     gzip_types text/plain application/json application/javascript text/css;
 
-    add_header X-Frame-Options DENY always;
+    add_header X-Frame-Options "SAMEORIGIN" always;
     add_header X-Content-Type-Options nosniff always;
     add_header X-XSS-Protection "1; mode=block" always;
+    add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+NGINX_EOF
 
-    # Frontend — built from frontend-official/
+  # Add redirection only if SSL is configured and we have a domain
+  if [ "$enable_ssl" = "true" ] && [ -n "$domain" ]; then
+    cat >> "$dest" << NGINX_EOF
+
+    # Smart HTTPS redirect (prevents loops under reverse proxies/Cloudflare Flexible SSL and IP access)
+    set \$redirect_to_https 0;
+    if (\$scheme != "https") {
+        set \$redirect_to_https 1;
+    }
+    if (\$http_x_forwarded_proto = "https") {
+        set \$redirect_to_https 0;
+    }
+    if (\$host ~* ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+\$) {
+        set \$redirect_to_https 0;
+    }
+    if (\$request_uri ~* ^/\\.well-known/acme-challenge/) {
+        set \$redirect_to_https 0;
+    }
+
+    if (\$redirect_to_https = 1) {
+        return 301 https://\$host\$request_uri;
+    }
+NGINX_EOF
+  fi
+
+  cat >> "$dest" << NGINX_EOF
+
+    # Frontend
     root ${FRONTEND_DIR}/dist;
     index index.html;
 
-    # SPA fallback: all routes → index.html (refresh support)
     location / {
+        location = /index.html {
+            add_header Cache-Control "no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0";
+            add_header Pragma "no-cache";
+            add_header Expires "0";
+        }
         try_files \$uri \$uri/ /index.html;
-        expires -1;
     }
 
-    # Static assets — long cache (content-hashed filenames)
-    location ~* \.(js|css|png|jpg|jpeg|gif|ico|svg|woff2?|ttf|eot)\$ {
-        expires 1y;
-        add_header Cache-Control "public, immutable";
-    }
-
-    # Backend API — /api/* passes through to backend with /api/ prefix preserved
     location /api/ {
-        limit_req zone=api_limit burst=50 nodelay;
+        limit_req zone=api_limit burst=60 nodelay;
         proxy_pass http://127.0.0.1:${BACKEND_PORT}/api/;
         proxy_http_version 1.1;
         proxy_set_header Host \$host;
@@ -1010,7 +1043,6 @@ server {
         client_max_body_size 25M;
     }
 
-    # Auth endpoints — tighter rate limit (brute-force protection)
     location ~ ^/auth/ {
         limit_req zone=auth_limit burst=10 nodelay;
         proxy_pass http://127.0.0.1:${BACKEND_PORT};
@@ -1022,14 +1054,12 @@ server {
         proxy_read_timeout 30s;
     }
 
-    # Health + readiness endpoints (public, no rate limit)
     location ~ ^/(health|ready|api/health|api/ready)\$ {
         proxy_pass http://127.0.0.1:${BACKEND_PORT};
         proxy_http_version 1.1;
         proxy_read_timeout 10s;
     }
 
-    # Socket.IO (WebSocket upgrade — must have long timeout)
     location /socket.io/ {
         proxy_pass http://127.0.0.1:${BACKEND_PORT}/socket.io/;
         proxy_http_version 1.1;
@@ -1038,18 +1068,112 @@ server {
         proxy_set_header Host \$host;
         proxy_set_header X-Real-IP \$remote_addr;
         proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+        proxy_read_timeout 3600s;
+        proxy_send_timeout 3600s;
+        proxy_buffering off;
+    }
+
+    location /.well-known/acme-challenge/ {
+        root /var/www/certbot;
+    }
+}
+NGINX_EOF
+
+  # SSL Port 443 Block (only if SSL is active)
+  if [ "$enable_ssl" = "true" ] && [ -n "$domain" ]; then
+    cat >> "$dest" << NGINX_EOF
+
+server {
+    listen 443 ssl http2 default_server;
+    server_name ${domain} _;
+
+    ssl_certificate     /etc/letsencrypt/live/${domain}/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/${domain}/privkey.pem;
+    ssl_protocols       TLSv1.2 TLSv1.3;
+    ssl_ciphers         HIGH:!aNULL:!MD5;
+
+    client_max_body_size 50m;
+    gzip on;
+    gzip_types text/plain application/json application/javascript text/css;
+
+    add_header X-Frame-Options "SAMEORIGIN" always;
+    add_header X-Content-Type-Options nosniff always;
+    add_header X-XSS-Protection "1; mode=block" always;
+    add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+
+    # Frontend
+    root ${FRONTEND_DIR}/dist;
+    index index.html;
+
+    location / {
+        location = /index.html {
+            add_header Cache-Control "no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0";
+            add_header Pragma "no-cache";
+            add_header Expires "0";
+        }
+        try_files \$uri \$uri/ /index.html;
+    }
+
+    location /api/ {
+        limit_req zone=api_limit burst=60 nodelay;
+        proxy_pass http://127.0.0.1:${BACKEND_PORT}/api/;
+        proxy_http_version 1.1;
+        proxy_set_header Host \$host;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+        proxy_read_timeout 30s;
+        proxy_connect_timeout 10s;
+        client_max_body_size 25M;
+    }
+
+    location ~ ^/auth/ {
+        limit_req zone=auth_limit burst=10 nodelay;
+        proxy_pass http://127.0.0.1:${BACKEND_PORT};
+        proxy_http_version 1.1;
+        proxy_set_header Host \$host;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+        proxy_read_timeout 30s;
+    }
+
+    location ~ ^/(health|ready|api/health|api/ready)\$ {
+        proxy_pass http://127.0.0.1:${BACKEND_PORT};
+        proxy_http_version 1.1;
+        proxy_read_timeout 10s;
+    }
+
+    location /socket.io/ {
+        proxy_pass http://127.0.0.1:${BACKEND_PORT}/socket.io/;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade \$http_upgrade;
+        proxy_set_header Connection "upgrade";
+        proxy_set_header Host \$host;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
         proxy_read_timeout 3600s;
         proxy_send_timeout 3600s;
         proxy_buffering off;
     }
 }
 NGINX_EOF
-  log "Nginx configured (HTTP-only, port 80)"
-  warn "To add HTTPS: certbot --nginx -d your-domain.com"
+  fi
+
+  # Apply config links
+  ln -sf /etc/nginx/sites-available/zapai /etc/nginx/sites-enabled/zapai 2>/dev/null || true
+  rm -f /etc/nginx/sites-enabled/default 2>/dev/null || true
+}
+
+# Determine if SSL is already present
+SSL_ACTIVE=false
+if [ -n "$DOMAIN" ] && [ -f "/etc/letsencrypt/live/$DOMAIN/fullchain.pem" ]; then
+  SSL_ACTIVE=true
 fi
 
-ln -sf /etc/nginx/sites-available/zapai /etc/nginx/sites-enabled/zapai 2>/dev/null || true
-rm -f /etc/nginx/sites-enabled/default 2>/dev/null || true
+write_nginx_config "$DOMAIN" "$SSL_ACTIVE"
 nginx -t && restart_service nginx
 log "Nginx: valid config, reloaded/restarted"
 
@@ -1201,12 +1325,28 @@ fi
 if [ -n "$DOMAIN" ]; then
   step "19. SSL (Let's Encrypt via certbot)"
   if command -v certbot >/dev/null 2>&1; then
-    certbot --nginx -d "$DOMAIN" --non-interactive --agree-tos \
-      --email "admin@${DOMAIN}" --redirect 2>&1 | tail -5 || \
-      warn "certbot failed — run: certbot --nginx -d $DOMAIN"
-    log "SSL configured for $DOMAIN"
+    # Create webroot folder for ACME challenge
+    mkdir -p /var/www/certbot
+    
+    if [ ! -f "/etc/letsencrypt/live/$DOMAIN/fullchain.pem" ]; then
+      log "Requisitando novo certificado Let's Encrypt para $DOMAIN..."
+      certbot certonly --webroot -w /var/www/certbot -d "$DOMAIN" --non-interactive --agree-tos \
+        --email "admin@${DOMAIN}" 2>&1 | tail -5 || \
+        warn "Certbot falhou ao gerar o certificado. Verifique os logs e DNS."
+    else
+      log "Certificado Let's Encrypt já existente encontrado para $DOMAIN."
+    fi
+    
+    # Enable SSL block and smart redirects if certificates were obtained
+    if [ -f "/etc/letsencrypt/live/$DOMAIN/fullchain.pem" ]; then
+      write_nginx_config "$DOMAIN" "true"
+      nginx -t && restart_service nginx
+      log "✔ SSL configurado com sucesso e Nginx reconfigurado!"
+    else
+      warn "SSL não pôde ser configurado. Nginx permanecerá em modo HTTP-only."
+    fi
   else
-    warn "certbot not available — run manually"
+    warn "certbot não encontrado — pulando configuração SSL automática"
   fi
 fi
 

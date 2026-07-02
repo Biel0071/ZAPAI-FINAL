@@ -13,6 +13,11 @@ All notable changes to this project will be documented in this file.
   - Created a robust `wait-for-postgres` check loop prior to migrations.
   - Created a real query connection test using `psql` and the final `DATABASE_URL` (running `SELECT 1`) to guarantee connection before running migrations.
   - Added a final verification step checking PostgreSQL, Redis, Nginx, PM2, psql connection, and backend health before finishing.
+  - Fixed Nginx HTTP-to-HTTPS redirect loop (`ERR_TOO_MANY_REDIRECTS`) in `deploy/install.sh`.
+  - Added a smart redirect rule in the port 80 block that checks `$http_x_forwarded_proto` to support SSL termination under reverse proxies like Cloudflare Flexible SSL, bypasses redirect for direct IP accesses, and ignores ACME challenges.
+  - Used `certbot certonly --webroot` to request Let's Encrypt certificates without letting Certbot inject buggy auto-redirect rules into the configuration.
+  - The installer now generates an HTTP-only Nginx configuration initially, ensuring Nginx starts cleanly without missing SSL files, and dynamically upgrades it to full SSL/HTTPS configuration with smart redirects once the certificates exist on disk.
+  - Disabled RHEL default port 80 server block inside `/etc/nginx/nginx.conf` by renaming its `default_server` directives, avoiding port 80 conflicts.
 
 ## [1.1.0] - 2026-07-02
 
