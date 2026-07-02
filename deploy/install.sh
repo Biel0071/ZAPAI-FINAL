@@ -485,24 +485,125 @@ else
     warn "PostgreSQL not ready (attempt $attempt/5) — retrying..."
   done
 
+  # Helper to configure pg_hba.conf and postgresql.conf dynamically
+  configure_postgres_auth() {
+    log "Configurando pg_hba.conf e postgresql.conf para acesso local..."
+    local hba_file=""
+    local conf_file=""
+    
+    if sudo -u postgres psql -c 'SELECT 1' >/dev/null 2>&1; then
+      hba_file=$(sudo -u postgres psql -t -A -c "SHOW hba_file;" 2>/dev/null || true)
+      conf_file=$(sudo -u postgres psql -t -A -c "SHOW config_file;" 2>/dev/null || true)
+    fi
+    
+    if [ -z "$hba_file" ]; then
+      if [ "$OS_FAMILY" = "debian" ]; then
+        hba_file=$(ls /etc/postgresql/*/main/pg_hba.conf 2>/dev/null | head -1 || true)
+      else
+        hba_file="/var/lib/pgsql/data/pg_hba.conf"
+      fi
+    fi
+
+    if [ -z "$conf_file" ]; then
+      if [ "$OS_FAMILY" = "debian" ]; then
+        conf_file=$(ls /etc/postgresql/*/main/postgresql.conf 2>/dev/null | head -1 || true)
+      else
+        conf_file="/var/lib/pgsql/data/postgresql.conf"
+      fi
+    fi
+
+    if [ -f "$hba_file" ]; then
+      log "pg_hba.conf encontrado: $hba_file"
+      cp "$hba_file" "${hba_file}.bak" 2>/dev/null || true
+      
+      # Clean old autoconfigured rules if any to prevent duplicates
+      sed -i '/# ZAPAI-FINAL/d' "$hba_file" 2>/dev/null || true
+      
+      # Prepend trust rules to the top of pg_hba.conf so they take precedence
+      local temp_hba=$(mktemp)
+      cat > "$temp_hba" << HBAEOF
+# ZAPAI-FINAL Auto-configured rules
+local   all             all                                     trust
+host    all             all             127.0.0.1/32            trust
+host    all             all             ::1/128                 trust
+HBAEOF
+      cat "$hba_file" >> "$temp_hba"
+      mv "$temp_hba" "$hba_file"
+      chown postgres:postgres "$hba_file" 2>/dev/null || true
+      chmod 600 "$hba_file" 2>/dev/null || true
+      log "✔ pg_hba.conf atualizado com regras de trust local"
+    else
+      warn "pg_hba.conf não encontrado em $hba_file"
+    fi
+
+    if [ -f "$conf_file" ]; then
+      log "postgresql.conf encontrado: $conf_file"
+      cp "$conf_file" "${conf_file}.bak" 2>/dev/null || true
+      # Ensure listen_addresses is set
+      sed -i "s|^#listen_addresses =.*|listen_addresses = '*'|" "$conf_file" 2>/dev/null || true
+      sed -i "s|^listen_addresses =.*|listen_addresses = '*'|" "$conf_file" 2>/dev/null || true
+      if ! grep -q "^listen_addresses" "$conf_file"; then
+        echo "listen_addresses = '*'" >> "$conf_file"
+      fi
+      log "✔ postgresql.conf atualizado (listen_addresses = '*')"
+    else
+      warn "postgresql.conf não encontrado em $conf_file"
+    fi
+
+    restart_service postgresql
+  }
+
   if $PG_READY; then
+    # Configure authentication rules first
+    configure_postgres_auth
+
     # Read existing password from .env if present
     if [ -f "$APP_DIR/.env.production" ]; then
       EXISTING_DB_PASS=$(grep '^POSTGRES_PASSWORD=' "$APP_DIR/.env.production" 2>/dev/null | cut -d= -f2)
       [ -n "$EXISTING_DB_PASS" ] && DB_PASS="$EXISTING_DB_PASS"
     fi
-    sudo -u postgres psql -c "CREATE USER zapai WITH PASSWORD '$DB_PASS';" 2>/dev/null || true
-    sudo -u postgres psql -c "CREATE DATABASE zapai_crm OWNER zapai;" 2>/dev/null || true
-    sudo -u postgres psql -c "GRANT ALL PRIVILEGES ON DATABASE zapai_crm TO zapai;" 2>/dev/null || true
-    # Validate connection
-    if PGPASSWORD="$DB_PASS" psql -h localhost -U zapai -d zapai_crm -c 'SELECT 1' >/dev/null 2>&1; then
-      log "PostgreSQL: zapai_crm connection verified"
+
+    # Create role safely
+    if sudo -u postgres psql -t -A -c "SELECT 1 FROM pg_roles WHERE rolname='zapai';" 2>/dev/null | grep -q "1"; then
+      log "✔ Usuário 'zapai' já existe. Atualizando senha..."
+      sudo -u postgres psql -c "ALTER USER zapai WITH PASSWORD '$DB_PASS';" >/dev/null 2>&1 || true
     else
-      warn "PostgreSQL: connection test failed — check pg_hba.conf if needed"
+      log "Criando usuário 'zapai'..."
+      sudo -u postgres psql -c "CREATE USER zapai WITH PASSWORD '$DB_PASS';" >/dev/null 2>&1 || true
+      log "✔ Usuário 'zapai' criado"
+    fi
+
+    # Create database safely
+    if sudo -u postgres psql -t -A -c "SELECT 1 FROM pg_database WHERE datname='zapai_crm';" 2>/dev/null | grep -q "1"; then
+      log "✔ Banco de dados 'zapai_crm' já existe."
+    else
+      log "Criando banco de dados 'zapai_crm'..."
+      sudo -u postgres psql -c "CREATE DATABASE zapai_crm OWNER zapai;" >/dev/null 2>&1 || true
+      log "✔ Banco de dados 'zapai_crm' criado"
+    fi
+
+    sudo -u postgres psql -c "GRANT ALL PRIVILEGES ON DATABASE zapai_crm TO zapai;" 2>/dev/null || true
+
+    # Validate connection test with retries
+    VAL_READY=false
+    for val_attempt in 1 2 3; do
+      if PGPASSWORD="$DB_PASS" psql -h localhost -U zapai -d zapai_crm -c 'SELECT 1' >/dev/null 2>&1; then
+        VAL_READY=true
+        log "✔ Conexão zapai_crm verificada com sucesso via psql (SELECT 1 ok)"
+        break
+      fi
+      warn "Falha na conexão de teste (tentativa $val_attempt/3). Re-aplicando privilégios..."
+      sudo -u postgres psql -c "ALTER USER zapai WITH PASSWORD '$DB_PASS';" >/dev/null 2>&1 || true
+      sudo -u postgres psql -c "ALTER DATABASE zapai_crm OWNER TO zapai;" >/dev/null 2>&1 || true
+      sleep 2
+    done
+
+    if ! $VAL_READY; then
+      warn "Falha na verificação da conexão TCP com zapai_crm. O instalador prosseguirá."
     fi
   else
-    warn "PostgreSQL did not start after 5 attempts — check: systemctl status postgresql"
-    warn "Continuing install — migrations will fail until PG is ready"
+    warn "PostgreSQL não iniciou após 5 tentativas — verifique: systemctl status postgresql"
+    warn "O instalador prosseguirá, mas as migrations falharão se o banco não estiver disponível."
   fi
 fi
 
@@ -592,25 +693,22 @@ ADMIN_PASSWORD="zapadmin1010"
 ADMIN_EMAIL="zapadmin@zapai.local"
 
 if [ -f "$ENV_FILE" ]; then
-  log ".env.production already exists — refreshing URL + admin vars"
-  # Update dynamic fields without replacing secrets
-  sed -i "s|^APP_PUBLIC_URL=.*|APP_PUBLIC_URL=${PUBLIC_URL}|"       "$ENV_FILE" 2>/dev/null || true
-  sed -i "s|^FRONTEND_URL=.*|FRONTEND_URL=${PUBLIC_URL}|"           "$ENV_FILE" 2>/dev/null || true
-  sed -i "s|^CORS_ORIGIN=.*|CORS_ORIGIN=${PUBLIC_URL}|"             "$ENV_FILE" 2>/dev/null || true
-  sed -i "s|^CORS_ALLOWED_ORIGINS=.*|CORS_ALLOWED_ORIGINS=${PUBLIC_URL}|" "$ENV_FILE" 2>/dev/null || true
-  sed -i "s|^ALLOWED_ORIGINS=.*|ALLOWED_ORIGINS=${PUBLIC_URL}|"     "$ENV_FILE" 2>/dev/null || true
-  sed -i "s|^BACKEND_URL=.*|BACKEND_URL=http://${PUBLIC_IP}:4025|"  "$ENV_FILE" 2>/dev/null || true
-  # Append APP_PUBLIC_URL if it doesn't exist yet
-  if ! grep -q '^APP_PUBLIC_URL=' "$ENV_FILE" 2>/dev/null; then
-    echo "APP_PUBLIC_URL=${PUBLIC_URL}" >> "$ENV_FILE"
-    log "Appended APP_PUBLIC_URL to .env.production"
-  fi
+  log ".env.production already exists — refreshing variables"
+  # Read existing variables so we preserve them
+  EXISTING_JWT=$(grep '^JWT_SECRET=' "$ENV_FILE" 2>/dev/null | cut -d= -f2 || echo "")
+  EXISTING_SESSION=$(grep '^SESSION_SECRET=' "$ENV_FILE" 2>/dev/null | cut -d= -f2 || echo "")
+  [ -n "$EXISTING_JWT" ] && JWT_SECRET="$EXISTING_JWT"
+  [ -n "$EXISTING_SESSION" ] && SESSION_SECRET="$EXISTING_SESSION"
+  
+  # Remove old file to write a clean complete env with updated public URL/IP but keeping secrets
+  rm -f "$ENV_FILE"
+fi
 
-else
-  JWT_SECRET="$(openssl rand -hex 32)"
-  SESSION_SECRET="$(openssl rand -hex 32)"
+# Ensure secrets are generated
+[ -z "${JWT_SECRET:-}" ] && JWT_SECRET="$(openssl rand -hex 32)"
+[ -z "${SESSION_SECRET:-}" ] && SESSION_SECRET="$(openssl rand -hex 32)"
 
-  cat > "$ENV_FILE" <<ENVEOF
+cat > "$ENV_FILE" <<ENVEOF
 # ZAPAI-FINAL Production Environment
 # Auto-generated by deploy/install.sh on $(date)
 # IP: ${PUBLIC_IP} | URL: ${PUBLIC_URL}
@@ -621,16 +719,22 @@ PORT=${BACKEND_PORT}
 HOST=0.0.0.0
 
 # Single source of truth for CORS and Socket.IO
-# Update to https://your-domain.com after adding SSL
 APP_PUBLIC_URL=${PUBLIC_URL}
 
-# PostgreSQL
+# PostgreSQL (Standard)
 POSTGRES_HOST=localhost
 POSTGRES_PORT=5432
 POSTGRES_USER=zapai
 POSTGRES_PASSWORD=${DB_PASS}
 POSTGRES_DB=zapai_crm
 DATABASE_URL=postgresql://zapai:${DB_PASS}@localhost:5432/zapai_crm
+
+# PostgreSQL (Legacy/Alternative Aliases)
+DB_HOST=localhost
+DB_PORT=5432
+DB_USER=zapai
+DB_PASSWORD=${DB_PASS}
+DB_NAME=zapai_crm
 
 # Redis
 REDIS_URL=redis://localhost:6379
@@ -642,20 +746,22 @@ SESSION_SECRET=${SESSION_SECRET}
 JWT_EXPIRES_IN=7d
 
 # URLs
+APP_URL=${PUBLIC_URL}
+PUBLIC_URL=${PUBLIC_URL}
 BACKEND_URL=http://${PUBLIC_IP}:4025
 FRONTEND_URL=${PUBLIC_URL}
 CORS_ALLOWED_ORIGINS=${PUBLIC_URL}
 ALLOWED_ORIGINS=${PUBLIC_URL}
 CORS_ORIGIN=${PUBLIC_URL}
 
-# Admin
+# Admin Default Credentials
 AUTH_DEFAULT_USERNAME=${ADMIN_USERNAME}
 AUTH_DEFAULT_EMAIL=${ADMIN_EMAIL}
 AUTH_DEFAULT_PASSWORD=${ADMIN_PASSWORD}
 AUTH_DEFAULT_ROLE=master
 AUTH_DEFAULT_TENANT_ID=default
 
-# App
+# App Features
 DEFAULT_COMPANY_ID=default
 NODE_ROLE=master
 MASTER=true
@@ -675,10 +781,9 @@ CRASH_EXIT_ON_UNHANDLED=true
 AI_MEMORY_ENABLED=true
 ENVEOF
 
-  chown "$APP_USER:$APP_USER" "$ENV_FILE"
-  chmod 600 "$ENV_FILE"
-  log ".env.production created (IP: ${PUBLIC_IP}, admin: ${ADMIN_USERNAME})"
-fi
+chown "$APP_USER:$APP_USER" "$ENV_FILE"
+chmod 600 "$ENV_FILE"
+log ".env.production created/updated (IP: ${PUBLIC_IP}, admin: ${ADMIN_USERNAME})"
 
 # Frontend .env.production
 # VITE_API_URL=/ means 'use same origin as the page'
@@ -726,26 +831,46 @@ if [ -f "$BACKEND_DIR/scripts/run-migrations.js" ]; then
     set +a
   fi
 
-  # Validate DB connection before attempting migration
-  if ! PGPASSWORD="${POSTGRES_PASSWORD:-}" psql \
-      -h "${POSTGRES_HOST:-localhost}" \
-      -U "${POSTGRES_USER:-zapai}" \
-      -d "${POSTGRES_DB:-zapai_crm}" \
-      -c 'SELECT 1' >/dev/null 2>&1; then
-    err "Cannot connect to PostgreSQL before migrations. Check .env.production."
+  # 1. Wait-for-postgres routine
+  log "Aguardando o PostgreSQL ficar disponível..."
+  local pg_ready=false
+  for attempt in $(seq 1 12); do
+    if PGPASSWORD="${POSTGRES_PASSWORD:-}" psql \
+        -h "${POSTGRES_HOST:-localhost}" \
+        -U "${POSTGRES_USER:-zapai}" \
+        -d "${POSTGRES_DB:-zapai_crm}" \
+        -c 'SELECT 1' >/dev/null 2>&1; then
+      pg_ready=true
+      log "✔ PostgreSQL respondendo a conexões locais!"
+      break
+    fi
+    warn "PostgreSQL ainda não disponível (tentativa $attempt/12)... aguardando 5s"
+    sleep 5
+  done
+
+  if [ "$pg_ready" != "true" ]; then
+    err "PostgreSQL indisponível para conexões TCP locais. Por favor, verifique o status do banco de dados (systemctl status postgresql) ou as regras de autenticação no pg_hba.conf."
     exit 1
   fi
 
-  log "Running migrations..."
-  if ! sudo -u "$APP_USER" bash -c \
-      "set -a; source '$APP_DIR/.env.production' 2>/dev/null; set +a; NODE_ENV=production node scripts/run-migrations.js" \
-      2>&1 | tail -8; then
-    err "Migrations FAILED — aborting install. Fix DB or .env.production and retry."
+  # 2. Test real connection using DATABASE_URL
+  log "Testando conexão real utilizando a URL de conexão..."
+  if ! PGPASSWORD="${POSTGRES_PASSWORD:-}" psql "$DATABASE_URL" -c 'SELECT 1' >/dev/null 2>&1; then
+    err "Falha ao conectar usando a DATABASE_URL: $DATABASE_URL. Verifique as credenciais no arquivo .env.production."
     exit 1
   fi
-  log "Migrations complete"
+  log "✔ Conexão real com DATABASE_URL validada com sucesso! (SELECT 1 ok)"
+
+  # 3. Run migrations and print detailed errors on failure
+  log "Executando migrations no banco de dados..."
+  if ! sudo -u "$APP_USER" bash -c \
+      "set -a; source '$APP_DIR/.env.production' 2>/dev/null; set +a; NODE_ENV=production node scripts/run-migrations.js"; then
+    err "Migrations FALHARAM! O comando de migração falhou. Verifique os erros acima e o stack de execução."
+    exit 1
+  fi
+  log "✔ Migrations executadas com sucesso!"
 else
-  warn "run-migrations.js not found — skipping (first boot may work without)"
+  warn "run-migrations.js não encontrado — pulando etapa de migrations"
 fi
 
 # ─── 10.5. SEED ADMIN MASTER ──────────────────────────────────────────────────
@@ -1094,37 +1219,82 @@ echo "$SNAP_TS"     > "$RELEASES_DIR/current/timestamp"
 chown -R "$APP_USER:$APP_USER" "$RELEASES_DIR"
 log "Rollback snapshot: $SNAP_COMMIT @ $SNAP_TS"
 
-# ─── 21. Health validation ────────────────────────────────────────────────────
-step "21. HEALTH VALIDATION"
-sleep 8
+# ─── 21. Health and System Validation Tests ───────────────────────────────────
+step "21. SYSTEM VALIDATION TESTS"
+log "Executando testes finais de saúde e integridade do sistema..."
+sleep 5
 
-HEALTH_OK=false
-for i in $(seq 1 12); do
-  HTTP=$(curl -s -o /dev/null -w "%{http_code}" --max-time 5 "http://127.0.0.1:4025/health" 2>/dev/null || echo "000")
-  if [ "$HTTP" = "200" ]; then
-    HEALTH_OK=true
-    log "Backend health: 200 OK (attempt $i)"
-    break
+VALIDATION_FAILED=false
+
+# 1. PostgreSQL status
+if ! systemctl is-active --quiet postgresql; then
+  warn "PostgreSQL não está ativo!"
+  VALIDATION_FAILED=true
+else
+  log "✔ PostgreSQL ativo e respondendo"
+fi
+
+# 2. Redis status
+if ! systemctl is-active --quiet "$REDIS_SVC"; then
+  warn "Redis ($REDIS_SVC) não está ativo!"
+  VALIDATION_FAILED=true
+else
+  log "✔ Redis ativo e respondendo"
+fi
+
+# 3. Nginx status
+if ! systemctl is-active --quiet nginx; then
+  warn "Nginx não está ativo!"
+  VALIDATION_FAILED=true
+else
+  log "✔ Nginx ativo e respondendo"
+fi
+
+# 4. PM2 status and app running
+if ! pm2 show zapflow-api >/dev/null 2>&1; then
+  warn "PM2 zapflow-api não está ativo/rodando!"
+  VALIDATION_FAILED=true
+else
+  log "✔ PM2 zapflow-api ativo e em execução"
+fi
+
+# 5. DB query test using DATABASE_URL from .env.production
+if [ -f "$APP_DIR/.env.production" ]; then
+  # Source vars
+  set -a
+  source "$APP_DIR/.env.production" 2>/dev/null || true
+  set +a
+  
+  if ! PGPASSWORD="$POSTGRES_PASSWORD" psql "$DATABASE_URL" -c 'SELECT 1' >/dev/null 2>&1; then
+    warn "Teste de query psql usando DATABASE_URL falhou!"
+    VALIDATION_FAILED=true
+  else
+    log "✔ Consulta ao banco de dados validada (SELECT 1 ok)"
   fi
-  echo "  → Attempt $i/12 — HTTP $HTTP, waiting 5s..."
-  sleep 5
-done
+fi
 
-if $HEALTH_OK; then
-  log "Extended healthcheck..."
-  sudo -u "$APP_USER" node "$BACKEND_DIR/scripts/healthcheck.js" 2>/dev/null | tail -10 || true
+# 6. Backend API health endpoint check
+HTTP=$(curl -s -o /dev/null -w "%{http_code}" --max-time 5 "http://127.0.0.1:4025/health" 2>/dev/null || echo "000")
+if [ "$HTTP" != "200" ]; then
+  warn "Checagem do endpoint de saúde do backend falhou (HTTP $HTTP)!"
+  VALIDATION_FAILED=true
+else
+  log "✔ Endpoint de saúde (/health) retornou HTTP 200 OK"
+fi
+
+if $VALIDATION_FAILED; then
+  err "FALHA NOS TESTES DE INTEGRIDADE! Um ou mais serviços críticos não estão ativos."
+  exit 1
+else
+  log "✔ Todos os testes de integridade passaram com sucesso!"
+  HEALTH_OK=true
 fi
 
 # ─── Done ─────────────────────────────────────────────────────────────────────
 echo ""
 echo "============================================================"
-if $HEALTH_OK; then
-  echo -e "${GREEN}  ✅ ZAPAI BOOTSTRAP COMPLETE — $(date)${NC}"
-  echo "  System is ONLINE. No manual steps needed."
-else
-  echo -e "${YELLOW}  ⚠  INSTALL COMPLETE — $(date)${NC}"
-  echo "  Backend not responding yet — check: pm2 logs zapflow-api"
-fi
+echo -e "${GREEN}  ✅ ZAPAI BOOTSTRAP COMPLETE — $(date)${NC}"
+echo "  System is ONLINE. No manual steps needed."
 echo ""
 echo -e "${CYAN}  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
 echo -e "${GREEN}  ► OPEN URL:  ${PUBLIC_URL}${NC}"

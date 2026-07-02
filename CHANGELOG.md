@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.1.1] - 2026-07-02
+
+### Added
+- **Database Bootstrap & Migration Stabilization**:
+  - Added dynamic PostgreSQL configuration of `pg_hba.conf` and `postgresql.conf` (listen_addresses) on any Linux distribution (Ubuntu, Debian, AlmaLinux, Rocky Linux, CentOS).
+  - Prepend TCP local trust rules in `pg_hba.conf` to allow seamless local TCP loopback authorization.
+  - Safe verification and creation of role `zapai` and database `zapai_crm`, updating the password if they exist.
+  - Generates complete `.env.production` including all Standard `POSTGRES_*` variables and legacy `DB_*` aliases to prevent empty fields.
+  - Created a robust `wait-for-postgres` check loop prior to migrations.
+  - Created a real query connection test using `psql` and the final `DATABASE_URL` (running `SELECT 1`) to guarantee connection before running migrations.
+  - Added a final verification step checking PostgreSQL, Redis, Nginx, PM2, psql connection, and backend health before finishing.
+
 ## [1.1.0] - 2026-07-02
 
 ### Added
