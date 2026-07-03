@@ -239,10 +239,39 @@ install_nginx() {
     fi
   fi
 
+  # Remove blocos default server do nginx.conf para evitar conflito com nossa rota zapai
   if [ -f /etc/nginx/nginx.conf ]; then
-    sed -i 's/listen       80 default_server;/listen       80;/g' /etc/nginx/nginx.conf 2>/dev/null || true
-    sed -i 's/listen       \[::\]:80 default_server;/listen       \[::\]:80;/g' /etc/nginx/nginx.conf 2>/dev/null || true
+    python3 -c "
+import sys
+try:
+    with open('/etc/nginx/nginx.conf', 'r') as f:
+        lines = f.readlines()
+    new_lines = []
+    inside_server = False
+    brace_count = 0
+    for line in lines:
+        if 'server {' in line or (line.strip() == 'server' and '{' in line):
+            inside_server = True
+            brace_count = 1
+            continue
+        if inside_server:
+            brace_count += line.count('{') - line.count('}')
+            if brace_count <= 0:
+                inside_server = False
+            continue
+        new_lines.append(line)
+    with open('/etc/nginx/nginx.conf', 'w') as f:
+        f.writelines(new_lines)
+    print('Default server blocks removed successfully from nginx.conf')
+except Exception as e:
+    print('Error cleaning nginx.conf:', e)
+" || true
   fi
+
+  # Garanta permissões seguras e corretas para o Nginx ler o frontend
+  chmod 755 /opt /opt/zapai /opt/zapai/frontend-official /opt/zapai/frontend-official/dist 2>/dev/null || true
+  find /opt/zapai/frontend-official/dist -type d -exec chmod 755 {} + 2>/dev/null || true
+  find /opt/zapai/frontend-official/dist -type f -exec chmod 644 {} + 2>/dev/null || true
 
   local ssl_active=false
   if [ -n "$DOMAIN" ] && [ -f "/etc/letsencrypt/live/$DOMAIN/fullchain.pem" ]; then
