@@ -98,5 +98,5 @@ backup_reorg_temp/
 archive/legacy/
 node.exe
 releases/
-logs/
+/logs/
 *.webm
