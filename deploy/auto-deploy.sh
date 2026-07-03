@@ -252,6 +252,12 @@ step "7. NGINX RELOAD"
 if $DRY_RUN; then
   warn "[DRY-RUN] Skipping nginx reload"
 elif command -v nginx >/dev/null 2>&1; then
+  # Se aaPanel/BT for detectado, copia a config para a pasta de vhosts antes de testar
+  if [ -d "/www/server/panel/vhost/nginx" ] && [ -f "/etc/nginx/sites-available/zapai" ]; then
+    cp -f "/etc/nginx/sites-available/zapai" "/www/server/panel/vhost/nginx/zapai.conf"
+    log "aaPanel/BT detectado: Copiada config para vhosts"
+  fi
+
   if nginx -t 2>/dev/null; then
     if systemctl is-active --quiet apache2 2>/dev/null; then
       warn "Apache ativo detectado na porta 80. Parando e desativando apache2..."

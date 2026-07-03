@@ -204,6 +204,12 @@ NGINX_EOF
 
   ln -sf /etc/nginx/sites-available/zapai /etc/nginx/sites-enabled/zapai 2>/dev/null || true
   rm -f /etc/nginx/sites-enabled/default 2>/dev/null || true
+
+  # Se aaPanel/BT for detectado, copie também para a pasta vhost do aaPanel
+  if [ -d "/www/server/panel/vhost/nginx" ]; then
+    cp -f "$dest" "/www/server/panel/vhost/nginx/zapai.conf"
+    log "aaPanel/BT detectado: Copiada config para /www/server/panel/vhost/nginx/zapai.conf"
+  fi
 }
 
 install_nginx() {
