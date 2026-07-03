@@ -110,16 +110,24 @@ async function consolidateLidConversations(companyId = 'default') {
             await query(`UPDATE messages SET conversation_id = $1 WHERE conversation_id = $2`, [keeperConvId, dupConv.id]);
             
             // Move flow executions
-            await query(`UPDATE flow_executions SET conversation_id = $1 WHERE conversation_id = $2`, [keeperConvId, dupConv.id]);
+            try {
+              await query(`UPDATE flow_executions SET conversation_id = $1 WHERE conversation_id = $2`, [keeperConvId, dupConv.id]);
+            } catch (err) {
+              if (err.code !== '42P01') throw err;
+            }
 
             // Move runtime states
-            await query(`
-              DELETE FROM conversation_runtime_states 
-              WHERE conversation_id = $1 AND EXISTS (
-                SELECT 1 FROM conversation_runtime_states WHERE conversation_id = $2
-              )
-            `, [dupConv.id, keeperConvId]);
-            await query(`UPDATE conversation_runtime_states SET conversation_id = $1 WHERE conversation_id = $2`, [keeperConvId, dupConv.id]);
+            try {
+              await query(`
+                DELETE FROM conversation_runtime_states 
+                WHERE conversation_id = $1 AND EXISTS (
+                  SELECT 1 FROM conversation_runtime_states WHERE conversation_id = $2
+                )
+              `, [dupConv.id, keeperConvId]);
+              await query(`UPDATE conversation_runtime_states SET conversation_id = $1 WHERE conversation_id = $2`, [keeperConvId, dupConv.id]);
+            } catch (err) {
+              if (err.code !== '42P01') throw err;
+            }
 
             // Move AI logs
             await query(`UPDATE ai_logs SET conversation_id = $1::text WHERE conversation_id = $2::text`, [keeperConvId, dupConv.id]);

@@ -75,29 +75,37 @@ module.exports = {
 
     // 6. Update flow executions
     await client.query(`
-      UPDATE flow_executions execution
-      SET conversation_id = map.keeper_id
-      FROM duplicate_conversation_map map
-      WHERE execution.conversation_id = map.duplicate_id
+      DO $$
+      BEGIN
+        IF to_regclass('public.flow_executions') IS NOT NULL THEN
+          UPDATE flow_executions execution
+          SET conversation_id = map.keeper_id
+          FROM duplicate_conversation_map map
+          WHERE execution.conversation_id = map.duplicate_id;
+        END IF;
+      END $$;
     `);
 
     // 7. Update conversation runtime states (delete duplicates if keeper has one)
     await client.query(`
-      DELETE FROM conversation_runtime_states duplicate_state
-      USING duplicate_conversation_map map
-      WHERE duplicate_state.conversation_id = map.duplicate_id
-        AND EXISTS (
-          SELECT 1
-          FROM conversation_runtime_states keeper_state
-          WHERE keeper_state.conversation_id = map.keeper_id
-        )
-    `);
+      DO $$
+      BEGIN
+        IF to_regclass('public.conversation_runtime_states') IS NOT NULL THEN
+          DELETE FROM conversation_runtime_states duplicate_state
+          USING duplicate_conversation_map map
+          WHERE duplicate_state.conversation_id = map.duplicate_id
+            AND EXISTS (
+              SELECT 1
+              FROM conversation_runtime_states keeper_state
+              WHERE keeper_state.conversation_id = map.keeper_id
+            );
 
-    await client.query(`
-      UPDATE conversation_runtime_states runtime_state
-      SET conversation_id = map.keeper_id
-      FROM duplicate_conversation_map map
-      WHERE runtime_state.conversation_id = map.duplicate_id
+          UPDATE conversation_runtime_states runtime_state
+          SET conversation_id = map.keeper_id
+          FROM duplicate_conversation_map map
+          WHERE runtime_state.conversation_id = map.duplicate_id;
+        END IF;
+      END $$;
     `);
 
     // 8. Update AI logs
