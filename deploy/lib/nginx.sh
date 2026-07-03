@@ -208,6 +208,19 @@ NGINX_EOF
 
 install_nginx() {
   step "12. NGINX INSTALL"
+  
+  # Liberar porta 80 caso esteja ocupada por Apache ou HTTPD (comum em VPS Hostinger/cPanel)
+  if systemctl is-active --quiet apache2 2>/dev/null || command -v apache2 >/dev/null 2>&1; then
+    log "Porta 80 ocupada pelo Apache. Parando e desativando apache2..."
+    systemctl stop apache2 2>/dev/null || true
+    systemctl disable apache2 2>/dev/null || true
+  fi
+  if systemctl is-active --quiet httpd 2>/dev/null || command -v httpd >/dev/null 2>&1; then
+    log "Porta 80 ocupada pelo HTTPD. Parando e desativando httpd..."
+    systemctl stop httpd 2>/dev/null || true
+    systemctl disable httpd 2>/dev/null || true
+  fi
+
   enable_service nginx
   start_service nginx
 

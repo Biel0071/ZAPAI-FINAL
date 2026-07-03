@@ -221,8 +221,18 @@ if $DRY_RUN; then
   warn "[DRY-RUN] Skipping nginx reload"
 elif command -v nginx >/dev/null 2>&1; then
   if nginx -t 2>/dev/null; then
-    systemctl reload nginx 2>/dev/null || nginx -s reload 2>/dev/null || true
-    log "Nginx reloaded"
+    if systemctl is-active --quiet apache2 2>/dev/null; then
+      warn "Apache ativo detectado na porta 80. Parando e desativando apache2..."
+      systemctl stop apache2 2>/dev/null || true
+      systemctl disable apache2 2>/dev/null || true
+    fi
+    if systemctl is-active --quiet httpd 2>/dev/null; then
+      warn "HTTPD ativo detectado na porta 80. Parando e desativando httpd..."
+      systemctl stop httpd 2>/dev/null || true
+      systemctl disable httpd 2>/dev/null || true
+    fi
+    systemctl restart nginx 2>/dev/null || systemctl reload nginx 2>/dev/null || nginx -s reload 2>/dev/null || true
+    log "Nginx reconfigurado e ativo"
   else
     err "Nginx config test failed — skipping reload"
   fi
