@@ -3,7 +3,17 @@ module.exports = {
   description: 'Add session_id column to contacts table',
   up: async (client) => {
     await client.query(`
-      ALTER TABLE contacts ADD COLUMN IF NOT EXISTS session_id VARCHAR(100);
+      DO $$
+      BEGIN
+        IF to_regclass('public.contacts') IS NOT NULL THEN
+          IF NOT EXISTS (
+            SELECT 1 FROM information_schema.columns 
+            WHERE table_name='contacts' AND column_name='session_id'
+          ) THEN
+            ALTER TABLE contacts ADD COLUMN session_id VARCHAR(100);
+          END IF;
+        END IF;
+      END $$;
     `);
   },
 };
