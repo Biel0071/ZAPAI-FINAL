@@ -214,6 +214,15 @@ if $DRY_RUN; then
   warn "[DRY-RUN] Skipping PM2 restart"
 elif command -v pm2 >/dev/null 2>&1; then
   cd "$BACKEND_DIR"
+  
+  # Liberar a porta do backend caso haja algum processo zumbi pendente
+  ZOMBIE_PID=$(lsof -t -iTCP:${BACKEND_PORT:-4025} -sTCP:LISTEN 2>/dev/null || netstat -lnp 2>/dev/null | grep ":${BACKEND_PORT:-4025} " | awk '{print $7}' | cut -d'/' -f1 | grep -E '^[0-9]+$' || true)
+  if [ -n "$ZOMBIE_PID" ]; then
+    warn "Porta ${BACKEND_PORT:-4025} ocupada pelo PID $ZOMBIE_PID. Encerrando processo zumbi..."
+    kill -9 $ZOMBIE_PID 2>/dev/null || true
+    sleep 2
+  fi
+
   if pm2 pid zapflow-api >/dev/null 2>&1; then
     pm2 restart ecosystem.config.js --env production --update-env
     log "PM2: zapflow-api restarted"
@@ -273,7 +282,7 @@ else
 
   if [ "$HEALTH_OK" != "true" ]; then
     err "Backend health check failed after $MAX_HEALTH_RETRIES attempts"
-    exit 1
+    rollback
   fi
 
   # Validate API health envelope
