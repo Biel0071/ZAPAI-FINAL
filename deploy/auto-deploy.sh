@@ -255,7 +255,8 @@ elif command -v nginx >/dev/null 2>&1; then
   # Se aaPanel/BT for detectado, copia a config para a pasta de vhosts antes de testar
   if [ -d "/www/server/panel/vhost/nginx" ] && [ -f "/etc/nginx/sites-available/zapai" ]; then
     cp -f "/etc/nginx/sites-available/zapai" "/www/server/panel/vhost/nginx/zapai.conf"
-    log "aaPanel/BT detectado: Copiada config para vhosts"
+    cp -f "/etc/nginx/sites-available/zapai" "/www/server/panel/vhost/nginx/00_zapai.conf"
+    log "aaPanel/BT detectado: Copiada config para vhosts (zapai.conf e 00_zapai.conf)"
   fi
 
   if nginx -t 2>/dev/null; then

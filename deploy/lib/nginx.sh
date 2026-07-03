@@ -208,7 +208,8 @@ NGINX_EOF
   # Se aaPanel/BT for detectado, copie também para a pasta vhost do aaPanel
   if [ -d "/www/server/panel/vhost/nginx" ]; then
     cp -f "$dest" "/www/server/panel/vhost/nginx/zapai.conf"
-    log "aaPanel/BT detectado: Copiada config para /www/server/panel/vhost/nginx/zapai.conf"
+    cp -f "$dest" "/www/server/panel/vhost/nginx/00_zapai.conf"
+    log "aaPanel/BT detectado: Copiada config para zapai.conf e 00_zapai.conf"
   fi
 }
 
