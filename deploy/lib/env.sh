@@ -47,13 +47,17 @@ generate_env() {
     existing_jwt=$(grep '^JWT_SECRET=' "$ENV_FILE" 2>/dev/null | cut -d= -f2 || echo "")
     local existing_session
     existing_session=$(grep '^SESSION_SECRET=' "$ENV_FILE" 2>/dev/null | cut -d= -f2 || echo "")
+    local existing_enc
+    existing_enc=$(grep '^ENCRYPTION_KEY=' "$ENV_FILE" 2>/dev/null | cut -d= -f2 || echo "")
     [ -n "$existing_jwt" ] && JWT_SECRET="$existing_jwt"
     [ -n "$existing_session" ] && SESSION_SECRET="$existing_session"
+    [ -n "$existing_enc" ] && ENCRYPTION_KEY="$existing_enc"
     rm -f "$ENV_FILE"
   fi
 
   [ -z "${JWT_SECRET:-}" ] && JWT_SECRET="$(openssl rand -hex 32)"
   [ -z "${SESSION_SECRET:-}" ] && SESSION_SECRET="$(openssl rand -hex 32)"
+  [ -z "${ENCRYPTION_KEY:-}" ] && ENCRYPTION_KEY="$(openssl rand -hex 32)"
 
   cat > "$ENV_FILE" <<ENVEOF
 # ZAPAI-FINAL Production Environment
@@ -90,6 +94,7 @@ REDIS_URL=redis://localhost:6379
 JWT_SECRET=${JWT_SECRET}
 AUTH_JWT_SECRET=${JWT_SECRET}
 SESSION_SECRET=${SESSION_SECRET}
+ENCRYPTION_KEY=${ENCRYPTION_KEY}
 JWT_EXPIRES_IN=7d
 
 # URLs

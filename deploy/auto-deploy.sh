@@ -165,9 +165,21 @@ elif $DRY_RUN; then
   warn "[DRY-RUN] Skipping migrations"
 else
   cd "$BACKEND_DIR"
-  # Source .env.production so DATABASE_URL / POSTGRES_* are available
-  # shellcheck disable=SC1091
-  [ -f "$ROOT_DIR/.env.production" ] && set -a && source "$ROOT_DIR/.env.production" 2>/dev/null; set +a || true
+  if [ -f "$ROOT_DIR/.env.production" ]; then
+    set -a
+    source "$ROOT_DIR/.env.production" 2>/dev/null
+    set +a
+    
+    # Auto-repair: generate and append ENCRYPTION_KEY if it is missing
+    if [ -z "${ENCRYPTION_KEY:-}" ] || [ ${#ENCRYPTION_KEY} -lt 32 ]; then
+      ENCRYPTION_KEY="$(openssl rand -hex 32)"
+      echo "" >> "$ROOT_DIR/.env.production"
+      echo "# Auto-healed: added missing ENCRYPTION_KEY on deploy" >> "$ROOT_DIR/.env.production"
+      echo "ENCRYPTION_KEY=${ENCRYPTION_KEY}" >> "$ROOT_DIR/.env.production"
+      log "Auto-healed: added missing/invalid ENCRYPTION_KEY to .env.production"
+      export ENCRYPTION_KEY
+    fi
+  fi
   node scripts/run-migrations.js
   log "Migrations complete"
 fi
