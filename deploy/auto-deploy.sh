@@ -98,6 +98,16 @@ if [ -d "$FRONTEND_DIR/dist" ]; then
 fi
 
 rollback() {
+  err "Deploy failed. Logs do PM2 antes do rollback:"
+  if [ -f "$BACKEND_DIR/logs/pm2-error.log" ]; then
+    echo "=== PM2 ERROR LOGS ($BACKEND_DIR/logs/pm2-error.log) ==="
+    tail -n 40 "$BACKEND_DIR/logs/pm2-error.log" || true
+  fi
+  if [ -f "$BACKEND_DIR/logs/pm2-out.log" ]; then
+    echo "=== PM2 OUT LOGS ($BACKEND_DIR/logs/pm2-out.log) ==="
+    tail -n 40 "$BACKEND_DIR/logs/pm2-out.log" || true
+  fi
+
   err "Deploy failed. Rolling back..."
   cd "$ROOT_DIR"
   git reset --hard "$CURRENT_COMMIT" 2>/dev/null || true
