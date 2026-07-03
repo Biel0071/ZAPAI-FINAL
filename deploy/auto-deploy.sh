@@ -122,6 +122,7 @@ if $DRY_RUN; then
 else
   git fetch origin main --quiet
   git reset --hard origin/main
+  rm -f "$BACKEND_DIR/.env" 2>/dev/null || true
   NEW_SHORT="$(git rev-parse --short HEAD)"
   if [ "$NEW_SHORT" = "$CURRENT_SHORT" ]; then
     log "No changes — already at $NEW_SHORT"
