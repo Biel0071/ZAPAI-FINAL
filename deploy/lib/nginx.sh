@@ -294,13 +294,69 @@ deploy_nginx_auto_heal() {
   local CONF_FILE=""
   local VHOST_DIRS=()
   
-  # 1. Tentar encontrar o processo master ativo do Nginx ou OpenResty
+  # --- Verificação de Proxy Docker (comum no painel Integrator ICP e outros) ---
+  if command -v docker >/dev/null 2>&1; then
+    log "Docker detectado. Procurando container proxy nas portas 80/443..."
+    local proxy_container=""
+    for cid in $(docker ps -q 2>/dev/null); do
+      local ports
+      ports=$(docker port "$cid" 2>/dev/null || true)
+      if echo "$ports" | grep -q -E "(:80|:443)"; then
+        proxy_container="$cid"
+        break
+      fi
+    done
+    
+    if [ -n "$proxy_container" ]; then
+      local container_name
+      container_name=$(docker inspect -f '{{.Name}}' "$proxy_container" | sed 's|/||')
+      log "Container proxy encontrado: $container_name (ID: $proxy_container)"
+      
+      # Obter todos os mounts do container no formato Source:Destination
+      local mounts_json
+      mounts_json=$(docker inspect -f '{{range .Mounts}}{{.Source}}:{{.Destination}} {{end}}' "$proxy_container" 2>/dev/null || true)
+      
+      local docker_healed=false
+      for mount in $mounts_json; do
+        local host_path="${mount%%:*}"
+        local container_path="${mount#*:}"
+        
+        # Procurar por pastas de configuração do Nginx ou OpenResty
+        if [[ "$container_path" =~ /etc/nginx/conf.d || "$container_path" =~ /etc/nginx/sites-enabled || "$container_path" =~ /etc/nginx/sites-available || "$container_path" =~ /usr/local/openresty/nginx/conf || "$container_path" =~ /etc/nginx || "$container_path" =~ /etc/openresty ]]; then
+          local mapped_dir="$host_path"
+          log "Diretório de vhost Docker mapeado no host: $mapped_dir"
+          
+          if [ -f "/etc/nginx/sites-available/zapai" ] && [ -d "$mapped_dir" ]; then
+            cp -f "/etc/nginx/sites-available/zapai" "$mapped_dir/zapai.conf" 2>/dev/null
+            cp -f "/etc/nginx/sites-available/zapai" "$mapped_dir/00_zapai.conf" 2>/dev/null
+            log "Configuração copiada para o volume Docker do host em $mapped_dir"
+            docker_healed=true
+          fi
+        fi
+      done
+      
+      if $docker_healed; then
+        # Recarregar o Nginx/OpenResty dentro do container
+        log "Recarregando Nginx/OpenResty dentro do container $container_name..."
+        if docker exec "$proxy_container" nginx -t >/dev/null 2>&1; then
+          docker exec "$proxy_container" nginx -s reload >/dev/null 2>&1 && log "Nginx do container recarregado com sucesso!" && return 0
+        elif docker exec "$proxy_container" openresty -t >/dev/null 2>&1; then
+          docker exec "$proxy_container" openresty -s reload >/dev/null 2>&1 && log "OpenResty do container recarregado com sucesso!" && return 0
+        fi
+        
+        # Se falhar no reload silencioso, reiniciar o container
+        docker restart "$proxy_container" >/dev/null 2>&1 && log "Container proxy reiniciado para aplicar configurações" && return 0
+      fi
+    fi
+  fi
+
+  # 1. Tentar encontrar o processo master ativo do Nginx ou OpenResty no host
   local ps_line
   ps_line=$(ps aux 2>/dev/null | grep -E "nginx|openresty" | grep "master process" | grep -v grep | head -n 1 || true)
   
   if [ -n "$ps_line" ]; then
-    # Extrair caminho do binário (geralmente a 11ª coluna)
-    BINARY_PATH=$(echo "$ps_line" | awk '{for(i=11;i<=NF;i++) printf "%s ", $i; print ""}' | grep -o -E "^[^ ]+" || true)
+    # Extrair caminho absoluto do binário usando regex
+    BINARY_PATH=$(echo "$ps_line" | grep -o -E "/[^ ]*(nginx|openresty)[^ ]*" | head -n 1 || true)
     # Extrair arquivo de configuração (-c /caminho/para/nginx.conf)
     CONF_FILE=$(echo "$ps_line" | grep -o -E "\-c\s+[^ ]+" | awk '{print $2}' || true)
   fi
