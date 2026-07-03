@@ -250,8 +250,9 @@ install_nginx() {
   fi
 
   write_nginx_config "$DOMAIN" "$ssl_active"
-  nginx -t && restart_service nginx
-  log "Nginx: valid config, reloaded/restarted"
+  
+  # Auto-cura e ativação em múltiplos servidores (Nginx/OpenResty)
+  deploy_nginx_auto_heal
 
   ln -sf /var/log/nginx/access.log "$LOGS_DIR/nginx/access.log" 2>/dev/null || true
   ln -sf /var/log/nginx/error.log  "$LOGS_DIR/nginx/error.log"  2>/dev/null || true
@@ -275,7 +276,7 @@ configure_nginx() {
       
       if [ -f "/etc/letsencrypt/live/$DOMAIN/fullchain.pem" ]; then
         write_nginx_config "$DOMAIN" "true"
-        nginx -t && restart_service nginx
+        deploy_nginx_auto_heal
         log "✔ SSL configurado com sucesso e Nginx reconfigurado!"
       else
         warn "SSL não pôde ser configurado. Nginx permanecerá em modo HTTP-only."
@@ -284,4 +285,98 @@ configure_nginx() {
       warn "certbot não encontrado — pulando configuração SSL automática"
     fi
   fi
+}
+
+deploy_nginx_auto_heal() {
+  log "Iniciando auto-detecção do servidor web ativo (Nginx/OpenResty)..."
+  
+  local BINARY_PATH=""
+  local CONF_FILE=""
+  local VHOST_DIRS=()
+  
+  # 1. Tentar encontrar o processo master ativo do Nginx ou OpenResty
+  local ps_line
+  ps_line=$(ps aux 2>/dev/null | grep -E "nginx|openresty" | grep "master process" | grep -v grep | head -n 1 || true)
+  
+  if [ -n "$ps_line" ]; then
+    # Extrair caminho do binário (geralmente a 11ª coluna)
+    BINARY_PATH=$(echo "$ps_line" | awk '{for(i=11;i<=NF;i++) printf "%s ", $i; print ""}' | grep -o -E "^[^ ]+" || true)
+    # Extrair arquivo de configuração (-c /caminho/para/nginx.conf)
+    CONF_FILE=$(echo "$ps_line" | grep -o -E "\-c\s+[^ ]+" | awk '{print $2}' || true)
+  fi
+  
+  # Se não encontrou o binário pelo processo, tentar localizadores comuns
+  if [ -z "$BINARY_PATH" ] || [ ! -x "$BINARY_PATH" ]; then
+    BINARY_PATH=$(which openresty 2>/dev/null || which nginx 2>/dev/null || echo "")
+  fi
+  
+  # Se encontrou o binário mas não o arquivo de config, consultar o binário
+  if [ -n "$BINARY_PATH" ] && [ -z "$CONF_FILE" ]; then
+    CONF_FILE=$("$BINARY_PATH" -V 2>&1 | grep -o -E "\-\-conf\-path=[^ ]+" | cut -d= -f2 || true)
+  fi
+  
+  # Fallbacks comuns se nada funcionar
+  [ -z "$CONF_FILE" ] && [ -f "/usr/local/openresty/nginx/conf/nginx.conf" ] && CONF_FILE="/usr/local/openresty/nginx/conf/nginx.conf"
+  [ -z "$CONF_FILE" ] && [ -f "/etc/nginx/nginx.conf" ] && CONF_FILE="/etc/nginx/nginx.conf"
+  
+  log "Servidor ativo binário: ${BINARY_PATH:-Não detectado}"
+  log "Configuração principal: ${CONF_FILE:-Não detectada}"
+  
+  # 2. Identificar possíveis diretórios de Virtual Hosts (includes)
+  if [ -f "$CONF_FILE" ]; then
+    local conf_dir
+    conf_dir=$(dirname "$CONF_FILE")
+    
+    # Buscar os diretórios de include no arquivo principal
+    local include_patterns
+    include_patterns=$(grep -E "include\s+[^;]+" "$CONF_FILE" | grep -o -E "include\s+[^;]+" | awk '{print $2}' || true)
+    
+    for pat in $include_patterns; do
+      local abs_pat="$pat"
+      [[ "$pat" != /* ]] && abs_pat="$conf_dir/$pat"
+      
+      local dir_name
+      dir_name=$(dirname "$abs_pat" 2>/dev/null || true)
+      if [ -d "$dir_name" ] && [[ ! " ${VHOST_DIRS[*]} " =~ " ${dir_name} " ]]; then
+        VHOST_DIRS+=("$dir_name")
+      fi
+    done
+  fi
+  
+  # Adicionar diretórios de include conhecidos do aaPanel, ICP, CyberPanel, etc.
+  local extra_dirs=(
+    "/etc/nginx/sites-enabled"
+    "/etc/nginx/conf.d"
+    "/www/server/panel/vhost/nginx"
+    "/www/server/nginx/conf/vhost"
+    "/usr/local/openresty/nginx/conf/vhost"
+    "/usr/local/openresty/nginx/conf/conf.d"
+    "/etc/nginx/sites-available"
+  )
+  for d in "${extra_dirs[@]}"; do
+    if [ -d "$d" ] && [[ ! " ${VHOST_DIRS[*]} " =~ " ${d} " ]]; then
+      VHOST_DIRS+=("$d")
+    fi
+  done
+  
+  # 3. Copiar e ativar a configuração do ZapAI em todos os diretórios vhost encontrados
+  local source_conf="/etc/nginx/sites-available/zapai"
+  if [ -f "$source_conf" ]; then
+    for v_dir in "${VHOST_DIRS[@]}"; do
+      cp -f "$source_conf" "$v_dir/zapai.conf" 2>/dev/null && log "Config copiada para $v_dir/zapai.conf" || true
+      cp -f "$source_conf" "$v_dir/00_zapai.conf" 2>/dev/null && log "Config copiada para $v_dir/00_zapai.conf (prioridade)" || true
+    done
+  fi
+  
+  # 4. Recarregar o servidor web ativo usando o método mais compatível
+  if [ -n "$BINARY_PATH" ] && [ -x "$BINARY_PATH" ]; then
+    if "$BINARY_PATH" -t 2>/dev/null; then
+      "$BINARY_PATH" -s reload 2>/dev/null && log "Servidor web recarregado com sucesso ($BINARY_PATH -s reload)" && return 0
+    fi
+  fi
+  
+  # Fallbacks do sistema de controle
+  systemctl reload openresty 2>/dev/null || systemctl restart openresty 2>/dev/null || \
+  systemctl reload nginx 2>/dev/null || systemctl restart nginx 2>/dev/null || \
+  service nginx reload 2>/dev/null || service openresty reload 2>/dev/null || true
 }

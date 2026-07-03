@@ -251,32 +251,21 @@ fi
 step "7. NGINX RELOAD"
 if $DRY_RUN; then
   warn "[DRY-RUN] Skipping nginx reload"
-elif command -v nginx >/dev/null 2>&1; then
-  # Se aaPanel/BT for detectado, copia a config para a pasta de vhosts antes de testar
-  if [ -d "/www/server/panel/vhost/nginx" ] && [ -f "/etc/nginx/sites-available/zapai" ]; then
-    cp -f "/etc/nginx/sites-available/zapai" "/www/server/panel/vhost/nginx/zapai.conf"
-    cp -f "/etc/nginx/sites-available/zapai" "/www/server/panel/vhost/nginx/00_zapai.conf"
-    log "aaPanel/BT detectado: Copiada config para vhosts (zapai.conf e 00_zapai.conf)"
-  fi
-
-  if nginx -t 2>/dev/null; then
-    if systemctl is-active --quiet apache2 2>/dev/null; then
-      warn "Apache ativo detectado na porta 80. Parando e desativando apache2..."
-      systemctl stop apache2 2>/dev/null || true
-      systemctl disable apache2 2>/dev/null || true
-    fi
-    if systemctl is-active --quiet httpd 2>/dev/null; then
-      warn "HTTPD ativo detectado na porta 80. Parando e desativando httpd..."
-      systemctl stop httpd 2>/dev/null || true
-      systemctl disable httpd 2>/dev/null || true
-    fi
-    systemctl restart nginx 2>/dev/null || systemctl reload nginx 2>/dev/null || nginx -s reload 2>/dev/null || true
-    log "Nginx reconfigurado e ativo"
-  else
-    err "Nginx config test failed — skipping reload"
-  fi
 else
-  warn "Nginx not found — skipping"
+  # Importa o módulo do Nginx para executar o motor de auto-cura e auto-detecção
+  # shellcheck disable=SC1090
+  if [ -f "$ROOT_DIR/deploy/lib/nginx.sh" ]; then
+    # Garante que as funções auxiliares de log existam no escopo antes do source
+    type log >/dev/null 2>&1 || log() { echo "  [✔] $*"; }
+    type warn >/dev/null 2>&1 || warn() { echo "  [⚠] $*"; }
+    type err >/dev/null 2>&1 || err() { echo "  [✖] $*"; }
+    
+    source "$ROOT_DIR/deploy/lib/nginx.sh"
+    deploy_nginx_auto_heal
+    log "Nginx/OpenResty auto-detectado e ativo"
+  else
+    warn "nginx.sh library não encontrada — pulando auto-cura"
+  fi
 fi
 
 # ─── 7. Health validation ─────────────────────────────────────────────────────
