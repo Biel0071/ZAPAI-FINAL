@@ -505,7 +505,10 @@ except Exception as e:
       local dir_name
       dir_name=$(dirname "$abs_pat" 2>/dev/null || true)
       if [ -d "$dir_name" ] && [[ ! " ${VHOST_DIRS[*]} " =~ " ${dir_name} " ]]; then
-        VHOST_DIRS+=("$dir_name")
+        # Ignorar diretórios que não são para vhosts virtuais reais (como módulos ou pasta principal do nginx/openresty)
+        if [ "$dir_name" != "/usr/share/nginx/modules" ] && [ "$dir_name" != "/etc/nginx" ] && [ "$dir_name" != "/etc/openresty" ] && [ "$dir_name" != "/usr/local/openresty/nginx/conf" ]; then
+          VHOST_DIRS+=("$dir_name")
+        fi
       fi
     done
   fi
