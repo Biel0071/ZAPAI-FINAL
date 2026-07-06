@@ -5,8 +5,11 @@ write_nginx_config() {
   local domain="$1"
   local enable_ssl="$2"
   local dest="/etc/nginx/sites-available/zapai"
+  if [ ! -d "/etc/nginx/sites-available" ]; then
+    dest="/etc/nginx/conf.d/zapai.conf"
+  fi
 
-  log "Gerando configuração do Nginx (domain: ${domain:-none}, SSL: ${enable_ssl})..."
+  log "Gerando configuração do Nginx (dest: ${dest}, domain: ${domain:-none}, SSL: ${enable_ssl})..."
 
   # Header & Limits
   cat > "$dest" << NGINX_EOF
@@ -202,8 +205,10 @@ server {
 NGINX_EOF
   fi
 
-  ln -sf /etc/nginx/sites-available/zapai /etc/nginx/sites-enabled/zapai 2>/dev/null || true
-  rm -f /etc/nginx/sites-enabled/default 2>/dev/null || true
+  if [ "$dest" = "/etc/nginx/sites-available/zapai" ]; then
+    ln -sf /etc/nginx/sites-available/zapai /etc/nginx/sites-enabled/zapai 2>/dev/null || true
+    rm -f /etc/nginx/sites-enabled/default 2>/dev/null || true
+  fi
 
   # Se aaPanel/BT for detectado, copie também para a pasta vhost do aaPanel
   if [ -d "/www/server/panel/vhost/nginx" ]; then
@@ -318,7 +323,44 @@ configure_nginx() {
 
 deploy_nginx_auto_heal() {
   log "Iniciando auto-detecção do servidor web ativo (Nginx/OpenResty)..."
-  
+
+  # Regenerar a configuração base para garantir que ela esteja atualizada
+  local ssl_active=false
+  if [ -n "${DOMAIN:-}" ] && [ -f "/etc/letsencrypt/live/${DOMAIN}/fullchain.pem" ]; then
+    ssl_active=true
+  fi
+  write_nginx_config "${DOMAIN:-}" "$ssl_active"
+
+  # Limpar bloco default de Nginx no nginx.conf se existirem conflitos de porta 80
+  if [ -f /etc/nginx/nginx.conf ]; then
+    log "Limpando blocos de servidor padrão do nginx.conf..."
+    python3 -c "
+import sys
+try:
+    with open('/etc/nginx/nginx.conf', 'r') as f:
+        lines = f.readlines()
+    new_lines = []
+    inside_server = False
+    brace_count = 0
+    for line in lines:
+        if 'server {' in line or (line.strip() == 'server' and '{' in line):
+            inside_server = True
+            brace_count = 1
+            continue
+        if inside_server:
+            brace_count += line.count('{') - line.count('}')
+            if brace_count <= 0:
+                inside_server = False
+            continue
+        new_lines.append(line)
+    with open('/etc/nginx/nginx.conf', 'w') as f:
+        f.writelines(new_lines)
+    print('Default server blocks removed successfully')
+except Exception as e:
+    print('Error cleaning nginx.conf:', e)
+" 2>/dev/null || true
+  fi
+
   local BINARY_PATH=""
   local CONF_FILE=""
   local VHOST_DIRS=()
@@ -446,10 +488,17 @@ deploy_nginx_auto_heal() {
   
   # 3. Copiar e ativar a configuração do ZapAI em todos os diretórios vhost encontrados
   local source_conf="/etc/nginx/sites-available/zapai"
+  if [ ! -d "/etc/nginx/sites-available" ]; then
+    source_conf="/etc/nginx/conf.d/zapai.conf"
+  fi
+
   if [ -f "$source_conf" ]; then
     for v_dir in "${VHOST_DIRS[@]}"; do
-      cp -f "$source_conf" "$v_dir/zapai.conf" 2>/dev/null && log "Config copiada para $v_dir/zapai.conf" || true
-      cp -f "$source_conf" "$v_dir/00_zapai.conf" 2>/dev/null && log "Config copiada para $v_dir/00_zapai.conf (prioridade)" || true
+      # Evitar copiar sobre si mesmo
+      if [ "$source_conf" != "$v_dir/zapai.conf" ] && [ "$source_conf" != "$v_dir/00_zapai.conf" ]; then
+        cp -f "$source_conf" "$v_dir/zapai.conf" 2>/dev/null && log "Config copiada para $v_dir/zapai.conf" || true
+        cp -f "$source_conf" "$v_dir/00_zapai.conf" 2>/dev/null && log "Config copiada para $v_dir/00_zapai.conf (prioridade)" || true
+      fi
     done
   fi
   

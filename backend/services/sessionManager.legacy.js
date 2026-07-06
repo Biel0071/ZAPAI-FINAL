@@ -18,6 +18,8 @@ function getWhatsappService() {
 const { activeSessions } = require('./whatsapp/state/registry');
 
 const SESSIONS_DIRECTORY = path.join(__dirname, '..', 'sessions');
+const fsSync = require('fs');
+fsSync.mkdirSync(SESSIONS_DIRECTORY, { recursive: true });
 const sessions = new Map();
 const DEFAULT_SESSION = 'main';   // always exactly 'main'
 const startupPromises = new Map();
