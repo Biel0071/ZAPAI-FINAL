@@ -376,11 +376,24 @@ except Exception as e:
     log "Docker detectado. Procurando container proxy nas portas 80/443..."
     local proxy_container=""
     for cid in $(docker ps -q 2>/dev/null); do
-      local ports
-      ports=$(docker port "$cid" 2>/dev/null || true)
-      if echo "$ports" | grep -q -E "(:80|:443)"; then
-        proxy_container="$cid"
-        break
+      local image
+      image=$(docker inspect -f '{{.Config.Image}}' "$cid" 2>/dev/null || true)
+      local name
+      name=$(docker inspect -f '{{.Name}}' "$cid" 2>/dev/null || true)
+      if echo "$image $name" | grep -q -E "(nginx|openresty)"; then
+        local net_mode
+        net_mode=$(docker inspect -f '{{.HostConfig.NetworkMode}}' "$cid" 2>/dev/null || true)
+        if [ "$net_mode" = "host" ]; then
+          proxy_container="$cid"
+          break
+        fi
+        
+        local ports
+        ports=$(docker port "$cid" 2>/dev/null || true)
+        if echo "$ports" | grep -q -E "(:80|:443)"; then
+          proxy_container="$cid"
+          break
+        fi
       fi
     done
     
