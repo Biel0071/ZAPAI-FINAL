@@ -324,6 +324,12 @@ configure_nginx() {
 deploy_nginx_auto_heal() {
   log "Iniciando auto-detecção do servidor web ativo (Nginx/OpenResty)..."
 
+  # Parse DOMAIN from PUBLIC_URL if DOMAIN is empty
+  if [ -z "${DOMAIN:-}" ] && [ -n "${PUBLIC_URL:-}" ]; then
+    DOMAIN=$(echo "$PUBLIC_URL" | sed -e 's|^[^/]*//||' -e 's|:[0-9]*||' -e 's|/.*||')
+    log "Auto-detectado DOMAIN da PUBLIC_URL: $DOMAIN"
+  fi
+
   # Regenerar a configuração base para garantir que ela esteja atualizada
   local ssl_active=false
   if [ -n "${DOMAIN:-}" ] && [ -f "/etc/letsencrypt/live/${DOMAIN}/fullchain.pem" ]; then
@@ -387,6 +393,36 @@ except Exception as e:
       local mounts_json
       mounts_json=$(docker inspect -f '{{range .Mounts}}{{.Source}}:{{.Destination}} {{end}}' "$proxy_container" 2>/dev/null || true)
       
+      local source_conf="/etc/nginx/sites-available/zapai"
+      if [ ! -d "/etc/nginx/sites-available" ]; then
+        source_conf="/etc/nginx/conf.d/zapai.conf"
+      fi
+
+      # Localizar mapeamento do volume /www
+      local host_www_path=""
+      for mount in $mounts_json; do
+        local host_path="${mount%%:*}"
+        local container_path="${mount#*:}"
+        if [ "$container_path" = "/www" ]; then
+          host_www_path="$host_path"
+          break
+        fi
+      done
+
+      if [ -n "$host_www_path" ]; then
+        log "Diretório /www mapeado no host: $host_www_path"
+        # Garantir e copiar a pasta dist para o host
+        mkdir -p "$host_www_path/zapai"
+        cp -rf /opt/zapai/frontend-official/dist/. "$host_www_path/zapai/"
+        log "Frontend dist copiado para o host em: $host_www_path/zapai/"
+        
+        # Ajustar o root da configuração para apontar para /www/zapai (interno do container)
+        if [ -f "$source_conf" ]; then
+          sed -i 's|/opt/zapai/frontend-official/dist|/www/zapai|g' "$source_conf"
+          log "Ajustado root de $source_conf para /www/zapai"
+        fi
+      fi
+
       local docker_healed=false
       for mount in $mounts_json; do
         local host_path="${mount%%:*}"
@@ -395,13 +431,17 @@ except Exception as e:
         # Procurar por pastas de configuração do Nginx ou OpenResty
         if [[ "$container_path" =~ /etc/nginx/conf.d || "$container_path" =~ /etc/nginx/sites-enabled || "$container_path" =~ /etc/nginx/sites-available || "$container_path" =~ /usr/local/openresty/nginx/conf || "$container_path" =~ /etc/nginx || "$container_path" =~ /etc/openresty ]]; then
           local mapped_dir="$host_path"
-          log "Diretório de vhost Docker mapeado no host: $mapped_dir"
           
-          if [ -f "/etc/nginx/sites-available/zapai" ] && [ -d "$mapped_dir" ]; then
-            cp -f "/etc/nginx/sites-available/zapai" "$mapped_dir/zapai.conf" 2>/dev/null
-            cp -f "/etc/nginx/sites-available/zapai" "$mapped_dir/00_zapai.conf" 2>/dev/null
-            log "Configuração copiada para o volume Docker do host em $mapped_dir"
-            docker_healed=true
+          # Ignorar pastas que não são de vhost/site real (como módulos ou a própria pasta raiz /etc/nginx)
+          if [ "$mapped_dir" != "/usr/share/nginx/modules" ] && [ "$mapped_dir" != "/etc/nginx" ] && [ "$mapped_dir" != "/etc/openresty" ] && [ "$mapped_dir" != "/usr/local/openresty/nginx/conf" ]; then
+            log "Diretório de vhost Docker mapeado no host: $mapped_dir"
+            
+            if [ -f "$source_conf" ] && [ -d "$mapped_dir" ]; then
+              cp -f "$source_conf" "$mapped_dir/zapai.conf" 2>/dev/null
+              cp -f "$source_conf" "$mapped_dir/00_zapai.conf" 2>/dev/null
+              log "Configuração copiada para o volume Docker do host em $mapped_dir"
+              docker_healed=true
+            fi
           fi
         fi
       done
