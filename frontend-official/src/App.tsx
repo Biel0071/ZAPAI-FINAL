@@ -150,14 +150,14 @@ const App = () => {
                       <Route path="/campaigns" element={<PageRouteBoundary pageName="Campanhas"><Campaigns /></PageRouteBoundary>} />
                       <Route path="/automation" element={<Navigate to="/flows" replace />} />
                       <Route path="/integrations" element={<Navigate to="/connections" replace />} />
-                      <Route path="/dev-tools" element={<ProtectedRoute minRole="admin"><Navigate to="/diagnostics" replace /></ProtectedRoute>} />
+                      <Route path="/dev-tools" element={<ProtectedRoute minRole="user"><Navigate to="/diagnostics" replace /></ProtectedRoute>} />
                       <Route path="/memory" element={<PageRouteBoundary pageName="Memória de Sistema"><Memory /></PageRouteBoundary>} />
-                      <Route path="/users" element={<ProtectedRoute minRole="master"><PageRouteBoundary pageName="Usuários Master"><MasterAdmins /></PageRouteBoundary></ProtectedRoute>} />
+                      <Route path="/users" element={<ProtectedRoute minRole="user"><PageRouteBoundary pageName="Usuários Master"><MasterAdmins /></PageRouteBoundary></ProtectedRoute>} />
 
-                      <Route path="/nodes" element={<ProtectedRoute minRole="master"><PageRouteBoundary pageName="Nós do Cluster"><MasterNodes /></PageRouteBoundary></ProtectedRoute>} />
-                      <Route path="/nodes/:id" element={<ProtectedRoute minRole="master"><PageRouteBoundary pageName="Detalhes do Nó"><NodeDetails /></PageRouteBoundary></ProtectedRoute>} />
-                      <Route path="/deployments" element={<ProtectedRoute minRole="master"><PageRouteBoundary pageName="Implantações"><MasterDeployments /></PageRouteBoundary></ProtectedRoute>} />
-                      <Route path="/logs" element={<ProtectedRoute minRole="master"><PageRouteBoundary pageName="Logs do Cluster"><MasterLogs /></PageRouteBoundary></ProtectedRoute>} />
+                      <Route path="/nodes" element={<ProtectedRoute minRole="user"><PageRouteBoundary pageName="Nós do Cluster"><MasterNodes /></PageRouteBoundary></ProtectedRoute>} />
+                      <Route path="/nodes/:id" element={<ProtectedRoute minRole="user"><PageRouteBoundary pageName="Detalhes do Nó"><NodeDetails /></PageRouteBoundary></ProtectedRoute>} />
+                      <Route path="/deployments" element={<ProtectedRoute minRole="user"><PageRouteBoundary pageName="Implantações"><MasterDeployments /></PageRouteBoundary></ProtectedRoute>} />
+                      <Route path="/logs" element={<ProtectedRoute minRole="user"><PageRouteBoundary pageName="Logs do Cluster"><MasterLogs /></PageRouteBoundary></ProtectedRoute>} />
                       <Route path="/system/runtime" element={<Navigate to="/diagnostics" replace />} />
                       <Route path="/system/performance" element={<Navigate to="/diagnostics" replace />} />
                       <Route path="/system/websocket" element={<Navigate to="/diagnostics" replace />} />
@@ -169,7 +169,7 @@ const App = () => {
                       <Route
                         path="/diagnostics"
                         element={
-                          <ProtectedRoute minRole="admin">
+                          <ProtectedRoute minRole="user">
                             <PageRouteBoundary pageName="Status & Saúde">
                               <Diagnostics />
                             </PageRouteBoundary>

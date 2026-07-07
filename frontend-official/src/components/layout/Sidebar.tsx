@@ -61,14 +61,14 @@ const crmItems: SidebarNavItem[] = [
 ];
 
 const adminItems: SidebarNavItem[] = [
-  { icon: HardDrives, label: "Cluster", path: "/nodes", minRole: "master" },
-  { icon: ShieldCheck, label: "Usuários", path: "/users", minRole: "master" },
-  { icon: TrendUp, label: "Deployments", path: "/deployments", minRole: "master" },
-  { icon: FileText, label: "Logs", path: "/logs", minRole: "master" },
+  { icon: HardDrives, label: "Cluster", path: "/nodes", minRole: "user" },
+  { icon: ShieldCheck, label: "Usuários", path: "/users", minRole: "user" },
+  { icon: TrendUp, label: "Deployments", path: "/deployments", minRole: "user" },
+  { icon: FileText, label: "Logs", path: "/logs", minRole: "user" },
 ];
 
 const bottomItems: SidebarNavItem[] = [
-  { icon: Pulse, label: "Status & Saúde", path: "/diagnostics", minRole: "admin" },
+  { icon: Pulse, label: "Status & Saúde", path: "/diagnostics", minRole: "user" },
   { icon: Gear, label: "Configurações", path: "/settings", minRole: "user" },
 ];
 
@@ -110,7 +110,7 @@ export function Sidebar() {
   );
 
   const visibleAdminItems = useMemo(
-    () => adminItems.filter((item) => roleLevel[role] >= roleLevel[item.minRole ?? "admin"]),
+    () => adminItems.filter((item) => roleLevel[role] >= roleLevel[item.minRole ?? "user"]),
     [role, roleLevel],
   );
 
@@ -119,7 +119,7 @@ export function Sidebar() {
     [role, roleLevel],
   );
 
-  const shouldShowAdminMenu = roleLevel[role] >= roleLevel.admin && visibleAdminItems.length > 0;
+  const shouldShowAdminMenu = roleLevel[role] >= roleLevel.user && visibleAdminItems.length > 0;
 
   useEffect(() => {
     if (!isMobile) {
