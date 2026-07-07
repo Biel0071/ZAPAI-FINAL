@@ -445,13 +445,12 @@ except Exception as e:
         if [[ "$container_path" =~ /etc/nginx/conf.d || "$container_path" =~ /etc/nginx/sites-enabled || "$container_path" =~ /etc/nginx/sites-available || "$container_path" =~ /usr/local/openresty/nginx/conf || "$container_path" =~ /etc/nginx || "$container_path" =~ /etc/openresty ]]; then
           local mapped_dir="$host_path"
           
-          # Ignorar pastas que não são de vhost/site real (como módulos ou a própria pasta raiz /etc/nginx)
-          if [ "$mapped_dir" != "/usr/share/nginx/modules" ] && [ "$mapped_dir" != "/etc/nginx" ] && [ "$mapped_dir" != "/etc/openresty" ] && [ "$mapped_dir" != "/usr/local/openresty/nginx/conf" ]; then
+          # Ignorar pastas que não são de vhost/site real (como módulos ou a própria pasta raiz /etc/nginx ou a pasta default do OpenResty)
+          if [ "$mapped_dir" != "/usr/share/nginx/modules" ] && [ "$mapped_dir" != "/etc/nginx" ] && [ "$mapped_dir" != "/etc/openresty" ] && [ "$mapped_dir" != "/usr/local/openresty/nginx/conf" ] && [[ "$container_path" != *"/default" ]]; then
             log "Diretório de vhost Docker mapeado no host: $mapped_dir"
             
             if [ -f "$source_conf" ] && [ -d "$mapped_dir" ]; then
               cp -f "$source_conf" "$mapped_dir/zapai.conf" 2>/dev/null
-              cp -f "$source_conf" "$mapped_dir/00_zapai.conf" 2>/dev/null
               log "Configuração copiada para o volume Docker do host em $mapped_dir"
               docker_healed=true
             fi
@@ -551,9 +550,8 @@ except Exception as e:
   if [ -f "$source_conf" ]; then
     for v_dir in "${VHOST_DIRS[@]}"; do
       # Evitar copiar sobre si mesmo
-      if [ "$source_conf" != "$v_dir/zapai.conf" ] && [ "$source_conf" != "$v_dir/00_zapai.conf" ]; then
+      if [ "$source_conf" != "$v_dir/zapai.conf" ]; then
         cp -f "$source_conf" "$v_dir/zapai.conf" 2>/dev/null && log "Config copiada para $v_dir/zapai.conf" || true
-        cp -f "$source_conf" "$v_dir/00_zapai.conf" 2>/dev/null && log "Config copiada para $v_dir/00_zapai.conf (prioridade)" || true
       fi
     done
   fi
