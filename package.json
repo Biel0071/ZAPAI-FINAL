@@ -18,5 +18,8 @@
     "axe-core": "^4.11.4",
     "fs-extra": "^11.3.5",
     "sharp": "^0.34.5"
+  },
+  "dependencies": {
+    "ssh2": "^1.17.0"
   }
 }
