@@ -57,8 +57,8 @@ async function generateAIResponse({
     
     let aiConfig = {};
     const raw = await systemSettingsRepository.getSetting('ai_config');
-    if (raw) {
-      aiConfig = JSON.parse(raw);
+    if (raw && raw.value) {
+      aiConfig = typeof raw.value === 'string' ? JSON.parse(raw.value) : raw.value;
     }
 
     const processStore = {

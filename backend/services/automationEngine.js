@@ -137,7 +137,9 @@ async function processMessage({ payload, conversation, store, sock, sessionId })
     let businessHours = { absenceMessage: 'No momento estamos fechados. Retornaremos em breve!' };
     try {
       const raw = await systemSettingsRepository.getSetting('business_hours');
-      if (raw) businessHours = JSON.parse(raw);
+      if (raw && raw.value) {
+        businessHours = typeof raw.value === 'string' ? JSON.parse(raw.value) : raw.value;
+      }
     } catch {}
 
     console.log(`[AutomationEngine] Business is closed. Enqueueing absence message.`);
