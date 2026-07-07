@@ -71,6 +71,17 @@ async function generateAIResponse({
       phone: conversation?.phone || 'unknown',
       conversationId: conversation?.id || conversation?.phone || 'unknown',
       sessionId: sessionId || store?.sessionId || null,
+      funnelStage: conversation?.funnel_stage || store?.contact?.funnelStage || null,
+      nextAction: leadAnalysis?.next_action || conversation?.next_action || store?.contact?.nextAction || null,
+      leadAnalysis: leadAnalysis || {
+        intent: conversation?.lead_intent || null,
+        lead_temperature: conversation?.lead_temperature || null,
+        confidence: conversation?.lead_confidence || null,
+        next_action: conversation?.next_action || null,
+      },
+      salesStrategy: salesStrategy || {
+        goal: conversation?.next_action || null,
+      },
     };
 
     const history = conversationHistory.map(h => ({

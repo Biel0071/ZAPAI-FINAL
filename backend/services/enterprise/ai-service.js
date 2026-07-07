@@ -2,6 +2,7 @@ const fs = require('fs/promises');
 const path = require('path');
 const { analyzeLeadIntent } = require('../leadAnalyzer');
 const { generateAIResponse } = require('../aiResponseEngine');
+const { generateSalesStrategy } = require('../salesStrategyEngine');
 
 const AI_MEMORY_FILE = path.join(__dirname, '..', '..', 'data', 'ai_memory.json');
 
@@ -42,9 +43,13 @@ async function appendAiMemory(entry = {}) {
   await fs.writeFile(AI_MEMORY_FILE, JSON.stringify(data, null, 2), 'utf8');
 }
 
-async function evaluateInboundAi({ agent, chatId, conversationHistory = [], customerMessage, store, forceAutoReply = false, conversationId = null, sessionId = null }) {
+async function evaluateInboundAi({ agent, chatId, conversationHistory = [], customerMessage, store, forceAutoReply = false, conversationId = null, sessionId = null, conversation = null }) {
   const recentHistory = Array.isArray(conversationHistory) ? conversationHistory.slice(-10) : [];
   const lead = analyzeLeadIntent(customerMessage, recentHistory);
+  const salesStrategy = generateSalesStrategy(lead || {
+    intent: conversation?.lead_intent,
+    lead_temperature: conversation?.lead_temperature,
+  });
   const confidence = Math.max(0, Math.min(1, Number(lead?.confidence || 0)));
   let action = classifyDecisionFromConfidence(confidence);
 
@@ -57,14 +62,14 @@ async function evaluateInboundAi({ agent, chatId, conversationHistory = [], cust
   if (action === 'auto_reply' || action === 'suggest_reply') {
     aiReply = await generateAIResponse({
       agent,
-      conversation: {
+      conversation: conversation || {
         id: conversationId || chatId,
         phone: chatId,
       },
       conversationHistory: recentHistory,
       customerMessage,
       leadAnalysis: lead,
-      salesStrategy: {},
+      salesStrategy,
       store,
       sessionId,
     });

@@ -451,6 +451,7 @@ async function runAIForChat({ chatId, incomingFormattedMessage, session, sock })
       },
       forceAutoReply: conversationAIEnabled,
       conversationId: fresh?.id || incomingFormattedMessage?.conversationId || null,
+      conversation: fresh || chat,
       sessionId: session?.sessionId || DEFAULT_SESSION,
     });
   } catch (error) {

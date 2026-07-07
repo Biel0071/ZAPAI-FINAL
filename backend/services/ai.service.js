@@ -636,6 +636,7 @@ async function processAI({ contact, history, message, store, agentName, companyI
   }
 
   const systemPrompt = compileSystemPrompt(resolvedAgent, store, contact);
+  console.log('[AI SERVICE] System Prompt Compiled:\n' + systemPrompt);
   const slicedHistory = Array.isArray(history) ? history.slice(-8) : [];
 
   // Response Caching (60s TTL)
