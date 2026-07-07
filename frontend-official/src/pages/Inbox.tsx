@@ -9,6 +9,12 @@ import {
   Paperclip,
   PencilSimple,
   CopySimple,
+  ArrowUp,
+  ArrowDown,
+  Clock,
+  Lightning,
+  Tag,
+  Archive,
 } from "@phosphor-icons/react";
 import { Header } from "@/components/layout/Header";
 import InboxView from "@/lovable/pages/InboxPageView";
@@ -736,78 +742,118 @@ export default function Inbox() {
                   </div>
                 </div>
               </DialogContent>
-            </Dialog>
-
-            <Dialog open={state.isQuickReplyDialogOpen} onOpenChange={state.setIsQuickReplyDialogOpen}>
-              <DialogContent className="sm:max-w-2xl border-border/80 bg-card/95 backdrop-blur-xl max-h-[85vh] overflow-y-auto text-foreground">
-                <DialogHeader>
-                  <DialogTitle className="font-display text-base text-foreground">
-                    {state.qrDialogId ? "Editar Resposta Rápida" : "Nova Resposta Rápida"}
-                  </DialogTitle>
-                </DialogHeader>
-                <div className="space-y-4 py-2 text-xs">
-                  <div className="space-y-1.5">
-                    <Label htmlFor="qr-title" className="text-xs text-foreground">Título</Label>
-                    <Input
-                      id="qr-title"
-                      placeholder="Ex: Saudação Inicial"
-                      value={state.qrDialogTitle}
-                      onChange={(e) => state.setQrDialogTitle(e.target.value)}
-                      className="h-8 text-xs bg-background/50 text-foreground"
-                    />
+                       <Dialog open={state.isQuickReplyDialogOpen} onOpenChange={state.setIsQuickReplyDialogOpen}>
+              <DialogContent className="sm:max-w-2xl border border-border/60 bg-gradient-to-b from-card to-background/98 backdrop-blur-2xl max-h-[90vh] overflow-y-auto text-foreground shadow-2xl rounded-xl p-6">
+                <DialogHeader className="border-b border-border/20 pb-4">
+                  <div className="flex items-center justify-between">
+                    <DialogTitle className="font-display text-lg font-semibold tracking-tight text-foreground flex items-center gap-2">
+                      {state.qrDialogIsFlow ? (
+                        <Lightning className="h-5 w-5 text-amber-500 animate-pulse" weight="fill" />
+                      ) : (
+                        <Check className="h-5 w-5 text-primary" weight="bold" />
+                      )}
+                      {state.qrDialogId ? "Editar Resposta Rápida" : "Nova Resposta Rápida"}
+                    </DialogTitle>
+                    <span className={`text-[10px] font-semibold px-2.5 py-0.5 rounded-full uppercase tracking-wider ${
+                      state.qrDialogIsFlow 
+                        ? "bg-amber-500/10 text-amber-500 border border-amber-500/25" 
+                        : "bg-primary/10 text-primary border border-primary/25"
+                    }`}>
+                      {state.qrDialogIsFlow ? "Fluxo Sequencial" : "Resposta Simples"}
+                    </span>
                   </div>
+                </DialogHeader>
 
-                  <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-5 py-4 text-xs">
+                  {/* CONFIGURAÇÃO GERAL CARD */}
+                  <div className="bg-muted/15 border border-border/30 rounded-xl p-4 space-y-4">
                     <div className="space-y-1.5">
-                      <Label htmlFor="qr-category" className="text-xs text-foreground">Categoria</Label>
-                      <select
-                        id="qr-category"
-                        value={state.qrDialogCategory}
-                        onChange={(e) => state.setQrDialogCategory(e.target.value)}
-                        className="flex h-8 w-full rounded-md border border-input bg-background/50 px-3 py-1 text-xs ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 text-foreground"
-                      >
-                        <option value="saudação">Saudação</option>
-                        <option value="vendas">Vendas</option>
-                        <option value="suporte">Suporte</option>
-                      </select>
+                      <Label htmlFor="qr-title" className="text-xs font-semibold text-foreground">Título do Atalho</Label>
+                      <Input
+                        id="qr-title"
+                        placeholder="Ex: Saudação Inicial, Apresentação de Preços..."
+                        value={state.qrDialogTitle}
+                        onChange={(e) => state.setQrDialogTitle(e.target.value)}
+                        className="h-9 text-xs bg-background/40 text-foreground border-border/50 focus:border-primary/50 transition-all rounded-lg"
+                      />
                     </div>
 
-                    <div className="flex items-center space-x-2 pt-6">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div className="space-y-1.5">
+                        <Label htmlFor="qr-category" className="text-xs font-semibold text-foreground">Categoria</Label>
+                        <select
+                          id="qr-category"
+                          value={state.qrDialogCategory}
+                          onChange={(e) => state.setQrDialogCategory(e.target.value)}
+                          className="flex h-9 w-full rounded-lg border border-border/50 bg-background/40 px-3 py-1.5 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary/60 transition-all"
+                        >
+                          <option value="saudação">👋 Saudação</option>
+                          <option value="vendas">💰 Vendas</option>
+                          <option value="suporte">🛠️ Suporte</option>
+                        </select>
+                      </div>
+
+                      <div className="flex flex-col gap-3 justify-center">
+                        <label className="flex items-center space-x-2.5 cursor-pointer select-none text-foreground bg-background/20 hover:bg-background/40 border border-border/20 rounded-lg p-2 transition-all">
+                          <input
+                            type="checkbox"
+                            id="qr-favorite"
+                            checked={state.qrDialogFavorite}
+                            onChange={(e) => state.setQrDialogFavorite(e.target.checked)}
+                            className="h-4 w-4 rounded border-border text-primary focus:ring-primary bg-background"
+                          />
+                          <div className="flex items-center gap-1.5">
+                            <Star className={`h-4 w-4 ${state.qrDialogFavorite ? 'text-amber-500 fill-amber-500' : 'text-muted-foreground'}`} />
+                            <span className="text-xs font-medium">Favoritar (fixar no topo do menu)</span>
+                          </div>
+                        </label>
+                      </div>
+                    </div>
+
+                    <label className={`flex items-center space-x-3 cursor-pointer select-none text-foreground border rounded-lg p-3 transition-all ${
+                      state.qrDialogIsFlow 
+                        ? 'bg-amber-500/5 border-amber-500/30 hover:bg-amber-500/10' 
+                        : 'bg-background/30 border-border/30 hover:bg-background/50'
+                    }`}>
                       <input
                         type="checkbox"
-                        id="qr-favorite"
-                        checked={state.qrDialogFavorite}
-                        onChange={(e) => state.setQrDialogFavorite(e.target.checked)}
-                        className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary bg-background"
+                        id="qr-is-flow"
+                        checked={state.qrDialogIsFlow}
+                        onChange={(e) => state.setQrDialogIsFlow(e.target.checked)}
+                        className="h-4.5 w-4.5 rounded border-border text-amber-500 focus:ring-amber-500 bg-background"
                       />
-                      <Label htmlFor="qr-favorite" className="text-xs cursor-pointer select-none text-foreground">Favorita (Fixar no topo)</Label>
-                    </div>
+                      <div className="space-y-0.5">
+                        <div className="text-xs font-semibold flex items-center gap-1">
+                          Habilitar Fluxo Sequencial Inteligente
+                        </div>
+                        <div className="text-[10px] text-muted-foreground">
+                          Permite enviar mensagens consecutivas, disparar mídias em ordem, definir atrasos de digitação e disparar ações automáticas.
+                        </div>
+                      </div>
+                    </label>
                   </div>
 
-                  <div className="flex items-center space-x-2 pt-2 pb-2 border-b border-border/30">
-                    <input
-                      type="checkbox"
-                      id="qr-is-flow"
-                      checked={state.qrDialogIsFlow}
-                      onChange={(e) => state.setQrDialogIsFlow(e.target.checked)}
-                      className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary bg-background"
-                    />
-                    <Label htmlFor="qr-is-flow" className="text-xs font-semibold cursor-pointer select-none text-foreground">
-                      Transformar em Fluxo Sequencial (com delay e ações automáticas)
-                    </Label>
-                  </div>
-
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <Label className="text-xs font-semibold text-foreground">
-                        {state.qrDialogIsFlow ? "Passos do Fluxo Sequencial" : "Sequência de Mensagens / Mídias"}
+                  {/* ITENS / PASSOS DO FLUXO */}
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between border-b border-border/20 pb-2">
+                      <Label className="text-xs font-bold text-foreground uppercase tracking-wider flex items-center gap-1.5">
+                        {state.qrDialogIsFlow ? "Passos Sequenciais do Fluxo" : "Lista de Mensagens & Arquivos"}
                       </Label>
-                      <div className="flex gap-1.5">
-                        <Button type="button" size="sm" variant="outline" className="h-7 text-[10px] gap-1" onClick={state.addQrDialogTextItem}>
-                          <Plus className="h-3 w-3" /> Texto
+                      <div className="flex gap-2">
+                        <Button 
+                          type="button" 
+                          size="sm" 
+                          variant="outline" 
+                          className="h-8 text-xs gap-1.5 rounded-lg border-border/60 hover:bg-primary/10 hover:text-primary transition-all" 
+                          onClick={state.addQrDialogTextItem}
+                        >
+                          <Plus className="h-3.5 w-3.5" /> Texto
                         </Button>
-                        <Label htmlFor="qr-file-upload" className="flex h-7 items-center justify-center rounded-md border border-input bg-background/50 px-2.5 text-[10px] font-medium hover:bg-accent hover:text-accent-foreground cursor-pointer gap-1 text-foreground border-border/75">
-                          <Paperclip className="h-3 w-3" /> Mídia
+                        <Label 
+                          htmlFor="qr-file-upload" 
+                          className="flex h-8 items-center justify-center rounded-lg border border-border/60 bg-background hover:bg-primary/10 hover:text-primary hover:border-primary/40 px-3 text-xs font-medium cursor-pointer gap-1.5 text-foreground transition-all shadow-sm"
+                        >
+                          <Paperclip className="h-3.5 w-3.5" /> Adicionar Mídia
                         </Label>
                         <input
                           id="qr-file-upload"
@@ -819,172 +865,216 @@ export default function Inbox() {
                       </div>
                     </div>
  
-                    <div className="space-y-2 max-h-[360px] overflow-y-auto border border-border/40 rounded-lg p-2.5 bg-muted/10">
+                    <div className="space-y-3 max-h-[380px] overflow-y-auto border border-border/30 rounded-xl p-3 bg-muted/5 scrollbar-thin">
                       {state.qrDialogItems.length === 0 ? (
-                        <p className="text-center text-[10px] text-muted-foreground py-4">Nenhum item adicionado à sequência.</p>
+                        <div className="text-center py-8 text-muted-foreground space-y-1.5">
+                          <p className="text-xs font-medium">Nenhum item adicionado à sequência.</p>
+                          <p className="text-[10px]">Clique em "Texto" ou "Adicionar Mídia" acima para começar.</p>
+                        </div>
                       ) : (
                         state.qrDialogItems.map((item, idx) => (
-                          <div key={item.id || idx} className="flex items-start gap-2.5 rounded-lg border border-border/50 bg-background/50 p-2.5 group/item transition-all hover:border-border/80">
-                            <div className="flex flex-col gap-0.5 pt-1">
-                              <button
+                          <div key={item.id || idx} className="flex items-start gap-3 rounded-xl border border-border/40 bg-card/60 p-4 group/item shadow-sm hover:shadow-md transition-all hover:border-border/80">
+                            {/* CONTROLES DE ORDENAÇÃO */}
+                            <div className="flex flex-col gap-1 items-center shrink-0 pt-1">
+                              <span className="text-[10px] font-bold text-muted-foreground bg-muted border border-border/30 px-1.5 py-0.5 rounded-md min-w-[20px] text-center mb-1">
+                                {idx + 1}
+                              </span>
+                              <Button
                                 type="button"
+                                size="icon"
+                                variant="ghost"
                                 disabled={idx === 0}
                                 onClick={() => state.moveQrDialogItem(idx, "up")}
-                                className="text-[10px] text-muted-foreground hover:text-foreground disabled:opacity-30"
+                                className="h-5 w-5 text-muted-foreground hover:text-foreground disabled:opacity-20 hover:bg-muted"
                               >
-                                ▲
-                              </button>
-                              <button
+                                <ArrowUp className="h-3 w-3" />
+                              </Button>
+                              <Button
                                 type="button"
+                                size="icon"
+                                variant="ghost"
                                 disabled={idx === state.qrDialogItems.length - 1}
                                 onClick={() => state.moveQrDialogItem(idx, "down")}
-                                className="text-[10px] text-muted-foreground hover:text-foreground disabled:opacity-30"
+                                className="h-5 w-5 text-muted-foreground hover:text-foreground disabled:opacity-20 hover:bg-muted"
                               >
-                                ▼
-                              </button>
+                                <ArrowDown className="h-3 w-3" />
+                              </Button>
                             </div>
  
-                            <div className="flex-grow min-w-0 space-y-3">
+                            {/* CONTEÚDO DO ITEM */}
+                            <div className="flex-grow min-w-0 space-y-3.5">
+                              <div className="flex items-center justify-between">
+                                <span className={`text-[9px] font-bold px-2 py-0.5 rounded uppercase tracking-wider ${
+                                  item.type === "text" 
+                                    ? "bg-indigo-500/10 text-indigo-400 border border-indigo-500/25"
+                                    : item.type === "image"
+                                      ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/25"
+                                      : item.type === "video"
+                                        ? "bg-rose-500/10 text-rose-400 border border-rose-500/25"
+                                        : item.type === "audio"
+                                          ? "bg-amber-500/10 text-amber-400 border border-amber-500/25"
+                                          : "bg-slate-500/10 text-slate-400 border border-slate-500/25"
+                                }`}>
+                                  {item.type === "text" ? "Texto" : item.type}
+                                </span>
+                              </div>
+
                               {item.type === "text" ? (
                                 <textarea
-                                  placeholder="Digite o texto da mensagem..."
+                                  placeholder="Digite a mensagem de texto aqui..."
                                   value={item.value}
                                   onChange={(e) => {
                                     const next = [...state.qrDialogItems];
                                     next[idx].value = e.target.value;
                                     state.setQrDialogItems(next);
                                   }}
-                                  className="w-full min-h-[60px] bg-background/30 rounded border border-border/30 p-2 text-xs text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-1 focus:ring-ring focus:border-input"
+                                  className="w-full min-h-[70px] bg-background/25 rounded-lg border border-border/50 p-2.5 text-xs text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary/50 transition-all"
                                 />
                               ) : (
-                                <div className="space-y-2">
+                                <div className="space-y-3 bg-muted/10 p-3 rounded-lg border border-border/20">
                                   {item.type === "image" ? (
-                                    <div className="flex flex-col gap-2">
-                                      <div className="flex items-center gap-2">
-                                        <img
-                                          src={item.value}
-                                          alt={item.filename || "Preview"}
-                                          className="h-14 w-14 rounded object-cover border border-border/40 cursor-pointer hover:opacity-85 transition-opacity"
-                                          onClick={() => {
-                                            if (typeof window !== "undefined") {
-                                              window.open(item.value, "_blank");
-                                            }
-                                          }}
-                                          title="Clique para ver imagem cheia"
-                                        />
+                                    <div className="flex flex-col gap-3">
+                                      <div className="flex items-center gap-3">
+                                        <div className="relative group/thumb h-16 w-16 shrink-0 border border-border/40 rounded-lg overflow-hidden bg-background">
+                                          <img
+                                            src={item.value}
+                                            alt={item.filename || "Preview"}
+                                            className="h-full w-full object-cover cursor-pointer group-hover/thumb:scale-105 transition-transform"
+                                            onClick={() => {
+                                              if (typeof window !== "undefined") {
+                                                window.open(item.value, "_blank");
+                                              }
+                                            }}
+                                            title="Clique para ampliar"
+                                          />
+                                        </div>
                                         <div className="min-w-0 flex-grow">
-                                          <p className="truncate font-semibold text-[10.5px] text-foreground">{item.filename || "Imagem"}</p>
-                                          <p className="text-[9px] text-muted-foreground capitalize">Imagem</p>
+                                          <p className="truncate font-semibold text-[11px] text-foreground">{item.filename || "Imagem"}</p>
+                                          <p className="text-[9px] text-muted-foreground capitalize">Formato: Imagem</p>
                                         </div>
                                       </div>
                                       <div className="space-y-1">
-                                        <Label className="text-[9px] text-muted-foreground">Legenda (caption)</Label>
+                                        <Label className="text-[9px] font-bold text-muted-foreground uppercase">Legenda da Imagem</Label>
                                         <Input
-                                          placeholder="Adicione uma legenda..."
+                                          placeholder="Escreva uma legenda..."
                                           value={item.caption || ""}
                                           onChange={(e) => {
                                             const next = [...state.qrDialogItems];
                                             next[idx].caption = e.target.value;
                                             state.setQrDialogItems(next);
                                           }}
-                                          className="h-7 text-xs bg-background/50"
+                                          className="h-8 text-xs bg-background/40 border-border/40"
                                         />
                                       </div>
                                     </div>
                                   ) : item.type === "video" ? (
-                                    <div className="flex flex-col gap-2">
-                                      <div className="flex items-center gap-2">
-                                        <video
-                                          src={item.value}
-                                          className="h-14 w-14 rounded object-cover border border-border/40 cursor-pointer"
-                                          onClick={() => {
-                                            if (typeof window !== "undefined") {
-                                              window.open(item.value, "_blank");
-                                            }
-                                          }}
-                                        />
+                                    <div className="flex flex-col gap-3">
+                                      <div className="flex items-center gap-3">
+                                        <div className="relative h-16 w-16 shrink-0 border border-border/40 rounded-lg overflow-hidden bg-background">
+                                          <video
+                                            src={item.value}
+                                            className="h-full w-full object-cover cursor-pointer"
+                                            onClick={() => {
+                                              if (typeof window !== "undefined") {
+                                                window.open(item.value, "_blank");
+                                              }
+                                            }}
+                                          />
+                                        </div>
                                         <div className="min-w-0 flex-grow">
-                                          <p className="truncate font-semibold text-[10.5px] text-foreground">{item.filename || "Vídeo"}</p>
-                                          <p className="text-[9px] text-muted-foreground capitalize">Vídeo</p>
+                                          <p className="truncate font-semibold text-[11px] text-foreground">{item.filename || "Vídeo"}</p>
+                                          <p className="text-[9px] text-muted-foreground capitalize">Formato: Vídeo</p>
                                         </div>
                                       </div>
                                       <div className="space-y-1">
-                                        <Label className="text-[9px] text-muted-foreground">Legenda (caption)</Label>
+                                        <Label className="text-[9px] font-bold text-muted-foreground uppercase">Legenda do Vídeo</Label>
                                         <Input
-                                          placeholder="Adicione uma legenda..."
+                                          placeholder="Escreva uma legenda..."
                                           value={item.caption || ""}
                                           onChange={(e) => {
                                             const next = [...state.qrDialogItems];
                                             next[idx].caption = e.target.value;
                                             state.setQrDialogItems(next);
                                           }}
-                                          className="h-7 text-xs bg-background/50"
+                                          className="h-8 text-xs bg-background/40 border-border/40"
                                         />
                                       </div>
                                     </div>
                                   ) : item.type === "audio" ? (
-                                    <div className="space-y-1.5">
-                                      <div className="flex items-center gap-2">
-                                        <div className="h-8 w-8 rounded bg-muted flex items-center justify-center shrink-0">🎵</div>
+                                    <div className="space-y-2">
+                                      <div className="flex items-center gap-3">
+                                        <div className="h-10 w-10 rounded-lg bg-background border border-border/40 flex items-center justify-center shrink-0 text-base">🎵</div>
                                         <div className="min-w-0 flex-grow">
-                                          <p className="truncate font-semibold text-[10.5px] text-foreground">{item.filename || "Áudio"}</p>
-                                          <p className="text-[9px] text-muted-foreground capitalize">Áudio</p>
+                                          <p className="truncate font-semibold text-[11px] text-foreground">{item.filename || "Áudio"}</p>
+                                          <p className="text-[9px] text-muted-foreground capitalize">Formato: Áudio / Gravado</p>
                                         </div>
                                       </div>
-                                      <audio controls src={item.value} className="w-full h-8" />
+                                      <audio controls src={item.value} className="w-full h-8 rounded border border-border/30 bg-background/30" />
                                     </div>
                                   ) : (
-                                    <div className="flex items-center gap-2 min-w-0">
-                                      <div className="h-8 w-8 rounded bg-muted flex items-center justify-center shrink-0">📄</div>
+                                    <div className="flex items-center gap-3 min-w-0">
+                                      <div className="h-10 w-10 rounded-lg bg-background border border-border/40 flex items-center justify-center shrink-0 text-lg">📄</div>
                                       <div className="min-w-0 flex-grow">
-                                        <p className="truncate font-semibold text-[10.5px] text-foreground">{item.filename || "Documento"}</p>
-                                        <p className="text-[9px] text-muted-foreground capitalize">{item.type || "Arquivo"}</p>
+                                        <p className="truncate font-semibold text-[11px] text-foreground">{item.filename || "Documento"}</p>
+                                        <p className="text-[9px] text-muted-foreground uppercase">Formato: {item.type || "Arquivo"}</p>
                                       </div>
                                     </div>
                                   )}
                                 </div>
                               )}
  
-                              {/* Delays section visible on all items */}
-                              <div className="pt-2 border-t border-border/20 grid grid-cols-2 gap-3">
-                                <div className="flex items-center gap-1.5">
-                                  <Label className="text-[10px] text-muted-foreground whitespace-nowrap">Espera (delay):</Label>
-                                  <Input
-                                    type="number"
-                                    min={0}
-                                    value={Math.round((item.delayMs || 0) / 1000)}
-                                    onChange={(e) => {
-                                      const next = [...state.qrDialogItems];
-                                      next[idx].delayMs = (Number(e.target.value) || 0) * 1000;
-                                      state.setQrDialogItems(next);
-                                    }}
-                                    className="h-6 w-14 text-[10px] bg-background/50 px-1 text-center"
-                                  />
-                                  <span className="text-[10px] text-muted-foreground">s</span>
+                              {/* DELAYS CONFIG */}
+                              <div className="pt-2.5 border-t border-border/15 grid grid-cols-1 sm:grid-cols-2 gap-3 bg-muted/5 p-2 rounded-lg border border-border/10">
+                                <div className="flex items-center justify-between sm:justify-start gap-2.5">
+                                  <Label className="text-[10px] text-muted-foreground flex items-center gap-1">
+                                    <Clock className="h-3.5 w-3.5" /> Espera antes de enviar:
+                                  </Label>
+                                  <div className="flex items-center gap-1">
+                                    <Input
+                                      type="number"
+                                      min={0}
+                                      value={Math.round((item.delayMs || 0) / 1000)}
+                                      onChange={(e) => {
+                                        const next = [...state.qrDialogItems];
+                                        next[idx].delayMs = (Number(e.target.value) || 0) * 1000;
+                                        state.setQrDialogItems(next);
+                                      }}
+                                      className="h-6 w-12 text-[10px] bg-background/60 px-1 text-center font-bold"
+                                    />
+                                    <span className="text-[10px] text-muted-foreground">s</span>
+                                  </div>
                                 </div>
  
-                                <div className="flex items-center gap-1.5">
-                                  <Label className="text-[10px] text-muted-foreground whitespace-nowrap">Digitando (typing):</Label>
-                                  <Input
-                                    type="number"
-                                    min={0}
-                                    value={Math.round((item.typingMs ?? 1500) / 1000)}
-                                    onChange={(e) => {
-                                      const next = [...state.qrDialogItems];
-                                      next[idx].typingMs = (Number(e.target.value) || 0) * 1000;
-                                      state.setQrDialogItems(next);
-                                    }}
-                                    className="h-6 w-14 text-[10px] bg-background/50 px-1 text-center"
-                                  />
-                                  <span className="text-[10px] text-muted-foreground">s</span>
+                                <div className="flex items-center justify-between sm:justify-start gap-2.5">
+                                  <Label className="text-[10px] text-muted-foreground flex items-center gap-1">
+                                    <PencilSimple className="h-3.5 w-3.5" /> Mostrar digitando por:
+                                  </Label>
+                                  <div className="flex items-center gap-1">
+                                    <Input
+                                      type="number"
+                                      min={0}
+                                      value={Math.round((item.typingMs ?? 1500) / 1000)}
+                                      onChange={(e) => {
+                                        const next = [...state.qrDialogItems];
+                                        next[idx].typingMs = (Number(e.target.value) || 0) * 1000;
+                                        state.setQrDialogItems(next);
+                                      }}
+                                      className="h-6 w-12 text-[10px] bg-background/60 px-1 text-center font-bold"
+                                    />
+                                    <span className="text-[10px] text-muted-foreground">s</span>
+                                  </div>
                                 </div>
                               </div>
  
+                              {/* AÇÕES DE FLUXO SEQUENCIAL */}
                               {state.qrDialogIsFlow && (
-                                <div className="mt-2 bg-muted/20 p-2 rounded border border-border/40 space-y-1.5">
-                                  <p className="text-[9px] font-bold text-muted-foreground uppercase">Ações pós-envio deste passo:</p>
+                                <div className="mt-3 bg-amber-500/5 p-3 rounded-lg border border-amber-500/20 space-y-2.5">
+                                  <p className="text-[9px] font-bold text-amber-500/80 uppercase tracking-wider flex items-center gap-1">
+                                    <Lightning className="h-3 w-3" /> Ações automatizadas deste passo:
+                                  </p>
+                                  
                                   <div className="flex items-center gap-4">
-                                    <label className="flex items-center gap-1.5 cursor-pointer text-[10px] text-foreground select-none">
+                                    <label className="flex items-center gap-2 cursor-pointer text-[10.5px] text-foreground select-none">
                                       <input
                                         type="checkbox"
                                         checked={Boolean(item.actions?.archiveContact)}
@@ -996,15 +1086,18 @@ export default function Inbox() {
                                           };
                                           state.setQrDialogItems(next);
                                         }}
-                                        className="h-3 w-3 rounded bg-background"
+                                        className="h-3.5 w-3.5 rounded border-border text-amber-500 focus:ring-amber-500 bg-background"
                                       />
-                                      <span>Arquivar conversa</span>
+                                      <span className="flex items-center gap-1 font-medium"><Archive className="h-3.5 w-3.5 text-muted-foreground" /> Arquivar conversa</span>
                                     </label>
                                   </div>
+
                                   <div className="space-y-1">
-                                    <Label className="text-[9px] text-muted-foreground">Adicionar etiquetas (separadas por vírgula):</Label>
+                                    <Label className="text-[9.5px] font-semibold text-muted-foreground flex items-center gap-1">
+                                      <Tag className="h-3.5 w-3.5" /> Adicionar etiquetas ao cliente:
+                                    </Label>
                                     <Input
-                                      placeholder="Ex: lead_quente, sem_resposta"
+                                      placeholder="Ex: lead_quente, pre_venda (separe por vírgula)"
                                       value={(item.actions?.addTags || []).join(", ")}
                                       onChange={(e) => {
                                         const tagsArray = e.target.value
@@ -1018,19 +1111,20 @@ export default function Inbox() {
                                         };
                                         state.setQrDialogItems(next);
                                       }}
-                                      className="h-6 text-[10px] bg-background/50"
+                                      className="h-7 text-xs bg-background/50 border-border/30 rounded-md"
                                     />
                                   </div>
                                 </div>
                               )}
                             </div>
  
-                            <div className="flex flex-col gap-1 shrink-0 self-center">
+                            {/* BOTÕES DE APAGAR / DUPLICAR */}
+                            <div className="flex flex-col gap-1 shrink-0 self-center border-l border-border/20 pl-2">
                               <Button
                                 type="button"
                                 size="icon"
                                 variant="ghost"
-                                className="h-6 w-6 text-muted-foreground hover:text-foreground hover:bg-muted"
+                                className="h-7 w-7 text-muted-foreground hover:text-primary hover:bg-primary/10 rounded-lg transition-colors"
                                 onClick={() => {
                                   const next = [...state.qrDialogItems];
                                   const duplicated = {
@@ -1041,19 +1135,20 @@ export default function Inbox() {
                                   next.splice(idx + 1, 0, duplicated);
                                   state.setQrDialogItems(next);
                                 }}
-                                title="Duplicar item"
+                                title="Duplicar Passo"
                               >
-                                <CopySimple className="h-3.5 w-3.5" />
+                                <CopySimple className="h-4 w-4" />
                               </Button>
  
                               <Button
                                 type="button"
                                 size="icon"
                                 variant="ghost"
-                                className="h-6 w-6 text-destructive hover:bg-destructive/10"
+                                className="h-7 w-7 text-destructive hover:bg-destructive/10 hover:text-destructive rounded-lg transition-colors"
                                 onClick={() => state.removeQrDialogItem(idx)}
+                                title="Remover Passo"
                               >
-                                <Trash className="h-3.5 w-3.5" />
+                                <Trash className="h-4 w-4" />
                               </Button>
                             </div>
                           </div>
@@ -1062,12 +1157,24 @@ export default function Inbox() {
                     </div>
                   </div>
  
-                  <div className="flex justify-end gap-2 pt-2">
-                    <Button type="button" variant="outline" size="sm" onClick={() => state.setIsQuickReplyDialogOpen(false)}>
+                  {/* FOOTER ACTIONS */}
+                  <div className="flex justify-end gap-2 border-t border-border/20 pt-4 mt-2">
+                    <Button 
+                      type="button" 
+                      variant="outline" 
+                      size="sm" 
+                      onClick={() => state.setIsQuickReplyDialogOpen(false)}
+                      className="h-9 px-4 rounded-lg text-xs"
+                    >
                       Cancelar
                     </Button>
-                    <Button type="button" size="sm" onClick={() => void state.saveQuickReplyDialog()}>
-                      Salvar
+                    <Button 
+                      type="button" 
+                      size="sm" 
+                      onClick={() => void state.saveQuickReplyDialog()}
+                      className="h-9 px-5 rounded-lg text-xs bg-primary text-primary-foreground font-semibold hover:bg-primary/95 transition-all shadow"
+                    >
+                      Salvar Resposta Rápida
                     </Button>
                   </div>
                 </div>
