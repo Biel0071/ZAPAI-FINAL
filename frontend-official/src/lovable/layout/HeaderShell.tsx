@@ -44,6 +44,7 @@ export function HeaderShell({
   const sessions = useAppStore((state) => state.sessions);
   const activeSessionId = useAppStore((state) => state.activeSessionId);
   const setActiveSessionId = useAppStore((state) => state.setActiveSessionId);
+  const setIsNewChatDialogOpen = useAppStore((state) => state.setIsNewChatDialogOpen);
 
   return (
     <header className="sticky top-0 z-40 shrink-0 border-b border-border/70 bg-card/60 backdrop-blur-xl">
@@ -115,7 +116,11 @@ export function HeaderShell({
           {actions ? (
             <div className="hidden items-center gap-2 md:flex">{actions}</div>
           ) : (
-            <Button size="sm" className="hidden h-8 gap-1.5 rounded-xl text-xs shadow-glow md:inline-flex">
+            <Button
+              size="sm"
+              className="hidden h-8 gap-1.5 rounded-xl text-xs shadow-glow md:inline-flex"
+              onClick={() => setIsNewChatDialogOpen(true)}
+            >
               <Plus weight="bold" className="h-3.5 w-3.5" />
               Nova Conversa
             </Button>

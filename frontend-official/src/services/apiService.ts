@@ -640,13 +640,13 @@ async function executeRequest<T>({ endpoint, method, body, timeoutMs = REQUEST_T
 
       slog.apiRequest(endpoint, response.status);
 
-      // Auto-unwrap backend envelope: { success: true, data: [...] }
+      // Auto-unwrap backend envelope: { success: true, data: [...] } or { ok: true, data: [...] }
       if (
         parsed &&
         typeof parsed === "object" &&
         !Array.isArray(parsed) &&
         "data" in (parsed as Record<string, unknown>) &&
-        "success" in (parsed as Record<string, unknown>)
+        ("success" in (parsed as Record<string, unknown>) || "ok" in (parsed as Record<string, unknown>))
       ) {
         return (parsed as Record<string, unknown>).data as T;
       }
@@ -1587,6 +1587,11 @@ export const apiService = {
     request<{ success?: boolean; sessionId?: string; qr?: string }>({ endpoint: "/session/restart", method: "POST", body: { sessionId: normalizeSessionName(sessionId) } }),
   reconnectSession: (sessionId: string) =>
     request<{ success?: boolean; sessionId?: string; qr?: string }>({ endpoint: `/session/${encodeURIComponent(normalizeSessionName(sessionId))}/reconnect`, method: "POST" }),
+  checkNumber: (sessionId: string, phone: string) =>
+    request<{ ok: boolean; exists: boolean; jid?: string }>({
+      endpoint: `/sessions/${encodeURIComponent(normalizeSessionName(sessionId))}/check-number/${encodeURIComponent(phone)}`,
+      method: "GET"
+    }),
   logoutSession: (sessionId: string) =>
     request<{ success?: boolean; sessionId?: string }>({ endpoint: "/session/logout", method: "POST", body: { sessionId: normalizeSessionName(sessionId) } }),
   createSession: (sessionId: string) =>

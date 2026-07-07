@@ -64,6 +64,7 @@ const adminItems: SidebarNavItem[] = [
   { icon: HardDrives, label: "Cluster", path: "/nodes", minRole: "user" },
   { icon: ShieldCheck, label: "Usuários", path: "/users", minRole: "user" },
   { icon: TrendUp, label: "Deployments", path: "/deployments", minRole: "user" },
+  { icon: Cpu, label: "Memória", path: "/memory", minRole: "user" },
   { icon: FileText, label: "Logs", path: "/logs", minRole: "user" },
 ];
 
@@ -129,6 +130,13 @@ export function Sidebar() {
 
   useEffect(() => {
     setMobileOpen(false);
+  }, [location.pathname]);
+
+  useEffect(() => {
+    const isAdminPath = adminItems.some((item) => location.pathname.startsWith(item.path));
+    if (isAdminPath) {
+      setAdminOpen(true);
+    }
   }, [location.pathname]);
 
   const sidebarWidth = useMemo(() => (collapsed ? 88 : 288), [collapsed]);
@@ -290,24 +298,28 @@ export function Sidebar() {
         <div className="space-y-1">
           {visibleCrmItems.map((item) => {
             if (item.path === "/ai") {
-              return renderNavItem({ ...item, path: "/ai?tab=dashboard" }, compact, "crm");
+              return renderAiCollapsibleMenu(item, compact);
             }
             return renderNavItem(item, compact, "crm");
           })}
         </div>
 
         {shouldShowAdminMenu && (
-          <Collapsible open={adminOpen} onOpenChange={setAdminOpen}>
-            {!compact && (
+          compact ? (
+            <div className="space-y-1">
+              {visibleAdminItems.map((item) => renderNavItem(item, compact, "system"))}
+            </div>
+          ) : (
+            <Collapsible open={adminOpen} onOpenChange={setAdminOpen}>
               <CollapsibleTrigger className="flex w-full items-center justify-between rounded-xl px-2 py-2 text-left text-[10px] font-semibold uppercase tracking-[0.22em] text-sidebar-muted/70 hover:bg-sidebar-accent/40">
                 <span>Administração</span>
                 {adminOpen ? <CaretUp className="h-3.5 w-3.5" /> : <CaretDown className="h-3.5 w-3.5" />}
               </CollapsibleTrigger>
-            )}
-            <CollapsibleContent className="space-y-1">
-              {visibleAdminItems.map((item) => renderNavItem(item, compact, "system"))}
-            </CollapsibleContent>
-          </Collapsible>
+              <CollapsibleContent className="space-y-1">
+                {visibleAdminItems.map((item) => renderNavItem(item, compact, "system"))}
+              </CollapsibleContent>
+            </Collapsible>
+          )
         )}
       </nav>
 

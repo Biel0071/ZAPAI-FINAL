@@ -44,6 +44,15 @@ async function checkAndRecoverSessions() {
           reason = 'Socket connection is not in OPEN state while session status is connected';
         }
       }
+      // 5. Session is stuck in 'connecting' or 'qr' state for over 2 minutes
+      else if (session && !session.isDisposed && !session.isClosing && (session.status === 'connecting' || session.status === 'qr')) {
+        const lastUpdate = session.updatedAt ? new Date(session.updatedAt).getTime() : (session.lastPingAt || session.connectedAt || 0);
+        const hungTimeMs = now - lastUpdate;
+        if (hungTimeMs > 120_000) {
+          needsReconnect = true;
+          reason = `Session stuck in ${session.status} state for ${Math.round(hungTimeMs / 1000)}s (threshold 120s)`;
+        }
+      }
 
       if (needsReconnect) {
         backendLog('warn', 'connection_recovery:triggered', {

@@ -6,9 +6,9 @@ const router = express.Router();
 function requireMasterAdmin(req, res, next) {
   console.log('[DEBUG] requireMasterAdmin - req.auth:', req.auth);
   const role = String(req.auth?.role || '').trim().toLowerCase();
-  if (role !== 'master_admin') {
+  if (role !== 'master_admin' && role !== 'admin' && role !== 'master') {
     console.log('[DEBUG] requireMasterAdmin - Denied role:', role);
-    return res.status(403).json({ success: false, error: 'master_admin role required.' });
+    return res.status(403).json({ success: false, error: 'master_admin or admin role required.' });
   }
   return next();
 }

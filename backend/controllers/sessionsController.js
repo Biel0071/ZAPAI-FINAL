@@ -343,7 +343,52 @@ async function recover(req, res) {
   }
 }
 
+async function checkNumber(req, res) {
+  const sessionId = getTargetSessionId(req);
+  const { phone } = req.params;
+
+  if (!phone) {
+    return res.status(400).json({
+      ok: false,
+      error: 'Telefone é obrigatório.'
+    });
+  }
+
+  const session = sessionManager.getSession(sessionId);
+  if (!session || session.status !== 'connected' || !session.sock) {
+    return res.status(400).json({
+      ok: false,
+      error: 'A sessão do WhatsApp não está conectada.'
+    });
+  }
+
+  try {
+    const cleanPhone = phone.replace(/\D/g, '');
+    const jid = `${cleanPhone}@s.whatsapp.net`;
+    const checkResult = await session.sock.onWhatsApp(jid);
+
+    if (Array.isArray(checkResult) && checkResult.length > 0 && checkResult[0].exists) {
+      return res.status(200).json({
+        ok: true,
+        exists: true,
+        jid: checkResult[0].jid
+      });
+    } else {
+      return res.status(200).json({
+        ok: true,
+        exists: false
+      });
+    }
+  } catch (error) {
+    return res.status(500).json({
+      ok: false,
+      error: error.message || 'Erro ao verificar número no WhatsApp.'
+    });
+  }
+}
+
 module.exports = {
+  checkNumber,
   connectSystem,
   create,
   disconnectSystem,

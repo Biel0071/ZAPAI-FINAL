@@ -13,8 +13,8 @@ const router = express.Router();
 
 function requireMasterAdmin(req, res, next) {
   const role = String(req.auth?.role || '').trim().toLowerCase();
-  if (role !== 'master_admin') {
-    return res.status(403).json({ error: 'master_admin role required.' });
+  if (role !== 'master_admin' && role !== 'admin' && role !== 'master') {
+    return res.status(403).json({ error: 'master_admin or admin role required.' });
   }
   return next();
 }

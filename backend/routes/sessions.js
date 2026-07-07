@@ -16,6 +16,7 @@ router.get('/connections', sessionsController.list);
 router.get('/sessions/status', sessionsController.getStatus);
 router.get('/session/status', sessionsController.getStatus);
 router.get('/sessions/:id/status', sessionsController.getStatus);
+router.get('/sessions/:id/check-number/:phone', sessionsController.checkNumber);
 router.get('/sessions/:id/health', sessionsController.getHealth);
 router.get('/session/:sessionId/health', sessionsController.getHealth);
 router.get('/sessions/qr', sessionsController.getQr);

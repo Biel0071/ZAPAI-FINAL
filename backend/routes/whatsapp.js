@@ -27,6 +27,9 @@ router.delete('/sessions/:id', sessionsController.remove);
 // GET /api/whatsapp/sessions/:id/status — get session status
 router.get('/sessions/:id/status', sessionsController.getStatus);
 
+// GET /api/whatsapp/sessions/:id/check-number/:phone — check if number exists
+router.get('/sessions/:id/check-number/:phone', sessionsController.checkNumber);
+
 // GET /api/whatsapp/sessions/:id/qr — get QR code
 router.get('/sessions/:id/qr', sessionsController.getQr);
 

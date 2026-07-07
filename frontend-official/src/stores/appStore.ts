@@ -262,6 +262,7 @@ type AppState = {
   reconnectState: { attempts: number; lastAttemptAt: number | null };
   typingUsers: Record<string, boolean | "composing" | "recording">;
   activeSessionId: string | null;
+  isNewChatDialogOpen: boolean;
 
   setConversations: (listOrUpdater: Conversation[] | ((prev: Conversation[]) => Conversation[])) => void;
   upsertConversation: (conv: Conversation) => void;
@@ -281,6 +282,7 @@ type AppState = {
   updateApiHealth: (health: "ONLINE" | "RECONNECTING" | "OFFLINE", latency?: number | null) => void;
   setActiveConversationId: (id: string | null) => void;
   setActiveSessionId: (id: string | null) => void;
+  setIsNewChatDialogOpen: (open: boolean) => void;
   setMessages: (conversationId: string, messages: ChatMessage[]) => void;
   addMessage: (conversationId: string, message: ChatMessage) => void;
   updateMessageStatus: (conversationId: string, messageId: string, status: ChatMessage["status"]) => void;
@@ -313,6 +315,7 @@ export const useAppStore = create<AppState>((set) => ({
       return null;
     }
   })(),
+  isNewChatDialogOpen: false,
 
   setActiveSessionId: (id) =>
     set(() => {
@@ -327,6 +330,8 @@ export const useAppStore = create<AppState>((set) => ({
       }
       return { activeSessionId: id };
     }),
+
+  setIsNewChatDialogOpen: (open) => set({ isNewChatDialogOpen: open }),
 
   setConversations: (listOrUpdater) =>
     set((state) => {

@@ -50,60 +50,6 @@ import {
 export default function Inbox() {
   const state = useInboxState();
   const [showGroups, setShowGroups] = useState(false);
-  const [isNewChatDialogOpen, setIsNewChatDialogOpen] = useState(false);
-  const [newChatPhone, setNewChatPhone] = useState("");
-  const [newChatName, setNewChatName] = useState("");
-  const [newChatSessionId, setNewChatSessionId] = useState("");
-  const [newChatLoading, setNewChatLoading] = useState(false);
-  const { toast } = useToast();
-
-  useEffect(() => {
-    if (isNewChatDialogOpen) {
-      setNewChatSessionId(state.preferredSessionId || (state.sessions && state.sessions[0]?.id) || "main");
-      setNewChatPhone("");
-      setNewChatName("");
-    }
-  }, [isNewChatDialogOpen, state.preferredSessionId, state.sessions]);
-
-  const handleCreateNewChat = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const cleanPhone = newChatPhone.replace(/\D/g, "");
-    if (!cleanPhone) {
-      toast({ title: "Erro", description: "Por favor, insira um número de telefone válido.", variant: "destructive" });
-      return;
-    }
-    setNewChatLoading(true);
-    try {
-      const newConv = await apiService.createConversation({
-        phone: cleanPhone,
-        name: newChatName.trim() || undefined,
-        sessionId: newChatSessionId || undefined,
-      });
-
-      toast({ title: "Sucesso", description: "Conversa criada com sucesso!" });
-      setIsNewChatDialogOpen(false);
-
-      // Force refresh/load of conversations
-      await state.handleRetryConversations();
-      
-      // Select the new conversation
-      if (newConv && newConv.id) {
-        state.setSelectedConversationId(String(newConv.id));
-        void state.loadConversationMessages(String(newConv.id), { force: true }).then(() => {
-          state.scrollToLatestMessage("auto");
-        });
-      }
-    } catch (err: any) {
-      console.error("Erro ao criar conversa:", err);
-      toast({
-        title: "Erro ao criar conversa",
-        description: err.message || "Ocorreu um erro ao tentar criar a conversa.",
-        variant: "destructive",
-      });
-    } finally {
-      setNewChatLoading(false);
-    }
-  };
 
   // Persist unread total globally when conversations change
   useEffect(() => {
@@ -455,7 +401,7 @@ export default function Inbox() {
           actions={
             <Button 
               size="sm" 
-              onClick={() => setIsNewChatDialogOpen(true)}
+              onClick={() => useAppStore.getState().setIsNewChatDialogOpen(true)}
               className="h-8 gap-1.5 rounded-xl text-xs shadow-glow bg-primary text-primary-foreground hover:bg-primary/90 md:inline-flex"
             >
               <Plus weight="bold" className="h-3.5 w-3.5" />
@@ -1183,63 +1129,6 @@ export default function Inbox() {
               </DialogContent>
             </Dialog>
 
-            {/* New Conversation Dialog */}
-            <Dialog open={isNewChatDialogOpen} onOpenChange={setIsNewChatDialogOpen}>
-              <DialogContent className="sm:max-w-md border-border/80 bg-card/95 backdrop-blur-xl text-foreground">
-                <DialogHeader>
-                  <DialogTitle className="font-display text-base text-foreground">Nova Conversa</DialogTitle>
-                </DialogHeader>
-                <form onSubmit={handleCreateNewChat} className="space-y-4">
-                  <div className="space-y-1.5">
-                    <Label htmlFor="newChatPhone" className="text-xs">Número de WhatsApp</Label>
-                    <Input
-                      id="newChatPhone"
-                      placeholder="Ex: 5531999999999"
-                      value={newChatPhone}
-                      onChange={(e) => setNewChatPhone(e.target.value)}
-                      required
-                      className="bg-muted/40"
-                    />
-                    <p className="text-[10px] text-muted-foreground">Insira o código do país + DDD + número (apenas dígitos).</p>
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label htmlFor="newChatName" className="text-xs">Nome do Contato (Opcional)</Label>
-                    <Input
-                      id="newChatName"
-                      placeholder="Ex: João Silva"
-                      value={newChatName}
-                      onChange={(e) => setNewChatName(e.target.value)}
-                      className="bg-muted/40"
-                    />
-                  </div>
-                  {state.sessions && state.sessions.length > 0 && (
-                    <div className="space-y-1.5">
-                      <Label htmlFor="newChatSession" className="text-xs">Sessão do WhatsApp</Label>
-                      <Select value={newChatSessionId} onValueChange={setNewChatSessionId}>
-                        <SelectTrigger className="bg-muted/40">
-                          <SelectValue placeholder="Selecione uma sessão" />
-                        </SelectTrigger>
-                        <SelectContent className="border-border/80 bg-popover/90 backdrop-blur-xl">
-                          {state.sessions.map((session) => (
-                            <SelectItem key={session.id} value={session.id}>
-                              {session.name || session.id} ({session.status === 'connected' ? 'Conectado' : 'Desconectado'})
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  )}
-                  <div className="flex justify-end gap-2 pt-2">
-                    <Button type="button" variant="outline" size="sm" onClick={() => setIsNewChatDialogOpen(false)} disabled={newChatLoading}>
-                      Cancelar
-                    </Button>
-                    <Button type="submit" size="sm" disabled={newChatLoading}>
-                      {newChatLoading ? "Iniciando..." : "Iniciar"}
-                    </Button>
-                  </div>
-                </form>
-              </DialogContent>
-            </Dialog>
           </>
         }
       />
