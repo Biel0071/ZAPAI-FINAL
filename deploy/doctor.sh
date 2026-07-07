@@ -118,22 +118,36 @@ fi
 
 # ─── Nginx ────────────────────────────────────────────────────────────────────
 sep "NGINX"
-if command -v nginx >/dev/null 2>&1; then
-  if nginx -t 2>/dev/null; then
-    ok "Nginx config: valid"
+DOCKER_NGINX_CONTAINER=""
+if command -v docker >/dev/null 2>&1; then
+  DOCKER_NGINX_CONTAINER=$(docker ps --format '{{.Names}}' | grep -E "nginx|openresty" | head -n 1 || true)
+fi
+
+if [ -n "$DOCKER_NGINX_CONTAINER" ]; then
+  ok "Nginx running in Docker container: $DOCKER_NGINX_CONTAINER"
+  if docker exec "$DOCKER_NGINX_CONTAINER" nginx -t >/dev/null 2>&1; then
+    ok "Nginx config (container): valid"
   else
-    fail "Nginx config: invalid — run: nginx -t"
+    fail "Nginx config (container): invalid"
   fi
-  if systemctl is-active --quiet nginx 2>/dev/null; then
-    ok "Nginx service: active"
-  else
-    fail "Nginx service: not running"
-    echo "    → Fix: systemctl start nginx"
-  fi
-  ZAPAI_SITE=$(ls /etc/nginx/sites-enabled/zapai 2>/dev/null && echo "enabled" || echo "missing")
-  [ "$ZAPAI_SITE" = "enabled" ] && ok "zapai site: enabled" || fail "zapai site: not enabled in sites-enabled/"
 else
-  fail "nginx not installed"
+  if command -v nginx >/dev/null 2>&1; then
+    if nginx -t 2>/dev/null; then
+      ok "Nginx config: valid"
+    else
+      fail "Nginx config: invalid — run: nginx -t"
+    fi
+    if systemctl is-active --quiet nginx 2>/dev/null; then
+      ok "Nginx service: active"
+    else
+      fail "Nginx service: not running"
+      echo "    → Fix: systemctl start nginx"
+    fi
+    ZAPAI_SITE=$(ls /etc/nginx/sites-enabled/zapai 2>/dev/null && echo "enabled" || echo "missing")
+    [ "$ZAPAI_SITE" = "enabled" ] && ok "zapai site: enabled" || fail "zapai site: not enabled in sites-enabled/"
+  else
+    fail "nginx not installed (neither host service nor docker container found)"
+  fi
 fi
 
 # ─── Frontend dist ────────────────────────────────────────────────────────────
@@ -162,11 +176,13 @@ fi
 
 # ─── Auto-deploy watcher ──────────────────────────────────────────────────────
 sep "AUTO-DEPLOY WATCHER"
-if systemctl is-active --quiet zapai-watcher.timer 2>/dev/null; then
+if crontab -l 2>/dev/null | grep -q "auto-pull-deploy.sh"; then
+  ok "auto-pull-deploy.sh cron job: active"
+elif systemctl is-active --quiet zapai-watcher.timer 2>/dev/null; then
   ok "zapai-watcher.timer: active"
 else
-  warn "zapai-watcher.timer: not active"
-  echo "    → Fix: systemctl enable --now zapai-watcher.timer"
+  warn "Auto-deploy daemon is not active (neither cron nor systemd timer found)"
+  echo "    → Fix: Setup cron job via crontab"
 fi
 
 # ─── Summary ──────────────────────────────────────────────────────────────────
