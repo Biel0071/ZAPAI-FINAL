@@ -536,3 +536,29 @@ export async function loadMasterAdmins(): Promise<MasterAdminRow[]> {
     lastAccess: toText(item.last_login_at ?? item.lastLoginAt ?? item.updated_at ?? item.updatedAt),
   }));
 }
+
+export type GitCommitRow = {
+  hash: string;
+  shortHash: string;
+  date: string;
+  message: string;
+  author: string;
+};
+
+export async function loadGitVersions(): Promise<{ success: boolean; commits: GitCommitRow[]; currentVersion: string }> {
+  const payload = await requestJson("/api/master/versions", "GET");
+  const raw = payload && typeof payload === "object" ? (payload as Record<string, unknown>) : {};
+  const commits = Array.isArray(raw.commits) ? raw.commits : [];
+  
+  return {
+    success: Boolean(raw.success),
+    commits: commits.map((item: any) => ({
+      hash: String(item.hash || ""),
+      shortHash: String(item.shortHash || ""),
+      date: String(item.date || ""),
+      message: String(item.message || ""),
+      author: String(item.author || ""),
+    })),
+    currentVersion: String(raw.currentVersion || "unknown"),
+  };
+}

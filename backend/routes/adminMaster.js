@@ -655,4 +655,41 @@ router.post('/master/actions/restart-backend', async (req, res) => {
 });
 
 
+const path = require('path');
+const { execSync } = require('child_process');
+
+router.get('/master/versions', async (req, res) => {
+  try {
+    let commits = [];
+    try {
+      const gitLogOutput = execSync(
+        'git log -n 30 --pretty=format:"%H|%h|%ad|%s|%an" --date=short',
+        { cwd: path.join(__dirname, '..', '..') }
+      ).toString();
+
+      commits = gitLogOutput.split('\n').filter(Boolean).map((line) => {
+        const [hash, shortHash, date, message, author] = line.split('|');
+        return {
+          hash,
+          shortHash,
+          date,
+          message,
+          author,
+        };
+      });
+    } catch (gitErr) {
+      console.warn('[ADMIN-MASTER] Failed to get git log:', gitErr.message);
+    }
+
+    return res.status(200).json({
+      success: true,
+      commits,
+      currentVersion: commits[0]?.shortHash || 'unknown',
+    });
+  } catch (error) {
+    console.error('[ADMIN-MASTER] versions error:', error);
+    return res.status(500).json({ error: 'Failed to retrieve version history.' });
+  }
+});
+
 module.exports = router;

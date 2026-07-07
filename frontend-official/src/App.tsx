@@ -82,6 +82,7 @@ const NodeDetails = lazyWithRetry(() => import("./pages/NodeDetails"), "node_det
 const MasterDeployments = lazyWithRetry(() => import("./pages/MasterDeployments"), "master_deployments");
 const MasterLogs = lazyWithRetry(() => import("./pages/MasterLogs"), "master_logs");
 const MasterAdmins = lazyWithRetry(() => import("./pages/MasterAdmins"), "master_admins");
+const MasterVersions = lazyWithRetry(() => import("./pages/MasterVersions"), "master_versions");
 const Memory = lazyWithRetry(() => import("./pages/Memory"), "memory");
 
 function RequireAdminAuth({ children }: { children: JSX.Element }) {
@@ -158,6 +159,7 @@ const App = () => {
                       <Route path="/nodes/:id" element={<ProtectedRoute minRole="user"><PageRouteBoundary pageName="Detalhes do Nó"><NodeDetails /></PageRouteBoundary></ProtectedRoute>} />
                       <Route path="/deployments" element={<ProtectedRoute minRole="user"><PageRouteBoundary pageName="Implantações"><MasterDeployments /></PageRouteBoundary></ProtectedRoute>} />
                       <Route path="/logs" element={<ProtectedRoute minRole="user"><PageRouteBoundary pageName="Logs do Cluster"><MasterLogs /></PageRouteBoundary></ProtectedRoute>} />
+                      <Route path="/versions" element={<ProtectedRoute minRole="user"><PageRouteBoundary pageName="Histórico de Versões"><MasterVersions /></PageRouteBoundary></ProtectedRoute>} />
                       <Route path="/system/runtime" element={<Navigate to="/diagnostics" replace />} />
                       <Route path="/system/performance" element={<Navigate to="/diagnostics" replace />} />
                       <Route path="/system/websocket" element={<Navigate to="/diagnostics" replace />} />

@@ -4,6 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { OperationalStatusBadge } from "@/components/enterprise/OperationalStatusBadge";
 import { Bell, MagnifyingGlass, Moon, Plus, User, ArrowClockwise } from "@phosphor-icons/react";
+import { useLocation } from "react-router-dom";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -41,10 +42,15 @@ export function HeaderShell({
   onLogout,
   onNavigateProfile,
 }: HeaderShellProps) {
+  const location = useLocation();
   const sessions = useAppStore((state) => state.sessions);
   const activeSessionId = useAppStore((state) => state.activeSessionId);
   const setActiveSessionId = useAppStore((state) => state.setActiveSessionId);
   const setIsNewChatDialogOpen = useAppStore((state) => state.setIsNewChatDialogOpen);
+
+  const isAdminPage = ["/nodes", "/users", "/deployments", "/memory", "/logs", "/versions"].some(
+    (path) => location.pathname.startsWith(path)
+  );
 
   return (
     <header className="sticky top-0 z-40 shrink-0 border-b border-border/70 bg-card/60 backdrop-blur-xl">
@@ -115,7 +121,7 @@ export function HeaderShell({
 
           {actions ? (
             <div className="hidden items-center gap-2 md:flex">{actions}</div>
-          ) : (
+          ) : !isAdminPage ? (
             <Button
               size="sm"
               className="hidden h-8 gap-1.5 rounded-xl text-xs shadow-glow md:inline-flex"
@@ -124,7 +130,7 @@ export function HeaderShell({
               <Plus weight="bold" className="h-3.5 w-3.5" />
               Nova Conversa
             </Button>
-          )}
+          ) : null}
 
           <DropdownMenu>
             <DropdownMenuTrigger asChild>

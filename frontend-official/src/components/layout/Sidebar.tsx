@@ -26,6 +26,7 @@ import {
   CaretUp,
   Sparkle,
   Brain,
+  GitCommit,
 } from "@phosphor-icons/react";
 import { AIIcon } from "@/components/ai/AIIcon";
 import { Button } from "@/components/ui/button";
@@ -65,6 +66,7 @@ const adminItems: SidebarNavItem[] = [
   { icon: ShieldCheck, label: "Usuários", path: "/users", minRole: "user" },
   { icon: TrendUp, label: "Deployments", path: "/deployments", minRole: "user" },
   { icon: Cpu, label: "Memória", path: "/memory", minRole: "user" },
+  { icon: GitCommit, label: "Versões", path: "/versions", minRole: "user" },
   { icon: FileText, label: "Logs", path: "/logs", minRole: "user" },
 ];
 
