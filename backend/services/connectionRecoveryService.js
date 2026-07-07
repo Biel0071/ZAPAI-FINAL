@@ -27,13 +27,13 @@ async function checkAndRecoverSessions() {
         needsReconnect = true;
         reason = 'Session status is disconnected in activeSessions';
       }
-      // 3. Stored session object is 'connected' but last activity (lastPingAt) is older than 90 seconds
+      // 3. Stored session object is 'connected' but last activity (lastPingAt) is older than 15 minutes
       else if (session && !session.isDisposed && !session.isClosing && session.status === 'connected') {
         const lastPing = session.lastPingAt || session.connectedAt || 0;
         const idleTimeMs = now - lastPing;
-        if (idleTimeMs > 90_000) {
+        if (idleTimeMs > 900_000) {
           needsReconnect = true;
-          reason = `Session connected but idle for ${Math.round(idleTimeMs / 1000)}s (threshold 90s)`;
+          reason = `Session connected but idle for ${Math.round(idleTimeMs / 1000)}s (threshold 900s)`;
         }
       }
       // 4. Session socket is closed but status remains connected
