@@ -742,7 +742,9 @@ export default function Inbox() {
                   </div>
                 </div>
               </DialogContent>
-                       <Dialog open={state.isQuickReplyDialogOpen} onOpenChange={state.setIsQuickReplyDialogOpen}>
+            </Dialog>
+
+            <Dialog open={state.isQuickReplyDialogOpen} onOpenChange={state.setIsQuickReplyDialogOpen}>
               <DialogContent className="sm:max-w-2xl border border-border/60 bg-gradient-to-b from-card to-background/98 backdrop-blur-2xl max-h-[90vh] overflow-y-auto text-foreground shadow-2xl rounded-xl p-6">
                 <DialogHeader className="border-b border-border/20 pb-4">
                   <div className="flex items-center justify-between">
