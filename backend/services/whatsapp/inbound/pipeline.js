@@ -74,7 +74,7 @@ async function downloadMedia(mediaMessage, mediaType) {
   }
 }
 
-async function extractIncomingMessage(messageData = {}) {
+async function extractIncomingMessage(messageData = {}, options = {}) {
   const phone = messageData.key?.remoteJid;
   const name = messageData.pushName || 'Unknown';
   const timestamp = messageData.messageTimestamp
@@ -92,28 +92,33 @@ async function extractIncomingMessage(messageData = {}) {
   const normalizedMessage = unwrapMessageContent(messageData.message || {});
   const { mediaMessage, mediaType } = getMediaDescriptor(normalizedMessage);
   const text = extractMessageText(messageData);
+  const skipMediaDownload = Boolean(options.skipMediaDownload);
   let mediaInfo = null;
-  try {
-    mediaInfo = mediaMessage ? await downloadMedia(mediaMessage, mediaType) : null;
-  } catch (error) {
-    console.error('[PIPELINE] Media download failed during extraction:', error?.message || error);
+
+  if (mediaMessage && !skipMediaDownload) {
+    try {
+      mediaInfo = await downloadMedia(mediaMessage, mediaType);
+    } catch (error) {
+      console.error('[PIPELINE] Media download failed during extraction:', error?.message || error);
+    }
   }
+
   const mediaPath = mediaInfo?.filePath || null;
   const mediaUrl = mediaInfo?.url || null;
 
   return {
     companyId: process.env.DEFAULT_COMPANY_ID || 'default',
     externalMessageId: messageData.key?.id || null,
-    fileName: mediaInfo?.fileName || null,
+    fileName: mediaInfo?.fileName || mediaMessage?.fileName || null,
     isGroup,
     mediaPath,
     mediaUrl,
     mediaType,
-    mimeType: mediaInfo?.mimeType || null,
+    mimeType: mediaInfo?.mimeType || mediaMessage?.mimetype || null,
     name,
     participant,
     phone: isGroup ? phone : normalizePhone(phone),
-    size: mediaInfo?.size || null,
+    size: mediaInfo?.size || (mediaMessage?.fileLength ? Number(mediaMessage.fileLength) : null),
     text,
     timestamp: new Date(timestamp).toISOString(),
     type: mediaInfo?.type || mediaType || 'text',
