@@ -280,28 +280,23 @@ async function processMessage({ payload, conversation, store, sock, sessionId })
         name: conversation?.name || phone,
         phone,
         conversationId,
-        memoryContext,
+        sessionId,
         funnelStage,
         nextAction: leadAnalysis.next_action,
         leadAnalysis,
         salesStrategy,
       },
-      history: history.filter((entry, index) => {
-        if (index !== history.length - 1) return true;
-        return String(entry.content || '').trim() !== String(incomingText || '').trim();
-      }),
+      history: leadHistory,
       message: incomingText,
       store,
-      agentName: conversation?.agent_name || 'Camila',
+      agentName: matchedAgent.name,
       companyId,
     });
   } catch (error) {
-    console.error('[AutomationEngine] AI processing error:', error);
+    console.error('[AutomationEngine] processAI failed:', error.message);
   }
 
   if (!ai || !ai.reply) {
-    console.log('[AutomationEngine] AI returned no reply.');
-    // Check "IA sem resposta" trigger
     if (matchedAgent.escalationActive && matchedAgent.escalationTriggers.includes("IA sem resposta")) {
       const fallbackTrigger = "IA sem resposta";
       await logEscalation({
@@ -332,7 +327,47 @@ async function processMessage({ payload, conversation, store, sock, sessionId })
     return { success: false, reason: 'ai_empty_reply' };
   }
 
-  // 7. CRM state was updated before generation so the prompt and UI share the same context.
+  // 7. Process AI metadata (funnel stage and tags) if available
+  if (ai.analysis) {
+    try {
+      let finalFunnelStage = ai.analysis.funnel_stage;
+      let tagsToAdd = Array.isArray(ai.analysis.tags_to_add) ? ai.analysis.tags_to_add : [];
+      
+      const FUNNEL_STAGES = ['new_lead', 'interested', 'price_sent', 'negotiation', 'ready_to_buy', 'closed', 'lost'];
+      if (finalFunnelStage && !FUNNEL_STAGES.includes(finalFunnelStage)) {
+        finalFunnelStage = undefined;
+      }
+
+      const finalTags = Array.from(new Set([
+        ...tags,
+        ...tagsToAdd.map(t => String(t).trim().toLowerCase())
+      ])).filter(Boolean);
+
+      const updatePayload = {};
+      if (finalFunnelStage) updatePayload.funnel_stage = finalFunnelStage;
+      updatePayload.tags = finalTags;
+
+      console.log(`[AutomationEngine] AI auto-analysis for ${conversationId}: stage=${finalFunnelStage}, tags=${JSON.stringify(finalTags)}`);
+
+      await conversationRepository.updateConversationState(conversationId, updatePayload);
+
+      io?.emit('lead_updated', {
+        conversationId,
+        intent: leadAnalysis.intent,
+        lead_temperature: leadAnalysis.lead_temperature,
+        next_action: leadAnalysis.next_action,
+        phone,
+        tags: finalTags,
+      });
+      if (finalFunnelStage) {
+        io?.emit('funnel_updated', { conversationId, funnel_stage: finalFunnelStage, phone });
+      }
+    } catch (err) {
+      console.error('[AutomationEngine] Failed to apply AI analysis metadata:', err.message);
+    }
+  }
+
+  // 8. CRM state was updated before generation so the prompt and UI share the same context.
   void crmState;
 
   // 8. Queue: Enqueue AI response message (Queue -> SendMessage)

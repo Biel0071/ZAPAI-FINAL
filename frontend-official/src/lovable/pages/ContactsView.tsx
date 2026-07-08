@@ -81,7 +81,7 @@ export function ContactsView({
       )
     ) as string[];
 
-    const standard = ["new_lead", "qualification", "price_sent", "negotiation", "closed", "lost"];
+    const standard = ["new_lead", "interested", "price_sent", "negotiation", "ready_to_buy", "closed", "lost"];
     standard.forEach(s => {
       if (!list.includes(s)) list.push(s);
     });
@@ -90,13 +90,12 @@ export function ContactsView({
 
   const stageLabels: Record<string, string> = {
     new_lead: "Novo Lead",
-    qualification: "Em Qualificação",
-    price_sent: "Preço Enviado",
+    interested: "Interessado",
+    price_sent: "Preço/Orçamento",
     negotiation: "Negociação",
-    closed: "Fechamento",
+    ready_to_buy: "Pronto para Comprar",
+    closed: "Venda Fechada",
     lost: "Perdido",
-    meio: "Meio de Funil",
-    fundo: "Fundo (Fechamento)",
   };
 
   return (

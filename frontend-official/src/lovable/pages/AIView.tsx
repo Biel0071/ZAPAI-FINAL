@@ -649,6 +649,7 @@ export function AIView(props: AIViewProps) {
   const [agentFormObjective, setAgentFormObjective] = useState("Qualificar Leads");
   const [agentFormPrompt, setAgentFormPrompt] = useState("");
   const [agentFormTemp, setAgentFormTemp] = useState(0.7);
+  const [agentFormResponseStyle, setAgentFormResponseStyle] = useState("short_natural");
   const [agentFormResponseDelayMin, setAgentFormResponseDelayMin] = useState(2);
   const [agentFormResponseDelayMax, setAgentFormResponseDelayMax] = useState(8);
   const [agentFormTypingDelayMin, setAgentFormTypingDelayMin] = useState(1);
@@ -690,6 +691,7 @@ export function AIView(props: AIViewProps) {
   ]);
   const [simInput, setSimInput] = useState("");
   const [simLoading, setSimLoading] = useState(false);
+  const [simStatus, setSimStatus] = useState("Pensando...");
   const [simMetrics, setSimMetrics] = useState<AIConnectionTestResult | null>(null);
 
   useEffect(() => {
@@ -737,6 +739,7 @@ export function AIView(props: AIViewProps) {
     setAgentFormObjective("Qualificar Leads");
     setAgentFormPrompt("Você é um atendente focado em auxiliar o cliente com simpatia e clareza.");
     setAgentFormTemp(0.7);
+    setAgentFormResponseStyle("short_natural");
     setAgentFormResponseDelayMin(2);
     setAgentFormResponseDelayMax(8);
     setAgentFormTypingDelayMin(1);
@@ -773,6 +776,7 @@ export function AIView(props: AIViewProps) {
     setAgentFormObjective(agent.objective || "Qualificar Leads");
     setAgentFormPrompt(agent.personality || agent.prompt || "");
     setAgentFormTemp(agent.temperature !== undefined ? agent.temperature : 0.7);
+    setAgentFormResponseStyle(agent.responseStyle || "short_natural");
     setAgentFormResponseDelayMin(Math.max(0, Math.round((agent.delayProfile?.minMs ?? 2000) / 1000)));
     setAgentFormResponseDelayMax(Math.max(0, Math.round((agent.delayProfile?.maxMs ?? 8000) / 1000)));
     setAgentFormTypingDelayMin(Math.max(0, Math.round((agent.typingDelayProfile?.minMs ?? 1000) / 1000)));
@@ -818,6 +822,7 @@ export function AIView(props: AIViewProps) {
       objective: agentFormObjective.trim(),
       personality: agentFormPrompt.trim(),
       temperature: agentFormTemp,
+      responseStyle: agentFormResponseStyle,
       delayProfile: {
         minMs: Math.max(0, Math.min(agentFormResponseDelayMin, agentFormResponseDelayMax) * 1000),
         maxMs: Math.max(agentFormResponseDelayMin, agentFormResponseDelayMax) * 1000,
@@ -901,17 +906,40 @@ export function AIView(props: AIViewProps) {
     setSimLoading(true);
     setSimMetrics(null);
 
+    // Calculate humanized delay based on agent's profile
+    const agentObj = (agents || []).find(
+      (a: any) =>
+        a.key === simSelectedAgent ||
+        a.name?.toLowerCase() === simSelectedAgent.toLowerCase()
+    );
+
+    let finalDelayMs = 0;
+    if (agentObj) {
+      const responseMin = Number(agentObj.delayProfile?.minMs) || 0;
+      const responseMax = Number(agentObj.delayProfile?.maxMs) || responseMin;
+      const typingMin = Number(agentObj.typingDelayProfile?.minMs) || 0;
+      const typingMax = Number(agentObj.typingDelayProfile?.maxMs) || typingMin;
+      
+      const responseDelay = responseMax === responseMin ? responseMin : Math.floor(Math.random() * (responseMax - responseMin + 1)) + responseMin;
+      const typingDelay = typingMax === typingMin ? typingMin : Math.floor(Math.random() * (typingMax - typingMin + 1)) + typingMin;
+      finalDelayMs = responseDelay + typingDelay;
+    }
+
+    // Default to at least 1s delay if not configured
+    if (finalDelayMs <= 0) {
+      finalDelayMs = 1500;
+    }
+
+    const delaySec = (finalDelayMs / 1000).toFixed(1);
+    setSimStatus(`Digitando... (atraso humanizado de ${delaySec}s)`);
+
     try {
-      const agentObj = (agents || []).find(
-        (a: any) =>
-          a.key === simSelectedAgent ||
-          a.name?.toLowerCase() === simSelectedAgent.toLowerCase()
-      );
       const agentPrompt = agentObj?.personality || agentObj?.prompt || prompt;
       const agentModel = testModel || "gpt-4o-mini";
       const agentProvider = testProviderId || "openai";
 
-      const response = await apiService.testAIMessage({
+      // Execute API call and delay concurrently
+      const apiPromise = apiService.testAIMessage({
         message: userMsg,
         prompt: agentPrompt,
         model: agentModel,
@@ -919,6 +947,10 @@ export function AIView(props: AIViewProps) {
         agentKey: agentObj?.key,
         agentName: agentObj?.name,
       });
+
+      const delayPromise = new Promise((resolve) => setTimeout(resolve, finalDelayMs));
+
+      const [response] = await Promise.all([apiPromise, delayPromise]);
 
       if (response && response.success && response.result) {
         setSimMessages((prev) => [
@@ -1147,6 +1179,25 @@ export function AIView(props: AIViewProps) {
           <span>Mais Conservador</span>
           <span>Mais Criativo</span>
         </div>
+      </div>
+
+      <div className="space-y-1.5 pt-2">
+        <Label htmlFor="agent-response-style" className="text-[11px] font-bold">Nível de Objetividade / Estilo de Resposta</Label>
+        <Select
+          value={agentFormResponseStyle}
+          onValueChange={setAgentFormResponseStyle}
+        >
+          <SelectTrigger id="agent-response-style" className="bg-background h-8 text-xs">
+            <SelectValue placeholder="Selecione o estilo de resposta" />
+          </SelectTrigger>
+          <SelectContent className="border-border bg-card/95 backdrop-blur-xl">
+            <SelectItem value="short_natural" className="text-xs">Natural & Equilibrado (Padrão)</SelectItem>
+            <SelectItem value="ultra_short" className="text-xs">Objetivo & Direto (Máx. 2 parágrafos curtos)</SelectItem>
+            <SelectItem value="one_sentence" className="text-xs">Ultra Curto (Máx. 1 ou 2 frases curtas)</SelectItem>
+            <SelectItem value="elaborate" className="text-xs">Detalhado & Explicativo (Respostas completas)</SelectItem>
+          </SelectContent>
+        </Select>
+        <p className="text-[9px] text-muted-foreground">Define se a IA deve ser direta ao ponto ou fornecer respostas longas e detalhadas.</p>
       </div>
 
       <div className="space-y-3 rounded-lg border border-border/50 bg-background/20 p-3">
@@ -2055,7 +2106,7 @@ export function AIView(props: AIViewProps) {
                             {simLoading && (
                               <div className="bg-card border border-border/60 text-foreground mr-auto rounded-2xl rounded-tl-none p-3 text-xs flex items-center gap-2">
                                 <Loader2 className="h-3.5 w-3.5 animate-spin text-primary" />
-                                <span className="text-[10px] text-muted-foreground animate-pulse">Pensando...</span>
+                                <span className="text-[10px] text-muted-foreground animate-pulse">{simStatus}</span>
                               </div>
                             )}
                           </CardContent>

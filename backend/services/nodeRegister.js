@@ -20,7 +20,15 @@ class NodeRegisterService {
     this.registrationToken = process.env.NODE_REGISTRATION_TOKEN || process.env.MASTER_TOKEN || '';
     const isMaster = String(process.env.MASTER || '').trim().toLowerCase() === 'true';
     this.nodeId = process.env.NODE_ID || (isMaster ? 'master' : this.generateNodeId());
-    this.autoRegisterEnabled = String(process.env.FEATURE_NODE_AUTO_REGISTER || 'true').trim().toLowerCase() === 'true';
+    
+    const rawAutoRegister = process.env.FEATURE_NODE_AUTO_REGISTER;
+    if (isMaster) {
+      this.autoRegisterEnabled = true;
+    } else if (rawAutoRegister !== undefined) {
+      this.autoRegisterEnabled = String(rawAutoRegister).trim().toLowerCase() === 'true';
+    } else {
+      this.autoRegisterEnabled = true;
+    }
     this.heartbeatInterval = null;
   }
 
@@ -30,6 +38,18 @@ class NodeRegisterService {
 
   getPublicIP() {
     return new Promise((resolve) => {
+      // Direct env check to avoid external network requests if possible
+      const envUrl = process.env.APP_PUBLIC_URL || process.env.PUBLIC_URL || process.env.APP_URL || '';
+      if (envUrl) {
+        try {
+          const hostname = new URL(envUrl).hostname;
+          if (hostname && /^[0-9.]+$/.test(hostname)) {
+            console.log('[NodeRegister] Resolved public IP from env:', hostname);
+            return resolve(hostname);
+          }
+        } catch {}
+      }
+
       const options = {
         hostname: 'ifconfig.me',
         port: 80,
@@ -59,11 +79,44 @@ class NodeRegisterService {
     });
   }
 
+  async getCpuUsage() {
+    const startMeasure = os.cpus().map(core => {
+      const { user, nice, sys, idle, irq } = core.times;
+      return {
+        idle: idle,
+        total: user + nice + sys + idle + irq
+      };
+    });
+
+    await new Promise(resolve => setTimeout(resolve, 100));
+
+    const endMeasure = os.cpus().map(core => {
+      const { user, nice, sys, idle, irq } = core.times;
+      return {
+        idle: idle,
+        total: user + nice + sys + idle + irq
+      };
+    });
+
+    let totalDiff = 0;
+    let idleDiff = 0;
+
+    for (let i = 0; i < startMeasure.length; i++) {
+      totalDiff += endMeasure[i].total - startMeasure[i].total;
+      idleDiff += endMeasure[i].idle - startMeasure[i].idle;
+    }
+
+    if (totalDiff === 0) return 0;
+    const usage = 100 - Math.round((100 * idleDiff) / totalDiff);
+    return Math.max(0, Math.min(100, usage));
+  }
+
   async getSystemMetrics() {
     const cpus = os.cpus();
     const totalmem = os.totalmem();
     const freemem = os.freemem();
     const uptime = process.uptime();
+    const cpuUsage = await this.getCpuUsage();
 
     const diskProbe = await new Promise((resolve) => {
       try {
@@ -120,6 +173,7 @@ class NodeRegisterService {
       cpu: {
         cores: cpus.length,
         model: cpus[0]?.model || 'unknown',
+        usage: cpuUsage,
       },
       ram: {
         total: Math.round(totalmem / 1024 / 1024), // MB

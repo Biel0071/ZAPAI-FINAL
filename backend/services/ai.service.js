@@ -183,6 +183,18 @@ function compileSystemPrompt(agent, store, contact = null) {
   const sector = agent?.sector || 'Geral';
   const objective = agent?.objective || 'Atendimento comercial';
   const personality = agent?.personality || agent?.prompt || '';
+  const responseStyle = agent?.responseStyle || 'short_natural';
+
+  let styleInstruction = '';
+  if (responseStyle === 'ultra_short') {
+    styleInstruction = `- Diretriz de Tamanho: Seja extremamente objetivo, curto e direto ao ponto. Responda em no máximo 1 ou 2 parágrafos curtos. Não faça rodeios, evite explicações longas e desnecessárias. Responda apenas ao que foi perguntado de forma concisa.\n`;
+  } else if (responseStyle === 'one_sentence') {
+    styleInstruction = `- Diretriz de Tamanho: Seja ultracurto. Responda com no máximo uma ou duas frases curtas. Não faça saudações repetidas e vá direto ao ponto sem qualquer rodeio.\n`;
+  } else if (responseStyle === 'elaborate') {
+    styleInstruction = `- Diretriz de Tamanho: Responda de forma detalhada, completa e explicativa. Traga o máximo de contexto e detalhes necessários para esclarecer completamente o cliente.\n`;
+  } else {
+    styleInstruction = `- Diretriz de Tamanho: Responda de forma equilibrada, mantendo uma conversa natural, amigável e direta ao ponto.\n`;
+  }
 
   // 1. IDENTIDADE DO ATENDENTE
   let compiled = `[IDENTIDADE DO ATENDENTE]\n`;
@@ -198,6 +210,7 @@ function compileSystemPrompt(agent, store, contact = null) {
   } else {
     compiled += `Atendimento amigável, direto, simpático e profissional.\n`;
   }
+  compiled += styleInstruction;
   compiled += `\n`;
 
   // 3. DADOS DO CLIENTE
@@ -310,6 +323,7 @@ function compileSystemPrompt(agent, store, contact = null) {
   // 10. DIRETRIZES GLOBAIS DE ATENDIMENTO
   compiled += `[DIRETRIZES GLOBAIS DE ATENDIMENTO]\n`;
   compiled += `- Sempre responda em português brasileiro de forma natural, calorosa, empática, simpática e profissional.\n`;
+  compiled += `- Respeite rigorosamente a Diretriz de Tamanho configurada para o seu perfil no bloco [TOM/PERSONALIDADE]. Respostas muito longas para atendentes objetivos ou muito curtas para detalhados serão consideradas falhas.\n`;
   compiled += `- Use uma variedade de palavras e expressões para evitar respostas repetitivas ou mecânicas. Adapte o tom ao humor e estilo de escrita do cliente.\n`;
   compiled += `- Sinta-se livre para conversar sobre assuntos gerais ou saudações do dia a dia, mantendo um diálogo agradável e prestativo, mesmo que as respostas exatas não estejam descritas no prompt.\n`;
   compiled += `- Nunca mencione que você é um robô ou inteligência artificial, a menos que seja estritamente necessário para realizar o transbordo humano.\n`;
@@ -317,6 +331,20 @@ function compileSystemPrompt(agent, store, contact = null) {
   compiled += `- Continue o atendimento do ponto atual; não reinicie com saudações repetidas se já existe histórico.\n`;
   compiled += `- Não repita perguntas que o cliente já respondeu. Use as quantidades, produtos e preferências presentes no contexto.\n`;
   compiled += `- Seja flexível e criativo nas respostas gerais, mas evite inventar preços específicos, prazos de entrega ou condições financeiras que não estejam configurados no seu contexto.\n`;
+  compiled += `\n`;
+
+  // 11. ANÁLISE DE CONTEXTO E METADADOS DO FUNIL
+  compiled += `[ANÁLISE DE CONTEXTO E METADADOS DO FUNIL]\n`;
+  compiled += `Ao final da sua resposta, você DEVE analisar a mensagem recebida e o histórico para definir o estágio do funil do lead e marcadores (tags). Você DEVE obrigatoriamente anexar um bloco JSON de metadados no formato exato abaixo:\n`;
+  compiled += `:::analysis\n`;
+  compiled += `{\n`;
+  compiled += `  "funnel_stage": "new_lead" | "interested" | "price_sent" | "negotiation" | "ready_to_buy" | "closed" | "lost",\n`;
+  compiled += `  "tags_to_add": ["tag1", "tag2"]\n`;
+  compiled += `}\n`;
+  compiled += `:::\n`;
+  compiled += `Regras de análise:\n`;
+  compiled += `- Escolha o estágio do funil condizente com a evolução do diálogo. Se o cliente pediu preços/orçamento, mude para "price_sent". Se demonstrou interesse real de compra, mude para "ready_to_buy". Se confirmou o fechamento da compra, mude para "closed". Se o cliente deserdar ou desistir, use "lost".\n`;
+  compiled += `- Adicione marcadores relevantes em tags_to_add (com minúsculas, ex: "cimento", "areia", "vip", "reclamacao", "urgente").\n`;
 
   return compiled.trim();
 }
@@ -774,13 +802,29 @@ async function processAI({ contact, history, message, store, agentName, companyI
       totalTokens = promptTokens + completionTokens;
     }
 
+    // 11. EXTRAIR E LIMPAR BLOCO DE ANÁLISE :::analysis
+    let replyClean = reply || '';
+    let analysisResult = null;
+    if (replyClean.includes(':::analysis')) {
+      try {
+        const parts = replyClean.split(':::analysis');
+        replyClean = parts[0].trim();
+        let block = parts[1].split(':::')[0].trim();
+        block = block.replace(/```json/g, '').replace(/```/g, '').trim();
+        analysisResult = JSON.parse(block);
+        console.log('[AI SERVICE] Analysis parsed successfully:', analysisResult);
+      } catch (err) {
+        console.error('[AI SERVICE] Failed to parse analysis block:', err.message);
+      }
+    }
+
     // Save log entry asynchronously
     await aiLogService.saveLogEntry(
       {
         conversationId: contact.conversationId || contact.phone,
         contactName: contact.name,
         messageSent: message,
-        messageReceived: reply,
+        messageReceived: replyClean,
         provider: providerId,
         model: model || 'default',
         promptTokens,
@@ -794,7 +838,8 @@ async function processAI({ contact, history, message, store, agentName, companyI
     const finalResult = {
       intent: 'information',
       leadScore: 0.5,
-      reply,
+      reply: replyClean,
+      analysis: analysisResult,
       suggestion: null,
       provider: providerId,
       model: model || 'default',
