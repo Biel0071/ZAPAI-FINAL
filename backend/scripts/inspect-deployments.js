@@ -1,22 +1,15 @@
 const { query } = require('../config/database');
 
 async function main() {
-  console.log('Altering deployments table...');
+  console.log('Altering nodes table to add services column...');
   await query(`
-    ALTER TABLE deployments ADD COLUMN IF NOT EXISTS deployment_type VARCHAR(50) NOT NULL DEFAULT 'deploy';
-    ALTER TABLE deployments ADD COLUMN IF NOT EXISTS git_ref VARCHAR(255);
-    ALTER TABLE deployments ADD COLUMN IF NOT EXISTS build_hash VARCHAR(64);
-    ALTER TABLE deployments ADD COLUMN IF NOT EXISTS started_at TIMESTAMP;
-    ALTER TABLE deployments ADD COLUMN IF NOT EXISTS duration_seconds INTEGER;
-    ALTER TABLE deployments ADD COLUMN IF NOT EXISTS triggered_by VARCHAR(100) DEFAULT 'system';
-    ALTER TABLE deployments ADD COLUMN IF NOT EXISTS metadata JSONB DEFAULT '{}'::jsonb;
-    ALTER TABLE deployments ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT NOW();
+    ALTER TABLE nodes ADD COLUMN IF NOT EXISTS services JSONB DEFAULT '{}'::jsonb;
   `);
-  console.log('Table deployments altered successfully!');
+  console.log('Table nodes altered successfully!');
 
-  const result = await query("SELECT column_name, data_type FROM information_schema.columns WHERE table_name = 'deployments'");
-  console.log('New columns inside deployments table:');
-  console.log(result.rows);
+  const result = await query("SELECT column_name, data_type FROM information_schema.columns WHERE table_name = 'nodes'");
+  console.log('New columns inside nodes table:');
+  console.log(result.rows.filter(r => r.column_name === 'services'));
 }
 
 main().catch(console.error).finally(() => process.exit(0));
