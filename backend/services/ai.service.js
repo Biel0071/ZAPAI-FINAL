@@ -1024,10 +1024,33 @@ Regras de Refinamento:
 
 async function geocodeAddress(address) {
   if (!address) return null;
+  let resolvedAddress = address;
+
+  // 1. Detect CEP (ex: 30640-010 or 30640010)
+  const cepMatch = address.match(/\b(\d{5})-?(\d{3})\b/);
+  if (cepMatch) {
+    const cep = cepMatch[1] + cepMatch[2];
+    try {
+      console.log(`[Geocoding CEP] Found CEP: ${cep}. Querying ViaCEP...`);
+      const viacepRes = await axios.get(`https://viacep.com.br/ws/${cep}/json/`, { timeout: 4000 });
+      if (viacepRes.data && !viacepRes.data.erro) {
+        const { logradouro, bairro, localidade, uf } = viacepRes.data;
+        // Try to extract house/building number from original address
+        const numberMatch = address.match(/(?:nº|numero|num|n|no)\s*(\d+)/i);
+        const streetNumber = numberMatch ? ` ${numberMatch[1]}` : "";
+        resolvedAddress = `${logradouro}${streetNumber}, ${bairro}, ${localidade} - ${uf}, Brasil`;
+        console.log(`[Geocoding CEP] Resolved CEP ${cep} successfully: ${resolvedAddress}`);
+      }
+    } catch (err) {
+      console.warn(`[Geocoding CEP] ViaCEP lookup failed for CEP ${cep}:`, err.message);
+    }
+  }
+
+  // 2. Query OSM Nominatim with resolved or original address
   try {
     const response = await axios.get('https://nominatim.openstreetmap.org/search', {
       params: {
-        q: address,
+        q: resolvedAddress,
         format: 'json',
         limit: 1,
         addressdetails: 1
@@ -1036,10 +1059,32 @@ async function geocodeAddress(address) {
         'User-Agent': 'ZapFlowAI/1.0'
       }
     });
+
     if (response.data && response.data.length > 0) {
       const lat = parseFloat(response.data[0].lat);
       const lng = parseFloat(response.data[0].lon);
       return { lat, lng };
+    }
+
+    // 3. Fallback: If Nominatim failed on resolved address, try with CEP directly or original address
+    if (cepMatch && resolvedAddress !== address) {
+      console.log(`[Geocoding Fallback] Nominatim failed for resolved address. Retrying with original text...`);
+      const fallbackResponse = await axios.get('https://nominatim.openstreetmap.org/search', {
+        params: {
+          q: address,
+          format: 'json',
+          limit: 1,
+          addressdetails: 1
+        },
+        headers: {
+          'User-Agent': 'ZapFlowAI/1.0'
+        }
+      });
+      if (fallbackResponse.data && fallbackResponse.data.length > 0) {
+        const lat = parseFloat(fallbackResponse.data[0].lat);
+        const lng = parseFloat(fallbackResponse.data[0].lon);
+        return { lat, lng };
+      }
     }
   } catch (err) {
     console.error('[Geocoding] Failed to geocode address:', err.message);
