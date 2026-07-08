@@ -693,16 +693,28 @@ export function AIView(props: AIViewProps) {
   const [simLoading, setSimLoading] = useState(false);
   const [simStatus, setSimStatus] = useState("Pensando...");
   const [simMetrics, setSimMetrics] = useState<AIConnectionTestResult | null>(null);
+  
+  // Simulator quick edit states
+  const [simTemp, setSimTemp] = useState(0.7);
+  const [simStyle, setSimStyle] = useState("short_natural");
+  const [simAgentPrompt, setSimAgentPrompt] = useState("");
+  const [savingSimSettings, setSavingSimSettings] = useState(false);
+  const [simTab, setSimTab] = useState<"ajuste" | "metricas">("ajuste");
 
   useEffect(() => {
     if (!Array.isArray(agents) || agents.length === 0) {
       if (!simSelectedAgent) setSimSelectedAgent("camila");
       return;
     }
-
-    const selectedStillExists = agents.some((agent: any) => (agent.key || agent.name) === simSelectedAgent);
-    if (!selectedStillExists) {
-      setSimSelectedAgent(agents[0].key || agents[0].name);
+    const agentObj = agents.find(
+      (a: any) =>
+        a.key === simSelectedAgent ||
+        a.name?.toLowerCase() === simSelectedAgent.toLowerCase()
+    );
+    if (agentObj) {
+      setSimTemp(agentObj.temperature ?? 0.7);
+      setSimStyle(agentObj.responseStyle || "short_natural");
+      setSimAgentPrompt(agentObj.personality || agentObj.prompt || "");
     }
   }, [agents, simSelectedAgent]);
 
@@ -934,18 +946,19 @@ export function AIView(props: AIViewProps) {
     setSimStatus(`Digitando... (atraso humanizado de ${delaySec}s)`);
 
     try {
-      const agentPrompt = agentObj?.personality || agentObj?.prompt || prompt;
       const agentModel = testModel || "gpt-4o-mini";
       const agentProvider = testProviderId || "openai";
 
       // Execute API call and delay concurrently
       const apiPromise = apiService.testAIMessage({
         message: userMsg,
-        prompt: agentPrompt,
+        prompt: simAgentPrompt.trim(),
         model: agentModel,
         providerId: agentProvider,
         agentKey: agentObj?.key,
         agentName: agentObj?.name,
+        temperature: simTemp,
+        responseStyle: simStyle,
       });
 
       const delayPromise = new Promise((resolve) => setTimeout(resolve, finalDelayMs));
@@ -988,6 +1001,41 @@ export function AIView(props: AIViewProps) {
       });
     } finally {
       setSimLoading(false);
+    }
+  };
+
+  const handleSaveSimSettings = async () => {
+    const agentObj = (agents || []).find(
+      (a: any) =>
+        a.key === simSelectedAgent ||
+        a.name?.toLowerCase() === simSelectedAgent.toLowerCase()
+    );
+    if (!agentObj) {
+      toast({ title: "Nenhum atendente selecionado para salvar.", variant: "destructive" });
+      return;
+    }
+
+    setSavingSimSettings(true);
+    try {
+      const payload = {
+        ...agentObj,
+        temperature: simTemp,
+        responseStyle: simStyle,
+        personality: simAgentPrompt.trim(),
+      };
+      
+      if (onUpdateAgent) {
+        const success = await onUpdateAgent(agentObj.key, payload);
+        if (success) {
+          toast({ title: "Configurações do atendente salvas com sucesso!", variant: "default" });
+        } else {
+          toast({ title: "Erro ao salvar configurações do atendente.", variant: "destructive" });
+        }
+      }
+    } catch (err: any) {
+      toast({ title: err?.message || "Falha ao salvar configurações.", variant: "destructive" });
+    } finally {
+      setSavingSimSettings(false);
     }
   };
 
@@ -2129,78 +2177,182 @@ export function AIView(props: AIViewProps) {
                         {/* Observability Box */}
                         <Card className="rounded-xl border border-border bg-background/25 p-3 text-xs flex flex-col justify-between h-[480px] overflow-y-auto">
                           <div>
-                            <h5 className="font-bold text-[10px] uppercase text-muted-foreground tracking-wider pb-2 border-b border-border/50">Métricas de Observabilidade</h5>
-                            {simMetrics ? (
-                              <div className="space-y-4 mt-3">
-                                <div className="grid grid-cols-2 gap-2 text-[10px]">
-                                  <div className="rounded border border-border/50 p-2 bg-background/30">
-                                    <span className="block text-muted-foreground text-[9px]">Latência</span>
-                                    <span className="font-bold text-foreground text-xs">{simMetrics.responseTimeMs ? `${simMetrics.responseTimeMs}ms` : "n/d"}</span>
-                                  </div>
-                                  <div className="rounded border border-border/50 p-2 bg-background/30">
-                                    <span className="block text-muted-foreground text-[9px]">Tokens Totais</span>
-                                    <span className="font-bold text-foreground text-xs">{simMetrics.totalTokens ?? "n/d"}</span>
-                                  </div>
-                                </div>
-                                
-                                <div className="space-y-1">
-                                  <span className="block text-muted-foreground text-[9px]">Provedor / Modelo</span>
-                                  <span className="font-semibold text-foreground text-[10px] uppercase">{simMetrics.provider || "openai"} ({simMetrics.model || "padrão"})</span>
-                                </div>
-
-                                {!simMetrics.ok && simMetrics.error && (
-                                  <div className="rounded border border-destructive/30 bg-destructive/10 p-2 text-[10px] text-destructive">
-                                    <span className="block font-bold uppercase text-[9px] mb-1">Falha no teste</span>
-                                    <p className="whitespace-pre-wrap break-words">{simMetrics.error}</p>
-                                  </div>
+                            <div className="flex border-b border-border/50 pb-2 mb-3 gap-3 justify-start items-center">
+                              <button
+                                onClick={() => setSimTab("ajuste")}
+                                className={cn(
+                                  "text-[10px] uppercase font-bold tracking-wider pb-1 transition-all border-b-2",
+                                  simTab === "ajuste" ? "border-primary text-primary" : "border-transparent text-muted-foreground hover:text-foreground"
                                 )}
-
-                                {simMetrics.promptTokens && (
-                                  <div className="text-[9px] text-muted-foreground flex justify-between p-1.5 rounded bg-background/40">
-                                    <span>Input: {simMetrics.promptTokens}</span>
-                                    <span>Output: {simMetrics.completionTokens}</span>
-                                  </div>
+                              >
+                                Ajuste Rápido
+                              </button>
+                              <button
+                                onClick={() => setSimTab("metricas")}
+                                className={cn(
+                                  "text-[10px] uppercase font-bold tracking-wider pb-1 transition-all border-b-2",
+                                  simTab === "metricas" ? "border-primary text-primary" : "border-transparent text-muted-foreground hover:text-foreground"
                                 )}
+                              >
+                                Auditoria & Métricas
+                              </button>
+                            </div>
 
+                            {simTab === "ajuste" ? (
+                              <div className="space-y-3 mt-1 animate-fade-in">
                                 <div className="space-y-1">
-                                  <span className="block text-muted-foreground text-[9px]">Memórias Utilizadas</span>
-                                  <p className="text-[10px] bg-background/40 p-2 rounded text-foreground border border-border/30 line-clamp-3" title={simMetrics.memoriesUsed}>
-                                    {simMetrics.memoriesUsed || "Padrão global (último pedido, preferências)"}
-                                  </p>
+                                  <div className="flex justify-between items-center">
+                                    <Label htmlFor="sim-prompt" className="text-[10px] font-bold text-foreground">Instruções de Personalidade (Prompt)</Label>
+                                    <span className="text-[9px] text-muted-foreground">{simAgentPrompt.length} chars</span>
+                                  </div>
+                                  <Textarea
+                                    id="sim-prompt"
+                                    value={simAgentPrompt}
+                                    onChange={(e) => setSimAgentPrompt(e.target.value)}
+                                    placeholder="Instruções principais de atendimento..."
+                                    className="min-h-[140px] bg-background/50 text-[11px] leading-relaxed resize-y scrollbar-thin font-sans"
+                                  />
                                 </div>
 
                                 <div className="space-y-1">
-                                  <span className="block text-muted-foreground text-[9px]">Regras de Negócio Disparadas</span>
-                                  <p className="text-[10px] bg-background/40 p-2 rounded text-foreground border border-border/30 line-clamp-3" title={simMetrics.rulesTriggered}>
-                                    {simMetrics.rulesTriggered || "Padrão global (reativação automática)"}
-                                  </p>
+                                  <div className="flex justify-between items-center">
+                                    <Label className="text-[10px] font-bold text-foreground">Temperatura (Criatividade): {simTemp}</Label>
+                                    <span className="text-[9px] text-muted-foreground">
+                                      {simTemp <= 0.2 ? "Conservador" : simTemp >= 0.8 ? "Criativo" : "Equilibrado"}
+                                    </span>
+                                  </div>
+                                  <Slider
+                                    value={[simTemp]}
+                                    onValueChange={(val) => setSimTemp(val[0])}
+                                    min={0}
+                                    max={1}
+                                    step={0.1}
+                                    className="py-1"
+                                  />
                                 </div>
 
-                                {simMetrics.fullPrompt && (
-                                  <Dialog>
-                                    <DialogTrigger asChild>
-                                      <Button size="sm" variant="outline" className="w-full text-[9px] h-7 gap-1">
-                                        <BookOpen className="h-3 w-3" /> Ver Prompt Final Montado
-                                      </Button>
-                                    </DialogTrigger>
-                                    <DialogContent className="max-w-2xl bg-card border-border text-foreground">
-                                      <DialogHeader>
-                                        <DialogTitle className="text-xs font-bold">Prompt Final Enviado ao LLM</DialogTitle>
-                                        <DialogDescription className="text-[11px]">
-                                          Este é o prompt compilado com as diretrizes do atendente, regras do negócio, horas e memórias.
-                                        </DialogDescription>
-                                      </DialogHeader>
-                                      <pre className="text-[10px] bg-background p-3 rounded-lg overflow-y-auto max-h-[350px] whitespace-pre-wrap font-mono border border-border/50 text-muted-foreground">
-                                        {simMetrics.fullPrompt}
-                                      </pre>
-                                    </DialogContent>
-                                  </Dialog>
-                                )}
+                                <div className="space-y-1">
+                                  <Label htmlFor="sim-style" className="text-[10px] font-bold text-foreground">Estilo de Resposta (Objetividade)</Label>
+                                  <Select
+                                    value={simStyle}
+                                    onValueChange={setSimStyle}
+                                  >
+                                    <SelectTrigger id="sim-style" className="bg-background/50 h-7 text-xs">
+                                      <SelectValue placeholder="Selecione o estilo" />
+                                    </SelectTrigger>
+                                    <SelectContent className="border-border bg-card/95 backdrop-blur-xl">
+                                      <SelectItem value="short_natural" className="text-xs">Natural & Equilibrado (Padrão)</SelectItem>
+                                      <SelectItem value="ultra_short" className="text-xs">Objetivo & Direto (Máx. 2 parágrafos)</SelectItem>
+                                      <SelectItem value="one_sentence" className="text-xs">Ultra Curto (Máx. 1 ou 2 frases)</SelectItem>
+                                      <SelectItem value="elaborate" className="text-xs">Detalhado & Explicativo</SelectItem>
+                                    </SelectContent>
+                                  </Select>
+                                </div>
+
+                                {(() => {
+                                  const lastBotMsg = simMessages.filter(m => m.sender === "bot").slice(-1)[0]?.content || "";
+                                  const botWordCount = lastBotMsg ? lastBotMsg.trim().split(/\s+/).filter(Boolean).length : 0;
+                                  const botCharCount = lastBotMsg ? lastBotMsg.length : 0;
+                                  
+                                  if (botWordCount === 0) return null;
+
+                                  return (
+                                    <div className="flex justify-between items-center p-2 rounded-lg bg-primary/5 border border-primary/10 text-[10px] shrink-0">
+                                      <span className="font-semibold text-primary">Tamanho da Resposta:</span>
+                                      <span className="font-mono font-bold text-foreground">{botWordCount} palavras ({botCharCount} ch)</span>
+                                    </div>
+                                  );
+                                })()}
+
+                                <Button
+                                  size="sm"
+                                  onClick={handleSaveSimSettings}
+                                  disabled={savingSimSettings || simLoading}
+                                  className="w-full text-xs h-8 gap-1.5 rounded-lg shadow-glow"
+                                >
+                                  {savingSimSettings ? (
+                                    <Loader2 className="h-3 w-3 animate-spin" />
+                                  ) : (
+                                    <FloppyDisk className="h-3.5 w-3.5" />
+                                  )}
+                                  Salvar no Atendente
+                                </Button>
                               </div>
                             ) : (
-                              <div className="flex flex-col items-center justify-center text-center text-[10px] text-muted-foreground h-72">
-                                <AIIcon className="h-8 w-8 mb-2 text-muted-foreground/40 animate-pulse" />
-                                <span>Envie uma mensagem no simulador ao lado para auditar a montagem do prompt final e consumo de tokens.</span>
+                              <div className="animate-fade-in">
+                                {simMetrics ? (
+                                  <div className="space-y-4 mt-1">
+                                    <div className="grid grid-cols-2 gap-2 text-[10px]">
+                                      <div className="rounded border border-border/50 p-2 bg-background/30">
+                                        <span className="block text-muted-foreground text-[9px]">Latência</span>
+                                        <span className="font-bold text-foreground text-xs">{simMetrics.responseTimeMs ? `${simMetrics.responseTimeMs}ms` : "n/d"}</span>
+                                      </div>
+                                      <div className="rounded border border-border/50 p-2 bg-background/30">
+                                        <span className="block text-muted-foreground text-[9px]">Tokens Totais</span>
+                                        <span className="font-bold text-foreground text-xs">{simMetrics.totalTokens ?? "n/d"}</span>
+                                      </div>
+                                    </div>
+                                    
+                                    <div className="space-y-1">
+                                      <span className="block text-muted-foreground text-[9px]">Provedor / Modelo</span>
+                                      <span className="font-semibold text-foreground text-[10px] uppercase">{simMetrics.provider || "openai"} ({simMetrics.model || "padrão"})</span>
+                                    </div>
+
+                                    {!simMetrics.ok && simMetrics.error && (
+                                      <div className="rounded border border-destructive/30 bg-destructive/10 p-2 text-[10px] text-destructive">
+                                        <span className="block font-bold uppercase text-[9px] mb-1">Falha no teste</span>
+                                        <p className="whitespace-pre-wrap break-words">{simMetrics.error}</p>
+                                      </div>
+                                    )}
+
+                                    {simMetrics.promptTokens && (
+                                      <div className="text-[9px] text-muted-foreground flex justify-between p-1.5 rounded bg-background/40">
+                                        <span>Input: {simMetrics.promptTokens}</span>
+                                        <span>Output: {simMetrics.completionTokens}</span>
+                                      </div>
+                                    )}
+
+                                    <div className="space-y-1">
+                                      <span className="block text-muted-foreground text-[9px]">Memórias Utilizadas</span>
+                                      <p className="text-[10px] bg-background/40 p-2 rounded text-foreground border border-border/30 line-clamp-3" title={simMetrics.memoriesUsed}>
+                                        {simMetrics.memoriesUsed || "Padrão global (último pedido, preferências)"}
+                                      </p>
+                                    </div>
+
+                                    <div className="space-y-1">
+                                      <span className="block text-muted-foreground text-[9px]">Regras de Negócio Disparadas</span>
+                                      <p className="text-[10px] bg-background/40 p-2 rounded text-foreground border border-border/30 line-clamp-3" title={simMetrics.rulesTriggered}>
+                                        {simMetrics.rulesTriggered || "Padrão global (reativação automática)"}
+                                      </p>
+                                    </div>
+
+                                    {simMetrics.fullPrompt && (
+                                      <Dialog>
+                                        <DialogTrigger asChild>
+                                          <Button size="sm" variant="outline" className="w-full text-[9px] h-7 gap-1">
+                                            <BookOpen className="h-3 w-3" /> Ver Prompt Final Montado
+                                          </Button>
+                                        </DialogTrigger>
+                                        <DialogContent className="max-w-2xl bg-card border-border text-foreground">
+                                          <DialogHeader>
+                                            <DialogTitle className="text-xs font-bold">Prompt Final Enviado ao LLM</DialogTitle>
+                                            <DialogDescription className="text-[11px]">
+                                              Este é o prompt compilado com as diretrizes do atendente, regras do negócio, horas e memórias.
+                                            </DialogDescription>
+                                          </DialogHeader>
+                                          <pre className="text-[10px] bg-background p-3 rounded-lg overflow-y-auto max-h-[350px] whitespace-pre-wrap font-mono border border-border/50 text-muted-foreground">
+                                            {simMetrics.fullPrompt}
+                                          </pre>
+                                        </DialogContent>
+                                      </Dialog>
+                                    )}
+                                  </div>
+                                ) : (
+                                  <div className="flex flex-col items-center justify-center text-center text-[10px] text-muted-foreground h-72">
+                                    <AIIcon className="h-8 w-8 mb-2 text-muted-foreground/40 animate-pulse" />
+                                    <span>Envie uma mensagem no simulador ao lado para auditar a montagem do prompt final e consumo de tokens.</span>
+                                  </div>
+                                )}
                               </div>
                             )}
                           </div>

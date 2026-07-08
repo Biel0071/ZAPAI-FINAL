@@ -1383,7 +1383,7 @@ export const apiService = {
     return request<AIMetricsResponse>({ endpoint: `/ai/metrics${queryParam}`, method: "GET" });
   },
 
-  testAIMessage: (payload: { message: string; prompt?: string; model?: string; providerId?: string; agentKey?: string; agentName?: string }) =>
+  testAIMessage: (payload: { message: string; prompt?: string; model?: string; providerId?: string; agentKey?: string; agentName?: string; temperature?: number; responseStyle?: string }) =>
     request<{ success?: boolean; result?: AIConnectionTestResult; error?: string }>({
       endpoint: "/ai/test",
       method: "POST",

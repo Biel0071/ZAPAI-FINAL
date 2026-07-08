@@ -175,6 +175,8 @@ async function testReply(req, res) {
       prompt: req.body?.prompt,
       agentKey: req.body?.agentKey,
       agentName: req.body?.agentName,
+      temperature: req.body?.temperature,
+      responseStyle: req.body?.responseStyle,
     });
 
     return res.status(200).json({

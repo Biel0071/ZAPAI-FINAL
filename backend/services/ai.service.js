@@ -477,7 +477,7 @@ async function getAIIntegrationStatus(store, companyId = 'default') {
   };
 }
 
-async function testAIConnection({ store, providerId, model, message, prompt, agentKey, agentName, companyId }) {
+async function testAIConnection({ store, providerId, model, message, prompt, agentKey, agentName, companyId, temperature, responseStyle }) {
   const resolvedCompanyId = companyId || store?.activeCompanyId || 'default';
   
   // Try to resolve user-scoped key first
@@ -547,7 +547,21 @@ async function testAIConnection({ store, providerId, model, message, prompt, age
     };
   }
 
-  const fullPrompt = compileSystemPrompt(matchedAgent, store);
+  // Override properties for dynamic testing in the simulator
+  const finalAgent = {
+    ...matchedAgent,
+  };
+  if (temperature !== undefined) {
+    finalAgent.temperature = Number(temperature);
+  }
+  if (responseStyle !== undefined) {
+    finalAgent.responseStyle = responseStyle;
+  }
+  if (prompt !== undefined) {
+    finalAgent.personality = prompt;
+  }
+
+  const fullPrompt = compileSystemPrompt(finalAgent, store);
   const memoriesUsed = matchedAgent?.memory || 'Padrão global (último pedido, preferências)';
   const rulesTriggered = matchedAgent?.rules || 'Padrão global (reativação automática)';
 
@@ -567,8 +581,8 @@ async function testAIConnection({ store, providerId, model, message, prompt, age
     message,
     prompt: fullPrompt,
     maxTokens: Number(store?.aiConfig?.advancedAISettings?.maxTokens) || 500,
-    temperature: typeof matchedAgent?.temperature === 'number'
-      ? matchedAgent.temperature
+    temperature: typeof finalAgent?.temperature === 'number'
+      ? finalAgent.temperature
       : (store?.aiConfig?.advancedAISettings && typeof store.aiConfig.advancedAISettings.temperature === 'number'
          ? store.aiConfig.advancedAISettings.temperature
          : 0.6),
