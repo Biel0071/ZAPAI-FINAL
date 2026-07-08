@@ -537,8 +537,23 @@
 [data-emoji-picker],
 .emoji-picker-react {
   max-width: calc(100vw - 2rem);
-  max-height: 50vh;
-  overflow: auto;
+  max-height: 65vh;
+}
+
+/* Emoji Mart v5 clean flat theme integration */
+em-emoji-picker {
+  --background: transparent !important;
+  --border-color: transparent !important;
+  --shadow: none !important;
+  --rgb-accent: 34, 197, 94 !important; /* Green primary theme color */
+  --rgb-background: 24, 29, 38 !important;
+  --rgb-border: 36, 43, 53 !important;
+  --category-icon-size: 18px !important;
+  --emoji-size: 20px !important;
+  --emoji-padding: 5px !important;
+  width: 100% !important;
+  height: 380px !important;
+  font-family: inherit !important;
 }
 
 /* Prevent horizontal overflow on the whole page */

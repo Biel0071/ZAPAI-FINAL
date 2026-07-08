@@ -1177,11 +1177,12 @@ export function ActiveChatPane({
 
                 {showEmojiPicker && (
                   <div
+                    ref={emojiPickerRef}
                     data-emoji-picker
-                    className="absolute bottom-14 left-0 z-30 rounded-lg border border-border bg-[#181d26]/95 p-3 shadow-2xl backdrop-blur flex flex-col gap-2 min-w-[350px]"
+                    className="absolute bottom-14 left-0 z-30 rounded-lg border border-border bg-[#181d26]/95 p-2 shadow-2xl backdrop-blur flex flex-col gap-2 w-[352px]"
                   >
                     {/* Tab Header */}
-                    <div className="flex border-b border-border pb-2 gap-4 text-xs font-semibold">
+                    <div className="flex border-b border-border pb-1.5 px-1 gap-4 text-xs font-semibold">
                       <button
                         type="button"
                         onClick={() => setActiveTab('emoji')}
@@ -1216,9 +1217,12 @@ export function ActiveChatPane({
                           previewPosition="none"
                           skinTonePosition="none"
                           theme="dark"
+                          locale="pt"
+                          perLine={8}
+                          emojiVersion={15}
                         />
                       ) : (
-                        <div className="w-56 p-3 text-xs text-muted-foreground">Carregando emojis...</div>
+                        <div className="w-[336px] p-3 text-xs text-muted-foreground text-center">Carregando emojis...</div>
                       )
                     ) : (
                       <div className="w-[352px] h-[300px] overflow-y-auto scrollbar-thin">
