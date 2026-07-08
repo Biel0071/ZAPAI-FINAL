@@ -73,6 +73,18 @@ function mapConversation(row) {
     return null;
   }
 
+  let resolvedPhone = row.phone;
+  let rawLid = null;
+  if (row.phone) {
+    const cleanPhone = String(row.phone).replace(/\D/g, '');
+    if (row.phone.includes('@lid') || cleanPhone.length === 15) {
+      rawLid = cleanPhone;
+      if (global.lidToPhoneMap && global.lidToPhoneMap.has(cleanLid)) {
+        resolvedPhone = global.lidToPhoneMap.get(cleanLid);
+      }
+    }
+  }
+
   return {
     agent_name: row.agent_name || 'Camila',
     aiEnabled: row.ai_enabled !== false,
@@ -91,7 +103,8 @@ function mapConversation(row) {
     name: row.name || 'Unknown',
     next_action: row.next_action || 'educate',
     notes: row.notes || '',
-    phone: row.phone,
+    phone: resolvedPhone,
+    lid: rawLid,
     session_id: row.session_id,
     status: row.status || 'open',
     summary: row.summary || 'Conversa iniciada sem resumo disponível.',

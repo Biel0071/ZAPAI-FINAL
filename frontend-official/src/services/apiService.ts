@@ -100,6 +100,7 @@ export interface Conversation {
   agent_name?: string;
   isBlocked?: boolean;
   assigned_to?: string;
+  lid?: string;
 }
 
 export interface ChatMessage {
@@ -133,6 +134,7 @@ export interface Contact {
   phone: string;
   status: string;
   updatedAt?: string;
+  lid?: string;
 }
 
 export interface AnalyticsSummary {

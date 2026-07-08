@@ -176,7 +176,18 @@ export function ConversationRow(props: RowComponentProps<ConversationRowData>) {
 
         <div className="min-w-0 flex-1 flex flex-col justify-between h-full py-0.5">
           <div className="flex items-center justify-between gap-1">
-            <h4 className="truncate text-xs md:text-sm font-semibold text-foreground/95 leading-none">{conversation.contactName}</h4>
+            <h4 className="truncate text-xs md:text-sm font-semibold text-foreground/95 leading-none flex items-baseline gap-1.5 min-w-0">
+              <span className="truncate">{conversation.contactName}</span>
+              {conversation.phone && (
+                <span className="text-[10px] font-normal text-muted-foreground/85 font-mono truncate hidden sm:inline">
+                  {conversation.lid && conversation.phone !== conversation.lid ? (
+                    `${conversation.lid}@lid`
+                  ) : (
+                    conversation.phone.includes("@lid") ? conversation.phone : `+${conversation.phone}`
+                  )}
+                </span>
+              )}
+            </h4>
             <div className="flex items-center gap-1.5 shrink-0">
               {pinnedChatIds.includes(conversation.id) && (
                 <Star weight="fill" className="h-3.5 w-3.5 text-amber-400 shrink-0" />

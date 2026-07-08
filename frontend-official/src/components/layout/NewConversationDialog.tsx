@@ -125,7 +125,8 @@ export function NewConversationDialog() {
     return contacts.filter(
       (c) =>
         (c.name || "").toLowerCase().includes(s) ||
-        (c.phone || "").includes(s)
+        (c.phone || "").includes(s) ||
+        (c.lid || "").includes(s)
     );
   }, [contacts, contactSearch]);
 
@@ -266,7 +267,17 @@ export function NewConversationDialog() {
                       </div>
                       <div className="flex-1 min-w-0">
                         <p className="font-semibold text-foreground truncate">{contact.name || "Sem Nome"}</p>
-                        <p className="text-muted-foreground font-mono">{contact.phone}</p>
+                        <p className="text-muted-foreground font-mono truncate">
+                          {contact.lid && contact.phone && contact.phone !== contact.lid ? (
+                            `${contact.lid}@lid (WhatsApp: +${contact.phone})`
+                          ) : (
+                            contact.phone && (contact.phone.includes("@lid") || contact.phone.length === 15) ? (
+                              contact.phone.includes("@lid") ? contact.phone : `${contact.phone}@lid`
+                            ) : (
+                              `+${contact.phone}`
+                            )
+                          )}
+                        </p>
                       </div>
                     </button>
                   ))

@@ -428,7 +428,13 @@ export function ActiveChatPane({
             initials={selectedConversation.contactName.slice(0, 2).toUpperCase()}
             isMobile={isMobile}
             onBack={onBack ?? (() => setShowLeadPanel(false))}
-            phoneLabel={selectedConversation.phone}
+            phoneLabel={
+              selectedConversation.lid && selectedConversation.phone !== selectedConversation.lid
+                ? `${selectedConversation.lid}@lid (WhatsApp: +${selectedConversation.phone})`
+                : selectedConversation.phone && (selectedConversation.phone.includes("@lid") || selectedConversation.phone.length === 15)
+                  ? selectedConversation.phone.includes("@lid") ? selectedConversation.phone : `${selectedConversation.phone}@lid`
+                  : selectedConversation.phone ? `+${selectedConversation.phone}` : undefined
+            }
             statusLabel={
               isTyping === "recording"
                 ? "gravando áudio..."
