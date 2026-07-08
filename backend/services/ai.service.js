@@ -350,12 +350,15 @@ function compileSystemPrompt(agent, store, contact = null) {
   compiled += `:::analysis\n`;
   compiled += `{\n`;
   compiled += `  "funnel_stage": "new_lead" | "interested" | "price_sent" | "negotiation" | "ready_to_buy" | "closed" | "lost",\n`;
-  compiled += `  "tags_to_add": ["tag1", "tag2"]\n`;
+  compiled += `  "tags_to_add": ["tag1", "tag2"],\n`;
+  compiled += `  "address": "endereço completo de entrega caso tenha sido fornecido ou confirmado no fechamento",\n`;
+  compiled += `  "phone": "telefone de contato caso tenha sido fornecido"\n`;
   compiled += `}\n`;
   compiled += `:::\n`;
   compiled += `Regras de análise:\n`;
-  compiled += `- Escolha o estágio do funil condizente com a evolução do diálogo. Se o cliente pediu preços/orçamento, mude para "price_sent". Se demonstrou interesse real de compra, mude para "ready_to_buy". Se confirmou o fechamento da compra, mude para "closed". Se o cliente deserdar ou desistir, use "lost".\n`;
+  compiled += `- Escolha o estágio do funil condizente com a evolução do diálogo. Se o cliente pediu preços/orçamento, mude para "price_sent". Se demonstrou interesse real de compra, mude para "ready_to_buy". Se confirmou o fechamento da compra (por exemplo, escolhendo pagar no local ou agendando a entrega), mude para "closed". Se o cliente deserdar ou desistir, use "lost".\n`;
   compiled += `- Adicione marcadores relevantes em tags_to_add (com minúsculas, ex: "cimento", "areia", "vip", "reclamacao", "urgente").\n`;
+  compiled += `- Se o cliente forneceu ou confirmou os dados de entrega (endereço, bairro, rua, número, etc.), você DEVE extrair e colocar no campo "address". Se houver telefone de contato ou celular, coloque no campo "phone".\n`;
 
   return compiled.trim();
 }
@@ -600,6 +603,31 @@ async function testAIConnection({ store, providerId, model, message, prompt, age
          : 0.6),
     timeoutMs: 45000,
   });
+  if (result.ok && result.response) {
+    let replyClean = result.response;
+    let analysisResult = null;
+    if (replyClean.includes(':::analysis')) {
+      try {
+        const parts = replyClean.split(':::analysis');
+        replyClean = parts[0].trim();
+        let block = parts[1].split(':::')[0].trim();
+        block = block.replace(/```json/g, '').replace(/```/g, '').trim();
+        analysisResult = JSON.parse(block);
+
+        if (analysisResult && analysisResult.address) {
+          const coords = await geocodeAddress(analysisResult.address);
+          if (coords) {
+            analysisResult.coordinates = coords;
+          }
+        }
+      } catch (err) {
+        console.error('[AI SERVICE testAIConnection] Failed to parse analysis block:', err.message);
+      }
+    }
+    result.response = replyClean;
+    result.analysis = analysisResult;
+  }
+
   result.fullPrompt = fullPrompt;
   result.memoriesUsed = memoriesUsed;
   result.rulesTriggered = rulesTriggered;
@@ -838,6 +866,13 @@ async function processAI({ contact, history, message, store, agentName, companyI
         let block = parts[1].split(':::')[0].trim();
         block = block.replace(/```json/g, '').replace(/```/g, '').trim();
         analysisResult = JSON.parse(block);
+
+        if (analysisResult && analysisResult.address) {
+          const coords = await geocodeAddress(analysisResult.address);
+          if (coords) {
+            analysisResult.coordinates = coords;
+          }
+        }
         console.log('[AI SERVICE] Analysis parsed successfully:', analysisResult);
       } catch (err) {
         console.error('[AI SERVICE] Failed to parse analysis block:', err.message);
@@ -985,6 +1020,31 @@ Regras de Refinamento:
   }
 
   return result.response.trim();
+}
+
+async function geocodeAddress(address) {
+  if (!address) return null;
+  try {
+    const response = await axios.get('https://nominatim.openstreetmap.org/search', {
+      params: {
+        q: address,
+        format: 'json',
+        limit: 1,
+        addressdetails: 1
+      },
+      headers: {
+        'User-Agent': 'ZapFlowAI/1.0'
+      }
+    });
+    if (response.data && response.data.length > 0) {
+      const lat = parseFloat(response.data[0].lat);
+      const lng = parseFloat(response.data[0].lon);
+      return { lat, lng };
+    }
+  } catch (err) {
+    console.error('[Geocoding] Failed to geocode address:', err.message);
+  }
+  return null;
 }
 
 module.exports = { processAI, testAIConnection, testProviderConnection, getAIIntegrationStatus, clearResponseCache, refineAgentPrompt };

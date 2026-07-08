@@ -37,6 +37,16 @@ export type DashboardMapSummaryCard = {
   value: string;
 };
 
+export type LeadPin = {
+  id: string;
+  name: string;
+  phone: string;
+  address: string;
+  lat: number;
+  lng: number;
+  funnelStage: string;
+};
+
 export type DashboardLovableViewModel = {
   tabs: DashboardLovableTab[];
   overviewCards: DashboardLovableMetricCard[];
@@ -50,6 +60,7 @@ export type DashboardLovableViewModel = {
     stateRows: DashboardMapRow[];
     dddRows: DashboardMapRow[];
     points: DashboardMapPoint[];
+    leadPins: LeadPin[];
     summaryCards: DashboardMapSummaryCard[];
     exportTitle: string;
     exportDescription: string;
@@ -180,8 +191,39 @@ function buildAggregates(conversations: Conversation[]) {
   const dddMap = new Map<string, { count: number; meta: (typeof DDD_METADATA)[string] }>();
   const stateMap = new Map<string, { count: number; meta: (typeof DDD_METADATA)[string]; ddds: Set<string> }>();
   const regionMap = new Map<string, { count: number; states: Set<string> }>();
+  const leadPins: LeadPin[] = [];
 
   conversations.forEach((conversation) => {
+    // 1. Process custom geocoded pins from notes
+    if (conversation.notes && conversation.notes.includes("Coordenadas:")) {
+      try {
+        let address = "";
+        const addressMatch = conversation.notes.match(/Endereço de Entrega:\s*(.+)/i);
+        if (addressMatch) address = addressMatch[1].trim();
+
+        let contactPhone = conversation.phone;
+        const phoneMatch = conversation.notes.match(/Telefone de Contato:\s*(.+)/i);
+        if (phoneMatch) contactPhone = phoneMatch[1].trim();
+
+        const coordsMatch = conversation.notes.match(/Coordenadas:\s*(-?\d+\.\d+)\s*,\s*(-?\d+\.\d+)/i);
+        if (coordsMatch) {
+          const lat = parseFloat(coordsMatch[1]);
+          const lng = parseFloat(coordsMatch[2]);
+          leadPins.push({
+            id: `lead-pin-${conversation.id}`,
+            name: conversation.name || conversation.phone,
+            phone: contactPhone,
+            address: address || "Não especificado",
+            lat,
+            lng,
+            funnelStage: conversation.funnel_stage || "closed",
+          });
+        }
+      } catch (err) {
+        console.error("Failed to parse lead pin:", err);
+      }
+    }
+
     const ddd = normalizePhoneDdd(conversation.phone);
     if (!ddd) return;
     const metadata = DDD_METADATA[ddd];
@@ -253,6 +295,7 @@ function buildAggregates(conversations: Conversation[]) {
     stateRows,
     dddRows,
     points,
+    leadPins,
   };
 }
 
@@ -291,7 +334,7 @@ export function createDashboardLovableViewModel(params: {
   const totalSessions = typeof providedTotalSessions === "number" ? providedTotalSessions : safeSessions.length;
   const activeChats = resolveMetricNumber(metrics, ["activeChats", "activeConversations", "totalConversations", "chats"]);
   const newLeads = resolveMetricNumber(metrics, ["newLeads", "leads"]);
-  const { totalMapped, regionRows, stateRows, dddRows, points } = buildAggregates(conversations);
+  const { totalMapped, regionRows, stateRows, dddRows, points, leadPins } = buildAggregates(conversations);
 
   return {
     tabs: DASHBOARD_TABS,
@@ -331,6 +374,7 @@ export function createDashboardLovableViewModel(params: {
       stateRows,
       dddRows,
       points,
+      leadPins,
       summaryCards: [
         { label: "TOTAL MAPEADO", value: totalMapped.toLocaleString("pt-BR") },
         { label: "ESTADOS ATIVOS", value: String(stateRows.length) },

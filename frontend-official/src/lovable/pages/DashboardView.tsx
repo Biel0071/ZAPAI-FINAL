@@ -29,6 +29,18 @@ function markerIcon() {
   });
 }
 
+function leadMarkerIcon(funnelStage: string) {
+  const isClosed = funnelStage === "closed";
+  const color = isClosed ? "#10b981" : "#3b82f6";
+  const shadow = isClosed ? "rgba(16, 185, 129, 0.4)" : "rgba(59, 130, 246, 0.4)";
+  return L.divIcon({
+    className: "",
+    html: `<div style="width:16px;height:16px;border-radius:9999px;background:${color};box-shadow:0 0 0 4px ${shadow};display:flex;align-items:center;justify-content:center;color:#fff;font-size:9px;font-weight:bold">📍</div>`,
+    iconSize: [16, 16],
+    iconAnchor: [8, 8],
+  });
+}
+
 function toneClasses(tone: "online" | "offline" | "warning" | "syncing") {
   if (tone === "online") return "border-success/20 bg-success/10 text-success";
   if (tone === "warning") return "border-warning/20 bg-warning/10 text-warning";
@@ -313,6 +325,27 @@ export function DashboardView({
                             <div className="space-y-1 text-xs">
                               <p className="font-semibold">{point.label}</p>
                               <p>{point.count} leads</p>
+                            </div>
+                          </Popup>
+                        </LeafletMarker>
+                      ))}
+
+                      {viewModel.map.leadPins?.map((pin) => (
+                        <LeafletMarker key={pin.id} position={[pin.lat, pin.lng]} icon={leadMarkerIcon(pin.funnelStage)}>
+                          <Popup>
+                            <div className="space-y-1.5 p-1 text-xs max-w-[220px]">
+                              <p className="font-bold text-foreground flex items-center gap-1.5">
+                                <span className="h-2 w-2 rounded-full" style={{ backgroundColor: pin.funnelStage === "closed" ? "#10b981" : "#3b82f6" }}></span>
+                                {pin.name}
+                              </p>
+                              <p className="text-[10px] text-muted-foreground font-mono">{pin.phone}</p>
+                              <div className="text-[10px] bg-background/50 border border-border/50 p-1.5 rounded space-y-0.5">
+                                <span className="block font-semibold text-[9px] uppercase tracking-wider text-muted-foreground">Endereço de Entrega:</span>
+                                <span className="block text-foreground whitespace-pre-wrap leading-normal font-sans">{pin.address}</span>
+                              </div>
+                              <span className="inline-block text-[9px] uppercase font-bold tracking-wider px-1.5 py-0.5 rounded bg-primary/10 text-primary capitalize">
+                                Funil: {pin.funnelStage}
+                              </span>
                             </div>
                           </Popup>
                         </LeafletMarker>

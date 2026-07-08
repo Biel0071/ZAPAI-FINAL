@@ -347,6 +347,19 @@ async function processMessage({ payload, conversation, store, sock, sessionId })
       if (finalFunnelStage) updatePayload.funnel_stage = finalFunnelStage;
       updatePayload.tags = finalTags;
 
+      if (ai.analysis.address) {
+        const address = ai.analysis.address;
+        const contactPhone = ai.analysis.phone || '';
+        let notesText = `Endereço de Entrega: ${address}`;
+        if (contactPhone) {
+          notesText += `\nTelefone de Contato: ${contactPhone}`;
+        }
+        if (ai.analysis.coordinates) {
+          notesText += `\nCoordenadas: ${ai.analysis.coordinates.lat}, ${ai.analysis.coordinates.lng}`;
+        }
+        updatePayload.notes = notesText;
+      }
+
       console.log(`[AutomationEngine] AI auto-analysis for ${conversationId}: stage=${finalFunnelStage}, tags=${JSON.stringify(finalTags)}`);
 
       await conversationRepository.updateConversationState(conversationId, updatePayload);

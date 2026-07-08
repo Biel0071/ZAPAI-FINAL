@@ -2402,6 +2402,61 @@ export function AIView(props: AIViewProps) {
                                       <span className="font-semibold text-foreground text-[10px] uppercase">{simMetrics.provider || "openai"} ({simMetrics.model || "padrão"})</span>
                                     </div>
 
+                                    {simMetrics.analysis && (
+                                      <div className="rounded-lg border border-primary/20 bg-primary/5 p-2 space-y-2 mt-1">
+                                        <span className="block font-bold text-primary text-[10px] uppercase">Resultado da Auto-Análise de Lead</span>
+                                        
+                                        {simMetrics.analysis.funnel_stage && (
+                                          <div className="flex justify-between items-center text-[10px]">
+                                            <span className="text-muted-foreground">Estágio do Funil:</span>
+                                            <span className="font-semibold text-foreground bg-primary/10 px-1.5 py-0.5 rounded capitalize">
+                                              {simMetrics.analysis.funnel_stage}
+                                            </span>
+                                          </div>
+                                        )}
+
+                                        {Array.isArray(simMetrics.analysis.tags_to_add) && simMetrics.analysis.tags_to_add.length > 0 && (
+                                          <div className="flex flex-col gap-1 text-[10px]">
+                                            <span className="text-muted-foreground">Tags a Adicionar:</span>
+                                            <div className="flex flex-wrap gap-1">
+                                              {simMetrics.analysis.tags_to_add.map((tag: string, idx: number) => (
+                                                <span key={idx} className="bg-background border border-border px-1 py-0.5 rounded text-[9px]">
+                                                  {tag}
+                                                </span>
+                                              ))}
+                                            </div>
+                                          </div>
+                                        )}
+
+                                        {simMetrics.analysis.address && (
+                                          <div className="flex flex-col gap-0.5 text-[10px]">
+                                            <span className="text-muted-foreground">Endereço de Entrega:</span>
+                                            <span className="font-mono text-foreground bg-background/50 p-1 rounded break-words border border-border/50">
+                                              {simMetrics.analysis.address}
+                                            </span>
+                                          </div>
+                                        )}
+
+                                        {simMetrics.analysis.phone && (
+                                          <div className="flex justify-between items-center text-[10px]">
+                                            <span className="text-muted-foreground">Telefone:</span>
+                                            <span className="font-mono font-semibold text-foreground">
+                                              {simMetrics.analysis.phone}
+                                            </span>
+                                          </div>
+                                        )}
+
+                                        {simMetrics.analysis.coordinates && (
+                                          <div className="flex justify-between items-center text-[10px]">
+                                            <span className="text-muted-foreground">Coordenadas Resolvidas:</span>
+                                            <span className="font-mono text-success bg-success/15 px-1 py-0.5 rounded font-bold">
+                                              {simMetrics.analysis.coordinates.lat.toFixed(5)}, {simMetrics.analysis.coordinates.lng.toFixed(5)}
+                                            </span>
+                                          </div>
+                                        )}
+                                      </div>
+                                    )}
+
                                     {!simMetrics.ok && simMetrics.error && (
                                       <div className="rounded border border-destructive/30 bg-destructive/10 p-2 text-[10px] text-destructive">
                                         <span className="block font-bold uppercase text-[9px] mb-1">Falha no teste</span>
