@@ -79,8 +79,8 @@ function mapConversation(row) {
     const cleanPhone = String(row.phone).replace(/\D/g, '');
     if (row.phone.includes('@lid') || cleanPhone.length === 15) {
       rawLid = cleanPhone;
-      if (global.lidToPhoneMap && global.lidToPhoneMap.has(cleanLid)) {
-        resolvedPhone = global.lidToPhoneMap.get(cleanLid);
+      if (global.lidToPhoneMap && global.lidToPhoneMap.has(cleanPhone)) {
+        resolvedPhone = global.lidToPhoneMap.get(cleanPhone);
       }
     }
   }

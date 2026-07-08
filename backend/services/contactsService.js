@@ -6,8 +6,8 @@ function toContact(row = {}) {
     const cleanPhone = String(resolvedPhone).replace(/\D/g, '');
     if (resolvedPhone.includes('@lid') || cleanPhone.length === 15) {
       rawLid = cleanPhone;
-      if (global.lidToPhoneMap && global.lidToPhoneMap.has(cleanLid)) {
-        resolvedPhone = global.lidToPhoneMap.get(cleanLid);
+      if (global.lidToPhoneMap && global.lidToPhoneMap.has(cleanPhone)) {
+        resolvedPhone = global.lidToPhoneMap.get(cleanPhone);
       }
     }
   }
