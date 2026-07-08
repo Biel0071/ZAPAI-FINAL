@@ -106,8 +106,11 @@ async function registerNodeHandler(req, res) {
       await query(
         `UPDATE nodes
             SET name = $2,
+                hostname = $2,
                 ip_address = $3,
+                ip = $3,
                 api_port = $4,
+                port = $4,
                 version = $5,
                 status = 'online',
                 last_heartbeat = NOW(),
@@ -118,8 +121,8 @@ async function registerNodeHandler(req, res) {
       );
     } else {
       await query(
-        `INSERT INTO nodes (node_id, name, ip_address, api_port, token, status, version, last_heartbeat, last_seen)
-              VALUES ($1, $2, $3, $4, $5, 'online', $6, NOW(), NOW())`,
+        `INSERT INTO nodes (node_id, name, hostname, ip_address, ip, api_port, port, token, status, version, last_heartbeat, last_seen)
+              VALUES ($1, $2, $2, $3, $3, $4, $4, $5, 'online', $6, NOW(), NOW())`,
         [nodeId, hostname, ipAddress, port, nodeToken, version],
       );
     }
@@ -150,15 +153,33 @@ async function processHeartbeat(nodeId, req, res) {
   const diskUsage = Number(metrics.disk?.usedPercent ?? req.body.disk_usage ?? 0) || 0;
   const uptimeSeconds = Number(metrics.uptime?.seconds ?? req.body.uptime_seconds ?? 0) || 0;
 
+  const cpuCores = Number(metrics.cpu?.cores || req.body.cpu_cores || 0) || null;
+  const ramTotal = Number(metrics.ram?.total || req.body.ram_total || 0) || null;
+  const diskTotal = Number(metrics.disk?.total || req.body.disk_total || 0) || null;
+  const services = metrics.services || {};
+
   await query(
     `UPDATE nodes
         SET status = 'online',
             last_heartbeat = NOW(),
             last_seen = NOW(),
             version = COALESCE($2, version),
+            cpu_cores = COALESCE($3, cpu_cores),
+            ram_total = COALESCE($4, ram_total),
+            disk_total = COALESCE($5, disk_total),
+            uptime_seconds = $6,
+            services = $7,
             updated_at = NOW()
       WHERE node_id = $1`,
-    [nodeId, String(req.body.version || '').trim() || null],
+    [
+      nodeId,
+      String(req.body.version || '').trim() || null,
+      cpuCores,
+      ramTotal,
+      diskTotal,
+      uptimeSeconds,
+      JSON.stringify(services),
+    ],
   );
 
   await query(

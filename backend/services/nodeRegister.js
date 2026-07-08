@@ -185,7 +185,41 @@ class NodeRegisterService {
         seconds: Math.floor(uptime),
         formatted: this.formatUptime(uptime),
       },
+      services: {
+        docker: this.checkServiceActive('docker'),
+        nginx: this.checkServiceActive('nginx'),
+        redis: this.checkServiceActive('redis'),
+        postgres: this.checkServiceActive('postgresql'),
+        websocket: 'running'
+      }
     };
+  }
+
+  checkServiceActive(serviceName) {
+    try {
+      if (process.platform === 'win32') {
+        return 'running';
+      }
+      
+      const { execSync } = require('child_process');
+      
+      let systemctlName = serviceName;
+      if (serviceName === 'postgresql') systemctlName = 'postgresql';
+      
+      try {
+        const stdout = execSync(`systemctl is-active ${systemctlName}`, { encoding: 'utf8', timeout: 1000 }).trim();
+        if (stdout === 'active') return 'running';
+      } catch {}
+      
+      let procPattern = serviceName;
+      if (serviceName === 'postgresql') procPattern = 'postgres';
+      if (serviceName === 'redis') procPattern = 'redis-server';
+      
+      const stdout = execSync(`pgrep -f ${procPattern}`, { encoding: 'utf8', timeout: 1000 }).trim();
+      return stdout ? 'running' : 'stopped';
+    } catch {
+      return 'stopped';
+    }
   }
 
   formatUptime(seconds) {

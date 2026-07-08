@@ -64,7 +64,7 @@ router.get('/nodes', requireMasterAdmin, async (_req, res) => {
   try {
     const result = await query(`
       SELECT node_id, hostname, ip, status, node_type, last_heartbeat, cpu_cores, ram_total, 
-             uptime_seconds, provider, version, docker_version, sessions_active, health_status
+             uptime_seconds, provider, version, docker_version, sessions_active, health_status, services
         FROM nodes
        ORDER BY created_at DESC
     `);
