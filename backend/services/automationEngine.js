@@ -370,30 +370,71 @@ async function processMessage({ payload, conversation, store, sock, sessionId })
   // 8. CRM state was updated before generation so the prompt and UI share the same context.
   void crmState;
 
-  // 8. Queue: Enqueue AI response message (Queue -> SendMessage)
-  console.log(`[AutomationEngine] Enqueueing AI response message: "${ai.reply}"`);
-  await outboundQueueService.enqueue({
-    companyId,
-    phone,
-    sessionId,
-    text: ai.reply,
-    metadata: {
-      ai_response: true,
-      source: 'ai',
-      agentName: conversation?.agent_name || 'Camila',
-      provider: ai.provider,
-      model: ai.model,
-      responseTimeMs: ai.responseTimeMs,
-      promptTokens: ai.promptTokens,
-      completionTokens: ai.completionTokens,
-      totalTokens: ai.totalTokens,
-      funnelStage,
-      leadAnalysis,
-      salesStrategy,
-      responseDelayMs: randomProfileDelay(matchedAgent.delayProfile),
-      typingDelayMs: randomProfileDelay(matchedAgent.typingDelayProfile),
+function splitLongMessage(text) {
+  if (!text || text.length <= 250) return [text];
+
+  const parts = text.split(/\n\n+/).map(p => p.trim()).filter(Boolean);
+  if (parts.length <= 1) return [text];
+
+  const chunks = [];
+  let currentChunk = '';
+
+  for (const part of parts) {
+    if (currentChunk && (currentChunk.length + part.length < 320)) {
+      currentChunk += '\n\n' + part;
+    } else {
+      if (currentChunk) {
+        chunks.push(currentChunk);
+      }
+      currentChunk = part;
     }
-  });
+  }
+  if (currentChunk) {
+    chunks.push(currentChunk);
+  }
+
+  return chunks.length > 0 ? chunks : [text];
+}
+
+  // 8. Queue: Enqueue AI response message (Queue -> SendMessage)
+  const replyText = ai.reply || '';
+  const chunks = splitLongMessage(replyText);
+
+  for (let i = 0; i < chunks.length; i++) {
+    const chunk = chunks[i];
+    const responseDelayMs = i === 0 
+      ? randomProfileDelay(matchedAgent.delayProfile) 
+      : 1000;
+      
+    const typingDelayMs = i === 0
+      ? randomProfileDelay(matchedAgent.typingDelayProfile)
+      : Math.min(5000, Math.max(2000, chunk.length * 50));
+
+    console.log(`[AutomationEngine] Enqueueing AI response chunk ${i+1}/${chunks.length} for ${conversationId}: "${chunk.substring(0, 30)}..."`);
+    
+    await outboundQueueService.enqueue({
+      companyId,
+      phone,
+      sessionId,
+      text: chunk,
+      metadata: {
+        ai_response: true,
+        source: 'ai',
+        agentName: conversation?.agent_name || 'Camila',
+        provider: ai.provider,
+        model: ai.model,
+        responseTimeMs: ai.responseTimeMs,
+        promptTokens: ai.promptTokens,
+        completionTokens: ai.completionTokens,
+        totalTokens: ai.totalTokens,
+        funnelStage,
+        leadAnalysis,
+        salesStrategy,
+        responseDelayMs,
+        typingDelayMs,
+      }
+    });
+  }
 
   return { success: true, action: 'reply_queued' };
 }

@@ -177,6 +177,7 @@ async function testReply(req, res) {
       agentName: req.body?.agentName,
       temperature: req.body?.temperature,
       responseStyle: req.body?.responseStyle,
+      history: req.body?.history,
     });
 
     return res.status(200).json({
@@ -186,6 +187,33 @@ async function testReply(req, res) {
     });
   } catch (error) {
     return res.status(500).json({ success: false, error: error.message || 'AI test failed.' });
+  }
+}
+
+async function refinePrompt(req, res) {
+  try {
+    const store = getStore(req);
+    const { currentPrompt, instruction } = req.body;
+    
+    if (!instruction) {
+      return res.status(400).json({ success: false, error: 'Instruções de refinamento vazias.' });
+    }
+
+    const { refineAgentPrompt } = require('../services/ai.service');
+    const refined = await refineAgentPrompt({
+      store,
+      currentPrompt,
+      instruction,
+      companyId: store?.activeCompanyId || 'default',
+    });
+
+    return res.status(200).json({
+      success: true,
+      refinedPrompt: refined,
+    });
+  } catch (error) {
+    console.error('[AI CONTROLLER] refinePrompt failed:', error.message);
+    return res.status(500).json({ success: false, error: error.message || 'Erro ao refinar prompt.' });
   }
 }
 
@@ -896,4 +924,5 @@ module.exports = {
   getAiMetrics,
   testReply,
   testProviders,
+  refinePrompt,
 };

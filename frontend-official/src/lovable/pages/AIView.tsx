@@ -700,6 +700,8 @@ export function AIView(props: AIViewProps) {
   const [simAgentPrompt, setSimAgentPrompt] = useState("");
   const [savingSimSettings, setSavingSimSettings] = useState(false);
   const [simTab, setSimTab] = useState<"ajuste" | "metricas">("ajuste");
+  const [refinementInstruction, setRefinementInstruction] = useState("");
+  const [refiningPrompt, setRefiningPrompt] = useState(false);
 
   useEffect(() => {
     if (!Array.isArray(agents) || agents.length === 0) {
@@ -910,9 +912,32 @@ export function AIView(props: AIViewProps) {
   };
 
   // Chat Simulator helpers
+  const splitLongMessage = (text: string) => {
+    if (!text || text.length <= 250) return [text];
+    const parts = text.split(/\n\n+/).map(p => p.trim()).filter(Boolean);
+    if (parts.length <= 1) return [text];
+    const chunks: string[] = [];
+    let currentChunk = '';
+    for (const part of parts) {
+      if (currentChunk && (currentChunk.length + part.length < 320)) {
+        currentChunk += '\n\n' + part;
+      } else {
+        if (currentChunk) chunks.push(currentChunk);
+        currentChunk = part;
+      }
+    }
+    if (currentChunk) chunks.push(currentChunk);
+    return chunks.length > 0 ? chunks : [text];
+  };
+
   const handleSimSend = async () => {
     if (!simInput.trim()) return;
     const userMsg = simInput.trim();
+    const mappedHistory = simMessages.map((msg) => ({
+      role: msg.sender === "user" ? "user" : "assistant",
+      content: msg.content,
+    }));
+
     setSimMessages((prev) => [...prev, { sender: "user", content: userMsg }]);
     setSimInput("");
     setSimLoading(true);
@@ -937,7 +962,7 @@ export function AIView(props: AIViewProps) {
       finalDelayMs = responseDelay + typingDelay;
     }
 
-    // Default to at least 1s delay if not configured
+    // Default to at least 1.5s delay if not configured
     if (finalDelayMs <= 0) {
       finalDelayMs = 1500;
     }
@@ -959,17 +984,33 @@ export function AIView(props: AIViewProps) {
         agentName: agentObj?.name,
         temperature: simTemp,
         responseStyle: simStyle,
+        history: mappedHistory,
       });
 
-      const delayPromise = new Promise((resolve) => setTimeout(resolve, finalDelayMs));
+      // Quick test delay of 600ms to avoid waiting in simulator
+      const delayPromise = new Promise((resolve) => setTimeout(resolve, 600));
 
       const [response] = await Promise.all([apiPromise, delayPromise]);
 
       if (response && response.success && response.result) {
-        setSimMessages((prev) => [
-          ...prev,
-          { sender: "bot", content: response.result?.response || "Sem resposta do atendente." }
-        ]);
+        const botReply = response.result?.response || "Sem resposta do atendente.";
+        const replyChunks = splitLongMessage(botReply);
+
+        for (let i = 0; i < replyChunks.length; i++) {
+          if (i === 0) {
+            setSimMessages((prev) => [
+              ...prev,
+              { sender: "bot", content: replyChunks[i] }
+            ]);
+          } else {
+            setTimeout(() => {
+              setSimMessages((prev) => [
+                ...prev,
+                { sender: "bot", content: replyChunks[i] }
+              ]);
+            }, i * 800);
+          }
+        }
         setSimMetrics({ ...response.result, ok: true });
       } else {
         const errorMessage = response?.error || response?.result?.error || "Sem resposta.";
@@ -1035,7 +1076,39 @@ export function AIView(props: AIViewProps) {
     } catch (err: any) {
       toast({ title: err?.message || "Falha ao salvar configurações.", variant: "destructive" });
     } finally {
-      setSavingSimSettings(false);
+       setSavingSimSettings(false);
+     }
+  };
+
+  const handleRefinePrompt = async () => {
+    if (!refinementInstruction.trim()) return;
+
+    setRefiningPrompt(true);
+    try {
+      const response = await apiService.refinePrompt({
+        currentPrompt: simAgentPrompt,
+        instruction: refinementInstruction.trim(),
+      });
+
+      if (response && response.success && response.refinedPrompt) {
+        setSimAgentPrompt(response.refinedPrompt);
+        setRefinementInstruction("");
+        toast({
+          title: "Instruções ajustadas com sucesso!",
+          description: "O prompt do atendente foi aprimorado pela inteligência artificial.",
+          variant: "default",
+        });
+      } else {
+        throw new Error(response?.error || "Falha ao refinar instruções.");
+      }
+    } catch (err: any) {
+      toast({
+        title: "Erro ao ajustar instruções",
+        description: err.message || "Houve uma falha ao tentar aprimorar o prompt com IA.",
+        variant: "destructive",
+      });
+    } finally {
+      setRefiningPrompt(false);
     }
   };
 
@@ -2210,8 +2283,39 @@ export function AIView(props: AIViewProps) {
                                     value={simAgentPrompt}
                                     onChange={(e) => setSimAgentPrompt(e.target.value)}
                                     placeholder="Instruções principais de atendimento..."
-                                    className="min-h-[140px] bg-background/50 text-[11px] leading-relaxed resize-y scrollbar-thin font-sans"
+                                    className="min-h-[120px] bg-background/50 text-[11px] leading-relaxed resize-y scrollbar-thin font-sans"
                                   />
+                                </div>
+
+                                <div className="space-y-1 bg-primary/5 p-2 rounded-lg border border-primary/10">
+                                  <Label htmlFor="ai-refinement" className="text-[10px] font-bold text-foreground flex items-center gap-1">
+                                    <Sparkles className="h-3 w-3 text-primary animate-pulse" />
+                                    Ajustar Instruções via Prompt com IA
+                                  </Label>
+                                  <div className="flex gap-1.5 mt-1">
+                                    <Input
+                                      id="ai-refinement"
+                                      placeholder="Ex: adicione 10% de desconto no PIX e retire boleto..."
+                                      value={refinementInstruction}
+                                      onChange={(e) => setRefinementInstruction(e.target.value)}
+                                      className="h-7 text-[11px] bg-background"
+                                      disabled={refiningPrompt}
+                                      onKeyDown={(e) => e.key === "Enter" && handleRefinePrompt()}
+                                    />
+                                    <Button
+                                      size="sm"
+                                      onClick={handleRefinePrompt}
+                                      disabled={refiningPrompt || !refinementInstruction.trim()}
+                                      className="h-7 px-2.5 text-[10px] gap-1 shrink-0"
+                                    >
+                                      {refiningPrompt ? (
+                                        <Loader2 className="h-3 w-3 animate-spin" />
+                                      ) : (
+                                        <Sparkles className="h-3 w-3" />
+                                      )}
+                                      Ajustar
+                                    </Button>
+                                  </div>
                                 </div>
 
                                 <div className="space-y-1">

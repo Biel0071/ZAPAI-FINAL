@@ -33,6 +33,7 @@ async function testProviderConnection(provider = {}, options = {}) {
   const maxTokens = Math.max(32, Number(options.maxTokens) || 32);
   const temperature = Number.isFinite(Number(options.temperature)) ? Number(options.temperature) : 0;
   const timeoutMs = Number(options.timeoutMs) || 12000;
+  const history = Array.isArray(options.history) ? options.history : [];
   const startedAt = Date.now();
 
   if (!providerId) {
@@ -59,7 +60,13 @@ async function testProviderConnection(provider = {}, options = {}) {
           max_tokens: maxTokens,
           temperature,
           system: systemPrompt,
-          messages: [{ role: 'user', content: message }],
+          messages: [
+            ...history.map(h => ({
+              role: h.role === 'assistant' || h.role === 'bot' ? 'assistant' : 'user',
+              content: h.content || '',
+            })),
+            { role: 'user', content: message }
+          ],
         },
         {
           headers: {
@@ -82,6 +89,10 @@ async function testProviderConnection(provider = {}, options = {}) {
           model,
           messages: [
             { role: 'system', content: systemPrompt },
+            ...history.map(h => ({
+              role: h.role === 'assistant' || h.role === 'bot' ? 'assistant' : 'user',
+              content: h.content || '',
+            })),
             { role: 'user', content: message },
           ],
           temperature,
@@ -477,7 +488,7 @@ async function getAIIntegrationStatus(store, companyId = 'default') {
   };
 }
 
-async function testAIConnection({ store, providerId, model, message, prompt, agentKey, agentName, companyId, temperature, responseStyle }) {
+async function testAIConnection({ store, providerId, model, message, prompt, agentKey, agentName, companyId, temperature, responseStyle, history }) {
   const resolvedCompanyId = companyId || store?.activeCompanyId || 'default';
   
   // Try to resolve user-scoped key first
@@ -580,6 +591,7 @@ async function testAIConnection({ store, providerId, model, message, prompt, age
     model,
     message,
     prompt: fullPrompt,
+    history,
     maxTokens: Number(store?.aiConfig?.advancedAISettings?.maxTokens) || 500,
     temperature: typeof finalAgent?.temperature === 'number'
       ? finalAgent.temperature
@@ -902,5 +914,78 @@ function clearResponseCache() {
   console.log('[AI SERVICE] Response cache cleared successfully.');
 }
 
-module.exports = { processAI, testAIConnection, testProviderConnection, getAIIntegrationStatus, clearResponseCache };
+async function refineAgentPrompt({ store, currentPrompt, instruction, companyId }) {
+  const resolvedCompanyId = companyId || store?.activeCompanyId || 'default';
+  let resolvedProvider = null;
+  
+  try {
+    const { query } = require('../config/database');
+    const { rows } = await query(
+      `SELECT * FROM provider_keys WHERE tenant_id = $1 AND enabled = TRUE LIMIT 1`,
+      [resolvedCompanyId]
+    );
+    if (rows.length > 0) {
+      let mappedProviderId = rows[0].provider.toLowerCase();
+      if (mappedProviderId === 'anthropic') mappedProviderId = 'claude';
+      if (mappedProviderId === 'google') mappedProviderId = 'gemini';
+
+      resolvedProvider = {
+        id: mappedProviderId,
+        apiKey: decrypt(rows[0].api_key),
+        model: rows[0].model,
+        active: true
+      };
+    }
+  } catch {}
+
+  if (!resolvedProvider) {
+    const providers = store?.aiConfig?.advancedAISettings?.providers || [];
+    const providerObj = providers.find((item) => item.active) || providers[0];
+    if (providerObj) {
+      resolvedProvider = {
+        id: providerObj.id,
+        apiKey: providerObj.apiKey,
+        model: providerObj.model,
+        active: providerObj.active
+      };
+    }
+  }
+
+  if (!resolvedProvider) {
+    throw new Error('Nenhum provedor de IA ativo configurado para refinamento.');
+  }
+
+  const refPrompt = `Você é um engenheiro de prompt especialista. Sua tarefa é refinar as instruções de personalidade/prompt de um atendente virtual com base nas solicitações de ajuste fornecidas pelo usuário.
+
+Instruções atuais do atendente:
+"""
+${currentPrompt || ''}
+"""
+
+Solicitação de ajuste do usuário:
+"${instruction}"
+
+Regras de Refinamento:
+1. Aplique as modificações solicitadas (adicione, remova ou altere as regras de acordo com o pedido).
+2. Mantenha o idioma em português.
+3. Preserve a estrutura geral, a clareza e as informações de contato/valores que já existiam, a menos que tenha sido solicitado expressamente para retirá-los.
+4. Retorne APENAS o novo texto do prompt final refinado, sem introduções, explicações, blocos de código (Markdown) ou comentários.`;
+
+  const result = await testProviderConnection(resolvedProvider, {
+    model: resolvedProvider.model,
+    message: 'Por favor, execute o refinamento das instruções conforme solicitado acima.',
+    prompt: refPrompt,
+    maxTokens: 1500,
+    temperature: 0.3,
+    timeoutMs: 30000,
+  });
+
+  if (!result.ok) {
+    throw new Error(result.error || 'Falha ao processar o refinamento com o provedor de IA.');
+  }
+
+  return result.response.trim();
+}
+
+module.exports = { processAI, testAIConnection, testProviderConnection, getAIIntegrationStatus, clearResponseCache, refineAgentPrompt };
 

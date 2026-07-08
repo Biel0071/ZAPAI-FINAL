@@ -1383,12 +1383,20 @@ export const apiService = {
     return request<AIMetricsResponse>({ endpoint: `/ai/metrics${queryParam}`, method: "GET" });
   },
 
-  testAIMessage: (payload: { message: string; prompt?: string; model?: string; providerId?: string; agentKey?: string; agentName?: string; temperature?: number; responseStyle?: string }) =>
+  testAIMessage: (payload: { message: string; prompt?: string; model?: string; providerId?: string; agentKey?: string; agentName?: string; temperature?: number; responseStyle?: string; history?: any[] }) =>
     request<{ success?: boolean; result?: AIConnectionTestResult; error?: string }>({
       endpoint: "/ai/test",
       method: "POST",
       body: payload,
       timeoutMs: 60_000,
+    }),
+
+  refinePrompt: (payload: { currentPrompt: string; instruction: string }) =>
+    request<{ success?: boolean; refinedPrompt?: string; error?: string }>({
+      endpoint: "/ai/refine-prompt",
+      method: "POST",
+      body: payload,
+      timeoutMs: 45_000,
     }),
 
   testAIProviders: () =>
