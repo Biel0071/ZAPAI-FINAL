@@ -1399,6 +1399,14 @@ export const apiService = {
       timeoutMs: 45_000,
     }),
 
+  transcribeAudio: (mediaUrl: string, companyId?: string) =>
+    request<{ text: string }>({
+      endpoint: "/ai/transcribe",
+      method: "POST",
+      body: { mediaUrl, companyId },
+      timeoutMs: 60_000,
+    }),
+
   testAIProviders: () =>
     request<{ success?: boolean; results?: AIConnectionTestResult[]; error?: string }>({
       endpoint: "/ai/providers/test",

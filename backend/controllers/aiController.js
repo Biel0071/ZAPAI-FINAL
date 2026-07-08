@@ -877,7 +877,24 @@ async function testVoice(req, res) {
   }
 }
 
+async function transcribe(req, res) {
+  try {
+    const { mediaUrl } = req.body;
+    if (!mediaUrl) {
+      return res.status(400).json({ error: 'URL do áudio não informada.' });
+    }
+    const companyId = req.headers['x-company-id'] || req.headers['x-tenant-id'] || req.auth?.tenantId || req.body.companyId || 'default';
+    const { transcribeAudio } = require('../services/ai.service');
+    const text = await transcribeAudio({ mediaUrl, companyId });
+    return res.json({ text });
+  } catch (error) {
+    console.error('[Transcription Controller] Error:', error.message);
+    return res.status(500).json({ error: error.message || 'Erro durante a transcrição do áudio.' });
+  }
+}
+
 module.exports = {
+  transcribe,
   testVoice,
   architectFullScan,
   assistantChat,

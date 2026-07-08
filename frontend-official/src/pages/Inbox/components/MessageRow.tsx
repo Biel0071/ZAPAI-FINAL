@@ -19,6 +19,8 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 import type { ChatMessage } from "@/services/apiService";
+import { apiService } from "@/services/apiService";
+import { useToast } from "@/hooks/use-toast";
 import type { PreviewMediaState } from "../types";
 import {
   resolveMediaUrl,
@@ -120,6 +122,44 @@ export const MessageRow = memo(function MessageRow({
   const shouldTrackMediaLoading = resolvedMediaType === "image" || resolvedMediaType === "video";
   const [mediaLoading, setMediaLoading] = useState(Boolean(mediaUrl && shouldTrackMediaLoading));
   const [mediaError, setMediaError] = useState(false);
+
+  const { toast } = useToast();
+  const cacheKey = `transcription_${message.id}`;
+  const [transcription, setTranscription] = useState<string | null>(() => {
+    return localStorage.getItem(cacheKey) || null;
+  });
+  const [isTranscribing, setIsTranscribing] = useState(false);
+
+  const handleTranscribe = async () => {
+    if (!mediaUrl || isTranscribing) return;
+    setIsTranscribing(true);
+    try {
+      const res = await apiService.transcribeAudio(mediaUrl);
+      if (res && res.text) {
+        setTranscription(res.text);
+        localStorage.setItem(cacheKey, res.text);
+        toast({ title: "Áudio transcrito com sucesso!" });
+      } else {
+        toast({ title: "Falha na transcrição.", description: "Nenhum texto retornado.", variant: "destructive" });
+      }
+    } catch (err: any) {
+      console.error("Erro ao transcrever áudio:", err);
+      toast({
+        title: "Erro na transcrição",
+        description: err.message || "Tente novamente mais tarde.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsTranscribing(false);
+    }
+  };
+
+  const handleCopyTranscription = () => {
+    if (transcription) {
+      void navigator.clipboard.writeText(transcription);
+      toast({ title: "Transcrição copiada!" });
+    }
+  };
   const statusMeta = getMessageStatusMeta(message.status);
   const showFallbackCard = hasRenderableMedia && (mediaError || !mediaUrl);
   const mediaResolveLoggedRef = useRef(false);
@@ -338,8 +378,8 @@ export const MessageRow = memo(function MessageRow({
               )}
 
               {resolvedMediaType === "audio" && (
-                <div className={cn("w-64 rounded-lg border border-border bg-[#202c33] p-3", mediaLoading && "hidden")}>
-                  <div className="mb-2 flex items-center justify-between gap-3">
+                <div className={cn("w-64 rounded-lg border border-border bg-[#202c33] p-3 flex flex-col gap-2", mediaLoading && "hidden")}>
+                  <div className="flex items-center justify-between gap-3">
                     <div className="min-w-0">
                       <p className="truncate text-xs font-semibold text-foreground">{getMediaFileName(message)}</p>
                       <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Áudio</p>
@@ -360,9 +400,41 @@ export const MessageRow = memo(function MessageRow({
                     </div>
                   </div>
                   {isAudioPlaying && (
-                    <div className="flex items-center gap-2 mt-2">
+                    <div className="flex items-center gap-2 mt-1">
                       <Skeleton className="h-1.5 flex-1 bg-muted" style={{ width: `${audioProgress * 100}%` }} />
                       <span className="text-[9px] font-mono text-muted-foreground">{formatPlaybackTime(audioDuration)}</span>
+                    </div>
+                  )}
+
+                  {/* Transcribe trigger button */}
+                  {!transcription && (
+                    <div className="flex justify-center mt-1">
+                      <button
+                        type="button"
+                        disabled={isTranscribing}
+                        onClick={handleTranscribe}
+                        className="flex items-center justify-center gap-1.5 rounded-full border border-blue-500/50 bg-blue-500/10 px-4 py-1 text-xs font-semibold text-blue-400 transition-all hover:bg-blue-500/20 hover:text-blue-300 disabled:opacity-50"
+                      >
+                        <span className="text-xs">🎙️</span>
+                        {isTranscribing ? "Transcrevendo..." : "Transcrever"}
+                      </button>
+                    </div>
+                  )}
+
+                  {/* Transcription text display */}
+                  {transcription && (
+                    <div className="mt-1 border-t border-white/10 pt-2 flex items-start justify-between gap-2">
+                      <p className="text-xs text-foreground/90 whitespace-pre-wrap leading-normal font-sans text-left break-words flex-1">
+                        {transcription}
+                      </p>
+                      <button
+                        type="button"
+                        onClick={handleCopyTranscription}
+                        className="p-1 text-muted-foreground hover:text-foreground hover:bg-white/5 rounded transition-colors shrink-0"
+                        title="Copiar Transcrição"
+                      >
+                        <CopySimple className="h-3.5 w-3.5" />
+                      </button>
                     </div>
                   )}
                 </div>

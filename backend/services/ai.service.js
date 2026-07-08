@@ -1092,5 +1092,71 @@ async function geocodeAddress(address) {
   return null;
 }
 
-module.exports = { processAI, testAIConnection, testProviderConnection, getAIIntegrationStatus, clearResponseCache, refineAgentPrompt };
+async function transcribeAudio({ mediaUrl, companyId }) {
+  const { OpenAI } = require('openai');
+  const fs = require('fs');
+  const path = require('path');
+
+  const resolvedCompanyId = companyId || 'default';
+  
+  // 1. Fetch enabled OpenAI/Groq key
+  const { query } = require('../config/database');
+  const { rows } = await query(
+    `SELECT * FROM provider_keys WHERE tenant_id = $1 AND enabled = TRUE AND (LOWER(provider) = 'openai' OR LOWER(provider) = 'groq') ORDER BY provider LIMIT 1`,
+    [resolvedCompanyId]
+  );
+  
+  if (rows.length === 0) {
+    throw new Error('Nenhum provedor de IA com suporte a transcrição (OpenAI ou Groq) está ativo.');
+  }
+  
+  const providerRow = rows[0];
+  const apiKey = decrypt(providerRow.api_key);
+  const providerName = providerRow.provider.toLowerCase();
+  
+  let baseURL = 'https://api.openai.com/v1';
+  if (providerName === 'groq') {
+    baseURL = 'https://api.groq.com/openai/v1';
+  }
+  
+  const openai = new OpenAI({
+    apiKey: apiKey,
+    baseURL: baseURL,
+  });
+  
+  // 2. Locate or download file
+  let isLocal = false;
+  let localPath = '';
+  let filename = 'audio.ogg';
+  
+  if (mediaUrl.startsWith('/') || mediaUrl.includes('/media/')) {
+    const filenamePart = mediaUrl.split('/').pop().split('?')[0];
+    localPath = path.join(__dirname, '..', '..', 'storage', 'media', filenamePart);
+    if (fs.existsSync(localPath)) {
+      isLocal = true;
+      filename = filenamePart;
+    }
+  }
+  
+  let fileObj;
+  if (isLocal) {
+    fileObj = fs.createReadStream(localPath);
+  } else {
+    const downloadRes = await axios.get(mediaUrl, { responseType: 'arraybuffer' });
+    const buffer = Buffer.from(downloadRes.data);
+    const filenamePart = mediaUrl.split('/').pop().split('?')[0] || 'audio.ogg';
+    fileObj = await OpenAI.toFile(buffer, filenamePart);
+  }
+  
+  // 3. Request transcription
+  const response = await openai.audio.transcriptions.create({
+    file: fileObj,
+    model: 'whisper-1',
+    language: 'pt'
+  });
+  
+  return response.text;
+}
+
+module.exports = { processAI, testAIConnection, testProviderConnection, getAIIntegrationStatus, clearResponseCache, refineAgentPrompt, transcribeAudio };
 

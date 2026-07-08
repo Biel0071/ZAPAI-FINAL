@@ -10,6 +10,7 @@ router.get('/ai/logs', aiController.getAiLogs);
 router.get('/ai/metrics', aiController.getAiMetrics);
 router.post('/ai/test', aiController.testReply);
 router.post('/ai/refine-prompt', aiController.refinePrompt);
+router.post('/ai/transcribe', aiController.transcribe);
 router.post('/ai/providers/test', aiController.testProviders);
 router.get('/ai/prompt', aiController.getPrompt);
 router.post('/ai/prompt', aiController.savePrompt);
