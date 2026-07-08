@@ -13,6 +13,32 @@ async function init() {
       global.phoneToLidMap.set(row.phone, row.lid);
     }
     console.log(`[LID-MAPPER] Loaded ${result.rows.length} mappings from database`);
+
+    // Reconcile any remaining pending messages to their JID if no phone mapping exists
+    const pendingResult = await query(`
+      SELECT id, lid, company_id, session_id, payload
+      FROM pending_lid_messages
+    `);
+    if (pendingResult.rows.length > 0) {
+      console.log(`[LID-MAPPER] Found ${pendingResult.rows.length} unmapped pending messages. Persisting...`);
+      const messageService = require('../../../services/messageService');
+      for (const row of pendingResult.rows) {
+        try {
+          const payload = typeof row.payload === 'string' ? JSON.parse(row.payload) : row.payload;
+          const mappedPhone = global.lidToPhoneMap.get(row.lid);
+          payload.phone = mappedPhone ? mappedPhone : `${row.lid}@lid`;
+          payload.companyId = row.company_id;
+          payload.sessionId = row.session_id;
+          
+          await messageService.persistIncomingMessage(payload);
+          console.log(`[LID-MAPPER] Auto-reconciled pending message id=${row.id} to phone=${payload.phone}`);
+        } catch (err) {
+          console.error(`[LID-MAPPER] Failed to auto-reconcile pending message id=${row.id}:`, err);
+        }
+      }
+      await query(`DELETE FROM pending_lid_messages`);
+      console.log(`[LID-MAPPER] Flushed and cleared pending_lid_messages queue.`);
+    }
   } catch (err) {
     console.error('[LID-MAPPER] Failed to initialize mappings from database:', err);
   }

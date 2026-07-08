@@ -732,6 +732,9 @@ async function createStableSession({
     logger: pino({ level: 'silent' }),
     version,
     shouldSyncHistoryMessage: () => true,
+    connectTimeoutMs: 60000,
+    defaultQueryTimeoutMs: 60000,
+    keepAliveIntervalMs: 30000,
   });
 
   const session = {

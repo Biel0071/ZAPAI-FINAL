@@ -24,19 +24,7 @@ async function persistInboundMessage(payload = {}) {
   const companyId = payload.companyId || process.env.DEFAULT_COMPANY_ID || 'default';
   const sessionId = payload.sessionId || 'main';
 
-  // If number is a raw unresolved LID, queue it instead of creating thread
-  const { isRawLid } = require('../whatsapp/shared/identifiers');
-  if (isRawLid(phone)) {
-    const lidMapper = require('../whatsapp/shared/lidMapper');
-    await lidMapper.savePendingMessage(phone, companyId, sessionId, payload);
-    console.log(`[LID-RECONCILE] Message from unresolved LID (Enterprise) ${phone} saved to pending queue.`);
-    return {
-      conversation: null,
-      message: null,
-      queued: true,
-      isNewConversation: false,
-    };
-  }
+
 
   const text = String(payload.text || '').trim();
   const messageType = payload.mediaType || payload.type || 'text';
