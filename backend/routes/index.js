@@ -46,6 +46,7 @@ function registerRoutes(app, options = {}) {
   app.use('/api/system', systemRouter);
   if (enableAdminMasterRoutes) {
     app.use('/api/admin', adminMasterRouter);
+    app.use('/api', adminMasterRouter);
   }
   app.use('/metrics', metricsRouter);
 

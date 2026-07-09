@@ -49,6 +49,17 @@ function toNumber(value: unknown): number | null {
   return Number.isFinite(parsed) ? parsed : null;
 }
 
+function safeRandomUUID(): string {
+  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+    return crypto.randomUUID();
+  }
+  return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (c) => {
+    const r = (Math.random() * 16) | 0;
+    const v = c === "x" ? r : (r & 0x3) | 0x8;
+    return v.toString(16);
+  });
+}
+
 function toText(value: unknown): string | null {
   if (typeof value !== "string") return null;
   const trimmed = value.trim();
@@ -201,7 +212,7 @@ function mapNode(item: JsonRecord): NodeControlPlane {
   const services = (item.services && typeof item.services === "object" ? item.services : {}) as JsonRecord;
 
   return {
-    id: String(item.id ?? item.nodeId ?? item.node_id ?? crypto.randomUUID()),
+    id: String(item.id ?? item.nodeId ?? item.node_id ?? safeRandomUUID()),
     name: String(item.name ?? item.nodeName ?? item.hostname ?? item.node_id ?? "Node"),
     hostname: toText(item.hostname ?? item.domain ?? item.host),
     provider: normalizeProvider(item.provider ?? item.cloudProvider),
@@ -263,7 +274,7 @@ export async function loadNodesControlPlane() {
 
 function mapContainer(item: JsonRecord): NodeContainerInfo {
   return {
-    id: String(item.id ?? item.containerId ?? crypto.randomUUID()),
+    id: String(item.id ?? item.containerId ?? safeRandomUUID()),
     name: String(item.name ?? item.containerName ?? "container"),
     status: String(item.status ?? "unknown"),
     image: toText(item.image ?? item.imageName),
@@ -275,7 +286,7 @@ function mapContainer(item: JsonRecord): NodeContainerInfo {
 
 function mapSessionRouting(item: JsonRecord): NodeSessionRouting {
   return {
-    sessionId: String(item.sessionId ?? item.id ?? crypto.randomUUID()),
+    sessionId: String(item.sessionId ?? item.id ?? safeRandomUUID()),
     phone: toText(item.phone ?? item.phoneNumber),
     nodeId: String(item.nodeId ?? item.instanceId ?? ""),
     nodeName: String(item.nodeName ?? item.instanceName ?? "Node"),
@@ -286,7 +297,7 @@ function mapSessionRouting(item: JsonRecord): NodeSessionRouting {
 
 function mapDeployment(item: JsonRecord): NodeDeploymentEvent {
   return {
-    id: String(item.id ?? item.deploymentId ?? crypto.randomUUID()),
+    id: String(item.id ?? item.deploymentId ?? safeRandomUUID()),
     nodeId: String(item.nodeId ?? item.node_id ?? item.instanceId ?? ""),
     action: String(item.action ?? item.operation ?? item.deployment_type ?? "deploy"),
     status: String(item.status ?? "pending"),
@@ -301,7 +312,7 @@ function mapDeployment(item: JsonRecord): NodeDeploymentEvent {
 
 function mapLog(item: JsonRecord): NodeLogEntry {
   return {
-    id: String(item.id ?? crypto.randomUUID()),
+    id: String(item.id ?? safeRandomUUID()),
     level: String(item.level ?? item.severity ?? "info"),
     service: String(item.service ?? "system"),
     message: String(item.message ?? item.error ?? "Sem mensagem"),
@@ -311,7 +322,7 @@ function mapLog(item: JsonRecord): NodeLogEntry {
 
 function mapDiagnostic(item: JsonRecord): NodeDiagnosticsCheck {
   return {
-    key: String(item.key ?? item.endpoint ?? crypto.randomUUID()),
+    key: String(item.key ?? item.endpoint ?? safeRandomUUID()),
     label: String(item.label ?? item.name ?? item.endpoint ?? "check"),
     ok: Boolean(item.ok ?? item.success),
     latencyMs: toNumber(item.latencyMs ?? item.latency),

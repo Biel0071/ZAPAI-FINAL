@@ -411,9 +411,9 @@ router.delete('/master/users/:id', async (req, res) => {
   }
 });
 
-router.post('/master/impersonate/:id', async (req, res) => {
+router.post(['/master/impersonate/:id', '/impersonate'], async (req, res) => {
   try {
-    const userId = Number(req.params.id);
+    const userId = Number(req.params.id || req.body.userId);
     if (!Number.isInteger(userId)) {
       return res.status(400).json({ error: 'Invalid user ID.' });
     }
@@ -469,7 +469,7 @@ router.post('/master/impersonate/:id', async (req, res) => {
   }
 });
 
-router.post('/master/return-session', async (req, res) => {
+router.post(['/master/return-session', '/impersonate/stop'], async (req, res) => {
   try {
     const secret = process.env.JWT_SECRET || process.env.AUTH_JWT_SECRET || '';
     if (!secret) {
