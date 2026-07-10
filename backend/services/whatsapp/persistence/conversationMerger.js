@@ -40,7 +40,6 @@ async function consolidateLidConversations(companyId = 'default') {
     await query(`CREATE TABLE IF NOT EXISTS leads_backup_merge AS SELECT * FROM leads WHERE false`);
     await query(`CREATE TABLE IF NOT EXISTS conversations_backup_merge AS SELECT * FROM conversations WHERE false`);
     await query(`CREATE TABLE IF NOT EXISTS messages_backup_merge AS SELECT * FROM messages WHERE false`);
-    await query(`CREATE TABLE IF NOT EXISTS contacts_backup_merge AS SELECT * FROM contacts WHERE false`);
 
     for (const pair of pairsRes.rows) {
       const { duplicate_lead_id, keeper_lead_id, duplicate_phone, keeper_phone } = pair;
@@ -56,10 +55,7 @@ async function consolidateLidConversations(companyId = 'default') {
         msgBackup = await query(`SELECT * FROM messages WHERE conversation_id = ANY($1::int[])`, [convIds]);
       }
 
-      const contactBackup = await query(`
-        SELECT * FROM contacts 
-        WHERE (phone = $1 OR phone = $2 OR phone = $3 OR phone = $4) AND company_id = $5
-      `, [duplicate_phone, keeper_phone, `${duplicate_phone}@lid`, `${keeper_phone}@s.whatsapp.net`, companyId]);
+      const contactBackup = { rows: [] };
 
       // 2. Export backup data to JSON file
       const backupFilename = `merge_${Date.now()}_lead_${duplicate_lead_id}_to_${keeper_lead_id}.json`;
@@ -83,10 +79,6 @@ async function consolidateLidConversations(companyId = 'default') {
       }
       if (msgBackup.rows.length > 0) {
         await query(`INSERT INTO messages_backup_merge SELECT * FROM messages WHERE conversation_id = ANY($1::int[])`, [convIds]);
-      }
-      if (contactBackup.rows.length > 0) {
-        const contactIds = contactBackup.rows.map(c => c.id);
-        await query(`INSERT INTO contacts_backup_merge SELECT * FROM contacts WHERE id = ANY($1::int[])`, [contactIds]);
       }
 
       // 4. Begin merge transaction
@@ -141,19 +133,7 @@ async function consolidateLidConversations(companyId = 'default') {
           }
         }
 
-        // Delete duplicate contacts
-        if (contactBackup.rows.length > 1) {
-          const duplicateContacts = contactBackup.rows.filter(c => c.phone.includes('@lid') || c.phone === duplicate_phone);
-          const keeperContact = contactBackup.rows.find(c => !c.phone.includes('@lid') && c.phone === keeper_phone);
-          
-          if (keeperContact) {
-            for (const dupContact of duplicateContacts) {
-              if (dupContact.id !== keeperContact.id) {
-                await query(`DELETE FROM contacts WHERE id = $1`, [dupContact.id]);
-              }
-            }
-          }
-        }
+        // Duplicate contacts deletion bypassed since table is unified in leads
 
         // Delete duplicate lead
         await query(`DELETE FROM leads WHERE id = $1`, [duplicate_lead_id]);

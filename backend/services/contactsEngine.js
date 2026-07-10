@@ -140,48 +140,29 @@ async function persistContactsBatch(contacts = []) {
     let paramIndex = 1;
 
     for (const contact of batch) {
-      values.push(`($${paramIndex}, $${paramIndex + 1}, $${paramIndex + 2}, $${paramIndex + 3}, $${paramIndex + 4}, $${paramIndex + 5}, NOW(), NOW())`);
+      values.push(`($${paramIndex}, $${paramIndex + 1}, $${paramIndex + 2}, NOW())`);
       params.push(
-        contact.phone,
         contact.companyId || DEFAULT_COMPANY_ID,
-        contact.name,
-        contact.avatar || null,
-        contact.isGroup || false,
-        contact.sessionId || 'default'
+        contact.phone,
+        contact.name
       );
-      paramIndex += 6;
+      paramIndex += 3;
     }
 
     try {
       await db.query(
-        `INSERT INTO contacts (phone, company_id, name, avatar_url, is_group, session_id, created_at, updated_at)
+        `INSERT INTO leads (company_id, phone, name, created_at)
          VALUES ${values.join(', ')}
-         ON CONFLICT (phone, company_id) DO UPDATE SET
-           name = EXCLUDED.name,
-           avatar_url = COALESCE(EXCLUDED.avatar_url, contacts.avatar_url),
-           is_group = EXCLUDED.is_group,
-           session_id = EXCLUDED.session_id,
-           updated_at = NOW()`,
+         ON CONFLICT (company_id, phone) DO UPDATE SET
+           name = CASE 
+             WHEN EXCLUDED.name IS NOT NULL AND EXCLUDED.name <> '' AND EXCLUDED.name <> EXCLUDED.phone THEN EXCLUDED.name
+             ELSE leads.name
+           END`,
         params
       );
       persisted += batch.length;
-
-      // Sync names back to the leads table for CRM consistency
-      for (const contact of batch) {
-        if (contact.name && contact.name !== contact.phone) {
-          db.query(
-            `UPDATE leads SET name = $1, updated_at = NOW() 
-             WHERE phone = $2 AND company_id = $3 AND (name IS NULL OR name = '.' OR name = '' OR name = 'Contato')`,
-            [contact.name, contact.phone, contact.companyId || DEFAULT_COMPANY_ID]
-          ).catch(err => {
-            console.error('[ContactsEngine] Failed to update lead name:', err);
-          });
-        }
-      }
     } catch (err) {
-      if (err?.code !== '42P01') { // table doesn't exist
-        console.error('[ContactsEngine] Batch persist failed:', err?.message || err);
-      }
+      console.error('[ContactsEngine] Batch persist to leads failed:', err?.message || err);
     }
   }
 
@@ -191,10 +172,10 @@ async function persistContactsBatch(contacts = []) {
 async function loadContactsFromPostgres(companyId = DEFAULT_COMPANY_ID) {
   try {
     const result = await db.query(
-      `SELECT phone, name, avatar_url, is_group, company_id, updated_at
-       FROM contacts
+      `SELECT phone, name, company_id, created_at
+       FROM leads
        WHERE company_id = $1
-       ORDER BY updated_at DESC
+       ORDER BY created_at DESC
        LIMIT 5000`,
       [companyId]
     );
@@ -207,20 +188,18 @@ async function loadContactsFromPostgres(companyId = DEFAULT_COMPANY_ID) {
         contactCache.set(phone, {
           phone,
           name: row.name || phone,
-          avatar: row.avatar_url || null,
-          isGroup: Boolean(row.is_group),
+          avatar: null,
+          isGroup: false,
           companyId: row.company_id,
           sessionId: 'restored',
-          updatedAt: row.updated_at ? new Date(row.updated_at).toISOString() : new Date().toISOString(),
+          updatedAt: row.created_at ? new Date(row.created_at).toISOString() : new Date().toISOString(),
         });
       }
     }
 
     return contactCache.size;
   } catch (err) {
-    if (err?.code !== '42P01') {
-      console.error('[ContactsEngine] Postgres load failed:', err?.message || err);
-    }
+    console.error('[ContactsEngine] Postgres load from leads failed:', err?.message || err);
     return 0;
   }
 }

@@ -793,13 +793,7 @@ async function updateConversationMeta(req, res) {
         if (conv.lead_id) {
           await query('UPDATE leads SET name = $1 WHERE id = $2', [req.body.name, conv.lead_id]);
         }
-        if (conv.phone) {
-          const companyId = req.auth?.tenantId || process.env.DEFAULT_COMPANY_ID || 'default';
-          await query(
-            'UPDATE contacts SET name = $1 WHERE phone = $2 AND company_id = $3',
-            [req.body.name, conv.phone, companyId]
-          ).catch(() => {});
-        }
+        // contacts table is deprecated, leads table updated above
       }
     }
 

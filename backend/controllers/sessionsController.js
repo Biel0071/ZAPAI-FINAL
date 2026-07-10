@@ -266,12 +266,8 @@ async function purge(req, res) {
       );
       purged.conversations = convResult.rowCount || 0;
 
-      // Delete contacts by sessionId
-      const contactResult = await db.query(
-        'DELETE FROM contacts WHERE session_id = $1',
-        [targetSessionId]
-      );
-      purged.contacts = contactResult.rowCount || 0;
+      // contacts table is deprecated, leads are preserved in CRM
+      purged.contacts = 0;
 
       // Delete AI conversation memory by sessionId
       const aiResult = await db.query(
