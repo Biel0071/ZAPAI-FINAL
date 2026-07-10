@@ -190,8 +190,15 @@ function processBaileysStatusUpdate(update = {}) {
   const messageId = update?.key?.id;
   if (!messageId) return null;
 
-  const baileysStatus = Number(update?.update?.status);
-  const mappedState = BAILEYS_STATUS_MAP[baileysStatus];
+  const statusVal = update?.update?.status;
+  let mappedState = null;
+
+  if (statusVal === 'ERROR' || statusVal === 'failed' || update?.update?.messageStubParameters || update?.update?.error) {
+    mappedState = ACK_STATES.FAILED;
+  } else {
+    const baileysStatus = Number(statusVal);
+    mappedState = BAILEYS_STATUS_MAP[baileysStatus];
+  }
 
   if (!mappedState) return null;
 
