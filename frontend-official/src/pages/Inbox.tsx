@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect, useCallback } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   Check,
   Star,
@@ -47,9 +48,40 @@ import {
   getLeadTemperatureMeta,
 } from "./Inbox/utils";
 
+const removeEmojis = (str: string) => {
+  return str.replace(/[\u2700-\u27BF]|[\uE000-\uF8FF]|\uD83C[\uDC00-\uDFFF]|\uD83D[\uDC00-\uDFFF]|[\u2011-\u26FF]|\uD83E[\uDC00-\uDFFF]/g, '').trim();
+};
+
 export default function Inbox() {
+  const navigate = useNavigate();
   const state = useInboxState();
   const [showGroups, setShowGroups] = useState(false);
+  const [showCustomCategoryInput, setShowCustomCategoryInput] = useState(false);
+
+  const allCategories = useMemo(() => {
+    const cats = new Set<string>();
+    cats.add("saudação");
+    cats.add("vendas");
+    cats.add("suporte");
+    if (state.quickReplies) {
+      for (const item of state.quickReplies) {
+        if (item.category) {
+          const cleanCat = removeEmojis(item.category).trim().toLowerCase();
+          if (cleanCat) {
+            cats.add(cleanCat);
+          }
+        }
+      }
+    }
+    return Array.from(cats);
+  }, [state.quickReplies]);
+
+  useEffect(() => {
+    if (!state.isQuickReplyDialogOpen) {
+      setShowCustomCategoryInput(false);
+    }
+  }, [state.isQuickReplyDialogOpen]);
+
 
   // Persist unread total globally when conversations change
   useEffect(() => {
@@ -398,16 +430,6 @@ export default function Inbox() {
         <Header 
           title="Inbox" 
           subtitle={`${lovableInboxViewModel.conversationCount} conversas ativas`} 
-          actions={
-            <Button 
-              size="sm" 
-              onClick={() => useAppStore.getState().setIsNewChatDialogOpen(true)}
-              className="h-8 gap-1.5 rounded-xl text-xs shadow-glow bg-primary text-primary-foreground hover:bg-primary/90 md:inline-flex"
-            >
-              <Plus weight="bold" className="h-3.5 w-3.5" />
-              Nova Conversa
-            </Button>
-          }
         />
       )}
 
@@ -431,7 +453,7 @@ export default function Inbox() {
             conversationListHeight={state.conversationListHeight}
             conversationRowData={conversationRowData}
             activeSession={state.activeSession}
-            navigate={() => {}}
+            navigate={navigate}
             handleBulkPin={state.handleBulkPin}
             handleBulkArchive={state.handleBulkArchive}
             handleBulkAddTag={state.handleBulkAddTag}
@@ -731,14 +753,31 @@ export default function Inbox() {
                         <Label htmlFor="qr-category" className="text-xs font-semibold text-foreground">Categoria</Label>
                         <select
                           id="qr-category"
-                          value={state.qrDialogCategory}
-                          onChange={(e) => state.setQrDialogCategory(e.target.value)}
-                          className="flex h-9 w-full rounded-lg border border-border/50 bg-background/40 px-3 py-1.5 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary/60 transition-all"
+                          value={showCustomCategoryInput ? "new-custom" : state.qrDialogCategory}
+                          onChange={(e) => {
+                            if (e.target.value === "new-custom") {
+                              setShowCustomCategoryInput(true);
+                              state.setQrDialogCategory("");
+                            } else {
+                              setShowCustomCategoryInput(false);
+                              state.setQrDialogCategory(e.target.value);
+                            }
+                          }}
+                          className="flex h-9 w-full rounded-lg border border-border/50 bg-background/40 px-3 py-1.5 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary/60 transition-all capitalize"
                         >
-                          <option value="saudação">👋 Saudação</option>
-                          <option value="vendas">💰 Vendas</option>
-                          <option value="suporte">🛠️ Suporte</option>
+                          {allCategories.map(cat => (
+                            <option key={cat} value={cat}>{cat}</option>
+                          ))}
+                          <option value="new-custom">+ Nova Categoria...</option>
                         </select>
+                        {showCustomCategoryInput && (
+                          <Input
+                            placeholder="Nome da nova categoria..."
+                            value={state.qrDialogCategory}
+                            onChange={(e) => state.setQrDialogCategory(e.target.value)}
+                            className="mt-1.5 h-9 text-xs bg-background/40 text-foreground border-border/50 focus:border-primary/50 transition-all rounded-lg"
+                          />
+                        )}
                       </div>
 
                       <div className="flex flex-col gap-3 justify-center">
@@ -861,9 +900,15 @@ export default function Inbox() {
                                         ? "bg-rose-500/10 text-rose-400 border border-rose-500/25"
                                         : item.type === "audio"
                                           ? "bg-amber-500/10 text-amber-400 border border-amber-500/25"
-                                          : "bg-slate-500/10 text-slate-400 border border-slate-500/25"
+                                          : item.type === "pdf" || item.type === "document" || item.type === "file"
+                                            ? "bg-sky-500/10 text-sky-400 border border-sky-500/25"
+                                            : "bg-slate-500/10 text-slate-400 border border-slate-500/25"
                                 }`}>
-                                  {item.type === "text" ? "Texto" : item.type}
+                                  {item.type === "text" ? "TEXTO" : 
+                                   item.type === "image" ? "IMAGEM" : 
+                                   item.type === "video" ? "VÍDEO" : 
+                                   item.type === "audio" ? "ÁUDIO" : 
+                                   item.type === "pdf" || item.type === "document" || item.type === "file" ? "DOCUMENTO" : "MÍDIA"}
                                 </span>
                               </div>
 

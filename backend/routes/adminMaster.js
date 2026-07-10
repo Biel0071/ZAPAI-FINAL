@@ -1,5 +1,47 @@
 const express = require('express');
 const os = require('os');
+
+// Cross-platform CPU usage tracking via delta-sampling
+let lastCpuTimes = null;
+let cachedCpuPct = 0;
+
+function getCpuPercentage() {
+  const cpus = os.cpus();
+  if (!cpus || cpus.length === 0) return 0;
+  
+  let user = 0;
+  let nice = 0;
+  let sys = 0;
+  let idle = 0;
+  let irq = 0;
+  
+  for (const cpu of cpus) {
+    user += cpu.times.user;
+    nice += cpu.times.nice;
+    sys += cpu.times.sys;
+    idle += cpu.times.idle;
+    irq += cpu.times.irq;
+  }
+  
+  const total = user + nice + sys + idle + irq;
+  
+  if (!lastCpuTimes) {
+    lastCpuTimes = { user, nice, sys, idle, irq, total };
+    return 0;
+  }
+  
+  const deltaTotal = total - lastCpuTimes.total;
+  const deltaIdle = idle - lastCpuTimes.idle;
+  
+  lastCpuTimes = { user, nice, sys, idle, irq, total };
+  
+  if (deltaTotal <= 0) return cachedCpuPct;
+  
+  const cpuPct = Math.round((1 - deltaIdle / deltaTotal) * 100);
+  cachedCpuPct = Math.max(0, Math.min(100, cpuPct));
+  return cachedCpuPct;
+}
+
 const crypto = require('crypto');
 const { spawnSync } = require('child_process');
 const { query } = require('../config/database');
@@ -170,9 +212,7 @@ async function loadInfraStats() {
   const totalMem = os.totalmem();
   const freeMem = os.freemem();
   const usedMemPct = totalMem > 0 ? Math.round(((totalMem - freeMem) / totalMem) * 100) : 0;
-  const cpuLoad = os.loadavg()[0] || 0;
-  const cpuCount = os.cpus()?.length || 1;
-  const cpuPct = Math.max(0, Math.min(100, Math.round((cpuLoad / cpuCount) * 100)));
+  const cpuPct = getCpuPercentage();
 
   const diskProbe = await new Promise((resolve) => {
     try {

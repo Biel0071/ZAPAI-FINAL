@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import {
   WhatsappLogo,
@@ -107,6 +108,7 @@ function statusMeta(status: Session["status"]) {
 }
 
 export default function Connections() {
+  const navigate = useNavigate();
   const storeSessions = useAppStore((state) => state.sessions);
   const storeLastQr = useAppStore((state) => state.lastQr);
 
@@ -170,7 +172,9 @@ export default function Connections() {
     void fetchLogs(logsSessionId).finally(() => setIsLoadingLogs(false));
  
     const intervalId = window.setInterval(() => {
-      void fetchLogs(logsSessionId);
+      if (document.visibilityState === "visible") {
+        void fetchLogs(logsSessionId);
+      }
     }, 3000);
  
     return () => window.clearInterval(intervalId);
@@ -483,92 +487,8 @@ export default function Connections() {
             disconnectedCount={lovableConnectionsViewModel.disconnected}
             activeSessionName={activeSession ? activeSession.name : "Nenhuma ativa"}
             onRefresh={() => handleOpenLogs(activeSession ? activeSession.id : (safeSessions[0]?.id ?? ''))}
-            onOpenDiagnostics={() => window.location.assign("/diagnostics")}
-            activationDialog={
-              <Dialog
-                open={isActivationDialogOpen}
-                onOpenChange={(open) => {
-                  setIsActivationDialogOpen(open);
-                  if (!open) {
-                    setShowQRModal(false);
-                    if (activeModalSessionId) {
-                      useAppStore.getState().clearLastQr(activeModalSessionId);
-                    }
-                  }
-                }}
-              >
-                <DialogTrigger asChild>
-                  <Button className="gap-2 self-start rounded-xl shadow-glow md:self-auto">
-                    <Plus weight="bold" className="h-4 w-4" />
-                    Nova Conexão
-                  </Button>
-                </DialogTrigger>
-                <DialogContent className="sm:max-w-md border-border/80 bg-card/95 backdrop-blur-xl">
-                  <DialogHeader>
-                    <DialogTitle className="font-display">Conectar WhatsApp oficial</DialogTitle>
-                    <DialogDescription>
-                      Crie uma nova sessão e escaneie o QR Code para conectar o número do WhatsApp.
-                    </DialogDescription>
-                  </DialogHeader>
-                  <div className="space-y-4 py-4">
-                    {!activeModalSessionId ? (
-                      <>
-                        <div className="space-y-2">
-                           <Label htmlFor="name">Nome da sessão</Label>
-                          <Input
-                            id="name"
-                            placeholder="Ex: vendas_1"
-                            value={newSessionName}
-                            onChange={(e) => {
-                              setNewSessionName(e.target.value);
-                              if (sessionNameError) setSessionNameError(null);
-                            }}
-                          />
-                          {sessionNameError && <p className="text-xs text-destructive">{sessionNameError}</p>}
-                        </div>
-
-                        <Button className="w-full gap-2 rounded-xl" onClick={() => void handleCreateSession()} disabled={!newSessionName.trim() || isCreating}>
-                          {isCreating ? <Spinner weight="bold" className="h-4 w-4 animate-spin" /> : <QrCode weight="bold" className="h-4 w-4" />}
-                          {createStatus === "success" ? "Sessão criada" : createStatus === "error" ? "Falha na criação" : isCreating ? "Criando sessão..." : "Gerar QR oficial"}
-                        </Button>
-                      </>
-                    ) : (
-                      isQrModalVisible && (
-                        <div className="space-y-4 rounded-2xl border border-border/70 bg-background/50 p-4 text-center">
-                          {showQrImage ? (
-                            <div className="qr-container mx-auto w-fit">
-                              <img
-                                src={currentQrImage ?? undefined}
-                                alt="QR Code da sessão WhatsApp"
-                                className="mx-auto block h-[260px] w-[260px] rounded-xl border border-border"
-                              />
-                            </div>
-                          ) : (
-                            <div className="rounded-xl border border-border bg-muted/30 p-4 text-xs text-muted-foreground flex flex-col items-center justify-center min-h-[260px] gap-3">
-                              <Spinner className="h-8 w-8 animate-spin text-primary" />
-                              <span>
-                                {currentQrSession?.status === "connected"
-                                  ? "Sessão conectada com sucesso!"
-                                  : "Aguardando QR code da sessão..."}
-                              </span>
-                            </div>
-                          )}
-                          <div className="space-y-2">
-                            <OperationalStatusBadge 
-                              label={currentQrSession ? statusMeta(currentQrSession.status).label : "Aguardando"} 
-                              tone={currentQrSession ? statusMeta(currentQrSession.status).tone : "warning"} 
-                              pulse={currentQrSession?.status === "connecting"} 
-                            />
-                            <p className="text-sm text-muted-foreground">{qrModalDescription}</p>
-                            <p className="text-xs text-muted-foreground/80">Sessão: {activeModalSessionId}</p>
-                          </div>
-                        </div>
-                      )
-                    )}
-                  </div>
-                </DialogContent>
-              </Dialog>
-            }
+            onOpenDiagnostics={() => navigate("/diagnostics")}
+            activationDialog={null}
             isLoading={isSessionsLoading}
             hasSessions={safeSessions.length > 0}
             loadingState={<StatGridSkeleton count={3} />}
@@ -596,9 +516,17 @@ export default function Connections() {
                   const isRestarting = restartingSessionId === normalizedId;
                   const isDeleting = deletingSessionId === normalizedId;
                   const preventQrRegeneration = session.status === "connected" || session.status === "connecting" || session.status === "qr" || isRestarting;
- 
+                  const isConnected = session.status === "connected";
+
                   return (
-                    <Card key={session.id} className="glass-card overflow-hidden rounded-2xl border-border/70 bg-card/85">
+                    <Card 
+                      key={session.id} 
+                      className={cn(
+                        "glass-card overflow-hidden rounded-2xl border-border/70 bg-card/85 transition-all duration-300",
+                        isConnected && "cursor-pointer hover:border-whatsapp/40 hover:shadow-[0_0_15px_rgba(37,211,102,0.15)] hover:scale-[1.01]"
+                      )}
+                      onClick={isConnected ? () => navigate("/analytics") : undefined}
+                    >
                       <div className={meta.lineClass} />
                       <CardContent className="space-y-3.5 p-4">
                         <div className="flex items-start justify-between gap-3">
@@ -619,7 +547,7 @@ export default function Connections() {
                           </div>
                           <OperationalStatusBadge label={meta.label} tone={meta.tone} pulse={session.status === "connecting"} />
                         </div>
- 
+
                         <div className="grid grid-cols-3 gap-2 rounded-xl border border-border/40 bg-background/30 p-2.5 text-[11px]">
                           <div className="space-y-0.5">
                             <p className="text-[9px] text-muted-foreground/80 font-medium uppercase tracking-wider">Sincronia</p>
@@ -638,13 +566,16 @@ export default function Connections() {
                             </p>
                           </div>
                         </div>
- 
+
                         <div className="flex gap-1.5 pt-1">
                           <Button 
                             variant="outline" 
                             size="sm" 
                             className="flex-1 h-8 text-[11px] rounded-xl px-2 gap-1"
-                            onClick={() => void handleGenerateQr(session)}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              void handleGenerateQr(session);
+                            }}
                             disabled={preventQrRegeneration || isDeleting}
                             title="Gerar / renovar QR Code"
                           >
@@ -657,7 +588,10 @@ export default function Connections() {
                               variant="outline" 
                               size="sm" 
                               className="flex-1 h-8 text-[11px] rounded-xl px-2 gap-1 border-destructive/30 text-destructive hover:bg-destructive/10 hover:text-destructive"
-                              onClick={() => void handleLogoutSession(session.id)}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                void handleLogoutSession(session.id);
+                              }}
                               disabled={isRestarting || isDeleting}
                               title="Desconectar sessão do WhatsApp"
                             >
@@ -669,7 +603,10 @@ export default function Connections() {
                               variant="default"
                               size="sm" 
                               className="flex-1 h-8 text-[11px] rounded-xl px-2 gap-1 shadow-glow"
-                              onClick={() => void handleConnectSession(session.id)}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                void handleConnectSession(session.id);
+                              }}
                               disabled={isRestarting || isDeleting}
                               title="Conectar sessão"
                             >
@@ -681,7 +618,10 @@ export default function Connections() {
                               variant="outline" 
                               size="sm" 
                               className="flex-1 h-8 text-[11px] rounded-xl px-2 gap-1"
-                              onClick={() => void handleConnectSession(session.id)}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                void handleConnectSession(session.id);
+                              }}
                               disabled={isRestarting || isDeleting}
                               title="Reiniciar conexão"
                             >
@@ -694,7 +634,10 @@ export default function Connections() {
                             variant="outline" 
                             size="sm" 
                             className="h-8 w-8 p-0 shrink-0 text-[11px] rounded-xl border-destructive/30 text-destructive hover:bg-destructive/10 hover:text-destructive"
-                            onClick={() => openDeleteConfirm(session.id)}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              openDeleteConfirm(session.id);
+                            }}
                             disabled={isDeleting}
                             title="Excluir sessão"
                           >
@@ -710,6 +653,85 @@ export default function Connections() {
           />
         </SafeRender>
       </motion.div>
+
+      {/* ============ NEW CONNECTION MODAL ============ */}
+      <Dialog
+        open={isActivationDialogOpen}
+        onOpenChange={(open) => {
+          setIsActivationDialogOpen(open);
+          if (!open) {
+            setShowQRModal(false);
+            if (activeModalSessionId) {
+              useAppStore.getState().clearLastQr(activeModalSessionId);
+            }
+          }
+        }}
+      >
+        <DialogContent className="sm:max-w-md border-border/80 bg-card/95 backdrop-blur-xl">
+          <DialogHeader>
+            <DialogTitle className="font-display">Conectar WhatsApp oficial</DialogTitle>
+            <DialogDescription>
+              Crie uma nova sessão e escaneie o QR Code para conectar o número do WhatsApp.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            {!activeModalSessionId ? (
+              <>
+                <div className="space-y-2">
+                  <Label htmlFor="name">Nome da sessão</Label>
+                  <Input
+                    id="name"
+                    placeholder="Ex: vendas_1"
+                    value={newSessionName}
+                    onChange={(e) => {
+                      setNewSessionName(e.target.value);
+                      if (sessionNameError) setSessionNameError(null);
+                    }}
+                  />
+                  {sessionNameError && <p className="text-xs text-destructive">{sessionNameError}</p>}
+                </div>
+
+                <Button className="w-full gap-2 rounded-xl" onClick={() => void handleCreateSession()} disabled={!newSessionName.trim() || isCreating}>
+                  {isCreating ? <Spinner weight="bold" className="h-4 w-4 animate-spin" /> : <QrCode weight="bold" className="h-4 w-4" />}
+                  {createStatus === "success" ? "Sessão criada" : createStatus === "error" ? "Falha na criação" : isCreating ? "Criando sessão..." : "Gerar QR oficial"}
+                </Button>
+              </>
+            ) : (
+              isQrModalVisible && (
+                <div className="space-y-4 rounded-2xl border border-border/70 bg-background/50 p-4 text-center">
+                  {showQrImage ? (
+                    <div className="qr-container mx-auto w-fit">
+                      <img
+                        src={currentQrImage ?? undefined}
+                        alt="QR Code da sessão WhatsApp"
+                        className="mx-auto block h-[260px] w-[260px] rounded-xl border border-border"
+                      />
+                    </div>
+                  ) : (
+                    <div className="rounded-xl border border-border bg-muted/30 p-4 text-xs text-muted-foreground flex flex-col items-center justify-center min-h-[260px] gap-3">
+                      <Spinner className="h-8 w-8 animate-spin text-primary" />
+                      <span>
+                        {currentQrSession?.status === "connected"
+                          ? "Sessão conectada com sucesso!"
+                          : "Aguardando QR code da sessão..."}
+                      </span>
+                    </div>
+                  )}
+                  <div className="space-y-2">
+                    <OperationalStatusBadge 
+                      label={currentQrSession ? statusMeta(currentQrSession.status).label : "Aguardando"} 
+                      tone={currentQrSession ? statusMeta(currentQrSession.status).tone : "warning"} 
+                      pulse={currentQrSession?.status === "connecting"} 
+                    />
+                    <p className="text-sm text-muted-foreground">{qrModalDescription}</p>
+                    <p className="text-xs text-muted-foreground/80">Sessão: {activeModalSessionId}</p>
+                  </div>
+                </div>
+              )
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* ============ DELETE CONFIRMATION MODAL ============ */}
       <Dialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>

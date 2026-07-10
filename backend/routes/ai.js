@@ -191,5 +191,14 @@ router.get('/ai/conversation-memory/:contactId', async (req, res) => {
   }
 });
 
+// === Agent Evolution & Learning ===
+router.post('/ai/agent-evolve', aiController.evolveAgent);
+router.get('/ai/agent-learning/:key', aiController.getAgentLearning);
+router.post('/ai/agent-learning/:id/answer', aiController.answerLearningEvent);
+router.post('/ai/agent-learning/:id/apply', aiController.applyLearningAnswer);
+router.post('/ai/agent-learning/:id/ignore', aiController.ignoreLearningEvent);
+router.get('/ai/agent-evolution/:key', aiController.getAgentEvolution);
+router.post('/ai/agent-detect-gaps/:key', aiController.detectAgentGaps);
+
 module.exports = router;
 

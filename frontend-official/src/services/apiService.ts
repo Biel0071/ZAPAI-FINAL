@@ -1399,6 +1399,53 @@ export const apiService = {
       timeoutMs: 45_000,
     }),
 
+  evolveAgent: (payload: { agentKey: string; instruction: string; apply?: boolean; changes?: any; sourceDescription?: string }) =>
+    request<{ success: boolean; preview?: any; agent?: any; error?: string }>({
+      endpoint: "/ai/agent-evolve",
+      method: "POST",
+      body: payload,
+      timeoutMs: 60_000,
+    }),
+
+  getAgentLearning: (agentKey: string) =>
+    request<{ success: boolean; pending: any[]; stats: any }>({
+      endpoint: `/ai/agent-learning/${encodeURIComponent(agentKey)}`,
+      method: "GET",
+    }),
+
+  answerLearningEvent: (id: number, answer: string) =>
+    request<{ success: boolean; event: any }>({
+      endpoint: `/ai/agent-learning/${id}/answer`,
+      method: "POST",
+      body: { answer },
+    }),
+
+  applyLearningAnswer: (id: number, answer?: string) =>
+    request<{ success: boolean; targetField: string; formattedContent: string }>({
+      endpoint: `/ai/agent-learning/${id}/apply`,
+      method: "POST",
+      body: { answer },
+      timeoutMs: 45_000,
+    }),
+
+  ignoreLearningEvent: (id: number) =>
+    request<{ success: boolean; event: any }>({
+      endpoint: `/ai/agent-learning/${id}/ignore`,
+      method: "POST",
+    }),
+
+  getAgentEvolution: (agentKey: string) =>
+    request<{ success: boolean; history: any[]; stats: any }>({
+      endpoint: `/ai/agent-evolution/${encodeURIComponent(agentKey)}`,
+      method: "GET",
+    }),
+
+  detectAgentGaps: (agentKey: string) =>
+    request<{ success: boolean; createdCount: number }>({
+      endpoint: `/ai/agent-detect-gaps/${encodeURIComponent(agentKey)}`,
+      method: "POST",
+    }),
+
   transcribeAudio: (mediaUrl: string, companyId?: string) =>
     request<{ text: string }>({
       endpoint: "/ai/transcribe",

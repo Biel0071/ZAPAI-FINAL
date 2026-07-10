@@ -63,12 +63,66 @@ router.get('/overview', requireMasterAdmin, async (_req, res) => {
 router.get('/nodes', requireMasterAdmin, async (_req, res) => {
   try {
     const result = await query(`
-      SELECT node_id, hostname, ip, status, node_type, last_heartbeat, cpu_cores, ram_total, 
-             uptime_seconds, provider, version, docker_version, sessions_active, health_status, services
-        FROM nodes
-       ORDER BY created_at DESC
+      SELECT n.id, n.node_id, n.name,
+             COALESCE(NULLIF(n.hostname, 'unknown'), n.name, n.node_id) AS hostname,
+             COALESCE(NULLIF(n.ip, '0.0.0.0'), n.ip_address) AS ip,
+             n.status, n.node_type, n.last_heartbeat, n.cpu_cores, n.ram_total, 
+             n.uptime_seconds, n.provider, n.version, n.docker_version, n.sessions_active, n.health_status, n.services, n.build_hash,
+             h.cpu_usage, h.memory_usage, h.disk_usage, h.uptime_seconds AS hb_uptime, h.active_sessions AS hb_sessions
+        FROM nodes n
+        LEFT JOIN LATERAL (
+          SELECT cpu_usage, memory_usage, disk_usage, uptime_seconds, active_sessions
+            FROM heartbeats
+           WHERE node_id = n.node_id
+           ORDER BY received_at DESC
+           LIMIT 1
+        ) h ON true
+       ORDER BY n.created_at DESC
     `);
-    return res.json({ success: true, nodes: result.rows });
+
+    const nodes = result.rows.map(row => {
+      let services = row.services;
+      if (typeof services === 'string') {
+        try {
+          services = JSON.parse(services);
+        } catch {
+          services = {};
+        }
+      }
+      return {
+        id: row.node_id,
+        node_id: row.node_id,
+        name: row.name || row.hostname || row.node_id,
+        hostname: row.hostname,
+        ip: row.ip,
+        publicIp: row.ip,
+        status: row.status,
+        node_type: row.node_type,
+        last_heartbeat: row.last_heartbeat,
+        cpu_cores: row.cpu_cores,
+        ram_total: row.ram_total,
+        uptime_seconds: row.uptime_seconds,
+        provider: row.provider,
+        version: row.version,
+        docker_version: row.docker_version,
+        sessions_active: row.sessions_active,
+        health_status: row.health_status,
+        services: services || {},
+        build: {
+          version: row.version,
+          buildHash: row.build_hash || null,
+        },
+        metrics: {
+          cpuPercent: row.cpu_usage !== null ? Number(row.cpu_usage) : null,
+          ramPercent: row.memory_usage !== null ? Number(row.memory_usage) : null,
+          diskPercent: row.disk_usage !== null ? Number(row.disk_usage) : null,
+          activeSessions: row.hb_sessions !== null ? Number(row.hb_sessions) : Number(row.sessions_active || 0),
+          uptime: row.hb_uptime !== null ? Number(row.hb_uptime) : Number(row.uptime_seconds || 0),
+        }
+      };
+    });
+
+    return res.json({ success: true, nodes });
   } catch (error) {
     console.error('[Cluster] nodes error:', error);
     return res.status(500).json({ success: false, error: 'Failed to get nodes' });
@@ -82,9 +136,9 @@ router.get('/metrics', requireMasterAdmin, async (req, res) => {
     const limit = Math.min(Number(req.query.limit || 100), 1000);
 
     let sql = `
-      SELECT node_id, metric_type, metric_name, metric_value, unit, recorded_at
-        FROM node_metrics
-       WHERE recorded_at > NOW() - INTERVAL '24 hours'
+      SELECT node_id, cpu_usage, memory_usage, disk_usage, uptime_seconds, active_sessions, received_at AS timestamp
+        FROM heartbeats
+       WHERE received_at > NOW() - INTERVAL '24 hours'
     `;
     const params = [];
 
@@ -94,10 +148,21 @@ router.get('/metrics', requireMasterAdmin, async (req, res) => {
     }
 
     params.push(limit);
-    sql += ` ORDER BY recorded_at DESC LIMIT $${params.length}`;
+    sql += ` ORDER BY received_at DESC LIMIT $${params.length}`;
 
     const result = await query(sql, params);
-    return res.json({ success: true, metrics: result.rows });
+
+    const formattedMetrics = result.rows.map(row => ({
+      nodeId: row.node_id,
+      cpuPercent: row.cpu_usage !== null ? Number(row.cpu_usage) : null,
+      ramPercent: row.memory_usage !== null ? Number(row.memory_usage) : null,
+      diskPercent: row.disk_usage !== null ? Number(row.disk_usage) : null,
+      activeSessions: row.active_sessions !== null ? Number(row.active_sessions) : null,
+      uptime: row.uptime_seconds !== null ? Number(row.uptime_seconds) : null,
+      timestamp: row.timestamp,
+    }));
+
+    return res.json({ success: true, metrics: formattedMetrics });
   } catch (error) {
     console.error('[Cluster] metrics error:', error);
     return res.status(500).json({ success: false, error: 'Failed to get metrics' });

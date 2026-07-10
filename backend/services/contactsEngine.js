@@ -165,6 +165,19 @@ async function persistContactsBatch(contacts = []) {
         params
       );
       persisted += batch.length;
+
+      // Sync names back to the leads table for CRM consistency
+      for (const contact of batch) {
+        if (contact.name && contact.name !== contact.phone) {
+          db.query(
+            `UPDATE leads SET name = $1, updated_at = NOW() 
+             WHERE phone = $2 AND company_id = $3 AND (name IS NULL OR name = '.' OR name = '' OR name = 'Contato')`,
+            [contact.name, contact.phone, contact.companyId || DEFAULT_COMPANY_ID]
+          ).catch(err => {
+            console.error('[ContactsEngine] Failed to update lead name:', err);
+          });
+        }
+      }
     } catch (err) {
       if (err?.code !== '42P01') { // table doesn't exist
         console.error('[ContactsEngine] Batch persist failed:', err?.message || err);

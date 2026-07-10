@@ -409,6 +409,40 @@ function splitLongMessage(text) {
   return chunks.length > 0 ? chunks : [text];
 }
 
+  // 7.5 Detect knowledge gaps for agent evolution
+  if (ai && ai.reply) {
+    const uncertaintyPatterns = [
+      /não tenho essa informação/i,
+      /não sei informar/i,
+      /vou verificar/i,
+      /entre em contato/i,
+      /não posso ajudar com isso/i,
+      /infelizmente não/i,
+      /não disponho dessa informação/i,
+      /preciso consultar/i
+    ];
+    const hasUncertainty = uncertaintyPatterns.some(p => p.test(ai.reply));
+    
+    if (hasUncertainty) {
+      try {
+        const agentLearningRepo = require('../repositories/agentLearningRepository');
+        await agentLearningRepo.createLearningEvent({
+          agentKey: matchedAgent.key,
+          eventType: 'unanswered',
+          customerQuestion: incomingText,
+          aiResponse: ai.reply,
+          contactPhone: phone,
+          contactName: conversation?.name || phone,
+          conversationId: conversationId,
+          companyId
+        });
+        console.log(`[AutomationEngine] Learning event logged for uncertainty: "${incomingText.substring(0, 40)}..."`);
+      } catch (err) {
+        console.error('[AutomationEngine] Failed to create learning event:', err.message);
+      }
+    }
+  }
+
   // 8. Queue: Enqueue AI response message (Queue -> SendMessage)
   const replyText = ai.reply || '';
   const chunks = splitLongMessage(replyText);

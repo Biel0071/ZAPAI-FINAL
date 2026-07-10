@@ -156,9 +156,9 @@ async function getMessagesByConversation(conversationId, options = {}) {
 
   if (before && !Number.isNaN(before.getTime())) {
     values.push(before.toISOString());
-    beforeClause = ` AND COALESCE(m.timestamp, m.created_at) < $${values.length}`;
+    beforeClause = ` AND m.timestamp < $${values.length}`;
   } else {
-    beforeClause = " AND COALESCE(m.timestamp, m.created_at) >= NOW() - INTERVAL '45 days'";
+    beforeClause = " AND m.timestamp >= NOW() - INTERVAL '45 days'";
   }
 
   const result = await db.query(
@@ -184,7 +184,7 @@ async function getMessagesByConversation(conversationId, options = {}) {
         INNER JOIN leads l ON l.id = conv.lead_id
         WHERE m.conversation_id = $1
         ${beforeClause}
-        ORDER BY COALESCE(m.timestamp, m.created_at) DESC, m.id DESC
+        ORDER BY m.timestamp DESC, m.id DESC
         LIMIT $2
       ) recent
       ORDER BY recent.timestamp ASC, recent.id ASC

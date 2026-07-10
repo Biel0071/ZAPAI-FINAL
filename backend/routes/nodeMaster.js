@@ -146,7 +146,14 @@ async function registerNodeHandler(req, res) {
 }
 
 async function processHeartbeat(nodeId, req, res) {
-  const metrics = req.body.metrics || {};
+  let metrics = req.body.metrics || {};
+  if (typeof metrics === 'string') {
+    try {
+      metrics = JSON.parse(metrics);
+    } catch (e) {
+      metrics = {};
+    }
+  }
 
   const cpuUsage = Number(metrics.cpu?.usage ?? req.body.cpu_usage ?? 0) || 0;
   const memoryUsage = Number(metrics.ram?.usage ?? req.body.memory_usage ?? 0) || 0;

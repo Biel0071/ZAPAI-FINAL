@@ -31,7 +31,7 @@ export function useMasterNodesControlPlane() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const { nodes, cluster, deployments, setNodes, setCluster, pushMetric, upsertDeployment } = useMasterNodeStore();
+  const { nodes, cluster, deployments, setNodes, setCluster, setDeployments, pushMetric, upsertDeployment } = useMasterNodeStore();
 
   const mountedRef = useRef(true);
 
@@ -41,6 +41,7 @@ export function useMasterNodesControlPlane() {
       if (!mountedRef.current) return;
       setNodes(data.nodes);
       setCluster(data.cluster);
+      setDeployments(data.deployments);
       setError(null);
     } catch (err) {
       if (!mountedRef.current) return;

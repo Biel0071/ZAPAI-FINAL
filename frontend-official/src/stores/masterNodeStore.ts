@@ -10,6 +10,7 @@ type MasterNodeState = {
   lastSyncAt: number | null;
   setNodes: (nodes: NodeControlPlane[]) => void;
   setCluster: (cluster: ClusterOverview | null) => void;
+  setDeployments: (deployments: NodeDeploymentEvent[]) => void;
   setSelectedNodeId: (nodeId: string | null) => void;
   pushMetric: (nodeId: string, metric: NodeMetricsSnapshot) => void;
   upsertDeployment: (event: NodeDeploymentEvent) => void;
@@ -25,6 +26,7 @@ export const useMasterNodeStore = create<MasterNodeState>((set) => ({
 
   setNodes: (nodes) => set({ nodes, lastSyncAt: Date.now() }),
   setCluster: (cluster) => set({ cluster, lastSyncAt: Date.now() }),
+  setDeployments: (deployments) => set({ deployments, lastSyncAt: Date.now() }),
   setSelectedNodeId: (selectedNodeId) => set({ selectedNodeId }),
 
   pushMetric: (nodeId, metric) =>

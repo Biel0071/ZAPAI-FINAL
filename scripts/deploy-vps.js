@@ -1,7 +1,7 @@
 const { spawn, execSync } = require('child_process');
 const readline = require('readline');
 
-const VPS_IP = '209.50.229.68';
+const VPS_IP = '209.50.241.22';
 const VPS_USER = 'root';
 const VPS_DIR = '/opt/zapai';
 

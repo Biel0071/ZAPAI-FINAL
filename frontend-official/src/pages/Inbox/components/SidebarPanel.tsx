@@ -185,13 +185,13 @@ const SharedMediaCard = memo(function SharedMediaCard({
   }, [mediaUrl]);
 
   return (
-    <div className="rounded-lg border border-border/40 bg-muted/20 p-2 transition-all duration-200 hover:border-primary/35 hover:bg-muted/30">
-      <div className="relative aspect-square w-full flex items-center justify-center overflow-hidden rounded-md border border-border/30 bg-card/40">
+    <div className="group rounded-xl border border-border/30 bg-card/20 p-2.5 transition-all duration-300 hover:border-primary/30 hover:bg-card/40 hover:shadow-sm">
+      <div className="relative aspect-square w-full flex items-center justify-center overflow-hidden rounded-lg border border-border/20 bg-muted/30">
         {mediaType === "image" && mediaUrl && !assetError ? (
           <img
             src={mediaUrl}
             alt={fileName}
-            className="h-full w-full cursor-pointer object-cover"
+            className="h-full w-full cursor-pointer object-cover transition-transform duration-300 group-hover:scale-[1.03]"
             loading="lazy"
             onClick={() =>
               onOpenMediaPreview({ url: mediaUrl, type: previewType, fileName, messageId: message.id })
@@ -201,7 +201,7 @@ const SharedMediaCard = memo(function SharedMediaCard({
         ) : mediaType === "video" && mediaUrl && !assetError ? (
           <video
             src={mediaUrl}
-            className="h-full w-full cursor-pointer object-cover"
+            className="h-full w-full cursor-pointer object-cover transition-transform duration-300 group-hover:scale-[1.03]"
             preload="metadata"
             onClick={() =>
               onOpenMediaPreview({ url: mediaUrl, type: previewType, fileName, messageId: message.id })
@@ -214,7 +214,7 @@ const SharedMediaCard = memo(function SharedMediaCard({
           <img
             src={mediaUrl}
             alt={fileName}
-            className="h-full w-full cursor-pointer bg-white/90 object-contain p-2"
+            className="h-full w-full cursor-pointer bg-white/90 object-contain p-2 transition-transform duration-300 group-hover:scale-[1.03]"
             loading="lazy"
             onClick={() =>
               onOpenMediaPreview({ url: mediaUrl, type: previewType, fileName, messageId: message.id })
@@ -223,15 +223,15 @@ const SharedMediaCard = memo(function SharedMediaCard({
           />
         ) : mediaType === "audio" && mediaUrl && !assetError ? (
           <div className="flex h-full w-full flex-col items-center justify-center gap-2 px-2">
-            <Waveform className="h-8 w-8 text-primary/70 animate-pulse" />
+            <Waveform className="h-7 w-7 text-primary/70 animate-pulse" />
             <span className="text-[10px] text-muted-foreground truncate max-w-full px-1">{fileName}</span>
           </div>
         ) : (
           <div className="flex h-full w-full flex-col items-center justify-center gap-2 px-2 text-center">
             {mediaType === "audio" ? (
-              <Waveform className="h-8 w-8 text-muted-foreground/70" />
+              <Waveform className="h-7 w-7 text-muted-foreground/60" />
             ) : (
-              <FileIcon className="h-8 w-8 text-muted-foreground/70" />
+              <FileIcon className="h-7 w-7 text-muted-foreground/60" />
             )}
             <span className="text-[10px] text-muted-foreground truncate max-w-full px-1">
               {getMediaTypeLabel(mediaType)}
@@ -239,18 +239,18 @@ const SharedMediaCard = memo(function SharedMediaCard({
           </div>
         )}
       </div>
-      <div className="mt-2 space-y-1">
-        <p className="truncate text-[11px] font-semibold text-foreground" title={fileName}>{fileName}</p>
-        <p className="truncate text-[10px] text-muted-foreground">
-          {getMediaTypeLabel(mediaType)} • {assetSize ? formatFileSize(assetSize) : "Tamanho n/d"} • {toConversationDateLabel(message.createdAt)}
+      <div className="mt-2.5 space-y-0.5">
+        <p className="truncate text-[11px] font-semibold text-foreground/90" title={fileName}>{fileName}</p>
+        <p className="truncate text-[10px] text-muted-foreground/80">
+          {getMediaTypeLabel(mediaType)} • {assetSize ? formatFileSize(assetSize) : "Tamanho n/d"}
         </p>
       </div>
-      <div className="mt-2 flex items-center gap-1.5">
+      <div className="mt-2.5 flex items-center gap-1.5">
         <Button
           type="button"
-          variant="ghost"
+          variant="secondary"
           size="sm"
-          className="h-7 flex-1 text-[10px] disabled:opacity-40 disabled:cursor-not-allowed"
+          className="h-7 flex-1 text-[10px] rounded-lg bg-background/50 hover:bg-primary/10 hover:text-primary transition-all disabled:opacity-40 disabled:cursor-not-allowed"
           disabled={!mediaUrl || Boolean(assetError)}
           onClick={() => {
             if (!mediaUrl) return;
@@ -261,9 +261,9 @@ const SharedMediaCard = memo(function SharedMediaCard({
         </Button>
         <Button
           type="button"
-          variant="ghost"
+          variant="secondary"
           size="sm"
-          className="h-7 flex-1 text-[10px] disabled:opacity-40 disabled:cursor-not-allowed"
+          className="h-7 flex-1 text-[10px] rounded-lg bg-background/50 hover:bg-primary/10 hover:text-primary transition-all disabled:opacity-40 disabled:cursor-not-allowed"
           disabled={!mediaUrl || Boolean(assetError)}
           onClick={() => onDownloadMedia(message)}
         >
@@ -271,8 +271,8 @@ const SharedMediaCard = memo(function SharedMediaCard({
         </Button>
       </div>
       {assetError && (
-        <div className="mt-1.5 flex justify-center">
-          <Badge variant="outline" className="border-destructive/30 bg-destructive/5 text-destructive text-[8px] px-1 py-0 h-4 scale-90 truncate max-w-full">
+        <div className="mt-2 flex justify-center">
+          <Badge variant="outline" className="border-destructive/30 bg-destructive/5 text-destructive text-[8px] px-1.5 py-0 h-4 scale-90 truncate max-w-full">
             {assetError.includes("Backend nao retornou URL") ? "Sem URL" : "Erro Mídia"}
           </Badge>
         </div>
@@ -309,19 +309,24 @@ const RightPanelSectionTrigger = memo(function RightPanelSectionTrigger({
       type="button"
       onClick={onSelect}
       className={cn(
-        "flex h-12 w-full shrink-0 items-center justify-between border-b border-border/60 px-4 text-left text-[13px] font-semibold transition-all duration-200 ease-out",
+        "flex h-[46px] w-full shrink-0 items-center justify-between px-4 text-left text-xs font-semibold tracking-wide transition-all duration-200 border-b",
         active
-          ? "bg-primary/10 text-primary shadow-[inset_2px_0_0_hsl(var(--primary))]"
-          : "bg-card/30 text-muted-foreground hover:bg-muted/40 hover:text-foreground",
+          ? "bg-primary/[0.04] text-primary border-b-border/50 border-l-[3px] border-l-primary"
+          : "bg-transparent text-muted-foreground hover:bg-muted/20 hover:text-foreground border-b-border/30 border-l-[3px] border-l-transparent",
       )}
     >
-      <span className="flex items-center gap-3">
-        <Icon className="h-[16px] w-[16px]" strokeWidth={1.8} aria-hidden />
+      <span className="flex items-center gap-2.5">
+        <Icon className={cn("h-4 w-4 transition-colors", active ? "text-primary" : "text-muted-foreground")} strokeWidth={2} aria-hidden />
         {label}
       </span>
-      <span className="text-[11px]" aria-hidden>
-        {active ? "▼" : "▶"}
-      </span>
+      <CaretRight
+        className={cn(
+          "h-3.5 w-3.5 text-muted-foreground/70 transition-transform duration-200 ease-in-out",
+          active && "rotate-90 text-primary"
+        )}
+        weight="bold"
+        aria-hidden
+      />
     </button>
   );
 });
@@ -569,6 +574,22 @@ export function SidebarPanel({
     };
   }, [aiMemory, conversationMetrics, messages, selectedLead]);
 
+  const allCategories = useMemo(() => {
+    const cats = new Set<string>();
+    cats.add("saudação");
+    cats.add("vendas");
+    cats.add("suporte");
+    for (const item of quickReplies) {
+      if (item.category) {
+        const cleanCat = item.category.replace(/[\u2700-\u27BF]|[\uE000-\uF8FF]|\uD83C[\uDC00-\uDFFF]|\uD83D[\uDC00-\uDFFF]|[\u2011-\u26FF]|\uD83E[\uDC00-\uDFFF]/g, '').trim().toLowerCase();
+        if (cleanCat) {
+          cats.add(cleanCat);
+        }
+      }
+    }
+    return Array.from(cats);
+  }, [quickReplies]);
+
   const filteredQuickReplies = useMemo(() => {
     const query = responseSearchQuery.trim().toLowerCase();
     return quickReplies.filter((item) => {
@@ -612,23 +633,23 @@ export function SidebarPanel({
       onDoubleClick={() => {
         void sendQuickReply(item);
       }}
-      className="group rounded-md border border-border/50 bg-background/30 p-1.5 transition-all hover:border-border hover:bg-background/60 hover:shadow-sm cursor-pointer active:scale-[0.98] select-none"
+      className="group rounded-xl border border-border/40 bg-card/20 p-3 transition-all duration-200 hover:border-primary/40 hover:bg-card/40 hover:shadow-sm cursor-pointer active:scale-[0.99] select-none"
     >
-      <div className="flex items-start justify-between gap-1.5">
-        <h4 className="font-semibold text-[11.5px] text-foreground truncate flex-grow flex items-center gap-1.5">
+      <div className="flex items-start justify-between gap-2">
+        <h4 className="font-semibold text-xs text-foreground/90 truncate flex-grow flex items-center gap-1.5">
           {item.isFlow && (
-            <Badge className="bg-purple-600 hover:bg-purple-700 text-white text-[9px] px-1 py-0 h-4 leading-none font-semibold shrink-0">
+            <Badge className="bg-purple-600 hover:bg-purple-700 text-white text-[9px] px-1 py-0.2 h-[15px] leading-none font-bold shrink-0">
               Fluxo
             </Badge>
           )}
           <span className="truncate">{item.title || getQuickReplyPreviewText(item, conversationVariableContext).split("\n")[0]}</span>
         </h4>
         {item.tags && item.tags.length > 0 && (
-          <div className="flex gap-0.5 max-w-[50%] overflow-hidden shrink-0">
+          <div className="flex gap-0.5 max-w-[45%] overflow-hidden shrink-0">
             {item.tags.slice(0, 2).map((t) => (
               <span
                 key={t}
-                className="text-[8px] px-1 py-0.2 rounded bg-primary/10 text-primary border border-primary/20 scale-90"
+                className="text-[8px] px-1.5 py-0.2 rounded bg-primary/10 text-primary border border-primary/20 scale-90"
               >
                 {t}
               </span>
@@ -636,29 +657,43 @@ export function SidebarPanel({
           </div>
         )}
       </div>
-      <p className="line-clamp-2 text-[11px] leading-snug text-muted-foreground mt-0.5">
+      <p className="line-clamp-2 text-[11px] leading-snug text-muted-foreground mt-1">
         {getQuickReplyPreviewText(item, conversationVariableContext)}
       </p>
       {item.items && item.items.some((entry) => entry.type !== "text") && (
-        <div className="mt-1 flex flex-wrap gap-1">
+        <div className="mt-1.5 flex flex-wrap gap-1">
           {item.items
             .filter((entry) => entry.type !== "text")
-            .map((entry, index) => (
-              <span
-                key={`${item.id}-${entry.type}-${index}`}
-                className="rounded-full border border-border/60 bg-muted/30 px-1.5 py-0.5 text-[9px] text-muted-foreground"
-              >
-                {getMediaTypeLabel(entry.type === "pdf" ? "document" : entry.type)}
-              </span>
-            ))}
+            .map((entry, index) => {
+              const type = entry.type === "pdf" ? "document" : entry.type;
+              const badgeStyle = 
+                type === "image" ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/25" :
+                type === "video" ? "bg-rose-500/10 text-rose-400 border border-rose-500/25" :
+                type === "audio" ? "bg-amber-500/10 text-amber-400 border border-amber-500/25" :
+                type === "document" || type === "file" ? "bg-sky-500/10 text-sky-400 border border-sky-500/25" :
+                "bg-slate-500/10 text-slate-400 border border-slate-500/25";
+              const label = 
+                type === "image" ? "IMAGEM" :
+                type === "video" ? "VÍDEO" :
+                type === "audio" ? "ÁUDIO" :
+                type === "document" || type === "file" ? "DOCUMENTO" : "MÍDIA";
+              return (
+                <span
+                  key={`${item.id}-${entry.type}-${index}`}
+                  className={`rounded-full px-2 py-0.5 text-[9px] font-semibold tracking-wider ${badgeStyle}`}
+                >
+                  {label}
+                </span>
+              );
+            })}
         </div>
       )}
-      <div className="mt-1.5 flex items-center gap-0.5 opacity-70 transition-opacity group-hover:opacity-100">
+      <div className="mt-2.5 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all duration-200">
         <Button
           size="sm"
           className={cn(
-            "h-6 flex-grow text-[10px]",
-            item.isFlow && "bg-purple-600 hover:bg-purple-700 text-white border-none shadow-sm"
+            "h-7 flex-grow text-[10.5px] font-semibold rounded-lg shadow-sm transition-all",
+            item.isFlow ? "bg-purple-600 hover:bg-purple-700 text-white" : "bg-primary text-primary-foreground hover:bg-primary/90"
           )}
           onClick={(e) => {
             e.stopPropagation();
@@ -667,18 +702,18 @@ export function SidebarPanel({
         >
           {item.isFlow ? (
             <>
-              <PaperPlaneTilt className="mr-1 h-3 w-3" weight="fill" /> Disparar Fluxo
+              <PaperPlaneTilt className="mr-1 h-3.5 w-3.5" weight="fill" /> Disparar
             </>
           ) : (
             <>
-              <PaperPlaneTilt className="mr-1 h-3 w-3" weight="fill" /> Enviar
+              <PaperPlaneTilt className="mr-1 h-3.5 w-3.5" weight="fill" /> Enviar
             </>
           )}
         </Button>
         <Button
           size="icon"
           variant="ghost"
-          className="h-6 w-6"
+          className="h-7 w-7 rounded-lg text-muted-foreground hover:text-warning hover:bg-warning/10 transition-colors"
           onClick={(e) => {
             e.stopPropagation();
             toggleFavoriteQuickReply(item.id);
@@ -686,45 +721,45 @@ export function SidebarPanel({
           title="Favoritar"
         >
           <Star
-            className={cn("h-3 w-3", item.favorite ? "text-warning" : "text-muted-foreground")}
+            className={cn("h-3.5 w-3.5", item.favorite ? "text-warning" : "text-muted-foreground")}
             weight={item.favorite ? "fill" : "regular"}
           />
         </Button>
         <Button
           size="icon"
           variant="ghost"
-          className="h-6 w-6"
+          className="h-7 w-7 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
           onClick={(e) => {
             e.stopPropagation();
             openEditQuickReplyDialog(item);
           }}
           title="Editar"
         >
-          <PencilSimple className="h-3 w-3" />
+          <PencilSimple className="h-3.5 w-3.5" />
         </Button>
         <Button
           size="icon"
           variant="ghost"
-          className="h-6 w-6"
+          className="h-7 w-7 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
           onClick={(e) => {
             e.stopPropagation();
             duplicateQuickReply(item);
           }}
           title="Duplicar"
         >
-          <CopySimple className="h-3 w-3" />
+          <CopySimple className="h-3.5 w-3.5" />
         </Button>
         <Button
           size="icon"
           variant="ghost"
-          className="h-6 w-6 text-destructive hover:bg-destructive/10"
+          className="h-7 w-7 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
           onClick={(e) => {
             e.stopPropagation();
             deleteQuickReply(item.id);
           }}
           title="Excluir"
         >
-          <Trash className="h-3 w-3" />
+          <Trash className="h-3.5 w-3.5" />
         </Button>
       </div>
     </div>
@@ -735,41 +770,16 @@ export function SidebarPanel({
       <Tabs
         value={rightPanelTab ?? ""}
         onValueChange={(value) => setRightPanelTab(value as RightPanelTabId)}
-        className="flex h-full w-full flex-col overflow-y-auto rounded-md border border-border/60 bg-card/20"
+        className="flex h-full w-full flex-col overflow-y-auto border-none bg-transparent"
       >
         <div className="hidden">
           <div className="flex overflow-x-auto scrollbar-none border-b border-border bg-muted/40 p-1 rounded-lg">
             <TabsList className="flex w-max space-x-1 bg-transparent">
-              <TabsTrigger
-                value="ai"
-                className="text-xs px-2.5 h-7 transition-all data-[state=active]:shadow-sm"
-              >
-                IA
-              </TabsTrigger>
-              <TabsTrigger
-                value="lead"
-                className="text-xs px-2.5 h-7 transition-all data-[state=active]:shadow-sm"
-              >
-                Lead
-              </TabsTrigger>
-              <TabsTrigger
-                value="files"
-                className="text-xs px-2.5 h-7 transition-all data-[state=active]:shadow-sm"
-              >
-                Arquivos
-              </TabsTrigger>
-              <TabsTrigger
-                value="qr"
-                className="text-xs px-2.5 h-7 transition-all data-[state=active]:shadow-sm"
-              >
-                Respostas Rápidas
-              </TabsTrigger>
-              <TabsTrigger
-                value="history"
-                className="text-xs px-2.5 h-7 transition-all data-[state=active]:shadow-sm"
-              >
-                Histórico
-              </TabsTrigger>
+              <TabsTrigger value="ai">IA</TabsTrigger>
+              <TabsTrigger value="lead">Lead</TabsTrigger>
+              <TabsTrigger value="files">Arquivos</TabsTrigger>
+              <TabsTrigger value="qr">Respostas Rápidas</TabsTrigger>
+              <TabsTrigger value="history">Histórico</TabsTrigger>
             </TabsList>
           </div>
         </div>
@@ -783,27 +793,27 @@ export function SidebarPanel({
         />
         <TabsContent
           value="ai"
-          className="mt-0 max-h-[calc(100vh-300px)] shrink-0 space-y-3 overflow-y-auto p-2 scrollbar-thin animate-fade-in data-[state=inactive]:hidden"
+          className="mt-0 max-h-[calc(100vh-270px)] shrink-0 space-y-3 overflow-y-auto p-2 scrollbar-thin animate-fade-in data-[state=inactive]:hidden"
         >
           <InboxSectionBoundary fallbackLabel="Insights IA">
-            <Accordion type="multiple" defaultValue={["ai-status", "ai-action", "ai-analysis"]} className="space-y-1.5">
+            <Accordion type="multiple" defaultValue={["ai-status", "ai-action", "ai-analysis"]} className="space-y-2">
               <AccordionItem
                 value="ai-status"
-                className="rounded-md border border-border/60 bg-card/40 px-2.5"
+                className="rounded-xl border border-border/40 bg-card/25 p-0.5 overflow-hidden transition-all duration-200 hover:border-border/60 hover:bg-card/45 shadow-sm"
               >
-                <AccordionTrigger className="py-1.5 text-xs font-semibold hover:no-underline">
+                <AccordionTrigger className="py-2.5 px-3.5 text-xs font-bold text-foreground/90 hover:no-underline">
                   Status e modelo
                 </AccordionTrigger>
-                <AccordionContent className="pb-2">
-                  <div className="space-y-2 text-[11px]">
-                    <div className="flex items-center justify-between py-1 border-b border-border/30">
+                <AccordionContent className="px-3.5 pb-3">
+                  <div className="space-y-2.5 text-[11px]">
+                    <div className="flex items-center justify-between py-1.5 border-b border-border/10">
                       <div className="flex items-center gap-1.5">
-                        <span className={cn("h-2 w-2 rounded-full", aiEnabledForConversation ? "bg-emerald-500" : "bg-neutral-500")} />
-                        <span className="font-semibold text-foreground">
-                          {aiEnabledForConversation ? "IA Ativa" : "IA Pausada"}
+                        <span className={cn("h-1.5 w-1.5 rounded-full animate-pulse", aiEnabledForConversation ? "bg-emerald-500" : "bg-neutral-500")} />
+                        <span className="font-semibold text-foreground/90">
+                          {aiEnabledForConversation ? "IA Ativa nesta conversa" : "IA Pausada nesta conversa"}
                         </span>
                       </div>
-                      <Badge variant="outline" className="h-5 rounded-full px-2 text-[9px] border-border/60">
+                      <Badge variant="outline" className="h-4.5 rounded-full px-2 text-[8px] uppercase tracking-wider font-semibold border-border/60">
                         {!aiRuntime.globalEnabled
                           ? "Global off"
                           : !conversationAiOverrideEnabled
@@ -812,79 +822,75 @@ export function SidebarPanel({
                       </Badge>
                     </div>
 
-                    <div className="grid grid-cols-3 gap-1.5 mt-1">
-                      <div className="rounded-md border border-border/50 bg-muted/25 p-2 min-w-0">
-                        <span className="block text-muted-foreground text-[9px] uppercase tracking-wider font-semibold">Modelo</span>
-                        <span className="font-semibold text-foreground text-[11px] truncate block">
+                    <div className="grid grid-cols-3 gap-2 mt-1">
+                      <div className="rounded-lg border border-border/30 bg-background/40 p-2 text-center transition-all hover:bg-background/80">
+                        <span className="block text-muted-foreground text-[8px] uppercase tracking-wider font-semibold">Modelo</span>
+                        <span className="font-semibold text-foreground text-[10px] truncate block mt-0.5" title={aiRuntime.model}>
                           {aiRuntime.loading ? "..." : aiRuntime.model}
                         </span>
                       </div>
-                      <div className="rounded-md border border-border/50 bg-muted/25 p-2 min-w-0 flex items-center gap-1">
+                      <div className="rounded-lg border border-border/30 bg-background/40 p-2 text-center transition-all hover:bg-background/80 flex flex-col justify-center items-center">
                         {(() => {
                           const IconComp = getProviderIcon(aiRuntime.provider);
-                          return <IconComp className="h-3.5 w-3.5 text-muted-foreground shrink-0" />;
+                          return <IconComp className="h-3 w-3 text-muted-foreground/80 mb-0.5 shrink-0" />;
                         })()}
-                        <div className="min-w-0 flex-1">
-                          <span className="block text-muted-foreground text-[9px] uppercase tracking-wider font-semibold">Provedor</span>
-                          <span className="font-semibold text-foreground text-[11px] truncate block">
-                            {aiRuntime.loading ? "..." : aiRuntime.provider}
-                          </span>
-                        </div>
+                        <span className="block text-muted-foreground text-[8px] uppercase tracking-wider font-semibold">Provedor</span>
+                        <span className="font-semibold text-foreground text-[10px] truncate block mt-0.5" title={aiRuntime.provider}>
+                          {aiRuntime.loading ? "..." : aiRuntime.provider}
+                        </span>
                       </div>
-                      <div className="rounded-md border border-border/50 bg-muted/25 p-2 min-w-0">
-                        <span className="block text-muted-foreground text-[9px] uppercase tracking-wider font-semibold">Última Resp.</span>
-                        <span className="font-semibold text-foreground text-[11px] truncate block">
+                      <div className="rounded-lg border border-border/30 bg-background/40 p-2 text-center transition-all hover:bg-background/80">
+                        <span className="block text-muted-foreground text-[8px] uppercase tracking-wider font-semibold">Última Resp.</span>
+                        <span className="font-semibold text-foreground text-[10px] truncate block mt-0.5">
                           {aiRuntime.lastResponseAt ? formatTime(aiRuntime.lastResponseAt) : "Sem registro"}
                         </span>
                       </div>
                     </div>
 
                     {/* Collapsible details for secondary metrics */}
-                    <details className="mt-2 text-[11px] group">
+                    <details className="mt-2 text-xs group">
                       <summary className="cursor-pointer text-muted-foreground hover:text-foreground text-[10px] select-none list-none flex items-center gap-1 font-semibold py-1">
-                        <span className="transition-transform group-open:rotate-90">▶</span>
+                        <CaretRight className="h-3 w-3 transition-transform duration-200 group-open:rotate-90 text-muted-foreground" />
                         Mais Métricas
                       </summary>
-                      <div className="grid grid-cols-2 gap-2 mt-1.5 border-t border-border/30 pt-1.5">
-                        <div className="rounded-md border border-border/40 bg-muted/15 p-2">
-                          <span className="block text-muted-foreground text-[10px]">Memória</span>
-                          <span className="font-semibold text-foreground">
-                            {aiRuntime.memoryEnabled ? "Ativa" : "Desativada"}
-                          </span>
+                      <div className="grid grid-cols-2 gap-1.5 mt-2 pt-2 border-t border-border/10">
+                        <div className="flex items-center justify-between p-1.5 rounded-lg bg-background/40 border border-border/20">
+                          <span className="text-[10px] text-muted-foreground">Memória</span>
+                          <span className="font-semibold text-foreground text-[10px]">{aiRuntime.memoryEnabled ? "Ativa" : "Off"}</span>
                         </div>
-                        <div className="rounded-md border border-border/40 bg-muted/15 p-2">
-                          <span className="block text-muted-foreground text-[10px]">Tempo</span>
-                          <span className="font-semibold text-foreground">
+                        <div className="flex items-center justify-between p-1.5 rounded-lg bg-background/40 border border-border/20">
+                          <span className="text-[10px] text-muted-foreground">Latência</span>
+                          <span className="font-semibold text-foreground text-[10px]">
                             {formatDurationMs(aiRuntime.lastResponseTimeMs)}
                           </span>
                         </div>
-                        <div className="rounded-md border border-border/40 bg-muted/15 p-2">
-                          <span className="block text-muted-foreground text-[10px]">Tokens Entrada</span>
-                          <span className="font-semibold tabular-nums text-foreground">
+                        <div className="flex items-center justify-between p-1.5 rounded-lg bg-background/40 border border-border/20">
+                          <span className="text-[10px] text-muted-foreground">Prompt Tkn</span>
+                          <span className="font-semibold tabular-nums text-foreground text-[10px]">
                             {aiRuntime.promptTokens}
                           </span>
                         </div>
-                        <div className="rounded-md border border-border/40 bg-muted/15 p-2">
-                          <span className="block text-muted-foreground text-[10px]">Tokens Saída</span>
-                          <span className="font-semibold tabular-nums text-foreground">
+                        <div className="flex items-center justify-between p-1.5 rounded-lg bg-background/40 border border-border/20">
+                          <span className="text-[10px] text-muted-foreground">Output Tkn</span>
+                          <span className="font-semibold tabular-nums text-foreground text-[10px]">
                             {aiRuntime.completionTokens}
                           </span>
                         </div>
-                        <div className="rounded-md border border-border/40 bg-muted/15 p-2">
-                          <span className="block text-muted-foreground text-[10px]">Tokens Total</span>
-                          <span className="font-semibold tabular-nums text-foreground">
+                        <div className="flex items-center justify-between p-1.5 rounded-lg bg-background/40 border border-border/20 col-span-2">
+                          <span className="text-[10px] text-muted-foreground">Total Tokens</span>
+                          <span className="font-semibold tabular-nums text-foreground text-[10px]">
                             {aiRuntime.promptTokens + aiRuntime.completionTokens}
                           </span>
                         </div>
                       </div>
                     </details>
 
-                    <div className="mt-3 space-y-1.5 border-t border-border/40 pt-3">
-                      <span className="block text-[10px] uppercase font-bold text-muted-foreground/80">Atendente Designado</span>
+                    <div className="mt-3.5 space-y-1.5 border-t border-border/10 pt-3">
+                      <span className="block text-[10px] uppercase font-bold text-muted-foreground/80 tracking-wider">Atendente Designado</span>
                       <select
                         value={selectedConversation?.assignedAgentName ?? ""}
                         onChange={(e) => handleSetConversationAgent?.(e.target.value)}
-                        className="flex h-8 w-full rounded-md border border-input/60 bg-background/50 px-2 py-1 text-xs ring-offset-background focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 text-foreground"
+                        className="flex h-8.5 w-full rounded-lg border border-border bg-background/50 px-2.5 py-1 text-xs transition-all focus:border-primary focus:ring-1 focus:ring-primary/20 outline-none text-foreground"
                       >
                         {loadingAgents ? (
                           <option>Carregando atendentes...</option>
@@ -910,13 +916,13 @@ export function SidebarPanel({
               </AccordionItem>
               <AccordionItem
                 value="ai-action"
-                className="rounded-md border border-border/60 bg-card/40 px-2.5"
+                className="rounded-xl border border-border/40 bg-card/25 p-0.5 overflow-hidden transition-all duration-200 hover:border-border/60 hover:bg-card/45 shadow-sm"
               >
-                <AccordionTrigger className="py-1.5 text-xs font-semibold hover:no-underline">
+                <AccordionTrigger className="py-2.5 px-3.5 text-xs font-bold text-foreground/90 hover:no-underline">
                   Ação recomendada
                 </AccordionTrigger>
-                <AccordionContent className="space-y-2 pb-2 text-xs">
-                  <p className="leading-relaxed text-muted-foreground">
+                <AccordionContent className="px-3.5 pb-3 space-y-2.5 text-xs">
+                  <p className="leading-relaxed text-muted-foreground/95">
                     {selectedLead?.next_action === "close_sale"
                       ? "Conduzir o lead para fechamento."
                       : selectedLead?.next_action === "send_price"
@@ -926,50 +932,52 @@ export function SidebarPanel({
                           : "Entender a necessidade e apresentar o próximo passo."}
                   </p>
                   <Button
-                    variant="outline"
+                    variant="default"
                     size="sm"
-                    className="h-7 w-full text-[10px]"
+                    className="h-8 w-full text-xs font-semibold gap-1.5 rounded-lg shadow-sm bg-gradient-to-r from-primary to-primary-hover hover:opacity-95 text-primary-foreground"
                     onClick={() => void handleSuggestResponse()}
                     disabled={!aiEnabledForConversation || suggestingResponse}
                   >
+                    <Sparkles className="h-3.5 w-3.5" />
                     {suggestingResponse ? "Gerando..." : "Gerar resposta sugerida"}
                   </Button>
                 </AccordionContent>
               </AccordionItem>
               <AccordionItem
                 value="ai-analysis"
-                className="rounded-md border border-border/60 bg-card/40 px-2.5"
+                className="rounded-xl border border-border/40 bg-card/25 p-0.5 overflow-hidden transition-all duration-200 hover:border-border/60 hover:bg-card/45 shadow-sm"
               >
-                <AccordionTrigger className="py-1.5 text-xs font-semibold hover:no-underline">
-                  Análise
+                <AccordionTrigger className="py-2.5 px-3.5 text-xs font-bold text-foreground/90 hover:no-underline">
+                  Análise do Lead
                 </AccordionTrigger>
-                <AccordionContent className="space-y-1.5 pb-2 text-[11px]">
-                  <p>
-                    <span className="text-muted-foreground">Intenção: </span>
-                    <span className="text-foreground">{aiLiveInsights.objective}</span>
-                  </p>
-                  <p>
-                    <span className="text-muted-foreground">Produtos: </span>
-                    <span className="text-foreground">{aiLiveInsights.products}</span>
-                  </p>
-                  <p>
-                    <span className="text-muted-foreground">Objeções: </span>
-                    <span className="text-foreground">{aiLiveInsights.objections}</span>
-                  </p>
-                  <p>
-                    <span className="text-muted-foreground">Funil: </span>
-                    <span className="text-foreground">{selectedConversationFunnelStage}</span>
-                  </p>
+                <AccordionContent className="px-3.5 pb-3 space-y-2 text-[11px]">
+                  <div className="flex items-center justify-between py-1 border-b border-border/10">
+                    <span className="text-muted-foreground">Intenção:</span>
+                    <span className="font-semibold text-foreground">{aiLiveInsights.objective}</span>
+                  </div>
+                  <div className="flex items-center justify-between py-1 border-b border-border/10">
+                    <span className="text-muted-foreground">Produtos:</span>
+                    <span className="font-semibold text-foreground">{aiLiveInsights.products}</span>
+                  </div>
+                  <div className="flex items-center justify-between py-1 border-b border-border/10">
+                    <span className="text-muted-foreground">Objeções:</span>
+                    <span className="font-semibold text-foreground">{aiLiveInsights.objections}</span>
+                  </div>
+                  <div className="flex items-center justify-between py-1 border-b border-border/10">
+                    <span className="text-muted-foreground">Funil:</span>
+                    <span className="font-semibold text-foreground">{selectedConversationFunnelStage}</span>
+                  </div>
                   {aiLiveInsights.summary && (
-                    <p className="rounded-md bg-muted/25 p-2 leading-relaxed text-foreground">
+                    <div className="mt-2.5 rounded-lg bg-primary/[0.02] border border-primary/15 p-2.5 leading-relaxed text-foreground/90 text-[11px] italic relative">
+                      <Brain className="absolute right-2 top-2 h-3.5 w-3.5 text-primary/20 shrink-0" />
                       {aiLiveInsights.summary}
-                    </p>
+                    </div>
                   )}
                 </AccordionContent>
               </AccordionItem>
             </Accordion>
           </InboxSectionBoundary>
-        </TabsContent>
+        </</TabsContent>
 
         {/* ============ TAB LEAD (CRM) ============ */}
         <RightPanelSectionTrigger
@@ -980,34 +988,34 @@ export function SidebarPanel({
         />
         <TabsContent
           value="lead"
-          className="mt-0 max-h-[calc(100vh-300px)] shrink-0 space-y-3 overflow-y-auto p-2 scrollbar-thin animate-fade-in data-[state=inactive]:hidden"
+          className="mt-0 max-h-[calc(100vh-270px)] shrink-0 space-y-3 overflow-y-auto p-2 scrollbar-thin animate-fade-in data-[state=inactive]:hidden"
         >
           <InboxSectionBoundary fallbackLabel="Lead CRM">
-            <Accordion type="multiple" defaultValue={["lead-contact", "lead-tags", "lead-funnel", "lead-notes"]} className="space-y-1.5">
+            <Accordion type="multiple" defaultValue={["lead-contact", "lead-tags", "lead-funnel", "lead-notes"]} className="space-y-2">
               <AccordionItem
                 value="lead-contact"
-                className="rounded-md border border-border/60 bg-card/40 px-2.5"
+                className="rounded-xl border border-border/40 bg-card/25 p-0.5 overflow-hidden transition-all duration-200 hover:border-border/60 hover:bg-card/45 shadow-sm"
               >
-                <AccordionTrigger className="py-1.5 text-xs font-semibold hover:no-underline">
+                <AccordionTrigger className="py-2.5 px-3.5 text-xs font-bold text-foreground/90 hover:no-underline">
                   Dados do contato
                 </AccordionTrigger>
-                <AccordionContent className="space-y-2 pb-2 text-[11px]">
-                  <div>
-                    <span className="block text-muted-foreground">Nome</span>
+                <AccordionContent className="px-3.5 pb-3 space-y-2.5 text-[11px]">
+                  <div className="flex items-center justify-between py-1 border-b border-border/10">
+                    <span className="text-muted-foreground">Nome</span>
                     <span className="font-semibold text-foreground">{selectedConversation.contactName}</span>
                   </div>
-                  <div>
-                    <span className="block text-muted-foreground">Telefone</span>
-                    <span className="break-all font-mono font-semibold text-foreground">
+                  <div className="flex items-center justify-between py-1 border-b border-border/10">
+                    <span className="text-muted-foreground">Telefone</span>
+                    <span className="break-all font-mono font-semibold text-foreground/90">
                       {formatPhoneNumber(selectedConversation.phone)}
                     </span>
                   </div>
-                  <div>
-                    <span className="block text-muted-foreground">Origem</span>
+                  <div className="flex items-center justify-between py-1 border-b border-border/10">
+                    <span className="text-muted-foreground">Origem</span>
                     <span className="font-semibold text-foreground">{conversationMetrics.leadSource}</span>
                   </div>
-                  <div>
-                    <span className="block text-muted-foreground">Última interação</span>
+                  <div className="flex items-center justify-between py-1 border-b border-border/10">
+                    <span className="text-muted-foreground">Última interação</span>
                     <span className="font-semibold text-foreground">
                       {conversationMetrics.lastInteraction
                         ? new Date(conversationMetrics.lastInteraction).toLocaleString("pt-BR")
@@ -1018,61 +1026,62 @@ export function SidebarPanel({
               </AccordionItem>
               <AccordionItem
                 value="lead-tags"
-                className="rounded-md border border-border/60 bg-card/40 px-2.5"
+                className="rounded-xl border border-border/40 bg-card/25 p-0.5 overflow-hidden transition-all duration-200 hover:border-border/60 hover:bg-card/45 shadow-sm"
               >
-                <AccordionTrigger className="py-1.5 text-xs font-semibold hover:no-underline">
+                <AccordionTrigger className="py-2.5 px-3.5 text-xs font-bold text-foreground/90 hover:no-underline">
                   Etiquetas
                 </AccordionTrigger>
-                <AccordionContent className="space-y-2 pb-2">
-                  <div className="flex flex-wrap gap-1">
+                <AccordionContent className="px-3.5 pb-3 space-y-3">
+                  <div className="flex flex-wrap gap-1.5">
                     {(selectedConversation.tags ?? []).map((tag) => (
                       <Badge
                         key={tag}
                         variant="outline"
-                        className={cn("gap-1 text-[10px]", getTagColor(tag))}
+                        className={cn("gap-1 text-[10px] rounded-lg px-2 py-0.5 transition-colors hover:bg-destructive/10 hover:text-destructive", getTagColor(tag))}
                       >
                         {tag}
                         <button
                           type="button"
                           onClick={() => handleRemoveTagFromSelectedConversation(tag)}
                           aria-label={`Remover ${tag}`}
+                          className="hover:scale-105 shrink-0"
                         >
                           <X className="h-3 w-3" />
                         </button>
                       </Badge>
                     ))}
                     {(selectedConversation.tags ?? []).length === 0 && (
-                      <span className="text-[11px] text-muted-foreground">Sem etiquetas</span>
+                      <span className="text-[11px] text-muted-foreground/80">Sem etiquetas atribuídas</span>
                     )}
                   </div>
-                  <div className="flex gap-1.5">
+                  <div className="flex gap-1.5 pt-1">
                     <Input
                       value={newTagInput}
                       onChange={(event) => setNewTagInput(event.target.value)}
-                      placeholder="Nova etiqueta"
-                      className="h-8 text-xs bg-background"
+                      placeholder="Nova etiqueta..."
+                      className="h-8.5 text-xs bg-background/50 rounded-lg border-border focus:border-primary/50"
                       onKeyDown={(event) => event.key === "Enter" && handleAddTagToSelectedConversation()}
                     />
                     <Button
                       type="button"
                       size="sm"
                       variant="outline"
-                      className="h-8 px-2"
+                      className="h-8.5 w-8.5 px-0 rounded-lg shrink-0 text-muted-foreground hover:text-primary hover:bg-primary/5"
                       onClick={handleAddTagToSelectedConversation}
                     >
-                      <Plus className="h-3.5 w-3.5" />
+                      <Plus className="h-4 w-4" />
                     </Button>
                   </div>
                 </AccordionContent>
               </AccordionItem>
               <AccordionItem
                 value="lead-funnel"
-                className="rounded-md border border-border/60 bg-card/40 px-2.5"
+                className="rounded-xl border border-border/40 bg-card/25 p-0.5 overflow-hidden transition-all duration-200 hover:border-border/60 hover:bg-card/45 shadow-sm"
               >
-                <AccordionTrigger className="py-1.5 text-xs font-semibold hover:no-underline">
-                  Funil
+                <AccordionTrigger className="py-2.5 px-3.5 text-xs font-bold text-foreground/90 hover:no-underline">
+                  Estágio no Funil
                 </AccordionTrigger>
-                <AccordionContent className="pb-2">
+                <AccordionContent className="px-3.5 pb-3">
                   <select
                     value={selectedConversationFunnelStage}
                     onChange={(event) => {
@@ -1087,7 +1096,7 @@ export function SidebarPanel({
                       void persistConversationMetadata(selectedConversation.id, { funnel_stage });
                       toast({ title: `Lead movido para: ${funnel_stage}` });
                     }}
-                    className="h-8 w-full rounded-md border border-border bg-background px-2 text-xs text-foreground"
+                    className="h-8.5 w-full rounded-lg border border-border bg-background/50 px-2.5 text-xs text-foreground/90 focus:border-primary focus:ring-1 focus:ring-primary/20 outline-none transition-all"
                   >
                     {BUSINESS_TAG_OPTIONS.map((stage) => (
                       <option key={stage} value={stage}>
@@ -1099,22 +1108,22 @@ export function SidebarPanel({
               </AccordionItem>
               <AccordionItem
                 value="lead-notes"
-                className="rounded-md border border-border/60 bg-card/40 px-2.5"
+                className="rounded-xl border border-border/40 bg-card/25 p-0.5 overflow-hidden transition-all duration-200 hover:border-border/60 hover:bg-card/45 shadow-sm"
               >
-                <AccordionTrigger className="py-1.5 text-xs font-semibold hover:no-underline">
+                <AccordionTrigger className="py-2.5 px-3.5 text-xs font-bold text-foreground/90 hover:no-underline">
                   Observações
                 </AccordionTrigger>
-                <AccordionContent className="space-y-2 pb-2">
+                <AccordionContent className="px-3.5 pb-3 space-y-2.5">
                   <textarea
                     value={leadNotes}
                     onChange={(event) => setLeadNotes(event.target.value)}
                     placeholder="Registre contexto importante deste atendimento..."
-                    className="min-h-24 w-full resize-y rounded-md border border-border bg-background p-2 text-xs outline-none focus:ring-1 focus:ring-primary text-foreground"
+                    className="min-h-24 w-full resize-y rounded-lg border border-border bg-background/50 p-2.5 text-xs outline-none focus:ring-1 focus:ring-primary focus:border-primary transition-all text-foreground"
                   />
                   <Button
                     type="button"
                     size="sm"
-                    className="h-7 w-full text-[10px]"
+                    className="h-8 w-full text-xs font-semibold rounded-lg bg-primary/10 text-primary hover:bg-primary/20 transition-colors"
                     onClick={() => void handleSaveLeadNotes()}
                   >
                     Salvar observações
@@ -1134,73 +1143,74 @@ export function SidebarPanel({
         />
         <TabsContent
           value="qr"
-          className="mt-0 max-h-[calc(100vh-300px)] shrink-0 space-y-2.5 overflow-y-auto p-2 scrollbar-thin animate-fade-in data-[state=inactive]:hidden"
+          className="mt-0 max-h-[calc(100vh-270px)] shrink-0 space-y-3 overflow-y-auto p-2 scrollbar-thin animate-fade-in data-[state=inactive]:hidden"
         >
           <InboxSectionBoundary fallbackLabel="Quick Replies">
             <div className="flex gap-2">
               <div className="relative flex-grow">
-                <MagnifyingGlass className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <MagnifyingGlass className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground/75" />
                 <Input
                   value={responseSearchQuery}
                   onChange={(event) => setResponseSearchQuery(event.target.value)}
                   placeholder="Buscar resposta..."
-                  className="h-9 pl-9 text-xs bg-muted/20 border-border/50 focus:border-primary/50"
+                  className="h-9 pl-9 text-xs bg-background/50 border-border rounded-lg focus:border-primary/50"
                 />
               </div>
-              <Button onClick={openCreateQuickReplyDialog} size="sm" className="h-9 gap-1 rounded-lg">
-                <Plus className="h-3.5 w-3.5" /> Novo
+              <Button onClick={openCreateQuickReplyDialog} size="sm" variant="outline" className="h-9 gap-1 rounded-lg px-3 hover:bg-primary/5 hover:text-primary">
+                <Plus className="h-4 w-4" /> Novo
               </Button>
             </div>
 
-            <div className="flex flex-wrap gap-1.5 shrink-0">
-              {(
-                [
-                  { value: "all", label: "Todas" },
-                  { value: "saudação", label: "Saudação" },
-                  { value: "vendas", label: "Vendas" },
-                  { value: "suporte", label: "Suporte" },
-                ] as const
-              ).map((option) => (
+            <div className="flex flex-wrap gap-1 shrink-0">
+              <Button
+                size="sm"
+                variant={quickReplyCategory === "all" ? "default" : "outline"}
+                className="h-6.5 rounded-full px-3 text-[10.5px] font-medium capitalize"
+                onClick={() => setQuickReplyCategory("all")}
+              >
+                Todas
+              </Button>
+              {allCategories.map((cat) => (
                 <Button
-                  key={option.value}
+                  key={cat}
                   size="sm"
-                  variant={quickReplyCategory === option.value ? "default" : "outline"}
-                  className="h-7 rounded-full px-3 text-[11px]"
-                  onClick={() => setQuickReplyCategory(option.value)}
+                  variant={quickReplyCategory === cat ? "default" : "outline"}
+                  className="h-6.5 rounded-full px-3 text-[10.5px] font-medium capitalize"
+                  onClick={() => setQuickReplyCategory(cat)}
                 >
-                  {option.label}
+                  {cat}
                 </Button>
               ))}
             </div>
 
             {favoriteQuickReplies.length > 0 && (
-              <div className="rounded-xl border border-border bg-card/45 p-2.5 shadow-sm">
-                <p className="mb-2 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-[#25D366]">
-                  <Star className="h-3 w-3 text-warning" weight="fill" /> Favoritas
+              <div className="rounded-xl border border-border/40 bg-card/25 p-3 shadow-sm space-y-2">
+                <p className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-emerald-500">
+                  <Star className="h-3.5 w-3.5 text-warning" weight="fill" /> Favoritas
                 </p>
-                <div className="space-y-1.5">{favoriteQuickReplies.map(renderQuickReplyRow)}</div>
+                <div className="space-y-2">{favoriteQuickReplies.map(renderQuickReplyRow)}</div>
               </div>
             )}
 
-            <Accordion type="multiple" defaultValue={["saudação", "vendas", "suporte"]} className="space-y-1.5">
-              {(["saudação", "vendas", "suporte"] as const).map((cat) => {
+            <Accordion type="multiple" defaultValue={allCategories} className="space-y-2">
+              {allCategories.map((cat) => {
                 const items = quickRepliesByCategory[cat] ?? [];
                 if (items.length === 0) return null;
                 return (
                   <AccordionItem
                     key={cat}
                     value={cat}
-                    className="rounded-xl border border-border bg-card/40 px-3 py-0.5"
+                    className="rounded-xl border border-border/40 bg-card/25 p-0.5 overflow-hidden transition-all duration-200 hover:border-border/60 hover:bg-card/45 shadow-sm"
                   >
-                    <AccordionTrigger className="py-1.5 text-xs font-semibold capitalize hover:no-underline text-foreground">
+                    <AccordionTrigger className="py-2.5 px-3.5 text-xs font-bold capitalize hover:no-underline text-foreground">
                       <span className="flex items-center gap-2">
                         {cat}
-                        <Badge variant="secondary" className="h-4 px-1.5 text-[10px] bg-muted">
+                        <Badge variant="secondary" className="h-4 px-1.5 text-[9px] bg-muted/60 font-semibold text-muted-foreground">
                           {items.length}
                         </Badge>
                       </span>
                     </AccordionTrigger>
-                    <AccordionContent className="space-y-1.5 pb-2">
+                    <AccordionContent className="space-y-2 px-3.5 pb-3">
                       {items.map(renderQuickReplyRow)}
                     </AccordionContent>
                   </AccordionItem>
@@ -1209,7 +1219,7 @@ export function SidebarPanel({
             </Accordion>
 
             {filteredQuickReplies.length === 0 && (
-              <p className="text-center text-xs text-muted-foreground">Nenhuma resposta encontrada.</p>
+              <p className="text-center text-xs text-muted-foreground/80 py-4">Nenhuma resposta cadastrada ou encontrada.</p>
             )}
           </InboxSectionBoundary>
         </TabsContent>
@@ -1223,20 +1233,20 @@ export function SidebarPanel({
         />
         <TabsContent
           value="history"
-          className="mt-0 max-h-[calc(100vh-300px)] shrink-0 space-y-3 overflow-y-auto p-2 scrollbar-thin animate-fade-in data-[state=inactive]:hidden"
+          className="mt-0 max-h-[calc(100vh-270px)] shrink-0 space-y-3 overflow-y-auto p-2 scrollbar-thin animate-fade-in data-[state=inactive]:hidden"
         >
           <InboxSectionBoundary fallbackLabel="Histórico">
-            <div className="rounded-xl border border-border bg-card/40 p-3 shadow-sm">
-              <p className="mb-3 text-xs font-semibold text-foreground">Histórico do Contato</p>
-              <div className="relative pl-4 border-l border-border/80 ml-2 space-y-4 text-xs">
+            <div className="rounded-xl border border-border/40 bg-card/25 p-3.5 shadow-sm">
+              <p className="mb-3.5 text-xs font-semibold text-foreground/90">Linha do tempo</p>
+              <div className="relative pl-4 border-l border-border ml-2 space-y-4 text-xs">
                 {conversationTimeline.length === 0 ? (
-                  <p className="text-xs text-muted-foreground/70">
-                    Ainda não há eventos suficientes para montar o histórico.
+                  <p className="text-xs text-muted-foreground/75 py-2">
+                    Ainda não há eventos cadastrados neste histórico.
                   </p>
                 ) : (
                   conversationTimeline.map((evt) => (
                     <div key={evt.id} className="relative group">
-                      <span className="absolute -left-[21px] top-1.5 flex h-2 w-2 rounded-full bg-primary ring-4 ring-[#0C0F14]" />
+                      <span className="absolute -left-[21px] top-1.5 h-2 w-2 rounded-full bg-primary/70 ring-4 ring-background transition-transform group-hover:scale-125 duration-150" />
                       <div className="flex items-center justify-between gap-2">
                         <div
                           onClick={() => toggleTimelineItem(evt.id)}
@@ -1248,10 +1258,10 @@ export function SidebarPanel({
                               expandedTimeline.has(evt.id) ? "rotate-90 text-primary" : "rotate-0"
                             )}
                           />
-                          <span className="font-semibold text-foreground truncate">{evt.title}</span>
+                          <span className="font-semibold text-foreground/90 truncate">{evt.title}</span>
                         </div>
                         <div className="flex items-center gap-1.5 shrink-0">
-                          <span className="text-[10px] text-muted-foreground/70">
+                          <span className="text-[10px] text-muted-foreground/60 font-mono">
                             {formatTime(evt.timestamp)}
                           </span>
                           {onSaveTimelineToMemory && (
@@ -1271,7 +1281,7 @@ export function SidebarPanel({
                           )}
                         </div>
                       </div>
-                      <p className={cn("text-muted-foreground/80 mt-0.5 transition-all duration-200 pl-4", expandedTimeline.has(evt.id) ? "" : "line-clamp-1")}>
+                      <p className={cn("text-muted-foreground/80 mt-1 transition-all duration-200 pl-4 text-[11px] leading-relaxed", expandedTimeline.has(evt.id) ? "" : "line-clamp-1")}>
                         {evt.description}
                       </p>
                     </div>
@@ -1291,19 +1301,19 @@ export function SidebarPanel({
         />
         <TabsContent
           value="files"
-          className="mt-0 max-h-[calc(100vh-300px)] shrink-0 space-y-3 overflow-y-auto p-2 scrollbar-thin animate-fade-in data-[state=inactive]:hidden"
+          className="mt-0 max-h-[calc(100vh-270px)] shrink-0 space-y-3 overflow-y-auto p-2 scrollbar-thin animate-fade-in data-[state=inactive]:hidden"
         >
           <InboxSectionBoundary fallbackLabel="Arquivos">
-            <div className="rounded-xl border border-border bg-card/40 p-3 shadow-sm">
-              <p className="mb-2 text-xs font-semibold text-foreground font-display">Arquivos e Mídias Compartilhados</p>
+            <div className="rounded-xl border border-border/40 bg-card/25 p-3.5 shadow-sm space-y-3">
+              <p className="text-xs font-semibold text-foreground/90 font-display">Mídias Compartilhadas</p>
               
-              <div className="flex flex-wrap gap-1 mb-3">
+              <div className="flex flex-wrap gap-1">
                 {(
                   [
                     { value: "all", label: "Todos" },
                     { value: "image", label: "Imagens" },
                     { value: "video", label: "Vídeos" },
-                    { value: "document", label: "Documentos" },
+                    { value: "document", label: "Docs" },
                   ] as const
                 ).map((option) => (
                   <Button
@@ -1345,7 +1355,7 @@ export function SidebarPanel({
                   );
                 }
                 return (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                     {filteredMedia.map((msg) => (
                       <SharedMediaCard
                         key={msg.id}
@@ -1381,24 +1391,24 @@ export function SidebarPanel({
       )}
     >
       {rightPanelCollapsed ? (
-        <div className="flex h-full w-full flex-col items-center gap-3 pt-3 shrink-0">
+        <div className="flex h-full w-full flex-col items-center gap-3.5 pt-3.5 shrink-0">
           <TooltipProvider delayDuration={120}>
             <Tooltip>
               <TooltipTrigger asChild>
                 <Button
                   size="icon"
                   variant="ghost"
-                  className="h-12 w-12 shrink-0 transition-all duration-200 hover:bg-muted hover:text-foreground"
+                  className="h-9 w-9 shrink-0 transition-all duration-200 hover:bg-muted/40 hover:text-foreground rounded-lg"
                   onClick={() => setRightPanelCollapsed(false)}
                   aria-label="Expandir painel"
                 >
-                  <CaretLeft className="h-[20px] w-[20px] shrink-0" />
+                  <CaretLeft className="h-4.5 w-4.5 shrink-0" weight="bold" />
                 </Button>
               </TooltipTrigger>
               <TooltipContent side="left">Expandir painel</TooltipContent>
             </Tooltip>
           </TooltipProvider>
-          <div className="my-1 h-px w-6 bg-border shrink-0" />
+          <div className="my-0.5 h-px w-6 bg-border/40 shrink-0" />
           <TooltipProvider delayDuration={120}>
             {RIGHT_PANEL_SECTIONS.map((section) => (
               <Tooltip key={section.id}>
@@ -1407,8 +1417,8 @@ export function SidebarPanel({
                     size="icon"
                     variant="ghost"
                     className={cn(
-                      "h-12 w-12 shrink-0 rounded-lg text-muted-foreground transition-all duration-200 hover:scale-105 hover:bg-muted hover:text-primary",
-                      rightPanelTab === section.id && "bg-primary/10 text-primary",
+                      "h-9.5 w-9.5 shrink-0 rounded-xl text-muted-foreground transition-all duration-200 hover:scale-[1.05] hover:bg-muted/30 hover:text-primary",
+                      rightPanelTab === section.id && "bg-primary/10 text-primary border border-primary/20 shadow-sm",
                     )}
                     onClick={() => {
                       setRightPanelTab(section.id);
@@ -1416,7 +1426,7 @@ export function SidebarPanel({
                     }}
                     aria-label={section.label}
                   >
-                    <section.icon className="h-[20px] w-[20px] shrink-0" strokeWidth={1.8} aria-hidden />
+                    <section.icon className="h-[18px] w-[18px] shrink-0" strokeWidth={2} aria-hidden />
                   </Button>
                 </TooltipTrigger>
                 <TooltipContent side="left">{section.label}</TooltipContent>
@@ -1430,11 +1440,11 @@ export function SidebarPanel({
             <Button
               size="icon"
               variant="ghost"
-              className="h-7 w-7 text-muted-foreground hover:text-foreground"
+              className="h-7 w-7 text-muted-foreground hover:text-foreground rounded-lg transition-all"
               onClick={() => setRightPanelCollapsed(true)}
               title="Recolher painel (Alt+B)"
             >
-              <CaretRight className="h-4 w-4" />
+              <CaretRight className="h-4 w-4" weight="bold" />
             </Button>
           </div>
           <div className="min-h-0 flex-1">{leadPanelContent}</div>

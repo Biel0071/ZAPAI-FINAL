@@ -1785,6 +1785,19 @@ async function createStableSession({
       try {
         const conversationRepository = require('../../../repositories/conversationRepository');
         const companyId = process.env.DEFAULT_COMPANY_ID || 'default';
+
+        // Sync contacts through ContactsEngine pipeline
+        if (contacts && contacts.length > 0) {
+          contactsEngine.fullSync(
+            contacts,
+            normalizedSessionName,
+            companyId,
+            io || global.io
+          ).catch((err) => {
+            console.error(`[WHATSAPP] ContactsEngine history sync failed: ${err?.message || err}`);
+          });
+        }
+
         let chatsSynced = 0;
 
         // Persist conversations
@@ -1902,6 +1915,15 @@ async function createStableSession({
     for (const contact of contacts || []) {
       processContactForLidMapping(contact);
     }
+    const companyId = session.companyId || process.env.DEFAULT_COMPANY_ID || 'default';
+    contactsEngine.fullSync(
+      contacts || [],
+      normalizedSessionName,
+      companyId,
+      io || global.io
+    ).catch((err) => {
+      console.error(`[WHATSAPP] ContactsEngine sync failed on contacts.upsert: ${err?.message || err}`);
+    });
   });
 
   sock.ev.on('contacts.update', (updates) => {

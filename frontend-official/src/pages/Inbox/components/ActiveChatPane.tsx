@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect, useCallback } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   Brain,
   Trash,
@@ -231,6 +232,7 @@ export function ActiveChatPane({
   loadingAgents = false,
   handleSetConversationAgent,
 }: ActiveChatPaneProps) {
+  const navigate = useNavigate();
   const [activeSlashIndex, setActiveSlashIndex] = useState(0);
   const [activeTab, setActiveTab] = useState<'emoji' | 'sticker'>('emoji');
   const [stickers, setStickers] = useState<{ id: string; url: string; name: string }[]>([]);
@@ -697,7 +699,7 @@ export function ActiveChatPane({
                 size="sm"
                 variant="outline"
                 className="h-6 rounded-md px-2.5 text-[10px] font-semibold bg-amber-500/10 border-amber-500/20 text-amber-400 hover:bg-amber-500/20 hover:text-amber-300 transition-all"
-                onClick={() => setShowLeadPanel(true)}
+                onClick={() => navigate("/connections")}
               >
                 Conectar WhatsApp
               </Button>

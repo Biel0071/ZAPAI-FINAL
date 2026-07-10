@@ -92,6 +92,9 @@ async function sendWithRetry(fn, retries = 3) {
       if (i === totalRetries - 1) {
         throw error;
       }
+
+      const backoffDelay = Math.min(3000, 500 * Math.pow(2, i));
+      await new Promise((resolve) => setTimeout(resolve, backoffDelay));
     }
   }
 

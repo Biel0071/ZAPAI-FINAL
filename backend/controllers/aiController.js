@@ -891,9 +891,137 @@ async function transcribe(req, res) {
     console.error('[Transcription Controller] Error:', error.message);
     return res.status(500).json({ error: error.message || 'Erro durante a transcrição do áudio.' });
   }
+async function evolveAgent(req, res) {
+  try {
+    const { agentKey, instruction, apply = false, changes = null, sourceDescription = null } = req.body;
+    const store = req.app.locals.store;
+    const companyId = req.headers['x-company-id'] || req.headers['x-tenant-id'] || req.auth?.tenantId || 'default';
+    
+    const agentEvolutionService = require('../services/agentEvolutionService');
+    
+    if (apply && changes) {
+      const updated = await agentEvolutionService.applyAgentChanges(
+        agentKey,
+        changes,
+        sourceDescription || 'Ajuste via Prompt',
+        'prompt_refinement',
+        companyId
+      );
+      return res.json({ success: true, agent: updated });
+    }
+    
+    if (!instruction) {
+      return res.status(400).json({ error: 'Instrução do prompt é obrigatória.' });
+    }
+    
+    const preview = await agentEvolutionService.refineWholeAgent(
+      agentKey,
+      instruction,
+      store,
+      companyId
+    );
+    
+    return res.json({ success: true, preview });
+  } catch (err) {
+    console.error('[evolveAgent_error]', err);
+    res.status(500).json({ error: err.message });
+  }
+}
+
+async function getAgentLearning(req, res) {
+  try {
+    const { key } = req.params;
+    const companyId = req.headers['x-company-id'] || req.headers['x-tenant-id'] || req.auth?.tenantId || 'default';
+    const agentLearningRepo = require('../repositories/agentLearningRepository');
+    
+    const pending = await agentLearningRepo.getPendingEvents(key, companyId, 50);
+    const stats = await agentLearningRepo.getEventStats(key, companyId);
+    
+    res.json({ success: true, pending, stats });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+}
+
+async function answerLearningEvent(req, res) {
+  try {
+    const { id } = req.params;
+    const { answer } = req.body;
+    if (!answer) {
+      return res.status(400).json({ error: 'A resposta é obrigatória.' });
+    }
+    const agentLearningRepo = require('../repositories/agentLearningRepository');
+    const updated = await agentLearningRepo.answerEvent(id, answer);
+    res.json({ success: true, event: updated });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+}
+
+async function applyLearningAnswer(req, res) {
+  try {
+    const { id } = req.params;
+    const store = req.app.locals.store;
+    const companyId = req.headers['x-company-id'] || req.headers['x-tenant-id'] || req.auth?.tenantId || 'default';
+    
+    const agentEvolutionService = require('../services/agentEvolutionService');
+    const result = await agentEvolutionService.learnFromAnswer(id, req.body.answer || '', store, companyId);
+    
+    res.json({ success: true, ...result });
+  } catch (err) {
+    console.error('[applyLearningAnswer_error]', err);
+    res.status(500).json({ error: err.message });
+  }
+}
+
+async function ignoreLearningEvent(req, res) {
+  try {
+    const { id } = req.params;
+    const agentLearningRepo = require('../repositories/agentLearningRepository');
+    const updated = await agentLearningRepo.ignoreEvent(id);
+    res.json({ success: true, event: updated });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+}
+
+async function getAgentEvolution(req, res) {
+  try {
+    const { key } = req.params;
+    const companyId = req.headers['x-company-id'] || req.headers['x-tenant-id'] || req.auth?.tenantId || 'default';
+    const agentLearningRepo = require('../repositories/agentLearningRepository');
+    
+    const history = await agentLearningRepo.getEvolutionHistory(key, companyId, 30);
+    const stats = await agentLearningRepo.getEventStats(key, companyId);
+    
+    res.json({ success: true, history, stats });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+}
+
+async function detectAgentGaps(req, res) {
+  try {
+    const { key } = req.params;
+    const companyId = req.headers['x-company-id'] || req.headers['x-tenant-id'] || req.auth?.tenantId || 'default';
+    const agentEvolutionService = require('../services/agentEvolutionService');
+    
+    const createdCount = await agentEvolutionService.detectUnansweredQuestions(key, companyId);
+    res.json({ success: true, createdCount });
+  } catch (err) {
+    console.error('[detectAgentGaps_error]', err);
+    res.status(500).json({ error: err.message });
+  }
 }
 
 module.exports = {
+  evolveAgent,
+  getAgentLearning,
+  answerLearningEvent,
+  applyLearningAnswer,
+  ignoreLearningEvent,
+  getAgentEvolution,
+  detectAgentGaps,
   transcribe,
   testVoice,
   architectFullScan,

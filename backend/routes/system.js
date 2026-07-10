@@ -3,6 +3,49 @@ const { execFile } = require('child_process');
 const fs = require('fs/promises');
 const path = require('path');
 const { promisify } = require('util');
+const os = require('os');
+
+// Cross-platform CPU usage tracking via delta-sampling
+let lastCpuTimes = null;
+let cachedCpuPct = 0;
+
+function getCpuPercentage() {
+  const cpus = os.cpus();
+  if (!cpus || cpus.length === 0) return 0;
+  
+  let user = 0;
+  let nice = 0;
+  let sys = 0;
+  let idle = 0;
+  let irq = 0;
+  
+  for (const cpu of cpus) {
+    user += cpu.times.user;
+    nice += cpu.times.nice;
+    sys += cpu.times.sys;
+    idle += cpu.times.idle;
+    irq += cpu.times.irq;
+  }
+  
+  const total = user + nice + sys + idle + irq;
+  
+  if (!lastCpuTimes) {
+    lastCpuTimes = { user, nice, sys, idle, irq, total };
+    return 0;
+  }
+  
+  const deltaTotal = total - lastCpuTimes.total;
+  const deltaIdle = idle - lastCpuTimes.idle;
+  
+  lastCpuTimes = { user, nice, sys, idle, irq, total };
+  
+  if (deltaTotal <= 0) return cachedCpuPct;
+  
+  const cpuPct = Math.round((1 - deltaIdle / deltaTotal) * 100);
+  cachedCpuPct = Math.max(0, Math.min(100, cpuPct));
+  return cachedCpuPct;
+}
+
 const { query } = require('../config/database');
 
 const router = express.Router();
@@ -199,9 +242,7 @@ router.get('/resources', async (req, res) => {
     const totalMem = os.totalmem();
     const freeMem = os.freemem();
     const usedMem = totalMem - freeMem;
-    const cpuLoad = os.loadavg()[0] || 0;
-    const cpuCount = Math.max(1, os.cpus()?.length || 1);
-    const cpuPercent = Math.min(100, Math.max(0, Math.round((cpuLoad / cpuCount) * 100)));
+    const cpuPercent = getCpuPercentage();
 
     // Disk probe
     let disk = { total: 0, used: 0, free: 0, usedPercent: 0 };

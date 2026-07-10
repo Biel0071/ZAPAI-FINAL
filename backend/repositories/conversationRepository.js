@@ -141,10 +141,11 @@ function getBaseSelect() {
       conv.created_at,
       conv.updated_at,
       l.phone,
-      l.name,
+      COALESCE(NULLIF(c.name, ''), NULLIF(l.name, ''), 'Contato') as name,
       l.is_blocked
     FROM conversations conv
     INNER JOIN leads l ON l.id = conv.lead_id
+    LEFT JOIN contacts c ON c.phone = l.phone AND c.company_id = l.company_id
   `;
 }
 
@@ -545,10 +546,11 @@ async function listConversations(companyId, limit = 50, options = {}) {
           conv.created_at,
           conv.updated_at,
           l.phone,
-          l.name,
+          COALESCE(NULLIF(c.name, ''), NULLIF(l.name, ''), 'Contato') as name,
           l.is_blocked
         FROM conversations conv
         INNER JOIN leads l ON l.id = conv.lead_id
+        LEFT JOIN contacts c ON c.phone = l.phone AND c.company_id = l.company_id
         ${whereClause}
         ORDER BY
           conv.company_id,

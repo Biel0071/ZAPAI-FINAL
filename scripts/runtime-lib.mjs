@@ -415,6 +415,7 @@ export function startOfficialRuntime() {
       cwd: backendDir,
       stdoutPath: path.join(logsDir, "local-backend.log"),
       env: {
+        NODE_ENV: "development",
         PORT: String(officialPorts.backend),
         FRONTEND_URL: `http://127.0.0.1:${officialPorts.frontend}`,
         MASTER_API_URL: `http://127.0.0.1:${officialPorts.backend}`,
@@ -445,6 +446,7 @@ export function startOfficialRuntime() {
       cwd: frontendDir,
       stdoutPath: path.join(logsDir, "local-frontend.log"),
       env: {
+        NODE_ENV: "development",
         PORT: String(officialPorts.frontend),
       },
     },

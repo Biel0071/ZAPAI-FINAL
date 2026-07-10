@@ -258,9 +258,10 @@ function aggregateCluster(nodes: NodeControlPlane[], payload: JsonRecord): Clust
 }
 
 export async function loadNodesControlPlane() {
-  const [nodesPayload, clusterPayload] = await Promise.all([
+  const [nodesPayload, clusterPayload, deploymentsPayload] = await Promise.all([
     requestJson("/api/cluster/nodes", "GET").catch(() => ({ nodes: [] })),
     requestJson("/api/cluster/overview", "GET").catch(() => ({})),
+    requestJson("/api/cluster/deployments", "GET").catch(() => []),
   ]);
 
   const nodes = toList(nodesPayload).map(mapNode);
@@ -268,8 +269,9 @@ export async function loadNodesControlPlane() {
   const clusterRecord = (clusterRoot && typeof clusterRoot === "object" ? clusterRoot : {}) as JsonRecord;
   const clusterRaw = (clusterRecord.cluster && typeof clusterRecord.cluster === "object" ? clusterRecord.cluster : clusterRecord) as JsonRecord;
   const cluster = aggregateCluster(nodes, clusterRaw);
+  const deployments = toList(deploymentsPayload).map(mapDeployment);
 
-  return { nodes, cluster, wsChannels: WS_CHANNELS };
+  return { nodes, cluster, deployments, wsChannels: WS_CHANNELS };
 }
 
 function mapContainer(item: JsonRecord): NodeContainerInfo {

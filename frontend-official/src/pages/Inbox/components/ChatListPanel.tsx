@@ -160,17 +160,34 @@ export function ChatListPanel({
           </div>
         )}
         <div className="flex items-center justify-between gap-3">
-          <OperationalStatusBadge
-            label={activeSession && isSessionActive(activeSession) ? "Baileys conectado" : "Baileys offline"}
-            tone={activeSession && isSessionActive(activeSession) ? "online" : "warning"}
-            pulse={Boolean(activeSession && isSessionActive(activeSession))}
-          />
+          <div
+            onClick={() => {
+              if (activeSession && isSessionActive(activeSession)) {
+                navigate("/dashboard");
+              } else {
+                navigate("/connections");
+              }
+            }}
+            className="cursor-pointer transition-transform hover:scale-[1.03] active:scale-[0.98]"
+          >
+            <OperationalStatusBadge
+              label={activeSession && isSessionActive(activeSession) ? "Sessão ON" : "Sessão OFF"}
+              tone={activeSession && isSessionActive(activeSession) ? "online" : "warning"}
+              pulse={Boolean(activeSession && isSessionActive(activeSession))}
+            />
+          </div>
           <Button
             type="button"
             variant={activeSession && isSessionActive(activeSession) ? "secondary" : "outline"}
-            onClick={() => navigate("/connections")}
+            onClick={() => {
+              if (activeSession && isSessionActive(activeSession)) {
+                navigate("/dashboard");
+              } else {
+                navigate("/connections");
+              }
+            }}
           >
-            {activeSession && isSessionActive(activeSession) ? "Gerenciar sessão" : "Conectar Baileys"}
+            {activeSession && isSessionActive(activeSession) ? "Métricas Dashboard" : "Conectar Sessão"}
           </Button>
         </div>
       </div>
