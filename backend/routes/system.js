@@ -373,10 +373,9 @@ router.get('/test-lid-send', async (req, res) => {
       return res.status(400).json({ error: 'Socket offline', activeKeys: Object.keys(activeSessions) });
     }
 
-    const query8 = await sock.onWhatsApp('553193807167').catch(err => ({ error: err.message }));
-    const query9 = await sock.onWhatsApp('5531993807167').catch(err => ({ error: err.message }));
+    const groupResult = await sock.sendMessage('5527997355184-1607692875@g.us', { text: 'Teste de envio em grupo' }).catch(err => ({ error: err.message }));
 
-    return res.json({ query8, query9 });
+    return res.json({ groupResult });
   } catch (err) {
     return res.status(500).json({ error: err.message });
   }
