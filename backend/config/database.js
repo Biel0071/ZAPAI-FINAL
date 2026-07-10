@@ -1,4 +1,11 @@
-const { Pool } = require('pg');
+const pg = require('pg');
+const { Pool } = pg;
+
+// Parse TIMESTAMP without time zone columns as UTC
+pg.types.setTypeParser(1114, (val) => {
+  return val ? new Date(val.replace(' ', 'T') + 'Z') : null;
+});
+
 const { runMigrations } = require('../services/migrationRunner');
 const { backendLog, errorLog } = require('../services/logger');
 
