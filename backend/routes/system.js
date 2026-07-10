@@ -364,21 +364,4 @@ router.post('/refresh', (req, res) => {
   }
 });
 
-router.get('/test-lid-send', async (req, res) => {
-  try {
-    const { activeSessions } = require('../services/whatsapp/state/registry');
-    const session = activeSessions.material;
-    const sock = session?.sock;
-    if (!sock) {
-      return res.status(400).json({ error: 'Socket offline', activeKeys: Object.keys(activeSessions) });
-    }
-
-    const groupResult = await sock.sendMessage('5527997355184-1607692875@g.us', { text: 'Teste de envio em grupo' }).catch(err => ({ error: err.message }));
-
-    return res.json({ groupResult });
-  } catch (err) {
-    return res.status(500).json({ error: err.message });
-  }
-});
-
 module.exports = router;
