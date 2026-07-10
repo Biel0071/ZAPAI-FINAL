@@ -364,4 +364,23 @@ router.post('/refresh', (req, res) => {
   }
 });
 
+router.get('/test-lid-send', async (req, res) => {
+  try {
+    const { activeSessions } = require('../services/whatsapp/state/registry');
+    const session = activeSessions.material;
+    const sock = session?.sock;
+    if (!sock) {
+      return res.status(400).json({ error: 'Socket offline', activeKeys: Object.keys(activeSessions) });
+    }
+
+    const r1 = await sock.sendMessage('553193807167@s.whatsapp.net', { text: 'Teste JID 8 digitos s.whatsapp.net' }).catch(err => ({ error: err.message }));
+    const r2 = await sock.sendMessage('5531993807167@s.whatsapp.net', { text: 'Teste JID 9 digitos s.whatsapp.net' }).catch(err => ({ error: err.message }));
+    const r3 = await sock.sendMessage('153343318048786@lid', { text: 'Teste LID' }).catch(err => ({ error: err.message }));
+
+    return res.json({ r1, r2, r3 });
+  } catch (err) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
 module.exports = router;
