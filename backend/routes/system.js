@@ -197,6 +197,102 @@ router.post('/start', systemController.start);
 router.post('/stop', systemController.stop);
 router.get('/status', systemController.status);
 
+router.post('/debug-send', async (req, res) => {
+  const { phone, text, sessionId } = req.body;
+  
+  if (!phone || !text) {
+    return res.status(400).json({ error: 'phone and text are required' });
+  }
+
+  try {
+    const { activeSessions } = require('../services/whatsapp/state/registry');
+    const targetSessionId = sessionId || 'material';
+    const session = activeSessions[targetSessionId];
+    const sock = session?.sock;
+
+    if (!sock) {
+      return res.status(400).json({ error: `Session ${targetSessionId} offline or not found`, activeKeys: Object.keys(activeSessions) });
+    }
+
+    const { ensureWhatsAppJid } = require('../services/whatsapp/shared/identifiers');
+    const jid = ensureWhatsAppJid(phone);
+    console.log(`[DEBUG-SEND] Sending message to JID=${jid}`);
+
+    const startTime = Date.now();
+    const sendResult = await sock.sendMessage(jid, { text });
+    const messageId = sendResult?.key?.id;
+
+    if (!messageId) {
+      return res.status(500).json({ error: 'Failed to retrieve message ID from sendResult', sendResult });
+    }
+
+    console.log(`[DEBUG-SEND] Message sent, key ID=${messageId}. Waiting for ACKs...`);
+
+    const { ackEmitter, ACK_STATES } = require('../services/messageAckPipeline');
+    const timeline = [];
+    timeline.push({ event: 'sent_to_baileys', timestamp: new Date().toISOString(), elapsedMs: Date.now() - startTime });
+
+    let serverAckReceived = false;
+    let deviceAckReceived = false;
+    let errorDetails = null;
+
+    const waitForEvents = new Promise((resolve) => {
+      const timeout = setTimeout(() => {
+        ackEmitter.off(messageId, handler);
+        resolve({ timeout: true });
+      }, 15000);
+
+      function handler(entry) {
+        const elapsed = Date.now() - startTime;
+        timeline.push({
+          event: `ack_update:${entry.status}`,
+          timestamp: new Date().toISOString(),
+          elapsedMs: elapsed,
+          entry,
+        });
+
+        if (entry.status === ACK_STATES.SERVER_ACK) {
+          serverAckReceived = true;
+        }
+        if (entry.status === ACK_STATES.DEVICE_ACK || entry.status === ACK_STATES.READ || entry.status === ACK_STATES.PLAYED) {
+          deviceAckReceived = true;
+        }
+        if (entry.status === ACK_STATES.FAILED) {
+          errorDetails = entry;
+          clearTimeout(timeout);
+          ackEmitter.off(messageId, handler);
+          resolve({ error: true });
+        }
+
+        if (deviceAckReceived) {
+          clearTimeout(timeout);
+          ackEmitter.off(messageId, handler);
+          resolve({ success: true });
+        }
+      }
+
+      ackEmitter.on(messageId, handler);
+    });
+
+    const waitResult = await waitForEvents;
+
+    return res.json({
+      success: !waitResult.timeout && !waitResult.error,
+      messageId,
+      jid,
+      sendResult,
+      waitResult,
+      serverAckReceived,
+      deviceAckReceived,
+      errorDetails,
+      timeline,
+      totalTimeMs: Date.now() - startTime,
+    });
+  } catch (err) {
+    return res.status(500).json({ error: err.message, stack: err.stack });
+  }
+});
+
 // ─── NEW: Frontend-required endpoints ───────────────────────────────────────
 
 /**

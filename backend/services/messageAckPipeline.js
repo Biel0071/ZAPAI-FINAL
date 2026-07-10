@@ -21,6 +21,8 @@
  */
 
 const db = require('../config/database');
+const EventEmitter = require('events');
+const ackEmitter = new EventEmitter();
 
 // ─── ACK States ───
 const ACK_STATES = {
@@ -175,6 +177,9 @@ function transitionAck(messageId, nextState, metadata = {}) {
   void persistAckState(messageId).catch(err => {
     console.error(`[AckPipeline] Async persist transition failed for ${messageId}:`, err);
   });
+
+  // Emit local event for debugging/testing
+  ackEmitter.emit(messageId, entry);
 
   return entry;
 }
@@ -366,6 +371,7 @@ function reconcilePendingMessages(io) {
 
 module.exports = {
   ACK_STATES,
+  ackEmitter,
   emitAckUpdate,
   getAckState,
   getFailedMessages,

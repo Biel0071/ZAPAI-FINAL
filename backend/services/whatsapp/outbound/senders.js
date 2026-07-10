@@ -103,77 +103,161 @@ async function sendWithRetry(fn, retries = 3) {
 
 async function sendMessage(sock, phone, text) {
   ensureSocket(sock);
+  const jid = ensureWhatsAppJid(phone);
 
-  return sendWithRetry(
-    () => sock.sendMessage(ensureWhatsAppJid(phone), { text }),
-    3
-  );
+  try {
+    return await sendWithRetry(
+      () => sock.sendMessage(jid, { text }),
+      3
+    );
+  } catch (error) {
+    console.error(`[WHATSAPP-SEND-ERROR] sendMessage failed JID=${jid}:`, {
+      phone,
+      text: text?.substring(0, 100),
+      errorMessage: error?.message,
+      errorCode: error?.code,
+      errorStack: error?.stack,
+      error,
+    });
+    throw error;
+  }
 }
 
 async function sendImage(sock, phone, imagePath, caption = '') {
   ensureSocket(sock);
+  const jid = ensureWhatsAppJid(phone);
 
-  return sendWithRetry(
-    () =>
-      sock.sendMessage(ensureWhatsAppJid(phone), {
-        image: toMediaPayload(imagePath),
-        ...(caption ? { caption } : {}),
-      }),
-    3
-  );
+  try {
+    return await sendWithRetry(
+      () =>
+        sock.sendMessage(jid, {
+          image: toMediaPayload(imagePath),
+          ...(caption ? { caption } : {}),
+        }),
+      3
+    );
+  } catch (error) {
+    console.error(`[WHATSAPP-SEND-ERROR] sendImage failed JID=${jid}:`, {
+      phone,
+      imagePath,
+      caption: caption?.substring(0, 100),
+      errorMessage: error?.message,
+      errorCode: error?.code,
+      errorStack: error?.stack,
+      error,
+    });
+    throw error;
+  }
 }
 
 async function sendVideo(sock, phone, videoPath, caption = '') {
   ensureSocket(sock);
+  const jid = ensureWhatsAppJid(phone);
 
-  return sendWithRetry(
-    () =>
-      sock.sendMessage(ensureWhatsAppJid(phone), {
-        video: toMediaPayload(videoPath),
-        ...(caption ? { caption } : {}),
-      }),
-    3
-  );
+  try {
+    return await sendWithRetry(
+      () =>
+        sock.sendMessage(jid, {
+          video: toMediaPayload(videoPath),
+          ...(caption ? { caption } : {}),
+        }),
+      3
+    );
+  } catch (error) {
+    console.error(`[WHATSAPP-SEND-ERROR] sendVideo failed JID=${jid}:`, {
+      phone,
+      videoPath,
+      caption: caption?.substring(0, 100),
+      errorMessage: error?.message,
+      errorCode: error?.code,
+      errorStack: error?.stack,
+      error,
+    });
+    throw error;
+  }
 }
 
 async function sendAudio(sock, phone, audioPath, ptt = false, mimetype) {
   ensureSocket(sock);
+  const jid = ensureWhatsAppJid(phone);
 
-  return sendWithRetry(
-    () =>
-      sock.sendMessage(ensureWhatsAppJid(phone), {
-        audio: toMediaPayload(audioPath),
-        mimetype: mimetype || (ptt ? 'audio/ogg; codecs=opus' : 'audio/mp4'),
-        ptt,
-      }),
-    3
-  );
+  try {
+    return await sendWithRetry(
+      () =>
+        sock.sendMessage(jid, {
+          audio: toMediaPayload(audioPath),
+          mimetype: mimetype || (ptt ? 'audio/ogg; codecs=opus' : 'audio/mp4'),
+          ptt,
+        }),
+      3
+    );
+  } catch (error) {
+    console.error(`[WHATSAPP-SEND-ERROR] sendAudio failed JID=${jid}:`, {
+      phone,
+      audioPath,
+      ptt,
+      mimetype,
+      errorMessage: error?.message,
+      errorCode: error?.code,
+      errorStack: error?.stack,
+      error,
+    });
+    throw error;
+  }
 }
 
 async function sendDocument(sock, phone, docPath, fileName, mimetype) {
   ensureSocket(sock);
+  const jid = ensureWhatsAppJid(phone);
 
-  return sendWithRetry(
-    () =>
-      sock.sendMessage(ensureWhatsAppJid(phone), {
-        document: toMediaPayload(docPath),
-        fileName: getDocumentFileName(docPath, fileName),
-        ...(mimetype ? { mimetype } : {}),
-      }),
-    3
-  );
+  try {
+    return await sendWithRetry(
+      () =>
+        sock.sendMessage(jid, {
+          document: toMediaPayload(docPath),
+          fileName: getDocumentFileName(docPath, fileName),
+          ...(mimetype ? { mimetype } : {}),
+        }),
+      3
+    );
+  } catch (error) {
+    console.error(`[WHATSAPP-SEND-ERROR] sendDocument failed JID=${jid}:`, {
+      phone,
+      docPath,
+      fileName,
+      mimetype,
+      errorMessage: error?.message,
+      errorCode: error?.code,
+      errorStack: error?.stack,
+      error,
+    });
+    throw error;
+  }
 }
 
 async function sendSticker(sock, phone, stickerPath) {
   ensureSocket(sock);
+  const jid = ensureWhatsAppJid(phone);
 
-  return sendWithRetry(
-    () =>
-      sock.sendMessage(ensureWhatsAppJid(phone), {
-        sticker: toMediaPayload(stickerPath),
-      }),
-    3
-  );
+  try {
+    return await sendWithRetry(
+      () =>
+        sock.sendMessage(jid, {
+          sticker: toMediaPayload(stickerPath),
+        }),
+      3
+    );
+  } catch (error) {
+    console.error(`[WHATSAPP-SEND-ERROR] sendSticker failed JID=${jid}:`, {
+      phone,
+      stickerPath,
+      errorMessage: error?.message,
+      errorCode: error?.code,
+      errorStack: error?.stack,
+      error,
+    });
+    throw error;
+  }
 }
 
 async function sendMediaMessage(

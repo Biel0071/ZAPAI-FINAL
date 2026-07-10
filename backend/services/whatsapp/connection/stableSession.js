@@ -726,16 +726,59 @@ async function createStableSession({
   const { state, saveCreds } = await useMultiFileAuthState(sessionPath);
   const { version } = await fetchLatestBaileysVersion();
 
+  let baileysLogger;
+  if (process.env.DEBUG_WHATSAPP === 'true') {
+    try {
+      const logDir = path.join(__dirname, '..', '..', '..', 'logs');
+      await fs.mkdir(logDir, { recursive: true });
+      baileysLogger = pino(
+        { level: 'debug' },
+        pino.destination(path.join(logDir, 'whatsapp-debug.log'))
+      );
+      console.log(`[DEBUG_WHATSAPP] Baileys debug logger initialized at logs/whatsapp-debug.log`);
+    } catch (e) {
+      console.warn(`[DEBUG_WHATSAPP] Failed to initialize file logger:`, e.message);
+      baileysLogger = pino({ level: 'debug' });
+    }
+  } else {
+    baileysLogger = pino({ level: 'silent' });
+  }
+
   const sock = makeWASocket({
     auth: state,
     browser: ['Windows', 'Chrome', '122.0.0'],
-    logger: pino({ level: 'silent' }),
+    logger: baileysLogger,
     version,
     shouldSyncHistoryMessage: () => true,
     connectTimeoutMs: 60000,
     defaultQueryTimeoutMs: 60000,
     keepAliveIntervalMs: 30000,
   });
+
+  const originalQuery = sock.query;
+  sock.query = async (node, timeoutMs) => {
+    if (process.env.DEBUG_WHATSAPP === 'true') {
+      console.log(`[DEBUG_WHATSAPP] Outgoing Query Node:`, JSON.stringify(node));
+    }
+    try {
+      const res = await originalQuery.call(sock, node, timeoutMs);
+      if (process.env.DEBUG_WHATSAPP === 'true') {
+        console.log(`[DEBUG_WHATSAPP] Query Response Node:`, JSON.stringify(res));
+      }
+      return res;
+    } catch (err) {
+      console.error(`[DEBUG_WHATSAPP] Query Error Node id=${node?.attrs?.id || 'unknown'}:`, err?.message || err);
+      throw err;
+    }
+  };
+
+  const originalSend = sock.send;
+  sock.send = (node) => {
+    if (process.env.DEBUG_WHATSAPP === 'true') {
+      console.log(`[DEBUG_WHATSAPP] Outgoing Send Node:`, JSON.stringify(node));
+    }
+    return originalSend.call(sock, node);
+  };
 
   const session = {
     authState: state,
@@ -777,11 +820,23 @@ async function createStableSession({
 
   sock.ev.on('creds.update', () => {
     session.lastPingAt = Date.now();
+    if (process.env.DEBUG_WHATSAPP === 'true') {
+      console.log(`[DEBUG_WHATSAPP] creds.update`);
+    }
     saveCreds();
+  });
+
+  sock.ev.on('presence.update', (presence) => {
+    if (process.env.DEBUG_WHATSAPP === 'true') {
+      console.log(`[DEBUG_WHATSAPP] presence.update:`, JSON.stringify(presence));
+    }
   });
 
   sock.ev.on('connection.update', async (update) => {
     session.lastPingAt = Date.now();
+    if (process.env.DEBUG_WHATSAPP === 'true') {
+      console.log(`[DEBUG_WHATSAPP] connection.update:`, JSON.stringify(update));
+    }
     if (session.isDisposed || session.isClosing) {
       console.log(`[WHATSAPP] connection.update ignored: session is disposed or closing (${normalizedSessionName})`);
       return;
@@ -1246,6 +1301,12 @@ async function createStableSession({
   sock.ev.on('messages.upsert', async ({ messages, type }) => {
     session.lastPingAt = Date.now();
     if (session.isDisposed || session.isClosing) return;
+    if (process.env.DEBUG_WHATSAPP === 'true') {
+      console.log(`[DEBUG_WHATSAPP] messages.upsert: messagesCount=${messages?.length || 0}, type=${type}`);
+      for (const m of messages || []) {
+        console.log(`[DEBUG_WHATSAPP]   m: ${m?.key?.id} -> JID=${m?.key?.remoteJid}, fromMe=${m?.key?.fromMe}`);
+      }
+    }
     scanLidMapping(sock);
     const batchCount = Array.isArray(messages) ? messages.length : 0;
 
@@ -1584,6 +1645,12 @@ async function createStableSession({
   sock.ev.on('messages.update', async (updates) => {
     session.lastPingAt = Date.now();
     if (session.isDisposed || session.isClosing) return;
+    if (process.env.DEBUG_WHATSAPP === 'true') {
+      console.log(`[DEBUG_WHATSAPP] messages.update: updatesCount=${updates?.length || 0}`);
+      for (const u of updates || []) {
+        console.log(`[DEBUG_WHATSAPP]   u: ${u?.key?.id} -> status=${u?.update?.status}, JID=${u?.key?.remoteJid}`);
+      }
+    }
     await emitMessageUpdates(io, updates, normalizedSessionName);
 
     // Phase 5: Track ACK state transitions
@@ -1609,6 +1676,12 @@ async function createStableSession({
   sock.ev.on('message-receipt.update', async (receipts) => {
     session.lastPingAt = Date.now();
     if (session.isDisposed || session.isClosing) return;
+    if (process.env.DEBUG_WHATSAPP === 'true') {
+      console.log(`[DEBUG_WHATSAPP] message-receipt.update: receiptsCount=${receipts?.length || 0}`);
+      for (const r of receipts || []) {
+        console.log(`[DEBUG_WHATSAPP]   r: ${r?.key?.id} -> JID=${r?.key?.remoteJid}, read=${r?.receipt?.readTimestamp}, receipt=${r?.receipt?.receiptTimestamp}`);
+      }
+    }
     for (const receipt of receipts || []) {
       const messageId = receipt?.key?.id;
       if (!messageId) continue;
