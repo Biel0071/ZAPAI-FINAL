@@ -1715,6 +1715,7 @@ async function createStableSession({
                   contactName: name || phone,
                   phone,
                   sessionId: normalizedSessionName,
+                  aiEnabled: false,
                 });
                 synced++;
               } catch (err) {
@@ -1812,6 +1813,7 @@ async function createStableSession({
                   contactName: name || phone,
                   phone,
                   sessionId: normalizedSessionName,
+                  aiEnabled: false,
                 });
                 chatsSynced++;
               })

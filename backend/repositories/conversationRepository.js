@@ -293,6 +293,7 @@ async function findOrCreateConversationByPhone({
   lastMessageType = 'text',
   phone,
   sessionId,
+  aiEnabled = true,
 }) {
   const { normalizePhone } = require('../services/whatsapp/shared/identifiers');
   const normalizedPhone = normalizePhone(phone);
@@ -314,6 +315,7 @@ async function findOrCreateConversationByPhone({
   }
 
   conversation = await createConversation({
+    aiEnabled,
     companyId,
     contactId: contact.id,
     lastMessage,

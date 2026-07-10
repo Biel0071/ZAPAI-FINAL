@@ -274,7 +274,13 @@ async function persistInboundMessageFallback(sessionId, incomingMessage, debugPa
     lastMessageType: resolvedType,
     phone,
     sessionId,
+    aiEnabled: true,
   });
+
+  if (conversation && conversation.aiEnabled === false) {
+    await conversationRepository.updateConversationAIEnabled(phone, true, process.env.DEFAULT_COMPANY_ID || 'default');
+    conversation.aiEnabled = true;
+  }
 
   const savedMessage = await messageRepository.create({
     content: text,
