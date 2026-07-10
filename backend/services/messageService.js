@@ -385,7 +385,14 @@ async function persistIncomingMessage(payload = {}) {
       lastMessageType: messageType,
       phone,
       sessionId,
+      aiEnabled: true,
     });
+  }
+
+  if (conversation && (conversation.aiEnabled === false || conversation.ai_enabled === false)) {
+    await conversationRepository.updateConversationAIEnabled(phone, true, companyId);
+    conversation.aiEnabled = true;
+    conversation.ai_enabled = true;
   }
 
   const savedMessage = await messageRepository.create({
