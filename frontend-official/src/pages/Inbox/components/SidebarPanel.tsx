@@ -977,7 +977,7 @@ export function SidebarPanel({
               </AccordionItem>
             </Accordion>
           </InboxSectionBoundary>
-        </</TabsContent>
+        </TabsContent>
 
         {/* ============ TAB LEAD (CRM) ============ */}
         <RightPanelSectionTrigger
