@@ -891,6 +891,8 @@ async function transcribe(req, res) {
     console.error('[Transcription Controller] Error:', error.message);
     return res.status(500).json({ error: error.message || 'Erro durante a transcrição do áudio.' });
   }
+}
+
 async function evolveAgent(req, res) {
   try {
     const { agentKey, instruction, apply = false, changes = null, sourceDescription = null } = req.body;
