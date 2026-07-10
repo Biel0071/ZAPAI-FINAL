@@ -147,7 +147,7 @@ async function sendAutomatedConversationMessage({ conversation, store, text }) {
     throw error;
   }
 
-  await whatsappService.sendMessage(sock, conversation.phone, normalizedText);
+  const sendResult = await whatsappService.sendMessage(sock, conversation.phone, normalizedText);
 
   const persistedResult = await registerOutgoingMessage(store, {
     companyId: conversation.company_id,
@@ -162,7 +162,22 @@ async function sendAutomatedConversationMessage({ conversation, store, text }) {
     text: normalizedText,
   });
 
-  return persistedResult?.message || null;
+  const outbound = persistedResult?.message || null;
+
+  if (sendResult?.key?.id && outbound?.id) {
+    const messageAckPipeline = require('../services/messageAckPipeline');
+    messageAckPipeline.registerDbMapping(sendResult.key.id, outbound.id);
+    const ackEntry = messageAckPipeline.transitionAck(sendResult.key.id, messageAckPipeline.ACK_STATES.SENT, {
+      chatId: conversation.phone,
+      sessionId: activeSession?.sessionId || preferredSessionId,
+    });
+    const io = store?.io || global.io;
+    if (io && ackEntry) {
+      messageAckPipeline.emitAckUpdate(io, ackEntry);
+    }
+  }
+
+  return outbound;
 }
 
 async function getConversations(req, res) {

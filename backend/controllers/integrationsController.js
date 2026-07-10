@@ -31,7 +31,7 @@ async function sendMessage(req, res) {
     return res.status(409).json({ error: 'No active WhatsApp session available.' });
   }
 
-  await whatsappService.sendMessage(sock, normalizedPhone, text);
+  const sendResult = await whatsappService.sendMessage(sock, normalizedPhone, text);
   const persisted = await messagesController.registerOutgoingMessage(store, {
     companyId,
     name: session?.phone || 'Integration API',
@@ -41,6 +41,19 @@ async function sendMessage(req, res) {
   });
 
   const outbound = persisted?.message || null;
+
+  if (sendResult?.key?.id && outbound?.id) {
+    const messageAckPipeline = require('../services/messageAckPipeline');
+    messageAckPipeline.registerDbMapping(sendResult.key.id, outbound.id);
+    const ackEntry = messageAckPipeline.transitionAck(sendResult.key.id, messageAckPipeline.ACK_STATES.SENT, {
+      chatId: normalizedPhone,
+      sessionId: session?.sessionId || sessionManager.DEFAULT_SESSION,
+    });
+    const io = store?.io || global.io;
+    if (io && ackEntry) {
+      messageAckPipeline.emitAckUpdate(io, ackEntry);
+    }
+  }
 
   if (!outbound?.id) {
     return res.status(500).json({

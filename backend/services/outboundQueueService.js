@@ -295,10 +295,25 @@ async function executeOutbound(item) {
     });
   }
 
-  return persistSuccessfulSend({
+  const res = await persistSuccessfulSend({
     ...item,
     sessionId: session?.sessionId || item.sessionId,
   });
+
+  if (sendResult?.key?.id && res?.message?.id) {
+    const messageAckPipeline = require('./messageAckPipeline');
+    messageAckPipeline.registerDbMapping(sendResult.key.id, res.message.id);
+    const ackEntry = messageAckPipeline.transitionAck(sendResult.key.id, messageAckPipeline.ACK_STATES.SENT, {
+      chatId: item.phone,
+      sessionId: session?.sessionId || item.sessionId,
+    });
+    const io = storeRef?.io || global.io;
+    if (io && ackEntry) {
+      messageAckPipeline.emitAckUpdate(io, ackEntry);
+    }
+  }
+
+  return res;
 }
 
 function pickNextProcessableItem() {
