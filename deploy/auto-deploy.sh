@@ -235,13 +235,9 @@ elif command -v pm2 >/dev/null 2>&1; then
     sleep 2
   fi
 
-  if pm2 pid zapflow-api >/dev/null 2>&1; then
-    pm2 restart ecosystem.config.js --env production --update-env
-    log "PM2: zapflow-api restarted"
-  else
-    pm2 start ecosystem.config.js --env production
-    log "PM2: zapflow-api started"
-  fi
+  pm2 delete zapflow-api >/dev/null 2>&1 || true
+  pm2 start ecosystem.config.js --env production
+  log "PM2: zapflow-api started fresh"
   pm2 save --force >/dev/null 2>&1 || true
 else
   warn "PM2 not available — skipping restart"
