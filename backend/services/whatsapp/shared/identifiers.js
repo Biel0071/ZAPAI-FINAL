@@ -151,6 +151,13 @@ function normalizeWhatsappJid(phone = '') {
     throw new Error('JID inválido: o número de telefone está vazio ou contém caracteres inválidos');
   }
 
+  if (global.phoneToLidMap && global.phoneToLidMap.has(clean)) {
+    const mappedLid = global.phoneToLidMap.get(clean);
+    if (mappedLid) {
+      return `${mappedLid}@lid`;
+    }
+  }
+
   if (clean.length >= 14 && !clean.startsWith('55')) {
     return `${clean}@lid`;
   }
