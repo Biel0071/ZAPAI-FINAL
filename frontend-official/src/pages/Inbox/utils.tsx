@@ -133,7 +133,7 @@ export function formatDurationMs(value?: number | null): string {
 
 export function normalizeConversationTimestamp(value?: string | number): number {
   if (!value) return 0;
-  
+
   if (typeof value === "number") {
     if (value > 1e9 && value < 9e9) return value * 1000;
     return value;
@@ -286,7 +286,7 @@ export async function resolveCachedMediaUrl(url?: string | null): Promise<string
   } catch (err) {
     console.warn("Failed caching media URL:", resolved, err);
   }
-  
+
   return resolved;
 }
 
@@ -359,7 +359,10 @@ export function revokeAttachmentPreviewUrls(attachments: ComposerAttachment[]) {
 export function isSessionActive(session: SessionInfo): boolean {
   if (!session) return false;
   const normalizedStatus = (session.status ?? "").toLowerCase();
-  return Boolean(session.connected || normalizedStatus === "connected" || normalizedStatus === "active" || normalizedStatus === "open");
+  return Boolean(
+    session.connected ||
+    ["connected", "online", "active", "open", "running"].includes(normalizedStatus)
+  );
 }
 
 export function pickActiveSession(sessions: SessionInfo[], preferredSessionId?: string | null): SessionInfo | null {
@@ -937,7 +940,7 @@ export function getMessageStatusMeta(status?: ChatMessage["status"]) {
   const normStatus = String(status || "").toLowerCase();
   if (normStatus === "sending" || normStatus === "pending" || normStatus === "retry") {
     return {
-      symbol: "🟡",
+      symbol: "...",
       className: "text-amber-500 animate-pulse",
       label: "Enviando...",
       icon: "clock",
@@ -945,7 +948,7 @@ export function getMessageStatusMeta(status?: ChatMessage["status"]) {
   }
   if (normStatus === "failed") {
     return {
-      symbol: "🔴",
+      symbol: "!",
       className: "text-destructive",
       label: "Falhou",
       icon: "failed",
@@ -953,33 +956,33 @@ export function getMessageStatusMeta(status?: ChatMessage["status"]) {
   }
   if (normStatus === "read" || normStatus === "played") {
     return {
-      symbol: "🔵",
-      className: "text-blue-500",
-      label: "Lida",
+      symbol: "2V",
+      className: "text-emerald-500",
+      label: "Lida no WhatsApp",
       icon: "read",
     };
   }
   if (normStatus === "device_ack" || normStatus === "delivered") {
     return {
-      symbol: "🟢",
-      className: "text-emerald-500",
-      label: "Entregue",
+      symbol: "2V",
+      className: "text-muted-foreground/70",
+      label: "Entregue no WhatsApp",
       icon: "delivered",
     };
   }
   if (normStatus === "sent" || normStatus === "server_ack") {
     return {
-      symbol: "🟢",
+      symbol: "1V",
       className: "text-muted-foreground/60",
-      label: "Enviada",
+      label: "Enviada ao servidor",
       icon: "sent",
     };
   }
 
   return {
-    symbol: "🟢",
+    symbol: "1V",
     className: "text-muted-foreground/60",
-    label: "Enviada",
+    label: "Enviada ao servidor",
     icon: "sent",
   };
 }
@@ -1074,7 +1077,7 @@ export function getQuickReplyPreviewText(
     .map((entry) => getMediaTypeLabel(entry.type === "pdf" ? "document" : entry.type))
     .filter(Boolean);
 
-  return mediaLabels.join(" • ") || item.text;
+  return mediaLabels.join(" ⬢ ") || item.text;
 }
 
 export function getUploadLimitBytes(mediaType: ComposerAttachment["mediaType"]): number {

@@ -213,7 +213,7 @@ export const MessageRow = memo(function MessageRow({
   const safeTextContent = getMessageDisplayContent(message);
   const displayText = hasRenderableMedia && safeTextContent === getMediaTypeLabel(resolvedMediaType) ? "" : safeTextContent;
 
-  const EMOJI_OPTIONS = ["😀", "😂", "😍", "👍", "🔥", "👏", "🙏", "✅", "📦", "🚚"];
+  const EMOJI_OPTIONS = ["\u{1F600}", "\u{1F602}", "\u{1F60D}", "\u{1F44D}", "\u{1F525}", "\u{1F44F}", "\u{1F64F}", "\u{2705}", "\u{1F4E6}", "\u{1F69A}"];
 
   return (
     <div
@@ -415,7 +415,7 @@ export const MessageRow = memo(function MessageRow({
                         onClick={handleTranscribe}
                         className="flex items-center justify-center gap-1.5 rounded-full border border-blue-500/50 bg-blue-500/10 px-4 py-1 text-xs font-semibold text-blue-400 transition-all hover:bg-blue-500/20 hover:text-blue-300 disabled:opacity-50"
                       >
-                        <span className="text-xs">🎙️</span>
+                        <span className="text-xs">Mic</span>
                         {isTranscribing ? "Transcrevendo..." : "Transcrever"}
                       </button>
                     </div>
@@ -487,7 +487,7 @@ export const MessageRow = memo(function MessageRow({
                 ) : statusMeta.icon === "failed" ? (
                   <Warning className="h-3.5 w-3.5 text-red-500 shrink-0" />
                 ) : statusMeta.icon === "read" ? (
-                  <Checks className="h-3.5 w-3.5 text-[#53bdeb] shrink-0" weight="bold" />
+                  <Checks className="h-3.5 w-3.5 text-emerald-500 shrink-0" weight="bold" />
                 ) : statusMeta.icon === "delivered" ? (
                   <Checks className="h-3.5 w-3.5 text-muted-foreground/60 shrink-0" />
                 ) : (

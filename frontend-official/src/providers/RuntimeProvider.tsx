@@ -85,7 +85,7 @@ function resolveConversationIdForRealtimeMessage(
   conversations: Conversation[],
 ): string | null {
   console.log(`[INBOX REALTIME] [REALTIME_MESSAGE] Resolving conversation for message: id=${incoming.id} phone=${incoming.phone} chatId=${incoming.chatId} conversationId=${incoming.conversationId} sessionId=${incoming.sessionId}`);
-  
+
   const incomingId = incoming.conversationId || incoming.chatId;
   const incomingPhone = incoming.phone || incoming.chatId || incoming.remoteJid;
 
@@ -98,7 +98,7 @@ function resolveConversationIdForRealtimeMessage(
       const isIdMatch = incomingId && (String(activeConv.id) === String(incomingId) || String(activeConv.chatId) === String(incomingId));
       const isPhoneMatched = incomingPhone && (isPhoneMatch(activeConv.phone, incomingPhone) || isPhoneMatch(activeConv.chatId, incomingPhone));
       const sessMatch = isSessionMatch(activeConv.sessionId, incoming.sessionId);
-      
+
       if ((isIdMatch || isPhoneMatched) && sessMatch) {
         console.log(`[INBOX REALTIME] [SESSION MATCH] [CONVERSATION RESOLVED] Matched incoming message to active conversation: activeId=${activeId}`);
         return activeId;
@@ -108,7 +108,7 @@ function resolveConversationIdForRealtimeMessage(
 
   // 1. Direct ID match
   if (incomingId) {
-    const directMatch = conversations.find((c) => 
+    const directMatch = conversations.find((c) =>
       (String(c.id) === String(incomingId) || String(c.chatId) === String(incomingId)) &&
       isSessionMatch(c.sessionId, incoming.sessionId)
     );
@@ -120,7 +120,7 @@ function resolveConversationIdForRealtimeMessage(
 
   // 2. Phone match
   if (incomingPhone) {
-    const phoneMatch = conversations.find((c) => 
+    const phoneMatch = conversations.find((c) =>
       (isPhoneMatch(c.phone, incomingPhone) || isPhoneMatch(c.chatId, incomingPhone)) &&
       isSessionMatch(c.sessionId, incoming.sessionId)
     );
@@ -133,7 +133,7 @@ function resolveConversationIdForRealtimeMessage(
   // 3. Contact ID match
   const incomingContactId = normalizeRuntimeIdentityPart(incoming.contactId);
   if (incomingContactId) {
-    const contactMatch = conversations.find((c) => 
+    const contactMatch = conversations.find((c) =>
       normalizeRuntimeIdentityPart(c.contactId) === incomingContactId &&
       isSessionMatch(c.sessionId, incoming.sessionId)
     );
@@ -164,6 +164,7 @@ export function RuntimeProvider({ children }: { children: ReactNode }) {
   const hydratedRef = useRef(false);
   const statusRef = useRef<RuntimeStatus>("offline");
   const refreshTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const recoveryAttemptedRef = useRef(false);
   const typingTimersRef = useRef<Map<string, any>>(new Map());
 
   const clearTypingTimeout = useCallback((conversationId: string) => {
@@ -198,9 +199,17 @@ export function RuntimeProvider({ children }: { children: ReactNode }) {
     const t0 = performance.now();
     runtimeInfo("[Runtime] hydration:start");
     try {
+      if (!recoveryAttemptedRef.current) {
+        recoveryAttemptedRef.current = true;
+        await apiService.recoverSessions().catch((error) => {
+          runtimeWarn("[Runtime] session:recover skipped", error instanceof Error ? error.message : error);
+        });
+      }
+
+      const activeSessionId = useAppStore.getState().activeSessionId;
       const [sessionsResult, metricsResult] = await Promise.allSettled([
         apiService.listSessions(),
-        apiService.getMetrics(),
+        apiService.getMetrics(activeSessionId),
       ]);
 
       const normalizedSessions =
@@ -532,7 +541,7 @@ export function RuntimeProvider({ children }: { children: ReactNode }) {
         // Clear typing status immediately for UUID, phone and chatId
         store.updateTypingStatus(conversationId, false);
         clearTypingTimeout(conversationId);
-        
+
         if (incoming.chatId) {
           store.updateTypingStatus(incoming.chatId, false);
           clearTypingTimeout(incoming.chatId);
@@ -617,12 +626,26 @@ export function RuntimeProvider({ children }: { children: ReactNode }) {
 
         if (!conversationId) return;
 
+        // Clear typing status immediately upon message status change
+        const store = useAppStore.getState();
+        store.updateTypingStatus(conversationId, false);
+        clearTypingTimeout(conversationId);
+
+        if (payload.chatId) {
+          store.updateTypingStatus(payload.chatId, false);
+          clearTypingTimeout(payload.chatId);
+        }
+        if (payload.phone) {
+          store.updateTypingStatus(payload.phone, false);
+          clearTypingTimeout(payload.phone);
+        }
+
         runtimeInfo("[Runtime] message_status", {
           messageId,
           status,
           resolvedConversationId: conversationId,
         });
-        useAppStore.getState().updateMessageStatus(conversationId, messageId, status as ChatMessage["status"]);
+        store.updateMessageStatus(conversationId, messageId, status as ChatMessage["status"]);
       },
 
       onMessageDeleted: (payload) => {
@@ -635,7 +658,7 @@ export function RuntimeProvider({ children }: { children: ReactNode }) {
       onTypingStatus: (payload) => {
         const { conversationId, phone, isTyping } = payload;
         if (!conversationId) return;
-        
+
         const store = useAppStore.getState();
         const resolvedId = resolveConversationIdForRealtimeMessage(
           { conversationId, phone, remoteJid: conversationId },
@@ -647,7 +670,7 @@ export function RuntimeProvider({ children }: { children: ReactNode }) {
         if (resolvedId !== conversationId) {
           store.updateTypingStatus(conversationId, isTyping);
         }
-        
+
         if (isTyping) {
           setTypingTimeout(resolvedId);
           if (resolvedId !== conversationId) {
@@ -659,6 +682,11 @@ export function RuntimeProvider({ children }: { children: ReactNode }) {
             clearTypingTimeout(conversationId);
           }
         }
+      },
+      onMetricsUpdated: (metrics) => {
+        if (!metrics) return;
+        runtimeInfo("[Runtime] metrics_updated", metrics);
+        useAppStore.getState().setMetrics(metrics);
       },
     });
 
@@ -704,6 +732,21 @@ export function RuntimeProvider({ children }: { children: ReactNode }) {
     forceRefresh,
     forceReconnect,
   }), [status, connectedSessions, hydrated, forceRefresh, forceReconnect]);
+
+  const activeSessionId = useAppStore((state) => state.activeSessionId);
+
+  useEffect(() => {
+    if (!hydrated) return;
+    const fetchMetrics = async () => {
+      try {
+        const metrics = await apiService.getMetrics(activeSessionId);
+        useAppStore.getState().setMetrics(metrics);
+      } catch (err) {
+        console.error("[Runtime] Failed to fetch metrics for session:", activeSessionId, err);
+      }
+    };
+    fetchMetrics();
+  }, [activeSessionId, hydrated]);
 
   if (!mounted) {
     return null;

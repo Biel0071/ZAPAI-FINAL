@@ -5,6 +5,8 @@ let lastMetricsSnapshot = {
   activeConversations: 0,
   connectedSessions: 0,
   messagesProcessed: 0,
+  messagesToday: 0,
+  aiResponses: 0,
   totalConversations: 0,
   totalMessages: 0,
   uptime: 0,
@@ -31,6 +33,11 @@ function buildMetricsSnapshot(store = {}) {
     connectedSessions,
     generatedAt: new Date().toISOString(),
     messagesProcessed: messages.length,
+    messagesToday: messages.filter((item) => {
+      const createdAt = new Date(item.created_at || item.createdAt || item.timestamp || 0);
+      return Number.isFinite(createdAt.getTime()) && createdAt.toDateString() === new Date().toDateString();
+    }).length,
+    aiResponses: messages.filter((item) => item?.source === 'ai' || item?.isAI === true || item?.sender === 'ai').length,
     totalConversations: conversations.length,
     totalMessages: messages.length,
     uptime: Number(process.uptime().toFixed(3)),
@@ -100,10 +107,14 @@ async function recalcMetricsFromDB(store = {}, options = {}) {
 
     let conversationQuery = 'SELECT COUNT(*)::int AS total FROM conversations WHERE company_id = $1';
     let messageQuery = 'SELECT COUNT(*)::int AS total FROM messages m INNER JOIN conversations c ON c.id = m.conversation_id WHERE c.company_id = $1';
+    let messagesTodayQuery = "SELECT COUNT(*)::int AS total FROM messages m INNER JOIN conversations c ON c.id = m.conversation_id WHERE c.company_id = $1 AND COALESCE(m.created_at, m.timestamp, NOW()) >= CURRENT_DATE";
+    let aiResponsesQuery = "SELECT COUNT(*)::int AS total FROM messages m INNER JOIN conversations c ON c.id = m.conversation_id WHERE c.company_id = $1 AND LOWER(COALESCE(m.sender, '')) IN ('ai', 'bot', 'assistant')";
     let openConversationQuery = 'SELECT COUNT(*)::int AS total FROM conversations WHERE company_id = $1 AND status <> $2';
 
     const convParams = [companyId];
     const msgParams = [companyId];
+    const todayParams = [companyId];
+    const aiParams = [companyId];
     const openParams = [companyId, 'closed'];
 
     if (isFiltered) {
@@ -113,13 +124,21 @@ async function recalcMetricsFromDB(store = {}, options = {}) {
       messageQuery += ' AND c.session_id = $2';
       msgParams.push(sessionId);
 
+      messagesTodayQuery += ' AND c.session_id = $2';
+      todayParams.push(sessionId);
+
+      aiResponsesQuery += ' AND c.session_id = $2';
+      aiParams.push(sessionId);
+
       openConversationQuery += ' AND session_id = $3';
       openParams.push(sessionId);
     }
 
-    const [conversationCount, messageCount, openConversationCount] = await Promise.all([
+    const [conversationCount, messageCount, messagesTodayCount, aiResponsesCount, openConversationCount] = await Promise.all([
       db.query(conversationQuery, convParams),
       db.query(messageQuery, msgParams),
+      db.query(messagesTodayQuery, todayParams),
+      db.query(aiResponsesQuery, aiParams),
       db.query(openConversationQuery, openParams),
     ]);
 
@@ -128,6 +147,8 @@ async function recalcMetricsFromDB(store = {}, options = {}) {
       connectedSessions,
       generatedAt: new Date().toISOString(),
       messagesProcessed: Number(messageCount.rows?.[0]?.total) || 0,
+      messagesToday: Number(messagesTodayCount.rows?.[0]?.total) || 0,
+      aiResponses: Number(aiResponsesCount.rows?.[0]?.total) || 0,
       totalConversations: Number(conversationCount.rows?.[0]?.total) || 0,
       totalMessages: Number(messageCount.rows?.[0]?.total) || 0,
       uptime: Number(process.uptime().toFixed(3)),

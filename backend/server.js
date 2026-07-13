@@ -94,7 +94,7 @@ function buildHealthPayload() {
   const whatsappConnected = String(session?.status || '').toLowerCase() === 'connected';
   const uptimeSec = process.uptime();
   const mem = process.memoryUsage();
-  
+
   // Standardized status: online, offline, degraded
   const overallStatus = databaseOnline && whatsappConnected ? 'online' : (databaseOnline ? 'degraded' : 'offline');
 
@@ -595,7 +595,7 @@ function corsForStatic(req, res, next) {
   res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
   res.setHeader('Access-Control-Allow-Methods', 'GET, HEAD, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Authorization, Content-Type, x-tenant-id');
-  
+
   if (req.method === 'OPTIONS') {
     return res.sendStatus(204);
   }
@@ -676,32 +676,40 @@ io.on('connection', (socket) => {
       console.log(`[SERVER] Received archive_chat for ${chatId}`);
       const chatOperations = require('./services/whatsapp/chat/operations');
       const conversationRepository = require('./repositories/conversationRepository');
-      
+
       // Update DB
       await conversationRepository.updateConversationState(chatId, { status: 'archived' }).catch(() => {});
-      
-      // Update Memory store
-      chatOperations.archiveChat(chatId);
-      
-      // Send command to Baileys socket
-      const session = chatOperations.findSessionForChat(chatId);
-      if (session && session.sock) {
-        const chat = chatOperations.getOrCreateChat(chatId);
-        const lastMsg = chat?.messages?.[chat.messages.length - 1];
-        const lastMessages = lastMsg ? [{
-          key: {
-            id: lastMsg.id,
-            remoteJid: chatId,
-            fromMe: lastMsg.fromMe
-          },
-          messageTimestamp: typeof lastMsg.createdAt === 'string' ? Math.floor(new Date(lastMsg.createdAt).getTime() / 1000) : Math.floor(Date.now() / 1000)
-        }] : [];
-        
-        await session.sock.chatModify({ archive: true, lastMessages }, chatId).catch((err) => {
-          console.warn(`[WHATSAPP_ARCHIVE] Failed to archive in Baileys for ${chatId}:`, err.message);
-        });
+
+      const conv = await conversationRepository.getConversationById(chatId);
+      if (conv) {
+        const jid = conv.phone.includes('@') ? conv.phone : `${conv.phone}@s.whatsapp.net`;
+
+        // Update Memory store using real WhatsApp JID
+        chatOperations.archiveChat(jid);
+
+        // Send command to Baileys socket using real WhatsApp JID
+        const session = chatOperations.findSessionForChat(jid);
+        if (session && session.sock) {
+          const chat = chatOperations.getOrCreateChat(jid);
+          const lastMsg = chat?.messages?.[chat.messages.length - 1];
+          const lastMessages = lastMsg ? [{
+            key: {
+              id: lastMsg.id,
+              remoteJid: jid,
+              fromMe: lastMsg.fromMe
+            },
+            messageTimestamp: typeof lastMsg.createdAt === 'string' ? Math.floor(new Date(lastMsg.createdAt).getTime() / 1000) : Math.floor(Date.now() / 1000)
+          }] : [];
+
+          await session.sock.chatModify({ archive: true, lastMessages }, jid).catch((err) => {
+            console.warn(`[WHATSAPP_ARCHIVE] Failed to archive in Baileys for ${jid}:`, err.message);
+          });
+        }
+      } else {
+        // Fallback to chatId if conversation is not found in DB
+        chatOperations.archiveChat(chatId);
       }
-      
+
       // Notify other frontend clients
       socket.broadcast.emit('chat_archived', { chatId });
     } catch (err) {
@@ -717,14 +725,17 @@ io.on('connection', (socket) => {
       const { ensureRealtimeStore } = require('./services/whatsapp/realtime/chatState');
       const { emitChatUpdated, emitChatsLoaded } = require('./services/whatsapp/realtime/events');
       const { emitRealtimeMetrics } = require('./services/whatsapp/realtime/metrics');
-      
+
       // Update DB
       await conversationRepository.updateConversationState(chatId, { status: 'active' }).catch(() => {});
-      
+
+      const conv = await conversationRepository.getConversationById(chatId);
+      const targetId = conv ? (conv.phone.includes('@') ? conv.phone : `${conv.phone}@s.whatsapp.net`) : chatId;
+
       // Update Memory store
-      const session = chatOperations.findSessionForChat(chatId);
+      const session = chatOperations.findSessionForChat(targetId);
       const store = session ? ensureRealtimeStore(session) : null;
-      const targetChat = store?.chats?.[chatId];
+      const targetChat = store?.chats?.[targetId];
       if (targetChat) {
         targetChat.archived = false;
         targetChat.updatedAt = Date.now();
@@ -732,28 +743,28 @@ io.on('connection', (socket) => {
         emitChatsLoaded(session?.io || io, store);
         emitRealtimeMetrics(session?.io || io, store);
       }
-      const chat = chatOperations.getOrCreateChat(chatId);
+      const chat = chatOperations.getOrCreateChat(targetId);
       if (chat) {
         chat.archived = false;
       }
-      
+
       // Send command to Baileys socket
       if (session && session.sock) {
         const lastMsg = chat?.messages?.[chat.messages.length - 1];
         const lastMessages = lastMsg ? [{
           key: {
             id: lastMsg.id,
-            remoteJid: chatId,
+            remoteJid: targetId,
             fromMe: lastMsg.fromMe
           },
           messageTimestamp: typeof lastMsg.createdAt === 'string' ? Math.floor(new Date(lastMsg.createdAt).getTime() / 1000) : Math.floor(Date.now() / 1000)
         }] : [];
-        
-        await session.sock.chatModify({ archive: false, lastMessages }, chatId).catch((err) => {
-          console.warn(`[WHATSAPP_ARCHIVE] Failed to unarchive in Baileys for ${chatId}:`, err.message);
+
+        await session.sock.chatModify({ archive: false, lastMessages }, targetId).catch((err) => {
+          console.warn(`[WHATSAPP_ARCHIVE] Failed to unarchive in Baileys for ${targetId}:`, err.message);
         });
       }
-      
+
       // Notify other frontend clients
       socket.broadcast.emit('chat_unarchived', { chatId });
     } catch (err) {
@@ -766,11 +777,11 @@ io.on('connection', (socket) => {
       const chatId = payload.chatId;
       const tagsToAdd = payload.tag ? [payload.tag] : (payload.tags || []);
       if (!chatId || tagsToAdd.length === 0) return;
-      
+
       console.log(`[SERVER] Received add_tag for ${chatId}:`, tagsToAdd);
       const chatOperations = require('./services/whatsapp/chat/operations');
       const conversationRepository = require('./repositories/conversationRepository');
-      
+
       // Update DB
       const conv = await conversationRepository.getConversationById(chatId);
       if (conv) {
@@ -785,21 +796,22 @@ io.on('connection', (socket) => {
         if (changed) {
           await conversationRepository.updateConversationState(chatId, { tags: currentTags }).catch(() => {});
         }
-      }
-      
-      // Update Memory store & Baileys labels
-      const session = chatOperations.findSessionForChat(chatId);
-      for (const t of tagsToAdd) {
-        chatOperations.addTag(chatId, t);
-        
-        // WhatsApp Business Labels wrapper
-        if (session && session.sock && typeof session.sock.chatModify === 'function') {
-          await session.sock.chatModify({ addLabel: { labelId: t } }, chatId).catch((err) => {
-            console.log(`[WHATSAPP_LABELS] addLabel skipped/failed for tag "${t}":`, err.message);
-          });
+
+        // Update Memory store & Baileys labels
+        const jid = conv.phone.includes('@') ? conv.phone : `${conv.phone}@s.whatsapp.net`;
+        const session = chatOperations.findSessionForChat(jid);
+        for (const t of tagsToAdd) {
+          chatOperations.addTag(jid, t);
+
+          // WhatsApp Business Labels wrapper
+          if (session && session.sock && typeof session.sock.chatModify === 'function') {
+            await session.sock.chatModify({ addLabel: { labelId: t } }, jid).catch((err) => {
+              console.log(`[WHATSAPP_LABELS] addLabel skipped/failed for tag "${t}":`, err.message);
+            });
+          }
         }
       }
-      
+
       socket.broadcast.emit('tag_added', { chatId, tags: tagsToAdd });
     } catch (err) {
       console.error('[SERVER] add_tag error:', err);
@@ -810,27 +822,30 @@ io.on('connection', (socket) => {
     try {
       const { chatId, tag } = payload;
       if (!chatId || !tag) return;
-      
+
       console.log(`[SERVER] Received remove_tag for ${chatId}: ${tag}`);
       const chatOperations = require('./services/whatsapp/chat/operations');
       const conversationRepository = require('./repositories/conversationRepository');
-      
+
       // Update DB
       const conv = await conversationRepository.getConversationById(chatId);
-      if (conv && Array.isArray(conv.tags) && conv.tags.includes(tag)) {
-        const nextTags = conv.tags.filter(t => t !== tag);
-        await conversationRepository.updateConversationState(chatId, { tags: nextTags }).catch(() => {});
+      if (conv) {
+        if (Array.isArray(conv.tags) && conv.tags.includes(tag)) {
+          const nextTags = conv.tags.filter(t => t !== tag);
+          await conversationRepository.updateConversationState(chatId, { tags: nextTags }).catch(() => {});
+        }
+
+        // Update Memory store & Baileys labels
+        const jid = conv.phone.includes('@') ? conv.phone : `${conv.phone}@s.whatsapp.net`;
+        chatOperations.removeTag(jid, tag);
+        const session = chatOperations.findSessionForChat(jid);
+        if (session && session.sock && typeof session.sock.chatModify === 'function') {
+          await session.sock.chatModify({ removeLabel: { labelId: tag } }, jid).catch((err) => {
+            console.log(`[WHATSAPP_LABELS] removeLabel skipped/failed for tag "${tag}":`, err.message);
+          });
+        }
       }
-      
-      // Update Memory store & Baileys labels
-      chatOperations.removeTag(chatId, tag);
-      const session = chatOperations.findSessionForChat(chatId);
-      if (session && session.sock && typeof session.sock.chatModify === 'function') {
-        await session.sock.chatModify({ removeLabel: { labelId: tag } }, chatId).catch((err) => {
-          console.log(`[WHATSAPP_LABELS] removeLabel skipped/failed for tag "${tag}":`, err.message);
-        });
-      }
-      
+
       socket.broadcast.emit('tag_removed', { chatId, tag });
     } catch (err) {
       console.error('[SERVER] remove_tag error:', err);
@@ -921,33 +936,39 @@ app.get('/api/metrics', async (_req, res) => {
     // --- Business metrics from DB (best effort) ---
     let messagesToday = 0;
     let activeChats = 0;
+    let activeConversations = 0;
     let aiResponses = 0;
     let newLeads = 0;
+    let totalConversations = 0;
+    let totalMessages = 0;
 
     if (app.locals.store?.databaseEnabled) {
       try {
         const { query } = require('./config/database');
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
-        const todayIso = today.toISOString();
 
-        const [msgsRes, aiRes, leadsRes] = await Promise.allSettled([
-          query(`SELECT COUNT(*) AS cnt FROM messages WHERE created_at >= $1`, [todayIso]),
-          query(`SELECT COUNT(*) AS cnt FROM messages WHERE created_at >= $1 AND (sender = 'agent' OR direction = 'outgoing')`, [todayIso]),
-          query(`SELECT COUNT(*) AS cnt FROM conversations WHERE created_at >= $1`, [todayIso]),
+        const [msgsRes, aiRes, leadsRes, totalConvRes, totalMsgRes, activeConvRes] = await Promise.allSettled([
+          query(`SELECT COUNT(*) AS cnt FROM messages WHERE COALESCE(created_at, timestamp, NOW()) >= CURRENT_DATE`),
+          query(`SELECT COUNT(*) AS cnt FROM messages WHERE COALESCE(created_at, timestamp, NOW()) >= CURRENT_DATE AND LOWER(COALESCE(sender, '')) IN ('ai', 'bot', 'assistant')`),
+          query(`SELECT COUNT(*) AS cnt FROM conversations WHERE COALESCE(created_at, updated_at, NOW()) >= CURRENT_DATE`),
+          query(`SELECT COUNT(*) AS cnt FROM conversations`),
+          query(`SELECT COUNT(*) AS cnt FROM messages`),
+          query(`SELECT COUNT(*) AS cnt FROM conversations WHERE COALESCE(status, 'open') <> 'closed'`),
         ]);
 
         if (msgsRes.status === 'fulfilled') messagesToday = Number(msgsRes.value.rows[0]?.cnt ?? 0);
         if (aiRes.status === 'fulfilled') aiResponses = Number(aiRes.value.rows[0]?.cnt ?? 0);
         if (leadsRes.status === 'fulfilled') newLeads = Number(leadsRes.value.rows[0]?.cnt ?? 0);
+        if (totalConvRes.status === 'fulfilled') totalConversations = Number(totalConvRes.value.rows[0]?.cnt ?? 0);
+        if (totalMsgRes.status === 'fulfilled') totalMessages = Number(totalMsgRes.value.rows[0]?.cnt ?? 0);
+        if (activeConvRes.status === 'fulfilled') activeConversations = Number(activeConvRes.value.rows[0]?.cnt ?? 0);
       } catch {
         // DB query failed — use infra defaults below
       }
     }
 
-    // Active chats from session registry
+    // Active WhatsApp sessions from session registry
     const defaultSession = sessionManager.getSession(DEFAULT_SESSION);
-    activeChats = defaultSession && String(defaultSession.status || '').toLowerCase() === 'connected' ? 1 : 0;
+    activeChats = activeConversations || (defaultSession && String(defaultSession.status || '').toLowerCase() === 'connected' ? 1 : 0);
 
     // --- Infra metrics (always available) ---
     const uptimeSec = Math.floor(process.uptime());
@@ -961,8 +982,13 @@ app.get('/api/metrics', async (_req, res) => {
         // Business metrics (dashboard cards)
         messagesToday,
         activeChats,
+        activeConversations,
         aiResponses,
         newLeads,
+        totalConversations,
+        totalMessages,
+        messages: messagesToday,
+        leads: totalConversations,
         // Infra (diagnostics)
         uptime: {
           seconds: uptimeSec,
@@ -1063,7 +1089,7 @@ app.get('/api/system/full-status', (_req, res) => {
   const payload = buildFullHealthPayload();
   const session = sessionManager.getSession(whatsappService.DEFAULT_SESSION);
   const queueSize = app.locals.store?.messages?.length || 0;
-  
+
   return res.status(200).json({
     status: payload.status,
     uptime: payload.diagnostics.uptimeSeconds,
@@ -1812,7 +1838,7 @@ async function bootstrap() {
     console.log(`[SERVER] Host: 0.0.0.0`);
     console.log(`[SERVER] Environment: ${NODE_ENV}`);
     console.log(`[SERVER] API running`);
-    
+
     // Register node in master admin
     await nodeRegisterService.registerNode();
 

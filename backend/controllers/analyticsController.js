@@ -25,16 +25,19 @@ async function getMetrics(req, res) {
       snapshot = await metricsTracker.recalcMetricsFromDB(store, { force: true, sessionId });
     } else {
       snapshot = metricsTracker.getMetrics(store);
-      if (!snapshot?.generatedAt) {
+      if (!snapshot?.generatedAt || snapshot.messagesToday == null || snapshot.aiResponses == null) {
         snapshot = await metricsTracker.recalcMetricsFromDB(store, { force: true });
       }
     }
 
     return res.status(200).json({
       activeConversations: Number(snapshot?.activeConversations) || 0,
+      activeChats: Number(snapshot?.activeConversations) || 0,
+      aiResponses: Number(snapshot?.aiResponses) || 0,
       generatedAt: snapshot?.generatedAt || new Date().toISOString(),
       leads: Number(snapshot?.totalConversations) || 0,
-      messages: Number(snapshot?.totalMessages) || 0,
+      messages: Number(snapshot?.messagesToday) || 0,
+      messagesToday: Number(snapshot?.messagesToday) || 0,
       sessions: Number(snapshot?.connectedSessions) || 0,
       totalConversations: Number(snapshot?.totalConversations) || 0,
       totalMessages: Number(snapshot?.totalMessages) || 0,

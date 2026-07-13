@@ -28,7 +28,7 @@ function isWhatsAppConnected() {
       return true;
     }
   } catch (_error) {
-    // service not initialised yet — fall through.
+    // service not initialised yet - fall through.
   }
 
   if (global.whatsappSession?.connected === true) {
@@ -101,9 +101,103 @@ async function sendWithRetry(fn, retries = 3) {
   return undefined;
 }
 
+// In-memory JID resolution cache to avoid repeated onWhatsApp calls.
+// Key = raw digits, Value = { jid, ts }. Entries expire after 5 minutes.
+const jidResolveCache = new Map();
+const JID_CACHE_TTL_MS = 5 * 60 * 1000;
+
+function getCachedJid(digits) {
+  const entry = jidResolveCache.get(digits);
+  if (!entry) return null;
+  if (Date.now() - entry.ts > JID_CACHE_TTL_MS) {
+    jidResolveCache.delete(digits);
+    return null;
+  }
+  return entry.jid;
+}
+
+function setCachedJid(digits, jid) {
+  // Cap cache size to prevent memory leaks
+  if (jidResolveCache.size > 5000) {
+    const firstKey = jidResolveCache.keys().next().value;
+    jidResolveCache.delete(firstKey);
+  }
+  jidResolveCache.set(digits, { jid, ts: Date.now() });
+}
+
+async function resolveRegisteredJid(sock, jid, options = {}) {
+  const requireRegistered = options.requireRegistered !== false;
+  if (!jid || !jid.endsWith('@s.whatsapp.net') || !sock || typeof sock.onWhatsApp !== 'function') {
+    return jid;
+  }
+
+  const clean = jid.split('@')[0];
+  if (!clean || !/^\d+$/.test(clean)) {
+    return jid;
+  }
+
+  const cached = getCachedJid(clean);
+  if (cached) {
+    return cached;
+  }
+
+  const queryCandidate = async (candidateJid, reason) => {
+    const checkResult = await sock.onWhatsApp(candidateJid);
+    if (Array.isArray(checkResult) && checkResult.length > 0 && checkResult[0].exists) {
+      const resolvedJid = checkResult[0].jid || candidateJid;
+      setCachedJid(clean, resolvedJid);
+      if (resolvedJid !== jid || reason) {
+        console.log(`[JID-RESOLVE] ${reason || 'resolved'} ${clean} -> ${resolvedJid}`);
+      }
+      return resolvedJid;
+    }
+    return null;
+  };
+
+  try {
+    const original = await queryCandidate(jid);
+    if (original) return original;
+
+    if (clean.startsWith('55') && clean.length === 13) {
+      const ddd = clean.substring(2, 4);
+      const number = clean.substring(5);
+      const clean12 = `55${ddd}${number}`;
+      const resolved = await queryCandidate(`${clean12}@s.whatsapp.net`, 'BR 13-to-12 fallback');
+      if (resolved) return resolved;
+    }
+
+    if (clean.startsWith('55') && clean.length === 12) {
+      const ddd = clean.substring(2, 4);
+      const number = clean.substring(4);
+      const clean13 = `55${ddd}9${number}`;
+      const resolved = await queryCandidate(`${clean13}@s.whatsapp.net`, 'BR 12-to-13 fallback');
+      if (resolved) return resolved;
+    }
+  } catch (err) {
+    console.warn(`[JID-RESOLVE] onWhatsApp query failed for ${clean}:`, err.message);
+    if (requireRegistered) {
+      const error = new Error('Nao foi possivel confirmar este numero no WhatsApp. Reconecte a sessao e tente novamente.');
+      error.code = 'WHATSAPP_JID_VERIFY_FAILED';
+      error.jid = jid;
+      throw error;
+    }
+  }
+
+  // Do not cache misses: a number may become resolvable after reconnect/history sync.
+  if (requireRegistered) {
+    const error = new Error('Numero nao encontrado no WhatsApp. Verifique o contato antes de enviar.');
+    error.code = 'WHATSAPP_NUMBER_NOT_FOUND';
+    error.jid = jid;
+    throw error;
+  }
+
+  return jid;
+}
+
 async function sendMessage(sock, phone, text) {
   ensureSocket(sock);
-  const jid = ensureWhatsAppJid(phone);
+  let jid = ensureWhatsAppJid(phone);
+  jid = await resolveRegisteredJid(sock, jid, { requireRegistered: true });
 
   try {
     return await sendWithRetry(
@@ -125,7 +219,8 @@ async function sendMessage(sock, phone, text) {
 
 async function sendImage(sock, phone, imagePath, caption = '') {
   ensureSocket(sock);
-  const jid = ensureWhatsAppJid(phone);
+  let jid = ensureWhatsAppJid(phone);
+  jid = await resolveRegisteredJid(sock, jid, { requireRegistered: true });
 
   try {
     return await sendWithRetry(
@@ -152,7 +247,8 @@ async function sendImage(sock, phone, imagePath, caption = '') {
 
 async function sendVideo(sock, phone, videoPath, caption = '') {
   ensureSocket(sock);
-  const jid = ensureWhatsAppJid(phone);
+  let jid = ensureWhatsAppJid(phone);
+  jid = await resolveRegisteredJid(sock, jid, { requireRegistered: true });
 
   try {
     return await sendWithRetry(
@@ -179,7 +275,8 @@ async function sendVideo(sock, phone, videoPath, caption = '') {
 
 async function sendAudio(sock, phone, audioPath, ptt = false, mimetype) {
   ensureSocket(sock);
-  const jid = ensureWhatsAppJid(phone);
+  let jid = ensureWhatsAppJid(phone);
+  jid = await resolveRegisteredJid(sock, jid, { requireRegistered: true });
 
   try {
     return await sendWithRetry(
@@ -208,7 +305,8 @@ async function sendAudio(sock, phone, audioPath, ptt = false, mimetype) {
 
 async function sendDocument(sock, phone, docPath, fileName, mimetype) {
   ensureSocket(sock);
-  const jid = ensureWhatsAppJid(phone);
+  let jid = ensureWhatsAppJid(phone);
+  jid = await resolveRegisteredJid(sock, jid, { requireRegistered: true });
 
   try {
     return await sendWithRetry(
@@ -237,7 +335,8 @@ async function sendDocument(sock, phone, docPath, fileName, mimetype) {
 
 async function sendSticker(sock, phone, stickerPath) {
   ensureSocket(sock);
-  const jid = ensureWhatsAppJid(phone);
+  let jid = ensureWhatsAppJid(phone);
+  jid = await resolveRegisteredJid(sock, jid, { requireRegistered: true });
 
   try {
     return await sendWithRetry(

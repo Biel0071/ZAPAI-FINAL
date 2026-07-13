@@ -152,10 +152,21 @@ export default function Contacts() {
   const loadContacts = useCallback(async () => {
     try {
       setError(null);
-      const [contactsData, conversationsData] = await Promise.all([
+      const [contactsResult, conversationsResult] = await Promise.allSettled([
         apiService.getContacts(true),
-        apiService.getConversations(true, { limit: 200 }),
+        apiService.getConversations(true, { limit: 1000 }),
       ]);
+
+      const contactsData = contactsResult.status === "fulfilled" && Array.isArray(contactsResult.value)
+        ? contactsResult.value
+        : [];
+      const conversationsData = conversationsResult.status === "fulfilled" && Array.isArray(conversationsResult.value)
+        ? conversationsResult.value
+        : [];
+
+      if (contactsResult.status === "rejected" && conversationsResult.status === "rejected") {
+        throw contactsResult.reason ?? conversationsResult.reason;
+      }
 
       const conversationsByPhone = new Map<string, Conversation>();
       (Array.isArray(conversationsData) ? conversationsData : []).forEach((conversation) => {

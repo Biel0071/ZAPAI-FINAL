@@ -48,9 +48,10 @@ export function createAnalyticsLovableViewModel(params: {
 }): AnalyticsLovableViewModel {
   const { metrics, conversationCount, conversations = [] } = params;
 
-  const messagesToday = resolveMetric(metrics, ["messagesToday", "todayMessages", "messages", "totalMessages"]);
-  const activeChats = resolveMetric(metrics, ["activeChats", "activeConversations", "totalConversations", "chats"]);
+  const messagesToday = resolveMetric(metrics, ["messagesToday", "todayMessages"]) || toNumber((metrics as any)?.messages) || 0;
+  const activeChats = resolveMetric(metrics, ["activeChats", "activeConversations", "chats"]);
   const aiResponses = resolveMetric(metrics, ["aiResponses", "ai", "botResponses"]);
+  const resolvedLeads = resolveMetric(metrics, ["totalConversations", "leads", "conversationCount"]) || conversationCount;
 
   // Calcular distribuição de temperatura baseando-se nas conversas reais
   let quente = 0;
@@ -125,12 +126,12 @@ export function createAnalyticsLovableViewModel(params: {
       },
       {
         label: "Taxa de Resposta IA",
-        value: `${messagesToday > 0 ? Math.round((aiResponses / Math.max(messagesToday, 1)) * 100) : 84}%`,
+        value: `${messagesToday > 0 ? Math.round((aiResponses / Math.max(messagesToday, 1)) * 100) : 0}%`,
         tone: "info",
       },
       {
         label: "Leads Totais",
-        value: conversationCount.toLocaleString("pt-BR"),
+        value: resolvedLeads.toLocaleString("pt-BR"),
         tone: "success",
       },
     ],
@@ -140,6 +141,6 @@ export function createAnalyticsLovableViewModel(params: {
       { name: "Morno", value: morno, color: "#f59e0b" },
       { name: "Frio", value: frio, color: "#0ea5e9" },
     ],
-    totalLeadsLabel: conversationCount.toLocaleString("pt-BR"),
+    totalLeadsLabel: resolvedLeads.toLocaleString("pt-BR"),
   };
 }

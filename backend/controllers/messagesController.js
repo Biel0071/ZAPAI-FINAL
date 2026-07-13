@@ -134,7 +134,16 @@ async function sendMessage(req, res) {
     text,
   } = req.body;
   const store = getStore(req);
-  const normalizedPhone = whatsappService.normalizePhone(chatId || phone);
+  let conversationTarget = null;
+  if (conversationId) {
+    try {
+      conversationTarget = await conversationRepository.getConversationById(conversationId);
+    } catch (lookupError) {
+      console.warn('[SEND_MESSAGE] Failed to resolve conversation target:', lookupError.message);
+    }
+  }
+  const targetJidOrPhone = conversationTarget?.remote_jid || conversationTarget?.remoteJid || chatId || phone;
+  const normalizedPhone = whatsappService.normalizePhone(targetJidOrPhone);
   const mediaTransportPath = await messageService.resolveOutboundMediaPath(_transportMediaPath || mediaPath);
   const resolvedMediaType =
     String(mediaType || '').toLowerCase() === 'file'
@@ -218,7 +227,7 @@ async function sendMessage(req, res) {
       await messageService.ensureUploadDirectories();
       sendResult = await whatsappService.sendMediaMessage(
         sock,
-        normalizedPhone,
+        targetJidOrPhone,
         resolvedMediaType,
         checkedMediaTransportPath || mediaPath,
         {
@@ -229,7 +238,7 @@ async function sendMessage(req, res) {
         }
       );
     } else {
-      sendResult = await whatsappService.sendMessage(sock, normalizedPhone, resolvedText);
+      sendResult = await whatsappService.sendMessage(sock, targetJidOrPhone, resolvedText);
     }
 
     if (!sendResult || !sendResult.key || !sendResult.key.id) {
@@ -388,6 +397,24 @@ async function sendMessage(req, res) {
       } catch (dbErr) {
         console.error('[CRM] Failed to update blocked status for lead:', dbErr.message);
       }
+    }
+
+    if (error?.code === 'WHATSAPP_NUMBER_NOT_FOUND') {
+      return res.status(422).json({
+        error: error.message,
+        code: error.code,
+        jid: error.jid,
+        success: false,
+      });
+    }
+
+    if (error?.code === 'WHATSAPP_JID_VERIFY_FAILED') {
+      return res.status(409).json({
+        error: error.message,
+        code: error.code,
+        jid: error.jid,
+        success: false,
+      });
     }
 
     if (error?.code === 'MEDIA_FILE_NOT_FOUND') {
