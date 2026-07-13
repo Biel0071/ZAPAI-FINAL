@@ -609,22 +609,6 @@ export function useInboxState() {
     selectedConversationRef.current = selectedConversation;
   }, [selectedConversation]);
 
-  useEffect(() => {
-    if (sessionOwnPhones.size === 0) return;
-
-    const ownConversationIds = conversations
-      .filter((conversation) => isOwnSessionConversation(conversation))
-      .map((conversation) => conversation.id);
-
-    if (ownConversationIds.length === 0) return;
-
-    const ownConversationIdSet = new Set(ownConversationIds);
-    setConversations((prev) => prev.filter((conversation) => !ownConversationIdSet.has(conversation.id)));
-
-    if (selectedConversationId && ownConversationIdSet.has(selectedConversationId)) {
-      setSelectedConversationId(null);
-    }
-  }, [conversations, isOwnSessionConversation, selectedConversationId, sessionOwnPhones.size, setConversations, setSelectedConversationId]);
 
   useEffect(() => {
     setLeadNotes(
