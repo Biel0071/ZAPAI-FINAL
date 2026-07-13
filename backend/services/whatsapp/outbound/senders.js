@@ -197,7 +197,7 @@ async function resolveRegisteredJid(sock, jid, options = {}) {
 async function sendMessage(sock, phone, text) {
   ensureSocket(sock);
   let jid = ensureWhatsAppJid(phone);
-  jid = await resolveRegisteredJid(sock, jid, { requireRegistered: true });
+  jid = await resolveRegisteredJid(sock, jid, { requireRegistered: false });
 
   try {
     return await sendWithRetry(
@@ -220,7 +220,7 @@ async function sendMessage(sock, phone, text) {
 async function sendImage(sock, phone, imagePath, caption = '') {
   ensureSocket(sock);
   let jid = ensureWhatsAppJid(phone);
-  jid = await resolveRegisteredJid(sock, jid, { requireRegistered: true });
+  jid = await resolveRegisteredJid(sock, jid, { requireRegistered: false });
 
   try {
     return await sendWithRetry(
@@ -248,7 +248,7 @@ async function sendImage(sock, phone, imagePath, caption = '') {
 async function sendVideo(sock, phone, videoPath, caption = '') {
   ensureSocket(sock);
   let jid = ensureWhatsAppJid(phone);
-  jid = await resolveRegisteredJid(sock, jid, { requireRegistered: true });
+  jid = await resolveRegisteredJid(sock, jid, { requireRegistered: false });
 
   try {
     return await sendWithRetry(
@@ -276,7 +276,7 @@ async function sendVideo(sock, phone, videoPath, caption = '') {
 async function sendAudio(sock, phone, audioPath, ptt = false, mimetype) {
   ensureSocket(sock);
   let jid = ensureWhatsAppJid(phone);
-  jid = await resolveRegisteredJid(sock, jid, { requireRegistered: true });
+  jid = await resolveRegisteredJid(sock, jid, { requireRegistered: false });
 
   try {
     return await sendWithRetry(
@@ -306,7 +306,7 @@ async function sendAudio(sock, phone, audioPath, ptt = false, mimetype) {
 async function sendDocument(sock, phone, docPath, fileName, mimetype) {
   ensureSocket(sock);
   let jid = ensureWhatsAppJid(phone);
-  jid = await resolveRegisteredJid(sock, jid, { requireRegistered: true });
+  jid = await resolveRegisteredJid(sock, jid, { requireRegistered: false });
 
   try {
     return await sendWithRetry(
@@ -336,7 +336,7 @@ async function sendDocument(sock, phone, docPath, fileName, mimetype) {
 async function sendSticker(sock, phone, stickerPath) {
   ensureSocket(sock);
   let jid = ensureWhatsAppJid(phone);
-  jid = await resolveRegisteredJid(sock, jid, { requireRegistered: true });
+  jid = await resolveRegisteredJid(sock, jid, { requireRegistered: false });
 
   try {
     return await sendWithRetry(
