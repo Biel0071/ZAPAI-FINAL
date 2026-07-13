@@ -217,6 +217,17 @@ async function sendMessage(req, res) {
     });
   }
 
+  const ownSessionPhone = whatsappService.normalizePhone(session?.phone || session?.sock?.user?.id || '');
+  if (ownSessionPhone && normalizedPhone === ownSessionPhone) {
+    return res.status(422).json({
+      code: 'WHATSAPP_SELF_SEND_BLOCKED',
+      error: 'Destino igual ao numero conectado da sessao. Selecione o contato real antes de enviar.',
+      phone: normalizedPhone,
+      sessionId: session?.sessionId || targetSessionName,
+      success: false,
+    });
+  }
+
   try {
     let sendResult;
 

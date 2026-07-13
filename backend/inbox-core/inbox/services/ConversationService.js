@@ -1,5 +1,7 @@
 const messageRepository = require('../../../repositories/messageRepository');
 const messageStore = require('../../../store/messageStore');
+const sessionManager = require('../../../services/sessionManager');
+const { normalizePhone } = require('../../../services/whatsapp/shared/identifiers');
 const { processEvent, generateReply } = require('../../ai/AIEventBridge');
 const conversationRepository = require('../repositories/ConversationRepository');
 const conversationRuntimeService = require('./ConversationRuntimeService');
@@ -8,15 +10,71 @@ function getCompanyId(companyId) {
   return companyId || process.env.DEFAULT_COMPANY_ID || 'default';
 }
 
+function getSessionOwnPhones(sessionId, store) {
+  const phones = new Set();
+  const addPhone = (value) => {
+    const normalized = normalizePhone(value || '');
+    if (normalized) {
+      phones.add(normalized);
+    }
+  };
+
+  const normalizedSessionId = sessionId ? sessionManager.normalizeSessionName(sessionId) : null;
+  const session = normalizedSessionId ? sessionManager.getSession(normalizedSessionId) : null;
+  addPhone(session?.phone);
+  addPhone(session?.sock?.user?.id);
+  addPhone(store?.phone);
+  addPhone(store?.sock?.user?.id);
+
+  if (!normalizedSessionId) {
+    for (const activeSession of sessionManager.listSessions()) {
+      addPhone(activeSession?.phone);
+    }
+  }
+
+  return phones;
+}
+
+function getConversationPhone(conversation) {
+  const candidates = [
+    conversation?.phone,
+    conversation?.remote_jid,
+    conversation?.remoteJid,
+    conversation?.contactId,
+    conversation?.contact_id,
+    conversation?.id,
+  ];
+
+  for (const candidate of candidates) {
+    const normalized = normalizePhone(candidate || '');
+    if (normalized) {
+      return normalized;
+    }
+  }
+
+  return '';
+}
+
+function filterOwnSessionConversation(conversations, { sessionId, store } = {}) {
+  const ownPhones = getSessionOwnPhones(sessionId, store);
+
+  if (!ownPhones.size) {
+    return conversations;
+  }
+
+  return conversations.filter((conversation) => !ownPhones.has(getConversationPhone(conversation)));
+}
+
 async function listConversations({ companyId, limit = 50, sessionId, store }) {
   if (store?.databaseEnabled) {
     const conversations = await conversationRepository.listConversations(getCompanyId(companyId), limit, {
       sessionId: sessionId || null,
     });
-    return conversations.map((conversation) => conversationRuntimeService.decorateConversation(store, conversation));
+    return filterOwnSessionConversation(conversations, { sessionId, store })
+      .map((conversation) => conversationRuntimeService.decorateConversation(store, conversation));
   }
 
-  const memChats = messageStore.getChats();
+  const memChats = filterOwnSessionConversation(messageStore.getChats(), { sessionId, store });
 
   return memChats.map((chat) => conversationRuntimeService.decorateConversation(store, {
     assignedAgent: 'Camila',

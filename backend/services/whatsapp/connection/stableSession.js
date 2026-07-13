@@ -1360,6 +1360,13 @@ async function createStableSession({
         continue;
       }
 
+      const ownSessionPhone = normalizePhone(session?.phone || sock?.user?.id || '');
+      const remotePhone = normalizePhone(remoteJid || '');
+      if (ownSessionPhone && remotePhone === ownSessionPhone) {
+        console.warn(`[WHATSAPP] self-chat ignored session=${normalizedSessionName} chat=${remoteJid} id=${messageId || 'n/a'} fromMe=${fromMe}`);
+        continue;
+      }
+
       // Log RECEIVED_FROM_BAILEYS step
       try {
         await MessageAuditService.logStep({
@@ -1457,9 +1464,10 @@ async function createStableSession({
           }
         }
 
+        const normalizedChatId = normalizePhone(remoteJid);
         // Transition the state to SENT and save/emit
         const ackEntry = messageAckPipeline.transitionAck(messageId, messageAckPipeline.ACK_STATES.SENT, {
-          chatId: remoteJid,
+          chatId: normalizedChatId,
           sessionId: normalizedSessionName,
         });
 
@@ -1471,7 +1479,7 @@ async function createStableSession({
         // Also emit literal 'message:sent' as requested
         (io || global.io)?.emit('message:sent', {
           id: dbId || messageId,
-          chatId: remoteJid,
+          chatId: normalizedChatId,
           status: 'sent',
         });
 
@@ -1697,7 +1705,7 @@ async function createStableSession({
 
       if (mappedStatus) {
         const ackEntry = messageAckPipeline.transitionAck(messageId, mappedStatus, {
-          chatId: remoteJid,
+          chatId: normalizePhone(remoteJid),
           sessionId: normalizedSessionName,
         });
         if (ackEntry) {
