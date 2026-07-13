@@ -217,8 +217,28 @@ async function sendMessage(req, res) {
     });
   }
 
-  const ownSessionPhone = whatsappService.normalizePhone(session?.phone || session?.sock?.user?.id || '');
-  if (ownSessionPhone && normalizedPhone === ownSessionPhone) {
+  const ownSessionPhones = new Set();
+  const addOwnPhone = (value) => {
+    const normalized = whatsappService.normalizePhone(value || '');
+    if (normalized) {
+      ownSessionPhones.add(normalized);
+    }
+  };
+  addOwnPhone(session?.phone);
+  addOwnPhone(session?.sock?.user?.id);
+  for (const activeSession of sessionManager.listSessions()) {
+    addOwnPhone(activeSession?.phone);
+  }
+
+  if (ownSessionPhones.has(normalizedPhone)) {
+    console.warn('[SEND_MESSAGE] self-send blocked', {
+      conversationId,
+      phone,
+      chatId,
+      target: targetJidOrPhone,
+      normalizedPhone,
+      sessionId: session?.sessionId || targetSessionName,
+    });
     return res.status(422).json({
       code: 'WHATSAPP_SELF_SEND_BLOCKED',
       error: 'Destino igual ao numero conectado da sessao. Selecione o contato real antes de enviar.',

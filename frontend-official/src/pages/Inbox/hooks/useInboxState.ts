@@ -213,6 +213,37 @@ export function useInboxState() {
   }, []);
   const [preferredSessionId, setPreferredSessionId] = useState<string | null>(() => localStorage.getItem("zapai_inbox_active_session"));
 
+  const sessionOwnPhones = useMemo(() => {
+    const phones = new Set<string>();
+    for (const session of sessions) {
+      const normalizedPhone = normalizePhone(
+        session?.phone ||
+        (session as any)?.raw?.wid ||
+        (session as any)?.raw?.number ||
+        "",
+      );
+      if (normalizedPhone) phones.add(normalizedPhone);
+    }
+    return phones;
+  }, [sessions]);
+
+  const isOwnSessionConversation = useCallback((conversation?: Conversation | null) => {
+    if (!conversation || sessionOwnPhones.size === 0) return false;
+
+    const candidates = [
+      conversation.phone,
+      conversation.chatId,
+      (conversation as any).remoteJid,
+      (conversation as any).remote_jid,
+      conversation.contactId,
+    ];
+
+    return candidates.some((candidate) => {
+      const normalized = normalizePhone(String(candidate || ""));
+      return normalized ? sessionOwnPhones.has(normalized) : false;
+    });
+  }, [sessionOwnPhones]);
+
   // Emoji picker components
   const [EmojiPickerComponent, setEmojiPickerComponent] = useState<any | null>(null);
   const [emojiPickerData, setEmojiPickerData] = useState<unknown>(null);
@@ -413,9 +444,11 @@ export function useInboxState() {
 
     setConversations((prev) => {
       const sessionScopedPrev = filterConversationsForSession(prev, preferredSessionIdRef.current);
-      return dedupeConversationsByScope([...sessionScopedPrev, ...sessionScopedIncoming], mergedDirectory);
+      const visiblePrev = sessionScopedPrev.filter((conversation) => !isOwnSessionConversation(conversation));
+      const visibleIncoming = sessionScopedIncoming.filter((conversation) => !isOwnSessionConversation(conversation));
+      return dedupeConversationsByScope([...visiblePrev, ...visibleIncoming], mergedDirectory);
     });
-  }, [setConversations]);
+  }, [isOwnSessionConversation, setConversations]);
 
   useEffect(() => {
     if (!conversations.length) return;
@@ -424,10 +457,10 @@ export function useInboxState() {
     setDraftsByConversationId(loadDraftsFromStorage(conversations.map((conversation) => String(conversation.id))));
   }, [conversations, rememberContacts]);
 
-  const selectedConversation = useMemo(
-    () => conversations.find((conversation) => conversation.id === selectedConversationId) ?? null,
-    [conversations, selectedConversationId],
-  );
+  const selectedConversation = useMemo(() => {
+    const match = conversations.find((conversation) => conversation.id === selectedConversationId) ?? null;
+    return isOwnSessionConversation(match) ? null : match;
+  }, [conversations, isOwnSessionConversation, selectedConversationId]);
 
   const leadByConversationId = useMemo(
     () =>
@@ -553,7 +586,10 @@ export function useInboxState() {
     return sessions[0] || null;
   }, [sessions, selectedConversation?.sessionId]);
 
-  const isWhatsappConnected = activeSession ? isSessionActive(activeSession) : false;
+  const isWhatsappConnected = useMemo(() => {
+    if (activeSession && isSessionActive(activeSession)) return true;
+    return sessions.some((s) => s && s.id && isSessionActive(s));
+  }, [activeSession, sessions]);
 
   const connectedPhone = useMemo(() => {
     return (
@@ -572,6 +608,21 @@ export function useInboxState() {
   useEffect(() => {
     selectedConversationRef.current = selectedConversation;
   }, [selectedConversation]);
+
+  useEffect(() => {
+    if (sessionOwnPhones.size === 0) return;
+
+    setConversations((prev) => {
+      const visible = prev.filter((conversation) => !isOwnSessionConversation(conversation));
+      return visible.length === prev.length ? prev : visible;
+    });
+
+    setSelectedConversationId((currentId) => {
+      if (!currentId) return currentId;
+      const current = conversations.find((conversation) => conversation.id === currentId);
+      return isOwnSessionConversation(current) ? null : currentId;
+    });
+  }, [conversations, isOwnSessionConversation, sessionOwnPhones.size, setConversations, setSelectedConversationId]);
 
   useEffect(() => {
     setLeadNotes(
@@ -952,7 +1003,8 @@ export function useInboxState() {
                 sessionId: conversationSessionId ?? undefined,
               });
         const persistedConversations = filterConversationsForSession(loadPersistedConversations(), conversationSessionId);
-        const combinedConversations = [...persistedConversations, ...conversationsData];
+        const combinedConversations = [...persistedConversations, ...conversationsData]
+          .filter((conversation) => !isOwnSessionConversation(conversation));
         const mergedDirectory = mergeContactDirectory(contactDirectoryRef.current, combinedConversations);
         contactDirectoryRef.current = mergedDirectory;
         persistContactDirectory(mergedDirectory);
@@ -992,7 +1044,7 @@ export function useInboxState() {
     };
 
     void loadInitial();
-  }, [loadConversationControls, markBackendOffline, markBackendOnline, refreshSessions, showErrorToast, setConversations, setSelectedConversationId, setSessions]);
+  }, [isOwnSessionConversation, loadConversationControls, markBackendOffline, markBackendOnline, refreshSessions, showErrorToast, setConversations, setSelectedConversationId, setSessions]);
 
   const hydrateConversationHistoryForAnalysis = useCallback(async (conversationId: string, seedMessages: ChatMessage[]) => {
     if (!seedMessages.length) return;
@@ -1739,6 +1791,16 @@ export function useInboxState() {
 
       setPreferredSessionId(sessionIdToSend);
       localStorage.setItem("zapai_inbox_active_session", sessionIdToSend);
+
+      // Clear typing status immediately upon sending a message
+      const storeState = useAppStore.getState();
+      storeState.updateTypingStatus(selectedConversation.id, false);
+      if (selectedConversation.chatId) {
+        storeState.updateTypingStatus(selectedConversation.chatId, false);
+      }
+      if (selectedConversation.phone) {
+        storeState.updateTypingStatus(selectedConversation.phone, false);
+      }
 
       const optimisticMessages: ChatMessage[] = currentAttachments.length
         ? currentAttachments.map((attachment, index) => {
