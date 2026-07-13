@@ -202,7 +202,8 @@ function processBaileysStatusUpdate(update = {}) {
 
   if (!mappedState) return null;
 
-  const chatId = update?.key?.remoteJid || '';
+  const { normalizePhone } = require('./whatsapp/shared/identifiers');
+  const chatId = normalizePhone(update?.key?.remoteJid || '');
   return transitionAck(messageId, mappedState, { chatId });
 }
 

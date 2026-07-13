@@ -213,6 +213,20 @@ export function useInboxState() {
   }, []);
   const [preferredSessionId, setPreferredSessionId] = useState<string | null>(() => localStorage.getItem("zapai_inbox_active_session"));
 
+  const sessionOwnPhonesKey = useMemo(() => {
+    return [...sessions]
+      .map(
+        (session) =>
+          session?.phone ||
+          (session as any)?.raw?.wid ||
+          (session as any)?.raw?.number ||
+          "",
+      )
+      .filter(Boolean)
+      .sort()
+      .join(",");
+  }, [sessions]);
+
   const sessionOwnPhones = useMemo(() => {
     const phones = new Set<string>();
     for (const session of sessions) {
@@ -225,7 +239,9 @@ export function useInboxState() {
       if (normalizedPhone) phones.add(normalizedPhone);
     }
     return phones;
-  }, [sessions]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sessionOwnPhonesKey]);
+
 
   const isOwnSessionConversation = useCallback((conversation?: Conversation | null) => {
     if (!conversation || sessionOwnPhones.size === 0) return false;

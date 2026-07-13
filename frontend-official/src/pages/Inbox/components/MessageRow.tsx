@@ -481,17 +481,17 @@ export const MessageRow = memo(function MessageRow({
           <div className={cn("mt-1 flex items-center gap-1 text-[10px]", message.fromMe ? "justify-end text-primary-foreground/70" : "text-muted-foreground")}>
             <span>{formatTime(message.createdAt)}</span>
             {message.fromMe && (
-              <span className={cn("flex items-center shrink-0 ml-0.5", statusMeta.className)} aria-label={statusMeta.label} title={statusMeta.label}>
+              <span className="flex items-center shrink-0 ml-0.5" aria-label={statusMeta.label} title={statusMeta.label}>
                 {statusMeta.icon === "clock" ? (
-                  <Clock className="h-3.5 w-3.5 text-muted-foreground/60 shrink-0" />
+                  <Clock className={cn("h-3.5 w-3.5 shrink-0", statusMeta.className)} />
                 ) : statusMeta.icon === "failed" ? (
-                  <Warning className="h-3.5 w-3.5 text-red-500 shrink-0" />
+                  <Warning className={cn("h-3.5 w-3.5 shrink-0", statusMeta.className)} />
                 ) : statusMeta.icon === "read" ? (
-                  <Checks className="h-3.5 w-3.5 text-emerald-500 shrink-0" weight="bold" />
+                  <Checks className={cn("h-3.5 w-3.5 shrink-0", statusMeta.className)} weight="bold" />
                 ) : statusMeta.icon === "delivered" ? (
-                  <Checks className="h-3.5 w-3.5 text-muted-foreground/60 shrink-0" />
+                  <Checks className={cn("h-3.5 w-3.5 shrink-0", statusMeta.className)} />
                 ) : (
-                  <Check className="h-3.5 w-3.5 text-muted-foreground/60 shrink-0" />
+                  <Check className={cn("h-3.5 w-3.5 shrink-0", statusMeta.className)} />
                 )}
               </span>
             )}

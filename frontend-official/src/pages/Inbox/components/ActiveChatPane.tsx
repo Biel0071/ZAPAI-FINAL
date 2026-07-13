@@ -440,7 +440,7 @@ export function ActiveChatPane({
             statusLabel={
               isTyping === "recording"
                 ? "gravando áudio..."
-                : isTyping
+                : (isTyping === "composing" || isTyping === true)
                   ? "digitando..."
                   : isWhatsappConnected
                     ? "online"
@@ -857,7 +857,7 @@ export function ActiveChatPane({
                   </Button>
                 </div>
               )}
-              {(isTyping || suggestingResponse) && (
+               {((isTyping === "composing" || isTyping === "recording" || isTyping === true) || suggestingResponse) && (
                 <div className="flex items-center gap-2 px-1 text-xs text-muted-foreground animate-pulse">
                   <div className="flex space-x-1">
                     <span

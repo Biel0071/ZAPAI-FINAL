@@ -973,16 +973,16 @@ export function getMessageStatusMeta(status?: ChatMessage["status"]) {
   if (normStatus === "sent" || normStatus === "server_ack") {
     return {
       symbol: "1V",
-      className: "text-muted-foreground/60",
-      label: "Enviada ao servidor",
+      className: "text-red-500",
+      label: "Enviada ao servidor (Pendente de entrega)",
       icon: "sent",
     };
   }
 
   return {
     symbol: "1V",
-    className: "text-muted-foreground/60",
-    label: "Enviada ao servidor",
+    className: "text-red-500",
+    label: "Enviada ao servidor (Pendente de entrega)",
     icon: "sent",
   };
 }

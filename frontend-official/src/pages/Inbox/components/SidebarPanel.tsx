@@ -12,6 +12,8 @@ import {
   MagnifyingGlass,
   File as FileIcon,
   Waveform,
+  DownloadSimple,
+  Paperclip,
 } from "@phosphor-icons/react";
 import { Folder, History, UserRound, Workflow, type LucideIcon, Sparkles, Cpu, Bot, Brain } from "lucide-react";
 import { AIIcon } from "@/components/ai/AIIcon";
@@ -106,6 +108,7 @@ interface SidebarPanelProps {
   handleSetConversationAgent?: (agentName: string) => Promise<void> | void;
   isDrawer?: boolean;
   onSaveTimelineToMemory?: (evt: { title: string; description: string; timestamp: string }) => Promise<void> | void;
+  onAttachMedia?: (message: ChatMessage) => void;
 }
 
 const RIGHT_PANEL_SECTIONS = [
@@ -132,10 +135,12 @@ const SharedMediaCard = memo(function SharedMediaCard({
   message,
   onOpenMediaPreview,
   onDownloadMedia,
+  onAttachMedia,
 }: {
   message: ChatMessage;
   onOpenMediaPreview: (media: PreviewMediaState) => void;
   onDownloadMedia: (message: ChatMessage) => void;
+  onAttachMedia?: (message: ChatMessage) => void;
 }) {
   const [assetError, setAssetError] = useState<string | null>(null);
   const [assetSize, setAssetSize] = useState<number | null>(null);
@@ -236,6 +241,36 @@ const SharedMediaCard = memo(function SharedMediaCard({
             <span className="text-[10px] text-muted-foreground truncate max-w-full px-1">
               {getMediaTypeLabel(mediaType)}
             </span>
+          </div>
+        )}
+
+        {/* Hover overlay with download and attach actions */}
+        {mediaUrl && !assetError && (
+          <div className="absolute inset-0 bg-[#0C0F14]/75 opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex flex-col items-center justify-center gap-2 p-2.5 z-10 backdrop-blur-[2px]">
+            <Button
+              type="button"
+              variant="default"
+              size="sm"
+              className="h-7 w-full text-[10px] rounded-lg bg-foreground text-background hover:bg-foreground/90 gap-1 justify-center font-medium"
+              onClick={(e) => {
+                e.stopPropagation();
+                if (onAttachMedia) onAttachMedia(message);
+              }}
+            >
+              <Paperclip className="h-3 w-3" /> Anexar
+            </Button>
+            <Button
+              type="button"
+              variant="secondary"
+              size="sm"
+              className="h-7 w-full text-[10px] rounded-lg bg-background/90 hover:bg-background text-foreground gap-1 justify-center font-medium"
+              onClick={(e) => {
+                e.stopPropagation();
+                onDownloadMedia(message);
+              }}
+            >
+              <DownloadSimple className="h-3 w-3" /> Baixar
+            </Button>
           </div>
         )}
       </div>
@@ -378,6 +413,7 @@ export function SidebarPanel({
   handleSetConversationAgent,
   isDrawer = false,
   onSaveTimelineToMemory,
+  onAttachMedia,
 }: SidebarPanelProps) {
   const { toast } = useToast();
   const [fileFilter, setFileFilter] = useState<"all" | "image" | "video" | "file">("all");
@@ -796,19 +832,19 @@ export function SidebarPanel({
           className="mt-0 max-h-[calc(100vh-270px)] shrink-0 space-y-3 overflow-y-auto p-2 scrollbar-thin animate-fade-in data-[state=inactive]:hidden"
         >
           <InboxSectionBoundary fallbackLabel="Insights IA">
-            <Accordion type="multiple" defaultValue={["ai-status", "ai-action", "ai-analysis"]} className="space-y-2">
+            <Accordion type="multiple" defaultValue={["ai-status", "ai-action", "ai-analysis"]} className="space-y-1.5">
               <AccordionItem
                 value="ai-status"
                 className="rounded-xl border border-border/40 bg-card/25 p-0.5 overflow-hidden transition-all duration-200 hover:border-border/60 hover:bg-card/45 shadow-sm"
               >
-                <AccordionTrigger className="py-2.5 px-3.5 text-xs font-bold text-foreground/90 hover:no-underline">
+                <AccordionTrigger className="py-1.5 px-3.5 text-xs font-bold text-foreground/90 hover:no-underline">
                   Status e modelo
                 </AccordionTrigger>
-                <AccordionContent className="px-3.5 pb-3">
-                  <div className="space-y-2.5 text-[11px]">
-                    <div className="flex items-center justify-between py-1.5 border-b border-border/10">
+                <AccordionContent className="px-3.5 pb-2">
+                  <div className="space-y-2 text-[11px]">
+                    <div className="flex items-center justify-between py-1 border-b border-border/10">
                       <div className="flex items-center gap-1.5">
-                        <span className={cn("h-1.5 w-1.5 rounded-full animate-pulse", aiEnabledForConversation ? "bg-emerald-500" : "bg-neutral-500")} />
+                        <span className={cn("h-1.5 w-1.5 rounded-full animate-pulse", aiEnabledForConversation ? "bg-foreground" : "bg-muted-foreground/45")} />
                         <span className="font-semibold text-foreground/90">
                           {aiEnabledForConversation ? "IA Ativa nesta conversa" : "IA Pausada nesta conversa"}
                         </span>
@@ -822,70 +858,64 @@ export function SidebarPanel({
                       </Badge>
                     </div>
 
-                    <div className="grid grid-cols-3 gap-2 mt-1">
-                      <div className="rounded-lg border border-border/30 bg-background/40 p-2 text-center transition-all hover:bg-background/80">
-                        <span className="block text-muted-foreground text-[8px] uppercase tracking-wider font-semibold">Modelo</span>
-                        <span className="font-semibold text-foreground text-[10px] truncate block mt-0.5" title={aiRuntime.model}>
+                    <div className="flex flex-col gap-1.5 py-1 text-[11px] text-muted-foreground">
+                      <div className="flex items-center justify-between">
+                        <span>Modelo</span>
+                        <span className="font-medium text-foreground text-[10px] max-w-[140px] truncate" title={aiRuntime.model}>
                           {aiRuntime.loading ? "..." : aiRuntime.model}
                         </span>
                       </div>
-                      <div className="rounded-lg border border-border/30 bg-background/40 p-2 text-center transition-all hover:bg-background/80 flex flex-col justify-center items-center">
-                        {(() => {
-                          const IconComp = getProviderIcon(aiRuntime.provider);
-                          return <IconComp className="h-3 w-3 text-muted-foreground/80 mb-0.5 shrink-0" />;
-                        })()}
-                        <span className="block text-muted-foreground text-[8px] uppercase tracking-wider font-semibold">Provedor</span>
-                        <span className="font-semibold text-foreground text-[10px] truncate block mt-0.5" title={aiRuntime.provider}>
-                          {aiRuntime.loading ? "..." : aiRuntime.provider}
-                        </span>
+                      <div className="flex items-center justify-between">
+                        <span>Provedor</span>
+                        <div className="flex items-center gap-1 font-medium text-foreground text-[10px]">
+                          {(() => {
+                            const IconComp = getProviderIcon(aiRuntime.provider);
+                            return <IconComp className="h-3 w-3 text-muted-foreground shrink-0" />;
+                          })()}
+                          <span>{aiRuntime.loading ? "..." : aiRuntime.provider}</span>
+                        </div>
                       </div>
-                      <div className="rounded-lg border border-border/30 bg-background/40 p-2 text-center transition-all hover:bg-background/80">
-                        <span className="block text-muted-foreground text-[8px] uppercase tracking-wider font-semibold">Última Resp.</span>
-                        <span className="font-semibold text-foreground text-[10px] truncate block mt-0.5">
+                      <div className="flex items-center justify-between">
+                        <span>Última Resp.</span>
+                        <span className="font-medium text-foreground text-[10px]">
                           {aiRuntime.lastResponseAt ? formatTime(aiRuntime.lastResponseAt) : "Sem registro"}
                         </span>
                       </div>
                     </div>
 
                     {/* Collapsible details for secondary metrics */}
-                    <details className="mt-2 text-xs group">
+                    <details className="mt-1 text-xs group">
                       <summary className="cursor-pointer text-muted-foreground hover:text-foreground text-[10px] select-none list-none flex items-center gap-1 font-semibold py-1">
                         <CaretRight className="h-3 w-3 transition-transform duration-200 group-open:rotate-90 text-muted-foreground" />
                         Mais Métricas
                       </summary>
-                      <div className="grid grid-cols-2 gap-1.5 mt-2 pt-2 border-t border-border/10">
-                        <div className="flex items-center justify-between p-1.5 rounded-lg bg-background/40 border border-border/20">
-                          <span className="text-[10px] text-muted-foreground">Memória</span>
-                          <span className="font-semibold text-foreground text-[10px]">{aiRuntime.memoryEnabled ? "Ativa" : "Off"}</span>
+                      <div className="flex flex-col gap-1.5 mt-1 pb-1 text-[11px] text-muted-foreground border-t border-border/10 pt-1.5">
+                        <div className="flex items-center justify-between">
+                          <span>Memória</span>
+                          <span className="font-medium text-foreground text-[10px]">{aiRuntime.memoryEnabled ? "Ativa" : "Off"}</span>
                         </div>
-                        <div className="flex items-center justify-between p-1.5 rounded-lg bg-background/40 border border-border/20">
-                          <span className="text-[10px] text-muted-foreground">Latência</span>
-                          <span className="font-semibold text-foreground text-[10px]">
+                        <div className="flex items-center justify-between">
+                          <span>Latência</span>
+                          <span className="font-medium text-foreground text-[10px]">
                             {formatDurationMs(aiRuntime.lastResponseTimeMs)}
                           </span>
                         </div>
-                        <div className="flex items-center justify-between p-1.5 rounded-lg bg-background/40 border border-border/20">
-                          <span className="text-[10px] text-muted-foreground">Prompt Tkn</span>
-                          <span className="font-semibold tabular-nums text-foreground text-[10px]">
-                            {aiRuntime.promptTokens}
+                        <div className="flex items-center justify-between">
+                          <span>Tokens (Prompt/Comp.)</span>
+                          <span className="font-medium text-foreground text-[10px] tabular-nums">
+                            {aiRuntime.promptTokens} / {aiRuntime.completionTokens}
                           </span>
                         </div>
-                        <div className="flex items-center justify-between p-1.5 rounded-lg bg-background/40 border border-border/20">
-                          <span className="text-[10px] text-muted-foreground">Output Tkn</span>
-                          <span className="font-semibold tabular-nums text-foreground text-[10px]">
-                            {aiRuntime.completionTokens}
-                          </span>
-                        </div>
-                        <div className="flex items-center justify-between p-1.5 rounded-lg bg-background/40 border border-border/20 col-span-2">
-                          <span className="text-[10px] text-muted-foreground">Total Tokens</span>
-                          <span className="font-semibold tabular-nums text-foreground text-[10px]">
+                        <div className="flex items-center justify-between">
+                          <span>Total Tokens</span>
+                          <span className="font-medium text-foreground text-[10px] tabular-nums">
                             {aiRuntime.promptTokens + aiRuntime.completionTokens}
                           </span>
                         </div>
                       </div>
                     </details>
 
-                    <div className="mt-3.5 space-y-1.5 border-t border-border/10 pt-3">
+                    <div className="mt-2.5 space-y-1 border-t border-border/10 pt-2.5">
                       <span className="block text-[10px] uppercase font-bold text-muted-foreground/80 tracking-wider">Atendente Designado</span>
                       <select
                         value={selectedConversation?.assignedAgentName ?? ""}
@@ -918,10 +948,10 @@ export function SidebarPanel({
                 value="ai-action"
                 className="rounded-xl border border-border/40 bg-card/25 p-0.5 overflow-hidden transition-all duration-200 hover:border-border/60 hover:bg-card/45 shadow-sm"
               >
-                <AccordionTrigger className="py-2.5 px-3.5 text-xs font-bold text-foreground/90 hover:no-underline">
+                <AccordionTrigger className="py-1.5 px-3.5 text-xs font-bold text-foreground/90 hover:no-underline">
                   Ação recomendada
                 </AccordionTrigger>
-                <AccordionContent className="px-3.5 pb-3 space-y-2.5 text-xs">
+                <AccordionContent className="px-3.5 pb-2 space-y-2 text-xs">
                   <p className="leading-relaxed text-muted-foreground/95">
                     {selectedLead?.next_action === "close_sale"
                       ? "Conduzir o lead para fechamento."
@@ -947,10 +977,10 @@ export function SidebarPanel({
                 value="ai-analysis"
                 className="rounded-xl border border-border/40 bg-card/25 p-0.5 overflow-hidden transition-all duration-200 hover:border-border/60 hover:bg-card/45 shadow-sm"
               >
-                <AccordionTrigger className="py-2.5 px-3.5 text-xs font-bold text-foreground/90 hover:no-underline">
+                <AccordionTrigger className="py-1.5 px-3.5 text-xs font-bold text-foreground/90 hover:no-underline">
                   Análise do Lead
                 </AccordionTrigger>
-                <AccordionContent className="px-3.5 pb-3 space-y-2 text-[11px]">
+                <AccordionContent className="px-3.5 pb-2 space-y-1.5 text-[11px]">
                   <div className="flex items-center justify-between py-1 border-b border-border/10">
                     <span className="text-muted-foreground">Intenção:</span>
                     <span className="font-semibold text-foreground">{aiLiveInsights.objective}</span>
@@ -968,7 +998,7 @@ export function SidebarPanel({
                     <span className="font-semibold text-foreground">{selectedConversationFunnelStage}</span>
                   </div>
                   {aiLiveInsights.summary && (
-                    <div className="mt-2.5 rounded-lg bg-primary/[0.02] border border-primary/15 p-2.5 leading-relaxed text-foreground/90 text-[11px] italic relative">
+                    <div className="mt-2 rounded-lg bg-primary/[0.02] border border-primary/15 p-2.5 leading-relaxed text-foreground/90 text-[11px] italic relative">
                       <Brain className="absolute right-2 top-2 h-3.5 w-3.5 text-primary/20 shrink-0" />
                       {aiLiveInsights.summary}
                     </div>
@@ -991,15 +1021,15 @@ export function SidebarPanel({
           className="mt-0 max-h-[calc(100vh-270px)] shrink-0 space-y-3 overflow-y-auto p-2 scrollbar-thin animate-fade-in data-[state=inactive]:hidden"
         >
           <InboxSectionBoundary fallbackLabel="Lead CRM">
-            <Accordion type="multiple" defaultValue={["lead-contact", "lead-tags", "lead-funnel", "lead-notes"]} className="space-y-2">
+            <Accordion type="multiple" defaultValue={["lead-contact", "lead-tags", "lead-funnel", "lead-notes"]} className="space-y-1.5">
               <AccordionItem
                 value="lead-contact"
                 className="rounded-xl border border-border/40 bg-card/25 p-0.5 overflow-hidden transition-all duration-200 hover:border-border/60 hover:bg-card/45 shadow-sm"
               >
-                <AccordionTrigger className="py-2.5 px-3.5 text-xs font-bold text-foreground/90 hover:no-underline">
+                <AccordionTrigger className="py-1.5 px-3.5 text-xs font-bold text-foreground/90 hover:no-underline">
                   Dados do contato
                 </AccordionTrigger>
-                <AccordionContent className="px-3.5 pb-3 space-y-2.5 text-[11px]">
+                <AccordionContent className="px-3.5 pb-2 space-y-2 text-[11px]">
                   <div className="flex items-center justify-between py-1 border-b border-border/10">
                     <span className="text-muted-foreground">Nome</span>
                     <span className="font-semibold text-foreground">{selectedConversation.contactName}</span>
@@ -1028,10 +1058,10 @@ export function SidebarPanel({
                 value="lead-tags"
                 className="rounded-xl border border-border/40 bg-card/25 p-0.5 overflow-hidden transition-all duration-200 hover:border-border/60 hover:bg-card/45 shadow-sm"
               >
-                <AccordionTrigger className="py-2.5 px-3.5 text-xs font-bold text-foreground/90 hover:no-underline">
+                <AccordionTrigger className="py-1.5 px-3.5 text-xs font-bold text-foreground/90 hover:no-underline">
                   Etiquetas
                 </AccordionTrigger>
-                <AccordionContent className="px-3.5 pb-3 space-y-3">
+                <AccordionContent className="px-3.5 pb-2 space-y-2.5">
                   <div className="flex flex-wrap gap-1.5">
                     {(selectedConversation.tags ?? []).map((tag) => (
                       <Badge
@@ -1078,10 +1108,10 @@ export function SidebarPanel({
                 value="lead-funnel"
                 className="rounded-xl border border-border/40 bg-card/25 p-0.5 overflow-hidden transition-all duration-200 hover:border-border/60 hover:bg-card/45 shadow-sm"
               >
-                <AccordionTrigger className="py-2.5 px-3.5 text-xs font-bold text-foreground/90 hover:no-underline">
+                <AccordionTrigger className="py-1.5 px-3.5 text-xs font-bold text-foreground/90 hover:no-underline">
                   Estágio no Funil
                 </AccordionTrigger>
-                <AccordionContent className="px-3.5 pb-3">
+                <AccordionContent className="px-3.5 pb-2">
                   <select
                     value={selectedConversationFunnelStage}
                     onChange={(event) => {
@@ -1110,10 +1140,10 @@ export function SidebarPanel({
                 value="lead-notes"
                 className="rounded-xl border border-border/40 bg-card/25 p-0.5 overflow-hidden transition-all duration-200 hover:border-border/60 hover:bg-card/45 shadow-sm"
               >
-                <AccordionTrigger className="py-2.5 px-3.5 text-xs font-bold text-foreground/90 hover:no-underline">
+                <AccordionTrigger className="py-1.5 px-3.5 text-xs font-bold text-foreground/90 hover:no-underline">
                   Observações
                 </AccordionTrigger>
-                <AccordionContent className="px-3.5 pb-3 space-y-2.5">
+                <AccordionContent className="px-3.5 pb-2 space-y-2">
                   <textarea
                     value={leadNotes}
                     onChange={(event) => setLeadNotes(event.target.value)}
@@ -1192,7 +1222,7 @@ export function SidebarPanel({
               </div>
             )}
 
-            <Accordion type="multiple" defaultValue={allCategories} className="space-y-2">
+            <Accordion type="multiple" defaultValue={allCategories} className="space-y-1.5">
               {allCategories.map((cat) => {
                 const items = quickRepliesByCategory[cat] ?? [];
                 if (items.length === 0) return null;
@@ -1202,7 +1232,7 @@ export function SidebarPanel({
                     value={cat}
                     className="rounded-xl border border-border/40 bg-card/25 p-0.5 overflow-hidden transition-all duration-200 hover:border-border/60 hover:bg-card/45 shadow-sm"
                   >
-                    <AccordionTrigger className="py-2.5 px-3.5 text-xs font-bold capitalize hover:no-underline text-foreground">
+                    <AccordionTrigger className="py-1.5 px-3.5 text-xs font-bold capitalize hover:no-underline text-foreground">
                       <span className="flex items-center gap-2">
                         {cat}
                         <Badge variant="secondary" className="h-4 px-1.5 text-[9px] bg-muted/60 font-semibold text-muted-foreground">
@@ -1210,7 +1240,7 @@ export function SidebarPanel({
                         </Badge>
                       </span>
                     </AccordionTrigger>
-                    <AccordionContent className="space-y-2 px-3.5 pb-3">
+                    <AccordionContent className="space-y-2 px-3.5 pb-2">
                       {items.map(renderQuickReplyRow)}
                     </AccordionContent>
                   </AccordionItem>
@@ -1362,6 +1392,7 @@ export function SidebarPanel({
                         message={msg}
                         onOpenMediaPreview={handleOpenMediaPreview}
                         onDownloadMedia={handleDownloadMedia}
+                        onAttachMedia={onAttachMedia}
                       />
                     ))}
                   </div>

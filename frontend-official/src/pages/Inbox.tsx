@@ -46,6 +46,10 @@ import {
   getQuickReplyPreviewText,
   formatPhoneNumber,
   getLeadTemperatureMeta,
+  inferMediaTypeFromSource,
+  resolveMediaUrl,
+  extractMessageAssetUrl,
+  getMediaFileName,
 } from "./Inbox/utils";
 
 const removeEmojis = (str: string) => {
@@ -415,6 +419,34 @@ export default function Inbox() {
         )
       );
       toast({ title: "Salvo na Memória", description: "Evento adicionado às notas do contato!" });
+    },
+    onAttachMedia: async (message: ChatMessage) => {
+      const mediaUrl = resolveMediaUrl(extractMessageAssetUrl(message));
+      if (!mediaUrl) return;
+      const fileName = getMediaFileName(message);
+      const mediaType = message.mediaType || inferMediaTypeFromSource(String(extractMessageAssetUrl(message) ?? "")) || "file";
+      
+      try {
+        toast({ title: "Anexando...", description: "Baixando mídia para o composer..." });
+        const response = await fetch(mediaUrl);
+        const blob = await response.blob();
+        const file = new File([blob], fileName, { type: blob.type });
+        
+        state.setAttachments((prev) => [
+          ...prev,
+          {
+            id: `attach-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+            file,
+            mediaType: mediaType as any,
+            previewUrl: URL.createObjectURL(file),
+            caption: "",
+          }
+        ]);
+        toast({ title: "Sucesso", description: "Mídia anexada ao composer!" });
+      } catch (error) {
+        console.error("Erro ao anexar mídia:", error);
+        toast({ title: "Erro", description: "Falha ao anexar mídia.", variant: "destructive" });
+      }
     },
   };
 

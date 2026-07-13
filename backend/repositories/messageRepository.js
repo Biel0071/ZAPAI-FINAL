@@ -85,9 +85,11 @@ async function createMessage(data) {
       status,
       session_id,
       timestamp,
-      created_at
+      created_at,
+      sender,
+      direction
     )
-    VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
+    VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)
     RETURNING *
   `;
 
@@ -103,6 +105,8 @@ async function createMessage(data) {
     data.sessionId || 'main',
     data.timestamp || data.createdAt || new Date(),
     data.createdAt || new Date(),
+    data.sender || (data.fromMe ? 'agent' : 'client'),
+    data.direction || (data.fromMe ? 'outgoing' : 'incoming'),
   ];
 
   const result = await db.query(query, values);
@@ -128,6 +132,8 @@ async function create({
   status = 'received',
   timestamp,
   hash = null,
+  sender,
+  direction,
 }) {
   return createMessage({
     companyId,
@@ -145,6 +151,8 @@ async function create({
     timestamp,
     text: content,
     hash,
+    sender,
+    direction,
   });
 }
 

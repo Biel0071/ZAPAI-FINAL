@@ -162,11 +162,7 @@ export function ChatListPanel({
         <div className="flex items-center justify-between gap-3">
           <div
             onClick={() => {
-              if (activeSession && isSessionActive(activeSession)) {
-                navigate("/dashboard");
-              } else {
-                navigate("/connections");
-              }
+              navigate("/connections");
             }}
             className="cursor-pointer transition-transform hover:scale-[1.03] active:scale-[0.98]"
           >
@@ -176,19 +172,17 @@ export function ChatListPanel({
               pulse={Boolean(activeSession && isSessionActive(activeSession))}
             />
           </div>
-          <Button
-            type="button"
-            variant={activeSession && isSessionActive(activeSession) ? "secondary" : "outline"}
-            onClick={() => {
-              if (activeSession && isSessionActive(activeSession)) {
-                navigate("/dashboard");
-              } else {
+          {!(activeSession && isSessionActive(activeSession)) && (
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
                 navigate("/connections");
-              }
-            }}
-          >
-            {activeSession && isSessionActive(activeSession) ? "Métricas Dashboard" : "Conectar Sessão"}
-          </Button>
+              }}
+            >
+              Conectar Sessão
+            </Button>
+          )}
         </div>
       </div>
 

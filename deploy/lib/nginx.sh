@@ -21,8 +21,8 @@ NGINX_EOF
   cat >> "$dest" << NGINX_EOF
 
 server {
-    listen 80 default_server;
-    server_name ${domain:-_} _;
+    listen 80;
+    server_name ${domain:-_};
 
     client_max_body_size 50m;
     gzip on;
@@ -139,8 +139,8 @@ NGINX_EOF
     cat >> "$dest" << NGINX_EOF
 
 server {
-    listen 443 ssl http2 default_server;
-    server_name ${domain} _;
+    listen 443 ssl http2;
+    server_name ${domain};
 
     ssl_certificate     /etc/letsencrypt/live/${domain}/fullchain.pem;
     ssl_certificate_key /etc/letsencrypt/live/${domain}/privkey.pem;

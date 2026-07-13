@@ -64,11 +64,29 @@ async function start(req, res) {
 }
 
 async function list(req, res) {
+  try {
+    const sessionRecoveryService = require('../services/sessionRecoveryService');
+    sessionRecoveryService.recoverSessions().catch((err) => {
+      console.error('[SessionsController] Async recoverSessions failed:', err);
+    });
+  } catch (err) {
+    console.error('[SessionsController] Failed to load sessionRecoveryService:', err);
+  }
+
   const result = await connectionService.listConnections();
   return res.status(200).json(result);
 }
 
 async function getStatus(req, res) {
+  try {
+    const sessionRecoveryService = require('../services/sessionRecoveryService');
+    sessionRecoveryService.recoverSessions().catch((err) => {
+      console.error('[SessionsController] Async recoverSessions failed:', err);
+    });
+  } catch (err) {
+    console.error('[SessionsController] Failed to load sessionRecoveryService:', err);
+  }
+
   const hasSpecificTarget = Boolean(
     req?.params?.id ||
       req?.params?.sessionId ||

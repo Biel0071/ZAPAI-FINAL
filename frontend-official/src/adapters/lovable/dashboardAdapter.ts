@@ -82,7 +82,7 @@ const MAP_SCOPES: Array<{ id: DashboardMapScope; label: string }> = [
   { id: "ddds", label: "DDDs" },
 ];
 
-const DDD_METADATA: Record<string, { stateCode: string; stateName: string; region: string; lat: number; lng: number }> = {
+export const DDD_METADATA: Record<string, { stateCode: string; stateName: string; region: string; lat: number; lng: number }> = {
   "11": { stateCode: "SP", stateName: "São Paulo", region: "Sudeste", lat: -23.55, lng: -46.63 },
   "12": { stateCode: "SP", stateName: "São Paulo", region: "Sudeste", lat: -22.9, lng: -45.3 },
   "13": { stateCode: "SP", stateName: "São Paulo", region: "Sudeste", lat: -23.96, lng: -46.33 },
@@ -169,10 +169,11 @@ function resolveMetricNumber(metrics: MetricsSummary | null, keys: string[]): nu
   if (!metrics) return 0;
   const bag = metrics as Record<string, unknown>;
   for (const key of keys) {
-    const value = toNumber(bag[key]);
-    if (value > 0) return value;
+    if (key in bag && bag[key] !== undefined && bag[key] !== null) {
+      return toNumber(bag[key]);
+    }
   }
-  return toNumber(bag[keys[0]]);
+  return 0;
 }
 
 function resolveRuntimeLabel(runtimeStatus: "online" | "offline" | "reconnecting") {
@@ -194,37 +195,51 @@ function buildAggregates(conversations: Conversation[]) {
   const leadPins: LeadPin[] = [];
 
   conversations.forEach((conversation) => {
+    const ddd = normalizePhoneDdd(conversation.phone);
+    let lat = 0;
+    let lng = 0;
+    let hasCoords = false;
+
     // 1. Process custom geocoded pins from notes
     if (conversation.notes && conversation.notes.includes("Coordenadas:")) {
       try {
-        let address = "";
-        const addressMatch = conversation.notes.match(/Endereço de Entrega:\s*(.+)/i);
-        if (addressMatch) address = addressMatch[1].trim();
-
-        let contactPhone = conversation.phone;
-        const phoneMatch = conversation.notes.match(/Telefone de Contato:\s*(.+)/i);
-        if (phoneMatch) contactPhone = phoneMatch[1].trim();
-
         const coordsMatch = conversation.notes.match(/Coordenadas:\s*(-?\d+\.\d+)\s*,\s*(-?\d+\.\d+)/i);
         if (coordsMatch) {
-          const lat = parseFloat(coordsMatch[1]);
-          const lng = parseFloat(coordsMatch[2]);
-          leadPins.push({
-            id: `lead-pin-${conversation.id}`,
-            name: conversation.name || conversation.phone,
-            phone: contactPhone,
-            address: address || "Não especificado",
-            lat,
-            lng,
-            funnelStage: conversation.funnel_stage || "closed",
-          });
+          lat = parseFloat(coordsMatch[1]);
+          lng = parseFloat(coordsMatch[2]);
+          hasCoords = true;
         }
       } catch (err) {
         console.error("Failed to parse lead pin:", err);
       }
     }
 
-    const ddd = normalizePhoneDdd(conversation.phone);
+    // Fallback to DDD coordinates with dynamic jitter
+    if (!hasCoords && ddd && DDD_METADATA[ddd]) {
+      const idx = leadPins.length;
+      const offsetLat = ((idx % 5) - 2) * 0.06 + (Math.random() - 0.5) * 0.05;
+      const offsetLng = ((idx % 7) - 3) * 0.06 + (Math.random() - 0.5) * 0.05;
+      lat = DDD_METADATA[ddd].lat + offsetLat;
+      lng = DDD_METADATA[ddd].lng + offsetLng;
+      hasCoords = true;
+    }
+
+    if (hasCoords) {
+      let address = "";
+      const addressMatch = conversation.notes?.match(/Endereço de Entrega:\s*(.+)/i);
+      if (addressMatch) address = addressMatch[1].trim();
+
+      leadPins.push({
+        id: `lead-pin-${conversation.id}`,
+        name: conversation.contactName || conversation.phone,
+        phone: conversation.phone,
+        address: address || (ddd ? `${DDD_METADATA[ddd].stateName}, Brasil` : "Brasil"),
+        lat,
+        lng,
+        funnelStage: conversation.funnel_stage || "new_lead",
+      });
+    }
+
     if (!ddd) return;
     const metadata = DDD_METADATA[ddd];
 

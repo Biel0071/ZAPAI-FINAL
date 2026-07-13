@@ -267,6 +267,7 @@ type SocketSubscriber = {
   onMessageDeleted?: (payload: { messageId: string; conversationId?: string }) => void;
   onMessageStatus?: (payload: { messageId: string; status: string; conversationId?: string }) => void;
   onTypingStatus?: (payload: { conversationId?: string; phone?: string; isTyping: boolean | "composing" | "recording" }) => void;
+  onMetricsUpdated?: (metrics: any) => void;
   onSocketConnected?: () => void;
   onSocketDisconnected?: () => void;
   onError?: (message: string) => void;
@@ -701,6 +702,20 @@ function bindSharedSocketEvents() {
     sharedSocket?.on(eventName, handleIncomingMessage);
   });
 
+  const sentEvents = [
+    "message:sent",
+    "message_sent",
+    "whatsapp:message_sent",
+  ];
+  sentEvents.forEach((eventName) => {
+    sharedSocket?.on(eventName, (payload: { conversationId?: string; chatId?: string; remoteJid?: string; phone?: string } | any) => {
+      const convId = payload?.conversationId ?? payload?.chatId ?? payload?.remoteJid ?? payload?.phone;
+      if (convId) {
+        clearTypingStatus(convId);
+      }
+    });
+  });
+
   sharedSocket.on("conversation_updated", (payload: RawRealtimeConversation) => {
     const normalized = normalizeRealtimeConversation(payload);
     notifySubscribers((subscriber) => subscriber.onConversationUpdated?.(normalized));
@@ -773,6 +788,14 @@ function bindSharedSocketEvents() {
   sharedSocket.on("session_status", (payload: { sessionId?: string; status?: string }) => {
     notifySubscribers((subscriber) => subscriber.onSessionStatus?.(payload));
   });
+
+  const broadcastMetrics = (payload: any) => {
+    notifySubscribers((subscriber) => subscriber.onMetricsUpdated?.(payload));
+  };
+  sharedSocket.on("metrics.updated", broadcastMetrics);
+  sharedSocket.on("metrics_update", broadcastMetrics);
+  sharedSocket.on("analytics_update", broadcastMetrics);
+  sharedSocket.on("dashboard_update", broadcastMetrics);
 
   // Message lifecycle events
   const messageDeleteEvents = ["message_deleted", "message:deleted", "messages.delete", "whatsapp:message_deleted"];
@@ -847,6 +870,8 @@ function bindSharedSocketEvents() {
           isTyping = "recording";
         } else if (payload.isTyping === true || payload.typing === true) {
           isTyping = "composing";
+        } else {
+          isTyping = false;
         }
 
         const conversationId =
@@ -869,6 +894,8 @@ function bindSharedSocketEvents() {
               clearTypingStatus(conversationId);
             }, 10000); // 10s timeout
             typingTimers.set(conversationId, timer);
+          } else {
+            clearTypingStatus(conversationId);
           }
         }
 
@@ -992,6 +1019,7 @@ export function connectInboxSocket(params: {
   onMessageDeleted?: (payload: { messageId: string; conversationId?: string }) => void;
   onMessageStatus?: (payload: { messageId: string; status: string; conversationId?: string }) => void;
   onTypingStatus?: (payload: { conversationId?: string; phone?: string; isTyping: boolean | "composing" | "recording" }) => void;
+  onMetricsUpdated?: (metrics: any) => void;
   onSocketConnected?: () => void;
   onSocketDisconnected?: () => void;
   onError?: (message: string) => void;
@@ -1023,6 +1051,7 @@ export function connectInboxSocket(params: {
     onMessageDeleted: params.onMessageDeleted,
     onMessageStatus: params.onMessageStatus,
     onTypingStatus: params.onTypingStatus,
+    onMetricsUpdated: params.onMetricsUpdated,
     onSocketConnected: params.onSocketConnected,
     onSocketDisconnected: params.onSocketDisconnected,
     onError: params.onError,

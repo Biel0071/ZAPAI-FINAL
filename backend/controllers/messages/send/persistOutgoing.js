@@ -71,6 +71,8 @@ async function persistOutgoingMessageRecord(store, payload) {
     phone: payload.phone,
     sessionId: payload.sessionId || sessionManager.DEFAULT_SESSION,
     status: payload.status || 'sent',
+    sender: payload.source === 'ai' ? 'ai' : 'agent',
+    direction: 'outgoing',
   });
 
   if (!savedMessage) {

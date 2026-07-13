@@ -135,7 +135,18 @@ function normalizeWhatsappJid(phone = '') {
     throw new Error('JID inválido: número de telefone vazio');
   }
 
-  if (value.endsWith('@g.us') || value.endsWith('@lid')) {
+  if (value.endsWith('@g.us')) {
+    return value.toLowerCase();
+  }
+
+  if (value.endsWith('@lid')) {
+    const cleanLid = value.split('@')[0];
+    if (global.lidToPhoneMap && global.lidToPhoneMap.has(cleanLid)) {
+      const mappedPhone = global.lidToPhoneMap.get(cleanLid);
+      if (mappedPhone) {
+        return `${mappedPhone}@s.whatsapp.net`;
+      }
+    }
     return value.toLowerCase();
   }
 
@@ -151,17 +162,7 @@ function normalizeWhatsappJid(phone = '') {
     throw new Error('JID inválido: o número de telefone está vazio ou contém caracteres inválidos');
   }
 
-  if (global.phoneToLidMap && global.phoneToLidMap.has(clean)) {
-    const mappedLid = global.phoneToLidMap.get(clean);
-    if (mappedLid) {
-      return `${mappedLid}@lid`;
-    }
-  }
-
-  if (clean.length >= 14 && !clean.startsWith('55')) {
-    return `${clean}@lid`;
-  }
-
+  // Bypass phoneToLidMap lookup for outgoing message routing
   return `${clean}@s.whatsapp.net`;
 }
 

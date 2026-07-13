@@ -113,7 +113,7 @@ export function ConversationRow(props: RowComponentProps<ConversationRowData>) {
   };
   
   const typingState = getTypingState();
-  const isTyping = Boolean(typingState);
+  const isTyping = typingState === "composing" || typingState === "recording" || typingState === true;
   const draftPreview = draftsByConversationId?.[conversation.id]?.draft?.trim() || "";
   const isSelected = selectedChatIds.includes(conversation.id);
   const conversationAiAllowed = conversationControls[conversation.id]?.aiEnabled ?? conversation.aiEnabled ?? true;

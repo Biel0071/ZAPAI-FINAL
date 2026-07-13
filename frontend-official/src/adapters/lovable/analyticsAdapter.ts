@@ -35,8 +35,9 @@ function resolveMetric(payload: MetricsSummary | null, keys: string[]): number {
   if (!payload) return 0;
   const bag = payload as Record<string, unknown>;
   for (const key of keys) {
-    const value = toNumber(bag[key]);
-    if (value > 0) return value;
+    if (key in bag && bag[key] !== undefined && bag[key] !== null) {
+      return toNumber(bag[key]);
+    }
   }
   return 0;
 }
