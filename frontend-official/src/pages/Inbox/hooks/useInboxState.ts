@@ -612,17 +612,19 @@ export function useInboxState() {
   useEffect(() => {
     if (sessionOwnPhones.size === 0) return;
 
-    setConversations((prev) => {
-      const visible = prev.filter((conversation) => !isOwnSessionConversation(conversation));
-      return visible.length === prev.length ? prev : visible;
-    });
+    const ownConversationIds = conversations
+      .filter((conversation) => isOwnSessionConversation(conversation))
+      .map((conversation) => conversation.id);
 
-    setSelectedConversationId((currentId) => {
-      if (!currentId) return currentId;
-      const current = conversations.find((conversation) => conversation.id === currentId);
-      return isOwnSessionConversation(current) ? null : currentId;
-    });
-  }, [conversations, isOwnSessionConversation, sessionOwnPhones.size, setConversations, setSelectedConversationId]);
+    if (ownConversationIds.length === 0) return;
+
+    const ownConversationIdSet = new Set(ownConversationIds);
+    setConversations((prev) => prev.filter((conversation) => !ownConversationIdSet.has(conversation.id)));
+
+    if (selectedConversationId && ownConversationIdSet.has(selectedConversationId)) {
+      setSelectedConversationId(null);
+    }
+  }, [conversations, isOwnSessionConversation, selectedConversationId, sessionOwnPhones.size, setConversations, setSelectedConversationId]);
 
   useEffect(() => {
     setLeadNotes(
