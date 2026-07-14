@@ -131,40 +131,55 @@ async function resolveRegisteredJid(sock, jid, options = {}) {
     return jid;
   }
 
-  // Confirm LID aliases against WhatsApp's own USync response. A stale local
-  // phone/LID map can produce a local message key without server delivery.
+  // A LID is an address already observed from WhatsApp. Reuse it instead of
+  // revalidating on every send: USync may transiently return no result and
+  // previously turned a valid second message into a false HTTP 422.
   if (jid.endsWith('@lid')) {
-    const cleanLid = jid.split('@')[0];
+    const cleanLid = jid.split('@')[0].split(':')[0];
+    const cachedLid = getCachedJid(cleanLid);
+    if (cachedLid) return cachedLid;
+
     const mappedPhone = global.lidToPhoneMap?.get(cleanLid);
-    if (!mappedPhone) return jid;
+    const cleanPhone = mappedPhone
+      ? String(mappedPhone).split('@')[0].split(':')[0]
+      : null;
+    const cachedPhone = cleanPhone ? getCachedJid(cleanPhone) : null;
+    if (cachedPhone) {
+      setCachedJid(cleanLid, cachedPhone);
+      return cachedPhone;
+    }
+
+    if (!cleanPhone) {
+      setCachedJid(cleanLid, jid);
+      return jid;
+    }
 
     try {
-      const checkResult = await sock.onWhatsApp(`${String(mappedPhone).split('@')[0].split(':')[0]}@s.whatsapp.net`);
+      const checkResult = await sock.onWhatsApp(`${cleanPhone}@s.whatsapp.net`);
       const match = Array.isArray(checkResult) ? checkResult.find((entry) => entry?.exists) : null;
       if (!match) {
-        if (requireRegistered) {
-          const error = new Error('Numero nao encontrado no WhatsApp. Verifique o contato antes de enviar.');
-          error.code = 'WHATSAPP_NUMBER_NOT_FOUND';
-          error.jid = jid;
-          throw error;
-        }
+        console.warn(`[JID-RESOLVE] transient LID confirmation miss for ${jid}; reusing known address`);
+        setCachedJid(cleanPhone, jid);
+        setCachedJid(cleanLid, jid);
         return jid;
       }
 
       const authoritativeLid = match.lid
         ? `${String(match.lid).split('@')[0].split(':')[0]}@lid`
         : jid;
-      global.phoneToLidMap?.set(String(mappedPhone).split('@')[0].split(':')[0], authoritativeLid.split('@')[0]);
-      global.lidToPhoneMap?.set(authoritativeLid.split('@')[0], String(mappedPhone).split('@')[0].split(':')[0]);
-      console.log(`[JID-RESOLVE] confirmed ${mappedPhone} -> ${authoritativeLid}`);
+      global.phoneToLidMap?.set(cleanPhone, authoritativeLid.split('@')[0]);
+      global.lidToPhoneMap?.set(authoritativeLid.split('@')[0], cleanPhone);
+      setCachedJid(cleanPhone, authoritativeLid);
+      setCachedJid(cleanLid, authoritativeLid);
+      console.log(`[JID-RESOLVE] confirmed ${cleanPhone} -> ${authoritativeLid}`);
       return authoritativeLid;
     } catch (error) {
-      if (requireRegistered || error?.code === 'WHATSAPP_NUMBER_NOT_FOUND') throw error;
-      console.warn(`[JID-RESOLVE] LID confirmation failed for ${jid}:`, error?.message || error);
+      console.warn(`[JID-RESOLVE] LID confirmation failed for ${jid}; reusing known address:`, error?.message || error);
+      setCachedJid(cleanPhone, jid);
+      setCachedJid(cleanLid, jid);
       return jid;
     }
   }
-
   if (!jid.endsWith('@s.whatsapp.net')) {
     return jid;
   }
@@ -425,6 +440,7 @@ async function sendMediaMessage(
 module.exports = {
   ensureSocket,
   isWhatsAppConnected,
+  resolveRegisteredJid,
   sendAudio,
   sendDocument,
   sendImage,

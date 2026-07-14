@@ -227,15 +227,20 @@ if $DRY_RUN; then
 elif command -v pm2 >/dev/null 2>&1; then
   cd "$BACKEND_DIR"
   
-  # Liberar a porta do backend caso haja algum processo zumbi pendente
+  # Stop PM2 first so it cannot immediately respawn a listener that becomes
+  # orphaned when the tracked process is deleted.
+  pm2 stop zapflow-api >/dev/null 2>&1 || true
+  pm2 delete zapflow-api >/dev/null 2>&1 || true
+  sleep 1
+
   ZOMBIE_PID=$(lsof -t -iTCP:${BACKEND_PORT:-4025} -sTCP:LISTEN 2>/dev/null || netstat -lnp 2>/dev/null | grep ":${BACKEND_PORT:-4025} " | awk '{print $7}' | cut -d'/' -f1 | grep -E '^[0-9]+$' || true)
   if [ -n "$ZOMBIE_PID" ]; then
     warn "Porta ${BACKEND_PORT:-4025} ocupada pelo PID $ZOMBIE_PID. Encerrando processo zumbi..."
-    kill -9 $ZOMBIE_PID 2>/dev/null || true
-    sleep 2
+    kill -TERM $ZOMBIE_PID 2>/dev/null || true
+    sleep 3
+    kill -0 $ZOMBIE_PID 2>/dev/null && kill -KILL $ZOMBIE_PID 2>/dev/null || true
   fi
 
-  pm2 delete zapflow-api >/dev/null 2>&1 || true
   pm2 start ecosystem.config.js --env production
   log "PM2: zapflow-api started fresh"
   pm2 save --force >/dev/null 2>&1 || true
