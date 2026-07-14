@@ -1902,7 +1902,7 @@ export function useInboxState() {
 
         const returnedMsg = response.message;
         const realId = returnedMsg?.id || returnedMsg?.key?.id;
-        const realStatus = "sent" as const;
+        const realStatus = (returnedMsg?.status ?? "server_ack") as ChatMessage["status"];
         const returnedUrl =
           returnedMsg?.url ??
           returnedMsg?.mediaUrl ??

@@ -116,6 +116,44 @@ async function runWithFastFallback(work, fallbackValue = null) {
 // Phase 2b-3b: registerIncomingMessage, registerOutgoingMessage
 //          moved to controllers/messages/receive/register.js.
 
+const OUTBOUND_ACK_TIMEOUT_MS = Math.max(3000, Number(process.env.WHATSAPP_SEND_ACK_TIMEOUT_MS) || 10000);
+const ACCEPTED_ACK_STATES = new Set([
+  messageAckPipeline.ACK_STATES.SERVER_ACK,
+  messageAckPipeline.ACK_STATES.DEVICE_ACK,
+  messageAckPipeline.ACK_STATES.READ,
+  messageAckPipeline.ACK_STATES.PLAYED,
+]);
+
+function waitForWhatsappServerAck(messageId, timeoutMs = OUTBOUND_ACK_TIMEOUT_MS) {
+  const current = messageAckPipeline.getAckState(messageId);
+  if (current && ACCEPTED_ACK_STATES.has(current.status)) {
+    return Promise.resolve(current);
+  }
+  if (current?.status === messageAckPipeline.ACK_STATES.FAILED) {
+    return Promise.resolve(current);
+  }
+
+  return new Promise((resolve) => {
+    const finish = (entry) => {
+      if (!entry || (!ACCEPTED_ACK_STATES.has(entry.status) && entry.status !== messageAckPipeline.ACK_STATES.FAILED)) {
+        return;
+      }
+      clearTimeout(timer);
+      messageAckPipeline.ackEmitter.off(messageId, finish);
+      resolve(entry);
+    };
+    const timer = setTimeout(() => {
+      messageAckPipeline.ackEmitter.off(messageId, finish);
+      resolve(null);
+    }, timeoutMs);
+    messageAckPipeline.ackEmitter.on(messageId, finish);
+
+    const latest = messageAckPipeline.getAckState(messageId);
+    if (latest && (ACCEPTED_ACK_STATES.has(latest.status) || latest.status === messageAckPipeline.ACK_STATES.FAILED)) {
+      finish(latest);
+    }
+  });
+}
 async function sendMessage(req, res) {
   const {
     _transportMediaPath,
@@ -287,6 +325,28 @@ async function sendMessage(req, res) {
       });
     }
 
+    const whatsappMessageId = String(sendResult.key.id);
+    const transportRemoteJid = sendResult.key.remoteJid || targetJidOrPhone;
+    const transportParticipantJid = sendResult.key.participant || null;
+    messageAckPipeline.transitionAck(
+      whatsappMessageId,
+      messageAckPipeline.ACK_STATES.SENT,
+      {
+        chatId: normalizedPhone,
+        sessionId: session?.sessionId || targetSessionName,
+      }
+    );
+    const ackConfirmation = await waitForWhatsappServerAck(whatsappMessageId);
+    const deliveryConfirmed = Boolean(ackConfirmation && ACCEPTED_ACK_STATES.has(ackConfirmation.status));
+    const deliveryStatus = deliveryConfirmed ? ackConfirmation.status : 'failed';
+
+    console.log('[WHATSAPP-SEND-RESULT]', {
+      ackStatus: ackConfirmation?.status || 'timeout',
+      messageId: whatsappMessageId,
+      remoteJid: transportRemoteJid,
+      requestedTarget: targetJidOrPhone,
+      sessionId: session?.sessionId || targetSessionName,
+    });
     if (!store.databaseEnabled) {
       // Persist to in-memory store when PostgreSQL is unavailable
       const memEntry = messageStore.addMessage(normalizedPhone, {
@@ -297,7 +357,7 @@ async function sendMessage(req, res) {
         mediaType: resolvedMediaType || null,
         sessionId: session?.sessionId || targetSessionName,
         conversationId: conversationId || `chat-${normalizedPhone}`,
-        status: 'sent',
+        status: deliveryStatus,
       });
 
       MessageAuditService.log('message_sent_memory', {
@@ -326,7 +386,7 @@ async function sendMessage(req, res) {
         mediaPath: messageService.toPublicMediaPath(memEntry?.mediaPath || persistedMediaPath || null),
         mediaType: memEntry?.mediaType || null,
         phone: normalizedPhone,
-        status: 'sent',
+        status: deliveryStatus,
       };
 
       if (!inboxPayload.id) {
@@ -352,6 +412,16 @@ async function sendMessage(req, res) {
           console.error('[AI INTELLIGENCE] Failed to capture outbound memory fallback:', error.message || error);
         });
 
+      if (!deliveryConfirmed) {
+        return res.status(502).json({
+          chatId: normalizeChatId(normalizedPhone),
+          code: 'WHATSAPP_ACK_TIMEOUT',
+          error: 'O WhatsApp nao confirmou o envio. A mensagem foi marcada como falha.',
+          message: { ...inboxPayload, status: 'failed' },
+          success: false,
+        });
+      }
+
       return res.status(200).json({
         chatId: normalizeChatId(normalizedPhone),
         message: inboxPayload,
@@ -370,7 +440,10 @@ async function sendMessage(req, res) {
       sessionId: session?.sessionId || targetSessionName,
       source: 'human',
       text: resolvedText,
-      status: 'sent',
+      status: deliveryStatus,
+      whatsappMessageId,
+      remoteJid: transportRemoteJid,
+      participantJid: transportParticipantJid,
     });
 
     if (!persistedResult?.message) {
@@ -407,6 +480,16 @@ async function sendMessage(req, res) {
       if (io && ackEntry) {
         messageAckPipeline.emitAckUpdate(io, ackEntry);
       }
+    }
+
+    if (!deliveryConfirmed) {
+      return res.status(502).json({
+        chatId: normalizeChatId(normalizedPhone),
+        code: 'WHATSAPP_ACK_TIMEOUT',
+        error: 'O WhatsApp nao confirmou o envio. A mensagem foi marcada como falha.',
+        message: { ...apiMessage, status: 'failed' },
+        success: false,
+      });
     }
 
     return res.status(200).json({
@@ -1059,6 +1142,40 @@ async function deleteMessage(req, res) {
       return res.status(404).json({ error: 'Message not found.' });
     }
 
+    let revokedOnWhatsApp = false;
+    if (existing.fromMe && existing.whatsappMessageId) {
+      const sessionName = sessionManager.normalizeSessionName(existing.sessionId || getRequestedSessionId(req));
+      const session = sessionManager.getSession(sessionName) || await sessionManager.getDefaultSession();
+      const sock = session?.sock || store?.sock;
+      if (!sock) {
+        return res.status(409).json({
+          code: 'WHATSAPP_SESSION_OFFLINE',
+          error: 'Nao foi possivel apagar para todos: a sessao do WhatsApp esta offline.',
+          success: false,
+        });
+      }
+
+      const remoteJid = existing.remoteJid || whatsappService.ensureWhatsAppJid(existing.phone);
+      try {
+        await sock.sendMessage(remoteJid, {
+          delete: {
+            remoteJid,
+            fromMe: true,
+            id: existing.whatsappMessageId,
+            ...(existing.participantJid ? { participant: existing.participantJid } : {}),
+          },
+        });
+        revokedOnWhatsApp = true;
+      } catch (revokeError) {
+        console.error('[MESSAGE-DELETE] WhatsApp revoke failed:', revokeError?.message || revokeError);
+        return res.status(502).json({
+          code: 'WHATSAPP_REVOKE_FAILED',
+          error: 'O WhatsApp nao confirmou a exclusao para todos.',
+          success: false,
+        });
+      }
+    }
+
     if (store?.databaseEnabled) {
       await messageRepository.deleteById(messageId);
     } else if (Array.isArray(store?.messages)) {
@@ -1070,7 +1187,12 @@ async function deleteMessage(req, res) {
       conversationId: existing.conversationId || existing.chatId || null,
     });
 
-    return res.status(200).json({ success: true, messageId: String(messageId) });
+    return res.status(200).json({
+      success: true,
+      messageId: String(messageId),
+      revokedOnWhatsApp,
+      scope: revokedOnWhatsApp ? 'everyone' : 'local',
+    });
   } catch (error) {
     return res.status(500).json({ error: error.message || 'Failed to delete message.' });
   }

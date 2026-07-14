@@ -1341,10 +1341,28 @@ async function createStableSession({
       }
 
       if (protocolMessageType === 0) {
-        const deletedMessageId =
+        const deletedWhatsappMessageId =
           incomingMessage?.message?.protocolMessage?.key?.id || messageId;
+        let deletedMessageId = deletedWhatsappMessageId;
+        let deletedConversationId = null;
 
-        (io || global.io)?.emit('message_deleted', { id: deletedMessageId });
+        try {
+          const persistedMessage = await messageRepository.findByWhatsappMessageId(deletedWhatsappMessageId);
+          if (persistedMessage?.id) {
+            deletedMessageId = String(persistedMessage.id);
+            deletedConversationId = persistedMessage.conversationId || null;
+            await messageRepository.deleteById(persistedMessage.id);
+          }
+        } catch (deleteSyncError) {
+          console.error('[WHATSAPP] Failed to synchronize revoked message:', deleteSyncError?.message || deleteSyncError);
+        }
+
+        (io || global.io)?.emit('message_deleted', {
+          id: deletedMessageId,
+          messageId: deletedMessageId,
+          conversationId: deletedConversationId,
+          whatsappMessageId: deletedWhatsappMessageId,
+        });
         continue;
       }
 

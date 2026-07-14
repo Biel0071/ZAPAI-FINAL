@@ -40,6 +40,9 @@ function mapMessage(row) {
           ? row.fromMe
           : row.sender === 'agent',
     id: row.id,
+    whatsappMessageId: row.whatsapp_message_id || null,
+    remoteJid: row.remote_jid || null,
+    participantJid: row.participant_jid || null,
     fileName: parsedMetadata.fileName || null,
     mediaPath: row.media_path || row.media_url,
     mediaType:
@@ -87,9 +90,12 @@ async function createMessage(data) {
       timestamp,
       created_at,
       sender,
-      direction
+      direction,
+      whatsapp_message_id,
+      remote_jid,
+      participant_jid
     )
-    VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)
+    VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16)
     RETURNING *
   `;
 
@@ -107,6 +113,9 @@ async function createMessage(data) {
     data.createdAt || new Date(),
     data.sender || (data.fromMe ? 'agent' : 'client'),
     data.direction || (data.fromMe ? 'outgoing' : 'incoming'),
+    data.whatsappMessageId || null,
+    data.remoteJid || null,
+    data.participantJid || null,
   ];
 
   const result = await db.query(query, values);
@@ -134,6 +143,9 @@ async function create({
   hash = null,
   sender,
   direction,
+  whatsappMessageId = null,
+  remoteJid = null,
+  participantJid = null,
 }) {
   return createMessage({
     companyId,
@@ -153,6 +165,9 @@ async function create({
     hash,
     sender,
     direction,
+    whatsappMessageId,
+    remoteJid,
+    participantJid,
   });
 }
 
@@ -186,7 +201,10 @@ async function getMessagesByConversation(conversationId, options = {}) {
                m.text,
                m.media_type,
                m.media_path,
-               m.from_me
+               m.from_me,
+               m.whatsapp_message_id,
+               m.remote_jid,
+               m.participant_jid
         FROM messages m
         INNER JOIN conversations conv ON conv.id = m.conversation_id
         INNER JOIN leads l ON l.id = conv.lead_id
@@ -232,7 +250,10 @@ async function getMessagesByPhone(phone, companyId, sessionId) {
              m.text,
              m.media_type,
              m.media_path,
-             m.from_me
+             m.from_me,
+             m.whatsapp_message_id,
+             m.remote_jid,
+             m.participant_jid
       FROM messages m
       INNER JOIN conversations conv ON conv.id = m.conversation_id
       INNER JOIN leads l ON l.id = conv.lead_id
@@ -262,7 +283,10 @@ async function getLastMessage(conversationId) {
         m.text,
         m.media_type,
         m.media_path,
-        m.from_me
+        m.from_me,
+        m.whatsapp_message_id,
+        m.remote_jid,
+        m.participant_jid
       FROM messages m
       INNER JOIN conversations conv ON conv.id = m.conversation_id
       INNER JOIN leads l ON l.id = conv.lead_id
@@ -293,7 +317,10 @@ async function listRecentMessages(limit = 2000, companyId) {
         m.text,
         m.media_type,
         m.media_path,
-        m.from_me
+        m.from_me,
+        m.whatsapp_message_id,
+        m.remote_jid,
+        m.participant_jid
       FROM messages m
       INNER JOIN conversations conv ON conv.id = m.conversation_id
       INNER JOIN leads l ON l.id = conv.lead_id
@@ -324,7 +351,10 @@ async function findById(messageId) {
         m.text,
         m.media_type,
         m.media_path,
-        m.from_me
+        m.from_me,
+        m.whatsapp_message_id,
+        m.remote_jid,
+        m.participant_jid
       FROM messages m
       INNER JOIN conversations conv ON conv.id = m.conversation_id
       INNER JOIN leads l ON l.id = conv.lead_id
@@ -334,6 +364,15 @@ async function findById(messageId) {
     [messageId]
   );
 
+  return mapMessage(result.rows[0]);
+}
+
+async function findByWhatsappMessageId(whatsappMessageId) {
+  if (!whatsappMessageId) return null;
+  const result = await db.query(
+    `SELECT * FROM messages WHERE whatsapp_message_id = $1 ORDER BY id DESC LIMIT 1`,
+    [whatsappMessageId]
+  );
   return mapMessage(result.rows[0]);
 }
 
@@ -356,6 +395,7 @@ module.exports = {
   deleteById,
   findByConversationId,
   findById,
+  findByWhatsappMessageId,
   getLastMessage,
   getMessagesByConversation,
   getMessagesByPhone,

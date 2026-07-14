@@ -109,6 +109,7 @@ async function extractIncomingMessage(messageData = {}, options = {}) {
   return {
     companyId: process.env.DEFAULT_COMPANY_ID || 'default',
     externalMessageId: messageData.key?.id || null,
+    remoteJid: messageData.key?.remoteJid || null,
     fileName: mediaInfo?.fileName || mediaMessage?.fileName || null,
     isGroup,
     mediaPath,

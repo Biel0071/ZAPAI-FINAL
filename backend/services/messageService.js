@@ -411,6 +411,9 @@ async function persistIncomingMessage(payload = {}) {
     size: payload.size || null,
     status: payload.status || 'received',
     timestamp: normalizedTimestamp,
+    whatsappMessageId: payload.externalMessageId || null,
+    remoteJid: payload.remoteJid || payload.phone || null,
+    participantJid: payload.participant || null,
   });
 
   // Log STORED_DATABASE step

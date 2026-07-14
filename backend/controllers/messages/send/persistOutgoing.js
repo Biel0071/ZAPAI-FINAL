@@ -73,6 +73,9 @@ async function persistOutgoingMessageRecord(store, payload) {
     status: payload.status || 'sent',
     sender: payload.source === 'ai' ? 'ai' : 'agent',
     direction: 'outgoing',
+    whatsappMessageId: payload.whatsappMessageId || null,
+    remoteJid: payload.remoteJid || null,
+    participantJid: payload.participantJid || null,
   });
 
   if (!savedMessage) {

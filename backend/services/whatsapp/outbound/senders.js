@@ -127,7 +127,45 @@ function setCachedJid(digits, jid) {
 
 async function resolveRegisteredJid(sock, jid, options = {}) {
   const requireRegistered = options.requireRegistered !== false;
-  if (!jid || !jid.endsWith('@s.whatsapp.net') || !sock || typeof sock.onWhatsApp !== 'function') {
+  if (!jid || !sock || typeof sock.onWhatsApp !== 'function') {
+    return jid;
+  }
+
+  // Confirm LID aliases against WhatsApp's own USync response. A stale local
+  // phone/LID map can produce a local message key without server delivery.
+  if (jid.endsWith('@lid')) {
+    const cleanLid = jid.split('@')[0];
+    const mappedPhone = global.lidToPhoneMap?.get(cleanLid);
+    if (!mappedPhone) return jid;
+
+    try {
+      const checkResult = await sock.onWhatsApp(`${String(mappedPhone).split('@')[0].split(':')[0]}@s.whatsapp.net`);
+      const match = Array.isArray(checkResult) ? checkResult.find((entry) => entry?.exists) : null;
+      if (!match) {
+        if (requireRegistered) {
+          const error = new Error('Numero nao encontrado no WhatsApp. Verifique o contato antes de enviar.');
+          error.code = 'WHATSAPP_NUMBER_NOT_FOUND';
+          error.jid = jid;
+          throw error;
+        }
+        return jid;
+      }
+
+      const authoritativeLid = match.lid
+        ? `${String(match.lid).split('@')[0].split(':')[0]}@lid`
+        : jid;
+      global.phoneToLidMap?.set(String(mappedPhone).split('@')[0].split(':')[0], authoritativeLid.split('@')[0]);
+      global.lidToPhoneMap?.set(authoritativeLid.split('@')[0], String(mappedPhone).split('@')[0].split(':')[0]);
+      console.log(`[JID-RESOLVE] confirmed ${mappedPhone} -> ${authoritativeLid}`);
+      return authoritativeLid;
+    } catch (error) {
+      if (requireRegistered || error?.code === 'WHATSAPP_NUMBER_NOT_FOUND') throw error;
+      console.warn(`[JID-RESOLVE] LID confirmation failed for ${jid}:`, error?.message || error);
+      return jid;
+    }
+  }
+
+  if (!jid.endsWith('@s.whatsapp.net')) {
     return jid;
   }
 
@@ -144,7 +182,9 @@ async function resolveRegisteredJid(sock, jid, options = {}) {
   const queryCandidate = async (candidateJid, reason) => {
     const checkResult = await sock.onWhatsApp(candidateJid);
     if (Array.isArray(checkResult) && checkResult.length > 0 && checkResult[0].exists) {
-      const resolvedJid = checkResult[0].jid || candidateJid;
+      const resolvedJid = checkResult[0].lid
+        ? `${String(checkResult[0].lid).split('@')[0].split(':')[0]}@lid`
+        : (checkResult[0].jid || candidateJid);
       setCachedJid(clean, resolvedJid);
       if (resolvedJid !== jid || reason) {
         console.log(`[JID-RESOLVE] ${reason || 'resolved'} ${clean} -> ${resolvedJid}`);
@@ -197,7 +237,7 @@ async function resolveRegisteredJid(sock, jid, options = {}) {
 async function sendMessage(sock, phone, text) {
   ensureSocket(sock);
   let jid = ensureWhatsAppJid(phone);
-  jid = await resolveRegisteredJid(sock, jid, { requireRegistered: false });
+  jid = await resolveRegisteredJid(sock, jid, { requireRegistered: true });
 
   try {
     return await sendWithRetry(
@@ -220,7 +260,7 @@ async function sendMessage(sock, phone, text) {
 async function sendImage(sock, phone, imagePath, caption = '') {
   ensureSocket(sock);
   let jid = ensureWhatsAppJid(phone);
-  jid = await resolveRegisteredJid(sock, jid, { requireRegistered: false });
+  jid = await resolveRegisteredJid(sock, jid, { requireRegistered: true });
 
   try {
     return await sendWithRetry(
@@ -248,7 +288,7 @@ async function sendImage(sock, phone, imagePath, caption = '') {
 async function sendVideo(sock, phone, videoPath, caption = '') {
   ensureSocket(sock);
   let jid = ensureWhatsAppJid(phone);
-  jid = await resolveRegisteredJid(sock, jid, { requireRegistered: false });
+  jid = await resolveRegisteredJid(sock, jid, { requireRegistered: true });
 
   try {
     return await sendWithRetry(
@@ -276,7 +316,7 @@ async function sendVideo(sock, phone, videoPath, caption = '') {
 async function sendAudio(sock, phone, audioPath, ptt = false, mimetype) {
   ensureSocket(sock);
   let jid = ensureWhatsAppJid(phone);
-  jid = await resolveRegisteredJid(sock, jid, { requireRegistered: false });
+  jid = await resolveRegisteredJid(sock, jid, { requireRegistered: true });
 
   try {
     return await sendWithRetry(
@@ -306,7 +346,7 @@ async function sendAudio(sock, phone, audioPath, ptt = false, mimetype) {
 async function sendDocument(sock, phone, docPath, fileName, mimetype) {
   ensureSocket(sock);
   let jid = ensureWhatsAppJid(phone);
-  jid = await resolveRegisteredJid(sock, jid, { requireRegistered: false });
+  jid = await resolveRegisteredJid(sock, jid, { requireRegistered: true });
 
   try {
     return await sendWithRetry(
@@ -336,7 +376,7 @@ async function sendDocument(sock, phone, docPath, fileName, mimetype) {
 async function sendSticker(sock, phone, stickerPath) {
   ensureSocket(sock);
   let jid = ensureWhatsAppJid(phone);
-  jid = await resolveRegisteredJid(sock, jid, { requireRegistered: false });
+  jid = await resolveRegisteredJid(sock, jid, { requireRegistered: true });
 
   try {
     return await sendWithRetry(
