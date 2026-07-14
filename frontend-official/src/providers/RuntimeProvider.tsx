@@ -614,7 +614,7 @@ export function RuntimeProvider({ children }: { children: ReactNode }) {
           } else {
             // Fallback: search messagesByConversationId for this messageId to see which conversation it belongs to
             const entries = Object.entries(state.messagesByConversationId);
-            const foundEntry = entries.find(([_, messages]) => messages.some((m) => m.id === messageId));
+            const foundEntry = entries.find(([_, messages]) => messages.some((m) => String(m.id) === String(messageId)));
             if (foundEntry) {
               conversationId = foundEntry[0];
             } else {

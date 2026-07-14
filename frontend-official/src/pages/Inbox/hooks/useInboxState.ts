@@ -1727,6 +1727,8 @@ export function useInboxState() {
 
   // Message sending implementation
   const handleSendMessage = useCallback(async (overrideText?: string) => {
+    if (sending) return;
+
     const text = (overrideText ?? messageInput).trim();
     const replyExcerpt = (replyingTo?.caption ?? replyingTo?.content ?? "").trim();
     const textWithReply = replyingTo && replyExcerpt ? `↩ ${replyExcerpt}\n${text}`.trim() : text;
@@ -1739,24 +1741,7 @@ export function useInboxState() {
       return;
     }
 
-    // Clear UI inputs immediately for snappy feedback
-    setMessageInput("");
-    setAttachments([]);
-    setReplyingTo(null);
-    clearDraftFromStorage(selectedConversation.id);
-    setDraftsByConversationId((prev) => {
-      if (!prev[selectedConversation.id]) return prev;
-      const { [selectedConversation.id]: _removed, ...rest } = prev;
-      return rest;
-    });
-    persistDraftSnapshot(selectedConversation.id, {
-      draftMessage: "",
-      draftMedia: [],
-      draftReply: null,
-      draftMentions: [],
-    });
 
-    setSending(true);
     setError(null);
 
     const now = new Date().toISOString();
@@ -1769,14 +1754,10 @@ export function useInboxState() {
         latestSessions,
         selectedConversation.sessionId ?? preferredSessionId,
       );
-      const fallbackSession =
-        (Array.isArray(latestSessions) ? latestSessions : []).find((session) => session && session.id === (selectedConversation.sessionId ?? preferredSessionId)) ??
-        (Array.isArray(latestSessions) ? latestSessions[0] : null) ??
-        null;
-      const targetSession = resolvedActiveSession ?? fallbackSession;
-
-      if (!targetSession?.id) {
-        showErrorToast("Nenhuma sessão disponível para envio. Ative uma sessão do WhatsApp e tente novamente.");
+      if (!resolvedActiveSession?.id) {
+        const unavailableMessage = "Nenhuma sessão do WhatsApp está conectada. Reconecte uma sessão e tente novamente.";
+        setError(unavailableMessage);
+        showErrorToast(unavailableMessage);
         return;
       }
 
@@ -1785,12 +1766,27 @@ export function useInboxState() {
         : null;
       const sessionIdToSend = conversationSession && isSessionActive(conversationSession)
         ? conversationSession.id
-        : targetSession.id;
+        : resolvedActiveSession.id;
 
-      if (!resolvedActiveSession) {
-        notify.warning("Sessão não sinalizou como conectada; tentando envio com fallback.");
-      }
+      // Only clear the composer after a connected session has been resolved. If
+      // WhatsApp is offline, the user's draft remains available for a retry.
+      setMessageInput("");
+      setAttachments([]);
+      setReplyingTo(null);
+      clearDraftFromStorage(selectedConversation.id);
+      setDraftsByConversationId((prev) => {
+        if (!prev[selectedConversation.id]) return prev;
+        const { [selectedConversation.id]: _removed, ...rest } = prev;
+        return rest;
+      });
+      persistDraftSnapshot(selectedConversation.id, {
+        draftMessage: "",
+        draftMedia: [],
+        draftReply: null,
+        draftMentions: [],
+      });
 
+      setSending(true);
       setPreferredSessionId(sessionIdToSend);
       localStorage.setItem("zapai_inbox_active_session", sessionIdToSend);
 

@@ -957,7 +957,7 @@ export function getMessageStatusMeta(status?: ChatMessage["status"]) {
   if (normStatus === "read" || normStatus === "played") {
     return {
       symbol: "2V",
-      className: "text-emerald-500",
+      className: "text-emerald-500 font-semibold",
       label: "Lida no WhatsApp",
       icon: "read",
     };
@@ -965,7 +965,7 @@ export function getMessageStatusMeta(status?: ChatMessage["status"]) {
   if (normStatus === "device_ack" || normStatus === "delivered") {
     return {
       symbol: "2V",
-      className: "text-muted-foreground/70",
+      className: "text-emerald-500",
       label: "Entregue no WhatsApp",
       icon: "delivered",
     };

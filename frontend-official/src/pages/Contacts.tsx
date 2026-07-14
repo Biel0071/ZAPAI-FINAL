@@ -193,8 +193,8 @@ export default function Contacts() {
           conversationId: conversation?.id,
           sessionId: conversation?.sessionId,
           status: conversation?.status,
-          temperature: (conversation as Conversation & { lead_temperature?: string }).lead_temperature,
-          funnelStage: (conversation as Conversation & { funnel_stage?: string }).funnel_stage,
+          temperature: (conversation as Conversation & { lead_temperature?: string })?.lead_temperature,
+          funnelStage: (conversation as Conversation & { funnel_stage?: string })?.funnel_stage,
         } satisfies ContactRow;
       });
 

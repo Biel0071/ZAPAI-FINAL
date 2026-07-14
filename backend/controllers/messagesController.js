@@ -142,7 +142,9 @@ async function sendMessage(req, res) {
       console.warn('[SEND_MESSAGE] Failed to resolve conversation target:', lookupError.message);
     }
   }
-  const targetJidOrPhone = conversationTarget?.remote_jid || conversationTarget?.remoteJid || chatId || phone;
+  // The Inbox sends the target currently shown to the operator. Prefer that
+  // explicit value over a possibly stale conversation mapping from the DB.
+  const targetJidOrPhone = chatId || phone || conversationTarget?.remote_jid || conversationTarget?.remoteJid;
   const normalizedPhone = whatsappService.normalizePhone(targetJidOrPhone);
   const mediaTransportPath = await messageService.resolveOutboundMediaPath(_transportMediaPath || mediaPath);
   const resolvedMediaType =

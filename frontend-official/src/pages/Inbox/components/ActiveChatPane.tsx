@@ -1064,7 +1064,7 @@ export function ActiveChatPane({
                       onClick={() => setShowEmojiPicker((prev) => !prev)}
                       aria-label="Abrir emojis"
                       data-emoji-trigger
-                      disabled={!selectedConversation || !canSendMessages}
+                      disabled={!selectedConversation || !canSendMessages || sending}
                     >
                       <Smiley className="h-5 w-5" />
                     </Button>
@@ -1076,7 +1076,7 @@ export function ActiveChatPane({
                       className={MOBILE_TOUCH_TARGET_CLASS}
                       onClick={() => fileInputRef.current?.click()}
                       aria-label="Anexar mídia"
-                      disabled={!selectedConversation || !canSendMessages}
+                      disabled={!selectedConversation || !canSendMessages || sending}
                     >
                       <Paperclip className="h-5 w-5" />
                     </Button>
@@ -1103,7 +1103,7 @@ export function ActiveChatPane({
                       }
                       className="flex min-h-[44px] max-h-[180px] w-full flex-1 resize-none rounded-lg border border-input bg-background px-3 py-3 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 scrollbar-none text-foreground"
                       value={messageInput}
-                      disabled={!selectedConversation || !canSendMessages}
+                      disabled={!selectedConversation || !canSendMessages || sending}
                       onChange={(event) => {
                         setMessageInput(event.target.value);
                         const textarea = event.target;
@@ -1164,7 +1164,7 @@ export function ActiveChatPane({
                         variant="ghost"
                         className={cn("rounded-full text-muted-foreground hover:text-foreground", MOBILE_TOUCH_TARGET_CLASS)}
                         onClick={handleToggleRecording}
-                        disabled={!selectedConversation || !canSendMessages}
+                        disabled={!selectedConversation || !canSendMessages || sending}
                         title="Gravar áudio"
                       >
                         <Microphone className="h-5 w-5" />
@@ -1174,7 +1174,7 @@ export function ActiveChatPane({
                         size="icon"
                         className={cn("rounded-full bg-primary text-primary-foreground", MOBILE_TOUCH_TARGET_CLASS)}
                         onClick={() => void handleSendMessage()}
-                        disabled={!selectedConversation || !canSendMessages}
+                        disabled={!selectedConversation || !canSendMessages || sending}
                         aria-label="Enviar mensagem"
                       >
                         <PaperPlaneTilt weight="fill" className="h-5 w-5" />

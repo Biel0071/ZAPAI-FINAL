@@ -790,7 +790,8 @@ export function DashboardView({
               )}
             </div>
           </div>
-          {/* CONVERSAS TAB */}
+        </div>
+      )}
       {/* CONVERSAS TAB */}
       {activeTab === "conversations" && (
         <div className="space-y-6 animate-in fade-in-0 duration-300">

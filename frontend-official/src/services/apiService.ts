@@ -883,7 +883,9 @@ function normalizeSessionName(name: string): string {
 function normalizeSessionInfo(item: RawSession, index: number): SessionInfo {
   const sessionName = item.name ?? item.sessionName ?? item.session_name;
   const rawId = normalizeIdentifier((item.sessionId ?? item.session_id ?? item.id) as string | number | undefined);
-  const identifier = normalizeSessionName(sessionName ?? rawId ?? `session-${index}`);
+  // Session names are display labels and may differ from the registry key used
+  // by backend routes. Always preserve the real session id when it is present.
+  const identifier = normalizeSessionName(rawId ?? sessionName ?? `session-${index}`);
 
   return {
     id: identifier,

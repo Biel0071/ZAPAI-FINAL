@@ -535,7 +535,7 @@ export const useAppStore = create<AppState>((set) => ({
       const resolvedId = resolveStoreConversationId(state.conversations, conversationId);
       const current = state.messagesByConversationId[resolvedId] ?? [];
       const updated = current.map((m) =>
-        m.id === messageId ? { ...m, status } : m
+        String(m.id) === String(messageId) ? { ...m, status } : m
       );
       return {
         messagesByConversationId: {
