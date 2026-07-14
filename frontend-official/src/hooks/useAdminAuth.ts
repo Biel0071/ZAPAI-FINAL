@@ -10,6 +10,7 @@ import {
 } from "@/lib/adminAuthSession";
 import { API_ORIGIN } from "@/lib/backendConfig";
 import { getCurrentTenantId } from "@/lib/apiGuard";
+import { apiService } from "@/services/apiService";
 
 const DEFAULT_SESSION_TTL_MS = 1000 * 60 * 60 * 8;
 const LOGIN_TIMEOUT_MS = 12_000;
@@ -286,6 +287,14 @@ export function useAdminAuth() {
     };
     persistAdminAuthSession(next);
     setSession(next);
+    // Login must never wait for WhatsApp, but it should immediately activate
+    // the runtime and recover persisted sessions in the background.
+    void apiService.recoverSessions().catch((error) => {
+      console.warn(
+        "[Auth] Session recovery after login failed:",
+        error instanceof Error ? error.message : error,
+      );
+    });
     return { ok: true, session: next };
   }, []);
 
