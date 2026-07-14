@@ -15,6 +15,12 @@ import {
   Clock,
   Sparkle,
   X,
+  Paperclip,
+  ImageSquare,
+  VideoCamera,
+  MusicNotes,
+  FileText,
+  ArrowsOutSimple,
 } from "@phosphor-icons/react";
 import { Header } from "@/components/layout/Header";
 import CampaignsView from "@/lovable/pages/CampaignsPageView";
@@ -45,6 +51,17 @@ import type { QuickReplyItem } from "./Inbox/types";
 
 type ComposerMode = "create" | "edit" | "duplicate";
 type CampaignAction = "save" | "launch" | "start" | "pause" | "resume" | "delete" | "refresh" | null;
+type CampaignDraftMediaType = "text" | "image" | "video" | "audio" | "document" | "file" | "sticker";
+type CampaignDraftMessage = {
+  id?: string;
+  type: CampaignDraftMediaType;
+  content: string;
+  mediaUrl?: string | null;
+  mediaPath?: string | null;
+  fileName?: string | null;
+  mimetype?: string | null;
+  ptt?: boolean;
+};
 
 const STEP_LABELS = [
   "Público",
@@ -58,6 +75,71 @@ const DEFAULT_MESSAGES = [
   "Olá! Tenho uma condição especial para te apresentar hoje.",
   "Oi! Posso te mostrar uma oportunidade alinhada ao seu perfil?",
 ];
+const CAMPAIGN_MEDIA_ACCEPT = [
+  "image/*",
+  "video/*",
+  "audio/*",
+  "application/pdf",
+  "application/msword",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  "application/vnd.ms-excel",
+  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  "application/vnd.ms-powerpoint",
+  "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+  "text/plain",
+  "application/zip",
+  "application/x-zip-compressed",
+  "application/vnd.rar",
+  "application/json",
+  "application/octet-stream",
+].join(",");
+
+function createDefaultDraftMessages(): CampaignDraftMessage[] {
+  return DEFAULT_MESSAGES.map((content) => ({ type: "text", content }));
+}
+
+function createEmptyDraftMessage(): CampaignDraftMessage {
+  return { type: "text", content: "" };
+}
+
+function inferCampaignMediaType(file: File): CampaignDraftMediaType {
+  const mime = file.type.toLowerCase();
+  const name = file.name.toLowerCase();
+  if (mime.startsWith("image/") || name.endsWith(".webp")) return "image";
+  if (mime.startsWith("video/")) return "video";
+  if (mime.startsWith("audio/")) return "audio";
+  if (mime.includes("sticker")) return "sticker";
+  return "document";
+}
+
+function fileToDataUrl(file: File) {
+  return new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result || ""));
+    reader.onerror = () => reject(reader.error || new Error("Falha ao ler arquivo"));
+    reader.readAsDataURL(file);
+  });
+}
+
+function getCampaignSessionId() {
+  try {
+    const selectedSession = window.localStorage.getItem("selectedSessionId")
+      || window.localStorage.getItem("currentSessionId")
+      || window.localStorage.getItem("activeSessionId")
+      || window.localStorage.getItem("whatsappSessionId");
+    return selectedSession || undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+function getDraftMediaIcon(type: CampaignDraftMediaType) {
+  if (type === "image" || type === "sticker") return <ImageSquare className="h-4 w-4" />;
+  if (type === "video") return <VideoCamera className="h-4 w-4" />;
+  if (type === "audio") return <MusicNotes className="h-4 w-4" />;
+  if (type === "document" || type === "file") return <FileText className="h-4 w-4" />;
+  return <Paperclip className="h-4 w-4" />;
+}
 
 function normalizeCampaignStatus(campaign: CampaignRecord): CampaignRecord["status"] {
   if (campaign.queue?.paused) return "paused";
@@ -132,7 +214,7 @@ export default function Campaigns() {
   const [searchQuery, setSearchQuery] = useState("");
   const [campaignName, setCampaignName] = useState("");
   const [selectedContactIds, setSelectedContactIds] = useState<string[]>([]);
-  const [messageVariants, setMessageVariants] = useState<string[]>(DEFAULT_MESSAGES);
+  const [messageVariants, setMessageVariants] = useState<CampaignDraftMessage[]>(() => createDefaultDraftMessages());
   const [shuffleEnabled, setShuffleEnabled] = useState(true);
   const [typingDelay, setTypingDelay] = useState<number[]>([3]);
   const [intervalSeconds, setIntervalSeconds] = useState<number[]>([10]);
@@ -146,6 +228,7 @@ export default function Campaigns() {
   const [tagsInput, setTagsInput] = useState("");
   const [actionCampaignId, setActionCampaignId] = useState<string | null>(null);
   const [actionType, setActionType] = useState<CampaignAction>(null);
+  const [selectedCampaignPreview, setSelectedCampaignPreview] = useState<CampaignRecord | null>(null);
 
   const loadPageData = useCallback(async (options?: { silent?: boolean }) => {
     if (!options?.silent) setLoading(true);
@@ -224,12 +307,16 @@ export default function Campaigns() {
     setEditingCampaignId(null);
     setCampaignName("");
     setSelectedContactIds([]);
-    setMessageVariants(DEFAULT_MESSAGES);
+    setMessageVariants(createDefaultDraftMessages());
     setShuffleEnabled(true);
     setTypingDelay([3]);
     setIntervalSeconds([10]);
     setPauseEvery("10");
     setPauseSeconds("60");
+    setWarmupMessages("5");
+    setWarmupDelayMultiplier("3");
+    setDailyLimit("");
+    setHourlyLimit("");
     setStartAt("");
     setTagsInput("");
     setCampaignStep(1);
@@ -248,8 +335,17 @@ export default function Campaigns() {
     );
     setMessageVariants(
       campaign.messages && campaign.messages.length > 0
-        ? campaign.messages.map((message) => String(message.content || "").trim()).filter(Boolean)
-        : DEFAULT_MESSAGES,
+        ? campaign.messages.map((message) => ({
+            id: message.id,
+            type: (message.type === "file" ? "document" : message.type || "text") as CampaignDraftMediaType,
+            content: String(message.content || "").trim(),
+            mediaUrl: message.mediaUrl || message.mediaPath || null,
+            mediaPath: message.mediaPath || message.mediaUrl || null,
+            fileName: message.fileName || null,
+            mimetype: message.mimetype || null,
+            ptt: message.ptt === true,
+          }))
+        : createDefaultDraftMessages(),
     );
     setShuffleEnabled((campaign.messages ?? []).length > 1);
     setTypingDelay([campaign.settings?.typingDelaySeconds ?? 3]);
@@ -264,6 +360,7 @@ export default function Campaigns() {
     setTagsInput(Array.isArray(campaign.tags) ? campaign.tags.join(", ") : "");
     setCampaignStep(1);
     setSelectedFlowId(campaign.settings?.flowId || null);
+    setSelectedCampaignPreview(null);
   }, []);
 
   const filteredContacts = useMemo(() => {
@@ -290,9 +387,50 @@ export default function Campaigns() {
 
   const selectedContactCount = selectedContacts.length;
   const cleanMessages = useMemo(
-    () => messageVariants.map((message) => message.trim()).filter(Boolean),
+    () =>
+      messageVariants
+        .map((message) => ({
+          ...message,
+          content: message.content.trim(),
+          mediaUrl: message.mediaUrl || message.mediaPath || null,
+          mediaPath: message.mediaPath || message.mediaUrl || null,
+        }))
+        .filter((message) => Boolean(message.content || message.mediaUrl || message.mediaPath)),
     [messageVariants],
   );
+
+  const attachMediaToMessage = useCallback(async (index: number, file: File) => {
+    try {
+      const mediaUrl = await fileToDataUrl(file);
+      const mediaType = inferCampaignMediaType(file);
+      setMessageVariants((current) =>
+        current.map((entry, itemIndex) =>
+          itemIndex === index
+            ? {
+                ...entry,
+                type: mediaType,
+                mediaUrl,
+                mediaPath: mediaUrl,
+                fileName: file.name,
+                mimetype: file.type || "application/octet-stream",
+              }
+            : entry,
+        ),
+      );
+    } catch (error) {
+      notify.error(error instanceof Error ? error.message : "Falha ao carregar midia");
+    }
+  }, []);
+
+  const clearMediaFromMessage = useCallback((index: number) => {
+    setMessageVariants((current) =>
+      current.map((entry, itemIndex) =>
+        itemIndex === index
+          ? { ...entry, type: "text", mediaUrl: null, mediaPath: null, fileName: null, mimetype: null, ptt: false }
+          : entry,
+      ),
+    );
+  }, []);
 
   const editingCampaign = useMemo(
     () => campaigns.find((campaign) => campaign.id === editingCampaignId) ?? null,
@@ -332,15 +470,23 @@ export default function Campaigns() {
         selectedContacts,
         messages: selectedFlowId
           ? []
-          : cleanMessages.map((content, index) => ({
-              id: editingCampaign?.messages?.[index]?.id,
-              type: "text" as const,
-              content,
+          : cleanMessages.map((message, index) => ({
+              id: editingCampaign?.messages?.[index]?.id || message.id,
+              type: message.type === "file" ? ("document" as const) : message.type,
+              content: message.content,
+              mediaUrl: message.mediaUrl || message.mediaPath || null,
+              mediaPath: message.mediaPath || message.mediaUrl || null,
+              fileName: message.fileName || null,
+              mimetype: message.mimetype || null,
+              ptt: message.ptt === true,
               delaySeconds: intervalSeconds[0],
             })),
         settings: {
           flowId: selectedFlowId || undefined,
+          sessionId: getCampaignSessionId(),
           intervalSeconds: intervalSeconds[0],
+          randomDelayMin: intervalSeconds[0] * 1000,
+          randomDelayMax: intervalSeconds[0] * 1000,
           pauseEvery: Math.max(1, Number(pauseEvery) || 1),
           pauseSeconds: Math.max(0, Number(pauseSeconds) || 0),
           typingDelaySeconds: typingDelay[0],
@@ -364,7 +510,7 @@ export default function Campaigns() {
           .filter(Boolean),
       };
     },
-    [campaignName, cleanMessages, editingCampaign, editingCampaignId, intervalSeconds, pauseEvery, pauseSeconds, selectedContacts, shuffleEnabled, startAt, tagsInput, typingDelay, warmupMessages, warmupDelayMultiplier, dailyLimit, hourlyLimit],
+    [campaignName, cleanMessages, editingCampaign, editingCampaignId, intervalSeconds, pauseEvery, pauseSeconds, selectedContacts, selectedFlowId, shuffleEnabled, startAt, tagsInput, typingDelay, warmupMessages, warmupDelayMultiplier, dailyLimit, hourlyLimit],
   );
 
   const persistCampaign = useCallback(
@@ -871,12 +1017,12 @@ export default function Campaigns() {
                           <div className="flex items-center justify-between rounded-2xl border border-border/70 bg-background/40 px-4 py-3">
                             <div>
                               <p className="text-sm font-medium">Variantes da mensagem</p>
-                              <p className="text-xs text-muted-foreground">Crie textos alternativos reais para personalizar os envios.</p>
+                              <p className="text-xs text-muted-foreground">Crie textos, audios, imagens, videos ou documentos para personalizar os envios.</p>
                             </div>
                             <Button
                               variant="outline"
                               className="rounded-xl"
-                              onClick={() => setMessageVariants((current) => [...current, ""])}
+                              onClick={() => setMessageVariants((current) => [...current, createEmptyDraftMessage()])}
                             >
                               <Plus className="h-4 w-4" />
                               Adicionar variante
@@ -890,7 +1036,7 @@ export default function Campaigns() {
                                   <div className="flex items-center justify-between gap-3">
                                     <div>
                                       <p className="text-sm font-medium">Mensagem {index + 1}</p>
-                                      <p className="text-xs text-muted-foreground">Texto enviado para o contato durante a campanha.</p>
+                                      <p className="text-xs text-muted-foreground">Texto, legenda ou midia enviada durante a campanha.</p>
                                     </div>
                                     {messageVariants.length > 1 && (
                                       <Button
@@ -904,15 +1050,62 @@ export default function Campaigns() {
                                     )}
                                   </div>
                                   <Textarea
-                                    value={variant}
+                                    value={variant.content}
                                     onChange={(event) =>
                                       setMessageVariants((current) =>
-                                        current.map((entry, itemIndex) => (itemIndex === index ? event.target.value : entry)),
+                                        current.map((entry, itemIndex) =>
+                                          itemIndex === index ? { ...entry, content: event.target.value } : entry,
+                                        ),
                                       )
                                     }
-                                    placeholder="Escreva a mensagem da variante"
+                                    placeholder="Escreva o texto ou legenda da midia"
                                     className="min-h-[120px]"
                                   />
+                                  <div className="rounded-2xl border border-border/70 bg-card/70 p-3">
+                                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                                      <div className="flex min-w-0 items-center gap-3 text-sm">
+                                        <span className="flex h-9 w-9 items-center justify-center rounded-xl border border-border/70 bg-background/70 text-muted-foreground">
+                                          {getDraftMediaIcon(variant.type)}
+                                        </span>
+                                        <div className="min-w-0">
+                                          <p className="truncate font-medium text-foreground">
+                                            {variant.fileName || "Nenhuma midia anexada"}
+                                          </p>
+                                          <p className="text-xs text-muted-foreground">
+                                            {variant.fileName ? `${variant.type.toUpperCase()} - ${variant.mimetype || "tipo automatico"}` : "Aceita imagem, video, audio, PDF, planilha, ZIP e documentos do WhatsApp."}
+                                          </p>
+                                        </div>
+                                      </div>
+                                      <div className="flex flex-wrap gap-2">
+                                        <input
+                                          id={`campaign-media-${index}`}
+                                          type="file"
+                                          accept={CAMPAIGN_MEDIA_ACCEPT}
+                                          className="hidden"
+                                          onChange={(event) => {
+                                            const file = event.target.files?.[0];
+                                            if (file) void attachMediaToMessage(index, file);
+                                            event.currentTarget.value = "";
+                                          }}
+                                        />
+                                        <Button
+                                          type="button"
+                                          variant="outline"
+                                          className="rounded-xl"
+                                          onClick={() => document.getElementById(`campaign-media-${index}`)?.click()}
+                                        >
+                                          <Paperclip className="h-4 w-4" />
+                                          {variant.fileName ? "Trocar midia" : "Adicionar midia"}
+                                        </Button>
+                                        {variant.fileName && (
+                                          <Button type="button" variant="ghost" className="rounded-xl" onClick={() => clearMediaFromMessage(index)}>
+                                            <X className="h-4 w-4" />
+                                            Remover
+                                          </Button>
+                                        )}
+                                      </div>
+                                    </div>
+                                  </div>
                                 </CardContent>
                               </Card>
                             ))}
@@ -987,14 +1180,28 @@ export default function Campaigns() {
                               <span>Typing delay</span>
                               <span>{typingDelay[0].toFixed(1)}s</span>
                             </div>
-                            <Slider value={typingDelay} min={0.5} max={8} step={0.1} onValueChange={setTypingDelay} />
+                            <Slider value={typingDelay} min={0} max={120} step={0.5} onValueChange={setTypingDelay} />
+                            <Input
+                              className="mt-3"
+                              inputMode="decimal"
+                              value={typingDelay[0]}
+                              onChange={(event) => setTypingDelay([Math.max(0, Math.min(120, Number(event.target.value) || 0))])}
+                            />
+                            <p className="mt-1 text-xs text-muted-foreground">Ate 120s para simular digitacao humana.</p>
                           </div>
                           <div>
                             <div className="mb-2 flex items-center justify-between text-sm">
                               <span>Intervalo entre contatos</span>
                               <span>{intervalSeconds[0]}s</span>
                             </div>
-                            <Slider value={intervalSeconds} min={2} max={60} step={1} onValueChange={setIntervalSeconds} />
+                            <Slider value={intervalSeconds} min={2} max={600} step={5} onValueChange={setIntervalSeconds} />
+                            <Input
+                              className="mt-3"
+                              inputMode="numeric"
+                              value={intervalSeconds[0]}
+                              onChange={(event) => setIntervalSeconds([Math.max(2, Math.min(600, Number(event.target.value) || 2))])}
+                            />
+                            <p className="mt-1 text-xs text-muted-foreground">Ate 10 minutos entre contatos.</p>
                           </div>
                         </CardContent>
                       </Card>
@@ -1033,7 +1240,7 @@ export default function Campaigns() {
                           </div>
 
                           <div className="rounded-xl border border-info/20 bg-info/5 p-3 text-muted-foreground text-xs leading-relaxed space-y-1 mt-2">
-                            <p className="font-bold text-info flex items-center gap-1.5">💡 Dica Anti-Ban e Aquecimento</p>
+                            <p className="font-bold text-info flex items-center gap-1.5">�x� Dica Anti-Ban e Aquecimento</p>
                             <p>O aquecimento de número (warmup) envia as primeiras X mensagens com um atraso maior (multiplicado pelo fator escolhido) para simular atividade humana gradual e evitar bloqueios. Definir limites diários/por hora previne picos de envio que violam as políticas do WhatsApp.</p>
                           </div>
                         </CardContent>
@@ -1083,7 +1290,12 @@ export default function Campaigns() {
                               cleanMessages.map((message, index) => (
                                 <div key={`preview-${index}`} className="rounded-2xl border border-border/70 bg-card/80 p-4 text-sm text-muted-foreground">
                                   <p className="mb-2 text-xs uppercase tracking-wide text-muted-foreground">Variante {index + 1}</p>
-                                  <p className="text-foreground">{message}</p>
+                                  <p className="text-foreground">{message.content || "Midia sem legenda"}</p>
+                                  {message.fileName && (
+                                    <p className="mt-2 inline-flex items-center gap-2 rounded-full border border-border/70 bg-background/60 px-3 py-1 text-xs text-muted-foreground">
+                                      {getDraftMediaIcon(message.type)} {message.fileName}
+                                    </p>
+                                  )}
                                 </div>
                               ))
                             )}
@@ -1095,13 +1307,13 @@ export default function Campaigns() {
                         <CardContent className="space-y-4 p-4">
                           <p className="text-sm font-medium">Checklist operacional</p>
                           <div className="space-y-2 text-sm text-muted-foreground">
-                            <p>• Tipo de Envio: <span className="font-medium text-foreground">{selectedFlowId ? "Fluxo de Resposta Rápida" : "Mensagens Avulsas"}</span></p>
-                            {!selectedFlowId && <p>• Typing delay: <span className="font-medium text-foreground">{typingDelay[0].toFixed(1)}s</span></p>}
-                            <p>• Intervalo por contato: <span className="font-medium text-foreground">{intervalSeconds[0]}s</span></p>
-                            <p>• Pausa a cada: <span className="font-medium text-foreground">{pauseEvery} envios</span></p>
-                            <p>• Tempo da pausa: <span className="font-medium text-foreground">{pauseSeconds}s</span></p>
-                            <p>• Agendamento: <span className="font-medium text-foreground">{startAt ? formatDateTime(new Date(startAt).toISOString()) : "Imediato"}</span></p>
-                            {!selectedFlowId && <p>• Shuffle: <span className="font-medium text-foreground">{shuffleEnabled ? "Ativo" : "Desligado"}</span></p>}
+                            <p>⬢ Tipo de Envio: <span className="font-medium text-foreground">{selectedFlowId ? "Fluxo de Resposta Rápida" : "Mensagens Avulsas"}</span></p>
+                            {!selectedFlowId && <p>⬢ Typing delay: <span className="font-medium text-foreground">{typingDelay[0].toFixed(1)}s</span></p>}
+                            <p>⬢ Intervalo por contato: <span className="font-medium text-foreground">{intervalSeconds[0]}s</span></p>
+                            <p>⬢ Pausa a cada: <span className="font-medium text-foreground">{pauseEvery} envios</span></p>
+                            <p>⬢ Tempo da pausa: <span className="font-medium text-foreground">{pauseSeconds}s</span></p>
+                            <p>⬢ Agendamento: <span className="font-medium text-foreground">{startAt ? formatDateTime(new Date(startAt).toISOString()) : "Imediato"}</span></p>
+                            {!selectedFlowId && <p>⬢ Shuffle: <span className="font-medium text-foreground">{shuffleEnabled ? "Ativo" : "Desligado"}</span></p>}
                           </div>
                           <div className="rounded-2xl border border-border/70 bg-card/80 p-4">
                             <p className="text-xs uppercase tracking-wide text-muted-foreground">Tags</p>
@@ -1153,7 +1365,7 @@ export default function Campaigns() {
                           ) : (
                             <div className="rounded-2xl border border-warning/30 bg-warning/10 p-4 text-sm text-warning">
                               {launchReadiness.map((item) => (
-                                <p key={item}>• {item}</p>
+                                <p key={item}>⬢ {item}</p>
                               ))}
                             </div>
                           )}
@@ -1263,11 +1475,12 @@ export default function Campaigns() {
                   const meta = statusMeta(campaign);
                   const recipients = Number(campaign.queue?.total ?? campaign.selectedContacts?.length ?? 0);
                   const sent = Number(campaign.queue?.sent ?? 0);
+                  const mediaCount = (campaign.messages ?? []).filter((message) => Boolean(message.mediaUrl || message.mediaPath)).length;
                   const progress = recipients > 0 ? Math.min(100, Math.round((sent / recipients) * 100)) : 0;
                   const busy = actionCampaignId === campaign.id;
 
                   return (
-                    <Card key={campaign.id} className="glass-card overflow-hidden rounded-2xl border-border/70 bg-card/85">
+                    <Card key={campaign.id} role="button" tabIndex={0} onClick={() => setSelectedCampaignPreview(campaign)} onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") setSelectedCampaignPreview(campaign); }} className="glass-card cursor-pointer overflow-hidden rounded-2xl border-border/70 bg-card/85 transition hover:-translate-y-0.5 hover:border-primary/40">
                       <div className={cn("h-1", meta.cardLine)} />
                       <CardContent className="space-y-4 p-5">
                         <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
@@ -1277,7 +1490,7 @@ export default function Campaigns() {
                               <OperationalStatusBadge label={meta.label} tone={meta.tone} pulse={meta.tone === "syncing"} />
                             </div>
                             <p className="mt-2 text-sm text-muted-foreground">
-                              {(campaign.messages ?? []).map((message) => message.content).filter(Boolean).join(" • ") || "Sem mensagem cadastrada"}
+                              {(campaign.messages ?? []).map((message) => message.content).filter(Boolean).join(" ⬢ ") || "Sem mensagem cadastrada"}
                             </p>
                             <div className="mt-3 flex flex-wrap gap-2">
                               {(campaign.tags ?? []).map((tag) => (
@@ -1285,26 +1498,27 @@ export default function Campaigns() {
                                   {tag}
                                 </Badge>
                               ))}
+                              {mediaCount > 0 && <Badge variant="secondary" className="rounded-full border border-info/30 bg-info/10 text-info">{mediaCount} midia(s)</Badge>}
                               {(campaign.tags ?? []).length === 0 && <Badge variant="secondary">Sem tags</Badge>}
                             </div>
                           </div>
 
                           <div className="grid grid-cols-2 gap-2 lg:w-[220px]">
-                            <Button variant="outline" className="rounded-xl" onClick={() => hydrateComposer(campaign, "edit")}>
+                            <Button variant="outline" className="rounded-xl" onClick={(event) => { event.stopPropagation(); hydrateComposer(campaign, "edit"); }}>
                               <PencilSimple className="h-4 w-4" />
                               Editar
                             </Button>
-                            <Button variant="outline" className="rounded-xl" onClick={() => hydrateComposer(campaign, "duplicate")}>
+                            <Button variant="outline" className="rounded-xl" onClick={(event) => { event.stopPropagation(); hydrateComposer(campaign, "duplicate"); }}>
                               <Copy className="h-4 w-4" />
                               Duplicar
                             </Button>
                             {normalizeCampaignStatus(campaign) === "paused" ? (
-                              <Button className="rounded-xl shadow-glow" onClick={() => void runCampaignAction(campaign.id, "resume")} disabled={busy}>
+                              <Button className="rounded-xl shadow-glow" onClick={(event) => { event.stopPropagation(); void runCampaignAction(campaign.id, "resume"); }} disabled={busy}>
                                 {busy && actionType === "resume" ? <Clock className="h-4 w-4 animate-spin" /> : <Play className="h-4 w-4" />}
                                 Retomar
                               </Button>
                             ) : (
-                              <Button className="rounded-xl shadow-glow" onClick={() => void runCampaignAction(campaign.id, "start")} disabled={busy}>
+                              <Button className="rounded-xl shadow-glow" onClick={(event) => { event.stopPropagation(); void runCampaignAction(campaign.id, "start"); }} disabled={busy}>
                                 {busy && actionType === "start" ? <Clock className="h-4 w-4 animate-spin" /> : <Play className="h-4 w-4" />}
                                 Iniciar
                               </Button>
@@ -1312,7 +1526,7 @@ export default function Campaigns() {
                             <Button
                               variant="outline"
                               className="rounded-xl border-destructive/30 text-destructive hover:bg-destructive/10"
-                              onClick={() => void runCampaignAction(campaign.id, "delete")}
+                              onClick={(event) => { event.stopPropagation(); void runCampaignAction(campaign.id, "delete"); }}
                               disabled={busy}
                             >
                               {busy && actionType === "delete" ? <Clock className="h-4 w-4 animate-spin" /> : <Trash className="h-4 w-4" />}
@@ -1351,12 +1565,16 @@ export default function Campaigns() {
                         </div>
 
                         <div className="flex flex-wrap gap-2">
-                          <Button variant="outline" className="rounded-xl" onClick={() => hydrateComposer(campaign, "edit")}>
+                          <Button variant="outline" className="rounded-xl" onClick={(event) => { event.stopPropagation(); setSelectedCampaignPreview(campaign); }}>
+                            <ArrowsOutSimple className="h-4 w-4" />
+                            Abrir maior
+                          </Button>
+                          <Button variant="outline" className="rounded-xl" onClick={(event) => { event.stopPropagation(); hydrateComposer(campaign, "edit"); }}>
                             <ArrowClockwise className="h-4 w-4" />
                             Carregar no editor
                           </Button>
                           {normalizeCampaignStatus(campaign) !== "paused" && normalizeCampaignStatus(campaign) !== "completed" && (
-                            <Button variant="outline" className="rounded-xl" onClick={() => void runCampaignAction(campaign.id, "pause")} disabled={busy}>
+                            <Button variant="outline" className="rounded-xl" onClick={(event) => { event.stopPropagation(); void runCampaignAction(campaign.id, "pause"); }} disabled={busy}>
                               {busy && actionType === "pause" ? <Clock className="h-4 w-4 animate-spin" /> : <Pause className="h-4 w-4" />}
                               Pausar
                             </Button>
@@ -1374,6 +1592,81 @@ export default function Campaigns() {
         )}
       </div>
 
+      <Dialog open={Boolean(selectedCampaignPreview)} onOpenChange={(open) => !open && setSelectedCampaignPreview(null)}>
+        <DialogContent className="max-h-[88vh] max-w-5xl overflow-y-auto rounded-2xl border-border/70 bg-card/95">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 font-display text-xl font-bold">
+              <ArrowsOutSimple className="h-5 w-5 text-primary" />
+              {selectedCampaignPreview?.name || "Campanha"}
+            </DialogTitle>
+          </DialogHeader>
+          {selectedCampaignPreview && (
+            <div className="space-y-5 py-2">
+              <div className="grid gap-3 md:grid-cols-4">
+                <div className="rounded-2xl border border-border/70 bg-background/40 p-4">
+                  <p className="text-xs uppercase tracking-wide text-muted-foreground">Status</p>
+                  <div className="mt-2"><OperationalStatusBadge label={statusMeta(selectedCampaignPreview).label} tone={statusMeta(selectedCampaignPreview).tone} /></div>
+                </div>
+                <div className="rounded-2xl border border-border/70 bg-background/40 p-4">
+                  <p className="text-xs uppercase tracking-wide text-muted-foreground">Contatos</p>
+                  <p className="mt-1 font-display text-2xl font-bold">{selectedCampaignPreview.queue?.total ?? selectedCampaignPreview.selectedContacts?.length ?? 0}</p>
+                </div>
+                <div className="rounded-2xl border border-border/70 bg-background/40 p-4">
+                  <p className="text-xs uppercase tracking-wide text-muted-foreground">Enviadas</p>
+                  <p className="mt-1 font-display text-2xl font-bold">{selectedCampaignPreview.queue?.sent ?? 0}</p>
+                </div>
+                <div className="rounded-2xl border border-border/70 bg-background/40 p-4">
+                  <p className="text-xs uppercase tracking-wide text-muted-foreground">Falhas</p>
+                  <p className="mt-1 font-display text-2xl font-bold">{selectedCampaignPreview.queue?.failed ?? 0}</p>
+                </div>
+              </div>
+              <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_320px]">
+                <div className="space-y-3 rounded-2xl border border-border/70 bg-background/30 p-4">
+                  <p className="text-sm font-semibold">Mensagens e midias</p>
+                  {(selectedCampaignPreview.messages ?? []).length === 0 ? (
+                    <p className="text-sm text-muted-foreground">Nenhuma mensagem cadastrada.</p>
+                  ) : (
+                    (selectedCampaignPreview.messages ?? []).map((message, index) => (
+                      <div key={`${selectedCampaignPreview.id}-message-${index}`} className="rounded-2xl border border-border/70 bg-card/70 p-4 text-sm">
+                        <div className="mb-2 flex items-center justify-between gap-3">
+                          <p className="font-medium text-foreground">Mensagem {index + 1}</p>
+                          <Badge variant="secondary" className="rounded-full">{message.type || "text"}</Badge>
+                        </div>
+                        <p className="whitespace-pre-wrap text-muted-foreground">{message.content || "Sem legenda"}</p>
+                        {(message.mediaUrl || message.mediaPath) && (
+                          <div className="mt-3 flex items-center gap-2 rounded-xl border border-border/70 bg-background/60 px-3 py-2 text-xs text-muted-foreground">
+                            {getDraftMediaIcon((message.type === "file" ? "document" : message.type || "document") as CampaignDraftMediaType)}
+                            <span className="truncate">{message.fileName || message.mimetype || "Midia anexada"}</span>
+                          </div>
+                        )}
+                      </div>
+                    ))
+                  )}
+                </div>
+                <div className="space-y-3 rounded-2xl border border-border/70 bg-background/30 p-4 text-sm text-muted-foreground">
+                  <p className="font-semibold text-foreground">Cadencia</p>
+                  <p>Typing: <span className="font-medium text-foreground">{selectedCampaignPreview.settings?.typingDelaySeconds ?? 3}s</span></p>
+                  <p>Intervalo: <span className="font-medium text-foreground">{selectedCampaignPreview.settings?.intervalSeconds ?? 10}s</span></p>
+                  <p>Pausa: <span className="font-medium text-foreground">{selectedCampaignPreview.settings?.pauseEvery ?? 10} / {selectedCampaignPreview.settings?.pauseSeconds ?? 60}s</span></p>
+                  <p>Sessao: <span className="font-medium text-foreground">{selectedCampaignPreview.settings?.sessionId || "automatica"}</span></p>
+                  <p>Agendamento: <span className="font-medium text-foreground">{formatDateTime(selectedCampaignPreview.settings?.startAt)}</span></p>
+                  <div className="pt-3 flex flex-wrap gap-2">
+                    <Button variant="outline" className="rounded-xl" onClick={() => hydrateComposer(selectedCampaignPreview, "edit")}>
+                      <PencilSimple className="h-4 w-4" /> Editar
+                    </Button>
+                    <Button variant="outline" className="rounded-xl" onClick={() => hydrateComposer(selectedCampaignPreview, "duplicate")}>
+                      <Copy className="h-4 w-4" /> Duplicar
+                    </Button>
+                    <Button className="rounded-xl shadow-glow" onClick={() => void runCampaignAction(selectedCampaignPreview.id, "start")}>
+                      <Play className="h-4 w-4" /> Iniciar
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
       <Dialog open={isTagModalOpen} onOpenChange={setIsTagModalOpen}>
         <DialogContent className="max-w-md rounded-2xl border-border/70 bg-card/95">
           <DialogHeader>
@@ -1404,3 +1697,4 @@ export default function Campaigns() {
     </div>
   );
 }
+

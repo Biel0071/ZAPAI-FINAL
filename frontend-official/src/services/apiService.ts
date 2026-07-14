@@ -226,9 +226,13 @@ export interface CampaignContact {
 
 export interface CampaignMessage {
   id?: string;
-  type: "text" | "image" | "audio" | "video" | "file" | "sticker";
+  type: "text" | "image" | "audio" | "video" | "file" | "document" | "sticker";
   content: string;
   mediaUrl?: string | null;
+  mediaPath?: string | null;
+  fileName?: string | null;
+  mimetype?: string | null;
+  ptt?: boolean;
   delaySeconds?: number;
 }
 
@@ -238,6 +242,15 @@ export interface CampaignSettings {
   pauseSeconds: number;
   typingDelaySeconds: number;
   startAt?: string | null;
+  flowId?: string | null;
+  sessionId?: string | null;
+  shuffleEnabled?: boolean;
+  warmupMessages?: number;
+  warmupDelayMultiplier?: number;
+  dailyLimit?: number | null;
+  hourlyLimit?: number | null;
+  randomDelayMin?: number | null;
+  randomDelayMax?: number | null;
 }
 
 export interface CampaignQueue {
@@ -918,9 +931,13 @@ function normalizeCampaignMessage(item: unknown, index: number): CampaignMessage
   const type = String(raw.type ?? "text").trim().toLowerCase();
   return {
     id: typeof raw.id === "string" ? raw.id : `message-${index}`,
-    type: type === "image" || type === "audio" || type === "video" || type === "file" ? type : "text",
+    type: type === "image" || type === "audio" || type === "video" || type === "file" || type === "document" || type === "sticker" ? type : "text",
     content: String(raw.content ?? raw.text ?? raw.caption ?? "").trim(),
-    mediaUrl: typeof raw.mediaUrl === "string" ? raw.mediaUrl : typeof raw.media_url === "string" ? raw.media_url : null,
+    mediaUrl: typeof raw.mediaUrl === "string" ? raw.mediaUrl : typeof raw.media_url === "string" ? raw.media_url : typeof raw.mediaPath === "string" ? raw.mediaPath : null,
+    mediaPath: typeof raw.mediaPath === "string" ? raw.mediaPath : typeof raw.mediaUrl === "string" ? raw.mediaUrl : typeof raw.media_url === "string" ? raw.media_url : null,
+    fileName: typeof raw.fileName === "string" ? raw.fileName : typeof raw.filename === "string" ? raw.filename : null,
+    mimetype: typeof raw.mimetype === "string" ? raw.mimetype : typeof raw.mimeType === "string" ? raw.mimeType : null,
+    ptt: raw.ptt === true,
     delaySeconds: Number(raw.delaySeconds ?? raw.delay_seconds ?? 0),
   };
 }
@@ -948,6 +965,15 @@ function normalizeCampaignRecord(item: unknown, index: number): CampaignRecord {
       pauseSeconds: Number(settingsRaw.pauseSeconds ?? raw.pauseSeconds ?? 60),
       typingDelaySeconds: Number(settingsRaw.typingDelaySeconds ?? raw.typingDelaySeconds ?? 3),
       startAt: typeof settingsRaw.startAt === "string" ? settingsRaw.startAt : typeof raw.scheduledFor === "string" ? raw.scheduledFor : null,
+      flowId: typeof settingsRaw.flowId === "string" ? settingsRaw.flowId : null,
+      sessionId: typeof settingsRaw.sessionId === "string" ? settingsRaw.sessionId : null,
+      shuffleEnabled: Boolean(settingsRaw.shuffleEnabled ?? true),
+      warmupMessages: Number(settingsRaw.warmupMessages ?? 5),
+      warmupDelayMultiplier: Number(settingsRaw.warmupDelayMultiplier ?? 3),
+      dailyLimit: settingsRaw.dailyLimit === null || settingsRaw.dailyLimit === undefined ? null : Number(settingsRaw.dailyLimit),
+      hourlyLimit: settingsRaw.hourlyLimit === null || settingsRaw.hourlyLimit === undefined ? null : Number(settingsRaw.hourlyLimit),
+      randomDelayMin: settingsRaw.randomDelayMin === null || settingsRaw.randomDelayMin === undefined ? null : Number(settingsRaw.randomDelayMin),
+      randomDelayMax: settingsRaw.randomDelayMax === null || settingsRaw.randomDelayMax === undefined ? null : Number(settingsRaw.randomDelayMax),
     },
     queue: {
       total: Number(queueRaw.total ?? selectedContacts.length ?? 0),
