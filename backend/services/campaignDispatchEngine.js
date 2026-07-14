@@ -17,6 +17,7 @@
 const campaignRepository = require('../repositories/campaignRepository');
 const sessionManager = require('./sessionManager');
 const backpressureController = require('./backpressureController');
+const whatsappService = require('./whatsappService');
 
 const DEFAULT_COMPANY_ID = String(process.env.DEFAULT_COMPANY_ID || 'default').trim();
 
@@ -97,12 +98,42 @@ function getRandomDelay(state) {
   return Math.round(base);
 }
 
+function normalizeCampaignMessage(rawMessage) {
+  if (typeof rawMessage === 'string') {
+    return { type: 'text', content: rawMessage };
+  }
+
+  if (!rawMessage || typeof rawMessage !== 'object') {
+    return null;
+  }
+
+  const type = String(rawMessage.type || rawMessage.mediaType || 'text').toLowerCase();
+  const content = rawMessage.text || rawMessage.content || rawMessage.caption || '';
+  const mediaPath = rawMessage.mediaPath || rawMessage.mediaUrl || rawMessage.url || rawMessage.file || null;
+
+  return {
+    ...rawMessage,
+    type,
+    content: String(content || ''),
+    mediaPath,
+  };
+}
+
 function selectMessageForContact(state, _contact) {
   if (!state.messages.length) return null;
-  // Round-robin or random message selection
-  const idx = state.currentIndex % state.messages.length;
-  const msg = state.messages[idx];
-  return typeof msg === 'string' ? msg : (msg?.text || msg?.content || String(msg));
+  const idx = Math.max(0, state.currentIndex - 1) % state.messages.length;
+  return normalizeCampaignMessage(state.messages[idx]);
+}
+
+function normalizeCampaignMediaType(type) {
+  const normalized = String(type || '').toLowerCase();
+  if (normalized === 'file' || normalized === 'pdf' || normalized === 'document') return 'document';
+  if (['image', 'video', 'audio', 'sticker'].includes(normalized)) return normalized;
+  return null;
+}
+
+function isMediaCampaignMessage(message) {
+  return Boolean(normalizeCampaignMediaType(message?.type));
 }
 
 async function dispatchSingleMessage(state, contact, io) {
@@ -174,8 +205,8 @@ async function dispatchSingleMessage(state, contact, io) {
     }
   }
 
-  const messageText = selectMessageForContact(state, contact);
-  if (!messageText) {
+  const campaignMessage = selectMessageForContact(state, contact);
+  if (!campaignMessage || (!campaignMessage.content && !campaignMessage.mediaPath)) {
     state.failedQueue.push({ contact, error: 'no_message', at: new Date().toISOString() });
     state.metrics.failed += 1;
     return { success: false, error: 'no_message' };
@@ -229,20 +260,29 @@ async function dispatchSingleMessage(state, contact, io) {
       }
     }
 
-    // Normalize phone for WhatsApp
-    const jid = phone.includes('@') ? phone : `${phone.replace(/\D/g, '')}@s.whatsapp.net`;
+    const jid = whatsappService.ensureWhatsAppJid(phone);
 
-    // Send typing indicator
     await session.sock.presenceSubscribe(jid).catch(() => {});
     await session.sock.sendPresenceUpdate('composing', jid).catch(() => {});
 
-    // Wait for typing simulation
     await sleep(state.settings.typingDelayMs);
 
-    // Send the message
-    await session.sock.sendMessage(jid, { text: messageText });
+    if (isMediaCampaignMessage(campaignMessage)) {
+      const mediaType = normalizeCampaignMediaType(campaignMessage.type);
+      const mediaPath = campaignMessage.mediaPath || campaignMessage.content;
+      if (!mediaPath) {
+        throw new Error('Campaign media message is missing mediaPath/mediaUrl/content.');
+      }
+      await whatsappService.sendMediaMessage(session.sock, phone, mediaType, mediaPath, {
+        caption: campaignMessage.caption || campaignMessage.text || '',
+        fileName: campaignMessage.fileName || campaignMessage.filename,
+        mimetype: campaignMessage.mimetype,
+        ptt: campaignMessage.ptt === true,
+      });
+    } else {
+      await whatsappService.sendMessage(session.sock, phone, campaignMessage.content);
+    }
 
-    // Clear typing
     await session.sock.sendPresenceUpdate('paused', jid).catch(() => {});
 
     const deliveryMs = Date.now() - startTime;

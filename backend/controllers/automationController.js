@@ -1,4 +1,5 @@
 const automationService = require('../services/automationService');
+const campaignDispatchEngine = require('../services/campaignDispatchEngine');
 
 function getStore(req) {
   return req.app.locals.store;
@@ -38,14 +39,14 @@ async function createCampaign(req, res) {
 
 async function startCampaign(req, res) {
   try {
-    const updated = await automationService.startCampaign(getStore(req), String(req.params.id || ''));
-    if (!updated) {
-      return res.status(404).json({ error: 'Campaign not found.' });
-    }
-
-    return res.status(200).json(updated);
+    const campaignId = String(req.params.id || '');
+    const companyId = req.companyId || process.env.DEFAULT_COMPANY_ID || 'default';
+    const io = req.app?.locals?.io || global.io;
+    const result = await campaignDispatchEngine.startCampaign(campaignId, companyId, io);
+    return res.status(200).json({ success: true, data: result });
   } catch (error) {
-    return res.status(400).json({ error: error.message || 'Failed to start campaign.' });
+    const status = String(error?.message || '').includes('not found') ? 404 : 400;
+    return res.status(status).json({ error: error.message || 'Failed to start campaign.', success: false });
   }
 }
 
@@ -83,7 +84,13 @@ async function deleteCampaign(req, res) {
 
 async function getCampaignStatus(req, res) {
   try {
-    const status = await automationService.getCampaignStatus(getStore(req), String(req.params.id || ''));
+    const campaignId = String(req.params.id || '');
+    const activeStatus = campaignDispatchEngine.getStatus(campaignId);
+    if (activeStatus) {
+      return res.status(200).json({ success: true, data: activeStatus });
+    }
+
+    const status = await automationService.getCampaignStatus(getStore(req), campaignId);
 
     if (!status) {
       return res.status(404).json({ error: 'Campaign not found.' });
