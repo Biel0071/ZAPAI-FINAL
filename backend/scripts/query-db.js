@@ -16,6 +16,15 @@ async function run() {
     console.log('--- SESSIONS ---');
     console.log(sessions.rows);
 
+    const messages = await pool.query(`
+      SELECT id, body, remote_jid, sender, status, created_at
+      FROM messages
+      ORDER BY id DESC
+      LIMIT 15
+    `);
+    console.log('\n--- LAST 15 MESSAGES ---');
+    console.log(messages.rows);
+
   } catch (e) {
     console.error('ERR:', e);
   } finally {
