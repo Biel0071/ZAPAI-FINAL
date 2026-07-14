@@ -71,7 +71,7 @@ export const MessageRow = memo(function MessageRow({
   onCopyMessage: (message: ChatMessage) => void;
   onReplyMessage: (message: ChatMessage) => void;
   onForwardMessage: (message: ChatMessage) => void;
-  onDeleteMessage: (messageId: string) => void;
+  onDeleteMessage: (messageId: string, scope: "local" | "everyone") => void;
   onDownloadMedia: (message: ChatMessage) => void;
   onToggleAudio: (messageId: string, url: string) => void;
   isAudioLoading: boolean;
@@ -262,8 +262,8 @@ export const MessageRow = memo(function MessageRow({
             size="icon"
             variant="ghost"
             className="h-6 w-6 rounded-full text-destructive hover:text-destructive hover:bg-destructive/10"
-            onClick={() => onDeleteMessage(message.id)}
-            title="Excluir"
+            onClick={() => onToggleMenu(message.id)}
+            title="Opcoes de exclusao"
           >
             <Trash className="h-3.5 w-3.5" />
           </Button>
@@ -545,14 +545,25 @@ export const MessageRow = memo(function MessageRow({
                 </button>
               </>
             )}
+            <div className="my-1 h-px bg-border/70" />
             <button
               type="button"
               className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-xs text-destructive hover:bg-destructive/10"
-              onClick={() => onDeleteMessage(message.id)}
+              onClick={() => onDeleteMessage(message.id, "local")}
             >
               <Trash className="h-3.5 w-3.5" />
-              Excluir
+              Excluir para mim
             </button>
+            {message.fromMe && (
+              <button
+                type="button"
+                className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-xs text-destructive hover:bg-destructive/10"
+                onClick={() => onDeleteMessage(message.id, "everyone")}
+              >
+                <Trash className="h-3.5 w-3.5" />
+                Excluir para todos
+              </button>
+            )}
           </div>
         )}
 

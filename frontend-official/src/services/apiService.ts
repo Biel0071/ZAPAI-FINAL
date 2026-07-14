@@ -1775,8 +1775,12 @@ export const apiService = {
     invalidateCache("conversations");
     return data;
   },
-  deleteMessage: (messageId: string) =>
-    request<{ success?: boolean; messageId?: string }>({ endpoint: `/api/messages/${encodeURIComponent(messageId)}`, method: "DELETE" }),
+  deleteMessage: (messageId: string, scope: "local" | "everyone" = "local") =>
+    request<{ success?: boolean; messageId?: string; scope?: "local" | "everyone"; revokedOnWhatsApp?: boolean }>({
+      endpoint: `/api/messages/${encodeURIComponent(messageId)}`,
+      method: "DELETE",
+      body: { scope },
+    }),
   forwardMessage: (messageId: string, payload: { phone: string; conversationId?: string; sessionId?: string }) =>
     request<Record<string, unknown>>({ endpoint: `/api/messages/${encodeURIComponent(messageId)}/forward`, method: "POST", body: payload }),
   async getQuickReplies() {

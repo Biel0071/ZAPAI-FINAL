@@ -1129,6 +1129,7 @@ async function getMessagesByChatId(req, res) {
 
 async function deleteMessage(req, res) {
   const { messageId } = req.params;
+  const deleteScope = req.body?.scope === 'everyone' ? 'everyone' : 'local';
   const store = getStore(req);
 
   try {
@@ -1143,7 +1144,15 @@ async function deleteMessage(req, res) {
     }
 
     let revokedOnWhatsApp = false;
-    if (existing.fromMe && existing.whatsappMessageId) {
+    if (deleteScope === 'everyone' && (!existing.fromMe || !existing.whatsappMessageId)) {
+      return res.status(422).json({
+        code: 'WHATSAPP_REVOKE_UNAVAILABLE',
+        error: 'Esta mensagem nao pode mais ser apagada para todos.',
+        success: false,
+      });
+    }
+
+    if (deleteScope === 'everyone') {
       const sessionName = sessionManager.normalizeSessionName(existing.sessionId || getRequestedSessionId(req));
       const session = sessionManager.getSession(sessionName) || await sessionManager.getDefaultSession();
       const sock = session?.sock || store?.sock;
@@ -1191,7 +1200,7 @@ async function deleteMessage(req, res) {
       success: true,
       messageId: String(messageId),
       revokedOnWhatsApp,
-      scope: revokedOnWhatsApp ? 'everyone' : 'local',
+      scope: deleteScope,
     });
   } catch (error) {
     return res.status(500).json({ error: error.message || 'Failed to delete message.' });

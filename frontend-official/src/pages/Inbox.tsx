@@ -664,7 +664,7 @@ export default function Inbox() {
                         size="sm"
                         variant="outline"
                         className="h-8 border-red-500/30 bg-red-500/10 text-red-200 hover:bg-red-500/20"
-                        onClick={() => state.previewMedia?.messageId && void state.handleDeleteMessage(state.previewMedia.messageId)}
+                        onClick={() => state.previewMedia?.messageId && void state.handleDeleteMessage(state.previewMedia.messageId, "local")}
                       >
                         Excluir
                       </Button>

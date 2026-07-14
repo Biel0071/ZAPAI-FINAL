@@ -195,20 +195,40 @@ export function RuntimeProvider({ children }: { children: ReactNode }) {
     : 0;
 
   // Full API refresh — called on mount and on reconnect
-  const loadFromApi = useCallback(async () => {
+  const loadFromApi = useCallback(async (options?: { forceConversations?: boolean }) => {
     const t0 = performance.now();
     runtimeInfo("[Runtime] hydration:start");
+
+    // Render the application immediately. Inbox-level caches/skeletons provide
+    // useful content while the network refresh continues progressively.
+    if (!hydratedRef.current) {
+      hydratedRef.current = true;
+      setHydrated(true);
+    }
+
     try {
       if (!recoveryAttemptedRef.current) {
         recoveryAttemptedRef.current = true;
-        await apiService.recoverSessions().catch((error) => {
+        void apiService.recoverSessions().catch((error) => {
           runtimeWarn("[Runtime] session:recover skipped", error instanceof Error ? error.message : error);
         });
       }
 
-      const activeSessionId = useAppStore.getState().activeSessionId;
-      const [sessionsResult, metricsResult] = await Promise.allSettled([
+      const initialStore = useAppStore.getState();
+      const knownSessions = Array.isArray(initialStore.sessions)
+        ? initialStore.sessions.map(normalizeSession)
+        : [];
+      const activeSessionId = initialStore.activeSessionId;
+      const conversationSessionId = getPreferredConversationSessionId(knownSessions) || activeSessionId || undefined;
+
+      // These endpoints are independent. Running them together removes an
+      // entire network round-trip from every initial load and reconnect.
+      const [sessionsResult, conversationsResult, metricsResult] = await Promise.allSettled([
         apiService.listSessions(),
+        apiService.getConversations(Boolean(options?.forceConversations), {
+          limit: 30,
+          sessionId: conversationSessionId,
+        }),
         apiService.getMetrics(activeSessionId),
       ]);
 
@@ -216,17 +236,10 @@ export function RuntimeProvider({ children }: { children: ReactNode }) {
         sessionsResult.status === "fulfilled" && Array.isArray(sessionsResult.value)
           ? sessionsResult.value.map(normalizeSession)
           : [];
-      const conversationSessionId = getPreferredConversationSessionId(normalizedSessions);
-      const conversationsResult = await Promise.resolve(
-        apiService.getConversations(false, { sessionId: conversationSessionId }),
-      ).then(
-        (value) => ({ status: "fulfilled" as const, value }),
-        (reason) => ({ status: "rejected" as const, reason }),
-      );
 
       runtimeInfo("[Runtime] hydration:raw", {
         sessions: sessionsResult.status === "fulfilled" ? sessionsResult.value : sessionsResult,
-        conversations: conversationsResult.status === "fulfilled" ? `${Array.isArray(conversationsResult.value) ? conversationsResult.value.length : 'NOT_ARRAY'} items` : conversationsResult,
+        conversations: conversationsResult.status === "fulfilled" ? `${Array.isArray(conversationsResult.value) ? conversationsResult.value.length : "NOT_ARRAY"} items` : conversationsResult,
         metrics: metricsResult.status === "fulfilled" ? metricsResult.value : metricsResult,
       });
 
@@ -238,17 +251,11 @@ export function RuntimeProvider({ children }: { children: ReactNode }) {
       if (sessionsOk) {
         store.setSessions(normalizedSessions);
         for (const session of normalizedSessions) {
-          if (session.status === "connected") {
-            store.clearLastQr(session.id);
-          }
+          if (session.status === "connected") store.clearLastQr(session.id);
         }
       }
-      if (conversationsOk) {
-        store.setConversations(conversationsResult.value);
-      }
-      if (metricsOk) {
-        store.setMetrics(metricsResult.value);
-      }
+      if (conversationsOk) store.setConversations(conversationsResult.value);
+      if (metricsOk) store.setMetrics(metricsResult.value);
 
       const apiHealthy = sessionsOk && conversationsOk && metricsOk;
       persistRuntimeCoherenceSnapshot(
@@ -261,8 +268,8 @@ export function RuntimeProvider({ children }: { children: ReactNode }) {
       );
 
       const elapsed = Math.round(performance.now() - t0);
-      const sCount = sessionsResult.status === "fulfilled" && Array.isArray(sessionsResult.value) ? sessionsResult.value.length : 0;
-      const cCount = conversationsResult.status === "fulfilled" && Array.isArray(conversationsResult.value) ? conversationsResult.value.length : 0;
+      const sCount = sessionsOk ? normalizedSessions.length : 0;
+      const cCount = conversationsOk ? conversationsResult.value.length : 0;
       runtimeInfo(`[Runtime] hydration:done sessions=${sCount} conversations=${cCount} elapsed=${elapsed}ms`);
     } catch (err) {
       runtimeWarn("[Runtime] hydration:error", err instanceof Error ? err.message : err);
@@ -275,12 +282,13 @@ export function RuntimeProvider({ children }: { children: ReactNode }) {
         }),
       );
     } finally {
+      hydratedRef.current = true;
       setHydrated(true);
     }
   }, []);
 
   const forceRefresh = useCallback(async () => {
-    await loadFromApi();
+    await loadFromApi({ forceConversations: true });
   }, [loadFromApi]);
 
   const forceReconnect = useCallback(() => {
@@ -290,7 +298,7 @@ export function RuntimeProvider({ children }: { children: ReactNode }) {
   // Debounced refresh for reconnect — avoid flooding API after brief disconnection
   const debouncedRefresh = useCallback(() => {
     if (refreshTimerRef.current) clearTimeout(refreshTimerRef.current);
-    refreshTimerRef.current = setTimeout(() => void loadFromApi(), 3000);
+    refreshTimerRef.current = setTimeout(() => void loadFromApi({ forceConversations: true }), 600);
   }, [loadFromApi]);
 
   // ─── Main effect: WebSocket subscription ─────────────────────
@@ -712,7 +720,7 @@ export function RuntimeProvider({ children }: { children: ReactNode }) {
       // Only re-hydrate if tab was hidden for > 30 seconds
       if (elapsed > 30_000 && hydratedRef.current) {
         runtimeInfo(`[Runtime] tab:focused elapsed=${elapsed}ms rehydrating`);
-        void loadFromApi();
+        void loadFromApi({ forceConversations: true });
       }
     };
 

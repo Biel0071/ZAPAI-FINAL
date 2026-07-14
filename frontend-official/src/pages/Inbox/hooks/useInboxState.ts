@@ -1032,7 +1032,7 @@ export function useInboxState() {
           }
           return normalizeId(normalizedConversations[0]?.id) || null;
         });
-        await loadConversationControls(normalizedConversations);
+        void loadConversationControls(normalizedConversations);
         setConversationsLoadFailed(false);
       } catch (err) {
         markBackendOffline(err);
@@ -1285,6 +1285,10 @@ export function useInboxState() {
         }
       }
     }
+
+    // Paint cached data first, then reconcile the selected conversation with
+    // the API. The cache TTL prevents duplicate requests when switching quickly.
+    void loadConversationMessagesRef.current(normalizedId);
 
     autoScrollRef.current = true;
     setLoadingMessages(false);
@@ -2144,20 +2148,27 @@ export function useInboxState() {
     setActiveReactionPickerMessageId(null);
   }, [toast]);
 
-  const handleDeleteMessage = useCallback(async (messageId: string) => {
+  const handleDeleteMessage = useCallback(async (messageId: string, scope: "local" | "everyone" = "local") => {
     if (!selectedConversationId) return;
     try {
-      const response = await apiService.deleteMessage(messageId);
+      const response = await apiService.deleteMessage(messageId, scope);
       if (response.success) {
         useAppStore.getState().deleteMessage(selectedConversationId, messageId);
         setPreviewMedia((current) => (current?.messageId === messageId ? null : current));
-        toast({ title: "Mensagem excluída com sucesso" });
+        setActiveMessageMenuId(null);
+        setActiveReactionPickerMessageId(null);
+        toast({
+          title: scope === "everyone" ? "Mensagem excluída para todos" : "Mensagem excluída para você",
+        });
       } else {
         toast({ title: "Falha ao excluir mensagem", variant: "destructive" });
       }
     } catch (err) {
       console.error(err);
-      toast({ title: "Erro ao tentar excluir a mensagem", variant: "destructive" });
+      const fallback = scope === "everyone"
+        ? "Não foi possível excluir para todos. A mensagem pode ser antiga ou a sessão está offline."
+        : "Erro ao tentar excluir a mensagem";
+      toast({ title: fallback, variant: "destructive" });
     }
   }, [selectedConversationId, toast]);
 

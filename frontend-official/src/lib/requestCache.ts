@@ -25,5 +25,9 @@ export function setCache<T>(key: string, value: T, ttlMs: number): void {
 }
 
 export function invalidateCache(key: string): void {
-  memoryCache.delete(key);
+  for (const cachedKey of memoryCache.keys()) {
+    if (cachedKey === key || cachedKey.startsWith(`${key}:`)) {
+      memoryCache.delete(cachedKey);
+    }
+  }
 }

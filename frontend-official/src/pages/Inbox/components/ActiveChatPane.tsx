@@ -124,7 +124,7 @@ interface ActiveChatPaneProps {
   handleCopyMessage: (message: ChatMessage) => void;
   handleReplyMessage: (message: ChatMessage) => void;
   handleForwardMessage: (message: ChatMessage) => void;
-  handleDeleteMessage: (messageId: string) => Promise<void>;
+  handleDeleteMessage: (messageId: string, scope?: "local" | "everyone") => Promise<void>;
   handleDownloadMedia: (message: ChatMessage) => void;
   handleToggleAudioPlayback: (messageId: string, url: string) => void;
   loadingAudioMessageId: string | null;
