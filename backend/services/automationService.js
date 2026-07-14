@@ -23,7 +23,11 @@ function normalizeCampaign(payload = {}) {
       id: item.id || `msg-${Date.now()}-${index}`,
       type: String(item.type || 'text').trim(),
       content: String(item.content || '').trim(),
-      mediaUrl: item.mediaUrl || null,
+      mediaUrl: item.mediaUrl || item.mediaPath || item.url || null,
+      mediaPath: item.mediaPath || item.mediaUrl || item.url || null,
+      fileName: item.fileName || item.filename || null,
+      mimetype: item.mimetype || null,
+      ptt: item.ptt === true,
       delaySeconds: Number(item.delaySeconds || 0),
     })),
     settings: {
