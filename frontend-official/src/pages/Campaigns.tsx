@@ -245,6 +245,43 @@ function buildHumanizedFollowUpMessages(product: string, prompt: string, leadPro
   }));
 }
 
+type AICampaignDraft = {
+  name?: string;
+  messages?: string[];
+  followUps?: string[];
+  tags?: string[];
+  delayProfile?: {
+    typingSeconds?: number;
+    intervalSeconds?: number;
+    pauseEvery?: number;
+    pauseSeconds?: number;
+    dailyLimit?: number;
+    hourlyLimit?: number;
+  };
+};
+
+function parseAICampaignMessages(response?: string | null): AICampaignDraft | null {
+  const raw = String(response || "").trim();
+  if (!raw) return null;
+  const fenced = raw.match(/`{3}(?:json)?\s*([\s\S]*?)`{3}/i)?.[1];
+  const candidate = fenced || raw.match(/\{[\s\S]*\}/)?.[0] || raw;
+  try {
+    const parsed = JSON.parse(candidate) as AICampaignDraft;
+    const messages = [...(Array.isArray(parsed.messages) ? parsed.messages : []), ...(Array.isArray(parsed.followUps) ? parsed.followUps : [])]
+      .map((message) => String(message || "").trim())
+      .filter(Boolean);
+    if (messages.length === 0) return null;
+    return { ...parsed, messages };
+  } catch {
+    const lines = raw
+      .split(/\r?\n/)
+      .map((line) => line.replace(/^[-*\d.)\s]+/, "").trim())
+      .filter((line) => line.length > 10)
+      .slice(0, 6);
+    return lines.length > 0 ? { messages: lines } : null;
+  }
+}
+
 export default function Campaigns() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isTagModalOpen, setIsTagModalOpen] = useState(false);
@@ -278,18 +315,25 @@ export default function Campaigns() {
   const [aiCampaignPrompt, setAiCampaignPrompt] = useState("");
   const [aiLeadProfile, setAiLeadProfile] = useState("all");
   const [aiFollowUpDays, setAiFollowUpDays] = useState("3");
+  const [aiAgents, setAiAgents] = useState<any[]>([]);
+  const [selectedAiAgentKey, setSelectedAiAgentKey] = useState("");
+  const [isAiCampaignGenerating, setIsAiCampaignGenerating] = useState(false);
 
   const loadPageData = useCallback(async (options?: { silent?: boolean }) => {
     if (!options?.silent) setLoading(true);
     try {
-      const [campaignList, contactList, conversationsData, quickRepliesData] = await Promise.all([
+      const [campaignList, contactList, conversationsData, quickRepliesData, agentsData] = await Promise.all([
         apiService.getCampaigns(),
         apiService.getContacts(true),
         apiService.getConversations(true, { limit: 500 }).catch(() => []),
         apiService.getQuickReplies().catch(() => []),
+        apiService.getAIAgents().catch(() => ({ success: false, agents: [] })),
       ]);
       setCampaigns(Array.isArray(campaignList) ? campaignList : []);
       setQuickReplies(Array.isArray(quickRepliesData) ? quickRepliesData : []);
+      const loadedAgents = Array.isArray(agentsData?.agents) ? agentsData.agents : [];
+      setAiAgents(loadedAgents);
+      setSelectedAiAgentKey((current) => current || String(loadedAgents.find((agent) => agent.active !== false)?.key || loadedAgents[0]?.key || ""));
 
       const conversationsByPhone = new Map<string, Conversation>();
       (Array.isArray(conversationsData) ? conversationsData : []).forEach((conversation) => {
@@ -374,6 +418,7 @@ export default function Campaigns() {
     setAiCampaignPrompt("");
     setAiLeadProfile("all");
     setAiFollowUpDays("3");
+    setIsAiCampaignGenerating(false);
   }, []);
 
   const hydrateComposer = useCallback((campaign: CampaignRecord, mode: ComposerMode) => {
@@ -671,11 +716,50 @@ export default function Campaigns() {
       return;
     }
 
+    setIsAiCampaignGenerating(true);
     const product = extractCampaignProduct(prompt);
     const now = new Date();
-    const generatedName = "IA - " + product + " - " + now.toLocaleDateString("pt-BR");
+    const activeAgent = aiAgents.find((agent) => String(agent.key || agent.name || "") === selectedAiAgentKey) || aiAgents.find((agent) => agent.active !== false) || aiAgents[0];
+    let generatedName = "IA - " + product + " - " + now.toLocaleDateString("pt-BR");
     const followUpDays = Math.max(1, Number(aiFollowUpDays) || 3);
-    const generatedMessages = buildHumanizedFollowUpMessages(product, prompt, aiLeadProfile);
+    let generatedMessages = buildHumanizedFollowUpMessages(product, prompt, aiLeadProfile);
+    let generatedTags = ["ia", "campanha", "follow-up", product.toLowerCase().replace(/\s+/g, "-")];
+    let aiSource = "fallback-local";
+    let aiDelayProfile: AICampaignDraft["delayProfile"] | undefined;
+
+    try {
+      if (activeAgent) {
+        const aiInstruction = [
+          "Voce e o atendente comercial configurado neste sistema. Use sua personalidade, tom, empresa, produtos e forma de atendimento para criar uma campanha de WhatsApp pronta para aprovacao.",
+          "Pedido do usuario: " + prompt,
+          "Produto/tema detectado: " + product,
+          "Tipo de lead: " + aiLeadProfile,
+          "Follow-up apos dias: " + followUpDays,
+          "Crie mensagens naturais, curtas, humanas, sem prometer o que nao sabe, com CTA claro e follow-up de recuperacao.",
+          "Retorne APENAS JSON valido neste formato:",
+          "{\"name\":\"nome da campanha\",\"messages\":[\"mensagem 1\",\"mensagem 2\",\"mensagem 3\",\"follow-up 1\",\"follow-up 2\"],\"tags\":[\"ia\",\"campanha\"],\"delayProfile\":{\"typingSeconds\":6,\"intervalSeconds\":60,\"pauseEvery\":8,\"pauseSeconds\":180,\"dailyLimit\":80,\"hourlyLimit\":12}}"
+        ].join("\n");
+        const aiResult = await apiService.testAIMessage({
+          message: aiInstruction,
+          agentKey: activeAgent.key,
+          agentName: activeAgent.name,
+          responseStyle: "elaborate",
+          temperature: 0.7,
+        });
+        const parsed = parseAICampaignMessages(aiResult?.result?.response);
+        if (parsed?.messages?.length) {
+          generatedName = parsed.name?.trim() || generatedName;
+          generatedMessages = parsed.messages.slice(0, 8).map((content) => ({ type: "text" as const, content }));
+          generatedTags = Array.from(new Set([...(Array.isArray(parsed.tags) ? parsed.tags : []), "ia", "atendente", product.toLowerCase().replace(/\s+/g, "-")])).filter(Boolean);
+          aiDelayProfile = parsed.delayProfile;
+          aiSource = activeAgent.name || activeAgent.key || "atendente IA";
+        }
+      }
+    } catch (error) {
+      console.warn("[Campaigns] AI attendant campaign generation fallback:", error);
+      notify.error("Atendente IA nao respondeu em JSON valido. Usei o gerador local como fallback.");
+    }
+
     const promptWords = prompt
       .toLowerCase()
       .normalize("NFD")
@@ -710,21 +794,23 @@ export default function Campaigns() {
 
     const selectedByPrompt = selectedByProfile.filter(({ haystack }) => promptWords.some((word) => haystack.includes(word)));
     const finalSelection = (selectedByPrompt.length > 0 ? selectedByPrompt : selectedByProfile).map((entry) => entry.key);
-    const baseDelayMs = aiLeadProfile === "hot" ? 35_000 : aiLeadProfile === "cold" || aiLeadProfile === "inactive" ? 120_000 : 60_000;
+    const typingSeconds = Math.max(1, Math.min(120, Number(aiDelayProfile?.typingSeconds) || (aiLeadProfile === "hot" ? 4 : aiLeadProfile === "cold" || aiLeadProfile === "inactive" ? 9 : 6)));
+    const intervalValue = Math.max(2, Math.min(600, Number(aiDelayProfile?.intervalSeconds) || (aiLeadProfile === "hot" ? 35 : aiLeadProfile === "cold" || aiLeadProfile === "inactive" ? 120 : 60)));
+    const baseDelayMs = intervalValue * 1000;
     const followUpDelayMs = followUpDays * 24 * 60 * 60 * 1000;
 
     setCampaignName(generatedName);
     setMessageVariants(generatedMessages);
     setSelectedContactIds(Array.from(new Set(finalSelection)));
-    setTypingDelay([aiLeadProfile === "hot" ? 4 : aiLeadProfile === "cold" || aiLeadProfile === "inactive" ? 9 : 6]);
-    setIntervalSeconds([Math.round(baseDelayMs / 1000)]);
-    setPauseEvery("8");
-    setPauseSeconds(aiLeadProfile === "hot" ? "90" : "180");
+    setTypingDelay([typingSeconds]);
+    setIntervalSeconds([intervalValue]);
+    setPauseEvery(String(Math.max(1, Number(aiDelayProfile?.pauseEvery) || 8)));
+    setPauseSeconds(String(Math.max(30, Number(aiDelayProfile?.pauseSeconds) || (aiLeadProfile === "hot" ? 90 : 180))));
     setWarmupMessages("8");
     setWarmupDelayMultiplier("3");
-    setDailyLimit("80");
-    setHourlyLimit("12");
-    setTagsInput(["ia", "campanha", "follow-up", product.toLowerCase().replace(/\s+/g, "-")].join(", "));
+    setDailyLimit(String(Math.max(1, Number(aiDelayProfile?.dailyLimit) || 80)));
+    setHourlyLimit(String(Math.max(1, Number(aiDelayProfile?.hourlyLimit) || 12)));
+    setTagsInput(generatedTags.join(", "));
 
     try {
       const createdFlow = await apiService.createQuickReply({
@@ -736,21 +822,21 @@ export default function Campaigns() {
           id: "ai-campaign-step-" + Date.now() + "-" + index,
           type: "text",
           value: message.content,
-          delayMs: index === 0 ? 0 : index >= 3 ? followUpDelayMs : baseDelayMs,
-          typingMs: (aiLeadProfile === "hot" ? 4 : aiLeadProfile === "cold" || aiLeadProfile === "inactive" ? 9 : 6) * 1000,
+          delayMs: index === 0 ? 0 : index >= Math.max(3, generatedMessages.length - 2) ? followUpDelayMs : baseDelayMs,
+          typingMs: typingSeconds * 1000,
         })),
       });
       setQuickReplies((current) => [createdFlow, ...current.filter((item) => item.id !== createdFlow.id)]);
       setSelectedFlowId(createdFlow.id);
-      notify.success("Campanha IA gerada com fluxo sequencial real, " + finalSelection.length + " contato(s) e follow-up de " + followUpDays + " dia(s). Revise antes de enviar.");
+      notify.success("Campanha criada pelo " + aiSource + " com " + finalSelection.length + " contato(s). Revise antes de enviar.");
     } catch (error) {
       setSelectedFlowId(null);
       notify.error(error instanceof Error ? error.message : "Campanha gerada, mas nao foi possivel salvar o fluxo automatico.");
+    } finally {
+      setCampaignStep(4);
+      setIsAiCampaignGenerating(false);
     }
-
-    setCampaignStep(4);
-  }, [aiCampaignPrompt, aiFollowUpDays, aiLeadProfile, contacts]);
-
+  }, [aiAgents, aiCampaignPrompt, aiFollowUpDays, aiLeadProfile, contacts, selectedAiAgentKey]);
   const persistCampaign = useCallback(
     async (mode: "save" | "launch") => {
       if (launchReadiness.length > 0) {
@@ -1128,6 +1214,22 @@ export default function Campaigns() {
                       </div>
                       <div className="space-y-3">
                         <div>
+                          <Label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Atendente IA criador</Label>
+                          <select
+                            value={selectedAiAgentKey}
+                            onChange={(event) => setSelectedAiAgentKey(event.target.value)}
+                            className="mt-2 h-11 w-full rounded-xl border border-border bg-background px-3 text-sm text-foreground focus:border-primary focus:outline-none"
+                          >
+                            {aiAgents.map((agent) => (
+                              <option key={agent.key || agent.name} value={agent.key || agent.name}>
+                                {agent.name || agent.key} {agent.active === false ? "(inativo)" : ""}
+                              </option>
+                            ))}
+                            {aiAgents.length === 0 && <option value="">Atendente padrao</option>}
+                          </select>
+                          <p className="mt-1 text-[11px] text-muted-foreground">Usa a personalidade e inteligencia do atendente para escrever a campanha.</p>
+                        </div>
+                        <div>
                           <Label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Tipo de lead</Label>
                           <select
                             value={aiLeadProfile}
@@ -1145,9 +1247,9 @@ export default function Campaigns() {
                           <Label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Follow-up apos dias</Label>
                           <Input value={aiFollowUpDays} onChange={(event) => setAiFollowUpDays(event.target.value)} inputMode="numeric" className="mt-2 h-11 rounded-xl" />
                         </div>
-                        <Button type="button" className="w-full rounded-xl shadow-glow" onClick={() => void generateCampaignFromPrompt()}>
-                          <Sparkle className="h-4 w-4" />
-                          Gerar campanha pronta
+                        <Button type="button" className="w-full rounded-xl shadow-glow" onClick={() => void generateCampaignFromPrompt()} disabled={isAiCampaignGenerating}>
+                          {isAiCampaignGenerating ? <Clock className="h-4 w-4 animate-spin" /> : <Sparkle className="h-4 w-4" />}
+                          {isAiCampaignGenerating ? "Atendente criando..." : "Gerar campanha pronta"}
                         </Button>
                       </div>
                     </div>
