@@ -2017,7 +2017,11 @@ export function useInboxState() {
         summary: conversationControls[targetConversation.id]?.summary,
         summarizedMessageCount: conversationControls[targetConversation.id]?.summarizedMessageCount,
       });
+      if (!updated) {
+        throw new Error("Backend did not confirm the conversation AI state.");
+      }
 
+      const persistedEnabled = updated.aiEnabled;
       setConversationControls((prev) => ({
         ...prev,
         [updated.conversationId]: {
@@ -2027,10 +2031,12 @@ export function useInboxState() {
       }));
       setConversations((prev) =>
         prev.map((conversation) =>
-          conversation.id === targetConversation.id ? { ...conversation, aiEnabled: enabled } : conversation,
+          conversation.id === targetConversation.id
+            ? { ...conversation, aiEnabled: persistedEnabled }
+            : conversation,
         ),
       );
-      toast({ title: enabled ? "IA habilitada para esta conversa." : "IA pausada para esta conversa." });
+      toast({ title: persistedEnabled ? "IA habilitada para esta conversa." : "IA pausada para esta conversa." });
     } catch {
       showErrorToast("Não foi possível atualizar o controle de IA.");
     } finally {

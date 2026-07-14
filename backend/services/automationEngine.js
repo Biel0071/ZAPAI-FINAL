@@ -466,6 +466,7 @@ function splitLongMessage(text) {
       text: chunk,
       metadata: {
         ai_response: true,
+        conversationId,
         source: 'ai',
         agentName: conversation?.agent_name || 'Camila',
         provider: ai.provider,

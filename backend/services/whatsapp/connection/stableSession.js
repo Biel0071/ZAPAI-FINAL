@@ -352,6 +352,33 @@ async function loadRealtimeHistory({ io, session, sock }) {
 
 // --- AI auto-reply --------------------------------------------------------
 
+async function isAIReplyStillAllowed({ chatId, conversationId, session }) {
+  if (!isAIEnabled() || session?.systemConnected === false) {
+    return false;
+  }
+
+  try {
+    let conversation = conversationId
+      ? await conversationRepository.getConversationById(conversationId)
+      : null;
+    if (!conversation) {
+      conversation = await conversationRepository.getConversationByPhone(
+        normalizePhone(chatId),
+        process.env.DEFAULT_COMPANY_ID || 'default',
+        session?.sessionId || DEFAULT_SESSION
+      );
+    }
+    return Boolean(
+      conversation &&
+      conversation.aiEnabled !== false &&
+      conversation.ai_enabled !== false
+    );
+  } catch (error) {
+    console.error('[WHATSAPP_AI] Failed final AI permission check:', error?.message || error);
+    return false;
+  }
+}
+
 async function runAIForChat({ chatId, incomingFormattedMessage, session, sock }) {
   // Short-circuit automated replies if:
   // (0) it is a group chat
@@ -565,6 +592,14 @@ async function runAIForChat({ chatId, incomingFormattedMessage, session, sock })
 
       if (voiceResult && voiceResult.url) {
         // 4. Send as voice note
+        if (!await isAIReplyStillAllowed({
+          chatId,
+          conversationId: fresh?.id || incomingFormattedMessage?.conversationId,
+          session,
+        })) {
+          console.log(`[WHATSAPP_AI] Reply cancelled before audio send for ${chatId}: AI disabled.`);
+          return null;
+        }
         sent = await sendAudio(sock, chatId, voiceResult.filePath, true, 'audio/ogg; codecs=opus');
         mediaPath = voiceResult.url;
         mediaType = 'audio';
@@ -575,9 +610,25 @@ async function runAIForChat({ chatId, incomingFormattedMessage, session, sock })
     } catch (voiceErr) {
       console.error('[WHATSAPP_AI] Voice pipeline failed, falling back to text. Error:', voiceErr.message);
       // Fallback: send text
+      if (!await isAIReplyStillAllowed({
+        chatId,
+        conversationId: fresh?.id || incomingFormattedMessage?.conversationId,
+        session,
+      })) {
+        console.log(`[WHATSAPP_AI] Reply cancelled before fallback send for ${chatId}: AI disabled.`);
+        return null;
+      }
       await sock.presenceSubscribe(chatId).catch(() => {});
       await sock.sendPresenceUpdate('composing', chatId).catch(() => {});
       await sleep(typingDelayMs || 1500);
+      if (!await isAIReplyStillAllowed({
+        chatId,
+        conversationId: fresh?.id || incomingFormattedMessage?.conversationId,
+        session,
+      })) {
+        console.log(`[WHATSAPP_AI] Reply cancelled after fallback typing for ${chatId}: AI disabled.`);
+        return null;
+      }
       sent = await sendMessage(sock, chatId, safeResponse);
     } finally {
       await sock.sendPresenceUpdate('paused', chatId).catch(() => {});
@@ -594,6 +645,14 @@ async function runAIForChat({ chatId, incomingFormattedMessage, session, sock })
       await sock.sendPresenceUpdate('paused', chatId).catch(() => {});
     } catch (presenceError) {
       console.warn('[WHATSAPP] Humanized typing presence failed:', presenceError?.message || presenceError);
+    }
+    if (!await isAIReplyStillAllowed({
+      chatId,
+      conversationId: fresh?.id || incomingFormattedMessage?.conversationId,
+      session,
+    })) {
+      console.log(`[WHATSAPP_AI] Reply cancelled before text send for ${chatId}: AI disabled.`);
+      return null;
     }
     sent = await sendMessage(sock, chatId, safeResponse);
   }

@@ -5,10 +5,12 @@ const messageStore = require('../store/messageStore');
 const sessionManager = require('./sessionManager');
 const whatsappService = require('./whatsappService');
 const { registerOutgoingMessage } = require('../controllers/messagesController');
+const { getAutomatedReplyPermission } = require('./aiReplyGuard');
 
 const QUEUE_FILE_PATH = path.join(__dirname, '..', 'data', 'outbound_queue.json');
 
 const STATES = {
+  CANCELLED: 'cancelled',
   DEAD_LETTER: 'dead_letter',
   FAILED: 'failed',
   PROCESSING: 'processing',
@@ -279,6 +281,12 @@ async function executeOutbound(item) {
     await sock.sendPresenceUpdate?.('paused', jid).catch(() => {});
   }
 
+  const aiPermission = await getAutomatedReplyPermission(item);
+  if (!aiPermission.allowed) {
+    console.log(`[OUTBOUND_QUEUE] AI response cancelled before send for ${item.phone}: ${aiPermission.reason}`);
+    return { cancelled: true, reason: aiPermission.reason };
+  }
+
   let sendResult;
   if (item.mediaType && item.mediaPath) {
     sendResult = await whatsappService.sendMediaMessage(sock, item.phone, item.mediaType, item.mediaPath, {
@@ -413,6 +421,16 @@ async function processOneItem() {
 
     try {
       const executionResult = await executeOutbound(item);
+
+      if (executionResult?.cancelled) {
+        item.state = STATES.CANCELLED;
+        item.cancelledAt = nowIso();
+        item.cancelReason = executionResult.reason || 'ai_disabled';
+        item.updatedAt = nowIso();
+        item.lastFailure = null;
+        await saveQueueState();
+        return;
+      }
 
       // Execute actions (like tagging or archiving)
       if (item.actions) {
