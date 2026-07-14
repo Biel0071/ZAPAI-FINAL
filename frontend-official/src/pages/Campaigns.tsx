@@ -432,6 +432,48 @@ export default function Campaigns() {
     );
   }, []);
 
+  const quickReplyMessageTemplates = useMemo(() => quickReplies.filter((reply) => !reply.isFlow), [quickReplies]);
+  const quickReplyFlowTemplates = useMemo(() => quickReplies.filter((reply) => reply.isFlow), [quickReplies]);
+
+  const normalizeQuickReplyDraftType = useCallback((type?: string): CampaignDraftMediaType => {
+    const normalized = String(type || "text").toLowerCase();
+    if (normalized === "image" || normalized === "video" || normalized === "audio" || normalized === "sticker") return normalized;
+    if (normalized === "file" || normalized === "pdf" || normalized === "document") return "document";
+    return "text";
+  }, []);
+
+  const quickReplyToDraftMessages = useCallback((reply: QuickReplyItem): CampaignDraftMessage[] => {
+    const items = Array.isArray(reply.items) && reply.items.length > 0 ? reply.items : [{ type: "text", value: reply.text || "", caption: undefined, filename: undefined }];
+    return items.map((item) => {
+      const type = normalizeQuickReplyDraftType(item.type);
+      const content = type === "text" ? String(item.value || reply.text || "") : String(item.caption || reply.text || "");
+      const mediaValue = type === "text" ? null : String(item.value || "");
+      return { type, content, mediaUrl: mediaValue, mediaPath: mediaValue, fileName: item.filename || null, mimetype: null, ptt: type === "audio" && item.type === "audio" } satisfies CampaignDraftMessage;
+    }).filter((message) => Boolean(message.content || message.mediaUrl || message.mediaPath));
+  }, [normalizeQuickReplyDraftType]);
+
+  const getQuickReplyTemplatePreview = useCallback((reply: QuickReplyItem) => {
+    if (reply.isFlow) return `${reply.steps?.length || 0} passos sequenciais`;
+    if (Array.isArray(reply.items) && reply.items.length > 0) return reply.items.map((item) => item.caption || item.value || item.filename || item.type).filter(Boolean).slice(0, 2).join(" | ");
+    return reply.text || "Modelo sem texto";
+  }, []);
+
+  const applyQuickReplyTemplate = useCallback((reply: QuickReplyItem) => {
+    const draftMessages = quickReplyToDraftMessages(reply);
+    if (draftMessages.length === 0) { notify.error("Esta resposta rapida nao tem conteudo para campanha."); return; }
+    setSelectedFlowId(null);
+    setMessageVariants(draftMessages);
+    if (!campaignName.trim()) setCampaignName(reply.title || "Campanha com resposta rapida");
+    notify.success(`Modelo "${reply.title}" aplicado na campanha.`);
+  }, [campaignName, quickReplyToDraftMessages]);
+
+  const applyQuickReplyFlow = useCallback((reply: QuickReplyItem) => {
+    if (!reply.isFlow) return;
+    setSelectedFlowId(reply.id);
+    if (!campaignName.trim()) setCampaignName(reply.title || "Campanha com fluxo");
+    notify.success(`Fluxo "${reply.title}" selecionado.`);
+  }, [campaignName]);
+
   const editingCampaign = useMemo(
     () => campaigns.find((campaign) => campaign.id === editingCampaignId) ?? null,
     [campaigns, editingCampaignId],
@@ -512,6 +554,63 @@ export default function Campaigns() {
     },
     [campaignName, cleanMessages, editingCampaign, editingCampaignId, intervalSeconds, pauseEvery, pauseSeconds, selectedContacts, selectedFlowId, shuffleEnabled, startAt, tagsInput, typingDelay, warmupMessages, warmupDelayMultiplier, dailyLimit, hourlyLimit],
   );
+
+  const saveCurrentMessagesAsQuickReply = useCallback(async (asFlow = false) => {
+    if (!campaignName.trim()) { notify.error("Informe o nome da campanha antes de salvar como padrao."); setCampaignStep(1); return; }
+    if (cleanMessages.length === 0) { notify.error("Crie ao menos uma mensagem para salvar como padrao."); setCampaignStep(2); return; }
+    const title = campaignName.trim();
+    const text = cleanMessages.map((message) => message.content || message.fileName || message.type).filter(Boolean).join("\n");
+    const payload = asFlow ? {
+      title, category: "campanhas", text, isFlow: true,
+      steps: cleanMessages.map((message, index) => ({
+        id: `campaign-step-${Date.now()}-${index}`,
+        type: message.type === "document" || message.type === "file" || message.type === "sticker" ? "file" : message.type,
+        value: message.type === "text" ? message.content : message.mediaUrl || message.mediaPath || message.content,
+        filename: message.fileName || undefined,
+        caption: message.type === "text" ? undefined : message.content,
+        delayMs: intervalSeconds[0] * 1000,
+        typingMs: typingDelay[0] * 1000,
+      })),
+    } : {
+      title, category: "campanhas", text, isFlow: false,
+      items: cleanMessages.map((message) => ({
+        type: message.type === "document" ? "file" : message.type,
+        value: message.type === "text" ? message.content : message.mediaUrl || message.mediaPath || message.content,
+        filename: message.fileName || undefined,
+        caption: message.type === "text" ? undefined : message.content,
+        delayMs: intervalSeconds[0] * 1000,
+        typingMs: typingDelay[0] * 1000,
+      })),
+    };
+    try {
+      const created = await apiService.createQuickReply(payload);
+      setQuickReplies((current) => [created, ...current.filter((item) => item.id !== created.id)]);
+      notify.success(asFlow ? "Fluxo salvo como padrao de campanha." : "Resposta rapida salva como padrao de campanha.");
+    } catch (error) {
+      notify.error(error instanceof Error ? error.message : "Falha ao salvar padrao de campanha");
+    }
+  }, [campaignName, cleanMessages, intervalSeconds, typingDelay]);
+
+  const duplicateSelectedFlowTemplate = useCallback(async () => {
+    const flow = quickReplies.find((item) => item.id === selectedFlowId);
+    if (!flow) { notify.error("Selecione um fluxo para duplicar."); return; }
+    try {
+      const created = await apiService.createQuickReply({ ...flow, id: undefined, title: `${flow.title} (copia campanha)`, category: "campanhas" });
+      setQuickReplies((current) => [created, ...current]);
+      notify.success("Fluxo duplicado como padrao de campanha.");
+    } catch (error) {
+      notify.error(error instanceof Error ? error.message : "Falha ao duplicar fluxo");
+    }
+  }, [quickReplies, selectedFlowId]);
+
+  const goToNextCampaignStep = useCallback(() => {
+    if (campaignStep >= 3 && !campaignName.trim()) {
+      notify.error("Informe o nome da campanha no topo antes de revisar ou lancar.");
+      setCampaignStep(1);
+      return;
+    }
+    setCampaignStep((current) => Math.min(STEP_LABELS.length, current + 1));
+  }, [campaignName, campaignStep]);
 
   const persistCampaign = useCallback(
     async (mode: "save" | "launch") => {
@@ -859,6 +958,16 @@ export default function Campaigns() {
                     </div>
                   </div>
 
+                  <div className="rounded-2xl border border-primary/20 bg-primary/5 p-4">
+                    <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end">
+                      <div className="space-y-2">
+                        <Label htmlFor="campaign-name" className="text-sm font-semibold text-foreground">Nome da campanha</Label>
+                        <Input id="campaign-name" value={campaignName} onChange={(event) => setCampaignName(event.target.value)} placeholder="Ex: Campanha orcamento quente Julho" className="h-11 rounded-xl border-primary/25 bg-background/70 text-base font-medium" />
+                        <p className="text-xs text-muted-foreground">Esse nome aparece na lista, rascunhos e padroes salvos.</p>
+                      </div>
+                      {!campaignName.trim() && <OperationalStatusBadge label="Nome obrigatorio para lancar" tone="warning" />}
+                    </div>
+                  </div>
                   <div className="grid grid-cols-1 gap-2 md:grid-cols-5">
                     {STEP_LABELS.map((label, index) => {
                       const step = index + 1;
@@ -1012,6 +1121,41 @@ export default function Campaigns() {
                         </div>
                       </div>
 
+
+                      <div className="grid gap-3 lg:grid-cols-2">
+                        <Card className="rounded-2xl border-border/70 bg-background/30">
+                          <CardContent className="space-y-3 p-4">
+                            <div className="flex items-center justify-between gap-3">
+                              <div><p className="text-sm font-semibold">Usar respostas rapidas salvas</p><p className="text-xs text-muted-foreground">Clique para montar a campanha com modelos ja criados.</p></div>
+                              <Badge variant="secondary">{quickReplyMessageTemplates.length}</Badge>
+                            </div>
+                            <div className="max-h-56 space-y-2 overflow-y-auto pr-1">
+                              {quickReplyMessageTemplates.length === 0 ? <p className="rounded-xl border border-border/70 bg-card/60 p-3 text-xs text-muted-foreground">Nenhuma resposta rapida avulsa salva ainda.</p> : quickReplyMessageTemplates.slice(0, 8).map((reply) => (
+                                <button key={reply.id} type="button" className="w-full rounded-xl border border-border/70 bg-card/60 p-3 text-left transition hover:border-primary/40 hover:bg-card" onClick={() => applyQuickReplyTemplate(reply)}>
+                                  <p className="truncate text-sm font-semibold text-foreground">{reply.title}</p>
+                                  <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">{getQuickReplyTemplatePreview(reply)}</p>
+                                </button>
+                              ))}
+                            </div>
+                          </CardContent>
+                        </Card>
+                        <Card className="rounded-2xl border-border/70 bg-background/30">
+                          <CardContent className="space-y-3 p-4">
+                            <div className="flex items-center justify-between gap-3">
+                              <div><p className="text-sm font-semibold">Usar fluxos salvos</p><p className="text-xs text-muted-foreground">Selecione um fluxo sequencial pronto para disparo.</p></div>
+                              <Badge variant="secondary">{quickReplyFlowTemplates.length}</Badge>
+                            </div>
+                            <div className="max-h-56 space-y-2 overflow-y-auto pr-1">
+                              {quickReplyFlowTemplates.length === 0 ? <p className="rounded-xl border border-border/70 bg-card/60 p-3 text-xs text-muted-foreground">Nenhum fluxo salvo ainda. Monte mensagens abaixo e salve como fluxo.</p> : quickReplyFlowTemplates.slice(0, 8).map((reply) => (
+                                <button key={reply.id} type="button" className={cn("w-full rounded-xl border p-3 text-left transition hover:border-primary/40 hover:bg-card", selectedFlowId === reply.id ? "border-primary/40 bg-primary/10" : "border-border/70 bg-card/60")} onClick={() => applyQuickReplyFlow(reply)}>
+                                  <p className="truncate text-sm font-semibold text-foreground">{reply.title}</p>
+                                  <p className="mt-1 text-xs text-muted-foreground">{getQuickReplyTemplatePreview(reply)}</p>
+                                </button>
+                              ))}
+                            </div>
+                          </CardContent>
+                        </Card>
+                      </div>
                       {!selectedFlowId ? (
                         <>
                           <div className="flex items-center justify-between rounded-2xl border border-border/70 bg-background/40 px-4 py-3">
@@ -1019,14 +1163,11 @@ export default function Campaigns() {
                               <p className="text-sm font-medium">Variantes da mensagem</p>
                               <p className="text-xs text-muted-foreground">Crie textos, audios, imagens, videos ou documentos para personalizar os envios.</p>
                             </div>
-                            <Button
-                              variant="outline"
-                              className="rounded-xl"
-                              onClick={() => setMessageVariants((current) => [...current, createEmptyDraftMessage()])}
-                            >
-                              <Plus className="h-4 w-4" />
-                              Adicionar variante
-                            </Button>
+                            <div className="flex flex-wrap gap-2">
+                              <Button variant="outline" className="rounded-xl" onClick={() => void saveCurrentMessagesAsQuickReply(false)}><CheckCircle className="h-4 w-4" />Salvar modelo</Button>
+                              <Button variant="outline" className="rounded-xl" onClick={() => void saveCurrentMessagesAsQuickReply(true)}><ArrowClockwise className="h-4 w-4" />Salvar fluxo</Button>
+                              <Button variant="outline" className="rounded-xl" onClick={() => setMessageVariants((current) => [...current, createEmptyDraftMessage()])}><Plus className="h-4 w-4" />Adicionar variante</Button>
+                            </div>
                           </div>
 
                           <div className="space-y-3">
@@ -1118,6 +1259,13 @@ export default function Campaigns() {
                             <p className="text-xs text-muted-foreground mb-3">Escolha qual fluxo sequencial de resposta rápida será disparado para cada contato.</p>
                           </div>
                           
+                          <div className="flex flex-wrap gap-2">
+                            <Button variant="outline" className="rounded-xl" onClick={() => void duplicateSelectedFlowTemplate()} disabled={!selectedFlowId}>
+                              <Copy className="h-4 w-4" />
+                              Duplicar fluxo como padrao
+                            </Button>
+                          </div>
+
                           <select
                             value={selectedFlowId}
                             onChange={(e) => setSelectedFlowId(e.target.value)}
@@ -1386,7 +1534,7 @@ export default function Campaigns() {
                       <Button variant="outline" className="rounded-xl" disabled={campaignStep === 1} onClick={() => setCampaignStep((current) => Math.max(1, current - 1))}>
                         Voltar
                       </Button>
-                      <Button className="rounded-xl shadow-glow" disabled={campaignStep === STEP_LABELS.length} onClick={() => setCampaignStep((current) => Math.min(STEP_LABELS.length, current + 1))}>
+                      <Button className="rounded-xl shadow-glow" disabled={campaignStep === STEP_LABELS.length} onClick={goToNextCampaignStep}>
                         Próximo Passo
                       </Button>
                     </div>
