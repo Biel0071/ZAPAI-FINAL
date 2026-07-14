@@ -426,7 +426,7 @@ export function parseChatsLoadedPayload(payload: unknown): Conversation[] {
       if (!entry || typeof entry !== "object") return null;
       const item = entry as Record<string, unknown>;
       const rawId = String(item.id ?? item.conversationId ?? item.conversation_id ?? item.chatId ?? item.chat_id ?? "").trim();
-      const rawPhone = String(item.phone ?? item.phoneNumber ?? item.jid ?? item.remoteJid ?? item.chatId ?? item.chat_id ?? "").trim();
+      const rawPhone = String(item.phone ?? item.phoneNumber ?? item.jid ?? item.remoteJid ?? item.remote_jid ?? item.chatId ?? item.chat_id ?? "").trim();
       const rawName = String((item.contactName ?? item.name ?? item.pushName ?? rawPhone) || "Contato").trim();
       const normalizedLastMessageType = String(item.lastMessageType ?? item.messageType ?? item.mediaType ?? "text").toLowerCase();
       const lastMessageType =
@@ -445,7 +445,7 @@ export function parseChatsLoadedPayload(payload: unknown): Conversation[] {
 
       return {
         id: resolvedId,
-        chatId: String(item.chatId ?? item.chat_id ?? rawId ?? resolvedPhone),
+        chatId: String(item.chatId ?? item.chat_id ?? item.remoteJid ?? item.remote_jid ?? item.jid ?? resolvedPhone),
         companyId: item.companyId ? String(item.companyId) : undefined,
         contactId: item.contactId ? String(item.contactId) : undefined,
         sessionId: item.sessionId ? String(item.sessionId) : item.session_id ? String(item.session_id) : undefined,

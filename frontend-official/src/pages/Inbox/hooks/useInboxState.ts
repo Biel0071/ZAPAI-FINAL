@@ -1877,6 +1877,7 @@ export function useInboxState() {
         const response: MessageSendResponse = attachment
           ? await apiService.sendMediaMessage({
               phone: selectedConversation.phone,
+              chatId: selectedConversation.chatId,
               caption: attachment.caption || (i === 0 ? textWithReply : ""),
               fileName: attachment.file.name,
               mimeType: attachment.file.type || "application/octet-stream",
@@ -1888,6 +1889,7 @@ export function useInboxState() {
             })
           : await apiService.sendMessage({
               phone: selectedConversation.phone,
+              chatId: selectedConversation.chatId,
               text: textWithReply,
               conversationId: selectedConversation.id,
               contactId: selectedConversation.contactId,

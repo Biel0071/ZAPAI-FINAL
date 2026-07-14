@@ -445,6 +445,7 @@ type RawConversation = {
   chat_id?: string;
   jid?: string;
   remoteJid?: string;
+  remote_jid?: string;
   companyId?: string;
   company_id?: string;
   contactId?: string;
@@ -767,6 +768,7 @@ function normalizeConversation(item: RawConversation, index: number): Conversati
     extractChatIdentifier(item.chat_id) ??
     extractChatIdentifier(item.jid) ??
     extractChatIdentifier(item.remoteJid) ??
+    extractChatIdentifier(item.remote_jid) ??
     "";
   const stableFallbackId = [contactId, sessionId, resolvedPhone].filter(Boolean).join("-");
 
@@ -774,7 +776,7 @@ function normalizeConversation(item: RawConversation, index: number): Conversati
     id:
       normalizeIdentifier((item.id ?? item.conversationId ?? item.conversation_id) as string | number | undefined) ??
       (stableFallbackId || `conversation-${index}`),
-    chatId: normalizeIdentifier((item.chatId ?? item.chat_id) as string | number | undefined) ?? resolvedPhone,
+    chatId: normalizeIdentifier((item.chatId ?? item.chat_id ?? item.remoteJid ?? item.remote_jid) as string | number | undefined) ?? resolvedPhone,
     companyId: item.companyId ?? item.company_id,
     contactId,
     sessionId,
@@ -1218,7 +1220,7 @@ export const apiService = {
     return res?.stickers ?? [];
   },
 
-  async sendMessage(payload: { phone: string; text: string; conversationId?: string; contactId?: string; sessionId?: string }) {
+  async sendMessage(payload: { phone: string; chatId?: string; text: string; conversationId?: string; contactId?: string; sessionId?: string }) {
     const response = await request<MessageSendResponse>({ endpoint: "/api/send-message", method: "POST", body: payload });
     invalidateCache("conversations");
     return response;
@@ -1226,6 +1228,7 @@ export const apiService = {
 
   async sendMediaMessage(payload: {
     phone: string;
+    chatId?: string;
     caption?: string;
     fileName: string;
     mimeType: string;
@@ -1238,6 +1241,7 @@ export const apiService = {
     const normalizedCaption = (payload.caption ?? "").trim();
     const normalizedBase64 = String(payload.dataBase64 ?? "").trim();
     const normalizedPhone = extractChatIdentifier(payload.phone) ?? "";
+    const normalizedChatId = extractChatIdentifier(payload.chatId ?? payload.phone) ?? normalizedPhone;
 
     if (!normalizedBase64) {
       throw new Error("Arquivo de mídia inválido. Tente selecionar o arquivo novamente.");
@@ -1257,7 +1261,7 @@ export const apiService = {
     const mappedType = mediaTypeMap[payload.mediaType] ?? "document";
 
     const requestBody: Record<string, unknown> = {
-      chatId: normalizedPhone.includes("@") ? normalizedPhone : `${normalizedPhone}@s.whatsapp.net`,
+      chatId: normalizedChatId.includes("@") ? normalizedChatId : `${normalizedChatId}@s.whatsapp.net`,
       type: mappedType,
       file: normalizedBase64,
       mediaPath: `upload://${payload.fileName}`,

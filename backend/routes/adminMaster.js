@@ -331,6 +331,11 @@ async function loadUserStats(req) {
   };
 }
 
+// Version history contains read-only deployment metadata. Authentication is
+// already enforced globally, so keep it available to every signed-in role as
+// the frontend route declares.
+router.get('/master/versions', getMasterVersions);
+
 router.use(requireMasterAdmin);
 
 router.get('/master/overview', async (req, res) => {
@@ -698,7 +703,7 @@ router.post('/master/actions/restart-backend', async (req, res) => {
 const path = require('path');
 const { execSync } = require('child_process');
 
-router.get('/master/versions', async (req, res) => {
+async function getMasterVersions(req, res) {
   try {
     let commits = [];
     try {
@@ -730,6 +735,6 @@ router.get('/master/versions', async (req, res) => {
     console.error('[ADMIN-MASTER] versions error:', error);
     return res.status(500).json({ error: 'Failed to retrieve version history.' });
   }
-});
+}
 
 module.exports = router;

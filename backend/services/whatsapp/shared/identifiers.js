@@ -140,13 +140,9 @@ function normalizeWhatsappJid(phone = '') {
   }
 
   if (value.endsWith('@lid')) {
-    const cleanLid = value.split('@')[0];
-    if (global.lidToPhoneMap && global.lidToPhoneMap.has(cleanLid)) {
-      const mappedPhone = global.lidToPhoneMap.get(cleanLid);
-      if (mappedPhone) {
-        return `${mappedPhone}@s.whatsapp.net`;
-      }
-    }
+    // LID is the actual chat address used by current WhatsApp multi-device
+    // sessions. Converting it back to a phone JID can make Baileys accept the
+    // send locally without WhatsApp ever acknowledging delivery.
     return value.toLowerCase();
   }
 
@@ -162,7 +158,14 @@ function normalizeWhatsappJid(phone = '') {
     throw new Error('JID inválido: o número de telefone está vazio ou contém caracteres inválidos');
   }
 
-  // Bypass phoneToLidMap lookup for outgoing message routing
+  // Prefer the address observed by the connected WhatsApp session. The Inbox
+  // presents the canonical phone to operators, while Baileys may require the
+  // corresponding LID for the transport.
+  const mappedLid = global.phoneToLidMap?.get(clean);
+  if (mappedLid) {
+    return `${String(mappedLid).split('@')[0]}@lid`;
+  }
+
   return `${clean}@s.whatsapp.net`;
 }
 
