@@ -37,3 +37,8 @@ test('falls back to a phone JID when no LID mapping is known', () => {
     assert.equal(ensureWhatsAppJid('5511999999999'), '5511999999999@s.whatsapp.net');
   });
 });
+test('adds Brazil country code for local DDD numbers before creating the JID', () => {
+  withLidMaps(new Map(), new Map(), () => {
+    assert.equal(ensureWhatsAppJid('3199307167'), '553199307167@s.whatsapp.net');
+  });
+});

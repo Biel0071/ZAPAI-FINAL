@@ -158,6 +158,10 @@ function normalizeWhatsappJid(phone = '') {
     throw new Error('JID inválido: o número de telefone está vazio ou contém caracteres inválidos');
   }
 
+  if ((clean.length === 10 || clean.length === 11) && !clean.startsWith('55')) {
+    clean = `55${clean}`;
+  }
+
   // Prefer the address observed by the connected WhatsApp session. The Inbox
   // presents the canonical phone to operators, while Baileys may require the
   // corresponding LID for the transport.
