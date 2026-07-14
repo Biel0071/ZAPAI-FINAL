@@ -4,7 +4,7 @@ async function run() {
   console.log('--- INSPECTING SESSIONS IN DATABASE ---');
   try {
     const res = await query(`
-      SELECT id, session_id, phone, status, is_active, updated_at
+      SELECT company_id, session_id, session_name, status, phone_number
       FROM sessions
     `);
     console.log('Sessions found:', res.rows.length);
