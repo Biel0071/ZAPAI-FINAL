@@ -687,14 +687,10 @@ function bindSharedSocketEvents() {
 
   const messageEvents = [
     "new_message",
-    "new_media",
-    "media",
-    "audio",
-    "media_sent",
     "message:new",
     "message",
     "newMessage",
-    "messages.upsert",
+    "new-message",
     "whatsapp:new_message",
     "inbound_message",
   ];

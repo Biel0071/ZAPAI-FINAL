@@ -9,24 +9,27 @@ function unwrapMessageContent(message = {}) {
     return {};
   }
 
-  if (message.ephemeralMessage?.message) {
-    return unwrapMessageContent(message.ephemeralMessage.message);
+  const wrapperKeys = [
+    'ephemeralMessage',
+    'viewOnceMessage',
+    'viewOnceMessageV2',
+    'viewOnceMessageV2Extension',
+    'documentWithCaptionMessage',
+    'deviceSentMessage',
+    'editedMessage',
+    'associatedChildMessage',
+  ];
+
+  for (const key of wrapperKeys) {
+    if (message[key]?.message) {
+      return unwrapMessageContent(message[key].message);
+    }
   }
 
-  if (message.viewOnceMessage?.message) {
-    return unwrapMessageContent(message.viewOnceMessage.message);
-  }
-
-  if (message.viewOnceMessageV2?.message) {
-    return unwrapMessageContent(message.viewOnceMessageV2.message);
-  }
-
-  if (message.viewOnceMessageV2Extension?.message) {
-    return unwrapMessageContent(message.viewOnceMessageV2Extension.message);
-  }
-
-  if (message.editedMessage?.message) {
-    return unwrapMessageContent(message.editedMessage.message);
+  // Edited messages can also arrive inside a protocol envelope. Revoke and
+  // other protocol events remain wrapped for the session listener.
+  if (message.protocolMessage?.editedMessage) {
+    return unwrapMessageContent(message.protocolMessage.editedMessage);
   }
 
   return message;
@@ -42,6 +45,11 @@ function extractMessageText(msg = {}) {
       message.imageMessage?.caption ||
       message.videoMessage?.caption ||
       message.documentMessage?.caption ||
+      message.buttonsResponseMessage?.selectedDisplayText ||
+      message.listResponseMessage?.title ||
+      message.listResponseMessage?.singleSelectReply?.selectedRowId ||
+      message.templateButtonReplyMessage?.selectedDisplayText ||
+      message.pollCreationMessage?.name ||
       ''
   );
 }

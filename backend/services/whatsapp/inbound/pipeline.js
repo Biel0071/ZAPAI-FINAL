@@ -255,18 +255,13 @@ async function persistInboundMessageFallback(sessionId, incomingMessage, debugPa
   }
 
   const { mediaType } = getMediaDescriptor(incomingMessage?.message || {});
-  let resolvedType = mediaType;
-  if (!resolvedType && debugPayload.text === '[media]') {
-    const msgKeys = Object.keys(unwrapMessageContent(incomingMessage?.message || {}));
-    if (msgKeys.some(k => k.includes('image') || k.includes('Image'))) resolvedType = 'image';
-    else if (msgKeys.some(k => k.includes('video') || k.includes('Video'))) resolvedType = 'video';
-    else if (msgKeys.some(k => k.includes('audio') || k.includes('Audio'))) resolvedType = 'audio';
-    else if (msgKeys.some(k => k.includes('sticker') || k.includes('Sticker'))) resolvedType = 'sticker';
-    else resolvedType = 'media';
+  const parsedText = extractMessageText(incomingMessage);
+  if (!mediaType && !parsedText) {
+    return null;
   }
-  if (!resolvedType) resolvedType = 'text';
 
-  const text = debugPayload.text || (resolvedType !== 'text' ? `[${resolvedType}]` : '');
+  const resolvedType = mediaType || 'text';
+  const text = parsedText || (resolvedType !== 'text' ? `[${resolvedType}]` : '');
 
   const conversation = await conversationRepository.findOrCreateConversationByPhone({
     companyId: process.env.DEFAULT_COMPANY_ID || 'default',

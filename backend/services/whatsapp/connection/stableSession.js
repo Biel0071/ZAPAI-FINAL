@@ -1327,7 +1327,9 @@ async function createStableSession({
       const messageId = incomingMessage?.key?.id || null;
       const dedupeKey = buildRealtimeDeduplicationKey(incomingMessage, remoteJid);
       const fromMe = Boolean(incomingMessage?.key?.fromMe);
-      const protocolMessageType = Number(incomingMessage?.message?.protocolMessage?.type);
+      const normalizedIncomingContent = unwrapMessageContent(incomingMessage?.message || {});
+      const protocolMessage = normalizedIncomingContent?.protocolMessage || null;
+      const protocolMessageType = Number(protocolMessage?.type);
       const queueName = fromMe
         ? enterpriseQueueService.QUEUE_NAMES.outboundMessages
         : enterpriseQueueService.QUEUE_NAMES.inboundMessages;
@@ -1340,9 +1342,9 @@ async function createStableSession({
         continue;
       }
 
-      if (protocolMessageType === 0) {
+      if (protocolMessage && protocolMessageType === 0) {
         const deletedWhatsappMessageId =
-          incomingMessage?.message?.protocolMessage?.key?.id || messageId;
+          protocolMessage?.key?.id || messageId;
         let deletedMessageId = deletedWhatsappMessageId;
         let deletedConversationId = null;
 
@@ -1363,6 +1365,18 @@ async function createStableSession({
           conversationId: deletedConversationId,
           whatsappMessageId: deletedWhatsappMessageId,
         });
+        continue;
+      }
+
+      // Delivery history, key distribution and other protocol envelopes are
+      // state events, not chat messages. Persisting them created empty media.
+      if (protocolMessage) {
+        console.log(
+          '[WHATSAPP] protocol event ignored session=' + normalizedSessionName +
+          ' chat=' + remoteJid +
+          ' id=' + (messageId || 'n/a') +
+          ' type=' + (Number.isFinite(protocolMessageType) ? protocolMessageType : 'unknown')
+        );
         continue;
       }
 
@@ -1531,6 +1545,17 @@ async function createStableSession({
         }
 
         if (!result?.message) {
+          const fallbackText = extractMessageText(incomingMessage);
+          const fallbackDescriptor = getMediaDescriptor(normalizedIncomingContent);
+          if (!fallbackText && !fallbackDescriptor.mediaType) {
+            console.warn(
+              '[WHATSAPP] unsupported empty event ignored session=' + normalizedSessionName +
+              ' chat=' + remoteJid +
+              ' id=' + (messageId || 'n/a') +
+              ' keys=' + (Object.keys(normalizedIncomingContent).join(',') || 'none')
+            );
+            continue;
+          }
           result = await persistInboundMessageFallback(
             normalizedSessionName,
             incomingMessage,
