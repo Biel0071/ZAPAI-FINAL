@@ -1207,8 +1207,17 @@ export const apiService = {
       before: options?.before,
     });
 
-    const data = await request<RawMessage[] | { messages?: RawMessage[] }>({ endpoint: primaryEndpoint, method: "GET" });
-    const entries = Array.isArray(data) ? data : Array.isArray(data?.messages) ? data.messages : [];
+    const data = await request<RawMessage[] | { messages?: RawMessage[]; data?: RawMessage[] | { messages?: RawMessage[] } }>({ endpoint: primaryEndpoint, method: "GET" });
+    const nestedData = !Array.isArray(data) && data?.data ? data.data : null;
+    const entries = Array.isArray(data)
+      ? data
+      : Array.isArray(data?.messages)
+        ? data.messages
+        : Array.isArray(nestedData)
+          ? nestedData
+          : nestedData && typeof nestedData === "object" && Array.isArray(nestedData.messages)
+            ? nestedData.messages
+            : [];
     return entries.map((item, index) => normalizeMessage(item, index, String(conversationId)));
   },
 
