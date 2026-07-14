@@ -199,6 +199,52 @@ function uniqueContacts(contacts: Contact[]) {
   });
 }
 
+function titleCaseCampaign(value: string) {
+  return value
+    .trim()
+    .split(/\s+/)
+    .slice(0, 8)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1).toLowerCase())
+    .join(" ");
+}
+
+function extractCampaignProduct(prompt: string) {
+  const cleanPrompt = prompt.replace(/\s+/g, " ").trim();
+  const match = cleanPrompt.match(/(?:venda|vender|oferta|campanha|produto|servico|servi?o)\s+(?:de|do|da|para)?\s*([^.,;\n]+)/i);
+  const product = (match?.[1] || cleanPrompt).replace(/\b(para|com|lead|leads|cliente|clientes|contato|contatos)\b.*$/i, "").trim();
+  return titleCaseCampaign(product || "Produto");
+}
+
+function buildHumanizedFollowUpMessages(product: string, prompt: string, leadProfile: string): CampaignDraftMessage[] {
+  const context = prompt.trim();
+  const profileHint = leadProfile === "hot" ? "vi que pode fazer sentido para voce agora" : leadProfile === "cold" ? "sem pressa, so quero te apresentar de forma simples" : "acredito que pode encaixar bem no seu momento";
+  return [
+    {
+      type: "text" as const,
+      content: "Oi, tudo bem? Estou falando sobre " + product + ". " + profileHint + ". Posso te mandar uma ideia rapida?",
+    },
+    {
+      type: "text" as const,
+      content: "Vou ser direto: " + product + " ajuda quem quer resolver isso com mais praticidade e menos tentativa no escuro. Pelo seu perfil, pode valer uma olhada.",
+    },
+    {
+      type: "text" as const,
+      content: "Se fizer sentido, eu te mostro as condicoes e tiro suas duvidas por aqui mesmo. Quer que eu te envie os detalhes?",
+    },
+    {
+      type: "text" as const,
+      content: "Passando para fazer um follow-up rapido sobre " + product + ". Ainda faz sentido para voce ou prefere que eu te chame outro dia?",
+    },
+    {
+      type: "text" as const,
+      content: "Ultimo toque para nao te incomodar: consigo deixar uma condicao especial de " + product + " e te explicar em poucos minutos. Quer aproveitar?",
+    },
+  ].map((message, index) => ({
+    ...message,
+    content: context && index === 1 ? message.content + "\n\nContexto usado: " + context : message.content,
+  }));
+}
+
 export default function Campaigns() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isTagModalOpen, setIsTagModalOpen] = useState(false);
@@ -229,6 +275,9 @@ export default function Campaigns() {
   const [actionCampaignId, setActionCampaignId] = useState<string | null>(null);
   const [actionType, setActionType] = useState<CampaignAction>(null);
   const [selectedCampaignPreview, setSelectedCampaignPreview] = useState<CampaignRecord | null>(null);
+  const [aiCampaignPrompt, setAiCampaignPrompt] = useState("");
+  const [aiLeadProfile, setAiLeadProfile] = useState("all");
+  const [aiFollowUpDays, setAiFollowUpDays] = useState("3");
 
   const loadPageData = useCallback(async (options?: { silent?: boolean }) => {
     if (!options?.silent) setLoading(true);
@@ -322,6 +371,9 @@ export default function Campaigns() {
     setCampaignStep(1);
     setSearchQuery("");
     setSelectedFlowId(null);
+    setAiCampaignPrompt("");
+    setAiLeadProfile("all");
+    setAiFollowUpDays("3");
   }, []);
 
   const hydrateComposer = useCallback((campaign: CampaignRecord, mode: ComposerMode) => {
@@ -611,6 +663,93 @@ export default function Campaigns() {
     }
     setCampaignStep((current) => Math.min(STEP_LABELS.length, current + 1));
   }, [campaignName, campaignStep]);
+
+  const generateCampaignFromPrompt = useCallback(async () => {
+    const prompt = aiCampaignPrompt.trim();
+    if (!prompt) {
+      notify.error("Digite o que voce quer vender, para quem e o objetivo da campanha.");
+      return;
+    }
+
+    const product = extractCampaignProduct(prompt);
+    const now = new Date();
+    const generatedName = "IA - " + product + " - " + now.toLocaleDateString("pt-BR");
+    const followUpDays = Math.max(1, Number(aiFollowUpDays) || 3);
+    const generatedMessages = buildHumanizedFollowUpMessages(product, prompt, aiLeadProfile);
+    const promptWords = prompt
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .split(/\W+/)
+      .filter((word) => word.length >= 4 && !["para", "com", "campanha", "venda", "vender", "produto", "servico", "lead", "leads", "cliente", "clientes"].includes(word));
+
+    const profileWords: Record<string, string[]> = {
+      all: [],
+      hot: ["quente", "hot", "interessado", "ativo", "andamento", "lead_quente"],
+      warm: ["morno", "warm", "nutrir", "duvida", "considerando", "lead_morno"],
+      cold: ["frio", "cold", "inativo", "recuperar", "reativar", "lead_frio"],
+      inactive: ["inativo", "risco", "sumido", "parado", "sem resposta", "recuperar"],
+    };
+
+    const normalizedContacts = contacts.map((contact) => ({
+      contact,
+      key: String(contact.phone || contact.id),
+      haystack: [contact.name, contact.phone, contact.status]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase()
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, ""),
+    }));
+
+    const selectedByProfile = normalizedContacts.filter(({ haystack }) => {
+      if (aiLeadProfile === "all") return true;
+      const words = profileWords[aiLeadProfile] || [];
+      return words.some((word) => haystack.includes(word));
+    });
+
+    const selectedByPrompt = selectedByProfile.filter(({ haystack }) => promptWords.some((word) => haystack.includes(word)));
+    const finalSelection = (selectedByPrompt.length > 0 ? selectedByPrompt : selectedByProfile).map((entry) => entry.key);
+    const baseDelayMs = aiLeadProfile === "hot" ? 35_000 : aiLeadProfile === "cold" || aiLeadProfile === "inactive" ? 120_000 : 60_000;
+    const followUpDelayMs = followUpDays * 24 * 60 * 60 * 1000;
+
+    setCampaignName(generatedName);
+    setMessageVariants(generatedMessages);
+    setSelectedContactIds(Array.from(new Set(finalSelection)));
+    setTypingDelay([aiLeadProfile === "hot" ? 4 : aiLeadProfile === "cold" || aiLeadProfile === "inactive" ? 9 : 6]);
+    setIntervalSeconds([Math.round(baseDelayMs / 1000)]);
+    setPauseEvery("8");
+    setPauseSeconds(aiLeadProfile === "hot" ? "90" : "180");
+    setWarmupMessages("8");
+    setWarmupDelayMultiplier("3");
+    setDailyLimit("80");
+    setHourlyLimit("12");
+    setTagsInput(["ia", "campanha", "follow-up", product.toLowerCase().replace(/\s+/g, "-")].join(", "));
+
+    try {
+      const createdFlow = await apiService.createQuickReply({
+        title: generatedName + " - follow-up IA",
+        category: "campanhas",
+        text: generatedMessages.map((message) => message.content).join("\n---\n"),
+        isFlow: true,
+        steps: generatedMessages.map((message, index) => ({
+          id: "ai-campaign-step-" + Date.now() + "-" + index,
+          type: "text",
+          value: message.content,
+          delayMs: index === 0 ? 0 : index >= 3 ? followUpDelayMs : baseDelayMs,
+          typingMs: (aiLeadProfile === "hot" ? 4 : aiLeadProfile === "cold" || aiLeadProfile === "inactive" ? 9 : 6) * 1000,
+        })),
+      });
+      setQuickReplies((current) => [createdFlow, ...current.filter((item) => item.id !== createdFlow.id)]);
+      setSelectedFlowId(createdFlow.id);
+      notify.success("Campanha IA gerada com fluxo sequencial real, " + finalSelection.length + " contato(s) e follow-up de " + followUpDays + " dia(s). Revise antes de enviar.");
+    } catch (error) {
+      setSelectedFlowId(null);
+      notify.error(error instanceof Error ? error.message : "Campanha gerada, mas nao foi possivel salvar o fluxo automatico.");
+    }
+
+    setCampaignStep(4);
+  }, [aiCampaignPrompt, aiFollowUpDays, aiLeadProfile, contacts]);
 
   const persistCampaign = useCallback(
     async (mode: "save" | "launch") => {
@@ -968,6 +1107,52 @@ export default function Campaigns() {
                       {!campaignName.trim() && <OperationalStatusBadge label="Nome obrigatorio para lancar" tone="warning" />}
                     </div>
                   </div>
+                  <div className="rounded-2xl border border-info/25 bg-info/5 p-4">
+                    <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_260px]">
+                      <div className="space-y-3">
+                        <div className="flex items-start gap-3">
+                          <span className="mt-1 flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border border-info/25 bg-info/10 text-info">
+                            <Sparkle className="h-5 w-5" />
+                          </span>
+                          <div>
+                            <p className="text-sm font-semibold text-foreground">Criar campanha por IA / prompt</p>
+                            <p className="text-xs text-muted-foreground">Descreva o produto, tipo de lead e objetivo. O sistema monta nome, publico, mensagens, follow-up e delays humanizados para voce aprovar.</p>
+                          </div>
+                        </div>
+                        <Textarea
+                          value={aiCampaignPrompt}
+                          onChange={(event) => setAiCampaignPrompt(event.target.value)}
+                          placeholder="Ex: criar campanha para venda de seguro empresarial para leads quentes, com follow-up depois de alguns dias e tom consultivo"
+                          className="min-h-[96px] rounded-2xl border-info/20 bg-background/70"
+                        />
+                      </div>
+                      <div className="space-y-3">
+                        <div>
+                          <Label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Tipo de lead</Label>
+                          <select
+                            value={aiLeadProfile}
+                            onChange={(event) => setAiLeadProfile(event.target.value)}
+                            className="mt-2 h-11 w-full rounded-xl border border-border bg-background px-3 text-sm text-foreground focus:border-primary focus:outline-none"
+                          >
+                            <option value="all">Todos / detectar pela base</option>
+                            <option value="hot">Leads quentes</option>
+                            <option value="warm">Leads mornos</option>
+                            <option value="cold">Leads frios</option>
+                            <option value="inactive">Recuperar inativos</option>
+                          </select>
+                        </div>
+                        <div>
+                          <Label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Follow-up apos dias</Label>
+                          <Input value={aiFollowUpDays} onChange={(event) => setAiFollowUpDays(event.target.value)} inputMode="numeric" className="mt-2 h-11 rounded-xl" />
+                        </div>
+                        <Button type="button" className="w-full rounded-xl shadow-glow" onClick={() => void generateCampaignFromPrompt()}>
+                          <Sparkle className="h-4 w-4" />
+                          Gerar campanha pronta
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+
                   <div className="grid grid-cols-1 gap-2 md:grid-cols-5">
                     {STEP_LABELS.map((label, index) => {
                       const step = index + 1;
