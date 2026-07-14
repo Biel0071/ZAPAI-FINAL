@@ -820,14 +820,104 @@ export async function downloadMediaFile(url: string, fallbackFileName = "arquivo
   }
 }
 
+function getMediaMimeType(message: Partial<ChatMessage> & { mimeType?: string | null; mimetype?: string | null }): string {
+  return String(message.mimeType || message.mimetype || "").trim();
+}
+
+function extensionFromMimeType(mimeType?: string | null): string {
+  const normalized = String(mimeType || "").toLowerCase();
+  const map: Record<string, string> = {
+    "application/pdf": "pdf",
+    "application/msword": "doc",
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document": "docx",
+    "application/vnd.ms-excel": "xls",
+    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": "xlsx",
+    "application/vnd.ms-powerpoint": "ppt",
+    "application/vnd.openxmlformats-officedocument.presentationml.presentation": "pptx",
+    "text/plain": "txt",
+    "application/json": "json",
+    "application/zip": "zip",
+    "application/x-zip-compressed": "zip",
+    "application/vnd.rar": "rar",
+    "image/jpeg": "jpg",
+    "image/png": "png",
+    "image/gif": "gif",
+    "image/webp": "webp",
+    "video/mp4": "mp4",
+    "video/webm": "webm",
+    "audio/mpeg": "mp3",
+    "audio/mp3": "mp3",
+    "audio/mp4": "m4a",
+    "audio/ogg": "ogg",
+    "audio/opus": "opus",
+    "audio/wav": "wav",
+  };
+  if (map[normalized]) return map[normalized];
+  const subtype = normalized.split("/")[1]?.split(";")[0]?.trim();
+  return subtype && /^[a-z0-9.+-]+$/.test(subtype) ? subtype.replace(/^x-/, "") : "";
+}
+
+function getFileExtension(fileName?: string | null): string {
+  const normalized = String(fileName || "").split("?")[0].split("#")[0].trim();
+  const match = normalized.match(/\.([a-z0-9]{1,8})$/i);
+  return match?.[1]?.toLowerCase() || "";
+}
+
+function decodeFileName(value?: string | null): string {
+  const normalized = String(value || "").trim();
+  if (!normalized) return "";
+  try {
+    return decodeURIComponent(normalized);
+  } catch {
+    return normalized;
+  }
+}
+
+function isOpaqueMediaName(value?: string | null): boolean {
+  const name = String(value || "").trim();
+  if (!name) return true;
+  const stem = name.replace(/\.[a-z0-9]{1,8}$/i, "");
+  if (/^[0-9a-f]{16,}$/i.test(stem)) return true;
+  if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(stem)) return true;
+  if (/^[a-z0-9_-]{20,}$/i.test(stem) && !/[._ -]/.test(stem)) return true;
+  return false;
+}
+
+function getExplicitMediaFileName(message: Partial<ChatMessage> & { fileName?: string | null; filename?: string | null; name?: string | null; originalName?: string | null }): string {
+  return decodeFileName(message.fileName || message.filename || message.originalName || message.name || "");
+}
+
+function fallbackMediaFileName(message: Partial<ChatMessage> & { mimeType?: string | null; mimetype?: string | null }, mediaType?: string | null): string {
+  const label = getMediaTypeLabel(mediaType || message.mediaType).toLowerCase();
+  const extension = extensionFromMimeType(getMediaMimeType(message));
+  if (extension) return `${label}.${extension}`;
+  if (label && label !== "mídia") return label;
+  return "arquivo";
+}
+
 export function getMediaFileName(message: ChatMessage): string {
-  const caption = sanitizeLegacyPlaceholderText(message.caption, message.mediaType);
-  if (caption) return caption;
+  const explicitName = getExplicitMediaFileName(message);
+  if (explicitName) return explicitName;
 
   const source = String(extractMessageAssetUrl(message) ?? "").trim();
-  if (!source) return "arquivo";
-  const base = source.split("?")[0].split("#")[0].split("/").pop();
-  return base || "arquivo";
+  if (source) {
+    const base = decodeFileName(source.split("?")[0].split("#")[0].split("/").pop());
+    if (base && !isOpaqueMediaName(base)) return base;
+  }
+
+  return fallbackMediaFileName(message, message.mediaType);
+}
+
+export function getMediaFileReferenceLabel(message: Partial<ChatMessage> & { mimeType?: string | null; mimetype?: string | null; fileName?: string | null; filename?: string | null }, mediaType?: string | null): string {
+  const typeLabel = getMediaTypeLabel(mediaType || message.mediaType);
+  const explicitName = getExplicitMediaFileName(message);
+  const source = String(extractMessageAssetUrl(message) ?? "").trim();
+  const sourceBase = source ? decodeFileName(source.split("?")[0].split("#")[0].split("/").pop()) : "";
+  const extension = getFileExtension(explicitName) || (!isOpaqueMediaName(sourceBase) ? getFileExtension(sourceBase) : "") || extensionFromMimeType(getMediaMimeType(message));
+  const upperExtension = extension ? extension.toUpperCase() : "";
+
+  if (upperExtension && typeLabel) return `${upperExtension} • ${typeLabel}`;
+  return typeLabel || getMediaMimeType(message) || "Arquivo";
 }
 
 export function estimateBase64Bytes(base64: string): number {
@@ -1097,3 +1187,4 @@ export function formatFileSize(bytes: number): string {
   if (mb >= 1024) return `${(mb / 1024).toFixed(1)} GB`;
   return `${mb.toFixed(mb >= 100 ? 0 : 1)} MB`;
 }
+

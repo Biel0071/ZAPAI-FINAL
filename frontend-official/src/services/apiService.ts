@@ -121,10 +121,14 @@ export interface ChatMessage {
   aiPromptTokens?: number;
   aiCompletionTokens?: number;
   aiTotalTokens?: number;
-  mediaType?: "image" | "video" | "audio" | "file" | "sticker";
+  mediaType?: "image" | "video" | "audio" | "file" | "sticker" | "document" | "media";
   mediaPath?: string;
   mediaUrl?: string;
   url?: string;
+  fileName?: string | null;
+  filename?: string | null;
+  mimeType?: string | null;
+  mimetype?: string | null;
   emoji?: string;
 }
 
@@ -527,6 +531,12 @@ type RawMessage = {
   file_url?: string;
   url?: string;
   thumbnail?: string;
+  fileName?: string;
+  filename?: string;
+  name?: string;
+  originalName?: string;
+  mimeType?: string;
+  mimetype?: string;
   emoji?: string;
 };
 
@@ -878,6 +888,10 @@ function normalizeMessage(item: RawMessage, index: number, defaultConversationId
     mediaPath,
     mediaUrl,
     url: mediaUrl ?? mediaPath,
+    fileName: item.fileName ?? item.filename ?? item.name ?? item.originalName ?? null,
+    filename: item.filename ?? item.fileName ?? item.name ?? item.originalName ?? null,
+    mimeType: item.mimeType ?? item.mimetype ?? null,
+    mimetype: item.mimetype ?? item.mimeType ?? null,
     emoji: item.emoji,
   };
 }

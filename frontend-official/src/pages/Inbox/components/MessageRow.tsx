@@ -29,6 +29,7 @@ import {
   getMediaTypeLabel,
   getMessageDisplayContent,
   getMediaFileName,
+  getMediaFileReferenceLabel,
   downloadMediaFile,
   extractMessageAssetUrl,
   HighlightedMessageText,
@@ -306,7 +307,7 @@ export const MessageRow = memo(function MessageRow({
                 <div className="min-w-0 flex-1">
                   <p className="truncate font-semibold text-foreground">{getMediaFileName(message)}</p>
                   <p className="text-[10px] text-muted-foreground uppercase mt-0.5">
-                    {resolvedMediaType || "Mídia"} (Indisponível)
+                    {getMediaFileReferenceLabel(message, resolvedMediaType)} (Indisponível)
                   </p>
                 </div>
                 <div className="h-8 w-8 flex items-center justify-center rounded-full bg-secondary/60 hover:bg-secondary text-foreground transition-colors shrink-0">
@@ -382,7 +383,7 @@ export const MessageRow = memo(function MessageRow({
                   <div className="flex items-center justify-between gap-3">
                     <div className="min-w-0">
                       <p className="truncate text-xs font-semibold text-foreground">{getMediaFileName(message)}</p>
-                      <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Áudio</p>
+                      <p className="text-[10px] uppercase tracking-wide text-muted-foreground">{getMediaFileReferenceLabel(message, "audio")}</p>
                     </div>
                     <div
                       role="button"
@@ -458,7 +459,7 @@ export const MessageRow = memo(function MessageRow({
                   </div>
                   <div className="min-w-0 flex-1">
                     <p className="truncate font-semibold text-foreground">{getMediaFileName(message)}</p>
-                    <p className="text-[10px] text-muted-foreground uppercase mt-0.5">Documento</p>
+                    <p className="text-[10px] text-muted-foreground uppercase mt-0.5">{getMediaFileReferenceLabel(message, resolvedMediaType)}</p>
                   </div>
                   <div className="h-8 w-8 flex items-center justify-center rounded-full bg-secondary/60 hover:bg-secondary text-foreground transition-colors shrink-0">
                     <ArrowDown className="h-4 w-4" />
@@ -617,3 +618,5 @@ function PaperPlaneTiltIcon({ className }: { className?: string }) {
     </svg>
   );
 }
+
+
