@@ -157,6 +157,7 @@ export interface MetricsSummary {
   botResponses?: number;
   newLeads?: number;
   leads?: number;
+  aiMemories?: number;
 }
 
 export interface AIStatusResponse {
@@ -164,6 +165,8 @@ export interface AIStatusResponse {
   active?: boolean;
   status?: string;
   ai?: boolean;
+  provider?: string | null;
+  model?: string | null;
 }
 
 export interface AILogEntry {

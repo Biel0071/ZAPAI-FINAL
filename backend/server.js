@@ -942,18 +942,20 @@ app.get('/api/metrics', async (_req, res) => {
     let newLeads = 0;
     let totalConversations = 0;
     let totalMessages = 0;
+    let aiMemories = 0;
 
     if (app.locals.store?.databaseEnabled) {
       try {
         const { query } = require('./config/database');
 
-        const [msgsRes, aiRes, leadsRes, totalConvRes, totalMsgRes, activeConvRes] = await Promise.allSettled([
+        const [msgsRes, aiRes, leadsRes, totalConvRes, totalMsgRes, activeConvRes, memoriesRes] = await Promise.allSettled([
           query(`SELECT COUNT(*) AS cnt FROM messages WHERE COALESCE(created_at, timestamp, NOW()) >= CURRENT_DATE`),
           query(`SELECT COUNT(*) AS cnt FROM messages WHERE COALESCE(created_at, timestamp, NOW()) >= CURRENT_DATE AND LOWER(COALESCE(sender, '')) IN ('ai', 'bot', 'assistant')`),
           query(`SELECT COUNT(*) AS cnt FROM conversations WHERE COALESCE(created_at, updated_at, NOW()) >= CURRENT_DATE`),
           query(`SELECT COUNT(*) AS cnt FROM conversations`),
           query(`SELECT COUNT(*) AS cnt FROM messages`),
           query(`SELECT COUNT(*) AS cnt FROM conversations WHERE COALESCE(status, 'open') <> 'closed'`),
+          query(`SELECT COUNT(*) AS cnt FROM ai_memory_long`),
         ]);
 
         if (msgsRes.status === 'fulfilled') messagesToday = Number(msgsRes.value.rows[0]?.cnt ?? 0);
@@ -962,6 +964,7 @@ app.get('/api/metrics', async (_req, res) => {
         if (totalConvRes.status === 'fulfilled') totalConversations = Number(totalConvRes.value.rows[0]?.cnt ?? 0);
         if (totalMsgRes.status === 'fulfilled') totalMessages = Number(totalMsgRes.value.rows[0]?.cnt ?? 0);
         if (activeConvRes.status === 'fulfilled') activeConversations = Number(activeConvRes.value.rows[0]?.cnt ?? 0);
+        if (memoriesRes.status === 'fulfilled') aiMemories = Number(memoriesRes.value.rows[0]?.cnt ?? 0);
       } catch {
         // DB query failed — use infra defaults below
       }
@@ -990,6 +993,7 @@ app.get('/api/metrics', async (_req, res) => {
         totalMessages,
         messages: messagesToday,
         leads: totalConversations,
+        aiMemories,
         // Infra (diagnostics)
         uptime: {
           seconds: uptimeSec,

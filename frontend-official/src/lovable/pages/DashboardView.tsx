@@ -127,6 +127,8 @@ export interface DashboardViewProps {
   onExportMap: () => void;
   dateRange: "today" | "yesterday" | "7days" | "30days" | "all";
   onDateRangeChange: (range: "today" | "yesterday" | "7days" | "30days" | "all") => void;
+  aiStatus?: any;
+  aiMetrics?: any;
 }
 
 export function DashboardView({
@@ -141,6 +143,8 @@ export function DashboardView({
   onExportMap,
   dateRange,
   onDateRangeChange,
+  aiStatus,
+  aiMetrics,
 }: DashboardViewProps) {
   const navigate = useNavigate();
   const hasMappedRows = mapRows.length > 0;
@@ -275,21 +279,62 @@ export function DashboardView({
         ? 28.5
         : 120;
 
+    const todayPrompt = aiMetrics?.promptTokensToday ?? 14800;
+    const todayCompletion = aiMetrics?.completionTokensToday ?? 5100;
+
     return [
       { name: "Seg", prompt: Math.round(12400 * factor), completion: Math.round(4200 * factor) },
       { name: "Ter", prompt: Math.round(14800 * factor), completion: Math.round(5100 * factor) },
       { name: "Qua", prompt: Math.round(13500 * factor), completion: Math.round(4800 * factor) },
       { name: "Qui", prompt: Math.round(16200 * factor), completion: Math.round(5900 * factor) },
-      { name: "Sex", prompt: Math.round(15500 * factor), completion: Math.round(5400 * factor) },
+      { name: "Sex", prompt: Math.round(todayPrompt * factor), completion: Math.round(todayCompletion * factor) },
     ];
-  }, [dateRange]);
+  }, [dateRange, aiMetrics]);
 
   // Model distribution data
-  const aiModelDistribution = useMemo(() => [
-    { name: "Gemini 2.0 Flash", value: 60, color: "#00a3ff" },
-    { name: "GPT-4o Mini", value: 30, color: "#10b981" },
-    { name: "Claude 3.5 Sonnet", value: 10, color: "#f97316" },
-  ], []);
+  const aiModelDistribution = useMemo(() => {
+    if (!aiStatus || !aiStatus.model) {
+      return [{ name: "Nenhum ativo", value: 100, color: "#94a3b8" }];
+    }
+    const rawProvider = String(aiStatus.provider || 'openai').toLowerCase();
+    const isGemini = rawProvider === 'gemini' || rawProvider === 'google';
+    const isClaude = rawProvider === 'claude' || rawProvider === 'anthropic';
+
+    const providerLabel = isGemini ? "Google" : isClaude ? "Anthropic" : "OpenAI";
+    const name = `${aiStatus.model} (${providerLabel})`;
+    const color = isGemini ? "#38bdf8" : isClaude ? "#f97316" : "#10b981";
+
+    return [{ name, value: 100, color }];
+  }, [aiStatus]);
+
+  const activeModelName = useMemo(() => {
+    if (!aiStatus || !aiStatus.model) return "Nenhum ativo";
+    return aiStatus.model;
+  }, [aiStatus]);
+
+  const tokensPeriodFormatted = useMemo(() => {
+    const todayTokens = aiMetrics?.tokensToday ?? 0;
+    if (dateRange === "today") {
+      return todayTokens > 1000 ? `${(todayTokens / 1000).toFixed(1)}K` : String(todayTokens);
+    }
+    const factor =
+      dateRange === "yesterday"
+        ? 0.95
+        : dateRange === "7days"
+        ? 6.8
+        : dateRange === "30days"
+        ? 28.5
+        : 120;
+    const estimated = Math.round(todayTokens * factor);
+    return estimated > 1000 ? `${(estimated / 1000).toFixed(1)}K` : String(estimated);
+  }, [aiMetrics, dateRange]);
+
+  const automationPercentage = useMemo(() => {
+    const totalMsg = viewModel.rawMetrics?.messagesToday ?? 0;
+    const aiMsg = viewModel.rawMetrics?.aiResponses ?? 0;
+    if (totalMsg === 0) return 0;
+    return Math.round((aiMsg / totalMsg) * 100);
+  }, [viewModel.rawMetrics]);
 
   return (
     <div className="space-y-6">
@@ -745,65 +790,7 @@ export function DashboardView({
               )}
             </div>
           </div>
-        </div>
-      )}
-
-      {/* PERFORMANCE TAB */}
-      {activeTab === "performance" && (
-        <div className="space-y-6 animate-in fade-in-0 duration-300">
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
-            <Card className="metric-card rounded-2xl border-border/70 bg-card/85">
-              <CardContent className="space-y-2 p-5">
-                <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Uptime do Canal</p>
-                <h3 className="font-display text-2xl font-bold">99.9%</h3>
-                <span className="text-[10px] text-success font-semibold">Uptime global da operação</span>
-              </CardContent>
-            </Card>
-            <Card className="metric-card rounded-2xl border-border/70 bg-card/85">
-              <CardContent className="space-y-2 p-5">
-                <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Sucesso de Entrega</p>
-                <h3 className="font-display text-2xl font-bold">98.4%</h3>
-                <span className="text-[10px] text-muted-foreground">Taxa de envio do WhatsApp</span>
-              </CardContent>
-            </Card>
-            <Card className="metric-card rounded-2xl border-border/70 bg-card/85">
-              <CardContent className="space-y-2 p-5">
-                <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Latência Socket</p>
-                <h3 className="font-display text-2xl font-bold">26ms</h3>
-                <span className="text-[10px] text-success font-semibold">Conexão WebSocket online</span>
-              </CardContent>
-            </Card>
-            <Card className="metric-card rounded-2xl border-border/70 bg-card/85">
-              <CardContent className="space-y-2 p-5">
-                <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Uptime Runtime</p>
-                <h3 className="font-display text-2xl font-bold">100%</h3>
-                <span className="text-[10px] text-muted-foreground">Motor ZAPFLOW ativo</span>
-              </CardContent>
-            </Card>
-          </div>
-
-          <Card className="glass-card rounded-2xl border-border/70 bg-card/85">
-            <CardHeader className="py-4">
-              <CardTitle className="text-xs font-bold uppercase tracking-widest text-muted-foreground flex items-center gap-2">
-                <Database className="h-4 w-4 text-primary" /> Latência WebSocket & API (Ultimos 10 Minutos)
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="h-[280px] p-4">
-              <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={latencyData}>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" />
-                  <XAxis dataKey="name" stroke="hsl(var(--muted-foreground))" fontSize={10} axisLine={false} tickLine={false} />
-                  <YAxis stroke="hsl(var(--muted-foreground))" fontSize={10} axisLine={false} tickLine={false} />
-                  <RechartsTooltip contentStyle={tooltipStyle} />
-                  <Area type="monotone" dataKey="socket" name="Latência Socket (ms)" stroke="hsl(var(--primary))" fill="hsl(var(--primary)/0.05)" strokeWidth={2} />
-                  <Area type="monotone" dataKey="api" name="Latência API (ms)" stroke="#ef4444" fill="transparent" strokeWidth={2} strokeDasharray="4 4" />
-                </AreaChart>
-              </ResponsiveContainer>
-            </CardContent>
-          </Card>
-        </div>
-      )}
-
+          {/* CONVERSAS TAB */}
       {/* CONVERSAS TAB */}
       {activeTab === "conversations" && (
         <div className="space-y-6 animate-in fade-in-0 duration-300">
@@ -850,35 +837,49 @@ export function DashboardView({
         </div>
       )}
 
-      {/* IA METRICS TAB */}
+      {/* IA & PERFORMANCE METRICS TAB */}
       {activeTab === "ai" && (
         <div className="space-y-6 animate-in fade-in-0 duration-300">
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-6">
+            <Card className="metric-card rounded-2xl border-border/70 bg-card/85">
+              <CardContent className="space-y-2 p-5">
+                <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Uptime do Canal</p>
+                <h3 className="font-display text-2xl font-bold">99.9%</h3>
+                <span className="text-[10px] text-success font-semibold">Uptime global da operação</span>
+              </CardContent>
+            </Card>
+            <Card className="metric-card rounded-2xl border-border/70 bg-card/85">
+              <CardContent className="space-y-2 p-5">
+                <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Latência Socket</p>
+                <h3 className="font-display text-2xl font-bold">26ms</h3>
+                <span className="text-[10px] text-success font-semibold">Conexão WebSocket online</span>
+              </CardContent>
+            </Card>
             <Card className="metric-card rounded-2xl border-border/70 bg-card/85">
               <CardContent className="space-y-2 p-5">
                 <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Tokens do Período</p>
-                <h3 className="font-display text-2xl font-bold">148.5K</h3>
+                <h3 className="font-display text-2xl font-bold">{tokensPeriodFormatted}</h3>
                 <span className="text-[10px] text-muted-foreground">Uso de LLM pelo ZAPFLOW</span>
               </CardContent>
             </Card>
             <Card className="metric-card rounded-2xl border-border/70 bg-card/85">
               <CardContent className="space-y-2 p-5">
                 <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Automação IA</p>
-                <h3 className="font-display text-2xl font-bold">84%</h3>
+                <h3 className="font-display text-2xl font-bold">{automationPercentage}%</h3>
                 <span className="text-[10px] text-success font-semibold">Contatos resolvidos sem humano</span>
               </CardContent>
             </Card>
             <Card className="metric-card rounded-2xl border-border/70 bg-card/85">
               <CardContent className="space-y-2 p-5">
-                <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Modelo Predominante</p>
-                <h3 className="font-display text-2xl font-bold">Gemini 2.0</h3>
+                <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Modelo Ativo</p>
+                <h3 className="font-display text-[14px] font-bold truncate mt-1 pt-1 leading-tight" title={activeModelName}>{activeModelName}</h3>
                 <span className="text-[10px] text-muted-foreground">LLM Padrão de Automação</span>
               </CardContent>
             </Card>
             <Card className="metric-card rounded-2xl border-border/70 bg-card/85">
               <CardContent className="space-y-2 p-5">
                 <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Fatos Salvos (Memória)</p>
-                <h3 className="font-display text-2xl font-bold">384 fatos</h3>
+                <h3 className="font-display text-2xl font-bold">{viewModel.rawMetrics?.aiMemories ?? 0} fatos</h3>
                 <span className="text-[10px] text-success font-semibold">Extraídos e gravados na base</span>
               </CardContent>
             </Card>
@@ -888,18 +889,18 @@ export function DashboardView({
             <Card className="lg:col-span-2 glass-card rounded-2xl border-border/70 bg-card/85">
               <CardHeader className="py-4">
                 <CardTitle className="text-xs font-bold uppercase tracking-widest text-muted-foreground flex items-center gap-2">
-                  <Cpu className="h-4 w-4 text-primary" /> Uso de Tokens (Prompt vs Completion)
+                  <Database className="h-4 w-4 text-primary" /> Latência WebSocket & API (Ultimos 10 Minutos)
                 </CardTitle>
               </CardHeader>
               <CardContent className="h-[280px] p-4">
                 <ResponsiveContainer width="100%" height="100%">
-                  <AreaChart data={tokenData}>
+                  <AreaChart data={latencyData}>
                     <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" />
                     <XAxis dataKey="name" stroke="hsl(var(--muted-foreground))" fontSize={10} axisLine={false} tickLine={false} />
                     <YAxis stroke="hsl(var(--muted-foreground))" fontSize={10} axisLine={false} tickLine={false} />
                     <RechartsTooltip contentStyle={tooltipStyle} />
-                    <Area type="monotone" dataKey="prompt" name="Prompt Tokens" stroke="hsl(var(--primary))" fill="hsl(var(--primary)/0.05)" strokeWidth={2} />
-                    <Area type="monotone" dataKey="completion" name="Completion Tokens" stroke="#10b981" fill="transparent" strokeWidth={2} />
+                    <Area type="monotone" dataKey="socket" name="Latência Socket (ms)" stroke="hsl(var(--primary))" fill="hsl(var(--primary)/0.05)" strokeWidth={2} />
+                    <Area type="monotone" dataKey="api" name="Latência API (ms)" stroke="#ef4444" fill="transparent" strokeWidth={2} strokeDasharray="4 4" />
                   </AreaChart>
                 </ResponsiveContainer>
               </CardContent>
@@ -920,13 +921,33 @@ export function DashboardView({
                     <RechartsTooltip />
                   </PieChart>
                 </ResponsiveContainer>
-                <div className="absolute flex flex-col items-center justify-center">
-                  <span className="text-xl font-bold font-display">LLMs</span>
-                  <span className="text-[9px] text-muted-foreground uppercase font-bold">Ativas</span>
+                <div className="absolute flex flex-col items-center justify-center text-center px-4 w-full">
+                  <span className="text-sm font-bold font-display truncate max-w-[90px]" title={aiStatus?.provider || "LLMs"}>{aiStatus?.provider?.toUpperCase() || "LLMs"}</span>
+                  <span className="text-[9px] text-muted-foreground uppercase font-bold">Ativa</span>
                 </div>
               </CardContent>
             </Card>
           </div>
+
+          <Card className="glass-card rounded-2xl border-border/70 bg-card/85">
+            <CardHeader className="py-4">
+              <CardTitle className="text-xs font-bold uppercase tracking-widest text-muted-foreground flex items-center gap-2">
+                <Cpu className="h-4 w-4 text-primary" /> Uso de Tokens (Prompt vs Completion)
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="h-[280px] p-4">
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={tokenData}>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" />
+                  <XAxis dataKey="name" stroke="hsl(var(--muted-foreground))" fontSize={10} axisLine={false} tickLine={false} />
+                  <YAxis stroke="hsl(var(--muted-foreground))" fontSize={10} axisLine={false} tickLine={false} />
+                  <RechartsTooltip contentStyle={tooltipStyle} />
+                  <Area type="monotone" dataKey="prompt" name="Prompt Tokens" stroke="hsl(var(--primary))" fill="hsl(var(--primary)/0.05)" strokeWidth={2} />
+                  <Area type="monotone" dataKey="completion" name="Completion Tokens" stroke="#10b981" fill="transparent" strokeWidth={2} />
+                </AreaChart>
+              </ResponsiveContainer>
+            </CardContent>
+          </Card>
         </div>
       )}
 

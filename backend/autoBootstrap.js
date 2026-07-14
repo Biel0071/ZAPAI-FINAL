@@ -22,6 +22,8 @@ function runBootstrap() {
   const nodeToken = crypto.randomBytes(16).toString('hex');
   const adminPassword = process.env.AUTH_DEFAULT_PASSWORD || crypto.randomBytes(16).toString('hex');
 
+  const redisHost = process.env.REDIS_HOST || (fs.existsSync('/workspace') ? 'redis' : '127.0.0.1');
+
   const envContent = `
 # ============================================================================
 # ZAPFLOW AI - AUTO GENERATED PRODUCTION ENV
@@ -46,12 +48,13 @@ PGSSLMODE=disable
 JWT_SECRET=${jwtSecret}
 AUTH_JWT_SECRET=${jwtSecret}
 
+# ── Authentication Default Credentials ─────────────────────
 AUTH_DEFAULT_USERNAME=zapadmin
 AUTH_DEFAULT_PASSWORD=${adminPassword}
 AUTH_DEFAULT_TENANT_ID=default
 
 # ── Redis ──────────────────────────────────────────
-REDIS_URL=redis://redis:6379
+REDIS_URL=redis://${redisHost}:6379
 
 # ── Master Node Registration ─────────────────────────────────
 MASTER=true

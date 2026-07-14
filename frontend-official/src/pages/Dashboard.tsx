@@ -12,6 +12,8 @@ import {
   apiService,
   type MetricsSummary,
   type RuntimeHealthState,
+  type AIStatusResponse,
+  type AIMetricsResponse,
 } from "@/services/apiService";
 import { reportFrontendIssue } from "@/runtime/services/frontendHealthService";
 import { useAppStore } from "@/stores/appStore";
@@ -19,7 +21,7 @@ import { useRuntime } from "@/providers/RuntimeProvider";
 
 const STATUS_POLL_MS = 15_000;
 const HEAVY_REFRESH_MS = 30_000;
-const VALID_TABS = ["overview", "performance", "conversations", "ai", "schedule", "map"] as const;
+const VALID_TABS = ["overview", "conversations", "ai", "schedule", "map"] as const;
 
 type DashboardTab = (typeof VALID_TABS)[number];
 
@@ -39,6 +41,9 @@ export default function Dashboard() {
   const [activeMapScope, setActiveMapScope] = useState<DashboardMapScope>("regions");
   const [dateRange, setDateRange] = useState<"today" | "yesterday" | "7days" | "30days" | "all">("today");
 
+  const [aiStatus, setAiStatus] = useState<AIStatusResponse | null>(null);
+  const [aiMetrics, setAiMetrics] = useState<AIMetricsResponse | null>(null);
+
   const activeSessions = useMemo(
     () => (Array.isArray(sessions) ? sessions.filter((s) => s && s.status === "connected").length : 0),
     [sessions]
@@ -49,6 +54,12 @@ export default function Dashboard() {
   const loadStatus = useCallback(async () => {
     try {
       await forceRefresh();
+      const [status, metrics] = await Promise.all([
+        apiService.getAIStatus().catch(() => null),
+        apiService.getAIMetrics().catch(() => null),
+      ]);
+      setAiStatus(status);
+      setAiMetrics(metrics);
     } catch (error) {
       reportFrontendIssue({
         type: "unexpected_error",
@@ -203,6 +214,8 @@ export default function Dashboard() {
           onExportMap={handleExportMap}
           dateRange={dateRange}
           onDateRangeChange={setDateRange}
+          aiStatus={aiStatus}
+          aiMetrics={aiMetrics}
         />
       </div>
     </div>

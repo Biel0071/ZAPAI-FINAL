@@ -50,6 +50,7 @@ export type LeadPin = {
 export type DashboardLovableViewModel = {
   tabs: DashboardLovableTab[];
   overviewCards: DashboardLovableMetricCard[];
+  rawMetrics?: MetricsSummary | null;
   map: {
     title: string;
     description: string;
@@ -69,9 +70,8 @@ export type DashboardLovableViewModel = {
 
 const DASHBOARD_TABS: DashboardLovableTab[] = [
   { id: "overview", label: "Visão Geral" },
-  { id: "performance", label: "Performance" },
   { id: "conversations", label: "Conversas" },
-  { id: "ai", label: "IA" },
+  { id: "ai", label: "Performance & IA" },
   { id: "schedule", label: "Horários" },
   { id: "map", label: "Mapa de Origem" },
 ];
@@ -398,5 +398,6 @@ export function createDashboardLovableViewModel(params: {
       exportTitle: "Exportar Dados",
       exportDescription: "Baixe volumetria em CSV",
     },
+    rawMetrics: metrics,
   };
 }
