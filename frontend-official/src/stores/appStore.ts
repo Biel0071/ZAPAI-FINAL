@@ -13,6 +13,31 @@ function isMessageValid(item: any): boolean {
   return item && typeof item === "object" && typeof item.id === "string";
 }
 
+const MESSAGE_STATUS_RANK: Record<string, number> = {
+  pending: 0,
+  retry: 0,
+  sending: 0,
+  sent: 1,
+  server_ack: 2,
+  delivered: 3,
+  device_ack: 3,
+  read: 4,
+  played: 5,
+};
+
+function mergeMessageStatus(
+  current: ChatMessage["status"],
+  incoming: ChatMessage["status"],
+): ChatMessage["status"] {
+  if (!incoming || current === incoming) return current ?? incoming;
+  if (incoming === "failed") return current === "read" || current === "played" ? current : incoming;
+  if (current === "failed") return incoming;
+
+  const currentRank = MESSAGE_STATUS_RANK[String(current ?? "").toLowerCase()] ?? -1;
+  const incomingRank = MESSAGE_STATUS_RANK[String(incoming).toLowerCase()] ?? -1;
+  return incomingRank >= currentRank ? incoming : current;
+}
+
 function normalizeIdentityPart(value: unknown): string {
   return String(value ?? "").trim().toLowerCase();
 }
@@ -535,7 +560,7 @@ export const useAppStore = create<AppState>((set) => ({
       const resolvedId = resolveStoreConversationId(state.conversations, conversationId);
       const current = state.messagesByConversationId[resolvedId] ?? [];
       const updated = current.map((m) =>
-        String(m.id) === String(messageId) ? { ...m, status } : m
+        String(m.id) === String(messageId) ? { ...m, status: mergeMessageStatus(m.status, status) } : m
       );
       return {
         messagesByConversationId: {

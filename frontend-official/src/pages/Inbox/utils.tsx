@@ -965,7 +965,7 @@ export function getMessageStatusMeta(status?: ChatMessage["status"]) {
   if (normStatus === "device_ack" || normStatus === "delivered") {
     return {
       symbol: "2V",
-      className: "text-emerald-500",
+      className: "text-muted-foreground/80",
       label: "Entregue no WhatsApp",
       icon: "delivered",
     };

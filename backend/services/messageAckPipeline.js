@@ -48,9 +48,10 @@ const VALID_TRANSITIONS = {
   [ACK_STATES.RETRY]: [ACK_STATES.PENDING, ACK_STATES.SENT, ACK_STATES.FAILED],
 };
 
-// Baileys numeric status → ACK state
+// Baileys WAMessageStatus numeric value → ACK state.
+// ERROR=0, PENDING=1, SERVER_ACK=2, DELIVERY_ACK=3, READ=4, PLAYED=5.
 const BAILEYS_STATUS_MAP = {
-  0: ACK_STATES.PENDING,
+  0: ACK_STATES.FAILED,
   1: ACK_STATES.SENT,
   2: ACK_STATES.SERVER_ACK,
   3: ACK_STATES.DEVICE_ACK,
@@ -116,9 +117,26 @@ function evictOldEntries() {
 // ─── State Transitions ───
 
 function isValidTransition(currentState, nextState) {
+  if (currentState === nextState) return true;
+
   const allowed = VALID_TRANSITIONS[currentState];
-  if (!allowed) return true; // unknown state → allow
-  return allowed.includes(nextState);
+  if (allowed?.includes(nextState)) return true;
+
+  // WhatsApp does not guarantee that every intermediate receipt is emitted.
+  // Accept forward jumps (sent → delivered/read), while rejecting late events
+  // that would visually downgrade a message already delivered or read.
+  const progressRank = {
+    [ACK_STATES.PENDING]: 0,
+    [ACK_STATES.RETRY]: 0,
+    [ACK_STATES.SENT]: 1,
+    [ACK_STATES.SERVER_ACK]: 2,
+    [ACK_STATES.DEVICE_ACK]: 3,
+    [ACK_STATES.READ]: 4,
+    [ACK_STATES.PLAYED]: 5,
+  };
+  const currentRank = progressRank[currentState];
+  const nextRank = progressRank[nextState];
+  return Number.isFinite(currentRank) && Number.isFinite(nextRank) && nextRank > currentRank;
 }
 
 function transitionAck(messageId, nextState, metadata = {}) {
