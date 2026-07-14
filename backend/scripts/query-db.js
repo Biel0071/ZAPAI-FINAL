@@ -17,7 +17,7 @@ async function run() {
     console.log(sessions.rows);
 
     const messages = await pool.query(`
-      SELECT id, body, remote_jid, sender, status, created_at
+      SELECT id, COALESCE(text, content) AS body, phone, sender, direction, status, created_at
       FROM messages
       ORDER BY id DESC
       LIMIT 15
