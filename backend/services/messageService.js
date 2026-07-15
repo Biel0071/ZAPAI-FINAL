@@ -390,9 +390,7 @@ async function persistIncomingMessage(payload = {}) {
   }
 
   if (conversation && (conversation.aiEnabled === false || conversation.ai_enabled === false)) {
-    await conversationRepository.updateConversationAIEnabled(phone, true, companyId);
-    conversation.aiEnabled = true;
-    conversation.ai_enabled = true;
+    console.log('[MessageService] AI remains OFF for conversation ' + phone + '; incoming message persisted without re-enabling automation.');
   }
 
   const savedMessage = await messageRepository.create({

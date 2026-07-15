@@ -62,3 +62,20 @@ test('does not block human messages with the AI guard', async () => {
 
   assert.deepEqual(permission, { allowed: true, reason: 'not_ai_response' });
 });
+
+test('preserves a disabled conversation AI toggle while persisting inbound messages', () => {
+  const criticalFiles = [
+    'backend/services/messageService.js',
+    'backend/services/enterprise/message-service.js',
+    'backend/services/whatsapp/inbound/pipeline.js',
+  ];
+
+  for (const filePath of criticalFiles) {
+    const source = require('node:fs').readFileSync(filePath, 'utf8');
+    assert.equal(
+      /updateConversationAIEnabled\([^\n]*true/.test(source),
+      false,
+      filePath + ' must not re-enable AI when an inbound message arrives',
+    );
+  }
+});

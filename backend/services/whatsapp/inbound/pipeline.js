@@ -274,8 +274,7 @@ async function persistInboundMessageFallback(sessionId, incomingMessage, debugPa
   });
 
   if (conversation && conversation.aiEnabled === false) {
-    await conversationRepository.updateConversationAIEnabled(phone, true, process.env.DEFAULT_COMPANY_ID || 'default');
-    conversation.aiEnabled = true;
+    console.log('[InboundPipeline] AI remains OFF for conversation ' + phone + '; inbound message persisted without re-enabling automation.');
   }
 
   const savedMessage = await messageRepository.create({
