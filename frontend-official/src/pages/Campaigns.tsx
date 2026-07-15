@@ -483,6 +483,41 @@ export default function Campaigns() {
   }, [contacts, selectedContactIds]);
 
   const selectedContactCount = selectedContacts.length;
+
+  const contactSegments = useMemo(() => {
+    const normalized = contacts.map((contact) => ({
+      key: String(contact.phone || contact.id),
+      status: String(contact.status || "").toLowerCase(),
+      haystack: [contact.name, contact.phone, contact.status].filter(Boolean).join(" ").toLowerCase(),
+    }));
+    const byWords = (words: string[]) => normalized.filter((entry) => words.some((word) => entry.haystack.includes(word) || entry.status.includes(word)));
+    const groups = {
+      all: normalized,
+      normal: normalized.filter((entry) => !entry.key.includes("@g.us")),
+      hot: byWords(["quente", "hot", "interessado", "andamento", "lead_quente"]),
+      warm: byWords(["morno", "warm", "duvida", "considerando", "lead_morno"]),
+      cold: byWords(["frio", "cold", "lead_frio"]),
+      inactive: byWords(["inativo", "risco", "sumido", "parado", "sem resposta", "recuperar"]),
+    };
+    return {
+      all: groups.all.map((entry) => entry.key),
+      normal: groups.normal.map((entry) => entry.key),
+      hot: groups.hot.map((entry) => entry.key),
+      warm: groups.warm.map((entry) => entry.key),
+      cold: groups.cold.map((entry) => entry.key),
+      inactive: groups.inactive.map((entry) => entry.key),
+      counts: { all: groups.all.length, normal: groups.normal.length, hot: groups.hot.length, warm: groups.warm.length, cold: groups.cold.length, inactive: groups.inactive.length },
+    };
+  }, [contacts]);
+
+  const campaignMetrics = useMemo(() => {
+    const active = campaigns.filter((campaign) => ["running", "active", "processing", "scheduled", "ready"].includes(normalizeCampaignStatus(campaign))).length;
+    const drafts = campaigns.filter((campaign) => normalizeCampaignStatus(campaign) === "draft").length;
+    const failed = campaigns.reduce((total, campaign) => total + Number(campaign.queue?.failed ?? 0), 0);
+    const totalQueue = campaigns.reduce((total, campaign) => total + Number(campaign.queue?.total ?? campaign.selectedContacts?.length ?? 0), 0);
+    const sent = campaigns.reduce((total, campaign) => total + Number(campaign.queue?.sent ?? 0), 0);
+    return { active, drafts, failed, totalQueue, sent };
+  }, [campaigns]);
   const cleanMessages = useMemo(
     () =>
       messageVariants
@@ -495,6 +530,12 @@ export default function Campaigns() {
         .filter((message) => Boolean(message.content || message.mediaUrl || message.mediaPath)),
     [messageVariants],
   );
+
+  const activeMessageCount = useMemo(() => {
+    if (!selectedFlowId) return cleanMessages.length;
+    const flow = quickReplies.find((reply) => reply.id === selectedFlowId);
+    return Math.max(1, Number(flow?.steps?.length || 0));
+  }, [cleanMessages.length, quickReplies, selectedFlowId]);
 
   const attachMediaToMessage = useCallback(async (index: number, file: File) => {
     try {
@@ -948,6 +989,13 @@ export default function Campaigns() {
     setSelectedContactIds((current) => Array.from(new Set([...current, ...visibleKeys])));
   }, [filteredContacts, selectedContactIds]);
 
+  const applyContactSegment = useCallback((segment: keyof typeof contactSegments.counts) => {
+    const keys = contactSegments[segment] || [];
+    if (keys.length === 0) { notify.error("Nenhum contato encontrado para este tipo de lead."); return; }
+    setSelectedContactIds(Array.from(new Set(keys)));
+    notify.success(String(keys.length) + " contato(s) selecionado(s).");
+  }, [contactSegments]);
+
   const handleCsvImport = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
@@ -1113,6 +1161,7 @@ export default function Campaigns() {
                       <div>
                         <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Campanhas</p>
                         <h3 className="font-display text-2xl font-bold">{lovableCampaignsViewModel.totalCampaigns}</h3>
+                        <p className="text-xs text-muted-foreground">{campaignMetrics.active} ativas / {campaignMetrics.drafts} rascunhos</p>
                       </div>
                     </div>
                     <OperationalStatusBadge label="Base persistida" tone="syncing" />
@@ -1126,8 +1175,9 @@ export default function Campaigns() {
                         <PaperPlaneTilt weight="fill" className="h-6 w-6 text-info" />
                       </div>
                       <div>
-                        <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Envios</p>
-                        <h3 className="font-display text-2xl font-bold">{lovableCampaignsViewModel.sentMessages.toLocaleString("pt-BR")}</h3>
+                        <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Envios conclu?dos</p>
+                        <h3 className="font-display text-2xl font-bold">{campaignMetrics.sent.toLocaleString("pt-BR")}</h3>
+                        <p className="text-xs text-muted-foreground">{campaignMetrics.failed} falha(s)</p>
                       </div>
                     </div>
                     <OperationalStatusBadge label="Pipeline ativo" tone="online" />
@@ -1141,8 +1191,9 @@ export default function Campaigns() {
                         <Eye weight="duotone" className="h-6 w-6 text-success" />
                       </div>
                       <div>
-                        <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Contatos na fila</p>
-                        <h3 className="font-display text-2xl font-bold">{lovableCampaignsViewModel.totalQueuedContacts.toLocaleString("pt-BR")}</h3>
+                        <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Base / fila</p>
+                        <h3 className="font-display text-2xl font-bold">{contacts.length.toLocaleString("pt-BR")}</h3>
+                        <p className="text-xs text-muted-foreground">{campaignMetrics.totalQueue.toLocaleString("pt-BR")} em campanhas</p>
                       </div>
                     </div>
                     <OperationalStatusBadge label="Segmentação pronta" tone="online" />
@@ -1156,8 +1207,9 @@ export default function Campaigns() {
                         <CheckCircle weight="fill" className="h-6 w-6 text-warning" />
                       </div>
                       <div>
-                        <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Etapa atual</p>
-                        <h3 className="font-display text-2xl font-bold">{campaignStep}/{STEP_LABELS.length}</h3>
+                        <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Selecionados</p>
+                        <h3 className="font-display text-2xl font-bold">{selectedContactCount}</h3>
+                        <p className="text-xs text-muted-foreground">Etapa {campaignStep}/{STEP_LABELS.length}</p>
                       </div>
                     </div>
                     <OperationalStatusBadge label={composerMode === "edit" ? "Modo edição" : composerMode === "duplicate" ? "Duplicando" : "Novo rascunho"} tone="warning" />
@@ -1166,7 +1218,7 @@ export default function Campaigns() {
               </div>
             }
             composer={
-              <div className="grid gap-6 xl:grid-cols-[minmax(0,1.2fr)_420px]">
+              <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_380px]">
                 <Card className="glass-card rounded-2xl border-border/70 bg-card/85">
                   <CardContent className="space-y-5 p-5">
                   <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
@@ -1194,7 +1246,7 @@ export default function Campaigns() {
                     </div>
                   </div>
                   <div className="rounded-2xl border border-info/25 bg-info/5 p-4">
-                    <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_260px]">
+                    <div className="grid gap-4 2xl:grid-cols-[minmax(0,1fr)_minmax(320px,380px)]">
                       <div className="space-y-3">
                         <div className="flex items-start gap-3">
                           <span className="mt-1 flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border border-info/25 bg-info/10 text-info">
@@ -1209,7 +1261,7 @@ export default function Campaigns() {
                           value={aiCampaignPrompt}
                           onChange={(event) => setAiCampaignPrompt(event.target.value)}
                           placeholder="Ex: criar campanha para venda de seguro empresarial para leads quentes, com follow-up depois de alguns dias e tom consultivo"
-                          className="min-h-[96px] rounded-2xl border-info/20 bg-background/70"
+                          className="min-h-[150px] rounded-2xl border-info/20 bg-background/70 text-base"
                         />
                       </div>
                       <div className="space-y-3">
@@ -1290,41 +1342,50 @@ export default function Campaigns() {
                         </Badge>
                       </div>
 
-                      <div className="grid gap-4 md:grid-cols-3">
-                        <button type="button" onClick={() => { setSelectedContactIds(contacts.map(c => String(c.phone || c.id))); notify.success("Todos os leads da base foram selecionados!"); }} className="rounded-2xl border border-success/20 bg-success/5 p-6 text-left transition-colors hover:bg-success/10">
-                          <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-success/10">
-                            <Users className="h-6 w-6 text-success" />
-                          </div>
-                          <p className="mt-5 text-2xl font-semibold">Filtro Atual</p>
-                          <p className="mt-3 text-sm text-muted-foreground">Usar leads do mapa ou CRM</p>
+                      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+                        {[
+                          { key: "all", title: "Todos os contatos", desc: "Toda a base disponivel", count: contactSegments.counts.all },
+                          { key: "normal", title: "Contatos individuais", desc: "Sem grupos, envio normal", count: contactSegments.counts.normal },
+                          { key: "hot", title: "Leads quentes", desc: "Interessados ou em andamento", count: contactSegments.counts.hot },
+                          { key: "warm", title: "Leads mornos", desc: "Nutrir e tirar duvidas", count: contactSegments.counts.warm },
+                          { key: "cold", title: "Leads frios", desc: "Abordagem mais leve", count: contactSegments.counts.cold },
+                          { key: "inactive", title: "Recuperar inativos", desc: "Chamar depois de dias", count: contactSegments.counts.inactive },
+                        ].map((segment) => (
+                          <button key={segment.key} type="button" onClick={() => applyContactSegment(segment.key as keyof typeof contactSegments.counts)} className="rounded-2xl border border-border/70 bg-background/30 p-4 text-left transition hover:border-primary/40 hover:bg-card/70">
+                            <div className="flex items-start justify-between gap-3">
+                              <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-success/10"><Users className="h-5 w-5 text-success" /></span>
+                              <Badge variant="secondary" className="rounded-full">{segment.count}</Badge>
+                            </div>
+                            <p className="mt-4 text-base font-semibold">{segment.title}</p>
+                            <p className="mt-1 text-xs text-muted-foreground">{segment.desc}</p>
+                          </button>
+                        ))}
+                      </div>
+
+                      <div className="grid gap-3 md:grid-cols-2">
+                        <button type="button" onClick={() => fileInputRef.current?.click()} className="rounded-2xl border border-border/70 bg-background/30 p-4 text-left transition-colors hover:bg-card/60">
+                          <div className="flex items-center gap-3"><span className="flex h-10 w-10 items-center justify-center rounded-xl bg-background/60"><ArrowClockwise className="h-5 w-5 text-muted-foreground" /></span><div><p className="font-semibold">Importar Lista</p><p className="text-xs text-muted-foreground">Planilha .csv com telefone e nome</p></div></div>
                         </button>
-                        <button type="button" onClick={() => fileInputRef.current?.click()} className="rounded-2xl border border-border/70 bg-background/30 p-6 text-left transition-colors hover:bg-card/60">
-                          <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-background/60">
-                            <ArrowClockwise className="h-6 w-6 text-muted-foreground" />
-                          </div>
-                          <p className="mt-5 text-2xl font-semibold">Importar Lista</p>
-                          <p className="mt-3 text-sm text-muted-foreground">Planilha .xlsx ou .csv</p>
-                        </button>
-                        <button type="button" onClick={() => setIsTagModalOpen(true)} className="rounded-2xl border border-border/70 bg-background/30 p-6 text-left transition-colors hover:bg-card/60">
-                          <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-background/60">
-                            <Badge variant="secondary" className="h-10 rounded-xl px-3 text-sm">#</Badge>
-                          </div>
-                          <p className="mt-5 text-2xl font-semibold">Por Etiquetas</p>
-                          <p className="mt-3 text-sm text-muted-foreground">Segmentar por tags do CRM</p>
+                        <button type="button" onClick={() => setIsTagModalOpen(true)} className="rounded-2xl border border-border/70 bg-background/30 p-4 text-left transition-colors hover:bg-card/60">
+                          <div className="flex items-center gap-3"><span className="flex h-10 w-10 items-center justify-center rounded-xl bg-background/60"><Badge variant="secondary" className="rounded-lg px-2">#</Badge></span><div><p className="font-semibold">Por Etiquetas</p><p className="text-xs text-muted-foreground">Segmentar por tags do CRM</p></div></div>
                         </button>
                       </div>
 
                       <div className="rounded-2xl border border-border/70 bg-background/30">
-                        <div className="flex items-center justify-between border-b border-border/70 px-4 py-4">
-                          <p className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Lista de Disparo</p>
-                          <Input
-                            value={searchQuery}
-                            onChange={(event) => setSearchQuery(event.target.value)}
-                            placeholder="Buscar na lista..."
-                            className="h-10 w-full max-w-xs rounded-xl"
-                          />
+                        <div className="flex flex-col gap-3 border-b border-border/70 px-4 py-4 xl:flex-row xl:items-center xl:justify-between">
+                          <div><p className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Contatos individuais</p><p className="text-xs text-muted-foreground">Clique em qualquer contato para incluir ou remover.</p></div>
+                          <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                            <Input
+                              value={searchQuery}
+                              onChange={(event) => setSearchQuery(event.target.value)}
+                              placeholder="Buscar nome ou telefone..."
+                              className="h-10 w-full rounded-xl sm:w-72"
+                            />
+                            <Button type="button" variant="outline" className="rounded-xl" onClick={toggleSelectAllVisibleContacts}>Selecionar visiveis</Button>
+                            <Button type="button" variant="ghost" className="rounded-xl" onClick={() => setSelectedContactIds([])}>Limpar</Button>
+                          </div>
                         </div>
-                        <div className="scrollbar-thin max-h-[420px] space-y-2 overflow-y-auto p-4">
+                        <div className="scrollbar-thin grid max-h-[460px] gap-2 overflow-y-auto p-4 md:grid-cols-2 xl:grid-cols-3">
                           {filteredContacts.length === 0 ? (
                             <EmptyState
                               icon={<Users className="h-8 w-8 text-muted-foreground/50" />}
@@ -1348,7 +1409,7 @@ export default function Campaigns() {
                                     }
                                   }}
                                   className={cn(
-                                    "flex w-full cursor-pointer items-start gap-3 rounded-2xl border px-3 py-3 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40",
+                                    "flex min-h-[82px] w-full cursor-pointer items-start gap-3 rounded-2xl border px-3 py-3 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40",
                                     checked
                                       ? "border-primary/40 bg-primary/10"
                                       : "border-border/70 bg-card/60 hover:border-border hover:bg-card/80",
@@ -1594,7 +1655,7 @@ export default function Campaigns() {
                   )}
 
                   {campaignStep === 3 && (
-                    <div className="grid gap-4 lg:grid-cols-3">
+                    <div className="grid items-start gap-4 lg:grid-cols-[minmax(220px,280px)_minmax(0,1fr)] xl:grid-cols-[minmax(220px,280px)_minmax(0,1fr)_minmax(320px,380px)]">
                       <Card className="rounded-2xl border-border/70 bg-background/30">
                         <CardContent className="space-y-4 p-4">
                           <div className="flex items-center justify-between">
@@ -1675,7 +1736,7 @@ export default function Campaigns() {
                           </div>
 
                           <div className="rounded-xl border border-info/20 bg-info/5 p-3 text-muted-foreground text-xs leading-relaxed space-y-1 mt-2">
-                            <p className="font-bold text-info flex items-center gap-1.5">�x� Dica Anti-Ban e Aquecimento</p>
+                            <p className="font-bold text-info flex items-center gap-1.5">Dica Anti-Ban e Aquecimento</p>
                             <p>O aquecimento de número (warmup) envia as primeiras X mensagens com um atraso maior (multiplicado pelo fator escolhido) para simular atividade humana gradual e evitar bloqueios. Definir limites diários/por hora previne picos de envio que violam as políticas do WhatsApp.</p>
                           </div>
                         </CardContent>
@@ -1784,8 +1845,18 @@ export default function Campaigns() {
                           </div>
                           <div className="flex flex-wrap gap-2">
                             <OperationalStatusBadge label={`${selectedContactCount} contatos`} tone={selectedContactCount > 0 ? "online" : "offline"} />
-                            <OperationalStatusBadge label={`${cleanMessages.length} mensagens`} tone={cleanMessages.length > 0 ? "online" : "offline"} />
+                            <OperationalStatusBadge label={`${activeMessageCount} mensagens`} tone={activeMessageCount > 0 ? "online" : "offline"} />
                             <OperationalStatusBadge label={startAt ? "Com agendamento" : "Execução imediata"} tone="syncing" />
+                          </div>
+                          <div className="grid gap-2 border-t border-border/60 pt-4 sm:grid-cols-2">
+                            <Button type="button" variant="outline" className="rounded-xl" onClick={() => void persistCampaign("save")} disabled={isSaving}>
+                              {isSaving && actionType === "save" ? <Clock className="h-4 w-4 animate-spin" /> : <CheckCircle className="h-4 w-4" />}
+                              Salvar rascunho
+                            </Button>
+                            <Button type="button" className="rounded-xl shadow-glow" onClick={() => void persistCampaign("launch")} disabled={isSaving || launchReadiness.length > 0}>
+                              {isSaving && actionType === "launch" ? <Clock className="h-4 w-4 animate-spin" /> : <PaperPlaneTilt className="h-4 w-4" />}
+                              Salvar e enviar agora
+                            </Button>
                           </div>
                         </CardContent>
                       </Card>
@@ -1817,13 +1888,23 @@ export default function Campaigns() {
                     <Button variant="outline" className="rounded-xl" onClick={resetComposer}>
                       Cancelar
                     </Button>
-                    <div className="flex gap-2">
+                    <div className="flex flex-wrap gap-2">
                       <Button variant="outline" className="rounded-xl" disabled={campaignStep === 1} onClick={() => setCampaignStep((current) => Math.max(1, current - 1))}>
                         Voltar
                       </Button>
-                      <Button className="rounded-xl shadow-glow" disabled={campaignStep === STEP_LABELS.length} onClick={goToNextCampaignStep}>
-                        Próximo Passo
-                      </Button>
+                      {campaignStep < STEP_LABELS.length ? (
+                        <Button className="rounded-xl shadow-glow" onClick={goToNextCampaignStep}>
+                          Pr?ximo Passo
+                        </Button>
+                      ) : (
+                        <>
+                          <Button variant="outline" className="rounded-xl" onClick={() => void persistCampaign("save")} disabled={isSaving}>Salvar rascunho</Button>
+                          <Button className="rounded-xl shadow-glow" onClick={() => void persistCampaign("launch")} disabled={isSaving || launchReadiness.length > 0}>
+                            {isSaving && actionType === "launch" ? <Clock className="h-4 w-4 animate-spin" /> : <PaperPlaneTilt className="h-4 w-4" />}
+                            Enviar campanha
+                          </Button>
+                        </>
+                      )}
                     </div>
                   </div>
                 </CardContent>
@@ -1847,7 +1928,7 @@ export default function Campaigns() {
                       </div>
                       <div className="rounded-2xl border border-border/70 bg-background/40 p-4">
                         <p className="text-xs uppercase tracking-wide text-muted-foreground">Variantes</p>
-                        <p className="mt-1 font-display text-2xl font-bold">{cleanMessages.length}</p>
+                        <p className="mt-1 font-display text-2xl font-bold">{activeMessageCount}</p>
                       </div>
                     </div>
                     <div className="rounded-2xl border border-border/70 bg-background/40 p-4">
