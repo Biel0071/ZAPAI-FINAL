@@ -96,23 +96,34 @@ export default function Inbox() {
 
   const filteredConversations = useMemo(() => {
     const normalizedSearch = state.searchQuery.trim().toLowerCase();
-    const archivedSet = new Set(state.archivedChatIds);
-    const pinnedSet = new Set(state.pinnedChatIds);
-
+    const archivedSet = new Set(state.archivedChatIds.map(String));
+    const pinnedSet = new Set(state.pinnedChatIds.map(String));
     const targetSessionId = activeSessionId ? String(activeSessionId).trim().toLowerCase() : "";
+
+    const baseConversations = [...state.conversations];
+    if (
+      state.selectedConversation &&
+      !baseConversations.some((conversation) => String(conversation.id) === String(state.selectedConversation?.id))
+    ) {
+      baseConversations.unshift(state.selectedConversation);
+    }
+
     const selectedSessionHasConversations = Boolean(
       targetSessionId &&
-      state.conversations.some((conversation) => String(conversation.sessionId || "main").trim().toLowerCase() === targetSessionId),
+      baseConversations.some((conversation) => String(conversation.sessionId || "main").trim().toLowerCase() === targetSessionId),
     );
 
-    return state.conversations
-      .filter((conversation) => {
+    const applyVisibleFilters = (respectSession: boolean) =>
+      baseConversations.filter((conversation) => {
+        const conversationId = String(conversation.id);
         const convSessionId = String(conversation.sessionId || "main").trim().toLowerCase();
-        if (selectedSessionHasConversations && convSessionId !== targetSessionId) {
+        const isSelectedConversation = String(state.selectedConversation?.id ?? "") === conversationId;
+
+        if (respectSession && selectedSessionHasConversations && convSessionId !== targetSessionId && !isSelectedConversation) {
           return false;
         }
 
-        const isArchived = archivedSet.has(String(conversation.id));
+        const isArchived = archivedSet.has(conversationId);
         if (state.filter === "archived") return isArchived;
         if (isArchived) return false;
         if (state.filter === "unread" && (conversation.unread ?? 0) <= 0) return false;
@@ -127,8 +138,10 @@ export default function Inbox() {
           conversation.lastMessage.toLowerCase().includes(normalizedSearch) ||
           draftText.toLowerCase().includes(normalizedSearch)
         );
-      })
-      .sort((a, b) => {
+      });
+
+    const sortConversations = (conversations: typeof baseConversations) =>
+      conversations.sort((a, b) => {
         const aPinned = pinnedSet.has(String(a.id));
         const bPinned = pinnedSet.has(String(b.id));
         if (aPinned && !bPinned) return -1;
@@ -140,10 +153,20 @@ export default function Inbox() {
         const bActivityTime = Math.max(normalizeConversationTimestamp(b.updatedAt), bDraftTime);
         return bActivityTime - aActivityTime;
       });
+
+    const sessionScopedConversations = applyVisibleFilters(true);
+    const visibleConversations =
+      sessionScopedConversations.length > 0 || !selectedSessionHasConversations
+        ? sessionScopedConversations
+        : applyVisibleFilters(false);
+
+    return sortConversations(visibleConversations);
   }, [
+    activeSessionId,
     state.archivedChatIds,
     state.pinnedChatIds,
     state.conversations,
+    state.selectedConversation,
     state.conversationControls,
     state.filter,
     state.searchQuery,
