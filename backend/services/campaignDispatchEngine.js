@@ -86,6 +86,28 @@ function createCampaignState(campaign) {
 
 // ─── Dispatch Logic ───
 
+function isCampaignSessionConnected(session) {
+  return Boolean(session?.sock && String(session.status || '').toLowerCase() === 'connected');
+}
+
+function resolveCampaignSession(preferredSessionId) {
+  const preferred = preferredSessionId ? sessionManager.getSession(preferredSessionId) : null;
+  if (isCampaignSessionConnected(preferred)) return preferred;
+
+  const fallbackDefault = sessionManager.getDefaultSession?.();
+  if (isCampaignSessionConnected(fallbackDefault)) return fallbackDefault;
+
+  const connectedInfo = (sessionManager.listSessions?.() || []).find((session) =>
+    String(session?.status || '').toLowerCase() === 'connected',
+  );
+  if (connectedInfo) {
+    const connected = sessionManager.getSession(connectedInfo.sessionId || connectedInfo.id);
+    if (isCampaignSessionConnected(connected)) return connected;
+  }
+
+  return preferred || fallbackDefault || null;
+}
+
 function getRandomDelay(state) {
   const { randomDelayMin, randomDelayMax } = state.settings;
   const base = randomDelayMin + Math.random() * (randomDelayMax - randomDelayMin);
@@ -222,9 +244,7 @@ async function dispatchSingleMessage(state, contact, io) {
 
   try {
     // Simulate typing delay
-    const session = state.sessionId
-      ? sessionManager.getSession(state.sessionId)
-      : sessionManager.getDefaultSession();
+    const session = resolveCampaignSession(state.sessionId);
 
     if (!session?.sock) {
       state.failedQueue.push({ contact, error: 'no_session', at: new Date().toISOString() });
@@ -320,8 +340,9 @@ function emitProgress(state, io) {
     sent: state.metrics.sent,
     failed: state.metrics.failed,
     pending: state.pendingQueue.length,
+    processed: state.metrics.sent + state.metrics.failed,
     progress: state.metrics.total > 0
-      ? Math.round((state.metrics.sent / state.metrics.total) * 100)
+      ? Math.round(((state.metrics.sent + state.metrics.failed) / state.metrics.total) * 100)
       : 0,
     avgDeliveryMs: state.metrics.avgDeliveryMs,
     startedAt: state.metrics.startedAt,
@@ -479,7 +500,7 @@ function getStatus(campaignId) {
     id: state.id,
     name: state.name,
     status: state.status,
-    metrics: { ...state.metrics },
+    metrics: { ...state.metrics, processed: state.metrics.sent + state.metrics.failed },
     pending: state.pendingQueue.length,
     settings: { ...state.settings },
   };

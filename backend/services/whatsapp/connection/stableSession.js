@@ -424,6 +424,19 @@ async function runAIForChat({ chatId, incomingFormattedMessage, session, sock })
     console.error('[WHATSAPP_AI] Failed to fetch authoritative chat AI setting from database:', err.message);
   }
 
+  const runtimeCheck = conversationRuntimeService.refreshExpiredHumanTakeover(store, fresh?.id || incomingFormattedMessage?.conversationId || chat?.conversationId);
+  if (runtimeCheck.runtime?.controlMode === 'human_active' || runtimeCheck.runtime?.controlMode === 'paused_ai') {
+    console.log('[WHATSAPP_AI] Human takeover active for ' + chatId + '. Skipping AI until ' + runtimeCheck.runtime.aiPausedUntil + '.');
+    return null;
+  }
+
+  if (runtimeCheck.expired && fresh?.id && !conversationAIEnabled) {
+    await conversationRepository.updateConversationState(fresh.id, { aiEnabled: true });
+    conversationAIEnabled = true;
+    if (chat) chat.aiEnabled = true;
+    console.log('[WHATSAPP_AI] Human takeover expired for ' + chatId + '. AI re-enabled automatically.');
+  }
+
   if (
     !chat ||
     chat.archived === true ||

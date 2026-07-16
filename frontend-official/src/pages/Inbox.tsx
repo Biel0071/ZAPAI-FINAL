@@ -99,14 +99,17 @@ export default function Inbox() {
     const archivedSet = new Set(state.archivedChatIds);
     const pinnedSet = new Set(state.pinnedChatIds);
 
+    const targetSessionId = activeSessionId ? String(activeSessionId).trim().toLowerCase() : "";
+    const selectedSessionHasConversations = Boolean(
+      targetSessionId &&
+      state.conversations.some((conversation) => String(conversation.sessionId || "main").trim().toLowerCase() === targetSessionId),
+    );
+
     return state.conversations
       .filter((conversation) => {
         const convSessionId = String(conversation.sessionId || "main").trim().toLowerCase();
-        if (activeSessionId) {
-          const targetSessionId = String(activeSessionId).trim().toLowerCase();
-          if (convSessionId !== targetSessionId) {
-            return false;
-          }
+        if (selectedSessionHasConversations && convSessionId !== targetSessionId) {
+          return false;
         }
 
         const isArchived = archivedSet.has(String(conversation.id));

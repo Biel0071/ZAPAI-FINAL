@@ -1,4 +1,4 @@
-const DEFAULT_HUMAN_TIMEOUT_MS = 2 * 60 * 60 * 1000;
+const DEFAULT_HUMAN_TIMEOUT_MS = 24 * 60 * 60 * 1000;
 const DEFAULT_MAX_AI_ITERATIONS = 3;
 const DUPLICATE_WINDOW_MS = 2 * 60 * 1000;
 
@@ -91,6 +91,23 @@ function applyTimeout(runtime) {
     ...runtime,
     aiPausedUntil: null,
     controlMode: 'ai_active',
+  };
+}
+
+function refreshExpiredHumanTakeover(store, conversationId) {
+  const current = getConversationRuntime(store, conversationId);
+  const wasHumanTakeover = current?.controlMode === 'human_active' || current?.controlMode === 'paused_ai';
+  const deadline = Date.parse(current?.aiPausedUntil || '') || 0;
+  const expired = Boolean(wasHumanTakeover && deadline && Date.now() >= deadline);
+  const runtime = applyTimeout(current);
+
+  if (runtime !== current) {
+    setConversationRuntime(store, conversationId, runtime);
+  }
+
+  return {
+    expired,
+    runtime,
   };
 }
 
@@ -228,6 +245,7 @@ module.exports = {
   canSendAIResponse,
   decorateConversation,
   getConversationRuntime,
+  refreshExpiredHumanTakeover,
   registerHumanReply,
   registerIncomingMessage,
   resumeAI,

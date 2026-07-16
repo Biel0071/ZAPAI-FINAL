@@ -20,6 +20,7 @@ const conversationRepository = require('../../../repositories/conversationReposi
 const MessageAuditService = require('../../../services/messageAuditService');
 const webhookService = require('../../../services/webhookService');
 const aiIntelligenceService = require('../../../services/aiIntelligenceService');
+const conversationRuntimeService = require('../../../inbox-core/inbox/services/ConversationRuntimeService');
 const { formatApiMessage, toExactMessageText } = require('../shared');
 const { shouldPersistExternalMessageId } = require('./dedupe');
 const { persistOutgoingMessageRecord } = require('../send/persistOutgoing');
@@ -135,9 +136,22 @@ async function registerOutgoingMessage(store, payload) {
 
   if (result?.message) {
     if (payload.source === 'human' && result?.conversation?.id) {
-      await conversationRepository.updateConversationState(result.conversation.id, {
+      const runtime = conversationRuntimeService.registerHumanReply(store, result.conversation.id);
+      const updatedConversation = await conversationRepository.updateConversationState(result.conversation.id, {
         aiEnabled: false,
       });
+      const payloadUpdate = {
+        ...(updatedConversation || result.conversation),
+        aiEnabled: false,
+        ai_enabled: false,
+        aiPausedUntil: runtime.aiPausedUntil,
+        controlMode: runtime.controlMode,
+        humanActive: true,
+      };
+      const io = store?.io || global.io;
+      io?.emit('conversation:update', payloadUpdate);
+      io?.emit('conversation_updated', payloadUpdate);
+      io?.emit('conversation-update', payloadUpdate);
     }
 
     emitInboxRealtimeEventFromStore(store, formatApiMessage(result.message));

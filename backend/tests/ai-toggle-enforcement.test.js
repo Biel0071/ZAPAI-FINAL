@@ -79,3 +79,20 @@ test('preserves a disabled conversation AI toggle while persisting inbound messa
     );
   }
 });
+
+
+test('uses a 24 hour human takeover pause and releases it after expiry', () => {
+  const runtimeService = require('../inbox-core/inbox/services/ConversationRuntimeService');
+  assert.equal(runtimeService.DEFAULT_HUMAN_TIMEOUT_MS, 24 * 60 * 60 * 1000);
+
+  const store = {};
+  const runtime = runtimeService.registerHumanReply(store, 'conversation-human-timeout-test');
+  assert.equal(runtime.controlMode, 'human_active');
+  assert.ok(Date.parse(runtime.aiPausedUntil) > Date.now());
+
+  store.conversationRuntime['conversation-human-timeout-test'].aiPausedUntil = new Date(Date.now() - 1000).toISOString();
+  const refreshed = runtimeService.refreshExpiredHumanTakeover(store, 'conversation-human-timeout-test');
+  assert.equal(refreshed.expired, true);
+  assert.equal(refreshed.runtime.controlMode, 'ai_active');
+  assert.equal(refreshed.runtime.aiPausedUntil, null);
+});

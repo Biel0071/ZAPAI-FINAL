@@ -1261,7 +1261,7 @@ export default function Campaigns() {
                       </div>
                       <div>
                         <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Campanhas</p>
-                        <h3 className="font-display text-xl font-bold">{lovableCampaignsViewModel.totalCampaigns}</h3>
+                        <h3 className="font-display text-lg font-bold">{lovableCampaignsViewModel.totalCampaigns}</h3>
                         <p className="text-xs text-muted-foreground">{campaignMetrics.active} ativas / {campaignMetrics.drafts} rascunhos</p>
                       </div>
                     </div>
@@ -1277,7 +1277,7 @@ export default function Campaigns() {
                       </div>
                       <div>
                         <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Envios conclu?dos</p>
-                        <h3 className="font-display text-xl font-bold">{campaignMetrics.sent.toLocaleString("pt-BR")}</h3>
+                        <h3 className="font-display text-lg font-bold">{campaignMetrics.sent.toLocaleString("pt-BR")}</h3>
                         <p className="text-xs text-muted-foreground">{campaignMetrics.failed} falha(s)</p>
                       </div>
                     </div>
@@ -1293,7 +1293,7 @@ export default function Campaigns() {
                       </div>
                       <div>
                         <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Base / fila</p>
-                        <h3 className="font-display text-xl font-bold">{contacts.length.toLocaleString("pt-BR")}</h3>
+                        <h3 className="font-display text-lg font-bold">{contacts.length.toLocaleString("pt-BR")}</h3>
                         <p className="text-xs text-muted-foreground">{campaignMetrics.totalQueue.toLocaleString("pt-BR")} em campanhas</p>
                       </div>
                     </div>
@@ -1309,7 +1309,7 @@ export default function Campaigns() {
                       </div>
                       <div>
                         <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Selecionados</p>
-                        <h3 className="font-display text-xl font-bold">{selectedContactCount}</h3>
+                        <h3 className="font-display text-lg font-bold">{selectedContactCount}</h3>
                         <p className="text-xs text-muted-foreground">Etapa {campaignStep}/{STEP_LABELS.length}</p>
                       </div>
                     </div>
@@ -1322,7 +1322,7 @@ export default function Campaigns() {
               <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_380px]">
                 <Card className="glass-card rounded-2xl border-border/70 bg-card/85">
                   <CardContent className="space-y-5 p-5">
-                  <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+                  <div className="flex flex-col gap-2 lg:flex-row lg:items-start lg:justify-between">
                     <div>
                       <h2 className="mt-1 font-display text-2xl font-semibold">Nova Campanha de Alta Conversão</h2>
                     </div>
@@ -1573,7 +1573,7 @@ export default function Campaigns() {
 
                       <div className="grid gap-3 lg:grid-cols-2">
                         <Card className="rounded-2xl border-border/70 bg-background/30">
-                          <CardContent className="space-y-3 p-4">
+                          <CardContent className="space-y-2 p-3">
                             <div className="flex items-center justify-between gap-3">
                               <div><p className="text-sm font-semibold">Usar respostas rapidas salvas</p><p className="text-xs text-muted-foreground">Clique para montar a campanha com modelos ja criados.</p></div>
                               <Badge variant="secondary">{quickReplyMessageTemplates.length}</Badge>
@@ -1589,7 +1589,7 @@ export default function Campaigns() {
                           </CardContent>
                         </Card>
                         <Card className="rounded-2xl border-border/70 bg-background/30">
-                          <CardContent className="space-y-3 p-4">
+                          <CardContent className="space-y-2 p-3">
                             <div className="flex items-center justify-between gap-3">
                               <div><p className="text-sm font-semibold">Usar fluxos salvos</p><p className="text-xs text-muted-foreground">Selecione um fluxo sequencial pronto para disparo.</p></div>
                               <Badge variant="secondary">{quickReplyFlowTemplates.length}</Badge>
@@ -1622,7 +1622,7 @@ export default function Campaigns() {
                           <div className="space-y-3">
                             {messageVariants.map((variant, index) => (
                               <Card key={`variant-${index}`} className="rounded-2xl border-border/70 bg-background/30">
-                                <CardContent className="space-y-3 p-4">
+                                <CardContent className="space-y-2 p-3">
                                   <div className="flex items-center justify-between gap-3">
                                     <div>
                                       <p className="text-sm font-medium">Mensagem {index + 1}</p>
@@ -1666,7 +1666,7 @@ export default function Campaigns() {
                                           </p>
                                         </div>
                                       </div>
-                                      <div className="flex flex-wrap gap-2">
+                                      <div className="flex flex-wrap gap-1.5">
                                         <input
                                           id={`campaign-media-${index}`}
                                           type="file"
@@ -1708,7 +1708,7 @@ export default function Campaigns() {
                             <p className="text-xs text-muted-foreground mb-3">Escolha qual fluxo sequencial de resposta rápida será disparado para cada contato.</p>
                           </div>
                           
-                          <div className="flex flex-wrap gap-2">
+                          <div className="flex flex-wrap gap-1.5">
                             <Button variant="outline" className="rounded-xl" onClick={() => void duplicateSelectedFlowTemplate()} disabled={!selectedFlowId}>
                               <Copy className="h-4 w-4" />
                               Duplicar fluxo como padrao
@@ -1787,7 +1787,7 @@ export default function Campaigns() {
                             <p className="mt-1 text-xs text-muted-foreground">Ate 120s para simular digitacao humana.</p>
                           </div>
                           <div>
-                            <div className="mb-2 flex items-center justify-between text-sm">
+                            <div className="mb-1.5 flex items-center justify-between text-xs">
                               <span>Intervalo entre contatos</span>
                               <span>{intervalSeconds[0]}s</span>
                             </div>
@@ -1860,11 +1860,11 @@ export default function Campaigns() {
                           <div className="grid gap-3 md:grid-cols-2">
                             <div className="rounded-2xl border border-border/70 bg-card/80 p-4">
                               <p className="text-xs uppercase tracking-wide text-muted-foreground">Contatos selecionados</p>
-                              <p className="mt-1 font-display text-xl font-bold">{selectedContactCount}</p>
+                              <p className="mt-1 font-display text-lg font-bold">{selectedContactCount}</p>
                             </div>
                             <div className="rounded-2xl border border-border/70 bg-card/80 p-4">
                               <p className="text-xs uppercase tracking-wide text-muted-foreground">Mensagens ativas</p>
-                              <p className="mt-1 font-display text-xl font-bold">
+                              <p className="mt-1 font-display text-lg font-bold">
                                 {selectedFlowId ? "Fluxo Sequencial" : `${cleanMessages.length} variantes`}
                               </p>
                             </div>
@@ -1944,7 +1944,7 @@ export default function Campaigns() {
                             <p className="text-xs uppercase tracking-wide text-muted-foreground">Resultado esperado</p>
                             <p className="mt-2 text-sm text-foreground">A campanha será persistida com contatos, mensagens, tags, fila e configuração de envio. Em seguida, poderá ser executada no backend oficial.</p>
                           </div>
-                          <div className="flex flex-wrap gap-2">
+                          <div className="flex flex-wrap gap-1.5">
                             <OperationalStatusBadge label={`${selectedContactCount} contatos`} tone={selectedContactCount > 0 ? "online" : "offline"} />
                             <OperationalStatusBadge label={`${activeMessageCount} mensagens`} tone={activeMessageCount > 0 ? "online" : "offline"} />
                             <OperationalStatusBadge label={startAt ? "Com agendamento" : "Execução imediata"} tone="syncing" />
@@ -1989,7 +1989,7 @@ export default function Campaigns() {
                     <Button variant="outline" className="rounded-xl" onClick={resetComposer}>
                       Cancelar
                     </Button>
-                    <div className="flex flex-wrap gap-2">
+                    <div className="flex flex-wrap gap-1.5">
                       <Button variant="outline" className="rounded-xl" disabled={campaignStep === 1} onClick={() => setCampaignStep((current) => Math.max(1, current - 1))}>
                         Voltar
                       </Button>
@@ -2012,27 +2012,27 @@ export default function Campaigns() {
               </Card>
 
               <Card className="glass-card rounded-2xl border-border/70 bg-card/85">
-                <CardContent className="space-y-3 p-4">
+                <CardContent className="space-y-2 p-3">
                   <div>
                     <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground/70">Resumo lateral</p>
                     <h3 className="mt-1 font-display text-lg font-semibold">Operação da campanha</h3>
                   </div>
                   <div className="space-y-3">
-                    <div className="rounded-xl border border-border/70 bg-background/40 p-3">
+                    <div className="rounded-lg border border-border/70 bg-background/35 p-2">
                       <p className="text-xs uppercase tracking-wide text-muted-foreground">Nome atual</p>
                       <p className="mt-1 text-sm font-medium text-foreground">{campaignName || "Aguardando definição"}</p>
                     </div>
                     <div className="grid grid-cols-2 gap-3">
-                      <div className="rounded-xl border border-border/70 bg-background/40 p-3">
+                      <div className="rounded-lg border border-border/70 bg-background/35 p-2">
                         <p className="text-xs uppercase tracking-wide text-muted-foreground">Contatos</p>
-                        <p className="mt-1 font-display text-xl font-bold">{selectedContactCount}</p>
+                        <p className="mt-1 font-display text-lg font-bold">{selectedContactCount}</p>
                       </div>
-                      <div className="rounded-xl border border-border/70 bg-background/40 p-3">
+                      <div className="rounded-lg border border-border/70 bg-background/35 p-2">
                         <p className="text-xs uppercase tracking-wide text-muted-foreground">Variantes</p>
-                        <p className="mt-1 font-display text-xl font-bold">{activeMessageCount}</p>
+                        <p className="mt-1 font-display text-lg font-bold">{activeMessageCount}</p>
                       </div>
                     </div>
-                    <div className="rounded-xl border border-border/70 bg-background/40 p-3">
+                    <div className="rounded-lg border border-border/70 bg-background/35 p-2">
                       <p className="text-xs uppercase tracking-wide text-muted-foreground">Cadência</p>
                       <div className="mt-2 space-y-2 text-sm text-muted-foreground">
                         <p>Typing delay: <span className="font-medium text-foreground">{typingDelay[0].toFixed(1)}s</span></p>
@@ -2040,7 +2040,7 @@ export default function Campaigns() {
                         <p>Pausa: <span className="font-medium text-foreground">{pauseEvery} / {pauseSeconds}s</span></p>
                       </div>
                     </div>
-                    <div className="rounded-xl border border-border/70 bg-background/40 p-3">
+                    <div className="rounded-lg border border-border/70 bg-background/35 p-2">
                       <p className="text-xs uppercase tracking-wide text-muted-foreground">Prévia da audiência</p>
                       <div className="mt-3 space-y-2">
                         {selectedContacts.slice(0, 5).map((contact) => (
@@ -2087,7 +2087,7 @@ export default function Campaigns() {
                 </CardContent>
               </Card>
             ) : (
-              <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
+              <div className="grid grid-cols-1 gap-3 xl:grid-cols-2 2xl:grid-cols-3">
                 {campaigns.map((campaign) => {
                   const liveStatus = dispatchStatuses[campaign.id];
                   const liveMetrics = liveStatus?.metrics ?? {};
@@ -2106,11 +2106,11 @@ export default function Campaigns() {
                   return (
                     <Card key={campaign.id} role="button" tabIndex={0} onClick={() => setSelectedCampaignPreview(campaign)} onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") setSelectedCampaignPreview(campaign); }} className="glass-card cursor-pointer overflow-hidden rounded-2xl border-border/70 bg-card/85 transition hover:-translate-y-0.5 hover:border-primary/40">
                       <div className={cn("h-1", meta.cardLine)} />
-                      <CardContent className="space-y-3 p-4">
-                        <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+                      <CardContent className="space-y-2 p-3">
+                        <div className="flex flex-col gap-2 lg:flex-row lg:items-start lg:justify-between">
                           <div className="min-w-0 flex-1">
                             <div className="flex flex-wrap items-center gap-2">
-                              <h3 className="truncate font-display text-lg font-semibold">{campaign.name}</h3>
+                              <h3 className="truncate font-display text-base font-semibold">{campaign.name}</h3>
                               <OperationalStatusBadge label={meta.label} tone={meta.tone} pulse={meta.tone === "syncing"} />
                             </div>
                             <p className="mt-1 line-clamp-1 text-xs text-muted-foreground">
@@ -2127,29 +2127,29 @@ export default function Campaigns() {
                             </div>
                           </div>
 
-                          <div className="grid grid-cols-2 gap-2 lg:w-[190px]">
-                            <Button variant="outline" className="rounded-xl" onClick={(event) => { event.stopPropagation(); hydrateComposer(campaign, "edit"); }}>
+                          <div className="grid grid-cols-2 gap-1.5 lg:w-[170px]">
+                            <Button variant="outline" className="h-8 rounded-lg px-2 text-xs" onClick={(event) => { event.stopPropagation(); hydrateComposer(campaign, "edit"); }}>
                               <PencilSimple className="h-4 w-4" />
                               Editar
                             </Button>
-                            <Button variant="outline" className="rounded-xl" onClick={(event) => { event.stopPropagation(); hydrateComposer(campaign, "duplicate"); }}>
+                            <Button variant="outline" className="h-8 rounded-lg px-2 text-xs" onClick={(event) => { event.stopPropagation(); hydrateComposer(campaign, "duplicate"); }}>
                               <Copy className="h-4 w-4" />
                               Duplicar
                             </Button>
                             {normalizeCampaignStatus(campaign) === "paused" ? (
-                              <Button className="rounded-xl shadow-glow" onClick={(event) => { event.stopPropagation(); void runCampaignAction(campaign.id, "resume"); }} disabled={busy}>
+                              <Button className="h-8 rounded-lg px-2 text-xs shadow-glow" onClick={(event) => { event.stopPropagation(); void runCampaignAction(campaign.id, "resume"); }} disabled={busy}>
                                 {busy && actionType === "resume" ? <Clock className="h-4 w-4 animate-spin" /> : <Play className="h-4 w-4" />}
                                 Retomar
                               </Button>
                             ) : (
-                              <Button className="rounded-xl shadow-glow" onClick={(event) => { event.stopPropagation(); void runCampaignAction(campaign.id, "start"); }} disabled={busy}>
+                              <Button className="h-8 rounded-lg px-2 text-xs shadow-glow" onClick={(event) => { event.stopPropagation(); void runCampaignAction(campaign.id, "start"); }} disabled={busy}>
                                 {busy && actionType === "start" ? <Clock className="h-4 w-4 animate-spin" /> : <Play className="h-4 w-4" />}
                                 Iniciar
                               </Button>
                             )}
                             <Button
                               variant="outline"
-                              className="rounded-xl border-destructive/30 text-destructive hover:bg-destructive/10"
+                              className="h-8 rounded-lg border-destructive/30 px-2 text-xs text-destructive hover:bg-destructive/10"
                               onClick={(event) => { event.stopPropagation(); void runCampaignAction(campaign.id, "delete"); }}
                               disabled={busy}
                             >
@@ -2159,51 +2159,51 @@ export default function Campaigns() {
                           </div>
                         </div>
 
-                        <div className="grid gap-2 md:grid-cols-4">
-                          <div className="rounded-xl border border-border/70 bg-background/40 p-3">
+                        <div className="grid grid-cols-2 gap-1.5 md:grid-cols-4">
+                          <div className="rounded-lg border border-border/70 bg-background/35 p-2">
                             <p className="text-xs uppercase tracking-wide text-muted-foreground">Contatos</p>
-                            <p className="mt-1 font-display text-xl font-bold">{recipients}</p>
+                            <p className="mt-1 font-display text-lg font-bold">{recipients}</p>
                           </div>
-                          <div className="rounded-xl border border-border/70 bg-background/40 p-3">
+                          <div className="rounded-lg border border-border/70 bg-background/35 p-2">
                             <p className="text-xs uppercase tracking-wide text-muted-foreground">Enviadas</p>
-                            <p className="mt-1 font-display text-xl font-bold">{sent}</p>
+                            <p className="mt-1 font-display text-lg font-bold">{sent}</p>
                           </div>
-                          <div className="rounded-xl border border-border/70 bg-background/40 p-3">
+                          <div className="rounded-lg border border-border/70 bg-background/35 p-2">
                             <p className="text-xs uppercase tracking-wide text-muted-foreground">Falhas</p>
-                            <p className="mt-1 font-display text-xl font-bold">{failed}</p>
+                            <p className="mt-1 font-display text-lg font-bold">{failed}</p>
                           </div>
-                          <div className="rounded-xl border border-border/70 bg-background/40 p-3">
+                          <div className="rounded-lg border border-border/70 bg-background/35 p-2">
                             <p className="text-xs uppercase tracking-wide text-muted-foreground">Agendamento</p>
                             <p className="mt-1 text-sm font-medium text-foreground">{formatDateTime(campaign.settings?.startAt)}</p>
                           </div>
                         </div>
 
-                        <div className="rounded-xl border border-border/70 bg-background/40 p-3">
-                          <div className="mb-2 flex items-center justify-between text-sm">
+                        <div className="rounded-lg border border-border/70 bg-background/35 p-2">
+                          <div className="mb-1.5 flex items-center justify-between text-xs">
                             <span className="text-muted-foreground">Progresso operacional</span>
                             <span className="font-medium text-foreground">{progress}%</span>
                           </div>
                           <div className="h-2 overflow-hidden rounded-full bg-muted/70">
                             <div className="h-full rounded-full bg-primary transition-[width]" style={{ width: `${progress}%` }} />
                           </div>
-                          <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-muted-foreground">
+                          <div className="mt-1.5 flex flex-wrap gap-x-2 gap-y-1 text-[10px] text-muted-foreground">
                             <span>{processed}/{recipients} processados</span>
                             <span>{pending} pendentes</span>
                             <span>tempo {elapsed}</span>
                           </div>
                         </div>
 
-                        <div className="flex flex-wrap gap-2">
-                          <Button variant="outline" className="rounded-xl" onClick={(event) => { event.stopPropagation(); setSelectedCampaignPreview(campaign); }}>
+                        <div className="flex flex-wrap gap-1.5">
+                          <Button variant="outline" className="h-8 rounded-lg px-2 text-xs" onClick={(event) => { event.stopPropagation(); setSelectedCampaignPreview(campaign); }}>
                             <ArrowsOutSimple className="h-4 w-4" />
-                            Abrir maior
+                            Detalhes
                           </Button>
-                          <Button variant="outline" className="rounded-xl" onClick={(event) => { event.stopPropagation(); hydrateComposer(campaign, "edit"); }}>
+                          <Button variant="outline" className="h-8 rounded-lg px-2 text-xs" onClick={(event) => { event.stopPropagation(); hydrateComposer(campaign, "edit"); }}>
                             <ArrowClockwise className="h-4 w-4" />
-                            Editar no editor
+                            Editar
                           </Button>
                           {normalizeCampaignStatus(campaign) !== "paused" && normalizeCampaignStatus(campaign) !== "completed" && (
-                            <Button variant="outline" className="rounded-xl" onClick={(event) => { event.stopPropagation(); void runCampaignAction(campaign.id, "pause"); }} disabled={busy}>
+                            <Button variant="outline" className="h-8 rounded-lg px-2 text-xs" onClick={(event) => { event.stopPropagation(); void runCampaignAction(campaign.id, "pause"); }} disabled={busy}>
                               {busy && actionType === "pause" ? <Clock className="h-4 w-4 animate-spin" /> : <Pause className="h-4 w-4" />}
                               Pausar
                             </Button>
@@ -2224,7 +2224,7 @@ export default function Campaigns() {
       <Dialog open={Boolean(selectedCampaignPreview)} onOpenChange={(open) => !open && setSelectedCampaignPreview(null)}>
         <DialogContent className="max-h-[88vh] max-w-5xl overflow-y-auto rounded-2xl border-border/70 bg-card/95">
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 font-display text-xl font-bold">
+            <DialogTitle className="flex items-center gap-2 font-display text-lg font-bold">
               <ArrowsOutSimple className="h-5 w-5 text-primary" />
               {selectedCampaignPreview?.name || "Campanha"}
             </DialogTitle>
@@ -2232,21 +2232,21 @@ export default function Campaigns() {
           {selectedCampaignPreview && (
             <div className="space-y-5 py-2">
               <div className="grid gap-3 md:grid-cols-4">
-                <div className="rounded-xl border border-border/70 bg-background/40 p-3">
+                <div className="rounded-lg border border-border/70 bg-background/35 p-2">
                   <p className="text-xs uppercase tracking-wide text-muted-foreground">Status</p>
                   <div className="mt-2"><OperationalStatusBadge label={statusMeta(selectedCampaignPreview).label} tone={statusMeta(selectedCampaignPreview).tone} /></div>
                 </div>
-                <div className="rounded-xl border border-border/70 bg-background/40 p-3">
+                <div className="rounded-lg border border-border/70 bg-background/35 p-2">
                   <p className="text-xs uppercase tracking-wide text-muted-foreground">Contatos</p>
-                  <p className="mt-1 font-display text-xl font-bold">{selectedCampaignPreview.queue?.total ?? selectedCampaignPreview.selectedContacts?.length ?? 0}</p>
+                  <p className="mt-1 font-display text-lg font-bold">{selectedCampaignPreview.queue?.total ?? selectedCampaignPreview.selectedContacts?.length ?? 0}</p>
                 </div>
-                <div className="rounded-xl border border-border/70 bg-background/40 p-3">
+                <div className="rounded-lg border border-border/70 bg-background/35 p-2">
                   <p className="text-xs uppercase tracking-wide text-muted-foreground">Enviadas</p>
-                  <p className="mt-1 font-display text-xl font-bold">{selectedCampaignPreview.queue?.sent ?? 0}</p>
+                  <p className="mt-1 font-display text-lg font-bold">{selectedCampaignPreview.queue?.sent ?? 0}</p>
                 </div>
-                <div className="rounded-xl border border-border/70 bg-background/40 p-3">
+                <div className="rounded-lg border border-border/70 bg-background/35 p-2">
                   <p className="text-xs uppercase tracking-wide text-muted-foreground">Falhas</p>
-                  <p className="mt-1 font-display text-xl font-bold">{selectedCampaignPreview.queue?.failed ?? 0}</p>
+                  <p className="mt-1 font-display text-lg font-bold">{selectedCampaignPreview.queue?.failed ?? 0}</p>
                 </div>
               </div>
               <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_320px]">
@@ -2299,7 +2299,7 @@ export default function Campaigns() {
       <Dialog open={isTagModalOpen} onOpenChange={setIsTagModalOpen}>
         <DialogContent className="max-w-md rounded-2xl border-border/70 bg-card/95">
           <DialogHeader>
-            <DialogTitle className="font-display text-xl font-bold">Selecionar por Etiqueta</DialogTitle>
+            <DialogTitle className="font-display text-lg font-bold">Selecionar por Etiqueta</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-3">
             <div className="space-y-2">
