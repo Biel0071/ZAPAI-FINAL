@@ -17,6 +17,7 @@ import {
 
 export type ContactSegment =
   | "all"
+  | "individual"
   | "inbox"
   | "lead"
   | "saved"
@@ -39,6 +40,7 @@ interface ContactSidebarProps {
 export function ContactSidebar({ activeSegment, onSegmentChange, counts }: ContactSidebarProps) {
   const mainItems = [
     { id: "all", label: "Todos", icon: Users },
+    { id: "individual", label: "Individuais", icon: Users },
     { id: "inbox", label: "Inbox", icon: ChatCircleDots },
     { id: "lead", label: "Leads CRM", icon: Star },
     { id: "saved", label: "Salvos", icon: Star },

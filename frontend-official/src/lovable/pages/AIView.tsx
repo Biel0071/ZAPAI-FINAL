@@ -93,6 +93,15 @@ import { useToast } from "@/hooks/use-toast";
 import { AIIcon } from "@/components/ai/AIIcon";
 import { cn } from "@/lib/utils";
 
+
+const RESPONSE_STYLE_WORD_LIMITS: Record<string, number> = {
+  one_sentence: 20,
+  ultra_short: 45,
+  short_natural: 90,
+  elaborate: 220,
+};
+
+const getStyleWordLimit = (style: string) => RESPONSE_STYLE_WORD_LIMITS[style] || RESPONSE_STYLE_WORD_LIMITS.short_natural;
 export type AISectionId =
   | "status"
   | "prompt"
@@ -480,6 +489,16 @@ export function AIView(props: AIViewProps) {
   
   const [evolutionHistory, setEvolutionHistory] = useState<any[]>([]);
   const [isLoadingHistory, setIsLoadingHistory] = useState<boolean>(false);
+  const [evolutionOverview, setEvolutionOverview] = useState({
+    score: 0,
+    level: "Iniciante",
+    goal: { current: 0, target: 20, percentage: 0 },
+    components: { answers: 0, refinements: 0, coverage: 0, queue: 0 },
+  });
+  const [agentMemoryGraph, setAgentMemoryGraph] = useState<{
+    nodes: Array<{ id: string; type: string; label: string; weight: number }>;
+    edges: Array<{ source: string; target: string; relation: string }>;
+  }>({ nodes: [], edges: [] });
 
   useEffect(() => {
     if (agents && agents.length > 0 && !selectedAgentKey) {
@@ -501,6 +520,8 @@ export function AIView(props: AIViewProps) {
       const evolutionRes = await apiService.getAgentEvolution(agentKey);
       if (evolutionRes?.success) {
         setEvolutionHistory(evolutionRes.history || []);
+        if (evolutionRes.evolution) setEvolutionOverview(evolutionRes.evolution);
+        if (evolutionRes.memoryGraph) setAgentMemoryGraph(evolutionRes.memoryGraph);
       }
     } catch (err) {
       console.error("Erro ao carregar dados de evolução:", err);
@@ -618,7 +639,7 @@ export function AIView(props: AIViewProps) {
         throw new Error("Falha ao salvar a resposta.");
       }
       
-      const applyRes = await apiService.applyLearningAnswer(eventId);
+      const applyRes = await apiService.applyLearningAnswer(eventId, answer);
       if (applyRes?.success) {
         toast({
           title: "Sucesso!",
@@ -881,6 +902,7 @@ export function AIView(props: AIViewProps) {
   const [agentFormPrompt, setAgentFormPrompt] = useState("");
   const [agentFormTemp, setAgentFormTemp] = useState(0.7);
   const [agentFormResponseStyle, setAgentFormResponseStyle] = useState("short_natural");
+  const [agentFormMaxWords, setAgentFormMaxWords] = useState(RESPONSE_STYLE_WORD_LIMITS.short_natural);
   const [agentFormResponseDelayMin, setAgentFormResponseDelayMin] = useState(2);
   const [agentFormResponseDelayMax, setAgentFormResponseDelayMax] = useState(8);
   const [agentFormTypingDelayMin, setAgentFormTypingDelayMin] = useState(1);
@@ -928,6 +950,7 @@ export function AIView(props: AIViewProps) {
   // Simulator quick edit states
   const [simTemp, setSimTemp] = useState(0.7);
   const [simStyle, setSimStyle] = useState("short_natural");
+  const [simMaxWords, setSimMaxWords] = useState(RESPONSE_STYLE_WORD_LIMITS.short_natural);
   const [simAgentPrompt, setSimAgentPrompt] = useState("");
   const [savingSimSettings, setSavingSimSettings] = useState(false);
   const [simTab, setSimTab] = useState<"ajuste" | "metricas">("ajuste");
@@ -947,6 +970,7 @@ export function AIView(props: AIViewProps) {
     if (agentObj) {
       setSimTemp(agentObj.temperature ?? 0.7);
       setSimStyle(agentObj.responseStyle || "short_natural");
+      setSimMaxWords(agentObj.maxWords || getStyleWordLimit(agentObj.responseStyle || "short_natural"));
       setSimAgentPrompt(agentObj.personality || agentObj.prompt || "");
     }
   }, [agents, simSelectedAgent]);
@@ -985,6 +1009,7 @@ export function AIView(props: AIViewProps) {
     setAgentFormPrompt("Você é um atendente focado em auxiliar o cliente com simpatia e clareza.");
     setAgentFormTemp(0.7);
     setAgentFormResponseStyle("short_natural");
+    setAgentFormMaxWords(RESPONSE_STYLE_WORD_LIMITS.short_natural);
     setAgentFormResponseDelayMin(2);
     setAgentFormResponseDelayMax(8);
     setAgentFormTypingDelayMin(1);
@@ -1022,6 +1047,7 @@ export function AIView(props: AIViewProps) {
     setAgentFormPrompt(agent.personality || agent.prompt || "");
     setAgentFormTemp(agent.temperature !== undefined ? agent.temperature : 0.7);
     setAgentFormResponseStyle(agent.responseStyle || "short_natural");
+    setAgentFormMaxWords(agent.maxWords || getStyleWordLimit(agent.responseStyle || "short_natural"));
     setAgentFormResponseDelayMin(Math.max(0, Math.round((agent.delayProfile?.minMs ?? 2000) / 1000)));
     setAgentFormResponseDelayMax(Math.max(0, Math.round((agent.delayProfile?.maxMs ?? 8000) / 1000)));
     setAgentFormTypingDelayMin(Math.max(0, Math.round((agent.typingDelayProfile?.minMs ?? 1000) / 1000)));
@@ -1097,6 +1123,7 @@ export function AIView(props: AIViewProps) {
       voiceId: agentFormVoiceId.trim(),
       voiceProvider: agentFormVoiceProvider,
       voiceGender: agentFormVoiceGender,
+      maxWords: agentFormMaxWords,
     };
 
     let success = false;
@@ -1216,6 +1243,7 @@ export function AIView(props: AIViewProps) {
         temperature: simTemp,
         responseStyle: simStyle,
         history: mappedHistory,
+        maxWords: simMaxWords,
       });
 
       // Quick test delay of 600ms to avoid waiting in simulator
@@ -1294,6 +1322,7 @@ export function AIView(props: AIViewProps) {
         temperature: simTemp,
         responseStyle: simStyle,
         personality: simAgentPrompt.trim(),
+        maxWords: simMaxWords,
       };
       
       if (onUpdateAgent) {
@@ -1537,7 +1566,10 @@ export function AIView(props: AIViewProps) {
         <Label htmlFor="agent-response-style" className="text-[11px] font-bold">Nível de Objetividade / Estilo de Resposta</Label>
         <Select
           value={agentFormResponseStyle}
-          onValueChange={setAgentFormResponseStyle}
+          onValueChange={(style) => {
+            setAgentFormResponseStyle(style);
+            setAgentFormMaxWords(getStyleWordLimit(style));
+          }}
         >
           <SelectTrigger id="agent-response-style" className="bg-background h-8 text-xs">
             <SelectValue placeholder="Selecione o estilo de resposta" />
@@ -1550,6 +1582,23 @@ export function AIView(props: AIViewProps) {
           </SelectContent>
         </Select>
         <p className="text-[9px] text-muted-foreground">Define se a IA deve ser direta ao ponto ou fornecer respostas longas e detalhadas.</p>
+      </div>
+
+      <div className="space-y-1.5 pt-2">
+        <div className="flex justify-between items-center">
+          <Label className="text-[11px] font-bold">Limite de Palavras: {agentFormMaxWords || "Automático"}</Label>
+          <span className="text-[9px] text-muted-foreground">
+            {agentFormMaxWords === 0 ? "Default do estilo" : `${agentFormMaxWords} palavras`}
+          </span>
+        </div>
+        <Slider
+          value={[agentFormMaxWords]}
+          onValueChange={(val) => setAgentFormMaxWords(val[0])}
+          min={0}
+          max={250}
+          step={5}
+        />
+        <p className="text-[9px] text-muted-foreground">Ajuste o limite de palavras para a IA respeitar estritamente no estilo selecionado.</p>
       </div>
 
       <div className="space-y-3 rounded-lg border border-border/50 bg-background/20 p-3">
@@ -2581,7 +2630,10 @@ export function AIView(props: AIViewProps) {
                                   <Label htmlFor="sim-style" className="text-[10px] font-bold text-foreground">Estilo de Resposta (Objetividade)</Label>
                                   <Select
                                     value={simStyle}
-                                    onValueChange={setSimStyle}
+                                    onValueChange={(style) => {
+                                      setSimStyle(style);
+                                      setSimMaxWords(getStyleWordLimit(style));
+                                    }}
                                   >
                                     <SelectTrigger id="sim-style" className="bg-background/50 h-7 text-xs">
                                       <SelectValue placeholder="Selecione o estilo" />
@@ -2593,6 +2645,23 @@ export function AIView(props: AIViewProps) {
                                       <SelectItem value="elaborate" className="text-xs">Detalhado & Explicativo</SelectItem>
                                     </SelectContent>
                                   </Select>
+                                </div>
+
+                                <div className="space-y-1">
+                                  <div className="flex justify-between items-center">
+                                    <Label className="text-[10px] font-bold text-foreground">Limite de Palavras: {simMaxWords || "Automático"}</Label>
+                                    <span className="text-[9px] text-muted-foreground">
+                                      {simMaxWords === 0 ? "Default do estilo" : `${simMaxWords} palavras`}
+                                    </span>
+                                  </div>
+                                  <Slider
+                                    value={[simMaxWords]}
+                                    onValueChange={(val) => setSimMaxWords(val[0])}
+                                    min={0}
+                                    max={250}
+                                    step={5}
+                                    className="py-1"
+                                  />
                                 </div>
 
                                 {(() => {
@@ -2812,8 +2881,87 @@ export function AIView(props: AIViewProps) {
                         </div>
                       </div>
 
-                      <div className="grid gap-6 lg:grid-cols-3">
+                      <div className="grid gap-4 lg:grid-cols-[0.9fr_1.6fr]">
+                        <Card className="overflow-hidden rounded-xl border border-primary/25 bg-gradient-to-br from-primary/10 via-card/60 to-card/40">
+                          <CardContent className="p-5 space-y-4">
+                            <div className="flex items-start justify-between gap-4">
+                              <div>
+                                <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-primary">{"N\u00edvel do atendente"}</p>
+                                <p className="mt-1 text-lg font-bold text-foreground">{evolutionOverview.level}</p>
+                              </div>
+                              <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full border-4 border-primary/30 bg-background/60 shadow-glow">
+                                <span className="font-display text-xl font-black text-primary">{evolutionOverview.score}</span>
+                                <span className="text-[9px] text-muted-foreground">/100</span>
+                              </div>
+                            </div>
+                            <div className="space-y-2">
+                              <div className="flex items-center justify-between text-[10px]">
+                                <span className="font-semibold text-foreground">Meta de respostas ensinadas</span>
+                                <span className="font-mono text-primary">{evolutionOverview.goal.current}/{evolutionOverview.goal.target}</span>
+                              </div>
+                              <div className="h-2 overflow-hidden rounded-full bg-muted/60">
+                                <div
+                                  className="h-full rounded-full bg-gradient-to-r from-primary to-emerald-400 transition-all duration-500"
+                                  style={{ width: `${evolutionOverview.goal.percentage}%` }}
+                                />
+                              </div>
+                              <p className="text-[9px] leading-relaxed text-muted-foreground">
+                                Cada resposta aplicada vira conhecimento permanente e aumenta a maturidade do atendente.
+                              </p>
+                            </div>
+                            <div className="grid grid-cols-2 gap-2 text-[9px]">
+                              <div className="rounded-lg border border-border/40 bg-background/35 p-2"><span className="block text-muted-foreground">Respostas</span><strong>+{evolutionOverview.components.answers}</strong></div>
+                              <div className="rounded-lg border border-border/40 bg-background/35 p-2"><span className="block text-muted-foreground">Refinamentos</span><strong>+{evolutionOverview.components.refinements}</strong></div>
+                              <div className="rounded-lg border border-border/40 bg-background/35 p-2"><span className="block text-muted-foreground">Cobertura</span><strong>+{evolutionOverview.components.coverage}</strong></div>
+                              <div className="rounded-lg border border-border/40 bg-background/35 p-2"><span className="block text-muted-foreground">Fila em dia</span><strong>+{evolutionOverview.components.queue}</strong></div>
+                            </div>
+                          </CardContent>
+                        </Card>
+
+                        <Card className="rounded-xl border border-border/60 bg-card/40">
+                          <CardHeader className="p-4 pb-2">
+                            <div className="flex items-center justify-between gap-3">
+                              <div className="flex items-center gap-2">
+                                <BrainCircuit className="h-5 w-5 text-primary" />
+                                <div>
+                                  <CardTitle className="text-xs font-bold uppercase tracking-wider">{"Mem\u00f3ria em grafo"}</CardTitle>
+                                  <CardDescription className="text-[10px]">Conexoes reais entre contatos, conversas, conceitos e respostas.</CardDescription>
+                                </div>
+                              </div>
+                              <Badge variant="outline" className="text-[9px]">{agentMemoryGraph.edges.length} conexoes</Badge>
+                            </div>
+                          </CardHeader>
+                          <CardContent className="p-4 pt-2">
+                            <div className="flex flex-col items-center">
+                              <div className="rounded-xl border border-primary/40 bg-primary/10 px-4 py-2 text-center shadow-glow">
+                                <Bot className="mx-auto mb-1 h-4 w-4 text-primary" />
+                                <span className="text-[10px] font-bold">{selectedAgentKey || "Atendente"}</span>
+                              </div>
+                              <div className="h-4 w-px bg-primary/35" />
+                              <div className="flex w-full flex-wrap justify-center gap-2 border-t border-primary/20 pt-3">
+                                {agentMemoryGraph.nodes.filter((node) => ["field", "concept", "contact"].includes(node.type)).slice(0, 12).map((node) => (
+                                  <div key={node.id} className="rounded-lg border border-border/60 bg-background/50 px-2.5 py-1.5 text-[9px] font-semibold">
+                                    {node.label} <span className="text-primary">{node.weight}</span>
+                                  </div>
+                                ))}
+                                {agentMemoryGraph.nodes.filter((node) => ["field", "concept", "contact"].includes(node.type)).length === 0 && (
+                                  <p className="py-3 text-[10px] text-muted-foreground">As primeiras conversas formarao o grafo automaticamente.</p>
+                                )}
+                              </div>
+                              <div className="mt-3 grid w-full gap-2 sm:grid-cols-2">
+                                {agentMemoryGraph.nodes.filter((node) => ["lesson", "episode"].includes(node.type)).slice(0, 6).map((node) => (
+                                  <div key={node.id} className="truncate rounded-lg border border-emerald-500/15 bg-emerald-500/5 px-2.5 py-2 text-[9px] text-muted-foreground" title={node.label}>
+                                    <CheckCircle className="mr-1 inline h-3 w-3 text-emerald-400" /> {node.label}
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      </div>
+
                         {/* Coluna 1 e 2: Ajuste Inteligente & Perguntas Sem Resposta */}
+                      <div className="grid gap-6 lg:grid-cols-3">
                         <div className="lg:col-span-2 space-y-6">
                           {/* CARD 1: AJUSTE VIA PROMPT */}
                           <Card className="border border-border/60 bg-card/40 shadow-sm rounded-xl">

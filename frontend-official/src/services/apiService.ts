@@ -138,7 +138,16 @@ export interface Contact {
   phone: string;
   status: string;
   updatedAt?: string;
+  remoteJid?: string;
   lid?: string;
+  isGroup?: boolean;
+  conversationId?: string;
+  sessionId?: string;
+  tags?: string[];
+  lead_temperature?: string;
+  funnel_stage?: string;
+  lastMessage?: string;
+  unread?: number;
 }
 
 export interface AnalyticsSummary {
@@ -1368,6 +1377,13 @@ export const apiService = {
     return data;
   },
 
+  deleteContact(id: string) {
+    return request<{ success: boolean }>({
+      endpoint: `/api/contacts/${id}`,
+      method: "DELETE",
+    });
+  },
+
   getAnalytics: (sessionId?: string | null) =>
     request<AnalyticsSummary>({
       endpoint: `/api/analytics${sessionId ? `?sessionId=${encodeURIComponent(sessionId)}` : ""}`,
@@ -1441,7 +1457,7 @@ export const apiService = {
     return request<AIMetricsResponse>({ endpoint: `/ai/metrics${queryParam}`, method: "GET" });
   },
 
-  testAIMessage: (payload: { message: string; prompt?: string; model?: string; providerId?: string; agentKey?: string; agentName?: string; temperature?: number; responseStyle?: string; history?: any[] }) =>
+  testAIMessage: (payload: { message: string; prompt?: string; model?: string; providerId?: string; agentKey?: string; agentName?: string; temperature?: number; responseStyle?: string; history?: any[]; maxWords?: number }) =>
     request<{ success?: boolean; result?: AIConnectionTestResult; error?: string }>({
       endpoint: "/ai/test",
       method: "POST",
@@ -1493,7 +1509,18 @@ export const apiService = {
     }),
 
   getAgentEvolution: (agentKey: string) =>
-    request<{ success: boolean; history: any[]; stats: any }>({
+    request<{
+      success: boolean;
+      history: any[];
+      stats: any;
+      evolution: {
+        score: number;
+        level: string;
+        goal: { current: number; target: number; percentage: number };
+        components: { answers: number; refinements: number; coverage: number; queue: number };
+      };
+      memoryGraph: { nodes: Array<{ id: string; type: string; label: string; weight: number }>; edges: Array<{ source: string; target: string; relation: string }> };
+    }>({
       endpoint: `/ai/agent-evolution/${encodeURIComponent(agentKey)}`,
       method: "GET",
     }),

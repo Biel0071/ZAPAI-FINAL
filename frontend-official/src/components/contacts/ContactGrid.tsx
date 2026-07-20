@@ -1,4 +1,4 @@
-import { Phone, ChatCircleDots, PencilSimple, Tag, DotsThreeVertical, ChatCircle } from "@phosphor-icons/react";
+import { Phone, ChatCircleDots, PencilSimple, Tag, DotsThreeVertical, ChatCircle, Trash, Archive } from "@phosphor-icons/react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -25,6 +25,7 @@ export interface ContactGridItem {
   temperature?: string;
   status?: string;
   avatarUrl?: string;
+  conversationId?: string;
 }
 
 interface ContactGridProps {
@@ -34,9 +35,11 @@ interface ContactGridProps {
   selectedIds?: Set<string>;
   onToggleSelect?: (id: string) => void;
   onUpdateContact?: (id: string, payload: { status?: string; lead_temperature?: string; tags?: string[] }) => void;
+  onDeleteContact?: (id: string) => void;
 }
 
-function getInitials(name: string): string {
+function getInitials(name?: string | null): string {
+  if (!name || typeof name !== "string") return "?";
   return name
     .split(" ")
     .map((entry) => entry[0])
@@ -68,6 +71,7 @@ export function ContactGrid({
   selectedIds,
   onToggleSelect,
   onUpdateContact,
+  onDeleteContact,
 }: ContactGridProps) {
   return (
     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
@@ -165,13 +169,21 @@ export function ContactGrid({
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end" className="w-48 border-border bg-card/95 backdrop-blur-xl">
+                        <DropdownMenuItem
+                          onClick={() => onContactClick(contact)}
+                          className="gap-2"
+                        >
+                          <ChatCircle className="h-4 w-4" />
+                          Abrir Conversa
+                        </DropdownMenuItem>
+
                         {onEditContact && (
                           <DropdownMenuItem
                             onClick={() => onEditContact(contact)}
                             className="gap-2"
                           >
                             <PencilSimple className="h-4 w-4" />
-                            Editar Contato
+                            Editar nome e etiquetas
                           </DropdownMenuItem>
                         )}
                         
@@ -180,16 +192,20 @@ export function ContactGrid({
                             <DropdownMenuSub>
                               <DropdownMenuSubTrigger className="gap-2">
                                 <Tag className="h-4 w-4" />
-                                Mudar Status
+                                Status da conversa
                               </DropdownMenuSubTrigger>
                               <DropdownMenuSubContent className="bg-card/95 border-border">
-                                {["ativo", "recorrente", "em_risco", "bloqueado"].map((status) => (
+                                {[
+                                  { label: "Ativo", value: "open" },
+                                  { label: "Recorrente", value: "recorrente" },
+                                  { label: "Em risco", value: "em_risco" },
+                                  { label: "Arquivado", value: "archived" },
+                                ].map((status) => (
                                   <DropdownMenuItem
-                                    key={status}
-                                    onClick={() => onUpdateContact(contact.id, { status })}
-                                    className="capitalize"
+                                    key={status.value}
+                                    onClick={() => onUpdateContact(contact.id, { status: status.value })}
                                   >
-                                    {status.replace("_", " ")}
+                                    {status.label}
                                   </DropdownMenuItem>
                                 ))}
                               </DropdownMenuSubContent>
@@ -198,7 +214,7 @@ export function ContactGrid({
                             <DropdownMenuSub>
                               <DropdownMenuSubTrigger className="gap-2">
                                 <Tag className="h-4 w-4" />
-                                Mudar Lead Score
+                                Temperatura do lead
                               </DropdownMenuSubTrigger>
                               <DropdownMenuSubContent className="bg-card/95 border-border">
                                 {[
@@ -216,7 +232,29 @@ export function ContactGrid({
                                 ))}
                               </DropdownMenuSubContent>
                             </DropdownMenuSub>
+
+                            <DropdownMenuItem
+                              onClick={() =>
+                                onUpdateContact(contact.id, {
+                                  status: contact.status === "archived" ? "open" : "archived",
+                                })
+                              }
+                              className="gap-2"
+                            >
+                              <Archive className="h-4 w-4" />
+                              {contact.status === "archived" ? "Reativar conversa" : "Arquivar conversa"}
+                            </DropdownMenuItem>
                           </>
+                        )}
+
+                        {onDeleteContact && (
+                          <DropdownMenuItem
+                            onClick={() => onDeleteContact(contact.id)}
+                            className="gap-2 text-destructive focus:text-destructive focus:bg-destructive/10"
+                          >
+                            <Trash className="h-4 w-4" />
+                            Excluir Contato
+                          </DropdownMenuItem>
                         )}
                       </DropdownMenuContent>
                     </DropdownMenu>

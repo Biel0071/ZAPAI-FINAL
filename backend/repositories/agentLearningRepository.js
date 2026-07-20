@@ -175,6 +175,26 @@ async function getEvolutionHistory(agentKey, companyId = 'default', limit = 30) 
   return result.rows;
 }
 
+async function getRecentAppliedEvents(agentKey, companyId = 'default', limit = 12) {
+  const result = await query(
+    `
+      SELECT id, customer_question, human_answer, applied_to_field, resolved_at
+      FROM agent_learning_events
+      WHERE agent_key = $1 AND company_id = $2 AND status = 'applied'
+      ORDER BY resolved_at DESC NULLS LAST, id DESC
+      LIMIT $3
+    `,
+    [agentKey, companyId || 'default', limit]
+  );
+  return result.rows;
+}
+
+
+
+
+
+
+
 module.exports = {
   createLearningEvent,
   getPendingEvents,
@@ -185,4 +205,5 @@ module.exports = {
   getEventStats,
   createEvolutionLog,
   getEvolutionHistory,
+  getRecentAppliedEvents,
 };

@@ -73,6 +73,9 @@ function normalizeAgent(agent = {}) {
     voiceId: String(agent.voiceId || '').trim(),
     voiceProvider: String(agent.voiceProvider || 'default').trim(),
     voiceGender: String(agent.voiceGender || 'female').trim(),
+    maxWords: typeof agent.maxWords === 'number'
+      ? agent.maxWords
+      : (isNaN(Number(agent.maxWords)) ? 0 : Number(agent.maxWords)),
   };
 }
 

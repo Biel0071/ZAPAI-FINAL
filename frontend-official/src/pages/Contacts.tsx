@@ -5,7 +5,7 @@ import ContactsView from "@/lovable/pages/ContactsPageView";
 import { createContactsLovableViewModel } from "@/adapters/lovable/contactsAdapter";
 import { type ContactGridItem } from "@/components/contacts/ContactGrid";
 import { type ContactSegment } from "@/components/contacts/ContactSidebar";
-import { apiService, type Conversation } from "@/services/apiService";
+import { apiService } from "@/services/apiService";
 import { useToast } from "@/hooks/use-toast";
 import {
   Dialog,
@@ -42,6 +42,11 @@ function normalizePhone(phone?: string): string {
   return normalized.replace(/\D/g, "");
 }
 
+
+function isGroupIdentifier(...values: Array<string | undefined>): boolean {
+  return values.some((value) => String(value || "").trim().toLowerCase().endsWith("@g.us"));
+}
+
 function isHotTemperature(value?: string): boolean {
   return ["hot", "quente", "ready_to_buy"].includes(String(value ?? "").toLowerCase());
 }
@@ -52,11 +57,23 @@ function isWarmTemperature(value?: string): boolean {
 
 function isColdTemperature(value?: string): boolean {
   const normalized = String(value ?? "").toLowerCase();
-  return Boolean(normalized) && !isHotTemperature(normalized) && !isWarmTemperature(normalized);
+  return ["cold", "frio"].includes(normalized);
 }
 
 function isLeadContact(contact: ContactRow): boolean {
-  return Boolean(contact.tags.length || contact.temperature || contact.funnelStage);
+  const meaningfulStages = new Set(["interested", "price_sent", "negotiation", "ready_to_buy", "closed"]);
+  const automaticTags = new Set([
+    "information",
+    "cold",
+    "educate",
+    "unknown",
+    "new_lead",
+  ]);
+  const hasMeaningfulTag = contact.tags.some((tag) => !automaticTags.has(String(tag).trim().toLowerCase()));
+  return isHotTemperature(contact.temperature)
+    || isWarmTemperature(contact.temperature)
+    || meaningfulStages.has(String(contact.funnelStage || "").toLowerCase())
+    || hasMeaningfulTag;
 }
 
 function isAtivoStatus(value?: string): boolean {
@@ -75,26 +92,13 @@ function isBloqueadoStatus(value?: string): boolean {
   return ["blocked", "bloqueado", "archived"].includes(String(value ?? "").toLowerCase());
 }
 
-function normalizeConversationToContact(conv: Conversation): ContactRow {
-  return {
-    id: conv.id,
-    name: conv.contactName || conv.phone || "Contato",
-    phone: conv.phone || "",
-    lastMessage: conv.lastMessage || "",
-    updatedAt: conv.updatedAt || "",
-    unread: conv.unread ?? 0,
-    isGroup: conv.isGroup ?? false,
-    tags: conv.tags ?? [],
-    conversationId: conv.id,
-    sessionId: conv.sessionId,
-    status: conv.status,
-  };
-}
 
 function matchesSegment(contact: ContactRow, segment: ContactSegment): boolean {
   switch (segment) {
     case "all":
       return true;
+    case "individual":
+      return !contact.isGroup;
     case "inbox":
       return Boolean(contact.conversationId);
     case "lead":
@@ -104,7 +108,7 @@ function matchesSegment(contact: ContactRow, segment: ContactSegment): boolean {
     case "grupos":
       return contact.isGroup;
     case "archived":
-      return false;
+      return String(contact.status ?? "").toLowerCase() === "archived";
     case "lead_quente":
       return isHotTemperature(contact.temperature);
     case "lead_morno":
@@ -134,6 +138,13 @@ export default function Contacts() {
   const [tagFilter, setTagFilter] = useState("");
   const [activeSegment, setActiveSegment] = useState<ContactSegment>("all");
 
+  const handleSegmentChange = useCallback((segment: ContactSegment) => {
+    setActiveSegment(segment);
+    setSearchQuery("");
+    setTagFilter("");
+  }, []);
+
+
   // Edit contact modal state
   const [editContact, setEditContact] = useState<ContactRow | null>(null);
   const [editName, setEditName] = useState("");
@@ -152,61 +163,29 @@ export default function Contacts() {
   const loadContacts = useCallback(async () => {
     try {
       setError(null);
-      const [contactsResult, conversationsResult] = await Promise.allSettled([
-        apiService.getContacts(true),
-        apiService.getConversations(true, { limit: 1000 }),
-      ]);
-
-      const contactsData = contactsResult.status === "fulfilled" && Array.isArray(contactsResult.value)
-        ? contactsResult.value
-        : [];
-      const conversationsData = conversationsResult.status === "fulfilled" && Array.isArray(conversationsResult.value)
-        ? conversationsResult.value
-        : [];
-
-      if (contactsResult.status === "rejected" && conversationsResult.status === "rejected") {
-        throw contactsResult.reason ?? conversationsResult.reason;
-      }
-
-      const conversationsByPhone = new Map<string, Conversation>();
-      (Array.isArray(conversationsData) ? conversationsData : []).forEach((conversation) => {
-        const key = normalizePhone(conversation.phone) || String(conversation.id || "").trim();
-        if (!key) return;
-        const existing = conversationsByPhone.get(key);
-        if (!existing || new Date(conversation.updatedAt).getTime() > new Date(existing.updatedAt).getTime()) {
-          conversationsByPhone.set(key, conversation);
-        }
-      });
-
-      const normalizedContacts = (Array.isArray(contactsData) ? contactsData : []).map((contact) => {
-        const contactPhone = normalizePhone(contact.phone);
-        const conversation = conversationsByPhone.get(contactPhone || String(contact.id || "").trim());
-        return {
+      const contactsData = await apiService.getContacts(true);
+      const normalizedContacts = (Array.isArray(contactsData) ? contactsData : [])
+        .filter((contact) => Boolean(contact.conversationId))
+        .map((contact) => ({
           id: contact.id,
-          name: contact.name || conversation?.contactName || contact.phone || "Contato",
-          phone: contact.phone || conversation?.phone || "",
-          lastMessage: conversation?.lastMessage || "",
-          updatedAt: conversation?.updatedAt || new Date().toISOString(),
-          unread: conversation?.unread ?? 0,
-          isGroup: conversation?.isGroup ?? false,
-          tags: conversation?.tags ?? [],
-          conversationId: conversation?.id,
-          sessionId: conversation?.sessionId,
-          status: conversation?.status,
-          temperature: (conversation as Conversation & { lead_temperature?: string })?.lead_temperature,
-          funnelStage: (conversation as Conversation & { funnel_stage?: string })?.funnel_stage,
-        } satisfies ContactRow;
-      });
+          name: contact.name || contact.phone || "Contato",
+          phone: contact.phone || "",
+          lastMessage: contact.lastMessage || "",
+          updatedAt: contact.updatedAt || "",
+          unread: contact.unread ?? 0,
+          isGroup: contact.isGroup === true || isGroupIdentifier(contact.remoteJid, contact.phone),
+          tags: contact.tags ?? [],
+          conversationId: contact.conversationId,
+          sessionId: contact.sessionId,
+          status: contact.status,
+          temperature: contact.lead_temperature,
+          funnelStage: contact.funnel_stage,
+        } satisfies ContactRow));
 
-      const orphanConversations = (Array.isArray(conversationsData) ? conversationsData : [])
-        .filter((conversation) => {
-          const conversationPhone = normalizePhone(conversation.phone) || String(conversation.id || "").trim();
-          return !normalizedContacts.some((contact) => (normalizePhone(contact.phone) || String(contact.id || "").trim()) === conversationPhone);
-        })
-        .map(normalizeConversationToContact);
+
 
       const byPhone = new Map<string, ContactRow>();
-      [...normalizedContacts, ...orphanConversations].forEach((contact) => {
+      normalizedContacts.forEach((contact) => {
         const key = normalizePhone(contact.phone) || String(contact.id || "").trim();
         const existing = byPhone.get(key);
         if (!existing || new Date(contact.updatedAt).getTime() > new Date(existing.updatedAt).getTime()) {
@@ -246,11 +225,12 @@ export default function Contacts() {
   const contactCounts = useMemo<Record<string, number>>(
     () => ({
       all: contacts.length,
+      individual: contacts.filter((contact) => !contact.isGroup).length,
       inbox: contacts.filter((contact) => Boolean(contact.conversationId)).length,
       lead: contacts.filter(isLeadContact).length,
       saved: 0,
       grupos: contacts.filter((contact) => contact.isGroup).length,
-      archived: 0,
+      archived: contacts.filter((contact) => String(contact.status ?? "").toLowerCase() === "archived").length,
       lead_quente: contacts.filter((contact) => isHotTemperature(contact.temperature)).length,
       lead_morno: contacts.filter((contact) => isWarmTemperature(contact.temperature)).length,
       lead_frio: contacts.filter((contact) => isColdTemperature(contact.temperature)).length,
@@ -273,6 +253,7 @@ export default function Contacts() {
         tags: contact.tags,
         temperature: contact.temperature,
         status: contact.status,
+        conversationId: contact.conversationId,
       })),
     [filteredContacts],
   );
@@ -395,6 +376,18 @@ export default function Contacts() {
     }
   };
 
+  const handleDeleteContact = async (id: string) => {
+    if (!window.confirm("Tem certeza de que deseja excluir este contato?")) return;
+    try {
+      await apiService.deleteContact(id);
+      setContacts((prev) => prev.filter((c) => c.id !== id));
+      toast({ title: "Contato excluído com sucesso." });
+    } catch (err) {
+      console.error("Erro ao excluir contato:", err);
+      toast({ title: "Erro ao excluir contato.", variant: "destructive" });
+    }
+  };
+
   const goToChat = useCallback(
     (contact: ContactRow | ContactGridItem) => {
       const normalizedPhone = normalizePhone(contact.phone);
@@ -482,7 +475,7 @@ export default function Contacts() {
         viewModel={contactsViewModel}
         onSearchChange={setSearchQuery}
         onTagFilterChange={setTagFilter}
-        onSegmentChange={setActiveSegment}
+        onSegmentChange={handleSegmentChange}
         onRefresh={() => void loadContacts()}
         onGoToChat={(item) => {
           const source = filteredContacts.find((contact) => contact.id === item.id);
@@ -496,6 +489,7 @@ export default function Contacts() {
         viewMode={viewMode}
         onViewModeChange={setViewMode}
         onUpdateContact={handleUpdateContact}
+        onDeleteContact={handleDeleteContact}
       />
 
       {/* Edit Contact Dialog */}

@@ -31,9 +31,16 @@ async function listContacts(req, res) {
     if (hasDatabaseEnabled(req)) {
       try {
         const companyId = req.query?.companyId || req.auth?.tenantId || process.env.DEFAULT_COMPANY_ID || 'default';
-        const limit = Math.min(Number(req.query?.limit) || 500, 2000);
-        const conversations = await conversationRepository.listConversations(companyId, limit);
+        const requestedLimit = Number(req.query?.limit) || 5000;
+        const limit = Math.min(Math.max(requestedLimit, 1), 10000);
+        const conversations = await conversationRepository.listConversations(companyId, limit, {
+          requireMessages: true,
+          useCache: false,
+        });
+        // Contacts are a projection of real system conversations. Imported or
+        // orphan leads stay out of this screen until a conversation exists.
         contacts = contactsService.listContactsFromConversations(conversations);
+
 
         // Apply optional filters from query params
         const { region, state, ddd, search } = req.query;
@@ -208,9 +215,10 @@ async function deleteContact(req, res) {
 
     if (hasDatabaseEnabled(req)) {
       try {
+        const companyId = req.query?.companyId || req.auth?.tenantId || process.env.DEFAULT_COMPANY_ID || 'default';
         const result = await query(
-          `DELETE FROM leads WHERE id = $1 RETURNING id`,
-          [id]
+          `DELETE FROM leads WHERE id = $1 AND company_id = $2 RETURNING id`,
+          [id, companyId]
         );
 
         if (result.rows.length === 0) {

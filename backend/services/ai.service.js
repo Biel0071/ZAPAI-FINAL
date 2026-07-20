@@ -189,22 +189,53 @@ function adjustPromptIdentity(basePrompt, agent) {
   return prompt;
 }
 
+const RESPONSE_STYLE_DEFAULT_WORDS = Object.freeze({
+  one_sentence: 20,
+  ultra_short: 45,
+  short_natural: 90,
+  elaborate: 220,
+});
+
+function resolveResponseWordLimit(agent = {}) {
+  const style = String(agent.responseStyle || 'short_natural');
+  const customLimit = Number(agent.maxWords);
+  const limit = customLimit > 0
+    ? customLimit
+    : (RESPONSE_STYLE_DEFAULT_WORDS[style] || RESPONSE_STYLE_DEFAULT_WORDS.short_natural);
+  return Math.min(Math.max(Math.round(limit), 5), 500);
+}
+
+function enforceResponseWordLimit(text, agent = {}) {
+  const normalized = String(text || '').trim();
+  const words = normalized.split(/\s+/).filter(Boolean);
+  const limit = resolveResponseWordLimit(agent);
+  if (words.length <= limit) return normalized;
+  return `${words.slice(0, limit).join(' ').replace(/[,:;\-]+$/, '')}...`;
+}
+
+
+
 function compileSystemPrompt(agent, store, contact = null) {
   const agentName = agent?.name || 'Camila';
   const sector = agent?.sector || 'Geral';
   const objective = agent?.objective || 'Atendimento comercial';
   const personality = agent?.personality || agent?.prompt || '';
   const responseStyle = agent?.responseStyle || 'short_natural';
+  const maxWords = resolveResponseWordLimit(agent);
 
   let styleInstruction = '';
   if (responseStyle === 'ultra_short') {
-    styleInstruction = `- Diretriz de Tamanho: Seja extremamente objetivo, curto e direto ao ponto. Responda em no máximo 1 ou 2 parágrafos curtos. Não faça rodeios, evite explicações longas e desnecessárias. Responda apenas ao que foi perguntado de forma concisa.\n`;
+    const limit = maxWords;
+    styleInstruction = `- Diretriz de Tamanho: Seja extremamente objetivo, curto e direto ao ponto. Responda em no máximo 1 ou 2 parágrafos curtos, com um limite máximo estrito de ${limit} palavras. Não faça rodeios e evite explicações longas.\n`;
   } else if (responseStyle === 'one_sentence') {
-    styleInstruction = `- Diretriz de Tamanho: Seja ultracurto. Responda com no máximo uma ou duas frases curtas. Não faça saudações repetidas e vá direto ao ponto sem qualquer rodeio.\n`;
+    const limit = maxWords;
+    styleInstruction = `- Diretriz de Tamanho: Seja ultracurto. Responda com no máximo uma ou duas frases curtas, com um limite máximo estrito de ${limit} palavras. Não faça saudações repetidas e vá direto ao ponto.\n`;
   } else if (responseStyle === 'elaborate') {
-    styleInstruction = `- Diretriz de Tamanho: Responda de forma detalhada, completa e explicativa. Traga o máximo de contexto e detalhes necessários para esclarecer completamente o cliente.\n`;
+    const limit = maxWords;
+    styleInstruction = `- Diretriz de Tamanho: Responda de forma detalhada, completa e explicativa. Traga o máximo de contexto e detalhes necessários, com um limite sugerido de até ${limit} palavras para esclarecer completamente o cliente.\n`;
   } else {
-    styleInstruction = `- Diretriz de Tamanho: Responda de forma equilibrada, mantendo uma conversa natural, amigável e direta ao ponto.\n`;
+    const limit = maxWords;
+    styleInstruction = `- Diretriz de Tamanho: Responda de forma equilibrada, mantendo uma conversa natural, amigável e direta ao ponto, com um limite máximo estrito de ${limit} palavras.\n`;
   }
 
   // 1. IDENTIDADE DO ATENDENTE
@@ -491,7 +522,7 @@ async function getAIIntegrationStatus(store, companyId = 'default') {
   };
 }
 
-async function testAIConnection({ store, providerId, model, message, prompt, agentKey, agentName, companyId, temperature, responseStyle, history }) {
+async function testAIConnection({ store, providerId, model, message, prompt, agentKey, agentName, companyId, temperature, responseStyle, history, maxWords }) {
   const resolvedCompanyId = companyId || store?.activeCompanyId || 'default';
   
   // Try to resolve user-scoped key first
@@ -574,6 +605,9 @@ async function testAIConnection({ store, providerId, model, message, prompt, age
   if (prompt !== undefined) {
     finalAgent.personality = prompt;
   }
+  if (maxWords !== undefined) {
+    finalAgent.maxWords = Number(maxWords);
+  }
 
   const fullPrompt = compileSystemPrompt(finalAgent, store);
   const memoriesUsed = matchedAgent?.memory || 'Padrão global (último pedido, preferências)';
@@ -624,7 +658,7 @@ async function testAIConnection({ store, providerId, model, message, prompt, age
         console.error('[AI SERVICE testAIConnection] Failed to parse analysis block:', err.message);
       }
     }
-    result.response = replyClean;
+    result.response = enforceResponseWordLimit(replyClean, finalAgent);
     result.analysis = analysisResult;
   }
 
@@ -717,7 +751,22 @@ async function processAI({ contact, history, message, store, agentName, companyI
     };
   }
 
-  const systemPrompt = compileSystemPrompt(resolvedAgent, store, contact);
+  const agentMemoryGraphService = require('./agentMemoryGraphService');
+  const resolvedAgentKey = resolvedAgent?.key || resolvedAgent?.name || agentName || 'agent';
+  let graphMemory = { prompt: '', memories: [] };
+  try {
+    graphMemory = await agentMemoryGraphService.recallRelevantMemory({
+      agentKey: resolvedAgentKey,
+      agentName: resolvedAgent?.name || agentName,
+      companyId: resolvedCompanyId,
+      contact,
+      message,
+    });
+  } catch (memoryError) {
+    console.warn('[AI MEMORY GRAPH] Recall unavailable:', memoryError.message);
+  }
+
+  const systemPrompt = `${compileSystemPrompt(resolvedAgent, store, contact)}${graphMemory.prompt}`;
   console.log('[AI SERVICE] System Prompt Compiled:\n' + systemPrompt);
   const slicedHistory = Array.isArray(history) ? history.slice(-8) : [];
 
@@ -880,6 +929,8 @@ async function processAI({ contact, history, message, store, agentName, companyI
     }
 
     // Save log entry asynchronously
+    replyClean = enforceResponseWordLimit(replyClean, resolvedAgent);
+
     await aiLogService.saveLogEntry(
       {
         conversationId: contact.conversationId || contact.phone,
@@ -896,6 +947,18 @@ async function processAI({ contact, history, message, store, agentName, companyI
       store
     );
 
+    try {
+      await agentMemoryGraphService.learnFromInteraction({
+        agentKey: resolvedAgentKey,
+        companyId: resolvedCompanyId,
+        contact,
+        message,
+        reply: replyClean,
+      });
+    } catch (memoryError) {
+      console.warn('[AI MEMORY GRAPH] Learning unavailable:', memoryError.message);
+    }
+
     const finalResult = {
       intent: 'information',
       leadScore: 0.5,
@@ -909,6 +972,7 @@ async function processAI({ contact, history, message, store, agentName, companyI
       completionTokens,
       totalTokens,
       agentName: resolvedAgent?.name || agentName || 'Camila',
+      memoriesUsed: graphMemory.memories,
     };
 
     responseCache.set(cacheKey, {

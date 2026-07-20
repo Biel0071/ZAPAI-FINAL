@@ -5,6 +5,7 @@ export type ContactsSummaryCard = {
   label: string;
   value: string;
   tone: "primary" | "default" | "success";
+  segment: ContactSegment;
 };
 
 export type ContactListItem = ContactGridItem & {
@@ -37,9 +38,9 @@ export function createContactsLovableViewModel(params: {
     individualCount,
     contacts: filteredContacts,
     summaryCards: [
-      { label: "Base total", value: totalContacts.toLocaleString("pt-BR"), tone: "primary" },
-      { label: "Contatos individuais", value: individualCount.toLocaleString("pt-BR"), tone: "default" },
-      { label: "Grupos", value: groupCount.toLocaleString("pt-BR"), tone: "success" },
+      { label: "Base total", value: totalContacts.toLocaleString("pt-BR"), tone: "primary", segment: "all" },
+      { label: "Contatos individuais", value: individualCount.toLocaleString("pt-BR"), tone: "default", segment: "individual" },
+      { label: "Grupos", value: groupCount.toLocaleString("pt-BR"), tone: "success", segment: "grupos" },
     ],
   };
 }

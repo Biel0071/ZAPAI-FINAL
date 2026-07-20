@@ -504,7 +504,8 @@ async function updateConversationAfterMessage(conversationId, content, type = 't
 
 async function listConversations(companyId, limit = 50, options = {}) {
   const requestedSessionId = options?.sessionId ? String(options.sessionId).trim() : '';
-  const cacheKey = getCacheKey(companyId, limit, requestedSessionId || null);
+  const requireMessages = options?.requireMessages === true;
+  const cacheKey = `${getCacheKey(companyId, limit, requestedSessionId || null)}:${requireMessages ? 'with-messages' : 'all'}`;
 
   if (options.useCache !== false) {
     const cached = readCache(cacheKey);
@@ -521,6 +522,10 @@ async function listConversations(companyId, limit = 50, options = {}) {
     whereClause += ` AND conv.session_id = $${values.length}`;
   }
 
+
+  if (requireMessages) {
+    whereClause += ' AND EXISTS (SELECT 1 FROM messages msg WHERE msg.conversation_id = conv.id)';
+  }
   values.push(limit);
 
   const result = await query(
@@ -532,6 +537,7 @@ async function listConversations(companyId, limit = 50, options = {}) {
           conv.company_id,
           conv.lead_id,
           conv.session_id,
+          conv.remote_jid,
           conv.status,
           conv.lead_temperature,
           conv.funnel_stage,

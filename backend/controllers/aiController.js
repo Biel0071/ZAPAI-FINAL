@@ -178,6 +178,7 @@ async function testReply(req, res) {
       temperature: req.body?.temperature,
       responseStyle: req.body?.responseStyle,
       history: req.body?.history,
+      maxWords: req.body?.maxWords,
     });
 
     return res.status(200).json({
@@ -992,11 +993,98 @@ async function getAgentEvolution(req, res) {
     const { key } = req.params;
     const companyId = req.headers['x-company-id'] || req.headers['x-tenant-id'] || req.auth?.tenantId || 'default';
     const agentLearningRepo = require('../repositories/agentLearningRepository');
+    const agentMemoryGraphService = require('../services/agentMemoryGraphService');
     
-    const history = await agentLearningRepo.getEvolutionHistory(key, companyId, 30);
-    const stats = await agentLearningRepo.getEventStats(key, companyId);
-    
-    res.json({ success: true, history, stats });
+    const [history, stats, appliedEvents, graphSnapshot] = await Promise.all([
+      agentLearningRepo.getEvolutionHistory(key, companyId, 30),
+      agentLearningRepo.getEventStats(key, companyId),
+      agentLearningRepo.getRecentAppliedEvents(key, companyId, 12),
+      agentMemoryGraphService.getGraphSnapshot(key, companyId).catch(() => ({
+        nodes: [],
+        edges: [],
+        stats: { episodes: 0, concepts: 0, contacts: 0 },
+      })),
+    ]);
+
+    const fieldCounts = new Map();
+    for (const log of history) {
+      let fields = log.fields_changed || {};
+      if (typeof fields === 'string') {
+        try { fields = JSON.parse(fields); } catch { fields = {}; }
+      }
+      for (const field of Object.keys(fields || {})) {
+        fieldCounts.set(field, (fieldCounts.get(field) || 0) + 1);
+      }
+    }
+    for (const event of appliedEvents) {
+      const field = event.applied_to_field || 'memory';
+      fieldCounts.set(field, (fieldCounts.get(field) || 0) + 1);
+    }
+
+    const appliedCount = Number(stats.applied || 0);
+    const pendingCount = Number(stats.pending || 0);
+    const answeredInteractions = Number(graphSnapshot.stats?.episodes || 0);
+    const learnedConcepts = Number(graphSnapshot.stats?.concepts || 0);
+    const answerGoal = 100;
+    const answerPoints = Math.round(Math.min(answeredInteractions / answerGoal, 1) * 55);
+    const refinementPoints = Math.round(Math.min((history.length + appliedCount) / 20, 1) * 25);
+    const coveragePoints = Math.round(Math.min((fieldCounts.size + learnedConcepts) / 25, 1) * 15);
+    const hasLearningActivity = answeredInteractions > 0 || appliedCount > 0 || history.length > 0;
+    const queuePoints = hasLearningActivity ? (pendingCount === 0 ? 5 : Math.max(0, 5 - pendingCount)) : 0;
+    const score = Math.min(100, answerPoints + refinementPoints + coveragePoints + queuePoints);
+    const level = score >= 85 ? 'Especialista'
+      : score >= 65 ? 'Avan\u00e7ado'
+        : score >= 40 ? 'Em evolu\u00e7\u00e3o'
+          : score >= 15 ? 'Aprendiz' : 'Iniciante';
+
+    const rootId = `agent:${key}`;
+    const nodes = [{ id: rootId, type: 'agent', label: key, weight: Math.max(1, history.length) }];
+    const edges = [];
+    const fieldNames = [...fieldCounts.keys()].slice(0, 8);
+    for (const field of fieldNames) {
+      const fieldId = `field:${field}`;
+      nodes.push({ id: fieldId, type: 'field', label: field, weight: fieldCounts.get(field) });
+      edges.push({ source: rootId, target: fieldId, relation: 'aprendeu' });
+    }
+    for (const event of appliedEvents.slice(0, 8)) {
+      const field = event.applied_to_field || 'memory';
+      const fieldId = `field:${field}`;
+      if (!nodes.some((node) => node.id === fieldId)) {
+        nodes.push({ id: fieldId, type: 'field', label: field, weight: 1 });
+        edges.push({ source: rootId, target: fieldId, relation: 'aprendeu' });
+      }
+      const lessonId = `lesson:${event.id}`;
+      const lessonLabel = String(event.customer_question || 'Resposta ensinada').slice(0, 72);
+      nodes.push({ id: lessonId, type: 'lesson', label: lessonLabel, weight: 1 });
+      edges.push({ source: fieldId, target: lessonId, relation: 'responde' });
+
+    if (graphSnapshot.nodes.length > 0) {
+      nodes.splice(1);
+      edges.splice(0);
+      nodes.push(...graphSnapshot.nodes);
+      edges.push(...graphSnapshot.edges);
+      for (const node of graphSnapshot.nodes.filter((item) => ['contact', 'concept'].includes(item.type)).slice(0, 12)) {
+        edges.push({ source: rootId, target: node.id, relation: node.type === 'contact' ? 'atendeu' : 'aprendeu' });
+      }
+    }
+    }
+
+    res.json({
+      success: true,
+      history,
+      stats,
+      evolution: {
+        score,
+        level,
+        goal: {
+          current: answeredInteractions,
+          target: answerGoal,
+          percentage: Math.min(100, Math.round((answeredInteractions / answerGoal) * 100)),
+        },
+        components: { answers: answerPoints, refinements: refinementPoints, coverage: coveragePoints, queue: queuePoints },
+      },
+      memoryGraph: { nodes, edges },
+    });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

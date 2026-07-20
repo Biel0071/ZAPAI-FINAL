@@ -1,5 +1,6 @@
 import { useMemo } from "react";
-import { AddressBook, ChatCircleDots, Phone, SquaresFour, List, DotsThreeVertical, Tag, ChatCircle, PencilSimple, Kanban } from "@phosphor-icons/react";
+import { cn } from "@/lib/utils";
+import { AddressBook, ChatCircleDots, Phone, SquaresFour, List, DotsThreeVertical, Tag, ChatCircle, PencilSimple, Kanban, Archive } from "@phosphor-icons/react";
 import { ContactGrid, type ContactGridItem } from "@/components/contacts/ContactGrid";
 import { ContactSidebar, type ContactSegment } from "@/components/contacts/ContactSidebar";
 import { ChatSearchBar } from "@/components/inbox/ChatSearchBar";
@@ -46,6 +47,7 @@ export interface ContactsViewProps {
   viewMode: "grid" | "list" | "kanban";
   onViewModeChange: (mode: "grid" | "list" | "kanban") => void;
   onUpdateContact?: (id: string, payload: { status?: string; lead_temperature?: string; tags?: string[]; funnel_stage?: string }) => void;
+  onDeleteContact?: (id: string) => void;
 }
 
 export function ContactsView({
@@ -69,6 +71,7 @@ export function ContactsView({
   viewMode,
   onViewModeChange,
   onUpdateContact,
+  onDeleteContact,
 }: ContactsViewProps) {
   const allFilteredSelected = viewModel.contacts.length > 0 && viewModel.contacts.every(c => selectedIds.has(c.id));
 
@@ -104,14 +107,25 @@ export function ContactsView({
         <StatGridSkeleton count={3} />
       ) : (
         <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-          {viewModel.summaryCards.map((card) => (
-            <Card key={card.label} className="metric-card rounded-2xl border-border/70 bg-card/85">
-              <CardContent className="space-y-2 p-4">
-                <p className="text-[11px] uppercase tracking-wide text-muted-foreground">{card.label}</p>
-                <p className="font-display text-2xl font-bold">{card.value}</p>
-              </CardContent>
-            </Card>
-          ))}
+          {viewModel.summaryCards.map((card) => {
+            const cardSegment = card.segment;
+            const isActive = activeSegment === cardSegment;
+            return (
+              <Card
+                key={card.label}
+                className={cn(
+                  "metric-card rounded-2xl border-border/70 bg-card/85 cursor-pointer transition-all hover:scale-[1.02] hover:bg-card/95 select-none",
+                  isActive && "border-primary/50 bg-primary/5 shadow-glow"
+                )}
+                onClick={() => onSegmentChange(cardSegment)}
+              >
+                <CardContent className="space-y-2 p-4">
+                  <p className="text-[11px] uppercase tracking-wide text-muted-foreground">{card.label}</p>
+                  <p className="font-display text-2xl font-bold">{card.value}</p>
+                </CardContent>
+              </Card>
+            );
+          })}
         </div>
       )}
 
@@ -169,9 +183,53 @@ export function ContactsView({
           ) : null}
 
           <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-            <Card className="glass-card rounded-2xl border-border/70 bg-card/85"><CardContent className="flex items-center gap-3 p-4"><AddressBook className="h-5 w-5 text-primary" weight="duotone" /><div><p className="text-xs uppercase tracking-wide text-muted-foreground">Total filtrado</p><p className="font-display text-2xl font-bold">{viewModel.totalFiltered}</p></div></CardContent></Card>
-            <Card className="glass-card rounded-2xl border-border/70 bg-card/85"><CardContent className="flex items-center gap-3 p-4"><Phone className="h-5 w-5 text-info" weight="duotone" /><div><p className="text-xs uppercase tracking-wide text-muted-foreground">Individuais</p><p className="font-display text-2xl font-bold">{viewModel.individualCount}</p></div></CardContent></Card>
-            <Card className="glass-card rounded-2xl border-border/70 bg-card/85"><CardContent className="flex items-center gap-3 p-4"><ChatCircleDots className="h-5 w-5 text-success" weight="duotone" /><div><p className="text-xs uppercase tracking-wide text-muted-foreground">Grupos</p><p className="font-display text-2xl font-bold">{viewModel.groupCount}</p></div></CardContent></Card>
+            <Card
+              className={cn(
+                "glass-card rounded-2xl border-border/70 bg-card/85 cursor-pointer transition-all hover:scale-[1.02] hover:bg-card/95 select-none",
+                activeSegment === "all" && "border-primary/50 bg-primary/5 shadow-glow"
+              )}
+              onClick={() => onSegmentChange("all")}
+            >
+              <CardContent className="flex items-center gap-3 p-4">
+                <AddressBook className="h-5 w-5 text-primary" weight="duotone" />
+                <div>
+                  <p className="text-xs uppercase tracking-wide text-muted-foreground">Total filtrado</p>
+                  <p className="font-display text-2xl font-bold">{viewModel.totalFiltered}</p>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card
+              className={cn(
+                "glass-card rounded-2xl border-border/70 bg-card/85 cursor-pointer transition-all hover:scale-[1.02] hover:bg-card/95 select-none",
+                activeSegment === "individual" && "border-info/50 bg-info/5 shadow-glow"
+              )}
+              onClick={() => onSegmentChange("individual")}
+            >
+              <CardContent className="flex items-center gap-3 p-4">
+                <Phone className="h-5 w-5 text-info" weight="duotone" />
+                <div>
+                  <p className="text-xs uppercase tracking-wide text-muted-foreground">Individuais</p>
+                  <p className="font-display text-2xl font-bold">{viewModel.individualCount}</p>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card
+              className={cn(
+                "glass-card rounded-2xl border-border/70 bg-card/85 cursor-pointer transition-all hover:scale-[1.02] hover:bg-card/95 select-none",
+                activeSegment === "grupos" && "border-success/50 bg-success/5 shadow-glow"
+              )}
+              onClick={() => onSegmentChange("grupos")}
+            >
+              <CardContent className="flex items-center gap-3 p-4">
+                <ChatCircleDots className="h-5 w-5 text-success" weight="duotone" />
+                <div>
+                  <p className="text-xs uppercase tracking-wide text-muted-foreground">Grupos</p>
+                  <p className="font-display text-2xl font-bold">{viewModel.groupCount}</p>
+                </div>
+              </CardContent>
+            </Card>
           </div>
 
           {selectedIds.size > 0 && (
@@ -198,13 +256,18 @@ export function ContactsView({
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end" className="w-48 border-border bg-card/95 backdrop-blur-xl">
-                      {["ativo", "recorrente", "em_risco", "bloqueado"].map((status) => (
+                      {[
+                        { label: "Ativo", value: "open" },
+                        { label: "Recorrente", value: "recorrente" },
+                        { label: "Em risco", value: "em_risco" },
+                        { label: "Arquivado", value: "archived" },
+                      ].map((status) => (
                         <DropdownMenuItem
-                          key={status}
-                          onClick={() => onBulkUpdate({ status })}
-                          className="capitalize text-xs"
+                          key={status.value}
+                          onClick={() => onBulkUpdate({ status: status.value })}
+                          className="text-xs"
                         >
-                          {status.replace("_", " ")}
+                          {status.label}
                         </DropdownMenuItem>
                       ))}
                     </DropdownMenuContent>
@@ -213,7 +276,7 @@ export function ContactsView({
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                       <Button size="sm" variant="outline" className="rounded-xl text-xs gap-1.5 h-9">
-                        Mudar Lead Score ({selectedIds.size})
+                        Temperatura do lead ({selectedIds.size})
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end" className="w-48 border-border bg-card/95 backdrop-blur-xl">
@@ -308,6 +371,7 @@ export function ContactsView({
                   selectedIds={selectedIds}
                   onToggleSelect={onToggleSelect}
                   onUpdateContact={onUpdateContact}
+                  onDeleteContact={onDeleteContact}
                 />
               ) : viewMode === "kanban" ? (
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-4 overflow-x-auto pb-4">
@@ -497,7 +561,7 @@ export function ContactsView({
                                     {onEditContact && (
                                       <DropdownMenuItem onClick={() => onEditContact(contact)} className="gap-2 text-xs">
                                         <PencilSimple className="h-4 w-4" />
-                                        Editar Contato
+                                        Editar nome e etiquetas
                                       </DropdownMenuItem>
                                     )}
                                     {onUpdateContact && (
@@ -505,16 +569,21 @@ export function ContactsView({
                                         <DropdownMenuSub>
                                           <DropdownMenuSubTrigger className="gap-2 text-xs">
                                             <Tag className="h-4 w-4" />
-                                            Mudar Status
+                                            Status da conversa
                                           </DropdownMenuSubTrigger>
                                           <DropdownMenuSubContent className="bg-card/95 border-border">
-                                            {["ativo", "recorrente", "em_risco", "bloqueado"].map((status) => (
+                                            {[
+                                              { label: "Ativo", value: "open" },
+                                              { label: "Recorrente", value: "recorrente" },
+                                              { label: "Em risco", value: "em_risco" },
+                                              { label: "Arquivado", value: "archived" },
+                                            ].map((status) => (
                                               <DropdownMenuItem
-                                                key={status}
-                                                onClick={() => onUpdateContact(contact.id, { status })}
-                                                className="capitalize text-xs"
+                                                key={status.value}
+                                                onClick={() => onUpdateContact(contact.id, { status: status.value })}
+                                                className="text-xs"
                                               >
-                                                {status.replace("_", " ")}
+                                                {status.label}
                                               </DropdownMenuItem>
                                             ))}
                                           </DropdownMenuSubContent>
@@ -523,7 +592,7 @@ export function ContactsView({
                                         <DropdownMenuSub>
                                           <DropdownMenuSubTrigger className="gap-2 text-xs">
                                             <Tag className="h-4 w-4" />
-                                            Mudar Lead Score
+                                            Temperatura do lead
                                           </DropdownMenuSubTrigger>
                                           <DropdownMenuSubContent className="bg-card/95 border-border">
                                             {[
@@ -542,6 +611,18 @@ export function ContactsView({
                                             ))}
                                           </DropdownMenuSubContent>
                                         </DropdownMenuSub>
+
+                                        <DropdownMenuItem
+                                          onClick={() =>
+                                            onUpdateContact(contact.id, {
+                                              status: contact.status === "archived" ? "open" : "archived",
+                                            })
+                                          }
+                                          className="gap-2 text-xs"
+                                        >
+                                          <Archive className="h-4 w-4" />
+                                          {contact.status === "archived" ? "Reativar conversa" : "Arquivar conversa"}
+                                        </DropdownMenuItem>
                                       </>
                                     )}
                                   </DropdownMenuContent>
