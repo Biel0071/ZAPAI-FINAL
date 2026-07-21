@@ -132,8 +132,8 @@ if $DRY_RUN; then
 else
   git fetch origin main --quiet
   git reset --hard origin/main
-  if [ ! -f "$BACKEND_DIR/.env" ] && [ -f "$BACKEND_DIR/.env.production" ]; then
-    cp "$BACKEND_DIR/.env.production" "$BACKEND_DIR/.env"
+  if [ -f "$ROOT_DIR/.env.production" ]; then
+    cp -f "$ROOT_DIR/.env.production" "$BACKEND_DIR/.env"
   fi
   NEW_SHORT="$(git rev-parse --short HEAD)"
   if [ "$NEW_SHORT" = "$CURRENT_SHORT" ]; then
