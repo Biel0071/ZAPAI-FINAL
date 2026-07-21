@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useState, type ComponentType } from "react";
+import { lazy, Suspense, type ComponentType } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -6,14 +6,12 @@ import { ThemeProvider } from "@/components/theme/ThemeProvider";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { queryClient } from "@/lib/queryClient";
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
-import { MainLayout } from "@/components/layout/MainLayout";
 import { PageFallback } from "@/components/layout/PageFallback";
 import { GlobalErrorBoundary } from "@/components/system/GlobalErrorBoundary";
 import { SafeRender } from "@/components/system/SafeRender";
 import { type AppUserRole, useUserRole } from "@/hooks/useUserRole";
 import { useAdminAuth } from "@/hooks/useAdminAuth";
 import { useFrontendHealthWatcher } from "@/hooks/useFrontendHealthWatcher";
-import { RuntimeProvider } from "@/providers/RuntimeProvider";
 import { InboxRuntimeBoundary } from "@/components/system/InboxRuntimeBoundary";
 
 import { PageRouteBoundary } from "@/components/system/PageRouteBoundary";
@@ -27,18 +25,6 @@ function AppSplash() {
       </div>
     </div>
   );
-}
-
-function BootGate({ children }: { children: JSX.Element }) {
-  const [ready, setReady] = useState(false);
-
-  useEffect(() => {
-    const timer = window.setTimeout(() => setReady(true), 160);
-    return () => window.clearTimeout(timer);
-  }, []);
-
-  if (!ready) return <AppSplash />;
-  return children;
 }
 
 function lazyWithRetry<T extends ComponentType<any>>(importer: () => Promise<{ default: T }>, key: string) {
@@ -66,6 +52,7 @@ function lazyWithRetry<T extends ComponentType<any>>(importer: () => Promise<{ d
   });
 }
 
+const AuthenticatedAppShell = lazyWithRetry(() => import("./components/layout/AuthenticatedAppShell"), "authenticated_shell");
 const Dashboard = lazyWithRetry(() => import("./pages/Dashboard"), "dashboard");
 const Inbox = lazyWithRetry(() => import("./pages/Inbox"), "inbox");
 const Connections = lazyWithRetry(() => import("./pages/Connections"), "connections");
@@ -134,12 +121,11 @@ const App = () => {
           <Toaster />
           <Sonner />
           <BrowserRouter>
-            <BootGate>
-              <SafeRender scope="app-routes">
+            <SafeRender scope="app-routes">
                 <Suspense fallback={<PageFallback />}>
                   <Routes>
                     <Route path="/login" element={<LoginRoute />} />
-                    <Route element={<RequireAdminAuth><RuntimeProvider><MainLayout /></RuntimeProvider></RequireAdminAuth>}>
+                    <Route element={<RequireAdminAuth><AuthenticatedAppShell /></RequireAdminAuth>}>
                       <Route path="/" element={<RootRoute />} />
                       <Route path="/dashboard" element={<PageRouteBoundary pageName="Dashboard"><Dashboard /></PageRouteBoundary>} />
                       <Route path="/inbox" element={<InboxRuntimeBoundary><Inbox /></InboxRuntimeBoundary>} />
@@ -185,7 +171,6 @@ const App = () => {
                   </Routes>
                 </Suspense>
               </SafeRender>
-            </BootGate>
           </BrowserRouter>
         </TooltipProvider>
       </ThemeProvider>

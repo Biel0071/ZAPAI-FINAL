@@ -41,8 +41,6 @@ export default defineConfig(({ mode }) => {
         assetFileNames: "assets/[name]-[hash][extname]",
         manualChunks: {
           "vendor-react": ["react", "react-dom", "react-router-dom"],
-          "vendor-ui": ["framer-motion", "@radix-ui/react-dialog", "@radix-ui/react-tabs"],
-          "vendor-charts": ["recharts"],
           "vendor-socket": ["socket.io-client"],
         },
       },

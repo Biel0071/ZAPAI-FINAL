@@ -26,7 +26,11 @@ server {
 
     client_max_body_size 50m;
     gzip on;
-    gzip_types text/plain application/json application/javascript text/css;
+    gzip_comp_level 6;
+    gzip_min_length 256;
+    gzip_vary on;
+    gzip_proxied any;
+    gzip_types text/plain application/json application/javascript text/css image/svg+xml application/manifest+json;
 
     add_header X-Frame-Options "SAMEORIGIN" always;
     add_header X-Content-Type-Options nosniff always;
@@ -63,6 +67,14 @@ NGINX_EOF
     # Frontend
     root ${FRONTEND_DIR}/dist;
     index index.html;
+
+    # Hashed Vite assets are immutable. The HTML remains uncached so releases switch immediately.
+    location ^~ /assets/ {
+        try_files $uri =404;
+        expires 1y;
+        add_header Cache-Control "public, max-age=31536000, immutable" always;
+        access_log off;
+    }
 
     location / {
         location = /index.html {
@@ -149,7 +161,11 @@ server {
 
     client_max_body_size 50m;
     gzip on;
-    gzip_types text/plain application/json application/javascript text/css;
+    gzip_comp_level 6;
+    gzip_min_length 256;
+    gzip_vary on;
+    gzip_proxied any;
+    gzip_types text/plain application/json application/javascript text/css image/svg+xml application/manifest+json;
 
     add_header X-Frame-Options "SAMEORIGIN" always;
     add_header X-Content-Type-Options nosniff always;
@@ -159,6 +175,14 @@ server {
     # Frontend
     root ${FRONTEND_DIR}/dist;
     index index.html;
+
+    # Hashed Vite assets are immutable. The HTML remains uncached so releases switch immediately.
+    location ^~ /assets/ {
+        try_files $uri =404;
+        expires 1y;
+        add_header Cache-Control "public, max-age=31536000, immutable" always;
+        access_log off;
+    }
 
     location / {
         location = /index.html {

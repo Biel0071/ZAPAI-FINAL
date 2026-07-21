@@ -1955,8 +1955,8 @@
     "semantic_hash": "e40b40773bf3eb7af2466094c7cf9555"
   },
   "deploy/lib/nginx.sh": {
-    "mtime": 1783977780.9413345,
-    "ast_hash": "a4453b3b3691bedada2cdd8641c8f39b",
+    "mtime": 1784643786.9482424,
+    "ast_hash": "623ec78fa16709bae607efef14896a88",
     "semantic_hash": ""
   },
   "deploy/lib/node.sh": {
@@ -2155,9 +2155,9 @@
     "semantic_hash": "581ab6973fffa6a5a0446d8bb752b4c4"
   },
   "frontend-official/src/App.tsx": {
-    "mtime": 1783464151.2204947,
-    "ast_hash": "0a4fbff1d2b78a8febe5e8a252b64c81",
-    "semantic_hash": "0a4fbff1d2b78a8febe5e8a252b64c81"
+    "mtime": 1784643786.749137,
+    "ast_hash": "2d661ef40fcd2588c8d66da9a56c89c9",
+    "semantic_hash": ""
   },
   "frontend-official/src/adapters/lovable/aiAdapter.ts": {
     "mtime": 1783460947.7197714,
@@ -3100,9 +3100,9 @@
     "semantic_hash": "ea3b5c2d9c1cc5d2b3fb3af706f2ca1a"
   },
   "frontend-official/vite.config.ts": {
-    "mtime": 1783460948.0182676,
-    "ast_hash": "3b62bf24db4a4d758ef3e5d508828a6d",
-    "semantic_hash": "3b62bf24db4a4d758ef3e5d508828a6d"
+    "mtime": 1784643786.8671367,
+    "ast_hash": "d521f1e98ab47dda19aad93633567465",
+    "semantic_hash": ""
   },
   "frontend-official/vite.config.ts.timestamp-1781284849739-1acb7aa79c1d.mjs": {
     "mtime": 1783460948.0202663,
@@ -8637,6 +8637,11 @@
   "backend/tests/ai-response-progress.test.js": {
     "mtime": 1784641066.6579084,
     "ast_hash": "79ae05b4684f6f8df3456889c2d5ec2c",
+    "semantic_hash": ""
+  },
+  "frontend-official/src/components/layout/AuthenticatedAppShell.tsx": {
+    "mtime": 1784643743.9988024,
+    "ast_hash": "c810fc2f67887ecd1cbf25ac33a59292",
     "semantic_hash": ""
   }
 }
