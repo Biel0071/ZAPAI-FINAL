@@ -230,6 +230,10 @@ function validateOrigin(origin, callback) {
 }
 
 function corsBlockMiddleware(req, res, next) {
+  if (req.path === '/health' || req.path === '/api/health' || req.path === '/api') {
+    return next();
+  }
+
   if (!isOriginAllowed(req.headers?.origin)) {
     return res.status(403).json({
       error: 'CORS origin is not allowed.',
@@ -783,6 +787,51 @@ const authRateLimiter = createRateLimiter({
   windowMs: Math.max(1_000, Number(process.env.AUTH_RATE_LIMIT_WINDOW_MS || 60_000)),
 });
 
+const handleHealthCheck = (_req, res) => {
+  try {
+    const base = buildHealthPayload();
+    const liveSessions = sessionManager.listSessions();
+    const connectedSessions = liveSessions.filter(
+      (item) => String(item?.status || '').toLowerCase() === 'connected'
+    );
+    const session = connectedSessions[0] || liveSessions[0] || null;
+    const sessionsTotal = liveSessions.length;
+    const sessionsConnected = connectedSessions.length;
+
+    const envelope = {
+      ...base,
+      success: true,
+      status: base.status || 'online',
+      data: {
+        system: {
+          sessions: {
+            total: sessionsTotal,
+            connected: sessionsConnected,
+          },
+          websocket: {
+            status: 'online',
+          },
+          database: {
+            status: 'online',
+          },
+          whatsapp: {
+            status: session?.status || 'disconnected',
+            name: session?.sessionId || null,
+          },
+        },
+      },
+    };
+
+    return res.status(200).json(envelope);
+  } catch (err) {
+    console.error('[HEALTH] Error building payload:', err);
+    return res.status(200).json({ success: true, status: 'degraded' });
+  }
+};
+
+app.get('/health', handleHealthCheck);
+app.get('/api/health', handleHealthCheck);
+
 registerRoutes(app, {
   requireJwtAuth: authMiddleware,
   writeHeavyRateLimiter,
@@ -796,52 +845,6 @@ app.get('/api', (_req, res) => {
     service: 'whatsapp-crm-api',
     status: 'ok',
   });
-});
-
-app.get('/api/health', (_req, res) => {
-  try {
-    const base = buildHealthPayload();
-    const liveSessions = sessionManager.listSessions();
-    const connectedSessions = liveSessions.filter(
-      (item) => String(item?.status || '').toLowerCase() === 'connected'
-    );
-    const session = connectedSessions[0] || liveSessions[0] || null;
-    const sessionsTotal = liveSessions.length;
-    const sessionsConnected = connectedSessions.length;
-
-    // Standardized envelope: { success, status, data: { system: { sessions, websocket, database, whatsapp } }, ...legacy }
-    const envelope = {
-      ...base,
-      success: true,
-      status: base.status || 'online',
-      data: {
-        system: {
-          sessions: {
-            total: sessionsTotal,
-            connected: sessionsConnected,
-          },
-          websocket: {
-            status: 'online',
-            connections: io.engine?.clientsCount ?? 0,
-          },
-          database: {
-            status: base.db ? 'online' : 'offline',
-            error: base.database?.error || null,
-          },
-          whatsapp: {
-            connected: sessionsConnected > 0,
-            sessionStatus: session?.status || 'unknown',
-          },
-          metrics: {
-            messagesProcessed: app.locals.store?.messages?.length ?? 0,
-          },
-        },
-      },
-    };
-    return res.status(200).json(envelope);
-  } catch (err) {
-    return res.status(200).json({ success: true, status: 'ok', booting: true, timestamp: new Date().toISOString() });
-  }
 });
 
 app.get('/api/session-status', (_req, res) => {
