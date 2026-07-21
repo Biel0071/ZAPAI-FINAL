@@ -1394,7 +1394,7 @@ async function createStableSession({
       runtimeEngine.incrementMessageCounter(batchCount);
     }
 
-    if (type !== 'notify') {
+    if (type !== 'notify' && type !== 'append') {
       return;
     }
 
@@ -1456,7 +1456,7 @@ async function createStableSession({
         continue;
       }
 
-      if (session.systemConnected === false) {
+      if (session.systemConnected === false && !sock?.user?.id) {
         continue;
       }
 
@@ -2283,9 +2283,15 @@ function isMessageActionable(text, type) {
   const cleanText = text.trim().toLowerCase();
   if (cleanText === '') return false;
 
+  // Always actionable if it contains ad metadata or starts with [Anúncio]
+  if (cleanText.includes('[anúncio]') || cleanText.includes('(anúncio:')) {
+    return true;
+  }
+
+  // Only filter out minimal acknowledgment single-words if not an opening or ad context
   const nonActionableWords = [
-    'ok', 'blz', 'valeu', 'joinha', 'show', 'obg', 'tudo bem',
-    'tbm', 'dnd', 'joia', 'vlw', 'sim', 'nao', 'não', 'obrigado', 'obrigada'
+    'ok', 'blz', 'valeu', 'joinha', 'show', 'obg',
+    'tbm', 'dnd', 'joia', 'vlw', 'obrigado', 'obrigada'
   ];
   if (nonActionableWords.includes(cleanText)) return false;
 

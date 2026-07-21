@@ -18,6 +18,8 @@ function unwrapMessageContent(message = {}) {
     'deviceSentMessage',
     'editedMessage',
     'associatedChildMessage',
+    'templateMessage',
+    'interactiveMessage',
   ];
 
   for (const key of wrapperKeys) {
@@ -39,12 +41,18 @@ function extractMessageText(msg = {}) {
   const rawMessage = msg?.message || msg;
   const message = unwrapMessageContent(rawMessage);
 
-  return normalizeUtf8Text(
+  let text = normalizeUtf8Text(
     message.conversation ||
       message.extendedTextMessage?.text ||
       message.imageMessage?.caption ||
       message.videoMessage?.caption ||
       message.documentMessage?.caption ||
+      message.interactiveMessage?.body?.text ||
+      message.interactiveMessage?.header?.title ||
+      message.templateMessage?.hydratedTemplate?.hydratedContentText ||
+      message.templateMessage?.hydratedFourRowTemplate?.hydratedContentText ||
+      message.templateMessage?.hydratedTemplate?.hydratedTitleText ||
+      message.buttonsMessage?.contentText ||
       message.buttonsResponseMessage?.selectedDisplayText ||
       message.listResponseMessage?.title ||
       message.listResponseMessage?.singleSelectReply?.selectedRowId ||
@@ -52,6 +60,29 @@ function extractMessageText(msg = {}) {
       message.pollCreationMessage?.name ||
       ''
   );
+
+  // Extract Facebook/Instagram Ad Context (Click-to-WhatsApp Ads / Lead Ads)
+  const contextInfo =
+    message.extendedTextMessage?.contextInfo ||
+    message.imageMessage?.contextInfo ||
+    message.videoMessage?.contextInfo ||
+    message.interactiveMessage?.contextInfo ||
+    message.buttonsMessage?.contextInfo ||
+    message.contextInfo;
+
+  if (contextInfo?.externalAdReply) {
+    const adTitle = String(contextInfo.externalAdReply.title || '').trim();
+    const adBody = String(contextInfo.externalAdReply.body || '').trim();
+    const adInfo = [adTitle, adBody].filter(Boolean).join(' - ');
+
+    if (!text && adInfo) {
+      text = `[Anúncio] ${adInfo}`;
+    } else if (text && adInfo && !text.toLowerCase().includes(adTitle.toLowerCase())) {
+      text = `${text} (Anúncio: ${adInfo})`;
+    }
+  }
+
+  return text;
 }
 
 function getMediaDescriptor(message = {}) {
