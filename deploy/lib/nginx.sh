@@ -70,7 +70,7 @@ NGINX_EOF
 
     # Hashed Vite assets are immutable. The HTML remains uncached so releases switch immediately.
     location ^~ /assets/ {
-        try_files $uri =404;
+        try_files \$uri =404;
         expires 1y;
         add_header Cache-Control "public, max-age=31536000, immutable" always;
         access_log off;
