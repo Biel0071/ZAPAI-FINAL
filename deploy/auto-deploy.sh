@@ -32,7 +32,7 @@ LOGS_DIR="$ROOT_DIR/logs/deploy"
 TIMESTAMP="$(date +%Y%m%d_%H%M%S)"
 LOG_FILE="$LOGS_DIR/deploy_${TIMESTAMP}.log"
 BACKEND_PORT="${PORT:-4025}"
-HEALTH_URL="http://127.0.0.1:${BACKEND_PORT}/health"
+HEALTH_URL="http://127.0.0.1:${BACKEND_PORT}/api/health"
 NGINX_URL="http://127.0.0.1"   # via Nginx (porta 80 local ou 3000 Docker)
 MAX_HEALTH_RETRIES=12
 HEALTH_WAIT_SECONDS=5
@@ -132,7 +132,9 @@ if $DRY_RUN; then
 else
   git fetch origin main --quiet
   git reset --hard origin/main
-  rm -f "$BACKEND_DIR/.env" 2>/dev/null || true
+  if [ ! -f "$BACKEND_DIR/.env" ] && [ -f "$BACKEND_DIR/.env.production" ]; then
+    cp "$BACKEND_DIR/.env.production" "$BACKEND_DIR/.env"
+  fi
   NEW_SHORT="$(git rev-parse --short HEAD)"
   if [ "$NEW_SHORT" = "$CURRENT_SHORT" ]; then
     log "No changes — already at $NEW_SHORT"
