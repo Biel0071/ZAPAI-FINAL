@@ -1675,6 +1675,10 @@ async function bootstrap() {
     console.log(`[SERVER] Environment: ${NODE_ENV}`);
     console.log(`[SERVER] API running`);
 
+    if (typeof process.send === 'function') {
+      process.send('ready');
+    }
+
     // Register node in master admin
     await nodeRegisterService.registerNode();
 
