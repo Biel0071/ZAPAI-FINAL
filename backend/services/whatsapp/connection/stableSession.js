@@ -1754,7 +1754,11 @@ async function createStableSession({
         if (!result?.automationHandled) {
           await runAIForChatDebounced({
             chatId: formattedRealtimeMessage.chatId,
-            incomingFormattedMessage: formattedRealtimeMessage,
+            incomingFormattedMessage: {
+              ...formattedRealtimeMessage,
+              url: realtimeMediaPayload?.url || result?.message?.mediaUrl || mediaPayload?.url || null,
+              mediaType: realtimeMediaPayload?.type || result?.message?.mediaType || null,
+            },
             session,
             sock,
           });
@@ -2305,6 +2309,31 @@ function isMessageActionable(text, type) {
 
 async function runAIForChatDebounced({ chatId, incomingFormattedMessage, session, sock }) {
   const key = `${session.sessionId}:${chatId}`;
+
+  // Automatic Audio Transcription (Whisper/Groq STT)
+  const isAudio =
+    incomingFormattedMessage?.mediaType === 'audio' ||
+    incomingFormattedMessage?.type === 'audio' ||
+    String(incomingFormattedMessage?.text || '').includes('[Áudio]');
+
+  if (isAudio && (!incomingFormattedMessage.text || incomingFormattedMessage.text === '[Áudio]' || incomingFormattedMessage.text === '[media]' || incomingFormattedMessage.text.startsWith('[Áudio]'))) {
+    const audioUrl = incomingFormattedMessage.url || incomingFormattedMessage.mediaUrl || incomingFormattedMessage.mediaPath;
+    if (audioUrl) {
+      try {
+        const { transcribeAudio } = require('../../../services/ai.service');
+        const companyId = session?.companyId || process.env.DEFAULT_COMPANY_ID || 'default';
+        console.log(`[WHATSAPP_AI] Transcribing audio message for ${chatId}...`);
+        const transcription = await transcribeAudio({ mediaUrl: audioUrl, companyId });
+        if (transcription && transcription.trim()) {
+          incomingFormattedMessage.text = `[Áudio Transcrito]: "${transcription.trim()}"`;
+          console.log(`[WHATSAPP_AI] Audio transcribed for ${chatId}: ${incomingFormattedMessage.text}`);
+        }
+      } catch (sttErr) {
+        console.error('[WHATSAPP_AI] Audio transcription failed:', sttErr?.message || sttErr);
+      }
+    }
+  }
+
   const currentText = String(incomingFormattedMessage?.text || '').trim();
   if (!currentText) return;
 

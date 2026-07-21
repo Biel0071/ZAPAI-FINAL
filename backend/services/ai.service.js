@@ -334,9 +334,9 @@ function compileSystemPrompt(agent, store, contact = null) {
   compiled += `- Sempre responda em português brasileiro de forma natural, calorosa, empática, simpática e profissional.\n`;
   compiled += `- Respeite rigorosamente a Diretriz de Tamanho configurada para o seu perfil no bloco [TOM/PERSONALIDADE]. Respostas muito longas para atendentes objetivos ou muito curtas para detalhados serão consideradas falhas.\n`;
   compiled += `- Use uma variedade de palavras e expressões para evitar respostas repetitivas ou mecânicas. Adapte o tom ao humor e estilo de escrita do cliente.\n`;
-  compiled += `- Compreensão de Emojis: Se o cliente enviar emojis nas mensagens, compreenda o tom amigável ou o contexto visual que eles trazem. Use emojis de forma natural e acolhedora em suas respostas (ex: 😊, 🏗️, 👍), de forma equilibrada e simpática, sem exageros ou emojis repetitivos em uma mesma frase.\n`;
-  compiled += `- SISTEMA DE ETAPAS DE ATENDIMENTO: Siga rigorosamente o atendimento por etapas. Não avance etapas sem que a anterior esteja concluída. Não pergunte novamente por informações que o cliente já forneceu (consulte o histórico recente e a memória). As etapas são:\n`;
-  compiled += `  1. Levantamento de Necessidades (Estágio: new_lead / interested): Pergunte quais produtos e quantidades o cliente precisa. Se o cliente já informou produtos e quantidades na mensagem inicial (ex: 'queria 150 cimentos'), CONFIRME e avance direto para a Etapa 2. Não pergunte o que ele quer novamente!\n`;
+  compiled += `- TRANSCRIÇÃO DE ÁUDIOS DE VOZ: Se o cliente enviar uma mensagem de áudio, ela será automaticamente convertida em texto e entregue como '[Áudio Transcrito]: "..."'. Trate essa transcrição exatamente como se o cliente tivesse digitado o texto. Extraia produtos, quantidades, dúvidas ou dados de entrega fornecidos no áudio e DÊ SEGUIMENTO NORMAL ao atendimento, avançando no funil sem repetir perguntas sobre o que já foi dito no áudio!\n`;
+  compiled += `- SISTEMA DE ETAPAS DE ATENDIMENTO: Siga rigorosamente o atendimento por etapas. Não avance etapas sem que a anterior esteja concluída. Nunca pergunte novamente por informações que o cliente já forneceu (consulte o histórico recente e a memória). As etapas são:\n`;
+  compiled += `  1. Levantamento de Necessidades (Estágio: new_lead / interested): Pergunte quais produtos e quantidades o cliente precisa. Se o cliente já informou produtos e quantidades na mensagem inicial ou em áudio (ex: 'queria 150 cimentos'), CONFIRME e avance direto para a Etapa 2. Não pergunte o que ele quer novamente!\n`;
   compiled += `  2. Cotação de Preços (Estágio: price_sent): Apresente os preços dos produtos desejados conforme a tabela de produtos cadastrada. Se houver mais de uma opção (ex: Campeão vs Liz), dê as opções e pergunte qual prefere.\n`;
   compiled += `  3. Entrega ou Retirada (Estágio: negotiation): Pergunte se o cliente prefere receber no endereço ou se deseja retirar na loja. Se for entrega, solicite o CEP ou endereço completo para cálculo do frete. Não passe para a próxima etapa sem o endereço de entrega ou confirmação de retirada.\n`;
   compiled += `  4. Forma de Pagamento e Fechamento (Estágio: ready_to_buy): Com os produtos, quantidades e frete definidos, apresente as opções de pagamento (PIX com 5% desc, Crédito em até 10x sem juros, ou Boleto faturado sob consulta). Solicite a confirmação final do pedido.\n`;
@@ -345,7 +345,7 @@ function compileSystemPrompt(agent, store, contact = null) {
   compiled += `- Nunca mencione que você é um robô ou inteligência artificial, a menos que seja estritamente necessário para realizar o transbordo humano.\n`;
   compiled += `- Se o cliente solicitar atendimento humano ou se a IA não souber responder sobre preços ou condições críticas que você não tem acesso, acione o transbordo imediatamente.\n`;
   compiled += `- Continue o atendimento do ponto atual; não reinicie com saudações repetidas se já existe histórico.\n`;
-  compiled += `- Não repita perguntas que o cliente já respondeu. Use as quantidades, produtos e preferências presentes no contexto.\n`;
+  compiled += `- NÃO REPITA PERGUNTAS que o cliente já respondeu em texto ou áudio. Use as quantidades, produtos e preferências presentes no contexto.\n`;
   compiled += `- Seja flexível e criativo nas respostas gerais, mas evite inventar preços específicos, prazos de entrega ou condições financeiras que não estejam configurados no seu contexto.\n`;
   compiled += `\n`;
 
@@ -1130,6 +1130,7 @@ async function transcribeAudio({ mediaUrl, companyId }) {
   const { OpenAI } = require('openai');
   const fs = require('fs');
   const path = require('path');
+  const axios = require('axios');
 
   const resolvedCompanyId = companyId || 'default';
   
@@ -1149,8 +1150,10 @@ async function transcribeAudio({ mediaUrl, companyId }) {
   const providerName = providerRow.provider.toLowerCase();
   
   let baseURL = 'https://api.openai.com/v1';
+  let modelName = 'whisper-1';
   if (providerName === 'groq') {
     baseURL = 'https://api.groq.com/openai/v1';
+    modelName = 'whisper-large-v3-turbo';
   }
   
   const openai = new OpenAI({
@@ -1163,12 +1166,19 @@ async function transcribeAudio({ mediaUrl, companyId }) {
   let localPath = '';
   let filename = 'audio.ogg';
   
-  if (mediaUrl.startsWith('/') || mediaUrl.includes('/media/')) {
-    const filenamePart = mediaUrl.split('/').pop().split('?')[0];
-    localPath = path.join(__dirname, '..', '..', 'storage', 'media', filenamePart);
-    if (fs.existsSync(localPath)) {
+  if (typeof mediaUrl === 'string' && mediaUrl.trim() !== '') {
+    if (fs.existsSync(mediaUrl)) {
       isLocal = true;
-      filename = filenamePart;
+      localPath = mediaUrl;
+      filename = path.basename(mediaUrl);
+    } else if (mediaUrl.startsWith('/') || mediaUrl.includes('/media/')) {
+      const filenamePart = mediaUrl.split('/').pop().split('?')[0];
+      const storagePath = path.join(__dirname, '..', '..', 'storage', 'media', filenamePart);
+      if (fs.existsSync(storagePath)) {
+        isLocal = true;
+        localPath = storagePath;
+        filename = filenamePart;
+      }
     }
   }
   
@@ -1178,14 +1188,14 @@ async function transcribeAudio({ mediaUrl, companyId }) {
   } else {
     const downloadRes = await axios.get(mediaUrl, { responseType: 'arraybuffer' });
     const buffer = Buffer.from(downloadRes.data);
-    const filenamePart = mediaUrl.split('/').pop().split('?')[0] || 'audio.ogg';
+    const filenamePart = String(mediaUrl).split('/').pop().split('?')[0] || 'audio.ogg';
     fileObj = await OpenAI.toFile(buffer, filenamePart);
   }
   
   // 3. Request transcription
   const response = await openai.audio.transcriptions.create({
     file: fileObj,
-    model: 'whisper-1',
+    model: modelName,
     language: 'pt'
   });
   
