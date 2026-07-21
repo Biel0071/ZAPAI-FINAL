@@ -41,7 +41,7 @@ module.exports = {
 
       // ─── Graceful Shutdown ───
       kill_timeout: 12000,           // 12s — enough for Baileys creds flush
-      wait_ready: true,              // Wait for process.send('ready') before SIGTERM-free window
+      wait_ready: false,             // Start process immediately without IPC ready block
       listen_timeout: 10000,
       shutdown_with_message: false,  // Use SIGTERM (no custom message needed)
 
