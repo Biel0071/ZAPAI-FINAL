@@ -76,31 +76,32 @@ function emitMetrics(store, snapshot) {
 async function recalcMetricsFromDB(store = {}, options = {}) {
   const sessionId = options.sessionId || null;
   const isFiltered = sessionId && sessionId !== 'all';
+  const isTenantScoped = Boolean(options.companyId);
+  const companyId = String(options.companyId || store?.activeCompanyId || process.env.DEFAULT_COMPANY_ID || 'default').trim() || 'default';
 
   if (!store?.databaseEnabled) {
     const snapshot = buildMetricsSnapshot(store);
-    if (!isFiltered) {
+    if (!isFiltered && !isTenantScoped) {
       persistMetricsSnapshot(store, snapshot);
       emitMetrics(store, snapshot);
     }
     return snapshot;
   }
 
-  if (!isFiltered && options.force !== true && store.metricsSnapshot) {
+  if (!isFiltered && !isTenantScoped && options.force !== true && store.metricsSnapshot) {
     return store.metricsSnapshot;
   }
 
   const now = Date.now();
-  if (!isFiltered && metricsRecalcInFlight) {
+  if (!isFiltered && !isTenantScoped && metricsRecalcInFlight) {
     return metricsRecalcInFlight;
   }
 
-  if (!isFiltered && store.metricsSnapshot && (now - lastDbMetricsAt) < MIN_DB_METRICS_INTERVAL_MS) {
+  if (!isFiltered && !isTenantScoped && store.metricsSnapshot && (now - lastDbMetricsAt) < MIN_DB_METRICS_INTERVAL_MS) {
     return store.metricsSnapshot;
   }
 
   const fetchFunc = async () => {
-    const companyId = process.env.DEFAULT_COMPANY_ID || 'default';
     const connectedSessions = Array.from(store.sessionManager?.sessions?.values?.() || []).filter(
       (session) => session?.status === 'connected'
     ).length;
@@ -154,7 +155,7 @@ async function recalcMetricsFromDB(store = {}, options = {}) {
       uptime: Number(process.uptime().toFixed(3)),
     };
 
-    if (!isFiltered) {
+    if (!isFiltered && !isTenantScoped) {
       lastDbMetricsAt = Date.now();
       persistMetricsSnapshot(store, snapshot);
       emitMetrics(store, snapshot);
@@ -163,7 +164,7 @@ async function recalcMetricsFromDB(store = {}, options = {}) {
     return snapshot;
   };
 
-  if (isFiltered) {
+  if (isFiltered || isTenantScoped) {
     return fetchFunc();
   }
 

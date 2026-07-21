@@ -143,50 +143,12 @@ async function testProviderConnection(provider = {}, options = {}) {
 }
 
 function adjustPromptIdentity(basePrompt, agent) {
-  const agentName = agent?.name || 'Camila';
-  if (agentName.toLowerCase() === 'camila') {
-    return basePrompt;
-  }
+  const agentName = String(agent?.name || '').trim();
+  if (!agentName) return basePrompt;
 
-  // Determine gender of the agent
-  const nameLower = agentName.toLowerCase();
-  const isMasculine = ['rafael', 'pedro', 'lucas', 'joao', 'joão', 'mateus', 'gabriel', 'felipe', 'bruno', 'thiago', 'tiago', 'rodrigo', 'andre', 'andré', 'marcos', 'carlos', 'gustavo', 'daniel', 'marcelo'].includes(nameLower) || nameLower.endsWith('o');
-
-  let prompt = basePrompt;
-
-  if (isMasculine) {
-    // Replace feminine articles and nouns to masculine equivalents
-    prompt = prompt.replace(/\ba Camila\b/gi, `o ${agentName}`);
-    prompt = prompt.replace(/\bcomo Camila\b/gi, `como ${agentName}`);
-    prompt = prompt.replace(/\bsou a Camila\b/gi, `sou o ${agentName}`);
-    prompt = prompt.replace(/\bcomo a Camila\b/gi, `como o ${agentName}`);
-    prompt = prompt.replace(/\buma vendedora\b/gi, 'um vendedor');
-    prompt = prompt.replace(/\bUma vendedora\b/gi, 'Um vendedor');
-    prompt = prompt.replace(/\bvendedora\b/gi, 'vendedor');
-    prompt = prompt.replace(/\bVendedora\b/gi, 'Vendedor');
-    prompt = prompt.replace(/\bobrigada\b/gi, 'obrigado');
-    prompt = prompt.replace(/\bObrigada\b/gi, 'Obrigado');
-    prompt = prompt.replace(/\bsimpática\b/gi, 'simpático');
-    prompt = prompt.replace(/\bsimpaticas\b/gi, 'simpáticos');
-    prompt = prompt.replace(/\batenta\b/gi, 'atento');
-    prompt = prompt.replace(/\batentamente\b/gi, 'atentamente'); // avoid breaking
-    prompt = prompt.replace(/\buma assistente\b/gi, 'um assistente');
-    prompt = prompt.replace(/\ba vendedora\b/gi, 'o vendedor');
-    prompt = prompt.replace(/\bda Camila\b/gi, `do ${agentName}`);
-    prompt = prompt.replace(/\bde Camila\b/gi, `de ${agentName}`);
-  } else {
-    // Feminine agent (e.g. Julia)
-    prompt = prompt.replace(/\ba Camila\b/gi, `a ${agentName}`);
-    prompt = prompt.replace(/\bcomo Camila\b/gi, `como ${agentName}`);
-    prompt = prompt.replace(/\bsou a Camila\b/gi, `sou a ${agentName}`);
-    prompt = prompt.replace(/\bda Camila\b/gi, `da ${agentName}`);
-    prompt = prompt.replace(/\bde Camila\b/gi, `de ${agentName}`);
-  }
-
-  // Replace any leftover "Camila" occurrences with the agent's name
-  prompt = prompt.replace(/Camila/g, agentName);
-
-  return prompt;
+  return String(basePrompt || '')
+    .replace(/\{\{\s*agent_name\s*\}\}/gi, agentName)
+    .replace(/\[NOME_DO_ATENDENTE\]/gi, agentName);
 }
 
 const RESPONSE_STYLE_DEFAULT_WORDS = Object.freeze({
@@ -216,7 +178,7 @@ function enforceResponseWordLimit(text, agent = {}) {
 
 
 function compileSystemPrompt(agent, store, contact = null) {
-  const agentName = agent?.name || 'Camila';
+  const agentName = agent?.name || 'Atendente';
   const sector = agent?.sector || 'Geral';
   const objective = agent?.objective || 'Atendimento comercial';
   const personality = agent?.personality || agent?.prompt || '';
@@ -569,9 +531,9 @@ async function testAIConnection({ store, providerId, model, message, prompt, age
   const aiAgentService = require('../ai-agents/services/aiAgentService');
   let matchedAgent = null;
   try {
-    await aiAgentService.listAgents();
+    await aiAgentService.listAgents(resolvedCompanyId);
     const resolvedKey = String(agentKey || agentName || '').trim().toLowerCase();
-    matchedAgent = aiAgentService.getAgentsSync().find(
+    matchedAgent = aiAgentService.getAgentsSync(resolvedCompanyId).find(
       (a) =>
         (resolvedKey && String(a.key).toLowerCase() === resolvedKey) ||
         (resolvedKey && String(a.name).toLowerCase() === resolvedKey) ||
@@ -736,19 +698,15 @@ async function processAI({ contact, history, message, store, agentName, companyI
   let resolvedAgent = null;
 
   try {
-    await aiAgentService.listAgents();
-    resolvedAgent = aiAgentService.findByNameSync(agentName || 'Camila');
+    await aiAgentService.listAgents(resolvedCompanyId);
+    resolvedAgent = aiAgentService.findByNameSync(agentName, resolvedCompanyId);
   } catch (err) {
     console.error('[AI SERVICE] Failed to resolve active agent configuration:', err);
   }
 
   if (!resolvedAgent) {
-    resolvedAgent = {
-      name: agentName || 'Camila',
-      sector: 'Geral',
-      objective: 'Atendimento comercial',
-      personality: 'Assistente virtual simpática.',
-    };
+    console.warn(`[AI SERVICE] No store-specific agent configured for tenant ${resolvedCompanyId}.`);
+    return null;
   }
 
   const agentMemoryGraphService = require('./agentMemoryGraphService');
@@ -971,7 +929,7 @@ async function processAI({ contact, history, message, store, agentName, companyI
       promptTokens,
       completionTokens,
       totalTokens,
-      agentName: resolvedAgent?.name || agentName || 'Camila',
+      agentName: resolvedAgent?.name || agentName || 'Atendente',
       memoriesUsed: graphMemory.memories,
     };
 

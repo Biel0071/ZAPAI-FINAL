@@ -46,7 +46,7 @@ type AIHealthItem = {
   detail: string;
 };
 
-const DEFAULT_PROMPT = "Você é Camila, assistente de vendas do Depósito Vista Alegre.";
+const DEFAULT_PROMPT = "Você é o atendente virtual desta loja. Responda conforme as informações e regras configuradas pela empresa.";
 
 const defaultTrainingRows: TrainingRow[] = [
   {
@@ -348,14 +348,19 @@ export default function AI() {
   };
 
   const handleStatusToggle = async (enabled: boolean) => {
+    const previous = aiEnabled;
     setAiEnabled(enabled);
     try {
-      if (enabled) await apiService.enableAI();
-      else await apiService.disableAI();
+      const result = enabled ? await apiService.enableAI() : await apiService.disableAI();
+      const persistedEnabled = resolveAIEnabled(result);
+      setAiEnabled(persistedEnabled);
+      if (persistedEnabled !== enabled) {
+        throw new Error("O backend não confirmou o estado solicitado.");
+      }
       notifySaved();
     } catch {
-      setAiEnabled(!enabled);
-      toast({ title: "Não foi possível atualizar o status da IA.", variant: "destructive" });
+      setAiEnabled(previous);
+      toast({ title: "Não foi possível atualizar o status da IA no servidor.", variant: "destructive" });
     }
   };
 

@@ -298,8 +298,8 @@ const PROMPT_TEMPLATES = [
     id: "vendas",
     title: "Vendas e Conversão",
     category: "Vendas",
-    description: "Focado em qualificar leads rapidamente, oferecer alternativas e conduzir para o fechamento de pedidos de materiais de construção.",
-    prompt: `Você é a Camila, vendedora do Depósito Vista Alegre.
+    description: "Focado em qualificar leads rapidamente, oferecer alternativas e conduzir para o fechamento de pedidos dos produtos ou serviços da loja.",
+    prompt: `Você é o atendente de vendas desta loja.
 Foco principal: converter perguntas de preços em pedidos fechados.
 Regras:
 1. Sempre pergunte as quantidades e local de entrega antes de passar orçamento final.
@@ -309,19 +309,19 @@ Regras:
     id: "suporte",
     title: "Suporte Técnico e Dúvidas",
     category: "Suporte",
-    description: "Focado em sanar dúvidas de materiais, logística de entrega e especificações de tijolos, cimento e blocos.",
-    prompt: `Você é o Rafael, especialista de pós-venda e suporte do Depósito Vista Alegre.
+    description: "Focado em sanar dúvidas sobre produtos, serviços, logística e especificações da loja.",
+    prompt: `Você é o atendente de pós-venda e suporte desta loja.
 Foco principal: resolver problemas e tirar dúvidas técnicas sobre materiais de construção.
 Regras:
-1. Explique com calma os prazos de frete e especificações de blocos e telhas.
+1. Explique com calma os prazos de frete e especificações dos produtos da loja.
 2. Mantenha tom prestativo e calmo.`,
   },
   {
     id: "cobranca",
     title: "Cobrança e Financeiro",
     category: "Financeiro",
-    description: "Focado em negociar faturas em aberto, enviar códigos Pix e agendar acertos presenciais na loja física.",
-    prompt: `Você é a Julia, do setor financeiro e cobrança do Depósito Vista Alegre.
+    description: "Focado em negociar faturas em aberto, enviar códigos Pix e orientar o cliente conforme as políticas financeiras da loja.",
+    prompt: `Você é o atendente do setor financeiro e cobrança desta loja.
 Foco principal: receber pagamentos e regularizar cadastros de faturamento.
 Regras:
 1. Seja educada mas firme. Envie a chave Pix cópia e cola quando solicitada.
@@ -999,6 +999,14 @@ export function AIView(props: AIViewProps) {
 
   const currentProviderId = selectedProviderId || providers.find((p) => p.active)?.id || providers[0]?.id || "";
   const selectedProvider = providers.find((p) => p.id === currentProviderId);
+  const activeProviderCount = providers.filter((provider) => provider.active).length;
+  const selectProvider = (providerId: string) => {
+    setSelectedProviderId(providerId);
+    const firstModel = PROVIDER_MODELS[providerId]?.[0]?.value || "";
+    onTestProviderIdChange(providerId);
+    onTestModelChange(firstModel);
+  };
+
 
   // Agent CRUD & Wizard handlers
   const handleOpenAddAgent = () => {
@@ -1383,7 +1391,7 @@ export function AIView(props: AIViewProps) {
         <Label htmlFor="agent-name" className="text-[11px] font-bold">Nome do Atendente</Label>
         <Input
           id="agent-name"
-          placeholder="Ex: Camila, Rafael"
+          placeholder="Ex: Vendas, Suporte"
           value={agentFormName}
           onChange={(e) => setAgentFormName(e.target.value)}
           disabled={!!editingAgentKey}
@@ -3477,70 +3485,6 @@ export function AIView(props: AIViewProps) {
                         </Button>
                       </AccordionContent>
                     </AccordionItem>
-
-                    {/* 5. Advanced Settings */}
-                    <AccordionItem value="advanced" className="border border-border/60 rounded-xl px-4 bg-card/30">
-                      <AccordionTrigger className="text-xs font-bold hover:no-underline py-3">
-                        <div className="flex items-center gap-2">
-                          <Settings className="h-4 w-4 text-primary" />
-                          <span>Configurações Avançadas da IA</span>
-                        </div>
-                      </AccordionTrigger>
-                      <AccordionContent className="pt-2 pb-4 text-xs space-y-4">
-                        <div className="space-y-4">
-                          <div className="space-y-2">
-                            <div className="flex justify-between text-[11px] font-bold">
-                              <span>Temperatura (Criatividade): {temperature[0]}</span>
-                            </div>
-                            <Slider
-                              value={temperature}
-                              onValueChange={onTemperatureChange}
-                              min={0}
-                              max={1}
-                              step={0.1}
-                            />
-                          </div>
-
-                          <div className="space-y-2">
-                            <div className="flex justify-between text-[11px] font-bold">
-                              <span>Tokens Máximos de Resposta: {maxTokens[0]}</span>
-                            </div>
-                            <Slider
-                              value={maxTokens}
-                              onValueChange={onMaxTokensChange}
-                              min={100}
-                              max={2000}
-                              step={50}
-                            />
-                          </div>
-
-                          <div className="space-y-2">
-                            <div className="flex justify-between text-[11px] font-bold">
-                              <span>Atraso na Resposta (segundos): {responseDelay[0]}s</span>
-                            </div>
-                            <Slider
-                              value={responseDelay}
-                              onValueChange={onResponseDelayChange}
-                              min={0}
-                              max={10}
-                              step={1}
-                            />
-                          </div>
-
-                          <div className="flex items-center justify-between py-2 border-t border-border/30">
-                            <div>
-                              <p className="font-semibold text-foreground">Follow-up Automático</p>
-                              <p className="text-[10px] text-muted-foreground">Cobrar retorno do cliente após período de inatividade.</p>
-                            </div>
-                            <Switch checked={autoFollowUp} onCheckedChange={onAutoFollowUpChange} />
-                          </div>
-                        </div>
-
-                        <Button onClick={onSaveAdvanced} disabled={saving} size="sm" className="gap-1 h-8">
-                          <FloppyDisk className="h-3.5 w-3.5" /> Salvar Configurações Avançadas
-                        </Button>
-                      </AccordionContent>
-                    </AccordionItem>
                   </Accordion>
                 </div>
               )}
@@ -3552,10 +3496,52 @@ export function AIView(props: AIViewProps) {
                     <h3 className="text-sm font-bold flex items-center gap-2 text-foreground">
                       <Cpu className="h-4 w-4 text-primary" /> Provedores de Inteligência Artificial
                     </h3>
+                    <div className="flex items-center gap-2 text-[10px]">
+                      <Badge variant="outline" className="gap-1.5 border-emerald-500/30 bg-emerald-500/10 text-emerald-400">
+                        <span className="h-2 w-2 rounded-full bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.8)]" />
+                        {activeProviderCount} ativos
+                      </Badge>
+                      <Badge variant="outline" className="gap-1.5 border-red-500/30 bg-red-500/10 text-red-400">
+                        <span className="h-2 w-2 rounded-full bg-red-400" />
+                        {providers.length - activeProviderCount} inativos
+                      </Badge>
+                    </div>
                   </div>
 
                   <Card className="glass-card p-6">
                     <div className="space-y-4">
+                      <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+                        {providers.map((provider) => (
+                          <button
+                            key={provider.id}
+                            type="button"
+                            onClick={() => selectProvider(provider.id)}
+                            aria-pressed={currentProviderId === provider.id}
+                            className={cn(
+                              "rounded-xl border p-3 text-left transition-all hover:-translate-y-0.5 hover:bg-muted/30",
+                              currentProviderId === provider.id ? "border-primary/60 bg-primary/10 shadow-sm" : "border-border/60 bg-background/25",
+                            )}
+                          >
+                            <div className="flex items-start justify-between gap-2">
+                              <div className="min-w-0">
+                                <div className="flex items-center gap-2">
+                                  <span className={cn("h-2.5 w-2.5 shrink-0 rounded-full", provider.active ? "bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.8)]" : "bg-red-400")} />
+                                  <span className="truncate text-xs font-bold text-foreground">{provider.name}</span>
+                                </div>
+                                <p className="mt-1 truncate pl-[18px] text-[9px] text-muted-foreground">{provider.model || "Sem modelo"}</p>
+                              </div>
+                              <span
+                                className={cn(
+                                  "rounded-full px-2 py-0.5 text-[8px] font-bold uppercase tracking-wide",
+                                  provider.active ? "bg-emerald-500/10 text-emerald-400" : "bg-red-500/10 text-red-400",
+                                )}
+                              >
+                                {provider.active ? "Ativo" : "Inativo"}
+                              </span>
+                            </div>
+                          </button>
+                        ))}
+                      </div>
                       <div className="space-y-1.5">
                         <div className="flex items-center gap-1.5">
                           <Label className="text-[10px] text-muted-foreground">Selecione o Provedor</Label>
@@ -3574,12 +3560,7 @@ export function AIView(props: AIViewProps) {
                         </div>
                         <Select
                           value={currentProviderId}
-                          onValueChange={(val) => {
-                            setSelectedProviderId(val);
-                            const firstModel = PROVIDER_MODELS[val]?.[0]?.value || "";
-                            onTestProviderIdChange(val);
-                            onTestModelChange(firstModel);
-                          }}
+                          onValueChange={selectProvider}
                         >
                           <SelectTrigger className="bg-background/50 h-8 text-xs">
                             <SelectValue placeholder="Escolha um provedor" />
@@ -3587,7 +3568,13 @@ export function AIView(props: AIViewProps) {
                           <SelectContent className="bg-card border-border">
                             {providers.map((p) => (
                               <SelectItem key={p.id} value={p.id} className="text-xs">
-                                {p.name} {p.active ? "(Ativo)" : ""}
+                                <div className="flex min-w-[240px] items-center justify-between gap-4">
+                                  <span className="flex items-center gap-2">
+                                    <span className={cn("h-2.5 w-2.5 rounded-full", p.active ? "bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.8)]" : "bg-red-400")} />
+                                    {p.name}
+                                  </span>
+                                  <span className={p.active ? "text-emerald-400" : "text-red-400"}>{p.active ? "Ativo" : "Inativo"}</span>
+                                </div>
                               </SelectItem>
                             ))}
                           </SelectContent>
@@ -3595,22 +3582,17 @@ export function AIView(props: AIViewProps) {
                       </div>
 
                       {selectedProvider && (
-                        <div className="space-y-3 p-4 rounded-lg border border-border/50 bg-background/25">
+                        <div className={cn("space-y-4 rounded-xl border p-4", selectedProvider.active ? "border-emerald-500/30 bg-emerald-500/[0.04]" : "border-red-500/30 bg-red-500/[0.04]")}>
                           <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-1.5">
-                              <span className="text-xs font-semibold text-foreground">Ativar Provedor</span>
-                              <TooltipProvider>
-                                <Tooltip>
-                                  <TooltipTrigger asChild>
-                                    <button type="button" className="text-muted-foreground hover:text-foreground">
-                                      <Info className="h-3.5 w-3.5" />
-                                    </button>
-                                  </TooltipTrigger>
-                                  <TooltipContent className="bg-popover border border-border text-popover-foreground text-xs p-2 rounded-md">
-                                    Habilita ou desabilita o uso deste provedor no sistema.
-                                  </TooltipContent>
-                                </Tooltip>
-                              </TooltipProvider>
+                            <div className="flex items-center gap-2.5">
+                              <span className={cn("h-3 w-3 rounded-full", selectedProvider.active ? "bg-emerald-400 shadow-[0_0_10px_rgba(52,211,153,0.9)]" : "bg-red-400")} />
+                              <div>
+                                <span className="text-xs font-bold text-foreground">{selectedProvider.name}</span>
+                                <p className="text-[9px] text-muted-foreground">Status operacional do provedor</p>
+                              </div>
+                              <Badge variant="outline" className={cn("text-[9px]", selectedProvider.active ? "border-emerald-500/30 text-emerald-400" : "border-red-500/30 text-red-400")}>
+                                {selectedProvider.active ? "Ativo" : "Inativo"}
+                              </Badge>
                             </div>
                             <Switch
                               checked={selectedProvider.active}

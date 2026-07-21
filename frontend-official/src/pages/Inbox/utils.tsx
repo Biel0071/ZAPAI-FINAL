@@ -64,7 +64,8 @@ export const HighlightedMessageText = memo(function HighlightedMessageText({
   );
 });
 
-export function getInitials(name: string): string {
+export function getInitials(name?: string | null): string {
+  if (!name || typeof name !== "string") return "C";
   return name
     .split(" ")
     .filter(Boolean)

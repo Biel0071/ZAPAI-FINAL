@@ -81,8 +81,24 @@ async function updateContactName(phone, name, companyId) {
   return mapContact(result.rows[0]);
 }
 
+async function isLeadBlocked(phone, companyId) {
+  const normalizedPhone = normalizePhone(phone);
+  if (!normalizedPhone) return false;
+
+  const result = await query(
+    `SELECT is_blocked
+     FROM leads
+     WHERE phone = ANY($1::text[]) AND company_id = $2
+     LIMIT 1`,
+    [getPhoneAliases(normalizedPhone), getCompanyId(companyId)],
+  );
+
+  return Boolean(result.rows[0]?.is_blocked);
+}
+
 module.exports = {
   createContact,
   findContactByPhone,
+  isLeadBlocked,
   updateContactName,
 };

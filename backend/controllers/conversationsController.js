@@ -204,7 +204,7 @@ async function getConversations(req, res) {
     sessionId ? String(chat.sessionId || 'main') === sessionId : true
   );
   const normalized = memChats.map((chat) => ({
-    assignedAgent: 'Camila',
+    assignedAgent: null,
     contactId: chat.phone,
     conversationStatus: 'open',
     id: chat.id,
@@ -700,7 +700,7 @@ async function listConversationControls(req, res) {
       conversationId: conv.id,
       ai_enabled: conv.aiEnabled !== false,
       aiEnabled: conv.aiEnabled !== false,
-      assigned_to: conv.agent_name || 'Camila',
+      assigned_to: conv.agent_name || null,
       tags: conv.tags || [],
       summary: conv.summary || '',
       notes: conv.notes || '',
@@ -739,7 +739,7 @@ async function upsertConversationControl(req, res) {
       conversationId: updated.id,
       ai_enabled: updated.aiEnabled !== false,
       aiEnabled: updated.aiEnabled !== false,
-      assigned_to: updated.agent_name || 'Camila',
+      assigned_to: updated.agent_name || null,
       tags: updated.tags || [],
       summary: updated.summary || '',
       notes: updated.notes || '',
@@ -767,7 +767,7 @@ async function getConversationControl(req, res) {
       conversationId: conv.id,
       ai_enabled: conv.aiEnabled !== false,
       aiEnabled: conv.aiEnabled !== false,
-      assigned_to: conv.agent_name || 'Camila',
+      assigned_to: conv.agent_name || null,
       tags: conv.tags || [],
       summary: conv.summary || '',
       notes: conv.notes || '',

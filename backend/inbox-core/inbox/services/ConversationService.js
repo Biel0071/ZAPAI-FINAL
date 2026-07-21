@@ -77,7 +77,7 @@ async function listConversations({ companyId, limit = 50, sessionId, store }) {
   const memChats = filterOwnSessionConversation(messageStore.getChats(), { sessionId, store });
 
   return memChats.map((chat) => conversationRuntimeService.decorateConversation(store, {
-    assignedAgent: 'Camila',
+    assignedAgent: null,
     contactId: chat.phone,
     conversationStatus: 'open',
     id: chat.id,

@@ -1,7 +1,7 @@
 const {
   enableAI,
   disableAI,
-  isAIEnabled,
+  getAIEnabled,
   setAIEnabled,
 } = require('../config/aiToggle');
 const { applyPromptImprovement, updateActivePrompt, getPromptHistory, getActivePrompt } = require('../config/promptManager');
@@ -36,109 +36,71 @@ const { generateAutoReply } = require('../config/ai');
 const aiIntelligenceService = require('../services/aiIntelligenceService');
 const { processAI, testAIConnection, testProviderConnection } = require('../services/ai.service');
 const aiLogService = require('../services/aiLogService');
+const { getCompanyId } = require('../services/tenantContext');
 
 
 function getStore(req) {
   return req.app.locals.store;
 }
 
-const FAST_FALLBACK_TIMEOUT_MS = Math.max(Number(process.env.API_FALLBACK_TIMEOUT_MS) || 2500, 500);
-
-async function runWithFastFallback(work, fallbackValue) {
-  let timer = null;
-
+async function enable(req, res) {
+  const tenantId = getCompanyId(req);
   try {
-    return await Promise.race([
-      Promise.resolve()
-        .then(work)
-        .then((value) => ({
-          degraded: false,
-          fallback: 'none',
-          value,
-          warning: null,
-        })),
-      new Promise((resolve) => {
-        timer = setTimeout(() => {
-          resolve({
-            degraded: true,
-            fallback: 'timeout',
-            value: fallbackValue,
-            warning: 'Operation exceeded the fast-path timeout. Returned fallback state.',
-          });
-        }, FAST_FALLBACK_TIMEOUT_MS);
-      }),
-    ]);
+    const enabled = await enableAI(tenantId);
+    return res.status(200).json({ ai: enabled, enabled, tenantId });
   } catch (error) {
-    return {
-      degraded: true,
-      fallback: 'error',
-      value: fallbackValue,
-      warning: error?.message || String(error),
-    };
-  } finally {
-    if (timer) {
-      clearTimeout(timer);
-    }
+    return res.status(500).json({ error: error.message || 'Failed to enable AI.', tenantId });
   }
 }
 
-async function enable(req, res) {
-  const result = await runWithFastFallback(() => enableAI(), true);
-  return res.status(200).json({
-    ai: Boolean(result.value),
-    degraded: result.degraded,
-    fallback: result.fallback,
-    warning: result.warning,
-  });
-}
-
 async function disable(req, res) {
-  const result = await runWithFastFallback(() => disableAI(), false);
-  return res.status(200).json({
-    ai: Boolean(result.value),
-    degraded: result.degraded,
-    fallback: result.fallback,
-    warning: result.warning,
-  });
+  const tenantId = getCompanyId(req);
+  try {
+    const enabled = await disableAI(tenantId);
+    return res.status(200).json({ ai: enabled, enabled, tenantId });
+  } catch (error) {
+    return res.status(500).json({ error: error.message || 'Failed to disable AI.', tenantId });
+  }
 }
 
 async function toggle(req, res) {
   const enabled = req.body?.aiEnabled;
+  const tenantId = getCompanyId(req);
 
   if (typeof enabled !== 'boolean') {
-    return res.status(400).json({
-      error: 'The field aiEnabled must be boolean.',
-    });
+    return res.status(400).json({ error: 'The field aiEnabled must be boolean.' });
   }
 
-  const result = await runWithFastFallback(() => setAIEnabled(enabled), enabled);
-  return res.status(200).json({
-    ai: Boolean(result.value),
-    degraded: result.degraded,
-    fallback: result.fallback,
-    warning: result.warning,
-  });
+  try {
+    const persisted = await setAIEnabled(enabled, tenantId);
+    return res.status(200).json({ ai: persisted, enabled: persisted, tenantId });
+  } catch (error) {
+    return res.status(500).json({ error: error.message || 'Failed to update AI status.', tenantId });
+  }
 }
 
 async function status(req, res) {
   try {
     const aiService = require('../services/ai.service');
-    const companyId = req.headers['x-company-id'] || req.headers['x-tenant-id'] || req.auth?.tenantId || 'default';
+    const tenantId = getCompanyId(req);
     const store = req.app.locals.store;
-    const integration = await aiService.getAIIntegrationStatus(store, companyId);
-    const active = isAIEnabled() && integration.aiOn;
-    const isGlobalEnabled = isAIEnabled();
-    
+    const [enabled, integration] = await Promise.all([
+      getAIEnabled(tenantId),
+      aiService.getAIIntegrationStatus(store, tenantId),
+    ]);
+    const active = enabled && integration.aiOn;
+
     return res.status(200).json({
-      ai: isGlobalEnabled,
-      enabled: isGlobalEnabled,
-      active: active,
-      status: isGlobalEnabled ? 'on' : 'off',
-      ...integration
+      ...integration,
+      ai: enabled,
+      enabled,
+      active,
+      status: enabled ? 'on' : 'off',
+      tenantId,
     });
-  } catch (err) {
-    console.error('[aiController] status failed:', err);
-    return res.status(500).json({ error: err.message });
+  } catch (error) {
+    console.error('[aiController] status failed:', error);
+    return res.status(500).json({ error: error.message });
   }
 }
 

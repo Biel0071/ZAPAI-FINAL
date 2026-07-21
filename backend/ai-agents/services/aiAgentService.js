@@ -1,17 +1,28 @@
-const camilaAgent = require('../agents/camilaAgent');
-const rafaelAgent = require('../agents/rafaelAgent');
-const juliaAgent = require('../agents/juliaAgent');
-const pedroAgent = require('../agents/pedroAgent');
 const { selectRandomActiveAgent } = require('../engine/agentSelector');
 const { getDelayMs } = require('../engine/delayEngine');
 const { buildPersonalityPrompt } = require('../engine/personalityEngine');
 const systemSettingsRepository = require('../../repositories/systemSettingsRepository');
 
-const SETTINGS_KEY = 'ai_agents_config_v1';
-const DEFAULT_AGENTS = [camilaAgent, rafaelAgent, juliaAgent, pedroAgent].map((agent) => ({ ...agent }));
+const DEFAULT_TENANT_ID = String(process.env.DEFAULT_COMPANY_ID || 'default').trim() || 'default';
+const SETTINGS_PREFIX = 'ai_agents_config_v2';
+const agentsByTenant = new Map();
+const hydratedTenants = new Set();
 
-let agentsCache = DEFAULT_AGENTS.map((agent) => ({ ...agent }));
-let cacheHydrated = false;
+function normalizeTenantId(tenantId) {
+  return String(tenantId || DEFAULT_TENANT_ID).trim() || DEFAULT_TENANT_ID;
+}
+
+function settingsKey(tenantId) {
+  return `${SETTINGS_PREFIX}:${normalizeTenantId(tenantId)}`;
+}
+
+function getTenantCache(tenantId) {
+  const normalizedTenantId = normalizeTenantId(tenantId);
+  if (!agentsByTenant.has(normalizedTenantId)) {
+    agentsByTenant.set(normalizedTenantId, []);
+  }
+  return agentsByTenant.get(normalizedTenantId);
+}
 
 function cloneAgents(agents = []) {
   return agents.map((agent) => ({
@@ -45,7 +56,7 @@ function normalizeAgent(agent = {}) {
     },
     key,
     name: String(agent.name || key).trim(),
-    personality: String(agent.personality || agent.prompt || 'Helpful sales attendant.').trim(),
+    personality: String(agent.personality || agent.prompt || 'Atendente da loja.').trim(),
     responseStyle: String(agent.responseStyle || 'short_natural').trim(),
     tone: String(agent.tone || 'professional').trim(),
     objective: String(agent.objective || '').trim(),
@@ -79,161 +90,159 @@ function normalizeAgent(agent = {}) {
   };
 }
 
-function getAgentsSync() {
-  return cloneAgents(agentsCache);
+function getAgentsSync(tenantId = DEFAULT_TENANT_ID) {
+  return cloneAgents(getTenantCache(tenantId));
 }
 
-function getActiveAgentsSync() {
-  return getAgentsSync().filter((agent) => agent.active !== false);
+function getActiveAgentsSync(tenantId = DEFAULT_TENANT_ID) {
+  return getAgentsSync(tenantId).filter((agent) => agent.active !== false);
 }
 
-function findByNameSync(name = '') {
+function findByNameSync(name = '', tenantId = DEFAULT_TENANT_ID) {
   const normalizedName = String(name || '').trim().toLowerCase();
-  if (!normalizedName) {
-    return null;
-  }
+  if (!normalizedName) return null;
 
   return (
-    getAgentsSync().find((agent) => String(agent.name || '').toLowerCase() === normalizedName) ||
-    getAgentsSync().find((agent) => String(agent.key || '').toLowerCase() === normalizedName) ||
+    getAgentsSync(tenantId).find((agent) => String(agent.name || '').toLowerCase() === normalizedName) ||
+    getAgentsSync(tenantId).find((agent) => String(agent.key || '').toLowerCase() === normalizedName) ||
     null
   );
 }
 
-function pickRandomAgentSync() {
-  return selectRandomActiveAgent(getActiveAgentsSync()) || getAgentsSync()[0] || null;
+function pickRandomAgentSync(tenantId = DEFAULT_TENANT_ID) {
+  return selectRandomActiveAgent(getActiveAgentsSync(tenantId)) || null;
 }
 
-function getDelayForAgentMs(agent) {
-  return getDelayMs(agent || pickRandomAgentSync() || DEFAULT_AGENTS[0]);
+function getDelayForAgentMs(agent, tenantId = DEFAULT_TENANT_ID) {
+  return getDelayMs(agent || pickRandomAgentSync(tenantId) || {
+    delayProfile: { minMs: 1000, maxMs: 3000 },
+  });
 }
 
 function wait(ms) {
   return new Promise((resolve) => setTimeout(resolve, Math.max(0, Number(ms) || 0)));
 }
 
-async function persistAgents() {
-  try {
-    await systemSettingsRepository.setSetting(SETTINGS_KEY, JSON.stringify(agentsCache));
-  } catch {
-    // Keep in-memory configuration when persistence is unavailable.
-  }
+async function persistAgents(tenantId) {
+  const normalizedTenantId = normalizeTenantId(tenantId);
+  await systemSettingsRepository.setSetting(
+    settingsKey(normalizedTenantId),
+    JSON.stringify(getTenantCache(normalizedTenantId)),
+  );
 }
 
-async function hydrateFromSettings() {
-  if (cacheHydrated) {
-    return getAgentsSync();
-  }
+async function hydrateFromSettings(tenantId = DEFAULT_TENANT_ID) {
+  const normalizedTenantId = normalizeTenantId(tenantId);
+  if (hydratedTenants.has(normalizedTenantId)) return getAgentsSync(normalizedTenantId);
 
   try {
-    const row = await systemSettingsRepository.getSetting(SETTINGS_KEY);
-
-    if (row?.value) {
-      const parsed = JSON.parse(row.value);
-
-      if (Array.isArray(parsed) && parsed.length > 0) {
-        agentsCache = parsed.map((agent) => normalizeAgent(agent));
-      }
-    }
-  } catch {
-    // Fall back to defaults
+    const row = await systemSettingsRepository.getSetting(settingsKey(normalizedTenantId));
+    const parsed = row?.value ? JSON.parse(row.value) : [];
+    agentsByTenant.set(
+      normalizedTenantId,
+      Array.isArray(parsed) ? parsed.map((agent) => normalizeAgent(agent)) : [],
+    );
+  } catch (error) {
+    agentsByTenant.set(normalizedTenantId, []);
+    console.warn(`[AI AGENT SERVICE][tenant=${normalizedTenantId}] failed to hydrate agents:`, error.message || error);
   } finally {
-    cacheHydrated = true;
+    hydratedTenants.add(normalizedTenantId);
   }
 
-  return getAgentsSync();
+  return getAgentsSync(normalizedTenantId);
 }
 
-async function listAgents() {
-  await hydrateFromSettings();
-  return getAgentsSync();
+async function listAgents(tenantId = DEFAULT_TENANT_ID) {
+  await hydrateFromSettings(tenantId);
+  return getAgentsSync(tenantId);
 }
 
-async function createAgent(payload = {}) {
-  await hydrateFromSettings();
+async function createAgent(payload = {}, tenantId = DEFAULT_TENANT_ID) {
+  const normalizedTenantId = normalizeTenantId(tenantId);
+  await hydrateFromSettings(normalizedTenantId);
+  const agents = getTenantCache(normalizedTenantId);
   const nextAgent = normalizeAgent(payload);
 
-  const alreadyExists = agentsCache.some((agent) => agent.key === nextAgent.key);
-  if (alreadyExists) {
-    throw new Error('Agent key already exists.');
+  if (agents.some((agent) => agent.key === nextAgent.key)) {
+    throw new Error('Agent key already exists for this store.');
   }
 
-  agentsCache.push(nextAgent);
-  await persistAgents();
+  agents.push(nextAgent);
+  await persistAgents(normalizedTenantId);
   return nextAgent;
 }
 
-async function updateAgent(agentKey, payload = {}) {
-  await hydrateFromSettings();
+async function updateAgent(agentKey, payload = {}, tenantId = DEFAULT_TENANT_ID) {
+  const normalizedTenantId = normalizeTenantId(tenantId);
+  await hydrateFromSettings(normalizedTenantId);
+  const agents = getTenantCache(normalizedTenantId);
   const normalizedKey = String(agentKey || '').trim().toLowerCase();
+  const index = agents.findIndex((agent) => agent.key === normalizedKey);
 
-  const index = agentsCache.findIndex((agent) => agent.key === normalizedKey);
-  if (index < 0) {
-    throw new Error('Agent not found.');
-  }
+  if (index < 0) throw new Error('Agent not found for this store.');
 
-  const merged = normalizeAgent({
-    ...agentsCache[index],
-    ...payload,
-    key: normalizedKey,
-  });
-
-  agentsCache[index] = merged;
-  await persistAgents();
+  const merged = normalizeAgent({ ...agents[index], ...payload, key: normalizedKey });
+  agents[index] = merged;
+  await persistAgents(normalizedTenantId);
   return merged;
 }
 
-async function setAgentActive(agentKey, active) {
-  return updateAgent(agentKey, { active: Boolean(active) });
+async function setAgentActive(agentKey, active, tenantId = DEFAULT_TENANT_ID) {
+  return updateAgent(agentKey, { active: Boolean(active) }, tenantId);
 }
 
-async function deleteAgent(agentKey) {
-  await hydrateFromSettings();
+async function deleteAgent(agentKey, tenantId = DEFAULT_TENANT_ID) {
+  const normalizedTenantId = normalizeTenantId(tenantId);
+  await hydrateFromSettings(normalizedTenantId);
+  const agents = getTenantCache(normalizedTenantId);
   const normalizedKey = String(agentKey || '').trim().toLowerCase();
-  
-  const index = agentsCache.findIndex((agent) => agent.key === normalizedKey);
-  if (index < 0) {
-    throw new Error('Agent not found.');
-  }
+  const index = agents.findIndex((agent) => agent.key === normalizedKey);
 
-  const deleted = agentsCache.splice(index, 1)[0];
-  await persistAgents();
+  if (index < 0) throw new Error('Agent not found for this store.');
+
+  const deleted = agents.splice(index, 1)[0];
+  await persistAgents(normalizedTenantId);
   return deleted;
 }
 
-async function cloneAgent(agentKey) {
-  await hydrateFromSettings();
+async function cloneAgent(agentKey, tenantId = DEFAULT_TENANT_ID) {
+  const normalizedTenantId = normalizeTenantId(tenantId);
+  await hydrateFromSettings(normalizedTenantId);
+  const agents = getTenantCache(normalizedTenantId);
   const normalizedKey = String(agentKey || '').trim().toLowerCase();
+  const original = agents.find((agent) => agent.key === normalizedKey);
 
-  const original = agentsCache.find((agent) => agent.key === normalizedKey);
-  if (!original) {
-    throw new Error('Agent not found.');
-  }
+  if (!original) throw new Error('Agent not found for this store.');
 
   const timestamp = Date.now();
-  const newName = `${original.name} (Cópia)`;
-  const newKey = `${original.key}-copia-${timestamp}`;
-
   const cloned = normalizeAgent({
     ...original,
-    name: newName,
-    key: newKey,
+    name: `${original.name} (Cópia)`,
+    key: `${original.key}-copia-${timestamp}`,
     active: false,
   });
 
-  agentsCache.push(cloned);
-  await persistAgents();
+  agents.push(cloned);
+  await persistAgents(normalizedTenantId);
   return cloned;
 }
 
-function resetCache() {
-  cacheHydrated = false;
-  console.log('[AI AGENT SERVICE] Cache hydration reset.');
+function resetCache(tenantId) {
+  if (tenantId) {
+    const normalizedTenantId = normalizeTenantId(tenantId);
+    hydratedTenants.delete(normalizedTenantId);
+    agentsByTenant.delete(normalizedTenantId);
+    return;
+  }
+  hydratedTenants.clear();
+  agentsByTenant.clear();
 }
 
 module.exports = {
   buildPersonalityPrompt,
+  cloneAgent,
   createAgent,
+  deleteAgent,
   findByNameSync,
   getActiveAgentsSync,
   getAgentsSync,
@@ -241,10 +250,8 @@ module.exports = {
   hydrateFromSettings,
   listAgents,
   pickRandomAgentSync,
+  resetCache,
   setAgentActive,
   updateAgent,
-  deleteAgent,
-  cloneAgent,
   wait,
-  resetCache,
 };

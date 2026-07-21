@@ -2,6 +2,7 @@ const aiConfigService = require('../services/aiConfigService');
 const aiAgentService = require('../ai-agents/services/aiAgentService');
 const { query } = require('../config/database');
 const aiMemoryEngine = require('../services/aiMemoryEngine');
+const { getCompanyId } = require('../services/tenantContext');
 
 function getStore(req) {
   return req.app.locals.store;
@@ -97,9 +98,9 @@ function improve(req, res) {
   }
 }
 
-async function getAIAgents(_req, res) {
+async function getAIAgents(req, res) {
   try {
-    const agents = await aiAgentService.listAgents();
+    const agents = await aiAgentService.listAgents(getCompanyId(req));
     return res.status(200).json({ agents, success: true });
   } catch (error) {
     return res.status(500).json({ error: error.message || 'Failed to load AI agents.' });
@@ -114,7 +115,7 @@ async function createAIAgent(req, res) {
       return res.status(400).json({ error: 'name is required.' });
     }
 
-    const agent = await aiAgentService.createAgent(payload);
+    const agent = await aiAgentService.createAgent(payload, getCompanyId(req));
     return res.status(201).json({ agent, success: true });
   } catch (error) {
     return res.status(400).json({ error: error.message || 'Failed to create AI agent.' });
@@ -123,7 +124,7 @@ async function createAIAgent(req, res) {
 
 async function updateAIAgent(req, res) {
   try {
-    const agent = await aiAgentService.updateAgent(req.params?.key, req.body || {});
+    const agent = await aiAgentService.updateAgent(req.params?.key, req.body || {}, getCompanyId(req));
     return res.status(200).json({ agent, success: true });
   } catch (error) {
     return res.status(400).json({ error: error.message || 'Failed to update AI agent.' });
@@ -136,7 +137,7 @@ async function toggleAIAgent(req, res) {
       return res.status(400).json({ error: 'active must be boolean.' });
     }
 
-    const agent = await aiAgentService.setAgentActive(req.params?.key, req.body.active);
+    const agent = await aiAgentService.setAgentActive(req.params?.key, req.body.active, getCompanyId(req));
     return res.status(200).json({ agent, success: true });
   } catch (error) {
     return res.status(400).json({ error: error.message || 'Failed to toggle AI agent.' });
@@ -145,7 +146,7 @@ async function toggleAIAgent(req, res) {
 
 async function deleteAIAgent(req, res) {
   try {
-    const deleted = await aiAgentService.deleteAgent(req.params?.key);
+    const deleted = await aiAgentService.deleteAgent(req.params?.key, getCompanyId(req));
     return res.status(200).json({ agent: deleted, success: true });
   } catch (error) {
     return res.status(400).json({ error: error.message || 'Failed to delete AI agent.' });
@@ -154,7 +155,7 @@ async function deleteAIAgent(req, res) {
 
 async function cloneAIAgent(req, res) {
   try {
-    const cloned = await aiAgentService.cloneAgent(req.params?.key);
+    const cloned = await aiAgentService.cloneAgent(req.params?.key, getCompanyId(req));
     return res.status(200).json({ agent: cloned, success: true });
   } catch (error) {
     return res.status(400).json({ error: error.message || 'Failed to clone AI agent.' });
@@ -163,6 +164,7 @@ async function cloneAIAgent(req, res) {
 
 async function getAIEvolution(req, res) {
   try {
+    const companyId = getCompanyId(req);
     const dbEnabled = req.app.locals.store?.databaseEnabled;
     if (!dbEnabled) {
       return res.status(200).json({ success: true, evolution: [] });
@@ -175,10 +177,11 @@ async function getAIEvolution(req, res) {
         SUM(CASE WHEN funnel_stage = 'closed' OR funnel_stage = 'fechado' THEN 1 ELSE 0 END) AS conversions,
         SUM(CASE WHEN lead_intent = 'objection' OR lead_intent = 'objeção' THEN 1 ELSE 0 END) AS objections
       FROM conversations
-      WHERE agent_name IS NOT NULL AND agent_name <> ''
+      WHERE company_id = $1
+        AND agent_name IS NOT NULL AND agent_name <> ''
       GROUP BY agent_name
     `;
-    const { rows } = await query(sql);
+    const { rows } = await query(sql, [companyId]);
 
     const evolution = await Promise.all(rows.map(async (row) => {
       const conv = Number(row.conversations_analyzed || 0);
@@ -197,13 +200,14 @@ async function getAIEvolution(req, res) {
           SELECT m.content, COUNT(*) as count 
           FROM messages m
           JOIN conversations c ON m.conversation_id = c.id
-          WHERE c.agent_name = $1 
+          WHERE c.agent_name = $1
+            AND c.company_id = $2
             AND m.from_me = FALSE 
             AND (m.content LIKE '%?%' OR m.content ILIKE '%valor%' OR m.content ILIKE '%preço%' OR m.content ILIKE '%prazo%' OR m.content ILIKE '%entrega%')
           GROUP BY m.content 
           ORDER BY count DESC 
           LIMIT 3
-        `, [row.agent_key]);
+        `, [row.agent_key, companyId]);
         
         topQuestions = questionsRes.rows.map(q => ({
           question: q.content,
@@ -243,6 +247,7 @@ async function getAIEvolution(req, res) {
 
 async function getPipelineLogs(req, res) {
   try {
+    const companyId = getCompanyId(req);
     const dbEnabled = req.app.locals.store?.databaseEnabled;
     if (!dbEnabled) {
       return res.status(200).json({ success: true, logs: [] });
@@ -250,11 +255,17 @@ async function getPipelineLogs(req, res) {
 
     const sql = `
       SELECT id, message_id, conversation_id, phone, step, status, error_message, details, timestamp
-      FROM message_audit_logs
+      FROM message_audit_logs audit
+      WHERE EXISTS (
+        SELECT 1
+        FROM conversations conversation
+        WHERE conversation.id::text = audit.conversation_id
+          AND conversation.company_id = $1
+      )
       ORDER BY timestamp DESC
       LIMIT 100
     `;
-    const { rows } = await query(sql);
+    const { rows } = await query(sql, [companyId]);
     return res.status(200).json({ success: true, logs: rows });
   } catch (error) {
     console.error('[aiConfigController] getPipelineLogs failed:', error);

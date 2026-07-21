@@ -73,8 +73,8 @@ async function resolveProvider(store, companyId = 'default') {
 }
 
 async function detectUnansweredQuestions(agentKey, companyId = 'default') {
-  await aiAgentService.listAgents();
-  const agent = aiAgentService.getAgentsSync().find(a => a.key === agentKey);
+  await aiAgentService.listAgents(companyId);
+  const agent = aiAgentService.getAgentsSync(companyId).find(a => a.key === agentKey);
   if (!agent) return 0;
   
   const agentName = agent.name;
@@ -86,12 +86,13 @@ async function detectUnansweredQuestions(agentKey, companyId = 'default') {
       FROM messages m
       INNER JOIN conversations conv ON conv.id = m.conversation_id
       INNER JOIN leads l ON l.id = conv.lead_id
-      WHERE (conv.agent_name = $1 OR conv.agent_name IS NULL)
+      WHERE conv.company_id = $2
+        AND (conv.agent_name = $1 OR conv.agent_name IS NULL)
         AND m.timestamp >= NOW() - INTERVAL '15 days'
       ORDER BY m.conversation_id, m.timestamp ASC
       LIMIT 1000
     `,
-    [agentName]
+    [agentName, companyId]
   );
   
   const messages = result.rows;
@@ -154,8 +155,8 @@ async function detectUnansweredQuestions(agentKey, companyId = 'default') {
 }
 
 async function refineWholeAgent(agentKey, userInstruction, store, companyId = 'default') {
-  await aiAgentService.listAgents();
-  const agent = aiAgentService.getAgentsSync().find(a => a.key === agentKey);
+  await aiAgentService.listAgents(companyId);
+  const agent = aiAgentService.getAgentsSync(companyId).find(a => a.key === agentKey);
   if (!agent) {
     throw new Error('Atendente não encontrado.');
   }
@@ -265,8 +266,8 @@ REGRAS CRÍTICAS:
 }
 
 async function applyAgentChanges(agentKey, changes, sourceDescription, changeType = 'prompt_refinement', companyId = 'default') {
-  await aiAgentService.listAgents();
-  const agent = aiAgentService.getAgentsSync().find(a => a.key === agentKey);
+  await aiAgentService.listAgents(companyId);
+  const agent = aiAgentService.getAgentsSync(companyId).find(a => a.key === agentKey);
   if (!agent) {
     throw new Error('Atendente não encontrado.');
   }
@@ -294,7 +295,7 @@ async function applyAgentChanges(agentKey, changes, sourceDescription, changeTyp
     };
   }
   
-  await aiAgentService.updateAgent(agentKey, updatedPayload);
+  await aiAgentService.updateAgent(agentKey, updatedPayload, companyId);
   
   await agentLearningRepo.createEvolutionLog({
     agentKey,
@@ -319,8 +320,8 @@ async function learnFromAnswer(eventId, humanAnswer, store, companyId = 'default
   const event = result.rows[0];
   const agentKey = event.agent_key;
   
-  await aiAgentService.listAgents();
-  const agent = aiAgentService.getAgentsSync().find(a => a.key === agentKey);
+  await aiAgentService.listAgents(companyId);
+  const agent = aiAgentService.getAgentsSync(companyId).find(a => a.key === agentKey);
   if (!agent) {
     throw new Error('Atendente associado não encontrado.');
   }

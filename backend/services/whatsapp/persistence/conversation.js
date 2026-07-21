@@ -139,7 +139,7 @@ async function maybeGenerateAiSummary(_store, _messageHistory, fallbackSummary) 
 async function persistConversationMessage(store, payload) {
   const companyId = getCompanyId(payload.companyId);
   const sessionId = payload.sessionId || DEFAULT_SESSION;
-  const assignedAgent = pickRandomAgent();
+  const assignedAgent = pickRandomAgent(companyId);
   let taskPayload = await runTask('createLead', {
     companyId,
     name: payload.name,
@@ -150,7 +150,7 @@ async function persistConversationMessage(store, payload) {
 
   taskPayload = await runTask('createConversation', {
     ...taskPayload,
-    assignedAgent: assignedAgent.name,
+    assignedAgent: assignedAgent?.name || null,
   });
 
   const currentConversation = taskPayload.currentConversation;
@@ -275,7 +275,7 @@ async function persistConversationMessage(store, payload) {
   });
 
   return {
-    agent: getAgentByName(updatedConversation.agent_name),
+    agent: getAgentByName(updatedConversation.agent_name, companyId),
     campaign,
     conversation: updatedConversation,
     isNewConversation,

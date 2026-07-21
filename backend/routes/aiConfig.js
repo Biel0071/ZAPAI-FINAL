@@ -37,7 +37,7 @@ router.post('/config/ai/restart', async (req, res) => {
     }
 
     if (typeof aiAgentService.resetCache === 'function') {
-      aiAgentService.resetCache();
+      aiAgentService.resetCache(req.tenantId || req.companyId || process.env.DEFAULT_COMPANY_ID || 'default');
     }
 
     return res.status(200).json({ success: true, message: 'AI restarted successfully.' });

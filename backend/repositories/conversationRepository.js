@@ -86,7 +86,7 @@ function mapConversation(row) {
   }
 
   return {
-    agent_name: row.agent_name || 'Camila',
+    agent_name: row.agent_name || null,
     aiEnabled: row.ai_enabled !== false,
     company_id: row.company_id,
     contact_id: row.lead_id,
@@ -157,7 +157,7 @@ async function createConversation({
   remote_jid,
   lastMessage = '',
   lastMessageType = 'text',
-  assignedAgent = 'Camila',
+  assignedAgent = null,
   funnelStage = 'new_lead',
   leadConfidence = 0,
   leadIntent = 'information',

@@ -42,7 +42,7 @@ function detectIntent(text) {
   return 'unknown';
 }
 
-function buildFlowReply(flowKey, agentName = 'Camila') {
+function buildFlowReply(flowKey, agentName = 'Atendente') {
   if (flowKey === 'greeting') {
     return `${agentName}: Oi. Posso te ajudar com valores, disponibilidade ou suporte agora.`;
   }
@@ -63,7 +63,7 @@ function decideMessageAction({
 } = {}) {
   const normalizedText = normalizeText(text);
   const intent = detectIntent(normalizedText);
-  const agentName = agent?.name || 'Camila';
+  const agentName = agent?.name || 'Atendente';
 
   if (!normalizedText) {
     return {

@@ -3,10 +3,26 @@ function safePercent(numerator, denominator) {
   return Number(((numerator / denominator) * 100).toFixed(2));
 }
 
-function buildAnalyticsSummary(store = {}, sessionId = null) {
-  const conversations = Array.isArray(store.conversations) ? store.conversations : [];
-  const messages = Array.isArray(store.messages) ? store.messages : [];
-  const sessions = store?.sessionManager?.listSessions ? store.sessionManager.listSessions() : [];
+function normalizeTenantId(value) {
+  return String(value || process.env.DEFAULT_COMPANY_ID || 'default').trim() || 'default';
+}
+
+function belongsToTenant(item, companyId) {
+  const itemTenant = item?.companyId || item?.company_id || item?.tenantId || item?.tenant_id;
+  if (!itemTenant) {
+    return normalizeTenantId(companyId) === normalizeTenantId(process.env.DEFAULT_COMPANY_ID || 'default');
+  }
+  return normalizeTenantId(itemTenant) === normalizeTenantId(companyId);
+}
+
+function buildAnalyticsSummary(store = {}, sessionId = null, companyId = null) {
+  const conversations = (Array.isArray(store.conversations) ? store.conversations : [])
+    .filter((item) => belongsToTenant(item, companyId));
+  const conversationIds = new Set(conversations.map((item) => item.id));
+  const messages = (Array.isArray(store.messages) ? store.messages : [])
+    .filter((item) => belongsToTenant(item, companyId) || conversationIds.has(item.conversationId || item.conversation_id));
+  const sessions = (store?.sessionManager?.listSessions ? store.sessionManager.listSessions() : [])
+    .filter((item) => belongsToTenant(item, companyId));
 
   const isFiltered = sessionId && sessionId !== 'all';
   let filteredConversations = conversations;
@@ -47,7 +63,7 @@ function buildAnalyticsSummary(store = {}, sessionId = null) {
 
   return {
     aiErrors: Array.isArray(store.aiLearningLogs)
-      ? store.aiLearningLogs.filter((entry) => entry.status === 'error').length
+      ? store.aiLearningLogs.filter((entry) => entry.status === 'error' && belongsToTenant(entry, companyId)).length
       : 0,
     averageServiceTime: 0,
     charts: {

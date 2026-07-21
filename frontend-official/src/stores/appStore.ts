@@ -396,7 +396,20 @@ export const useAppStore = create<AppState>((set) => ({
       const idx = findConversationIndex(state.conversations, mappedConv);
       let next;
       if (idx === -1) {
-        next = [mappedConv, ...state.conversations];
+        const defaultConv: Conversation = {
+          id: mappedConv.id,
+          chatId: mappedConv.chatId || mappedConv.id,
+          contactName: mappedConv.contactName || mappedConv.name || mappedConv.phone || "Contato",
+          phone: mappedConv.phone || "",
+          unread: mappedConv.unread ?? 0,
+          updatedAt: mappedConv.updatedAt || new Date().toISOString(),
+          status: mappedConv.status || "offline",
+          lastMessage: mappedConv.lastMessage || "",
+          sessionId: mappedConv.sessionId || "main",
+          tags: mappedConv.tags || [],
+        };
+        const newConv = { ...defaultConv, ...mappedConv } as Conversation;
+        next = [newConv, ...state.conversations];
       } else {
         next = state.conversations.slice();
         const existing = next[idx];
@@ -607,7 +620,20 @@ export const useAppStore = create<AppState>((set) => ({
           console.warn("[Zustand Store] Invalid conversation shape in updateConversationRealtime add ignored:", mappedConv);
           return {};
         }
-        next = [mappedConv as Conversation, ...state.conversations];
+        const defaultConv: Conversation = {
+          id: mappedConv.id,
+          chatId: mappedConv.chatId || mappedConv.id,
+          contactName: mappedConv.contactName || mappedConv.name || mappedConv.phone || "Contato",
+          phone: mappedConv.phone || "",
+          unread: mappedConv.unread ?? 0,
+          updatedAt: mappedConv.updatedAt || new Date().toISOString(),
+          status: mappedConv.status || "offline",
+          lastMessage: mappedConv.lastMessage || "",
+          sessionId: mappedConv.sessionId || "main",
+          tags: mappedConv.tags || [],
+        };
+        const newConv = { ...defaultConv, ...mappedConv } as Conversation;
+        next = [newConv, ...state.conversations];
       } else {
         next = state.conversations.slice();
         const existing = next[idx];

@@ -1,12 +1,12 @@
 const { getAIIntegrationStatus, processAI } = require('./ai.service');
-const { isAIEnabled } = require('../config/aiToggle');
+const { getAIEnabled } = require('../config/aiToggle');
 const sessionManager = require('./sessionManager');
 const conversationRepository = require('../repositories/conversationRepository');
 const messageRepository = require('../repositories/messageRepository');
 const outboundQueueService = require('./outboundQueueService');
 const whatsappService = require('./whatsappService');
 const messagesController = require('../controllers/messagesController');
-const { query } = require('../config/database');
+const contactRepository = require('../repositories/contactRepository');
 const aiIntelligenceService = require('./aiIntelligenceService');
 const { analyzeLeadIntent } = require('./leadAnalyzer');
 const { buildLeadTags, getNextFunnelStage } = require('./salesFunnel');
@@ -71,19 +71,13 @@ function isBusinessOpen() {
   return businessHoursConfig.isBusinessOpen();
 }
 
-async function checkLeadBlocked(phone) {
+async function checkLeadBlocked(phone, companyId) {
   try {
-    const res = await query(
-      'SELECT is_blocked FROM leads WHERE phone = $1 OR phone = ANY(get_phone_aliases($1)) LIMIT 1',
-      [phone]
-    );
-    if (res.rows.length > 0) {
-      return Boolean(res.rows[0].is_blocked);
-    }
-  } catch (err) {
-    console.error('[AutomationEngine] Failed to check lead blocked:', err.message);
+    return await contactRepository.isLeadBlocked(phone, companyId);
+  } catch (error) {
+    console.error('[AutomationEngine] Failed to check lead blocked:', error.message);
+    return false;
   }
-  return false;
 }
 
 async function processMessage({ payload, conversation, store, sock, sessionId }) {
@@ -92,11 +86,10 @@ async function processMessage({ payload, conversation, store, sock, sessionId })
   const conversationId = conversation?.id;
   const companyId = conversation?.company_id || payload?.companyId || 'default';
 
-  // Short-circuit automated replies if:
-  // (a) global AI toggle is OFF
-  if (!isAIEnabled()) {
-    console.log(`[AutomationEngine] Global AI toggle is OFF. Short-circuiting response for ${phone}.`);
-    return { success: false, reason: 'global_ai_off' };
+  // Short-circuit automated replies if the current store disabled AI.
+  if (!(await getAIEnabled(companyId))) {
+    console.log(`[AutomationEngine] Store AI toggle is OFF for tenant ${companyId}. Short-circuiting response for ${phone}.`);
+    return { success: false, reason: 'store_ai_off' };
   }
 
   // (b) session systemConnection is OFF
@@ -126,7 +119,11 @@ async function processMessage({ payload, conversation, store, sock, sessionId })
   }
 
   if (runtimeCheck.expired && authoritativeConversation?.id && !conversationAIEnabled) {
-    await conversationRepository.updateConversationState(authoritativeConversation.id, { aiEnabled: true });
+    const updated = await conversationRepository.updateConversationState(authoritativeConversation.id, { aiEnabled: true });
+    if (updated) {
+      const io = store?.io || global.io;
+      io?.emit('conversation_updated', updated);
+    }
     conversationAIEnabled = true;
     console.log('[AutomationEngine] Human takeover expired for ' + phone + '. AI re-enabled automatically.');
   }
@@ -139,7 +136,7 @@ async function processMessage({ payload, conversation, store, sock, sessionId })
   console.log(`[AutomationEngine] Starting pipeline for ${phone}: "${incomingText}"`);
 
   // 1. Rules Engine: Blocked Contact Check
-  const isBlocked = await checkLeadBlocked(phone);
+  const isBlocked = await checkLeadBlocked(phone, companyId);
   if (isBlocked) {
     console.log(`[AutomationEngine] Lead ${phone} is blocked. Stopping pipeline.`);
     return { success: false, reason: 'lead_blocked' };
@@ -172,20 +169,15 @@ async function processMessage({ payload, conversation, store, sock, sessionId })
   const aiAgentService = require('../ai-agents/services/aiAgentService');
   let matchedAgent = null;
   try {
-    await aiAgentService.listAgents();
-    matchedAgent = aiAgentService.findByNameSync(conversation?.agent_name || 'Camila');
+    await aiAgentService.listAgents(companyId);
+    matchedAgent = aiAgentService.findByNameSync(conversation?.agent_name, companyId);
   } catch (err) {
     console.error('[AutomationEngine] Failed to load agent configuration:', err);
   }
 
   if (!matchedAgent) {
-    matchedAgent = {
-      name: 'Camila',
-      escalationActive: true,
-      escalationTriggers: ['cliente pediu humano', 'cliente reclamou'],
-      escalationWhatsapp: '',
-      escalationMode: 2
-    };
+    console.log(`[AutomationEngine] No store-specific agent configured for tenant ${companyId}.`);
+    return { success: false, reason: 'no_store_agent' };
   }
 
   // 4. Rules Engine: Human Escalation check
@@ -277,6 +269,9 @@ async function processMessage({ payload, conversation, store, sock, sessionId })
   });
 
   const io = store?.io || global.io;
+  if (crmState) {
+    io?.emit('conversation_updated', crmState);
+  }
   io?.emit('lead_updated', {
     conversationId,
     intent: leadAnalysis.intent,
@@ -377,7 +372,10 @@ async function processMessage({ payload, conversation, store, sock, sessionId })
 
       console.log(`[AutomationEngine] AI auto-analysis for ${conversationId}: stage=${finalFunnelStage}, tags=${JSON.stringify(finalTags)}`);
 
-      await conversationRepository.updateConversationState(conversationId, updatePayload);
+      const finalCrmState = await conversationRepository.updateConversationState(conversationId, updatePayload);
+      if (finalCrmState) {
+        io?.emit('conversation_updated', finalCrmState);
+      }
 
       io?.emit('lead_updated', {
         conversationId,
@@ -483,7 +481,7 @@ function splitLongMessage(text) {
         ai_response: true,
         conversationId,
         source: 'ai',
-        agentName: conversation?.agent_name || 'Camila',
+        agentName: conversation?.agent_name || null,
         provider: ai.provider,
         model: ai.model,
         responseTimeMs: ai.responseTimeMs,

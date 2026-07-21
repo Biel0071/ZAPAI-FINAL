@@ -191,10 +191,10 @@ function mapSession(session = {}, sessionId = DEFAULT_SESSION) {
     aiAgentName: (() => {
       try {
         const aiAgentService = require('../ai-agents/services/aiAgentService');
-        const agents = aiAgentService.getAgentsSync() || [];
+        const agents = aiAgentService.getAgentsSync(session.companyId || process.env.DEFAULT_COMPANY_ID || 'default') || [];
         if (agents.length > 0) return agents.map(a => a.name).join(', ');
       } catch (err) {}
-      return 'Camila (Geral)';
+      return 'Nenhum atendente configurado';
     })(),
     lastActivity: session.lastPingAt || session.connectedAt || session.createdAt || new Date().toISOString()
   };

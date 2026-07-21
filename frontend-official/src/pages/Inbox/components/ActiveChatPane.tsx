@@ -442,7 +442,7 @@ export function ActiveChatPane({
                 ? "gravando áudio..."
                 : (isTyping === "composing" || isTyping === true)
                   ? "digitando..."
-                  : isWhatsappConnected
+                  : (isWhatsappConnected && inboxRuntimeState !== "OFFLINE")
                     ? "online"
                     : "offline"
             }
@@ -483,7 +483,7 @@ export function ActiveChatPane({
                   <div className="flex min-w-0 items-center gap-1 bg-[#1C2028] border border-border/40 rounded-md px-2 py-0.5 text-[10px]">
                     <span className="hidden text-[10px] text-muted-foreground uppercase font-semibold xl:inline">Agente:</span>
                     <Select
-                      value={selectedConversation?.agent_name || (selectedConversation as any)?.assignedAgentName || "Camila"}
+                      value={selectedConversation?.agent_name || (selectedConversation as any)?.assignedAgentName || "Não atribuído"}
                       onValueChange={(val) => void handleSetConversationAgent(val)}
                     >
                       <SelectTrigger className="h-6 min-w-[62px] max-w-[96px] bg-transparent border-none text-[11px] font-semibold text-primary focus:ring-0 p-0 gap-1 hover:text-primary-foreground justify-between">

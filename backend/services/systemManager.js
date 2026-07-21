@@ -19,9 +19,9 @@ function getDatabaseStatus(store) {
   return store?.databaseEnabled ? 'connected' : 'disconnected';
 }
 
-function getAiEngineStatus() {
+function getAiEngineStatus(store) {
   try {
-    return isAIEnabled() ? 'healthy' : 'disabled';
+    return isAIEnabled(store?.activeCompanyId || process.env.DEFAULT_COMPANY_ID || 'default') ? 'healthy' : 'disabled';
   } catch (_error) {
     return 'error';
   }
@@ -54,7 +54,7 @@ function buildSystemStatus(store) {
   const metrics = metricsTracker.getMetrics(store);
 
   return {
-    aiEngine: getAiEngineStatus(),
+    aiEngine: getAiEngineStatus(store),
     campaignQueue: store?.campaignJob ? 'running' : 'stopped',
     database: getDatabaseStatus(store),
     metrics,

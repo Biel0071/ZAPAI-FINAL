@@ -511,24 +511,24 @@ export function useInboxState() {
   const isTyping = useMemo(() => {
     if (!selectedConversation) return false;
     const byId = typingByConversationId[selectedConversation.id];
-    if (byId !== undefined && byId !== false) return byId;
+    if (byId !== undefined) return byId;
 
     if (selectedConversation.chatId) {
       const byChatId = typingByConversationId[selectedConversation.chatId];
-      if (byChatId !== undefined && byChatId !== false) return byChatId;
+      if (byChatId !== undefined) return byChatId;
       
       const cleanChatId = selectedConversation.chatId.replace(/@s\.whatsapp\.net$/i, "");
       const byCleanChatId = typingByConversationId[cleanChatId];
-      if (byCleanChatId !== undefined && byCleanChatId !== false) return byCleanChatId;
+      if (byCleanChatId !== undefined) return byCleanChatId;
     }
 
     if (selectedConversation.phone) {
       const byPhone = typingByConversationId[selectedConversation.phone];
-      if (byPhone !== undefined && byPhone !== false) return byPhone;
+      if (byPhone !== undefined) return byPhone;
       
       const cleanPhone = selectedConversation.phone.replace(/\D/g, "");
       const byCleanPhone = typingByConversationId[cleanPhone];
-      if (byCleanPhone !== undefined && byCleanPhone !== false) return byCleanPhone;
+      if (byCleanPhone !== undefined) return byCleanPhone;
     }
 
     return (selectedConversation as any).status === "typing" ? "composing" : false;
@@ -603,9 +603,8 @@ export function useInboxState() {
   }, [sessions, selectedConversation?.sessionId]);
 
   const isWhatsappConnected = useMemo(() => {
-    if (activeSession && isSessionActive(activeSession)) return true;
-    return sessions.some((s) => s && s.id && isSessionActive(s));
-  }, [activeSession, sessions]);
+    return Boolean(activeSession && isSessionActive(activeSession));
+  }, [activeSession]);
 
   const connectedPhone = useMemo(() => {
     return (

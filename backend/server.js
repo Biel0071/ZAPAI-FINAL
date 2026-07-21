@@ -66,111 +66,10 @@ const websocketGateway = require('./services/websocketGateway');
 const campaignDispatchEngine = require('./services/campaignDispatchEngine');
 const envValidator = require('./services/envValidator');
 const sessionWatchdog = require('./services/sessionWatchdog');
+const { createHealthService } = require('./services/healthService');
 
 const eventLoopDelay = monitorEventLoopDelay({ resolution: 20 });
 eventLoopDelay.enable();
-
-function formatUptime(seconds) {
-  const total = Math.max(0, Math.floor(Number(seconds) || 0));
-  const d = Math.floor(total / 86400);
-  const h = Math.floor((total % 86400) / 3600);
-  const m = Math.floor((total % 3600) / 60);
-  const s = total % 60;
-  const parts = [];
-  if (d) parts.push(`${d}d`);
-  if (h) parts.push(`${h}h`);
-  if (m) parts.push(`${m}m`);
-  parts.push(`${s}s`);
-  return parts.join(' ');
-}
-
-function buildHealthPayload() {
-  const liveSessions = sessionManager.listSessions();
-  const session =
-    liveSessions.find((item) => String(item?.status || '').toLowerCase() === 'connected') ||
-    liveSessions[0] ||
-    null;
-  const databaseOnline = Boolean(app.locals.store.databaseEnabled);
-  const databaseError = app.locals.store.databaseError || null;
-  const whatsappConnected = String(session?.status || '').toLowerCase() === 'connected';
-  const uptimeSec = process.uptime();
-  const mem = process.memoryUsage();
-
-  // Standardized status: online, offline, degraded
-  const overallStatus = databaseOnline && whatsappConnected ? 'online' : (databaseOnline ? 'degraded' : 'offline');
-
-  return {
-    status: overallStatus,
-    backend: true,
-    db: databaseOnline,
-    server: 'online',
-    database: {
-      status: databaseOnline ? 'online' : 'offline',
-      error: databaseError,
-    },
-    api: 'online',
-    whatsapp: {
-      status: whatsappConnected ? 'online' : 'offline',
-      sessionStatus: session?.status || 'unknown',
-    },
-    uptime: formatUptime(uptimeSec),
-    uptimeSeconds: Math.floor(uptimeSec),
-    memory: {
-      rss: Math.round(mem.rss / 1024 / 1024),
-      heapUsed: Math.round(mem.heapUsed / 1024 / 1024),
-      heapTotal: Math.round(mem.heapTotal / 1024 / 1024),
-      unit: 'MB',
-    },
-    timestamp: new Date().toISOString(),
-    service: 'whatsapp-crm-api',
-    mode: NODE_ROLE,
-    isMaster: IS_MASTER,
-    features: {
-      adminMasterRoutes: ENABLE_ADMIN_MASTER_ROUTES,
-      nodeRegistrationServer: ENABLE_NODE_REGISTRATION_SERVER,
-      nodeAutoRegisterClient: ENABLE_NODE_AUTO_REGISTER_CLIENT,
-    },
-    runtimeActive: sessionManager.isRuntimeActive(),
-    system: systemManager.getSystemStatus(app.locals.store),
-  };
-}
-
-function buildFullHealthPayload() {
-  const base = buildHealthPayload();
-  const mem = process.memoryUsage();
-  const heapUsedMb = Math.round(mem.heapUsed / 1024 / 1024);
-  const heapLimitMb = Math.max(1, Number(process.env.HEALTH_MEMORY_LIMIT_MB || 700));
-  const eventLoopDelayMs = Math.round(eventLoopDelay.mean / 1e6) || 0;
-  const eventLoopDelayLimitMs = Math.max(50, Number(process.env.HEALTH_EVENT_LOOP_DELAY_MS || 250));
-  const dbOk = Boolean(base.db);
-  const whatsappOk = base.whatsapp?.status === 'online';
-  const memoryOk = heapUsedMb < heapLimitMb;
-  const eventLoopOk = eventLoopDelayMs < eventLoopDelayLimitMs;
-  const status = dbOk && memoryOk && eventLoopOk ? (whatsappOk ? 'ok' : 'degraded') : 'down';
-
-  return {
-    success: status !== 'down',
-    status,
-    services: {
-      db: dbOk ? 'ok' : 'down',
-      redis: process.env.REDIS_URL ? 'ok' : 'disabled',
-      whatsapp: whatsappOk ? 'ok' : 'degraded',
-      memory: memoryOk ? 'ok' : 'degraded',
-      eventLoop: eventLoopOk ? 'ok' : 'degraded',
-    },
-    diagnostics: {
-      dbError: base.database?.error || null,
-      heapUsedMb,
-      heapLimitMb,
-      eventLoopDelayMs,
-      eventLoopDelayLimitMs,
-      pid: process.pid,
-      uptimeSeconds: base.uptimeSeconds,
-      socketConnections: io.engine.clientsCount,
-    },
-    timestamp: new Date().toISOString(),
-  };
-}
 
 console.log('Server starting...');
 backendLog('info', 'boot:start', { pid: process.pid });
@@ -244,6 +143,20 @@ const IS_MASTER = runtimeEnv.isMaster;
 const ENABLE_ADMIN_MASTER_ROUTES = runtimeEnv.enableAdminMasterRoutes;
 const ENABLE_NODE_REGISTRATION_SERVER = runtimeEnv.enableNodeRegistrationServer;
 const ENABLE_NODE_AUTO_REGISTER_CLIENT = runtimeEnv.enableNodeAutoRegisterClient;
+const { buildHealthPayload, buildFullHealthPayload } = createHealthService({
+  app,
+  io,
+  eventLoopDelay,
+  sessionManager,
+  systemManager,
+  nodeRole: NODE_ROLE,
+  isMaster: IS_MASTER,
+  features: {
+    adminMasterRoutes: ENABLE_ADMIN_MASTER_ROUTES,
+    nodeRegistrationServer: ENABLE_NODE_REGISTRATION_SERVER,
+    nodeAutoRegisterClient: ENABLE_NODE_AUTO_REGISTER_CLIENT,
+  },
+});
 const FRONTEND_URL = runtimeEnv.frontendUrl;
 // APP_PUBLIC_URL is the single-source-of-truth for production URL.
 // Set it in .env.production to your VPS IP or domain.
@@ -928,88 +841,6 @@ app.get('/api/health', (_req, res) => {
     return res.status(200).json(envelope);
   } catch (err) {
     return res.status(200).json({ success: true, status: 'ok', booting: true, timestamp: new Date().toISOString() });
-  }
-});
-
-// Metrics endpoint — returns business metrics with infra fallback
-app.get('/api/metrics', async (_req, res) => {
-  try {
-    // --- Business metrics from DB (best effort) ---
-    let messagesToday = 0;
-    let activeChats = 0;
-    let activeConversations = 0;
-    let aiResponses = 0;
-    let newLeads = 0;
-    let totalConversations = 0;
-    let totalMessages = 0;
-    let aiMemories = 0;
-
-    if (app.locals.store?.databaseEnabled) {
-      try {
-        const { query } = require('./config/database');
-
-        const [msgsRes, aiRes, leadsRes, totalConvRes, totalMsgRes, activeConvRes, memoriesRes] = await Promise.allSettled([
-          query(`SELECT COUNT(*) AS cnt FROM messages WHERE COALESCE(created_at, timestamp, NOW()) >= CURRENT_DATE`),
-          query(`SELECT COUNT(*) AS cnt FROM messages WHERE COALESCE(created_at, timestamp, NOW()) >= CURRENT_DATE AND LOWER(COALESCE(sender, '')) IN ('ai', 'bot', 'assistant')`),
-          query(`SELECT COUNT(*) AS cnt FROM conversations WHERE COALESCE(created_at, updated_at, NOW()) >= CURRENT_DATE`),
-          query(`SELECT COUNT(*) AS cnt FROM conversations`),
-          query(`SELECT COUNT(*) AS cnt FROM messages`),
-          query(`SELECT COUNT(*) AS cnt FROM conversations WHERE COALESCE(status, 'open') <> 'closed'`),
-          query(`SELECT COUNT(*) AS cnt FROM ai_memory_long`),
-        ]);
-
-        if (msgsRes.status === 'fulfilled') messagesToday = Number(msgsRes.value.rows[0]?.cnt ?? 0);
-        if (aiRes.status === 'fulfilled') aiResponses = Number(aiRes.value.rows[0]?.cnt ?? 0);
-        if (leadsRes.status === 'fulfilled') newLeads = Number(leadsRes.value.rows[0]?.cnt ?? 0);
-        if (totalConvRes.status === 'fulfilled') totalConversations = Number(totalConvRes.value.rows[0]?.cnt ?? 0);
-        if (totalMsgRes.status === 'fulfilled') totalMessages = Number(totalMsgRes.value.rows[0]?.cnt ?? 0);
-        if (activeConvRes.status === 'fulfilled') activeConversations = Number(activeConvRes.value.rows[0]?.cnt ?? 0);
-        if (memoriesRes.status === 'fulfilled') aiMemories = Number(memoriesRes.value.rows[0]?.cnt ?? 0);
-      } catch {
-        // DB query failed — use infra defaults below
-      }
-    }
-
-    // Active WhatsApp sessions from session registry
-    const defaultSession = sessionManager.getSession(DEFAULT_SESSION);
-    activeChats = activeConversations || (defaultSession && String(defaultSession.status || '').toLowerCase() === 'connected' ? 1 : 0);
-
-    // --- Infra metrics (always available) ---
-    const uptimeSec = Math.floor(process.uptime());
-    const mem = process.memoryUsage();
-    const memUsedMB = Math.round(mem.heapUsed / 1024 / 1024);
-    const memTotalMB = Math.round(mem.heapTotal / 1024 / 1024);
-
-    res.json({
-      success: true,
-      data: {
-        // Business metrics (dashboard cards)
-        messagesToday,
-        activeChats,
-        activeConversations,
-        aiResponses,
-        newLeads,
-        totalConversations,
-        totalMessages,
-        messages: messagesToday,
-        leads: totalConversations,
-        aiMemories,
-        // Infra (diagnostics)
-        uptime: {
-          seconds: uptimeSec,
-          formatted: `${Math.floor(uptimeSec/3600)}h ${Math.floor((uptimeSec%3600)/60)}m`,
-        },
-        memory: {
-          used: memUsedMB,
-          total: memTotalMB,
-          percentage: memTotalMB ? Math.round((memUsedMB / memTotalMB) * 100) : 0,
-        },
-      },
-      timestamp: new Date().toISOString(),
-    });
-  } catch (error) {
-    console.error('[Metrics] Error:', error);
-    res.status(500).json({ success: false, error: 'Failed to get metrics' });
   }
 });
 

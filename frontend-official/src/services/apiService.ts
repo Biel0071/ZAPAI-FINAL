@@ -178,6 +178,7 @@ export interface AIStatusResponse {
   active?: boolean;
   status?: string;
   ai?: boolean;
+  tenantId?: string;
   provider?: string | null;
   model?: string | null;
 }
@@ -1558,13 +1559,13 @@ export const apiService = {
     }),
 
   async enableAI() {
-    const data = await request<{ success?: boolean; [key: string]: unknown }>({ endpoint: "/ai/enable", method: "POST" });
+    const data = await request<AIStatusResponse>({ endpoint: "/ai/enable", method: "POST" });
     invalidateCache("ai-status");
     return data;
   },
 
   async disableAI() {
-    const data = await request<{ success?: boolean; [key: string]: unknown }>({ endpoint: "/ai/disable", method: "POST" });
+    const data = await request<AIStatusResponse>({ endpoint: "/ai/disable", method: "POST" });
     invalidateCache("ai-status");
     return data;
   },

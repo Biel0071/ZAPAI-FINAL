@@ -4,7 +4,7 @@ const { processEvent } = require('../inbox-core/ai/AIEventBridge');
 
 function ensureAgent(agent) {
   return agent || {
-    name: 'Camila',
+    name: 'Atendente',
     personality: 'Friendly sales assistant focused on closing purchases naturally.',
     tone: 'warm',
     responseStyle: 'short_natural',
@@ -94,7 +94,7 @@ async function generateAIResponse({
       history,
       message: customerMessage,
       store: processStore,
-      agentName: resolvedAgent?.name || 'Camila'
+      agentName: resolvedAgent?.name || 'Atendente'
     });
 
     if (aiResult && aiResult.reply) {

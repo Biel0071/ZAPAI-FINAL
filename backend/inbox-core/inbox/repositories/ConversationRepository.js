@@ -16,7 +16,7 @@ function toConversationState(conversation) {
     ...conversation,
     contactId: conversation.contactId || conversation.contact_id || conversation.lead_id || null,
     conversationStatus: conversation.conversationStatus || conversation.status || 'open',
-    assignedAgent: conversation.assignedAgent || conversation.agent_name || 'Camila',
+    assignedAgent: conversation.assignedAgent || conversation.agent_name || null,
     intent: conversation.intent || conversation.lead_intent || 'information',
     leadScore: Number(conversation.leadScore || conversation.lead_confidence || 0),
     lastInteractionAt,

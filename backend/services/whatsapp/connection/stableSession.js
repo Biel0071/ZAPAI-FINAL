@@ -90,7 +90,7 @@ const sessionRegistry = require('../../sessionRegistry');
 const messageAckPipeline = require('../../messageAckPipeline');
 const messageRepository = require('../../../repositories/messageRepository');
 const conversationRepository = require('../../../repositories/conversationRepository');
-const { isAIEnabled } = require('../../../config/aiToggle');
+const { getAIEnabled } = require('../../../config/aiToggle');
 
 const SESSIONS_DIRECTORY = path.join(__dirname, '..', '..', '..', 'sessions');
 const DEFAULT_RECONNECT_DELAY_MS = 3000;
@@ -353,7 +353,8 @@ async function loadRealtimeHistory({ io, session, sock }) {
 // --- AI auto-reply --------------------------------------------------------
 
 async function isAIReplyStillAllowed({ chatId, conversationId, session }) {
-  if (!isAIEnabled() || session?.systemConnected === false) {
+  const tenantId = session?.companyId || process.env.DEFAULT_COMPANY_ID || 'default';
+  if (!(await getAIEnabled(tenantId)) || session?.systemConnected === false) {
     return false;
   }
 
@@ -387,9 +388,9 @@ async function runAIForChat({ chatId, incomingFormattedMessage, session, sock })
     return null;
   }
 
-  // (a) global AI toggle is OFF
-  if (!isAIEnabled()) {
-    console.log(`[WHATSAPP_AI] Global AI toggle is OFF. Short-circuiting response for ${chatId}.`);
+  const tenantId = session?.companyId || process.env.DEFAULT_COMPANY_ID || 'default';
+  if (!(await getAIEnabled(tenantId))) {
+    console.log(`[WHATSAPP_AI] Store AI toggle is OFF for tenant ${tenantId}. Short-circuiting response for ${chatId}.`);
     return null;
   }
 
@@ -456,7 +457,7 @@ async function runAIForChat({ chatId, incomingFormattedMessage, session, sock })
   }
 
   const contact = resolveContactForChat(store, chatId);
-  const agent = getAgentByName(chat.assignedTo) || pickRandomAgent();
+  const agent = getAgentByName(chat.assignedTo, tenantId) || pickRandomAgent(tenantId);
 
   // Log AI_TRIGGERED step
   try {
@@ -720,7 +721,7 @@ async function runAIForChat({ chatId, incomingFormattedMessage, session, sock })
     phone: normalizePhone(chatId),
     aiProvider: aiResult?.provider,
     aiModel: aiResult?.model,
-    aiAgentName: aiResult?.agentName || agent?.name || chat.assignedTo || 'Camila',
+    aiAgentName: aiResult?.agentName || agent?.name || chat.assignedTo || 'Atendente',
     aiResponseTimeMs: aiResult?.responseTimeMs,
     aiPromptTokens: aiResult?.promptTokens,
     aiCompletionTokens: aiResult?.completionTokens,

@@ -322,16 +322,16 @@ async function runFullAnalysis({ store, app, generateDocs = true } = {}) {
   });
 }
 
-function buildHealthStatusItems(state) {
+function buildHealthStatusItems(state, tenantId) {
   const runtime = state.reports?.currentState?.runtime || {};
 
   return [
     {
       id: 'ai-engine',
       label: 'Motor IA',
-      status: isAIEnabled() ? 'Ativo' : 'Desativado',
+      status: isAIEnabled(tenantId) ? 'Ativo' : 'Desativado',
       detail: 'Controle central de respostas e aprendizado incremental.',
-      tone: isAIEnabled() ? 'good' : 'warn',
+      tone: isAIEnabled(tenantId) ? 'good' : 'warn',
     },
     {
       id: 'memory',
@@ -495,7 +495,7 @@ function buildPanelData(store, runtime = {}) {
       nextSteps: reports.nextSteps || [],
       learnedPatterns: reports.learnedPatterns || [],
     },
-    healthStatusItems: buildHealthStatusItems(state),
+    healthStatusItems: buildHealthStatusItems(state, store?.activeCompanyId || process.env.DEFAULT_COMPANY_ID || 'default'),
   };
 }
 
