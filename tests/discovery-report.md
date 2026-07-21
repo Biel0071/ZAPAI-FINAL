@@ -1,18 +1,18 @@
 # Relatório de Auditoria E2E & Mapeamento Automático — ZAPFLOW AI
 
-**Executado em:** 26/06/2026, 17:06:55
+**Executado em:** 15/07/2026, 21:06:58
 **Ferramenta:** Playwright Automated Discovery Crawler
 
 ---
 
 ## 📊 1. Resumo Executivo
-* **Total de Rotas Mapeadas:** 20
-* **Rotas Ativas (OK):** 19
+* **Total de Rotas Mapeadas:** 21
+* **Rotas Ativas (OK):** 20
 * **Rotas Redirecionadas:** 1
 * **Rotas Quebradas (400+ ou erro):** 0
-* **Páginas Órfãs:** 0
-* **Erros de Console/Navegador:** 45
-* **APIs Consumidas:** 266 (Falhas: 0)
+* **Páginas Órfãs:** 14
+* **Erros de Console/Navegador:** 72
+* **APIs Consumidas:** 381 (Falhas: 15)
 
 ---
 
@@ -24,7 +24,20 @@ Abaixo estão detalhados os problemas graves que podem impedir a navegação ou 
 
 ### Páginas Órfãs
 Estas páginas estão registradas na aplicação, mas não possuem links diretos no menu ou em botões mapeados:
-🟢 _Nenhuma página órfã detectada! Todas as rotas possuem links de acesso._
+* Rota `/inbox` (declarada no roteador, mas sem links diretos identificados)
+* Rota `/connections` (declarada no roteador, mas sem links diretos identificados)
+* Rota `/contacts` (declarada no roteador, mas sem links diretos identificados)
+* Rota `/flows` (declarada no roteador, mas sem links diretos identificados)
+* Rota `/ai` (declarada no roteador, mas sem links diretos identificados)
+* Rota `/analytics` (declarada no roteador, mas sem links diretos identificados)
+* Rota `/campaigns` (declarada no roteador, mas sem links diretos identificados)
+* Rota `/memory` (declarada no roteador, mas sem links diretos identificados)
+* Rota `/users` (declarada no roteador, mas sem links diretos identificados)
+* Rota `/nodes` (declarada no roteador, mas sem links diretos identificados)
+* Rota `/deployments` (declarada no roteador, mas sem links diretos identificados)
+* Rota `/logs` (declarada no roteador, mas sem links diretos identificados)
+* Rota `/diagnostics` (declarada no roteador, mas sem links diretos identificados)
+* Rota `/settings` (declarada no roteador, mas sem links diretos identificados)
 
 ---
 
@@ -43,6 +56,7 @@ _Nenhuma exceção lançada pelo navegador._
 | `/dashboard` | `warning` | ⚠️ React Router Future Flag Warning: Relative route resolution within Splat routes is changing in v7. You can use the `v7_relativeSplatPath` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_relativesplatpath. |
 | `/dashboard` | `warning` | ⚠️ React Router Future Flag Warning: React Router will begin wrapping state updates in `React.startTransition` in v7. You can use the `v7_startTransition` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_starttransition. |
 | `/dashboard` | `warning` | ⚠️ React Router Future Flag Warning: Relative route resolution within Splat routes is changing in v7. You can use the `v7_relativeSplatPath` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_relativesplatpath. |
+| `/dashboard` | `warning` | Warning: Missing `Description` or `aria-describedby={undefined}` for {DialogContent}. |
 | `/inbox` | `warning` | ⚠️ React Router Future Flag Warning: React Router will begin wrapping state updates in `React.startTransition` in v7. You can use the `v7_startTransition` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_starttransition. |
 | `/inbox` | `warning` | ⚠️ React Router Future Flag Warning: Relative route resolution within Splat routes is changing in v7. You can use the `v7_relativeSplatPath` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_relativesplatpath. |
 | `/inbox` | `warning` | Warning: Missing `Description` or `aria-describedby={undefined}` for {DialogContent}. |
@@ -50,10 +64,19 @@ _Nenhuma exceção lançada pelo navegador._
 | `/connections` | `warning` | ⚠️ React Router Future Flag Warning: Relative route resolution within Splat routes is changing in v7. You can use the `v7_relativeSplatPath` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_relativesplatpath. |
 | `/contacts` | `warning` | ⚠️ React Router Future Flag Warning: React Router will begin wrapping state updates in `React.startTransition` in v7. You can use the `v7_startTransition` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_starttransition. |
 | `/contacts` | `warning` | ⚠️ React Router Future Flag Warning: Relative route resolution within Splat routes is changing in v7. You can use the `v7_relativeSplatPath` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_relativesplatpath. |
+| `/contacts` | `warning` | Warning: Missing `Description` or `aria-describedby={undefined}` for {DialogContent}. |
 | `/flows` | `warning` | ⚠️ React Router Future Flag Warning: React Router will begin wrapping state updates in `React.startTransition` in v7. You can use the `v7_startTransition` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_starttransition. |
 | `/flows` | `warning` | ⚠️ React Router Future Flag Warning: Relative route resolution within Splat routes is changing in v7. You can use the `v7_relativeSplatPath` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_relativesplatpath. |
+| `/flows` | `warning` | Warning: Missing `Description` or `aria-describedby={undefined}` for {DialogContent}. |
 | `/ai` | `warning` | ⚠️ React Router Future Flag Warning: React Router will begin wrapping state updates in `React.startTransition` in v7. You can use the `v7_startTransition` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_starttransition. |
 | `/ai` | `warning` | ⚠️ React Router Future Flag Warning: Relative route resolution within Splat routes is changing in v7. You can use the `v7_relativeSplatPath` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_relativesplatpath. |
+| `/ai?tab=dashboard` | `error` | Failed to load resource: the server responded with a status of 403 (Forbidden) |
+| `/ai?tab=dashboard` | `warning` | %c[API] color:#fbbf24 API error on /api/health (/api/health | HTTP 403 | req_mrmr2m7c_7e4le) |
+| `/ai?tab=dashboard` | `warning` | %c[API] color:#fbbf24 Request failed: /api/health (/api/health) |
+| `/ai?tab=dashboard` | `error` | Failed to load resource: the server responded with a status of 403 (Forbidden) |
+| `/ai?tab=dashboard` | `warning` | %c[API] color:#fbbf24 API error on /api/session-status (/api/session-status | HTTP 403 | req_mrmr2m7g_q4c3z) |
+| `/ai?tab=dashboard` | `warning` | %c[API] color:#fbbf24 Request failed: /api/session-status (/api/session-status) |
+| `/ai?tab=dashboard` | `warning` | Warning: Missing `Description` or `aria-describedby={undefined}` for {DialogContent}. |
 | `/analytics` | `warning` | ⚠️ React Router Future Flag Warning: React Router will begin wrapping state updates in `React.startTransition` in v7. You can use the `v7_startTransition` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_starttransition. |
 | `/analytics` | `warning` | ⚠️ React Router Future Flag Warning: Relative route resolution within Splat routes is changing in v7. You can use the `v7_relativeSplatPath` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_relativesplatpath. |
 | `/campaigns` | `warning` | ⚠️ React Router Future Flag Warning: React Router will begin wrapping state updates in `React.startTransition` in v7. You can use the `v7_startTransition` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_starttransition. |
@@ -70,18 +93,35 @@ _Nenhuma exceção lançada pelo navegador._
 | `/logs` | `warning` | ⚠️ React Router Future Flag Warning: Relative route resolution within Splat routes is changing in v7. You can use the `v7_relativeSplatPath` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_relativesplatpath. |
 | `/diagnostics` | `warning` | ⚠️ React Router Future Flag Warning: React Router will begin wrapping state updates in `React.startTransition` in v7. You can use the `v7_startTransition` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_starttransition. |
 | `/diagnostics` | `warning` | ⚠️ React Router Future Flag Warning: Relative route resolution within Splat routes is changing in v7. You can use the `v7_relativeSplatPath` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_relativesplatpath. |
+| `/diagnostics` | `error` | Failed to load resource: the server responded with a status of 403 (Forbidden) |
+| `/diagnostics` | `error` | Failed to load resource: the server responded with a status of 403 (Forbidden) |
+| `/diagnostics` | `error` | Failed to load resource: the server responded with a status of 403 (Forbidden) |
+| `/diagnostics` | `warning` | %c[API] color:#fbbf24 API error on /health (/health | HTTP 403 | req_mrmr354x_z0v1g) |
 | `/settings` | `warning` | ⚠️ React Router Future Flag Warning: React Router will begin wrapping state updates in `React.startTransition` in v7. You can use the `v7_startTransition` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_starttransition. |
 | `/settings` | `warning` | ⚠️ React Router Future Flag Warning: Relative route resolution within Splat routes is changing in v7. You can use the `v7_relativeSplatPath` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_relativesplatpath. |
+| `/settings` | `warning` | Warning: Missing `Description` or `aria-describedby={undefined}` for {DialogContent}. |
+| `/versions` | `warning` | ⚠️ React Router Future Flag Warning: React Router will begin wrapping state updates in `React.startTransition` in v7. You can use the `v7_startTransition` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_starttransition. |
+| `/versions` | `warning` | ⚠️ React Router Future Flag Warning: Relative route resolution within Splat routes is changing in v7. You can use the `v7_relativeSplatPath` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_relativesplatpath. |
 | `/nodes/node-DESKTOP-8PV0NA2-1782493760847` | `warning` | ⚠️ React Router Future Flag Warning: React Router will begin wrapping state updates in `React.startTransition` in v7. You can use the `v7_startTransition` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_starttransition. |
 | `/nodes/node-DESKTOP-8PV0NA2-1782493760847` | `warning` | ⚠️ React Router Future Flag Warning: Relative route resolution within Splat routes is changing in v7. You can use the `v7_relativeSplatPath` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_relativesplatpath. |
+| `/nodes/node-DESKTOP-8PV0NA2-1782493760847` | `error` | Failed to load resource: the server responded with a status of 403 (Forbidden) |
+| `/nodes/node-DESKTOP-8PV0NA2-1782493760847` | `error` | Failed to load resource: the server responded with a status of 403 (Forbidden) |
 | `/nodes/node-DESKTOP-8PV0NA2-1782241358221` | `warning` | ⚠️ React Router Future Flag Warning: React Router will begin wrapping state updates in `React.startTransition` in v7. You can use the `v7_startTransition` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_starttransition. |
 | `/nodes/node-DESKTOP-8PV0NA2-1782241358221` | `warning` | ⚠️ React Router Future Flag Warning: Relative route resolution within Splat routes is changing in v7. You can use the `v7_relativeSplatPath` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_relativesplatpath. |
+| `/nodes/node-DESKTOP-8PV0NA2-1782241358221` | `error` | Failed to load resource: the server responded with a status of 403 (Forbidden) |
+| `/nodes/node-DESKTOP-8PV0NA2-1782241358221` | `error` | Failed to load resource: the server responded with a status of 403 (Forbidden) |
 | `/nodes/node-DESKTOP-8PV0NA2-1782213649961` | `warning` | ⚠️ React Router Future Flag Warning: React Router will begin wrapping state updates in `React.startTransition` in v7. You can use the `v7_startTransition` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_starttransition. |
 | `/nodes/node-DESKTOP-8PV0NA2-1782213649961` | `warning` | ⚠️ React Router Future Flag Warning: Relative route resolution within Splat routes is changing in v7. You can use the `v7_relativeSplatPath` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_relativesplatpath. |
+| `/nodes/node-DESKTOP-8PV0NA2-1782213649961` | `error` | Failed to load resource: the server responded with a status of 403 (Forbidden) |
+| `/nodes/node-DESKTOP-8PV0NA2-1782213649961` | `error` | Failed to load resource: the server responded with a status of 403 (Forbidden) |
 | `/nodes/node-DESKTOP-8PV0NA2-1781894479836` | `warning` | ⚠️ React Router Future Flag Warning: React Router will begin wrapping state updates in `React.startTransition` in v7. You can use the `v7_startTransition` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_starttransition. |
 | `/nodes/node-DESKTOP-8PV0NA2-1781894479836` | `warning` | ⚠️ React Router Future Flag Warning: Relative route resolution within Splat routes is changing in v7. You can use the `v7_relativeSplatPath` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_relativesplatpath. |
+| `/nodes/node-DESKTOP-8PV0NA2-1781894479836` | `error` | Failed to load resource: the server responded with a status of 403 (Forbidden) |
+| `/nodes/node-DESKTOP-8PV0NA2-1781894479836` | `error` | Failed to load resource: the server responded with a status of 403 (Forbidden) |
 | `/nodes/node-DESKTOP-8PV0NA2-1781705967073` | `warning` | ⚠️ React Router Future Flag Warning: React Router will begin wrapping state updates in `React.startTransition` in v7. You can use the `v7_startTransition` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_starttransition. |
 | `/nodes/node-DESKTOP-8PV0NA2-1781705967073` | `warning` | ⚠️ React Router Future Flag Warning: Relative route resolution within Splat routes is changing in v7. You can use the `v7_relativeSplatPath` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_relativesplatpath. |
+| `/nodes/node-DESKTOP-8PV0NA2-1781705967073` | `error` | Failed to load resource: the server responded with a status of 403 (Forbidden) |
+| `/nodes/node-DESKTOP-8PV0NA2-1781705967073` | `error` | Failed to load resource: the server responded with a status of 403 (Forbidden) |
 
 ---
 
@@ -91,271 +131,386 @@ Requisições feitas pelo frontend ao backend que falharam ou retornaram código
 | Método | Endpoint | Status | Erro |
 |---|---|---|---|
 | `GET` | `http://localhost:4025/api/metrics` | 🟢 200 | - |
+| `POST` | `http://localhost:4025/api/sessions/recover` | 🟢 200 | - |
 | `GET` | `http://localhost:4025/api/sessions/status` | 🟢 200 | - |
-| `GET` | `http://localhost:4025/api/conversations?sessionId=teste1010` | 🟢 200 | - |
+| `GET` | `http://localhost:4025/api/conversations?limit=30` | 🟢 200 | - |
+| `GET` | `http://localhost:4025/health` | 🟢 200 | - |
+| `GET` | `http://localhost:4025/api/sessions/status` | 🟢 200 | - |
+| `GET` | `http://localhost:4025/api/metrics` | 🟢 200 | - |
+| `GET` | `http://localhost:4025/api/conversations?limit=30&sessionId=111` | 🟢 200 | - |
+| `GET` | `http://localhost:4025/api/ai/metrics` | 🟢 200 | - |
+| `GET` | `http://localhost:4025/api/conversations?limit=30&sessionId=111` | 🟢 200 | - |
+| `GET` | `http://localhost:4025/api/metrics` | 🟢 200 | - |
+| `GET` | `http://localhost:4025/api/sessions/status` | 🟢 200 | - |
+| `GET` | `http://localhost:4025/api/ai/status` | 🟢 200 | - |
+| `GET` | `http://localhost:4025/api/conversations?limit=30` | 🟢 200 | - |
+| `GET` | `http://localhost:4025/api/metrics` | 🟢 200 | - |
+| `POST` | `http://localhost:4025/api/sessions/recover` | 🟢 200 | - |
+| `GET` | `http://localhost:4025/api/sessions/status` | 🟢 200 | - |
+| `GET` | `http://localhost:4025/health` | 🟢 200 | - |
+| `GET` | `http://localhost:4025/api/conversations?limit=30&sessionId=111` | 🟢 200 | - |
+| `GET` | `http://localhost:4025/api/metrics` | 🟢 200 | - |
+| `GET` | `http://localhost:4025/api/sessions/status` | 🟢 200 | - |
+| `GET` | `http://localhost:4025/api/ai/status` | 🟢 200 | - |
+| `GET` | `http://localhost:4025/api/ai/metrics` | 🟢 200 | - |
+| `GET` | `http://localhost:4025/api/conversations?limit=30&sessionId=111` | 🟢 200 | - |
+| `GET` | `http://localhost:4025/api/metrics` | 🟢 200 | - |
+| `GET` | `http://localhost:4025/api/sessions/status` | 🟢 200 | - |
+| `GET` | `http://localhost:4025/api/contacts` | 🟢 200 | - |
+| `POST` | `http://localhost:4025/api/sessions/recover` | 🟢 200 | - |
+| `GET` | `http://localhost:4025/api/sessions/status` | 🟢 200 | - |
+| `GET` | `http://localhost:4025/api/conversations?limit=30` | 🟢 200 | - |
+| `GET` | `http://localhost:4025/api/metrics` | 🟢 200 | - |
 | `GET` | `http://localhost:4025/health` | 🟢 200 | - |
 | `GET` | `http://localhost:4025/api/metrics` | 🟢 200 | - |
-| `GET` | `http://localhost:4025/api/sessions/status` | 🟢 200 | - |
-| `GET` | `http://localhost:4025/api/metrics` | 🟢 200 | - |
-| `GET` | `http://localhost:4025/api/sessions/status` | 🟢 200 | - |
-| `GET` | `http://localhost:4025/api/conversations?sessionId=teste1010` | 🟢 200 | - |
-| `GET` | `http://localhost:4025/health` | 🟢 200 | - |
-| `GET` | `http://localhost:4025/api/metrics` | 🟢 200 | - |
-| `GET` | `http://localhost:4025/api/sessions/status` | 🟢 200 | - |
-| `GET` | `http://localhost:4025/api/metrics` | 🟢 200 | - |
-| `GET` | `http://localhost:4025/api/sessions/status` | 🟢 200 | - |
-| `GET` | `http://localhost:4025/api/conversations?sessionId=teste1010` | 🟢 200 | - |
-| `GET` | `http://localhost:4025/health` | 🟢 200 | - |
-| `GET` | `http://localhost:4025/api/ai/conversation-memory/358` | 🟢 200 | - |
 | `GET` | `http://localhost:4025/api/config/ai-agents` | 🟢 200 | - |
-| `GET` | `http://localhost:4025/api/ai/memory` | 🟢 200 | - |
-| `GET` | `http://localhost:4025/api/config/advanced-ai` | 🟢 200 | - |
 | `GET` | `http://localhost:4025/api/conversations/controls` | 🟢 200 | - |
 | `GET` | `http://localhost:4025/api/quick-replies` | 🟢 200 | - |
-| `GET` | `http://localhost:4025/api/ai/logs` | 🟢 200 | - |
-| `POST` | `http://localhost:4025/api/conversations/436/read` | 🟢 200 | - |
-| `GET` | `http://localhost:4025/api/conversations/436/messages?limit=50` | 🟢 200 | - |
-| `GET` | `http://localhost:4025/api/conversations/436/messages?limit=50&before=2026-06-17T18%3A48%3A23.000Z` | 🟢 200 | - |
-| `GET` | `http://localhost:4025/media/default/images/1782503613287-d088542f-9772-42e5-a2f7-2e8c7ab3378c.jpg?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ6YXBhZG1pbiIsInVzZXJuYW1lIjoiemFwYWRtaW4iLCJ0ZW5hbnRJZCI6ImRlZmF1bHQiLCJjb21wYW55SWQiOiJkZWZhdWx0Iiwicm9sZSI6Im1hc3Rlcl9hZG1pbiIsImlhdCI6MTc4MjUwNDQxNiwiZXhwIjoxNzgyNTMzMjE2fQ.0MobnfO9J43w1Xz7yva7_GZSddvDMMjatq0mCKhms-U` | 🟢 200 | - |
-| `GET` | `http://localhost:4025/media/default/images/1782243946584-ae2c30e2-1ca3-4d27-9fc6-99e812071e08.jpg?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ6YXBhZG1pbiIsInVzZXJuYW1lIjoiemFwYWRtaW4iLCJ0ZW5hbnRJZCI6ImRlZmF1bHQiLCJjb21wYW55SWQiOiJkZWZhdWx0Iiwicm9sZSI6Im1hc3Rlcl9hZG1pbiIsImlhdCI6MTc4MjUwNDQxNiwiZXhwIjoxNzgyNTMzMjE2fQ.0MobnfO9J43w1Xz7yva7_GZSddvDMMjatq0mCKhms-U` | 🟢 200 | - |
-| `GET` | `http://localhost:4025/media/default/images/1782416287384-d78165fe-0e0c-4b63-a32b-5a750ae9bd37.jpg?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ6YXBhZG1pbiIsInVzZXJuYW1lIjoiemFwYWRtaW4iLCJ0ZW5hbnRJZCI6ImRlZmF1bHQiLCJjb21wYW55SWQiOiJkZWZhdWx0Iiwicm9sZSI6Im1hc3Rlcl9hZG1pbiIsImlhdCI6MTc4MjUwNDQxNiwiZXhwIjoxNzgyNTMzMjE2fQ.0MobnfO9J43w1Xz7yva7_GZSddvDMMjatq0mCKhms-U` | 🟢 200 | - |
-| `GET` | `http://localhost:4025/media/default/images/1782428404008-94c19a3f-6c45-4df8-8038-dbd29f05f852.jpg?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ6YXBhZG1pbiIsInVzZXJuYW1lIjoiemFwYWRtaW4iLCJ0ZW5hbnRJZCI6ImRlZmF1bHQiLCJjb21wYW55SWQiOiJkZWZhdWx0Iiwicm9sZSI6Im1hc3Rlcl9hZG1pbiIsImlhdCI6MTc4MjUwNDQxNiwiZXhwIjoxNzgyNTMzMjE2fQ.0MobnfO9J43w1Xz7yva7_GZSddvDMMjatq0mCKhms-U` | 🟢 200 | - |
-| `GET` | `http://localhost:4025/media/default/images/1782429190011-8b481895-41ea-4cbe-900b-06901b67324f.jpg?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ6YXBhZG1pbiIsInVzZXJuYW1lIjoiemFwYWRtaW4iLCJ0ZW5hbnRJZCI6ImRlZmF1bHQiLCJjb21wYW55SWQiOiJkZWZhdWx0Iiwicm9sZSI6Im1hc3Rlcl9hZG1pbiIsImlhdCI6MTc4MjUwNDQxNiwiZXhwIjoxNzgyNTMzMjE2fQ.0MobnfO9J43w1Xz7yva7_GZSddvDMMjatq0mCKhms-U` | 🟢 200 | - |
-| `GET` | `http://localhost:4025/media/default/stickers/1781949847537-fb338e23-71a0-40ea-9b36-29fdb5dcc46d.webp?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ6YXBhZG1pbiIsInVzZXJuYW1lIjoiemFwYWRtaW4iLCJ0ZW5hbnRJZCI6ImRlZmF1bHQiLCJjb21wYW55SWQiOiJkZWZhdWx0Iiwicm9sZSI6Im1hc3Rlcl9hZG1pbiIsImlhdCI6MTc4MjUwNDQxNiwiZXhwIjoxNzgyNTMzMjE2fQ.0MobnfO9J43w1Xz7yva7_GZSddvDMMjatq0mCKhms-U` | 🟢 200 | - |
-| `GET` | `http://localhost:4025/media/default/stickers/1781947629810-123ecbfa-2bf3-4ec8-80ad-c18b51b98547.webp?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ6YXBhZG1pbiIsInVzZXJuYW1lIjoiemFwYWRtaW4iLCJ0ZW5hbnRJZCI6ImRlZmF1bHQiLCJjb21wYW55SWQiOiJkZWZhdWx0Iiwicm9sZSI6Im1hc3Rlcl9hZG1pbiIsImlhdCI6MTc4MjUwNDQxNiwiZXhwIjoxNzgyNTMzMjE2fQ.0MobnfO9J43w1Xz7yva7_GZSddvDMMjatq0mCKhms-U` | 🟢 200 | - |
-| `GET` | `http://localhost:4025/media/default/images/1781946645461-b6db68eb-329f-46aa-971b-c8f9ba8dcffe.jpg?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ6YXBhZG1pbiIsInVzZXJuYW1lIjoiemFwYWRtaW4iLCJ0ZW5hbnRJZCI6ImRlZmF1bHQiLCJjb21wYW55SWQiOiJkZWZhdWx0Iiwicm9sZSI6Im1hc3Rlcl9hZG1pbiIsImlhdCI6MTc4MjUwNDQxNiwiZXhwIjoxNzgyNTMzMjE2fQ.0MobnfO9J43w1Xz7yva7_GZSddvDMMjatq0mCKhms-U` | 🟢 200 | - |
-| `GET` | `http://localhost:4025/media/default/images/1781969981760-65816a99-a847-416f-81fc-80aa777b8afe.jpg?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ6YXBhZG1pbiIsInVzZXJuYW1lIjoiemFwYWRtaW4iLCJ0ZW5hbnRJZCI6ImRlZmF1bHQiLCJjb21wYW55SWQiOiJkZWZhdWx0Iiwicm9sZSI6Im1hc3Rlcl9hZG1pbiIsImlhdCI6MTc4MjUwNDQxNiwiZXhwIjoxNzgyNTMzMjE2fQ.0MobnfO9J43w1Xz7yva7_GZSddvDMMjatq0mCKhms-U` | 🟢 200 | - |
-| `GET` | `http://localhost:4025/media/default/images/1781970021928-a9f6d62b-584b-4c4b-bb83-34f3c13d1d54.jpg?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ6YXBhZG1pbiIsInVzZXJuYW1lIjoiemFwYWRtaW4iLCJ0ZW5hbnRJZCI6ImRlZmF1bHQiLCJjb21wYW55SWQiOiJkZWZhdWx0Iiwicm9sZSI6Im1hc3Rlcl9hZG1pbiIsImlhdCI6MTc4MjUwNDQxNiwiZXhwIjoxNzgyNTMzMjE2fQ.0MobnfO9J43w1Xz7yva7_GZSddvDMMjatq0mCKhms-U` | 🟢 200 | - |
-| `GET` | `http://localhost:4025/media/default/stickers/1781970121877-0a98d78b-4b7c-42df-a418-cff5355369e5.webp?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ6YXBhZG1pbiIsInVzZXJuYW1lIjoiemFwYWRtaW4iLCJ0ZW5hbnRJZCI6ImRlZmF1bHQiLCJjb21wYW55SWQiOiJkZWZhdWx0Iiwicm9sZSI6Im1hc3Rlcl9hZG1pbiIsImlhdCI6MTc4MjUwNDQxNiwiZXhwIjoxNzgyNTMzMjE2fQ.0MobnfO9J43w1Xz7yva7_GZSddvDMMjatq0mCKhms-U` | 🟢 200 | - |
-| `GET` | `http://localhost:4025/media/default/stickers/1782144921362-52ba709b-f538-4382-937b-63f7a49b6a10.webp?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ6YXBhZG1pbiIsInVzZXJuYW1lIjoiemFwYWRtaW4iLCJ0ZW5hbnRJZCI6ImRlZmF1bHQiLCJjb21wYW55SWQiOiJkZWZhdWx0Iiwicm9sZSI6Im1hc3Rlcl9hZG1pbiIsImlhdCI6MTc4MjUwNDQxNiwiZXhwIjoxNzgyNTMzMjE2fQ.0MobnfO9J43w1Xz7yva7_GZSddvDMMjatq0mCKhms-U` | 🟢 200 | - |
-| `GET` | `http://localhost:4025/media/default/images/1782162657848-0d365a40-f4d3-4b66-ba90-5eef5a692c76.jpg?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ6YXBhZG1pbiIsInVzZXJuYW1lIjoiemFwYWRtaW4iLCJ0ZW5hbnRJZCI6ImRlZmF1bHQiLCJjb21wYW55SWQiOiJkZWZhdWx0Iiwicm9sZSI6Im1hc3Rlcl9hZG1pbiIsImlhdCI6MTc4MjUwNDQxNiwiZXhwIjoxNzgyNTMzMjE2fQ.0MobnfO9J43w1Xz7yva7_GZSddvDMMjatq0mCKhms-U` | 🟢 200 | - |
-| `GET` | `http://localhost:4025/media/default/stickers/1782164604329-69901fbe-a7ef-4a33-8ef3-08b9677da4e6.webp?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ6YXBhZG1pbiIsInVzZXJuYW1lIjoiemFwYWRtaW4iLCJ0ZW5hbnRJZCI6ImRlZmF1bHQiLCJjb21wYW55SWQiOiJkZWZhdWx0Iiwicm9sZSI6Im1hc3Rlcl9hZG1pbiIsImlhdCI6MTc4MjUwNDQxNiwiZXhwIjoxNzgyNTMzMjE2fQ.0MobnfO9J43w1Xz7yva7_GZSddvDMMjatq0mCKhms-U` | 🟢 200 | - |
-| `GET` | `http://localhost:4025/media/default/images/1782162658371-70e676d3-0f8b-435e-b2f3-86e052936ba7.jpg?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ6YXBhZG1pbiIsInVzZXJuYW1lIjoiemFwYWRtaW4iLCJ0ZW5hbnRJZCI6ImRlZmF1bHQiLCJjb21wYW55SWQiOiJkZWZhdWx0Iiwicm9sZSI6Im1hc3Rlcl9hZG1pbiIsImlhdCI6MTc4MjUwNDQxNiwiZXhwIjoxNzgyNTMzMjE2fQ.0MobnfO9J43w1Xz7yva7_GZSddvDMMjatq0mCKhms-U` | 🟢 200 | - |
-| `GET` | `http://localhost:4025/media/default/images/1781946645461-b6db68eb-329f-46aa-971b-c8f9ba8dcffe.jpg?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ6YXBhZG1pbiIsInVzZXJuYW1lIjoiemFwYWRtaW4iLCJ0ZW5hbnRJZCI6ImRlZmF1bHQiLCJjb21wYW55SWQiOiJkZWZhdWx0Iiwicm9sZSI6Im1hc3Rlcl9hZG1pbiIsImlhdCI6MTc4MjUwNDQxNiwiZXhwIjoxNzgyNTMzMjE2fQ.0MobnfO9J43w1Xz7yva7_GZSddvDMMjatq0mCKhms-U` | 🟢 200 | - |
-| `GET` | `http://localhost:4025/media/default/stickers/1781947629810-123ecbfa-2bf3-4ec8-80ad-c18b51b98547.webp?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ6YXBhZG1pbiIsInVzZXJuYW1lIjoiemFwYWRtaW4iLCJ0ZW5hbnRJZCI6ImRlZmF1bHQiLCJjb21wYW55SWQiOiJkZWZhdWx0Iiwicm9sZSI6Im1hc3Rlcl9hZG1pbiIsImlhdCI6MTc4MjUwNDQxNiwiZXhwIjoxNzgyNTMzMjE2fQ.0MobnfO9J43w1Xz7yva7_GZSddvDMMjatq0mCKhms-U` | 🟢 200 | - |
-| `GET` | `http://localhost:4025/media/default/stickers/1781949847537-fb338e23-71a0-40ea-9b36-29fdb5dcc46d.webp?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ6YXBhZG1pbiIsInVzZXJuYW1lIjoiemFwYWRtaW4iLCJ0ZW5hbnRJZCI6ImRlZmF1bHQiLCJjb21wYW55SWQiOiJkZWZhdWx0Iiwicm9sZSI6Im1hc3Rlcl9hZG1pbiIsImlhdCI6MTc4MjUwNDQxNiwiZXhwIjoxNzgyNTMzMjE2fQ.0MobnfO9J43w1Xz7yva7_GZSddvDMMjatq0mCKhms-U` | 🟢 200 | - |
-| `GET` | `http://localhost:4025/media/default/images/1781969981760-65816a99-a847-416f-81fc-80aa777b8afe.jpg?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ6YXBhZG1pbiIsInVzZXJuYW1lIjoiemFwYWRtaW4iLCJ0ZW5hbnRJZCI6ImRlZmF1bHQiLCJjb21wYW55SWQiOiJkZWZhdWx0Iiwicm9sZSI6Im1hc3Rlcl9hZG1pbiIsImlhdCI6MTc4MjUwNDQxNiwiZXhwIjoxNzgyNTMzMjE2fQ.0MobnfO9J43w1Xz7yva7_GZSddvDMMjatq0mCKhms-U` | 🟢 200 | - |
-| `GET` | `http://localhost:4025/media/default/images/1781970021928-a9f6d62b-584b-4c4b-bb83-34f3c13d1d54.jpg?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ6YXBhZG1pbiIsInVzZXJuYW1lIjoiemFwYWRtaW4iLCJ0ZW5hbnRJZCI6ImRlZmF1bHQiLCJjb21wYW55SWQiOiJkZWZhdWx0Iiwicm9sZSI6Im1hc3Rlcl9hZG1pbiIsImlhdCI6MTc4MjUwNDQxNiwiZXhwIjoxNzgyNTMzMjE2fQ.0MobnfO9J43w1Xz7yva7_GZSddvDMMjatq0mCKhms-U` | 🟢 200 | - |
-| `GET` | `http://localhost:4025/media/default/stickers/1781970121877-0a98d78b-4b7c-42df-a418-cff5355369e5.webp?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ6YXBhZG1pbiIsInVzZXJuYW1lIjoiemFwYWRtaW4iLCJ0ZW5hbnRJZCI6ImRlZmF1bHQiLCJjb21wYW55SWQiOiJkZWZhdWx0Iiwicm9sZSI6Im1hc3Rlcl9hZG1pbiIsImlhdCI6MTc4MjUwNDQxNiwiZXhwIjoxNzgyNTMzMjE2fQ.0MobnfO9J43w1Xz7yva7_GZSddvDMMjatq0mCKhms-U` | 🟢 200 | - |
-| `GET` | `http://localhost:4025/media/default/stickers/1782144921362-52ba709b-f538-4382-937b-63f7a49b6a10.webp?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ6YXBhZG1pbiIsInVzZXJuYW1lIjoiemFwYWRtaW4iLCJ0ZW5hbnRJZCI6ImRlZmF1bHQiLCJjb21wYW55SWQiOiJkZWZhdWx0Iiwicm9sZSI6Im1hc3Rlcl9hZG1pbiIsImlhdCI6MTc4MjUwNDQxNiwiZXhwIjoxNzgyNTMzMjE2fQ.0MobnfO9J43w1Xz7yva7_GZSddvDMMjatq0mCKhms-U` | 🟢 200 | - |
-| `GET` | `http://localhost:4025/media/default/images/1782162657848-0d365a40-f4d3-4b66-ba90-5eef5a692c76.jpg?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ6YXBhZG1pbiIsInVzZXJuYW1lIjoiemFwYWRtaW4iLCJ0ZW5hbnRJZCI6ImRlZmF1bHQiLCJjb21wYW55SWQiOiJkZWZhdWx0Iiwicm9sZSI6Im1hc3Rlcl9hZG1pbiIsImlhdCI6MTc4MjUwNDQxNiwiZXhwIjoxNzgyNTMzMjE2fQ.0MobnfO9J43w1Xz7yva7_GZSddvDMMjatq0mCKhms-U` | 🟢 200 | - |
-| `GET` | `http://localhost:4025/media/default/images/1782162658371-70e676d3-0f8b-435e-b2f3-86e052936ba7.jpg?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ6YXBhZG1pbiIsInVzZXJuYW1lIjoiemFwYWRtaW4iLCJ0ZW5hbnRJZCI6ImRlZmF1bHQiLCJjb21wYW55SWQiOiJkZWZhdWx0Iiwicm9sZSI6Im1hc3Rlcl9hZG1pbiIsImlhdCI6MTc4MjUwNDQxNiwiZXhwIjoxNzgyNTMzMjE2fQ.0MobnfO9J43w1Xz7yva7_GZSddvDMMjatq0mCKhms-U` | 🟢 200 | - |
-| `GET` | `http://localhost:4025/media/default/stickers/1782164604329-69901fbe-a7ef-4a33-8ef3-08b9677da4e6.webp?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ6YXBhZG1pbiIsInVzZXJuYW1lIjoiemFwYWRtaW4iLCJ0ZW5hbnRJZCI6ImRlZmF1bHQiLCJjb21wYW55SWQiOiJkZWZhdWx0Iiwicm9sZSI6Im1hc3Rlcl9hZG1pbiIsImlhdCI6MTc4MjUwNDQxNiwiZXhwIjoxNzgyNTMzMjE2fQ.0MobnfO9J43w1Xz7yva7_GZSddvDMMjatq0mCKhms-U` | 🟢 200 | - |
-| `GET` | `http://localhost:4025/media/default/images/1782243946584-ae2c30e2-1ca3-4d27-9fc6-99e812071e08.jpg?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ6YXBhZG1pbiIsInVzZXJuYW1lIjoiemFwYWRtaW4iLCJ0ZW5hbnRJZCI6ImRlZmF1bHQiLCJjb21wYW55SWQiOiJkZWZhdWx0Iiwicm9sZSI6Im1hc3Rlcl9hZG1pbiIsImlhdCI6MTc4MjUwNDQxNiwiZXhwIjoxNzgyNTMzMjE2fQ.0MobnfO9J43w1Xz7yva7_GZSddvDMMjatq0mCKhms-U` | 🟢 200 | - |
-| `GET` | `http://localhost:4025/media/default/images/1782416287384-d78165fe-0e0c-4b63-a32b-5a750ae9bd37.jpg?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ6YXBhZG1pbiIsInVzZXJuYW1lIjoiemFwYWRtaW4iLCJ0ZW5hbnRJZCI6ImRlZmF1bHQiLCJjb21wYW55SWQiOiJkZWZhdWx0Iiwicm9sZSI6Im1hc3Rlcl9hZG1pbiIsImlhdCI6MTc4MjUwNDQxNiwiZXhwIjoxNzgyNTMzMjE2fQ.0MobnfO9J43w1Xz7yva7_GZSddvDMMjatq0mCKhms-U` | 🟢 200 | - |
-| `GET` | `http://localhost:4025/media/default/images/1782428404008-94c19a3f-6c45-4df8-8038-dbd29f05f852.jpg?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ6YXBhZG1pbiIsInVzZXJuYW1lIjoiemFwYWRtaW4iLCJ0ZW5hbnRJZCI6ImRlZmF1bHQiLCJjb21wYW55SWQiOiJkZWZhdWx0Iiwicm9sZSI6Im1hc3Rlcl9hZG1pbiIsImlhdCI6MTc4MjUwNDQxNiwiZXhwIjoxNzgyNTMzMjE2fQ.0MobnfO9J43w1Xz7yva7_GZSddvDMMjatq0mCKhms-U` | 🟢 200 | - |
-| `GET` | `http://localhost:4025/media/default/images/1782429190011-8b481895-41ea-4cbe-900b-06901b67324f.jpg?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ6YXBhZG1pbiIsInVzZXJuYW1lIjoiemFwYWRtaW4iLCJ0ZW5hbnRJZCI6ImRlZmF1bHQiLCJjb21wYW55SWQiOiJkZWZhdWx0Iiwicm9sZSI6Im1hc3Rlcl9hZG1pbiIsImlhdCI6MTc4MjUwNDQxNiwiZXhwIjoxNzgyNTMzMjE2fQ.0MobnfO9J43w1Xz7yva7_GZSddvDMMjatq0mCKhms-U` | 🟢 200 | - |
-| `GET` | `http://localhost:4025/media/default/images/1782503613287-d088542f-9772-42e5-a2f7-2e8c7ab3378c.jpg?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ6YXBhZG1pbiIsInVzZXJuYW1lIjoiemFwYWRtaW4iLCJ0ZW5hbnRJZCI6ImRlZmF1bHQiLCJjb21wYW55SWQiOiJkZWZhdWx0Iiwicm9sZSI6Im1hc3Rlcl9hZG1pbiIsImlhdCI6MTc4MjUwNDQxNiwiZXhwIjoxNzgyNTMzMjE2fQ.0MobnfO9J43w1Xz7yva7_GZSddvDMMjatq0mCKhms-U` | 🟢 200 | - |
-| `POST` | `http://localhost:4025/api/leads/temperature` | 🟢 200 | - |
-| `POST` | `http://localhost:4025/api/ai/analyze-conversation` | 🟢 200 | - |
-| `POST` | `http://localhost:4025/api/leads/temperature` | 🟢 200 | - |
-| `GET` | `http://localhost:4025/health` | 🟢 200 | - |
+| `GET` | `http://localhost:4025/api/ai/conversation-memory/358` | 🟢 200 | - |
 | `GET` | `http://localhost:4025/api/ai/status` | 🟢 200 | - |
-| `GET` | `http://localhost:4025/api/metrics` | 🟢 200 | - |
-| `GET` | `http://localhost:4025/api/sessions/status` | 🟢 200 | - |
-| `GET` | `http://localhost:4025/api/conversations?sessionId=teste1010` | 🟢 200 | - |
-| `GET` | `http://localhost:4025/health` | 🟢 200 | - |
-| `GET` | `http://localhost:4025/api/sessions/status` | 🟢 200 | - |
-| `GET` | `http://localhost:4025/api/sessions/status` | 🟢 200 | - |
-| `GET` | `http://localhost:4025/api/metrics` | 🟢 200 | - |
-| `GET` | `http://localhost:4025/api/sessions/status` | 🟢 200 | - |
-| `GET` | `http://localhost:4025/api/conversations?sessionId=teste1010` | 🟢 200 | - |
-| `GET` | `http://localhost:4025/health` | 🟢 200 | - |
-| `GET` | `http://localhost:4025/api/contacts` | 🟢 200 | - |
-| `GET` | `http://localhost:4025/api/conversations?limit=200` | 🟢 200 | - |
-| `GET` | `http://localhost:4025/api/metrics` | 🟢 200 | - |
-| `GET` | `http://localhost:4025/api/sessions/status` | 🟢 200 | - |
-| `GET` | `http://localhost:4025/api/conversations?sessionId=teste1010` | 🟢 200 | - |
-| `GET` | `http://localhost:4025/health` | 🟢 200 | - |
-| `GET` | `http://localhost:4025/api/flows` | 🟢 200 | - |
-| `GET` | `http://localhost:4025/api/metrics` | 🟢 200 | - |
-| `GET` | `http://localhost:4025/api/sessions/status` | 🟢 200 | - |
-| `GET` | `http://localhost:4025/api/conversations?sessionId=teste1010` | 🟢 200 | - |
-| `GET` | `http://localhost:4025/health` | 🟢 200 | - |
-| `GET` | `http://localhost:4025/api/ai/status` | 🟢 200 | - |
-| `GET` | `http://localhost:4025/api/config/business-hours` | 🟢 200 | - |
-| `GET` | `http://localhost:4025/api/ai/prompt` | 🟢 200 | - |
-| `GET` | `http://localhost:4025/api/config/absence-message` | 🟢 200 | - |
-| `GET` | `http://localhost:4025/api/queue` | 🟢 200 | - |
 | `GET` | `http://localhost:4025/api/ai/memory` | 🟢 200 | - |
 | `GET` | `http://localhost:4025/api/config/advanced-ai` | 🟢 200 | - |
-| `GET` | `http://localhost:4025/api/session-status` | 🟢 200 | - |
-| `GET` | `http://localhost:4025/api/ai/logs?sessionId=teste1010` | 🟢 200 | - |
-| `GET` | `http://localhost:4025/api/config/ai-agents` | 🟢 200 | - |
-| `GET` | `http://localhost:4025/api/health` | 🟢 200 | - |
-| `GET` | `http://localhost:4025/api/ai/metrics?sessionId=teste1010` | 🟢 200 | - |
-| `GET` | `http://localhost:4025/api/config/user-providers` | 🟢 200 | - |
-| `GET` | `http://localhost:4025/api/integrations/webhooks` | 🟢 200 | - |
-| `GET` | `http://localhost:4025/api/metrics` | 🟢 200 | - |
-| `GET` | `http://localhost:4025/api/sessions/status` | 🟢 200 | - |
-| `GET` | `http://localhost:4025/api/conversations?sessionId=teste1010` | 🟢 200 | - |
+| `GET` | `http://localhost:4025/api/ai/logs` | 🟢 200 | - |
+| `GET` | `http://localhost:4025/api/conversations/436/messages?limit=50` | 🟢 200 | - |
+| `GET` | `http://localhost:4025/api/conversations/436/messages?limit=50&before=2026-06-17T15%3A48%3A23.000Z` | 🟢 200 | - |
+| `GET` | `http://localhost:4025/media/default/stickers/1781949847537-fb338e23-71a0-40ea-9b36-29fdb5dcc46d.webp?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ6YXBhZG1pbiIsInVzZXJuYW1lIjoiemFwYWRtaW4iLCJ0ZW5hbnRJZCI6ImRlZmF1bHQiLCJjb21wYW55SWQiOiJkZWZhdWx0Iiwicm9sZSI6Im1hc3Rlcl9hZG1pbiIsImlhdCI6MTc4NDE2MDQxOSwiZXhwIjoxNzg0MTg5MjE5fQ.WhqbypCmQFl0Zuyol7rFNskRCOtKXQut8Pzz9QgMcco` | 🟢 200 | - |
+| `GET` | `http://localhost:4025/media/default/images/1781946645461-b6db68eb-329f-46aa-971b-c8f9ba8dcffe.jpg?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ6YXBhZG1pbiIsInVzZXJuYW1lIjoiemFwYWRtaW4iLCJ0ZW5hbnRJZCI6ImRlZmF1bHQiLCJjb21wYW55SWQiOiJkZWZhdWx0Iiwicm9sZSI6Im1hc3Rlcl9hZG1pbiIsImlhdCI6MTc4NDE2MDQxOSwiZXhwIjoxNzg0MTg5MjE5fQ.WhqbypCmQFl0Zuyol7rFNskRCOtKXQut8Pzz9QgMcco` | 🟢 200 | - |
+| `GET` | `http://localhost:4025/media/default/images/1781969981760-65816a99-a847-416f-81fc-80aa777b8afe.jpg?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ6YXBhZG1pbiIsInVzZXJuYW1lIjoiemFwYWRtaW4iLCJ0ZW5hbnRJZCI6ImRlZmF1bHQiLCJjb21wYW55SWQiOiJkZWZhdWx0Iiwicm9sZSI6Im1hc3Rlcl9hZG1pbiIsImlhdCI6MTc4NDE2MDQxOSwiZXhwIjoxNzg0MTg5MjE5fQ.WhqbypCmQFl0Zuyol7rFNskRCOtKXQut8Pzz9QgMcco` | 🟢 200 | - |
+| `GET` | `http://localhost:4025/media/default/stickers/1781947629810-123ecbfa-2bf3-4ec8-80ad-c18b51b98547.webp?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ6YXBhZG1pbiIsInVzZXJuYW1lIjoiemFwYWRtaW4iLCJ0ZW5hbnRJZCI6ImRlZmF1bHQiLCJjb21wYW55SWQiOiJkZWZhdWx0Iiwicm9sZSI6Im1hc3Rlcl9hZG1pbiIsImlhdCI6MTc4NDE2MDQxOSwiZXhwIjoxNzg0MTg5MjE5fQ.WhqbypCmQFl0Zuyol7rFNskRCOtKXQut8Pzz9QgMcco` | 🟢 200 | - |
+| `GET` | `http://localhost:4025/media/default/stickers/1781970121877-0a98d78b-4b7c-42df-a418-cff5355369e5.webp?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ6YXBhZG1pbiIsInVzZXJuYW1lIjoiemFwYWRtaW4iLCJ0ZW5hbnRJZCI6ImRlZmF1bHQiLCJjb21wYW55SWQiOiJkZWZhdWx0Iiwicm9sZSI6Im1hc3Rlcl9hZG1pbiIsImlhdCI6MTc4NDE2MDQxOSwiZXhwIjoxNzg0MTg5MjE5fQ.WhqbypCmQFl0Zuyol7rFNskRCOtKXQut8Pzz9QgMcco` | 🟢 200 | - |
+| `GET` | `http://localhost:4025/media/default/images/1781970021928-a9f6d62b-584b-4c4b-bb83-34f3c13d1d54.jpg?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ6YXBhZG1pbiIsInVzZXJuYW1lIjoiemFwYWRtaW4iLCJ0ZW5hbnRJZCI6ImRlZmF1bHQiLCJjb21wYW55SWQiOiJkZWZhdWx0Iiwicm9sZSI6Im1hc3Rlcl9hZG1pbiIsImlhdCI6MTc4NDE2MDQxOSwiZXhwIjoxNzg0MTg5MjE5fQ.WhqbypCmQFl0Zuyol7rFNskRCOtKXQut8Pzz9QgMcco` | 🟢 200 | - |
+| `GET` | `http://localhost:4025/media/default/stickers/1782144921362-52ba709b-f538-4382-937b-63f7a49b6a10.webp?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ6YXBhZG1pbiIsInVzZXJuYW1lIjoiemFwYWRtaW4iLCJ0ZW5hbnRJZCI6ImRlZmF1bHQiLCJjb21wYW55SWQiOiJkZWZhdWx0Iiwicm9sZSI6Im1hc3Rlcl9hZG1pbiIsImlhdCI6MTc4NDE2MDQxOSwiZXhwIjoxNzg0MTg5MjE5fQ.WhqbypCmQFl0Zuyol7rFNskRCOtKXQut8Pzz9QgMcco` | 🟢 200 | - |
+| `GET` | `http://localhost:4025/media/default/images/1782162657848-0d365a40-f4d3-4b66-ba90-5eef5a692c76.jpg?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ6YXBhZG1pbiIsInVzZXJuYW1lIjoiemFwYWRtaW4iLCJ0ZW5hbnRJZCI6ImRlZmF1bHQiLCJjb21wYW55SWQiOiJkZWZhdWx0Iiwicm9sZSI6Im1hc3Rlcl9hZG1pbiIsImlhdCI6MTc4NDE2MDQxOSwiZXhwIjoxNzg0MTg5MjE5fQ.WhqbypCmQFl0Zuyol7rFNskRCOtKXQut8Pzz9QgMcco` | 🟢 200 | - |
+| `GET` | `http://localhost:4025/media/default/stickers/1782164604329-69901fbe-a7ef-4a33-8ef3-08b9677da4e6.webp?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ6YXBhZG1pbiIsInVzZXJuYW1lIjoiemFwYWRtaW4iLCJ0ZW5hbnRJZCI6ImRlZmF1bHQiLCJjb21wYW55SWQiOiJkZWZhdWx0Iiwicm9sZSI6Im1hc3Rlcl9hZG1pbiIsImlhdCI6MTc4NDE2MDQxOSwiZXhwIjoxNzg0MTg5MjE5fQ.WhqbypCmQFl0Zuyol7rFNskRCOtKXQut8Pzz9QgMcco` | 🟢 200 | - |
+| `GET` | `http://localhost:4025/media/default/images/1782162658371-70e676d3-0f8b-435e-b2f3-86e052936ba7.jpg?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ6YXBhZG1pbiIsInVzZXJuYW1lIjoiemFwYWRtaW4iLCJ0ZW5hbnRJZCI6ImRlZmF1bHQiLCJjb21wYW55SWQiOiJkZWZhdWx0Iiwicm9sZSI6Im1hc3Rlcl9hZG1pbiIsImlhdCI6MTc4NDE2MDQxOSwiZXhwIjoxNzg0MTg5MjE5fQ.WhqbypCmQFl0Zuyol7rFNskRCOtKXQut8Pzz9QgMcco` | 🟢 200 | - |
+| `GET` | `http://localhost:4025/media/default/images/1782243946584-ae2c30e2-1ca3-4d27-9fc6-99e812071e08.jpg?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ6YXBhZG1pbiIsInVzZXJuYW1lIjoiemFwYWRtaW4iLCJ0ZW5hbnRJZCI6ImRlZmF1bHQiLCJjb21wYW55SWQiOiJkZWZhdWx0Iiwicm9sZSI6Im1hc3Rlcl9hZG1pbiIsImlhdCI6MTc4NDE2MDQxOSwiZXhwIjoxNzg0MTg5MjE5fQ.WhqbypCmQFl0Zuyol7rFNskRCOtKXQut8Pzz9QgMcco` | 🟢 200 | - |
+| `POST` | `http://localhost:4025/api/ai/analyze-conversation` | 🟢 200 | - |
+| `POST` | `http://localhost:4025/api/leads/temperature` | 🟢 200 | - |
+| `POST` | `http://localhost:4025/api/leads/temperature` | 🟢 200 | - |
+| `GET` | `http://localhost:4025/media/default/images/1782416287384-d78165fe-0e0c-4b63-a32b-5a750ae9bd37.jpg?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ6YXBhZG1pbiIsInVzZXJuYW1lIjoiemFwYWRtaW4iLCJ0ZW5hbnRJZCI6ImRlZmF1bHQiLCJjb21wYW55SWQiOiJkZWZhdWx0Iiwicm9sZSI6Im1hc3Rlcl9hZG1pbiIsImlhdCI6MTc4NDE2MDQxOSwiZXhwIjoxNzg0MTg5MjE5fQ.WhqbypCmQFl0Zuyol7rFNskRCOtKXQut8Pzz9QgMcco` | 🟢 200 | - |
+| `GET` | `http://localhost:4025/media/default/images/1782428404008-94c19a3f-6c45-4df8-8038-dbd29f05f852.jpg?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ6YXBhZG1pbiIsInVzZXJuYW1lIjoiemFwYWRtaW4iLCJ0ZW5hbnRJZCI6ImRlZmF1bHQiLCJjb21wYW55SWQiOiJkZWZhdWx0Iiwicm9sZSI6Im1hc3Rlcl9hZG1pbiIsImlhdCI6MTc4NDE2MDQxOSwiZXhwIjoxNzg0MTg5MjE5fQ.WhqbypCmQFl0Zuyol7rFNskRCOtKXQut8Pzz9QgMcco` | 🟢 200 | - |
+| `GET` | `http://localhost:4025/media/default/images/1782503613287-d088542f-9772-42e5-a2f7-2e8c7ab3378c.jpg?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ6YXBhZG1pbiIsInVzZXJuYW1lIjoiemFwYWRtaW4iLCJ0ZW5hbnRJZCI6ImRlZmF1bHQiLCJjb21wYW55SWQiOiJkZWZhdWx0Iiwicm9sZSI6Im1hc3Rlcl9hZG1pbiIsImlhdCI6MTc4NDE2MDQxOSwiZXhwIjoxNzg0MTg5MjE5fQ.WhqbypCmQFl0Zuyol7rFNskRCOtKXQut8Pzz9QgMcco` | 🟢 200 | - |
+| `GET` | `http://localhost:4025/media/default/images/1782429190011-8b481895-41ea-4cbe-900b-06901b67324f.jpg?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ6YXBhZG1pbiIsInVzZXJuYW1lIjoiemFwYWRtaW4iLCJ0ZW5hbnRJZCI6ImRlZmF1bHQiLCJjb21wYW55SWQiOiJkZWZhdWx0Iiwicm9sZSI6Im1hc3Rlcl9hZG1pbiIsImlhdCI6MTc4NDE2MDQxOSwiZXhwIjoxNzg0MTg5MjE5fQ.WhqbypCmQFl0Zuyol7rFNskRCOtKXQut8Pzz9QgMcco` | 🟢 200 | - |
+| `GET` | `http://localhost:4025/media/default/images/1782506921452-47f8c29e-d6d3-42b3-ab23-2beb108d819c.jpg?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ6YXBhZG1pbiIsInVzZXJuYW1lIjoiemFwYWRtaW4iLCJ0ZW5hbnRJZCI6ImRlZmF1bHQiLCJjb21wYW55SWQiOiJkZWZhdWx0Iiwicm9sZSI6Im1hc3Rlcl9hZG1pbiIsImlhdCI6MTc4NDE2MDQxOSwiZXhwIjoxNzg0MTg5MjE5fQ.WhqbypCmQFl0Zuyol7rFNskRCOtKXQut8Pzz9QgMcco` | 🟢 200 | - |
+| `GET` | `http://localhost:4025/media/default/images/1782844135389-f71c7592-3ca8-4eaa-8b88-d5ab3d7acb91.jpg?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ6YXBhZG1pbiIsInVzZXJuYW1lIjoiemFwYWRtaW4iLCJ0ZW5hbnRJZCI6ImRlZmF1bHQiLCJjb21wYW55SWQiOiJkZWZhdWx0Iiwicm9sZSI6Im1hc3Rlcl9hZG1pbiIsImlhdCI6MTc4NDE2MDQxOSwiZXhwIjoxNzg0MTg5MjE5fQ.WhqbypCmQFl0Zuyol7rFNskRCOtKXQut8Pzz9QgMcco` | 🟢 200 | - |
+| `GET` | `http://localhost:4025/media/default/images/1782416287384-d78165fe-0e0c-4b63-a32b-5a750ae9bd37.jpg?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ6YXBhZG1pbiIsInVzZXJuYW1lIjoiemFwYWRtaW4iLCJ0ZW5hbnRJZCI6ImRlZmF1bHQiLCJjb21wYW55SWQiOiJkZWZhdWx0Iiwicm9sZSI6Im1hc3Rlcl9hZG1pbiIsImlhdCI6MTc4NDE2MDQxOSwiZXhwIjoxNzg0MTg5MjE5fQ.WhqbypCmQFl0Zuyol7rFNskRCOtKXQut8Pzz9QgMcco` | 🟢 200 | - |
+| `GET` | `http://localhost:4025/media/default/images/1782428404008-94c19a3f-6c45-4df8-8038-dbd29f05f852.jpg?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ6YXBhZG1pbiIsInVzZXJuYW1lIjoiemFwYWRtaW4iLCJ0ZW5hbnRJZCI6ImRlZmF1bHQiLCJjb21wYW55SWQiOiJkZWZhdWx0Iiwicm9sZSI6Im1hc3Rlcl9hZG1pbiIsImlhdCI6MTc4NDE2MDQxOSwiZXhwIjoxNzg0MTg5MjE5fQ.WhqbypCmQFl0Zuyol7rFNskRCOtKXQut8Pzz9QgMcco` | 🟢 200 | - |
+| `GET` | `http://localhost:4025/media/default/images/1782429190011-8b481895-41ea-4cbe-900b-06901b67324f.jpg?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ6YXBhZG1pbiIsInVzZXJuYW1lIjoiemFwYWRtaW4iLCJ0ZW5hbnRJZCI6ImRlZmF1bHQiLCJjb21wYW55SWQiOiJkZWZhdWx0Iiwicm9sZSI6Im1hc3Rlcl9hZG1pbiIsImlhdCI6MTc4NDE2MDQxOSwiZXhwIjoxNzg0MTg5MjE5fQ.WhqbypCmQFl0Zuyol7rFNskRCOtKXQut8Pzz9QgMcco` | 🟢 200 | - |
+| `GET` | `http://localhost:4025/media/default/images/1782503613287-d088542f-9772-42e5-a2f7-2e8c7ab3378c.jpg?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ6YXBhZG1pbiIsInVzZXJuYW1lIjoiemFwYWRtaW4iLCJ0ZW5hbnRJZCI6ImRlZmF1bHQiLCJjb21wYW55SWQiOiJkZWZhdWx0Iiwicm9sZSI6Im1hc3Rlcl9hZG1pbiIsImlhdCI6MTc4NDE2MDQxOSwiZXhwIjoxNzg0MTg5MjE5fQ.WhqbypCmQFl0Zuyol7rFNskRCOtKXQut8Pzz9QgMcco` | 🟢 200 | - |
+| `GET` | `http://localhost:4025/media/default/images/1782506921452-47f8c29e-d6d3-42b3-ab23-2beb108d819c.jpg?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ6YXBhZG1pbiIsInVzZXJuYW1lIjoiemFwYWRtaW4iLCJ0ZW5hbnRJZCI6ImRlZmF1bHQiLCJjb21wYW55SWQiOiJkZWZhdWx0Iiwicm9sZSI6Im1hc3Rlcl9hZG1pbiIsImlhdCI6MTc4NDE2MDQxOSwiZXhwIjoxNzg0MTg5MjE5fQ.WhqbypCmQFl0Zuyol7rFNskRCOtKXQut8Pzz9QgMcco` | 🟢 200 | - |
+| `GET` | `http://localhost:4025/media/default/images/1782844135389-f71c7592-3ca8-4eaa-8b88-d5ab3d7acb91.jpg?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ6YXBhZG1pbiIsInVzZXJuYW1lIjoiemFwYWRtaW4iLCJ0ZW5hbnRJZCI6ImRlZmF1bHQiLCJjb21wYW55SWQiOiJkZWZhdWx0Iiwicm9sZSI6Im1hc3Rlcl9hZG1pbiIsImlhdCI6MTc4NDE2MDQxOSwiZXhwIjoxNzg0MTg5MjE5fQ.WhqbypCmQFl0Zuyol7rFNskRCOtKXQut8Pzz9QgMcco` | 🟢 200 | - |
 | `GET` | `http://localhost:4025/health` | 🟢 200 | - |
 | `GET` | `http://localhost:4025/api/metrics` | 🟢 200 | - |
-| `GET` | `http://localhost:4025/api/conversations?limit=200` | 🟢 200 | - |
-| `GET` | `http://localhost:4025/api/metrics` | 🟢 200 | - |
-| `GET` | `http://localhost:4025/api/conversations?limit=200` | 🟢 200 | - |
-| `GET` | `http://localhost:4025/api/metrics` | 🟢 200 | - |
+| `GET` | `http://localhost:4025/api/conversations?limit=30&sessionId=111` | 🟢 200 | - |
 | `GET` | `http://localhost:4025/api/sessions/status` | 🟢 200 | - |
-| `GET` | `http://localhost:4025/api/conversations?sessionId=teste1010` | 🟢 200 | - |
-| `GET` | `http://localhost:4025/health` | 🟢 200 | - |
-| `GET` | `http://localhost:4025/api/campaigns` | 🟢 200 | - |
 | `GET` | `http://localhost:4025/api/contacts` | 🟢 200 | - |
-| `GET` | `http://localhost:4025/api/conversations?limit=500` | 🟢 200 | - |
-| `GET` | `http://localhost:4025/api/quick-replies` | 🟢 200 | - |
+| `POST` | `http://localhost:4025/api/sessions/recover` | 🟢 200 | - |
+| `GET` | `http://localhost:4025/health` | 🟢 200 | - |
+| `GET` | `http://localhost:4025/api/metrics?sessionId=111` | 🟢 200 | - |
+| `GET` | `http://localhost:4025/api/conversations?limit=30&sessionId=111` | 🟢 200 | - |
+| `GET` | `http://localhost:4025/api/sessions/status` | 🟢 200 | - |
+| `GET` | `http://localhost:4025/api/conversations?limit=30&sessionId=111` | 🟢 200 | - |
+| `GET` | `http://localhost:4025/api/sessions/status` | 🟢 200 | - |
+| `GET` | `http://localhost:4025/api/metrics?sessionId=111` | 🟢 200 | - |
+| `GET` | `http://localhost:4025/api/sessions/status` | 🟢 200 | - |
+| `GET` | `http://localhost:4025/api/conversations?limit=30&sessionId=111` | 🟢 200 | - |
+| `POST` | `http://localhost:4025/api/sessions/recover` | 🟢 200 | - |
+| `GET` | `http://localhost:4025/api/metrics?sessionId=111` | 🟢 200 | - |
+| `GET` | `http://localhost:4025/api/sessions/status` | 🟢 200 | - |
+| `GET` | `http://localhost:4025/health` | 🟢 200 | - |
+| `GET` | `http://localhost:4025/api/contacts` | 🟢 200 | - |
+| `GET` | `http://localhost:4025/api/metrics?sessionId=111` | 🟢 200 | - |
+| `GET` | `http://localhost:4025/api/conversations?limit=1000` | 🟢 200 | - |
+| `GET` | `http://localhost:4025/api/conversations?limit=30&sessionId=111` | 🟢 200 | - |
+| `GET` | `http://localhost:4025/api/metrics?sessionId=111` | 🟢 200 | - |
+| `GET` | `http://localhost:4025/api/sessions/status` | 🟢 200 | - |
+| `GET` | `http://localhost:4025/api/contacts` | 🟢 200 | - |
+| `GET` | `http://localhost:4025/api/conversations?limit=30&sessionId=111` | 🟢 200 | - |
+| `GET` | `http://localhost:4025/api/metrics?sessionId=111` | 🟢 200 | - |
+| `POST` | `http://localhost:4025/api/sessions/recover` | 🟢 200 | - |
+| `GET` | `http://localhost:4025/api/sessions/status` | 🟢 200 | - |
+| `GET` | `http://localhost:4025/health` | 🟢 200 | - |
+| `GET` | `http://localhost:4025/api/metrics?sessionId=111` | 🟢 200 | - |
+| `GET` | `http://localhost:4025/api/flows` | 🟢 200 | - |
+| `GET` | `http://localhost:4025/api/conversations?limit=30&sessionId=111` | 🟢 200 | - |
+| `GET` | `http://localhost:4025/api/metrics?sessionId=111` | 🟢 200 | - |
+| `GET` | `http://localhost:4025/api/sessions/status` | 🟢 200 | - |
+| `GET` | `http://localhost:4025/api/contacts` | 🟢 200 | - |
+| `GET` | `http://localhost:4025/api/conversations?limit=30&sessionId=111` | 🟢 200 | - |
+| `GET` | `http://localhost:4025/api/metrics?sessionId=111` | 🟢 200 | - |
+| `POST` | `http://localhost:4025/api/sessions/recover` | 🟢 200 | - |
+| `GET` | `http://localhost:4025/api/sessions/status` | 🟢 200 | - |
+| `GET` | `http://localhost:4025/health` | 🟢 200 | - |
+| `GET` | `http://localhost:4025/api/config/business-hours` | 🟢 200 | - |
+| `GET` | `http://localhost:4025/api/config/absence-message` | 🟢 200 | - |
+| `GET` | `http://localhost:4025/api/queue` | 🟢 200 | - |
+| `GET` | `http://localhost:4025/api/ai/status` | 🟢 200 | - |
+| `GET` | `http://localhost:4025/api/ai/memory` | 🟢 200 | - |
+| `GET` | `http://localhost:4025/api/config/advanced-ai` | 🟢 200 | - |
+| `GET` | `http://localhost:4025/api/ai/prompt` | 🟢 200 | - |
+| `GET` | `http://localhost:4025/api/metrics?sessionId=111` | 🟢 200 | - |
+| `GET` | `http://localhost:4025/api/config/ai-agents` | 🟢 200 | - |
+| `GET` | `http://localhost:4025/api/ai/logs?sessionId=111` | 🟢 200 | - |
+| `GET` | `http://localhost:4025/api/ai/metrics?sessionId=111` | 🟢 200 | - |
+| `GET` | `http://localhost:4025/api/integrations/webhooks` | 🟢 200 | - |
+| `GET` | `http://localhost:4025/api/config/user-providers` | 🟢 200 | - |
+| `POST` | `http://localhost:4025/api/system/error-log` | 🟢 200 | - |
+| `GET` | `http://localhost:4025/api/health` | 🔴 403 | `{"success":false,"data":null,"error":"master_admin or admin role required."}` |
+| `GET` | `http://localhost:4025/api/session-status` | 🔴 403 | `{"success":false,"data":null,"error":"master_admin or admin role required."}` |
+| `GET` | `http://localhost:4025/api/conversations?limit=30&sessionId=111` | 🟢 200 | - |
+| `GET` | `http://localhost:4025/api/metrics?sessionId=111` | 🟢 200 | - |
+| `GET` | `http://localhost:4025/api/sessions/status` | 🟢 200 | - |
+| `GET` | `http://localhost:4025/api/contacts` | 🟢 200 | - |
+| `GET` | `http://localhost:4025/api/conversations?limit=30&sessionId=111` | 🟢 200 | - |
+| `GET` | `http://localhost:4025/health` | 🟢 200 | - |
+| `GET` | `http://localhost:4025/api/metrics?sessionId=111` | 🟢 200 | - |
+| `POST` | `http://localhost:4025/api/sessions/recover` | 🟢 200 | - |
 | `GET` | `http://localhost:4025/api/metrics` | 🟢 200 | - |
 | `GET` | `http://localhost:4025/api/sessions/status` | 🟢 200 | - |
-| `GET` | `http://localhost:4025/api/conversations?sessionId=teste1010` | 🟢 200 | - |
+| `GET` | `http://localhost:4025/api/conversations?limit=200` | 🟢 200 | - |
+| `GET` | `http://localhost:4025/api/conversations?limit=30&sessionId=111` | 🟢 200 | - |
+| `GET` | `http://localhost:4025/api/metrics?sessionId=111` | 🟢 200 | - |
+| `GET` | `http://localhost:4025/api/sessions/status` | 🟢 200 | - |
+| `GET` | `http://localhost:4025/api/metrics` | 🟢 200 | - |
+| `GET` | `http://localhost:4025/api/conversations?limit=200` | 🟢 200 | - |
+| `GET` | `http://localhost:4025/api/conversations?limit=30&sessionId=111` | 🟢 200 | - |
+| `POST` | `http://localhost:4025/api/sessions/recover` | 🟢 200 | - |
+| `GET` | `http://localhost:4025/api/sessions/status` | 🟢 200 | - |
+| `GET` | `http://localhost:4025/api/metrics?sessionId=111` | 🟢 200 | - |
+| `GET` | `http://localhost:4025/health` | 🟢 200 | - |
+| `GET` | `http://localhost:4025/api/config/ai-agents` | 🟢 200 | - |
+| `GET` | `http://localhost:4025/api/metrics?sessionId=111` | 🟢 200 | - |
+| `GET` | `http://localhost:4025/api/campaigns` | 🟢 200 | - |
+| `GET` | `http://localhost:4025/api/quick-replies` | 🟢 200 | - |
+| `GET` | `http://localhost:4025/api/conversations?limit=500` | 🟢 200 | - |
+| `GET` | `http://localhost:4025/api/contacts` | 🟢 200 | - |
+| `GET` | `http://localhost:4025/api/conversations?limit=30&sessionId=111` | 🟢 200 | - |
+| `GET` | `http://localhost:4025/api/metrics?sessionId=111` | 🟢 200 | - |
+| `GET` | `http://localhost:4025/api/sessions/status` | 🟢 200 | - |
+| `GET` | `http://localhost:4025/api/conversations?limit=30&sessionId=111` | 🟢 200 | - |
+| `GET` | `http://localhost:4025/api/metrics?sessionId=111` | 🟢 200 | - |
+| `POST` | `http://localhost:4025/api/sessions/recover` | 🟢 200 | - |
+| `GET` | `http://localhost:4025/api/sessions/status` | 🟢 200 | - |
 | `GET` | `http://localhost:4025/health` | 🟢 200 | - |
 | `GET` | `http://localhost:4025/api/ai/memory` | 🟢 200 | - |
+| `GET` | `http://localhost:4025/api/metrics?sessionId=111` | 🟢 200 | - |
 | `GET` | `http://localhost:4025/api/ai/memory/analytics` | 🟢 200 | - |
 | `GET` | `http://localhost:4025/api/ai/memory/search?q=` | 🟢 200 | - |
+| `GET` | `http://localhost:4025/api/conversations?limit=30&sessionId=111` | 🟢 200 | - |
+| `GET` | `http://localhost:4025/api/metrics?sessionId=111` | 🟢 200 | - |
+| `GET` | `http://localhost:4025/api/sessions/status` | 🟢 200 | - |
 | `POST` | `http://localhost:4025/api/ai/memory` | 🟢 200 | - |
 | `GET` | `http://localhost:4025/api/ai/memory` | 🟢 200 | - |
 | `GET` | `http://localhost:4025/api/ai/memory/analytics` | 🟢 200 | - |
 | `GET` | `http://localhost:4025/api/ai/memory/search?q=` | 🟢 200 | - |
 | `POST` | `http://localhost:4025/api/ai/memory/flush` | 🟢 200 | - |
-| `GET` | `http://localhost:4025/api/metrics` | 🟢 200 | - |
+| `GET` | `http://localhost:4025/api/conversations?limit=30&sessionId=111` | 🟢 200 | - |
+| `GET` | `http://localhost:4025/api/metrics?sessionId=111` | 🟢 200 | - |
+| `POST` | `http://localhost:4025/api/sessions/recover` | 🟢 200 | - |
 | `GET` | `http://localhost:4025/api/sessions/status` | 🟢 200 | - |
-| `GET` | `http://localhost:4025/api/conversations?sessionId=teste1010` | 🟢 200 | - |
 | `GET` | `http://localhost:4025/health` | 🟢 200 | - |
 | `GET` | `http://localhost:4025/api/admin/users` | 🟢 200 | - |
-| `GET` | `http://localhost:4025/api/metrics` | 🟢 200 | - |
+| `GET` | `http://localhost:4025/api/conversations?limit=30&sessionId=111` | 🟢 200 | - |
+| `GET` | `http://localhost:4025/api/metrics?sessionId=111` | 🟢 200 | - |
 | `GET` | `http://localhost:4025/api/sessions/status` | 🟢 200 | - |
-| `GET` | `http://localhost:4025/api/conversations?sessionId=teste1010` | 🟢 200 | - |
+| `GET` | `http://localhost:4025/api/conversations?limit=30&sessionId=111` | 🟢 200 | - |
+| `GET` | `http://localhost:4025/api/metrics?sessionId=111` | 🟢 200 | - |
+| `POST` | `http://localhost:4025/api/sessions/recover` | 🟢 200 | - |
+| `GET` | `http://localhost:4025/api/sessions/status` | 🟢 200 | - |
 | `GET` | `http://localhost:4025/health` | 🟢 200 | - |
-| `GET` | `http://localhost:4025/api/cluster/nodes` | 🟢 200 | - |
+| `GET` | `http://localhost:4025/api/cluster/deployments` | 🟢 200 | - |
 | `GET` | `http://localhost:4025/api/cluster/overview` | 🟢 200 | - |
 | `GET` | `http://localhost:4025/api/cluster/nodes` | 🟢 200 | - |
-| `GET` | `http://localhost:4025/api/cluster/overview` | 🟢 200 | - |
-| `GET` | `http://localhost:4025/api/metrics` | 🟢 200 | - |
+| `GET` | `http://localhost:4025/api/conversations?limit=30&sessionId=111` | 🟢 200 | - |
+| `GET` | `http://localhost:4025/api/metrics?sessionId=111` | 🟢 200 | - |
 | `GET` | `http://localhost:4025/api/sessions/status` | 🟢 200 | - |
-| `GET` | `http://localhost:4025/api/conversations?sessionId=teste1010` | 🟢 200 | - |
 | `GET` | `http://localhost:4025/api/cluster/nodes` | 🟢 200 | - |
+| `GET` | `http://localhost:4025/api/cluster/deployments` | 🟢 200 | - |
+| `GET` | `http://localhost:4025/api/cluster/overview` | 🟢 200 | - |
+| `GET` | `http://localhost:4025/api/conversations?limit=30&sessionId=111` | 🟢 200 | - |
+| `GET` | `http://localhost:4025/api/metrics?sessionId=111` | 🟢 200 | - |
+| `POST` | `http://localhost:4025/api/sessions/recover` | 🟢 200 | - |
+| `GET` | `http://localhost:4025/api/sessions/status` | 🟢 200 | - |
 | `GET` | `http://localhost:4025/health` | 🟢 200 | - |
-| `GET` | `http://localhost:4025/api/cluster/overview` | 🟢 200 | - |
+| `GET` | `http://localhost:4025/api/cluster/deployments` | 🟢 200 | - |
 | `GET` | `http://localhost:4025/api/cluster/nodes` | 🟢 200 | - |
 | `GET` | `http://localhost:4025/api/cluster/overview` | 🟢 200 | - |
-| `GET` | `http://localhost:4025/api/metrics` | 🟢 200 | - |
+| `GET` | `http://localhost:4025/api/conversations?limit=30&sessionId=111` | 🟢 200 | - |
+| `GET` | `http://localhost:4025/api/metrics?sessionId=111` | 🟢 200 | - |
 | `GET` | `http://localhost:4025/api/sessions/status` | 🟢 200 | - |
-| `GET` | `http://localhost:4025/api/conversations?sessionId=teste1010` | 🟢 200 | - |
+| `GET` | `http://localhost:4025/api/cluster/deployments` | 🟢 200 | - |
+| `GET` | `http://localhost:4025/api/cluster/nodes` | 🟢 200 | - |
+| `GET` | `http://localhost:4025/api/cluster/overview` | 🟢 200 | - |
+| `GET` | `http://localhost:4025/api/conversations?limit=30&sessionId=111` | 🟢 200 | - |
+| `POST` | `http://localhost:4025/api/sessions/recover` | 🟢 200 | - |
+| `GET` | `http://localhost:4025/api/metrics?sessionId=111` | 🟢 200 | - |
+| `GET` | `http://localhost:4025/api/sessions/status` | 🟢 200 | - |
 | `GET` | `http://localhost:4025/health` | 🟢 200 | - |
 | `GET` | `http://localhost:4025/api/system/error-log` | 🟢 200 | - |
-| `GET` | `http://localhost:4025/api/metrics` | 🟢 200 | - |
+| `GET` | `http://localhost:4025/api/conversations?limit=30&sessionId=111` | 🟢 200 | - |
+| `GET` | `http://localhost:4025/api/metrics?sessionId=111` | 🟢 200 | - |
 | `GET` | `http://localhost:4025/api/sessions/status` | 🟢 200 | - |
-| `GET` | `http://localhost:4025/api/conversations?sessionId=teste1010` | 🟢 200 | - |
+| `GET` | `http://localhost:4025/api/conversations?limit=30&sessionId=111` | 🟢 200 | - |
+| `GET` | `http://localhost:4025/api/metrics?sessionId=111` | 🟢 200 | - |
+| `POST` | `http://localhost:4025/api/sessions/recover` | 🟢 200 | - |
+| `GET` | `http://localhost:4025/api/sessions/status` | 🟢 200 | - |
 | `GET` | `http://localhost:4025/health` | 🟢 200 | - |
 | `GET` | `http://localhost:4025/api/system/error-log` | 🟢 200 | - |
 | `GET` | `http://localhost:4025/api/system/runtime/status` | 🟢 200 | - |
 | `GET` | `http://localhost:4025/api/system/status` | 🟢 200 | - |
-| `GET` | `http://localhost:4025/api/session-status` | 🟢 200 | - |
-| `GET` | `http://localhost:4025/api/ai/status` | 🟢 200 | - |
 | `GET` | `http://localhost:4025/api/sessions/status` | 🟢 200 | - |
-| `GET` | `http://localhost:4025/api/health` | 🟢 200 | - |
-| `GET` | `http://localhost:4025/api/websocket/status` | 🟢 200 | - |
+| `GET` | `http://localhost:4025/api/ai/status` | 🟢 200 | - |
 | `GET` | `http://localhost:4025/api/contacts` | 🟢 200 | - |
-| `GET` | `http://localhost:4025/api/health` | 🟢 200 | - |
-| `GET` | `http://localhost:4025/api/ai/system-health` | 🟢 200 | - |
+| `GET` | `http://localhost:4025/api/websocket/status` | 🟢 200 | - |
 | `GET` | `http://localhost:4025/api/conversations` | 🟢 200 | - |
+| `GET` | `http://localhost:4025/api/health` | 🔴 403 | `{"success":false,"data":null,"error":"master_admin or admin role required."}` |
+| `GET` | `http://localhost:4025/api/ai/system-health` | 🟢 200 | - |
+| `GET` | `http://localhost:4025/api/health` | 🔴 403 | `{"success":false,"data":null,"error":"master_admin or admin role required."}` |
+| `GET` | `http://localhost:4025/api/session-status` | 🔴 403 | `{"success":false,"data":null,"error":"master_admin or admin role required."}` |
+| `GET` | `http://localhost:4025/api/conversations?limit=30&sessionId=111` | 🟢 200 | - |
+| `GET` | `http://localhost:4025/api/metrics?sessionId=111` | 🟢 200 | - |
+| `GET` | `http://localhost:4025/api/sessions/status` | 🟢 200 | - |
 | `GET` | `http://localhost:4025/api/system/runtime/status` | 🟢 200 | - |
 | `GET` | `http://localhost:4025/api/system/status` | 🟢 200 | - |
 | `GET` | `http://localhost:4025/api/system/error-log` | 🟢 200 | - |
 | `GET` | `http://localhost:4025/api/sessions/status` | 🟢 200 | - |
-| `GET` | `http://localhost:4025/api/metrics` | 🟢 200 | - |
+| `GET` | `http://localhost:4025/api/conversations?limit=30&sessionId=111` | 🟢 200 | - |
+| `GET` | `http://localhost:4025/api/metrics?sessionId=111` | 🟢 200 | - |
+| `POST` | `http://localhost:4025/api/sessions/recover` | 🟢 200 | - |
 | `GET` | `http://localhost:4025/api/sessions/status` | 🟢 200 | - |
-| `GET` | `http://localhost:4025/api/conversations?sessionId=teste1010` | 🟢 200 | - |
 | `GET` | `http://localhost:4025/health` | 🟢 200 | - |
+| `GET` | `http://localhost:4025/api/metrics?sessionId=111` | 🟢 200 | - |
 | `GET` | `http://localhost:4025/api/ai/status` | 🟢 200 | - |
 | `GET` | `http://localhost:4025/api/admin/users` | 🟢 200 | - |
-| `GET` | `http://localhost:4025/api/metrics` | 🟢 200 | - |
+| `GET` | `http://localhost:4025/api/conversations?limit=30&sessionId=111` | 🟢 200 | - |
+| `GET` | `http://localhost:4025/api/metrics?sessionId=111` | 🟢 200 | - |
 | `GET` | `http://localhost:4025/api/sessions/status` | 🟢 200 | - |
-| `GET` | `http://localhost:4025/api/conversations?sessionId=teste1010` | 🟢 200 | - |
-| `GET` | `http://localhost:4025/health` | 🟢 200 | - |
-| `GET` | `http://localhost:4025/api/cluster/nodes` | 🟢 200 | - |
-| `GET` | `http://localhost:4025/api/system/error-log` | 🟢 200 | - |
-| `GET` | `http://localhost:4025/api/system/runtime/status` | 🟢 200 | - |
-| `GET` | `http://localhost:4025/api/cluster/deployments` | 🟢 200 | - |
-| `GET` | `http://localhost:4025/api/session-status` | 🟢 200 | - |
-| `GET` | `http://localhost:4025/api/cluster/overview` | 🟢 200 | - |
-| `GET` | `http://localhost:4025/api/cluster/metrics` | 🟢 200 | - |
-| `GET` | `http://localhost:4025/api/cluster/nodes` | 🟢 200 | - |
-| `GET` | `http://localhost:4025/api/system/error-log` | 🟢 200 | - |
-| `GET` | `http://localhost:4025/api/cluster/nodes` | 🟢 200 | - |
-| `GET` | `http://localhost:4025/api/system/runtime/status` | 🟢 200 | - |
-| `GET` | `http://localhost:4025/api/session-status` | 🟢 200 | - |
-| `GET` | `http://localhost:4025/api/cluster/metrics` | 🟢 200 | - |
-| `GET` | `http://localhost:4025/api/cluster/deployments` | 🟢 200 | - |
-| `GET` | `http://localhost:4025/api/metrics` | 🟢 200 | - |
+| `GET` | `http://localhost:4025/api/contacts` | 🟢 200 | - |
+| `POST` | `http://localhost:4025/api/sessions/recover` | 🟢 200 | - |
+| `GET` | `http://localhost:4025/api/conversations?limit=30&sessionId=111` | 🟢 200 | - |
 | `GET` | `http://localhost:4025/api/sessions/status` | 🟢 200 | - |
-| `GET` | `http://localhost:4025/api/conversations?sessionId=teste1010` | 🟢 200 | - |
+| `GET` | `http://localhost:4025/api/metrics?sessionId=111` | 🟢 200 | - |
 | `GET` | `http://localhost:4025/health` | 🟢 200 | - |
-| `GET` | `http://localhost:4025/api/cluster/nodes` | 🟢 200 | - |
-| `GET` | `http://localhost:4025/api/system/error-log` | 🟢 200 | - |
-| `GET` | `http://localhost:4025/api/system/runtime/status` | 🟢 200 | - |
-| `GET` | `http://localhost:4025/api/session-status` | 🟢 200 | - |
-| `GET` | `http://localhost:4025/api/cluster/metrics` | 🟢 200 | - |
-| `GET` | `http://localhost:4025/api/cluster/deployments` | 🟢 200 | - |
-| `GET` | `http://localhost:4025/api/cluster/overview` | 🟢 200 | - |
-| `GET` | `http://localhost:4025/api/cluster/nodes` | 🟢 200 | - |
-| `GET` | `http://localhost:4025/api/system/error-log` | 🟢 200 | - |
-| `GET` | `http://localhost:4025/api/system/runtime/status` | 🟢 200 | - |
-| `GET` | `http://localhost:4025/api/session-status` | 🟢 200 | - |
-| `GET` | `http://localhost:4025/api/cluster/nodes` | 🟢 200 | - |
-| `GET` | `http://localhost:4025/api/cluster/metrics` | 🟢 200 | - |
-| `GET` | `http://localhost:4025/api/cluster/deployments` | 🟢 200 | - |
-| `GET` | `http://localhost:4025/api/metrics` | 🟢 200 | - |
+| `GET` | `http://localhost:4025/api/master/versions` | 🟢 200 | - |
+| `GET` | `http://localhost:4025/api/conversations?limit=30&sessionId=111` | 🟢 200 | - |
+| `GET` | `http://localhost:4025/api/metrics?sessionId=111` | 🟢 200 | - |
 | `GET` | `http://localhost:4025/api/sessions/status` | 🟢 200 | - |
-| `GET` | `http://localhost:4025/api/conversations?sessionId=teste1010` | 🟢 200 | - |
-| `GET` | `http://localhost:4025/health` | 🟢 200 | - |
-| `GET` | `http://localhost:4025/api/cluster/nodes` | 🟢 200 | - |
-| `GET` | `http://localhost:4025/api/cluster/metrics` | 🟢 200 | - |
-| `GET` | `http://localhost:4025/api/system/error-log` | 🟢 200 | - |
-| `GET` | `http://localhost:4025/api/system/runtime/status` | 🟢 200 | - |
-| `GET` | `http://localhost:4025/api/cluster/deployments` | 🟢 200 | - |
-| `GET` | `http://localhost:4025/api/session-status` | 🟢 200 | - |
-| `GET` | `http://localhost:4025/api/cluster/nodes` | 🟢 200 | - |
-| `GET` | `http://localhost:4025/api/cluster/overview` | 🟢 200 | - |
-| `GET` | `http://localhost:4025/api/system/error-log` | 🟢 200 | - |
-| `GET` | `http://localhost:4025/api/system/runtime/status` | 🟢 200 | - |
-| `GET` | `http://localhost:4025/api/session-status` | 🟢 200 | - |
-| `GET` | `http://localhost:4025/api/cluster/nodes` | 🟢 200 | - |
-| `GET` | `http://localhost:4025/api/cluster/metrics` | 🟢 200 | - |
-| `GET` | `http://localhost:4025/api/cluster/deployments` | 🟢 200 | - |
-| `GET` | `http://localhost:4025/api/metrics` | 🟢 200 | - |
+| `GET` | `http://localhost:4025/api/master/versions` | 🟢 200 | - |
+| `GET` | `http://localhost:4025/api/conversations?limit=30&sessionId=111` | 🟢 200 | - |
+| `GET` | `http://localhost:4025/api/metrics?sessionId=111` | 🟢 200 | - |
+| `POST` | `http://localhost:4025/api/sessions/recover` | 🟢 200 | - |
 | `GET` | `http://localhost:4025/api/sessions/status` | 🟢 200 | - |
-| `GET` | `http://localhost:4025/api/conversations?sessionId=teste1010` | 🟢 200 | - |
 | `GET` | `http://localhost:4025/health` | 🟢 200 | - |
+| `GET` | `http://localhost:4025/api/system/error-log` | 🟢 200 | - |
+| `GET` | `http://localhost:4025/api/cluster/nodes` | 🟢 200 | - |
+| `GET` | `http://localhost:4025/api/system/runtime/status` | 🟢 200 | - |
+| `GET` | `http://localhost:4025/api/cluster/deployments` | 🟢 200 | - |
+| `GET` | `http://localhost:4025/api/cluster/metrics` | 🟢 200 | - |
 | `GET` | `http://localhost:4025/api/cluster/overview` | 🟢 200 | - |
-| `GET` | `http://localhost:4025/api/cluster/nodes` | 🟢 200 | - |
-| `GET` | `http://localhost:4025/api/system/error-log` | 🟢 200 | - |
-| `GET` | `http://localhost:4025/api/system/runtime/status` | 🟢 200 | - |
-| `GET` | `http://localhost:4025/api/session-status` | 🟢 200 | - |
-| `GET` | `http://localhost:4025/api/cluster/metrics` | 🟢 200 | - |
 | `GET` | `http://localhost:4025/api/cluster/deployments` | 🟢 200 | - |
 | `GET` | `http://localhost:4025/api/cluster/nodes` | 🟢 200 | - |
-| `GET` | `http://localhost:4025/api/system/error-log` | 🟢 200 | - |
-| `GET` | `http://localhost:4025/api/system/runtime/status` | 🟢 200 | - |
-| `GET` | `http://localhost:4025/api/session-status` | 🟢 200 | - |
-| `GET` | `http://localhost:4025/api/cluster/nodes` | 🟢 200 | - |
-| `GET` | `http://localhost:4025/api/cluster/metrics` | 🟢 200 | - |
-| `GET` | `http://localhost:4025/api/cluster/deployments` | 🟢 200 | - |
-| `GET` | `http://localhost:4025/api/metrics` | 🟢 200 | - |
+| `GET` | `http://localhost:4025/api/session-status` | 🔴 403 | `{"success":false,"data":null,"error":"master_admin or admin role required."}` |
+| `GET` | `http://localhost:4025/api/conversations?limit=30&sessionId=111` | 🟢 200 | - |
+| `GET` | `http://localhost:4025/api/metrics?sessionId=111` | 🟢 200 | - |
 | `GET` | `http://localhost:4025/api/sessions/status` | 🟢 200 | - |
-| `GET` | `http://localhost:4025/api/conversations?sessionId=teste1010` | 🟢 200 | - |
+| `GET` | `http://localhost:4025/api/system/error-log` | 🟢 200 | - |
+| `GET` | `http://localhost:4025/api/system/runtime/status` | 🟢 200 | - |
+| `GET` | `http://localhost:4025/api/cluster/nodes` | 🟢 200 | - |
+| `GET` | `http://localhost:4025/api/cluster/deployments` | 🟢 200 | - |
+| `GET` | `http://localhost:4025/api/cluster/metrics` | 🟢 200 | - |
+| `GET` | `http://localhost:4025/api/session-status` | 🔴 403 | `{"success":false,"data":null,"error":"master_admin or admin role required."}` |
+| `GET` | `http://localhost:4025/api/conversations?limit=30&sessionId=111` | 🟢 200 | - |
+| `POST` | `http://localhost:4025/api/sessions/recover` | 🟢 200 | - |
+| `GET` | `http://localhost:4025/api/metrics?sessionId=111` | 🟢 200 | - |
+| `GET` | `http://localhost:4025/api/sessions/status` | 🟢 200 | - |
 | `GET` | `http://localhost:4025/health` | 🟢 200 | - |
-| `GET` | `http://localhost:4025/api/cluster/nodes` | 🟢 200 | - |
 | `GET` | `http://localhost:4025/api/system/error-log` | 🟢 200 | - |
 | `GET` | `http://localhost:4025/api/system/runtime/status` | 🟢 200 | - |
-| `GET` | `http://localhost:4025/api/session-status` | 🟢 200 | - |
+| `GET` | `http://localhost:4025/api/cluster/nodes` | 🟢 200 | - |
 | `GET` | `http://localhost:4025/api/cluster/deployments` | 🟢 200 | - |
 | `GET` | `http://localhost:4025/api/cluster/metrics` | 🟢 200 | - |
-| `GET` | `http://localhost:4025/api/cluster/nodes` | 🟢 200 | - |
+| `GET` | `http://localhost:4025/api/cluster/deployments` | 🟢 200 | - |
 | `GET` | `http://localhost:4025/api/cluster/overview` | 🟢 200 | - |
+| `GET` | `http://localhost:4025/api/session-status` | 🔴 403 | `{"success":false,"data":null,"error":"master_admin or admin role required."}` |
 | `GET` | `http://localhost:4025/api/cluster/nodes` | 🟢 200 | - |
+| `GET` | `http://localhost:4025/api/conversations?limit=30&sessionId=111` | 🟢 200 | - |
+| `GET` | `http://localhost:4025/api/metrics?sessionId=111` | 🟢 200 | - |
+| `GET` | `http://localhost:4025/api/sessions/status` | 🟢 200 | - |
 | `GET` | `http://localhost:4025/api/system/error-log` | 🟢 200 | - |
 | `GET` | `http://localhost:4025/api/system/runtime/status` | 🟢 200 | - |
-| `GET` | `http://localhost:4025/api/session-status` | 🟢 200 | - |
+| `GET` | `http://localhost:4025/api/cluster/metrics` | 🟢 200 | - |
+| `GET` | `http://localhost:4025/api/cluster/nodes` | 🟢 200 | - |
+| `GET` | `http://localhost:4025/api/cluster/deployments` | 🟢 200 | - |
+| `GET` | `http://localhost:4025/api/session-status` | 🔴 403 | `{"success":false,"data":null,"error":"master_admin or admin role required."}` |
+| `GET` | `http://localhost:4025/api/conversations?limit=30&sessionId=111` | 🟢 200 | - |
+| `GET` | `http://localhost:4025/api/metrics?sessionId=111` | 🟢 200 | - |
+| `POST` | `http://localhost:4025/api/sessions/recover` | 🟢 200 | - |
+| `GET` | `http://localhost:4025/api/sessions/status` | 🟢 200 | - |
+| `GET` | `http://localhost:4025/health` | 🟢 200 | - |
+| `GET` | `http://localhost:4025/api/system/error-log` | 🟢 200 | - |
+| `GET` | `http://localhost:4025/api/system/runtime/status` | 🟢 200 | - |
+| `GET` | `http://localhost:4025/api/cluster/nodes` | 🟢 200 | - |
+| `GET` | `http://localhost:4025/api/cluster/metrics` | 🟢 200 | - |
+| `GET` | `http://localhost:4025/api/cluster/deployments` | 🟢 200 | - |
+| `GET` | `http://localhost:4025/api/session-status` | 🔴 403 | `{"success":false,"data":null,"error":"master_admin or admin role required."}` |
+| `GET` | `http://localhost:4025/api/cluster/overview` | 🟢 200 | - |
+| `GET` | `http://localhost:4025/api/cluster/deployments` | 🟢 200 | - |
+| `GET` | `http://localhost:4025/api/cluster/nodes` | 🟢 200 | - |
+| `GET` | `http://localhost:4025/api/conversations?limit=30&sessionId=111` | 🟢 200 | - |
+| `GET` | `http://localhost:4025/api/metrics?sessionId=111` | 🟢 200 | - |
+| `GET` | `http://localhost:4025/api/sessions/status` | 🟢 200 | - |
+| `GET` | `http://localhost:4025/api/system/error-log` | 🟢 200 | - |
+| `GET` | `http://localhost:4025/api/system/runtime/status` | 🟢 200 | - |
+| `GET` | `http://localhost:4025/api/cluster/metrics` | 🟢 200 | - |
+| `GET` | `http://localhost:4025/api/cluster/nodes` | 🟢 200 | - |
+| `GET` | `http://localhost:4025/api/cluster/deployments` | 🟢 200 | - |
+| `GET` | `http://localhost:4025/api/session-status` | 🔴 403 | `{"success":false,"data":null,"error":"master_admin or admin role required."}` |
+| `GET` | `http://localhost:4025/api/conversations?limit=30&sessionId=111` | 🟢 200 | - |
+| `GET` | `http://localhost:4025/api/metrics?sessionId=111` | 🟢 200 | - |
+| `POST` | `http://localhost:4025/api/sessions/recover` | 🟢 200 | - |
+| `GET` | `http://localhost:4025/api/sessions/status` | 🟢 200 | - |
+| `GET` | `http://localhost:4025/health` | 🟢 200 | - |
+| `GET` | `http://localhost:4025/api/system/error-log` | 🟢 200 | - |
+| `GET` | `http://localhost:4025/api/system/runtime/status` | 🟢 200 | - |
+| `GET` | `http://localhost:4025/api/cluster/deployments` | 🟢 200 | - |
+| `GET` | `http://localhost:4025/api/cluster/nodes` | 🟢 200 | - |
+| `GET` | `http://localhost:4025/api/cluster/metrics` | 🟢 200 | - |
+| `GET` | `http://localhost:4025/api/cluster/overview` | 🟢 200 | - |
+| `GET` | `http://localhost:4025/api/cluster/deployments` | 🟢 200 | - |
+| `GET` | `http://localhost:4025/api/session-status` | 🔴 403 | `{"success":false,"data":null,"error":"master_admin or admin role required."}` |
+| `GET` | `http://localhost:4025/api/cluster/nodes` | 🟢 200 | - |
+| `GET` | `http://localhost:4025/api/conversations?limit=30&sessionId=111` | 🟢 200 | - |
+| `GET` | `http://localhost:4025/api/metrics?sessionId=111` | 🟢 200 | - |
+| `GET` | `http://localhost:4025/api/sessions/status` | 🟢 200 | - |
+| `GET` | `http://localhost:4025/api/system/error-log` | 🟢 200 | - |
+| `GET` | `http://localhost:4025/api/system/runtime/status` | 🟢 200 | - |
+| `GET` | `http://localhost:4025/api/cluster/metrics` | 🟢 200 | - |
+| `GET` | `http://localhost:4025/api/cluster/nodes` | 🟢 200 | - |
+| `GET` | `http://localhost:4025/api/cluster/deployments` | 🟢 200 | - |
+| `GET` | `http://localhost:4025/api/session-status` | 🔴 403 | `{"success":false,"data":null,"error":"master_admin or admin role required."}` |
+| `POST` | `http://localhost:4025/api/sessions/recover` | 🟢 200 | - |
+| `GET` | `http://localhost:4025/api/conversations?limit=30&sessionId=111` | 🟢 200 | - |
+| `GET` | `http://localhost:4025/api/sessions/status` | 🟢 200 | - |
+| `GET` | `http://localhost:4025/health` | 🟢 200 | - |
+| `GET` | `http://localhost:4025/api/system/error-log` | 🟢 200 | - |
+| `GET` | `http://localhost:4025/api/cluster/nodes` | 🟢 200 | - |
 | `GET` | `http://localhost:4025/api/cluster/deployments` | 🟢 200 | - |
 | `GET` | `http://localhost:4025/api/cluster/metrics` | 🟢 200 | - |
+| `GET` | `http://localhost:4025/api/system/runtime/status` | 🟢 200 | - |
+| `GET` | `http://localhost:4025/api/cluster/overview` | 🟢 200 | - |
+| `GET` | `http://localhost:4025/api/metrics?sessionId=111` | 🟢 200 | - |
+| `GET` | `http://localhost:4025/api/session-status` | 🔴 403 | `{"success":false,"data":null,"error":"master_admin or admin role required."}` |
+| `GET` | `http://localhost:4025/api/cluster/deployments` | 🟢 200 | - |
+| `GET` | `http://localhost:4025/api/cluster/nodes` | 🟢 200 | - |
+| `GET` | `http://localhost:4025/api/conversations?limit=30&sessionId=111` | 🟢 200 | - |
+| `GET` | `http://localhost:4025/api/sessions/status` | 🟢 200 | - |
+| `GET` | `http://localhost:4025/api/metrics?sessionId=111` | 🟢 200 | - |
+| `GET` | `http://localhost:4025/api/system/error-log` | 🟢 200 | - |
+| `GET` | `http://localhost:4025/api/system/runtime/status` | 🟢 200 | - |
+| `GET` | `http://localhost:4025/api/cluster/metrics` | 🟢 200 | - |
+| `GET` | `http://localhost:4025/api/cluster/deployments` | 🟢 200 | - |
+| `GET` | `http://localhost:4025/api/cluster/nodes` | 🟢 200 | - |
+| `GET` | `http://localhost:4025/api/session-status` | 🔴 403 | `{"success":false,"data":null,"error":"master_admin or admin role required."}` |
 
 ---
 
@@ -379,6 +534,7 @@ Checagem automática de estabilidade de layout e estouro de conteúdo (overflow 
 | `/logs` | 🟢 OK | 🟢 OK | - |
 | `/diagnostics` | 🟢 OK | 🟢 OK | - |
 | `/settings` | 🟢 OK | 🟢 OK | - |
+| `/versions` | 🟢 OK | 🟢 OK | - |
 | `/nodes/node-DESKTOP-8PV0NA2-1782493760847` | 🟢 OK | 🟢 OK | - |
 | `/nodes/node-DESKTOP-8PV0NA2-1782241358221` | 🟢 OK | 🟢 OK | - |
 | `/nodes/node-DESKTOP-8PV0NA2-1782213649961` | 🟢 OK | 🟢 OK | - |
@@ -393,13 +549,147 @@ Botões que estão habilitados, mas cujo clique não desencadeou navegação, ab
 | Rota | Texto do Botão | Classe / ID | Resultado do Clique |
 |---|---|---|---|
 | `/dashboard` | `Expandir menu` | `sidebar-item mt-1 w-full` | Not tested (safe/destructive mode or disabled) |
-| `/dashboard` | `Visão Geral` | `radix-:r4:-trigger-overview` | Click did not trigger state change |
-| `/dashboard` | `Mapa de Origem` | `radix-:r4:-trigger-map` | Not tested (safe/destructive mode or disabled) |
+| `/dashboard` | `Visão Geral` | `radix-:rg:-trigger-overview` | Click error: locator.click: Timeout 1500ms exceeded.
+Call log:
+[2m  - waiting for locator('button').filter({ hasText: 'Visão Geral' }).first()[22m
+[2m    - locator resolved to <button role="tab" type="button" tabindex="-1" data-state="active" aria-selected="true" data-orientation="horizontal" data-radix-collection-item="" id="radix-:rg:-trigger-overview" aria-controls="radix-:rg:-content-overview" class="inline-flex items-center justify-center whitespace-nowrap rounded-sm px-3 py-1.5 ring-offset-background transition-all data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-v…>Visão Geral</button>[22m
+[2m  - attempting click action[22m
+[2m    2 × waiting for element to be visible, enabled and stable[22m
+[2m      - element is visible, enabled and stable[22m
+[2m      - scrolling into view if needed[22m
+[2m      - done scrolling[22m
+[2m      - <div data-state="open" aria-hidden="true" data-aria-hidden="true" class="fixed inset-0 z-50 bg-black/80 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0"></div> intercepts pointer events[22m
+[2m    - retrying click action[22m
+[2m    - waiting 20ms[22m
+[2m    2 × waiting for element to be visible, enabled and stable[22m
+[2m      - element is visible, enabled and stable[22m
+[2m      - scrolling into view if needed[22m
+[2m      - done scrolling[22m
+[2m      - <div data-state="open" aria-hidden="true" data-aria-hidden="true" class="fixed inset-0 z-50 bg-black/80 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0"></div> intercepts pointer events[22m
+[2m    - retrying click action[22m
+[2m      - waiting 100ms[22m
+[2m    2 × waiting for element to be visible, enabled and stable[22m
+[2m      - element is visible, enabled and stable[22m
+[2m      - scrolling into view if needed[22m
+[2m      - done scrolling[22m
+[2m      - <div data-state="open" aria-hidden="true" data-aria-hidden="true" class="fixed inset-0 z-50 bg-black/80 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0"></div> intercepts pointer events[22m
+[2m    - retrying click action[22m
+[2m      - waiting 500ms[22m
+ |
+| `/dashboard` | `Conversas` | `radix-:rg:-trigger-conversations` | Click error: locator.click: Timeout 1500ms exceeded.
+Call log:
+[2m  - waiting for locator('button').filter({ hasText: 'Conversas' }).first()[22m
+[2m    - locator resolved to <button role="tab" type="button" tabindex="-1" aria-selected="false" data-state="inactive" data-orientation="horizontal" data-radix-collection-item="" id="radix-:rg:-trigger-conversations" aria-controls="radix-:rg:-content-conversations" class="inline-flex items-center justify-center whitespace-nowrap rounded-sm px-3 py-1.5 ring-offset-background transition-all data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm focus-visible:outline-none focus-visible:r…>Conversas</button>[22m
+[2m  - attempting click action[22m
+[2m    2 × waiting for element to be visible, enabled and stable[22m
+[2m      - element is visible, enabled and stable[22m
+[2m      - scrolling into view if needed[22m
+[2m      - done scrolling[22m
+[2m      - <div data-state="open" aria-hidden="true" data-aria-hidden="true" class="fixed inset-0 z-50 bg-black/80 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0"></div> intercepts pointer events[22m
+[2m    - retrying click action[22m
+[2m    - waiting 20ms[22m
+[2m    2 × waiting for element to be visible, enabled and stable[22m
+[2m      - element is visible, enabled and stable[22m
+[2m      - scrolling into view if needed[22m
+[2m      - done scrolling[22m
+[2m      - <div data-state="open" aria-hidden="true" data-aria-hidden="true" class="fixed inset-0 z-50 bg-black/80 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0"></div> intercepts pointer events[22m
+[2m    - retrying click action[22m
+[2m      - waiting 100ms[22m
+[2m    3 × waiting for element to be visible, enabled and stable[22m
+[2m      - element is visible, enabled and stable[22m
+[2m      - scrolling into view if needed[22m
+[2m      - done scrolling[22m
+[2m      - <div data-state="open" aria-hidden="true" data-aria-hidden="true" class="fixed inset-0 z-50 bg-black/80 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0"></div> intercepts pointer events[22m
+[2m    - retrying click action[22m
+[2m      - waiting 500ms[22m
+ |
+| `/dashboard` | `Performance & IA` | `radix-:rg:-trigger-ai` | Click error: locator.click: Timeout 1500ms exceeded.
+Call log:
+[2m  - waiting for locator('button').filter({ hasText: 'Performance & IA' }).first()[22m
+[2m    - locator resolved to <button role="tab" type="button" tabindex="-1" aria-selected="false" data-state="inactive" id="radix-:rg:-trigger-ai" data-orientation="horizontal" data-radix-collection-item="" aria-controls="radix-:rg:-content-ai" class="inline-flex items-center justify-center whitespace-nowrap rounded-sm px-3 py-1.5 ring-offset-background transition-all data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ri…>Performance & IA</button>[22m
+[2m  - attempting click action[22m
+[2m    2 × waiting for element to be visible, enabled and stable[22m
+[2m      - element is visible, enabled and stable[22m
+[2m      - scrolling into view if needed[22m
+[2m      - done scrolling[22m
+[2m      - <div data-state="open" aria-hidden="true" data-aria-hidden="true" class="fixed inset-0 z-50 bg-black/80 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0"></div> intercepts pointer events[22m
+[2m    - retrying click action[22m
+[2m    - waiting 20ms[22m
+[2m    2 × waiting for element to be visible, enabled and stable[22m
+[2m      - element is visible, enabled and stable[22m
+[2m      - scrolling into view if needed[22m
+[2m      - done scrolling[22m
+[2m      - <div data-state="open" aria-hidden="true" data-aria-hidden="true" class="fixed inset-0 z-50 bg-black/80 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0"></div> intercepts pointer events[22m
+[2m    - retrying click action[22m
+[2m      - waiting 100ms[22m
+[2m    3 × waiting for element to be visible, enabled and stable[22m
+[2m      - element is visible, enabled and stable[22m
+[2m      - scrolling into view if needed[22m
+[2m      - done scrolling[22m
+[2m      - <div data-state="open" aria-hidden="true" data-aria-hidden="true" class="fixed inset-0 z-50 bg-black/80 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0"></div> intercepts pointer events[22m
+[2m    - retrying click action[22m
+[2m      - waiting 500ms[22m
+ |
+| `/dashboard` | `Horários` | `radix-:rg:-trigger-schedule` | Click error: locator.click: Timeout 1500ms exceeded.
+Call log:
+[2m  - waiting for locator('button').filter({ hasText: 'Horários' }).first()[22m
+[2m    - locator resolved to <button role="tab" type="button" tabindex="-1" aria-selected="false" data-state="inactive" data-orientation="horizontal" data-radix-collection-item="" id="radix-:rg:-trigger-schedule" aria-controls="radix-:rg:-content-schedule" class="inline-flex items-center justify-center whitespace-nowrap rounded-sm px-3 py-1.5 ring-offset-background transition-all data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm focus-visible:outline-none focus-visible:ring-2 focu…>Horários</button>[22m
+[2m  - attempting click action[22m
+[2m    2 × waiting for element to be visible, enabled and stable[22m
+[2m      - element is visible, enabled and stable[22m
+[2m      - scrolling into view if needed[22m
+[2m      - done scrolling[22m
+[2m      - <div data-state="open" aria-hidden="true" data-aria-hidden="true" class="fixed inset-0 z-50 bg-black/80 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0"></div> intercepts pointer events[22m
+[2m    - retrying click action[22m
+[2m    - waiting 20ms[22m
+[2m    2 × waiting for element to be visible, enabled and stable[22m
+[2m      - element is visible, enabled and stable[22m
+[2m      - scrolling into view if needed[22m
+[2m      - done scrolling[22m
+[2m      - <div data-state="open" aria-hidden="true" data-aria-hidden="true" class="fixed inset-0 z-50 bg-black/80 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0"></div> intercepts pointer events[22m
+[2m    - retrying click action[22m
+[2m      - waiting 100ms[22m
+[2m    3 × waiting for element to be visible, enabled and stable[22m
+[2m      - element is visible, enabled and stable[22m
+[2m      - scrolling into view if needed[22m
+[2m      - done scrolling[22m
+[2m      - <div data-state="open" aria-hidden="true" data-aria-hidden="true" class="fixed inset-0 z-50 bg-black/80 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0"></div> intercepts pointer events[22m
+[2m    - retrying click action[22m
+[2m      - waiting 500ms[22m
+ |
+| `/dashboard` | `Mapa de Origem` | `radix-:rg:-trigger-map` | Click error: locator.click: Timeout 1500ms exceeded.
+Call log:
+[2m  - waiting for locator('button').filter({ hasText: 'Mapa de Origem' }).first()[22m
+[2m    - locator resolved to <button role="tab" type="button" tabindex="-1" aria-selected="false" data-state="inactive" id="radix-:rg:-trigger-map" data-orientation="horizontal" data-radix-collection-item="" aria-controls="radix-:rg:-content-map" class="inline-flex items-center justify-center whitespace-nowrap rounded-sm px-3 py-1.5 ring-offset-background transition-all data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:…>Mapa de Origem</button>[22m
+[2m  - attempting click action[22m
+[2m    2 × waiting for element to be visible, enabled and stable[22m
+[2m      - element is visible, enabled and stable[22m
+[2m      - scrolling into view if needed[22m
+[2m      - done scrolling[22m
+[2m      - <div role="dialog" tabindex="-1" id="radix-:rm:" data-state="open" aria-labelledby="radix-:rn:" aria-describedby="radix-:ro:" class="fixed left-[50%] top-[50%] z-50 grid w-full max-w-lg translate-x-[-50%] translate-y-[-50%] gap-4 border duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[state=closed]:slide-out-to-left-1/2 data-[state=closed]:slide-out-…>…</div> intercepts pointer events[22m
+[2m    - retrying click action[22m
+[2m    - waiting 20ms[22m
+[2m    2 × waiting for element to be visible, enabled and stable[22m
+[2m      - element is visible, enabled and stable[22m
+[2m      - scrolling into view if needed[22m
+[2m      - done scrolling[22m
+[2m      - <div role="dialog" tabindex="-1" id="radix-:rm:" data-state="open" aria-labelledby="radix-:rn:" aria-describedby="radix-:ro:" class="fixed left-[50%] top-[50%] z-50 grid w-full max-w-lg translate-x-[-50%] translate-y-[-50%] gap-4 border duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[state=closed]:slide-out-to-left-1/2 data-[state=closed]:slide-out-…>…</div> intercepts pointer events[22m
+[2m    - retrying click action[22m
+[2m      - waiting 100ms[22m
+[2m    3 × waiting for element to be visible, enabled and stable[22m
+[2m      - element is visible, enabled and stable[22m
+[2m      - scrolling into view if needed[22m
+[2m      - done scrolling[22m
+[2m      - <div role="dialog" tabindex="-1" id="radix-:rm:" data-state="open" aria-labelledby="radix-:rn:" aria-describedby="radix-:ro:" class="fixed left-[50%] top-[50%] z-50 grid w-full max-w-lg translate-x-[-50%] translate-y-[-50%] gap-4 border duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[state=closed]:slide-out-to-left-1/2 data-[state=closed]:slide-out-…>…</div> intercepts pointer events[22m
+[2m    - retrying click action[22m
+[2m      - waiting 500ms[22m
+ |
+| `/dashboard` | `Hoje` | `rounded-lg px-3 py-1` | Not tested (safe/destructive mode or disabled) |
 | `/inbox` | `Expandir menu` | `sidebar-item mt-1 w-full` | Not tested (safe/destructive mode or disabled) |
-| `/inbox` | `Todas` | `radix-:r4:-trigger-all` | Click error: locator.click: Timeout 1500ms exceeded.
+| `/inbox` | `Todas` | `radix-:rg:-trigger-all` | Click error: locator.click: Timeout 1500ms exceeded.
 Call log:
 [2m  - waiting for locator('button').filter({ hasText: 'Todas' }).first()[22m
-[2m    - locator resolved to <button role="tab" type="button" tabindex="-1" data-state="active" aria-selected="true" id="radix-:r4:-trigger-all" data-orientation="horizontal" data-radix-collection-item="" aria-controls="radix-:r4:-content-all" class="inline-flex items-center justify-center whitespace-nowrap rounded-sm px-3 py-1.5 text-sm font-medium ring-offset-background transition-all data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm focus-visible:outline-none focus-visible:ring…>Todas</button>[22m
+[2m    - locator resolved to <button role="tab" type="button" tabindex="-1" data-state="active" aria-selected="true" id="radix-:rg:-trigger-all" data-orientation="horizontal" data-radix-collection-item="" aria-controls="radix-:rg:-content-all" class="inline-flex items-center justify-center whitespace-nowrap rounded-sm px-3 py-1.5 text-sm font-medium ring-offset-background transition-all data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm focus-visible:outline-none focus-visible:ring…>Todas</button>[22m
 [2m  - attempting click action[22m
 [2m    2 × waiting for element to be visible, enabled and stable[22m
 [2m      - element is visible, enabled and stable[22m
@@ -423,10 +713,10 @@ Call log:
 [2m    - retrying click action[22m
 [2m      - waiting 500ms[22m
  |
-| `/inbox` | `Não lidas` | `radix-:r4:-trigger-unread` | Click error: locator.click: Timeout 1500ms exceeded.
+| `/inbox` | `Não lidas` | `radix-:rg:-trigger-unread` | Click error: locator.click: Timeout 1500ms exceeded.
 Call log:
 [2m  - waiting for locator('button').filter({ hasText: 'Não lidas' }).first()[22m
-[2m    - locator resolved to <button role="tab" type="button" tabindex="-1" aria-selected="false" data-state="inactive" data-orientation="horizontal" data-radix-collection-item="" id="radix-:r4:-trigger-unread" aria-controls="radix-:r4:-content-unread" class="inline-flex items-center justify-center whitespace-nowrap rounded-sm px-3 py-1.5 text-sm font-medium ring-offset-background transition-all data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm focus-visible:outline-none focus-vis…>Não lidas</button>[22m
+[2m    - locator resolved to <button role="tab" type="button" tabindex="-1" aria-selected="false" data-state="inactive" data-orientation="horizontal" data-radix-collection-item="" id="radix-:rg:-trigger-unread" aria-controls="radix-:rg:-content-unread" class="inline-flex items-center justify-center whitespace-nowrap rounded-sm px-3 py-1.5 text-sm font-medium ring-offset-background transition-all data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm focus-visible:outline-none focus-vis…>Não lidas</button>[22m
 [2m  - attempting click action[22m
 [2m    2 × waiting for element to be visible, enabled and stable[22m
 [2m      - element is visible, enabled and stable[22m
@@ -450,10 +740,10 @@ Call log:
 [2m    - retrying click action[22m
 [2m      - waiting 500ms[22m
  |
-| `/inbox` | `IA ativa` | `radix-:r4:-trigger-ai` | Click error: locator.click: Timeout 1500ms exceeded.
+| `/inbox` | `IA ativa` | `radix-:rg:-trigger-ai` | Click error: locator.click: Timeout 1500ms exceeded.
 Call log:
 [2m  - waiting for locator('button').filter({ hasText: 'IA ativa' }).first()[22m
-[2m    - locator resolved to <button role="tab" type="button" tabindex="-1" aria-selected="false" data-state="inactive" id="radix-:r4:-trigger-ai" data-orientation="horizontal" data-radix-collection-item="" aria-controls="radix-:r4:-content-ai" class="inline-flex items-center justify-center whitespace-nowrap rounded-sm px-3 py-1.5 text-sm font-medium ring-offset-background transition-all data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm focus-visible:outline-none focus-visible:rin…>IA ativa</button>[22m
+[2m    - locator resolved to <button role="tab" type="button" tabindex="-1" aria-selected="false" data-state="inactive" id="radix-:rg:-trigger-ai" data-orientation="horizontal" data-radix-collection-item="" aria-controls="radix-:rg:-content-ai" class="inline-flex items-center justify-center whitespace-nowrap rounded-sm px-3 py-1.5 text-sm font-medium ring-offset-background transition-all data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm focus-visible:outline-none focus-visible:rin…>IA ativa</button>[22m
 [2m  - attempting click action[22m
 [2m    2 × waiting for element to be visible, enabled and stable[22m
 [2m      - element is visible, enabled and stable[22m
@@ -477,10 +767,10 @@ Call log:
 [2m    - retrying click action[22m
 [2m      - waiting 500ms[22m
  |
-| `/inbox` | `Arquivadas` | `radix-:r4:-trigger-archived` | Click error: locator.click: Timeout 1500ms exceeded.
+| `/inbox` | `Arquivadas` | `radix-:rg:-trigger-archived` | Click error: locator.click: Timeout 1500ms exceeded.
 Call log:
 [2m  - waiting for locator('button').filter({ hasText: 'Arquivadas' }).first()[22m
-[2m    - locator resolved to <button role="tab" type="button" tabindex="-1" aria-selected="false" data-state="inactive" data-orientation="horizontal" data-radix-collection-item="" id="radix-:r4:-trigger-archived" aria-controls="radix-:r4:-content-archived" class="inline-flex items-center justify-center whitespace-nowrap rounded-sm px-3 py-1.5 text-sm font-medium ring-offset-background transition-all data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm focus-visible:outline-none focus…>Arquivadas</button>[22m
+[2m    - locator resolved to <button role="tab" type="button" tabindex="-1" aria-selected="false" data-state="inactive" data-orientation="horizontal" data-radix-collection-item="" id="radix-:rg:-trigger-archived" aria-controls="radix-:rg:-content-archived" class="inline-flex items-center justify-center whitespace-nowrap rounded-sm px-3 py-1.5 text-sm font-medium ring-offset-background transition-all data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm focus-visible:outline-none focus…>Arquivadas</button>[22m
 [2m  - attempting click action[22m
 [2m    2 × waiting for element to be visible, enabled and stable[22m
 [2m      - element is visible, enabled and stable[22m
@@ -507,40 +797,35 @@ Call log:
 | `/inbox` | `Fala rapaziada alguém sabe como é que compra o chi` | `chat-bubble text-left chat-bubble-received` | Not tested (safe/destructive mode or disabled) |
 | `/inbox` | `Telegram
 
-14:25` | `chat-bubble text-left chat-bubble-received` | Not tested (safe/destructive mode or disabled) |
+11:25` | `chat-bubble text-left chat-bubble-received` | Not tested (safe/destructive mode or disabled) |
 | `/inbox` | `Eu compro la
 
-14:25` | `chat-bubble text-left chat-bubble-received` | Not tested (safe/destructive mode or disabled) |
+11:25` | `chat-bubble text-left chat-bubble-received` | Not tested (safe/destructive mode or disabled) |
 | `/inbox` | `Número d qualquer país quase
 
-14:25` | `chat-bubble text-left chat-bubble-received` | Not tested (safe/destructive mode or disabled) |
+11:25` | `chat-bubble text-left chat-bubble-received` | Not tested (safe/destructive mode or disabled) |
 | `/inbox` | `Mas é real
 
-14:26` | `chat-bubble text-left chat-bubble-received` | Not tested (safe/destructive mode or disabled) |
+11:26` | `chat-bubble text-left chat-bubble-received` | Not tested (safe/destructive mode or disabled) |
 | `/inbox` | `Não, pegadinha
 
-14:27` | `chat-bubble text-left chat-bubble-received` | Not tested (safe/destructive mode or disabled) |
+11:27` | `chat-bubble text-left chat-bubble-received` | Not tested (safe/destructive mode or disabled) |
 | `/inbox` | `Kkkkkkkkkkkkkkkkkkkk
 
-14:27` | `chat-bubble text-left chat-bubble-received` | Not tested (safe/destructive mode or disabled) |
+11:27` | `chat-bubble text-left chat-bubble-received` | Not tested (safe/destructive mode or disabled) |
 | `/inbox` | `Kkk
 
-14:27` | `chat-bubble text-left chat-bubble-received` | Not tested (safe/destructive mode or disabled) |
+11:27` | `chat-bubble text-left chat-bubble-received` | Not tested (safe/destructive mode or disabled) |
 | `/inbox` | `API mesmo é só do WhatsApp
 
-14:54` | `chat-bubble text-left chat-bubble-received` | Not tested (safe/destructive mode or disabled) |
+11:54` | `chat-bubble text-left chat-bubble-received` | Not tested (safe/destructive mode or disabled) |
 | `/inbox` | `Estrutura do que essa man?
 
-14:59` | `chat-bubble text-left chat-bubble-received` | Not tested (safe/destructive mode or disabled) |
+11:59` | `chat-bubble text-left chat-bubble-received` | Not tested (safe/destructive mode or disabled) |
 | `/inbox` | `Eventos kiwify
 
-15:00` | `chat-bubble text-left chat-bubble-received` | Not tested (safe/destructive mode or disabled) |
+12:00` | `chat-bubble text-left chat-bubble-received` | Not tested (safe/destructive mode or disabled) |
 | `/inbox` | `Portão 3 e Conta Simples estão quebrando a operaçã` | `chat-bubble text-left chat-bubble-received` | Not tested (safe/destructive mode or disabled) |
-| `/inbox` | `arquivo
-
-FILE (INDISPONÍVEL)
-
-18:41` | `chat-bubble text-left chat-bubble-received` | Not tested (safe/destructive mode or disabled) |
 | `/inbox` | `Há alguns anos eu entrei no mercado digital.
 
 Vi o` | `chat-bubble text-left chat-bubble-received` | Not tested (safe/destructive mode or disabled) |
@@ -553,7 +838,7 @@ construindo um` | `chat-bubble text-left chat-bubble-received` | Not tested (saf
 A infraestrutura preci` | `chat-bubble text-left chat-bubble-received` | Not tested (safe/destructive mode or disabled) |
 | `/inbox` | `@all
 
-18:42` | `chat-bubble text-left chat-bubble-received` | Not tested (safe/destructive mode or disabled) |
+15:42` | `chat-bubble text-left chat-bubble-received` | Not tested (safe/destructive mode or disabled) |
 | `/inbox` | `A copa está chegando , e quem não garantiu a sua d` | `chat-bubble text-left chat-bubble-received` | Not tested (safe/destructive mode or disabled) |
 | `/inbox` | `⚡ Entrega Automática
 ✅ BM Verificada com CNPJ
@@ -565,11 +850,6 @@ A infraestrutura preci` | `chat-bubble text-left chat-bubble-received` | Not tes
 | `/inbox` | `Compra e venda seus ativos via Basefy 💜
 
 Aqui *o ` | `chat-bubble text-left chat-bubble-received` | Not tested (safe/destructive mode or disabled) |
-| `/inbox` | `arquivo
-
-FILE (INDISPONÍVEL)
-
-19:30` | `chat-bubble text-left chat-bubble-received` | Not tested (safe/destructive mode or disabled) |
 | `/inbox` | `*COMPRA E VENDA com pagamento protegido 🔒*
 
 | Con` | `chat-bubble text-left chat-bubble-received` | Not tested (safe/destructive mode or disabled) |
@@ -579,114 +859,94 @@ FILE (INDISPONÍVEL)
 Participe do event` | `chat-bubble text-left chat-bubble-received` | Not tested (safe/destructive mode or disabled) |
 | `/inbox` | `Quem dá essa moral??
 
-21:30` | `chat-bubble text-left chat-bubble-received` | Not tested (safe/destructive mode or disabled) |
-| `/inbox` | `arquivo
+18:30` | `chat-bubble text-left chat-bubble-received` | Not tested (safe/destructive mode or disabled) |
+| `/inbox` | `sticker
 
 STICKER (INDISPONÍVEL)
 
-21:55` | `chat-bubble text-left chat-bubble-received` | Not tested (safe/destructive mode or disabled) |
+18:55` | `chat-bubble text-left chat-bubble-received` | Not tested (safe/destructive mode or disabled) |
 | `/inbox` | `Deus não cria nada sem que exista um propósito e u` | `chat-bubble text-left chat-bubble-received` | Not tested (safe/destructive mode or disabled) |
 | `/inbox` | `Vambora que eu vou virar filosofo
 
-22:21` | `chat-bubble text-left chat-bubble-received` | Not tested (safe/destructive mode or disabled) |
-| `/inbox` | `arquivo
+19:21` | `chat-bubble text-left chat-bubble-received` | Not tested (safe/destructive mode or disabled) |
+| `/inbox` | `sticker
 
 STICKER (INDISPONÍVEL)
 
-22:21` | `chat-bubble text-left chat-bubble-received` | Not tested (safe/destructive mode or disabled) |
-| `/inbox` | `arquivo
+19:21` | `chat-bubble text-left chat-bubble-received` | Not tested (safe/destructive mode or disabled) |
+| `/inbox` | `sticker
 
 STICKER (INDISPONÍVEL)
 
-22:21` | `chat-bubble text-left chat-bubble-received` | Not tested (safe/destructive mode or disabled) |
-| `/inbox` | `arquivo
+19:21` | `chat-bubble text-left chat-bubble-received` | Not tested (safe/destructive mode or disabled) |
+| `/inbox` | `áudio
 
-AUDIO (INDISPONÍVEL)
+ÁUDIO (INDISPONÍVEL)
 
-22:22` | `chat-bubble text-left chat-bubble-received` | Not tested (safe/destructive mode or disabled) |
+19:22` | `chat-bubble text-left chat-bubble-received` | Not tested (safe/destructive mode or disabled) |
 | `/inbox` | `Pessoa, uma vez mandaram um link de recarga de cel` | `chat-bubble text-left chat-bubble-received` | Not tested (safe/destructive mode or disabled) |
 | `/inbox` | `*COMPRA E VENDA com pagamento protegido 🔒*
 
 | Con` | `chat-bubble text-left chat-bubble-received` | Not tested (safe/destructive mode or disabled) |
-| `/inbox` | `arquivo
+| `/inbox` | `imagem
 
-IMAGE (INDISPONÍVEL)
+IMAGEM (INDISPONÍVEL)
 
 Imagine ter um grup` | `chat-bubble text-left chat-bubble-received` | Not tested (safe/destructive mode or disabled) |
 | `/inbox` | `opa, boa tardeee! tudo bem? gente um cartão para u` | `chat-bubble text-left chat-bubble-received` | Not tested (safe/destructive mode or disabled) |
 | `/inbox` | `Kkkk confia pra tu ver
 
-16:57` | `chat-bubble text-left chat-bubble-received` | Not tested (safe/destructive mode or disabled) |
+13:57` | `chat-bubble text-left chat-bubble-received` | Not tested (safe/destructive mode or disabled) |
 | `/inbox` | `nao confio nem na minha mae que me expulsou de cas` | `chat-bubble text-left chat-bubble-received` | Not tested (safe/destructive mode or disabled) |
 | `/inbox` | `quanto mais em enzos
 
-16:58` | `chat-bubble text-left chat-bubble-received` | Not tested (safe/destructive mode or disabled) |
+13:58` | `chat-bubble text-left chat-bubble-received` | Not tested (safe/destructive mode or disabled) |
 | `/inbox` | `ksksksk
 
-16:58` | `chat-bubble text-left chat-bubble-received` | Not tested (safe/destructive mode or disabled) |
+13:58` | `chat-bubble text-left chat-bubble-received` | Not tested (safe/destructive mode or disabled) |
 | `/inbox` | `Bolsa família on ✅
 
-22:16` | `chat-bubble text-left chat-bubble-received` | Not tested (safe/destructive mode or disabled) |
-| `/inbox` | `arquivo
-
-FILE (INDISPONÍVEL)
-
-23:08` | `chat-bubble text-left chat-bubble-received` | Not tested (safe/destructive mode or disabled) |
+19:16` | `chat-bubble text-left chat-bubble-received` | Not tested (safe/destructive mode or disabled) |
 | `/inbox` | `Boa tarde! Tô precisando de alguém que tem conta c` | `chat-bubble text-left chat-bubble-received` | Not tested (safe/destructive mode or disabled) |
 | `/inbox` | `🈯️BM DISPARO - KZ -- 
 
 * - *Estoque atualizado - ` | `chat-bubble text-left chat-bubble-received` | Not tested (safe/destructive mode or disabled) |
 | `/inbox` | `Pedro: Posso te passar o valor final e organizar r` | `chat-bubble text-left chat-bubble-sent` | Not tested (safe/destructive mode or disabled) |
-| `/inbox` | `arquivo
-
-FILE (INDISPONÍVEL)
-
-17:19` | `chat-bubble text-left chat-bubble-received` | Not tested (safe/destructive mode or disabled) |
 | `/inbox` | `*COMPRA E VENDA* com pagamento protegido 🔒
 
 | Con` | `chat-bubble text-left chat-bubble-received` | Not tested (safe/destructive mode or disabled) |
 | `/inbox` | `Preciso de afiliados para metodo superbet, quem qu` | `chat-bubble text-left chat-bubble-received` | Not tested (safe/destructive mode or disabled) |
-| `/inbox` | `arquivo
+| `/inbox` | `imagem
 
-IMAGE (INDISPONÍVEL)
+IMAGEM (INDISPONÍVEL)
 
 *A Melhor Loja do M` | `chat-bubble text-left chat-bubble-received` | Not tested (safe/destructive mode or disabled) |
 | `/inbox` | `Julia: Posso te passar o valor final e organizar r` | `chat-bubble text-left chat-bubble-sent` | Not tested (safe/destructive mode or disabled) |
-| `/inbox` | `arquivo
+| `/inbox` | `imagem
 
-IMAGE (INDISPONÍVEL)
+IMAGEM (INDISPONÍVEL)
 
 Adicionamos lá o no` | `chat-bubble text-left chat-bubble-received` | Not tested (safe/destructive mode or disabled) |
 | `/inbox` | `Puxada ilimitada disponivel, puxa até senha vazada` | `chat-bubble text-left chat-bubble-received` | Not tested (safe/destructive mode or disabled) |
-| `/inbox` | `09:27` | `chat-bubble text-left chat-bubble-received` | Not tested (safe/destructive mode or disabled) |
-| `/inbox` | `arquivo
-
-FILE (INDISPONÍVEL)
-
-09:29` | `chat-bubble text-left chat-bubble-received` | Not tested (safe/destructive mode or disabled) |
-| `/inbox` | `10:04` | `chat-bubble text-left chat-bubble-received` | Not tested (safe/destructive mode or disabled) |
+| `/inbox` | `06:27` | `chat-bubble text-left chat-bubble-received` | Not tested (safe/destructive mode or disabled) |
+| `/inbox` | `07:04` | `chat-bubble text-left chat-bubble-received` | Not tested (safe/destructive mode or disabled) |
 | `/inbox` | `Adicionamos lá o novo método do Leonardo ia com +4` | `chat-bubble text-left chat-bubble-received` | Not tested (safe/destructive mode or disabled) |
 | `/inbox` | `*A Melhor Loja do Mercado Digital está ON!* 🔥🤯
 
 ` | `chat-bubble text-left chat-bubble-received` | Not tested (safe/destructive mode or disabled) |
 | `/inbox` | `Camila: Posso te passar o valor final e organizar ` | `chat-bubble text-left chat-bubble-sent` | Not tested (safe/destructive mode or disabled) |
-| `/inbox` | `15:42` | `chat-bubble text-left chat-bubble-received` | Not tested (safe/destructive mode or disabled) |
-| `/inbox` | `arquivo
-
-FILE (INDISPONÍVEL)
-
-15:55` | `chat-bubble text-left chat-bubble-received` | Not tested (safe/destructive mode or disabled) |
+| `/inbox` | `12:42` | `chat-bubble text-left chat-bubble-received` | Not tested (safe/destructive mode or disabled) |
 | `/inbox` | `Rapeize, algum bot de sms funcionando?
 
-15:18` | `chat-bubble text-left chat-bubble-received` | Not tested (safe/destructive mode or disabled) |
+12:18` | `chat-bubble text-left chat-bubble-received` | Not tested (safe/destructive mode or disabled) |
 | `/inbox` | `Recebersms e Notz não chega nada aqui
 
-15:18` | `chat-bubble text-left chat-bubble-received` | Not tested (safe/destructive mode or disabled) |
-| `/inbox` | `16:15` | `chat-bubble text-left chat-bubble-received` | Not tested (safe/destructive mode or disabled) |
+12:18` | `chat-bubble text-left chat-bubble-received` | Not tested (safe/destructive mode or disabled) |
+| `/inbox` | `13:15` | `chat-bubble text-left chat-bubble-received` | Not tested (safe/destructive mode or disabled) |
 | `/inbox` | `Alguém que tem a manhã livre aí apartir das 6 da m` | `chat-bubble text-left chat-bubble-received` | Not tested (safe/destructive mode or disabled) |
 | `/inbox` | `Quanto
 
-18:33` | `chat-bubble text-left chat-bubble-received` | Not tested (safe/destructive mode or disabled) |
+15:33` | `chat-bubble text-left chat-bubble-received` | Not tested (safe/destructive mode or disabled) |
 | `/inbox` | `CHEGOU O FORNECEDOR 01 DO MERCADO 💜
 
 *R$5K* - BM ` | `chat-bubble text-left chat-bubble-received` | Not tested (safe/destructive mode or disabled) |
@@ -698,24 +958,14 @@ FILE (INDISPONÍVEL)
 | `/inbox` | `Alguem rodando demanda gads? Chama pv quem manja
 
 ` | `chat-bubble text-left chat-bubble-received` | Not tested (safe/destructive mode or disabled) |
-| `/inbox` | `21:43` | `chat-bubble text-left chat-bubble-received` | Not tested (safe/destructive mode or disabled) |
+| `/inbox` | `18:43` | `chat-bubble text-left chat-bubble-received` | Not tested (safe/destructive mode or disabled) |
 | `/inbox` | `Tô vendo meu perfil do Facebook
 
-23:02` | `chat-bubble text-left chat-bubble-received` | Not tested (safe/destructive mode or disabled) |
+20:02` | `chat-bubble text-left chat-bubble-received` | Not tested (safe/destructive mode or disabled) |
 | `/inbox` | `Julia: Posso te orientar com clareza e já avançar ` | `chat-bubble text-left chat-bubble-sent` | Not tested (safe/destructive mode or disabled) |
-| `/inbox` | `arquivo
-
-FILE (INDISPONÍVEL)
-
-23:02` | `chat-bubble text-left chat-bubble-received` | Not tested (safe/destructive mode or disabled) |
-| `/inbox` | `arquivo
-
-FILE (INDISPONÍVEL)
-
-23:03` | `chat-bubble text-left chat-bubble-received` | Not tested (safe/destructive mode or disabled) |
 | `/inbox` | `1 saco de Cimento
 
-23:06` | `chat-bubble text-left chat-bubble-received` | Not tested (safe/destructive mode or disabled) |
+20:06` | `chat-bubble text-left chat-bubble-received` | Not tested (safe/destructive mode or disabled) |
 | `/inbox` | `Rafael: Posso te orientar com clareza e já avançar` | `chat-bubble text-left chat-bubble-sent` | Not tested (safe/destructive mode or disabled) |
 | `/inbox` | `CHEGOU O FORNECEDOR 01 DO MERCADO 💜
 
@@ -734,6 +984,23 @@ https://b` | `chat-bubble text-left chat-bubble-received` | Not tested (safe/des
 | `/inbox` | `*A Melhor Loja do Mercado Digital está ON!* 🔥🤯
 
 ` | `chat-bubble text-left chat-bubble-received` | Not tested (safe/destructive mode or disabled) |
+| `/inbox` | `Novidade para vocês tropa! https://basefy.io/vende` | `chat-bubble text-left chat-bubble-received` | Not tested (safe/destructive mode or disabled) |
+| `/inbox` | `*✅VENDO PÁGINA DO FACEBOOK*
+
+*🚀29k de seguidores;` | `chat-bubble text-left chat-bubble-received` | Not tested (safe/destructive mode or disabled) |
+| `/inbox` | `https://basefy.io/p/pack-piment-2-0
+
+18:01` | `chat-bubble text-left chat-bubble-received` | Not tested (safe/destructive mode or disabled) |
+| `/inbox` | `Mensal isso?
+
+14:48` | `chat-bubble text-left chat-bubble-received` | Not tested (safe/destructive mode or disabled) |
+| `/inbox` | `*A Melhor Loja do Mercado Digital está ON!* 🔥🤯
+
+` | `chat-bubble text-left chat-bubble-received` | Not tested (safe/destructive mode or disabled) |
+| `/inbox` | `Isso
+
+15:51` | `chat-bubble text-left chat-bubble-received` | Not tested (safe/destructive mode or disabled) |
+| `/connections` | `Expandir menu` | `sidebar-item mt-1 w-full` | Not tested (safe/destructive mode or disabled) |
 | `/contacts` | `Expandir menu` | `sidebar-item mt-1 w-full` | Not tested (safe/destructive mode or disabled) |
 | `/contacts` | `` | `peer shrink-0 border` | Not tested (safe/destructive mode or disabled) |
 | `/contacts` | `` | `peer shrink-0 border` | Not tested (safe/destructive mode or disabled) |
@@ -773,9 +1040,36 @@ https://b` | `chat-bubble text-left chat-bubble-received` | Not tested (safe/des
 | `/contacts` | `` | `peer shrink-0 border` | Not tested (safe/destructive mode or disabled) |
 | `/contacts` | `` | `peer shrink-0 border` | Not tested (safe/destructive mode or disabled) |
 | `/contacts` | `` | `peer shrink-0 border` | Not tested (safe/destructive mode or disabled) |
+| `/contacts` | `` | `peer shrink-0 border` | Not tested (safe/destructive mode or disabled) |
+| `/flows` | `Expandir menu` | `sidebar-item mt-1 w-full` | Not tested (safe/destructive mode or disabled) |
 | `/ai` | `Expandir menu` | `sidebar-item mt-1 w-full` | Not tested (safe/destructive mode or disabled) |
-| `/ai` | `Dashboard IA` | `w-full flex items-center` | Click did not trigger state change |
-| `/analytics` | `Expandir menu` | `sidebar-item mt-1 w-full` | Not tested (safe/destructive mode or disabled) |
+| `/ai` | `Dashboard IA` | `w-full flex items-center` | Click error: locator.click: Timeout 1500ms exceeded.
+Call log:
+[2m  - waiting for locator('button').filter({ hasText: 'Dashboard IA' }).first()[22m
+[2m    - locator resolved to <button class="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-semibold rounded-xl transition-all text-left bg-primary text-primary-foreground shadow-sm shadow-primary/20">…</button>[22m
+[2m  - attempting click action[22m
+[2m    2 × waiting for element to be visible, enabled and stable[22m
+[2m      - element is visible, enabled and stable[22m
+[2m      - scrolling into view if needed[22m
+[2m      - done scrolling[22m
+[2m      - <div data-state="open" aria-hidden="true" data-aria-hidden="true" class="fixed inset-0 z-50 bg-black/80 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0"></div> intercepts pointer events[22m
+[2m    - retrying click action[22m
+[2m    - waiting 20ms[22m
+[2m    2 × waiting for element to be visible, enabled and stable[22m
+[2m      - element is visible, enabled and stable[22m
+[2m      - scrolling into view if needed[22m
+[2m      - done scrolling[22m
+[2m      - <div data-state="open" aria-hidden="true" data-aria-hidden="true" class="fixed inset-0 z-50 bg-black/80 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0"></div> intercepts pointer events[22m
+[2m    - retrying click action[22m
+[2m      - waiting 100ms[22m
+[2m    3 × waiting for element to be visible, enabled and stable[22m
+[2m      - element is visible, enabled and stable[22m
+[2m      - scrolling into view if needed[22m
+[2m      - done scrolling[22m
+[2m      - <div data-state="open" aria-hidden="true" data-aria-hidden="true" class="fixed inset-0 z-50 bg-black/80 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0"></div> intercepts pointer events[22m
+[2m    - retrying click action[22m
+[2m      - waiting 500ms[22m
+ |
 | `/campaigns` | `Expandir menu` | `sidebar-item mt-1 w-full` | Not tested (safe/destructive mode or disabled) |
 | `/campaigns` | `1
 PÚBLICO` | `flex flex-col items-center` | Not tested (safe/destructive mode or disabled) |
@@ -825,62 +1119,91 @@ LANÇAR` | `flex flex-col items-center` | Not tested (safe/destructive mode or d
 | `/campaigns` | `` | `peer h-4 w-4` | Not tested (safe/destructive mode or disabled) |
 | `/campaigns` | `` | `peer h-4 w-4` | Not tested (safe/destructive mode or disabled) |
 | `/campaigns` | `` | `peer h-4 w-4` | Not tested (safe/destructive mode or disabled) |
+| `/campaigns` | `` | `peer h-4 w-4` | Not tested (safe/destructive mode or disabled) |
 | `/memory` | `Expandir menu` | `sidebar-item mt-1 w-full` | Not tested (safe/destructive mode or disabled) |
+| `/users` | `Expandir menu` | `sidebar-item mt-1 w-full` | Not tested (safe/destructive mode or disabled) |
 | `/nodes` | `Expandir menu` | `sidebar-item mt-1 w-full` | Not tested (safe/destructive mode or disabled) |
+| `/deployments` | `Expandir menu` | `sidebar-item mt-1 w-full` | Not tested (safe/destructive mode or disabled) |
 | `/logs` | `Expandir menu` | `sidebar-item mt-1 w-full` | Not tested (safe/destructive mode or disabled) |
 | `/diagnostics` | `Expandir menu` | `sidebar-item mt-1 w-full` | Not tested (safe/destructive mode or disabled) |
 | `/diagnostics` | `Structured Logs (200)` | `flex w-full items-center` | Click did not trigger state change |
 | `/diagnostics` | `Erros recentes do backend` | `flex w-full items-center` | Click did not trigger state change |
-| `/settings` | `Perfil` | `flex items-center gap-3` | Click did not trigger state change |
+| `/settings` | `Perfil` | `flex items-center gap-3` | Click error: locator.click: Timeout 1500ms exceeded.
+Call log:
+[2m  - waiting for locator('button').filter({ hasText: 'Perfil' }).first()[22m
+[2m    - locator resolved to <button class="flex items-center gap-3 whitespace-nowrap rounded-lg px-3 py-2.5 text-sm font-medium transition-colors bg-primary/10 text-primary">…</button>[22m
+[2m  - attempting click action[22m
+[2m    2 × waiting for element to be visible, enabled and stable[22m
+[2m      - element is visible, enabled and stable[22m
+[2m      - scrolling into view if needed[22m
+[2m      - done scrolling[22m
+[2m      - <div data-state="open" aria-hidden="true" data-aria-hidden="true" class="fixed inset-0 z-50 bg-black/80 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0"></div> intercepts pointer events[22m
+[2m    - retrying click action[22m
+[2m    - waiting 20ms[22m
+[2m    2 × waiting for element to be visible, enabled and stable[22m
+[2m      - element is visible, enabled and stable[22m
+[2m      - scrolling into view if needed[22m
+[2m      - done scrolling[22m
+[2m      - <div data-state="open" aria-hidden="true" data-aria-hidden="true" class="fixed inset-0 z-50 bg-black/80 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0"></div> intercepts pointer events[22m
+[2m    - retrying click action[22m
+[2m      - waiting 100ms[22m
+[2m    3 × waiting for element to be visible, enabled and stable[22m
+[2m      - element is visible, enabled and stable[22m
+[2m      - scrolling into view if needed[22m
+[2m      - done scrolling[22m
+[2m      - <div data-state="open" aria-hidden="true" data-aria-hidden="true" class="fixed inset-0 z-50 bg-black/80 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0"></div> intercepts pointer events[22m
+[2m    - retrying click action[22m
+[2m      - waiting 500ms[22m
+ |
 | `/nodes/node-DESKTOP-8PV0NA2-1782493760847` | `Expandir menu` | `sidebar-item mt-1 w-full` | Not tested (safe/destructive mode or disabled) |
-| `/nodes/node-DESKTOP-8PV0NA2-1782493760847` | `Overview` | `radix-:r6:-trigger-overview` | Click did not trigger state change |
-| `/nodes/node-DESKTOP-8PV0NA2-1782493760847` | `Metrics` | `radix-:r6:-trigger-metrics` | Click did not trigger state change |
-| `/nodes/node-DESKTOP-8PV0NA2-1782493760847` | `Containers` | `radix-:r6:-trigger-containers` | Click did not trigger state change |
-| `/nodes/node-DESKTOP-8PV0NA2-1782493760847` | `Sessions` | `radix-:r6:-trigger-sessions` | Click did not trigger state change |
-| `/nodes/node-DESKTOP-8PV0NA2-1782493760847` | `Deployments` | `radix-:r6:-trigger-deployments` | Not tested (safe/destructive mode or disabled) |
-| `/nodes/node-DESKTOP-8PV0NA2-1782493760847` | `Logs` | `radix-:r6:-trigger-logs` | Not tested (safe/destructive mode or disabled) |
-| `/nodes/node-DESKTOP-8PV0NA2-1782493760847` | `Runtime` | `radix-:r6:-trigger-runtime` | Not tested (safe/destructive mode or disabled) |
-| `/nodes/node-DESKTOP-8PV0NA2-1782493760847` | `Websocket` | `radix-:r6:-trigger-websocket` | Not tested (safe/destructive mode or disabled) |
-| `/nodes/node-DESKTOP-8PV0NA2-1782493760847` | `Diagnostics` | `radix-:r6:-trigger-diagnostics` | Not tested (safe/destructive mode or disabled) |
-| `/nodes/node-DESKTOP-8PV0NA2-1782241358221` | `Overview` | `radix-:r6:-trigger-overview` | Click did not trigger state change |
-| `/nodes/node-DESKTOP-8PV0NA2-1782241358221` | `Metrics` | `radix-:r6:-trigger-metrics` | Click did not trigger state change |
-| `/nodes/node-DESKTOP-8PV0NA2-1782241358221` | `Containers` | `radix-:r6:-trigger-containers` | Click did not trigger state change |
-| `/nodes/node-DESKTOP-8PV0NA2-1782241358221` | `Sessions` | `radix-:r6:-trigger-sessions` | Click did not trigger state change |
-| `/nodes/node-DESKTOP-8PV0NA2-1782241358221` | `Deployments` | `radix-:r6:-trigger-deployments` | Not tested (safe/destructive mode or disabled) |
-| `/nodes/node-DESKTOP-8PV0NA2-1782241358221` | `Logs` | `radix-:r6:-trigger-logs` | Not tested (safe/destructive mode or disabled) |
-| `/nodes/node-DESKTOP-8PV0NA2-1782241358221` | `Runtime` | `radix-:r6:-trigger-runtime` | Not tested (safe/destructive mode or disabled) |
-| `/nodes/node-DESKTOP-8PV0NA2-1782241358221` | `Websocket` | `radix-:r6:-trigger-websocket` | Not tested (safe/destructive mode or disabled) |
-| `/nodes/node-DESKTOP-8PV0NA2-1782241358221` | `Diagnostics` | `radix-:r6:-trigger-diagnostics` | Not tested (safe/destructive mode or disabled) |
+| `/nodes/node-DESKTOP-8PV0NA2-1782493760847` | `Overview` | `radix-:r9:-trigger-overview` | Click did not trigger state change |
+| `/nodes/node-DESKTOP-8PV0NA2-1782493760847` | `Metrics` | `radix-:r9:-trigger-metrics` | Click did not trigger state change |
+| `/nodes/node-DESKTOP-8PV0NA2-1782493760847` | `Containers` | `radix-:r9:-trigger-containers` | Click did not trigger state change |
+| `/nodes/node-DESKTOP-8PV0NA2-1782493760847` | `Sessions` | `radix-:r9:-trigger-sessions` | Click did not trigger state change |
+| `/nodes/node-DESKTOP-8PV0NA2-1782493760847` | `Deployments` | `radix-:r9:-trigger-deployments` | Click did not trigger state change |
+| `/nodes/node-DESKTOP-8PV0NA2-1782493760847` | `Logs` | `radix-:r9:-trigger-logs` | Not tested (safe/destructive mode or disabled) |
+| `/nodes/node-DESKTOP-8PV0NA2-1782493760847` | `Runtime` | `radix-:r9:-trigger-runtime` | Not tested (safe/destructive mode or disabled) |
+| `/nodes/node-DESKTOP-8PV0NA2-1782493760847` | `Websocket` | `radix-:r9:-trigger-websocket` | Not tested (safe/destructive mode or disabled) |
+| `/nodes/node-DESKTOP-8PV0NA2-1782493760847` | `Diagnostics` | `radix-:r9:-trigger-diagnostics` | Not tested (safe/destructive mode or disabled) |
+| `/nodes/node-DESKTOP-8PV0NA2-1782241358221` | `Expandir menu` | `sidebar-item mt-1 w-full` | Not tested (safe/destructive mode or disabled) |
+| `/nodes/node-DESKTOP-8PV0NA2-1782241358221` | `Overview` | `radix-:r9:-trigger-overview` | Click did not trigger state change |
+| `/nodes/node-DESKTOP-8PV0NA2-1782241358221` | `Metrics` | `radix-:r9:-trigger-metrics` | Click did not trigger state change |
+| `/nodes/node-DESKTOP-8PV0NA2-1782241358221` | `Containers` | `radix-:r9:-trigger-containers` | Click did not trigger state change |
+| `/nodes/node-DESKTOP-8PV0NA2-1782241358221` | `Sessions` | `radix-:r9:-trigger-sessions` | Click did not trigger state change |
+| `/nodes/node-DESKTOP-8PV0NA2-1782241358221` | `Deployments` | `radix-:r9:-trigger-deployments` | Click did not trigger state change |
+| `/nodes/node-DESKTOP-8PV0NA2-1782241358221` | `Logs` | `radix-:r9:-trigger-logs` | Not tested (safe/destructive mode or disabled) |
+| `/nodes/node-DESKTOP-8PV0NA2-1782241358221` | `Runtime` | `radix-:r9:-trigger-runtime` | Not tested (safe/destructive mode or disabled) |
+| `/nodes/node-DESKTOP-8PV0NA2-1782241358221` | `Websocket` | `radix-:r9:-trigger-websocket` | Not tested (safe/destructive mode or disabled) |
+| `/nodes/node-DESKTOP-8PV0NA2-1782241358221` | `Diagnostics` | `radix-:r9:-trigger-diagnostics` | Not tested (safe/destructive mode or disabled) |
 | `/nodes/node-DESKTOP-8PV0NA2-1782213649961` | `Expandir menu` | `sidebar-item mt-1 w-full` | Not tested (safe/destructive mode or disabled) |
-| `/nodes/node-DESKTOP-8PV0NA2-1782213649961` | `Overview` | `radix-:r6:-trigger-overview` | Click did not trigger state change |
-| `/nodes/node-DESKTOP-8PV0NA2-1782213649961` | `Metrics` | `radix-:r6:-trigger-metrics` | Click did not trigger state change |
-| `/nodes/node-DESKTOP-8PV0NA2-1782213649961` | `Containers` | `radix-:r6:-trigger-containers` | Click did not trigger state change |
-| `/nodes/node-DESKTOP-8PV0NA2-1782213649961` | `Sessions` | `radix-:r6:-trigger-sessions` | Click did not trigger state change |
-| `/nodes/node-DESKTOP-8PV0NA2-1782213649961` | `Deployments` | `radix-:r6:-trigger-deployments` | Not tested (safe/destructive mode or disabled) |
-| `/nodes/node-DESKTOP-8PV0NA2-1782213649961` | `Logs` | `radix-:r6:-trigger-logs` | Not tested (safe/destructive mode or disabled) |
-| `/nodes/node-DESKTOP-8PV0NA2-1782213649961` | `Runtime` | `radix-:r6:-trigger-runtime` | Not tested (safe/destructive mode or disabled) |
-| `/nodes/node-DESKTOP-8PV0NA2-1782213649961` | `Websocket` | `radix-:r6:-trigger-websocket` | Not tested (safe/destructive mode or disabled) |
-| `/nodes/node-DESKTOP-8PV0NA2-1782213649961` | `Diagnostics` | `radix-:r6:-trigger-diagnostics` | Not tested (safe/destructive mode or disabled) |
-| `/nodes/node-DESKTOP-8PV0NA2-1781894479836` | `Expandir menu` | `sidebar-item mt-1 w-full` | Not tested (safe/destructive mode or disabled) |
-| `/nodes/node-DESKTOP-8PV0NA2-1781894479836` | `Overview` | `radix-:r6:-trigger-overview` | Click did not trigger state change |
-| `/nodes/node-DESKTOP-8PV0NA2-1781894479836` | `Metrics` | `radix-:r6:-trigger-metrics` | Click did not trigger state change |
-| `/nodes/node-DESKTOP-8PV0NA2-1781894479836` | `Containers` | `radix-:r6:-trigger-containers` | Click did not trigger state change |
-| `/nodes/node-DESKTOP-8PV0NA2-1781894479836` | `Sessions` | `radix-:r6:-trigger-sessions` | Click did not trigger state change |
-| `/nodes/node-DESKTOP-8PV0NA2-1781894479836` | `Deployments` | `radix-:r6:-trigger-deployments` | Not tested (safe/destructive mode or disabled) |
-| `/nodes/node-DESKTOP-8PV0NA2-1781894479836` | `Logs` | `radix-:r6:-trigger-logs` | Not tested (safe/destructive mode or disabled) |
-| `/nodes/node-DESKTOP-8PV0NA2-1781894479836` | `Runtime` | `radix-:r6:-trigger-runtime` | Not tested (safe/destructive mode or disabled) |
-| `/nodes/node-DESKTOP-8PV0NA2-1781894479836` | `Websocket` | `radix-:r6:-trigger-websocket` | Not tested (safe/destructive mode or disabled) |
-| `/nodes/node-DESKTOP-8PV0NA2-1781894479836` | `Diagnostics` | `radix-:r6:-trigger-diagnostics` | Not tested (safe/destructive mode or disabled) |
+| `/nodes/node-DESKTOP-8PV0NA2-1782213649961` | `Overview` | `radix-:r9:-trigger-overview` | Click did not trigger state change |
+| `/nodes/node-DESKTOP-8PV0NA2-1782213649961` | `Metrics` | `radix-:r9:-trigger-metrics` | Click did not trigger state change |
+| `/nodes/node-DESKTOP-8PV0NA2-1782213649961` | `Containers` | `radix-:r9:-trigger-containers` | Click did not trigger state change |
+| `/nodes/node-DESKTOP-8PV0NA2-1782213649961` | `Sessions` | `radix-:r9:-trigger-sessions` | Click did not trigger state change |
+| `/nodes/node-DESKTOP-8PV0NA2-1782213649961` | `Deployments` | `radix-:r9:-trigger-deployments` | Click did not trigger state change |
+| `/nodes/node-DESKTOP-8PV0NA2-1782213649961` | `Logs` | `radix-:r9:-trigger-logs` | Not tested (safe/destructive mode or disabled) |
+| `/nodes/node-DESKTOP-8PV0NA2-1782213649961` | `Runtime` | `radix-:r9:-trigger-runtime` | Not tested (safe/destructive mode or disabled) |
+| `/nodes/node-DESKTOP-8PV0NA2-1782213649961` | `Websocket` | `radix-:r9:-trigger-websocket` | Not tested (safe/destructive mode or disabled) |
+| `/nodes/node-DESKTOP-8PV0NA2-1782213649961` | `Diagnostics` | `radix-:r9:-trigger-diagnostics` | Not tested (safe/destructive mode or disabled) |
+| `/nodes/node-DESKTOP-8PV0NA2-1781894479836` | `Overview` | `radix-:r9:-trigger-overview` | Click did not trigger state change |
+| `/nodes/node-DESKTOP-8PV0NA2-1781894479836` | `Metrics` | `radix-:r9:-trigger-metrics` | Click did not trigger state change |
+| `/nodes/node-DESKTOP-8PV0NA2-1781894479836` | `Containers` | `radix-:r9:-trigger-containers` | Click did not trigger state change |
+| `/nodes/node-DESKTOP-8PV0NA2-1781894479836` | `Sessions` | `radix-:r9:-trigger-sessions` | Click did not trigger state change |
+| `/nodes/node-DESKTOP-8PV0NA2-1781894479836` | `Deployments` | `radix-:r9:-trigger-deployments` | Click did not trigger state change |
+| `/nodes/node-DESKTOP-8PV0NA2-1781894479836` | `Logs` | `radix-:r9:-trigger-logs` | Not tested (safe/destructive mode or disabled) |
+| `/nodes/node-DESKTOP-8PV0NA2-1781894479836` | `Runtime` | `radix-:r9:-trigger-runtime` | Not tested (safe/destructive mode or disabled) |
+| `/nodes/node-DESKTOP-8PV0NA2-1781894479836` | `Websocket` | `radix-:r9:-trigger-websocket` | Not tested (safe/destructive mode or disabled) |
+| `/nodes/node-DESKTOP-8PV0NA2-1781894479836` | `Diagnostics` | `radix-:r9:-trigger-diagnostics` | Not tested (safe/destructive mode or disabled) |
 | `/nodes/node-DESKTOP-8PV0NA2-1781705967073` | `Expandir menu` | `sidebar-item mt-1 w-full` | Not tested (safe/destructive mode or disabled) |
-| `/nodes/node-DESKTOP-8PV0NA2-1781705967073` | `Overview` | `radix-:r6:-trigger-overview` | Click did not trigger state change |
-| `/nodes/node-DESKTOP-8PV0NA2-1781705967073` | `Metrics` | `radix-:r6:-trigger-metrics` | Click did not trigger state change |
-| `/nodes/node-DESKTOP-8PV0NA2-1781705967073` | `Containers` | `radix-:r6:-trigger-containers` | Click did not trigger state change |
-| `/nodes/node-DESKTOP-8PV0NA2-1781705967073` | `Sessions` | `radix-:r6:-trigger-sessions` | Click did not trigger state change |
-| `/nodes/node-DESKTOP-8PV0NA2-1781705967073` | `Deployments` | `radix-:r6:-trigger-deployments` | Not tested (safe/destructive mode or disabled) |
-| `/nodes/node-DESKTOP-8PV0NA2-1781705967073` | `Logs` | `radix-:r6:-trigger-logs` | Not tested (safe/destructive mode or disabled) |
-| `/nodes/node-DESKTOP-8PV0NA2-1781705967073` | `Runtime` | `radix-:r6:-trigger-runtime` | Not tested (safe/destructive mode or disabled) |
-| `/nodes/node-DESKTOP-8PV0NA2-1781705967073` | `Websocket` | `radix-:r6:-trigger-websocket` | Not tested (safe/destructive mode or disabled) |
-| `/nodes/node-DESKTOP-8PV0NA2-1781705967073` | `Diagnostics` | `radix-:r6:-trigger-diagnostics` | Not tested (safe/destructive mode or disabled) |
+| `/nodes/node-DESKTOP-8PV0NA2-1781705967073` | `Overview` | `radix-:r9:-trigger-overview` | Click did not trigger state change |
+| `/nodes/node-DESKTOP-8PV0NA2-1781705967073` | `Metrics` | `radix-:r9:-trigger-metrics` | Click did not trigger state change |
+| `/nodes/node-DESKTOP-8PV0NA2-1781705967073` | `Containers` | `radix-:r9:-trigger-containers` | Click did not trigger state change |
+| `/nodes/node-DESKTOP-8PV0NA2-1781705967073` | `Sessions` | `radix-:r9:-trigger-sessions` | Click did not trigger state change |
+| `/nodes/node-DESKTOP-8PV0NA2-1781705967073` | `Deployments` | `radix-:r9:-trigger-deployments` | Click did not trigger state change |
+| `/nodes/node-DESKTOP-8PV0NA2-1781705967073` | `Logs` | `radix-:r9:-trigger-logs` | Not tested (safe/destructive mode or disabled) |
+| `/nodes/node-DESKTOP-8PV0NA2-1781705967073` | `Runtime` | `radix-:r9:-trigger-runtime` | Not tested (safe/destructive mode or disabled) |
+| `/nodes/node-DESKTOP-8PV0NA2-1781705967073` | `Websocket` | `radix-:r9:-trigger-websocket` | Not tested (safe/destructive mode or disabled) |
+| `/nodes/node-DESKTOP-8PV0NA2-1781705967073` | `Diagnostics` | `radix-:r9:-trigger-diagnostics` | Not tested (safe/destructive mode or disabled) |
 
 ---
 *Relatório gerado automaticamente pela suíte de auditoria contínua ZAPFLOW AI.*

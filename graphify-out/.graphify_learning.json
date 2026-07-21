@@ -1,0 +1,182 @@
+{
+  "generated_at": "2026-07-14T17:47:52.995612+00:00",
+  "nodes": {
+    "backend_scripts_healthcheck": {
+      "code_fingerprint": "9597dc9f8ecce8b27a277601b2b49d8ddc1fbfa16351874dcd2971f53d0565af",
+      "label": "healthcheck.js",
+      "last": "2026-07-14T12:05:55.013354+00:00",
+      "provenance": [
+        {
+          "date": "2026-07-14T12:05:55.013354+00:00",
+          "outcome": "useful",
+          "q": "deploye commit na VPS deixando ativo lá para uso real"
+        }
+      ],
+      "score": 0.99452815,
+      "source_file": "backend/scripts/healthcheck.js",
+      "status": "tentative",
+      "uses": 1
+    },
+    "backend_services_systemmanager_sessionrecoveryservice": {
+      "code_fingerprint": "08403c7bd9d0bfba9e11ac0bf0e930dfcbf8518f6c599837df30dccbaad7ea9a",
+      "label": "sessionRecoveryService",
+      "last": "2026-07-14T15:16:52.923614+00:00",
+      "provenance": [
+        {
+          "date": "2026-07-14T15:16:52.923614+00:00",
+          "outcome": "useful",
+          "q": "mensagem não está enviando fiz algumas modificações recentes e não está funcionando inbox apenas recebendo mensagens e refresh de conexões sistema ao logar ativar também"
+        }
+      ],
+      "score": 0.997580107,
+      "source_file": "backend/services/systemManager.js",
+      "status": "tentative",
+      "uses": 1
+    },
+    "backend_services_whatsapp_outbound_senders": {
+      "code_fingerprint": "0d3fa6d1368d6a7d716bbbd76cf67d2fbedd77857b041274e675be0f4faa1b80",
+      "label": "senders.js",
+      "last": "2026-07-14T11:56:08.420471+00:00",
+      "provenance": [
+        {
+          "date": "2026-07-14T11:56:08.420471+00:00",
+          "outcome": "useful",
+          "q": "estou estabilizando sistema inboz está dando erro ao enviar mensagem corrigir"
+        }
+      ],
+      "score": 0.994372155,
+      "source_file": "backend/services/whatsapp/outbound/senders.js",
+      "status": "tentative",
+      "uses": 1
+    },
+    "backend_services_whatsapp_shared_identifiers_ensurewhatsappjid": {
+      "code_fingerprint": "41974dde0bec7420c3734e304b120222aff7b16e23c3b2671657dbf8cf87ba07",
+      "label": "ensureWhatsAppJid()",
+      "last": "2026-07-14T16:38:27.163113+00:00",
+      "provenance": [
+        {
+          "date": "2026-07-14T16:38:27.163113+00:00",
+          "outcome": "useful",
+          "q": "erro e sistema não envia mensagem está travadoo"
+        }
+      ],
+      "score": 0.998886602,
+      "source_file": "backend/services/whatsapp/shared/identifiers.js",
+      "status": "tentative",
+      "uses": 1
+    },
+    "deploy_lib_nginx": {
+      "code_fingerprint": "5aca4032095caffd3f3e48de38c05ff627e4c31b5aad916805abb29db9348294",
+      "label": "nginx.sh",
+      "last": "2026-07-14T12:05:55.013354+00:00",
+      "provenance": [
+        {
+          "date": "2026-07-14T12:05:55.013354+00:00",
+          "outcome": "useful",
+          "q": "deploye commit na VPS deixando ativo lá para uso real"
+        }
+      ],
+      "score": 0.99452815,
+      "source_file": "deploy/lib/nginx.sh",
+      "status": "tentative",
+      "uses": 1
+    },
+    "frontend_official_src_pages_inbox_hooks_useinboxstate_useinboxstate": {
+      "code_fingerprint": "0daa795269f73b60b4d3473de3ddc742bfc1efe2f308b1b2d94c5988c637452e",
+      "label": "useInboxState()",
+      "last": "2026-07-14T11:56:08.420471+00:00",
+      "provenance": [
+        {
+          "date": "2026-07-14T11:56:08.420471+00:00",
+          "outcome": "useful",
+          "q": "estou estabilizando sistema inboz está dando erro ao enviar mensagem corrigir"
+        }
+      ],
+      "score": 0.994372155,
+      "source_file": "frontend-official/src/pages/Inbox/hooks/useInboxState.ts",
+      "status": "tentative",
+      "uses": 1
+    },
+    "frontend_official_src_pages_masterversions": {
+      "code_fingerprint": "45d18c467860847fbcc1111098e335f9d686052561b863ce7daf04f42025671f",
+      "label": "MasterVersions.tsx",
+      "last": "2026-07-14T16:38:27.163113+00:00",
+      "provenance": [
+        {
+          "date": "2026-07-14T16:38:27.163113+00:00",
+          "outcome": "useful",
+          "q": "erro e sistema não envia mensagem está travadoo"
+        }
+      ],
+      "score": 0.998886602,
+      "source_file": "frontend-official/src/pages/MasterVersions.tsx",
+      "status": "tentative",
+      "uses": 1
+    },
+    "frontend_official_src_providers_runtimeprovider": {
+      "code_fingerprint": "7422f64a8d8a123b62eb13ff89baca728e729e0e9f52c00f7b5c50efb174a2d2",
+      "label": "RuntimeProvider.tsx",
+      "last": "2026-07-14T12:05:55.013354+00:00",
+      "provenance": [
+        {
+          "date": "2026-07-14T12:05:55.013354+00:00",
+          "outcome": "useful",
+          "q": "deploye commit na VPS deixando ativo lá para uso real"
+        }
+      ],
+      "score": 0.99452815,
+      "source_file": "frontend-official/src/providers/RuntimeProvider.tsx",
+      "status": "tentative",
+      "uses": 1
+    },
+    "frontend_official_src_services_apiservice": {
+      "code_fingerprint": "c11c2846cbf7ef5efde1126560e4c5a9aea723549c603e31739a567cf1caf29e",
+      "label": "apiService.ts",
+      "last": "2026-07-14T12:05:55.013354+00:00",
+      "provenance": [
+        {
+          "date": "2026-07-14T12:05:55.013354+00:00",
+          "outcome": "useful",
+          "q": "deploye commit na VPS deixando ativo lá para uso real"
+        }
+      ],
+      "score": 0.99452815,
+      "source_file": "frontend-official/src/services/apiService.ts",
+      "status": "tentative",
+      "uses": 1
+    },
+    "frontend_official_src_services_apiservice_apiservice": {
+      "code_fingerprint": "c11c2846cbf7ef5efde1126560e4c5a9aea723549c603e31739a567cf1caf29e",
+      "label": "apiService",
+      "last": "2026-07-14T11:56:08.420471+00:00",
+      "provenance": [
+        {
+          "date": "2026-07-14T11:56:08.420471+00:00",
+          "outcome": "useful",
+          "q": "estou estabilizando sistema inboz está dando erro ao enviar mensagem corrigir"
+        }
+      ],
+      "score": 0.994372155,
+      "source_file": "frontend-official/src/services/apiService.ts",
+      "status": "tentative",
+      "uses": 1
+    },
+    "package_scripts_deploy": {
+      "code_fingerprint": "5b862378bce46756fd7baabdae612f0fd93de4dc356f9fed7cebaeebd7af446c",
+      "label": "deploy",
+      "last": "2026-07-14T12:05:55.013354+00:00",
+      "provenance": [
+        {
+          "date": "2026-07-14T12:05:55.013354+00:00",
+          "outcome": "useful",
+          "q": "deploye commit na VPS deixando ativo lá para uso real"
+        }
+      ],
+      "score": 0.99452815,
+      "source_file": "package.json",
+      "status": "tentative",
+      "uses": 1
+    }
+  },
+  "version": 1
+}

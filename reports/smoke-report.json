@@ -1,0 +1,17 @@
+{
+  "timestamp": "2026-07-20T21:16:13.092Z",
+  "status": "FAIL",
+  "summary": {
+    "pass": 0,
+    "fail": 1,
+    "skip": 0
+  },
+  "tests": [
+    {
+      "name": "Auth bootstrap",
+      "status": "FAIL",
+      "duration": "0ms",
+      "error": "fetch failed"
+    }
+  ]
+}
