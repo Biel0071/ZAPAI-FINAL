@@ -19,6 +19,7 @@ const contactRepository = require('../../../repositories/contactRepository');
 const conversationRepository = require('../../../repositories/conversationRepository');
 const messageRepository = require('../../../repositories/messageRepository');
 const { getAgentByName, pickRandomAgent } = require('../../../config/agents');
+const aiAgentService = require('../../../ai-agents/services/aiAgentService');
 const { evaluateCampaign } = require('../../campaignEngine');
 const { runTask } = require('../../microtaskRunner');
 const { generateConversationSummary } = require('../../conversationSummarizer');
@@ -140,7 +141,6 @@ async function persistConversationMessage(store, payload) {
   const companyId = getCompanyId(payload.companyId);
   const sessionId = payload.sessionId || DEFAULT_SESSION;
   // Ensure the agents list cache is hydrated
-  const aiAgentService = require('../../../ai-agents/services/aiAgentService');
   await aiAgentService.listAgents(companyId).catch(() => {});
   const assignedAgent = pickRandomAgent(companyId);
   let taskPayload = await runTask('createLead', {
@@ -278,7 +278,6 @@ async function persistConversationMessage(store, payload) {
   });
 
   // Ensure the agents list cache is hydrated
-  const aiAgentService = require('../../../ai-agents/services/aiAgentService');
   await aiAgentService.listAgents(companyId).catch(() => {});
 
   return {
