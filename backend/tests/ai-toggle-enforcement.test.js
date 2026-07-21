@@ -41,6 +41,23 @@ test('allows a queued AI reply only after the backend confirms it is enabled', a
   assert.deepEqual(permission, { allowed: true, reason: 'ai_enabled' });
 });
 
+test('checks the queued AI toggle for the item tenant', async () => {
+  let checkedTenant = null;
+  const permission = await getAutomatedReplyPermission({ ...aiItem, companyId: 'store-42' }, {
+    isAIEnabled: (tenantId) => {
+      checkedTenant = tenantId;
+      return true;
+    },
+    sessionManager: { getSession: () => null },
+    conversationRepository: {
+      getConversationById: async () => ({ aiEnabled: true }),
+      getConversationByPhone: async () => null,
+    },
+  });
+
+  assert.equal(checkedTenant, 'store-42');
+  assert.deepEqual(permission, { allowed: true, reason: 'ai_enabled' });
+});
 test('fails closed when the AI toggle cannot be verified', async () => {
   const permission = await getAutomatedReplyPermission(aiItem, {
     isAIEnabled: () => true,

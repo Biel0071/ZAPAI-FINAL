@@ -8,6 +8,7 @@ const inboxConversationService = require('../inbox-core/inbox/services/Conversat
 const inboxConversationRepository = require('../inbox-core/inbox/repositories/ConversationRepository');
 const inboxRealtimeService = require('../inbox-core/inbox/events/InboxRealtimeService');
 const conversationRuntimeService = require('../inbox-core/inbox/services/ConversationRuntimeService');
+const { getCompanyId } = require('../services/tenantContext');
 
 function getStore(req) {
   return req.app?.locals?.store;
@@ -237,7 +238,7 @@ async function updateConversationAI(req, res) {
     const conversation = await conversationRepository.updateConversationAIEnabled(
       phone,
       aiEnabled,
-      req.body?.companyId || process.env.DEFAULT_COMPANY_ID || 'default'
+      getCompanyId(req)
     );
 
     if (!conversation) {
@@ -693,7 +694,7 @@ async function getBillingDetails(req, res) {
 
 async function listConversationControls(req, res) {
   try {
-    const companyId = req.query?.companyId || process.env.DEFAULT_COMPANY_ID || 'default';
+    const companyId = getCompanyId(req);
     const conversations = await conversationRepository.listConversations(companyId, 200, { useCache: false });
     const mapped = conversations.map(conv => ({
       conversation_id: conv.id,
@@ -719,6 +720,12 @@ async function upsertConversationControl(req, res) {
 
     if (!targetId) {
       return res.status(400).json({ error: 'The field conversation_id is required.' });
+    }
+
+    const companyId = getCompanyId(req);
+    const existing = await conversationRepository.getConversationById(targetId);
+    if (!existing || String(existing.company_id || '') !== companyId) {
+      return res.status(404).json({ error: 'Conversation not found.' });
     }
 
     const fields = {};
@@ -759,7 +766,7 @@ async function getConversationControl(req, res) {
   try {
     const { conversationId } = req.params;
     const conv = await conversationRepository.getConversationById(conversationId);
-    if (!conv) {
+    if (!conv || String(conv.company_id || '') !== getCompanyId(req)) {
       return res.status(404).json({ error: 'Conversation not found.' });
     }
     const responsePayload = {

@@ -166,6 +166,7 @@ export function RuntimeProvider({ children }: { children: ReactNode }) {
   const refreshTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const recoveryAttemptedRef = useRef(false);
   const typingTimersRef = useRef<Map<string, any>>(new Map());
+  const aiProgressTimersRef = useRef<Map<string, number>>(new Map());
 
   const clearTypingTimeout = useCallback((conversationId: string) => {
     const existingTimer = typingTimersRef.current.get(conversationId);
@@ -488,8 +489,12 @@ export function RuntimeProvider({ children }: { children: ReactNode }) {
         const conversationId = resolveConversationIdForRealtimeMessage(incoming, store.conversations);
         if (!conversationId) return;
 
-        // Clear typing status immediately
+        // Clear typing and AI progress immediately when the generated message arrives.
         store.updateTypingStatus(conversationId, false);
+        store.clearAIResponseProgress(conversationId);
+        const progressTimer = aiProgressTimersRef.current.get(conversationId);
+        if (progressTimer) window.clearTimeout(progressTimer);
+        aiProgressTimersRef.current.delete(conversationId);
         clearTypingTimeout(conversationId);
 
         console.log(`[INBOX REALTIME] [STORE_TARGET] Setting store target for AI Response: conversationId=${conversationId}`);
@@ -511,6 +516,24 @@ export function RuntimeProvider({ children }: { children: ReactNode }) {
           contactId: incoming.contactId || currentConv?.contactId,
           sessionId: incoming.sessionId || currentConv?.sessionId,
         });
+      },
+
+      onAiProgress: (payload) => {
+        const store = useAppStore.getState();
+        const conversationId = resolveConversationIdForRealtimeMessage(payload, store.conversations) || payload.conversationId;
+        if (!conversationId) return;
+
+        store.updateAIResponseProgress(conversationId, { ...payload, conversationId });
+        const existingTimer = aiProgressTimersRef.current.get(conversationId);
+        if (existingTimer) window.clearTimeout(existingTimer);
+
+        if (["completed", "cancelled", "disabled", "failed", "no_agent"].includes(payload.status)) {
+          const timer = window.setTimeout(() => {
+            useAppStore.getState().clearAIResponseProgress(conversationId);
+            aiProgressTimersRef.current.delete(conversationId);
+          }, payload.status === "completed" ? 800 : 6500);
+          aiProgressTimersRef.current.set(conversationId, timer);
+        }
       },
 
       onChatArchived: ({ chatId, conversationId }) => {
@@ -703,6 +726,8 @@ export function RuntimeProvider({ children }: { children: ReactNode }) {
       if (refreshTimerRef.current) clearTimeout(refreshTimerRef.current);
       typingTimersRef.current.forEach((timer) => clearTimeout(timer));
       typingTimersRef.current.clear();
+      aiProgressTimersRef.current.forEach((timer) => clearTimeout(timer));
+      aiProgressTimersRef.current.clear();
     };
   }, [socketUrl, loadFromApi, debouncedRefresh]);
 

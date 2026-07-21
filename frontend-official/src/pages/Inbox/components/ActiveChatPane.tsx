@@ -40,6 +40,7 @@ import { MessageRow } from "./MessageRow";
 import { cn } from "@/lib/utils";
 import { apiService } from "@/services/apiService";
 import type { ChatMessage, Conversation } from "@/services/apiService";
+import type { AIResponseProgress } from "@/stores/appStore";
 import type { ComposerAttachment, PreviewMediaState } from "../types";
 import {
   toConversationDateLabel,
@@ -60,6 +61,7 @@ interface ActiveChatPaneProps {
   backendOnline: boolean;
   isTyping: boolean | "composing" | "recording";
   suggestingResponse: boolean;
+  aiProgress?: AIResponseProgress | null;
   replyingTo: ChatMessage | null;
   setReplyingTo: (val: ChatMessage | null) => void;
   attachments: ComposerAttachment[];
@@ -153,6 +155,7 @@ export function ActiveChatPane({
   backendOnline,
   isTyping,
   suggestingResponse,
+  aiProgress,
   replyingTo,
   setReplyingTo,
   attachments,
@@ -237,6 +240,24 @@ export function ActiveChatPane({
   const [activeTab, setActiveTab] = useState<'emoji' | 'sticker'>('emoji');
   const [stickers, setStickers] = useState<{ id: string; url: string; name: string }[]>([]);
   const [loadingStickers, setLoadingStickers] = useState(false);
+  const [aiRemainingSeconds, setAiRemainingSeconds] = useState(0);
+
+  const aiProgressActive = Boolean(aiProgress && ["analyzing", "generating", "queued", "waiting", "typing", "sending"].includes(aiProgress.status));
+
+  useEffect(() => {
+    if (!aiProgressActive || !aiProgress?.estimatedCompletionAt) {
+      setAiRemainingSeconds(0);
+      return;
+    }
+
+    const updateRemaining = () => {
+      const remainingMs = Math.max(0, new Date(aiProgress.estimatedCompletionAt as string).getTime() - Date.now());
+      setAiRemainingSeconds(Math.ceil(remainingMs / 1000));
+    };
+    updateRemaining();
+    const timer = window.setInterval(updateRemaining, 250);
+    return () => window.clearInterval(timer);
+  }, [aiProgress?.estimatedCompletionAt, aiProgressActive]);
 
   const loadStickers = useCallback(async () => {
     setLoadingStickers(true);
@@ -823,6 +844,47 @@ export function ActiveChatPane({
                       ))}
                     </div>
                   ))}
+                </div>
+              )}
+
+              {aiProgress && (
+                <div className="mt-3 flex justify-end" aria-live="polite" aria-label="Progresso da resposta da IA">
+                  <div
+                    className={cn(
+                      "w-fit max-w-[85%] rounded-2xl rounded-br-md border px-3.5 py-3 shadow-sm",
+                      aiProgressActive
+                        ? "border-primary/30 bg-primary/10 text-foreground"
+                        : aiProgress.status === "failed" || aiProgress.status === "no_agent"
+                          ? "border-amber-500/30 bg-amber-500/10"
+                          : "border-border bg-muted/50",
+                    )}
+                  >
+                    <div className="flex items-center gap-2">
+                      <Robot className={cn("h-4 w-4 shrink-0", aiProgressActive ? "text-primary" : "text-muted-foreground")} />
+                      <span className="text-xs font-semibold">
+                        {aiProgress.agentName || "IA da loja"}
+                      </span>
+                      {aiProgressActive && (
+                        <div className="ml-1 flex gap-1">
+                          {[0, 1, 2].map((index) => (
+                            <span
+                              key={index}
+                              className="h-1.5 w-1.5 animate-bounce rounded-full bg-primary"
+                              style={{ animationDelay: `${index * 140}ms` }}
+                            />
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      {aiProgress.message || "Preparando resposta..."}
+                    </p>
+                    {aiProgressActive && aiRemainingSeconds > 0 && (
+                      <p className="mt-1.5 text-[10px] font-medium text-primary">
+                        Tempo estimado: {aiRemainingSeconds}s
+                      </p>
+                    )}
+                  </div>
                 </div>
               )}
             </div>

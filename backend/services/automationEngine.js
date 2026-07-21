@@ -12,6 +12,7 @@ const { analyzeLeadIntent } = require('./leadAnalyzer');
 const { buildLeadTags, getNextFunnelStage } = require('./salesFunnel');
 const { generateSalesStrategy } = require('./salesStrategyEngine');
 const conversationRuntimeService = require('../inbox-core/inbox/services/ConversationRuntimeService');
+const { emitAIResponseProgress } = require('./aiResponseProgressService');
 
 function matchEscalationTrigger(text, triggers = []) {
   if (!text || !Array.isArray(triggers) || triggers.length === 0) return null;
@@ -85,10 +86,22 @@ async function processMessage({ payload, conversation, store, sock, sessionId })
   const incomingText = payload.text || '';
   const conversationId = conversation?.id;
   const companyId = conversation?.company_id || payload?.companyId || 'default';
+  const io = store?.io || global.io;
+  const progressStartedAt = new Date().toISOString();
+  const publishProgress = (status, details = {}) => emitAIResponseProgress(io, {
+    companyId,
+    conversationId,
+    phone,
+    sessionId,
+    startedAt: progressStartedAt,
+    status,
+    ...details,
+  });
 
   // Short-circuit automated replies if the current store disabled AI.
   if (!(await getAIEnabled(companyId))) {
     console.log(`[AutomationEngine] Store AI toggle is OFF for tenant ${companyId}. Short-circuiting response for ${phone}.`);
+    publishProgress('disabled', { message: 'IA global desativada para esta loja.' });
     return { success: false, reason: 'store_ai_off' };
   }
 
@@ -96,6 +109,7 @@ async function processMessage({ payload, conversation, store, sock, sessionId })
   const session = sessionManager.getSession(sessionId);
   if (!session || session.systemConnected === false) {
     console.log(`[AutomationEngine] Session/Line ${sessionId} is not enabled for AI. Short-circuiting response for ${phone}.`);
+    publishProgress('disabled', { message: 'IA desativada nesta conexao do WhatsApp.' });
     return { success: false, reason: 'session_ai_disabled' };
   }
 
@@ -130,6 +144,7 @@ async function processMessage({ payload, conversation, store, sock, sessionId })
 
   if (!conversationAIEnabled) {
     console.log('[AutomationEngine] AI is OFF for conversation ' + phone + '. Short-circuiting response.');
+    publishProgress('disabled', { message: 'IA pausada nesta conversa.' });
     return { success: false, reason: 'conversation_ai_off' };
   }
 
@@ -170,18 +185,29 @@ async function processMessage({ payload, conversation, store, sock, sessionId })
   let matchedAgent = null;
   try {
     await aiAgentService.listAgents(companyId);
-    matchedAgent = aiAgentService.findByNameSync(conversation?.agent_name, companyId);
+    matchedAgent = aiAgentService.findByNameSync(authoritativeConversation?.agent_name || conversation?.agent_name, companyId)
+      || aiAgentService.pickRandomAgentSync(companyId);
   } catch (err) {
     console.error('[AutomationEngine] Failed to load agent configuration:', err);
   }
 
   if (!matchedAgent) {
     console.log(`[AutomationEngine] No store-specific agent configured for tenant ${companyId}.`);
+    publishProgress('no_agent', { message: 'Nenhum atendente ativo foi configurado para esta loja.' });
     return { success: false, reason: 'no_store_agent' };
   }
 
+  const plannedResponseDelayMs = randomProfileDelay(matchedAgent.delayProfile);
+  const plannedTypingDelayMs = randomProfileDelay(matchedAgent.typingDelayProfile);
+  const estimatedGenerationMs = 8_000;
+  publishProgress('analyzing', {
+    agentName: matchedAgent.name,
+    estimatedMs: estimatedGenerationMs + plannedResponseDelayMs + plannedTypingDelayMs,
+    message: `${matchedAgent.name} esta entendendo a conversa.`,
+  });
+
   // 4. Rules Engine: Human Escalation check
-  const aiEnabledGlobal = conversation?.aiEnabled !== false;
+  const aiEnabledGlobal = conversationAIEnabled;
   let matchedTrigger = null;
   if (matchedAgent.escalationActive && aiEnabledGlobal) {
     matchedTrigger = matchEscalationTrigger(incomingText, matchedAgent.escalationTriggers);
@@ -214,6 +240,10 @@ async function processMessage({ payload, conversation, store, sock, sessionId })
         phone,
         sessionId
       });
+      publishProgress('cancelled', {
+        agentName: matchedAgent.name,
+        message: 'Atendimento transferido para uma pessoa; resposta automatica cancelada.',
+      });
       console.log(`[AutomationEngine] Escalated to human. AI disabled for conversation ${conversationId}`);
       return { success: true, action: 'escalated_to_human' };
     }
@@ -222,6 +252,12 @@ async function processMessage({ payload, conversation, store, sock, sessionId })
   // 5. Rules Engine: AI Configuration Check
   const integrationStatus = await getAIIntegrationStatus(store, companyId);
   if (!integrationStatus.aiOn || !aiEnabledGlobal) {
+    publishProgress('disabled', {
+      agentName: matchedAgent.name,
+      message: !integrationStatus.aiOn
+        ? 'Nenhum provedor de IA ativo esta disponivel para esta loja.'
+        : 'IA pausada nesta conversa.',
+    });
     console.log(`[AutomationEngine] AI is OFF (integration: ${integrationStatus.aiOn}, conversation: ${aiEnabledGlobal}). Stopping pipeline.`);
     return { success: false, reason: 'ai_off' };
   }
@@ -268,7 +304,6 @@ async function processMessage({ payload, conversation, store, sock, sessionId })
     tags,
   });
 
-  const io = store?.io || global.io;
   if (crmState) {
     io?.emit('conversation_updated', crmState);
   }
@@ -283,6 +318,11 @@ async function processMessage({ payload, conversation, store, sock, sessionId })
   io?.emit('funnel_updated', { conversationId, funnel_stage: funnelStage, phone });
 
   console.log(`[AutomationEngine] Calling AI Engine for conversation ${conversationId}`);
+  publishProgress('generating', {
+    agentName: matchedAgent.name,
+    estimatedMs: estimatedGenerationMs + plannedResponseDelayMs + plannedTypingDelayMs,
+    message: `${matchedAgent.name} esta gerando a resposta.`,
+  });
   let ai = null;
   try {
     ai = await processAI({
@@ -307,6 +347,10 @@ async function processMessage({ payload, conversation, store, sock, sessionId })
   }
 
   if (!ai || !ai.reply) {
+    publishProgress('failed', {
+      agentName: matchedAgent.name,
+      message: 'A IA nao conseguiu gerar uma resposta. Verifique o provedor e o agente.',
+    });
     if (matchedAgent.escalationActive && matchedAgent.escalationTriggers.includes("IA sem resposta")) {
       const fallbackTrigger = "IA sem resposta";
       await logEscalation({
@@ -460,14 +504,20 @@ function splitLongMessage(text) {
   const replyText = ai.reply || '';
   const chunks = splitLongMessage(replyText);
 
+  publishProgress('queued', {
+    agentName: matchedAgent.name,
+    estimatedMs: plannedResponseDelayMs + plannedTypingDelayMs,
+    message: 'Resposta pronta; aguardando o tempo humanizado para envio.',
+  });
+
   for (let i = 0; i < chunks.length; i++) {
     const chunk = chunks[i];
-    const responseDelayMs = i === 0 
-      ? randomProfileDelay(matchedAgent.delayProfile) 
+    const responseDelayMs = i === 0
+      ? plannedResponseDelayMs
       : 1000;
-      
+
     const typingDelayMs = i === 0
-      ? randomProfileDelay(matchedAgent.typingDelayProfile)
+      ? plannedTypingDelayMs
       : Math.min(5000, Math.max(2000, chunk.length * 50));
 
     console.log(`[AutomationEngine] Enqueueing AI response chunk ${i+1}/${chunks.length} for ${conversationId}: "${chunk.substring(0, 30)}..."`);
@@ -493,6 +543,7 @@ function splitLongMessage(text) {
         salesStrategy,
         responseDelayMs,
         typingDelayMs,
+        progressStartedAt,
       }
     });
   }

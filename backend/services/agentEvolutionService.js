@@ -184,6 +184,9 @@ async function refineWholeAgent(agentKey, userInstruction, store, companyId = 'd
     tone: agent.tone,
     responseStyle: agent.responseStyle,
     temperature: agent.temperature,
+    maxWords: agent.maxWords,
+    delayProfile: agent.delayProfile,
+    typingDelayProfile: agent.typingDelayProfile,
     memory: agent.memory,
     escalationTriggers: agent.escalationTriggers,
     hours: agent.hours,
@@ -224,12 +227,14 @@ Responda APENAS com um bloco de código JSON válido contendo a seguinte estrutu
 
 REGRAS CRÍTICAS:
 1. Retorne APENAS o JSON válido. Não inclua texto introdutório, explicações fora do JSON ou blocos Markdown extras.
-2. Campos disponíveis: personality, rules, faq, products, services, memory, company, companyDescription, objective, policies, tone, responseStyle, temperature, escalationTriggers, hours.
+2. Campos disponiveis: personality, rules, faq, products, services, memory, company, companyDescription, objective, sector, policies, tone, responseStyle, temperature, maxWords, delayProfile, typingDelayProfile, escalationTriggers, hours.
 3. Se o dono informa um novo produto ou preço, use action "append" no campo "products" (adicionando os dados ao fim do campo atual de forma limpa).
 4. Se o dono ensina uma nova dúvida/resposta, adicione no formato de Q&A (Pergunta/Resposta) usando action "append" no campo "faq".
 5. Se o dono solicita uma alteração de comportamento geral, reescreva ou adicione ao campo "rules" (append/update) ou "personality" (update).
 6. Se a ação for "append", o "value" que você retornar DEVE ser apenas o conteúdo adicional a ser acrescentado, não o campo inteiro. Se a ação for "update", será a substituição completa daquele campo.
-7. Mantenha as alterações em português brasileiro natural.`;
+7. Para deixar o atendente mais tranquilo ou mais falante, combine tone, personality, responseStyle, temperature e maxWords de forma coerente.
+8. delayProfile e typingDelayProfile devem ser objetos { minMs, maxMs }, em milissegundos, quando a instrucao pedir respostas mais rapidas ou lentas.
+9. Mantenha as alteracoes em portugues brasileiro natural.`;
 
   const result = await testProviderConnection(provider, {
     model: provider.model,
@@ -267,47 +272,61 @@ REGRAS CRÍTICAS:
 
 async function applyAgentChanges(agentKey, changes, sourceDescription, changeType = 'prompt_refinement', companyId = 'default') {
   await aiAgentService.listAgents(companyId);
-  const agent = aiAgentService.getAgentsSync(companyId).find(a => a.key === agentKey);
-  if (!agent) {
-    throw new Error('Atendente não encontrado.');
-  }
-  
+  const agent = aiAgentService.getAgentsSync(companyId).find((item) => item.key === agentKey);
+  if (!agent) throw new Error('Atendente nao encontrado.');
+
+  const allowedFields = new Set([
+    'personality', 'rules', 'faq', 'products', 'services', 'memory', 'company',
+    'companyDescription', 'objective', 'sector', 'policies', 'tone', 'responseStyle',
+    'temperature', 'maxWords', 'delayProfile', 'typingDelayProfile',
+    'escalationTriggers', 'hours',
+  ]);
+  const appendableFields = new Set(['rules', 'faq', 'products', 'services', 'memory', 'policies']);
+  const normalizeDelayProfile = (value, fallback) => {
+    const candidate = value && typeof value === 'object' ? value : {};
+    const minMs = Math.max(0, Math.min(120000, Number(candidate.minMs ?? fallback?.minMs) || 0));
+    const maxMs = Math.max(minMs, Math.min(120000, Number(candidate.maxMs ?? fallback?.maxMs) || minMs));
+    return { minMs, maxMs };
+  };
+  const normalizeValue = (field, value) => {
+    if (field === 'temperature') return Math.max(0, Math.min(2, Number(value) || 0));
+    if (field === 'maxWords') return Math.max(0, Math.min(2000, Math.round(Number(value) || 0)));
+    if (field === 'delayProfile' || field === 'typingDelayProfile') return normalizeDelayProfile(value, agent[field]);
+    if (field === 'escalationTriggers') {
+      const entries = Array.isArray(value) ? value : String(value || '').split(/[\n,;]/);
+      return Array.from(new Set(entries.map((entry) => String(entry).trim()).filter(Boolean))).slice(0, 100);
+    }
+    return String(value ?? '').trim();
+  };
+
   const fieldsChanged = {};
   const updatedPayload = { ...agent };
-  
-  for (const field of Object.keys(changes)) {
-    const change = changes[field];
-    const beforeValue = agent[field] || '';
-    let afterValue = '';
-    
-    if (change.action === 'append') {
-      afterValue = beforeValue ? `${beforeValue}\n\n${change.value}` : change.value;
-    } else if (change.action === 'update' || change.action === 'replace') {
-      afterValue = change.value;
-    } else {
-      afterValue = change.value;
-    }
-    
+  for (const [field, rawChange] of Object.entries(changes || {})) {
+    if (!allowedFields.has(field) || !rawChange || typeof rawChange !== 'object') continue;
+    const beforeValue = agent[field] ?? '';
+    const normalizedValue = normalizeValue(field, rawChange.value);
+    const shouldAppend = rawChange.action === 'append' && appendableFields.has(field);
+    const afterValue = shouldAppend && String(normalizedValue).trim()
+      ? (String(beforeValue).trim() ? `${String(beforeValue).trim()}\n\n${normalizedValue}` : normalizedValue)
+      : normalizedValue;
     updatedPayload[field] = afterValue;
-    fieldsChanged[field] = {
-      before: beforeValue,
-      after: afterValue
-    };
+    fieldsChanged[field] = { before: beforeValue, after: afterValue };
   }
-  
+
+  if (Object.keys(fieldsChanged).length === 0) {
+    throw new Error('Nenhum ajuste valido foi proposto para o atendente.');
+  }
+
   await aiAgentService.updateAgent(agentKey, updatedPayload, companyId);
-  
   await agentLearningRepo.createEvolutionLog({
     agentKey,
     changeType,
     sourceDescription,
     fieldsChanged,
-    companyId
+    companyId,
   });
-  
   return updatedPayload;
 }
-
 async function learnFromAnswer(eventId, humanAnswer, store, companyId = 'default') {
   const result = await query(
     `SELECT * FROM agent_learning_events WHERE id = $1 LIMIT 1`,

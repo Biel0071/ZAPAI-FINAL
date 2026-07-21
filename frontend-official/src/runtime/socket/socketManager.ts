@@ -1,5 +1,6 @@
 import { io, type Socket } from "socket.io-client";
 import type { ChatMessage, Conversation } from "@/services/apiService";
+import type { AIResponseProgress } from "@/stores/appStore";
 import { markFrontendHealthy, reportFrontendIssue } from "@/runtime/services/frontendHealthService";
 import { loadAdminAuthSession } from "@/lib/adminAuthSession";
 
@@ -257,6 +258,7 @@ type SocketSubscriber = {
   onConversationSnapshot?: (payload: unknown) => void;
   onContactsLoaded?: (payload: unknown) => void;
   onAiResponse?: (payload: RealtimeMessage) => void;
+  onAiProgress?: (payload: AIResponseProgress) => void;
   onChatArchived?: (payload: { chatId?: string; conversationId?: string }) => void;
   onChatTagUpdated?: (payload: { chatId?: string; conversationId?: string; tag?: string; action?: "add" | "remove" }) => void;
   onQrGenerated?: (payload: { sessionId?: string; qr?: string; base64?: string }) => void;
@@ -729,6 +731,11 @@ function bindSharedSocketEvents() {
     notifySubscribers((subscriber) => subscriber.onContactsLoaded?.(payload));
   });
 
+  sharedSocket.on("ai:progress", (payload: AIResponseProgress) => {
+    if (!payload?.conversationId) return;
+    notifySubscribers((subscriber) => subscriber.onAiProgress?.(payload));
+  });
+
   sharedSocket.on("ai_response", (payload: RawRealtimeMessage | RawMessageEnvelope) => {
     const normalizedMessages = resolveRealtimeMessagePayload(payload);
     normalizedMessages.forEach((normalized) => {
@@ -1005,6 +1012,7 @@ export function connectInboxSocket(params: {
   onConversationSnapshot?: (payload: unknown) => void;
   onContactsLoaded?: (payload: unknown) => void;
   onAiResponse?: (payload: RealtimeMessage) => void;
+  onAiProgress?: (payload: AIResponseProgress) => void;
   onChatArchived?: (payload: { chatId?: string; conversationId?: string }) => void;
   onChatTagUpdated?: (payload: { chatId?: string; conversationId?: string; tag?: string; action?: "add" | "remove" }) => void;
   onQrGenerated?: (payload: { sessionId?: string; qr?: string; base64?: string }) => void;
@@ -1037,6 +1045,7 @@ export function connectInboxSocket(params: {
     onConversationSnapshot: params.onConversationSnapshot,
     onContactsLoaded: params.onContactsLoaded,
     onAiResponse: params.onAiResponse,
+    onAiProgress: params.onAiProgress,
     onChatArchived: params.onChatArchived,
     onChatTagUpdated: params.onChatTagUpdated,
     onQrGenerated: params.onQrGenerated,

@@ -28,6 +28,8 @@ function resolveSocketTenantId(socket) {
   const headers = handshake.headers || {};
 
   const candidate =
+    socket.data?.tenantId ||
+    socket.data?.companyId ||
     auth.tenantId ||
     auth.companyId ||
     query.tenantId ||

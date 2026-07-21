@@ -6,6 +6,7 @@ const sessionManager = require('./sessionManager');
 const whatsappService = require('./whatsappService');
 const { registerOutgoingMessage } = require('../controllers/messagesController');
 const { getAutomatedReplyPermission } = require('./aiReplyGuard');
+const { emitAIResponseProgress } = require('./aiResponseProgressService');
 
 const QUEUE_FILE_PATH = path.join(__dirname, '..', 'data', 'outbound_queue.json');
 
@@ -267,12 +268,42 @@ async function executeOutbound(item) {
   // Handle delay/typing simulator for any item in outbound queue (AI, flows, quick replies, campaigns)
   const responseDelayMs = Math.max(0, Number(item.metadata?.responseDelayMs || item.metadata?.delayMs) || 0);
   const typingDelayMs = Math.max(0, Number(item.metadata?.typingDelayMs || item.metadata?.typingMs) || 0);
+  const io = storeRef?.io || global.io;
+  const publishProgress = (status, details = {}) => {
+    if (item.metadata?.ai_response !== true) return null;
+    return emitAIResponseProgress(io, {
+      companyId: item.companyId,
+      conversationId: item.metadata?.conversationId,
+      phone: item.phone,
+      sessionId: item.sessionId,
+      agentName: item.metadata?.agentName,
+      startedAt: item.metadata?.progressStartedAt || item.createdAt,
+      status,
+      ...details,
+    });
+  };
+
+  const initialPermission = await getAutomatedReplyPermission(item);
+  if (!initialPermission.allowed) {
+    publishProgress('cancelled', { message: 'Resposta cancelada porque a IA foi desativada.' });
+    console.log(`[OUTBOUND_QUEUE] AI response cancelled before delay for ${item.phone}: ${initialPermission.reason}`);
+    return { cancelled: true, reason: initialPermission.reason };
+  }
+
+  publishProgress('waiting', {
+    estimatedMs: responseDelayMs + typingDelayMs,
+    message: 'Resposta pronta; aguardando o momento configurado para responder.',
+  });
 
   if (responseDelayMs > 0) {
     await new Promise((resolve) => setTimeout(resolve, responseDelayMs));
   }
 
   if (typingDelayMs > 0) {
+    publishProgress('typing', {
+      estimatedMs: typingDelayMs,
+      message: `${item.metadata?.agentName || 'IA'} esta digitando a resposta.`,
+    });
     const jid = String(item.phone).includes('@') ? item.phone : `${item.phone}@s.whatsapp.net`;
     const presenceType = item.mediaType === 'audio' ? 'recording' : 'composing';
     await sock.presenceSubscribe?.(jid).catch(() => {});
@@ -283,9 +314,12 @@ async function executeOutbound(item) {
 
   const aiPermission = await getAutomatedReplyPermission(item);
   if (!aiPermission.allowed) {
+    publishProgress('cancelled', { message: 'Resposta cancelada porque a IA foi desativada antes do envio.' });
     console.log(`[OUTBOUND_QUEUE] AI response cancelled before send for ${item.phone}: ${aiPermission.reason}`);
     return { cancelled: true, reason: aiPermission.reason };
   }
+
+  publishProgress('sending', { message: 'Enviando resposta para o WhatsApp.' });
 
   let sendResult;
   if (item.mediaType && item.mediaPath) {
@@ -486,6 +520,16 @@ async function processOneItem() {
           aiCompletionTokens: item.metadata.completionTokens,
           aiTotalTokens: item.metadata.totalTokens,
         });
+        emitAIResponseProgress(io, {
+          companyId: item.companyId,
+          conversationId: item.metadata?.conversationId || message.conversationId,
+          phone: item.phone,
+          sessionId: item.sessionId,
+          agentName: item.metadata?.agentName,
+          startedAt: item.metadata?.progressStartedAt || item.createdAt,
+          status: 'completed',
+          message: 'Resposta enviada com sucesso.',
+        });
       }
       item.state = STATES.SENT;
       item.sentAt = nowIso();
@@ -496,6 +540,18 @@ async function processOneItem() {
       item.attemptCount = Number(item.attemptCount || 0) + 1;
       const failure = sanitizeError(error);
       item.lastFailure = failure;
+      if (item.metadata?.ai_response === true) {
+        emitAIResponseProgress(storeRef?.io || global.io, {
+          companyId: item.companyId,
+          conversationId: item.metadata?.conversationId,
+          phone: item.phone,
+          sessionId: item.sessionId,
+          agentName: item.metadata?.agentName,
+          startedAt: item.metadata?.progressStartedAt || item.createdAt,
+          status: 'failed',
+          message: failure.message || 'Falha ao enviar a resposta da IA.',
+        });
+      }
       const currentHistory = item.failureHistory || [];
       const cappedHistory = currentHistory.length >= 50 ? currentHistory.slice(-49) : currentHistory;
       item.failureHistory = [...cappedHistory, failure];

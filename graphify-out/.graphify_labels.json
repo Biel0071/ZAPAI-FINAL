@@ -627,5 +627,7 @@
   "625": "setup.ts",
   "626": "tailwind.config.ts",
   "627": "vitest.config.ts",
-  "628": "sync-lovable.ps1"
+  "628": "sync-lovable.ps1",
+  "629": "@supabase/supabase-js",
+  "630": "tailwind-merge"
 }

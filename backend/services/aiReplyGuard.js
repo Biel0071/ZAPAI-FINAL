@@ -4,7 +4,7 @@ async function getAutomatedReplyPermission(item, dependencies = {}) {
   }
 
   const readGlobalToggle = dependencies.isAIEnabled || require('../config/aiToggle').isAIEnabled;
-  if (!readGlobalToggle()) {
+  if (!readGlobalToggle(item.companyId)) {
     return { allowed: false, reason: 'global_ai_off' };
   }
 

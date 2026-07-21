@@ -536,6 +536,7 @@ export default function Inbox() {
             backendOnline={state.backendOnline}
             isTyping={state.isTyping}
             suggestingResponse={state.suggestingResponse}
+            aiProgress={state.aiProgress}
             replyingTo={state.replyingTo}
             setReplyingTo={state.setReplyingTo}
             attachments={state.attachments}

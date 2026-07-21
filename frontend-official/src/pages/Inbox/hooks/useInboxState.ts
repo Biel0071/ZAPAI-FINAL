@@ -270,6 +270,10 @@ export function useInboxState() {
   const [activeReactionPickerMessageId, setActiveReactionPickerMessageId] = useState<string | null>(null);
   const [replyingTo, setReplyingTo] = useState<ChatMessage | null>(null);
   const typingByConversationId = useAppStore((state) => state.typingUsers);
+  const aiProgress = useAppStore((state) => {
+    const resolvedId = resolveStoreConversationId(state.conversations, selectedConversationId || "");
+    return resolvedId ? state.aiProgressByConversationId[resolvedId] ?? null : null;
+  });
   const [unseenRealtimeCount, setUnseenRealtimeCount] = useState(0);
   const [conversationControls, setConversationControls] = useState<Record<string, ConversationControl>>({});
   const [updatingAiToggle, setUpdatingAiToggle] = useState(false);
@@ -1551,13 +1555,14 @@ export function useInboxState() {
 
     if (previousTailKey === tailKey) return;
 
-    if (autoScrollRef.current || lastMessage?.fromMe) {
-      const behavior: ScrollBehavior = lastMessage?.fromMe ? "auto" : "smooth";
-      scheduleScrollToBottom(behavior);
-    } else {
-      setUnseenRealtimeCount((prev) => prev + 1);
-    }
+    const behavior: ScrollBehavior = lastMessage?.fromMe ? "auto" : "smooth";
+    scheduleScrollToBottom(behavior);
   }, [messages, selectedConversation?.id, scheduleScrollToBottom]);
+
+  useEffect(() => {
+    if (!selectedConversation?.id || !aiProgress) return;
+    scheduleScrollToBottom("smooth");
+  }, [aiProgress?.status, aiProgress?.updatedAt, scheduleScrollToBottom, selectedConversation?.id]);
 
   // Automatic synchronization logic
   useEffect(() => {
@@ -3188,6 +3193,7 @@ export function useInboxState() {
     messages,
     leadByConversationId,
     typingByConversationId,
+    aiProgress,
     setConversations,
     setSelectedConversationId,
     setMessagesForConversation,

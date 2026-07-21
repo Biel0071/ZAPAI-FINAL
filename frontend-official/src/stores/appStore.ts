@@ -259,6 +259,21 @@ export type SessionStatus =
   | "error"
   | "unknown";
 
+export type AIResponseProgress = {
+  companyId?: string;
+  conversationId: string;
+  phone?: string | null;
+  sessionId?: string | null;
+  agentName?: string | null;
+  status: "analyzing" | "generating" | "queued" | "waiting" | "typing" | "sending" | "completed" | "cancelled" | "disabled" | "failed" | "no_agent";
+  stage?: string;
+  message?: string;
+  startedAt: string;
+  estimatedMs?: number;
+  estimatedCompletionAt?: string | null;
+  updatedAt?: string;
+};
+
 export type SessionItem = {
   id: string;
   name: string;
@@ -286,6 +301,7 @@ type AppState = {
   unreadCounters: Record<string, number>;
   reconnectState: { attempts: number; lastAttemptAt: number | null };
   typingUsers: Record<string, boolean | "composing" | "recording">;
+  aiProgressByConversationId: Record<string, AIResponseProgress>;
   activeSessionId: string | null;
   isNewChatDialogOpen: boolean;
 
@@ -315,6 +331,8 @@ type AppState = {
   updateConversationRealtime: (conv: Partial<Conversation> & { id: string }) => void;
   updateReconnectState: (updater: (prev: AppState["reconnectState"]) => AppState["reconnectState"]) => void;
   updateTypingStatus: (conversationId: string, isTyping: boolean | "composing" | "recording") => void;
+  updateAIResponseProgress: (conversationId: string, progress: AIResponseProgress) => void;
+  clearAIResponseProgress: (conversationId: string) => void;
 };
 
 export const useAppStore = create<AppState>((set) => ({
@@ -333,6 +351,7 @@ export const useAppStore = create<AppState>((set) => ({
   unreadCounters: {},
   reconnectState: { attempts: 0, lastAttemptAt: null },
   typingUsers: {},
+  aiProgressByConversationId: {},
   activeSessionId: (() => {
     try {
       return localStorage.getItem("zapai_inbox_active_session") || null;
@@ -499,6 +518,7 @@ export const useAppStore = create<AppState>((set) => ({
       unreadCounters: {},
       reconnectState: { attempts: 0, lastAttemptAt: null },
       typingUsers: {},
+      aiProgressByConversationId: {},
     }),
 
   updateRuntimeStatus: (runtimeStatus) => set({ runtimeStatus }),
@@ -659,4 +679,23 @@ export const useAppStore = create<AppState>((set) => ({
         [conversationId]: isTyping,
       },
     })),
+
+  updateAIResponseProgress: (conversationId, progress) =>
+    set((state) => {
+      const resolvedId = resolveStoreConversationId(state.conversations, conversationId);
+      return {
+        aiProgressByConversationId: {
+          ...state.aiProgressByConversationId,
+          [resolvedId]: { ...progress, conversationId: resolvedId },
+        },
+      };
+    }),
+
+  clearAIResponseProgress: (conversationId) =>
+    set((state) => {
+      const resolvedId = resolveStoreConversationId(state.conversations, conversationId);
+      const next = { ...state.aiProgressByConversationId };
+      delete next[resolvedId];
+      return { aiProgressByConversationId: next };
+    }),
 }));
