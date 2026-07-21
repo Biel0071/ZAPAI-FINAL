@@ -2,6 +2,8 @@ const { selectRandomActiveAgent } = require('../engine/agentSelector');
 const { getDelayMs } = require('../engine/delayEngine');
 const { buildPersonalityPrompt } = require('../engine/personalityEngine');
 const systemSettingsRepository = require('../../repositories/systemSettingsRepository');
+const path = require('path');
+const fs = require('fs');
 
 const DEFAULT_TENANT_ID = String(process.env.DEFAULT_COMPANY_ID || 'default').trim() || 'default';
 const SETTINGS_PREFIX = 'ai_agents_config_v2';
@@ -137,11 +139,52 @@ async function hydrateFromSettings(tenantId = DEFAULT_TENANT_ID) {
 
   try {
     const row = await systemSettingsRepository.getSetting(settingsKey(normalizedTenantId));
-    const parsed = row?.value ? JSON.parse(row.value) : [];
-    agentsByTenant.set(
-      normalizedTenantId,
-      Array.isArray(parsed) ? parsed.map((agent) => normalizeAgent(agent)) : [],
-    );
+    let parsed = [];
+    let shouldPersist = false;
+
+    if (row?.value) {
+      parsed = JSON.parse(row.value);
+    } else {
+      // Fallback 1: try to load v1 config
+      const v1Key = `ai_agents_config_v1:${normalizedTenantId}`;
+      const v1Row = await systemSettingsRepository.getSetting(v1Key);
+      if (v1Row?.value) {
+        console.log(`[AI AGENT SERVICE] Found v1 agents config. Migrating to v2 for tenant: ${normalizedTenantId}`);
+        parsed = JSON.parse(v1Row.value);
+        shouldPersist = true;
+      } else {
+        // Fallback 2: seed from filesystem agents/ folder if database has no configuration
+        console.log(`[AI AGENT SERVICE] No database agents config found. Seeding default agents from disk for tenant: ${normalizedTenantId}`);
+        const defaultAgents = [];
+        const agentsDir = path.join(__dirname, '..', 'agents');
+        try {
+          if (fs.existsSync(agentsDir)) {
+            const files = fs.readdirSync(agentsDir).filter(f => f.endsWith('.js'));
+            for (const file of files) {
+              const filePath = path.join(agentsDir, file);
+              // Clean node cache to load fresh file contents
+              delete require.cache[require.resolve(filePath)];
+              const agentObj = require(filePath);
+              if (agentObj && agentObj.name) {
+                defaultAgents.push(agentObj);
+              }
+            }
+          }
+        } catch (fsErr) {
+          console.error('[AI AGENT SERVICE] Failed to read default agents from disk:', fsErr.message);
+        }
+        
+        parsed = defaultAgents;
+        shouldPersist = true;
+      }
+    }
+
+    const normalizedAgents = Array.isArray(parsed) ? parsed.map((agent) => normalizeAgent(agent)) : [];
+    agentsByTenant.set(normalizedTenantId, normalizedAgents);
+    
+    if (shouldPersist && normalizedAgents.length > 0) {
+      await persistAgents(normalizedTenantId);
+    }
   } catch (error) {
     agentsByTenant.set(normalizedTenantId, []);
     console.warn(`[AI AGENT SERVICE][tenant=${normalizedTenantId}] failed to hydrate agents:`, error.message || error);

@@ -457,6 +457,9 @@ async function runAIForChat({ chatId, incomingFormattedMessage, session, sock })
   }
 
   const contact = resolveContactForChat(store, chatId);
+  // Ensure the agents list cache is hydrated
+  const aiAgentService = require('../../../ai-agents/services/aiAgentService');
+  await aiAgentService.listAgents(tenantId).catch(() => {});
   const agent = getAgentByName(chat.assignedTo, tenantId) || pickRandomAgent(tenantId);
 
   // Log AI_TRIGGERED step

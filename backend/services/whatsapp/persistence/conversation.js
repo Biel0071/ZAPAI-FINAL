@@ -139,6 +139,9 @@ async function maybeGenerateAiSummary(_store, _messageHistory, fallbackSummary) 
 async function persistConversationMessage(store, payload) {
   const companyId = getCompanyId(payload.companyId);
   const sessionId = payload.sessionId || DEFAULT_SESSION;
+  // Ensure the agents list cache is hydrated
+  const aiAgentService = require('../../../ai-agents/services/aiAgentService');
+  await aiAgentService.listAgents(companyId).catch(() => {});
   const assignedAgent = pickRandomAgent(companyId);
   let taskPayload = await runTask('createLead', {
     companyId,
@@ -273,6 +276,10 @@ async function persistConversationMessage(store, payload) {
     store,
     updatedConversation,
   });
+
+  // Ensure the agents list cache is hydrated
+  const aiAgentService = require('../../../ai-agents/services/aiAgentService');
+  await aiAgentService.listAgents(companyId).catch(() => {});
 
   return {
     agent: getAgentByName(updatedConversation.agent_name, companyId),
