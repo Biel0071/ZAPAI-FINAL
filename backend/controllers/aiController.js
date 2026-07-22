@@ -987,17 +987,39 @@ async function getAgentEvolution(req, res) {
     const pendingCount = Number(stats.pending || 0);
     const answeredInteractions = Number(graphSnapshot.stats?.episodes || 0);
     const learnedConcepts = Number(graphSnapshot.stats?.concepts || 0);
-    const answerGoal = 100;
-    const answerPoints = Math.round(Math.min(answeredInteractions / answerGoal, 1) * 55);
+
+    let level = 'Nível 1 (Iniciante)';
+    let currentGoalProgress = answeredInteractions;
+    let targetGoal = 10;
+
+    if (answeredInteractions >= 340) {
+      level = 'Nível 5 (Mestre IA)';
+      currentGoalProgress = answeredInteractions - 340;
+      targetGoal = 500;
+    } else if (answeredInteractions >= 140) {
+      level = 'Nível 4 (Especialista)';
+      currentGoalProgress = answeredInteractions - 140;
+      targetGoal = 200;
+    } else if (answeredInteractions >= 40) {
+      level = 'Nível 3 (Avançado)';
+      currentGoalProgress = answeredInteractions - 40;
+      targetGoal = 100;
+    } else if (answeredInteractions >= 10) {
+      level = 'Nível 2 (Intermediário)';
+      currentGoalProgress = answeredInteractions - 10;
+      targetGoal = 30;
+    } else {
+      level = 'Nível 1 (Iniciante)';
+      currentGoalProgress = answeredInteractions;
+      targetGoal = 10;
+    }
+
+    const answerPoints = Math.round(Math.min(currentGoalProgress / Math.max(1, targetGoal), 1) * 60);
     const refinementPoints = Math.round(Math.min((history.length + appliedCount) / 20, 1) * 25);
-    const coveragePoints = Math.round(Math.min((fieldCounts.size + learnedConcepts) / 25, 1) * 15);
+    const coveragePoints = Math.round(Math.min((fieldCounts.size + learnedConcepts) / 20, 1) * 15);
     const hasLearningActivity = answeredInteractions > 0 || appliedCount > 0 || history.length > 0;
     const queuePoints = hasLearningActivity ? (pendingCount === 0 ? 5 : Math.max(0, 5 - pendingCount)) : 0;
-    const score = Math.min(100, answerPoints + refinementPoints + coveragePoints + queuePoints);
-    const level = score >= 85 ? 'Especialista'
-      : score >= 65 ? 'Avan\u00e7ado'
-        : score >= 40 ? 'Em evolu\u00e7\u00e3o'
-          : score >= 15 ? 'Aprendiz' : 'Iniciante';
+    const score = Math.min(100, Math.max(10, answerPoints + refinementPoints + coveragePoints + queuePoints));
 
     const rootId = `agent:${key}`;
     const nodes = [{ id: rootId, type: 'agent', label: key, weight: Math.max(1, history.length) }];
@@ -1039,9 +1061,9 @@ async function getAgentEvolution(req, res) {
         score,
         level,
         goal: {
-          current: answeredInteractions,
-          target: answerGoal,
-          percentage: Math.min(100, Math.round((answeredInteractions / answerGoal) * 100)),
+          current: currentGoalProgress,
+          target: targetGoal,
+          percentage: Math.min(100, Math.round((currentGoalProgress / Math.max(1, targetGoal)) * 100)),
         },
         components: { answers: answerPoints, refinements: refinementPoints, coverage: coveragePoints, queue: queuePoints },
       },

@@ -109,7 +109,7 @@ async function bootstrapAgentMemoryGraph({ agentKey, agentName, companyId = 'def
   bootstrappedScopes.add(scope);
 }
 
-async function learnFromInteraction({ agentKey, companyId = 'default', contact = {}, message, reply }) {
+async function learnFromInteraction({ agentKey, companyId = 'default', contact = {}, message, reply, mediaUrl, mediaType }) {
   const normalizedAgent = normalizeKey(agentKey, 'agent');
   const phone = safe(contact.phone);
   const contactKey = `contact:${normalizeKey(phone || contact.name, hash(phone || contact.name))}`;
@@ -123,6 +123,20 @@ async function learnFromInteraction({ agentKey, companyId = 'default', contact =
     [conversationKey, 'conversation', safe(contact.name || phone || 'Conversa'), '', `${contact.name || ''} ${phone}`, { conversationId: safe(contact.conversationId), contactPhone: phone, contactKey }],
     [episodeKey, 'episode', safe(message).slice(0, 160), `Cliente: ${safe(message)}\nAtendente: ${safe(reply)}`, `${message} ${reply}`, { conversationId: safe(contact.conversationId), contactPhone: phone, contactName: safe(contact.name), contactKey, conversationKey }],
   ];
+
+  if (mediaUrl) {
+    for (const concept of concepts) {
+      const mediaNodeKey = `product_media:${concept}`;
+      nodes.push([
+        mediaNodeKey,
+        'product_media',
+        `Mídia: ${concept}`,
+        `[MÍDIA DE PRODUTO] Conceito: ${concept} | URL: ${mediaUrl} | Descrição: ${safe(reply || message).slice(0, 200)}`,
+        `${concept} foto imagem produto ${safe(message)}`,
+        { concept, mediaUrl, mediaType: mediaType || 'image', description: safe(reply || message) }
+      ]);
+    }
+  }
 
   for (const [nodeKey, nodeType, label, content, searchable, properties] of nodes) {
     await query(`
@@ -150,6 +164,9 @@ async function learnFromInteraction({ agentKey, companyId = 'default', contact =
     [conversationKey, episodeKey, 'teve_interacao'],
     ...concepts.map((concept) => [episodeKey, `concept:${concept}`, 'menciona']),
   ];
+  if (mediaUrl) {
+    concepts.forEach((concept) => edges.push([episodeKey, `product_media:${concept}`, 'contem_midia']));
+  }
   await query(`
     INSERT INTO agent_memory_edges (company_id, agent_key, source_key, target_key, relation, weight, last_seen_at)
     SELECT $1, $2, source_key, target_key, relation, 1, $6

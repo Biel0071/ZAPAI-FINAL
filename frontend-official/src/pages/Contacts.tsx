@@ -392,11 +392,14 @@ export default function Contacts() {
     (contact: ContactRow | ContactGridItem) => {
       const normalizedPhone = normalizePhone(contact.phone);
       const sessionId = "sessionId" in contact ? contact.sessionId : undefined;
+      const convId = (contact as any).conversationId || contact.id;
       if (normalizedPhone) {
         const normalizedSessionId = String(sessionId ?? "default").trim() || "default";
         window.localStorage.setItem("zapai_inbox_last_chat_scope", `${normalizedSessionId}:${normalizedPhone}`);
+        navigate(`/inbox?phone=${encodeURIComponent(normalizedPhone)}&chatId=${encodeURIComponent(normalizedPhone)}&conversationId=${encodeURIComponent(convId)}`);
+      } else {
+        navigate("/inbox");
       }
-      navigate("/inbox");
     },
     [navigate],
   );
@@ -478,8 +481,8 @@ export default function Contacts() {
         onSegmentChange={handleSegmentChange}
         onRefresh={() => void loadContacts()}
         onGoToChat={(item) => {
-          const source = filteredContacts.find((contact) => contact.id === item.id);
-          if (source) goToChat(source);
+          const source = filteredContacts.find((contact) => String(contact.id) === String(item.id) || contact.phone === item.phone) || item;
+          goToChat(source as any);
         }}
         onEditContact={openEditModal}
         selectedIds={selectedIds}

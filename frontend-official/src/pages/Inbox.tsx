@@ -325,45 +325,59 @@ export default function Inbox() {
     };
   }, [state.aiMemory, state.selectedConversation, state.messages]);
 
-  const imageMessages = useMemo(() => {
+  const mediaMessages = useMemo(() => {
     return state.messages.filter((msg) => {
-      const url = msg.mediaUrl || msg.url;
-      return url && (msg.mediaType === "image" || msg.mediaType === "sticker");
+      const rawUrl = extractMessageAssetUrl(msg);
+      return Boolean(rawUrl || msg.mediaUrl || msg.mediaPath || msg.url);
     });
   }, [state.messages]);
 
-  const currentImageIndex = useMemo(() => {
+  const currentMediaIndex = useMemo(() => {
     if (!state.previewMedia) return -1;
-    return imageMessages.findIndex((msg) => (msg.mediaUrl || msg.url) === state.previewMedia?.url);
-  }, [imageMessages, state.previewMedia]);
+    return mediaMessages.findIndex((msg) => {
+      if (state.previewMedia?.messageId && msg.id === state.previewMedia.messageId) return true;
+      const url = resolveMediaUrl(extractMessageAssetUrl(msg));
+      return url === state.previewMedia?.url;
+    });
+  }, [mediaMessages, state.previewMedia]);
 
-  const showPreviousImage = useCallback((event?: React.MouseEvent) => {
+  const showPreviousMedia = useCallback((event?: React.MouseEvent) => {
     event?.stopPropagation();
-    if (currentImageIndex > 0) {
-      const prevMsg = imageMessages[currentImageIndex - 1];
-      state.setPreviewMedia({
-        url: prevMsg.mediaUrl || prevMsg.url || "",
-        type: prevMsg.mediaType as any,
-        fileName: prevMsg.fileName || "Mídia",
-        messageId: prevMsg.id,
-      });
-      state.setPreviewZoom(1);
+    if (currentMediaIndex > 0) {
+      const prevMsg = mediaMessages[currentMediaIndex - 1];
+      const rawUrl = extractMessageAssetUrl(prevMsg);
+      const mediaUrl = resolveMediaUrl(rawUrl);
+      const mediaType = (prevMsg as any).mediaType || (prevMsg as any).messageType || (prevMsg as any).type || "file";
+      if (mediaUrl) {
+        state.setPreviewZoom(1);
+        state.setPreviewMedia({
+          url: mediaUrl,
+          type: mediaType as any,
+          fileName: getMediaFileName(prevMsg),
+          messageId: prevMsg.id,
+        });
+      }
     }
-  }, [imageMessages, currentImageIndex, state.setPreviewMedia, state.setPreviewZoom]);
+  }, [mediaMessages, currentMediaIndex, state.setPreviewMedia, state.setPreviewZoom]);
 
-  const showNextImage = useCallback((event?: React.MouseEvent) => {
+  const showNextMedia = useCallback((event?: React.MouseEvent) => {
     event?.stopPropagation();
-    if (currentImageIndex < imageMessages.length - 1 && currentImageIndex !== -1) {
-      const nextMsg = imageMessages[currentImageIndex + 1];
-      state.setPreviewMedia({
-        url: nextMsg.mediaUrl || nextMsg.url || "",
-        type: nextMsg.mediaType as any,
-        fileName: nextMsg.fileName || "Mídia",
-        messageId: nextMsg.id,
-      });
-      state.setPreviewZoom(1);
+    if (currentMediaIndex < mediaMessages.length - 1 && currentMediaIndex !== -1) {
+      const nextMsg = mediaMessages[currentMediaIndex + 1];
+      const rawUrl = extractMessageAssetUrl(nextMsg);
+      const mediaUrl = resolveMediaUrl(rawUrl);
+      const mediaType = (nextMsg as any).mediaType || (nextMsg as any).messageType || (nextMsg as any).type || "file";
+      if (mediaUrl) {
+        state.setPreviewZoom(1);
+        state.setPreviewMedia({
+          url: mediaUrl,
+          type: mediaType as any,
+          fileName: getMediaFileName(nextMsg),
+          messageId: nextMsg.id,
+        });
+      }
     }
-  }, [imageMessages, currentImageIndex, state.setPreviewMedia, state.setPreviewZoom]);
+  }, [mediaMessages, currentMediaIndex, state.setPreviewMedia, state.setPreviewZoom]);
 
   useEffect(() => {
     if (!state.previewMedia) return;
@@ -698,13 +712,13 @@ export default function Inbox() {
                     </div>
                   </div>
                   <div className="relative flex flex-1 items-center justify-center p-6" onClick={() => state.setPreviewMedia(null)}>
-                    {currentImageIndex > 0 && (
+                    {currentMediaIndex > 0 && (
                       <button
                         type="button"
                         className="absolute left-6 top-1/2 -translate-y-1/2 z-50 flex h-14 w-14 items-center justify-center rounded-full bg-white/10 hover:bg-white/20 active:bg-white/30 text-white transition-all border border-white/20 backdrop-blur-sm shadow-lg hover:scale-105"
                         onClick={(e) => {
                           e.stopPropagation();
-                          showPreviousImage(e);
+                          showPreviousMedia(e);
                         }}
                       >
                         <CaretLeft size={32} weight="bold" />
@@ -746,7 +760,7 @@ export default function Inbox() {
                     )}
                     {state.previewMedia?.type === "file" && (
                       <div className="w-full max-w-xl rounded-xl border border-white/10 bg-white/5 p-6 text-white" onClick={(event) => event.stopPropagation()}>
-                        <p className="mb-2 text-sm font-semibold">{state.previewMedia.fileName || "Documento"}</p>
+                        <p className="mb-2 text-sm font-semibold">{state.previewMedia.fileName || "Documento / Arquivo"}</p>
                         <p className="mb-4 text-xs text-white/60">Use abrir ou download para visualizar o documento completo.</p>
                         <Button type="button" variant="outline" className="border-white/20 bg-white/5 text-white hover:bg-white/10" onClick={() => window.open(state.previewMedia.url, "_blank", "noopener,noreferrer")}>
                           Abrir documento
@@ -754,13 +768,13 @@ export default function Inbox() {
                       </div>
                     )}
 
-                    {currentImageIndex < imageMessages.length - 1 && currentImageIndex !== -1 && (
+                    {currentMediaIndex < mediaMessages.length - 1 && currentMediaIndex !== -1 && (
                       <button
                         type="button"
                         className="absolute right-6 top-1/2 -translate-y-1/2 z-50 flex h-14 w-14 items-center justify-center rounded-full bg-white/10 hover:bg-white/20 active:bg-white/30 text-white transition-all border border-white/20 backdrop-blur-sm shadow-lg hover:scale-105"
                         onClick={(e) => {
                           e.stopPropagation();
-                          showNextImage(e);
+                          showNextMedia(e);
                         }}
                       >
                         <CaretRight size={32} weight="bold" />
