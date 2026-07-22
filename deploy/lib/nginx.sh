@@ -21,8 +21,8 @@ NGINX_EOF
   cat >> "$dest" << NGINX_EOF
 
 server {
-    listen 80;
-    server_name ${domain:-_};
+    listen 80 default_server;
+    server_name ${domain:-_} _;
 
     client_max_body_size 50m;
     gzip on;
@@ -496,8 +496,9 @@ except Exception as e:
             log "Diretório de vhost Docker mapeado no host: $mapped_dir"
             
             if [ -f "$source_conf" ] && [ -d "$mapped_dir" ]; then
+              cp -f "$source_conf" "$mapped_dir/00_zapai.conf" 2>/dev/null
               cp -f "$source_conf" "$mapped_dir/zapai.conf" 2>/dev/null
-              log "Configuração copiada para o volume Docker do host em $mapped_dir"
+              log "Configuração copiada para o volume Docker do host em $mapped_dir (00_zapai.conf & zapai.conf)"
               docker_healed=true
             fi
           fi
@@ -505,6 +506,10 @@ except Exception as e:
       done
       
       if $docker_healed; then
+        # Desativar vhosts padrão do container que sobresscrevem a porta 80
+        docker exec "$proxy_container" rm -f /etc/nginx/conf.d/default.conf 2>/dev/null || true
+        docker exec "$proxy_container" rm -f /usr/local/openresty/nginx/conf/conf.d/default.conf 2>/dev/null || true
+
         # Recarregar o Nginx/OpenResty dentro do container
         log "Recarregando Nginx/OpenResty dentro do container $container_name..."
         if docker exec "$proxy_container" nginx -t >/dev/null 2>&1; then
