@@ -1541,7 +1541,7 @@ async function createStableSession({
         let dbId = existingAck?.dbMessageId;
 
         if (!existingAck || !dbId) {
-          // If not in memory mapping (e.g. sent from another device), save to DB
+          // If not in memory mapping (e.g. sent manually from phone app), save to DB and pause AI
           try {
             result = await persistRealtimeMessage({
               incomingMessage,
@@ -1551,8 +1551,19 @@ async function createStableSession({
               dbId = result.message.id;
               messageAckPipeline.registerDbMapping(messageId, dbId);
             }
+            const normalizedChatId = normalizePhone(remoteJid);
+            const targetConvId = result?.conversation?.id || result?.message?.conversationId || normalizedChatId;
+            const humanTimeoutMs = Number(process.env.HUMAN_TAKEOVER_TIMEOUT_MS || 300000);
+            conversationRuntimeService.pauseAiForChat(store, targetConvId, humanTimeoutMs);
+            if (result?.conversation?.id) {
+              await conversationRepository.updateConversationState(result.conversation.id, {
+                aiEnabled: false,
+                ai_paused_until: new Date(Date.now() + humanTimeoutMs).toISOString(),
+              }).catch(() => {});
+            }
+            console.log(`[WHATSAPP] Manual phone message detected for ${normalizedChatId}. Human takeover activated for ${humanTimeoutMs}ms.`);
           } catch (error) {
-            console.error('[WHATSAPP] outbound realtime persistence failed:', error?.message || error);
+            console.error('[WHATSAPP] outbound realtime persistence/takeover failed:', error?.message || error);
           }
         } else {
           // If it IS in the memory mapping (sent from our API), result is null.

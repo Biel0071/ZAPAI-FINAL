@@ -169,7 +169,15 @@ async function processMessage({ payload, conversation, store, sock, sessionId })
       }
     } catch {}
 
-    console.log(`[AutomationEngine] Business is closed. Enqueueing absence message.`);
+    console.log(`[AutomationEngine] Business is closed. Enqueueing absence message & adding lead to opening reactivation queue.`);
+    const reactivationService = require('./reactivationService');
+    await reactivationService.enqueueOutofHoursContact({
+      phone,
+      text: incomingText,
+      companyId,
+      sessionId,
+    });
+
     await outboundQueueService.enqueue({
       companyId,
       phone,

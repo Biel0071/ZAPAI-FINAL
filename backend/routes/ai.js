@@ -55,6 +55,8 @@ router.post('/ai/run-tests', aiController.runAITests);
 router.post('/ai/log-error', aiController.logFrontendError);
 router.get('/ai/error-logs', aiController.getFrontendErrorLogs);
 router.post('/ai/voices/test', aiController.testVoice);
+router.post('/ai/analyze-media', aiController.analyzeUploadedMedia);
+router.post('/ai/generate-followup-prompt', aiController.generateFollowUpPrompt);
 
 // Conversation analysis endpoint used by frontend lead panel
 router.post('/ai/analyze-conversation', async (req, res) => {

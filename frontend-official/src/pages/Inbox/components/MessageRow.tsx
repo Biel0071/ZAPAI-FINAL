@@ -14,6 +14,7 @@ import {
   VideoCamera,
   Check,
   Warning,
+  Robot,
 } from "@phosphor-icons/react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -479,7 +480,16 @@ export const MessageRow = memo(function MessageRow({
             </p>
           )}
 
-          <div className={cn("mt-1 flex items-center gap-1 text-[10px]", message.fromMe ? "justify-end text-primary-foreground/70" : "text-muted-foreground")}>
+          <div className={cn("mt-1 flex items-center gap-1.5 text-[10px]", message.fromMe ? "justify-end text-primary-foreground/70" : "text-muted-foreground")}>
+            {Boolean(message.isAi || (message as any).source === 'ai' || (message as any).generatedByAi || (message as any).agentName) && (
+              <span
+                className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 font-semibold text-[9px] border border-emerald-500/40 shrink-0 shadow-sm"
+                title={`Mensagem gerada por IA${(message as any).agentName ? ` (${(message as any).agentName})` : ''}`}
+              >
+                <Robot className="h-3 w-3 text-emerald-400 animate-pulse" weight="fill" />
+                <span>IA</span>
+              </span>
+            )}
             <span>{formatTime(message.createdAt)}</span>
             {message.fromMe && (
               <span className="flex items-center shrink-0 ml-0.5" aria-label={statusMeta.label} title={statusMeta.label}>

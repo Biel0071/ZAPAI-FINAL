@@ -930,6 +930,119 @@ export function AIView(props: AIViewProps) {
   const [agentFormFaq, setAgentFormFaq] = useState("");
   const [agentFormPolicies, setAgentFormPolicies] = useState("");
 
+  // Follow-Up States (matching Images 3 & 4)
+  const [followUpActive, setFollowUpActive] = useState(true);
+  const [followUpAiGenerated, setFollowUpAiGenerated] = useState(true);
+  const [followUpRespectBusinessHours, setFollowUpRespectBusinessHours] = useState(true);
+  const [followUpCount, setFollowUpCount] = useState(3);
+  const [followUpCheckMin, setFollowUpCheckMin] = useState(300);
+  const [followUpIntervalHours, setFollowUpIntervalHours] = useState(8);
+  const [followUpPrompt, setFollowUpPrompt] = useState(
+    `Você é um assistente especializado em criar mensagens de follow-up personalizadas para conversas de WhatsApp, com foco em conversão de vendas para ${agentFormCompany || "a empresa"}.\n\nSua função é analisar a conversa fornecida e gerar 3 mensagens de follow-up sequenciais, amigáveis e estratégicas.`
+  );
+  const [isFollowUpModalOpen, setIsFollowUpModalOpen] = useState(false);
+  const [generatingFollowUpPrompt, setGeneratingFollowUpPrompt] = useState(false);
+
+  // Mídia com IA States (matching Image 5)
+  const [mediaAiEnabled, setMediaAiEnabled] = useState(true);
+  const [registeredMediaList, setRegisteredMediaList] = useState<Array<{
+    id: string;
+    fileName: string;
+    fileType: string;
+    fileSize: string;
+    descricaoIa: string;
+    descricaoHumana: string;
+    url?: string;
+  }>>([
+    {
+      id: "1",
+      fileName: "Tabela_Precos_Materiais.pdf",
+      fileType: "PDF",
+      fileSize: "1.8 MB",
+      descricaoIa: "Enviar quando o cliente solicitar a tabela completa de preços ou orçamentos em PDF.",
+      descricaoHumana: "Tabela de preços atualizada com descontos à vista."
+    }
+  ]);
+  const [analyzingMedia, setAnalyzingMedia] = useState(false);
+
+  const handleGenerateFollowUpPromptByAI = async () => {
+    setGeneratingFollowUpPrompt(true);
+    try {
+      const res = await apiService.generateFollowUpPrompt({
+        agentName: agentFormName,
+        sector: agentFormSector,
+        objective: agentFormObjective,
+        company: agentFormCompany,
+        products: agentFormProducts,
+      });
+
+      if (res && res.success && res.prompt) {
+        setFollowUpPrompt(res.prompt);
+        toast({
+          title: "Prompt Gerado com Sucesso!",
+          description: "O prompt de follow-up foi gerado e personalizado para este atendente.",
+        });
+      } else {
+        throw new Error(res?.error || "Falha ao gerar prompt de follow-up.");
+      }
+    } catch (err: any) {
+      toast({
+        title: "Erro ao Gerar Follow-Up",
+        description: err.message || "Erro ao conectar com o serviço de IA.",
+        variant: "destructive",
+      });
+    } finally {
+      setGeneratingFollowUpPrompt(false);
+    }
+  };
+
+  const handleFileUploadMediaAI = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+    const file = files[0];
+    setAnalyzingMedia(true);
+
+    toast({
+      title: "Analisando Mídia com IA...",
+      description: `A IA está inspecionando "${file.name}" para extrair detalhes e criar descrições.`,
+    });
+
+    try {
+      const res = await apiService.analyzeMediaWithAI({
+        fileName: file.name,
+        fileType: file.type || file.name.split(".").pop(),
+        agentName: agentFormName,
+        companyDesc: agentFormCompanyDesc,
+      });
+
+      const newMedia = {
+        id: String(Date.now()),
+        fileName: file.name,
+        fileType: (file.name.split(".").pop() || "ARQUIVO").toUpperCase(),
+        fileSize: `${(file.size / (1024 * 1024)).toFixed(1)} MB`,
+        descricaoIa: res?.descricao_ia || `Enviar quando o cliente pedir informações sobre ${file.name}.`,
+        descricaoHumana: res?.descricao_humana || `Arquivo ${file.name} cadastrado para envio.`,
+        url: URL.createObjectURL(file),
+      };
+
+      setRegisteredMediaList((prev) => [newMedia, ...prev]);
+
+      toast({
+        title: "Mídia Cadastrada!",
+        description: "A IA analisou o arquivo e cadastrou as regras de envio automático.",
+      });
+    } catch (err: any) {
+      toast({
+        title: "Erro ao Analisar Mídia",
+        description: err.message || "Falha na análise da mídia por IA.",
+        variant: "destructive",
+      });
+    } finally {
+      setAnalyzingMedia(false);
+      e.target.value = "";
+    }
+  };
+
   // Escalation configurations
   const [agentFormEscalationPhone, setAgentFormEscalationPhone] = useState("");
   const [agentFormEscalationWhatsapp, setAgentFormEscalationWhatsapp] = useState("");
@@ -1555,18 +1668,34 @@ export function AIView(props: AIViewProps) {
         />
       </div>
       <div className="space-y-1.5 pt-2">
-        <Label className="text-[11px] font-bold">Temperatura (Criatividade): {agentFormTemp}</Label>
+        <div className="flex items-center justify-between">
+          <Label className="text-[11px] font-bold flex items-center gap-1.5">
+            <span>Temperatura (Criatividade): {Number(agentFormTemp).toFixed(2)}</span>
+          </Label>
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button type="button" className="text-muted-foreground hover:text-foreground">
+                  <Info className="h-3.5 w-3.5 text-primary" />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent side="top" className="max-w-xs text-xs bg-card border-border p-2">
+                Define a variação e criatividade das respostas da IA. Valores mais baixos (0.00 a 0.30) tornam as respostas mais conservadoras e diretas. Valores mais altos (0.70 a 1.00) tornam a fala mais criativa e expressiva.
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        </div>
         <Slider
           id="agent-temp"
           value={[agentFormTemp]}
           onValueChange={(val) => setAgentFormTemp(val[0])}
           min={0}
           max={1}
-          step={0.1}
+          step={0.05}
         />
         <div className="flex justify-between text-[9px] text-muted-foreground">
-          <span>Mais Conservador</span>
-          <span>Mais Criativo</span>
+          <span>Mais Conservador (0.00)</span>
+          <span>Mais Criativo (1.00)</span>
         </div>
       </div>
 
@@ -1807,7 +1936,21 @@ export function AIView(props: AIViewProps) {
       {agentFormVoiceEnabled && (
         <div className="space-y-3 pt-2 animate-fade-in">
           <div className="space-y-1">
-            <Label htmlFor="voice-provider" className="text-[10px] font-bold">Provedor de Voz</Label>
+            <div className="flex items-center justify-between">
+              <Label htmlFor="voice-provider" className="text-[10px] font-bold">Provedor de Voz (TTS)</Label>
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <button type="button" className="text-muted-foreground hover:text-foreground">
+                      <Info className="h-3 w-3 text-primary" />
+                    </button>
+                  </TooltipTrigger>
+                  <TooltipContent side="top" className="max-w-xs text-xs bg-card border-border p-2">
+                    Escolha o motor de síntese de voz. O Padrão Neural Grátis utiliza voz neural em Português do Brasil com excelente naturalidade humana.
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            </div>
             <Select
               value={agentFormVoiceProvider}
               onValueChange={setAgentFormVoiceProvider}
@@ -1816,49 +1959,94 @@ export function AIView(props: AIViewProps) {
                 <SelectValue placeholder="Selecione o provedor" />
               </SelectTrigger>
               <SelectContent className="bg-card border-border">
-                <SelectItem value="default" className="text-xs">Padrão Neural Grátis (Edge TTS)</SelectItem>
-                <SelectItem value="elevenlabs" className="text-xs">ElevenLabs (Customizado)</SelectItem>
+                <SelectItem value="default" className="text-xs">Padrão Neural BR Grátis (Edge TTS)</SelectItem>
+                <SelectItem value="elevenlabs" className="text-xs">ElevenLabs (Chave Própria / Customizada)</SelectItem>
+                <SelectItem value="openai" className="text-xs">OpenAI Audio TTS (Alloy, Onyx, Nova...)</SelectItem>
               </SelectContent>
             </Select>
           </div>
 
-          {agentFormVoiceProvider === "default" ? (
-            <div className="space-y-1">
-              <Label htmlFor="voice-gender" className="text-[10px] font-bold">Gênero da Voz Padrão</Label>
-              <Select
-                value={agentFormVoiceGender}
-                onValueChange={setAgentFormVoiceGender}
-              >
-                <SelectTrigger id="voice-gender" className="bg-background h-8 text-xs">
-                  <SelectValue placeholder="Selecione o gênero" />
-                </SelectTrigger>
-                <SelectContent className="bg-card border-border">
-                  <SelectItem value="female" className="text-xs">Feminino BR (Francisca)</SelectItem>
-                  <SelectItem value="male" className="text-xs">Masculino BR (Antonio)</SelectItem>
-                </SelectContent>
-              </Select>
+          <div className="space-y-2">
+            <Label className="text-[10px] font-bold text-foreground">Vozes Padrão do Sistema (4 Femininas e 4 Masculinas BR)</Label>
+            
+            {/* Female Voices */}
+            <div className="space-y-1.5 border border-border/40 rounded-lg p-2.5 bg-background/20">
+              <span className="text-[9px] font-bold uppercase tracking-wider text-pink-400">Vozes Femininas BR</span>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 pt-1">
+                {[
+                  { id: "pt-BR-FranciscaNeural", name: "Francisca (BR)", tag: "Calma & Profissional" },
+                  { id: "pt-BR-ThaliaNeural", name: "Vitória (BR)", tag: "Jovem & Dinâmica" },
+                  { id: "pt-BR-ElzaNeural", name: "Manuela (BR)", tag: "Acolhedora & Cordial" },
+                  { id: "pt-BR-YaraNeural", name: "Camila (BR)", tag: "Sofisticada & Executiva" },
+                ].map((v) => (
+                  <div key={v.id} className={cn("flex items-center justify-between p-2 rounded-lg border text-xs cursor-pointer transition-all", agentFormVoiceId === v.id ? "border-primary bg-primary/10 font-bold" : "border-border/50 hover:bg-muted/50")} onClick={() => setAgentFormVoiceId(v.id)}>
+                    <div>
+                      <p className="text-[11px] leading-none">{v.name}</p>
+                      <p className="text-[9px] text-muted-foreground mt-0.5">{v.tag}</p>
+                    </div>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className="h-6 w-6 rounded-full hover:bg-primary/20 hover:text-primary"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setAgentFormVoiceId(v.id);
+                        if (typeof window !== "undefined" && "speechSynthesis" in window) {
+                          window.speechSynthesis.cancel();
+                          const utt = new SpeechSynthesisUtterance(`Olá! Eu sou a voz ${v.name.split(" ")[0]} e estou pronta para atender seus clientes.`);
+                          utt.lang = "pt-BR";
+                          window.speechSynthesis.speak(utt);
+                        }
+                      }}
+                      title="Ouvir demonstração desta voz"
+                    >
+                      <Play className="h-3 w-3 fill-current" />
+                    </Button>
+                  </div>
+                ))}
+              </div>
             </div>
-          ) : (
-            <div className="space-y-1">
-              <Label htmlFor="voice-id" className="text-[10px] font-bold">Voice ID (ElevenLabs)</Label>
-              <Select
-                value={agentFormVoiceId}
-                onValueChange={setAgentFormVoiceId}
-              >
-                <SelectTrigger id="voice-id" className="bg-background h-8 text-xs">
-                  <SelectValue placeholder="Selecione uma voz" />
-                </SelectTrigger>
-                <SelectContent className="bg-card border-border">
-                  <SelectItem value="21m00Tcm4TlvDq8ikWAM" className="text-xs">Rachel (Padrão)</SelectItem>
-                  <SelectItem value="AZnzlk1XvdvUeBnXmlld" className="text-xs">Domi</SelectItem>
-                  <SelectItem value="EXAVITQu4vr4xnSDxMaL" className="text-xs">Bella</SelectItem>
-                  <SelectItem value="ErXwobaYiN019PkySvjV" className="text-xs">Antoni</SelectItem>
-                  <SelectItem value="MF3mGyEYCl7XYW7tl59X" className="text-xs">Rachel (Multilingual)</SelectItem>
-                  <SelectItem value="custom" className="text-xs">Outra voz (Customizada...)</SelectItem>
-                </SelectContent>
-              </Select>
+
+            {/* Male Voices */}
+            <div className="space-y-1.5 border border-border/40 rounded-lg p-2.5 bg-background/20">
+              <span className="text-[9px] font-bold uppercase tracking-wider text-blue-400">Vozes Masculinas BR</span>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 pt-1">
+                {[
+                  { id: "pt-BR-AntonioNeural", name: "Antonio (BR)", tag: "Firme & Comercial" },
+                  { id: "pt-BR-FabioNeural", name: "Daniel (BR)", tag: "Jovem & Descontraído" },
+                  { id: "pt-BR-HumbertoNeural", name: "Thiago (BR)", tag: "Técnico & Confiável" },
+                  { id: "pt-BR-NicolauNeural", name: "Ricardo (BR)", tag: "Grave & Executivo" },
+                ].map((v) => (
+                  <div key={v.id} className={cn("flex items-center justify-between p-2 rounded-lg border text-xs cursor-pointer transition-all", agentFormVoiceId === v.id ? "border-primary bg-primary/10 font-bold" : "border-border/50 hover:bg-muted/50")} onClick={() => setAgentFormVoiceId(v.id)}>
+                    <div>
+                      <p className="text-[11px] leading-none">{v.name}</p>
+                      <p className="text-[9px] text-muted-foreground mt-0.5">{v.tag}</p>
+                    </div>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className="h-6 w-6 rounded-full hover:bg-primary/20 hover:text-primary"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setAgentFormVoiceId(v.id);
+                        if (typeof window !== "undefined" && "speechSynthesis" in window) {
+                          window.speechSynthesis.cancel();
+                          const utt = new SpeechSynthesisUtterance(`Olá! Eu sou a voz ${v.name.split(" ")[0]} e estou pronto para conversar com seus clientes.`);
+                          utt.lang = "pt-BR";
+                          window.speechSynthesis.speak(utt);
+                        }
+                      }}
+                      title="Ouvir demonstração desta voz"
+                    >
+                      <Play className="h-3 w-3 fill-current" />
+                    </Button>
+                  </div>
+                ))}
+              </div>
             </div>
-          )}
+          </div>
 
           <div className="space-y-1">
             <Label htmlFor="voice-rule" className="text-[10px] font-bold">Regra de Envio de Voz</Label>
@@ -1870,9 +2058,9 @@ export function AIView(props: AIViewProps) {
                 <SelectValue placeholder="Selecione uma regra" />
               </SelectTrigger>
               <SelectContent className="bg-card border-border">
-                <SelectItem value="always" className="text-xs">Sempre responder em áudio</SelectItem>
-                <SelectItem value="voice_in" className="text-xs">Responder em áudio somente quando receber áudio</SelectItem>
-                <SelectItem value="smart" className="text-xs">Inteligente (Smart - Texto longo/saudação/áudio)</SelectItem>
+                <SelectItem value="always" className="text-xs">Sempre responder em áudio humanizado</SelectItem>
+                <SelectItem value="voice_in" className="text-xs">Responder em áudio somente quando receber mensagem de áudio</SelectItem>
+                <SelectItem value="smart" className="text-xs">Modo Inteligente (Texto longo, explicações e saudações em áudio)</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -1918,6 +2106,238 @@ export function AIView(props: AIViewProps) {
           </div>
         </div>
       )}
+    </div>
+  );
+
+  const renderStepFollowUp = () => (
+    <div className="space-y-4 animate-fade-in">
+      <Card className="border border-border/60 bg-card/60 shadow-sm">
+        <CardHeader className="p-3 pb-2 flex flex-row items-center justify-between space-y-0">
+          <div className="flex items-center gap-2">
+            <Clock className="h-4 w-4 text-primary" />
+            <CardTitle className="text-xs font-bold">Mensagens de Follow-Up</CardTitle>
+          </div>
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button type="button" className="text-muted-foreground hover:text-foreground">
+                  <Info className="h-3.5 w-3.5 text-primary" />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent side="top" className="max-w-xs text-xs bg-card border-border p-2">
+                Configure as mensagens de reativação automática para clientes que pararam de responder.
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        </CardHeader>
+        <CardContent className="p-3 pt-0 space-y-3">
+          <div className="flex items-center justify-between py-1 border-b border-border/30">
+            <div>
+              <Label className="text-xs font-semibold cursor-pointer">Ativar Follow-Up</Label>
+              <p className="text-[9px] text-muted-foreground">Envie mensagens automáticas para reaquecer o lead.</p>
+            </div>
+            <Switch checked={followUpActive} onCheckedChange={setFollowUpActive} />
+          </div>
+
+          {followUpActive && (
+            <div className="space-y-3 pt-1 animate-fade-in">
+              <div className="flex items-center justify-between py-1 border-b border-border/30">
+                <div>
+                  <Label className="text-xs font-semibold cursor-pointer">Gerar mensagens por IA</Label>
+                  <p className="text-[9px] text-muted-foreground">A IA analisará a conversa e criará o follow-up mais adequado.</p>
+                </div>
+                <Switch checked={followUpAiGenerated} onCheckedChange={setFollowUpAiGenerated} />
+              </div>
+
+              {followUpAiGenerated && (
+                <div className="space-y-2 pt-1">
+                  <div className="flex items-center justify-between gap-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="h-7 text-xs flex items-center gap-1.5"
+                      onClick={() => setIsFollowUpModalOpen(true)}
+                    >
+                      <Pencil className="h-3 w-3" /> Editar Prompt de Follow-Up
+                    </Button>
+                    
+                    <Button
+                      type="button"
+                      variant="default"
+                      size="sm"
+                      className="h-7 text-xs flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white"
+                      onClick={handleGenerateFollowUpPromptByAI}
+                      disabled={generatingFollowUpPrompt}
+                    >
+                      {generatingFollowUpPrompt ? <Loader2 className="h-3 w-3 animate-spin" /> : <Sparkles className="h-3 w-3" />}
+                      Gerar Follow-up por IA com base no atendente
+                    </Button>
+                  </div>
+                </div>
+              )}
+
+              <div className="grid grid-cols-3 gap-2 pt-1">
+                <div className="space-y-1">
+                  <Label className="text-[10px] font-bold">Qtd mensagens</Label>
+                  <Select value={String(followUpCount)} onValueChange={(val) => setFollowUpCount(Number(val))}>
+                    <SelectTrigger className="h-8 text-xs bg-background">
+                      <SelectValue placeholder="Selecione" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="1" className="text-xs">1 mensagem</SelectItem>
+                      <SelectItem value="2" className="text-xs">2 mensagens</SelectItem>
+                      <SelectItem value="3" className="text-xs">3 mensagens</SelectItem>
+                      <SelectItem value="4" className="text-xs">4 mensagens</SelectItem>
+                      <SelectItem value="5" className="text-xs">5 mensagens</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-1">
+                  <Label className="text-[10px] font-bold">Verificação (min)</Label>
+                  <Input
+                    type="number"
+                    value={followUpCheckMin}
+                    onChange={(e) => setFollowUpCheckMin(Number(e.target.value) || 300)}
+                    className="h-8 text-xs bg-background"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <Label className="text-[10px] font-bold">Intervalo (hrs)</Label>
+                  <Input
+                    type="number"
+                    value={followUpIntervalHours}
+                    onChange={(e) => setFollowUpIntervalHours(Number(e.target.value) || 8)}
+                    className="h-8 text-xs bg-background"
+                  />
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between pt-1 border-t border-border/30">
+                <div>
+                  <Label className="text-xs font-semibold cursor-pointer">Respeitar horário comercial</Label>
+                  <p className="text-[9px] text-muted-foreground">Não envia follow-ups fora do horário de expediente.</p>
+                </div>
+                <Switch checked={followUpRespectBusinessHours} onCheckedChange={setFollowUpRespectBusinessHours} />
+              </div>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    </div>
+  );
+
+  const renderStepMidiaComIA = () => (
+    <div className="space-y-4 animate-fade-in">
+      <Card className="border border-border/60 bg-card/60 shadow-sm">
+        <CardHeader className="p-3 pb-2 flex flex-row items-center justify-between space-y-0">
+          <div className="flex items-center gap-2">
+            <FileSignature className="h-4 w-4 text-primary" />
+            <CardTitle className="text-xs font-bold">Mídia com IA</CardTitle>
+          </div>
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button type="button" className="text-muted-foreground hover:text-foreground">
+                  <Info className="h-3.5 w-3.5 text-primary" />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent side="top" className="max-w-xs text-xs bg-card border-border p-2">
+                Cadastre fotos, tabelas em PDF, documentos ou vídeos da sua loja. A IA analisará o conteúdo e enviará automaticamente ao cliente quando solicitado.
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        </CardHeader>
+        <CardContent className="p-3 pt-0 space-y-3">
+          <div className="bg-primary/10 border border-primary/20 rounded-lg p-2.5 text-xs text-primary-foreground/90 space-y-1">
+            <p className="font-bold flex items-center gap-1.5 text-primary">
+              <Info className="h-3.5 w-3.5" /> Como funciona
+            </p>
+            <p className="text-[10px] leading-relaxed text-muted-foreground">
+              Ao habilitar esta opção, a IA poderá enviar imagens, documentos (PDF), áudios e vídeos diretamente para o cliente durante o atendimento, caso o assunto exija.
+            </p>
+            <p className="text-[9px] text-muted-foreground/80 font-mono pt-0.5">
+              Extensões aceitas: JPG, PNG, GIF, WEBP, MP4, AVI, MOV, MKV, WEBM, MP3, OGG, OPUS, M4A, WAV, AAC, FLAC, PDF, DOCX, TXT, RTF.
+            </p>
+          </div>
+
+          <div className="flex items-center justify-between py-1 border-b border-border/30">
+            <div>
+              <Label className="text-xs font-semibold cursor-pointer">Habilitar Mídia com IA</Label>
+              <p className="text-[9px] text-muted-foreground">Permite o envio inteligente de arquivos durante a conversa.</p>
+            </div>
+            <Switch checked={mediaAiEnabled} onCheckedChange={setMediaAiEnabled} />
+          </div>
+
+          {!mediaAiEnabled && (
+            <div className="bg-amber-500/10 border border-amber-500/30 rounded-lg p-2.5 text-[10px] text-amber-400 flex items-center gap-2">
+              <AlertCircle className="h-4 w-4 shrink-0" />
+              <span>As mídias cadastradas não serão utilizadas pela IA enquanto esta opção estiver desabilitada.</span>
+            </div>
+          )}
+
+          {mediaAiEnabled && (
+            <div className="space-y-3 pt-1 animate-fade-in">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold text-foreground">Mídias Cadastradas ({registeredMediaList.length})</span>
+                <label className="cursor-pointer">
+                  <input type="file" className="hidden" onChange={handleFileUploadMediaAI} disabled={analyzingMedia} />
+                  <Button type="button" size="sm" variant="default" className="h-7 text-xs flex items-center gap-1.5" disabled={analyzingMedia} asChild>
+                    <span>
+                      {analyzingMedia ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Plus className="h-3.5 w-3.5" />}
+                      <span>+ Adicionar Mídias</span>
+                    </span>
+                  </Button>
+                </label>
+              </div>
+
+              <div className="space-y-2">
+                {registeredMediaList.map((media) => (
+                  <div key={media.id} className="p-3 rounded-lg border border-border/50 bg-background/30 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <FileCode className="h-4 w-4 text-primary" />
+                        <div>
+                          <p className="text-xs font-bold text-foreground">{media.fileName}</p>
+                          <span className="text-[9px] text-muted-foreground uppercase">{media.fileType} • {media.fileSize}</span>
+                        </div>
+                      </div>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="h-6 w-6 text-muted-foreground hover:text-destructive"
+                        onClick={() => setRegisteredMediaList((prev) => prev.filter((m) => m.id !== media.id))}
+                      >
+                        <Trash className="h-3.5 w-3.5" />
+                      </Button>
+                    </div>
+
+                    <div className="space-y-1.5 text-[10px]">
+                      <div className="bg-primary/10 p-2 rounded border border-primary/20">
+                        <span className="font-bold text-primary block">Descrição IA (Com base no atendente):</span>
+                        <p className="text-foreground/90 mt-0.5">{media.descricaoIa}</p>
+                      </div>
+                      <div className="bg-background/50 p-2 rounded border border-border/30">
+                        <span className="font-bold text-muted-foreground block">Descrição Humana:</span>
+                        <p className="text-foreground/80 mt-0.5">{media.descricaoHumana}</p>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+
+                {registeredMediaList.length === 0 && (
+                  <div className="text-center py-6 text-xs text-muted-foreground border border-dashed border-border/60 rounded-lg">
+                    Nenhuma mídia cadastrada ainda. Clique no botão acima para adicionar arquivos.
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 
@@ -4100,11 +4520,19 @@ export function AIView(props: AIViewProps) {
                   <AccordionContent className="pb-2 pt-2">{renderStepTransbordoHumano()}</AccordionContent>
                 </AccordionItem>
                 <AccordionItem value="step-9" className="border border-border/50 bg-background/25 rounded-xl px-4 py-2">
-                  <AccordionTrigger className="py-1 text-xs font-bold text-foreground hover:no-underline">9. Configuração de Voz</AccordionTrigger>
-                  <AccordionContent className="pb-2 pt-2">{renderStepConfiguracaoVoz()}</AccordionContent>
+                  <AccordionTrigger className="py-1 text-xs font-bold text-foreground hover:no-underline">9. Mensagens de Follow-Up</AccordionTrigger>
+                  <AccordionContent className="pb-2 pt-2">{renderStepFollowUp()}</AccordionContent>
                 </AccordionItem>
                 <AccordionItem value="step-10" className="border border-border/50 bg-background/25 rounded-xl px-4 py-2">
-                  <AccordionTrigger className="py-1 text-xs font-bold text-foreground hover:no-underline">10. Revisão Geral e Ativação</AccordionTrigger>
+                  <AccordionTrigger className="py-1 text-xs font-bold text-foreground hover:no-underline">10. Mídia com IA</AccordionTrigger>
+                  <AccordionContent className="pb-2 pt-2">{renderStepMidiaComIA()}</AccordionContent>
+                </AccordionItem>
+                <AccordionItem value="step-11" className="border border-border/50 bg-background/25 rounded-xl px-4 py-2">
+                  <AccordionTrigger className="py-1 text-xs font-bold text-foreground hover:no-underline">11. Configuração de Voz</AccordionTrigger>
+                  <AccordionContent className="pb-2 pt-2">{renderStepConfiguracaoVoz()}</AccordionContent>
+                </AccordionItem>
+                <AccordionItem value="step-12" className="border border-border/50 bg-background/25 rounded-xl px-4 py-2">
+                  <AccordionTrigger className="py-1 text-xs font-bold text-foreground hover:no-underline">12. Revisão Geral e Ativação</AccordionTrigger>
                   <AccordionContent className="pb-2 pt-2">{renderStepRevisaoGeral()}</AccordionContent>
                 </AccordionItem>
               </Accordion>
@@ -4125,7 +4553,7 @@ export function AIView(props: AIViewProps) {
                     Voltar
                   </Button>
                 )}
-                {wizardStep < 10 ? (
+                {wizardStep < 12 ? (
                   <Button
                     size="sm"
                     onClick={() => {
@@ -4166,6 +4594,64 @@ export function AIView(props: AIViewProps) {
             )}
           </DialogFooter>
           
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal Configurar Prompt de Follow-Up (Image 4) */}
+      <Dialog open={isFollowUpModalOpen} onOpenChange={setIsFollowUpModalOpen}>
+        <DialogContent className="max-w-lg rounded-2xl border-border bg-card">
+          <DialogHeader>
+            <DialogTitle className="text-sm font-bold flex items-center gap-2 text-foreground">
+              <Pencil className="h-4 w-4 text-primary" /> Configurar Prompt de Follow-Up
+            </DialogTitle>
+            <DialogDescription className="text-xs text-muted-foreground pt-1">
+              O prompt de follow-up instrui a IA sobre como retomar o contato com o cliente após um tempo de inatividade. O histórico da conversa e as mensagens anteriores serão passados para a IA.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-3 py-2">
+            <div className="space-y-1">
+              <div className="flex items-center justify-between">
+                <Label className="text-xs font-semibold text-foreground">Prompt de Follow-Up</Label>
+                <button
+                  type="button"
+                  onClick={() => setFollowUpPrompt(`Você é um assistente especializado em criar mensagens de follow-up personalizadas para conversas de WhatsApp, com foco em conversão de vendas para ${agentFormCompany || "a empresa"}.\n\nSua função é analisar a conversa fornecida e gerar 3 mensagens de follow-up sequenciais, amigáveis e estratégicas.`)}
+                  className="text-[10px] text-primary hover:underline font-semibold"
+                >
+                  Restaurar padrão
+                </button>
+              </div>
+              <Textarea
+                value={followUpPrompt}
+                onChange={(e) => setFollowUpPrompt(e.target.value)}
+                className="min-h-[140px] text-xs bg-background resize-y font-sans"
+                placeholder="Digite as instruções de follow-up para a IA..."
+              />
+              <div className="flex justify-between items-center text-[10px] text-muted-foreground">
+                <span>{followUpPrompt.length} caracteres (Mín. sugerido: 50 | Máx.: 2000)</span>
+              </div>
+            </div>
+
+            <div className="bg-primary/10 border border-primary/20 rounded-lg p-3 text-xs space-y-1.5">
+              <span className="font-bold text-primary block">Exemplos de personalização:</span>
+              <div className="space-y-1 text-[10px] text-muted-foreground">
+                <p><strong className="text-foreground">E-commerce:</strong> No e-commerce, instigue a dúvida do cliente perguntando se o produto ainda faz sentido ou ofereça frete grátis.</p>
+                <p><strong className="text-foreground">Serviços:</strong> Em serviços, pergunte se o cliente prefere reagendar a conversa ou se ficou com alguma dúvida sobre o orçamento enviado.</p>
+              </div>
+            </div>
+          </div>
+
+          <DialogFooter className="gap-2">
+            <Button type="button" variant="outline" size="sm" onClick={() => setIsFollowUpModalOpen(false)} className="h-8 text-xs">
+              Cancelar
+            </Button>
+            <Button type="button" size="sm" onClick={() => {
+              setIsFollowUpModalOpen(false);
+              toast({ title: "Prompt Salvo!", description: "As instruções de follow-up foram atualizadas." });
+            }} className="h-8 text-xs">
+              Salvar Prompt
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>
