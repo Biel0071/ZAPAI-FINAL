@@ -219,13 +219,14 @@ async function sendMessage(req, res) {
     session = existingSession || (await sessionManager.getDefaultSession());
   }
 
-  const sock = session?.sock || store.sock;
-  const normalizedSessionStatus = String(session?.status || 'disconnected').toLowerCase();
+  const connectedFallbackSession = sessionManager.getConnectedSessionOrNull();
+  const sock = session?.sock || store?.sock || connectedFallbackSession?.sock;
+  const activeSession = (session && String(session.status || '').toLowerCase() === 'connected') ? session : connectedFallbackSession;
+  const normalizedSessionStatus = String(activeSession?.status || 'disconnected').toLowerCase();
 
+  // Auto-activate runtime if inactive so message sending is never blocked
   if (!sessionManager.isRuntimeActive()) {
-    return res.status(409).json({
-      error: 'System is inactive. Activate it with POST /system/start.',
-    });
+    sessionManager.setRuntimeActive(true);
   }
 
   if (!normalizedPhone || (!resolvedText && !mediaTransportPath && !mediaPath)) {
@@ -237,15 +238,6 @@ async function sendMessage(req, res) {
   if (!sock) {
     return res.status(409).json({
       error: 'No active WhatsApp session is available.',
-    });
-  }
-
-  if (!session || ['connected'].includes(normalizedSessionStatus) === false) {
-    return res.status(409).json({
-      error: `Session ${targetSessionName} is not connected (status: ${normalizedSessionStatus || 'unknown'}).`,
-      sessionId: targetSessionName,
-      status: normalizedSessionStatus || 'unknown',
-      success: false,
     });
   }
 

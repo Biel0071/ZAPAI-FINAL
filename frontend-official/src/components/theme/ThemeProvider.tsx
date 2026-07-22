@@ -8,8 +8,7 @@ export function ThemeProvider({ children, ...props }: ThemeProviderProps) {
     <NextThemesProvider
       attribute="class"
       defaultTheme="dark"
-      enableSystem={false}
-      forcedTheme="dark"
+      enableSystem={true}
       disableTransitionOnChange
       storageKey="zapai_theme"
       {...props}

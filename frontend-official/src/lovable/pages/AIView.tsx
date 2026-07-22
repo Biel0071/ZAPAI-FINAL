@@ -917,6 +917,8 @@ export function AIView(props: AIViewProps) {
   const [agentFormVoiceId, setAgentFormVoiceId] = useState("");
   const [agentFormVoiceProvider, setAgentFormVoiceProvider] = useState("default");
   const [agentFormVoiceGender, setAgentFormVoiceGender] = useState("female");
+  const [agentFormVoiceSpeed, setAgentFormVoiceSpeed] = useState(1.0);
+  const [agentFormVoicePitch, setAgentFormVoicePitch] = useState(0);
   const [wizardViewMode, setWizardViewMode] = useState<"steps" | "accordion">("steps");
   const [voiceTestText, setVoiceTestText] = useState("Olá! Sou o seu assistente de voz e estou pronto para conversar com você.");
   const [testingVoice, setTestingVoice] = useState(false);
@@ -1966,20 +1968,20 @@ export function AIView(props: AIViewProps) {
             </Select>
           </div>
 
-          <div className="space-y-2">
+          <div className="space-y-3">
             <div className="flex items-center justify-between">
-              <Label className="text-[10px] font-bold text-foreground">ZAPFLOW AI Voices (4 Femininas e 4 Masculinas BR)</Label>
+              <Label className="text-[10px] font-bold text-foreground">Vozes Neurais BR (4 Femininas e 4 Masculinas)</Label>
             </div>
             
             {/* Female Voices */}
             <div className="space-y-1.5 border border-border/40 rounded-lg p-2.5 bg-background/20">
-              <span className="text-[9px] font-bold uppercase tracking-wider text-pink-400">Vozes Femininas ZAPFLOW</span>
+              <span className="text-[9px] font-bold uppercase tracking-wider text-pink-400">Vozes Femininas</span>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 pt-1">
                 {[
-                  { id: "zapflow-aurora", name: "ZAPFLOW Aurora", tag: "Especialista Comercial" },
-                  { id: "zapflow-luna", name: "ZAPFLOW Luna", tag: "Jovem & Dinâmica" },
-                  { id: "zapflow-sophia", name: "ZAPFLOW Sophia", tag: "Executiva" },
-                  { id: "zapflow-maya", name: "ZAPFLOW Maya", tag: "Acolhedora" },
+                  { id: "zapflow-aurora", name: "Aurora", tag: "Especialista Comercial" },
+                  { id: "zapflow-luna", name: "Luna", tag: "Jovem & Dinâmica" },
+                  { id: "zapflow-sophia", name: "Sophia", tag: "Executiva" },
+                  { id: "zapflow-maya", name: "Maya", tag: "Acolhedora" },
                 ].map((v) => (
                   <div key={v.id} className={cn("flex items-center justify-between p-2 rounded-lg border text-xs cursor-pointer transition-all", agentFormVoiceId === v.id ? "border-primary bg-primary/10 font-bold" : "border-border/50 hover:bg-muted/50")} onClick={() => setAgentFormVoiceId(v.id)}>
                     <div>
@@ -1996,12 +1998,12 @@ export function AIView(props: AIViewProps) {
                         setAgentFormVoiceId(v.id);
                         if (typeof window !== "undefined" && "speechSynthesis" in window) {
                           window.speechSynthesis.cancel();
-                          const utt = new SpeechSynthesisUtterance(`Olá! Eu sou a voz ${v.name} e estou pronta para responder com alta conversão.`);
+                          const utt = new SpeechSynthesisUtterance(`Olá! Eu sou a voz ${v.name} e estou pronta para te atender.`);
                           utt.lang = "pt-BR";
                           window.speechSynthesis.speak(utt);
                         }
                       }}
-                      title="Ouvir demonstração ZAPFLOW"
+                      title="Ouvir demonstração"
                     >
                       <Play className="h-3 w-3 fill-current" />
                     </Button>
@@ -2012,13 +2014,13 @@ export function AIView(props: AIViewProps) {
 
             {/* Male Voices */}
             <div className="space-y-1.5 border border-border/40 rounded-lg p-2.5 bg-background/20">
-              <span className="text-[9px] font-bold uppercase tracking-wider text-blue-400">Vozes Masculinas ZAPFLOW</span>
+              <span className="text-[9px] font-bold uppercase tracking-wider text-blue-400">Vozes Masculinas</span>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 pt-1">
                 {[
-                  { id: "zapflow-orion", name: "ZAPFLOW Orion", tag: "Consultor" },
-                  { id: "zapflow-atlas", name: "ZAPFLOW Atlas", tag: "Executivo" },
-                  { id: "zapflow-noah", name: "ZAPFLOW Noah", tag: "Jovem" },
-                  { id: "zapflow-titan", name: "ZAPFLOW Titan", tag: "Premium" },
+                  { id: "zapflow-orion", name: "Orion", tag: "Consultor" },
+                  { id: "zapflow-atlas", name: "Atlas", tag: "Executivo" },
+                  { id: "zapflow-noah", name: "Noah", tag: "Jovem" },
+                  { id: "zapflow-titan", name: "Titan", tag: "Premium" },
                 ].map((v) => (
                   <div key={v.id} className={cn("flex items-center justify-between p-2 rounded-lg border text-xs cursor-pointer transition-all", agentFormVoiceId === v.id ? "border-primary bg-primary/10 font-bold" : "border-border/50 hover:bg-muted/50")} onClick={() => setAgentFormVoiceId(v.id)}>
                     <div>
@@ -2035,12 +2037,12 @@ export function AIView(props: AIViewProps) {
                         setAgentFormVoiceId(v.id);
                         if (typeof window !== "undefined" && "speechSynthesis" in window) {
                           window.speechSynthesis.cancel();
-                          const utt = new SpeechSynthesisUtterance(`Olá! Eu sou a voz ${v.name} e estou pronto para responder com alta conversão.`);
+                          const utt = new SpeechSynthesisUtterance(`Olá! Eu sou a voz ${v.name} e estou pronto para te atender.`);
                           utt.lang = "pt-BR";
                           window.speechSynthesis.speak(utt);
                         }
                       }}
-                      title="Ouvir demonstração ZAPFLOW"
+                      title="Ouvir demonstração"
                     >
                       <Play className="h-3 w-3 fill-current" />
                     </Button>
@@ -2065,6 +2067,38 @@ export function AIView(props: AIViewProps) {
                 <SelectItem value="smart" className="text-xs">Modo Inteligente (Texto longo, explicações e saudações em áudio)</SelectItem>
               </SelectContent>
             </Select>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2 border-t border-border/30">
+            <div className="space-y-1 bg-background/20 p-2.5 rounded-lg border border-border/40">
+              <div className="flex items-center justify-between">
+                <Label className="text-[10px] font-bold text-foreground">Velocidade da Voz: {agentFormVoiceSpeed.toFixed(1)}x</Label>
+                <span className="text-[9px] text-muted-foreground">{agentFormVoiceSpeed < 1.0 ? "Calmo" : agentFormVoiceSpeed > 1.1 ? "Dinâmico" : "Normal"}</span>
+              </div>
+              <Slider
+                value={[agentFormVoiceSpeed]}
+                onValueChange={(val) => setAgentFormVoiceSpeed(val[0])}
+                min={0.8}
+                max={1.4}
+                step={0.05}
+                className="py-1"
+              />
+            </div>
+
+            <div className="space-y-1 bg-background/20 p-2.5 rounded-lg border border-border/40">
+              <div className="flex items-center justify-between">
+                <Label className="text-[10px] font-bold text-foreground">Entonação / Pitch: {agentFormVoicePitch > 0 ? `+${agentFormVoicePitch}` : agentFormVoicePitch}</Label>
+                <span className="text-[9px] text-muted-foreground">{agentFormVoicePitch < 0 ? "Grave" : agentFormVoicePitch > 0 ? "Agudo" : "Natural"}</span>
+              </div>
+              <Slider
+                value={[agentFormVoicePitch]}
+                onValueChange={(val) => setAgentFormVoicePitch(val[0])}
+                min={-3}
+                max={3}
+                step={1}
+                className="py-1"
+              />
+            </div>
           </div>
 
           {(agentFormVoiceId === "custom" || !["21m00Tcm4TlvDq8ikWAM", "AZnzlk1XvdvUeBnXmlld", "EXAVITQu4vr4xnSDxMaL", "ErXwobaYiN019PkySvjV", "MF3mGyEYCl7XYW7tl59X"].includes(agentFormVoiceId)) && (

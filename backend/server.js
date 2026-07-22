@@ -23,7 +23,7 @@ const { createJwtAuthMiddleware } = require('./middleware/jwtAuth');
 const { inputSanitizerMiddleware } = require('./middleware/inputSanitizer');
 
 const { businessHours, isBusinessOpen } = require('./config/businessHours');
-const { initDatabase } = require('./config/database');
+const { initDatabase, pool } = require('./config/database');
 const {
   loadAiIntelligenceState,
   saveAiIntelligenceState,
@@ -1840,6 +1840,7 @@ async function shutdownGracefully(signal) {
       await outboundQueueService.shutdownOutboundQueue();
       await enterpriseQueueService.shutdown();
       await systemManager.shutdownSystem(app.locals.store);
+      await pool.end().catch((err) => console.error('[SERVER] DB pool end error:', err?.message || err));
       process.exit(0);
     } catch (error) {
       console.error('[SERVER] Graceful shutdown failed:', error?.stack || error?.message || error);

@@ -513,13 +513,11 @@ export const MessageRow = memo(function MessageRow({
                 {statusMeta.icon === "clock" ? (
                   <Clock className={cn("h-3.5 w-3.5 shrink-0", statusMeta.className)} />
                 ) : statusMeta.icon === "failed" ? (
-                  <Warning className={cn("h-3.5 w-3.5 shrink-0", statusMeta.className)} />
-                ) : statusMeta.icon === "read" ? (
-                  <Checks className={cn("h-3.5 w-3.5 shrink-0", statusMeta.className)} weight="bold" />
-                ) : statusMeta.icon === "delivered" ? (
-                  <Checks className={cn("h-3.5 w-3.5 shrink-0", statusMeta.className)} />
+                  <Check className={cn("h-3.5 w-3.5 shrink-0 text-destructive font-bold", statusMeta.className)} weight="bold" title="1V Vermelho: Não entregue / Bloqueado" />
+                ) : statusMeta.icon === "read" || statusMeta.icon === "delivered" ? (
+                  <Checks className={cn("h-3.5 w-3.5 shrink-0 text-emerald-500 font-bold", statusMeta.className)} weight="bold" title="2V Verde: Entregue / Lido" />
                 ) : (
-                  <Check className={cn("h-3.5 w-3.5 shrink-0", statusMeta.className)} />
+                  <Check className={cn("h-3.5 w-3.5 shrink-0 text-muted-foreground/70", statusMeta.className)} title="1V Cinza: Enviado ao servidor" />
                 )}
               </span>
             )}

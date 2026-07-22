@@ -21,7 +21,7 @@ import { useRuntime } from "@/providers/RuntimeProvider";
 
 const STATUS_POLL_MS = 15_000;
 const HEAVY_REFRESH_MS = 30_000;
-const VALID_TABS = ["overview", "conversations", "ai", "commercial", "operations", "map"] as const;
+const VALID_TABS = ["overview", "conversations", "ai", "commercial", "operations", "analytics", "map"] as const;
 
 type DashboardTab = (typeof VALID_TABS)[number];
 

@@ -238,9 +238,20 @@ export function getTagColor(tag: string): string {
 export function resolveMediaUrl(url?: string | null): string | null {
   let normalized = String(url ?? "").trim().replace(/\\/g, "/");
   if (!normalized || (normalized.startsWith("[") && normalized.endsWith("]"))) return null;
+
+  // Extract relative static routes (/uploads/, /media/) from absolute filesystem paths
+  if (normalized.includes("/uploads/")) {
+    normalized = `/uploads/${normalized.split("/uploads/").pop()}`;
+  } else if (normalized.includes("/media/")) {
+    normalized = `/media/${normalized.split("/media/").pop()}`;
+  } else if (normalized.includes("/public/")) {
+    normalized = `/${normalized.split("/public/").pop()}`;
+  }
+
   if (/^https?:\/\/(localhost|127\.0\.0\.1):4025/i.test(normalized)) {
     normalized = normalized.replace(/^https?:\/\/(localhost|127\.0\.0\.1):4025/i, BACKEND_BASE_URL);
   }
+
   let finalUrl = normalized;
   if (!/^https?:\/\//i.test(normalized)) {
     if (/^[a-zA-Z]:/i.test(normalized)) {
@@ -1031,32 +1042,32 @@ export function getMessageStatusMeta(status?: ChatMessage["status"]) {
   const normStatus = String(status || "").toLowerCase();
   if (normStatus === "sending" || normStatus === "pending" || normStatus === "retry") {
     return {
-      symbol: "...",
+      symbol: "1V",
       className: "text-amber-500 animate-pulse",
-      label: "Enviando...",
+      label: "Enviando para o WhatsApp...",
       icon: "clock",
     };
   }
-  if (normStatus === "failed") {
+  if (normStatus === "failed" || normStatus === "blocked" || normStatus === "error") {
     return {
-      symbol: "!",
-      className: "text-destructive",
-      label: "Falhou",
+      symbol: "1V",
+      className: "text-destructive font-bold",
+      label: "Bloqueado ou não entregue (Falha)",
       icon: "failed",
     };
   }
   if (normStatus === "read" || normStatus === "played") {
     return {
       symbol: "2V",
-      className: "text-emerald-500 font-semibold",
+      className: "text-emerald-500 font-bold",
       label: "Lida no WhatsApp",
       icon: "read",
     };
   }
-  if (normStatus === "device_ack" || normStatus === "delivered") {
+  if (normStatus === "device_ack" || normStatus === "delivered" || normStatus === "received") {
     return {
       symbol: "2V",
-      className: "text-muted-foreground/80",
+      className: "text-emerald-500 font-bold",
       label: "Entregue no WhatsApp",
       icon: "delivered",
     };
@@ -1064,16 +1075,16 @@ export function getMessageStatusMeta(status?: ChatMessage["status"]) {
   if (normStatus === "sent" || normStatus === "server_ack") {
     return {
       symbol: "1V",
-      className: "text-muted-foreground/60",
-      label: "Enviada ao servidor (Pendente de entrega)",
+      className: "text-muted-foreground/70",
+      label: "Enviada (Servidor)",
       icon: "sent",
     };
   }
 
   return {
     symbol: "1V",
-    className: "text-muted-foreground/60",
-    label: "Enviada ao servidor (Pendente de entrega)",
+    className: "text-muted-foreground/70",
+    label: "Enviada",
     icon: "sent",
   };
 }

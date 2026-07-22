@@ -74,6 +74,7 @@ const DASHBOARD_TABS: DashboardLovableTab[] = [
   { id: "ai", label: "Performance & IA" },
   { id: "commercial", label: "Comercial & Vendas" },
   { id: "operations", label: "Operação & Infra" },
+  { id: "analytics", label: "Analytics Avançado" },
 ];
 
 const MAP_SCOPES: Array<{ id: DashboardMapScope; label: string }> = [

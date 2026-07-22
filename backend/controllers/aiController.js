@@ -957,6 +957,8 @@ async function getAgentEvolution(req, res) {
     const agentLearningRepo = require('../repositories/agentLearningRepository');
     const agentMemoryGraphService = require('../services/agentMemoryGraphService');
     
+    await agentMemoryGraphService.bootstrapAgentMemoryGraph({ agentKey: key, agentName: key, companyId }).catch(() => {});
+
     const [history, stats, appliedEvents, graphSnapshot] = await Promise.all([
       agentLearningRepo.getEvolutionHistory(key, companyId, 30),
       agentLearningRepo.getEventStats(key, companyId),
@@ -985,41 +987,59 @@ async function getAgentEvolution(req, res) {
 
     const appliedCount = Number(stats.applied || 0);
     const pendingCount = Number(stats.pending || 0);
-    const answeredInteractions = Number(graphSnapshot.stats?.episodes || 0);
     const learnedConcepts = Number(graphSnapshot.stats?.concepts || 0);
 
-    let level = 'Nível 1 (Iniciante)';
-    let currentGoalProgress = answeredInteractions;
-    let targetGoal = 10;
+    // Query real qualified conversations (at least 3 messages exchanged in real customer service back-and-forth)
+    const qualifiedRes = await dbQuery(`
+      SELECT COUNT(*)::int AS count FROM (
+        SELECT conv.id
+        FROM conversations conv
+        JOIN messages m ON m.conversation_id = conv.id
+        WHERE conv.company_id = $1 AND (LOWER(COALESCE(conv.agent_name, $2)) = LOWER($2))
+        GROUP BY conv.id
+        HAVING COUNT(m.id) >= 3
+      ) qualified_convs
+    `, [companyId, key]).catch(() => ({ rows: [{ count: 0 }] }));
 
-    if (answeredInteractions >= 340) {
-      level = 'Nível 5 (Mestre IA)';
-      currentGoalProgress = answeredInteractions - 340;
-      targetGoal = 500;
-    } else if (answeredInteractions >= 140) {
-      level = 'Nível 4 (Especialista)';
-      currentGoalProgress = answeredInteractions - 140;
-      targetGoal = 200;
-    } else if (answeredInteractions >= 40) {
-      level = 'Nível 3 (Avançado)';
-      currentGoalProgress = answeredInteractions - 40;
-      targetGoal = 100;
-    } else if (answeredInteractions >= 10) {
-      level = 'Nível 2 (Intermediário)';
-      currentGoalProgress = answeredInteractions - 10;
-      targetGoal = 30;
-    } else {
-      level = 'Nível 1 (Iniciante)';
-      currentGoalProgress = answeredInteractions;
-      targetGoal = 10;
+    const dbQualifiedCount = Number(qualifiedRes.rows[0]?.count || 0);
+    const episodeCount = Number(graphSnapshot.stats?.episodes || 0);
+    const qualifiedConversations = Math.max(dbQualifiedCount, episodeCount);
+
+    // Exact Level Tier Rules (Nível 1 a 10) with resetting level goals & doubled progression
+    const LEVEL_TIERS = [
+      { level: 1, title: 'Iniciante', min: 0, cumTarget: 10, targetNew: 10 },
+      { level: 2, title: 'Intermediário', min: 10, cumTarget: 40, targetNew: 30 },
+      { level: 3, title: 'Avançado', min: 40, cumTarget: 140, targetNew: 100 },
+      { level: 4, title: 'Especialista', min: 140, cumTarget: 340, targetNew: 200 },
+      { level: 5, title: 'Mestre IA', min: 340, cumTarget: 740, targetNew: 400 },
+      { level: 6, title: 'Guardião IA', min: 740, cumTarget: 1540, targetNew: 800 },
+      { level: 7, title: 'Estrategista IA', min: 1540, cumTarget: 3140, targetNew: 1600 },
+      { level: 8, title: 'Arquiteto IA', min: 3140, cumTarget: 6340, targetNew: 3200 },
+      { level: 9, title: 'Oráculo IA', min: 6340, cumTarget: 12740, targetNew: 6400 },
+      { level: 10, title: 'Sábio Supremo', min: 12740, cumTarget: 25540, targetNew: 12800 },
+    ];
+
+    let matchedTier = LEVEL_TIERS[0];
+    for (const tier of LEVEL_TIERS) {
+      if (qualifiedConversations >= tier.min) {
+        matchedTier = tier;
+      }
     }
 
-    const answerPoints = Math.round(Math.min(currentGoalProgress / Math.max(1, targetGoal), 1) * 60);
-    const refinementPoints = Math.round(Math.min((history.length + appliedCount) / 20, 1) * 25);
-    const coveragePoints = Math.round(Math.min((fieldCounts.size + learnedConcepts) / 20, 1) * 15);
-    const hasLearningActivity = answeredInteractions > 0 || appliedCount > 0 || history.length > 0;
-    const queuePoints = hasLearningActivity ? (pendingCount === 0 ? 5 : Math.max(0, 5 - pendingCount)) : 0;
-    const score = Math.min(100, Math.max(10, answerPoints + refinementPoints + coveragePoints + queuePoints));
+    const currentInLevel = Math.max(0, qualifiedConversations - matchedTier.min);
+    const targetInLevel = matchedTier.targetNew;
+    const percentageInLevel = Math.min(100, Math.round((currentInLevel / Math.max(1, targetInLevel)) * 100));
+
+    const level = `Nível ${matchedTier.level} (${matchedTier.title})`;
+    const currentGoalProgress = currentInLevel;
+    const targetGoal = targetInLevel;
+
+    const answerPoints = Math.round(Math.min(qualifiedConversations / 100, 1) * 40);
+    const refinementPoints = Math.round(Math.min((history.length + appliedCount) / 20, 1) * 30);
+    const coveragePoints = Math.round(Math.min((fieldCounts.size + learnedConcepts) / 20, 1) * 20);
+    const hasLearningActivity = qualifiedConversations > 0 || appliedCount > 0 || history.length > 0;
+    const queuePoints = hasLearningActivity ? (pendingCount === 0 ? 10 : Math.max(0, 10 - pendingCount)) : 0;
+    const score = Math.min(100, Math.max(5, answerPoints + refinementPoints + coveragePoints + queuePoints));
 
     const rootId = `agent:${key}`;
     const nodes = [{ id: rootId, type: 'agent', label: key, weight: Math.max(1, history.length) }];
@@ -1041,29 +1061,37 @@ async function getAgentEvolution(req, res) {
       const lessonLabel = String(event.customer_question || 'Resposta ensinada').slice(0, 72);
       nodes.push({ id: lessonId, type: 'lesson', label: lessonLabel, weight: 1 });
       edges.push({ source: fieldId, target: lessonId, relation: 'responde' });
+    }
 
     if (graphSnapshot.nodes.length > 0) {
-      nodes.splice(1);
-      edges.splice(0);
-      nodes.push(...graphSnapshot.nodes);
-      edges.push(...graphSnapshot.edges);
-      for (const node of graphSnapshot.nodes.filter((item) => ['contact', 'concept'].includes(item.type)).slice(0, 12)) {
-        edges.push({ source: rootId, target: node.id, relation: node.type === 'contact' ? 'atendeu' : 'aprendeu' });
+      for (const snapshotNode of graphSnapshot.nodes) {
+        if (!nodes.some((n) => n.id === snapshotNode.id)) {
+          nodes.push(snapshotNode);
+        }
       }
-    }
+      for (const snapshotEdge of graphSnapshot.edges) {
+        if (!edges.some((e) => e.source === snapshotEdge.source && e.target === snapshotEdge.target && e.relation === snapshotEdge.relation)) {
+          edges.push(snapshotEdge);
+        }
+      }
+      for (const node of graphSnapshot.nodes.filter((item) => ['contact', 'concept'].includes(item.type)).slice(0, 12)) {
+        if (!edges.some((e) => e.source === rootId && e.target === node.id)) {
+          edges.push({ source: rootId, target: node.id, relation: node.type === 'contact' ? 'atendeu' : 'aprendeu' });
+        }
+      }
     }
 
     res.json({
       success: true,
       history,
-      stats,
+      stats: { ...stats, qualifiedConversations },
       evolution: {
         score,
         level,
         goal: {
           current: currentGoalProgress,
           target: targetGoal,
-          percentage: Math.min(100, Math.round((currentGoalProgress / Math.max(1, targetGoal)) * 100)),
+          percentage: percentageInLevel,
         },
         components: { answers: answerPoints, refinements: refinementPoints, coverage: coveragePoints, queue: queuePoints },
       },

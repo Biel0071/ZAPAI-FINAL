@@ -53,7 +53,7 @@ let managerOptions = {
   onIncomingMessage: async () => {},
   onSessionConnected: () => {},
 };
-let runtimeActive = false;
+let runtimeActive = true;
 
 function normalizeSessionName(sessionName = DEFAULT_SESSION) {
   const normalized = String(sessionName || DEFAULT_SESSION)

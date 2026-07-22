@@ -87,6 +87,15 @@ function getPoolConfig() {
 
 const pool = new Pool(getPoolConfig());
 
+pool.on('error', (err, _client) => {
+  console.error('[DB] Unexpected error on idle PostgreSQL client:', err?.message || err);
+  try {
+    errorLog(err, { scope: 'database_idle_client' });
+  } catch {
+    // swallow: error logger must not crash application
+  }
+});
+
 pool
   .connect()
   .then((client) => {

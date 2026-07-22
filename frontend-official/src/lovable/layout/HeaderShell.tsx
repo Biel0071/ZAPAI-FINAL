@@ -3,31 +3,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { OperationalStatusBadge } from "@/components/enterprise/OperationalStatusBadge";
-import { Bell, MagnifyingGlass, Moon, Plus, User, ArrowClockwise } from "@phosphor-icons/react";
-import { useLocation } from "react-router-dom";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { useAppStore } from "@/stores/appStore";
-
-export interface HeaderShellProps {
-  title: string;
-  subtitle?: string;
-  runtimeLabel?: string | null;
-  runtimeTone?: "online" | "offline" | "syncing" | "warning";
-  runtimePulse?: boolean;
-  connectionOffline?: boolean;
-  onReconnect?: () => void;
-  actions?: ReactNode;
-  username?: string | null;
-  onLogout?: () => void;
-  onNavigateProfile?: () => void;
-}
+import { useTheme } from "next-themes";
+import { Bell, MagnifyingGlass, Moon, Sun, Plus, User, ArrowClockwise } from "@phosphor-icons/react";
 
 export function HeaderShell({
   title,
@@ -42,11 +19,13 @@ export function HeaderShell({
   onLogout,
   onNavigateProfile,
 }: HeaderShellProps) {
+  const { theme, setTheme } = useTheme();
   const location = useLocation();
   const sessions = useAppStore((state) => state.sessions);
   const activeSessionId = useAppStore((state) => state.activeSessionId);
   const setActiveSessionId = useAppStore((state) => state.setActiveSessionId);
   const setIsNewChatDialogOpen = useAppStore((state) => state.setIsNewChatDialogOpen);
+  const isDark = theme !== "light";
 
   const isAdminPage = ["/nodes", "/users", "/deployments", "/memory", "/logs", "/versions"].some(
     (path) => location.pathname.startsWith(path)
@@ -104,6 +83,21 @@ export function HeaderShell({
         </div>
 
         <div className="flex shrink-0 items-center gap-1 md:gap-2">
+          {/* Light / Dark Theme Switcher */}
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8 text-muted-foreground hover:text-foreground transition-all"
+            onClick={() => setTheme(isDark ? "light" : "dark")}
+            title={isDark ? "Alternar para Tema Claro" : "Alternar para Tema Escuro"}
+          >
+            {isDark ? (
+              <Sun className="h-4 w-4 text-amber-400" />
+            ) : (
+              <Moon className="h-4 w-4 text-indigo-500" />
+            )}
+          </Button>
+
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" size="icon" className="relative h-8 w-8 text-muted-foreground hover:text-foreground">
