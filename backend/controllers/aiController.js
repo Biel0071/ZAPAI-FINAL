@@ -1066,6 +1066,88 @@ async function detectAgentGaps(req, res) {
   }
 }
 
+async function analyzeUploadedMedia(req, res) {
+  try {
+    const { fileName, fileType, agentName, companyDesc } = req.body;
+    const store = req.app.locals.store;
+    const { processAI } = require('../services/ai.service');
+
+    const promptText = `Você é um analista técnico de mídias e documentos comerciais. Analise o arquivo "${fileName || 'documento'}" (${fileType || 'arquivo'}) da empresa "${companyDesc || 'Loja'}".
+Gerar duas descrições estruturadas em formato JSON:
+1. "descricao_ia": Instrução técnica detalhada e regras claras para que um atendente robô de IA saiba exatamente QUANDO e POR QUE enviar este arquivo aos clientes no WhatsApp (ex: quando o cliente pedir tabela de preços, catálogo ou documento oficial).
+2. "descricao_humana": Resumo amigável, direto e legível para um operador humano entender o conteúdo do arquivo.
+
+Responda ESTRITAMENTE em formato JSON exato no formato:
+{
+  "descricao_ia": "...",
+  "descricao_humana": "..."
+}`;
+
+    const aiRes = await processAI({
+      contact: { name: 'Sistema', phone: '00000' },
+      history: [],
+      message: promptText,
+      store,
+      agentName: agentName || 'Atendente',
+    });
+
+    let resultJson = {
+      descricao_ia: `Envie esta mídia (${fileName}) quando o cliente solicitar documentação oficial ou informações sobre ${fileName}.`,
+      descricao_humana: `Arquivo ${fileName} cadastrado para envio automático pela IA.`,
+    };
+
+    if (aiRes && aiRes.reply) {
+      try {
+        const clean = aiRes.reply.replace(/```json/g, '').replace(/```/g, '').trim();
+        const parsed = JSON.parse(clean);
+        if (parsed.descricao_ia) resultJson.descricao_ia = parsed.descricao_ia;
+        if (parsed.descricao_humana) resultJson.descricao_humana = parsed.descricao_humana;
+      } catch (err) {
+        console.warn('[ANALYZE_MEDIA_JSON_PARSE_FALLBACK]', err.message);
+      }
+    }
+
+    return res.json({ success: true, ...resultJson });
+  } catch (error) {
+    console.error('[ANALYZE_MEDIA_ERROR]', error);
+    return res.status(500).json({ error: error.message });
+  }
+}
+
+async function generateFollowUpPrompt(req, res) {
+  try {
+    const { agentName, sector, objective, company, products } = req.body;
+    const store = req.app.locals.store;
+    const { processAI } = require('../services/ai.service');
+
+    const promptText = `Crie um prompt completo de geração de mensagens de follow-up altamente otimizado para vendas e conversão no WhatsApp.
+Dados do atendente:
+- Nome: ${agentName || 'Atendente'}
+- Setor: ${sector || 'Comercial'}
+- Objetivo: ${objective || 'Vender e retomar contatos'}
+- Empresa: ${company || 'Loja'}
+- Produtos/Serviços: ${products || 'Geral'}
+
+O prompt deve instruir a IA a analisar o histórico da conversa e criar 3 mensagens sequenciais de follow-up amigáveis, sem serem invasivas, com ofertas ou perguntas relevantes para reaquecer o cliente.
+Retorne APENAS o texto do prompt formatado e pronto para uso no sistema.`;
+
+    const aiRes = await processAI({
+      contact: { name: 'Sistema', phone: '00000' },
+      history: [],
+      message: promptText,
+      store,
+      agentName: agentName || 'Atendente',
+    });
+
+    const generatedPrompt = aiRes?.reply || `Você é um assistente especializado em criar mensagens de follow-up personalizadas para conversas de WhatsApp, com foco em conversão de vendas para ${company || 'a empresa'}.\n\nSua função é analisar a conversa fornecida e gerar 3 mensagens de follow-up sequenciais, amigáveis e estratégicas.`;
+
+    return res.json({ success: true, prompt: generatedPrompt });
+  } catch (error) {
+    console.error('[GENERATE_FOLLOWUP_PROMPT_ERROR]', error);
+    return res.status(500).json({ error: error.message });
+  }
+}
+
 module.exports = {
   evolveAgent,
   getAgentLearning,
@@ -1122,4 +1204,6 @@ module.exports = {
   testReply,
   testProviders,
   refinePrompt,
+  analyzeUploadedMedia,
+  generateFollowUpPrompt,
 };
