@@ -101,9 +101,31 @@ async function executeQuickReplyFlow(req, res) {
       enqueuedSteps.push(enqueued);
     }
 
+    const flowTrackerService = require('../services/flowTrackerService');
+    flowTrackerService.startFlow({
+      chatId: phone,
+      flowName: flow.title || flow.label || flow.cmd || 'Resposta Rápida',
+      totalSteps: (steps || []).length || 1,
+      companyId,
+    });
+
     return res.status(200).json({ success: true, stepsCount: enqueuedSteps.length });
   } catch (error) {
     return res.status(500).json({ error: error.message || 'Failed to execute flow.' });
+  }
+}
+
+async function cancelQuickReplyFlow(req, res) {
+  try {
+    const { phone } = req.body;
+    if (!phone) {
+      return res.status(400).json({ error: 'phone is required.' });
+    }
+    const flowTrackerService = require('../services/flowTrackerService');
+    const cancelled = flowTrackerService.cancelFlow(phone);
+    return res.status(200).json({ success: true, cancelled });
+  } catch (error) {
+    return res.status(500).json({ error: error.message || 'Failed to cancel flow.' });
   }
 }
 
@@ -113,4 +135,5 @@ module.exports = {
   listQuickReplies,
   updateQuickReply,
   executeQuickReplyFlow,
+  cancelQuickReplyFlow,
 };

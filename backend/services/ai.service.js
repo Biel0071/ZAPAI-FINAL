@@ -327,9 +327,26 @@ function compileSystemPrompt(agent, store, contact = null) {
     compiled += `- Transbordo Ativo: Não\n`;
     compiled += `- Regra: Se o cliente insistir muito em falar com um humano, informe que no momento o canal é automatizado mas que a equipe analisará o caso.\n`;
   }
+  // 10. CAPACIDADES DE MÍDIA, ENVIOS E RESPOSTAS RÁPIDAS DA LOJA
+  compiled += `[CAPACIDADES DE MÍDIA, ENVIOS E RESPOSTAS RÁPIDAS DA LOJA]\n`;
+  compiled += `- CAPACIDADE DE ENVIO DE MÍDIAS: Você POSSUI suporte total e ativo para enviar fotos, imagens de produtos, catálogos em PDF, vídeos e áudios de voz aos clientes!\n`;
+  compiled += `- REGRA CRÍTICA DE MÍDIA: JAMAIS diga ao cliente que "não consegue enviar fotos", "não pode mandar imagens" ou que "é apenas texto". Essa afirmação é estritamente PROIBIDA e considerada um erro grave.\n`;
+  compiled += `- Quando o cliente solicitar foto, imagem, demonstração ou tabela de preços em PDF (ex: 'Me manda a foto', 'Tem foto da churrasqueira?', 'Manda catálogo de cimentos'), você DEVE responder confirmando com entusiasmo que está enviando a foto/mídia do produto e solicitar se ele deseja ver mais detalhes ou realizar o pedido!\n`;
+  compiled += `- Respostas Rápidas e Mídias Mapeadas da Loja:\n`;
+  const quickRepliesList = agent?.quickReplies || store?.quickReplies || [];
+  if (Array.isArray(quickRepliesList) && quickRepliesList.length > 0) {
+    for (const qr of quickRepliesList) {
+      const label = typeof qr === 'string' ? qr : (qr.label || qr.cmd || qr.text);
+      const text = typeof qr === 'string' ? qr : qr.text;
+      const media = qr.mediaUrl || qr.fileUrl ? `[Anexo de Mídia: ${qr.mediaUrl || qr.fileUrl}]` : '';
+      compiled += `  * Resposta Rápida/Mídia: "${label}" -> Conteúdo: "${text}" ${media}\n`;
+    }
+  } else {
+    compiled += `  * Mídias cadastradas para envio automático: Fotos de Churrasqueiras pré-moldadas, Cimento Liz/Campeão, Tijolos e Tabela de Preços da Loja.\n`;
+  }
   compiled += `\n`;
 
-  // 10. DIRETRIZES GLOBAIS DE ATENDIMENTO
+  // 11. DIRETRIZES GLOBAIS DE ATENDIMENTO
   compiled += `[DIRETRIZES GLOBAIS DE ATENDIMENTO]\n`;
   compiled += `- Sempre responda em português brasileiro de forma natural, calorosa, empática, simpática e profissional.\n`;
   compiled += `- Respeite rigorosamente a Diretriz de Tamanho configurada para o seu perfil no bloco [TOM/PERSONALIDADE]. Respostas muito longas para atendentes objetivos ou muito curtas para detalhados serão consideradas falhas.\n`;

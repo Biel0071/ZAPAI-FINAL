@@ -1884,6 +1884,27 @@ export const apiService = {
       body: payload,
     });
   },
+  async cancelQuickReplyFlow(phone: string) {
+    return request<{ success: boolean; cancelled: boolean }>({
+      endpoint: "/api/quick-replies/cancel-flow",
+      method: "POST",
+      body: { phone },
+    });
+  },
+  async analyzeMediaWithAI(payload: { fileName: string; fileType: string; agentName?: string; companyDesc?: string }) {
+    return request<{ success: boolean; descricao_ia: string; descricao_humana: string }>({
+      endpoint: "/api/ai/analyze-media",
+      method: "POST",
+      body: payload,
+    });
+  },
+  async generateFollowUpPrompt(payload: { agentName?: string; sector?: string; objective?: string; company?: string; products?: string }) {
+    return request<{ success: boolean; prompt: string }>({
+      endpoint: "/api/ai/generate-followup-prompt",
+      method: "POST",
+      body: payload,
+    });
+  },
   async getUserProviders() {
     return request<{ success: boolean; providers: any[] }>({ endpoint: "/config/user-providers", method: "GET" });
   },

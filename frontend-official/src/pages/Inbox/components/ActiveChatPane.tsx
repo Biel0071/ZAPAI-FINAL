@@ -37,6 +37,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { ChatHeaderBar } from "@/components/inbox/ChatHeaderBar";
 import { NewMessagesBanner } from "@/components/inbox/NewMessagesBanner";
 import { MessageRow } from "./MessageRow";
+import { FlowExecutionBanner, type FlowExecutionData } from "./FlowExecutionBanner";
+import { QuickResponseModal, type QuickResponseItem } from "./QuickResponseModal";
 import { cn } from "@/lib/utils";
 import { apiService } from "@/services/apiService";
 import type { ChatMessage, Conversation } from "@/services/apiService";
@@ -236,6 +238,63 @@ export function ActiveChatPane({
   handleSetConversationAgent,
 }: ActiveChatPaneProps) {
   const navigate = useNavigate();
+
+  const [activeFlowData, setActiveFlowData] = useState<FlowExecutionData | null>(null);
+  const [selectedQuickReplyModal, setSelectedQuickReplyModal] = useState<QuickResponseItem | null>(null);
+  const [isQuickReplyModalOpen, setIsQuickReplyModalOpen] = useState(false);
+
+  useEffect(() => {
+    if (!selectedConversation?.phone) {
+      setActiveFlowData(null);
+      return;
+    }
+    const currentPhone = selectedConversation.phone;
+
+    const handleFlowStarted = (data: FlowExecutionData) => {
+      if (data.chatId === currentPhone || String(data.chatId) === String(selectedConversation.id)) {
+        setActiveFlowData(data);
+      }
+    };
+
+    const handleFlowUpdated = (data: FlowExecutionData) => {
+      if (data.chatId === currentPhone || String(data.chatId) === String(selectedConversation.id)) {
+        setActiveFlowData((prev) => ({ ...(prev || {}), ...data }));
+      }
+    };
+
+    const handleFlowEnded = (data: { chatId: string }) => {
+      if (data.chatId === currentPhone || String(data.chatId) === String(selectedConversation.id)) {
+        setActiveFlowData(null);
+      }
+    };
+
+    const socket = (window as any).__socket || (globalThis as any).__socket;
+    if (socket && typeof socket.on === "function") {
+      socket.on("flow:started", handleFlowStarted);
+      socket.on("flow:step_updated", handleFlowUpdated);
+      socket.on("flow:cancelled", handleFlowEnded);
+      socket.on("flow:finished", handleFlowEnded);
+      return () => {
+        socket.off("flow:started", handleFlowStarted);
+        socket.off("flow:step_updated", handleFlowUpdated);
+        socket.off("flow:cancelled", handleFlowEnded);
+        socket.off("flow:finished", handleFlowEnded);
+      };
+    }
+  }, [selectedConversation]);
+
+  const handleDispatchQuickReply = async (item: QuickResponseItem, customDelayMs: number) => {
+    if (!selectedConversation?.phone) return;
+    if (item.id) {
+      await apiService.executeQuickReplyFlow(item.id, {
+        phone: selectedConversation.phone,
+        companyId: selectedConversation.tenantId || "default",
+      });
+    } else {
+      setMessageInput(item.text);
+      await handleSendMessage(item.text);
+    }
+  };
   const [activeSlashIndex, setActiveSlashIndex] = useState(0);
   const [activeTab, setActiveTab] = useState<'emoji' | 'sticker'>('emoji');
   const [stickers, setStickers] = useState<{ id: string; url: string; name: string }[]>([]);
@@ -742,6 +801,8 @@ export function ActiveChatPane({
             </div>
           )}
 
+          <FlowExecutionBanner flowData={activeFlowData} onCancelFlow={() => setActiveFlowData(null)} />
+
           <ScrollArea className="min-h-0 flex-1 chat-area-bg">
             <div
               ref={messagesScrollRef}
@@ -1013,10 +1074,8 @@ export function ActiveChatPane({
                             setMessageInput(item.text);
                             void handleSendMessage(item.text);
                           } else {
-                            setMessageInput(item.text);
-                            if (messageInputRef.current) {
-                              messageInputRef.current.focus();
-                            }
+                            setSelectedQuickReplyModal(item as any);
+                            setIsQuickReplyModalOpen(true);
                           }
                         }}
                         className="px-2.5 py-1 text-[11px] font-medium text-muted-foreground hover:text-foreground bg-muted/30 hover:bg-muted/70 border border-border/40 rounded-full transition-all duration-150 active:scale-95 shrink-0"
@@ -1344,6 +1403,14 @@ export function ActiveChatPane({
             </p>
           </div>
         </div>
+      )}
+      {selectedConversation && (
+        <QuickResponseModal
+          isOpen={isQuickReplyModalOpen}
+          onClose={() => setIsQuickReplyModalOpen(false)}
+          quickReply={selectedQuickReplyModal}
+          onDispatch={handleDispatchQuickReply}
+        />
       )}
     </div>
   );
