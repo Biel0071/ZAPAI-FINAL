@@ -1967,21 +1967,23 @@ export function AIView(props: AIViewProps) {
           </div>
 
           <div className="space-y-2">
-            <Label className="text-[10px] font-bold text-foreground">Vozes Padrão do Sistema (4 Femininas e 4 Masculinas BR)</Label>
+            <div className="flex items-center justify-between">
+              <Label className="text-[10px] font-bold text-foreground">ZAPFLOW AI Voices (4 Femininas e 4 Masculinas BR)</Label>
+            </div>
             
             {/* Female Voices */}
             <div className="space-y-1.5 border border-border/40 rounded-lg p-2.5 bg-background/20">
-              <span className="text-[9px] font-bold uppercase tracking-wider text-pink-400">Vozes Femininas BR</span>
+              <span className="text-[9px] font-bold uppercase tracking-wider text-pink-400">Vozes Femininas ZAPFLOW</span>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 pt-1">
                 {[
-                  { id: "pt-BR-FranciscaNeural", name: "Francisca (BR)", tag: "Calma & Profissional" },
-                  { id: "pt-BR-ThaliaNeural", name: "Vitória (BR)", tag: "Jovem & Dinâmica" },
-                  { id: "pt-BR-ElzaNeural", name: "Manuela (BR)", tag: "Acolhedora & Cordial" },
-                  { id: "pt-BR-YaraNeural", name: "Camila (BR)", tag: "Sofisticada & Executiva" },
+                  { id: "zapflow-aurora", name: "ZAPFLOW Aurora", tag: "Especialista Comercial" },
+                  { id: "zapflow-luna", name: "ZAPFLOW Luna", tag: "Jovem & Dinâmica" },
+                  { id: "zapflow-sophia", name: "ZAPFLOW Sophia", tag: "Executiva" },
+                  { id: "zapflow-maya", name: "ZAPFLOW Maya", tag: "Acolhedora" },
                 ].map((v) => (
                   <div key={v.id} className={cn("flex items-center justify-between p-2 rounded-lg border text-xs cursor-pointer transition-all", agentFormVoiceId === v.id ? "border-primary bg-primary/10 font-bold" : "border-border/50 hover:bg-muted/50")} onClick={() => setAgentFormVoiceId(v.id)}>
                     <div>
-                      <p className="text-[11px] leading-none">{v.name}</p>
+                      <p className="text-[11px] leading-none font-bold text-foreground">{v.name}</p>
                       <p className="text-[9px] text-muted-foreground mt-0.5">{v.tag}</p>
                     </div>
                     <Button
@@ -1994,12 +1996,12 @@ export function AIView(props: AIViewProps) {
                         setAgentFormVoiceId(v.id);
                         if (typeof window !== "undefined" && "speechSynthesis" in window) {
                           window.speechSynthesis.cancel();
-                          const utt = new SpeechSynthesisUtterance(`Olá! Eu sou a voz ${v.name.split(" ")[0]} e estou pronta para atender seus clientes.`);
+                          const utt = new SpeechSynthesisUtterance(`Olá! Eu sou a voz ${v.name} e estou pronta para responder com alta conversão.`);
                           utt.lang = "pt-BR";
                           window.speechSynthesis.speak(utt);
                         }
                       }}
-                      title="Ouvir demonstração desta voz"
+                      title="Ouvir demonstração ZAPFLOW"
                     >
                       <Play className="h-3 w-3 fill-current" />
                     </Button>
@@ -2010,17 +2012,17 @@ export function AIView(props: AIViewProps) {
 
             {/* Male Voices */}
             <div className="space-y-1.5 border border-border/40 rounded-lg p-2.5 bg-background/20">
-              <span className="text-[9px] font-bold uppercase tracking-wider text-blue-400">Vozes Masculinas BR</span>
+              <span className="text-[9px] font-bold uppercase tracking-wider text-blue-400">Vozes Masculinas ZAPFLOW</span>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 pt-1">
                 {[
-                  { id: "pt-BR-AntonioNeural", name: "Antonio (BR)", tag: "Firme & Comercial" },
-                  { id: "pt-BR-FabioNeural", name: "Daniel (BR)", tag: "Jovem & Descontraído" },
-                  { id: "pt-BR-HumbertoNeural", name: "Thiago (BR)", tag: "Técnico & Confiável" },
-                  { id: "pt-BR-NicolauNeural", name: "Ricardo (BR)", tag: "Grave & Executivo" },
+                  { id: "zapflow-orion", name: "ZAPFLOW Orion", tag: "Consultor" },
+                  { id: "zapflow-atlas", name: "ZAPFLOW Atlas", tag: "Executivo" },
+                  { id: "zapflow-noah", name: "ZAPFLOW Noah", tag: "Jovem" },
+                  { id: "zapflow-titan", name: "ZAPFLOW Titan", tag: "Premium" },
                 ].map((v) => (
                   <div key={v.id} className={cn("flex items-center justify-between p-2 rounded-lg border text-xs cursor-pointer transition-all", agentFormVoiceId === v.id ? "border-primary bg-primary/10 font-bold" : "border-border/50 hover:bg-muted/50")} onClick={() => setAgentFormVoiceId(v.id)}>
                     <div>
-                      <p className="text-[11px] leading-none">{v.name}</p>
+                      <p className="text-[11px] leading-none font-bold text-foreground">{v.name}</p>
                       <p className="text-[9px] text-muted-foreground mt-0.5">{v.tag}</p>
                     </div>
                     <Button
@@ -2033,12 +2035,12 @@ export function AIView(props: AIViewProps) {
                         setAgentFormVoiceId(v.id);
                         if (typeof window !== "undefined" && "speechSynthesis" in window) {
                           window.speechSynthesis.cancel();
-                          const utt = new SpeechSynthesisUtterance(`Olá! Eu sou a voz ${v.name.split(" ")[0]} e estou pronto para conversar com seus clientes.`);
+                          const utt = new SpeechSynthesisUtterance(`Olá! Eu sou a voz ${v.name} e estou pronto para responder com alta conversão.`);
                           utt.lang = "pt-BR";
                           window.speechSynthesis.speak(utt);
                         }
                       }}
-                      title="Ouvir demonstração desta voz"
+                      title="Ouvir demonstração ZAPFLOW"
                     >
                       <Play className="h-3 w-3 fill-current" />
                     </Button>

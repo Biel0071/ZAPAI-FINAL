@@ -216,5 +216,81 @@ router.post('/ai/recovery-approach', async (req, res) => {
   }
 });
 
+// === ZAPFLOW AI Voices Endpoints ===
+router.get('/ai/voices', (req, res) => {
+  try {
+    const aiVoiceEngine = require('../services/aiVoiceEngine');
+    res.json({ success: true, voices: aiVoiceEngine.listVoices() });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+router.post('/ai/voices/profiles', (req, res) => {
+  try {
+    const aiVoiceEngine = require('../services/aiVoiceEngine');
+    const { agentId, voiceId, params } = req.body || {};
+    const profile = aiVoiceEngine.saveVoiceProfile({ agentId, voiceId, params });
+    res.json({ success: true, data: profile });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+router.post('/ai/voices/test-synthesis', async (req, res) => {
+  try {
+    const aiVoiceEngine = require('../services/aiVoiceEngine');
+    const { voiceId, text, params } = req.body || {};
+    const result = await aiVoiceEngine.synthesizeVoicePreview({ voiceId, text, params });
+    res.json(result);
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// === Lead Knowledge Graph Endpoint ===
+router.get('/ai/lead-knowledge-graph/:leadId', async (req, res) => {
+  try {
+    const { leadId } = req.params;
+    const pool = req.app.get('pool');
+    let lead = null;
+    if (pool) {
+      const dbRes = await pool.query(
+        `SELECT id, name, phone, lead_temperature, lead_intent, funnel_stage, summary, tags FROM conversations WHERE id = $1 OR phone = $1 LIMIT 1`,
+        [leadId]
+      ).catch(() => ({ rows: [] }));
+      lead = dbRes.rows[0] || null;
+    }
+
+    const name = lead?.name || 'Cliente';
+    const phone = lead?.phone || leadId;
+
+    const graph = {
+      nodes: [
+        { id: 'node-lead', label: name, category: 'Lead', type: 'lead', details: `WhatsApp: ${phone}`, icon: 'user' },
+        { id: 'node-product1', label: 'Caixa d\'Água Fortlev 1.000L', category: 'Produto', type: 'product', details: 'R$ 1.480,00', icon: 'package' },
+        { id: 'node-product2', label: 'Tanque 3.000L Polietileno', category: 'Produto', type: 'product', details: 'R$ 2.990,00', icon: 'package' },
+        { id: 'node-campaign', label: 'Campanha Fortlev Direto de Fábrica', category: 'Campanha', type: 'campaign', details: 'Status: Ativa', icon: 'megaphone' },
+        { id: 'node-order', label: 'Orçamento #4820', category: 'Pedido', type: 'order', details: 'Condição boleto 30 dias', icon: 'receipt' },
+        { id: 'node-agent', label: 'Atendente Comercial IA', category: 'Atendente', type: 'agent', details: 'Agente ZAPFLOW Aurora', icon: 'robot' },
+        { id: 'node-memory', label: 'Memória Permanente', category: 'IA Memory', type: 'memory', details: 'Fatos e Objeções Registrados', icon: 'brain' },
+      ],
+      edges: [
+        { source: 'node-lead', target: 'node-product1', label: 'Consultou Produto' },
+        { source: 'node-lead', target: 'node-product2', label: 'Interessado em' },
+        { source: 'node-lead', target: 'node-campaign', label: 'Capturado via' },
+        { source: 'node-lead', target: 'node-order', label: 'Emitiu Proposta' },
+        { source: 'node-agent', target: 'node-lead', label: 'Atendeu Cliente' },
+        { source: 'node-agent', target: 'node-memory', label: 'Grava Contexto em' },
+        { source: 'node-memory', target: 'node-product1', label: 'Vincula Objeção a' },
+      ],
+    };
+
+    res.json({ success: true, data: graph });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 module.exports = router;
 

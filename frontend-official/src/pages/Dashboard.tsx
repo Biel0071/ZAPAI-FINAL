@@ -21,7 +21,7 @@ import { useRuntime } from "@/providers/RuntimeProvider";
 
 const STATUS_POLL_MS = 15_000;
 const HEAVY_REFRESH_MS = 30_000;
-const VALID_TABS = ["overview", "conversations", "ai", "schedule", "map"] as const;
+const VALID_TABS = ["overview", "conversations", "ai", "commercial", "operations", "map"] as const;
 
 type DashboardTab = (typeof VALID_TABS)[number];
 
@@ -199,7 +199,7 @@ export default function Dashboard() {
 
   return (
     <div className="min-h-screen">
-      <Header title="CRM Operacional" subtitle="Operação comercial unificada" />
+      <Header title="Business Intelligence (BI)" subtitle="Hub unificado de inteligência comercial, IA e infraestrutura" />
 
       <div className="page-container section-stack">
         <DashboardView

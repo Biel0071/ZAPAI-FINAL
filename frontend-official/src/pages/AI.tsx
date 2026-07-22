@@ -7,6 +7,7 @@ import { useToast } from "@/hooks/use-toast";
 import { apiService, type AIConnectionTestResult, type AIStatusResponse } from "@/services/apiService";
 import type { AIProviderConfig } from "@/lovable/pages/AIView";
 import { useAppStore } from "@/stores/appStore";
+import { VoiceStudioDrawer } from "@/components/ai/VoiceStudioDrawer";
 
 type SectionId =
   | "dashboard"
@@ -87,6 +88,7 @@ export default function AI() {
   const tabParam = searchParams.get("tab") as SectionId | null;
   const [activeSection, setActiveSection] = useState<SectionId>("dashboard");
   const activeSessionId = useAppStore((state) => state.activeSessionId);
+  const [isVoiceStudioOpen, setIsVoiceStudioOpen] = useState(false);
 
   useEffect(() => {
     if (tabParam && ["dashboard", "atendentes", "provedores", "conhecimento", "operacao", "analise"].includes(tabParam)) {
@@ -770,6 +772,12 @@ export default function AI() {
         onRunProviderTests={() => void runProviderTests()}
         aiLogs={aiLogs}
         aiMetrics={aiMetrics}
+      />
+
+      {/* ZAPFLOW AI Voices Studio Drawer */}
+      <VoiceStudioDrawer
+        open={isVoiceStudioOpen}
+        onClose={() => setIsVoiceStudioOpen(false)}
       />
     </div>
   );

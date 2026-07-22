@@ -28,6 +28,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { LeadKnowledgeGraph } from "@/components/contacts/LeadKnowledgeGraph";
 import { apiService } from "@/services/apiService";
 import { notify } from "@/services/notifyService";
 
@@ -53,7 +54,7 @@ interface LeadDrawerProps {
 
 export function LeadDrawer({ lead, onClose, onUpdateLead }: LeadDrawerProps) {
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState<"summary" | "timeline" | "products" | "followups">("summary");
+  const [activeTab, setActiveTab] = useState<"summary" | "graph" | "timeline" | "products" | "followups">("summary");
   const [loadingAi, setLoadingAi] = useState(false);
   const [aiData, setAiData] = useState<any>(null);
   const [followupPlan, setFollowupPlan] = useState<any>(null);
@@ -210,10 +211,16 @@ export function LeadDrawer({ lead, onClose, onUpdateLead }: LeadDrawerProps) {
           <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)}>
             <TabsList className="w-full justify-start rounded-xl border border-border/60 bg-card/60 p-1">
               <TabsTrigger value="summary" className="text-xs font-semibold">Resumo IA & Visão 360°</TabsTrigger>
+              <TabsTrigger value="graph" className="text-xs font-semibold">Grafo Inteligente</TabsTrigger>
               <TabsTrigger value="timeline" className="text-xs font-semibold">Linha do Tempo</TabsTrigger>
               <TabsTrigger value="products" className="text-xs font-semibold">Produtos & Propostas</TabsTrigger>
               <TabsTrigger value="followups" className="text-xs font-semibold">Plano de Follow-up ({followupPlan?.steps?.length || 6})</TabsTrigger>
             </TabsList>
+
+            {/* TAB: GRAFO INTELIGENTE DE CONHECIMENTO */}
+            <TabsContent value="graph" className="mt-4">
+              <LeadKnowledgeGraph leadId={lead.conversationId || lead.id} leadName={lead.name} />
+            </TabsContent>
 
             {/* TAB 1: SUMMARY */}
             <TabsContent value="summary" className="space-y-4 mt-4">

@@ -1849,6 +1849,14 @@ export const apiService = {
     request<Record<string, unknown>>({ endpoint: "/api/ai/followup-plan", method: "POST", body: { conversationId, phone } }),
   getAIRecoveryApproach: (conversationId: string, phone?: string, lastTopic?: string) =>
     request<Record<string, unknown>>({ endpoint: "/api/ai/recovery-approach", method: "POST", body: { conversationId, phone, lastTopic } }),
+  getZapflowVoices: () =>
+    request<Record<string, unknown>>({ endpoint: "/api/ai/voices", method: "GET" }),
+  saveVoiceProfile: (agentId: string, voiceId: string, params: Record<string, unknown>) =>
+    request<Record<string, unknown>>({ endpoint: "/api/ai/voices/profiles", method: "POST", body: { agentId, voiceId, params } }),
+  testVoiceSynthesis: (voiceId: string, text?: string, params?: Record<string, unknown>) =>
+    request<Record<string, unknown>>({ endpoint: "/api/ai/voices/test-synthesis", method: "POST", body: { voiceId, text, params } }),
+  getLeadKnowledgeGraph: (leadId: string) =>
+    request<Record<string, unknown>>({ endpoint: `/api/ai/lead-knowledge-graph/${encodeURIComponent(leadId)}`, method: "GET" }),
   patchConversation: (conversationId: string, payload: { status?: string; lead_temperature?: string; funnel_stage?: string; tags?: string[]; name?: string; notes?: string }) =>
     request<Record<string, unknown>>({ endpoint: `/api/conversations/${encodeURIComponent(conversationId)}`, method: "PATCH", body: payload }),
   createConversation: (payload: { phone: string; name?: string; sessionId?: string }) => {
