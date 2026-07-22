@@ -384,9 +384,9 @@ export default function Inbox() {
 
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === "ArrowLeft") {
-        showPreviousImage();
+        showPreviousMedia();
       } else if (event.key === "ArrowRight") {
-        showNextImage();
+        showNextMedia();
       }
     };
 
@@ -394,7 +394,7 @@ export default function Inbox() {
     return () => {
       window.removeEventListener("keydown", handleKeyDown);
     };
-  }, [state.previewMedia, showPreviousImage, showNextImage]);
+  }, [state.previewMedia, showPreviousMedia, showNextMedia]);
 
   // Sidebar props mapped
   const sidebarProps = {
