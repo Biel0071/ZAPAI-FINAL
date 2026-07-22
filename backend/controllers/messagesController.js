@@ -412,7 +412,7 @@ async function sendMessage(req, res) {
           console.error('[AI INTELLIGENCE] Failed to capture outbound memory fallback:', error.message || error);
         });
 
-      if (!deliveryConfirmed) {
+      if (!deliveryConfirmed && !sendResult?.key?.id && !whatsappMessageId) {
         return res.status(502).json({
           chatId: normalizeChatId(normalizedPhone),
           code: 'WHATSAPP_ACK_TIMEOUT',
@@ -482,7 +482,7 @@ async function sendMessage(req, res) {
       }
     }
 
-    if (!deliveryConfirmed) {
+    if (!deliveryConfirmed && !sendResult?.key?.id && !whatsappMessageId) {
       return res.status(502).json({
         chatId: normalizeChatId(normalizedPhone),
         code: 'WHATSAPP_ACK_TIMEOUT',

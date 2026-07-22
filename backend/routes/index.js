@@ -31,6 +31,17 @@ function registerRoutes(app, options = {}) {
   const enableAdminMasterRoutes = options.enableAdminMasterRoutes !== false;
   const enableNodeRegistrationServer = options.enableNodeRegistrationServer !== false;
 
+  const express = require('express');
+  const path = require('path');
+  const uploadDir = path.join(__dirname, '../upload');
+  const uploadsDir = path.join(__dirname, '../uploads');
+
+  app.use('/upload', express.static(uploadDir));
+  app.use('/uploads', express.static(uploadsDir));
+  app.use('/media', express.static(uploadDir));
+  app.use('/api/upload', express.static(uploadDir));
+  app.use('/api/uploads', express.static(uploadsDir));
+
   app.use('/system', systemRouter);
   // Brute-force protection: applied before the auth router so /auth/login
   // and /api/auth/login are rate-limited even when called unauthenticated.

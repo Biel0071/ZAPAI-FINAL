@@ -440,6 +440,17 @@ async function processMessage({ payload, conversation, store, sock, sessionId })
       if (finalFunnelStage) {
         io?.emit('funnel_updated', { conversationId, funnel_stage: finalFunnelStage, phone });
       }
+
+      try {
+        const agentMemoryGraphService = require('./agentMemoryGraphService');
+        void agentMemoryGraphService.learnFromInteraction({
+          agentKey: conversation?.agent_name || 'default',
+          companyId: conversation?.company_id || 'default',
+          contact: { phone, name: conversation?.lead_name || phone, conversationId },
+          message: text,
+          reply: ai.text || '',
+        });
+      } catch (_gErr) {}
     } catch (err) {
       console.error('[AutomationEngine] Failed to apply AI analysis metadata:', err.message);
     }

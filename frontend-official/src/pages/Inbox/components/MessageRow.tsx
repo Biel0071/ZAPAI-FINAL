@@ -217,6 +217,16 @@ export const MessageRow = memo(function MessageRow({
 
   const EMOJI_OPTIONS = ["\u{1F600}", "\u{1F602}", "\u{1F60D}", "\u{1F44D}", "\u{1F525}", "\u{1F44F}", "\u{1F64F}", "\u{2705}", "\u{1F4E6}", "\u{1F69A}"];
 
+  const isAiMessage = Boolean(
+    message.sender === 'agent' ||
+    message.isAi ||
+    (message as any).isAiGenerated ||
+    (message as any).source === 'ai' ||
+    (message as any).source === 'agent' ||
+    (message as any).metadata?.source === 'ai' ||
+    (message as any).agentName
+  );
+
   return (
     <div
       data-message-id={message.id}
@@ -274,7 +284,14 @@ export const MessageRow = memo(function MessageRow({
         <button
           type="button"
           onClick={() => onToggleMenu(message.id)}
-          className={cn("chat-bubble text-left", message.fromMe ? "chat-bubble-sent" : "chat-bubble-received")}
+          className={cn(
+            "chat-bubble text-left transition-all duration-150",
+            message.fromMe
+              ? (isAiMessage
+                  ? "bg-emerald-950/90 border border-emerald-500/60 text-emerald-50 shadow-md shadow-emerald-950/50"
+                  : "chat-bubble-sent")
+              : "chat-bubble-received"
+          )}
         >
           {!backendOnline && hasRenderableMedia && (
             <div className="mb-2 rounded-lg border border-border bg-muted/40 px-3 py-2 text-xs text-muted-foreground">

@@ -1055,11 +1055,11 @@ export function ActiveChatPane({
               )}
               {!selectedConversation?.isBlocked && canSendMessages && !isRecording && (() => {
                 const list = (quickReplies && quickReplies.length > 0)
-                  ? quickReplies.map(qr => typeof qr === "string" ? { label: qr, text: qr } : { label: qr.cmd || qr.label || qr.text, text: qr.text })
+                  ? quickReplies.map(qr => typeof qr === "string" ? { id: "custom", label: qr, text: qr } : { ...qr, label: qr.cmd || qr.label || qr.text || qr.title, text: qr.text || qr.value || qr.label || qr.cmd })
                   : [
-                      { label: "Olá, como posso ajudar?", text: "Olá, como posso ajudar?" },
-                      { label: "Aguarde um momento por favor.", text: "Aguarde um momento por favor." },
-                      { label: "Obrigado pelo contato!", text: "Obrigado pelo contato!" }
+                      { id: "def_1", label: "Olá, como posso ajudar?", text: "Olá, como posso ajudar?" },
+                      { id: "def_2", label: "Aguarde um momento por favor.", text: "Aguarde um momento por favor." },
+                      { id: "def_3", label: "Obrigado pelo contato!", text: "Obrigado pelo contato!" }
                     ];
 
                 return (
@@ -1068,11 +1068,10 @@ export function ActiveChatPane({
                       <button
                         key={idx}
                         type="button"
-                        title="Clique para usar. Shift+Clique envia direto."
+                        title="Clique para abrir detalhes/mídia. Shift+Clique envia fluxo completo direto."
                         onClick={(e) => {
                           if (e.shiftKey) {
-                            setMessageInput(item.text);
-                            void handleSendMessage(item.text);
+                            void handleDispatchQuickReply(item as any, 0);
                           } else {
                             setSelectedQuickReplyModal(item as any);
                             setIsQuickReplyModalOpen(true);
