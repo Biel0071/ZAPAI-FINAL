@@ -24,6 +24,7 @@ import {
 } from "@phosphor-icons/react";
 import { Header } from "@/components/layout/Header";
 import CampaignsView from "@/lovable/pages/CampaignsPageView";
+import { AICampaignModal } from "@/components/campaigns/AICampaignModal";
 import { createCampaignsLovableViewModel } from "@/adapters/lovable/campaignsAdapter";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -345,6 +346,17 @@ export default function Campaigns() {
   const [aiAgents, setAiAgents] = useState<any[]>([]);
   const [selectedAiAgentKey, setSelectedAiAgentKey] = useState("");
   const [isAiCampaignGenerating, setIsAiCampaignGenerating] = useState(false);
+  const [isAiModalOpen, setIsAiModalOpen] = useState(false);
+
+  const handleApplyGeneratedCampaign = useCallback((generatedData: any) => {
+    if (!generatedData) return;
+    if (generatedData.name) setCampaignName(generatedData.name);
+    if (Array.isArray(generatedData.messages) && generatedData.messages.length > 0) {
+      setMessageVariants(generatedData.messages.map((m: string) => ({ type: "text", content: m })));
+    }
+    setCampaignStep(1);
+    setComposerMode("create");
+  }, []);
 
   const loadPageData = useCallback(async (options?: { silent?: boolean }) => {
     if (!options?.silent) setLoading(true);
@@ -1236,9 +1248,13 @@ export default function Campaigns() {
             <Button variant="outline" size="sm" className="rounded-xl" onClick={() => fileInputRef.current?.click()}>
               Importar Contatos
             </Button>
+            <Button variant="outline" size="sm" className="gap-2 rounded-xl border-primary/40 hover:bg-primary/10" onClick={() => setIsAiModalOpen(true)}>
+              <Sparkle className="h-4 w-4 text-primary animate-pulse" weight="fill" />
+              Criar Campanha por IA
+            </Button>
             <Button size="sm" className="rounded-xl shadow-glow" onClick={resetComposer}>
               <Plus className="h-4 w-4" />
-              Nova Campanha
+              Disparo Manual
             </Button>
           </>
         }
@@ -2323,6 +2339,13 @@ export default function Campaigns() {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* AI Campaign Modal */}
+      <AICampaignModal
+        open={isAiModalOpen}
+        onClose={() => setIsAiModalOpen(false)}
+        onApplyGeneratedCampaign={handleApplyGeneratedCampaign}
+      />
     </div>
   );
 }

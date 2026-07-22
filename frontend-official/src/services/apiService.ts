@@ -1841,6 +1841,14 @@ export const apiService = {
     request<Record<string, unknown>>({ endpoint: `/api/campaigns/${encodeURIComponent(campaignId)}/cancel`, method: "POST" }),
   getCampaignDispatchStatus: (campaignId: string) =>
     request<Record<string, unknown>>({ endpoint: `/api/campaigns/${encodeURIComponent(campaignId)}/status`, method: "GET" }),
+  generateCampaignAI: (prompt: string, temperature?: string) =>
+    request<Record<string, unknown>>({ endpoint: "/api/campaigns/generate-ai", method: "POST", body: { prompt, temperature } }),
+  estimateAudience: (filters: Record<string, unknown>) =>
+    request<Record<string, unknown>>({ endpoint: "/api/campaigns/preview-audience", method: "POST", body: filters }),
+  getAIFollowupPlan: (conversationId: string, phone?: string) =>
+    request<Record<string, unknown>>({ endpoint: "/api/ai/followup-plan", method: "POST", body: { conversationId, phone } }),
+  getAIRecoveryApproach: (conversationId: string, phone?: string, lastTopic?: string) =>
+    request<Record<string, unknown>>({ endpoint: "/api/ai/recovery-approach", method: "POST", body: { conversationId, phone, lastTopic } }),
   patchConversation: (conversationId: string, payload: { status?: string; lead_temperature?: string; funnel_stage?: string; tags?: string[]; name?: string; notes?: string }) =>
     request<Record<string, unknown>>({ endpoint: `/api/conversations/${encodeURIComponent(conversationId)}`, method: "PATCH", body: payload }),
   createConversation: (payload: { phone: string; name?: string; sessionId?: string }) => {

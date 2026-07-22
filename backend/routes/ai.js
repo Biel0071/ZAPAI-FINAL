@@ -193,14 +193,28 @@ router.get('/ai/conversation-memory/:contactId', async (req, res) => {
   }
 });
 
-// === Agent Evolution & Learning ===
-router.post('/ai/agent-evolve', aiController.evolveAgent);
-router.get('/ai/agent-learning/:key', aiController.getAgentLearning);
-router.post('/ai/agent-learning/:id/answer', aiController.answerLearningEvent);
-router.post('/ai/agent-learning/:id/apply', aiController.applyLearningAnswer);
-router.post('/ai/agent-learning/:id/ignore', aiController.ignoreLearningEvent);
-router.get('/ai/agent-evolution/:key', aiController.getAgentEvolution);
-router.post('/ai/agent-detect-gaps/:key', aiController.detectAgentGaps);
+// === AI Follow-up & Recovery ===
+router.post('/ai/followup-plan', async (req, res) => {
+  try {
+    const aiFollowupEngine = require('../services/aiFollowupEngine');
+    const { conversationId, phone } = req.body || {};
+    const result = await aiFollowupEngine.generateFollowupPlan({ conversationId, phone });
+    res.json(result);
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+router.post('/ai/recovery-approach', async (req, res) => {
+  try {
+    const aiFollowupEngine = require('../services/aiFollowupEngine');
+    const { conversationId, phone, lastTopic } = req.body || {};
+    const result = await aiFollowupEngine.generateRecoveryApproach({ conversationId, phone, lastTopic });
+    res.json(result);
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
 
 module.exports = router;
 

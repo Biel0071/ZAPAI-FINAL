@@ -5,6 +5,7 @@ import ContactsView from "@/lovable/pages/ContactsPageView";
 import { createContactsLovableViewModel } from "@/adapters/lovable/contactsAdapter";
 import { type ContactGridItem } from "@/components/contacts/ContactGrid";
 import { type ContactSegment } from "@/components/contacts/ContactSidebar";
+import { LeadDrawer } from "@/components/contacts/LeadDrawer";
 import { apiService } from "@/services/apiService";
 import { useToast } from "@/hooks/use-toast";
 import {
@@ -465,6 +466,9 @@ export default function Contacts() {
     }
   };
 
+  // Selected Lead Drawer State
+  const [selectedLead, setSelectedLead] = useState<ContactRow | null>(null);
+
   return (
     <div className="min-h-screen">
       <Header title="Leads CRM / Contatos" subtitle="Gestão de base e qualificação de leads" />
@@ -481,8 +485,12 @@ export default function Contacts() {
         onSegmentChange={handleSegmentChange}
         onRefresh={() => void loadContacts()}
         onGoToChat={(item) => {
-          const source = filteredContacts.find((contact) => String(contact.id) === String(item.id) || contact.phone === item.phone) || item;
-          goToChat(source as any);
+          const source = filteredContacts.find((contact) => String(contact.id) === String(item.id) || contact.phone === item.phone);
+          if (source) {
+            setSelectedLead(source);
+          } else {
+            goToChat(item as any);
+          }
         }}
         onEditContact={openEditModal}
         selectedIds={selectedIds}
@@ -493,6 +501,13 @@ export default function Contacts() {
         onViewModeChange={setViewMode}
         onUpdateContact={handleUpdateContact}
         onDeleteContact={handleDeleteContact}
+      />
+
+      {/* 360 Lead Drawer Panel */}
+      <LeadDrawer
+        lead={selectedLead}
+        onClose={() => setSelectedLead(null)}
+        onUpdateLead={(id, updates) => void handleUpdateContact(id, updates)}
       />
 
       {/* Edit Contact Dialog */}

@@ -87,6 +87,32 @@ router.get('/campaigns/:id/status', (req, res) => {
   }
 });
 
+// Generate Campaign by AI Prompt
+router.post('/campaigns/generate-ai', async (req, res) => {
+  try {
+    const aiCampaignGenerator = require('../services/aiCampaignGenerator');
+    const companyId = req.companyId || process.env.DEFAULT_COMPANY_ID || 'default';
+    const { prompt, temperature } = req.body || {};
+    const result = await aiCampaignGenerator.generateCampaignFromPrompt({ prompt, companyId, targetTemperature: temperature });
+    return safeJson(res, result);
+  } catch (error) {
+    return safeJson(res, { success: false, error: error?.message || 'AI Generation failed' }, 400);
+  }
+});
+
+// Preview Audience and Estimation
+router.post('/campaigns/preview-audience', async (req, res) => {
+  try {
+    const aiCampaignGenerator = require('../services/aiCampaignGenerator');
+    const companyId = req.companyId || process.env.DEFAULT_COMPANY_ID || 'default';
+    const filters = req.body || {};
+    const result = await aiCampaignGenerator.estimateAudience({ companyId, filters });
+    return safeJson(res, result);
+  } catch (error) {
+    return safeJson(res, { success: false, error: error?.message || 'Audience estimation failed' }, 400);
+  }
+});
+
 // List all active campaigns
 router.get('/campaigns/active', (_req, res) => {
   try {
