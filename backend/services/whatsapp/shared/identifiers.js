@@ -162,14 +162,6 @@ function normalizeWhatsappJid(phone = '') {
     clean = `55${clean}`;
   }
 
-  // Prefer the address observed by the connected WhatsApp session. The Inbox
-  // presents the canonical phone to operators, while Baileys may require the
-  // corresponding LID for the transport.
-  const mappedLid = global.phoneToLidMap?.get(clean);
-  if (mappedLid) {
-    return `${String(mappedLid).split('@')[0]}@lid`;
-  }
-
   return `${clean}@s.whatsapp.net`;
 }
 

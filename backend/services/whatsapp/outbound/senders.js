@@ -164,15 +164,18 @@ async function resolveRegisteredJid(sock, jid, options = {}) {
         return jid;
       }
 
-      const authoritativeLid = match.lid
-        ? `${String(match.lid).split('@')[0].split(':')[0]}@lid`
-        : jid;
-      global.phoneToLidMap?.set(cleanPhone, authoritativeLid.split('@')[0]);
-      global.lidToPhoneMap?.set(authoritativeLid.split('@')[0], cleanPhone);
-      setCachedJid(cleanPhone, authoritativeLid);
-      setCachedJid(cleanLid, authoritativeLid);
-      console.log(`[JID-RESOLVE] confirmed ${cleanPhone} -> ${authoritativeLid}`);
-      return authoritativeLid;
+      const authoritativePhoneJid = match.jid
+        ? match.jid
+        : `${cleanPhone}@s.whatsapp.net`;
+      if (match.lid) {
+        const lidStr = `${String(match.lid).split('@')[0].split(':')[0]}@lid`;
+        global.phoneToLidMap?.set(cleanPhone, lidStr.split('@')[0]);
+        global.lidToPhoneMap?.set(lidStr.split('@')[0], cleanPhone);
+      }
+      setCachedJid(cleanPhone, authoritativePhoneJid);
+      setCachedJid(cleanLid, authoritativePhoneJid);
+      console.log(`[JID-RESOLVE] confirmed ${cleanPhone} -> ${authoritativePhoneJid}`);
+      return authoritativePhoneJid;
     } catch (error) {
       console.warn(`[JID-RESOLVE] LID confirmation failed for ${jid}; reusing known address:`, error?.message || error);
       setCachedJid(cleanPhone, jid);
@@ -197,9 +200,12 @@ async function resolveRegisteredJid(sock, jid, options = {}) {
   const queryCandidate = async (candidateJid, reason) => {
     const checkResult = await sock.onWhatsApp(candidateJid);
     if (Array.isArray(checkResult) && checkResult.length > 0 && checkResult[0].exists) {
-      const resolvedJid = checkResult[0].lid
-        ? `${String(checkResult[0].lid).split('@')[0].split(':')[0]}@lid`
-        : (checkResult[0].jid || candidateJid);
+      const resolvedJid = checkResult[0].jid || candidateJid;
+      if (checkResult[0].lid) {
+        const lidStr = `${String(checkResult[0].lid).split('@')[0].split(':')[0]}@lid`;
+        global.phoneToLidMap?.set(clean, lidStr.split('@')[0]);
+        global.lidToPhoneMap?.set(lidStr.split('@')[0], clean);
+      }
       setCachedJid(clean, resolvedJid);
       if (resolvedJid !== jid || reason) {
         console.log(`[JID-RESOLVE] ${reason || 'resolved'} ${clean} -> ${resolvedJid}`);
