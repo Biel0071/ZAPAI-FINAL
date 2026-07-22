@@ -2737,85 +2737,25 @@ export function useInboxState() {
       return;
     }
 
-    if (arg.isFlow) {
-      setSending(true);
-      try {
-        await apiService.executeQuickReplyFlow(arg.id, {
-          phone: selectedConversation.phone,
-          sessionId: selectedConversation.sessionId || preferredSessionId || undefined,
-        });
-        notify.success("Fluxo disparado com sucesso.");
-      } catch (err: any) {
-        notify.error("Falha ao disparar o fluxo.");
-        console.error(err);
-      } finally {
-        setSending(false);
-      }
-      return;
-    }
-
-    const items = (arg.items || [{ type: "text", value: arg.text }]).map((item) => ({
-      ...item,
-      value: item.type === "text" ? interpolateTemplateVariables(item.value, conversationVariableContext) : item.value,
-    }));
     setSending(true);
-
     try {
-      for (const item of items) {
-        if (!selectedConversation) break;
-
-        const payload = {
-          phone: selectedConversation.phone,
-          conversationId: selectedConversation.id,
-          contactId: selectedConversation.contactId,
-          sessionId: selectedConversation.sessionId || preferredSessionId || undefined,
-        };
-
-        const typingMs = typeof item.typingMs === "number" ? item.typingMs : 1500;
-        const delayMs = typeof item.delayMs === "number" ? item.delayMs : 0;
-
-        if (delayMs > 0) {
-          await new Promise((resolve) => setTimeout(resolve, delayMs));
-        }
-
-        if (typingMs > 0) {
-          const state = item.type === "audio" ? "recording" : "composing";
-          socketActions.emitTyping(selectedConversation.id, state);
-          await new Promise((resolve) => setTimeout(resolve, typingMs));
-          socketActions.emitTyping(selectedConversation.id, "paused");
-        }
-
-        if (item.type === "text") {
-          await apiService.sendMessage({
-            ...payload,
-            text: item.value,
-          });
-        } else {
-          const mediaType =
-            item.type === "pdf" || item.type === "document" ? "file" : item.type;
-          await apiService.sendMediaMessage({
-            phone: selectedConversation.phone,
-            conversationId: selectedConversation.id,
-            contactId: selectedConversation.contactId,
-            sessionId: selectedConversation.sessionId || preferredSessionId || undefined,
-            mediaType,
-            fileName: item.filename || `${item.type}_file`,
-            mimeType: "",
-            dataBase64: item.value,
-            caption: item.caption || undefined,
-          });
-        }
+      await apiService.executeQuickReplyFlow(arg.id || "custom", {
+        phone: selectedConversation.phone,
+        sessionId: selectedConversation.sessionId || preferredSessionId || undefined,
+        item: arg,
+      });
+      notify.success("Fluxo / Resposta Rápida iniciada.");
+    } catch (err: any) {
+      console.error("[SEND_QUICK_REPLY_ERROR]", err);
+      if (arg.text && !arg.mediaUrl && (!arg.items || arg.items.length === 0)) {
+        await handleSendMessage(interpolateTemplateVariables(arg.text, conversationVariableContext));
+      } else {
+        notify.error("Falha ao disparar resposta rápida.");
       }
-      notify.success("Automação enviada com sucesso.");
-    } catch (err) {
-      notify.error("Falha ao enviar itens da automação.");
-      console.error(err);
     } finally {
       setSending(false);
     }
-
-    await loadConversationMessages(selectedConversation.id);
-  }, [selectedConversation, preferredSessionId, handleSendMessage, loadConversationMessages, conversationVariableContext]);
+  }, [selectedConversation, preferredSessionId, handleSendMessage, conversationVariableContext]);
 
   const deleteQuickReply = useCallback(async (quickReplyId: string) => {
     try {

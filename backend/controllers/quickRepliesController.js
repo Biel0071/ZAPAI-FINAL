@@ -53,46 +53,90 @@ async function deleteQuickReply(req, res) {
 async function executeQuickReplyFlow(req, res) {
   try {
     const { id } = req.params;
-    const { phone, sessionId, companyId } = req.body;
+    const { phone, sessionId, companyId, item: requestItem } = req.body;
 
     if (!phone) {
       return res.status(400).json({ error: 'phone is required.' });
     }
 
     const allReplies = await quickReplyService.listQuickReplies();
-    const flow = allReplies.find((item) => item.id === id);
+    let flow = allReplies.find((item) => String(item.id) === String(id));
+
+    if (!flow && requestItem) {
+      flow = requestItem;
+    }
 
     if (!flow) {
-      return res.status(404).json({ error: 'Quick reply flow not found.' });
+      flow = allReplies.find((item) => String(item.label || item.cmd || item.title || '').toLowerCase() === String(id).toLowerCase()) || {
+        id: id || 'custom',
+        label: requestItem?.label || requestItem?.cmd || 'Resposta Rápida',
+        text: requestItem?.text || id,
+        mediaUrl: requestItem?.mediaUrl || requestItem?.fileUrl,
+        mediaType: requestItem?.mediaType,
+      };
     }
 
     const outboundQueueService = require('../services/outboundQueueService');
+    const flowTrackerService = require('../services/flowTrackerService');
+
+    let rawSteps = [];
+    if (Array.isArray(flow.steps) && flow.steps.length > 0) {
+      rawSteps = flow.steps;
+    } else if (Array.isArray(flow.items) && flow.items.length > 0) {
+      rawSteps = flow.items;
+    } else {
+      rawSteps = [
+        {
+          type: flow.mediaType || (flow.mediaUrl ? 'image' : 'text'),
+          value: flow.mediaUrl || flow.fileUrl || flow.text || '',
+          caption: flow.text || '',
+          filename: flow.filename || flow.fileName,
+          delayMs: 1000,
+        },
+      ];
+    }
+
+    const totalSteps = rawSteps.length;
+    const flowName = flow.title || flow.label || flow.cmd || 'Resposta Rápida';
+
+    flowTrackerService.startFlow({
+      chatId: phone,
+      flowName,
+      totalSteps,
+      companyId: companyId || 'default',
+    });
 
     let cumulativeDelayMs = 0;
     const now = Date.now();
-
     const enqueuedSteps = [];
-    const steps = flow.steps || [];
 
-    for (const step of steps) {
-      cumulativeDelayMs += Number(step.delayMs || 0);
+    for (let index = 0; index < rawSteps.length; index++) {
+      const step = rawSteps[index];
+      const stepDelay = Number(step.delayMs || step.delay || 1500);
+      cumulativeDelayMs += stepDelay;
       const scheduledTime = new Date(now + cumulativeDelayMs).toISOString();
+
+      const isText = step.type === 'text' || (!step.type && !step.mediaUrl && !step.fileUrl);
+      const mediaPath = !isText ? (step.value || step.mediaUrl || step.fileUrl) : undefined;
+      const textContent = isText ? (step.value || step.text || '') : (step.caption || step.text || '');
 
       const itemPayload = {
         phone,
         sessionId: sessionId || 'main',
         companyId: companyId || 'default',
-        text: step.type === 'text' ? step.value : (step.caption || ''),
-        mediaType: step.type !== 'text' ? step.type : undefined,
-        mediaPath: step.type !== 'text' ? step.value : undefined,
-        fileName: step.filename,
+        text: textContent,
+        mediaType: !isText ? (step.type || 'image') : undefined,
+        mediaPath: mediaPath,
+        fileName: step.filename || step.fileName,
         nextAttemptAt: scheduledTime,
         metadata: {
-          flowId: flow.id,
-          stepId: step.id,
+          flowId: flow.id || 'custom',
+          stepId: step.id || `step_${index + 1}`,
+          currentStep: index + 1,
+          totalSteps,
           isFlowStep: true,
           source: 'flow_automation',
-          typingMs: step.typingMs !== undefined ? Number(step.typingMs) : 1500,
+          typingMs: Math.min(stepDelay, 2000),
         },
         actions: step.actions,
       };
@@ -101,16 +145,9 @@ async function executeQuickReplyFlow(req, res) {
       enqueuedSteps.push(enqueued);
     }
 
-    const flowTrackerService = require('../services/flowTrackerService');
-    flowTrackerService.startFlow({
-      chatId: phone,
-      flowName: flow.title || flow.label || flow.cmd || 'Resposta Rápida',
-      totalSteps: (steps || []).length || 1,
-      companyId,
-    });
-
     return res.status(200).json({ success: true, stepsCount: enqueuedSteps.length });
   } catch (error) {
+    console.error('[EXECUTE_QUICK_REPLY_FLOW_ERROR]', error);
     return res.status(500).json({ error: error.message || 'Failed to execute flow.' });
   }
 }

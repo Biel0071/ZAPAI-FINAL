@@ -13,8 +13,12 @@ const path = require('path');
 const { isLikelyBase64Payload } = require('../shared/serialization');
 
 function getMediaUrlPayload(filePath) {
+  let resolvedPath = String(filePath || '').trim();
+  if (resolvedPath.startsWith('/upload/') || resolvedPath.startsWith('upload/')) {
+    resolvedPath = path.join(process.cwd(), resolvedPath.replace(/^\//, ''));
+  }
   return {
-    url: filePath,
+    url: resolvedPath,
   };
 }
 
