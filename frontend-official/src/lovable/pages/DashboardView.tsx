@@ -386,21 +386,36 @@ export function DashboardView({
       {activeTab === "overview" && (
         <div className="space-y-6 animate-in fade-in-0 duration-300">
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-5">
-            <Card className="metric-card rounded-2xl border-border/70 bg-card/85 hover:border-primary/30 transition-all duration-200">
+            <Card
+              className="metric-card rounded-2xl border-border/70 bg-card/85 hover:border-primary/50 transition-all duration-200 cursor-pointer hover:scale-[1.02]"
+              onClick={() => navigate('/inbox')}
+            >
               <CardContent className="space-y-2 p-5">
                 <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Fila de Atendimento</p>
                 <h3 className="font-display text-3xl font-bold">{analyticsViewModel.kpis[1]?.value || "0"}</h3>
-                <span className="text-[10px] text-muted-foreground">Leads aguardando resposta</span>
+                <span className="text-[10px] text-primary font-semibold flex items-center gap-1">
+                  Leads aguardando resposta (Clique para o Inbox)
+                </span>
               </CardContent>
             </Card>
-            <Card className="metric-card rounded-2xl border-border/70 bg-card/85 hover:border-primary/30 transition-all duration-200">
+
+            <Card
+              className="metric-card rounded-2xl border-border/70 bg-card/85 hover:border-primary/50 transition-all duration-200 cursor-pointer hover:scale-[1.02]"
+              onClick={() => navigate('/contacts')}
+            >
               <CardContent className="space-y-2 p-5">
                 <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Volume de Contatos</p>
                 <h3 className="font-display text-3xl font-bold">{analyticsViewModel.kpis[3]?.value || "0"}</h3>
-                <span className="text-[10px] text-muted-foreground">Leads ativos na base</span>
+                <span className="text-[10px] text-primary font-semibold flex items-center gap-1">
+                  Leads ativos na base (Abrir CRM de Contatos)
+                </span>
               </CardContent>
             </Card>
-            <Card className="metric-card rounded-2xl border-border/70 bg-card/85 hover:border-primary/30 transition-all duration-200">
+
+            <Card
+              className="metric-card rounded-2xl border-border/70 bg-card/85 hover:border-primary/50 transition-all duration-200 cursor-pointer hover:scale-[1.02]"
+              onClick={() => onTabChange('operations')}
+            >
               <CardContent className="space-y-2 p-5">
                 <div className="flex items-center justify-between">
                   <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">API Runtime</p>
@@ -409,9 +424,14 @@ export function DashboardView({
                   </Badge>
                 </div>
                 <h3 className="font-display text-3xl font-bold">{viewModel.overviewCards[1].value}</h3>
+                <span className="text-[10px] text-muted-foreground">Ver Telemetria de Infra</span>
               </CardContent>
             </Card>
-            <Card className="metric-card rounded-2xl border-border/70 bg-card/85 hover:border-primary/30 transition-all duration-200">
+
+            <Card
+              className="metric-card rounded-2xl border-border/70 bg-card/85 hover:border-primary/50 transition-all duration-200 cursor-pointer hover:scale-[1.02]"
+              onClick={() => onTabChange('operations')}
+            >
               <CardContent className="space-y-2 p-5">
                 <div className="flex items-center justify-between">
                   <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">WebSocket</p>
@@ -420,13 +440,18 @@ export function DashboardView({
                   </Badge>
                 </div>
                 <h3 className="font-display text-3xl font-bold">{viewModel.overviewCards[2].value} canal</h3>
+                <span className="text-[10px] text-muted-foreground">Ver Conexões Ativas</span>
               </CardContent>
             </Card>
-            <Card className="metric-card rounded-2xl border-border/70 bg-card/85 hover:border-primary/30 transition-all duration-200">
+
+            <Card
+              className="metric-card rounded-2xl border-border/70 bg-card/85 hover:border-primary/50 transition-all duration-200 cursor-pointer hover:scale-[1.02]"
+              onClick={() => onTabChange('ai')}
+            >
               <CardContent className="space-y-2 p-5">
                 <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Automação de IA</p>
                 <h3 className="font-display text-3xl font-bold">{analyticsViewModel.kpis[2]?.value || "0"}</h3>
-                <span className="text-[10px] text-success font-semibold">Respostas por agentes de IA</span>
+                <span className="text-[10px] text-success font-semibold">Respostas por agentes (Ver IA)</span>
               </CardContent>
             </Card>
           </div>

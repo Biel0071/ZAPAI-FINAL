@@ -10,7 +10,7 @@ export type DashboardLovableMetricCard = {
 };
 
 export type DashboardLovableTab = {
-  id: "overview" | "performance" | "conversations" | "ai" | "schedule" | "map";
+  id: "overview" | "conversations" | "ai" | "commercial" | "operations" | "map";
   label: string;
 };
 
@@ -70,10 +70,10 @@ export type DashboardLovableViewModel = {
 
 const DASHBOARD_TABS: DashboardLovableTab[] = [
   { id: "overview", label: "Visão Geral" },
-  { id: "conversations", label: "Conversas" },
+  { id: "conversations", label: "Conversas & Mensagens" },
   { id: "ai", label: "Performance & IA" },
-  { id: "schedule", label: "Horários" },
-  { id: "map", label: "Mapa de Origem" },
+  { id: "commercial", label: "Comercial & Vendas" },
+  { id: "operations", label: "Operação & Infra" },
 ];
 
 const MAP_SCOPES: Array<{ id: DashboardMapScope; label: string }> = [
