@@ -18,23 +18,41 @@ import { PageRouteBoundary } from "@/components/system/PageRouteBoundary";
 
 function AppSplash() {
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center bg-background p-4 text-center select-none animate-fade-in">
-      <div className="flex items-center gap-3 text-sm text-muted-foreground">
-        <span className="h-2.5 w-2.5 animate-pulse rounded-full bg-emerald-500" aria-hidden="true" />
-        <span className="font-semibold text-foreground">Inicializando ZAPFLOW AI…</span>
+    <div className="flex min-h-screen flex-col items-center justify-center bg-[#0b0f17] p-6 text-center select-none animate-fade-in">
+      <div className="relative flex flex-col items-center justify-center">
+        <div className="relative mb-6 flex h-24 w-24 items-center justify-center rounded-3xl bg-emerald-500/10 border border-emerald-500/30 shadow-[0_0_50px_rgba(16,185,129,0.3)] animate-pulse">
+          <div className="h-12 w-12 rounded-2xl bg-gradient-to-tr from-emerald-500 to-teal-400 flex items-center justify-center text-white font-black text-2xl shadow-lg">
+            ⚡
+          </div>
+          <span className="absolute -top-1 -right-1 flex h-4 w-4">
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+            <span className="relative inline-flex rounded-full h-4 w-4 bg-emerald-500" />
+          </span>
+        </div>
+
+        <h2 className="font-display text-2xl font-black tracking-tight text-white mb-2">
+          ZAPFLOW <span className="text-emerald-400">AI</span>
+        </h2>
+        <p className="text-xs text-muted-foreground font-medium mb-6">Plataforma de Inteligência & Automação WhatsApp Enterprise</p>
+
+        <div className="flex items-center gap-2 rounded-full border border-emerald-500/20 bg-emerald-500/10 px-4 py-1.5 text-xs text-emerald-400 font-semibold">
+          <span className="h-2 w-2 rounded-full bg-emerald-400 animate-ping" />
+          Inicializando ZAPFLOW AI Engine...
+        </div>
+
+        <button
+          type="button"
+          onClick={() => {
+            try {
+              sessionStorage.clear();
+            } catch {}
+            window.location.reload();
+          }}
+          className="mt-8 text-xs text-muted-foreground/70 hover:text-foreground underline transition-colors cursor-pointer"
+        >
+          Demorando a carregar? Clique aqui para recarregar.
+        </button>
       </div>
-      <button
-        type="button"
-        onClick={() => {
-          try {
-            sessionStorage.clear();
-          } catch {}
-          window.location.reload();
-        }}
-        className="mt-6 text-xs text-muted-foreground/75 hover:text-foreground underline transition-colors cursor-pointer"
-      >
-        Demorando a carregar? Clique aqui para carregar a versão mais recente.
-      </button>
     </div>
   );
 }

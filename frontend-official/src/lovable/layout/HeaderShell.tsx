@@ -1,10 +1,40 @@
 import type { ReactNode } from "react";
+import { useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { OperationalStatusBadge } from "@/components/enterprise/OperationalStatusBadge";
 import { useTheme } from "next-themes";
-import { Bell, MagnifyingGlass, Moon, Sun, Plus, User, ArrowClockwise } from "@phosphor-icons/react";
+import { Bell, MagnifyingGlass, Moon, Sun, Plus, User, ArrowClockwise, Info } from "@phosphor-icons/react";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { useAppStore } from "@/stores/appStore";
+
+export interface HeaderShellProps {
+  title: string;
+  subtitle?: string;
+  runtimeLabel?: string | null;
+  runtimeTone?: "online" | "offline" | "syncing" | "warning";
+  runtimePulse?: boolean;
+  connectionOffline?: boolean;
+  onReconnect?: () => void;
+  actions?: ReactNode;
+  username?: string | null;
+  onLogout?: () => void;
+  onNavigateProfile?: () => void;
+}
 
 export function HeaderShell({
   title,
@@ -55,6 +85,22 @@ export function HeaderShell({
               Offline
             </span>
           )}
+
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button type="button" className="text-muted-foreground/80 hover:text-foreground cursor-pointer transition-colors p-0.5" title="Informações do Sistema">
+                  <Info className="h-3.5 w-3.5" />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent className="max-w-xs text-xs bg-card border-border">
+                <p className="font-semibold text-foreground mb-0.5">Status do Sistema ZAPFLOW AI</p>
+                <p className="text-[11px] text-muted-foreground leading-relaxed">
+                  Monitora em tempo real as conexões de WhatsApp Baileys, o banco PostgreSQL e os módulos de automação por IA.
+                </p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
           {connectionOffline ? (
             <Button
               size="sm"
