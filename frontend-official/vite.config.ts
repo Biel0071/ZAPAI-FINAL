@@ -34,14 +34,35 @@ export default defineConfig(({ mode }) => {
   build: {
     target: "es2020",
     emptyOutDir: true,
+    cssCodeSplit: true,
+    chunkSizeWarningLimit: 1200,
+    reportCompressedSize: false,
     rollupOptions: {
       output: {
         entryFileNames: "assets/[name]-[hash].js",
         chunkFileNames: "assets/[name]-[hash].js",
         assetFileNames: "assets/[name]-[hash][extname]",
-        manualChunks: {
-          "vendor-react": ["react", "react-dom", "react-router-dom"],
-          "vendor-socket": ["socket.io-client"],
+        manualChunks(id) {
+          if (id.includes("node_modules")) {
+            if (id.includes("react") || id.includes("react-dom") || id.includes("react-router-dom")) {
+              return "vendor-react";
+            }
+            if (id.includes("@phosphor-icons") || id.includes("lucide-react")) {
+              return "vendor-icons";
+            }
+            if (id.includes("@radix-ui")) {
+              return "vendor-ui";
+            }
+            if (id.includes("recharts") || id.includes("d3-")) {
+              return "vendor-charts";
+            }
+            if (id.includes("socket.io-client")) {
+              return "vendor-socket";
+            }
+            if (id.includes("@tanstack")) {
+              return "vendor-query";
+            }
+          }
         },
       },
     },
