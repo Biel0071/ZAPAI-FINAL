@@ -18,11 +18,23 @@ import { PageRouteBoundary } from "@/components/system/PageRouteBoundary";
 
 function AppSplash() {
   return (
-    <div className="flex min-h-screen items-center justify-center bg-background">
+    <div className="flex min-h-screen flex-col items-center justify-center bg-background p-4 text-center select-none animate-fade-in">
       <div className="flex items-center gap-3 text-sm text-muted-foreground">
-        <span className="h-2 w-2 animate-pulse rounded-full bg-primary" aria-hidden="true" />
-        <span>Inicializando sistema…</span>
+        <span className="h-2.5 w-2.5 animate-pulse rounded-full bg-emerald-500" aria-hidden="true" />
+        <span className="font-semibold text-foreground">Inicializando ZAPFLOW AI…</span>
       </div>
+      <button
+        type="button"
+        onClick={() => {
+          try {
+            sessionStorage.clear();
+          } catch {}
+          window.location.reload();
+        }}
+        className="mt-6 text-xs text-muted-foreground/75 hover:text-foreground underline transition-colors cursor-pointer"
+      >
+        Demorando a carregar? Clique aqui para carregar a versão mais recente.
+      </button>
     </div>
   );
 }
@@ -38,13 +50,23 @@ function lazyWithRetry<T extends ComponentType<any>>(importer: () => Promise<{ d
       const isChunkLoadError =
         message.includes("Failed to fetch dynamically imported module") ||
         message.includes("Importing a module script failed") ||
-        message.toLowerCase().includes("chunk");
+        message.includes("Unexpected token '<'") ||
+        message.includes("is not valid JavaScript") ||
+        message.toLowerCase().includes("chunk") ||
+        message.toLowerCase().includes("loading module");
 
-      if (isChunkLoadError && !retried) {
-        retried = true;
-        console.warn(`[lazyWithRetry] retrying module load for ${key}`);
-        await new Promise((resolve) => window.setTimeout(resolve, 250));
-        return importer();
+      if (isChunkLoadError) {
+        const storageKey = `chunk_reload_${key}`;
+        const lastReload = sessionStorage.getItem(storageKey);
+        const now = Date.now();
+
+        // Only reload once per session key within 10 seconds to avoid infinite loops
+        if (!lastReload || now - Number(lastReload) > 10000) {
+          sessionStorage.setItem(storageKey, String(now));
+          console.warn(`[lazyWithRetry] Stale chunk detected for ${key}, forcing window reload to load new release...`);
+          window.location.reload();
+          return new Promise<never>(() => {});
+        }
       }
 
       throw error;
