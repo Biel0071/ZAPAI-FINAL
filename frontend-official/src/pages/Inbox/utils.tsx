@@ -237,15 +237,19 @@ export function getTagColor(tag: string): string {
 
 export function resolveMediaUrl(url?: string | null): string | null {
   let normalized = String(url ?? "").trim().replace(/\\/g, "/");
-  if (!normalized || (normalized.startsWith("[") && normalized.endsWith("]"))) return null;
+  if (!normalized || normalized === "null" || normalized === "undefined" || (normalized.startsWith("[") && normalized.endsWith("]"))) return null;
 
-  // Extract relative static routes (/uploads/, /media/) from absolute filesystem paths
-  if (normalized.includes("/uploads/")) {
-    normalized = `/uploads/${normalized.split("/uploads/").pop()}`;
-  } else if (normalized.includes("/media/")) {
-    normalized = `/media/${normalized.split("/media/").pop()}`;
-  } else if (normalized.includes("/public/")) {
-    normalized = `/${normalized.split("/public/").pop()}`;
+  if (normalized.startsWith("data:") || normalized.startsWith("blob:")) return normalized;
+
+  // Extract relative static routes (/uploads/, /media/, /upload/) from absolute filesystem paths or filenames
+  if (normalized.toLowerCase().includes("/uploads/")) {
+    normalized = `/uploads/${normalized.split(/\/uploads\//i).pop()}`;
+  } else if (normalized.toLowerCase().includes("/media/")) {
+    normalized = `/media/${normalized.split(/\/media\//i).pop()}`;
+  } else if (normalized.toLowerCase().includes("/upload/")) {
+    normalized = `/upload/${normalized.split(/\/upload\//i).pop()}`;
+  } else if (normalized.toLowerCase().includes("/public/")) {
+    normalized = `/${normalized.split(/\/public\//i).pop()}`;
   }
 
   if (/^https?:\/\/(localhost|127\.0\.0\.1):4025/i.test(normalized)) {
@@ -257,7 +261,8 @@ export function resolveMediaUrl(url?: string | null): string | null {
     if (/^[a-zA-Z]:/i.test(normalized)) {
       normalized = normalized.replace(/^[a-zA-Z]:/i, "");
     }
-    finalUrl = `${BACKEND_BASE_URL}/${normalized.replace(/^\/+/, "")}`;
+    const cleanPath = normalized.replace(/^\/+/, "");
+    finalUrl = `${BACKEND_BASE_URL}/${cleanPath}`;
   }
 
   const isBackendMedia =

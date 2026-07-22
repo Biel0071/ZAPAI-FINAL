@@ -490,7 +490,10 @@ const requireJwtAuth = createJwtAuthMiddleware({
     '/api/master/',
     '/api/system/',
     '/api/cluster/metrics/',
-    '/system/'
+    '/system/',
+    '/uploads/',
+    '/media/',
+    '/upload/'
   ],
   protectedPrefixes: ['/api/admin/', '/admin/'],
 });

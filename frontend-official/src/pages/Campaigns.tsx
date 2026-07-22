@@ -2266,34 +2266,77 @@ export default function Campaigns() {
                 </div>
               </div>
               <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_320px]">
-                <div className="space-y-3 rounded-2xl border border-border/70 bg-background/30 p-4">
-                  <p className="text-sm font-semibold">Mensagens e midias</p>
-                  {(selectedCampaignPreview.messages ?? []).length === 0 ? (
-                    <p className="text-sm text-muted-foreground">Nenhuma mensagem cadastrada.</p>
-                  ) : (
-                    (selectedCampaignPreview.messages ?? []).map((message, index) => (
-                      <div key={`${selectedCampaignPreview.id}-message-${index}`} className="rounded-2xl border border-border/70 bg-card/70 p-4 text-sm">
-                        <div className="mb-2 flex items-center justify-between gap-3">
-                          <p className="font-medium text-foreground">Mensagem {index + 1}</p>
-                          <Badge variant="secondary" className="rounded-full">{message.type || "text"}</Badge>
-                        </div>
-                        <p className="whitespace-pre-wrap text-muted-foreground">{message.content || "Sem legenda"}</p>
-                        {(message.mediaUrl || message.mediaPath) && (
-                          <div className="mt-3 flex items-center gap-2 rounded-xl border border-border/70 bg-background/60 px-3 py-2 text-xs text-muted-foreground">
-                            {getDraftMediaIcon((message.type === "file" ? "document" : message.type || "document") as CampaignDraftMediaType)}
-                            <span className="truncate">{message.fileName || message.mimetype || "Midia anexada"}</span>
+                <div className="space-y-4">
+                  <div className="space-y-3 rounded-2xl border border-border/70 bg-background/30 p-4">
+                    <p className="text-sm font-semibold">Mensagens e mídias do disparo</p>
+                    {(selectedCampaignPreview.messages ?? []).length === 0 ? (
+                      <p className="text-sm text-muted-foreground">Nenhuma mensagem cadastrada.</p>
+                    ) : (
+                      (selectedCampaignPreview.messages ?? []).map((message, index) => (
+                        <div key={`${selectedCampaignPreview.id}-message-${index}`} className="rounded-2xl border border-border/70 bg-card/70 p-4 text-sm">
+                          <div className="mb-2 flex items-center justify-between gap-3">
+                            <p className="font-medium text-foreground">Mensagem {index + 1}</p>
+                            <Badge variant="secondary" className="rounded-full">{message.type || "text"}</Badge>
                           </div>
-                        )}
-                      </div>
-                    ))
-                  )}
+                          <p className="whitespace-pre-wrap text-muted-foreground">{message.content || "Sem legenda"}</p>
+                          {(message.mediaUrl || message.mediaPath) && (
+                            <div className="mt-3 flex items-center gap-2 rounded-xl border border-border/70 bg-background/60 px-3 py-2 text-xs text-muted-foreground">
+                              {getDraftMediaIcon((message.type === "file" ? "document" : message.type || "document") as CampaignDraftMediaType)}
+                              <span className="truncate">{message.fileName || message.mimetype || "Mídia anexada"}</span>
+                            </div>
+                          )}
+                        </div>
+                      ))
+                    )}
+                  </div>
+
+                  {/* Recipient Audience & Dispatch History Log */}
+                  <div className="space-y-3 rounded-2xl border border-border/70 bg-background/30 p-4">
+                    <div className="flex items-center justify-between">
+                      <p className="text-sm font-semibold">Histórico de Disparos por Contato</p>
+                      <Badge variant="outline" className="rounded-full text-[10px]">
+                        {(selectedCampaignPreview.selectedContacts || selectedCampaignPreview.queue?.items || []).length} contatos
+                      </Badge>
+                    </div>
+
+                    <div className="max-h-56 overflow-y-auto space-y-2 pr-1">
+                      {(selectedCampaignPreview.selectedContacts || []).length === 0 ? (
+                        <p className="text-xs text-muted-foreground py-2">Nenhum registro de contato disponível para este disparo.</p>
+                      ) : (
+                        (selectedCampaignPreview.selectedContacts || []).map((contact, idx) => {
+                          const sentCount = Number(selectedCampaignPreview.queue?.sent ?? 0);
+                          const isSent = idx < sentCount;
+                          return (
+                            <div key={`${contact.id}-${idx}`} className="flex items-center justify-between p-2.5 rounded-xl border border-border/50 bg-card/60 text-xs">
+                              <div className="min-w-0 flex-1">
+                                <p className="font-semibold text-foreground truncate">{contact.name || "Contato"}</p>
+                                <p className="text-[11px] text-muted-foreground font-mono">{contact.phone || "Sem telefone"}</p>
+                              </div>
+                              <div className="flex items-center gap-2 shrink-0">
+                                {isSent ? (
+                                  <Badge className="bg-emerald-500/10 text-emerald-400 border-emerald-500/20 text-[10px]">
+                                    <CheckCircle className="mr-1 h-3 w-3" /> Enviado
+                                  </Badge>
+                                ) : (
+                                  <Badge variant="outline" className="text-muted-foreground text-[10px]">
+                                    <Clock className="mr-1 h-3 w-3" /> Na Fila
+                                  </Badge>
+                                )}
+                              </div>
+                            </div>
+                          );
+                        })
+                      )}
+                    </div>
+                  </div>
                 </div>
+
                 <div className="space-y-3 rounded-2xl border border-border/70 bg-background/30 p-4 text-sm text-muted-foreground">
-                  <p className="font-semibold text-foreground">Cadencia</p>
+                  <p className="font-semibold text-foreground">Cadência e Operação</p>
                   <p>Typing: <span className="font-medium text-foreground">{selectedCampaignPreview.settings?.typingDelaySeconds ?? 3}s</span></p>
                   <p>Intervalo: <span className="font-medium text-foreground">{selectedCampaignPreview.settings?.intervalSeconds ?? 10}s</span></p>
                   <p>Pausa: <span className="font-medium text-foreground">{selectedCampaignPreview.settings?.pauseEvery ?? 10} / {selectedCampaignPreview.settings?.pauseSeconds ?? 60}s</span></p>
-                  <p>Sessao: <span className="font-medium text-foreground">{selectedCampaignPreview.settings?.sessionId || "automatica"}</span></p>
+                  <p>Sessão: <span className="font-medium text-foreground">{selectedCampaignPreview.settings?.sessionId || "automática"}</span></p>
                   <p>Agendamento: <span className="font-medium text-foreground">{formatDateTime(selectedCampaignPreview.settings?.startAt)}</span></p>
                   <div className="pt-3 flex flex-wrap gap-2">
                     <Button variant="outline" className="rounded-xl" onClick={() => hydrateComposer(selectedCampaignPreview, "edit")}>
@@ -2303,7 +2346,7 @@ export default function Campaigns() {
                       <Copy className="h-4 w-4" /> Duplicar
                     </Button>
                     <Button className="rounded-xl shadow-glow" onClick={() => void runCampaignAction(selectedCampaignPreview.id, "start")}>
-                      <Play className="h-4 w-4" /> Iniciar
+                      <Play className="h-4 w-4" /> Iniciar Disparo
                     </Button>
                   </div>
                 </div>

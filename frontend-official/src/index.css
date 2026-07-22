@@ -10,7 +10,7 @@
 @tailwind utilities;
 
 @layer base {
-  :root {
+  :root, .dark {
     /* WhatsApp-inspired green palette */
     --whatsapp: 142 70% 49%;
     --whatsapp-dark: 142 72% 42%;

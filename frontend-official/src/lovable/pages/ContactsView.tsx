@@ -1,6 +1,7 @@
 import { useMemo } from "react";
+import { useNavigate } from "react-router-dom";
 import { cn } from "@/lib/utils";
-import { AddressBook, ChatCircleDots, Phone, SquaresFour, List, DotsThreeVertical, Tag, ChatCircle, PencilSimple, Kanban, Archive } from "@phosphor-icons/react";
+import { AddressBook, ChatCircleDots, Phone, SquaresFour, List, DotsThreeVertical, Tag, ChatCircle, PencilSimple, Kanban, Archive, Megaphone } from "@phosphor-icons/react";
 import { ContactGrid, type ContactGridItem } from "@/components/contacts/ContactGrid";
 import { ContactSidebar, type ContactSegment } from "@/components/contacts/ContactSidebar";
 import { ChatSearchBar } from "@/components/inbox/ChatSearchBar";
@@ -91,6 +92,8 @@ export function ContactsView({
     return list;
   }, [viewModel.contacts]);
 
+  const navigate = useNavigate();
+
   const stageLabels: Record<string, string> = {
     new_lead: "Novo Lead",
     interested: "Interessado",
@@ -169,7 +172,16 @@ export function ContactsView({
                   <Kanban className="h-4 w-4" />
                 </Button>
               </div>
-              <Button variant="outline" className="rounded-xl" onClick={onRefresh}>Atualizar</Button>
+                <Button
+                  variant="outline"
+                  className="rounded-xl gap-2 border-emerald-500/40 bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 font-semibold"
+                  onClick={() => navigate(`/campaigns?segment=${encodeURIComponent(activeSegment)}`)}
+                  title="Criar disparo para estes contatos"
+                >
+                  <Megaphone className="h-4 w-4" />
+                  Disparar Campanha
+                </Button>
+                <Button variant="outline" className="rounded-xl" onClick={onRefresh}>Atualizar</Button>
             </div>
           </div>
 
