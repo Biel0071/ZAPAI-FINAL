@@ -8,7 +8,7 @@ import {
   XCircle,
   Clock,
   Lightning,
-  RefreshCw,
+  ArrowsClockwise,
   Cpu,
   Layers,
   Flask,
@@ -177,7 +177,7 @@ const Tests: React.FC = () => {
             variant="outline"
             className="border-slate-700 bg-slate-900/60 hover:bg-slate-800 text-slate-200 text-xs"
           >
-            <RefreshCw className="w-4 h-4 mr-1.5" /> Atualizar
+            <ArrowsClockwise className="w-4 h-4 mr-1.5" /> Atualizar
           </Button>
 
           <Button
