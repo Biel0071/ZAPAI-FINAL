@@ -19,7 +19,7 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
-import apiService from "@/services/apiService";
+import { apiService } from "@/services/apiService";
 import { TestGraphViewer, TestGraphData } from "@/components/tests/TestGraphViewer";
 import { TestScriptGenerator, GeneratedScript } from "@/components/tests/TestScriptGenerator";
 import { TestExecutionTerminal, LogEntry } from "@/components/tests/TestExecutionTerminal";
