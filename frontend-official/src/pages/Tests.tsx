@@ -10,7 +10,7 @@ import {
   Lightning,
   ArrowsClockwise,
   Cpu,
-  Layers,
+  Stack,
   Flask,
 } from "@phosphor-icons/react";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
@@ -260,7 +260,7 @@ const Tests: React.FC = () => {
             <TerminalIcon className="w-4 h-4" /> Terminal & Logs ({logs.length})
           </TabsTrigger>
           <TabsTrigger value="suites" className="text-xs data-[state=active]:bg-emerald-600 data-[state=active]:text-white gap-2">
-            <Layers className="w-4 h-4" /> Seleção de Módulos ({selectedSuiteIds.length}/{suites.length})
+            <Stack className="w-4 h-4" /> Seleção de Módulos ({selectedSuiteIds.length}/{suites.length})
           </TabsTrigger>
         </TabsList>
 
