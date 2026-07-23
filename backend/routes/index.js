@@ -23,6 +23,7 @@ const campaignDispatchRouter = require('./campaignDispatch');
 const logsRouter = require('./logs');
 const whatsappRouter = require('./whatsapp');
 const adminUsersRouter = require('./adminUsers');
+const testsRouter = require('./tests');
 
 function registerRoutes(app, options = {}) {
   const requireJwtAuth = options.requireJwtAuth;
@@ -110,6 +111,9 @@ function registerRoutes(app, options = {}) {
 
   // /api/admin/users — user CRUD with standardized envelope
   app.use('/api/admin', adminUsersRouter);
+
+  // /api/tests — in-system test engine endpoints
+  app.use('/api', testsRouter);
 }
 
 module.exports = {

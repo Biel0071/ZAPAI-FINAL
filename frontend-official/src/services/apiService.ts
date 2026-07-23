@@ -1946,6 +1946,38 @@ export const apiService = {
       method: "POST",
     });
   },
+  async fetchTestSuites() {
+    return request<{ success: boolean; data: any[] }>({
+      endpoint: "/api/tests/suites",
+      method: "GET",
+    });
+  },
+  async runTestSuites(suiteIds?: string[]) {
+    return request<{ success: boolean; data: any }>({
+      endpoint: "/api/tests/run",
+      method: "POST",
+      body: { suiteIds },
+    });
+  },
+  async generateTestScripts(suiteId?: string) {
+    return request<{ success: boolean; data: any[] }>({
+      endpoint: "/api/tests/generate",
+      method: "POST",
+      body: { suiteId },
+    });
+  },
+  async fetchTestGraph() {
+    return request<{ success: boolean; data: any }>({
+      endpoint: "/api/tests/graph",
+      method: "GET",
+    });
+  },
+  async fetchTestHistory() {
+    return request<{ success: boolean; data: any[] }>({
+      endpoint: "/api/tests/history",
+      method: "GET",
+    });
+  },
 };
 
 export async function requestApiEndpoint<T>(endpoint: string, method: "GET" | "POST" | "PUT" | "PATCH" | "DELETE" = "GET", body?: unknown): Promise<T> {

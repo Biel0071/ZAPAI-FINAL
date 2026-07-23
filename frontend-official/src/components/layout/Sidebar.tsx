@@ -27,6 +27,7 @@ import {
   Sparkle,
   Brain,
   GitCommit,
+  Flask,
 } from "@phosphor-icons/react";
 import { AIIcon } from "@/components/ai/AIIcon";
 import { Button } from "@/components/ui/button";
@@ -58,6 +59,7 @@ const crmItems: SidebarNavItem[] = [
   { icon: AIIcon, label: "IA & Automação", path: "/ai", minRole: "user" },
   { icon: TreeStructure, label: "Fluxos", path: "/flows", minRole: "user" },
   { icon: Brain, label: "Memória IA", path: "/memory", minRole: "user" },
+  { icon: Flask, label: "Central de Testes", path: "/tests", minRole: "user" },
 ];
 
 const adminItems: SidebarNavItem[] = [

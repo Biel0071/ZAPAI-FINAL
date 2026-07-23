@@ -111,6 +111,7 @@ const MasterLogs = lazyWithRetry(() => import("./pages/MasterLogs"), "master_log
 const MasterAdmins = lazyWithRetry(() => import("./pages/MasterAdmins"), "master_admins");
 const MasterVersions = lazyWithRetry(() => import("./pages/MasterVersions"), "master_versions");
 const Memory = lazyWithRetry(() => import("./pages/Memory"), "memory");
+const Tests = lazyWithRetry(() => import("./pages/Tests"), "tests");
 
 function RequireAdminAuth({ children }: { children: JSX.Element }) {
   const { isAuthenticated, isLoading } = useAdminAuth();
@@ -206,6 +207,7 @@ const App = () => {
                       />
 
                       <Route path="/settings" element={<PageRouteBoundary pageName="Configurações"><Settings /></PageRouteBoundary>} />
+                      <Route path="/tests" element={<PageRouteBoundary pageName="Central de Testes"><Tests /></PageRouteBoundary>} />
                     </Route>
                     <Route path="*" element={<CatchAllRoute />} />
                   </Routes>
