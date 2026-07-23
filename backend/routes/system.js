@@ -500,4 +500,6 @@ router.get('/e2e-smoke', async (req, res) => {
   }
 });
 
+router.get('/grafify', systemController.getGrafifyAnalysis);
+
 module.exports = router;

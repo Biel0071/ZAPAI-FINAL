@@ -377,7 +377,18 @@ async function clearRuntimeLogs(req, res) {
   }
 }
 
+async function getGrafifyAnalysis(req, res) {
+  try {
+    const grafifyAnalyzerService = require('../services/grafifyAnalyzerService');
+    const result = await grafifyAnalyzerService.analyzeArchitecture();
+    return res.status(200).json(result);
+  } catch (error) {
+    return res.status(500).json({ error: error.message || 'Falha ao executar análise Grafify' });
+  }
+}
+
 module.exports = {
+  getGrafifyAnalysis,
   activate,
   clearRuntimeLogs,
   errorLog,

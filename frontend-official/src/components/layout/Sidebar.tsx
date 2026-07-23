@@ -53,6 +53,8 @@ type SidebarNavItem = {
 const crmItems: SidebarNavItem[] = [
   { icon: SquaresFour, label: "Dashboard", path: "/dashboard", minRole: "user" },
   { icon: ChatCircleDots, label: "Inbox", path: "/inbox", minRole: "user", badge: "LIVE" },
+  { icon: ChartLineUp, label: "Operação", path: "/operations", minRole: "user", badge: "LIVE" },
+  { icon: TrendUp, label: "Analytics BI", path: "/analytics", minRole: "user" },
   { icon: Broadcast, label: "Conexões", path: "/connections", minRole: "user" },
   { icon: Users, label: "Contatos", path: "/contacts", minRole: "user" },
   { icon: Megaphone, label: "Campanhas", path: "/campaigns", minRole: "user" },

@@ -114,6 +114,10 @@ function registerRoutes(app, options = {}) {
 
   // /api/tests — in-system test engine endpoints
   app.use('/api', testsRouter);
+
+  // /api/operations — operações e filas em tempo real
+  const operationsRouter = require('./operations');
+  app.use('/api', operationsRouter);
 }
 
 module.exports = {

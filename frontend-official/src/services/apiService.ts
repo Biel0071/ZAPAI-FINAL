@@ -1978,6 +1978,13 @@ export const apiService = {
       method: "GET",
     });
   },
+  async fetchOperationsMetrics(companyId?: string) {
+    const query = companyId ? `?companyId=${encodeURIComponent(companyId)}` : "";
+    return request<{ success: boolean; data: any }>({
+      endpoint: `/api/operations/metrics${query}`,
+      method: "GET",
+    });
+  },
   async getExecutiveAIInsights(companyId?: string) {
     const query = companyId ? `?companyId=${encodeURIComponent(companyId)}` : "";
     return request<{ success: boolean; data: any }>({

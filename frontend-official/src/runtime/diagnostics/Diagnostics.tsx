@@ -19,6 +19,7 @@ import { systemControlService, type AiDiagnosticsResponse } from "@/runtime/serv
 import { getFrontendHealthSnapshot, subscribeFrontendHealth, type FrontendHealthSnapshot } from "@/runtime/services/frontendHealthService";
 import { slog, type StructuredLogEntry } from "@/runtime/logs/structuredLogger";
 import { useToast } from "@/hooks/use-toast";
+import { SystemHealthMatrix } from "@/components/system/SystemHealthMatrix";
 
 const SYSTEM_API_BASE_URL = API_ORIGIN;
 
@@ -500,6 +501,8 @@ const Diagnostics = memo(function Diagnostics() {
           <Card className="metric-card rounded-2xl border-border/70 bg-card/85"><CardContent className="space-y-2 p-5"><p className="text-[11px] uppercase tracking-wide text-muted-foreground">Mensagens processadas</p><p className="font-display text-2xl font-bold">{metrics.messagesProcessed}</p><OperationalStatusBadge label="Pipeline ativo" tone="online" /></CardContent></Card>
           <Card className="metric-card rounded-2xl border-border/70 bg-card/85"><CardContent className="space-y-2 p-5"><p className="text-[11px] uppercase tracking-wide text-muted-foreground">Uptime do sistema</p><p className="font-display text-2xl font-bold">{metrics.uptime}</p><OperationalStatusBadge label="Observabilidade contínua" tone="syncing" /></CardContent></Card>
         </div>
+
+        <SystemHealthMatrix />
 
         {/* Automated Headless E2E Smoke Test Card & Telemetry Graph */}
         <Card className="glass-card overflow-hidden border-emerald-500/20 bg-card/90 shadow-glow">
