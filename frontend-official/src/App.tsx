@@ -99,7 +99,6 @@ const Connections = lazyWithRetry(() => import("./pages/Connections"), "connecti
 const Contacts = lazyWithRetry(() => import("./pages/Contacts"), "contacts");
 const Flows = lazyWithRetry(() => import("./pages/Flows"), "flows");
 const AI = lazyWithRetry(() => import("./pages/AI"), "ai");
-const Analytics = lazyWithRetry(() => import("./pages/Analytics"), "analytics");
 const Campaigns = lazyWithRetry(() => import("./pages/Campaigns"), "campaigns");
 const Diagnostics = lazyWithRetry(() => import("./runtime/diagnostics/Diagnostics"), "diagnostics");
 const Settings = lazyWithRetry(() => import("./pages/Settings"), "settings");
@@ -112,7 +111,6 @@ const MasterAdmins = lazyWithRetry(() => import("./pages/MasterAdmins"), "master
 const MasterVersions = lazyWithRetry(() => import("./pages/MasterVersions"), "master_versions");
 const Memory = lazyWithRetry(() => import("./pages/Memory"), "memory");
 const Tests = lazyWithRetry(() => import("./pages/Tests"), "tests");
-const Operations = lazyWithRetry(() => import("./pages/Operations"), "operations");
 
 function RequireAdminAuth({ children }: { children: JSX.Element }) {
   const { isAuthenticated, isLoading } = useAdminAuth();
@@ -175,8 +173,8 @@ const App = () => {
                       <Route path="/contacts" element={<PageRouteBoundary pageName="Contatos"><Contacts /></PageRouteBoundary>} />
                       <Route path="/flows" element={<PageRouteBoundary pageName="Fluxos"><Flows /></PageRouteBoundary>} />
                       <Route path="/ai" element={<PageRouteBoundary pageName="Inteligência Artificial"><AI /></PageRouteBoundary>} />
-                      <Route path="/analytics" element={<PageRouteBoundary pageName="Relatórios & Métricas"><Analytics /></PageRouteBoundary>} />
-                      <Route path="/operations" element={<PageRouteBoundary pageName="Operações"><Operations /></PageRouteBoundary>} />
+                      <Route path="/analytics" element={<Navigate to="/dashboard?tab=analytics" replace />} />
+                      <Route path="/operations" element={<Navigate to="/dashboard?tab=operations" replace />} />
                       <Route path="/campaigns" element={<PageRouteBoundary pageName="Campanhas"><Campaigns /></PageRouteBoundary>} />
                       <Route path="/automation" element={<Navigate to="/flows" replace />} />
                       <Route path="/integrations" element={<Navigate to="/connections" replace />} />

@@ -89,6 +89,7 @@ const corsOptions = {
     'x-company-id',
     'x-session-id',
     'x-request-id',
+    'x-correlation-id',
     'ngrok-skip-browser-warning',
     'X-Requested-With',
   ],
@@ -465,6 +466,7 @@ app.use((req, res, next) => {
 app.use(createRequestLogger());
 
 app.use(inputSanitizerMiddleware);
+app.use(correlationTracker.correlationMiddleware());
 app.use(requestContextMiddleware);
 app.use(tenantContextMiddleware);
 app.use(apiEnvelopeMiddleware);

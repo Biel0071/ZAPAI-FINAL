@@ -22,6 +22,8 @@
 
 const db = require('../config/database');
 const EventEmitter = require('events');
+const correlationTracker = require('./correlationTracker');
+const { emitToTenantWithAliases } = require('./realtime/tenantRooms');
 const ackEmitter = new EventEmitter();
 
 // ─── ACK States ───
@@ -52,7 +54,8 @@ const VALID_TRANSITIONS = {
 // ERROR=0, PENDING=1, SERVER_ACK=2, DELIVERY_ACK=3, READ=4, PLAYED=5.
 const BAILEYS_STATUS_MAP = {
   0: ACK_STATES.FAILED,
-  1: ACK_STATES.SENT,
+  // PENDING only confirms local transport acceptance; it is not a real send ACK.
+  1: ACK_STATES.PENDING,
   2: ACK_STATES.SERVER_ACK,
   3: ACK_STATES.DEVICE_ACK,
   4: ACK_STATES.READ,
@@ -85,6 +88,8 @@ function createAckEntry(messageId, chatId, sessionId) {
   return {
     messageId,
     dbMessageId: null,
+    companyId: null,
+    correlationId: null,
     chatId: chatId || '',
     sessionId: sessionId || 'default',
     status: ACK_STATES.PENDING,
@@ -156,6 +161,8 @@ function transitionAck(messageId, nextState, metadata = {}) {
   if (metadata.sessionId && !entry.sessionId) {
     entry.sessionId = metadata.sessionId;
   }
+  if (metadata.companyId) entry.companyId = String(metadata.companyId);
+  if (metadata.correlationId) entry.correlationId = String(metadata.correlationId);
 
   if (!isValidTransition(entry.status, nextState)) {
     // Allow forward-only transitions (don't go backward)
@@ -198,6 +205,15 @@ function transitionAck(messageId, nextState, metadata = {}) {
 
   // Emit local event for debugging/testing
   ackEmitter.emit(messageId, entry);
+
+  if (entry.correlationId) {
+    correlationTracker.traceLog(entry.correlationId, `ack.${nextState}`, 'Baileys ACK state changed.', {
+      companyId: entry.companyId,
+      messageId,
+      sessionId: entry.sessionId,
+      status: nextState,
+    });
+  }
 
   return entry;
 }
@@ -282,6 +298,33 @@ function getFailedMessages(sessionId = null) {
   return results;
 }
 
+function waitForAck(messageId, options = {}) {
+  const timeoutMs = Math.max(1000, Number(options.timeoutMs) || 10_000);
+  const acceptedStates = new Set(options.acceptedStates || [
+    ACK_STATES.SERVER_ACK,
+    ACK_STATES.DEVICE_ACK,
+    ACK_STATES.READ,
+    ACK_STATES.PLAYED,
+  ]);
+  const current = getAckState(messageId);
+  if (current && (acceptedStates.has(current.status) || current.status === ACK_STATES.FAILED)) {
+    return Promise.resolve(current);
+  }
+
+  return new Promise((resolve) => {
+    const finish = (entry) => {
+      if (!entry || (!acceptedStates.has(entry.status) && entry.status !== ACK_STATES.FAILED)) return;
+      clearTimeout(timer);
+      ackEmitter.off(messageId, finish);
+      resolve(entry);
+    };
+    const timer = setTimeout(() => {
+      ackEmitter.off(messageId, finish);
+      resolve(null);
+    }, timeoutMs);
+    ackEmitter.on(messageId, finish);
+  });
+}
 function getStats() {
   const counters = {};
   for (const state of Object.values(ACK_STATES)) {
@@ -353,19 +396,30 @@ function registerDbMapping(messageId, dbMessageId) {
 function emitAckUpdate(io, entry) {
   if (!io || !entry) return;
 
-  io.emit('message_status', {
+  const payload = {
     messageId: entry.dbMessageId || entry.messageId,
     chatId: entry.chatId,
     status: entry.status,
     deliveryLatencyMs: entry.deliveryLatencyMs,
     updatedAt: entry.updatedAt,
-  });
-
-  io.emit('message:ack', {
+    correlationId: entry.correlationId,
+  };
+  const ackPayload = {
     id: entry.dbMessageId || entry.messageId,
     chatId: entry.chatId,
     status: entry.status,
-  });
+    correlationId: entry.correlationId,
+  };
+
+  emitToTenantWithAliases(io, entry.companyId, 'message_status', payload, ['message:status']);
+  emitToTenantWithAliases(io, entry.companyId, 'message:ack', ackPayload);
+  if (entry.correlationId) {
+    correlationTracker.traceLog(entry.correlationId, 'socket.ack', 'ACK emitted to tenant room.', {
+      companyId: entry.companyId,
+      messageId: entry.dbMessageId || entry.messageId,
+      status: entry.status,
+    });
+  }
 }
 
 // ─── Reconciliation ───

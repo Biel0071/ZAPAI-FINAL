@@ -7,6 +7,8 @@ const whatsappService = require('./whatsappService');
 const { registerOutgoingMessage } = require('../controllers/messagesController');
 const { getAutomatedReplyPermission } = require('./aiReplyGuard');
 const { emitAIResponseProgress } = require('./aiResponseProgressService');
+const correlationTracker = require('./correlationTracker');
+const messageAckPipeline = require('./messageAckPipeline');
 
 const QUEUE_FILE_PATH = path.join(__dirname, '..', 'data', 'outbound_queue.json');
 
@@ -181,6 +183,7 @@ function buildQueuedItem(payload = {}) {
 
   return {
     attemptCount: 0,
+    correlationId: String(payload.correlationId || correlationTracker.generateMessageTraceId()),
     companyId: String(payload.companyId || process.env.DEFAULT_COMPANY_ID || 'default').trim(),
     createdAt: timestamp,
     deadLetterAt: null,
@@ -236,6 +239,9 @@ async function persistSuccessfulSend(item) {
     text: item.text,
     mediaPath: item.mediaPath || null,
     mediaType: item.mediaType || null,
+    status: item.status || 'pending',
+    whatsappMessageId: item.whatsappMessageId || null,
+    remoteJid: item.remoteJid || null,
   });
 
   return {
@@ -331,29 +337,54 @@ async function executeOutbound(item) {
     sendResult = await whatsappService.sendMessage(sock, item.phone, item.text);
   }
 
-  if (!sendResult) {
-    throw Object.assign(new Error('Message send failed.'), {
+  if (!sendResult?.key?.id) {
+    throw Object.assign(new Error('Message send failed: Baileys did not return a message id.'), {
       code: 'SEND_FAILED',
+    });
+  }
+
+  const whatsappMessageId = String(sendResult.key.id);
+  messageAckPipeline.transitionAck(whatsappMessageId, messageAckPipeline.ACK_STATES.PENDING, {
+    chatId: item.phone,
+    sessionId: session?.sessionId || item.sessionId,
+    companyId: item.companyId,
+    correlationId: item.correlationId,
+  });
+  correlationTracker.traceLog(item.correlationId, 'ack.waiting', 'Worker is waiting for WhatsApp server ACK.', {
+    companyId: item.companyId,
+    messageId: whatsappMessageId,
+    queueId: item.id,
+  });
+  const ackEntry = await messageAckPipeline.waitForAck(whatsappMessageId, {
+    timeoutMs: Math.max(3000, Number(process.env.WHATSAPP_SEND_ACK_TIMEOUT_MS) || 10000),
+  });
+  if (!ackEntry || ackEntry.status === messageAckPipeline.ACK_STATES.FAILED) {
+    throw Object.assign(new Error(ackEntry ? 'WhatsApp rejected the message.' : 'WhatsApp server ACK timed out.'), {
+      code: ackEntry ? 'WHATSAPP_SEND_REJECTED' : 'WHATSAPP_ACK_TIMEOUT',
+      nonRetryable: !ackEntry,
     });
   }
 
   const res = await persistSuccessfulSend({
     ...item,
     sessionId: session?.sessionId || item.sessionId,
+    status: ackEntry.status,
+    whatsappMessageId,
+    remoteJid: sendResult.key.remoteJid || null,
   });
 
-  if (sendResult?.key?.id && res?.message?.id) {
-    const messageAckPipeline = require('./messageAckPipeline');
-    messageAckPipeline.registerDbMapping(sendResult.key.id, res.message.id);
-    const ackEntry = messageAckPipeline.transitionAck(sendResult.key.id, messageAckPipeline.ACK_STATES.SENT, {
-      chatId: item.phone,
-      sessionId: session?.sessionId || item.sessionId,
-    });
+  if (res?.message?.id) {
+    messageAckPipeline.registerDbMapping(whatsappMessageId, res.message.id);
     const io = storeRef?.io || global.io;
-    if (io && ackEntry) {
-      messageAckPipeline.emitAckUpdate(io, ackEntry);
-    }
+    if (io) messageAckPipeline.emitAckUpdate(io, ackEntry);
   }
+  correlationTracker.traceLog(item.correlationId, 'database.persisted', 'Confirmed outbound message persisted.', {
+    companyId: item.companyId,
+    dbMessageId: res?.message?.id,
+    messageId: whatsappMessageId,
+    queueId: item.id,
+    status: ackEntry.status,
+  });
 
   return res;
 }
@@ -557,7 +588,7 @@ async function processOneItem() {
       item.failureHistory = [...cappedHistory, failure];
       item.updatedAt = nowIso();
 
-      if (item.attemptCount >= Number(item.maxAttempts || DEFAULT_CONFIG.maxAttempts)) {
+      if (error?.nonRetryable || item.attemptCount >= Number(item.maxAttempts || DEFAULT_CONFIG.maxAttempts)) {
         item.state = STATES.DEAD_LETTER;
         item.deadLetterAt = nowIso();
         item.nextAttemptAt = null;

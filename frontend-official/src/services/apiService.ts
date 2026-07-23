@@ -617,11 +617,19 @@ async function executeRequest<T>({ endpoint, method, body, timeoutMs = REQUEST_T
       slog.info("api", `${method} ${endpoint}`, { route: endpoint });
 
       const apiHeaders = await buildApiHeaders();
+      const correlationId = typeof crypto?.randomUUID === "function"
+        ? `web_${crypto.randomUUID()}`
+        : `web_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
 
       const requestHeaders =
         method === "GET"
-          ? Object.fromEntries(Object.entries(apiHeaders).filter(([key]) => key.toLowerCase() !== "content-type"))
-          : apiHeaders;
+          ? {
+              ...Object.fromEntries(Object.entries(apiHeaders).filter(([key]) => key.toLowerCase() !== "content-type")),
+              "x-correlation-id": correlationId,
+            }
+          : { ...apiHeaders, "x-correlation-id": correlationId };
+
+      slog.info("api", `trace ${correlationId}`, { route: endpoint, correlationId });
 
       const response = await api.request({
         url: resolveAxiosEndpoint(endpoint),
@@ -1989,6 +1997,16 @@ export const apiService = {
     const query = companyId ? `?companyId=${encodeURIComponent(companyId)}` : "";
     return request<{ success: boolean; data: any }>({
       endpoint: `/api/ai/executive-insights${query}`,
+      method: "GET",
+    });
+  },
+  async getProducts(params?: { category?: string; search?: string }) {
+    const searchParams = new URLSearchParams();
+    if (params?.category) searchParams.set("category", params.category);
+    if (params?.search) searchParams.set("search", params.search);
+    const query = searchParams.toString() ? `?${searchParams.toString()}` : "";
+    return request<{ success: boolean; data: any[] }>({
+      endpoint: `/api/products${query}`,
       method: "GET",
     });
   },

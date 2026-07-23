@@ -10,7 +10,7 @@ export type DashboardLovableMetricCard = {
 };
 
 export type DashboardLovableTab = {
-  id: "overview" | "conversations" | "ai" | "commercial" | "operations" | "map";
+  id: "overview" | "conversations" | "ai" | "commercial" | "operations" | "analytics" | "infrastructure" | "map" | "executive" | "diagnostics" | "reports";
   label: string;
 };
 
@@ -69,12 +69,17 @@ export type DashboardLovableViewModel = {
 };
 
 const DASHBOARD_TABS: DashboardLovableTab[] = [
-  { id: "overview", label: "Visão Geral" },
-  { id: "conversations", label: "Conversas & Mensagens" },
-  { id: "ai", label: "Performance & IA" },
-  { id: "commercial", label: "Comercial & Vendas" },
-  { id: "operations", label: "Operação & Infra" },
-  { id: "analytics", label: "Analytics Avançado" },
+  { id: "overview", label: "VisÃ£o Geral" },
+  { id: "conversations", label: "Conversas" },
+  { id: "ai", label: "Performance IA" },
+  { id: "commercial", label: "Comercial" },
+  { id: "operations", label: "OperaÃ§Ã£o" },
+  { id: "analytics", label: "Analytics" },
+  { id: "infrastructure", label: "Infraestrutura" },
+  { id: "map", label: "Mapa" },
+  { id: "executive", label: "IA Executiva" },
+  { id: "diagnostics", label: "DiagnÃ³sticos" },
+  { id: "reports", label: "RelatÃ³rios" },
 ];
 
 const MAP_SCOPES: Array<{ id: DashboardMapScope; label: string }> = [

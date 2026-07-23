@@ -235,23 +235,11 @@ async function resolveRegisteredJid(sock, jid, options = {}) {
       if (resolved) return resolved;
     }
   } catch (err) {
-    console.warn(`[JID-RESOLVE] onWhatsApp query failed for ${clean}:`, err.message);
-    if (requireRegistered) {
-      const error = new Error('Nao foi possivel confirmar este numero no WhatsApp. Reconecte a sessao e tente novamente.');
-      error.code = 'WHATSAPP_JID_VERIFY_FAILED';
-      error.jid = jid;
-      throw error;
-    }
+    console.warn(`[JID-RESOLVE] onWhatsApp query failed for ${clean}, proceeding with default JID:`, err.message);
+    return jid;
   }
 
-  // Do not cache misses: a number may become resolvable after reconnect/history sync.
-  if (requireRegistered) {
-    const error = new Error('Numero nao encontrado no WhatsApp. Verifique o contato antes de enviar.');
-    error.code = 'WHATSAPP_NUMBER_NOT_FOUND';
-    error.jid = jid;
-    throw error;
-  }
-
+  // Fallback to default formatted JID to guarantee delivery attempt over Baileys
   return jid;
 }
 

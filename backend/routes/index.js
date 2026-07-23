@@ -18,6 +18,7 @@ const adminMasterRouter = require('./adminMaster');
 const nodeRouter = require('./nodeMaster');
 const clusterRouter = require('./cluster');
 const campaignDispatchRouter = require('./campaignDispatch');
+const productsRouter = require('./products');
 
 // ── NEW: Frontend-compatibility routers ──────────────────────────────────────
 const logsRouter = require('./logs');
@@ -114,6 +115,10 @@ function registerRoutes(app, options = {}) {
 
   // /api/tests — in-system test engine endpoints
   app.use('/api', testsRouter);
+
+  // /api/products — gestão real de produtos e estoque
+  app.use('/api', productsRouter);
+  app.use('/', productsRouter);
 
   // /api/operations — operações e filas em tempo real
   const operationsRouter = require('./operations');

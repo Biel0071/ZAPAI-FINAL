@@ -15,6 +15,7 @@ const aiIntelligenceService = require('../services/aiIntelligenceService');
 
 const messageDedupeService = require('../services/messageDedupeService');
 const messageAckPipeline = require('../services/messageAckPipeline');
+const correlationTracker = require('../services/correlationTracker');
 
 // Phase 2a: pure helpers live under ./messages/*. Names are destructured here
 // so all internal callers and module.exports stay byte-compatible.
@@ -172,6 +173,13 @@ async function sendMessage(req, res) {
     text,
   } = req.body;
   const store = getStore(req);
+  const correlationId = req.correlationId || correlationTracker.generateMessageTraceId();
+  const companyId = String(req.body?.companyId || req.companyId || req.tenantId || process.env.DEFAULT_COMPANY_ID || 'default');
+  correlationTracker.traceLog(correlationId, 'api.received', 'Outbound message request received.', {
+    companyId,
+    conversationId,
+    hasMedia: Boolean(mediaPath || _transportMediaPath),
+  });
   let conversationTarget = null;
   if (conversationId) {
     try {
@@ -319,6 +327,11 @@ async function sendMessage(req, res) {
 
     const whatsappMessageId = String(sendResult.key.id);
     const transportRemoteJid = sendResult.key.remoteJid || targetJidOrPhone;
+    correlationTracker.traceLog(correlationId, 'baileys.transport_accepted', 'Baileys returned a message key; awaiting server ACK.', {
+      companyId,
+      messageId: whatsappMessageId,
+      remoteJid: transportRemoteJid,
+    });
     const transportParticipantJid = sendResult.key.participant || null;
     messageAckPipeline.transitionAck(
       whatsappMessageId,
@@ -330,7 +343,14 @@ async function sendMessage(req, res) {
     );
     const ackConfirmation = await waitForWhatsappServerAck(whatsappMessageId);
     const deliveryConfirmed = Boolean(ackConfirmation && ACCEPTED_ACK_STATES.has(ackConfirmation.status));
-    const deliveryStatus = deliveryConfirmed ? ackConfirmation.status : 'failed';
+    const deliveryStatus = ackConfirmation?.status === messageAckPipeline.ACK_STATES.FAILED
+      ? 'failed'
+      : (deliveryConfirmed ? ackConfirmation.status : 'pending');
+    correlationTracker.traceLog(correlationId, deliveryConfirmed ? 'ack.confirmed' : 'ack.timeout', deliveryConfirmed ? 'WhatsApp server ACK confirmed.' : 'WhatsApp server ACK timed out.', {
+      companyId,
+      messageId: whatsappMessageId,
+      status: ackConfirmation?.status || 'timeout',
+    });
 
     console.log('[WHATSAPP-SEND-RESULT]', {
       ackStatus: ackConfirmation?.status || 'timeout',
@@ -408,8 +428,8 @@ async function sendMessage(req, res) {
         return res.status(502).json({
           chatId: normalizeChatId(normalizedPhone),
           code: 'WHATSAPP_ACK_TIMEOUT',
-          error: 'O WhatsApp nao confirmou o envio. A mensagem foi marcada como falha.',
-          message: { ...inboxPayload, status: 'failed' },
+          error: 'O WhatsApp nao confirmou o envio dentro do prazo. A mensagem permanece pendente.',
+          message: { ...inboxPayload, status: deliveryStatus },
           success: false,
         });
       }
@@ -422,7 +442,7 @@ async function sendMessage(req, res) {
     }
 
     const persistedResult = await registerOutgoingMessage(store, {
-      companyId: req.body?.companyId,
+      companyId,
       contactId,
       conversationId,
       mediaPath: persistedMediaPath || mediaPath,
@@ -478,8 +498,8 @@ async function sendMessage(req, res) {
       return res.status(502).json({
         chatId: normalizeChatId(normalizedPhone),
         code: 'WHATSAPP_ACK_TIMEOUT',
-        error: 'O WhatsApp nao confirmou o envio. A mensagem foi marcada como falha.',
-        message: { ...apiMessage, status: 'failed' },
+        error: 'O WhatsApp nao confirmou o envio dentro do prazo. A mensagem permanece pendente.',
+        message: { ...apiMessage, status: deliveryStatus },
         success: false,
       });
     }
@@ -708,7 +728,7 @@ async function receiveMessage(req, res) {
 
   try {
     persistedValue = await registerIncomingMessage(store, {
-      companyId: req.body?.companyId,
+      companyId,
       externalMessageId: req.body?.id || null,
       mediaPath: resolvedIncomingMediaPath,
       mediaType: resolvedIncomingMediaType || null,

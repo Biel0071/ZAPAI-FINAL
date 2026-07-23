@@ -21,9 +21,10 @@ import { useRuntime } from "@/providers/RuntimeProvider";
 
 const STATUS_POLL_MS = 15_000;
 const HEAVY_REFRESH_MS = 30_000;
-const VALID_TABS = ["overview", "conversations", "ai", "commercial", "operations", "analytics", "map"] as const;
+const VALID_TABS = ["overview", "conversations", "ai", "commercial", "operations", "analytics", "infrastructure", "map", "executive", "diagnostics", "reports"] as const;
 
 type DashboardTab = (typeof VALID_TABS)[number];
+type DashboardDateRange = "today" | "yesterday" | "7days" | "15days" | "30days" | "90days" | "week" | "month" | "year" | "hour" | "custom" | "all";
 
 function normalizeTab(candidate: string | null): DashboardTab {
   return VALID_TABS.includes(candidate as DashboardTab) ? (candidate as DashboardTab) : "overview";
@@ -41,7 +42,11 @@ export default function Dashboard() {
 
   const [activeTab, setActiveTab] = useState<DashboardTab>(() => normalizeTab(searchParams.get("tab")));
   const [activeMapScope, setActiveMapScope] = useState<DashboardMapScope>("regions");
-  const [dateRange, setDateRange] = useState<"today" | "yesterday" | "7days" | "30days" | "all">("today");
+  const [dateRange, setDateRange] = useState<DashboardDateRange>("today");
+  const [customStart, setCustomStart] = useState("");
+  const [customEnd, setCustomEnd] = useState("");
+  const [timeStart, setTimeStart] = useState("");
+  const [timeEnd, setTimeEnd] = useState("");
 
   const [aiStatus, setAiStatus] = useState<AIStatusResponse | null>(null);
   const [aiMetrics, setAiMetrics] = useState<AIMetricsResponse | null>(null);
@@ -99,58 +104,56 @@ export default function Dashboard() {
     handleTabChange("map");
   }, [handleTabChange]);
 
-  // Client-side date filtering for conversations
+  // Filters only real conversation timestamps. No metric multipliers or estimates.
   const filteredConversations = useMemo(() => {
-    if (dateRange === "all") return conversations;
     const now = new Date();
     const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    let start: Date | null = null;
+    let end: Date | null = null;
 
-    return conversations.filter((c) => {
-      if (!c.updatedAt) return false;
-      const date = new Date(c.updatedAt);
-      if (dateRange === "today") {
-        return date >= startOfToday;
-      }
-      if (dateRange === "yesterday") {
-        const startOfYesterday = new Date(startOfToday.getTime() - 24 * 60 * 60 * 1000);
-        return date >= startOfYesterday && date < startOfToday;
-      }
-      if (dateRange === "7days") {
-        const startOf7Days = new Date(startOfToday.getTime() - 7 * 24 * 60 * 60 * 1000);
-        return date >= startOf7Days;
-      }
-      if (dateRange === "30days") {
-        const startOf30Days = new Date(startOfToday.getTime() - 30 * 24 * 60 * 60 * 1000);
-        return date >= startOf30Days;
-      }
+    if (dateRange === "today" || dateRange === "day") start = startOfToday;
+    if (dateRange === "yesterday") {
+      start = new Date(startOfToday.getTime() - 86_400_000);
+      end = startOfToday;
+    }
+    const rollingDays = dateRange === "7days" ? 7 : dateRange === "15days" ? 15 : dateRange === "30days" ? 30 : dateRange === "90days" ? 90 : 0;
+    if (rollingDays) start = new Date(now.getTime() - rollingDays * 86_400_000);
+    if (dateRange === "hour") start = new Date(now.getTime() - 3_600_000);
+    if (dateRange === "week") {
+      start = new Date(startOfToday);
+      start.setDate(start.getDate() - ((start.getDay() + 6) % 7));
+    }
+    if (dateRange === "month") start = new Date(now.getFullYear(), now.getMonth(), 1);
+    if (dateRange === "year") start = new Date(now.getFullYear(), 0, 1);
+    if (dateRange === "custom") {
+      start = customStart ? new Date(`${customStart}T00:00:00`) : null;
+      end = customEnd ? new Date(`${customEnd}T23:59:59.999`) : null;
+    }
+
+    const startMinutes = timeStart ? Number(timeStart.slice(0, 2)) * 60 + Number(timeStart.slice(3, 5)) : null;
+    const endMinutes = timeEnd ? Number(timeEnd.slice(0, 2)) * 60 + Number(timeEnd.slice(3, 5)) : null;
+
+    return conversations.filter((conversation) => {
+      if (!conversation.updatedAt) return false;
+      const timestamp = new Date(conversation.updatedAt);
+      if (!Number.isFinite(timestamp.getTime())) return false;
+      if (start && timestamp < start) return false;
+      if (end && timestamp > end) return false;
+      const minutes = timestamp.getHours() * 60 + timestamp.getMinutes();
+      if (startMinutes != null && minutes < startMinutes) return false;
+      if (endMinutes != null && minutes > endMinutes) return false;
       return true;
     });
-  }, [conversations, dateRange]);
+  }, [conversations, customEnd, customStart, dateRange, timeEnd, timeStart]);
 
-  // Client-side dynamic metrics adjustment based on period
   const filteredMetrics = useMemo(() => {
     if (!storeMetrics) return null;
-    const factor = dateRange === "today" ? 1
-      : dateRange === "yesterday" ? 0.95
-      : dateRange === "7days" ? 6.8
-      : dateRange === "30days" ? 28.5
-      : 120; // all time
-
-    const messages = Math.round((storeMetrics.messagesToday ?? storeMetrics.todayMessages ?? storeMetrics.messages ?? 0) * factor);
-    const ai = Math.round((storeMetrics.aiResponses ?? storeMetrics.ai ?? storeMetrics.botResponses ?? 0) * factor);
-    const leads = filteredConversations.length;
-
     return {
       ...storeMetrics,
-      messagesToday: messages,
-      todayMessages: messages,
-      aiResponses: ai,
-      ai: ai,
-      newLeads: leads,
-      leads: leads,
+      newLeads: filteredConversations.length,
+      leads: filteredConversations.length,
     } as MetricsSummary;
-  }, [storeMetrics, dateRange, filteredConversations.length]);
-
+  }, [storeMetrics, filteredConversations.length]);
   const dashboardViewModel = useMemo(
     () =>
       createDashboardLovableViewModel({

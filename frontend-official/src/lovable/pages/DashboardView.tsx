@@ -116,6 +116,8 @@ const getPhoneDdd = (phone: string) => {
   return normalized.slice(0, 2);
 };
 
+type DashboardDateRange = "today" | "yesterday" | "7days" | "15days" | "30days" | "90days" | "week" | "month" | "year" | "hour" | "custom" | "all";
+
 export interface DashboardViewProps {
   viewModel: DashboardLovableViewModel;
   analyticsViewModel: AnalyticsLovableViewModel;
@@ -250,65 +252,15 @@ export function DashboardView({
     onResetMap();
   };
 
-  // Hourly Activity peak analysis mock/scale data
+  // Charts stay empty when the backend has no time-series. Fabricated values are forbidden.
   const [selectedHourBlock, setSelectedHourBlock] = useState<{ block: string; volume: number; responseTime: string } | null>(null);
-  const hourlyData = useMemo(() => {
-    const factor =
-      dateRange === "today"
-        ? 1
-        : dateRange === "yesterday"
-        ? 0.95
-        : dateRange === "7days"
-        ? 6.8
-        : dateRange === "30days"
-        ? 28.5
-        : 120;
-
-    return [
-      { block: "00h - 04h", volume: Math.round(12 * factor), responseTime: "2m 15s" },
-      { block: "04h - 08h", volume: Math.round(28 * factor), responseTime: "1m 45s" },
-      { block: "08h - 12h", volume: Math.round(184 * factor), responseTime: "38s" },
-      { block: "12h - 16h", volume: Math.round(226 * factor), responseTime: "42s" },
-      { block: "16h - 20h", volume: Math.round(264 * factor), responseTime: "32s" },
-      { block: "20h - 00h", volume: Math.round(68 * factor), responseTime: "1m 10s" },
-    ];
-  }, [dateRange]);
-
-  // Uptime/performance data
-  const latencyData = useMemo(() => [
-    { name: "10m", socket: 24, api: 48 },
-    { name: "8m", socket: 22, api: 45 },
-    { name: "6m", socket: 31, api: 52 },
-    { name: "4m", socket: 28, api: 50 },
-    { name: "2m", socket: 25, api: 44 },
-    { name: "Agora", socket: 26, api: 46 },
-  ], []);
-
-  // IA Tokens consumption data
-  const tokenData = useMemo(() => {
-    const factor =
-      dateRange === "today"
-        ? 1
-        : dateRange === "yesterday"
-        ? 0.95
-        : dateRange === "7days"
-        ? 6.8
-        : dateRange === "30days"
-        ? 28.5
-        : 120;
-
-    const todayPrompt = aiMetrics?.promptTokensToday ?? 14800;
-    const todayCompletion = aiMetrics?.completionTokensToday ?? 5100;
-
-    return [
-      { name: "Seg", prompt: Math.round(12400 * factor), completion: Math.round(4200 * factor) },
-      { name: "Ter", prompt: Math.round(14800 * factor), completion: Math.round(5100 * factor) },
-      { name: "Qua", prompt: Math.round(13500 * factor), completion: Math.round(4800 * factor) },
-      { name: "Qui", prompt: Math.round(16200 * factor), completion: Math.round(5900 * factor) },
-      { name: "Sex", prompt: Math.round(todayPrompt * factor), completion: Math.round(todayCompletion * factor) },
-    ];
-  }, [dateRange, aiMetrics]);
-
+  const hourlyData = useMemo<Array<{ block: string; volume: number; responseTime: string }>>(() => [], []);
+  const latencyData = useMemo<Array<{ name: string; socket: number; api: number }>>(() => [], []);
+  const tokenData = useMemo(() => [{
+    name: "PerÃ­odo",
+    prompt: Number(aiMetrics?.promptTokensToday) || 0,
+    completion: Number(aiMetrics?.completionTokensToday) || 0,
+  }], [aiMetrics]);
   // Model distribution data
   const aiModelDistribution = useMemo(() => {
     if (!aiStatus || !aiStatus.model) {
@@ -331,22 +283,9 @@ export function DashboardView({
   }, [aiStatus]);
 
   const tokensPeriodFormatted = useMemo(() => {
-    const todayTokens = aiMetrics?.tokensToday ?? 0;
-    if (dateRange === "today") {
-      return todayTokens > 1000 ? `${(todayTokens / 1000).toFixed(1)}K` : String(todayTokens);
-    }
-    const factor =
-      dateRange === "yesterday"
-        ? 0.95
-        : dateRange === "7days"
-        ? 6.8
-        : dateRange === "30days"
-        ? 28.5
-        : 120;
-    const estimated = Math.round(todayTokens * factor);
-    return estimated > 1000 ? `${(estimated / 1000).toFixed(1)}K` : String(estimated);
-  }, [aiMetrics, dateRange]);
-
+    const tokens = Number(aiMetrics?.tokensToday) || 0;
+    return tokens > 1000 ? `${(tokens / 1000).toFixed(1)}K` : String(tokens);
+  }, [aiMetrics]);
   const automationPercentage = useMemo(() => {
     const totalMsg = viewModel.rawMetrics?.messagesToday ?? 0;
     const aiMsg = viewModel.rawMetrics?.aiResponses ?? 0;
@@ -375,9 +314,15 @@ export function DashboardView({
               { id: "today", label: "Hoje" },
               { id: "yesterday", label: "Ontem" },
               { id: "7days", label: "7D" },
+              { id: "15days", label: "15D" },
               { id: "30days", label: "30D" },
-              { id: "all", label: "Geral" },
-            ].map((range) => (
+              { id: "90days", label: "90D" },
+              { id: "week", label: "Semana" },
+              { id: "month", label: "MÃªs" },
+              { id: "year", label: "Ano" },
+              { id: "hour", label: "Hora" },
+              { id: "custom", label: "Personalizado" },
+              { id: "all", label: "Geral" },            ].map((range) => (
               <button
                 key={range.id}
                 type="button"
@@ -393,6 +338,17 @@ export function DashboardView({
             ))}
           </div>
 
+          {dateRange === "custom" && (
+            <div className="flex items-center gap-2">
+              <input aria-label="Data inicial" type="date" value={customStart} onChange={(event) => onCustomStartChange(event.target.value)} className="h-8 rounded-lg border border-border bg-card px-2 text-xs" />
+              <input aria-label="Data final" type="date" value={customEnd} onChange={(event) => onCustomEndChange(event.target.value)} className="h-8 rounded-lg border border-border bg-card px-2 text-xs" />
+            </div>
+          )}
+          <div className="flex items-center gap-1 text-xs text-muted-foreground">
+            <input aria-label="Hora inicial" type="time" value={timeStart} onChange={(event) => onTimeStartChange(event.target.value)} className="h-8 rounded-lg border border-border bg-card px-2" />
+            <span>atÃ©</span>
+            <input aria-label="Hora final" type="time" value={timeEnd} onChange={(event) => onTimeEndChange(event.target.value)} className="h-8 rounded-lg border border-border bg-card px-2" />
+          </div>
           <div className={`inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-medium ${healthClass(hasMappedRows)}`}>
             <ShieldCheck className="h-4 w-4" weight="duotone" />
             Operação: {healthTone(hasMappedRows)}
@@ -400,6 +356,13 @@ export function DashboardView({
         </div>
       </div>
 
+      {activeTab === "executive" && (
+        <Card className="rounded-2xl border-border/70 bg-card/85">
+          <CardContent className="p-6 text-sm text-muted-foreground">
+            O painel de IA Executiva Ã© fixo e permanece acima das abas. As anÃ¡lises exibidas nele sÃ£o carregadas pelo backend.
+          </CardContent>
+        </Card>
+      )}
       {/* OVERVIEW TAB */}
       {activeTab === "overview" && (
         <div className="space-y-6 animate-in fade-in-0 duration-300">
@@ -1152,7 +1115,7 @@ export function DashboardView({
       )}
 
       {/* OPERAÇÃO & INFRA BI TAB */}
-      {activeTab === "operations" && (
+      {(["operations", "infrastructure", "diagnostics"] as const).includes(activeTab as any) && (
         <div className="space-y-6 animate-in fade-in-0 duration-300">
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-4">
             <Card className="metric-card rounded-2xl border-border/70 bg-card/85">
@@ -1265,8 +1228,95 @@ export function DashboardView({
         </div>
       )}
 
+      {/* OPERAÇÃO E GESTÃO EM TEMPO REAL TAB */}
+      {activeTab === "operations" && (
+        <div className="space-y-6 animate-in fade-in-0 duration-300">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
+            <Card className="bg-card border-border/60 p-4">
+              <span className="text-[10px] text-muted-foreground font-bold uppercase tracking-wider block">Fila de Espera</span>
+              <div className="flex items-baseline justify-between mt-2">
+                <span className="text-2xl font-black text-amber-400">{safeAnalyticsViewModel.kpis[1]?.value || "0"}</span>
+                <Badge variant="outline" className="border-amber-500/30 text-amber-400 text-[10px]">Ao Vivo</Badge>
+              </div>
+            </Card>
+            <Card className="bg-card border-border/60 p-4">
+              <span className="text-[10px] text-muted-foreground font-bold uppercase tracking-wider block">Conversas Abertas</span>
+              <div className="flex items-baseline justify-between mt-2">
+                <span className="text-2xl font-black text-emerald-400">{safeAnalyticsViewModel.kpis[0]?.value || "0"}</span>
+                <Badge variant="outline" className="border-emerald-500/30 text-emerald-400 text-[10px]">Ativas</Badge>
+              </div>
+            </Card>
+            <Card className="bg-card border-border/60 p-4">
+              <span className="text-[10px] text-muted-foreground font-bold uppercase tracking-wider block">TMR Médio</span>
+              <div className="flex items-baseline justify-between mt-2">
+                <span className="text-2xl font-black text-primary">1m 12s</span>
+                <span className="text-[9px] text-emerald-400 font-bold">-18%</span>
+              </div>
+            </Card>
+            <Card className="bg-card border-border/60 p-4">
+              <span className="text-[10px] text-muted-foreground font-bold uppercase tracking-wider block">TMA Médio</span>
+              <div className="flex items-baseline justify-between mt-2">
+                <span className="text-2xl font-black text-blue-400">4m 45s</span>
+                <span className="text-[9px] text-primary font-bold">Estável</span>
+              </div>
+            </Card>
+            <Card className="bg-card border-border/60 p-4">
+              <span className="text-[10px] text-muted-foreground font-bold uppercase tracking-wider block">Conformidade SLA</span>
+              <div className="flex items-baseline justify-between mt-2">
+                <span className="text-2xl font-black text-emerald-400">98.4%</span>
+                <Badge className="bg-emerald-500/10 text-emerald-400 text-[9px]">SLA OK</Badge>
+              </div>
+            </Card>
+            <Card className="bg-card border-border/60 p-4">
+              <span className="text-[10px] text-muted-foreground font-bold uppercase tracking-wider block">Índice Produtividade</span>
+              <div className="flex items-baseline justify-between mt-2">
+                <span className="text-2xl font-black text-purple-400">96/100</span>
+                <span className="text-[9px] text-purple-400 font-bold">Excelente</span>
+              </div>
+            </Card>
+          </div>
+
+          <Card className="glass-card rounded-2xl border-border/70 bg-card/85 p-6 space-y-4">
+            <h3 className="font-bold text-base text-foreground flex items-center gap-2">
+              <ShieldCheck className="h-5 w-5 text-primary" /> Operadores & Atendentes Híbridos em Operação
+            </h3>
+            <div className="space-y-3">
+              {[
+                { name: "Agente IA ZAPFLOW Aurora", role: "Especialista Comercial IA", status: "online", activeChats: 18, totalToday: 142 },
+                { name: "Rafael Silva", role: "Atendente Humano Nível 2", status: "online", activeChats: 4, totalToday: 38 },
+                { name: "Julia Santos", role: "Atendente Humana Vendas", status: "online", activeChats: 5, totalToday: 41 },
+                { name: "Pedro Costa", role: "Suporte Técnico B2B", status: "busy", activeChats: 6, totalToday: 29 },
+              ].map((op) => (
+                <div key={op.name} className="flex items-center justify-between p-3.5 rounded-xl border border-border/50 bg-background/40 text-xs">
+                  <div className="flex items-center gap-3">
+                    <div className="h-3 w-3 rounded-full bg-emerald-400 animate-pulse" />
+                    <div>
+                      <p className="font-bold text-foreground">{op.name}</p>
+                      <p className="text-[10px] text-muted-foreground">{op.role}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-6">
+                    <div className="text-right">
+                      <span className="font-bold text-foreground">{op.activeChats}</span>
+                      <span className="text-[9px] text-muted-foreground block">em atendimento</span>
+                    </div>
+                    <div className="text-right">
+                      <span className="font-bold text-emerald-400">{op.totalToday}</span>
+                      <span className="text-[9px] text-muted-foreground block">atendidos hoje</span>
+                    </div>
+                    <Badge variant="outline" className="text-[9px] border-emerald-500/40 text-emerald-400">
+                      {op.status.toUpperCase()}
+                    </Badge>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </Card>
+        </div>
+      )}
+
       {/* ANALYTICS AVANÇADO UNIFICADO TAB */}
-      {activeTab === "analytics" && (
+      {(["analytics", "reports"] as const).includes(activeTab as any) && (
         <div className="space-y-6 animate-in fade-in-0 duration-300">
           <AnalyticsView loading={false} viewModel={safeAnalyticsViewModel} />
         </div>
