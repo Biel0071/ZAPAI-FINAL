@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Terminal, CheckCircle, XCircle, Trash2, Filter } from "@phosphor-icons/react";
+import { Terminal, CheckCircle, XCircle, Trash, Filter } from "@phosphor-icons/react";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -76,7 +76,7 @@ export const TestExecutionTerminal: React.FC<TestExecutionTerminalProps> = ({ lo
                 size="sm"
                 className="h-7 text-xs text-slate-400 hover:text-white"
               >
-                <Trash2 className="w-3.5 h-3.5 mr-1" /> Limpar
+                <Trash className="w-3.5 h-3.5 mr-1" /> Limpar
               </Button>
             )}
           </div>
