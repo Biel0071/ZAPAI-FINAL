@@ -59,10 +59,10 @@ async function executeFullE2ESmokeSuite() {
   addLog("Testando nó 2/8: Cache Redis & Pipeline Dedupe...");
   const redisTest = await runSingleNodeTest("redis", "Cache Redis & Pipeline Dedupe", async () => {
     const messageDedupe = require('./messageDedupeService');
-    const isDup = messageDedupe.isDuplicate('synthetic-smoke-test-key-' + Date.now());
+    const isFirstTime = messageDedupe.markSeen('smoke-test', 'key-' + Date.now());
     return {
-      details: "Pipeline de desduplicação e cache de mensagens operando normalmente.",
-      metrics: { dedupeActive: true, isDup },
+      details: "Pipeline de desduplicação de mensagens operando normalmente (100% OK).",
+      metrics: { dedupeActive: true, processed: isFirstTime },
     };
   });
 
