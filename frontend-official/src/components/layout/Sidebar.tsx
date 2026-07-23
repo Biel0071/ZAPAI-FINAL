@@ -58,7 +58,7 @@ const crmItems: SidebarNavItem[] = [
   { icon: AIIcon, label: "IA & Automação", path: "/ai", minRole: "user" },
   { icon: TreeStructure, label: "Fluxos", path: "/flows", minRole: "user" },
   { icon: Brain, label: "Memória IA", path: "/memory", minRole: "user" },
-  { icon: ChartLineUp, label: "Analytics", path: "/analytics", minRole: "user" },
+  { icon: ChartLineUp, label: "Analytics", path: "/dashboard?tab=analytics", minRole: "user" },
 ];
 
 const adminItems: SidebarNavItem[] = [

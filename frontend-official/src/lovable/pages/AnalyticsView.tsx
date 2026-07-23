@@ -57,6 +57,23 @@ export function AnalyticsView({ loading, viewModel }: AnalyticsViewProps) {
   const [activeBiTab, setActiveBiTab] = useState<"conversations" | "ai" | "commercial" | "operations">("conversations");
   const [selectedHeatBlock, setSelectedHeatBlock] = useState<string | null>(null);
 
+  const safeViewModel = useMemo(() => {
+    if (viewModel && Array.isArray(viewModel.kpis) && viewModel.kpis.length > 0) {
+      return viewModel;
+    }
+    return {
+      kpis: [
+        { label: "Mensagens Hoje", value: "0", tone: "primary" as const, hint: "Total enviadas + recebidas" },
+        { label: "Fila Ativa", value: "0", tone: "warning" as const, hint: "Conversas aguardando atendimento" },
+        { label: "Respostas IA", value: "0", tone: "success" as const, hint: "Mensagens automáticas processadas" },
+        { label: "Total de Leads", value: "0", tone: "info" as const, hint: "Contatos cadastrados no CRM" },
+      ],
+      chartData: [],
+      tempDistribution: [],
+      totalLeadsLabel: "0",
+    };
+  }, [viewModel]);
+
   // Hourly Commercial Heatmap Data
   const heatmapBlocks = [
     { label: "08h - 10h", volume: 142, conversion: "28%", responseTime: "35s", sales: "R$ 14.800", status: "Pico Vendas" },
@@ -114,15 +131,15 @@ export function AnalyticsView({ loading, viewModel }: AnalyticsViewProps) {
                   <CardContent className="p-5">
                     <div className="flex items-center justify-between">
                       <div>
-                        <p className="text-[10px] font-bold uppercase tracking-widest text-primary">{viewModel.kpis[0]?.label}</p>
-                        <h3 className="mt-1 text-2xl font-bold font-display">{viewModel.kpis[0]?.value}</h3>
+                        <p className="text-[10px] font-bold uppercase tracking-widest text-primary">{safeViewModel.kpis[0]?.label}</p>
+                        <h3 className="mt-1 text-2xl font-bold font-display">{safeViewModel.kpis[0]?.value}</h3>
                       </div>
                       <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center text-primary">
                         <PaperPlaneTilt weight="fill" className="h-5 w-5" />
                       </div>
                     </div>
                     <div className="mt-4 flex items-center gap-1.5 text-[10px] text-success font-bold">
-                      <TrendUp weight="bold" /> {viewModel.kpis[0]?.hint} (Clique para ver no Inbox)
+                      <TrendUp weight="bold" /> {safeViewModel.kpis[0]?.hint} (Clique para ver no Inbox)
                     </div>
                   </CardContent>
                 </Card>
@@ -131,8 +148,8 @@ export function AnalyticsView({ loading, viewModel }: AnalyticsViewProps) {
                   <CardContent className="p-5">
                     <div className="flex items-center justify-between">
                       <div>
-                        <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">{viewModel.kpis[1]?.label}</p>
-                        <h3 className="mt-1 text-2xl font-bold font-display">{viewModel.kpis[1]?.value}</h3>
+                        <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">{safeViewModel.kpis[1]?.label}</p>
+                        <h3 className="mt-1 text-2xl font-bold font-display">{safeViewModel.kpis[1]?.value}</h3>
                       </div>
                       <div className="h-10 w-10 rounded-full bg-muted flex items-center justify-center text-muted-foreground">
                         <ChatCircleDots weight="fill" className="h-5 w-5" />
@@ -146,8 +163,8 @@ export function AnalyticsView({ loading, viewModel }: AnalyticsViewProps) {
                   <CardContent className="p-5">
                     <div className="flex items-center justify-between">
                       <div>
-                        <p className="text-[10px] font-bold uppercase tracking-widest text-info">{viewModel.kpis[2]?.label}</p>
-                        <h3 className="mt-1 text-2xl font-bold font-display">{viewModel.kpis[2]?.value}</h3>
+                        <p className="text-[10px] font-bold uppercase tracking-widest text-info">{safeViewModel.kpis[2]?.label}</p>
+                        <h3 className="mt-1 text-2xl font-bold font-display">{safeViewModel.kpis[2]?.value}</h3>
                       </div>
                       <div className="h-10 w-10 rounded-full bg-info/10 flex items-center justify-center text-info">
                         <Lightning weight="fill" className="h-5 w-5" />
@@ -161,8 +178,8 @@ export function AnalyticsView({ loading, viewModel }: AnalyticsViewProps) {
                   <CardContent className="p-5">
                     <div className="flex items-center justify-between">
                       <div>
-                        <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">{viewModel.kpis[3]?.label}</p>
-                        <h3 className="mt-1 text-2xl font-bold font-display">{viewModel.kpis[3]?.value}</h3>
+                        <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">{safeViewModel.kpis[3]?.label}</p>
+                        <h3 className="mt-1 text-2xl font-bold font-display">{safeViewModel.kpis[3]?.value}</h3>
                       </div>
                       <div className="h-10 w-10 rounded-full bg-muted flex items-center justify-center text-muted-foreground">
                         <Users weight="fill" className="h-5 w-5" />
@@ -182,7 +199,7 @@ export function AnalyticsView({ loading, viewModel }: AnalyticsViewProps) {
                   </CardHeader>
                   <CardContent className="h-[300px] mt-2">
                     <ResponsiveContainer width="100%" height="100%">
-                      <AreaChart data={viewModel.chartData}>
+                      <AreaChart data={safeViewModel.chartData}>
                         <defs>
                           <linearGradient id="colorMsgs" x1="0" y1="0" x2="0" y2="1">
                             <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.3} />
@@ -207,8 +224,8 @@ export function AnalyticsView({ loading, viewModel }: AnalyticsViewProps) {
                   <CardContent className="h-[300px] flex items-center justify-center relative">
                     <ResponsiveContainer width="100%" height="100%">
                       <PieChart>
-                        <Pie data={viewModel.tempDistribution} innerRadius={60} outerRadius={80} paddingAngle={5} dataKey="value">
-                          {viewModel.tempDistribution.map((entry, index) => (
+                        <Pie data={safeViewModel.tempDistribution} innerRadius={60} outerRadius={80} paddingAngle={5} dataKey="value">
+                          {safeViewModel.tempDistribution.map((entry, index) => (
                             <Cell key={`cell-${index}`} fill={entry.color} />
                           ))}
                         </Pie>
@@ -216,7 +233,7 @@ export function AnalyticsView({ loading, viewModel }: AnalyticsViewProps) {
                       </PieChart>
                     </ResponsiveContainer>
                     <div className="absolute flex flex-col items-center">
-                      <span className="text-2xl font-bold font-display">{viewModel.totalLeadsLabel}</span>
+                      <span className="text-2xl font-bold font-display">{safeViewModel.totalLeadsLabel}</span>
                       <span className="text-[10px] text-muted-foreground uppercase font-bold">Leads Ativos</span>
                     </div>
                   </CardContent>

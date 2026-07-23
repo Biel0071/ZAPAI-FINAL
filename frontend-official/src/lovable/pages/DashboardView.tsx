@@ -151,6 +151,23 @@ export function DashboardView({
   const hasMappedRows = mapRows.length > 0;
   const topRegions = viewModel.map.regionRows.slice(0, 3);
 
+  const safeAnalyticsViewModel = useMemo(() => {
+    if (analyticsViewModel && Array.isArray(analyticsViewModel.kpis) && analyticsViewModel.kpis.length > 0) {
+      return analyticsViewModel;
+    }
+    return {
+      kpis: [
+        { label: "Mensagens Hoje", value: "0", tone: "primary" as const, hint: "Total enviadas + recebidas" },
+        { label: "Fila Ativa", value: "0", tone: "warning" as const, hint: "Conversas aguardando atendimento" },
+        { label: "Respostas IA", value: "0", tone: "success" as const, hint: "Mensagens automáticas processadas" },
+        { label: "Total de Leads", value: "0", tone: "info" as const, hint: "Contatos cadastrados no CRM" },
+      ],
+      chartData: [],
+      tempDistribution: [],
+      totalLeadsLabel: "0",
+    };
+  }, [analyticsViewModel]);
+
   // Leads and geography filter state
   const [selectedLead, setSelectedLead] = useState<LeadPin | null>(null);
   const [mapCenter, setMapCenter] = useState<[number, number]>(BASE_CENTER);
@@ -393,7 +410,7 @@ export function DashboardView({
             >
               <CardContent className="space-y-2 p-5">
                 <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Fila de Atendimento</p>
-                <h3 className="font-display text-3xl font-bold">{analyticsViewModel.kpis[1]?.value || "0"}</h3>
+                <h3 className="font-display text-3xl font-bold">{safeAnalyticsViewModel.kpis[1]?.value || "0"}</h3>
                 <span className="text-[10px] text-primary font-semibold flex items-center gap-1">
                   Leads aguardando resposta (Clique para o Inbox)
                 </span>
@@ -406,7 +423,7 @@ export function DashboardView({
             >
               <CardContent className="space-y-2 p-5">
                 <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Volume de Contatos</p>
-                <h3 className="font-display text-3xl font-bold">{analyticsViewModel.kpis[3]?.value || "0"}</h3>
+                <h3 className="font-display text-3xl font-bold">{safeAnalyticsViewModel.kpis[3]?.value || "0"}</h3>
                 <span className="text-[10px] text-primary font-semibold flex items-center gap-1">
                   Leads ativos na base (Abrir CRM de Contatos)
                 </span>
@@ -420,11 +437,11 @@ export function DashboardView({
               <CardContent className="space-y-2 p-5">
                 <div className="flex items-center justify-between">
                   <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">API Runtime</p>
-                  <Badge variant="secondary" className={`rounded-full border px-2 py-0.5 text-[8px] font-bold uppercase tracking-wider ${toneClasses(viewModel.overviewCards[1].tone)}`}>
-                    {viewModel.overviewCards[1].badgeLabel}
+                  <Badge variant="secondary" className={`rounded-full border px-2 py-0.5 text-[8px] font-bold uppercase tracking-wider ${toneClasses(viewModel.overviewCards?.[1]?.tone ?? "offline")}`}>
+                    {viewModel.overviewCards?.[1]?.badgeLabel ?? "OFFLINE"}
                   </Badge>
                 </div>
-                <h3 className="font-display text-3xl font-bold">{viewModel.overviewCards[1].value}</h3>
+                <h3 className="font-display text-3xl font-bold">{viewModel.overviewCards?.[1]?.value ?? "Offline"}</h3>
                 <span className="text-[10px] text-muted-foreground">Ver Telemetria de Infra</span>
               </CardContent>
             </Card>
@@ -436,11 +453,11 @@ export function DashboardView({
               <CardContent className="space-y-2 p-5">
                 <div className="flex items-center justify-between">
                   <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">WebSocket</p>
-                  <Badge variant="secondary" className={`rounded-full border px-2 py-0.5 text-[8px] font-bold uppercase tracking-wider ${toneClasses(viewModel.overviewCards[2].tone)}`}>
-                    {viewModel.overviewCards[2].badgeLabel}
+                  <Badge variant="secondary" className={`rounded-full border px-2 py-0.5 text-[8px] font-bold uppercase tracking-wider ${toneClasses(viewModel.overviewCards?.[2]?.tone ?? "offline")}`}>
+                    {viewModel.overviewCards?.[2]?.badgeLabel ?? "OFFLINE"}
                   </Badge>
                 </div>
-                <h3 className="font-display text-3xl font-bold">{viewModel.overviewCards[2].value} canal</h3>
+                <h3 className="font-display text-3xl font-bold">{viewModel.overviewCards?.[2]?.value ?? "0"} canal</h3>
                 <span className="text-[10px] text-muted-foreground">Ver Conexões Ativas</span>
               </CardContent>
             </Card>
@@ -451,7 +468,7 @@ export function DashboardView({
             >
               <CardContent className="space-y-2 p-5">
                 <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Automação de IA</p>
-                <h3 className="font-display text-3xl font-bold">{analyticsViewModel.kpis[2]?.value || "0"}</h3>
+                <h3 className="font-display text-3xl font-bold">{safeAnalyticsViewModel.kpis[2]?.value || "0"}</h3>
                 <span className="text-[10px] text-success font-semibold">Respostas por agentes (Ver IA)</span>
               </CardContent>
             </Card>
@@ -466,7 +483,7 @@ export function DashboardView({
               </CardHeader>
               <CardContent className="h-[260px] p-4">
                 <ResponsiveContainer width="100%" height="100%">
-                  <AreaChart data={analyticsViewModel.chartData}>
+                  <AreaChart data={safeAnalyticsViewModel.chartData}>
                     <defs>
                       <linearGradient id="colorMsgs" x1="0" y1="0" x2="0" y2="1">
                         <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.3} />
@@ -491,8 +508,8 @@ export function DashboardView({
               <CardContent className="h-[260px] flex flex-col items-center justify-center relative p-4">
                 <ResponsiveContainer width="100%" height="100%">
                   <PieChart>
-                    <Pie data={analyticsViewModel.tempDistribution} innerRadius={55} outerRadius={75} paddingAngle={5} dataKey="value">
-                      {analyticsViewModel.tempDistribution.map((entry: any, index: number) => (
+                    <Pie data={safeAnalyticsViewModel.tempDistribution} innerRadius={55} outerRadius={75} paddingAngle={5} dataKey="value">
+                      {safeAnalyticsViewModel.tempDistribution.map((entry: any, index: number) => (
                         <Cell key={`cell-${index}`} fill={entry.color} />
                       ))}
                     </Pie>
@@ -500,7 +517,7 @@ export function DashboardView({
                   </PieChart>
                 </ResponsiveContainer>
                 <div className="absolute flex flex-col items-center justify-center">
-                  <span className="text-2xl font-bold font-display">{analyticsViewModel.totalLeadsLabel}</span>
+                  <span className="text-2xl font-bold font-display">{safeAnalyticsViewModel.totalLeadsLabel}</span>
                   <span className="text-[9px] text-muted-foreground uppercase font-bold">Leads</span>
                 </div>
               </CardContent>
@@ -1251,7 +1268,7 @@ export function DashboardView({
       {/* ANALYTICS AVANÇADO UNIFICADO TAB */}
       {activeTab === "analytics" && (
         <div className="space-y-6 animate-in fade-in-0 duration-300">
-          <AnalyticsView analyticsViewModel={analyticsViewModel} />
+          <AnalyticsView loading={false} viewModel={safeAnalyticsViewModel} />
         </div>
       )}
     </div>
