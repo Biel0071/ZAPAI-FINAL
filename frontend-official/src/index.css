@@ -126,6 +126,52 @@
     --shadow-card: 0 1px 3px hsl(0 0% 0% / 0.2), 0 1px 2px hsl(0 0% 0% / 0.15);
     --shadow-card-hover: 0 8px 24px -4px hsl(0 0% 0% / 0.3), 0 2px 6px -2px hsl(0 0% 0% / 0.2);
   }
+
+  html.light, .light {
+    --background: 220 20% 97%;
+    --foreground: 224 71.4% 4.1%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 224 71.4% 4.1%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 224 71.4% 4.1%;
+
+    --primary: 142 70% 40%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 220 14.3% 95.9%;
+    --secondary-foreground: 220.9 39.3% 11%;
+
+    --muted: 220 14.3% 95.9%;
+    --muted-foreground: 220 8.9% 40.1%;
+
+    --accent: 142 70% 40%;
+    --accent-foreground: 0 0% 100%;
+
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 0 0% 98%;
+
+    --border: 220 13% 88%;
+    --input: 220 13% 88%;
+    --ring: 142 70% 40%;
+
+    --sidebar-background: 0 0% 100%;
+    --sidebar-foreground: 240 5.3% 20%;
+    --sidebar-primary: 142 70% 40%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 240 4.8% 94%;
+    --sidebar-accent-foreground: 240 5.9% 10%;
+    --sidebar-border: 220 13% 88%;
+    --sidebar-ring: 142 70% 40%;
+    --sidebar-muted: 240 3.8% 46.1%;
+
+    --gradient-sidebar: linear-gradient(180deg, #ffffff 0%, #f3f4f6 100%);
+    --gradient-card: linear-gradient(145deg, #ffffff 0%, #f9fafb 100%);
+    --gradient-hero: radial-gradient(circle at 10% 0%, rgba(16, 185, 129, 0.08), transparent 45%), radial-gradient(circle at 90% 0%, rgba(56, 189, 248, 0.06), transparent 40%);
+    --shadow-card: 0 1px 3px rgba(0, 0, 0, 0.08), 0 4px 12px rgba(0, 0, 0, 0.04);
+    --shadow-card-hover: 0 4px 16px rgba(0, 0, 0, 0.12), 0 2px 6px rgba(0, 0, 0, 0.06);
+  }
 }
 
 @layer base {

@@ -524,8 +524,11 @@ function corsForStatic(req, res, next) {
 }
 
 app.use('/media', corsForStatic, express.static(path.join(__dirname, '..', 'storage', 'media')));
+app.use('/media', corsForStatic, express.static(path.join(__dirname, 'media')));
 app.use('/upload', corsForStatic, express.static(path.join(__dirname, 'upload')));
 app.use('/uploads', corsForStatic, express.static(path.join(__dirname, 'uploads')));
+app.use('/uploads', corsForStatic, express.static(path.join(process.cwd(), 'uploads')));
+app.use('/uploads', corsForStatic, express.static(path.join(__dirname, '..', 'uploads')));
 app.use('/diagnostics', devOnlyRoute);
 app.use('/receive-message', devOnlyRoute);
 app.use('/api/receive-message', devOnlyRoute);

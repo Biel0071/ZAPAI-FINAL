@@ -261,7 +261,10 @@ export function resolveMediaUrl(url?: string | null): string | null {
     if (/^[a-zA-Z]:/i.test(normalized)) {
       normalized = normalized.replace(/^[a-zA-Z]:/i, "");
     }
-    const cleanPath = normalized.replace(/^\/+/, "");
+    let cleanPath = normalized.replace(/^\/+/, "");
+    if (!/^(uploads|media|upload|public|api)\//i.test(cleanPath)) {
+      cleanPath = `uploads/${cleanPath}`;
+    }
     finalUrl = `${BACKEND_BASE_URL}/${cleanPath}`;
   }
 
