@@ -1978,6 +1978,13 @@ export const apiService = {
       method: "GET",
     });
   },
+  async getExecutiveAIInsights(companyId?: string) {
+    const query = companyId ? `?companyId=${encodeURIComponent(companyId)}` : "";
+    return request<{ success: boolean; data: any }>({
+      endpoint: `/api/ai/executive-insights${query}`,
+      method: "GET",
+    });
+  },
 };
 
 export async function requestApiEndpoint<T>(endpoint: string, method: "GET" | "POST" | "PUT" | "PATCH" | "DELETE" = "GET", body?: unknown): Promise<T> {

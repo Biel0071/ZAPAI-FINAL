@@ -8,6 +8,7 @@ router.post('/ai/toggle', aiController.toggle);
 router.get('/ai/status', aiController.status);
 router.get('/ai/logs', aiController.getAiLogs);
 router.get('/ai/metrics', aiController.getAiMetrics);
+router.get('/ai/executive-insights', aiController.getExecutiveInsights);
 router.post('/ai/test', aiController.testReply);
 router.post('/ai/refine-prompt', aiController.refinePrompt);
 router.post('/ai/transcribe', aiController.transcribe);

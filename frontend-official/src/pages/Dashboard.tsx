@@ -29,6 +29,8 @@ function normalizeTab(candidate: string | null): DashboardTab {
   return VALID_TABS.includes(candidate as DashboardTab) ? (candidate as DashboardTab) : "overview";
 }
 
+import { AIExecutiveInsightsCard } from "@/components/ai/AIExecutiveInsightsCard";
+
 export default function Dashboard() {
   const [searchParams, setSearchParams] = useSearchParams();
   const { forceRefresh, status: runtimeStatus } = useRuntime();
@@ -201,7 +203,8 @@ export default function Dashboard() {
     <div className="min-h-screen">
       <Header title="Business Intelligence (BI)" subtitle="Hub unificado de inteligência comercial, IA e infraestrutura" />
 
-      <div className="page-container section-stack">
+      <div className="page-container section-stack space-y-6">
+        <AIExecutiveInsightsCard />
         <DashboardView
           viewModel={dashboardViewModel}
           analyticsViewModel={analyticsViewModel}

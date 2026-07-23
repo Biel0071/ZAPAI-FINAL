@@ -8,6 +8,7 @@ import { apiService, type AIConnectionTestResult, type AIStatusResponse } from "
 import type { AIProviderConfig } from "@/lovable/pages/AIView";
 import { useAppStore } from "@/stores/appStore";
 import { VoiceStudioDrawer } from "@/components/ai/VoiceStudioDrawer";
+import { AIExecutiveInsightsCard } from "@/components/ai/AIExecutiveInsightsCard";
 
 type SectionId =
   | "dashboard"
@@ -681,6 +682,9 @@ export default function AI() {
   return (
     <div className="min-h-screen bg-background">
       <Header title={aiViewModel.title} subtitle={aiViewModel.subtitle} />
+      <div className="p-6 pb-0">
+        <AIExecutiveInsightsCard />
+      </div>
       <AIView
         viewModel={aiViewModel}
         activeSection={activeSection}
