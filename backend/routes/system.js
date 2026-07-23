@@ -460,4 +460,44 @@ router.post('/refresh', (req, res) => {
   }
 });
 
+/**
+ * POST /api/system/e2e-smoke & GET /api/system/e2e-smoke
+ * Runs automated headless synthetic E2E tests across all core application subsystems
+ */
+const { executeFullE2ESmokeSuite } = require('../services/e2eSmokeRunner');
+
+router.post('/e2e-smoke', async (req, res) => {
+  try {
+    const report = await executeFullE2ESmokeSuite();
+    return res.status(200).json({
+      ok: true,
+      success: true,
+      data: report,
+    });
+  } catch (error) {
+    return res.status(500).json({
+      ok: false,
+      success: false,
+      error: error?.message || 'Falha ao executar suíte de testes E2E',
+    });
+  }
+});
+
+router.get('/e2e-smoke', async (req, res) => {
+  try {
+    const report = await executeFullE2ESmokeSuite();
+    return res.status(200).json({
+      ok: true,
+      success: true,
+      data: report,
+    });
+  } catch (error) {
+    return res.status(500).json({
+      ok: false,
+      success: false,
+      error: error?.message || 'Falha ao executar suíte de testes E2E',
+    });
+  }
+});
+
 module.exports = router;
