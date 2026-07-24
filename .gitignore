@@ -99,4 +99,7 @@ archive/legacy/
 node.exe
 releases/
 /logs/
-*.webm
+*.webm
+
+# Scripts de diagnóstico SSH ad-hoc — contêm credenciais da VPS, nunca versionar
+tmp_ssh/
