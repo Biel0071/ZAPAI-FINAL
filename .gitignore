@@ -89,7 +89,10 @@ coverage/
 .zapai-agent-state
 
 # ── Claude local workspace artifacts ──────────────────────────
-.claude/
+.claude/*
+# Versionar o framework de AI Architect (skills do time), mas não configs pessoais
+!.claude/skills/
+!.claude/skills/**
 
 # ── Local data, temporary folders, and backups ─────────────────
 storage/
