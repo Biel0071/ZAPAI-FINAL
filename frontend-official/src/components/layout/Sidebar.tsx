@@ -303,8 +303,8 @@ export function Sidebar() {
     >
       <div className="border-b border-sidebar-border/60 px-4 py-3">
         <div className="flex items-start gap-3">
-          <div className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-2xl bg-primary/10 shadow-glow">
-            <BrandLogo size={34} />
+          <div className="flex h-11 w-11 flex-shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-white shadow-glow ring-1 ring-primary/20">
+            <BrandLogo size={40} forceZColor="black" />
           </div>
           {!compact && (
             <div className="min-w-0 flex-1">

@@ -1189,7 +1189,7 @@ export function DashboardView({
               <CardContent className="space-y-2 p-5">
                 <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Sessões WhatsApp Baileys</p>
                 <h3 className="font-display text-2xl font-bold text-primary">
-                  {viewModel.rawMetrics?.activeSessionsCount ?? (activeSession ? 1 : 0)} Ativas
+                  {viewModel.rawMetrics?.activeSessionsCount ?? 0} Ativas
                 </h3>
                 <span className="text-[10px] text-emerald-400 font-semibold">Sockets WebSocket sincronizados</span>
               </CardContent>
