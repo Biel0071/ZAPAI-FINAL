@@ -21,7 +21,7 @@ export default defineConfig(({ mode }) => {
   const buildCommit = env.VITE_BUILD_COMMIT?.trim() || resolveBuildCommit();
   const enableLovableTagger = env.VITE_ENABLE_LOVABLE_TAGGER?.trim().toLowerCase() === "true";
   
-  const backendTarget = env.VITE_API_URL?.trim() || "http://127.0.0.1:4025";
+  const backendTarget = env.VITE_PROXY_TARGET?.trim() || env.VITE_API_URL?.trim() || "http://127.0.0.1:4025";
 
   return {
   base: "/",

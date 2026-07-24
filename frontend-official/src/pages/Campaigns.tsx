@@ -244,7 +244,7 @@ function titleCaseCampaign(value: string) {
 
 function extractCampaignProduct(prompt: string) {
   const cleanPrompt = prompt.replace(/\s+/g, " ").trim();
-  const match = cleanPrompt.match(/(?:venda|vender|oferta|campanha|produto|servico|servi?o)\s+(?:de|do|da|para)?\s*([^.,;\n]+)/i);
+  const match = cleanPrompt.match(/(?:venda|vender|oferta|campanha|produto|servi[cç]o)\s+(?:de|do|da|para)?\s*([^.,;\n]+)/i);
   const product = (match?.[1] || cleanPrompt).replace(/\b(para|com|lead|leads|cliente|clientes|contato|contatos)\b.*$/i, "").trim();
   return titleCaseCampaign(product || "Produto");
 }
@@ -1400,7 +1400,7 @@ export default function Campaigns() {
                         <PaperPlaneTilt weight="fill" className="h-6 w-6 text-info" />
                       </div>
                       <div>
-                        <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Envios conclu?dos</p>
+                        <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Envios concluídos</p>
                         <h3 className="font-display text-lg font-bold">{campaignMetrics.sent.toLocaleString("pt-BR")}</h3>
                         <p className="text-xs text-muted-foreground">{campaignMetrics.failed} falha(s)</p>
                       </div>
@@ -2136,7 +2136,7 @@ export default function Campaigns() {
                       </Button>
                       {campaignStep < STEP_LABELS.length ? (
                         <Button className="rounded-xl shadow-glow" onClick={goToNextCampaignStep}>
-                          Pr?ximo Passo
+                          Próximo Passo
                         </Button>
                       ) : (
                         <>

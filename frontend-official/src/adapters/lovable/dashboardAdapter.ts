@@ -69,17 +69,17 @@ export type DashboardLovableViewModel = {
 };
 
 const DASHBOARD_TABS: DashboardLovableTab[] = [
-  { id: "overview", label: "VisÃ£o Geral" },
+  { id: "overview", label: "Visão Geral" },
   { id: "conversations", label: "Conversas" },
   { id: "ai", label: "Performance IA" },
   { id: "commercial", label: "Comercial" },
-  { id: "operations", label: "OperaÃ§Ã£o" },
+  { id: "operations", label: "Operação" },
   { id: "analytics", label: "Analytics" },
   { id: "infrastructure", label: "Infraestrutura" },
   { id: "map", label: "Mapa" },
   { id: "executive", label: "IA Executiva" },
-  { id: "diagnostics", label: "DiagnÃ³sticos" },
-  { id: "reports", label: "RelatÃ³rios" },
+  { id: "diagnostics", label: "Diagnósticos" },
+  { id: "reports", label: "Relatórios" },
 ];
 
 const MAP_SCOPES: Array<{ id: DashboardMapScope; label: string }> = [

@@ -273,7 +273,7 @@ export function DashboardView({
   const hourlyData = useMemo<Array<{ block: string; volume: number; responseTime: string }>>(() => [], []);
   const latencyData = useMemo<Array<{ name: string; socket: number; api: number }>>(() => [], []);
   const tokenData = useMemo(() => [{
-    name: "PerÃ­odo",
+    name: "Período",
     prompt: Number(aiMetrics?.promptTokensToday) || 0,
     completion: Number(aiMetrics?.completionTokensToday) || 0,
   }], [aiMetrics]);
@@ -334,7 +334,7 @@ export function DashboardView({
               { id: "30days", label: "30D" },
               { id: "90days", label: "90D" },
               { id: "week", label: "Semana" },
-              { id: "month", label: "MÃªs" },
+              { id: "month", label: "Mês" },
               { id: "year", label: "Ano" },
               { id: "hour", label: "Hora" },
               { id: "custom", label: "Personalizado" },
@@ -362,7 +362,7 @@ export function DashboardView({
           )}
           <div className="flex items-center gap-1 text-xs text-muted-foreground">
             <input aria-label="Hora inicial" type="time" value={timeStart} onChange={(event) => onTimeStartChange(event.target.value)} className="h-8 rounded-lg border border-border bg-card px-2" />
-            <span>atÃ©</span>
+            <span>até</span>
             <input aria-label="Hora final" type="time" value={timeEnd} onChange={(event) => onTimeEndChange(event.target.value)} className="h-8 rounded-lg border border-border bg-card px-2" />
           </div>
           <div className={`inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-medium ${healthClass(hasMappedRows)}`}>
@@ -375,7 +375,7 @@ export function DashboardView({
       {activeTab === "executive" && (
         <Card className="rounded-2xl border-border/70 bg-card/85">
           <CardContent className="p-6 text-sm text-muted-foreground">
-            O painel de IA Executiva Ã© fixo e permanece acima das abas. As anÃ¡lises exibidas nele sÃ£o carregadas pelo backend.
+            O painel de IA Executiva é fixo e permanece acima das abas. As análises exibidas nele são carregadas pelo backend.
           </CardContent>
         </Card>
       )}
