@@ -220,6 +220,14 @@ export default function Dashboard() {
           onExportMap={handleExportMap}
           dateRange={dateRange}
           onDateRangeChange={setDateRange}
+          customStart={customStart}
+          customEnd={customEnd}
+          timeStart={timeStart}
+          timeEnd={timeEnd}
+          onCustomStartChange={setCustomStart}
+          onCustomEndChange={setCustomEnd}
+          onTimeStartChange={setTimeStart}
+          onTimeEndChange={setTimeEnd}
           aiStatus={aiStatus}
           aiMetrics={aiMetrics}
         />

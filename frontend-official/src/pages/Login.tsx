@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { useAdminAuth } from "@/hooks/useAdminAuth";
+import { BrandLogo } from "@/components/brand/BrandLogo";
 
 export default function Login() {
   const navigate = useNavigate();
@@ -55,7 +56,12 @@ export default function Login() {
         className="relative z-10 w-full max-w-md rounded-lg border border-border/80 bg-card/95 p-6 shadow-lg"
       >
         <header className="mb-6 space-y-2">
-          <h1 className="text-2xl font-semibold text-foreground">ZAPFLOW AI</h1>
+          <div className="flex items-center gap-3">
+            <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/10 border border-primary/20 shadow-glow">
+              <BrandLogo size={40} />
+            </div>
+            <h1 className="text-2xl font-semibold text-foreground">ZAPFLOW AI</h1>
+          </div>
           <p className="text-sm text-muted-foreground">Plataforma inteligente de atendimento e automação.</p>
         </header>
 

@@ -128,8 +128,16 @@ export interface DashboardViewProps {
   onMapScopeChange: (scope: DashboardMapScope) => void;
   onResetMap: () => void;
   onExportMap: () => void;
-  dateRange: "today" | "yesterday" | "7days" | "30days" | "all";
-  onDateRangeChange: (range: "today" | "yesterday" | "7days" | "30days" | "all") => void;
+  dateRange: string;
+  onDateRangeChange: (range: any) => void;
+  customStart: string;
+  customEnd: string;
+  timeStart: string;
+  timeEnd: string;
+  onCustomStartChange: (value: string) => void;
+  onCustomEndChange: (value: string) => void;
+  onTimeStartChange: (value: string) => void;
+  onTimeEndChange: (value: string) => void;
   aiStatus?: any;
   aiMetrics?: any;
 }
@@ -146,6 +154,14 @@ export function DashboardView({
   onExportMap,
   dateRange,
   onDateRangeChange,
+  customStart,
+  customEnd,
+  timeStart,
+  timeEnd,
+  onCustomStartChange,
+  onCustomEndChange,
+  onTimeStartChange,
+  onTimeEndChange,
   aiStatus,
   aiMetrics,
 }: DashboardViewProps) {

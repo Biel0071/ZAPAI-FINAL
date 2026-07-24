@@ -30,6 +30,7 @@ import {
   Flask,
 } from "@phosphor-icons/react";
 import { AIIcon } from "@/components/ai/AIIcon";
+import { BrandLogo } from "@/components/brand/BrandLogo";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Drawer, DrawerContent, DrawerTrigger } from "@/components/ui/drawer";
@@ -48,6 +49,8 @@ type SidebarNavItem = {
   path: string;
   minRole?: AppUserRole;
   badge?: string;
+  /** Feature em desenvolvimento: visível só p/ admin, exibida em cinza e não-clicável. */
+  dev?: boolean;
 };
 
 const crmItems: SidebarNavItem[] = [
@@ -57,9 +60,9 @@ const crmItems: SidebarNavItem[] = [
   { icon: Users, label: "Contatos", path: "/contacts", minRole: "user" },
   { icon: Megaphone, label: "Campanhas", path: "/campaigns", minRole: "user" },
   { icon: AIIcon, label: "IA & Automação", path: "/ai", minRole: "user" },
-  { icon: TreeStructure, label: "Fluxos", path: "/flows", minRole: "user" },
   { icon: Brain, label: "Memória IA", path: "/memory", minRole: "user" },
-  { icon: Flask, label: "Central de Testes", path: "/tests", minRole: "user" },
+  { icon: TreeStructure, label: "Fluxos", path: "/flows", minRole: "admin", dev: true },
+  { icon: Flask, label: "Central de Testes", path: "/tests", minRole: "admin", dev: true },
 ];
 
 const adminItems: SidebarNavItem[] = [
@@ -147,6 +150,36 @@ export function Sidebar() {
   const renderNavItem = (item: SidebarNavItem, compact: boolean, keyPrefix: string) => {
     const targetPathname = item.path.split("?")[0];
     const isActive = location.pathname === targetPathname;
+
+    // Itens em desenvolvimento: cinza, não-clicáveis, badge DEV. Só chegam aqui p/ admin+.
+    if (item.dev) {
+      return (
+        <div
+          key={`${keyPrefix}:${item.label}:${item.path}`}
+          title="Em desenvolvimento — disponível apenas para administradores"
+          aria-disabled="true"
+          className={cn(
+            "sidebar-item group relative min-h-[38px] cursor-not-allowed opacity-45",
+            compact && "justify-center px-2.5",
+          )}
+        >
+          <item.icon
+            weight="regular"
+            className="h-[14px] w-[14px] flex-shrink-0 text-sidebar-muted"
+          />
+          {!compact && (
+            <>
+              <span className="min-w-0 flex-1 truncate text-[13px] font-medium text-sidebar-muted">
+                {item.label}
+              </span>
+              <Badge className="rounded-full border border-border/60 bg-muted/30 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wide text-muted-foreground">
+                DEV
+              </Badge>
+            </>
+          )}
+        </div>
+      );
+    }
 
     return (
       <NavLink
@@ -270,8 +303,8 @@ export function Sidebar() {
     >
       <div className="border-b border-sidebar-border/60 px-4 py-3">
         <div className="flex items-start gap-3">
-          <div className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-2xl bg-primary/15 shadow-glow">
-            <Lightning weight="fill" className="h-5 w-5 text-primary" />
+          <div className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-2xl bg-primary/10 shadow-glow">
+            <BrandLogo size={34} />
           </div>
           {!compact && (
             <div className="min-w-0 flex-1">

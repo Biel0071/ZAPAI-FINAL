@@ -15,15 +15,14 @@ import { useFrontendHealthWatcher } from "@/hooks/useFrontendHealthWatcher";
 import { InboxRuntimeBoundary } from "@/components/system/InboxRuntimeBoundary";
 
 import { PageRouteBoundary } from "@/components/system/PageRouteBoundary";
+import { BrandLogo } from "@/components/brand/BrandLogo";
 
 function AppSplash() {
   return (
     <div className="flex min-h-screen flex-col items-center justify-center bg-[#0b0f17] p-6 text-center select-none animate-fade-in">
       <div className="relative flex flex-col items-center justify-center">
-        <div className="relative mb-6 flex h-24 w-24 items-center justify-center rounded-3xl bg-emerald-500/10 border border-emerald-500/30 shadow-[0_0_50px_rgba(16,185,129,0.3)] animate-pulse">
-          <div className="h-12 w-12 rounded-2xl bg-gradient-to-tr from-emerald-500 to-teal-400 flex items-center justify-center text-white font-black text-2xl shadow-lg">
-            ⚡
-          </div>
+        <div className="relative mb-6 flex h-24 w-24 items-center justify-center rounded-3xl bg-emerald-500/10 border border-emerald-500/30 shadow-[0_0_50px_rgba(16,185,129,0.3)]">
+          <BrandLogo size={62} animated forceZColor="white" />
           <span className="absolute -top-1 -right-1 flex h-4 w-4">
             <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
             <span className="relative inline-flex rounded-full h-4 w-4 bg-emerald-500" />
@@ -171,7 +170,7 @@ const App = () => {
                       <Route path="/inbox" element={<InboxRuntimeBoundary><Inbox /></InboxRuntimeBoundary>} />
                       <Route path="/connections" element={<PageRouteBoundary pageName="Conexões"><Connections /></PageRouteBoundary>} />
                       <Route path="/contacts" element={<PageRouteBoundary pageName="Contatos"><Contacts /></PageRouteBoundary>} />
-                      <Route path="/flows" element={<PageRouteBoundary pageName="Fluxos"><Flows /></PageRouteBoundary>} />
+                      <Route path="/flows" element={<ProtectedRoute minRole="admin"><PageRouteBoundary pageName="Fluxos"><Flows /></PageRouteBoundary></ProtectedRoute>} />
                       <Route path="/ai" element={<PageRouteBoundary pageName="Inteligência Artificial"><AI /></PageRouteBoundary>} />
                       <Route path="/analytics" element={<Navigate to="/dashboard?tab=analytics" replace />} />
                       <Route path="/operations" element={<Navigate to="/dashboard?tab=operations" replace />} />
@@ -207,7 +206,7 @@ const App = () => {
                       />
 
                       <Route path="/settings" element={<PageRouteBoundary pageName="Configurações"><Settings /></PageRouteBoundary>} />
-                      <Route path="/tests" element={<PageRouteBoundary pageName="Central de Testes"><Tests /></PageRouteBoundary>} />
+                      <Route path="/tests" element={<ProtectedRoute minRole="admin"><PageRouteBoundary pageName="Central de Testes"><Tests /></PageRouteBoundary></ProtectedRoute>} />
                     </Route>
                     <Route path="*" element={<CatchAllRoute />} />
                   </Routes>
