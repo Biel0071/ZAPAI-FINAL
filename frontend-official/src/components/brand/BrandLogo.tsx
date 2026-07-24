@@ -5,28 +5,27 @@ export interface BrandLogoProps {
   size?: number;
   /** Extra classes for the wrapping svg. */
   className?: string;
-  /** Animate the circuit dots / ring (used on loading screens). */
+  /** Subtle pulse on the badge (used on loading screens). */
   animated?: boolean;
   /** Force a Z color instead of theme-driven (e.g. on colored splash). */
   forceZColor?: "black" | "white";
 }
 
 /**
- * ZAPFLOW "Z" mark, recreated as a themeable SVG.
+ * ZAPFLOW "Z" mark — a green chat bubble with a bold Z.
  *
- * The green ring, speech-bubble tail and circuit traces stay green in both
- * themes. Only the Z body inverts: black on light theme, white on dark theme.
- * That inversion is driven by `currentColor`, which we set via Tailwind
- * `text-*` utilities that react to the `.dark` class on <html>.
+ * Kept intentionally simple so it stays crisp at small sizes (down to ~28px in
+ * the sidebar). The bubble/gradient are always green; the Z inverts with the
+ * theme via `currentColor` (dark Z on light bg, white Z on dark bg).
  */
 export function BrandLogo({ size = 44, className, animated = false, forceZColor }: BrandLogoProps) {
   const zColorClass =
     forceZColor === "black"
-      ? "text-black"
+      ? "text-[#0b0f17]"
       : forceZColor === "white"
         ? "text-white"
-        : // theme-driven: black in light, white in dark
-          "text-[#0b0f17] dark:text-white";
+        : // theme-driven: dark on light theme, white on dark theme
+          "text-white dark:text-[#0b1120]";
 
   return (
     <svg
@@ -35,48 +34,36 @@ export function BrandLogo({ size = 44, className, animated = false, forceZColor 
       height={size}
       role="img"
       aria-label="ZAPFLOW AI"
-      className={cn(zColorClass, className)}
+      className={cn(zColorClass, animated && "zf-logo-pulse", className)}
       fill="none"
       xmlns="http://www.w3.org/2000/svg"
     >
       <defs>
-        <linearGradient id="zf-ring" x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0%" stopColor="#22c55e" />
-          <stop offset="55%" stopColor="#16a34a" />
-          <stop offset="100%" stopColor="#0f7a34" />
-        </linearGradient>
-        <linearGradient id="zf-zbase" x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0%" stopColor="#22c55e" />
-          <stop offset="100%" stopColor="#0f7a34" />
+        <linearGradient id="zf-bubble" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0%" stopColor="#34d399" />
+          <stop offset="55%" stopColor="#22c55e" />
+          <stop offset="100%" stopColor="#15803d" />
         </linearGradient>
       </defs>
 
-      {/* Open green ring + speech-bubble tail */}
+      {/* Chat bubble with a short tail at the bottom-left */}
       <path
-        d="M96 24 A46 46 0 1 0 40 104 L28 118 L44 100"
-        stroke="url(#zf-ring)"
-        strokeWidth="7"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        className={animated ? "zf-ring-anim" : undefined}
+        d="M64 12
+           C93 12 116 33 116 60
+           C116 87 93 108 64 108
+           L44 108
+           L26 120
+           L30 104
+           C18 95 12 78 12 60
+           C12 33 35 12 64 12 Z"
+        fill="url(#zf-bubble)"
       />
 
-      {/* Circuit traces on the left */}
-      <g stroke="url(#zf-ring)" strokeWidth="4" strokeLinecap="round">
-        <line x1="18" y1="46" x2="44" y2="46" className={animated ? "zf-trace zf-trace-1" : undefined} />
-        <line x1="12" y1="60" x2="40" y2="60" className={animated ? "zf-trace zf-trace-2" : undefined} />
-        <line x1="18" y1="74" x2="44" y2="74" className={animated ? "zf-trace zf-trace-3" : undefined} />
-      </g>
-      <g fill="#22c55e">
-        <circle cx="16" cy="46" r="4" className={animated ? "zf-trace zf-trace-1" : undefined} />
-        <circle cx="10" cy="60" r="4" className={animated ? "zf-trace zf-trace-2" : undefined} />
-        <circle cx="16" cy="74" r="4" className={animated ? "zf-trace zf-trace-3" : undefined} />
-      </g>
-
-      {/* Z — top half inverts with theme (currentColor), bottom bar stays green */}
-      <path d="M50 40 H86 L64 62 H50 Z" fill="currentColor" />
-      <path d="M50 62 H64 L58 68 H50 Z" fill="currentColor" />
-      <path d="M52 68 H82 L86 78 H50 Z" fill="url(#zf-zbase)" />
+      {/* Bold Z, centered, high-contrast against the bubble */}
+      <path
+        d="M44 44 H84 V56 L60 76 H84 V88 H44 V76 L68 56 H44 Z"
+        fill="currentColor"
+      />
     </svg>
   );
 }

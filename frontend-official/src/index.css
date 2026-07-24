@@ -505,24 +505,13 @@
 }
 
 /* ─── BrandLogo loading animation ─── */
-@keyframes zf-ring-dash {
-  0% { stroke-dasharray: 6 300; stroke-dashoffset: 0; opacity: 0.6; }
-  50% { opacity: 1; }
-  100% { stroke-dasharray: 300 6; stroke-dashoffset: -120; opacity: 0.6; }
+@keyframes zf-logo-pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.7; transform: scale(0.94); }
 }
-@keyframes zf-trace-blink {
-  0%, 100% { opacity: 0.25; }
-  50% { opacity: 1; }
+.zf-logo-pulse {
+  animation: zf-logo-pulse 1.6s ease-in-out infinite;
 }
-.zf-ring-anim {
-  animation: zf-ring-dash 1.8s ease-in-out infinite;
-}
-.zf-trace {
-  animation: zf-trace-blink 1.2s ease-in-out infinite;
-}
-.zf-trace-1 { animation-delay: 0s; }
-.zf-trace-2 { animation-delay: 0.2s; }
-.zf-trace-3 { animation-delay: 0.4s; }
 
 /* Respect users who prefer reduced motion */
 @media (prefers-reduced-motion: reduce) {

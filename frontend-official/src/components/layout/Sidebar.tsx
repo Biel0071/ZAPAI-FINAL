@@ -62,7 +62,6 @@ const crmItems: SidebarNavItem[] = [
   { icon: AIIcon, label: "IA & Automação", path: "/ai", minRole: "user" },
   { icon: Brain, label: "Memória IA", path: "/memory", minRole: "user" },
   { icon: TreeStructure, label: "Fluxos", path: "/flows", minRole: "admin", dev: true },
-  { icon: Flask, label: "Central de Testes", path: "/tests", minRole: "admin", dev: true },
 ];
 
 const adminItems: SidebarNavItem[] = [
@@ -72,6 +71,7 @@ const adminItems: SidebarNavItem[] = [
   { icon: Cpu, label: "Memória", path: "/memory", minRole: "user" },
   { icon: GitCommit, label: "Versões", path: "/versions", minRole: "user" },
   { icon: FileText, label: "Logs", path: "/logs", minRole: "user" },
+  { icon: Flask, label: "Central de Testes", path: "/tests", minRole: "admin", dev: true },
 ];
 
 const bottomItems: SidebarNavItem[] = [

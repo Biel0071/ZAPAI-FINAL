@@ -306,7 +306,9 @@ export function DashboardView({
     const totalMsg = viewModel.rawMetrics?.messagesToday ?? 0;
     const aiMsg = viewModel.rawMetrics?.aiResponses ?? 0;
     if (totalMsg === 0) return 0;
-    return Math.round((aiMsg / totalMsg) * 100);
+    // Clamp to 100%: aiResponses and messagesToday can span different windows,
+    // so the raw ratio may exceed 100% — a resolution rate never should.
+    return Math.min(100, Math.round((aiMsg / totalMsg) * 100));
   }, [viewModel.rawMetrics]);
 
   return (
@@ -324,8 +326,9 @@ export function DashboardView({
         </Tabs>
 
         {/* Date Filter selector */}
-        <div className="flex flex-wrap items-center gap-3">
-          <div className="flex items-center rounded-xl border border-border bg-card/60 p-1">
+        <div className="flex flex-wrap items-center gap-2">
+          {/* Períodos rápidos */}
+          <div className="flex flex-wrap items-center gap-0.5 rounded-xl border border-border bg-card/60 p-1">
             {[
               { id: "today", label: "Hoje" },
               { id: "yesterday", label: "Ontem" },
@@ -333,17 +336,12 @@ export function DashboardView({
               { id: "15days", label: "15D" },
               { id: "30days", label: "30D" },
               { id: "90days", label: "90D" },
-              { id: "week", label: "Semana" },
-              { id: "month", label: "Mês" },
-              { id: "year", label: "Ano" },
-              { id: "hour", label: "Hora" },
-              { id: "custom", label: "Personalizado" },
-              { id: "all", label: "Geral" },            ].map((range) => (
+            ].map((range) => (
               <button
                 key={range.id}
                 type="button"
                 onClick={() => onDateRangeChange(range.id as any)}
-                className={`rounded-lg px-3 py-1 text-xs font-medium transition-colors ${
+                className={`rounded-lg px-2.5 py-1 text-xs font-medium transition-colors ${
                   dateRange === range.id
                     ? "bg-primary text-primary-foreground shadow-sm shadow-primary/20"
                     : "text-muted-foreground hover:text-foreground"
@@ -354,17 +352,60 @@ export function DashboardView({
             ))}
           </div>
 
-          {dateRange === "custom" && (
-            <div className="flex items-center gap-2">
-              <input aria-label="Data inicial" type="date" value={customStart} onChange={(event) => onCustomStartChange(event.target.value)} className="h-8 rounded-lg border border-border bg-card px-2 text-xs" />
-              <input aria-label="Data final" type="date" value={customEnd} onChange={(event) => onCustomEndChange(event.target.value)} className="h-8 rounded-lg border border-border bg-card px-2 text-xs" />
-            </div>
-          )}
-          <div className="flex items-center gap-1 text-xs text-muted-foreground">
-            <input aria-label="Hora inicial" type="time" value={timeStart} onChange={(event) => onTimeStartChange(event.target.value)} className="h-8 rounded-lg border border-border bg-card px-2" />
-            <span>até</span>
-            <input aria-label="Hora final" type="time" value={timeEnd} onChange={(event) => onTimeEndChange(event.target.value)} className="h-8 rounded-lg border border-border bg-card px-2" />
+          {/* Calendário (semana/mês/ano/geral) */}
+          <div className="flex flex-wrap items-center gap-0.5 rounded-xl border border-border bg-card/60 p-1">
+            {[
+              { id: "week", label: "Semana" },
+              { id: "month", label: "Mês" },
+              { id: "year", label: "Ano" },
+              { id: "all", label: "Geral" },
+            ].map((range) => (
+              <button
+                key={range.id}
+                type="button"
+                onClick={() => onDateRangeChange(range.id as any)}
+                className={`rounded-lg px-2.5 py-1 text-xs font-medium transition-colors ${
+                  dateRange === range.id
+                    ? "bg-primary text-primary-foreground shadow-sm shadow-primary/20"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                {range.label}
+              </button>
+            ))}
           </div>
+
+          {/* Personalizado (hora/datas + janela horária) */}
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={() => onDateRangeChange((dateRange === "custom" ? "today" : "custom") as any)}
+              className={`rounded-lg border px-2.5 py-1.5 text-xs font-medium transition-colors ${
+                dateRange === "custom" || dateRange === "hour"
+                  ? "border-primary/40 bg-primary/10 text-primary"
+                  : "border-border bg-card/60 text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              Personalizado
+            </button>
+
+            {dateRange === "custom" && (
+              <div className="flex items-center gap-2">
+                <input aria-label="Data inicial" type="date" value={customStart} onChange={(event) => onCustomStartChange(event.target.value)} className="h-8 rounded-lg border border-border bg-card px-2 text-xs" />
+                <input aria-label="Data final" type="date" value={customEnd} onChange={(event) => onCustomEndChange(event.target.value)} className="h-8 rounded-lg border border-border bg-card px-2 text-xs" />
+              </div>
+            )}
+
+            {/* Janela de horário: só relevante para dia único / personalizado */}
+            {(dateRange === "today" || dateRange === "yesterday" || dateRange === "hour" || dateRange === "custom") && (
+              <div className="flex items-center gap-1 rounded-lg border border-border bg-card/60 px-2 py-1 text-xs text-muted-foreground">
+                <input aria-label="Hora inicial" type="time" value={timeStart} onChange={(event) => onTimeStartChange(event.target.value)} className="h-6 rounded border-none bg-transparent px-1 outline-none" />
+                <span>até</span>
+                <input aria-label="Hora final" type="time" value={timeEnd} onChange={(event) => onTimeEndChange(event.target.value)} className="h-6 rounded border-none bg-transparent px-1 outline-none" />
+              </div>
+            )}
+          </div>
+
           <div className={`inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-medium ${healthClass(hasMappedRows)}`}>
             <ShieldCheck className="h-4 w-4" weight="duotone" />
             Operação: {healthTone(hasMappedRows)}
