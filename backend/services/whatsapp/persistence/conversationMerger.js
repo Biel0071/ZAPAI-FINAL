@@ -36,10 +36,17 @@ async function consolidateLidConversations(companyId = 'default') {
     const backupsDir = path.resolve(__dirname, '..', '..', '..', '..', 'backups');
     await fs.mkdir(backupsDir, { recursive: true });
 
-    // Initialize backup tables in Postgres
-    await query(`CREATE TABLE IF NOT EXISTS leads_backup_merge AS SELECT * FROM leads WHERE false`);
-    await query(`CREATE TABLE IF NOT EXISTS conversations_backup_merge AS SELECT * FROM conversations WHERE false`);
-    await query(`CREATE TABLE IF NOT EXISTS messages_backup_merge AS SELECT * FROM messages WHERE false`);
+    // Initialize backup tables in Postgres.
+    // Recreate them each run so their schema always matches the source tables —
+    // otherwise columns added to leads/conversations/messages after the backup
+    // tables were first created cause "INSERT has more expressions than target columns".
+    // The durable backup is the JSON export on disk; these tables are a convenience mirror.
+    await query(`DROP TABLE IF EXISTS leads_backup_merge`);
+    await query(`DROP TABLE IF EXISTS conversations_backup_merge`);
+    await query(`DROP TABLE IF EXISTS messages_backup_merge`);
+    await query(`CREATE TABLE leads_backup_merge AS SELECT * FROM leads WHERE false`);
+    await query(`CREATE TABLE conversations_backup_merge AS SELECT * FROM conversations WHERE false`);
+    await query(`CREATE TABLE messages_backup_merge AS SELECT * FROM messages WHERE false`);
 
     for (const pair of pairsRes.rows) {
       const { duplicate_lead_id, keeper_lead_id, duplicate_phone, keeper_phone } = pair;

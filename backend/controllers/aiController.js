@@ -1198,6 +1198,18 @@ Retorne APENAS o texto do prompt formatado e pronto para uso no sistema.`;
   }
 }
 
+async function getExecutiveInsights(req, res) {
+  try {
+    const aiExecutiveInsightService = require('../services/aiExecutiveInsightService');
+    const companyId = req.query?.companyId || req.headers?.['x-company-id'] || 'default';
+    const insight = await aiExecutiveInsightService.getLatestInsight(companyId);
+    return res.status(200).json({ success: true, data: insight });
+  } catch (error) {
+    console.error('[AI_CTRL] Error getting executive insights:', error);
+    return res.status(500).json({ success: false, error: error.message || 'Erro ao gerar insights de IA' });
+  }
+}
+
 module.exports = {
   evolveAgent,
   getAgentLearning,
@@ -1217,31 +1229,7 @@ module.exports = {
   systemDiagnostics,
   systemStatus,
   uiAnalyze,
-async function getExecutiveInsights(req, res) {
-  try {
-    const aiExecutiveInsightService = require('../services/aiExecutiveInsightService');
-    const companyId = req.query?.companyId || req.headers?.['x-company-id'] || 'default';
-    const insight = await aiExecutiveInsightService.getLatestInsight(companyId);
-    return res.status(200).json({ success: true, data: insight });
-  } catch (error) {
-    console.error('[AI_CTRL] Error getting executive insights:', error);
-    return res.status(500).json({ success: false, error: error.message || 'Erro ao gerar insights de IA' });
-  }
-}
-
-module.exports = {
   getExecutiveInsights,
-  architectureMap,
-  architectFullScan,
-  assistantChat,
-  copilotSuperPrompt,
-  systemDiagnostics,
-  systemHealth,
-  systemStatus,
-  transcribe,
-  uiAnalyze,
-  testVoice,
-  applyLearningSuggestion,
   featureRoadmap,
   analyzeProjectDoc,
   codeCuration,
