@@ -87,6 +87,7 @@ const { activeSessions } = require('../state/registry');
 const contactsEngine = require('../../contactsEngine');
 const runtimeEngine = require('../../runtimeEngine');
 const sessionRegistry = require('../../sessionRegistry');
+const conversationRuntimeService = require('../../../inbox-core/inbox/services/ConversationRuntimeService');
 const messageAckPipeline = require('../../messageAckPipeline');
 const messageRepository = require('../../../repositories/messageRepository');
 const conversationRepository = require('../../../repositories/conversationRepository');
@@ -1554,7 +1555,7 @@ async function createStableSession({
             const normalizedChatId = normalizePhone(remoteJid);
             const targetConvId = result?.conversation?.id || result?.message?.conversationId || normalizedChatId;
             const humanTimeoutMs = Number(process.env.HUMAN_TAKEOVER_TIMEOUT_MS || 300000);
-            conversationRuntimeService.pauseAiForChat(store, targetConvId, humanTimeoutMs);
+            conversationRuntimeService.setHumanTakeover(store, targetConvId, humanTimeoutMs);
             if (result?.conversation?.id) {
               await conversationRepository.updateConversationState(result.conversation.id, {
                 aiEnabled: false,
@@ -2205,7 +2206,6 @@ async function createStableSession({
 
     try {
       const conversationRepository = require('../../../repositories/conversationRepository');
-      const conversationRuntimeService = require('../../../inbox-core/inbox/services/ConversationRuntimeService');
       const conversation = await conversationRepository.getConversationByPhone(phone, companyId);
       if (conversation) {
         const decorated = conversationRuntimeService.decorateConversation(session, conversation);
