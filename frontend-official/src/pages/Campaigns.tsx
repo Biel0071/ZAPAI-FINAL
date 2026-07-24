@@ -23,13 +23,23 @@ import {
   ArrowsOutSimple,
 } from "@phosphor-icons/react";
 import { Header } from "@/components/layout/Header";
-import CampaignsView from "@/lovable/pages/CampaignsPageView";
+import { CampaignsView, type CampaignsTab } from "@/lovable/pages/CampaignsView";
+import { ConversionHeatmap } from "@/components/campaigns/ConversionHeatmap";
+import { Stepper } from "@/components/campaigns/Stepper";
+import { LeadKnowledgeGraph } from "@/components/contacts/LeadKnowledgeGraph";
+import {
+  Pagination,
+  PaginationContent,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+} from "@/components/ui/pagination";
 import { AICampaignModal } from "@/components/campaigns/AICampaignModal";
 import { createCampaignsLovableViewModel } from "@/adapters/lovable/campaignsAdapter";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -186,6 +196,17 @@ function formatElapsedTime(value?: string | null) {
   if (minutes < 60) return `${minutes}m ${seconds}s`;
   const hours = Math.floor(minutes / 60);
   return `${hours}h ${minutes % 60}m`;
+}
+function formatDurationMs(ms?: number | null) {
+  if (ms == null || !Number.isFinite(ms) || ms < 0) return "—";
+  const totalSeconds = Math.floor(ms / 1000);
+  if (totalSeconds < 60) return `${totalSeconds}s`;
+  const minutes = Math.floor(totalSeconds / 60);
+  if (minutes < 60) return `${minutes}m ${totalSeconds % 60}s`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours}h ${minutes % 60}m`;
+  const days = Math.floor(hours / 24);
+  return `${days}d ${hours % 24}h`;
 }
 function formatInputDateTime(value?: string | null) {
   if (!value) return "";
@@ -348,6 +369,18 @@ export default function Campaigns() {
   const [isAiCampaignGenerating, setIsAiCampaignGenerating] = useState(false);
   const [isAiModalOpen, setIsAiModalOpen] = useState(false);
 
+  // Análise de IA do disparo (modal) + grafo do lead
+  const [campaignAnalysis, setCampaignAnalysis] = useState<any | null>(null);
+  const [analysisLoading, setAnalysisLoading] = useState(false);
+  const [graphLead, setGraphLead] = useState<{ id: string; name: string } | null>(null);
+
+  // Abas (Novo Disparo | Histórico | Análise IA) + paginação/filtros do histórico
+  const [campaignsTab, setCampaignsTab] = useState<CampaignsTab>("compose");
+  const [historyPage, setHistoryPage] = useState(1);
+  const [historyPageSize, setHistoryPageSize] = useState(12);
+  const [historyStatusFilter, setHistoryStatusFilter] = useState<string>("all");
+  const [historySearch, setHistorySearch] = useState("");
+
   const handleApplyGeneratedCampaign = useCallback((generatedData: any) => {
     if (!generatedData) return;
     if (generatedData.name) setCampaignName(generatedData.name);
@@ -450,6 +483,7 @@ export default function Campaigns() {
   }, [loadPageData]);
 
   const resetComposer = useCallback(() => {
+    setCampaignsTab("compose");
     setComposerMode("create");
     setEditingCampaignId(null);
     setCampaignName("");
@@ -476,6 +510,7 @@ export default function Campaigns() {
   }, []);
 
   const hydrateComposer = useCallback((campaign: CampaignRecord, mode: ComposerMode) => {
+    setCampaignsTab("compose");
     setComposerMode(mode);
     setEditingCampaignId(mode === "edit" ? campaign.id : null);
     setCampaignName(mode === "duplicate" ? `${campaign.name} (cópia)` : campaign.name);
@@ -572,6 +607,79 @@ export default function Campaigns() {
     const sent = campaigns.reduce((total, campaign) => total + Number(campaign.queue?.sent ?? 0), 0);
     return { active, drafts, failed, totalQueue, sent };
   }, [campaigns]);
+
+  // Histórico: filtro por status + busca, depois paginação
+  const filteredHistoryCampaigns = useMemo(() => {
+    const term = historySearch.trim().toLowerCase();
+    return campaigns.filter((campaign) => {
+      if (historyStatusFilter !== "all" && normalizeCampaignStatus(campaign) !== historyStatusFilter) return false;
+      if (!term) return true;
+      const haystack = [campaign.name, ...(campaign.tags ?? []), ...(campaign.messages ?? []).map((m) => m.content)]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase();
+      return haystack.includes(term);
+    });
+  }, [campaigns, historyStatusFilter, historySearch]);
+
+  const historyTotalPages = Math.max(1, Math.ceil(filteredHistoryCampaigns.length / historyPageSize));
+  const historyClampedPage = Math.min(historyPage, historyTotalPages);
+
+  const paginatedHistoryCampaigns = useMemo(() => {
+    const start = (historyClampedPage - 1) * historyPageSize;
+    return filteredHistoryCampaigns.slice(start, start + historyPageSize);
+  }, [filteredHistoryCampaigns, historyClampedPage, historyPageSize]);
+
+  // Reset para a página 1 quando o filtro/busca/tamanho muda
+  useEffect(() => {
+    setHistoryPage(1);
+  }, [historyStatusFilter, historySearch, historyPageSize]);
+
+  // Carrega análise real de IA ao abrir o modal de detalhes do disparo
+  useEffect(() => {
+    if (!selectedCampaignPreview) {
+      setCampaignAnalysis(null);
+      return;
+    }
+    let cancelled = false;
+    setAnalysisLoading(true);
+    setCampaignAnalysis(null);
+    apiService
+      .getCampaignAnalysis(selectedCampaignPreview.id)
+      .then((res: any) => {
+        if (cancelled) return;
+        setCampaignAnalysis(res?.data ?? res ?? null);
+      })
+      .catch(() => {
+        if (!cancelled) setCampaignAnalysis(null);
+      })
+      .finally(() => {
+        if (!cancelled) setAnalysisLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedCampaignPreview]);
+
+  // Dados reais das campanhas para o heatmap de conversão (aba Análise IA)
+  const conversionHeatmapCampaigns = useMemo(
+    () =>
+      campaigns.map((campaign) => {
+        const sent = Number(campaign.queue?.sent ?? 0);
+        const total = Number(campaign.queue?.total ?? campaign.selectedContacts?.length ?? 0);
+        const failed = Number(campaign.queue?.failed ?? 0);
+        const delivered = Math.max(0, sent - failed);
+        return {
+          id: campaign.id,
+          name: campaign.name,
+          sent,
+          converted: delivered,
+          revenue: 0,
+          roi: total > 0 ? Math.round((delivered / total) * 100) : 0,
+        };
+      }),
+    [campaigns],
+  );
   const cleanMessages = useMemo(
     () =>
       messageVariants
@@ -1787,65 +1895,82 @@ export default function Campaigns() {
                       </Card>
 
                       <Card className="rounded-2xl border-border/70 bg-background/30">
-                        <CardContent className="space-y-4 p-4">
-                          <div>
-                            <div className="mb-2 flex items-center justify-between text-xs">
-                              <span>Typing delay</span>
-                              <span>{typingDelay[0].toFixed(1)}s</span>
-                            </div>
-                            <Slider value={typingDelay} min={0} max={120} step={0.5} onValueChange={setTypingDelay} />
-                            <Input
-                              className="mt-3"
-                              inputMode="decimal"
-                              value={typingDelay[0]}
-                              onChange={(event) => setTypingDelay([Math.max(0, Math.min(120, Number(event.target.value) || 0))])}
-                            />
-                            <p className="mt-1 text-xs text-muted-foreground">Ate 120s para simular digitacao humana.</p>
-                          </div>
-                          <div>
-                            <div className="mb-1.5 flex items-center justify-between text-xs">
-                              <span>Intervalo entre contatos</span>
-                              <span>{intervalSeconds[0]}s</span>
-                            </div>
-                            <Slider value={intervalSeconds} min={2} max={600} step={5} onValueChange={setIntervalSeconds} />
-                            <Input
-                              className="mt-3"
-                              inputMode="numeric"
-                              value={intervalSeconds[0]}
-                              onChange={(event) => setIntervalSeconds([Math.max(2, Math.min(600, Number(event.target.value) || 2))])}
-                            />
-                            <p className="mt-1 text-xs text-muted-foreground">Ate 10 minutos entre contatos.</p>
-                          </div>
+                        <CardContent className="grid gap-3 p-4 md:grid-cols-2">
+                          <Stepper
+                            label="Typing delay"
+                            value={typingDelay[0]}
+                            onChange={(next) => setTypingDelay([next])}
+                            min={0}
+                            max={120}
+                            step={0.5}
+                            suffix="s"
+                            hint="Até 120s para simular digitação humana."
+                          />
+                          <Stepper
+                            label="Intervalo entre contatos"
+                            value={intervalSeconds[0]}
+                            onChange={(next) => setIntervalSeconds([next])}
+                            min={2}
+                            max={600}
+                            step={5}
+                            suffix="s"
+                            hint="Até 10 minutos entre contatos."
+                          />
                         </CardContent>
                       </Card>
 
                       <Card className="rounded-2xl border-border/70 bg-background/30">
                         <CardContent className="space-y-4 p-4 text-xs">
                           <div className="grid gap-3 md:grid-cols-2">
-                            <div>
-                              <label className="mb-2 block text-sm font-medium">Pausar a cada X envios</label>
-                              <Input value={pauseEvery} onChange={(event) => setPauseEvery(event.target.value)} inputMode="numeric" />
-                            </div>
-                            <div>
-                              <label className="mb-2 block text-sm font-medium">Tempo da pausa (s)</label>
-                              <Input value={pauseSeconds} onChange={(event) => setPauseSeconds(event.target.value)} inputMode="numeric" />
-                            </div>
-                            <div>
-                              <label className="mb-2 block text-sm font-medium">Mensagens de Aquecimento (Warmup)</label>
-                              <Input value={warmupMessages} onChange={(event) => setWarmupMessages(event.target.value)} inputMode="numeric" placeholder="Ex: 5" />
-                            </div>
-                            <div>
-                              <label className="mb-2 block text-sm font-medium">Multiplicador do Delay de Aquecimento</label>
-                              <Input value={warmupDelayMultiplier} onChange={(event) => setWarmupDelayMultiplier(event.target.value)} inputMode="numeric" placeholder="Ex: 3" />
-                            </div>
-                            <div>
-                              <label className="mb-2 block text-sm font-medium">Limite Diário de Envios</label>
-                              <Input value={dailyLimit} onChange={(event) => setDailyLimit(event.target.value)} inputMode="numeric" placeholder="Ex: 100 (opcional)" />
-                            </div>
-                            <div>
-                              <label className="mb-2 block text-sm font-medium">Limite por Hora de Envios</label>
-                              <Input value={hourlyLimit} onChange={(event) => setHourlyLimit(event.target.value)} inputMode="numeric" placeholder="Ex: 20 (opcional)" />
-                            </div>
+                            <Stepper
+                              label="Pausar a cada X envios"
+                              value={Number(pauseEvery) || 0}
+                              onChange={(next) => setPauseEvery(String(next))}
+                              min={1}
+                              max={999}
+                            />
+                            <Stepper
+                              label="Tempo da pausa (s)"
+                              value={Number(pauseSeconds) || 0}
+                              onChange={(next) => setPauseSeconds(String(next))}
+                              min={0}
+                              max={3600}
+                              step={5}
+                              suffix="s"
+                            />
+                            <Stepper
+                              label="Mensagens de Aquecimento (Warmup)"
+                              value={Number(warmupMessages) || 0}
+                              onChange={(next) => setWarmupMessages(String(next))}
+                              min={0}
+                              max={999}
+                            />
+                            <Stepper
+                              label="Multiplicador do Delay de Aquecimento"
+                              value={Number(warmupDelayMultiplier) || 0}
+                              onChange={(next) => setWarmupDelayMultiplier(String(next))}
+                              min={1}
+                              max={20}
+                              suffix="x"
+                            />
+                            <Stepper
+                              label="Limite Diário de Envios"
+                              value={Number(dailyLimit) || 0}
+                              onChange={(next) => setDailyLimit(next === 0 ? "" : String(next))}
+                              min={0}
+                              max={100000}
+                              step={10}
+                              hint="0 = sem limite"
+                            />
+                            <Stepper
+                              label="Limite por Hora de Envios"
+                              value={Number(hourlyLimit) || 0}
+                              onChange={(next) => setHourlyLimit(next === 0 ? "" : String(next))}
+                              min={0}
+                              max={10000}
+                              step={5}
+                              hint="0 = sem limite"
+                            />
                             <div className="md:col-span-2">
                               <label className="mb-2 block text-sm font-medium">Agendamento opcional</label>
                               <Input type="datetime-local" value={startAt} onChange={(event) => setStartAt(event.target.value)} />
@@ -2079,13 +2204,70 @@ export default function Campaigns() {
                 <div className="flex items-center justify-between gap-3">
               <div>
                 <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground/70">Campanhas persistidas</p>
-                <h2 className="mt-1 font-display text-lg font-semibold">Lista operacional</h2>
+                <h2 className="mt-1 font-display text-lg font-semibold">Histórico de campanhas</h2>
               </div>
               <Button variant="outline" className="rounded-xl" onClick={() => void loadPageData()} disabled={actionType === "refresh"}>
                 <ArrowClockwise className="h-4 w-4" />
                 Atualizar lista
               </Button>
             </div>
+
+            {campaigns.length > 0 && (
+              <div className="flex flex-col gap-3 rounded-2xl border border-border/70 bg-card/60 p-3 lg:flex-row lg:items-center lg:justify-between">
+                <div className="flex flex-1 items-center gap-2">
+                  <Input
+                    value={historySearch}
+                    onChange={(event) => setHistorySearch(event.target.value)}
+                    placeholder="Buscar por nome, tag ou mensagem…"
+                    className="h-9 max-w-xs rounded-xl"
+                  />
+                  <div className="flex flex-wrap gap-1.5">
+                    {[
+                      { id: "all", label: "Todas" },
+                      { id: "running", label: "Ativas" },
+                      { id: "draft", label: "Rascunhos" },
+                      { id: "completed", label: "Concluídas" },
+                      { id: "paused", label: "Pausadas" },
+                    ].map((filter) => (
+                      <button
+                        key={filter.id}
+                        type="button"
+                        onClick={() => setHistoryStatusFilter(filter.id)}
+                        className={cn(
+                          "rounded-lg px-2.5 py-1 text-xs font-medium transition-colors",
+                          historyStatusFilter === filter.id
+                            ? "bg-primary text-primary-foreground shadow-sm shadow-primary/20"
+                            : "text-muted-foreground hover:bg-muted/40 hover:text-foreground",
+                        )}
+                      >
+                        {filter.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                  <span>Por página:</span>
+                  {[12, 24, 48].map((size) => (
+                    <button
+                      key={size}
+                      type="button"
+                      onClick={() => setHistoryPageSize(size)}
+                      className={cn(
+                        "rounded-lg px-2 py-1 font-medium transition-colors",
+                        historyPageSize === size
+                          ? "bg-primary/15 text-primary"
+                          : "hover:bg-muted/40 hover:text-foreground",
+                      )}
+                    >
+                      {size}
+                    </button>
+                  ))}
+                  <span className="ml-1 hidden lg:inline">
+                    {filteredHistoryCampaigns.length} resultado(s)
+                  </span>
+                </div>
+              </div>
+            )}
 
             {campaigns.length === 0 ? (
               <Card className="glass-card rounded-2xl border-border/70 bg-card/85">
@@ -2104,7 +2286,7 @@ export default function Campaigns() {
               </Card>
             ) : (
               <div className="grid grid-cols-1 gap-3 xl:grid-cols-2 2xl:grid-cols-3">
-                {campaigns.map((campaign) => {
+                {paginatedHistoryCampaigns.map((campaign) => {
                   const liveStatus = dispatchStatuses[campaign.id];
                   const liveMetrics = liveStatus?.metrics ?? {};
                   const displayCampaign = { ...campaign, status: liveStatus?.status ?? campaign.status };
@@ -2231,8 +2413,70 @@ export default function Campaigns() {
                 })}
               </div>
             )}
+
+            {campaigns.length > 0 && paginatedHistoryCampaigns.length === 0 && (
+              <Card className="glass-card rounded-2xl border-border/70 bg-card/85">
+                <CardContent className="p-8 text-center text-sm text-muted-foreground">
+                  Nenhuma campanha corresponde ao filtro atual.
+                </CardContent>
+              </Card>
+            )}
+
+            {filteredHistoryCampaigns.length > historyPageSize && (
+              <Pagination className="mt-2">
+                <PaginationContent>
+                  <PaginationItem>
+                    <PaginationPrevious
+                      href="#"
+                      onClick={(event) => {
+                        event.preventDefault();
+                        setHistoryPage((page) => Math.max(1, page - 1));
+                      }}
+                      className={historyClampedPage <= 1 ? "pointer-events-none opacity-40" : ""}
+                    />
+                  </PaginationItem>
+                  {Array.from({ length: historyTotalPages }, (_, index) => index + 1)
+                    .filter((page) => Math.abs(page - historyClampedPage) <= 2 || page === 1 || page === historyTotalPages)
+                    .map((page, idx, arr) => (
+                      <PaginationItem key={page}>
+                        {idx > 0 && arr[idx - 1] !== page - 1 ? (
+                          <span className="px-2 text-muted-foreground">…</span>
+                        ) : null}
+                        <PaginationLink
+                          href="#"
+                          isActive={page === historyClampedPage}
+                          onClick={(event) => {
+                            event.preventDefault();
+                            setHistoryPage(page);
+                          }}
+                        >
+                          {page}
+                        </PaginationLink>
+                      </PaginationItem>
+                    ))}
+                  <PaginationItem>
+                    <PaginationNext
+                      href="#"
+                      onClick={(event) => {
+                        event.preventDefault();
+                        setHistoryPage((page) => Math.min(historyTotalPages, page + 1));
+                      }}
+                      className={historyClampedPage >= historyTotalPages ? "pointer-events-none opacity-40" : ""}
+                    />
+                  </PaginationItem>
+                </PaginationContent>
+              </Pagination>
+            )}
           </>
             }
+            analysisSection={
+              <div className="space-y-4">
+                <ConversionHeatmap campaigns={conversionHeatmapCampaigns} />
+              </div>
+            }
+            activeTab={campaignsTab}
+            onTabChange={setCampaignsTab}
+            historyCount={campaigns.length}
           />
         )}
       </div>
@@ -2265,6 +2509,97 @@ export default function Campaigns() {
                   <p className="mt-1 font-display text-lg font-bold">{selectedCampaignPreview.queue?.failed ?? 0}</p>
                 </div>
               </div>
+
+              {/* Análise de IA do disparo — métricas reais */}
+              <div className="space-y-3 rounded-2xl border border-primary/25 bg-primary/5 p-4">
+                <div className="flex items-center justify-between">
+                  <p className="flex items-center gap-2 text-sm font-semibold text-foreground">
+                    <Sparkle weight="fill" className="h-4 w-4 text-primary" />
+                    Análise de IA do disparo
+                  </p>
+                  {analysisLoading && <span className="text-xs text-muted-foreground">Analisando conversas…</span>}
+                </div>
+                {analysisLoading ? (
+                  <div className="grid gap-3 md:grid-cols-4">
+                    {Array.from({ length: 4 }).map((_, i) => (
+                      <div key={i} className="h-16 animate-pulse rounded-xl bg-muted/40" />
+                    ))}
+                  </div>
+                ) : campaignAnalysis?.metrics ? (
+                  <>
+                    <div className="grid gap-3 md:grid-cols-4">
+                      <div className="rounded-xl border border-border/70 bg-background/50 p-3">
+                        <p className="text-[11px] uppercase tracking-wide text-muted-foreground">% de respostas</p>
+                        <p className="mt-1 font-display text-2xl font-bold text-primary">{campaignAnalysis.metrics.responseRate ?? 0}%</p>
+                        <p className="text-[10px] text-muted-foreground">{campaignAnalysis.metrics.replied ?? 0}/{campaignAnalysis.metrics.contacted ?? 0} responderam</p>
+                      </div>
+                      <div className="rounded-xl border border-border/70 bg-background/50 p-3">
+                        <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Qualidade</p>
+                        <p className="mt-1 font-display text-2xl font-bold text-foreground">{campaignAnalysis.metrics.qualityScore != null ? `${campaignAnalysis.metrics.qualityScore}%` : "—"}</p>
+                        <p className="text-[10px] text-muted-foreground">baseada no sentimento</p>
+                      </div>
+                      <div className="rounded-xl border border-border/70 bg-background/50 p-3">
+                        <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Tempo de resposta</p>
+                        <p className="mt-1 font-display text-2xl font-bold text-foreground">{formatDurationMs(campaignAnalysis.metrics.avgResponseMs)}</p>
+                        <p className="text-[10px] text-muted-foreground">média até 1ª resposta</p>
+                      </div>
+                      <div className="rounded-xl border border-border/70 bg-background/50 p-3">
+                        <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Tempo gasto</p>
+                        <p className="mt-1 font-display text-2xl font-bold text-foreground">{formatDurationMs(campaignAnalysis.metrics.elapsedMs)}</p>
+                        <p className="text-[10px] text-muted-foreground">duração do disparo</p>
+                      </div>
+                    </div>
+                    {campaignAnalysis.metrics.sentiment && (
+                      <div className="flex flex-wrap gap-2 text-xs">
+                        <Badge variant="secondary" className="rounded-full border border-success/30 bg-success/10 text-success">Positivas: {campaignAnalysis.metrics.sentiment.positive ?? 0}</Badge>
+                        <Badge variant="secondary" className="rounded-full border border-border/70">Neutras: {campaignAnalysis.metrics.sentiment.neutral ?? 0}</Badge>
+                        <Badge variant="secondary" className="rounded-full border border-destructive/30 bg-destructive/10 text-destructive">Negativas: {campaignAnalysis.metrics.sentiment.negative ?? 0}</Badge>
+                      </div>
+                    )}
+                    {Array.isArray(campaignAnalysis.leads) && campaignAnalysis.leads.length > 0 && (
+                      <div className="space-y-1.5">
+                        <p className="text-xs font-medium text-muted-foreground">Leads do disparo — clique para ver o grafo de conversas</p>
+                        <div className="scrollbar-thin max-h-56 space-y-1.5 overflow-y-auto pr-1">
+                          {campaignAnalysis.leads.map((leadItem: any, idx: number) => (
+                            <button
+                              key={`${leadItem.phone}-${idx}`}
+                              type="button"
+                              onClick={() => setGraphLead({ id: String(leadItem.phone), name: leadItem.phone })}
+                              className="flex w-full items-center justify-between gap-3 rounded-xl border border-border/70 bg-background/50 px-3 py-2 text-left text-sm transition hover:border-primary/40 hover:bg-card/70"
+                            >
+                              <span className="flex items-center gap-2 truncate">
+                                <Users className="h-4 w-4 flex-shrink-0 text-muted-foreground" />
+                                <span className="truncate">{leadItem.phone}</span>
+                              </span>
+                              <span className="flex flex-shrink-0 items-center gap-2">
+                                {leadItem.sentiment && (
+                                  <span className={cn(
+                                    "rounded-full px-2 py-0.5 text-[10px] font-semibold",
+                                    leadItem.sentiment === "positive" ? "bg-success/15 text-success" :
+                                    leadItem.sentiment === "negative" ? "bg-destructive/15 text-destructive" :
+                                    "bg-muted/40 text-muted-foreground",
+                                  )}>{leadItem.sentiment}</span>
+                                )}
+                                <span className={cn(
+                                  "rounded-full px-2 py-0.5 text-[10px] font-semibold",
+                                  leadItem.status === "responded" ? "bg-primary/15 text-primary" :
+                                  leadItem.status === "sent" ? "bg-info/15 text-info" :
+                                  "bg-muted/40 text-muted-foreground",
+                                )}>
+                                  {leadItem.status === "responded" ? "Respondeu" : leadItem.status === "sent" ? "Enviado" : "Pendente"}
+                                </span>
+                              </span>
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  <p className="text-sm text-muted-foreground">Sem dados de análise para este disparo ainda. As métricas aparecem após o envio e respostas dos leads.</p>
+                )}
+              </div>
+
               <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_320px]">
                 <div className="space-y-4">
                   <div className="space-y-3 rounded-2xl border border-border/70 bg-background/30 p-4">
@@ -2380,6 +2715,19 @@ export default function Campaigns() {
               </Button>
             </div>
           </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Grafo de conversas do lead (análise de IA) */}
+      <Dialog open={Boolean(graphLead)} onOpenChange={(open) => !open && setGraphLead(null)}>
+        <DialogContent className="max-h-[88vh] max-w-4xl overflow-y-auto rounded-2xl border-border/70 bg-card/95">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 font-display text-lg font-bold">
+              <Sparkle weight="fill" className="h-5 w-5 text-primary" />
+              Grafo de conversas — {graphLead?.name}
+            </DialogTitle>
+          </DialogHeader>
+          {graphLead && <LeadKnowledgeGraph leadId={graphLead.id} leadName={graphLead.name} />}
         </DialogContent>
       </Dialog>
 

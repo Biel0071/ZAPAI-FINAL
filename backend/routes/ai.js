@@ -253,41 +253,102 @@ router.post('/ai/voices/test-synthesis', async (req, res) => {
 router.get('/ai/lead-knowledge-graph/:leadId', async (req, res) => {
   try {
     const { leadId } = req.params;
-    const pool = req.app.get('pool');
-    let lead = null;
-    if (pool) {
-      const dbRes = await pool.query(
-        `SELECT id, name, phone, lead_temperature, lead_intent, funnel_stage, summary, tags FROM conversations WHERE id = $1 OR phone = $1 LIMIT 1`,
-        [leadId]
-      ).catch(() => ({ rows: [] }));
-      lead = dbRes.rows[0] || null;
+    const { query } = require('../config/database');
+    const companyId = req.companyId || process.env.DEFAULT_COMPANY_ID || 'default';
+
+    // 1. Lead — real. name/phone live on `leads`; funnel/temperature on `conversations`.
+    const leadRes = await query(
+      `SELECT c.id, c.lead_temperature, c.lead_intent, c.funnel_stage, c.summary,
+              c.tags, c.agent_name, c.company_id, l.name, l.phone
+       FROM conversations c
+       LEFT JOIN leads l ON l.id = c.lead_id
+       WHERE c.id::text = $1 OR l.phone = $1
+       LIMIT 1`,
+      [String(leadId)]
+    ).catch(() => ({ rows: [] }));
+
+    const lead = leadRes.rows[0] || null;
+    const name = lead?.name || 'Cliente';
+    const phone = lead?.phone || String(leadId);
+    const company = lead?.company_id || companyId;
+
+    const nodes = [];
+    const edges = [];
+
+    const leadDetails = [
+      phone ? `WhatsApp: ${phone}` : null,
+      lead?.funnel_stage ? `Funil: ${lead.funnel_stage}` : null,
+      lead?.lead_temperature ? `Temperatura: ${lead.lead_temperature}` : null,
+    ].filter(Boolean).join(' • ') || `WhatsApp: ${phone}`;
+    nodes.push({ id: 'node-lead', label: name, category: 'Lead', type: 'lead', details: leadDetails, icon: 'user' });
+
+    // 2. Agent — real, from conversations.agent_name
+    if (lead?.agent_name) {
+      nodes.push({ id: 'node-agent', label: lead.agent_name, category: 'Atendente', type: 'agent', details: 'Atendente IA responsável', icon: 'robot' });
+      edges.push({ source: 'node-agent', target: 'node-lead', label: 'Atendeu Cliente' });
     }
 
-    const name = lead?.name || 'Cliente';
-    const phone = lead?.phone || leadId;
+    // 3. Campaigns that reached this lead — real JSONB scan by phone
+    if (phone) {
+      const campRes = await query(
+        `SELECT id, name, status FROM campaigns
+         WHERE company_id = $2
+           AND EXISTS (
+             SELECT 1 FROM jsonb_array_elements(COALESCE(selected_contacts, '[]'::jsonb)) sc
+             WHERE sc->>'phone' = $1 OR sc->>'number' = $1 OR REPLACE(sc->>'phone','+','') LIKE '%' || RIGHT($1, 8) || '%'
+           )
+         ORDER BY created_at DESC LIMIT 8`,
+        [phone.replace(/\D/g, ''), company]
+      ).catch(() => ({ rows: [] }));
 
-    const graph = {
-      nodes: [
-        { id: 'node-lead', label: name, category: 'Lead', type: 'lead', details: `WhatsApp: ${phone}`, icon: 'user' },
-        { id: 'node-product1', label: 'Caixa d\'Água Fortlev 1.000L', category: 'Produto', type: 'product', details: 'R$ 1.480,00', icon: 'package' },
-        { id: 'node-product2', label: 'Tanque 3.000L Polietileno', category: 'Produto', type: 'product', details: 'R$ 2.990,00', icon: 'package' },
-        { id: 'node-campaign', label: 'Campanha Fortlev Direto de Fábrica', category: 'Campanha', type: 'campaign', details: 'Status: Ativa', icon: 'megaphone' },
-        { id: 'node-order', label: 'Orçamento #4820', category: 'Pedido', type: 'order', details: 'Condição boleto 30 dias', icon: 'receipt' },
-        { id: 'node-agent', label: 'Atendente Comercial IA', category: 'Atendente', type: 'agent', details: 'Agente ZAPFLOW Aurora', icon: 'robot' },
-        { id: 'node-memory', label: 'Memória Permanente', category: 'IA Memory', type: 'memory', details: 'Fatos e Objeções Registrados', icon: 'brain' },
-      ],
-      edges: [
-        { source: 'node-lead', target: 'node-product1', label: 'Consultou Produto' },
-        { source: 'node-lead', target: 'node-product2', label: 'Interessado em' },
-        { source: 'node-lead', target: 'node-campaign', label: 'Capturado via' },
-        { source: 'node-lead', target: 'node-order', label: 'Emitiu Proposta' },
-        { source: 'node-agent', target: 'node-lead', label: 'Atendeu Cliente' },
-        { source: 'node-agent', target: 'node-memory', label: 'Grava Contexto em' },
-        { source: 'node-memory', target: 'node-product1', label: 'Vincula Objeção a' },
-      ],
-    };
+      campRes.rows.forEach((camp, idx) => {
+        const nid = `node-campaign-${idx}`;
+        nodes.push({ id: nid, label: camp.name, category: 'Campanha', type: 'campaign', details: `Status: ${camp.status || 'n/d'}`, icon: 'megaphone' });
+        edges.push({ source: 'node-lead', target: nid, label: 'Capturado via' });
+      });
+    }
 
-    res.json({ success: true, data: graph });
+    // 4. Memory nodes — real, agent_memory_nodes filtered by contact phone
+    try {
+      const memRes = await query(
+        `SELECT node_key, node_type, label, content FROM agent_memory_nodes
+         WHERE company_id = $1 AND (properties->>'contactPhone') = $2
+         ORDER BY weight DESC NULLS LAST, last_seen_at DESC NULLS LAST LIMIT 12`,
+        [company, phone.replace(/\D/g, '')]
+      );
+      memRes.rows.forEach((mem, idx) => {
+        const isProduct = mem.node_type === 'product_media' || mem.node_type === 'concept';
+        const nid = `node-mem-${idx}`;
+        nodes.push({
+          id: nid,
+          label: mem.label || mem.node_key,
+          category: isProduct ? 'Produto/Interesse' : 'Memória IA',
+          type: isProduct ? 'product' : 'memory',
+          details: (mem.content || '').slice(0, 120) || 'Registro de memória',
+          icon: isProduct ? 'package' : 'brain',
+        });
+        edges.push({ source: 'node-lead', target: nid, label: isProduct ? 'Interessado em' : 'Memória registrada' });
+      });
+    } catch {
+      // agent_memory_nodes pode não existir em bases antigas — ignora
+    }
+
+    // 5. Persistent facts (ai_memory_long) — real, keyed by chat_id = phone
+    try {
+      const factRes = await query(
+        `SELECT category, content FROM ai_memory_long
+         WHERE chat_id = $1 ORDER BY updated_at DESC NULLS LAST LIMIT 8`,
+        [phone.replace(/\D/g, '')]
+      );
+      if (factRes.rows.length > 0) {
+        nodes.push({ id: 'node-memory-facts', label: 'Memória Permanente', category: 'IA Memory', type: 'memory', details: `${factRes.rows.length} fato(s)/objeção(ões) registrados`, icon: 'brain' });
+        edges.push({ source: 'node-lead', target: 'node-memory-facts', label: 'Contexto persistente' });
+      }
+    } catch {
+      // ai_memory_long pode não existir — ignora
+    }
+
+    res.json({ success: true, data: { nodes, edges, lead: lead ? { name, phone } : null } });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
   }

@@ -113,6 +113,19 @@ router.post('/campaigns/preview-audience', async (req, res) => {
   }
 });
 
+// Real post-dispatch AI analysis (response rate, quality, timing, per-lead status)
+router.get('/campaigns/:id/analysis', async (req, res) => {
+  try {
+    const campaignAnalysisService = require('../services/campaignAnalysisService');
+    const companyId = req.companyId || process.env.DEFAULT_COMPANY_ID || 'default';
+    const result = await campaignAnalysisService.analyzeCampaign(req.params.id, companyId);
+    return safeJson(res, { success: true, data: result });
+  } catch (error) {
+    const status = error?.statusCode || (error?.message?.includes('not found') ? 404 : 500);
+    return safeJson(res, { success: false, error: error?.message || 'Analysis failed' }, status);
+  }
+});
+
 // List all active campaigns
 router.get('/campaigns/active', (_req, res) => {
   try {

@@ -1849,6 +1849,8 @@ export const apiService = {
     request<Record<string, unknown>>({ endpoint: `/api/campaigns/${encodeURIComponent(campaignId)}/cancel`, method: "POST" }),
   getCampaignDispatchStatus: (campaignId: string) =>
     request<Record<string, unknown>>({ endpoint: `/api/campaigns/${encodeURIComponent(campaignId)}/status`, method: "GET" }),
+  getCampaignAnalysis: (campaignId: string) =>
+    request<Record<string, unknown>>({ endpoint: `/api/campaigns/${encodeURIComponent(campaignId)}/analysis`, method: "GET" }),
   generateCampaignAI: (prompt: string, temperature?: string) =>
     request<Record<string, unknown>>({ endpoint: "/api/campaigns/generate-ai", method: "POST", body: { prompt, temperature } }),
   estimateAudience: (filters: Record<string, unknown>) =>
