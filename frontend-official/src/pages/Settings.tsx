@@ -30,7 +30,15 @@ import { useAdminAuth } from "@/hooks/useAdminAuth";
 import { notify } from "@/services/notifyService";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { UnderConstruction } from "@/components/layout/UnderConstruction";
+import { useTheme } from "next-themes";
 import { cn } from "@/lib/utils";
+
+const LANGUAGE_STORAGE_KEY = "zapai_language";
+const LANGUAGE_OPTIONS = [
+  { id: "pt-BR", label: "Português (Brasil)" },
+  { id: "en-US", label: "English (US)" },
+  { id: "es-ES", label: "Español" },
+];
 
 
 function resolveAIEnabled(status: AIStatusResponse | null): boolean {
@@ -49,6 +57,20 @@ export default function Settings() {
   const [isAIEnabled, setIsAIEnabled] = useState(false);
   const [isAIStatusLoading, setIsAIStatusLoading] = useState(true);
   const [isAIToggling, setIsAIToggling] = useState(false);
+
+  // Appearance (theme) + language preferences
+  const { theme, setTheme } = useTheme();
+  const [language, setLanguage] = useState<string>(() => {
+    if (typeof window === "undefined") return "pt-BR";
+    return window.localStorage.getItem(LANGUAGE_STORAGE_KEY) || "pt-BR";
+  });
+  const handleSelectLanguage = (id: string) => {
+    setLanguage(id);
+    try {
+      window.localStorage.setItem(LANGUAGE_STORAGE_KEY, id);
+    } catch {}
+    notify.success("Idioma atualizado. Algumas áreas aplicam após recarregar.");
+  };
 
   // Profile States
   const [profileName, setProfileName] = useState("");
@@ -309,6 +331,75 @@ export default function Settings() {
                 </>
               )}
 
+              {activeSection === 6 && (
+                <Card className="glass-card">
+                  <CardHeader>
+                    <CardTitle className="font-display">Aparência</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div>
+                      <Label className="mb-2 block">Tema</Label>
+                      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+                        {[
+                          { id: "dark", label: "Escuro" },
+                          { id: "light", label: "Claro" },
+                          { id: "system", label: "Sistema" },
+                        ].map((opt) => (
+                          <button
+                            key={opt.id}
+                            type="button"
+                            onClick={() => setTheme(opt.id)}
+                            className={cn(
+                              "rounded-xl border p-4 text-sm font-medium transition-colors",
+                              theme === opt.id
+                                ? "border-primary bg-primary/10 text-primary"
+                                : "border-border bg-card/60 text-muted-foreground hover:text-foreground",
+                            )}
+                          >
+                            {opt.label}
+                          </button>
+                        ))}
+                      </div>
+                      <p className="mt-2 text-xs text-muted-foreground">
+                        A logo e as cores se ajustam automaticamente ao tema escolhido.
+                      </p>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+
+              {activeSection === 7 && (
+                <Card className="glass-card">
+                  <CardHeader>
+                    <CardTitle className="font-display">Idioma</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    <Label className="mb-1 block">Idioma da interface</Label>
+                    <div className="space-y-2">
+                      {LANGUAGE_OPTIONS.map((opt) => (
+                        <button
+                          key={opt.id}
+                          type="button"
+                          onClick={() => handleSelectLanguage(opt.id)}
+                          className={cn(
+                            "flex w-full items-center justify-between rounded-xl border px-4 py-3 text-sm font-medium transition-colors",
+                            language === opt.id
+                              ? "border-primary bg-primary/10 text-primary"
+                              : "border-border bg-card/60 text-muted-foreground hover:text-foreground",
+                          )}
+                        >
+                          {opt.label}
+                          {language === opt.id && <Badge variant="secondary" className="rounded-full">Ativo</Badge>}
+                        </button>
+                      ))}
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      Preferência salva neste dispositivo. A tradução completa da interface será expandida gradualmente.
+                    </p>
+                  </CardContent>
+                </Card>
+              )}
+
               {activeSection === 8 && (
                 <Card className="glass-card">
                   <CardHeader className="flex flex-row items-center justify-between">
@@ -340,7 +431,7 @@ export default function Settings() {
                 </Card>
               )}
 
-              {activeSection !== 0 && activeSection !== 8 && (
+              {activeSection !== 0 && activeSection !== 6 && activeSection !== 7 && activeSection !== 8 && (
                 <Card className="glass-card">
                   <UnderConstruction
                     title={settingsViewModel.sections[activeSection]?.label || "Módulo em Desenvolvimento"}
