@@ -1,4 +1,3 @@
-import { useState } from "react";
 import { cn } from "@/lib/utils";
 
 export interface BrandLogoProps {
@@ -8,111 +7,117 @@ export interface BrandLogoProps {
   className?: string;
   /** Subtle pulse (used on loading screens). */
   animated?: boolean;
-  /** Force a variant instead of theme-driven (e.g. on a colored splash). */
+  /** Force a variant for the Z letter ("black" or "white"). Default is theme-driven (white on dark, dark on light). */
   forceZColor?: "black" | "white";
 }
 
 /**
- * ZAPFLOW "Z" brand logo.
- *
- * Prefers the real brand PNGs in /public/brand:
- *   - brand/logo-dark.png  → Z with a BLACK body (used on the LIGHT theme)
- *   - brand/logo-light.png → Z with a WHITE body (used on the DARK theme)
- *
- * Both variants are rendered and toggled purely by CSS (`dark:` classes) so the
- * correct one shows without JS. If an image fails to load (files not added yet),
- * we fall back to the inline SVG mark so the UI never shows a broken image.
+ * ZAPFLOW AI Brand Logo Component (Pure Vector SVG).
+ * Features 100% transparent background, vibrant emerald green speech bubble + circuit lines,
+ * and sharp theme-adaptive "Z" mark.
  */
 export function BrandLogo({ size = 44, className, animated = false, forceZColor }: BrandLogoProps) {
-  const [imgFailed, setImgFailed] = useState(false);
-
-  if (imgFailed) {
-    return <BrandLogoSvg size={size} className={className} animated={animated} forceZColor={forceZColor} />;
-  }
-
-  // Which PNG to show. When forced, show a single variant; otherwise toggle by theme.
-  const darkBodySrc = "/brand/logo-dark.png"; // black Z → for light backgrounds
-  const whiteBodySrc = "/brand/logo-light.png"; // white Z → for dark backgrounds
-
-  const commonImgClass = "object-contain";
-  const style = { width: size, height: size };
-
-  if (forceZColor === "black") {
-    return <img src={darkBodySrc} alt="ZAPFLOW AI" style={style} onError={() => setImgFailed(true)} className={cn(commonImgClass, animated && "zf-logo-pulse", className)} />;
-  }
-  if (forceZColor === "white") {
-    return <img src={whiteBodySrc} alt="ZAPFLOW AI" style={style} onError={() => setImgFailed(true)} className={cn(commonImgClass, animated && "zf-logo-pulse", className)} />;
-  }
-
-  return (
-    <span className={cn("inline-flex", animated && "zf-logo-pulse", className)} style={style} aria-label="ZAPFLOW AI" role="img">
-      {/* Light theme → black-bodied logo */}
-      <img
-        src={darkBodySrc}
-        alt="ZAPFLOW AI"
-        style={style}
-        onError={() => setImgFailed(true)}
-        className={cn(commonImgClass, "block dark:hidden")}
-      />
-      {/* Dark theme → white-bodied logo */}
-      <img
-        src={whiteBodySrc}
-        alt="ZAPFLOW AI"
-        style={style}
-        onError={() => setImgFailed(true)}
-        className={cn(commonImgClass, "hidden dark:block")}
-      />
-    </span>
-  );
-}
-
-/** Inline SVG fallback (approximation) used only if the PNGs are missing. */
-function BrandLogoSvg({ size = 44, className, animated = false, forceZColor }: BrandLogoProps) {
-  const zColorClass =
+  const zFill =
     forceZColor === "black"
-      ? "text-[#111111]"
+      ? "#0F172A"
       : forceZColor === "white"
-        ? "text-white"
-        : "text-[#111111] dark:text-white";
+        ? "#FFFFFF"
+        : "currentColor";
 
   return (
     <svg
-      viewBox="0 0 128 128"
+      viewBox="0 0 500 500"
       width={size}
       height={size}
       role="img"
-      aria-label="ZAPFLOW AI"
-      className={cn(zColorClass, animated && "zf-logo-pulse", className)}
+      aria-label="ZAPFLOW AI Logo"
+      className={cn(
+        forceZColor === "white" ? "text-white" : forceZColor === "black" ? "text-slate-900" : "text-slate-900 dark:text-white",
+        animated && "animate-pulse",
+        className
+      )}
       fill="none"
       xmlns="http://www.w3.org/2000/svg"
     >
       <defs>
-        <linearGradient id="zf-ring" x1="0.15" y1="0" x2="0.85" y2="1">
-          <stop offset="0%" stopColor="#3ef23e" />
-          <stop offset="50%" stopColor="#1bbf2f" />
-          <stop offset="100%" stopColor="#0a6b22" />
+        {/* Emerald WhatsApp Gradient */}
+        <linearGradient id="zap-green-gradient" x1="0" y1="0" x2="500" y2="500" gradientUnits="userSpaceOnUse">
+          <stop offset="0%" stopColor="#00E676" />
+          <stop offset="60%" stopColor="#25D366" />
+          <stop offset="100%" stopColor="#059669" />
         </linearGradient>
-        <linearGradient id="zf-zbase" x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0%" stopColor="#3ef23e" />
-          <stop offset="100%" stopColor="#0a7a26" />
+        {/* Accent Green Gradient for Z bottom */}
+        <linearGradient id="zap-accent-green" x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0%" stopColor="#00E676" />
+          <stop offset="100%" stopColor="#047857" />
         </linearGradient>
+        {/* Subtle drop shadow */}
+        <filter id="zap-shadow" x="-10%" y="-10%" width="120%" height="120%">
+          <feDropShadow dx="0" dy="4" stdDeviation="6" floodColor="#000000" floodOpacity="0.3" />
+        </filter>
       </defs>
+
+      {/* Outer Speech Bubble (WhatsApp style) */}
       <path
-        d="M40 22 A52 52 0 1 1 40 106 L24 120 L34 98"
-        stroke="url(#zf-ring)" strokeWidth="7" strokeLinecap="round" strokeLinejoin="round"
+        d="M 265,70 
+           C 365,70 445,150 445,250 
+           C 445,350 365,430 265,430 
+           C 230,430 198,420 170,403 
+           L 100,435 
+           L 125,368 
+           C 100,336 85,295 85,250 
+           C 85,150 165,70 265,70 Z"
+        stroke="url(#zap-green-gradient)"
+        strokeWidth="24"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        fill="none"
+        filter="url(#zap-shadow)"
       />
-      <g stroke="url(#zf-ring)" strokeWidth="4.5" strokeLinecap="round">
-        <line x1="20" y1="44" x2="46" y2="44" />
-        <line x1="10" y1="60" x2="44" y2="60" />
-        <line x1="20" y1="76" x2="46" y2="76" />
+
+      {/* Left Circuit Lines & Nodes */}
+      <g stroke="url(#zap-green-gradient)" strokeWidth="16" strokeLinecap="round">
+        {/* Top Circuit Line */}
+        <line x1="80" y1="195" x2="185" y2="195" />
+        {/* Middle Circuit Line */}
+        <line x1="55" y1="250" x2="235" y2="250" />
+        {/* Bottom Circuit Line */}
+        <line x1="80" y1="305" x2="205" y2="305" />
       </g>
-      <g fill="none" stroke="url(#zf-ring)" strokeWidth="4">
-        <circle cx="16" cy="44" r="4.5" />
-        <circle cx="6" cy="60" r="4.5" />
-        <circle cx="16" cy="76" r="4.5" />
+
+      {/* Circuit End Node Rings */}
+      <g fill="#020617" stroke="url(#zap-green-gradient)" strokeWidth="12">
+        <circle cx="80" cy="195" r="16" />
+        <circle cx="55" cy="250" r="16" />
+        <circle cx="80" cy="305" r="16" />
       </g>
-      <path d="M50 40 H88 L64 70 H52 L74 45 H50 Z" fill="currentColor" />
-      <path d="M52 70 H84 L80 88 H50 L60 72 Z" fill="url(#zf-zbase)" />
+
+      {/* Stylized Z Letter Mark */}
+      <path
+        d="M 195,165 
+           H 360 
+           C 375,165 385,177 378,190 
+           L 245,335 
+           H 355 
+           C 365,335 372,342 372,352 
+           V 362 
+           C 372,368 365,375 355,375 
+           H 190 
+           C 175,375 165,363 172,350 
+           L 305,205 
+           H 195 
+           C 185,205 178,198 178,188 
+           V 178 
+           C 178,171 185,165 195,165 Z"
+        fill={zFill}
+        filter="url(#zap-shadow)"
+      />
+
+      {/* Z Bottom Accent Bar in Gradient Green */}
+      <path
+        d="M 235,335 H 355 C 365,335 372,342 372,352 V 362 C 372,368 365,375 355,375 H 225 L 235,335 Z"
+        fill="url(#zap-accent-green)"
+      />
     </svg>
   );
 }
