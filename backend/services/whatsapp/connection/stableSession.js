@@ -1516,20 +1516,32 @@ async function createStableSession({
         console.error('[WHATSAPP] Failed to push message connection log:', logErr);
       }
 
-      await enterpriseQueueService.enqueue(
-        queueName,
-        {
-          chatId: remoteJid,
+      if (type === 'notify') {
+        await enterpriseQueueService.enqueue(
+          queueName,
+          {
+            chatId: remoteJid,
+            fromMe,
+            messageId,
+            sessionId: normalizedSessionName,
+            timestamp: Date.now(),
+          },
+          {
+            attempts: 5,
+            backoffMs: 500,
+          }
+        );
+      } else {
+        // Historical append message: persist quietly without triggering worker queues/AI auto-reply
+        enterpriseMessageService.persistInboundMessage({
+          companyId: process.env.DEFAULT_COMPANY_ID || 'default',
           fromMe,
-          messageId,
+          phone: remotePhone || cleanedPhone,
           sessionId: normalizedSessionName,
-          timestamp: Date.now(),
-        },
-        {
-          attempts: 5,
-          backoffMs: 500,
-        }
-      );
+          text: extractMessageText(incomingMessage),
+          status: fromMe ? 'sent' : 'received',
+        }).catch(() => {});
+      }
 
       const inboundDebugPayload = buildInboundDebugPayload(incomingMessage);
 
@@ -2039,16 +2051,17 @@ async function createStableSession({
           conversationRepository.invalidateConversationCache(companyId);
         }
 
-        // Persist historical messages
+        // Persist historical messages (limit to 150 most recent items to avoid event loop & DB lockup)
         if (Array.isArray(messages) && messages.length > 0) {
+          const messagesToSync = messages.length > 150 ? messages.slice(-150) : messages;
           const pipeline = require('../inbound/pipeline');
           let msgsSynced = 0;
           let msgsErrors = 0;
 
           // Process messages in batch sequence
           const MSG_BATCH_SIZE = 20;
-          for (let i = 0; i < messages.length; i += MSG_BATCH_SIZE) {
-            const batch = messages.slice(i, i + MSG_BATCH_SIZE);
+          for (let i = 0; i < messagesToSync.length; i += MSG_BATCH_SIZE) {
+            const batch = messagesToSync.slice(i, i + MSG_BATCH_SIZE);
             await Promise.allSettled(
               batch.map(async (msg) => {
                 try {

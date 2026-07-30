@@ -56,14 +56,14 @@ function getPoolConfig() {
   const isProduction = String(process.env.NODE_ENV || '').trim().toLowerCase() === 'production';
 
   const sharedConfig = {
-    connectionTimeoutMillis: getNumericSetting(process.env.DB_CONNECTION_TIMEOUT_MS, 8000),
+    connectionTimeoutMillis: getNumericSetting(process.env.DB_CONNECTION_TIMEOUT_MS, 15000),
     idleTimeoutMillis: getNumericSetting(process.env.DB_IDLE_TIMEOUT_MS, 30000),
     // Admin dashboards, AI, metrics and WhatsApp share this pool.
     // Keep enough local concurrency to avoid request starvation during polling.
-    max: getNumericSetting(process.env.DB_POOL_MAX, isProduction ? 24 : 12),
-    // 30s for reports/bulk queries, 5s in dev
-    query_timeout: getNumericSetting(process.env.DB_QUERY_TIMEOUT_MS, isProduction ? 30000 : 5000),
-    statement_timeout: getNumericSetting(process.env.DB_STATEMENT_TIMEOUT_MS, isProduction ? 30000 : 5000),
+    max: getNumericSetting(process.env.DB_POOL_MAX, isProduction ? 30 : 20),
+    // 30s for reports/bulk queries, 10s in dev
+    query_timeout: getNumericSetting(process.env.DB_QUERY_TIMEOUT_MS, isProduction ? 30000 : 10000),
+    statement_timeout: getNumericSetting(process.env.DB_STATEMENT_TIMEOUT_MS, isProduction ? 30000 : 10000),
   };
 
   if (process.env.DATABASE_URL) {

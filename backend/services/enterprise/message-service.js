@@ -75,18 +75,22 @@ async function persistInboundMessage(payload = {}) {
     unreadCount: payload.fromMe ? 0 : (Number(conversation.unreadCount) || 0) + 1,
   });
 
-  const tenantDirectory = path.join(CONVERSATIONS_ROOT, String(companyId));
-  await fs.mkdir(tenantDirectory, { recursive: true });
-  await fs.appendFile(
-    path.join(tenantDirectory, `${conversation.id}.jsonl`),
-    `${JSON.stringify({
-      id: savedMessage.id,
-      mediaType: messageType,
-      text: messagePreview,
-      timestamp: payload.timestamp || new Date().toISOString(),
-    })}\n`,
-    'utf8'
-  );
+  setImmediate(async () => {
+    try {
+      const tenantDirectory = path.join(CONVERSATIONS_ROOT, String(companyId));
+      await fs.mkdir(tenantDirectory, { recursive: true });
+      await fs.appendFile(
+        path.join(tenantDirectory, `${conversation.id}.jsonl`),
+        `${JSON.stringify({
+          id: savedMessage.id,
+          mediaType: messageType,
+          text: messagePreview,
+          timestamp: payload.timestamp || new Date().toISOString(),
+        })}\n`,
+        'utf8'
+      );
+    } catch (_) {}
+  });
 
   return {
     conversation: updatedConversation || conversation,
