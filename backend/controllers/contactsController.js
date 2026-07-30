@@ -101,7 +101,18 @@ async function createContact(req, res) {
            RETURNING *`,
           [req.auth?.tenantId || process.env.DEFAULT_COMPANY_ID || 'default', phone, name || 'Unknown']
         );
-        return res.status(201).json({ ok: true, data: result.rows[0] });
+        const contact = result.rows[0];
+        try {
+          const { syncEngine } = require('../services/sync');
+          syncEngine.dispatch('contact.created', {
+            contactId: contact.id,
+            name: contact.name,
+            phone: contact.phone,
+            tenantId: contact.company_id || 'default',
+          });
+        } catch (_) {}
+
+        return res.status(201).json({ ok: true, data: contact });
       } catch (dbError) {
         backendLog('warn', 'contacts:create:db_error', { error: dbError?.message });
         return res.status(200).json({

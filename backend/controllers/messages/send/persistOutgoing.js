@@ -109,6 +109,17 @@ async function persistOutgoingMessageRecord(store, payload) {
     }
   }
 
+  try {
+    const { syncEngine } = require('../../../services/sync');
+    syncEngine.dispatch('message.sent', {
+      messageId: savedMessage.id,
+      conversationId: conversation.id,
+      phone: payload.phone,
+      text: savedMessage.content,
+      tenantId: payload.companyId || 'default',
+    });
+  } catch (_) {}
+
   return {
     conversation: updatedConversation || conversation,
     message: savedMessage,

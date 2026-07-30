@@ -567,6 +567,18 @@ function splitLongMessage(text) {
     });
   }
 
+  try {
+    const { syncEngine } = require('./sync');
+    syncEngine.dispatch('automation.executed', {
+      conversationId,
+      phone,
+      companyId,
+      matchedAgent: matchedAgent.name,
+      replyTextLength: replyText.length,
+      tenantId: companyId || 'default',
+    });
+  } catch (_) {}
+
   return { success: true, action: 'reply_queued' };
 }
 

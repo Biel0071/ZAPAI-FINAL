@@ -656,6 +656,18 @@ async function testAIConnection({ store, providerId, model, message, prompt, age
   result.fullPrompt = fullPrompt;
   result.memoriesUsed = memoriesUsed;
   result.rulesTriggered = rulesTriggered;
+
+  try {
+    const { syncEngine } = require('./sync');
+    syncEngine.dispatch('ai.response', {
+      provider: resolvedProvider,
+      model: model || 'default',
+      agentName: finalAgent.name,
+      replyLength: result.response?.length || 0,
+      tenantId: 'default',
+    });
+  } catch (_) {}
+
   return result;
 }
 

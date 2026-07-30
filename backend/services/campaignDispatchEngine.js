@@ -457,6 +457,16 @@ async function startCampaign(campaignId, companyId, io) {
 
   console.log(`[CampaignEngine] Starting campaign ${campaignId}: ${state.pendingQueue.length} contacts`);
 
+  try {
+    const { syncEngine } = require('./sync');
+    syncEngine.dispatch('campaign.started', {
+      campaignId,
+      name: state.name,
+      totalContacts: state.pendingQueue.length,
+      tenantId: companyId || 'default',
+    });
+  } catch (_) {}
+
   // Start dispatch loop (non-blocking)
   runDispatchLoop(state, io).catch((err) => {
     console.error(`[CampaignEngine] Fatal error in campaign ${campaignId}:`, err?.message || err);
