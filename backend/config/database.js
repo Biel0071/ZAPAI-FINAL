@@ -58,6 +58,8 @@ function getPoolConfig() {
   const sharedConfig = {
     connectionTimeoutMillis: getNumericSetting(process.env.DB_CONNECTION_TIMEOUT_MS, 15000),
     idleTimeoutMillis: getNumericSetting(process.env.DB_IDLE_TIMEOUT_MS, 30000),
+    keepAlive: true,
+    keepAliveInitialDelayMillis: 10000,
     // Admin dashboards, AI, metrics and WhatsApp share this pool.
     // Keep enough local concurrency to avoid request starvation during polling.
     max: getNumericSetting(process.env.DB_POOL_MAX, isProduction ? 30 : 20),

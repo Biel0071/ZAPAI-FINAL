@@ -500,14 +500,16 @@ router.get('/e2e-smoke', async (req, res) => {
   }
 });
 
+const { fastCacheMiddleware } = require('../middleware/fastCache');
+
 router.get('/grafify', systemController.getGrafifyAnalysis);
 
-router.get('/sync-center', (req, res) => {
+router.get('/sync-center', fastCacheMiddleware(2000), (req, res) => {
   const { getSyncCenterMetrics } = require('../services/sync');
   res.status(200).json(getSyncCenterMetrics());
 });
 
-router.get('/feature-flags', (req, res) => {
+router.get('/feature-flags', fastCacheMiddleware(5000), (req, res) => {
   const featureFlags = require('../config/featureFlags');
   res.status(200).json(featureFlags.getFlags());
 });
