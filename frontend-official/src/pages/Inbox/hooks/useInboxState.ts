@@ -656,10 +656,57 @@ export function useInboxState() {
   useEffect(() => {
     conversationsRef.current = conversations;
 
+    const params = new URLSearchParams(window.location.search);
+    const urlConvId = params.get("conversationId");
+    const urlPhone = params.get("phone") || params.get("chatId");
+    const normUrlPhone = urlPhone ? normalizePhone(urlPhone) : "";
+
+    if (urlConvId || normUrlPhone) {
+      const match = conversations.find((item) => {
+        const itemId = String(item.id);
+        const itemConvId = String((item as any).conversationId || "");
+        const itemPhone = normalizePhone(item.phone || "");
+        const itemChatId = normalizePhone(item.chatId || "");
+
+        if (urlConvId && (itemId === urlConvId || itemConvId === urlConvId)) return true;
+        if (normUrlPhone && (itemPhone === normUrlPhone || itemChatId === normUrlPhone)) return true;
+        return false;
+      });
+
+      if (match) {
+        if (selectedConversationId !== match.id) {
+          setSelectedConversationId(match.id);
+        }
+        setMobileScreen("chat");
+        return;
+      } else if (normUrlPhone && conversations.length > 0) {
+        const syntheticConv: Conversation = {
+          id: urlConvId || `synthetic-${normUrlPhone}`,
+          contactName: urlPhone || normUrlPhone,
+          phone: normUrlPhone,
+          chatId: normUrlPhone,
+          lastMessage: "",
+          unread: 0,
+          updatedAt: new Date().toISOString(),
+          sessionId: preferredSessionId || "main",
+          aiEnabled: true,
+        };
+
+        setConversations((prev) => [syntheticConv, ...prev.filter((c) => normalizePhone(c.phone) !== normUrlPhone)]);
+        setSelectedConversationId(syntheticConv.id);
+        setMobileScreen("chat");
+        return;
+      }
+    }
+
     if (selectedConversationId && !conversations.some((item) => normalizeId(item.id) === normalizeId(selectedConversationId))) {
+      if (!urlConvId && !normUrlPhone) {
+        setSelectedConversationId(conversations[0]?.id ?? null);
+      }
+    } else if (!selectedConversationId && conversations.length > 0 && !urlConvId && !normUrlPhone) {
       setSelectedConversationId(conversations[0]?.id ?? null);
     }
-  }, [conversations, selectedConversationId, setSelectedConversationId]);
+  }, [conversations, selectedConversationId, setSelectedConversationId, setConversations, preferredSessionId]);
 
   useEffect(() => {
     if (!activeSession?.id) return;

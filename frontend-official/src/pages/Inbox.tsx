@@ -141,7 +141,7 @@ export default function Inbox() {
       });
 
     const sortConversations = (conversations: typeof baseConversations) =>
-      conversations.sort((a, b) => {
+      [...conversations].sort((a, b) => {
         const aPinned = pinnedSet.has(String(a.id));
         const bPinned = pinnedSet.has(String(b.id));
         if (aPinned && !bPinned) return -1;
