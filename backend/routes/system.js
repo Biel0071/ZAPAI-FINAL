@@ -502,4 +502,23 @@ router.get('/e2e-smoke', async (req, res) => {
 
 router.get('/grafify', systemController.getGrafifyAnalysis);
 
+router.get('/sync-center', (req, res) => {
+  const { getSyncCenterMetrics } = require('../services/sync');
+  res.status(200).json(getSyncCenterMetrics());
+});
+
+router.get('/feature-flags', (req, res) => {
+  const featureFlags = require('../config/featureFlags');
+  res.status(200).json(featureFlags.getFlags());
+});
+
+router.post('/feature-flags', (req, res) => {
+  const featureFlags = require('../config/featureFlags');
+  const { flag, value } = req.body || {};
+  const updated = featureFlags.setFlag(flag, value);
+  if (!updated) return res.status(400).json({ error: 'Flag inválida' });
+  return res.status(200).json({ success: true, flags: featureFlags.getFlags() });
+});
+
 module.exports = router;
+
