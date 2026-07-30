@@ -463,6 +463,7 @@ app.use((req, res, next) => {
   return next();
 });
 
+app.use(compression());
 app.use(createRequestLogger());
 
 app.use(inputSanitizerMiddleware);
