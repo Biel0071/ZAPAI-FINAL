@@ -341,15 +341,25 @@ async function sendMessage(req, res) {
         sessionId: session?.sessionId || targetSessionName,
       }
     );
-    const ackConfirmation = await waitForWhatsappServerAck(whatsappMessageId);
-    const deliveryConfirmed = Boolean(ackConfirmation && ACCEPTED_ACK_STATES.has(ackConfirmation.status));
-    const deliveryStatus = ackConfirmation?.status === messageAckPipeline.ACK_STATES.FAILED
-      ? 'failed'
-      : (deliveryConfirmed ? ackConfirmation.status : 'pending');
-    correlationTracker.traceLog(correlationId, deliveryConfirmed ? 'ack.confirmed' : 'ack.timeout', deliveryConfirmed ? 'WhatsApp server ACK confirmed.' : 'WhatsApp server ACK timed out.', {
+    const deliveryStatus = 'sent';
+    setImmediate(async () => {
+      try {
+        const ackConfirmation = await waitForWhatsappServerAck(whatsappMessageId, 4000);
+        if (ackConfirmation && ackConfirmation.status) {
+          const io = store?.io || global.io;
+          if (io) {
+            io.emit('message_ack', {
+              id: whatsappMessageId,
+              status: ackConfirmation.status,
+              chatId: normalizedPhone,
+            });
+          }
+        }
+      } catch (_) {}
+    });
+    correlationTracker.traceLog(correlationId, 'ack.sent', 'Message sent to transport; async ACK monitoring started.', {
       companyId,
       messageId: whatsappMessageId,
-      status: ackConfirmation?.status || 'timeout',
     });
 
     console.log('[WHATSAPP-SEND-RESULT]', {
@@ -424,7 +434,7 @@ async function sendMessage(req, res) {
           console.error('[AI INTELLIGENCE] Failed to capture outbound memory fallback:', error.message || error);
         });
 
-      if (!deliveryConfirmed && !sendResult?.key?.id && !whatsappMessageId) {
+      if (!sendResult?.key?.id && !whatsappMessageId) {
         return res.status(502).json({
           chatId: normalizeChatId(normalizedPhone),
           code: 'WHATSAPP_ACK_TIMEOUT',
@@ -494,7 +504,7 @@ async function sendMessage(req, res) {
       }
     }
 
-    if (!deliveryConfirmed && !sendResult?.key?.id && !whatsappMessageId) {
+    if (!sendResult?.key?.id && !whatsappMessageId) {
       return res.status(502).json({
         chatId: normalizeChatId(normalizedPhone),
         code: 'WHATSAPP_ACK_TIMEOUT',
