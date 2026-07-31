@@ -2,14 +2,16 @@ const { Client } = require('ssh2');
 const conn = new Client();
 
 const cmd = [
-  'echo "=== /usr/local listing ==="',
-  'ls -la /usr/local/ 2>&1',
-  'echo "=== root listing ==="',
-  'ls -la / 2>&1',
-  'echo "=== www listing ==="',
-  'ls -la /www/ 2>&1',
-  'echo "=== www/server listing ==="',
-  'ls -la /www/server/ 2>&1',
+  'echo "=== PM2 Status ==="',
+  'pm2 status',
+  'echo "\\n=== PM2 Logs ==="',
+  'pm2 logs --nostream --lines 20',
+  'echo "\\n=== API Health Check ==="',
+  'curl -s http://localhost:4025/health',
+  'echo "\\n\\n=== E2E Smoke Test ==="',
+  'curl -s -X POST http://localhost:4025/api/system/e2e-smoke | grep -o \'"healthScore":[0-9]*\'',
+  'echo "\\n\\n=== AI Provider Keys in DB ==="',
+  'su - postgres -c "psql -d zapai_crm -c \\"SELECT provider, enabled, model FROM provider_keys;\\""'
 ].join(' && ');
 
 conn.on('ready', () => {
