@@ -363,7 +363,7 @@ async function sendMessage(req, res) {
     });
 
     console.log('[WHATSAPP-SEND-RESULT]', {
-      ackStatus: ackConfirmation?.status || 'timeout',
+      ackStatus: 'async_pending',
       messageId: whatsappMessageId,
       remoteJid: transportRemoteJid,
       requestedTarget: targetJidOrPhone,

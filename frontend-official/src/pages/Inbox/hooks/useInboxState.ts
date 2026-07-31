@@ -1423,6 +1423,21 @@ export function useInboxState() {
     await loadConversationMessages(selectedConversation.id, { force: true });
   }, [loadConversationMessages, selectedConversation?.id]);
 
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        void handleRetryConversations();
+        if (selectedConversation?.id) {
+          void handleRetryMessages();
+        }
+      }
+    };
+
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    return () => document.removeEventListener("visibilitychange", handleVisibilityChange);
+  }, [handleRetryConversations, handleRetryMessages, selectedConversation?.id]);
+
+
   const handleLoadOlderMessages = useCallback(async () => {
     if (!selectedConversation?.id || !messages.length || loadingOlderMessages || !hasMoreMessages) return;
 
