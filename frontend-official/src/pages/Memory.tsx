@@ -49,37 +49,7 @@ import {
   Bar
 } from "recharts";
 
-const DEMO_ANALYTICS: MemoryAnalytics = {
-  totalContacts: 18,
-  totalMessages: 264,
-  totalAudioRequests: 14,
-  sentiments: {
-    positive: 11,
-    neutral: 5,
-    negative: 2
-  },
-  intents: {
-    "Dúvida Comercial": 8,
-    "Suporte Técnico": 4,
-    "Fechamento de Venda": 5,
-    "Reclamação": 1
-  },
-  topTags: [
-    { tag: "VIP", count: 6 },
-    { tag: "Lead Quente", count: 5 },
-    { tag: "Cliente Antigo", count: 4 },
-    { tag: "Pós-Venda", count: 3 }
-  ]
-};
-
-const DEMO_TOKEN_HISTORY = [
-  { date: "21/05", tokens: 8400, cost: 0.016 },
-  { date: "22/05", tokens: 12500, cost: 0.025 },
-  { date: "23/05", tokens: 11100, cost: 0.022 },
-  { date: "24/05", tokens: 19400, cost: 0.038 },
-  { date: "25/05", tokens: 23200, cost: 0.046 },
-  { date: "26/05", tokens: 27800, cost: 0.055 }
-];
+// Constants removed. Using real analytics from API.
 
 const SENTIMENT_COLORS = {
   positive: "#10b981", // Emerald 500
@@ -208,24 +178,27 @@ export default function Memory() {
 
   // Determine if using demo data or real data
   const isDemoData = !analytics || analytics.totalContacts === 0;
-  const activeAnalytics = isDemoData ? DEMO_ANALYTICS : analytics!;
 
-  // Prepare sentiment chart data
+  // Prepare sentiment data
   const sentimentData = [
-    { name: "Positivo", value: activeAnalytics.sentiments?.positive || 0, color: SENTIMENT_COLORS.positive },
-    { name: "Neutro", value: activeAnalytics.sentiments?.neutral || 0, color: SENTIMENT_COLORS.neutral },
-    { name: "Negativo", value: activeAnalytics.sentiments?.negative || 0, color: SENTIMENT_COLORS.negative }
-  ].filter(item => item.value > 0);
+    { name: "Positivo", value: analytics?.sentiments?.positive || 0, color: SENTIMENT_COLORS.positive },
+    { name: "Neutro", value: analytics?.sentiments?.neutral || 0, color: SENTIMENT_COLORS.neutral },
+    { name: "Negativo", value: analytics?.sentiments?.negative || 0, color: SENTIMENT_COLORS.negative }
+  ].filter(d => d.value > 0);
 
-  // Prepare intents chart data
-  const intentData = Object.entries(activeAnalytics.intents || {}).map(([name, value]) => ({
-    name,
-    value
-  })).sort((a, b) => b.value - a.value).slice(0, 5);
+  const intentData = Object.entries(analytics?.intents || {})
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 5)
+    .map(([name, value], i) => ({
+      name,
+      value,
+      color: ["#3b82f6", "#10b981", "#f59e0b", "#a855f7", "#ec4899"][i % 5]
+    }));
 
-  // Simulated metrics for premium feel
-  const estimatedTokens = activeAnalytics.totalMessages * 240;
-  const estimatedCost = (estimatedTokens * 0.000002).toFixed(4);
+  // Create a placeholder token history based on today if we don't have historical data yet
+  const tokenHistory = [
+    { date: "Hoje", tokens: analytics?.totalTokens || 0, cost: ((analytics?.totalTokens || 0) / 1000) * 0.002 }
+  ];
 
   return (
     <div className="flex flex-1 flex-col overflow-y-auto">
@@ -263,72 +236,75 @@ export default function Memory() {
           <div className="space-y-6">
             
             {/* Enterprise KPIs Banner */}
-            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-              <Card className="metric-card rounded-2xl border-border/70 bg-card/85 relative overflow-hidden">
+            <div className="grid gap-4 md:grid-cols-4">
+              <Card className="glass-card rounded-2xl border-border/70 border-l-4 border-l-emerald-500 overflow-hidden shadow-sm">
                 <CardContent className="p-5 flex items-center justify-between">
-                  <div className="space-y-1">
-                    <p className="text-[11px] uppercase tracking-wide text-muted-foreground font-semibold">Contatos Aprendidos</p>
-                    <p className="text-2xl font-bold font-display">{activeAnalytics.totalContacts}</p>
-                    <p className="text-[10px] text-emerald-500 flex items-center gap-1">
-                      <TrendUp className="h-3 w-3" /> Cognição ativa
-                    </p>
+                  <div>
+                    <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-1">Contatos Aprendidos</p>
+                    <div className="flex items-baseline gap-2">
+                      <h3 className="text-3xl font-display font-black text-foreground">{analytics?.totalContacts || 0}</h3>
+                      <span className="text-[10px] font-semibold text-emerald-500 flex items-center gap-0.5">
+                        <TrendUp className="h-3 w-3" /> Cognição ativa
+                      </span>
+                    </div>
                   </div>
-                  <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary">
-                    <Brain className="h-5 w-5" weight="fill" />
+                  <div className="h-10 w-10 rounded-full bg-emerald-500/10 flex items-center justify-center text-emerald-500">
+                    <Brain className="h-5 w-5" />
                   </div>
                 </CardContent>
               </Card>
 
-              <Card className="metric-card rounded-2xl border-border/70 bg-card/85 relative overflow-hidden">
+              <Card className="glass-card rounded-2xl border-border/70 shadow-sm">
                 <CardContent className="p-5 flex items-center justify-between">
-                  <div className="space-y-1">
-                    <p className="text-[11px] uppercase tracking-wide text-muted-foreground font-semibold">Mensagens na Memória</p>
-                    <p className="text-2xl font-bold font-display">{activeAnalytics.totalMessages}</p>
-                    <p className="text-[10px] text-muted-foreground">Fatos extraídos de chats</p>
+                  <div>
+                    <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-1">Mensagens na Memória</p>
+                    <div className="flex items-baseline gap-2">
+                      <h3 className="text-3xl font-display font-black text-foreground">{analytics?.totalMessages || 0}</h3>
+                    </div>
+                    <p className="text-[10px] text-muted-foreground mt-1">Fatos extraídos de chats</p>
                   </div>
-                  <div className="h-10 w-10 rounded-xl bg-secondary/15 flex items-center justify-center text-secondary">
-                    <ChatCircle className="h-5 w-5" weight="fill" />
+                  <div className="h-10 w-10 rounded-full bg-secondary/10 flex items-center justify-center text-secondary">
+                    <ChatCircle className="h-5 w-5" />
                   </div>
                 </CardContent>
               </Card>
 
-              <Card className="metric-card rounded-2xl border-border/70 bg-card/85 relative overflow-hidden">
+              <Card className="glass-card rounded-2xl border-border/70 shadow-sm">
                 <CardContent className="p-5 flex items-center justify-between">
-                  <div className="space-y-1">
-                    <p className="text-[11px] uppercase tracking-wide text-muted-foreground font-semibold">Tokens Estimados</p>
-                    <p className="text-2xl font-bold font-display">
-                      {estimatedTokens.toLocaleString()}
-                    </p>
-                    <p className="text-[10px] text-muted-foreground">Uso de contexto estimado</p>
+                  <div>
+                    <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-1">Tokens Estimados</p>
+                    <div className="flex items-baseline gap-2">
+                      <h3 className="text-3xl font-display font-black text-foreground">{(analytics?.totalTokens || 0).toLocaleString()}</h3>
+                    </div>
+                    <p className="text-[10px] text-muted-foreground mt-1">Uso de contexto estimado</p>
                   </div>
-                  <div className="h-10 w-10 rounded-xl bg-amber-500/10 flex items-center justify-center text-amber-500">
-                    <Cpu className="h-5 w-5" weight="fill" />
+                  <div className="h-10 w-10 rounded-full bg-amber-500/10 flex items-center justify-center text-amber-500">
+                    <Cpu className="h-5 w-5" />
                   </div>
                 </CardContent>
               </Card>
 
-              <Card className="metric-card rounded-2xl border-border/70 bg-card/85 relative overflow-hidden">
+              <Card className="glass-card rounded-2xl border-border/70 shadow-sm">
                 <CardContent className="p-5 flex items-center justify-between">
-                  <div className="space-y-1">
-                    <p className="text-[11px] uppercase tracking-wide text-muted-foreground font-semibold">Custo Contextual</p>
-                    <p className="text-2xl font-bold font-display">${estimatedCost}</p>
-                    <p className="text-[10px] text-emerald-500 flex items-center gap-0.5">
-                      <Sparkle className="h-3 w-3" weight="fill" /> Otimização ativa
-                    </p>
+                  <div>
+                    <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-1">Custo Contextual</p>
+                    <div className="flex items-baseline gap-2">
+                      <h3 className="text-3xl font-display font-black text-foreground">${(((analytics?.totalTokens || 0) / 1000) * 0.002).toFixed(4)}</h3>
+                      <span className="text-[10px] font-semibold text-emerald-500 flex items-center gap-0.5">
+                        <Sparkle className="h-3 w-3" /> Otimização ativa
+                      </span>
+                    </div>
                   </div>
-                  <div className="h-10 w-10 rounded-xl bg-emerald-500/10 flex items-center justify-center text-emerald-500">
-                    <Coins className="h-5 w-5" weight="fill" />
+                  <div className="h-10 w-10 rounded-full bg-emerald-500/10 flex items-center justify-center text-emerald-500">
+                    <Coins className="h-5 w-5" />
                   </div>
                 </CardContent>
               </Card>
             </div>
 
-            {isDemoData && (
-              <div className="bg-amber-500/10 border border-amber-500/20 text-amber-400 px-4 py-2.5 rounded-xl text-xs flex items-center gap-2">
-                <Sparkle className="h-4 w-4 animate-pulse" weight="fill" />
-                <span><strong>Visualização de Demonstração:</strong> Como não há memórias criadas nas sessões de teste locais, os gráficos exibem métricas e tokens simulados para demonstração da interface.</span>
-              </div>
-            )}
+            <div className="flex gap-4 items-center">
+              <Button onClick={() => setRetryCount(r => r + 1)} variant="outline" size="sm" className="h-8">Atualizar Dashboard</Button>
+            </div>
 
             {/* Main Content Layout */}
             <div className="grid gap-6 md:grid-cols-3">
@@ -453,7 +429,7 @@ export default function Memory() {
                         </ResponsiveContainer>
                         <div className="absolute flex flex-col items-center">
                           <span className="text-[10px] uppercase text-muted-foreground">Total</span>
-                          <span className="text-lg font-bold">{activeAnalytics.totalContacts}</span>
+                          <span className="text-lg font-bold">{analytics?.totalContacts || 0}</span>
                         </div>
                       </div>
                     ) : (
@@ -634,8 +610,8 @@ export default function Memory() {
                                 }} 
                               />
                               <Bar dataKey="value" fill="#3b82f6" radius={[0, 4, 4, 0]} barSize={12}>
-                                {intentData.map((_entry, index) => (
-                                  <Cell key={`cell-${index}`} fill={index === 0 ? "#3b82f6" : index === 1 ? "#10b981" : index === 2 ? "#f59e0b" : "#8b5cf6"} />
+                                {intentData.map((entry, index) => (
+                                  <Cell key={`cell-${index}`} fill={entry.color} />
                                 ))}
                               </Bar>
                             </BarChart>
@@ -658,32 +634,53 @@ export default function Memory() {
                       </div>
                       <CardDescription className="text-xs">Volume de memória sincronizado por dia.</CardDescription>
                     </CardHeader>
-                    <CardContent className="p-3">
-                      <div className="h-44 w-full">
-                        <ResponsiveContainer width="100%" height="100%">
-                          <AreaChart data={DEMO_TOKEN_HISTORY} margin={{ left: -15, right: 5, top: 10, bottom: 5 }}>
-                            <defs>
-                              <linearGradient id="colorTokens" x1="0" y1="0" x2="0" y2="1">
-                                <stop offset="5%" stopColor="#10b981" stopOpacity={0.3}/>
-                                <stop offset="95%" stopColor="#10b981" stopOpacity={0}/>
-                              </linearGradient>
-                            </defs>
-                            <CartesianGrid strokeDasharray="3 3" stroke="rgba(148, 163, 184, 0.08)" />
-                            <XAxis dataKey="date" stroke="rgba(148, 163, 184, 0.4)" fontSize={9} />
-                            <YAxis stroke="rgba(148, 163, 184, 0.4)" fontSize={9} />
-                            <RechartsTooltip 
-                              contentStyle={{ 
-                                backgroundColor: "rgba(30, 41, 59, 0.9)", 
-                                border: "1px solid rgba(148, 163, 184, 0.2)",
-                                borderRadius: "8px",
-                                fontSize: "11px",
-                                color: "#fff"
-                              }} 
-                            />
-                            <Area type="monotone" dataKey="tokens" name="Tokens" stroke="#10b981" fillOpacity={1} fill="url(#colorTokens)" strokeWidth={2} />
-                          </AreaChart>
-                        </ResponsiveContainer>
-                      </div>
+                    <CardContent className="p-4 flex flex-col justify-end h-[240px]">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <AreaChart data={tokenHistory} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                          <defs>
+                            <linearGradient id="colorTokens" x1="0" y1="0" x2="0" y2="1">
+                              <stop offset="5%" stopColor="#10b981" stopOpacity={0.3} />
+                              <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
+                            </linearGradient>
+                          </defs>
+                          <CartesianGrid strokeDasharray="3 3" stroke="#334155" opacity={0.3} vertical={false} />
+                          <XAxis 
+                            dataKey="date" 
+                            stroke="#64748b" 
+                            fontSize={9} 
+                            tickLine={false} 
+                            axisLine={false}
+                            dy={10}
+                          />
+                          <YAxis 
+                            stroke="#64748b" 
+                            fontSize={9} 
+                            tickLine={false} 
+                            axisLine={false}
+                            tickFormatter={(value) => `${value}`}
+                          />
+                          <RechartsTooltip 
+                            contentStyle={{ 
+                              backgroundColor: "rgba(30, 41, 59, 0.9)", 
+                              border: "1px solid rgba(148, 163, 184, 0.2)",
+                              borderRadius: "8px",
+                              color: "#fff",
+                              fontSize: "11px"
+                            }} 
+                            itemStyle={{ color: "#10b981", fontWeight: 600 }}
+                            formatter={(value: number) => [`${value.toLocaleString()} tokens`, 'Uso']}
+                            labelStyle={{ color: "#94a3b8", marginBottom: "4px" }}
+                          />
+                          <Area 
+                            type="monotone" 
+                            dataKey="tokens" 
+                            stroke="#10b981" 
+                            strokeWidth={2}
+                            fillOpacity={1} 
+                            fill="url(#colorTokens)" 
+                          />
+                        </AreaChart>
+                      </ResponsiveContainer>
                     </CardContent>
                   </Card>
 

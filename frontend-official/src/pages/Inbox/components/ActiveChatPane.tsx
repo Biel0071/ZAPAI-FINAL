@@ -143,6 +143,7 @@ interface ActiveChatPaneProps {
   aiAgents?: any[];
   loadingAgents?: boolean;
   handleSetConversationAgent?: (agentName: string) => Promise<void>;
+  aiRuntime?: any;
 }
 
 const MOBILE_TOUCH_TARGET_CLASS = "h-11 min-h-11";
@@ -237,6 +238,7 @@ export function ActiveChatPane({
   aiAgents = [],
   loadingAgents = false,
   handleSetConversationAgent,
+  aiRuntime,
 }: ActiveChatPaneProps) {
   const navigate = useNavigate();
 
@@ -289,8 +291,10 @@ export function ActiveChatPane({
     if (item.id) {
       await apiService.executeQuickReplyFlow(item.id, {
         phone: selectedConversation.phone,
+        sessionId: selectedConversation.sessionId || undefined,
         companyId: selectedConversation.tenantId || "default",
         overrideDelayMs: customDelayMs,
+        item: item,
       });
     } else {
       setMessageInput(item.text);
@@ -788,6 +792,26 @@ export function ActiveChatPane({
             </div>
           )}
 
+          {/* Per-contact AI toggle banner when global is OFF */}
+          {aiRuntime && !aiRuntime.globalEnabled && selectedConversation && selectedConversation.aiEnabled !== true && (
+            <div className="border-b border-primary/20 bg-primary/5 px-4 py-2 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs">
+              <div className="flex items-center gap-2 text-foreground">
+                <Robot className="h-4 w-4 text-primary shrink-0" />
+                <span>
+                  A IA global está <strong>desativada</strong>. Deseja ativar a Inteligência Artificial <strong className="text-primary">apenas para este contato</strong>?
+                </span>
+              </div>
+              <Button
+                type="button"
+                size="sm"
+                className="h-7 text-[10px] shrink-0"
+                onClick={() => handleSetConversationAiEnabled(true)}
+              >
+                Ativar IA neste chat
+              </Button>
+            </div>
+          )}
+
           {pendingBackgroundUpdates > 0 && (
             <div className="border-b border-border bg-muted/40 px-4 py-2">
               <div className="mx-auto flex max-w-3xl items-center justify-between gap-2">
@@ -1057,7 +1081,7 @@ export function ActiveChatPane({
               )}
               {!selectedConversation?.isBlocked && canSendMessages && !isRecording && (() => {
                 const list = (quickReplies && quickReplies.length > 0)
-                  ? quickReplies.map(qr => typeof qr === "string" ? { id: "custom", label: qr, text: qr } : { ...qr, label: qr.cmd || qr.label || qr.text || qr.title, text: qr.text || qr.value || qr.label || qr.cmd })
+                  ? quickReplies.map(qr => typeof qr === "string" ? { id: "custom", label: qr, text: qr } : { ...qr, label: qr.cmd || qr.label || qr.title || qr.text, text: qr.text || qr.value || "" })
                   : [
                       { id: "def_1", label: "Olá, como posso ajudar?", text: "Olá, como posso ajudar?" },
                       { id: "def_2", label: "Aguarde um momento por favor.", text: "Aguarde um momento por favor." },

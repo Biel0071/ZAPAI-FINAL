@@ -1688,11 +1688,11 @@ export function useInboxState() {
   }, [analyzeCurrentConversation]);
 
   useEffect(() => {
-    if (!selectedConversation || messages.length < 5) return;
+    if (!selectedConversation || messages.length === 0) return;
     if (summaryBusyRef.current) return;
 
     const alreadySummarized = conversationControls[selectedConversation.id]?.summarizedMessageCount ?? 0;
-    if (messages.length - alreadySummarized < 5) return;
+    if (messages.length === alreadySummarized) return; // Only run if there are new messages
 
     summaryBusyRef.current = true;
 
@@ -2080,10 +2080,7 @@ export function useInboxState() {
   const handleSetConversationAiEnabledById = useCallback(async (conversationId: string, enabled: boolean) => {
     const targetConversation = conversationsRef.current.find((conversation) => conversation.id === conversationId);
     if (!targetConversation || updatingAiToggle) return;
-    if (enabled && !aiRuntime.globalEnabled) {
-      showErrorToast("A IA global está desativada. Ative-a nas configurações.");
-      return;
-    }
+
     setUpdatingAiToggle(true);
 
     try {

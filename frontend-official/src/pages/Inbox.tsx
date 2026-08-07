@@ -583,6 +583,7 @@ export default function Inbox() {
             inboxRuntimeState={state.inboxRuntimeState}
             canUseBackend={state.canUseBackend}
             canSendMessages={state.canSendMessages}
+            aiRuntime={state.aiRuntime}
             aiEnabledForConversation={state.aiEnabledForConversation}
             conversationAiOverrideEnabled={state.conversationAiOverrideEnabled}
             handleSetConversationAiEnabled={state.handleSetConversationAiEnabled}

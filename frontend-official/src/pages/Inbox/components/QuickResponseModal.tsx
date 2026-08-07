@@ -34,6 +34,12 @@ export function QuickResponseModal({ isOpen, onClose, quickReply, onDispatch }: 
   const { toast } = useToast();
   const [dispatching, setDispatching] = useState(false);
   const [delaySeconds, setDelaySeconds] = useState(2);
+  const [editableText, setEditableText] = useState(quickReply?.text || "");
+
+  // Update text when modal opens with a new quick reply
+  React.useEffect(() => {
+    if (quickReply) setEditableText(quickReply.text || "");
+  }, [quickReply]);
 
   if (!quickReply) return null;
 
@@ -42,18 +48,27 @@ export function QuickResponseModal({ isOpen, onClose, quickReply, onDispatch }: 
     : [
         {
           type: (quickReply.mediaType || (quickReply.mediaUrl ? "image" : "text")) as any,
-          value: quickReply.mediaUrl || quickReply.fileUrl || quickReply.text,
-          caption: quickReply.text,
+          value: quickReply.mediaUrl || quickReply.fileUrl || editableText,
+          caption: editableText,
           delayMs: 1500,
         }
       ];
 
   const hasMedia = stepsList.some((s) => s.type !== "text") || Boolean(quickReply.mediaUrl || quickReply.fileUrl);
+  const totalTimeSeconds = stepsList.length * delaySeconds;
 
   const handleSend = async () => {
     setDispatching(true);
     try {
-      await onDispatch(quickReply, delaySeconds * 1000);
+      const payloadToDispatch = { ...quickReply, text: editableText };
+      if (!payloadToDispatch.steps || payloadToDispatch.steps.length === 0) {
+         payloadToDispatch.text = editableText;
+      } else {
+         // Update caption or text of the steps to match edited text if needed
+         // For simplicity, we just pass the edited text at the top level
+         payloadToDispatch.text = editableText;
+      }
+      await onDispatch(payloadToDispatch, delaySeconds * 1000);
       toast({
         title: "Disparo Iniciado!",
         description: `O fluxo "${quickReply.label}" foi disparado para o cliente.`,
@@ -91,23 +106,29 @@ export function QuickResponseModal({ isOpen, onClose, quickReply, onDispatch }: 
           </div>
 
           <div className="space-y-1">
-            <Label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Conteúdo do Envio</Label>
-            <div className="bg-background/60 p-2.5 rounded-lg border border-border/50 space-y-2 font-sans">
-              <p className="whitespace-pre-wrap text-foreground/90 leading-relaxed text-[11px]">
-                {quickReply.text}
-              </p>
+            <Label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Conteúdo do Envio (Editável)</Label>
+            <div className="bg-background/60 p-2.5 rounded-lg border border-border/50 space-y-2 font-sans flex flex-col">
+              <textarea
+                value={editableText}
+                onChange={(e) => setEditableText(e.target.value)}
+                className="w-full bg-transparent border-0 outline-none resize-none text-foreground/90 leading-relaxed text-[11px] min-h-[60px] focus:ring-1 focus:ring-emerald-500/50 rounded"
+                placeholder="Digite a mensagem..."
+              />
 
               {hasMedia && (
-                <div className="pt-2 border-t border-border/30 space-y-1">
-                  <span className="text-[9px] font-bold text-emerald-400 uppercase tracking-wider block">Mídias e Anexos Inclusos:</span>
+                <div className="pt-2 border-t border-border/30 space-y-2">
+                  <span className="text-[9px] font-bold text-emerald-400 uppercase tracking-wider block">Mídias Inclusas:</span>
                   <div className="flex flex-wrap gap-2 pt-0.5">
                     {stepsList.map((st, i) => (
-                      <div key={i} className="flex items-center gap-1.5 px-2 py-1 bg-emerald-500/10 border border-emerald-500/30 rounded text-[10px] text-emerald-300 font-semibold">
-                        {st.type === "image" && <ImageIcon className="h-3.5 w-3.5 text-emerald-400" />}
-                        {st.type === "video" && <Video className="h-3.5 w-3.5 text-emerald-400" />}
-                        {st.type === "audio" && <Mic className="h-3.5 w-3.5 text-emerald-400" />}
-                        {st.type === "document" && <FileText className="h-3.5 w-3.5 text-emerald-400" />}
-                        <span className="capitalize">{st.type !== "text" ? st.type : "Mídia"}</span>
+                      <div key={i} className="flex items-center gap-2 p-1.5 bg-emerald-500/10 border border-emerald-500/30 rounded-md text-[10px] text-emerald-300 font-semibold max-w-[150px]">
+                        {st.type === "image" && st.value && (
+                           <img src={st.value} alt="Preview" className="h-8 w-8 object-cover rounded bg-emerald-900/50" />
+                        )}
+                        {st.type === "image" && !st.value && <ImageIcon className="h-5 w-5 text-emerald-400 shrink-0" />}
+                        {st.type === "video" && <Video className="h-5 w-5 text-emerald-400 shrink-0" />}
+                        {st.type === "audio" && <Mic className="h-5 w-5 text-emerald-400 shrink-0" />}
+                        {st.type === "document" && <FileText className="h-5 w-5 text-emerald-400 shrink-0" />}
+                        <span className="capitalize truncate flex-1">{st.type !== "text" ? st.type : "Mídia"}</span>
                       </div>
                     ))}
                   </div>
@@ -118,8 +139,11 @@ export function QuickResponseModal({ isOpen, onClose, quickReply, onDispatch }: 
 
           <div className="space-y-1 pt-1">
             <div className="flex items-center justify-between">
-              <Label className="text-[10px] font-bold text-muted-foreground">Intervalo de Digitação (segundos)</Label>
-              <span className="text-[10px] font-mono text-emerald-400 font-bold">{delaySeconds}s</span>
+              <Label className="text-[10px] font-bold text-muted-foreground">Intervalo entre mensagens (segundos)</Label>
+              <div className="flex flex-col items-end">
+                <span className="text-[10px] font-mono text-emerald-400 font-bold">{delaySeconds}s por etapa</span>
+                <span className="text-[9px] text-muted-foreground mt-0.5 font-semibold">Tempo Total Estimado: <strong className="text-primary">{totalTimeSeconds}s</strong></span>
+              </div>
             </div>
             <Input
               type="number"

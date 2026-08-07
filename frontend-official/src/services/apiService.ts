@@ -1482,6 +1482,14 @@ export const apiService = {
       timeoutMs: 45_000,
     }),
 
+  analyzeConversation: (conversationId: string) =>
+    request<{ success: boolean; data?: any; error?: string }>({
+      endpoint: "/ai/analyze-conversation",
+      method: "POST",
+      body: { conversationId },
+      timeoutMs: 30_000,
+    }),
+
   evolveAgent: (payload: { agentKey: string; instruction: string; apply?: boolean; changes?: any; sourceDescription?: string }) =>
     request<{ success: boolean; preview?: any; agent?: any; error?: string }>({
       endpoint: "/ai/agent-evolve",

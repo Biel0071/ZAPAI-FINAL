@@ -55,6 +55,9 @@ export function FlowExecutionBanner({ flowData, onCancelFlow }: FlowExecutionBan
     Math.round(((flowData.currentStep || 1) / (flowData.totalSteps || 1)) * 100)
   );
 
+  const estimatedSecondsLeft = Math.max(0, (flowData.totalSteps - flowData.currentStep) * 1.5);
+  const isPaused = false; // Placeholder for future state
+
   const confirmCancel = async () => {
     setCancelling(true);
     try {
@@ -101,16 +104,54 @@ export function FlowExecutionBanner({ flowData, onCancelFlow }: FlowExecutionBan
         </div>
 
         <div className="flex items-center gap-3 w-full sm:w-auto justify-between sm:justify-end border-t sm:border-t-0 border-border/30 pt-1.5 sm:pt-0">
-          <div className="flex items-center gap-1.5 text-emerald-400 font-mono font-bold text-xs bg-emerald-950/60 px-2 py-1 rounded border border-emerald-800/50">
-            <Clock className="h-3.5 w-3.5" />
-            <span>{formatTimer(elapsedSeconds)}</span>
+          <div className="flex flex-col items-end mr-2">
+            <span className="text-[10px] text-muted-foreground uppercase tracking-wider font-bold">Tempo Decorrido</span>
+            <div className="flex items-center gap-1.5 text-emerald-400 font-mono font-bold text-xs bg-emerald-950/60 px-2 py-1 rounded border border-emerald-800/50">
+              <Clock className="h-3 w-3" />
+              <span>{formatTimer(elapsedSeconds)}</span>
+            </div>
           </div>
 
-          <div className="w-24 bg-muted/50 rounded-full h-1.5 overflow-hidden border border-border/40 hidden md:block">
-            <div
-              className="bg-emerald-500 h-full transition-all duration-300 ease-out"
-              style={{ width: `${progressPercent}%` }}
-            />
+          <div className="flex flex-col items-end mr-2">
+            <span className="text-[10px] text-muted-foreground uppercase tracking-wider font-bold">Tempo até o final</span>
+            <div className="flex items-center gap-1.5 text-blue-400 font-mono font-bold text-xs bg-blue-950/60 px-2 py-1 rounded border border-blue-800/50">
+              <Clock className="h-3 w-3" />
+              <span>{formatTimer(Math.round(estimatedSecondsLeft))}</span>
+            </div>
+          </div>
+
+          <div className="flex flex-col gap-1 items-end mr-4 hidden md:flex w-24">
+            <div className="flex justify-between w-full text-[10px] text-muted-foreground font-bold">
+              <span>Progresso</span>
+              <span>{progressPercent}%</span>
+            </div>
+            <div className="w-full bg-muted/50 rounded-full h-1.5 overflow-hidden border border-border/40">
+              <div
+                className="bg-emerald-500 h-full transition-all duration-300 ease-out"
+                style={{ width: `${progressPercent}%` }}
+              />
+            </div>
+          </div>
+
+          <div className="flex gap-1.5 items-center">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => toast({ title: "Pausar", description: "Função de pausar em breve." })}
+              className="h-7 text-[11px] px-2.5 rounded-lg font-semibold bg-background hover:bg-muted"
+            >
+              Pausar
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => toast({ title: "Reiniciar", description: "Função de reiniciar em breve." })}
+              className="h-7 text-[11px] px-2.5 rounded-lg font-semibold bg-background hover:bg-muted"
+            >
+              Reiniciar
+            </Button>
           </div>
 
           <Button

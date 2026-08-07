@@ -506,6 +506,13 @@ export const MessageRow = memo(function MessageRow({
           )}
 
           <div className={cn("mt-1 flex items-center gap-1.5 text-[10px]", message.fromMe ? "justify-end text-primary-foreground/70" : "text-muted-foreground")}>
+            {message.fromMe && (
+              isAiMessage ? (
+                <Robot className="h-3.5 w-3.5 text-emerald-400 shrink-0" weight="fill" title="Enviado pela IA" />
+              ) : (
+                <User className="h-3.5 w-3.5 text-blue-400 shrink-0" weight="fill" title="Enviado pelo Atendente" />
+              )
+            )}
             <span>{formatTime(message.createdAt)}</span>
             {message.fromMe && (
               <span className="flex items-center shrink-0 ml-0.5" aria-label={statusMeta.label} title={statusMeta.label}>
@@ -607,13 +614,7 @@ export const MessageRow = memo(function MessageRow({
           </div>
         )}
       </div>
-      {message.fromMe && (
-        <div className="flex-shrink-0 mt-0.5 flex flex-col items-center gap-1 z-10 relative">
-          <div className="h-6 w-6 flex items-center justify-center rounded-full bg-secondary text-sm border border-border shadow-sm">
-            {isAiMessage ? "🤖" : "👤"}
-          </div>
-        </div>
-      )}
+      {/* Remover avatar externo para message.fromMe, já que agora está na bolha */}
     </div>
   );
 }, (prevProps, nextProps) => {

@@ -58,27 +58,69 @@ router.get('/ai/error-logs', aiController.getFrontendErrorLogs);
 router.post('/ai/voices/test', aiController.testVoice);
 router.post('/ai/analyze-media', aiController.analyzeUploadedMedia);
 router.post('/ai/generate-followup-prompt', aiController.generateFollowUpPrompt);
+router.post('/ai/agent-evolve', aiController.evolveAgent);
+router.get('/ai/agent-evolution/:agentKey', aiController.getAgentEvolution);
+router.post('/ai/agent-detect-gaps/:agentKey', aiController.detectAgentGaps);
+router.get('/ai/agent-learning/:agentKey', aiController.getAgentLearning);
+router.post('/ai/agent-learning/:id/answer', aiController.answerLearningEvent);
+router.post('/ai/agent-learning/:id/apply', aiController.applyLearningAnswer);
+router.post('/ai/agent-learning/:id/ignore', aiController.ignoreLearningEvent);
 
 // Conversation analysis endpoint used by frontend lead panel
 router.post('/ai/analyze-conversation', async (req, res) => {
   try {
-    const { conversationId } = req.body;
+    const { conversationId, messages } = req.body;
     if (!conversationId) return res.status(400).json({ error: 'conversationId required' });
+    
     const pool = req.app.get('pool');
     let conversation = null;
+    let phone = null;
+    let name = null;
+    const companyId = req.companyId || process.env.DEFAULT_COMPANY_ID || 'default';
+
     if (pool) {
       const result = await pool.query(
-        `SELECT id, summary, lead_temperature, lead_intent, lead_confidence, funnel_stage, next_action, tags FROM conversations WHERE id = $1`,
+        `SELECT c.id, c.summary, c.lead_temperature, c.lead_intent, c.lead_confidence, c.funnel_stage, c.next_action, c.tags, l.phone, l.name 
+         FROM conversations c
+         LEFT JOIN leads l ON c.lead_id = l.id
+         WHERE c.id = $1`,
         [conversationId]
       );
       conversation = result.rows[0] || null;
+      if (conversation) {
+        phone = conversation.phone;
+        name = conversation.name;
+      }
     }
+
+    // Feed the messages into AI Memory Engine to evolve the agent and global context
+    if (messages && messages.length > 0) {
+      const aiMemoryEngine = require('../services/aiMemoryEngine');
+      const store = req.app.locals.store || { conversationMemory: [] };
+      
+      for (const msg of messages) {
+        if (!msg.text) continue;
+        aiMemoryEngine.updateConversationMemory(store, {
+          contactId: phone || conversationId,
+          conversationId: conversationId,
+          phone: phone,
+          name: name || 'Contato',
+          direction: msg.fromMe ? 'outgoing' : 'incoming',
+          text: msg.text,
+          timestamp: new Date().toISOString()
+        });
+      }
+      
+      // Flush immediately to save the new intelligence
+      await aiMemoryEngine.flushMemoryToPostgres(store, companyId);
+    }
+
     res.json({
       success: true,
       data: conversation
         ? {
             conversationId,
-            summary: conversation.summary || 'Análise não disponível',
+            summary: conversation.summary || 'Análise atualizada na memória global',
             temperature: conversation.lead_temperature || 'cold',
             intent: conversation.lead_intent || 'unknown',
             confidence: conversation.lead_confidence || 0,
@@ -88,7 +130,7 @@ router.post('/ai/analyze-conversation', async (req, res) => {
           }
         : {
             conversationId,
-            summary: 'Conversa não encontrada',
+            summary: 'Conversa atualizada na memória global',
             temperature: 'cold',
             intent: 'unknown',
             confidence: 0,
