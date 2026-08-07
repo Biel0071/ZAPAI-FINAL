@@ -1004,11 +1004,6 @@ export function getSharedSocket(): Socket | null {
   return sharedSocket;
 }
 
-  if (!savedUrl) return;
-
-  const socket = ensureSharedSocket(savedUrl);
-  if (!socket.connected) socket.connect();
-}
 
 export function connectInboxSocket(params: {
   socketUrl: string;
