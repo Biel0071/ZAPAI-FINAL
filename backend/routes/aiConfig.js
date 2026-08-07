@@ -6,6 +6,7 @@ router.post('/ai/improve', aiConfigController.improve);
 router.get('/ai/memory', aiConfigController.getMemory);
 router.post('/ai/memory', aiConfigController.saveMemory);
 router.get('/ai/memory/analytics', aiConfigController.getMemoryAnalytics);
+router.get('/ai/analytics', aiConfigController.getMemoryAnalytics); // alias used by Memory.tsx
 router.get('/ai/memory/search', aiConfigController.searchMemory);
 router.post('/ai/memory/flush', aiConfigController.flushMemory);
 
