@@ -361,7 +361,7 @@ async function executeOutbound(item) {
   if (!ackEntry || ackEntry.status === messageAckPipeline.ACK_STATES.FAILED) {
     throw Object.assign(new Error(ackEntry ? 'WhatsApp rejected the message.' : 'WhatsApp server ACK timed out.'), {
       code: ackEntry ? 'WHATSAPP_SEND_REJECTED' : 'WHATSAPP_ACK_TIMEOUT',
-      nonRetryable: !ackEntry,
+      nonRetryable: true,
     });
   }
 

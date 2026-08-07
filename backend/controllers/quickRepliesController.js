@@ -74,6 +74,9 @@ async function executeQuickReplyFlow(req, res) {
         mediaUrl: requestItem?.mediaUrl || requestItem?.fileUrl,
         mediaType: requestItem?.mediaType,
       };
+    } else if (requestItem && requestItem.text) {
+      // User edited the quick reply text in the frontend modal
+      flow.text = requestItem.text;
     }
 
     const outboundQueueService = require('../services/outboundQueueService');
