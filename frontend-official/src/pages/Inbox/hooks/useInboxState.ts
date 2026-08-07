@@ -1983,6 +1983,16 @@ export function useInboxState() {
         const returnedMediaType = returnedMsg?.mediaType ?? attachment?.mediaType ?? optimistic.mediaType;
 
         setMessagesForConversation(selectedConversation.id, (prev) => {
+          if (realId && prev.some((m) => String(m.id) === String(realId))) {
+            const next = prev.filter((m) => m.id !== optimistic.id);
+            updateConversationMessageStore(
+              selectedConversation.id,
+              next,
+              messageCacheRef.current.get(selectedConversation.id)?.hasMore ?? hasMoreMessages,
+            );
+            return next;
+          }
+
           const next = prev.map((msg) => {
             if (msg.id === optimistic.id) {
               return {

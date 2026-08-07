@@ -22,6 +22,7 @@ export const LEGACY_MEDIA_PLACEHOLDERS = new Set([
   "[file]",
   "[document]",
   "[sticker]",
+  "[text]",
 ]);
 
 export function escapeRegExp(value: string): string {
