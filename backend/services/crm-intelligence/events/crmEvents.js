@@ -40,6 +40,5 @@ eventBus.on('crm.updated', (context) => {
       console.error('[CRMEvents] Falha ao emitir eventos de socket:', err.message);
     }
   });
-}
 
 module.exports = { initializeCRMEvents };
