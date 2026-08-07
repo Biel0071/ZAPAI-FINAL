@@ -38,6 +38,21 @@ const { processAI, testAIConnection, testProviderConnection } = require('../serv
 const aiLogService = require('../services/aiLogService');
 const { getCompanyId } = require('../services/tenantContext');
 
+// DB query helper — used by getAgentEvolution and similar direct-query functions
+async function dbQuery(sql, params) {
+  try {
+    const { query } = require('../config/database');
+    if (typeof query === 'function') {
+      return query(sql, params);
+    }
+    const { pool } = require('../config/database');
+    if (pool && typeof pool.query === 'function') {
+      return pool.query(sql, params);
+    }
+  } catch { /* ignore */ }
+  return { rows: [] };
+}
+
 
 function getStore(req) {
   return req.app.locals.store;
