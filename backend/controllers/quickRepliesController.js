@@ -96,7 +96,17 @@ async function executeQuickReplyFlow(req, res) {
       ];
     }
 
-    const totalSteps = rawSteps.length;
+    let validSteps = rawSteps.filter((step) => {
+      const isText = step.type === 'text' || (!step.type && !step.mediaUrl && !step.fileUrl);
+      const mediaPath = !isText ? (step.value || step.mediaUrl || step.fileUrl) : undefined;
+      return isText || Boolean(mediaPath);
+    });
+
+    if (validSteps.length === 0) {
+      return res.status(400).json({ error: 'Fluxo não contém etapas válidas para envio.' });
+    }
+
+    const totalSteps = validSteps.length;
     const flowName = flow.title || flow.label || flow.cmd || 'Resposta Rápida';
 
     flowTrackerService.startFlow({
@@ -111,8 +121,8 @@ async function executeQuickReplyFlow(req, res) {
     const enqueuedSteps = [];
     const overrideDelayMs = req.body.overrideDelayMs;
 
-    for (let index = 0; index < rawSteps.length; index++) {
-      const step = rawSteps[index];
+    for (let index = 0; index < validSteps.length; index++) {
+      const step = validSteps[index];
       const stepDelay = overrideDelayMs !== undefined 
         ? Number(overrideDelayMs) 
         : Number(step.delayMs || step.delay || 1500);

@@ -566,6 +566,23 @@ async function processOneItem() {
       item.sentAt = nowIso();
       item.updatedAt = nowIso();
       item.lastFailure = null;
+
+      if (item.metadata?.currentStep && item.metadata?.totalSteps) {
+        try {
+          const flowTrackerService = require('./flowTrackerService');
+          flowTrackerService.updateFlowStep({
+            chatId: item.phone,
+            currentStep: item.metadata.currentStep,
+            stepDescription: `Etapa ${item.metadata.currentStep} enviada.`,
+          });
+          if (Number(item.metadata.currentStep) >= Number(item.metadata.totalSteps)) {
+            flowTrackerService.finishFlow(item.phone);
+          }
+        } catch (trackerErr) {
+          console.error('[OUTBOUND_QUEUE] Failed to update flow tracker:', trackerErr.message);
+        }
+      }
+
       await saveQueueState();
     } catch (error) {
       item.attemptCount = Number(item.attemptCount || 0) + 1;
@@ -592,6 +609,15 @@ async function processOneItem() {
         item.state = STATES.DEAD_LETTER;
         item.deadLetterAt = nowIso();
         item.nextAttemptAt = null;
+        
+        if (item.metadata?.currentStep && item.metadata?.totalSteps) {
+          try {
+            const flowTrackerService = require('./flowTrackerService');
+            if (Number(item.metadata.currentStep) >= Number(item.metadata.totalSteps)) {
+              flowTrackerService.finishFlow(item.phone);
+            }
+          } catch (e) {}
+        }
       } else {
         item.state = STATES.FAILED;
         const delayMs = nextBackoffMs(item.attemptCount);

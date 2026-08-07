@@ -232,11 +232,18 @@ export const MessageRow = memo(function MessageRow({
     <div
       data-message-id={message.id}
       className={cn(
-        "flex group/bubble scroll-mt-28 rounded-lg transition-colors",
+        "flex gap-2 group/bubble scroll-mt-28 rounded-lg transition-colors",
         message.fromMe && "justify-end",
         isActiveSearchMatch && "bg-amber-400/10 ring-1 ring-amber-400/40",
       )}
     >
+      {!message.fromMe && (
+        <div className="flex-shrink-0 mt-0.5 flex flex-col items-center gap-1 z-10 relative">
+          <div className="h-6 w-6 flex items-center justify-center rounded-full bg-secondary text-sm border border-border shadow-sm">
+            🧑
+          </div>
+        </div>
+      )}
       <div className="relative pb-3 max-w-[80%]">
         <div
           className={cn(
@@ -499,22 +506,6 @@ export const MessageRow = memo(function MessageRow({
           )}
 
           <div className={cn("mt-1 flex items-center gap-1.5 text-[10px]", message.fromMe ? "justify-end text-primary-foreground/70" : "text-muted-foreground")}>
-            {isAiMessage && (
-              <span
-                className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-emerald-500/20 border border-emerald-500/40 shrink-0 shadow-sm text-[11px]"
-                title={`Mensagem gerada por IA${(message as any).agentName ? ` (${(message as any).agentName})` : ''}`}
-              >
-                🤖
-              </span>
-            )}
-            {message.fromMe && !isAiMessage && (
-              <span
-                className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-blue-500/20 border border-blue-500/40 shrink-0 shadow-sm text-[11px]"
-                title="Mensagem enviada por um atendente humano"
-              >
-                👤
-              </span>
-            )}
             <span>{formatTime(message.createdAt)}</span>
             {message.fromMe && (
               <span className="flex items-center shrink-0 ml-0.5" aria-label={statusMeta.label} title={statusMeta.label}>
@@ -616,6 +607,13 @@ export const MessageRow = memo(function MessageRow({
           </div>
         )}
       </div>
+      {message.fromMe && (
+        <div className="flex-shrink-0 mt-0.5 flex flex-col items-center gap-1 z-10 relative">
+          <div className="h-6 w-6 flex items-center justify-center rounded-full bg-secondary text-sm border border-border shadow-sm">
+            {isAiMessage ? "🤖" : "👤"}
+          </div>
+        </div>
+      )}
     </div>
   );
 }, (prevProps, nextProps) => {
