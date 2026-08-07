@@ -39,6 +39,7 @@ import { NewMessagesBanner } from "@/components/inbox/NewMessagesBanner";
 import { MessageRow } from "./MessageRow";
 import { FlowExecutionBanner, type FlowExecutionData } from "./FlowExecutionBanner";
 import { QuickResponseModal, type QuickResponseItem } from "./QuickResponseModal";
+import { getSharedSocket } from "../../../runtime/socket/socketManager";
 import { cn } from "@/lib/utils";
 import { apiService } from "@/services/apiService";
 import type { ChatMessage, Conversation } from "@/services/apiService";
@@ -268,7 +269,7 @@ export function ActiveChatPane({
       }
     };
 
-    const socket = (window as any).__socket || (globalThis as any).__socket;
+    const socket = getSharedSocket();
     if (socket && typeof socket.on === "function") {
       socket.on("flow:started", handleFlowStarted);
       socket.on("flow:step_updated", handleFlowUpdated);
@@ -289,6 +290,7 @@ export function ActiveChatPane({
       await apiService.executeQuickReplyFlow(item.id, {
         phone: selectedConversation.phone,
         companyId: selectedConversation.tenantId || "default",
+        overrideDelayMs: customDelayMs,
       });
     } else {
       setMessageInput(item.text);

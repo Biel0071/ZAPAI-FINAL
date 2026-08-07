@@ -109,10 +109,14 @@ async function executeQuickReplyFlow(req, res) {
     let cumulativeDelayMs = 0;
     const now = Date.now();
     const enqueuedSteps = [];
+    const overrideDelayMs = req.body.overrideDelayMs;
 
     for (let index = 0; index < rawSteps.length; index++) {
       const step = rawSteps[index];
-      const stepDelay = Number(step.delayMs || step.delay || 1500);
+      const stepDelay = overrideDelayMs !== undefined 
+        ? Number(overrideDelayMs) 
+        : Number(step.delayMs || step.delay || 1500);
+        
       cumulativeDelayMs += stepDelay;
       const scheduledTime = new Date(now + cumulativeDelayMs).toISOString();
 

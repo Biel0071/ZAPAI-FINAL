@@ -997,6 +997,12 @@ export function forceReconnectInboxSocket() {
   console.info(`[Socket] forceReconnect url=${savedUrl ?? "none"} subscribers=${subscribers.size}`);
 
   destroySharedSocket();
+  if (savedUrl) ensureSharedSocket(savedUrl);
+}
+
+export function getSharedSocket(): Socket | null {
+  return sharedSocket;
+}
 
   if (!savedUrl) return;
 
