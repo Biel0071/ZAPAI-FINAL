@@ -65,6 +65,7 @@ const crmItems: SidebarNavItem[] = [
 ];
 
 const adminItems: SidebarNavItem[] = [
+  { icon: Queue, label: "Fila de Envios", path: "/queue", minRole: "user" },
   { icon: HardDrives, label: "Cluster", path: "/nodes", minRole: "user" },
   { icon: ShieldCheck, label: "Usuários", path: "/users", minRole: "user" },
   { icon: TrendUp, label: "Deployments", path: "/deployments", minRole: "user" },

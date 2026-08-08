@@ -424,9 +424,21 @@ export interface PersistedMessagePayload {
   url?: string | null;
 }
 
+export interface OutboundQueueItem {
+  id: string;
+  payload: any;
+  state: "queued" | "processing" | "failed" | "dead_letter" | "completed";
+  attempts: number;
+  nextAttemptAt?: string;
+  lastFailure?: any;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface MessageSendResponse {
   success: boolean;
-  message?: PersistedMessagePayload;
+  messageId?: string;
+  message?: any;
   error?: string;
   [key: string]: unknown;
 }
@@ -1254,7 +1266,7 @@ export const apiService = {
 
   async markConversationRead(conversationId: string) {
     const endpoint = `/api/conversations/${encodeURIComponent(conversationId)}/read`;
-    const response = await request<{ success: boolean }>({ endpoint, method: "POST" });
+    const response = await request<{ success: boolean }>({ endpoint: endpoint, method: "POST" });
     invalidateCache("conversations");
     return response;
   },
@@ -1894,6 +1906,16 @@ export const apiService = {
     }),
   forwardMessage: (messageId: string, payload: { phone: string; conversationId?: string; sessionId?: string }) =>
     request<Record<string, unknown>>({ endpoint: `/api/messages/${encodeURIComponent(messageId)}/forward`, method: "POST", body: payload }),
+
+  getOutboundQueuePending: (limit?: number) =>
+    request<{ items: OutboundQueueItem[] }>({ endpoint: withQuery("/api/messages/outbound-queue/pending", { limit }), method: "GET" }),
+
+  getOutboundQueueDeadLetters: (limit?: number) =>
+    request<{ items: OutboundQueueItem[] }>({ endpoint: withQuery("/api/messages/outbound-queue/dlq", { limit }), method: "GET" }),
+
+  reprocessDeadLetter: (id: string, testing?: boolean) =>
+    request<{ item: OutboundQueueItem }>({ endpoint: `/api/messages/outbound-queue/dlq/${encodeURIComponent(id)}/reprocess`, method: "POST", body: { testing } }),
+
   async getQuickReplies() {
     try {
       const data = await request<any[]>({ endpoint: "/api/quick-replies", method: "GET" });

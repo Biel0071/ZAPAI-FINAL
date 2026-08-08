@@ -110,6 +110,7 @@ const MasterAdmins = lazyWithRetry(() => import("./pages/MasterAdmins"), "master
 const MasterVersions = lazyWithRetry(() => import("./pages/MasterVersions"), "master_versions");
 const Memory = lazyWithRetry(() => import("./pages/Memory"), "memory");
 const Tests = lazyWithRetry(() => import("./pages/Tests"), "tests");
+const Queue = lazyWithRetry(() => import("./pages/Queue"), "queue");
 
 function RequireAdminAuth({ children }: { children: JSX.Element }) {
   const { isAuthenticated, isLoading } = useAdminAuth();
@@ -179,6 +180,7 @@ const App = () => {
                       <Route path="/integrations" element={<Navigate to="/connections" replace />} />
                       <Route path="/dev-tools" element={<ProtectedRoute minRole="user"><Navigate to="/diagnostics" replace /></ProtectedRoute>} />
                       <Route path="/memory" element={<PageRouteBoundary pageName="Memória de Sistema"><Memory /></PageRouteBoundary>} />
+                      <Route path="/queue" element={<ProtectedRoute minRole="user"><PageRouteBoundary pageName="Fila de Envios"><Queue /></PageRouteBoundary></ProtectedRoute>} />
                       <Route path="/users" element={<ProtectedRoute minRole="user"><PageRouteBoundary pageName="Usuários Master"><MasterAdmins /></PageRouteBoundary></ProtectedRoute>} />
 
                       <Route path="/nodes" element={<ProtectedRoute minRole="user"><PageRouteBoundary pageName="Nós do Cluster"><MasterNodes /></PageRouteBoundary></ProtectedRoute>} />
