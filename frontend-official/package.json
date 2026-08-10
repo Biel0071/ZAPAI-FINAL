@@ -13,7 +13,10 @@
     "preview": "node -e \"console.error('Preview isolado desabilitado. Use o runtime oficial da raiz em localhost:8080.'); process.exit(1)\"",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test-ui": "playwright test"
+    "test-ui": "playwright test",
+    "test:flash": "node scripts/run-flash.js",
+    "test:chaos": "playwright test tests/ui/fast-ui-chaos.spec.ts",
+    "test:analyze": "node scripts/analyze-tests.js"
   },
   "dependencies": {
     "@emoji-mart/data": "^1.2.1",
