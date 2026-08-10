@@ -130,6 +130,7 @@ export interface ChatMessage {
   mimeType?: string | null;
   mimetype?: string | null;
   emoji?: string;
+  whatsappMessageId?: string | null;
 }
 
 export interface Contact {

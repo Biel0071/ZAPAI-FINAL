@@ -133,7 +133,27 @@ function mergeMessageLists(base: ChatMessage[] = [], incoming: ChatMessage[] = [
   const merged = [...base];
   for (const message of incoming) {
     if (!isMessageValid(message)) continue;
-    if (!merged.some((existing) => existing.id === message.id)) {
+
+    const isDuplicate = merged.some((existing) => {
+      if (existing.id === message.id) return true;
+      if (existing.whatsappMessageId && message.whatsappMessageId && existing.whatsappMessageId === message.whatsappMessageId) return true;
+      
+      // Heuristic deduplication for outgoing messages duplicated by Baileys sync race-conditions
+      if (
+        existing.fromMe === true &&
+        message.fromMe === true &&
+        existing.content === message.content &&
+        existing.status !== "failed" &&
+        message.status !== "failed"
+      ) {
+        const timeDiff = Math.abs(getTime(existing.createdAt) - getTime(message.createdAt));
+        if (timeDiff < 5000) return true; // Deduplicate identical outgoing messages within 5 seconds
+      }
+
+      return false;
+    });
+
+    if (!isDuplicate) {
       merged.push({ ...message, conversationId });
     }
   }

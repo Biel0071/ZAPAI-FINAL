@@ -144,6 +144,7 @@ function formatApiMessage(message) {
     mimeType: message.mimeType || message.mimetype || null,
     filename: message.filename || message.fileName || null,
     thumbnail: message.thumbnail ? buildMediaUrl(message.thumbnail) : null,
+    whatsappMessageId: message.whatsappMessageId || message.whatsapp_message_id || null,
   };
 }
 
