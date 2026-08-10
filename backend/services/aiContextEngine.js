@@ -1,4 +1,4 @@
-const { query: dbQuery } = require('../config/database');
+const { query: dbQuery } = require('../src/infrastructure/config/database');
 
 /**
  * Constrói a janela de contexto enriquecida para a IA antes de responder a qualquer cliente

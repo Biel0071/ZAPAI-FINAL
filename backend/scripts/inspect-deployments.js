@@ -1,4 +1,4 @@
-const { query } = require('../config/database');
+const { query } = require('../src/infrastructure/config/database');
 
 async function main() {
   console.log('Altering nodes table to add services column...');

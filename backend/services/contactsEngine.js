@@ -11,7 +11,7 @@
  * - WebSocket emission for frontend hydration
  */
 
-const db = require('../config/database');
+const db = require('../src/infrastructure/config/database');
 const { normalizePhone } = require('./whatsapp/shared/identifiers');
 
 const DEFAULT_COMPANY_ID = String(process.env.DEFAULT_COMPANY_ID || 'default').trim();

@@ -30,7 +30,7 @@ const enterpriseQueueService = require('../../enterprise/queue-service');
 const enterpriseAiService = require('../../enterprise/ai-service');
 const enterpriseMessageService = require('../../enterprise/message-service');
 const enterpriseRealtimeService = require('../../enterprise/realtime-service');
-const { getAgentByName, pickRandomAgent } = require('../../../config/agents');
+const { getAgentByName, pickRandomAgent } = require('../../../src/infrastructure/config/agents');
 const MessageAuditService = require('../../messageAuditService');
 
 const {
@@ -87,11 +87,11 @@ const { activeSessions } = require('../state/registry');
 const contactsEngine = require('../../contactsEngine');
 const runtimeEngine = require('../../runtimeEngine');
 const sessionRegistry = require('../../sessionRegistry');
-const conversationRuntimeService = require('../../../inbox-core/inbox/services/ConversationRuntimeService');
+const conversationRuntimeService = require('../../../src/messaging/inbox/inbox/services/ConversationRuntimeService');
 const messageAckPipeline = require('../../messageAckPipeline');
-const messageRepository = require('../../../repositories/messageRepository');
-const conversationRepository = require('../../../repositories/conversationRepository');
-const { getAIEnabled } = require('../../../config/aiToggle');
+const messageRepository = require('../../../src/data/repositories/messageRepository');
+const conversationRepository = require('../../../src/data/repositories/conversationRepository');
+const { getAIEnabled } = require('../../../src/infrastructure/config/aiToggle');
 
 const SESSIONS_DIRECTORY = path.join(__dirname, '..', '..', '..', 'sessions');
 const DEFAULT_RECONNECT_DELAY_MS = 3000;
@@ -459,7 +459,7 @@ async function runAIForChat({ chatId, incomingFormattedMessage, session, sock })
 
   const contact = resolveContactForChat(store, chatId);
   // Ensure the agents list cache is hydrated
-  const aiAgentService = require('../../../ai-agents/services/aiAgentService');
+  const aiAgentService = require('../../../src/ai/agents/services/aiAgentService');
   await aiAgentService.listAgents(tenantId).catch(() => {});
   const agent = getAgentByName(chat.assignedTo, tenantId) || pickRandomAgent(tenantId);
 
@@ -556,7 +556,7 @@ async function runAIForChat({ chatId, incomingFormattedMessage, session, sock })
   const companyId = process.env.DEFAULT_COMPANY_ID || 'default';
 
   try {
-    const audioGenerationService = require('../../../services/audioGenerationService');
+    const audioGenerationService = require('../../audioGenerationService');
     const dbVoiceSettings = await audioGenerationService.getVoiceSettingsFromDb(companyId);
     
     // Merge agent specific settings with db settings
@@ -601,7 +601,7 @@ async function runAIForChat({ chatId, incomingFormattedMessage, session, sock })
       responseText = spokenText;
 
       // 3. Generate voice note (cached or fresh)
-      const audioGenerationService = require('../../../services/audioGenerationService');
+      const audioGenerationService = require('../../audioGenerationService');
       const voiceResult = await audioGenerationService.generateVoice({
         text: spokenText,
         companyId,
@@ -1136,7 +1136,7 @@ async function createStableSession({
             .filter(Boolean);
 
           const companyId = process.env.DEFAULT_COMPANY_ID || 'default';
-          const database = require('../../../config/database');
+          const database = require('../../../src/infrastructure/config/database');
           await database.query(
             `UPDATE leads SET is_blocked = FALSE WHERE company_id = $1`,
             [companyId]
@@ -1149,7 +1149,7 @@ async function createStableSession({
             );
           }
 
-          const conversationRepository = require('../../../repositories/conversationRepository');
+          const conversationRepository = require('../../../src/data/repositories/conversationRepository');
           conversationRepository.invalidateConversationCache(companyId);
 
           const ioServer = io || global.io;
@@ -1927,7 +1927,7 @@ async function createStableSession({
     if (individualChatsToSync.length > 0) {
       setImmediate(async () => {
         try {
-          const conversationRepository = require('../../../repositories/conversationRepository');
+          const conversationRepository = require('../../../src/data/repositories/conversationRepository');
           const companyId = process.env.DEFAULT_COMPANY_ID || 'default';
           let synced = 0;
           let errors = 0;
@@ -2012,7 +2012,7 @@ async function createStableSession({
     // Sync conversations and messages asynchronously
     setImmediate(async () => {
       try {
-        const conversationRepository = require('../../../repositories/conversationRepository');
+        const conversationRepository = require('../../../src/data/repositories/conversationRepository');
         const companyId = process.env.DEFAULT_COMPANY_ID || 'default';
 
         // Sync contacts through ContactsEngine pipeline
@@ -2129,7 +2129,7 @@ async function createStableSession({
       if (typeof update.archived === 'boolean') {
         store.chats[chatId].archived = update.archived;
         // Sync to database
-        const conversationRepository = require('../../../repositories/conversationRepository');
+        const conversationRepository = require('../../../src/data/repositories/conversationRepository');
         conversationRepository.updateConversationState(chatId, {
           status: update.archived ? 'archived' : 'active'
         }).catch((err) => {
@@ -2218,7 +2218,7 @@ async function createStableSession({
     const presenceState = ['available', 'composing', 'recording'].includes(status) ? 'online' : 'offline';
 
     try {
-      const conversationRepository = require('../../../repositories/conversationRepository');
+      const conversationRepository = require('../../../src/data/repositories/conversationRepository');
       const conversation = await conversationRepository.getConversationByPhone(phone, companyId);
       if (conversation) {
         const decorated = conversationRuntimeService.decorateConversation(session, conversation);
@@ -2344,7 +2344,7 @@ async function runAIForChatDebounced({ chatId, incomingFormattedMessage, session
     const audioUrl = incomingFormattedMessage.url || incomingFormattedMessage.mediaUrl || incomingFormattedMessage.mediaPath;
     if (audioUrl) {
       try {
-        const { transcribeAudio } = require('../../../services/ai.service');
+        const { transcribeAudio } = require('../../ai.service');
         const companyId = session?.companyId || process.env.DEFAULT_COMPANY_ID || 'default';
         console.log(`[WHATSAPP_AI] Transcribing audio message for ${chatId}...`);
         const transcription = await transcribeAudio({ mediaUrl: audioUrl, companyId });
@@ -2448,7 +2448,7 @@ function resolveProviderBaseUrl(providerId) {
 async function rewriteToSpokenTone(text, companyId) {
   try {
     const axios = require('axios');
-    const { query } = require('../../../config/database');
+    const { query } = require('../../../src/infrastructure/config/database');
     const { rows } = await query(
       `SELECT * FROM provider_keys WHERE tenant_id = $1 AND enabled = TRUE LIMIT 1`,
       [companyId || 'default']

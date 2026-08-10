@@ -1,7 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 const sessionManager = require('./sessionManager');
-const sessionRepository = require('../repositories/sessionRepository');
+const sessionRepository = require('../src/data/repositories/sessionRepository');
 const outboundQueueService = require('./outboundQueueService');
 
 const DEFAULT_SESSION = sessionManager.DEFAULT_SESSION || 'main';
@@ -190,7 +190,7 @@ function mapSession(session = {}, sessionId = DEFAULT_SESSION) {
     queueCount: (typeof outboundQueueService.listPending === 'function') ? outboundQueueService.listPending(1000).filter(item => String(item.sessionId) === String(id)).length : 0,
     aiAgentName: (() => {
       try {
-        const aiAgentService = require('../ai-agents/services/aiAgentService');
+        const aiAgentService = require('../src/ai/agents/services/aiAgentService');
         const agents = aiAgentService.getAgentsSync(session.companyId || process.env.DEFAULT_COMPANY_ID || 'default') || [];
         if (agents.length > 0) return agents.map(a => a.name).join(', ');
       } catch (err) {}

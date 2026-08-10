@@ -3,7 +3,7 @@
  * Creates structured sales campaigns for WhatsApp from natural language prompts.
  */
 
-const { query } = require('../config/database');
+const { query } = require('../src/infrastructure/config/database');
 
 async function generateCampaignFromPrompt({ prompt, companyId = 'default', targetTemperature = 'warm' }) {
   const normalizedPrompt = (prompt || '').trim();

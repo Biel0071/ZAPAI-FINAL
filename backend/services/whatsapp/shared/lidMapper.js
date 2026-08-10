@@ -1,4 +1,4 @@
-const { query } = require('../../../config/database');
+const { query } = require('../../../src/infrastructure/config/database');
 
 async function init() {
   global.lidToPhoneMap = new Map();
@@ -21,7 +21,7 @@ async function init() {
     `);
     if (pendingResult.rows.length > 0) {
       console.log(`[LID-MAPPER] Found ${pendingResult.rows.length} unmapped pending messages. Persisting...`);
-      const messageService = require('../../../services/messageService');
+      const messageService = require('../../messageService');
       for (const row of pendingResult.rows) {
         try {
           const payload = typeof row.payload === 'string' ? JSON.parse(row.payload) : row.payload;
@@ -97,7 +97,7 @@ async function savePendingMessage(lid, companyId, sessionId, payload) {
 }
 
 async function processPendingLidMessages(lid, phone) {
-  const messageService = require('../../../services/messageService');
+  const messageService = require('../../messageService');
   const cleanLid = String(lid).split('@')[0];
   const cleanPhone = String(phone).split('@')[0];
 

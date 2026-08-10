@@ -3,7 +3,7 @@
 require('dotenv').config();
 
 const { runMigrations } = require('../services/migrationRunner');
-const { pool } = require('../config/database');
+const { pool } = require('../src/infrastructure/config/database');
 
 async function main() {
   const result = await runMigrations({ pool });

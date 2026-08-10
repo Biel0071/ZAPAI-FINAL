@@ -1,5 +1,5 @@
 const axios = require('axios');
-const systemSettingsRepository = require('../repositories/systemSettingsRepository');
+const systemSettingsRepository = require('../src/data/repositories/systemSettingsRepository');
 
 const WEBHOOK_SETTINGS_KEY = 'webhook_subscriptions_v1';
 

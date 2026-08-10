@@ -1,5 +1,5 @@
 require('dotenv').config();
-const db = require('../config/database');
+const db = require('../src/infrastructure/config/database');
 const { normalizePhone } = require('../services/whatsapp/shared/identifiers');
 
 async function run() {

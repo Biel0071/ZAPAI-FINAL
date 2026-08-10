@@ -1,17 +1,17 @@
 const { getAIIntegrationStatus, processAI } = require('./ai.service');
-const { getAIEnabled } = require('../config/aiToggle');
+const { getAIEnabled } = require('../src/infrastructure/config/aiToggle');
 const sessionManager = require('./sessionManager');
-const conversationRepository = require('../repositories/conversationRepository');
-const messageRepository = require('../repositories/messageRepository');
+const conversationRepository = require('../src/data/repositories/conversationRepository');
+const messageRepository = require('../src/data/repositories/messageRepository');
 const outboundQueueService = require('./outboundQueueService');
 const whatsappService = require('./whatsappService');
-const messagesController = require('../controllers/messagesController');
-const contactRepository = require('../repositories/contactRepository');
+const messagesController = require('../src/api/controllers/messagesController');
+const contactRepository = require('../src/data/repositories/contactRepository');
 const aiIntelligenceService = require('./aiIntelligenceService');
 const { analyzeLeadIntent } = require('./leadAnalyzer');
 const { buildLeadTags, getNextFunnelStage } = require('./salesFunnel');
 const { generateSalesStrategy } = require('./salesStrategyEngine');
-const conversationRuntimeService = require('../inbox-core/inbox/services/ConversationRuntimeService');
+const conversationRuntimeService = require('../src/messaging/inbox/inbox/services/ConversationRuntimeService');
 const { emitAIResponseProgress } = require('./aiResponseProgressService');
 
 function matchEscalationTrigger(text, triggers = []) {
@@ -68,7 +68,7 @@ function randomProfileDelay(profile) {
 }
 
 function isBusinessOpen() {
-  const businessHoursConfig = require('../config/businessHours');
+  const businessHoursConfig = require('../src/infrastructure/config/businessHours');
   return businessHoursConfig.isBusinessOpen();
 }
 
@@ -169,9 +169,9 @@ async function processMessage({ payload, conversation, store, sock, sessionId })
   }
 
   // 3. Rules Engine: Business Hours Check
-  const { businessHours: bhConfig } = require('../config/businessHours');
+  const { businessHours: bhConfig } = require('../src/infrastructure/config/businessHours');
   if (bhConfig.autoReplyOutsideHours !== false && !isBusinessOpen()) {
-    const systemSettingsRepository = require('../repositories/systemSettingsRepository');
+    const systemSettingsRepository = require('../src/data/repositories/systemSettingsRepository');
     let businessHours = { absenceMessage: 'No momento estamos fechados. Retornaremos em breve!' };
     try {
       const raw = await systemSettingsRepository.getSetting('business_hours');
@@ -200,7 +200,7 @@ async function processMessage({ payload, conversation, store, sock, sessionId })
   }
 
   // 3. Rules Engine: Load Active Agent
-  const aiAgentService = require('../ai-agents/services/aiAgentService');
+  const aiAgentService = require('../src/ai/agents/services/aiAgentService');
   let matchedAgent = null;
   try {
     await aiAgentService.listAgents(companyId);
@@ -464,7 +464,7 @@ function splitLongMessage(text) {
     
     if (hasUncertainty) {
       try {
-        const agentLearningRepo = require('../repositories/agentLearningRepository');
+        const agentLearningRepo = require('../src/data/repositories/agentLearningRepository');
         await agentLearningRepo.createLearningEvent({
           agentKey: matchedAgent.key,
           eventType: 'unanswered',

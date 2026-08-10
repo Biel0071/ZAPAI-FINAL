@@ -1,4 +1,4 @@
-const { query } = require('../config/database');
+const { query } = require('../src/infrastructure/config/database');
 
 class MessageAuditService {
   static log(event, payload) {

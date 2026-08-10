@@ -3,7 +3,7 @@ const path = require('path');
 const crypto = require('crypto');
 const axios = require('axios');
 const { exec } = require('child_process');
-const { query } = require('../config/database');
+const { query } = require('../src/infrastructure/config/database');
 
 const PROJECT_ROOT = path.join(__dirname, '..');
 const MEDIA_ROOT = path.resolve(PROJECT_ROOT, 'storage', 'media');

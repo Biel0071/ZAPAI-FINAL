@@ -7,7 +7,7 @@
  * lifecycle. No module-scoped mutable state.
  */
 
-const sessionRepository = require('../../../repositories/sessionRepository');
+const sessionRepository = require('../../../src/data/repositories/sessionRepository');
 const { whatsappLog } = require('../../logger');
 
 const persistenceHealth = {

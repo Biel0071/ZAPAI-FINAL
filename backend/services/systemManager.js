@@ -1,4 +1,4 @@
-const { isAIEnabled } = require('../config/aiToggle');
+const { isAIEnabled } = require('../src/infrastructure/config/aiToggle');
 const aiLearningEngine = require('./aiLearningEngine');
 const { startCampaignRuntime } = require('./campaignRuntime');
 const metricsTracker = require('./metricsTracker');

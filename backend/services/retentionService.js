@@ -22,7 +22,7 @@
  *   await retentionService.runRetention();
  */
 
-const { query } = require('../config/database');
+const { query } = require('../src/infrastructure/config/database');
 
 // ─── Config ───────────────────────────────────────────────────────────────────
 const GROUP_MESSAGE_RETENTION_HOURS  = Number(process.env.GROUP_MSG_RETENTION_HOURS  || 24);

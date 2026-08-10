@@ -1,7 +1,7 @@
 const fsp = require('fs/promises');
 const path = require('path');
-const conversationRepository = require('../repositories/conversationRepository');
-const messageRepository = require('../repositories/messageRepository');
+const conversationRepository = require('../src/data/repositories/conversationRepository');
+const messageRepository = require('../src/data/repositories/messageRepository');
 const whatsappService = require('./whatsappService');
 const MessageAuditService = require('./messageAuditService');
 

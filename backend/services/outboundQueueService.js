@@ -1,10 +1,10 @@
 const fs = require('fs/promises');
 const path = require('path');
 
-const messageStore = require('../store/messageStore');
+const messageStore = require('../src/data/store/messageStore');
 const sessionManager = require('./sessionManager');
 const whatsappService = require('./whatsappService');
-const { registerOutgoingMessage } = require('../controllers/messagesController');
+const { registerOutgoingMessage } = require('../src/api/controllers/messagesController');
 const { getAutomatedReplyPermission } = require('./aiReplyGuard');
 const { emitAIResponseProgress } = require('./aiResponseProgressService');
 const correlationTracker = require('./correlationTracker');
@@ -500,7 +500,7 @@ async function processOneItem() {
       // Execute actions (like tagging or archiving)
       if (item.actions) {
         try {
-          const conversationRepository = require('../repositories/conversationRepository');
+          const conversationRepository = require('../src/data/repositories/conversationRepository');
           const conv = await conversationRepository.getConversationByPhone(item.phone, item.companyId);
           if (conv) {
             const fields = {};

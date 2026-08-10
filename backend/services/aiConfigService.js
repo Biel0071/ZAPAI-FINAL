@@ -1,4 +1,4 @@
-const { businessHours } = require('../config/businessHours');
+const { businessHours } = require('../src/infrastructure/config/businessHours');
 
 const DEFAULT_MEMORY_SETTINGS = {
   enabled: true,

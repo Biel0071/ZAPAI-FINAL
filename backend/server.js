@@ -15,33 +15,33 @@ const { monitorEventLoopDelay } = require('perf_hooks');
 const fsSync = require('fs');
 const fs = require('fs/promises');
 const { Server } = require('socket.io');
-const { requestContextMiddleware } = require('./middleware/requestContext');
-const { createRequestLogger } = require('./middleware/requestLogger');
-const { createRateLimiter } = require('./middleware/rateLimiter');
-const { apiEnvelopeMiddleware, normalizeErrorMessage } = require('./middleware/apiEnvelope');
-const { createJwtAuthMiddleware } = require('./middleware/jwtAuth');
-const { inputSanitizerMiddleware } = require('./middleware/inputSanitizer');
+const { requestContextMiddleware } = require('./src/api/middleware/requestContext');
+const { createRequestLogger } = require('./src/api/middleware/requestLogger');
+const { createRateLimiter } = require('./src/api/middleware/rateLimiter');
+const { apiEnvelopeMiddleware, normalizeErrorMessage } = require('./src/api/middleware/apiEnvelope');
+const { createJwtAuthMiddleware } = require('./src/api/middleware/jwtAuth');
+const { inputSanitizerMiddleware } = require('./src/api/middleware/inputSanitizer');
 
-const { businessHours, isBusinessOpen } = require('./config/businessHours');
-const { initDatabase, pool } = require('./config/database');
+const { businessHours, isBusinessOpen } = require('./src/infrastructure/config/businessHours');
+const { initDatabase, pool } = require('./src/infrastructure/config/database');
 const {
   loadAiIntelligenceState,
   saveAiIntelligenceState,
-} = require('./config/aiIntelligenceStorage');
-const { ensurePromptHistory } = require('./config/promptManager');
-const { loadRuntimeEnv, logRuntimeWarnings } = require('./config/runtimeEnv');
-const { loadStoreState, saveStoreState } = require('./config/storage');
+} = require('./src/infrastructure/config/aiIntelligenceStorage');
+const { ensurePromptHistory } = require('./src/infrastructure/config/promptManager');
+const { loadRuntimeEnv, logRuntimeWarnings } = require('./src/infrastructure/config/runtimeEnv');
+const { loadStoreState, saveStoreState } = require('./src/infrastructure/config/storage');
 const { initializeBugWatcher } = require('./services/bugWatcher');
-const { registerRoutes } = require('./routes');
+const { registerRoutes } = require('./src/api/routes');
 const { tenantContextMiddleware } = require('./services/tenantContext');
 const {
   emitToTenantWithAliases,
   joinTenantRoom,
 } = require('./services/realtime/tenantRooms');
-const messagesController = require('./controllers/messagesController');
-const messageStore = require('./store/messageStore');
-const conversationRepository = require('./repositories/conversationRepository');
-const messageRepository = require('./repositories/messageRepository');
+const messagesController = require('./src/api/controllers/messagesController');
+const messageStore = require('./src/data/store/messageStore');
+const conversationRepository = require('./src/data/repositories/conversationRepository');
+const messageRepository = require('./src/data/repositories/messageRepository');
 const sessionManager = require('./services/sessionManager');
 const systemManager = require('./services/systemManager');
 const whatsappService = require('./services/whatsappService');
@@ -49,7 +49,7 @@ const outboundQueueService = require('./services/outboundQueueService');
 const enterpriseQueueService = require('./services/enterprise/queue-service');
 const aiIntelligenceService = require('./services/aiIntelligenceService');
 const { processAI } = require('./services/ai.service');
-const { isAIEnabled } = require('./config/aiToggle');
+const { isAIEnabled } = require('./src/infrastructure/config/aiToggle');
 const { backendLog, errorLog } = require('./services/logger');
 const { DEFAULT_SESSION } = whatsappService;
 const nodeRegisterService = require('./services/nodeRegister');
@@ -103,7 +103,7 @@ const io = new Server(server, {
 app.set('io', io);
 
 // Socket.io JWT authentication middleware
-const { verifyHs256Jwt } = require('./middleware/jwtAuth');
+const { verifyHs256Jwt } = require('./src/api/middleware/jwtAuth');
 io.use((socket, next) => {
   const token = String(socket.handshake.auth?.token || '').trim();
   const secret = process.env.JWT_SECRET || process.env.AUTH_JWT_SECRET || '';
@@ -557,7 +557,7 @@ app.locals.store = {
     });
     if (app.locals.store.databaseEnabled) {
       try {
-        const systemSettingsRepository = require('./repositories/systemSettingsRepository');
+        const systemSettingsRepository = require('./src/data/repositories/systemSettingsRepository');
         await systemSettingsRepository.setSetting('ai_config', JSON.stringify(app.locals.store.aiConfig || {}));
       } catch (err) {
         console.warn('[AI] failed to save ai_config to db:', err.message);
@@ -602,7 +602,7 @@ io.on('connection', (socket) => {
     try {
       console.log(`[SERVER] Received archive_chat for ${chatId}`);
       const chatOperations = require('./services/whatsapp/chat/operations');
-      const conversationRepository = require('./repositories/conversationRepository');
+      const conversationRepository = require('./src/data/repositories/conversationRepository');
 
       // Update DB
       await conversationRepository.updateConversationState(chatId, { status: 'archived' }).catch(() => {});
@@ -648,7 +648,7 @@ io.on('connection', (socket) => {
     try {
       console.log(`[SERVER] Received unarchive_chat for ${chatId}`);
       const chatOperations = require('./services/whatsapp/chat/operations');
-      const conversationRepository = require('./repositories/conversationRepository');
+      const conversationRepository = require('./src/data/repositories/conversationRepository');
       const { ensureRealtimeStore } = require('./services/whatsapp/realtime/chatState');
       const { emitChatUpdated, emitChatsLoaded } = require('./services/whatsapp/realtime/events');
       const { emitRealtimeMetrics } = require('./services/whatsapp/realtime/metrics');
@@ -707,7 +707,7 @@ io.on('connection', (socket) => {
 
       console.log(`[SERVER] Received add_tag for ${chatId}:`, tagsToAdd);
       const chatOperations = require('./services/whatsapp/chat/operations');
-      const conversationRepository = require('./repositories/conversationRepository');
+      const conversationRepository = require('./src/data/repositories/conversationRepository');
 
       // Update DB
       const conv = await conversationRepository.getConversationById(chatId);
@@ -752,7 +752,7 @@ io.on('connection', (socket) => {
 
       console.log(`[SERVER] Received remove_tag for ${chatId}: ${tag}`);
       const chatOperations = require('./services/whatsapp/chat/operations');
-      const conversationRepository = require('./repositories/conversationRepository');
+      const conversationRepository = require('./src/data/repositories/conversationRepository');
 
       // Update DB
       const conv = await conversationRepository.getConversationById(chatId);
@@ -1484,7 +1484,7 @@ async function legacyIncomingMessageFlow({ incomingMessage, sessionId, sock }) {
 
     if (result?.message) {
       const io = app.get('io');
-      const { formatApiMessage } = require('./controllers/messages/shared');
+      const { formatApiMessage } = require('./src/api/controllers/messages/shared');
 
       io?.emit('message:new', {
         phone: incoming.phone,
@@ -1626,11 +1626,11 @@ async function bootstrap() {
   // If database is enabled, initialize AI toggle and try to fetch config from db
   if (app.locals.store.databaseEnabled) {
     try {
-      const { initAIToggle } = require('./config/aiToggle');
+      const { initAIToggle } = require('./src/infrastructure/config/aiToggle');
       await initAIToggle();
       console.log('[AI] Initialized toggle status to:', isAIEnabled());
 
-      const systemSettingsRepository = require('./repositories/systemSettingsRepository');
+      const systemSettingsRepository = require('./src/data/repositories/systemSettingsRepository');
       const dbAiConfig = await systemSettingsRepository.getSetting('ai_config');
       if (dbAiConfig && dbAiConfig.value) {
         try {

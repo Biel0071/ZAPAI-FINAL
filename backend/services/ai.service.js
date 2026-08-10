@@ -1,7 +1,7 @@
 const axios = require('axios');
 const aiLogService = require('./aiLogService');
-const { getActivePrompt } = require('../config/promptManager');
-const { DEFAULT_SYSTEM_PROMPT } = require('../config/basePrompt');
+const { getActivePrompt } = require('../src/infrastructure/config/promptManager');
+const { DEFAULT_SYSTEM_PROMPT } = require('../src/infrastructure/config/basePrompt');
 
 const responseCache = new Map();
 const RESPONSE_CACHE_TTL_MS = 60 * 1000;
@@ -444,7 +444,7 @@ async function getAIIntegrationStatus(store, companyId = 'default') {
 
   let activeProvider = null;
   try {
-    const { query } = require('../config/database');
+    const { query } = require('../src/infrastructure/config/database');
     const { rows } = await query(
       `SELECT * FROM provider_keys WHERE tenant_id = $1 AND enabled = TRUE LIMIT 1`,
       [companyId]
@@ -520,7 +520,7 @@ async function testAIConnection({ store, providerId, model, message, prompt, age
   let resolvedProvider = null;
   if (providerId) {
     try {
-      const { query } = require('../config/database');
+      const { query } = require('../src/infrastructure/config/database');
       const { rows } = await query(
         `SELECT * FROM provider_keys WHERE tenant_id = $1 AND provider = $2 LIMIT 1`,
         [resolvedCompanyId, providerId.toLowerCase()]
@@ -557,7 +557,7 @@ async function testAIConnection({ store, providerId, model, message, prompt, age
     }
   }
 
-  const aiAgentService = require('../ai-agents/services/aiAgentService');
+  const aiAgentService = require('../src/ai/agents/services/aiAgentService');
   let matchedAgent = null;
   try {
     await aiAgentService.listAgents(resolvedCompanyId);
@@ -688,7 +688,7 @@ async function processAI({ contact, history, message, store, agentName, companyI
   // Load user-scoped key
   let activeProvider = null;
   try {
-    const { query } = require('../config/database');
+    const { query } = require('../src/infrastructure/config/database');
     const { rows } = await query(
       `SELECT * FROM provider_keys WHERE tenant_id = $1 AND enabled = TRUE LIMIT 1`,
       [resolvedCompanyId]
@@ -735,7 +735,7 @@ async function processAI({ contact, history, message, store, agentName, companyI
     return null;
   }
 
-  const aiAgentService = require('../ai-agents/services/aiAgentService');
+  const aiAgentService = require('../src/ai/agents/services/aiAgentService');
   let resolvedAgent = null;
 
   try {
@@ -1017,7 +1017,7 @@ async function refineAgentPrompt({ store, currentPrompt, instruction, companyId 
   let resolvedProvider = null;
   
   try {
-    const { query } = require('../config/database');
+    const { query } = require('../src/infrastructure/config/database');
     const { rows } = await query(
       `SELECT * FROM provider_keys WHERE tenant_id = $1 AND enabled = TRUE LIMIT 1`,
       [resolvedCompanyId]
@@ -1164,7 +1164,7 @@ async function transcribeAudio({ mediaUrl, companyId }) {
   const resolvedCompanyId = companyId || 'default';
   
   // 1. Fetch enabled OpenAI/Groq key
-  const { query } = require('../config/database');
+  const { query } = require('../src/infrastructure/config/database');
   const { rows } = await query(
     `SELECT * FROM provider_keys WHERE tenant_id = $1 AND enabled = TRUE AND (LOWER(provider) = 'openai' OR LOWER(provider) = 'groq') ORDER BY provider LIMIT 1`,
     [resolvedCompanyId]

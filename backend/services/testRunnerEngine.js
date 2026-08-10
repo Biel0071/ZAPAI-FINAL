@@ -1,5 +1,5 @@
 const { performance } = require('perf_hooks');
-const jwtAuth = require('../middleware/jwtAuth');
+const jwtAuth = require('../src/api/middleware/jwtAuth');
 
 // Em-memória: Histórico das últimas execuções de testes
 const runHistory = [];

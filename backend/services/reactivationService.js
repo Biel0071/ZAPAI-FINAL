@@ -1,5 +1,5 @@
-const { query } = require('../config/database');
-const { isBusinessOpen, businessHours } = require('../config/businessHours');
+const { query } = require('../src/infrastructure/config/database');
+const { isBusinessOpen, businessHours } = require('../src/infrastructure/config/businessHours');
 const outboundQueueService = require('./outboundQueueService');
 
 // In-memory fallback queue if database is temporarily unavailable

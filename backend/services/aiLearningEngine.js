@@ -1,6 +1,6 @@
 const cron = require('node-cron');
-const messageRepository = require('../repositories/messageRepository');
-const conversationRepository = require('../repositories/conversationRepository');
+const messageRepository = require('../src/data/repositories/messageRepository');
+const conversationRepository = require('../src/data/repositories/conversationRepository');
 
 function normalizeQuestion(text = '') {
   return String(text)

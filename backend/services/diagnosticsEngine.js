@@ -17,7 +17,7 @@
  * Combined results are emitted via WebSocket every cycle.
  */
 
-const db = require('../config/database');
+const db = require('../src/infrastructure/config/database');
 const sessionManager = require('./sessionManager');
 const sessionRegistry = require('./sessionRegistry');
 const messageDedupeService = require('./messageDedupeService');

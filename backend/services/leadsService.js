@@ -1,4 +1,4 @@
-const db = require('../config/database');
+const db = require('../src/infrastructure/config/database');
 
 const memoryFallbackRecords = [];
 let nextId = 1;

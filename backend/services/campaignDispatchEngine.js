@@ -14,7 +14,7 @@
  * - PostgreSQL persistence via campaignRepository
  */
 
-const campaignRepository = require('../repositories/campaignRepository');
+const campaignRepository = require('../src/data/repositories/campaignRepository');
 const sessionManager = require('./sessionManager');
 const backpressureController = require('./backpressureController');
 const whatsappService = require('./whatsappService');
@@ -254,7 +254,7 @@ async function dispatchSingleMessage(state, contact, io) {
 
     // Check hourly and daily limits if set
     if (state.settings.dailyLimit || state.settings.hourlyLimit) {
-      const { query } = require('../config/database');
+      const { query } = require('../src/infrastructure/config/database');
       const sessionId = session.id || state.sessionId || 'main';
       
       if (state.settings.hourlyLimit) {

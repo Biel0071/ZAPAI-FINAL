@@ -1,7 +1,7 @@
-const { query } = require('../config/database');
+const { query } = require('../src/infrastructure/config/database');
 const crypto = require('crypto');
-const aiAgentService = require('../ai-agents/services/aiAgentService');
-const agentLearningRepo = require('../repositories/agentLearningRepository');
+const aiAgentService = require('../src/ai/agents/services/aiAgentService');
+const agentLearningRepo = require('../src/data/repositories/agentLearningRepository');
 const { testProviderConnection } = require('./ai.service');
 
 function getEncryptionKey() {

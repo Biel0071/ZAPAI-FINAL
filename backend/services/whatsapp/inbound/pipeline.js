@@ -20,8 +20,8 @@
  */
 
 
-const conversationRepository = require('../../../repositories/conversationRepository');
-const messageRepository = require('../../../repositories/messageRepository');
+const conversationRepository = require('../../../src/data/repositories/conversationRepository');
+const messageRepository = require('../../../src/data/repositories/messageRepository');
 const messageDedupeService = require('../../messageDedupeService');
 const enterpriseMessageService = require('../../enterprise/message-service');
 const enterpriseMediaService = require('../../enterprise/media-service');

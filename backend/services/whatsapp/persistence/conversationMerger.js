@@ -1,8 +1,8 @@
 const fs = require('fs/promises');
 const path = require('path');
 const { existsSync } = require('fs');
-const { query } = require('../../../config/database');
-const conversationRepository = require('../../../repositories/conversationRepository');
+const { query } = require('../../../src/infrastructure/config/database');
+const conversationRepository = require('../../../src/data/repositories/conversationRepository');
 
 let isConsolidating = false;
 

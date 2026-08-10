@@ -1,6 +1,6 @@
-const { getClient } = require('../config/ai');
-const { buildPersonalityPrompt } = require('../ai-agents/engine/personalityEngine');
-const { processEvent } = require('../inbox-core/ai/AIEventBridge');
+const { getClient } = require('../src/infrastructure/config/ai');
+const { buildPersonalityPrompt } = require('../src/ai/agents/engine/personalityEngine');
+const { processEvent } = require('../src/messaging/inbox/ai/AIEventBridge');
 
 function ensureAgent(agent) {
   return agent || {
@@ -52,7 +52,7 @@ async function generateAIResponse({
 
   // Call processAI as the main path
   try {
-    const systemSettingsRepository = require('../repositories/systemSettingsRepository');
+    const systemSettingsRepository = require('../src/data/repositories/systemSettingsRepository');
     const { processAI } = require('./ai.service');
     
     let aiConfig = {};

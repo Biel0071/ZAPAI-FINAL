@@ -1,12 +1,12 @@
 const path = require('path');
 
-const { isAIEnabled } = require('../config/aiToggle');
+const { isAIEnabled } = require('../src/infrastructure/config/aiToggle');
 const aiLearningEngine = require('./aiLearningEngine');
 const {
   createDefaultState,
   normalizeState,
   saveAiIntelligenceState,
-} = require('../config/aiIntelligenceStorage');
+} = require('../src/infrastructure/config/aiIntelligenceStorage');
 const {
   buildOpenAIContext,
   findMemoryByContact,

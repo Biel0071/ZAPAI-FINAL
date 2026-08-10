@@ -13,7 +13,7 @@
  * persistence on top of the existing in-memory implementation.
  */
 
-const db = require('../config/database');
+const db = require('../src/infrastructure/config/database');
 const aiConversationMemoryService = require('./aiConversationMemoryService');
 
 const DEFAULT_COMPANY_ID = String(process.env.DEFAULT_COMPANY_ID || 'default').trim();

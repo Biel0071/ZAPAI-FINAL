@@ -3,7 +3,7 @@
  * Automatically plans and schedules non-robotic, multi-touch follow-ups for stalled conversations.
  */
 
-const { query } = require('../config/database');
+const { query } = require('../src/infrastructure/config/database');
 
 /**
  * Generates an automated multi-step follow-up plan for a given lead/conversation

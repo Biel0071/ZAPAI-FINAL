@@ -1,5 +1,5 @@
-const campaignRepository = require('../repositories/campaignRepository');
-const flowRepository = require('../repositories/flowRepository');
+const campaignRepository = require('../src/data/repositories/campaignRepository');
+const flowRepository = require('../src/data/repositories/flowRepository');
 
 function getCompanyId(store) {
   return store?.activeCompanyId || process.env.DEFAULT_COMPANY_ID || 'default';

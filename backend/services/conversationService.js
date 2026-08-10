@@ -1,4 +1,4 @@
-const conversationRepository = require('../repositories/conversationRepository');
+const conversationRepository = require('../src/data/repositories/conversationRepository');
 
 async function listConversations(companyId, limit = 50, options = {}) {
   return conversationRepository.listConversations(companyId, limit, options);

@@ -1,5 +1,5 @@
 const recentMessages = new Set();
-const messageRepository = require('../../repositories/messageRepository');
+const messageRepository = require('../../src/data/repositories/messageRepository');
 const BASE_URL = process.env.PUBLIC_URL || 'http://localhost:4025';
 const { normalizePhone } = require('../whatsapp/shared/identifiers');
 const { normalizeRealtimeMediaType } = require('../whatsapp/media/url');

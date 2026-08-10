@@ -1,4 +1,4 @@
-const { query: dbQuery } = require('../config/database');
+const { query: dbQuery } = require('../src/infrastructure/config/database');
 
 const INSIGHT_CACHE_TTL_MS = 3 * 60 * 60 * 1000; // 3 Horas
 const insightsCache = new Map();

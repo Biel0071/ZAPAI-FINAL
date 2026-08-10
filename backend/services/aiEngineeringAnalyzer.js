@@ -1,9 +1,9 @@
 const fs = require('fs/promises');
 const path = require('path');
 
-const { analyzeProject } = require('../ai/projectAnalyzer');
-const { runArchitectFullScan } = require('../ai/saasArchitectEngine');
-const { analyzeRuntime } = require('../ai/systemHealthAnalyzer');
+const { analyzeProject } = require('../src/ai/core/projectAnalyzer');
+const { runArchitectFullScan } = require('../src/ai/core/saasArchitectEngine');
+const { analyzeRuntime } = require('../src/ai/core/systemHealthAnalyzer');
 
 const SOURCE_EXTENSIONS = new Set(['.js', '.jsx', '.ts', '.tsx', '.css', '.md']);
 const SKIP_DIRECTORIES = new Set([

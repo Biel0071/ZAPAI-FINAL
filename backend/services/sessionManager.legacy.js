@@ -1,6 +1,6 @@
 const fs = require('fs/promises');
 const path = require('path');
-const sessionRepository = require('../repositories/sessionRepository');
+const sessionRepository = require('../src/data/repositories/sessionRepository');
 const sessionRegistry = require('./sessionRegistry');
 const { validateSession } = require('./whatsapp/connection/sessionPersistenceValidator');
 // NOTE: whatsappService is required lazily inside startSession() to break the

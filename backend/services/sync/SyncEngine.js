@@ -5,7 +5,7 @@
 const SyncContext = require('./SyncContext');
 const SyncPipeline = require('./SyncPipeline');
 const { recordPipelineRun } = require('./SyncMetrics');
-const featureFlags = require('../../config/featureFlags');
+const featureFlags = require('../../src/infrastructure/config/featureFlags');
 
 class SyncEngine {
   constructor() {

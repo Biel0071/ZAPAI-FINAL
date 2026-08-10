@@ -35,7 +35,7 @@ describe('CRM Intelligence Engine', () => {
     expect(context.funnelStage).toBe('price_sent');
     
     // Verifica se salvou no banco
-    const conversationRepository = require('../repositories/conversationRepository');
+    const conversationRepository = require('../src/data/repositories/conversationRepository');
     expect(conversationRepository.updateConversationState).toHaveBeenCalled();
   });
   

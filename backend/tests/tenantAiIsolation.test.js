@@ -1,7 +1,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 
-const settingsRepository = require('../repositories/systemSettingsRepository');
+const settingsRepository = require('../src/data/repositories/systemSettingsRepository');
 const originalGet = settingsRepository.getSetting;
 const originalSet = settingsRepository.setSetting;
 
@@ -23,7 +23,7 @@ test.after(() => {
 test('AI toggle is persisted and isolated per store', async () => {
   const values = installMemorySettings();
   delete require.cache[require.resolve('../config/aiToggle')];
-  const toggle = require('../config/aiToggle');
+  const toggle = require('../src/infrastructure/config/aiToggle');
 
   assert.equal(await toggle.getAIEnabled('store-a'), false);
   assert.equal(await toggle.getAIEnabled('store-b'), false);
@@ -40,7 +40,7 @@ test('AI toggle is persisted and isolated per store', async () => {
 test('stores start without system agents and cannot see each other agents', async () => {
   installMemorySettings();
   delete require.cache[require.resolve('../ai-agents/services/aiAgentService')];
-  const agents = require('../ai-agents/services/aiAgentService');
+  const agents = require('../src/ai/agents/services/aiAgentService');
 
   assert.deepEqual(await agents.listAgents('store-a'), []);
   assert.deepEqual(await agents.listAgents('store-b'), []);

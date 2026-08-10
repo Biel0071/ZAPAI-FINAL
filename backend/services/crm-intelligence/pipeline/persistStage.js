@@ -1,4 +1,4 @@
-const conversationRepository = require('../../../repositories/conversationRepository');
+const conversationRepository = require('../../../src/data/repositories/conversationRepository');
 
 class PersistStage {
   async execute(context) {

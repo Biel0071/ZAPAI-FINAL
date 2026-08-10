@@ -1,4 +1,4 @@
-const { query: dbQuery } = require('../config/database');
+const { query: dbQuery } = require('../src/infrastructure/config/database');
 
 const registryState = {
   services: {

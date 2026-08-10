@@ -1,4 +1,4 @@
-const messageRepository = require('../../../repositories/messageRepository');
+const messageRepository = require('../../../src/data/repositories/messageRepository');
 const historyCache = require('../cache/historyCache');
 
 class HistoryStage {

@@ -3,7 +3,7 @@ async function getAutomatedReplyPermission(item, dependencies = {}) {
     return { allowed: true, reason: 'not_ai_response' };
   }
 
-  const repository = dependencies.conversationRepository || require('../repositories/conversationRepository');
+  const repository = dependencies.conversationRepository || require('../src/data/repositories/conversationRepository');
   let conversation = null;
   try {
     if (item.metadata?.conversationId) {
@@ -27,7 +27,7 @@ async function getAutomatedReplyPermission(item, dependencies = {}) {
     // Ignore error and fallback to global
   }
 
-  const readGlobalToggle = dependencies.isAIEnabled || require('../config/aiToggle').isAIEnabled;
+  const readGlobalToggle = dependencies.isAIEnabled || require('../src/infrastructure/config/aiToggle').isAIEnabled;
   if (!readGlobalToggle(item.companyId)) {
     return { allowed: false, reason: 'global_ai_off' };
   }

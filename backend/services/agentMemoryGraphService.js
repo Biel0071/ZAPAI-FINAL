@@ -1,5 +1,5 @@
 const crypto = require('crypto');
-const { query } = require('../config/database');
+const { query } = require('../src/infrastructure/config/database');
 
 const bootstrappedScopes = new Set();
 const STOP_WORDS = new Set(['para', 'como', 'com', 'uma', 'uns', 'das', 'dos', 'que', 'por', 'seu', 'sua', 'isso', 'esta', 'esse', 'mais', 'tem', 'ola', 'bom', 'boa', 'dia', 'tarde', 'noite', 'voce']);

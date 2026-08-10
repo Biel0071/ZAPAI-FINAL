@@ -1,4 +1,4 @@
-const { query } = require('../config/database');
+const { query } = require('../src/infrastructure/config/database');
 
 async function main() {
   const nodes = await query("SELECT node_id, hostname, ip, status, cpu_cores, ram_total, uptime_seconds, services FROM nodes");

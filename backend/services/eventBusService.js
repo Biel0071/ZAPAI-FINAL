@@ -1,5 +1,5 @@
 const EventEmitter = require('events');
-const featureFlags = require('../config/featureFlags');
+const featureFlags = require('../src/infrastructure/config/featureFlags');
 
 class SystemEventBus extends EventEmitter {}
 

@@ -1,0 +1,15 @@
+module.exports = {
+  acebot: require('../../../api/routes/acebot'),
+  ai: require('../../../api/routes/ai'),
+  aiConfig: require('../../../api/routes/aiConfig'),
+  aiGeneratedFixes: require('../../../api/routes/aiGeneratedFixes'),
+  analytics: require('../../../api/routes/analytics'),
+  automation: require('../../../api/routes/automation'),
+  contacts: require('../../../api/routes/contacts'),
+  conversations: require('../../../api/routes/conversations'),
+  integrations: require('../../../api/routes/integrations'),
+  leads: require('../../../api/routes/leads'),
+  messages: require('../../../api/routes/messages'),
+  sessions: require('../../../api/routes/sessions'),
+  system: require('../../../api/routes/system'),
+};

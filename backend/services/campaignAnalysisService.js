@@ -12,7 +12,7 @@
  * Quality = share of replies classified positive vs negative (keyword based).
  */
 
-const { query } = require('../config/database');
+const { query } = require('../src/infrastructure/config/database');
 
 const POSITIVE_PATTERNS = [
   'obrigad', 'valeu', 'otimo', 'ótimo', 'legal', 'quero', 'sim', 'perfeito', 'top',

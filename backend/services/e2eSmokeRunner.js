@@ -1,4 +1,4 @@
-const { query } = require('../config/database');
+const { query } = require('../src/infrastructure/config/database');
 const sessionManager = require('./sessionManager');
 const whatsappService = require('./whatsappService');
 const agentMemoryGraphService = require('./agentMemoryGraphService');

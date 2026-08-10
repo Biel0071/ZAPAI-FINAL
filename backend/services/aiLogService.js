@@ -1,6 +1,6 @@
 const fs = require('fs/promises');
 const path = require('path');
-const { query } = require('../config/database');
+const { query } = require('../src/infrastructure/config/database');
 
 const logsFilePath = path.join(__dirname, '..', 'data', 'ai_logs.json');
 

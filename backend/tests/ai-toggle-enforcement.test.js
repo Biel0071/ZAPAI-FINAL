@@ -99,7 +99,7 @@ test('preserves a disabled conversation AI toggle while persisting inbound messa
 
 
 test('uses a 24 hour human takeover pause and releases it after expiry', () => {
-  const runtimeService = require('../inbox-core/inbox/services/ConversationRuntimeService');
+  const runtimeService = require('../src/messaging/inbox/inbox/services/ConversationRuntimeService');
   assert.equal(runtimeService.DEFAULT_HUMAN_TIMEOUT_MS, 24 * 60 * 60 * 1000);
 
   const store = {};

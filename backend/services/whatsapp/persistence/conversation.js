@@ -15,11 +15,11 @@
  * and through injected repositories / side-effect services.
  */
 
-const contactRepository = require('../../../repositories/contactRepository');
-const conversationRepository = require('../../../repositories/conversationRepository');
-const messageRepository = require('../../../repositories/messageRepository');
-const { getAgentByName, pickRandomAgent } = require('../../../config/agents');
-const aiAgentService = require('../../../ai-agents/services/aiAgentService');
+const contactRepository = require('../../../src/data/repositories/contactRepository');
+const conversationRepository = require('../../../src/data/repositories/conversationRepository');
+const messageRepository = require('../../../src/data/repositories/messageRepository');
+const { getAgentByName, pickRandomAgent } = require('../../../src/infrastructure/config/agents');
+const aiAgentService = require('../../../src/ai/agents/services/aiAgentService');
 const { evaluateCampaign } = require('../../campaignEngine');
 const { runTask } = require('../../microtaskRunner');
 const { generateConversationSummary } = require('../../conversationSummarizer');

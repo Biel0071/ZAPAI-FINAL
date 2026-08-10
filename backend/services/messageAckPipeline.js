@@ -20,7 +20,7 @@
  *   - WebSocket emission for frontend reconciliation
  */
 
-const db = require('../config/database');
+const db = require('../src/infrastructure/config/database');
 const EventEmitter = require('events');
 const correlationTracker = require('./correlationTracker');
 const { emitToTenantWithAliases } = require('./realtime/tenantRooms');

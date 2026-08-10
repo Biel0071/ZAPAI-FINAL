@@ -11,7 +11,7 @@
  * sessionManager.legacy.js still owns socket creation/teardown.
  */
 
-const db = require('../config/database');
+const db = require('../src/infrastructure/config/database');
 
 const REDIS_KEY = 'zapflow:sessions';
 const DEFAULT_COMPANY_ID = String(process.env.DEFAULT_COMPANY_ID || 'default').trim();
