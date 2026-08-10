@@ -19,7 +19,7 @@ export default defineConfig({
   // Reporter includes HTML for the visual dashboards
   reporter: [["html", { outputFolder: "playwright-report" }], ["list"]],
   // Setup global authentication so workers don't need to login repeatedly
-  globalSetup: require.resolve('./tests/global-setup'),
+  globalSetup: "./tests/global-setup.ts",
   use: {
     baseURL: "http://localhost:8080",
     trace: "on-first-retry",
