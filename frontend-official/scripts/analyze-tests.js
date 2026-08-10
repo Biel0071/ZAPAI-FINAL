@@ -14,6 +14,7 @@ function analyzeTests() {
 
   const files = fs.readdirSync(historyDir).filter(f => f.endsWith('.json'));
   const allReports = [];
+  const newBugs = []; // NEW ARRAY FOR TODO-BUGS QUEUE
 
   // Leitura e Limpeza (manter apenas relatórios mais recentes para não lotar o disco)
   // Agrupamos por Rota e pegamos apenas as duas últimas execuções para comparar regressão
@@ -55,6 +56,7 @@ function analyzeTests() {
       markdown += `Foram encontrados os seguintes erros de JavaScript ou Console:\n`;
       for (const err of latest.errors) {
         markdown += `- \`${err}\`\n`;
+        newBugs.push(`Erro JS/Console na rota ${route}: ${err}`);
       }
       markdown += `\n**➡️ Ação Sugerida:** Verificar se há variáveis nulas ou chamadas de API quebradas nesta tela.\n\n`;
       actionItemsCount++;
@@ -68,6 +70,7 @@ function analyzeTests() {
         markdown += `- A página está carregando **${diff}ms mais lenta** comparada ao último teste.\n`;
         markdown += `**➡️ Ação Sugerida:** Inspecione o tab Network ou React Profiler para identificar novos componentes lentos.\n\n`;
         actionItemsCount++;
+        newBugs.push(`Regressão de Interface: Rota ${route} ficou ${diff}ms mais lenta ao renderizar.`);
       }
     }
   }
@@ -84,6 +87,7 @@ function analyzeTests() {
       markdown += `- Durante o teste de ${latestFlood.requestsMade} requisições, **${latestFlood.errors} falharam**.\n`;
       markdown += `**➡️ Ação Sugerida:** Aumentar conexões do Pool do Banco de Dados ou escalar workers do Node.\n\n`;
       actionItemsCount++;
+      newBugs.push(`Falha no Back-end Sob Carga: ${latestFlood.errors} requisições falharam num teste de stress.`);
     }
 
     if (previousFlood) {
@@ -93,6 +97,7 @@ function analyzeTests() {
         markdown += `- A API está demorando em média **${latDiff.toFixed(2)}ms a mais** para responder sob carga em comparação ao último teste.\n`;
         markdown += `**➡️ Ação Sugerida:** Verifique se as consultas SQL recentes adicionaram N+1 queries ou se faltam índices.\n\n`;
         actionItemsCount++;
+        newBugs.push(`Regressão de Latência: API Flood ficou ${latDiff.toFixed(2)}ms mais lento.`);
       }
     }
   }
@@ -104,6 +109,28 @@ function analyzeTests() {
   fs.writeFileSync(actionPlanFile, markdown);
   console.log(`\n📄 [Análise Completa] Plano de Ação gerado em: ${actionPlanFile}`);
   
+  // ----------------------------------------------------
+  // INTEGRAÇÃO COM TODO-BUGS.md (Fila de Backlog QA)
+  // ----------------------------------------------------
+  if (newBugs.length > 0) {
+    const todoFile = path.join(process.cwd(), 'TODO-BUGS.md');
+    let todoContent = fs.existsSync(todoFile) ? fs.readFileSync(todoFile, 'utf8') : '# 🐛 Fila Contínua de Bugs\n\n## 📋 Backlog Atual\n\n';
+    
+    let injectedCount = 0;
+    for (const bug of newBugs) {
+      // Evita duplicar a mesma tarefa exata na fila
+      if (!todoContent.includes(bug)) {
+        todoContent += `- [ ] **BUG DETECTADO (${new Date().toISOString().split('T')[0]}):** ${bug}\n`;
+        injectedCount++;
+      }
+    }
+
+    if (injectedCount > 0) {
+      fs.writeFileSync(todoFile, todoContent);
+      console.log(`📌 Enfileirados ${injectedCount} novos bugs no arquivo TODO-BUGS.md para resolução futura!`);
+    }
+  }
+
   // Limpeza de histórico antigo
   if (files.length > 50) {
     console.log("Limpando histórico antigo...");

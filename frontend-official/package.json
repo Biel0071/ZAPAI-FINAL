@@ -16,7 +16,9 @@
     "test-ui": "playwright test",
     "test:flash": "node scripts/run-flash.js",
     "test:chaos": "playwright test tests/ui/fast-ui-chaos.spec.ts",
-    "test:analyze": "node scripts/analyze-tests.js"
+    "test:analyze": "node scripts/analyze-tests.js",
+    "test:ultimate": "node scripts/run-ultimate.js",
+    "test:ultimate-playwright": "playwright test tests/ui/level3-real-journey.spec.ts"
   },
   "dependencies": {
     "@emoji-mart/data": "^1.2.1",
