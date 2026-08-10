@@ -146,6 +146,7 @@ export function useInboxState() {
   const [conversationsLoadFailed, setConversationsLoadFailed] = useState(false);
   const [messagesLoadFailed, setMessagesLoadFailed] = useState(false);
   const [sending, setSending] = useState(false);
+  const sendingRef = useRef(false);
   const [error, setError] = useState<string | null>(null);
   const [backendOnline, setBackendOnline] = useState(true);
   const [isRealtimeConnected, setIsRealtimeConnected] = useState(false);
@@ -1797,7 +1798,7 @@ export function useInboxState() {
 
   // Message sending implementation
   const handleSendMessage = useCallback(async (overrideText?: string) => {
-    if (sending) return;
+    if (sendingRef.current) return;
 
     const text = (overrideText ?? messageInput).trim();
     const replyExcerpt = (replyingTo?.caption ?? replyingTo?.content ?? "").trim();
@@ -1857,6 +1858,7 @@ export function useInboxState() {
       });
 
       setSending(true);
+      sendingRef.current = true;
       setPreferredSessionId(sessionIdToSend);
       localStorage.setItem("zapai_inbox_active_session", sessionIdToSend);
 
@@ -1872,7 +1874,7 @@ export function useInboxState() {
 
       const optimisticMessages: ChatMessage[] = currentAttachments.length
         ? currentAttachments.map((attachment, index) => {
-            const tempId = `temp-media-${Date.now()}-${index}`;
+            const tempId = `temp-media-${Date.now()}-${Math.random().toString(36).slice(2, 9)}-${index}`;
             pendingTempIds.add(tempId);
             return {
               id: tempId,
@@ -1887,7 +1889,7 @@ export function useInboxState() {
           })
         : [
             (() => {
-              const tempId = `temp-${Date.now()}`;
+              const tempId = `temp-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
               pendingTempIds.add(tempId);
               return {
                 id: tempId,
@@ -2074,6 +2076,7 @@ export function useInboxState() {
       }
     } finally {
       setSending(false);
+      sendingRef.current = false;
     }
   }, [activeSession, attachments, canUseBackend, clearPendingFallbackTimersForTempId, hasMoreMessages, inboxRuntimeState, isWhatsappConnected, loadConversationMessages, messageInput, persistDraftSnapshot, preferredSessionId, refreshSessions, removePendingTempIdsForConversation, replyingTo, selectedConversation, sending, sessions, showErrorToast, updateConversationMessageStore, setMessagesForConversation, setConversations]);
 

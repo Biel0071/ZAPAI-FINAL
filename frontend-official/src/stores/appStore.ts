@@ -555,7 +555,7 @@ export const useAppStore = create<AppState>((set) => ({
       const current = state.messagesByConversationId[resolvedId] ?? [];
       
       // If we already have this message by ID, do nothing
-      if (current.some((m) => m.id === message.id)) {
+      if (current.some((m) => String(m.id) === String(message.id))) {
         return {};
       }
 
