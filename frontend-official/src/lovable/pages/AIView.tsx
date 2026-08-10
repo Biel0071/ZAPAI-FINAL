@@ -1,4 +1,5 @@
 import { motion } from "framer-motion";
+import { MemoryGraphViewer } from "@/components/MemoryGraphViewer";
 import {
   CaretRight,
   CaretLeft,
@@ -3395,31 +3396,17 @@ export function AIView(props: AIViewProps) {
                               <Badge variant="outline" className="text-[9px]">{agentMemoryGraph.edges.length} conexoes</Badge>
                             </div>
                           </CardHeader>
-                          <CardContent className="p-4 pt-2">
-                            <div className="flex flex-col items-center">
-                              <div className="rounded-xl border border-primary/40 bg-primary/10 px-4 py-2 text-center shadow-glow">
-                                <Bot className="mx-auto mb-1 h-4 w-4 text-primary" />
-                                <span className="text-[10px] font-bold">{selectedAgentKey || "Atendente"}</span>
+                          <CardContent className="p-0 overflow-hidden h-[450px]">
+                            {agentMemoryGraph.nodes && agentMemoryGraph.nodes.length > 0 ? (
+                              <MemoryGraphViewer graphData={agentMemoryGraph} height={450} />
+                            ) : (
+                              <div className="flex h-full items-center justify-center text-center p-6">
+                                <p className="text-sm text-muted-foreground">
+                                  Nenhuma memória em grafo encontrada ainda.<br />
+                                  <span className="text-xs">As interações reais irão gerar a rede de conhecimento (nodes & edges) aqui.</span>
+                                </p>
                               </div>
-                              <div className="h-4 w-px bg-primary/35" />
-                              <div className="flex w-full flex-wrap justify-center gap-2 border-t border-primary/20 pt-3">
-                                {agentMemoryGraph.nodes.filter((node) => ["field", "concept", "contact"].includes(node.type)).slice(0, 12).map((node) => (
-                                  <div key={node.id} className="rounded-lg border border-border/60 bg-background/50 px-2.5 py-1.5 text-[9px] font-semibold">
-                                    {node.label} <span className="text-primary">{node.weight}</span>
-                                  </div>
-                                ))}
-                                {agentMemoryGraph.nodes.filter((node) => ["field", "concept", "contact"].includes(node.type)).length === 0 && (
-                                  <p className="py-3 text-[10px] text-muted-foreground">As primeiras conversas formarao o grafo automaticamente.</p>
-                                )}
-                              </div>
-                              <div className="mt-3 grid w-full gap-2 sm:grid-cols-2">
-                                {agentMemoryGraph.nodes.filter((node) => ["lesson", "episode"].includes(node.type)).slice(0, 6).map((node) => (
-                                  <div key={node.id} className="truncate rounded-lg border border-emerald-500/15 bg-emerald-500/5 px-2.5 py-2 text-[9px] text-muted-foreground" title={node.label}>
-                                    <CheckCircle className="mr-1 inline h-3 w-3 text-emerald-400" /> {node.label}
-                                  </div>
-                                ))}
-                              </div>
-                            </div>
+                            )}
                           </CardContent>
                         </Card>
                       </div>
