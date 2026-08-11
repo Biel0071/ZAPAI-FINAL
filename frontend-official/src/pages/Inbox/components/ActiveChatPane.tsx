@@ -247,7 +247,8 @@ export function ActiveChatPane({
   const [selectedQuickReplyModal, setSelectedQuickReplyModal] = useState<QuickResponseItem | null>(null);
   const [isQuickReplyModalOpen, setIsQuickReplyModalOpen] = useState(false);
 
-  const { timeLeft, isWaiting: isAiCountdownActive } = useAiCountdown(selectedConversation?.ai_reactivate_at);
+  const targetReactivateAt = selectedConversation?.ai_reactivate_at || selectedConversation?.aiReactivateAt || selectedConversation?.aiPausedUntil;
+  const { timeLeft, isWaiting: isAiCountdownActive } = useAiCountdown(targetReactivateAt);
 
   useEffect(() => {
     if (!selectedConversation?.phone) {
@@ -566,7 +567,7 @@ export function ActiveChatPane({
                       title="Controle da IA"
                     >
                       <Robot className="h-4 w-4" weight={aiEnabledForConversation ? "fill" : "regular"} />
-                      {aiEnabledForConversation ? "Ativado" : isAiCountdownActive ? `Pausado (${timeLeft})` : "Desativado"}
+                      {aiEnabledForConversation ? "Ativado" : isAiCountdownActive ? `Desativado (${timeLeft})` : "Desativado"}
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end" className="w-48 bg-[#1C2028]/95 border-border/80">
@@ -1239,7 +1240,7 @@ export function ActiveChatPane({
                       onClick={() => setShowEmojiPicker((prev) => !prev)}
                       aria-label="Abrir emojis"
                       data-emoji-trigger
-                      disabled={!selectedConversation || !canSendMessages || sending}
+                      disabled={!selectedConversation || !canSendMessages}
                     >
                       <Smiley className="h-5 w-5" />
                     </Button>
@@ -1251,7 +1252,7 @@ export function ActiveChatPane({
                       className={MOBILE_TOUCH_TARGET_CLASS}
                       onClick={() => fileInputRef.current?.click()}
                       aria-label="Anexar mídia"
-                      disabled={!selectedConversation || !canSendMessages || sending}
+                      disabled={!selectedConversation || !canSendMessages}
                     >
                       <Paperclip className="h-5 w-5" />
                     </Button>
@@ -1278,7 +1279,7 @@ export function ActiveChatPane({
                       }
                       className="flex min-h-[44px] max-h-[180px] w-full flex-1 resize-none rounded-lg border border-input bg-background px-3 py-3 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 scrollbar-none text-foreground"
                       value={messageInput}
-                      disabled={!selectedConversation || !canSendMessages || sending}
+                      disabled={!selectedConversation || !canSendMessages}
                       onChange={(event) => {
                         setMessageInput(event.target.value);
                         const textarea = event.target;
@@ -1339,7 +1340,7 @@ export function ActiveChatPane({
                         variant="ghost"
                         className={cn("rounded-full text-muted-foreground hover:text-foreground", MOBILE_TOUCH_TARGET_CLASS)}
                         onClick={handleToggleRecording}
-                        disabled={!selectedConversation || !canSendMessages || sending}
+                        disabled={!selectedConversation || !canSendMessages}
                         title="Gravar áudio"
                       >
                         <Microphone className="h-5 w-5" />
@@ -1349,7 +1350,7 @@ export function ActiveChatPane({
                         size="icon"
                         className={cn("rounded-full bg-primary text-primary-foreground", MOBILE_TOUCH_TARGET_CLASS)}
                         onClick={() => void handleSendMessage()}
-                        disabled={!selectedConversation || !canSendMessages || sending}
+                        disabled={!selectedConversation || !canSendMessages}
                         aria-label="Enviar mensagem"
                       >
                         <PaperPlaneTilt weight="fill" className="h-5 w-5" />

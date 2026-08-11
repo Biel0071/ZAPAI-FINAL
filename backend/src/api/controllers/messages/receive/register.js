@@ -139,12 +139,15 @@ async function registerOutgoingMessage(store, payload) {
       const runtime = conversationRuntimeService.registerHumanReply(store, result.conversation.id);
       const updatedConversation = await conversationRepository.updateConversationState(result.conversation.id, {
         aiEnabled: false,
+        ai_reactivate_at: runtime.aiPausedUntil,
       });
       const payloadUpdate = {
         ...(updatedConversation || result.conversation),
         aiEnabled: false,
         ai_enabled: false,
         aiPausedUntil: runtime.aiPausedUntil,
+        ai_reactivate_at: runtime.aiPausedUntil,
+        aiReactivateAt: runtime.aiPausedUntil,
         controlMode: runtime.controlMode,
         humanActive: true,
       };

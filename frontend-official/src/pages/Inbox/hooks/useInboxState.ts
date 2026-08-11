@@ -1798,8 +1798,6 @@ export function useInboxState() {
 
   // Message sending implementation
   const handleSendMessage = useCallback(async (overrideText?: string) => {
-    if (sendingRef.current) return;
-
     const text = (overrideText ?? messageInput).trim();
     const replyExcerpt = (replyingTo?.caption ?? replyingTo?.content ?? "").trim();
     const textWithReply = replyingTo && replyExcerpt ? `↩ ${replyExcerpt}\n${text}`.trim() : text;
@@ -1919,12 +1917,18 @@ export function useInboxState() {
       );
 
       const optimisticLast = optimisticMessages[optimisticMessages.length - 1];
+      const reactivateAt24h = new Date(Date.now() + 86400000).toISOString();
       setConversations((prev) => {
         const current = prev.find((item) => item.id === selectedConversation.id);
         if (!current) return prev;
 
         const updated: Conversation = {
           ...current,
+          aiEnabled: false,
+          ai_enabled: false,
+          aiPausedUntil: reactivateAt24h,
+          ai_reactivate_at: reactivateAt24h,
+          aiReactivateAt: reactivateAt24h,
           lastMessage: optimisticLast?.content || textWithReply || (currentAttachments[0]?.mediaType ? getMediaTypeLabel(currentAttachments[0].mediaType) : current.lastMessage || ""),
           lastMessageType: optimisticLast?.mediaType ?? currentAttachments[0]?.mediaType ?? "text",
           updatedAt: optimisticLast?.createdAt ?? now,
@@ -2109,7 +2113,14 @@ export function useInboxState() {
       setConversations((prev) =>
         prev.map((conversation) =>
           conversation.id === targetConversation.id
-            ? { ...conversation, aiEnabled: persistedEnabled }
+            ? {
+                ...conversation,
+                aiEnabled: persistedEnabled,
+                ai_enabled: persistedEnabled,
+                ai_reactivate_at: reactivateAt,
+                aiReactivateAt: reactivateAt,
+                aiPausedUntil: reactivateAt,
+              }
             : conversation,
         ),
       );

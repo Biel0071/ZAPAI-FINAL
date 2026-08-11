@@ -91,6 +91,10 @@ export interface Conversation {
   isAI?: boolean;
   lastMessageType?: "text" | "image" | "video" | "audio" | "file" | "sticker";
   aiEnabled?: boolean;
+  ai_enabled?: boolean;
+  ai_reactivate_at?: string | null;
+  aiReactivateAt?: string | null;
+  aiPausedUntil?: string | null;
   summary?: string;
   notes?: string;
   funnel_stage?: string;

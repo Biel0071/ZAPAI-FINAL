@@ -125,6 +125,8 @@ function decorateConversation(store, conversation) {
   return {
     ...conversation,
     aiPausedUntil: runtime.aiPausedUntil,
+    ai_reactivate_at: runtime.aiPausedUntil || conversation.ai_reactivate_at || null,
+    aiReactivateAt: runtime.aiPausedUntil || conversation.ai_reactivate_at || conversation.aiReactivateAt || null,
     controlMode: runtime.controlMode,
     humanActive: runtime.controlMode === 'human_active' || runtime.controlMode === 'paused_ai',
     maxAiIterations: DEFAULT_MAX_AI_ITERATIONS,
