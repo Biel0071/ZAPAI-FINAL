@@ -468,6 +468,18 @@ async function sendMessage(req, res) {
       participantJid: transportParticipantJid,
     });
 
+    if (whatsappMessageId && persistedResult?.message?.id) {
+      messageAckPipeline.registerDbMapping(whatsappMessageId, persistedResult.message.id);
+      const ackEntry = messageAckPipeline.transitionAck(whatsappMessageId, messageAckPipeline.ACK_STATES.SENT, {
+        chatId: normalizedPhone,
+        sessionId: session?.sessionId || targetSessionName,
+      });
+      const io = store?.io || global.io || req.app?.get?.('io') || req.app?.locals?.io;
+      if (io && ackEntry) {
+        messageAckPipeline.emitAckUpdate(io, ackEntry);
+      }
+    }
+
     if (store.databaseEnabled && conversationId && String(req.body.source) !== 'ai' && String(req.body.source) !== 'bot') {
       try {
         await dbQuery(

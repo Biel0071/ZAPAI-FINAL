@@ -773,7 +773,7 @@ async function processAI({ contact, history, message, store, agentName, companyI
   const slicedHistory = Array.isArray(history) ? history.slice(-8) : [];
 
   // Response Caching (60s TTL)
-  const historyHashString = slicedHistory.map(h => `${h.role}:${h.content}`).join('|');
+  const historyHashString = slicedHistory.map(h => `${h.role || h.from || 'user'}:${h.content || h.text || ''}`).join('|');
   const cacheKeySource = `${contact.phone || 'unknown'}:${message || ''}:${historyHashString}:${systemPrompt}`;
   const cacheKey = crypto.createHash('md5').update(cacheKeySource).digest('hex');
 
@@ -802,8 +802,8 @@ async function processAI({ contact, history, message, store, agentName, companyI
     const messages = [
       { role: 'system', content: systemPrompt },
       ...slicedHistory.map((h) => ({
-        role: h.role === 'assistant' ? 'assistant' : 'user',
-        content: h.content || '',
+        role: (h.role === 'assistant' || h.from === 'agent' || h.from === 'bot' || h.from === 'system') ? 'assistant' : 'user',
+        content: h.content || h.text || '',
       })),
       { role: 'user', content: message },
     ];
