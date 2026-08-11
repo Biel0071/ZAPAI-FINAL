@@ -25,6 +25,7 @@ import {
   ChartBar,
   PaperPlaneTilt,
   CheckCircle,
+  CalendarBlank,
 } from "@phosphor-icons/react";
 import { MapContainer, Marker, Popup, TileLayer, Circle, useMap } from "react-leaflet";
 import L from "leaflet";
@@ -380,28 +381,57 @@ export function DashboardView({
             <button
               type="button"
               onClick={() => onDateRangeChange((dateRange === "custom" ? "today" : "custom") as any)}
-              className={`rounded-lg border px-2.5 py-1.5 text-xs font-medium transition-colors ${
+              className={`flex items-center gap-1.5 rounded-xl border px-3 py-1.5 text-xs font-medium transition-colors ${
                 dateRange === "custom" || dateRange === "hour"
                   ? "border-primary/40 bg-primary/10 text-primary"
-                  : "border-border bg-card/60 text-muted-foreground hover:text-foreground"
+                  : "border-border bg-card/60 text-muted-foreground hover:text-foreground hover:bg-card/80"
               }`}
             >
+              <CalendarBlank className="h-3.5 w-3.5" weight={dateRange === "custom" ? "fill" : "regular"} />
               Personalizado
             </button>
 
             {dateRange === "custom" && (
-              <div className="flex items-center gap-2">
-                <input aria-label="Data inicial" type="date" value={customStart} onChange={(event) => onCustomStartChange(event.target.value)} className="h-8 rounded-lg border border-border bg-card px-2 text-xs" />
-                <input aria-label="Data final" type="date" value={customEnd} onChange={(event) => onCustomEndChange(event.target.value)} className="h-8 rounded-lg border border-border bg-card px-2 text-xs" />
+              <div className="flex items-center gap-1 rounded-xl border border-border bg-card/60 p-1 shadow-sm">
+                <input 
+                  aria-label="Data inicial" 
+                  type="date" 
+                  value={customStart} 
+                  onChange={(event) => onCustomStartChange(event.target.value)} 
+                  className="h-7 w-28 rounded-lg border-none bg-transparent px-2 text-xs text-muted-foreground outline-none transition-colors hover:bg-muted/50 focus:bg-muted" 
+                />
+                <span className="text-xs font-medium text-muted-foreground/70 px-1">até</span>
+                <input 
+                  aria-label="Data final" 
+                  type="date" 
+                  value={customEnd} 
+                  onChange={(event) => onCustomEndChange(event.target.value)} 
+                  className="h-7 w-28 rounded-lg border-none bg-transparent px-2 text-xs text-muted-foreground outline-none transition-colors hover:bg-muted/50 focus:bg-muted" 
+                />
               </div>
             )}
 
             {/* Janela de horário: só relevante para dia único / personalizado */}
             {(dateRange === "today" || dateRange === "yesterday" || dateRange === "hour" || dateRange === "custom") && (
-              <div className="flex items-center gap-1 rounded-lg border border-border bg-card/60 px-2 py-1 text-xs text-muted-foreground">
-                <input aria-label="Hora inicial" type="time" value={timeStart} onChange={(event) => onTimeStartChange(event.target.value)} className="h-6 rounded border-none bg-transparent px-1 outline-none" />
-                <span>até</span>
-                <input aria-label="Hora final" type="time" value={timeEnd} onChange={(event) => onTimeEndChange(event.target.value)} className="h-6 rounded border-none bg-transparent px-1 outline-none" />
+              <div className="flex items-center gap-1.5 rounded-xl border border-border bg-card/60 p-1 shadow-sm text-xs text-muted-foreground">
+                <div className="flex items-center justify-center pl-2 pr-1">
+                  <Clock className="h-3.5 w-3.5 text-muted-foreground/70" weight="duotone" />
+                </div>
+                <input 
+                  aria-label="Hora inicial" 
+                  type="time" 
+                  value={timeStart} 
+                  onChange={(event) => onTimeStartChange(event.target.value)} 
+                  className="h-7 w-20 rounded-lg border-none bg-transparent px-2 outline-none text-center transition-colors hover:bg-muted/50 focus:bg-muted" 
+                />
+                <span className="font-medium text-muted-foreground/70">até</span>
+                <input 
+                  aria-label="Hora final" 
+                  type="time" 
+                  value={timeEnd} 
+                  onChange={(event) => onTimeEndChange(event.target.value)} 
+                  className="h-7 w-20 rounded-lg border-none bg-transparent px-2 outline-none text-center transition-colors hover:bg-muted/50 focus:bg-muted" 
+                />
               </div>
             )}
           </div>
