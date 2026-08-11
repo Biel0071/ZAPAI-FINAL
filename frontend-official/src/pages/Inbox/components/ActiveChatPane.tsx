@@ -39,6 +39,7 @@ import { NewMessagesBanner } from "@/components/inbox/NewMessagesBanner";
 import { MessageRow } from "./MessageRow";
 import { FlowExecutionBanner, type FlowExecutionData } from "./FlowExecutionBanner";
 import { QuickResponseModal, type QuickResponseItem } from "./QuickResponseModal";
+import { useAiCountdown } from "@/hooks/useAiCountdown";
 import { getSharedSocket } from "../../../runtime/socket/socketManager";
 import { cn } from "@/lib/utils";
 import { apiService } from "@/services/apiService";
@@ -99,7 +100,7 @@ interface ActiveChatPaneProps {
   canSendMessages: boolean;
   aiEnabledForConversation: boolean;
   conversationAiOverrideEnabled: boolean;
-  handleSetConversationAiEnabled: (val: boolean) => Promise<void>;
+  handleSetConversationAiEnabled: (val: boolean, reactivateAt?: string | null) => Promise<void>;
   isTabletLayout: boolean;
   setShowLeadPanel: (val: boolean) => void;
   onBack?: () => void;
@@ -245,6 +246,8 @@ export function ActiveChatPane({
   const [activeFlowData, setActiveFlowData] = useState<FlowExecutionData | null>(null);
   const [selectedQuickReplyModal, setSelectedQuickReplyModal] = useState<QuickResponseItem | null>(null);
   const [isQuickReplyModalOpen, setIsQuickReplyModalOpen] = useState(false);
+
+  const { timeLeft, isWaiting: isAiCountdownActive } = useAiCountdown(selectedConversation?.ai_reactivate_at);
 
   useEffect(() => {
     if (!selectedConversation?.phone) {
@@ -546,24 +549,50 @@ export function ActiveChatPane({
                   Buscar
                 </Button>
 
-                <Button
-                  type="button"
-                  variant={aiEnabledForConversation ? "secondary" : "outline"}
-                  size="sm"
-                  className={cn(
-                    "h-8 px-2 text-[11px] gap-1",
-                    aiEnabledForConversation
-                      ? "bg-primary/20 hover:bg-primary/30 text-primary border-primary/30 font-semibold"
-                      : "text-muted-foreground hover:text-foreground",
-                  )}
-                  onClick={() => {
-                    void handleSetConversationAiEnabled(!conversationAiOverrideEnabled);
-                  }}
-                  title={aiEnabledForConversation ? "IA Automática Ativada" : "IA Automática Desativada"}
-                >
-                  <Brain className="h-4 w-4" />
-                  {aiEnabledForConversation ? "IA ON" : "IA OFF"}
-                </Button>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className={cn(
+                        "h-8 px-2 text-[11px] font-semibold gap-1",
+                        aiEnabledForConversation
+                          ? "bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500/20 border-emerald-500/30"
+                          : isAiCountdownActive
+                          ? "bg-amber-500/10 text-amber-500 hover:bg-amber-500/20 border-amber-500/30"
+                          : "bg-red-500/10 text-red-500 hover:bg-red-500/20 border-red-500/30"
+                      )}
+                      title="Controle da IA"
+                    >
+                      <Robot className="h-4 w-4" weight={aiEnabledForConversation ? "fill" : "regular"} />
+                      {aiEnabledForConversation ? "Ativado" : isAiCountdownActive ? `Pausado (${timeLeft})` : "Desativado"}
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-48 bg-[#1C2028]/95 border-border/80">
+                    <DropdownMenuItem 
+                      onClick={() => void handleSetConversationAiEnabled(true, null)}
+                      className="gap-2 cursor-pointer focus:bg-emerald-500/10 focus:text-emerald-500"
+                    >
+                      <Robot className="h-4 w-4 text-emerald-500" weight="fill" />
+                      <span>Ativar IA</span>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem 
+                      onClick={() => void handleSetConversationAiEnabled(false, new Date(Date.now() + 86400000).toISOString())}
+                      className="gap-2 cursor-pointer focus:bg-amber-500/10 focus:text-amber-500"
+                    >
+                      <Robot className="h-4 w-4 text-amber-500" weight="fill" />
+                      <span>Pausar IA (24h)</span>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem 
+                      onClick={() => void handleSetConversationAiEnabled(false, null)}
+                      className="gap-2 cursor-pointer focus:bg-red-500/10 focus:text-red-500 text-red-500"
+                    >
+                      <Robot className="h-4 w-4 text-red-500" weight="fill" />
+                      <span>Desativar IA</span>
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
 
                 {aiEnabledForConversation && aiAgents && aiAgents.length > 0 && handleSetConversationAgent && (
                   <div className="flex min-w-0 items-center gap-1 bg-[#1C2028] border border-border/40 rounded-md px-2 py-0.5 text-[10px]">

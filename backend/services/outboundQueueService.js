@@ -344,12 +344,26 @@ async function executeOutbound(item) {
   }
 
   const whatsappMessageId = String(sendResult.key.id);
+
+  const res = await persistSuccessfulSend({
+    ...item,
+    sessionId: session?.sessionId || item.sessionId,
+    status: messageAckPipeline.ACK_STATES.PENDING,
+    whatsappMessageId,
+    remoteJid: sendResult.key.remoteJid || null,
+  });
+
   messageAckPipeline.transitionAck(whatsappMessageId, messageAckPipeline.ACK_STATES.PENDING, {
     chatId: item.phone,
     sessionId: session?.sessionId || item.sessionId,
     companyId: item.companyId,
     correlationId: item.correlationId,
   });
+
+  if (res?.message?.id) {
+    messageAckPipeline.registerDbMapping(whatsappMessageId, res.message.id);
+  }
+
   correlationTracker.traceLog(item.correlationId, 'ack.waiting', 'Worker is waiting for WhatsApp server ACK.', {
     companyId: item.companyId,
     messageId: whatsappMessageId,
@@ -365,16 +379,7 @@ async function executeOutbound(item) {
     });
   }
 
-  const res = await persistSuccessfulSend({
-    ...item,
-    sessionId: session?.sessionId || item.sessionId,
-    status: ackEntry.status,
-    whatsappMessageId,
-    remoteJid: sendResult.key.remoteJid || null,
-  });
-
   if (res?.message?.id) {
-    messageAckPipeline.registerDbMapping(whatsappMessageId, res.message.id);
     const io = storeRef?.io || global.io;
     if (io) messageAckPipeline.emitAckUpdate(io, ackEntry);
   }

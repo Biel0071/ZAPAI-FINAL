@@ -219,11 +219,11 @@ export const MessageRow = memo(function MessageRow({
   const EMOJI_OPTIONS = ["\u{1F600}", "\u{1F602}", "\u{1F60D}", "\u{1F44D}", "\u{1F525}", "\u{1F44F}", "\u{1F64F}", "\u{2705}", "\u{1F4E6}", "\u{1F69A}"];
 
   const isAiMessage = Boolean(
-    message.sender === 'agent' ||
     message.isAi ||
+    message.isAI ||
+    (message as any).is_ai ||
     (message as any).isAiGenerated ||
     (message as any).source === 'ai' ||
-    (message as any).source === 'agent' ||
     (message as any).metadata?.source === 'ai' ||
     (message as any).agentName
   );
@@ -237,13 +237,7 @@ export const MessageRow = memo(function MessageRow({
         isActiveSearchMatch && "bg-amber-400/10 ring-1 ring-amber-400/40",
       )}
     >
-      {!message.fromMe && (
-        <div className="flex-shrink-0 mt-0.5 flex flex-col items-center gap-1 z-10 relative">
-          <div className="h-6 w-6 flex items-center justify-center rounded-full bg-secondary text-sm border border-border shadow-sm">
-            🧑
-          </div>
-        </div>
-      )}
+
       <div className="relative pb-3 max-w-[80%]">
         <div
           className={cn(
@@ -614,7 +608,6 @@ export const MessageRow = memo(function MessageRow({
           </div>
         )}
       </div>
-      {/* Remover avatar externo para message.fromMe, já que agora está na bolha */}
     </div>
   );
 }, (prevProps, nextProps) => {

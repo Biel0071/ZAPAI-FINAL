@@ -468,6 +468,29 @@ async function sendMessage(req, res) {
       participantJid: transportParticipantJid,
     });
 
+    if (store.databaseEnabled && conversationId && String(req.body.source) !== 'ai' && String(req.body.source) !== 'bot') {
+      try {
+        await dbQuery(
+          `UPDATE conversations 
+           SET ai_enabled = false, ai_reactivate_at = NOW() + INTERVAL '24 hours' 
+           WHERE id = $1`,
+          [conversationId]
+        );
+        const io = store?.io || global.io || req.app?.get?.('io') || req.app?.locals?.io;
+        if (io) {
+          io.emit('conversation_updated', {
+            id: conversationId,
+            ai_enabled: false,
+            // the frontend will need to fetch or we can estimate it:
+            ai_reactivate_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString()
+          });
+        }
+        console.log(`[AI-DEACTIVATE] IA desligada por 24h para conv ${conversationId} devido a msg manual.`);
+      } catch (err) {
+        console.error('[AI-DEACTIVATE] Error updating DB:', err.message);
+      }
+    }
+
     if (!persistedResult?.message) {
       MessageAuditService.log('message_failed', {
         error: 'Message persistence failed',

@@ -715,7 +715,7 @@ async function listConversationControls(req, res) {
 
 async function upsertConversationControl(req, res) {
   try {
-    const { conversation_id, conversationId, ai_enabled, aiEnabled, assigned_to, notes, tags, summary } = req.body || {};
+    const { conversation_id, conversationId, ai_enabled, aiEnabled, ai_reactivate_at, aiReactivateAt, assigned_to, notes, tags, summary } = req.body || {};
     const targetId = conversationId || conversation_id;
 
     if (!targetId) {
@@ -731,6 +731,15 @@ async function upsertConversationControl(req, res) {
     const fields = {};
     if (typeof aiEnabled !== 'undefined') fields.aiEnabled = Boolean(aiEnabled);
     else if (typeof ai_enabled !== 'undefined') fields.aiEnabled = Boolean(ai_enabled);
+
+    const reactivateAt = ai_reactivate_at !== undefined ? ai_reactivate_at : aiReactivateAt;
+    if (reactivateAt !== undefined) {
+      fields.ai_reactivate_at = reactivateAt;
+    }
+
+    if (fields.aiEnabled === true) {
+      fields.ai_reactivate_at = null;
+    }
     if (typeof summary !== 'undefined') fields.summary = summary;
     if (typeof notes !== 'undefined') fields.notes = notes;
     if (Array.isArray(tags)) fields.tags = tags;
@@ -746,6 +755,7 @@ async function upsertConversationControl(req, res) {
       conversationId: updated.id,
       ai_enabled: updated.aiEnabled !== false,
       aiEnabled: updated.aiEnabled !== false,
+      ai_reactivate_at: updated.ai_reactivate_at || updated.aiReactivateAt || null,
       assigned_to: updated.agent_name || null,
       tags: updated.tags || [],
       summary: updated.summary || '',
@@ -774,6 +784,7 @@ async function getConversationControl(req, res) {
       conversationId: conv.id,
       ai_enabled: conv.aiEnabled !== false,
       aiEnabled: conv.aiEnabled !== false,
+      ai_reactivate_at: conv.ai_reactivate_at || conv.aiReactivateAt || null,
       assigned_to: conv.agent_name || null,
       tags: conv.tags || [],
       summary: conv.summary || '',

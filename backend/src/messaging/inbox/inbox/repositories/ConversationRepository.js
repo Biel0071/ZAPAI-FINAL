@@ -19,6 +19,7 @@ function toConversationState(conversation) {
     assignedAgent: conversation.assignedAgent || conversation.agent_name || null,
     intent: conversation.intent || conversation.lead_intent || 'information',
     leadScore: Number(conversation.leadScore || conversation.lead_confidence || 0),
+    ai_reactivate_at: conversation.ai_reactivate_at || null,
     lastInteractionAt,
   };
 }
@@ -27,6 +28,7 @@ function toRepositoryStateFields(fields = {}) {
   return {
     agent_name: fields.assignedAgent,
     aiEnabled: fields.aiEnabled,
+    ai_reactivate_at: fields.ai_reactivate_at,
     funnel_stage: fields.funnelStage,
     lastMessage: fields.lastMessage,
     lastMessageType: fields.lastMessageType,

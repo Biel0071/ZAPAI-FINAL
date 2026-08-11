@@ -700,6 +700,26 @@ async function runAIForChat({ chatId, incomingFormattedMessage, session, sock })
     return null;
   }
 
+  if (sent?.key?.id && savedOutgoingMessage.id) {
+    try {
+      const messageAckPipeline = require('../../messageAckPipeline');
+      // Create the pending ACK entry first so that any immediate baileys update finds it
+      messageAckPipeline.transitionAck(sent.key.id, messageAckPipeline.ACK_STATES.PENDING, {
+        chatId: normalizePhone(chatId),
+        sessionId: session?.sessionId || DEFAULT_SESSION,
+        companyId,
+      });
+      // Then register the DB mapping
+      messageAckPipeline.registerDbMapping(sent.key.id, savedOutgoingMessage.id);
+      
+      // Update database asynchronously with the whatsapp ID so it's consistent
+      const messageRepository = require('../../../src/infrastructure/database/repositories/messageRepository');
+      messageRepository.update(savedOutgoingMessage.id, { whatsappMessageId: sent.key.id }).catch(() => {});
+    } catch (err) {
+      console.warn('[WHATSAPP_AI] Failed to register ACK mapping:', err?.message || err);
+    }
+  }
+
   const outgoingMessage = {
     chatId,
     conversationId: savedOutgoingMessage.conversationId || persisted?.conversation?.id || null,
@@ -1645,7 +1665,7 @@ async function createStableSession({
         const existingAck = messageAckPipeline.getAckState(messageId);
         let dbId = existingAck?.dbMessageId;
 
-        if (!existingAck || !dbId) {
+        if (!existingAck) {
           // If not in memory mapping (e.g. sent manually from phone app), save to DB and pause AI
           try {
             result = await persistRealtimeMessage({
@@ -1658,7 +1678,7 @@ async function createStableSession({
             }
             const normalizedChatId = normalizePhone(remoteJid);
             const targetConvId = result?.conversation?.id || result?.message?.conversationId || normalizedChatId;
-            const humanTimeoutMs = Number(process.env.HUMAN_TAKEOVER_TIMEOUT_MS || 300000);
+            const humanTimeoutMs = Number(process.env.HUMAN_TAKEOVER_TIMEOUT_MS || 86400000);
             conversationRuntimeService.setHumanTakeover(store, targetConvId, humanTimeoutMs);
             if (result?.conversation?.id) {
               await conversationRepository.updateConversationState(result.conversation.id, {
@@ -1676,13 +1696,15 @@ async function createStableSession({
           // BUT we can load the message from the repository so we can populate `result`
           // and let formatInboundSavedMessage create a correct savedMessage object!
           try {
-            const dbMessage = await messageRepository.findById(dbId);
-            if (dbMessage) {
-              const dbConversation = await conversationRepository.getConversationById(dbMessage.conversationId);
-              result = {
-                message: dbMessage,
-                conversation: dbConversation
-              };
+            if (dbId) {
+              const dbMessage = await messageRepository.findById(dbId);
+              if (dbMessage) {
+                const dbConversation = await conversationRepository.getConversationById(dbMessage.conversationId);
+                result = {
+                  message: dbMessage,
+                  conversation: dbConversation
+                };
+              }
             }
           } catch (err) {
             console.error('[WHATSAPP] failed to retrieve existing message/conversation:', err?.message || err);

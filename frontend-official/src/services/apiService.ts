@@ -11,7 +11,7 @@ import axios from "axios";
 export { API_ORIGIN };
 
 const CACHE_TTL_MS = 30_000;
-const REQUEST_TIMEOUT_MS = 15_000;
+const REQUEST_TIMEOUT_MS = 45_000;
 const MAX_GET_RETRIES = 3;
 const INITIAL_BACKOFF_MS = 700;
 const ENDPOINT_404_COOLDOWN_MS = 120_000;
@@ -1301,7 +1301,7 @@ export const apiService = {
   },
 
   async sendMessage(payload: { phone: string; chatId?: string; text: string; conversationId?: string; contactId?: string; sessionId?: string }) {
-    const response = await request<MessageSendResponse>({ endpoint: "/api/send-message", method: "POST", body: payload });
+    const response = await request<MessageSendResponse>({ endpoint: "/api/send-message", method: "POST", body: payload, timeoutMs: 45000 });
     invalidateCache("conversations");
     return response;
   },

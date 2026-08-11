@@ -30,6 +30,7 @@ import {
 import { cn } from "@/lib/utils";
 import type { Conversation } from "@/services/apiService";
 import type { ConversationControl } from "../types";
+import { useAiCountdown } from "@/hooks/useAiCountdown";
 import {
   getInitials,
   formatTime,
@@ -116,13 +117,20 @@ export function ConversationRow(props: RowComponentProps<ConversationRowData>) {
   const isTyping = typingState === "composing" || typingState === "recording" || typingState === true;
   const draftPreview = draftsByConversationId?.[conversation.id]?.draft?.trim() || "";
   const isSelected = selectedChatIds.includes(conversation.id);
+  const { timeLeft, isWaiting: isAiCountdownActive } = useAiCountdown(conversation.ai_reactivate_at);
   const conversationAiAllowed = conversationControls[conversation.id]?.aiEnabled ?? conversation.aiEnabled ?? true;
   const aiEnabled = globalAiEnabled && conversationAiAllowed;
   const aiWaiting = !globalAiEnabled && conversationAiAllowed;
   const hasAttachment = Boolean(conversation.lastMessageType && conversation.lastMessageType !== "text");
   const wasAnsweredByAi = Boolean(conversation.isAI);
   const humanActive = Boolean(conversation.humanActive || conversation.controlMode === "human_active");
-  const aiTooltip = aiWaiting ? "IA aguardando" : aiEnabled ? "Desativar IA" : "Ativar IA";
+  const aiTooltip = !globalAiEnabled 
+    ? "IA pausada globalmente" 
+    : isAiCountdownActive 
+      ? `IA inativa (retorna em ${timeLeft})` 
+      : conversationAiAllowed 
+        ? "Desativar IA" 
+        : "Ativar IA";
 
   const handleClick = (e: React.MouseEvent) => {
     if ((e.target as HTMLElement).closest("[data-radix-menu-content]") || (e.target as HTMLElement).closest("[data-dropdown-trigger]")) {
@@ -245,6 +253,11 @@ export function ConversationRow(props: RowComponentProps<ConversationRowData>) {
                       <TooltipContent>{aiTooltip}</TooltipContent>
                     </Tooltip>
                   </TooltipProvider>
+                  {isAiCountdownActive && timeLeft && (
+                    <span className="text-[10px] font-medium text-amber-500 bg-amber-500/10 px-1 rounded truncate max-w-[60px]" title={`Retorna em ${timeLeft}`}>
+                      {timeLeft}
+                    </span>
+                  )}
                   {hasAttachment && <Paperclip className="h-3 w-3" aria-label="Possui anexos" />}
                   {wasAnsweredByAi && <Robot className="h-3 w-3 text-sky-400" aria-label="Respondido pela IA" />}
                   {humanActive && <User className="h-3 w-3 text-amber-400" aria-label="Atendimento humano" />}

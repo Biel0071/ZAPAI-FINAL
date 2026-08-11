@@ -57,6 +57,8 @@ const runtimeEngine = require('./services/runtimeEngine');
 const diagnosticsEngine = require('./services/diagnosticsEngine');
 const sessionRegistry = require('./services/sessionRegistry');
 const messageAckPipeline = require('./services/messageAckPipeline');
+const aiMemoryController = require('./services/aiMemoryController');
+const { processAiReactivation } = require('./src/infrastructure/workers/aiReactivationWorker');
 const workerSupervisor = require('./services/workerSupervisor');
 const backpressureController = require('./services/backpressureController');
 const correlationTracker = require('./services/correlationTracker');
@@ -1801,6 +1803,15 @@ async function bootstrap() {
         }
       }, 24 * 60 * 60 * 1000, { runImmediately: false }); // Every 24 hours
       workerSupervisor.startWorker('message_retention');
+
+      workerSupervisor.registerWorker('ai_reactivation', async () => {
+        try {
+          await processAiReactivation();
+        } catch (err) {
+          console.error('[SERVER] AI reactivation worker error:', err?.message || err);
+        }
+      }, 60000); // every minute
+      workerSupervisor.startWorker('ai_reactivation');
 
       // Signal PM2 that the process is fully ready (wait_ready: true)
       // This tells PM2 it can safely route traffic and manage restarts

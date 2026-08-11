@@ -2080,7 +2080,7 @@ export function useInboxState() {
     }
   }, [activeSession, attachments, canUseBackend, clearPendingFallbackTimersForTempId, hasMoreMessages, inboxRuntimeState, isWhatsappConnected, loadConversationMessages, messageInput, persistDraftSnapshot, preferredSessionId, refreshSessions, removePendingTempIdsForConversation, replyingTo, selectedConversation, sending, sessions, showErrorToast, updateConversationMessageStore, setMessagesForConversation, setConversations]);
 
-  const handleSetConversationAiEnabledById = useCallback(async (conversationId: string, enabled: boolean) => {
+  const handleSetConversationAiEnabledById = useCallback(async (conversationId: string, enabled: boolean, reactivateAt?: string | null) => {
     const targetConversation = conversationsRef.current.find((conversation) => conversation.id === conversationId);
     if (!targetConversation || updatingAiToggle) return;
 
@@ -2090,6 +2090,7 @@ export function useInboxState() {
       const updated = await upsertConversationControl({
         conversationId: targetConversation.id,
         aiEnabled: enabled,
+        aiReactivateAt: reactivateAt !== undefined ? reactivateAt : null,
         summary: conversationControls[targetConversation.id]?.summary,
         summarizedMessageCount: conversationControls[targetConversation.id]?.summarizedMessageCount,
       });
@@ -2461,9 +2462,9 @@ export function useInboxState() {
     }
   }, [aiEnabledForConversation, selectedConversation, suggestingResponse, messages, leadInsight, toast, showErrorToast]);
 
-  const handleSetConversationAiEnabled = useCallback(async (enabled: boolean) => {
+  const handleSetConversationAiEnabled = useCallback(async (enabled: boolean, reactivateAt?: string | null) => {
     if (!selectedConversation) return;
-    await handleSetConversationAiEnabledById(selectedConversation.id, enabled);
+    await handleSetConversationAiEnabledById(selectedConversation.id, enabled, reactivateAt);
   }, [handleSetConversationAiEnabledById, selectedConversation]);
 
   const handleArchiveSelectedConversation = useCallback(() => {

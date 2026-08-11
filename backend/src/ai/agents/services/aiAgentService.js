@@ -89,6 +89,30 @@ function normalizeAgent(agent = {}) {
     maxWords: typeof agent.maxWords === 'number'
       ? agent.maxWords
       : (isNaN(Number(agent.maxWords)) ? 0 : Number(agent.maxWords)),
+    followUp: agent.followUp ? {
+      active: Boolean(agent.followUp.active ?? true),
+      aiGenerated: Boolean(agent.followUp.aiGenerated ?? true),
+      respectBusinessHours: Boolean(agent.followUp.respectBusinessHours ?? true),
+      count: Number(agent.followUp.count || 3),
+      checkMin: Number(agent.followUp.checkMin || 300),
+      intervalHours: Number(agent.followUp.intervalHours || 8),
+      prompt: String(agent.followUp.prompt || '').trim()
+    } : {
+      active: true,
+      aiGenerated: true,
+      respectBusinessHours: true,
+      count: 3,
+      checkMin: 300,
+      intervalHours: 8,
+      prompt: ""
+    },
+    mediaAi: agent.mediaAi ? {
+      enabled: Boolean(agent.mediaAi.enabled ?? false),
+      items: Array.isArray(agent.mediaAi.items) ? agent.mediaAi.items : []
+    } : {
+      enabled: false,
+      items: []
+    }
   };
 }
 

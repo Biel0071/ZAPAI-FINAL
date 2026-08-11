@@ -934,7 +934,7 @@ export function AIView(props: AIViewProps) {
   const [agentFormPolicies, setAgentFormPolicies] = useState("");
 
   // Follow-Up States (matching Images 3 & 4)
-  const [followUpActive, setFollowUpActive] = useState(true);
+  const [followUpActive, setFollowUpActive] = useState(false);
   const [followUpAiGenerated, setFollowUpAiGenerated] = useState(true);
   const [followUpRespectBusinessHours, setFollowUpRespectBusinessHours] = useState(true);
   const [followUpCount, setFollowUpCount] = useState(3);
@@ -1149,6 +1149,13 @@ export function AIView(props: AIViewProps) {
     setAgentFormServices("");
     setAgentFormFaq("");
     setAgentFormPolicies("");
+    setFollowUpActive(false);
+    setFollowUpAiGenerated(true);
+    setFollowUpRespectBusinessHours(true);
+    setFollowUpCount(3);
+    setFollowUpCheckMin(300);
+    setFollowUpIntervalHours(8);
+    setFollowUpPrompt("");
     setAgentFormEscalationPhone("");
     setAgentFormEscalationWhatsapp("");
     setAgentFormEscalationActive(false);
@@ -1187,6 +1194,13 @@ export function AIView(props: AIViewProps) {
     setAgentFormServices(agent.services || "");
     setAgentFormFaq(agent.faq || "");
     setAgentFormPolicies(agent.policies || "");
+    setFollowUpActive(agent.followUp?.active ?? false);
+    setFollowUpAiGenerated(agent.followUp?.aiGenerated ?? true);
+    setFollowUpRespectBusinessHours(agent.followUp?.respectBusinessHours ?? true);
+    setFollowUpCount(agent.followUp?.count || 3);
+    setFollowUpCheckMin(agent.followUp?.checkMin || 300);
+    setFollowUpIntervalHours(agent.followUp?.intervalHours || 8);
+    setFollowUpPrompt(agent.followUp?.prompt || "");
     setAgentFormEscalationPhone(agent.escalationPhone || "");
     setAgentFormEscalationWhatsapp(agent.escalationWhatsapp || "");
     setAgentFormEscalationActive(Boolean(agent.escalationActive));
@@ -1237,6 +1251,15 @@ export function AIView(props: AIViewProps) {
       services: agentFormServices.trim(),
       faq: agentFormFaq.trim(),
       policies: agentFormPolicies.trim(),
+      followUp: {
+        active: followUpActive,
+        aiGenerated: followUpAiGenerated,
+        respectBusinessHours: followUpRespectBusinessHours,
+        count: followUpCount,
+        checkMin: followUpCheckMin,
+        intervalHours: followUpIntervalHours,
+        prompt: followUpPrompt,
+      },
       escalationPhone: agentFormEscalationPhone.trim(),
       escalationWhatsapp: agentFormEscalationWhatsapp.trim(),
       escalationActive: agentFormEscalationActive,
@@ -4286,25 +4309,25 @@ export function AIView(props: AIViewProps) {
                                   Score: {agent.evolution_score}/100
                                 </Badge>
                               </div>
-                              <div className="grid grid-cols-2 gap-2 text-[10px]">
-                                <div className="rounded border border-border/40 p-2 bg-background/20">
-                                  <span className="block text-muted-foreground">Conversas Analisadas</span>
-                                  <span className="font-bold text-foreground">{agent.conversations_analyzed}</span>
+                                <div className="grid grid-cols-2 gap-2 text-[10px]">
+                                  <div className="rounded border border-border/40 p-2 bg-background/20">
+                                    <span className="block text-muted-foreground">Conversas Analisadas</span>
+                                    <span className="font-bold text-foreground">{agent.conversations_analyzed}</span>
+                                  </div>
+                                  <div className="rounded border border-border/40 p-2 bg-background/20">
+                                    <span className="block text-muted-foreground">Leads de Ads</span>
+                                    <span className="font-bold text-foreground text-blue-400">{agent.ads_leads || 0}</span>
+                                  </div>
+                                  <div className="rounded border border-border/40 p-2 bg-background/20">
+                                    <span className="block text-muted-foreground">Conversões</span>
+                                    <span className="font-bold text-foreground text-emerald-500">{agent.conversions}</span>
+                                  </div>
+                                  <div className="rounded border border-border/40 p-2 bg-background/20">
+                                    <span className="block text-muted-foreground">Taxa de Sucesso</span>
+                                    <span className="font-bold text-foreground">{agent.success_rate}%</span>
+                                  </div>
                                 </div>
-                                <div className="rounded border border-border/40 p-2 bg-background/20">
-                                  <span className="block text-muted-foreground">Conversões</span>
-                                  <span className="font-bold text-foreground text-emerald-500">{agent.conversions}</span>
-                                </div>
-                                <div className="rounded border border-border/40 p-2 bg-background/20">
-                                  <span className="block text-muted-foreground">Objeções Capturadas</span>
-                                  <span className="font-bold text-foreground text-amber-500">{agent.objections}</span>
-                                </div>
-                                <div className="rounded border border-border/40 p-2 bg-background/20">
-                                  <span className="block text-muted-foreground">Taxa de Sucesso</span>
-                                  <span className="font-bold text-foreground">{agent.success_rate}%</span>
-                                </div>
-                              </div>
-                              {agent.faq_data?.top_questions && (
+                                {agent.faq_data?.top_questions && (
                                 <div className="space-y-1.5 pt-2 border-t border-border/30">
                                   <span className="block text-[10px] font-bold text-muted-foreground uppercase">Tópicos Mais Frequentes</span>
                                   <div className="space-y-1">

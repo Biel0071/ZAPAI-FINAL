@@ -11,6 +11,8 @@ export interface ConversationControl {
   conversationId: string;
   ai_enabled: boolean;
   aiEnabled: boolean;
+  ai_reactivate_at?: string | null;
+  aiReactivateAt?: string | null;
   assigned_to?: string;
   tags?: string[];
   notes?: string;
@@ -31,6 +33,8 @@ function normalizeConversationControl(control: Partial<ConversationControl>): Co
     conversationId,
     ai_enabled: Boolean(aiEnabled),
     aiEnabled: Boolean(aiEnabled),
+    ai_reactivate_at: control.ai_reactivate_at ?? control.aiReactivateAt ?? null,
+    aiReactivateAt: control.ai_reactivate_at ?? control.aiReactivateAt ?? null,
     notes: control.notes ?? "",
   };
 }
