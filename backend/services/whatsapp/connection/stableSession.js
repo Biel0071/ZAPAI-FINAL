@@ -750,6 +750,97 @@ async function runAIForChat({ chatId, incomingFormattedMessage, session, sock })
     console.error('[WHATSAPP] Failed to log RESPONSE_SENT:', err);
   }
 
+  // Disparar resposta rápida associada (se a IA pediu)
+  if (aiResult?.analysis?.trigger_quick_reply) {
+    try {
+      const qrId = aiResult.analysis.trigger_quick_reply;
+      console.log(`[WHATSAPP_AI] AI requested quick reply: ${qrId} for chat: ${chatId}`);
+      const quickReplyService = require('../../quickReplyService');
+      const outboundQueueService = require('../../outboundQueueService');
+      const flowTrackerService = require('../../flowTrackerService');
+
+      const allReplies = await quickReplyService.listQuickReplies();
+      const flow = allReplies.find((item) => 
+        String(item.id) === String(qrId) || 
+        String(item.title || item.label || item.cmd || item.text || '').toLowerCase() === String(qrId).toLowerCase()
+      );
+
+      if (flow) {
+        let rawSteps = [];
+        if (Array.isArray(flow.steps) && flow.steps.length > 0) {
+          rawSteps = flow.steps;
+        } else if (Array.isArray(flow.items) && flow.items.length > 0) {
+          rawSteps = flow.items;
+        } else {
+          rawSteps = [{
+            type: flow.mediaType || (flow.mediaUrl ? 'image' : 'text'),
+            value: flow.mediaUrl || flow.fileUrl || flow.text || '',
+            caption: flow.text || '',
+            filename: flow.filename || flow.fileName,
+            delayMs: 1000,
+          }];
+        }
+
+        let validSteps = rawSteps.filter((step) => {
+          const isText = step.type === 'text' || (!step.type && !step.mediaUrl && !step.fileUrl);
+          const mediaPath = !isText ? (step.value || step.mediaUrl || step.fileUrl) : undefined;
+          return isText || Boolean(mediaPath);
+        });
+
+        if (validSteps.length > 0) {
+          const totalSteps = validSteps.length;
+          flowTrackerService.startFlow({
+            chatId: normalizePhone(chatId),
+            flowName: flow.title || flow.label || flow.cmd || 'Resposta Rápida Automática',
+            totalSteps,
+            companyId: companyId || 'default',
+          });
+
+          let cumulativeDelayMs = 0;
+          const now = Date.now();
+          for (let index = 0; index < validSteps.length; index++) {
+            const step = validSteps[index];
+            const stepDelay = Number(step.delayMs || step.delay || 1500);
+            cumulativeDelayMs += stepDelay;
+            const scheduledTime = new Date(now + cumulativeDelayMs).toISOString();
+
+            const isText = step.type === 'text' || (!step.type && !step.mediaUrl && !step.fileUrl);
+            const mediaPath = !isText ? (step.value || step.mediaUrl || step.fileUrl) : undefined;
+            const textContent = isText ? (step.value || step.text || '') : (step.caption || step.text || '');
+
+            const itemPayload = {
+              phone: normalizePhone(chatId),
+              sessionId: session?.sessionId || 'main',
+              companyId: companyId || 'default',
+              text: textContent,
+              mediaType: !isText ? (step.type || 'image') : undefined,
+              mediaPath: mediaPath,
+              fileName: step.filename || step.fileName,
+              nextAttemptAt: scheduledTime,
+              metadata: {
+                flowId: flow.id,
+                stepId: step.id || `step_${index + 1}`,
+                currentStep: index + 1,
+                totalSteps,
+                isFlowStep: true,
+                source: 'ai_auto_trigger',
+                typingMs: Math.min(stepDelay, 2000),
+              },
+              actions: step.actions,
+            };
+
+            await outboundQueueService.enqueue(itemPayload);
+          }
+          console.log(`[WHATSAPP_AI] Quick reply ${qrId} successfully enqueued (${validSteps.length} steps)`);
+        }
+      } else {
+        console.warn(`[WHATSAPP_AI] Quick reply requested by AI not found: ${qrId}`);
+      }
+    } catch (err) {
+      console.error('[WHATSAPP_AI] Failed to execute auto quick reply from AI:', err);
+    }
+  }
+
   if (shouldEmitMetricsForMessage({ savedMessage: savedOutgoingMessage, session })) {
     emitRealtimeMetrics(session.io || global.io, store);
   }
@@ -1547,6 +1638,7 @@ async function createStableSession({
 
       let result = null;
 
+      let isDuplicateOutgoing = false;
       if (fromMe) {
         // This is an outbound message sent from Baileys
         // Transition state to SENT
@@ -1579,6 +1671,7 @@ async function createStableSession({
             console.error('[WHATSAPP] outbound realtime persistence/takeover failed:', error?.message || error);
           }
         } else {
+          isDuplicateOutgoing = true;
           // If it IS in the memory mapping (sent from our API), result is null.
           // BUT we can load the message from the repository so we can populate `result`
           // and let formatInboundSavedMessage create a correct savedMessage object!
@@ -1698,11 +1791,11 @@ async function createStableSession({
       console.log(
         `[WHATSAPP] message.saved session=${normalizedSessionName} chat=${remoteJid} id=${savedMessage.id}`
       );
-      if (result?.conversation) {
+      if (result?.conversation && !isDuplicateOutgoing) {
         emitInboundRealtimeMessage(io, savedMessage, result.conversation);
       }
 
-      if (chatStore && formattedRealtimeMessage?.chatId) {
+      if (chatStore && formattedRealtimeMessage?.chatId && !isDuplicateOutgoing) {
         const realtimeUrl = realtimeMediaPayload?.url || null;
         const realtimeType = String(realtimeMediaPayload?.type || '').toLowerCase();
         const requiresUrl = ['image', 'video', 'audio', 'file'].includes(realtimeType);
@@ -1726,7 +1819,7 @@ async function createStableSession({
         });
       }
 
-      if (realtimeMediaPayload) {
+      if (realtimeMediaPayload && !isDuplicateOutgoing) {
         await enterpriseQueueService.enqueue(
           enterpriseQueueService.QUEUE_NAMES.mediaJobs,
           {
@@ -1748,21 +1841,22 @@ async function createStableSession({
 
       const mediaPayload = await buildMediaEventPayload(incomingMessage);
 
-      if (mediaPayload) {
+      if (mediaPayload && !isDuplicateOutgoing) {
         (io || global.io)?.emit('media', mediaPayload);
-      } else if (realtimeMediaPayload?.type) {
+      } else if (realtimeMediaPayload?.type && !isDuplicateOutgoing) {
         // eslint-disable-next-line no-console
         console.warn(
           `[WHATSAPP] media.error session=${normalizedSessionName} chat=${remoteJid} id=${messageId || 'n/a'} reason=media_url_unavailable`
         );
       }
 
-      if (shouldEmitMetricsForMessage({ savedMessage, session })) {
+      if (shouldEmitMetricsForMessage({ savedMessage, session }) && !isDuplicateOutgoing) {
         emitRealtimeMetrics(io, ensureRealtimeStore(session));
       }
 
-      try {
-        await enterpriseQueueService.enqueue(
+      if (!isDuplicateOutgoing) {
+        try {
+          await enterpriseQueueService.enqueue(
           enterpriseQueueService.QUEUE_NAMES.aiJobs,
           {
             chatId: formattedRealtimeMessage.chatId,
@@ -1788,11 +1882,12 @@ async function createStableSession({
           });
         }
       } catch (error) {
-        // eslint-disable-next-line no-console
-        console.warn(
-          `[WHATSAPP] AI auto-reply skipped for ${formattedRealtimeMessage.chatId}:`,
-          error?.message || error
-        );
+          // eslint-disable-next-line no-console
+          console.warn(
+            `[WHATSAPP] AI auto-reply skipped for ${formattedRealtimeMessage.chatId}:`,
+            error?.message || error
+          );
+        }
       }
     }
   });

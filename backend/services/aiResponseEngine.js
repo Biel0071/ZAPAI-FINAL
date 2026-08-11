@@ -107,6 +107,7 @@ async function generateAIResponse({
         completionTokens: aiResult.completionTokens,
         totalTokens: aiResult.totalTokens,
         agentName: aiResult.agentName || resolvedAgent?.name,
+        analysis: aiResult.analysis,
       };
     }
   } catch (err) {

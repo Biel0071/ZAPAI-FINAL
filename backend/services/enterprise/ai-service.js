@@ -99,6 +99,7 @@ async function evaluateInboundAi({ agent, chatId, conversationHistory = [], cust
     completionTokens: Number(aiTelemetry.completionTokens) || 0,
     totalTokens: Number(aiTelemetry.totalTokens) || 0,
     agentName: aiTelemetry.agentName || agent?.name || null,
+    analysis: aiTelemetry.analysis || null,
   };
 }
 

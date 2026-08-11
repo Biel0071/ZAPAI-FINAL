@@ -336,10 +336,12 @@ function compileSystemPrompt(agent, store, contact = null) {
   const quickRepliesList = agent?.quickReplies || store?.quickReplies || [];
   if (Array.isArray(quickRepliesList) && quickRepliesList.length > 0) {
     for (const qr of quickRepliesList) {
-      const label = typeof qr === 'string' ? qr : (qr.label || qr.cmd || qr.text);
-      const text = typeof qr === 'string' ? qr : qr.text;
-      const media = qr.mediaUrl || qr.fileUrl ? `[Anexo de Mídia: ${qr.mediaUrl || qr.fileUrl}]` : '';
-      compiled += `  * Resposta Rápida/Mídia: "${label}" -> Conteúdo: "${text}" ${media}\n`;
+      const label = typeof qr === 'string' ? qr : (qr.title || qr.label || qr.cmd || qr.text);
+      const text = typeof qr === 'string' ? qr : (qr.content || qr.text || '');
+      const qrId = typeof qr === 'string' ? label : qr.id;
+      const hasMedia = qr.items && qr.items.some(i => i.type !== 'text') || qr.mediaUrl || qr.fileUrl || qr.steps && qr.steps.some(s => s.type !== 'text');
+      const media = hasMedia ? `[Contém Mídia]` : '';
+      compiled += `  * Resposta Rápida/Mídia: ID "${qrId}" (Título: "${label}") -> Conteúdo textual base: "${text.substring(0,100).replace(/\n/g, ' ')}..." ${media}\n`;
     }
   } else {
     compiled += `  * Mídias cadastradas para envio automático: Fotos de Churrasqueiras pré-moldadas, Cimento Liz/Campeão, Tijolos e Tabela de Preços da Loja.\n`;
@@ -374,7 +376,8 @@ function compileSystemPrompt(agent, store, contact = null) {
   compiled += `  "funnel_stage": "new_lead" | "interested" | "price_sent" | "negotiation" | "ready_to_buy" | "closed" | "lost",\n`;
   compiled += `  "tags_to_add": ["tag1", "tag2"],\n`;
   compiled += `  "address": "endereço completo de entrega caso tenha sido fornecido ou confirmado no fechamento",\n`;
-  compiled += `  "phone": "telefone de contato caso tenha sido fornecido"\n`;
+  compiled += `  "phone": "telefone de contato caso tenha sido fornecido",\n`;
+  compiled += `  "trigger_quick_reply": "ID EXATO da resposta rápida a ser disparada junto com sua mensagem, se o cliente pedir a foto/mídia correspondente ou se for o caso perfeito. Deixe null caso não haja nada a disparar"\n`;
   compiled += `}\n`;
   compiled += `:::\n`;
   compiled += `Regras de análise:\n`;
