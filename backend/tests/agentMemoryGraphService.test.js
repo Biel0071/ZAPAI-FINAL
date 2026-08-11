@@ -2,7 +2,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 
 test('agent memory graph learns in batches and never crosses tenant scope', async () => {
-  const databasePath = require.resolve('../config/database');
+  const databasePath = require.resolve('../src/infrastructure/config/database');
   const servicePath = require.resolve('../services/agentMemoryGraphService');
   const originalDatabase = require.cache[databasePath];
   const originalService = require.cache[servicePath];

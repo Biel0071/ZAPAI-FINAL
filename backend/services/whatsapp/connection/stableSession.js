@@ -1646,11 +1646,14 @@ async function createStableSession({
         // Historical append message: persist quietly without triggering worker queues/AI auto-reply
         enterpriseMessageService.persistInboundMessage({
           companyId: process.env.DEFAULT_COMPANY_ID || 'default',
+          externalMessageId: messageId,
           fromMe,
+          messageId,
           phone: remotePhone || cleanedPhone,
           sessionId: normalizedSessionName,
           text: extractMessageText(incomingMessage),
           status: fromMe ? 'sent' : 'received',
+          whatsappMessageId: messageId,
         }).catch(() => {});
       }
 

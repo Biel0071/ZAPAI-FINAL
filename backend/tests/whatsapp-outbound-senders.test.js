@@ -21,8 +21,8 @@ test('reuses a confirmed LID for consecutive messages without a second USync loo
   };
 
   try {
-    assert.equal(await resolveRegisteredJid(sock, `${lid}@lid`), `${lid}@lid`);
-    assert.equal(await resolveRegisteredJid(sock, `${lid}@lid`), `${lid}@lid`);
+    assert.equal(await resolveRegisteredJid(sock, `${lid}@lid`), `${phone}@s.whatsapp.net`);
+    assert.equal(await resolveRegisteredJid(sock, `${lid}@lid`), `${phone}@s.whatsapp.net`);
     assert.equal(lookups, 1);
   } finally {
     global.lidToPhoneMap = previousLidMap;

@@ -13,27 +13,51 @@ function sortMessagesAsc(messages = []) {
 }
 
 function dedupeMessages(messages = []) {
-  const byKey = new Map();
+  const result = [];
 
   for (const entry of messages || []) {
-    if (!entry) {
-      continue;
+    if (!entry) continue;
+
+    const id = String(entry.id || '').trim();
+    const waId = String(entry.whatsappMessageId || entry.externalMessageId || '').trim();
+
+    const existingIdx = result.findIndex((m) => {
+      const mId = String(m.id || '').trim();
+      const mWaId = String(m.whatsappMessageId || m.externalMessageId || '').trim();
+
+      if (id && mId && id === mId) return true;
+      if (waId && mWaId && waId === mWaId) return true;
+      if (waId && mId && waId === mId) return true;
+      if (id && mWaId && id === mWaId) return true;
+
+      const mContent = String(m.content || m.text || '').trim();
+      const entryContent = String(entry.content || entry.text || '').trim();
+      const timeDiff = Math.abs(
+        new Date(m.createdAt || m.timestamp || 0).getTime() -
+        new Date(entry.createdAt || entry.timestamp || 0).getTime()
+      );
+
+      if (
+        mContent &&
+        mContent === entryContent &&
+        Boolean(m.fromMe) === Boolean(entry.fromMe) &&
+        (Number.isNaN(timeDiff) || timeDiff < 5000)
+      ) {
+        return true;
+      }
+      return false;
+    });
+
+    if (existingIdx === -1) {
+      result.push(entry);
+    } else {
+      if (String(result[existingIdx].id || '').startsWith('temp-') && !id.startsWith('temp-')) {
+        result[existingIdx] = entry;
+      }
     }
-
-    const idKey = String(entry.id || '').trim();
-    const fallbackKey = [
-      String(entry.phone || '').trim(),
-      String(entry.createdAt || entry.timestamp || '').trim(),
-      String(entry.content || entry.text || '').trim(),
-      String(entry.mediaType || entry.type || '').trim(),
-      String(entry.fromMe ?? ''),
-    ].join('|');
-    const key = idKey || fallbackKey;
-
-    byKey.set(key, entry);
   }
 
-  return Array.from(byKey.values());
+  return result;
 }
 
 function normalizeMessagesForApi(messages = []) {

@@ -50,11 +50,14 @@ async function persistInboundMessage(payload = {}) {
     console.log('[EnterpriseMessageService] AI remains OFF for conversation ' + phone + '; incoming message persisted without re-enabling automation.');
   }
 
+  const externalMessageId = payload.externalMessageId || payload.whatsappMessageId || payload.messageId || null;
+
   const savedMessage = await messageRepository.create({
     companyId,
     content: messagePreview,
     conversationId: conversation.id,
     createdAt: payload.timestamp || new Date().toISOString(),
+    externalMessageId,
     fileName: payload.fileName || null,
     fromMe: Boolean(payload.fromMe),
     mediaPath: payload.mediaPath || payload.url || null,
@@ -64,6 +67,7 @@ async function persistInboundMessage(payload = {}) {
     sessionId,
     size: payload.size || null,
     status: payload.status || (payload.fromMe ? 'sent' : 'received'),
+    whatsappMessageId: externalMessageId,
     hash: payload.hash || null,
   });
 

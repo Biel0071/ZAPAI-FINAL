@@ -24,11 +24,11 @@ test('preserves an explicit LID as the outbound transport address', () => {
   );
 });
 
-test('routes a canonical phone through its known WhatsApp LID', () => {
+test('routes a canonical phone through its WhatsApp JID', () => {
   withLidMaps(
     new Map([['153343318048786', '553193807167']]),
     new Map([['553193807167', '153343318048786']]),
-    () => assert.equal(ensureWhatsAppJid('553193807167'), '153343318048786@lid'),
+    () => assert.equal(ensureWhatsAppJid('553193807167'), '553193807167@s.whatsapp.net'),
   );
 });
 

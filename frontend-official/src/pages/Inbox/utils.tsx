@@ -948,14 +948,28 @@ export function estimateBase64Bytes(base64: string): number {
 }
 
 export function sortMessagesAsc(list: ChatMessage[]): ChatMessage[] {
-  const uniqueById = new Map<string, ChatMessage>();
+  const result: ChatMessage[] = [];
 
-  list.forEach((message) => {
-    if (!message?.id) return;
-    uniqueById.set(String(message.id), message);
+  list.forEach((item) => {
+    if (!item?.id) return;
+    const existingIdx = result.findIndex((m) => {
+      if (m.id === item.id) return true;
+      const mWaId = (m as any).whatsappMessageId || (m as any).externalMessageId;
+      const itemWaId = (item as any).whatsappMessageId || (item as any).externalMessageId;
+      if (mWaId && itemWaId && mWaId === itemWaId) return true;
+      if (mWaId && mWaId === item.id) return true;
+      if (itemWaId && itemWaId === m.id) return true;
+      return false;
+    });
+
+    if (existingIdx === -1) {
+      result.push(item);
+    } else if (String(result[existingIdx].id).startsWith("temp-") && !String(item.id).startsWith("temp-")) {
+      result[existingIdx] = item;
+    }
   });
 
-  return [...uniqueById.values()].sort((a, b) => {
+  return result.sort((a, b) => {
     const aTime = new Date(String((a as { timestamp?: string }).timestamp ?? a.createdAt ?? "")).getTime();
     const bTime = new Date(String((b as { timestamp?: string }).timestamp ?? b.createdAt ?? "")).getTime();
     const safeATime = Number.isFinite(aTime) ? aTime : 0;
@@ -965,9 +979,39 @@ export function sortMessagesAsc(list: ChatMessage[]): ChatMessage[] {
 }
 
 export function mergeMessagesById(base: ChatMessage[], incoming: ChatMessage[]): ChatMessage[] {
-  const seen = new Set(base.map((item) => item.id));
-  const appended = incoming.filter((item) => !seen.has(item.id));
-  return [...base, ...appended];
+  const result = [...base];
+  for (const item of incoming) {
+    const existingIdx = result.findIndex((m) => {
+      if (m.id === item.id) return true;
+      const mWaId = (m as any).whatsappMessageId || (m as any).externalMessageId;
+      const itemWaId = (item as any).whatsappMessageId || (item as any).externalMessageId;
+      if (mWaId && itemWaId && mWaId === itemWaId) return true;
+      if (mWaId && mWaId === item.id) return true;
+      if (itemWaId && itemWaId === m.id) return true;
+
+      const contentM = (m.content || "").trim();
+      const contentItem = (item.content || "").trim();
+      const timeDiff = Math.abs(new Date(m.createdAt).getTime() - new Date(item.createdAt).getTime());
+      if (
+        contentM &&
+        contentM === contentItem &&
+        Boolean(m.fromMe) === Boolean(item.fromMe) &&
+        (Number.isNaN(timeDiff) || timeDiff < 5000)
+      ) {
+        return true;
+      }
+      return false;
+    });
+
+    if (existingIdx === -1) {
+      result.push(item);
+    } else {
+      if (String(result[existingIdx].id).startsWith("temp-") && !String(item.id).startsWith("temp-")) {
+        result[existingIdx] = item;
+      }
+    }
+  }
+  return result;
 }
 
 export function getMessageDisplayContent(message: Partial<ChatMessage> & { text?: string; body?: string; message?: string; caption?: string; mediaType?: string }) {
@@ -1020,7 +1064,15 @@ export function isLikelyRealtimeAck(candidate: ChatMessage, incoming: ChatMessag
 }
 
 export function isPotentialDuplicateMessage(base: ChatMessage[], incoming: ChatMessage): boolean {
-  if (base.some((item) => item.id === incoming.id)) return true;
+  if (base.some((item) => {
+    if (item.id === incoming.id) return true;
+    const itemWaId = (item as any).whatsappMessageId || (item as any).externalMessageId;
+    const incWaId = (incoming as any).whatsappMessageId || (incoming as any).externalMessageId;
+    if (itemWaId && incWaId && itemWaId === incWaId) return true;
+    if (itemWaId && itemWaId === incoming.id) return true;
+    if (incWaId && incWaId === item.id) return true;
+    return false;
+  })) return true;
 
   const incomingMedia = resolveMediaUrl(extractMessageAssetUrl(incoming));
   return base.some((item) => {
