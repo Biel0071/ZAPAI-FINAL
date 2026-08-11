@@ -6,7 +6,16 @@ const taskCache = new Map();
 
 function loadTask(taskName) {
   if (!taskCache.has(taskName)) {
-    const taskModule = require(path.join(__dirname, '..', 'microtasks', taskName));
+    let taskModule;
+    try {
+      taskModule = require(path.join(__dirname, '..', 'src', 'infrastructure', 'microtasks', taskName));
+    } catch (_) {
+      try {
+        taskModule = require(path.join(__dirname, '..', 'microtasks', taskName));
+      } catch (err) {
+        throw new Error(`Microtask "${taskName}" not found: ${err.message}`);
+      }
+    }
     taskCache.set(taskName, taskModule);
   }
 

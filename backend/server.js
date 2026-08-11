@@ -527,12 +527,23 @@ function corsForStatic(req, res, next) {
   next();
 }
 
-app.use('/media', corsForStatic, express.static(path.join(__dirname, '..', 'storage', 'media')));
-app.use('/media', corsForStatic, express.static(path.join(__dirname, 'media')));
-app.use('/upload', corsForStatic, express.static(path.join(__dirname, 'upload')));
-app.use('/uploads', corsForStatic, express.static(path.join(__dirname, 'uploads')));
-app.use('/uploads', corsForStatic, express.static(path.join(process.cwd(), 'uploads')));
-app.use('/uploads', corsForStatic, express.static(path.join(__dirname, '..', 'uploads')));
+const staticCacheOptions = {
+  maxAge: '1d',
+  etag: true,
+  lastModified: true,
+  setHeaders: (res, filePath) => {
+    if (/\.(png|jpe?g|webp|gif|svg|mp3|ogg|wav|mp4|webm|pdf)$/i.test(filePath)) {
+      res.setHeader('Cache-Control', 'public, max-age=86400, stale-while-revalidate=604800');
+    }
+  },
+};
+
+app.use('/media', corsForStatic, express.static(path.join(__dirname, '..', 'storage', 'media'), staticCacheOptions));
+app.use('/media', corsForStatic, express.static(path.join(__dirname, 'media'), staticCacheOptions));
+app.use('/upload', corsForStatic, express.static(path.join(__dirname, 'upload'), staticCacheOptions));
+app.use('/uploads', corsForStatic, express.static(path.join(__dirname, 'uploads'), staticCacheOptions));
+app.use('/uploads', corsForStatic, express.static(path.join(process.cwd(), 'uploads'), staticCacheOptions));
+app.use('/uploads', corsForStatic, express.static(path.join(__dirname, '..', 'uploads'), staticCacheOptions));
 app.use('/diagnostics', devOnlyRoute);
 app.use('/receive-message', devOnlyRoute);
 app.use('/api/receive-message', devOnlyRoute);

@@ -605,6 +605,29 @@ type RawSession = {
   status?: string;
 };
 
+interface CacheEntry<T> {
+  data: T;
+  timestamp: number;
+}
+
+const smartResponseCache = new Map<string, CacheEntry<unknown>>();
+const pendingInFlightGetRequests = new Map<string, Promise<unknown>>();
+const SMART_CACHE_TTL_MS = 3000;
+
+export function clearSmartCache() {
+  smartResponseCache.clear();
+}
+
+function isCacheableGetEndpoint(endpoint: string): boolean {
+  return (
+    endpoint.includes("/health") ||
+    endpoint.includes("/session-status") ||
+    endpoint.includes("/sessions") ||
+    endpoint.includes("/stickers") ||
+    endpoint.includes("/agents")
+  );
+}
+
 async function executeRequest<T>({ endpoint, method, body, timeoutMs = REQUEST_TIMEOUT_MS }: ProxyRequest): Promise<T> {
   if (!API_BASE_URL) {
     throw new Error("API_ORIGIN_UNAVAILABLE: configure VITE_API_URL para o backend oficial");
@@ -771,6 +794,7 @@ async function executeRequest<T>({ endpoint, method, body, timeoutMs = REQUEST_T
 
 async function request<T>(params: ProxyRequest): Promise<T> {
   if (params.method !== "GET") {
+    clearSmartCache();
     return executeRequest<T>(params);
   }
 
@@ -784,14 +808,30 @@ async function request<T>(params: ProxyRequest): Promise<T> {
       return params.endpoint;
     }
   })();
+
+  if (isCacheableGetEndpoint(normalizedEndpoint)) {
+    const cached = smartResponseCache.get(normalizedEndpoint);
+    if (cached && Date.now() - cached.timestamp < SMART_CACHE_TTL_MS) {
+      return cached.data as T;
+    }
+  }
+
   const requestKey = `${normalizedEndpoint}::${params.timeoutMs ?? REQUEST_TIMEOUT_MS}`;
   const pending = pendingGetRequests.get(requestKey);
 
   if (pending) return pending as Promise<T>;
 
-  const nextRequest = executeRequest<T>(params).finally(() => {
-    pendingGetRequests.delete(requestKey);
-  });
+  const nextRequest = executeRequest<T>(params)
+    .then((result) => {
+      if (isCacheableGetEndpoint(normalizedEndpoint)) {
+        smartResponseCache.set(normalizedEndpoint, { data: result, timestamp: Date.now() });
+      }
+      return result;
+    })
+    .finally(() => {
+      pendingGetRequests.delete(requestKey);
+    });
+
   pendingGetRequests.set(requestKey, nextRequest);
   return nextRequest;
 }
