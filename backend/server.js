@@ -57,7 +57,6 @@ const runtimeEngine = require('./services/runtimeEngine');
 const diagnosticsEngine = require('./services/diagnosticsEngine');
 const sessionRegistry = require('./services/sessionRegistry');
 const messageAckPipeline = require('./services/messageAckPipeline');
-const aiMemoryController = require('./services/aiMemoryController');
 const { processAiReactivation } = require('./src/infrastructure/workers/aiReactivationWorker');
 const workerSupervisor = require('./services/workerSupervisor');
 const backpressureController = require('./services/backpressureController');
