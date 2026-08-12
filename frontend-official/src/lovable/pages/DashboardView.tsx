@@ -411,8 +411,8 @@ export function DashboardView({
               </div>
             )}
 
-            {/* Janela de horário: só relevante para dia único / personalizado */}
-            {(dateRange === "today" || dateRange === "yesterday" || dateRange === "hour" || dateRange === "custom") && (
+            {/* Janela de horário: aparece quando há valor preenchido ou no modo custom */}
+            {(dateRange === "custom" || timeStart || timeEnd) && (
               <div className="flex items-center gap-1.5 rounded-xl border border-border bg-card/60 p-1 shadow-sm text-xs text-muted-foreground">
                 <div className="flex items-center justify-center pl-2 pr-1">
                   <Clock className="h-3.5 w-3.5 text-muted-foreground/70" weight="duotone" />
