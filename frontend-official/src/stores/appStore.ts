@@ -229,6 +229,44 @@ export function resolveStoreConversationId(conversations: Conversation[], target
   return found ? String(found.id) : targetStr;
 }
 
+export function isSameOrDuplicateMessage(a: ChatMessage, b: ChatMessage): boolean {
+  if (!a || !b) return false;
+
+  // 1. Exact ID match
+  if (String(a.id) === String(b.id)) return true;
+
+  // 2. Temp ID replacement match
+  const aIsTemp = String(a.id).startsWith("temp-");
+  const bIsTemp = String(b.id).startsWith("temp-");
+  const timeA = new Date(a.createdAt).getTime();
+  const timeB = new Date(b.createdAt).getTime();
+  const timeDiff = Math.abs(timeA - timeB);
+
+  if ((aIsTemp || bIsTemp) && Boolean(a.fromMe) === Boolean(b.fromMe)) {
+    const contentA = (a.content || "").trim();
+    const contentB = (b.content || "").trim();
+    if (contentA && contentA === contentB && (Number.isNaN(timeDiff) || timeDiff < 60000)) {
+      return true;
+    }
+  }
+
+  // 3. Content + Direction + Time match (Deduplicate WebSocket vs HTTP or Dual Socket Events)
+  const contentA = (a.content || "").trim();
+  const contentB = (b.content || "").trim();
+  if (
+    contentA &&
+    contentA === contentB &&
+    Boolean(a.fromMe) === Boolean(b.fromMe) &&
+    (a.mediaType ?? "text") === (b.mediaType ?? "text") &&
+    !Number.isNaN(timeDiff) &&
+    timeDiff < 5000
+  ) {
+    return true;
+  }
+
+  return false;
+}
+
 function migrateTemporaryMessageKeys(
   conversations: Conversation[],
   messagesByConversationId: Record<string, ChatMessage[]>
@@ -557,10 +595,26 @@ export const useAppStore = create<AppState>((set) => ({
       }
       const resolvedId = resolveStoreConversationId(state.conversations, conversationId);
       const valid = messages.filter(isMessageValid).map((message) => ({ ...message, conversationId: resolvedId }));
+
+      const deduped: ChatMessage[] = [];
+      for (const msg of valid) {
+        const existingIdx = deduped.findIndex((m) => isSameOrDuplicateMessage(m, msg));
+        if (existingIdx === -1) {
+          deduped.push(msg);
+        } else {
+          // Keep the message with more accurate / real ID
+          if (String(deduped[existingIdx].id).startsWith("temp-") && !String(msg.id).startsWith("temp-")) {
+            deduped[existingIdx] = msg;
+          }
+        }
+      }
+
+      deduped.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+
       return {
         messagesByConversationId: {
           ...state.messagesByConversationId,
-          [resolvedId]: valid,
+          [resolvedId]: deduped,
         },
       };
     }),
@@ -574,17 +628,39 @@ export const useAppStore = create<AppState>((set) => ({
       const resolvedId = resolveStoreConversationId(state.conversations, conversationId);
       const current = state.messagesByConversationId[resolvedId] ?? [];
       
-      // If we already have this message by ID, do nothing
-      if (current.some((m) => String(m.id) === String(message.id))) {
-        return {};
+      const existingIdx = current.findIndex((m) => isSameOrDuplicateMessage(m, message));
+      if (existingIdx !== -1) {
+        const existing = current[existingIdx];
+        const isExistingTemp = String(existing.id).startsWith("temp-") || String(existing.id).startsWith("rt-");
+        const isIncomingReal = !String(message.id).startsWith("temp-");
+
+        let next = current.slice();
+        if (isExistingTemp || isIncomingReal) {
+          next[existingIdx] = {
+            ...existing,
+            ...message,
+            id: isIncomingReal ? message.id : existing.id,
+            conversationId: resolvedId,
+            status: mergeMessageStatus(existing.status, message.status),
+          };
+        } else {
+          next[existingIdx] = {
+            ...existing,
+            status: mergeMessageStatus(existing.status, message.status),
+          };
+        }
+        return {
+          messagesByConversationId: {
+            ...state.messagesByConversationId,
+            [resolvedId]: next,
+          },
+        };
       }
 
       let next = current.slice();
-      
-      // Optimização: Se for uma mensagem real que enviamos e o ID não for temporário,
-      // podemos substituir o correspondente temporário ("temp-") mais antigo para este chat.
+
       if (message.fromMe && !message.id.startsWith("temp-")) {
-        const tempIdx = next.findIndex((m) => m.id.startsWith("temp-"));
+        const tempIdx = next.findIndex((m) => m.id.startsWith("temp-") && (m.content || "").trim() === (message.content || "").trim());
         if (tempIdx !== -1) {
           next[tempIdx] = { ...message, conversationId: resolvedId };
           return {
@@ -597,7 +673,6 @@ export const useAppStore = create<AppState>((set) => ({
       }
 
       next.push({ ...message, conversationId: resolvedId });
-      // Ordena de forma ascendente por data
       next.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
 
       return {

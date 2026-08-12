@@ -676,9 +676,28 @@ function bindSharedSocketEvents() {
     notifySubscribers((subscriber) => subscriber.onError?.(error.message || "Falha na conexão realtime"));
   });
 
+  const recentProcessedMessageKeys = new Set<string>();
+
   const handleIncomingMessage = (payload: RawRealtimeMessage | RawMessageEnvelope) => {
     const normalizedMessages = resolveRealtimeMessagePayload(payload);
     normalizedMessages.forEach((normalized) => {
+      const msgId = normalized.id;
+      const content = (normalized.content || "").trim();
+      const time = normalized.createdAt || "";
+      const dedupKey = msgId ? `id:${msgId}` : `content:${content}:${time}`;
+
+      if (recentProcessedMessageKeys.has(dedupKey)) {
+        return;
+      }
+      recentProcessedMessageKeys.add(dedupKey);
+      if (recentProcessedMessageKeys.size > 200) {
+        const firstKey = recentProcessedMessageKeys.values().next().value;
+        if (firstKey) recentProcessedMessageKeys.delete(firstKey);
+      }
+      setTimeout(() => {
+        recentProcessedMessageKeys.delete(dedupKey);
+      }, 2000);
+
       notifySubscribers((subscriber) => subscriber.onNewMessage?.(normalized));
       const convId = normalized.conversationId ?? normalized.chatId ?? normalized.phone;
       if (convId) {
