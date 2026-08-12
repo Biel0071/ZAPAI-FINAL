@@ -1114,9 +1114,9 @@ export function AIView(props: AIViewProps) {
     return a.title.localeCompare(b.title);
   });
 
-  const currentProviderId = selectedProviderId || providers.find((p) => p.active)?.id || providers[0]?.id || "";
-  const selectedProvider = providers.find((p) => p.id === currentProviderId);
-  const activeProviderCount = providers.filter((provider) => provider.active).length;
+  const currentProviderId = selectedProviderId || (providers || []).find((p) => p.active)?.id || (providers || [])[0]?.id || "";
+  const selectedProvider = (providers || []).find((p) => p.id === currentProviderId);
+  const activeProviderCount = (providers || []).filter((provider) => provider.active).length;
   const selectProvider = (providerId: string) => {
     setSelectedProviderId(providerId);
     const firstModel = PROVIDER_MODELS[providerId]?.[0]?.value || "";
@@ -3972,7 +3972,7 @@ export function AIView(props: AIViewProps) {
                       </Badge>
                       <Badge variant="outline" className="gap-1.5 border-red-500/30 bg-red-500/10 text-red-400">
                         <span className="h-2 w-2 rounded-full bg-red-400" />
-                        {providers.length - activeProviderCount} inativos
+                        {(providers || []).length - activeProviderCount} inativos
                       </Badge>
                     </div>
                   </div>
@@ -3980,7 +3980,7 @@ export function AIView(props: AIViewProps) {
                   <Card className="glass-card p-6">
                     <div className="space-y-4">
                       <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
-                        {providers.map((provider) => (
+                        {(providers || []).map((provider) => (
                           <button
                             key={provider.id}
                             type="button"
@@ -4035,7 +4035,7 @@ export function AIView(props: AIViewProps) {
                             <SelectValue placeholder="Escolha um provedor" />
                           </SelectTrigger>
                           <SelectContent className="bg-card border-border">
-                            {providers.map((p) => (
+                            {(providers || []).map((p) => (
                               <SelectItem key={p.id} value={p.id} className="text-xs">
                                 <div className="flex min-w-[240px] items-center justify-between gap-4">
                                   <span className="flex items-center gap-2">
