@@ -444,6 +444,20 @@ async function unblockContact(req, res) {
   }
 }
 
+async function listBlocked(req, res) {
+  try {
+    const { query: dbQuery } = require('../../infrastructure/config/database');
+    const companyId = req.companyId || process.env.DEFAULT_COMPANY_ID || 'default';
+    const result = await dbQuery(
+      `SELECT id, phone, name, created_at FROM leads WHERE is_blocked = true AND company_id = $1 ORDER BY name ASC`,
+      [companyId]
+    );
+    res.json({ success: true, data: result.rows });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+}
+
 module.exports = {
   listContacts,
   createContact,
@@ -453,4 +467,5 @@ module.exports = {
   exportContacts,
   blockContact,
   unblockContact,
+  listBlocked,
 };

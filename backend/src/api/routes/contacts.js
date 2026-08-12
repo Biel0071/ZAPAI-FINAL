@@ -20,6 +20,9 @@ router.post('/contacts/import', contactsController.importContacts);
 // GET /api/contacts/export — export contacts
 router.get('/contacts/export', contactsController.exportContacts);
 
+// GET /api/contacts/blocked — list blacklisted contacts
+router.get('/contacts/blocked', contactsController.listBlocked);
+
 // POST /api/contacts/:phone/block - block contact
 router.post('/contacts/:phone/block', contactsController.blockContact);
 

@@ -1,6 +1,7 @@
 import { motion } from "framer-motion";
 import { MemoryGraphViewer } from "@/components/MemoryGraphViewer";
 import { LeadReactivationPanel } from "@/components/ai/LeadReactivationPanel";
+import { BlacklistPanel } from "@/components/ai/BlacklistPanel";
 import {
   CaretRight,
   CaretLeft,
@@ -3804,6 +3805,7 @@ export function AIView(props: AIViewProps) {
               {activeInternalTab === "operacao" && (
                 <div className="space-y-6">
                   <LeadReactivationPanel />
+                  <BlacklistPanel />
 
                   <div className="flex items-center justify-between pb-3 border-b border-border/60">
                     <h3 className="text-sm font-bold flex items-center gap-2 text-foreground">
