@@ -1055,7 +1055,7 @@ export function DashboardView({
                 <h3 className="font-display text-2xl font-bold text-emerald-400">
                   {viewModel.rawMetrics?.conversationsCount && viewModel.rawMetrics.conversationsCount > 0
                     ? `${Math.min(95, Math.round(((viewModel.rawMetrics.contactsCount || 1) / (viewModel.rawMetrics.conversationsCount || 1)) * 100))}%`
-                    : "68.5%"}
+                    : "—"}
                 </h3>
                 <span className="text-[10px] text-emerald-400 font-semibold">Leads qualificados convertidos</span>
               </CardContent>
@@ -1063,7 +1063,7 @@ export function DashboardView({
             <Card className="metric-card rounded-2xl border-border/70 bg-card/85">
               <CardContent className="space-y-2 p-5">
                 <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Tempo Médio de Resposta</p>
-                <h3 className="font-display text-2xl font-bold">42 seg</h3>
+                <h3 className="font-display text-2xl font-bold">{viewModel.rawMetrics?.avgResponseTimeSeconds ? `${viewModel.rawMetrics.avgResponseTimeSeconds} seg` : "—"}</h3>
                 <span className="text-[10px] text-emerald-400 font-semibold">SLA de Atendimento Rápido</span>
               </CardContent>
             </Card>
@@ -1071,7 +1071,7 @@ export function DashboardView({
               <CardContent className="space-y-2 p-5">
                 <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Leads Quentes (Hot)</p>
                 <h3 className="font-display text-2xl font-bold text-amber-400">
-                  {viewModel.rawMetrics?.contactsCount ? Math.round(viewModel.rawMetrics.contactsCount * 0.45) : 0}
+                  {viewModel.rawMetrics?.hotLeadsCount ?? (viewModel.rawMetrics?.contactsCount ? Math.round(viewModel.rawMetrics.contactsCount * 0.15) : 0)}
                 </h3>
                 <span className="text-[10px] text-muted-foreground">Em fase de decisão de compra</span>
               </CardContent>
