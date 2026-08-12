@@ -154,7 +154,34 @@ setInterval(() => {
   checkAndDispatchReactivationQueue().catch(() => {});
 }, 60000);
 
+async function getQueueStats(companyId = 'default') {
+  try {
+    const { rows } = await query(
+      `SELECT COUNT(*)::int AS count FROM business_hours_reactivation_queue WHERE company_id = $1 AND status = 'pending_opening'`,
+      [companyId]
+    ).catch(() => ({ rows: [{ count: 0 }] }));
+    const customersWaiting = Number(rows?.[0]?.count || 0) + inMemoryReactivationQueue.size;
+    return {
+      batchSize: 5,
+      delaySeconds: 60,
+      reactivationMessage: 'Olá! Ontem você entrou em contato conosco fora do horário. Posso ajudar agora?',
+      customersWaiting,
+      messagesSentToday: 0
+    };
+  } catch (err) {
+    return {
+      batchSize: 5,
+      delaySeconds: 60,
+      reactivationMessage: 'Olá! Ontem você entrou em contato conosco fora do horário. Posso ajudar agora?',
+      customersWaiting: inMemoryReactivationQueue.size,
+      messagesSentToday: 0
+    };
+  }
+}
+
 module.exports = {
   enqueueOutofHoursContact,
   checkAndDispatchReactivationQueue,
+  getQueueStats,
 };
+

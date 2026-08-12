@@ -168,9 +168,9 @@ export default function AI() {
 
   const websocketHealth = useAppStore((state) => state.websocketHealth);
 
-  const lostCount = useMemo(() => trainingRows.filter((row) => row.status === "lost").length, [trainingRows]);
+  const lostCount = useMemo(() => (Array.isArray(trainingRows) ? trainingRows.filter((row) => row?.status === "lost").length : 0), [trainingRows]);
   const aiHealthItems = useMemo<any[]>(() => {
-    const activeProvider = providers.find((provider) => provider.active);
+    const activeProvider = Array.isArray(providers) ? providers.find((provider) => provider?.active) : undefined;
     return [
       {
         label: "Banco",

@@ -523,8 +523,29 @@ export function AIView(props: AIViewProps) {
       const evolutionRes = await apiService.getAgentEvolution(agentKey);
       if (evolutionRes?.success) {
         setEvolutionHistory(evolutionRes.history || []);
-        if (evolutionRes.evolution) setEvolutionOverview(evolutionRes.evolution);
-        if (evolutionRes.memoryGraph) setAgentMemoryGraph(evolutionRes.memoryGraph);
+        if (evolutionRes.evolution) {
+          setEvolutionOverview({
+            score: Number(evolutionRes.evolution.score) || 0,
+            level: evolutionRes.evolution.level || "Iniciante",
+            goal: {
+              current: Number(evolutionRes.evolution.goal?.current) || 0,
+              target: Number(evolutionRes.evolution.goal?.target) || 20,
+              percentage: Number(evolutionRes.evolution.goal?.percentage) || 0,
+            },
+            components: {
+              answers: Number(evolutionRes.evolution.components?.answers) || 0,
+              refinements: Number(evolutionRes.evolution.components?.refinements) || 0,
+              coverage: Number(evolutionRes.evolution.components?.coverage) || 0,
+              queue: Number(evolutionRes.evolution.components?.queue) || 0,
+            },
+          });
+        }
+        if (evolutionRes.memoryGraph) {
+          setAgentMemoryGraph({
+            nodes: Array.isArray(evolutionRes.memoryGraph.nodes) ? evolutionRes.memoryGraph.nodes : [],
+            edges: Array.isArray(evolutionRes.memoryGraph.edges) ? evolutionRes.memoryGraph.edges : [],
+          });
+        }
       }
     } catch (err) {
       console.error("Erro ao carregar dados de evolução:", err);
@@ -3421,11 +3442,11 @@ export function AIView(props: AIViewProps) {
                                   <CardDescription className="text-[10px]">Conexoes reais entre contatos, conversas, conceitos e respostas.</CardDescription>
                                 </div>
                               </div>
-                              <Badge variant="outline" className="text-[9px]">{agentMemoryGraph.edges.length} conexoes</Badge>
+                              <Badge variant="outline" className="text-[9px]">{(agentMemoryGraph?.edges || []).length} conexoes</Badge>
                             </div>
                           </CardHeader>
                           <CardContent className="p-0 overflow-hidden h-[450px]">
-                            {agentMemoryGraph.nodes && agentMemoryGraph.nodes.length > 0 ? (
+                            {Array.isArray(agentMemoryGraph?.nodes) && agentMemoryGraph.nodes.length > 0 ? (
                               <MemoryGraphViewer graphData={agentMemoryGraph} height={450} />
                             ) : (
                               <div className="flex h-full items-center justify-center text-center p-6">
@@ -3574,7 +3595,7 @@ export function AIView(props: AIViewProps) {
                                 <div className="flex h-36 items-center justify-center">
                                   <Loader2 className="h-6 w-6 animate-spin text-primary" />
                                 </div>
-                              ) : learningEvents.length === 0 ? (
+                              ) : (!Array.isArray(learningEvents) || learningEvents.length === 0) ? (
                                 <div className="text-center py-12 text-muted-foreground space-y-2 border border-dashed border-border/50 rounded-xl bg-background/5">
                                   <CheckCircle className="h-8 w-8 mx-auto text-emerald-500/60" />
                                   <p className="text-xs font-semibold">Tudo em dia! O atendente não tem dúvidas.</p>

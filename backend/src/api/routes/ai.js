@@ -423,5 +423,17 @@ router.post('/ai/reactivate-leads', async (req, res) => {
   }
 });
 
+router.get('/ai/queue-stats', async (req, res) => {
+  try {
+    const reactivationService = require('../../../services/reactivationService');
+    const companyId = req.companyId || process.env.DEFAULT_COMPANY_ID || 'default';
+    const stats = await reactivationService.getQueueStats(companyId);
+    res.json({ success: true, ...stats });
+  } catch (err) {
+    res.status(500).json({ success: false, customersWaiting: 0, messagesSentToday: 0 });
+  }
+});
+
 module.exports = router;
+
 

@@ -1936,6 +1936,8 @@ export const apiService = {
     request<Record<string, unknown>>({ endpoint: "/api/ai/lead-reactivation-analysis", method: "GET" }),
   reactivateLeads: (actions: Array<{ conversationId: string | number; action: string; message?: string }>) =>
     request<Record<string, unknown>>({ endpoint: "/api/ai/reactivate-leads", method: "POST", body: { actions } }),
+  getQueueStats: () =>
+    request<{ batchSize?: number; delaySeconds?: number; reactivationMessage?: string; customersWaiting?: number; messagesSentToday?: number }>({ endpoint: "/api/ai/queue-stats", method: "GET" }),
   getBlockedContacts: () =>
     request<Record<string, unknown>>({ endpoint: "/api/contacts/blocked", method: "GET" }),
   blockContact: (phone: string) =>
