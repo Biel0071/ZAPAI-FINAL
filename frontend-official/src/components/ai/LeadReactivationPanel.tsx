@@ -3,6 +3,7 @@ import { Lightning, ArrowClockwise, UserCirclePlus, Snowflake, ThermometerHot, C
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
 import { apiService } from "@/services/apiService";
 import { notify } from "@/services/notifyService";
 import { cn } from "@/lib/utils";
@@ -52,6 +53,41 @@ export function LeadReactivationPanel() {
   const [loading, setLoading] = useState(false);
   const [executing, setExecuting] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string | number>>(new Set());
+  const [manualSearch, setManualSearch] = useState("");
+  const [searchResults, setSearchResults] = useState<any[]>([]);
+  const [searchLoading, setSearchLoading] = useState(false);
+
+  const searchContacts = async () => {
+    const term = manualSearch.trim();
+    if (!term || term.length < 2) return;
+    setSearchLoading(true);
+    try {
+      const conversations = await apiService.getConversations(false, { limit: 100 });
+      const list = Array.isArray(conversations) ? conversations : [];
+      const filtered = list.filter((c: any) => {
+        const name = c.contactName || c.name || "";
+        const phone = c.phone || c.lead_phone || "";
+        const haystack = `${name} ${phone}`.toLowerCase();
+        return haystack.includes(term.toLowerCase());
+      }).slice(0, 10);
+      setSearchResults(filtered);
+    } catch {
+      setSearchResults([]);
+    } finally {
+      setSearchLoading(false);
+    }
+  };
+
+  const reactivateManual = async (contact: any) => {
+    try {
+      await apiService.reactivateLeads([{ conversationId: contact.id, action: "reactivate_ai" }]);
+      const label = contact.contactName || contact.name || contact.phone;
+      notify.success(`IA reativada para ${label}`);
+      setSearchResults((prev) => prev.filter((c) => c.id !== contact.id));
+    } catch (err: any) {
+      notify.error(err?.message || "Falha ao reativar");
+    }
+  };
 
   const runAnalysis = async () => {
     setLoading(true);
@@ -211,6 +247,53 @@ export function LeadReactivationPanel() {
             )}
           </>
         )}
+
+        {/* Busca manual de contatos para reativação */}
+        <div className="border-t border-border/50 pt-4 space-y-3">
+          <p className="text-xs font-medium text-muted-foreground">Reativar lead manualmente (buscar por nome ou número)</p>
+          <div className="flex gap-2">
+            <Input
+              value={manualSearch}
+              onChange={(e) => setManualSearch(e.target.value)}
+              placeholder="Nome ou telefone do lead..."
+              className="rounded-xl"
+              onKeyDown={(e) => e.key === "Enter" && void searchContacts()}
+            />
+            <Button onClick={() => void searchContacts()} size="sm" className="gap-1.5 rounded-xl" disabled={searchLoading}>
+              {searchLoading ? <ArrowClockwise className="h-4 w-4 animate-spin" /> : <Lightning className="h-4 w-4" />}
+              Buscar
+            </Button>
+          </div>
+          {searchResults.length > 0 && (
+            <div className="scrollbar-thin max-h-48 space-y-1.5 overflow-y-auto pr-1">
+              {searchResults.map((contact: any) => (
+                <div
+                  key={contact.id || contact.phone}
+                  className="flex items-center justify-between rounded-xl border border-border/70 bg-background/40 px-3 py-2 text-sm"
+                >
+                  <div className="min-w-0 flex-1">
+                    <span className="font-medium truncate">{contact.contactName || contact.name || contact.phone}</span>
+                    {(contact.contactName || contact.name) && contact.phone && (
+                      <span className="ml-2 text-xs text-muted-foreground">{contact.phone}</span>
+                    )}
+                    {contact.lead_temperature && (
+                      <Badge variant="secondary" className="ml-2 rounded-full text-[9px]">{contact.lead_temperature}</Badge>
+                    )}
+                  </div>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="h-7 gap-1 rounded-lg text-xs"
+                    onClick={() => void reactivateManual(contact)}
+                  >
+                    <Lightning className="h-3.5 w-3.5" />
+                    Reativar
+                  </Button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
       </CardContent>
     </Card>
   );
