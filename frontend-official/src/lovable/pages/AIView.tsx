@@ -4394,7 +4394,107 @@ export function AIView(props: AIViewProps) {
                   </div>
 
                   {activeAnaliseSubTab === "evolucao" ? (
-                    <div className="space-y-4">
+                    <div className="space-y-6 animate-fade-in">
+                      {/* Cabecalho de Selecao */}
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-card/35 border border-border/50 rounded-xl p-4 shadow-sm">
+                        <div className="space-y-1">
+                          <h3 className="text-sm font-bold text-foreground">Painel de Evolução do Atendente</h3>
+                          <p className="text-[11px] text-muted-foreground">Melhore, ajuste e ensine novas informações ao seu atendente de forma contínua.</p>
+                        </div>
+                        <div className="flex items-center gap-3">
+                          <Label htmlFor="evolution-agent-select" className="text-xs font-semibold text-foreground shrink-0">Atendente:</Label>
+                          <Select value={selectedAgentKey} onValueChange={setSelectedAgentKey}>
+                            <SelectTrigger id="evolution-agent-select" className="h-9 text-xs w-48 bg-background/50">
+                              <SelectValue placeholder="Selecione o Atendente" />
+                            </SelectTrigger>
+                            <SelectContent className="bg-card border-border">
+                              {(agents || []).map((a) => (
+                                <SelectItem key={a.key || a.name} value={a.key || a.name} className="text-xs">
+                                  <div className="flex items-center gap-2">
+                                    {getAgentAvatarIcon(a.avatar, "h-3.5 w-3.5 text-primary")}
+                                    <span>{a.name}</span>
+                                  </div>
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          <Button 
+                            variant="outline" 
+                            size="sm" 
+                            onClick={handleDetectGaps}
+                            className="h-9 text-xs gap-1 rounded-lg hover:bg-primary/5"
+                          >
+                            <RefreshCw className="h-3.5 w-3.5" /> Detectar Dúvidas
+                          </Button>
+                        </div>
+                      </div>
+
+                      {/* Grid de Destaques: Nivel do Atendente + Memoria em Grafo */}
+                      <div className="grid gap-4 lg:grid-cols-[0.9fr_1.6fr]">
+                        <Card className="overflow-hidden rounded-xl border border-primary/25 bg-gradient-to-br from-primary/10 via-card/60 to-card/40">
+                          <CardContent className="p-5 space-y-4">
+                            <div className="flex items-start justify-between gap-4">
+                              <div>
+                                <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-primary">Nível do atendente</p>
+                                <p className="mt-1 text-lg font-bold text-foreground">{evolutionOverview.level}</p>
+                              </div>
+                              <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full border-4 border-primary/30 bg-background/60 shadow-glow">
+                                <span className="font-display text-xl font-black text-primary">{evolutionOverview.score}</span>
+                                <span className="text-[9px] text-muted-foreground">/100</span>
+                              </div>
+                            </div>
+                            <div className="space-y-2">
+                              <div className="flex items-center justify-between text-[10px]">
+                                <span className="font-semibold text-foreground">Meta de respostas ensinadas</span>
+                                <span className="font-mono text-primary">{evolutionOverview.goal.current}/{evolutionOverview.goal.target}</span>
+                              </div>
+                              <div className="h-2 overflow-hidden rounded-full bg-muted/60">
+                                <div
+                                  className="h-full rounded-full bg-gradient-to-r from-primary to-emerald-400 transition-all duration-500"
+                                  style={{ width: `${evolutionOverview.goal.percentage}%` }}
+                                />
+                              </div>
+                              <p className="text-[9px] leading-relaxed text-muted-foreground">
+                                Cada resposta aplicada vira conhecimento permanente e aumenta a maturidade do atendente.
+                              </p>
+                            </div>
+                            <div className="grid grid-cols-2 gap-2 text-[9px]">
+                              <div className="rounded-lg border border-border/40 bg-background/35 p-2"><span className="block text-muted-foreground">Respostas</span><strong>+{evolutionOverview.components.answers}</strong></div>
+                              <div className="rounded-lg border border-border/40 bg-background/35 p-2"><span className="block text-muted-foreground">Refinamentos</span><strong>+{evolutionOverview.components.refinements}</strong></div>
+                              <div className="rounded-lg border border-border/40 bg-background/35 p-2"><span className="block text-muted-foreground">Cobertura</span><strong>+{evolutionOverview.components.coverage}</strong></div>
+                              <div className="rounded-lg border border-border/40 bg-background/35 p-2"><span className="block text-muted-foreground">Fila em dia</span><strong>+{evolutionOverview.components.queue}</strong></div>
+                            </div>
+                          </CardContent>
+                        </Card>
+
+                        <Card className="rounded-xl border border-border/60 bg-card/40">
+                          <CardHeader className="p-4 pb-2">
+                            <div className="flex items-center justify-between gap-3">
+                              <div className="flex items-center gap-2">
+                                <BrainCircuit className="h-5 w-5 text-primary" />
+                                <div>
+                                  <CardTitle className="text-xs font-bold uppercase tracking-wider">Memória em Grafo</CardTitle>
+                                  <CardDescription className="text-[10px]">Conexões reais entre contatos, conversas, conceitos e respostas.</CardDescription>
+                                </div>
+                              </div>
+                              <Badge variant="outline" className="text-[9px]">{(agentMemoryGraph?.edges || []).length} conexões</Badge>
+                            </div>
+                          </CardHeader>
+                          <CardContent className="p-0 overflow-hidden h-[450px]">
+                            {Array.isArray(agentMemoryGraph?.nodes) && agentMemoryGraph.nodes.length > 0 ? (
+                              <MemoryGraphViewer graphData={agentMemoryGraph} height={450} />
+                            ) : (
+                              <div className="flex h-full items-center justify-center text-center p-6">
+                                <p className="text-sm text-muted-foreground">
+                                  Nenhuma memória em grafo encontrada ainda.<br />
+                                  <span className="text-xs">As interações reais irão gerar a rede de conhecimento (nodes & edges) aqui.</span>
+                                </p>
+                              </div>
+                            )}
+                          </CardContent>
+                        </Card>
+                      </div>
+
                       {loadingEvolution ? (
                         <div className="flex h-36 items-center justify-center">
                           <Loader2 className="h-6 w-6 animate-spin text-primary" />
@@ -4409,25 +4509,25 @@ export function AIView(props: AIViewProps) {
                                   Score: {agent.evolution_score}/100
                                 </Badge>
                               </div>
-                                <div className="grid grid-cols-2 gap-2 text-[10px]">
-                                  <div className="rounded border border-border/40 p-2 bg-background/20">
-                                    <span className="block text-muted-foreground">Conversas Analisadas</span>
-                                    <span className="font-bold text-foreground">{agent.conversations_analyzed}</span>
-                                  </div>
-                                  <div className="rounded border border-border/40 p-2 bg-background/20">
-                                    <span className="block text-muted-foreground">Leads de Ads</span>
-                                    <span className="font-bold text-foreground text-blue-400">{agent.ads_leads || 0}</span>
-                                  </div>
-                                  <div className="rounded border border-border/40 p-2 bg-background/20">
-                                    <span className="block text-muted-foreground">Conversões</span>
-                                    <span className="font-bold text-foreground text-emerald-500">{agent.conversions}</span>
-                                  </div>
-                                  <div className="rounded border border-border/40 p-2 bg-background/20">
-                                    <span className="block text-muted-foreground">Taxa de Sucesso</span>
-                                    <span className="font-bold text-foreground">{agent.success_rate}%</span>
-                                  </div>
+                              <div className="grid grid-cols-2 gap-2 text-[10px]">
+                                <div className="rounded border border-border/40 p-2 bg-background/20">
+                                  <span className="block text-muted-foreground">Conversas Analisadas</span>
+                                  <span className="font-bold text-foreground">{agent.conversations_analyzed}</span>
                                 </div>
-                                {agent.faq_data?.top_questions && (
+                                <div className="rounded border border-border/40 p-2 bg-background/20">
+                                  <span className="block text-muted-foreground">Leads de Ads</span>
+                                  <span className="font-bold text-foreground text-blue-400">{agent.ads_leads || 0}</span>
+                                </div>
+                                <div className="rounded border border-border/40 p-2 bg-background/20">
+                                  <span className="block text-muted-foreground">Conversões</span>
+                                  <span className="font-bold text-foreground text-emerald-500">{agent.conversions}</span>
+                                </div>
+                                <div className="rounded border border-border/40 p-2 bg-background/20">
+                                  <span className="block text-muted-foreground">Taxa de Sucesso</span>
+                                  <span className="font-bold text-foreground">{agent.success_rate}%</span>
+                                </div>
+                              </div>
+                              {agent.faq_data?.top_questions && (
                                 <div className="space-y-1.5 pt-2 border-t border-border/30">
                                   <span className="block text-[10px] font-bold text-muted-foreground uppercase">Tópicos Mais Frequentes</span>
                                   <div className="space-y-1">
