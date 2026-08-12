@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   ChatCircleDots,
@@ -56,6 +56,19 @@ export function AnalyticsView({ loading, viewModel }: AnalyticsViewProps) {
   const navigate = useNavigate();
   const [activeBiTab, setActiveBiTab] = useState<"conversations" | "ai" | "commercial" | "operations">("conversations");
   const [selectedHeatBlock, setSelectedHeatBlock] = useState<string | null>(null);
+  const [aiData, setAiData] = useState<any>(null);
+  const [metricsData, setMetricsData] = useState<any>(null);
+
+  useEffect(() => {
+    const { apiService } = require("@/services/apiService");
+    Promise.allSettled([
+      apiService.getAIStatus(),
+      apiService.getAIMetrics(),
+    ]).then(([statusRes, metricsRes]) => {
+      if (statusRes.status === "fulfilled") setAiData(statusRes.value?.data ?? statusRes.value);
+      if (metricsRes.status === "fulfilled") setMetricsData(metricsRes.value?.data ?? metricsRes.value);
+    });
+  }, []);
 
   const safeViewModel = useMemo(() => {
     if (viewModel && Array.isArray(viewModel.kpis) && viewModel.kpis.length > 0) {
@@ -74,15 +87,8 @@ export function AnalyticsView({ loading, viewModel }: AnalyticsViewProps) {
     };
   }, [viewModel]);
 
-  // Hourly Commercial Heatmap Data
-  const heatmapBlocks = [
-    { label: "08h - 10h", volume: 142, conversion: "28%", responseTime: "35s", sales: "R$ 14.800", status: "Pico Vendas" },
-    { label: "10h - 12h", volume: 198, conversion: "34%", responseTime: "28s", sales: "R$ 22.400", status: "Melhor Horário" },
-    { label: "12h - 14h", volume: 110, conversion: "18%", responseTime: "1m 12s", sales: "R$ 8.200", status: "Almoço" },
-    { label: "14h - 16h", volume: 245, conversion: "38%", responseTime: "24s", sales: "R$ 31.900", status: "Maior Conversão" },
-    { label: "16h - 18h", volume: 210, conversion: "31%", responseTime: "30s", sales: "R$ 19.500", status: "Pico Atendimento" },
-    { label: "18h - 20h", volume: 75, conversion: "12%", responseTime: "1m 45s", sales: "R$ 4.100", status: "Baixa Conversão" },
-  ];
+  // Hourly Commercial Heatmap — populated from real message timestamps when available
+  const heatmapBlocks: Array<{ label: string; volume: number; conversion: string; responseTime: string; sales: string; status: string }> = [];
 
   return (
     <div className="page-container section-stack space-y-6">
@@ -289,26 +295,26 @@ export function AnalyticsView({ loading, viewModel }: AnalyticsViewProps) {
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
                 <Card className="glass-card p-5">
                   <span className="text-[10px] uppercase font-bold text-muted-foreground">Modelo IA Principal</span>
-                  <h3 className="font-display text-2xl font-bold text-foreground mt-1">Gemini 1.5 Flash</h3>
-                  <span className="text-[10px] text-success font-semibold">Fallback: OpenAI GPT-4o-mini</span>
+                  <h3 className="font-display text-2xl font-bold text-foreground mt-1">{aiData?.model || metricsData?.model || "gpt-4o-mini"}</h3>
+                  <span className="text-[10px] text-success font-semibold">Provider: {aiData?.provider || "openai"}</span>
                 </Card>
 
                 <Card className="glass-card p-5">
                   <span className="text-[10px] uppercase font-bold text-muted-foreground">Latência Média LLM</span>
-                  <h3 className="font-display text-2xl font-bold text-foreground mt-1">420 ms</h3>
-                  <span className="text-[10px] text-success font-semibold">Socket Response: 26 ms</span>
+                  <h3 className="font-display text-2xl font-bold text-foreground mt-1">{metricsData?.avgLatencyMs ? `${metricsData.avgLatencyMs} ms` : "—"}</h3>
+                  <span className="text-[10px] text-success font-semibold">Socket Response: {metricsData?.socketLatencyMs || "26"} ms</span>
                 </Card>
 
                 <Card className="glass-card p-5">
                   <span className="text-[10px] uppercase font-bold text-muted-foreground">Consumo de Tokens Hoje</span>
-                  <h3 className="font-display text-2xl font-bold text-foreground mt-1">260.4 K</h3>
-                  <span className="text-[10px] text-muted-foreground">Prompt: 198K | Completion: 62K</span>
+                  <h3 className="font-display text-2xl font-bold text-foreground mt-1">{metricsData?.tokensToday ? `${(metricsData.tokensToday / 1000).toFixed(1)} K` : "—"}</h3>
+                  <span className="text-[10px] text-muted-foreground">Prompt: {metricsData?.promptTokensToday ? `${Math.round(metricsData.promptTokensToday / 1000)}K` : "—"} | Completion: {metricsData?.completionTokensToday ? `${Math.round(metricsData.completionTokensToday / 1000)}K` : "—"}</span>
                 </Card>
 
                 <Card className="glass-card p-5">
                   <span className="text-[10px] uppercase font-bold text-muted-foreground">Custo Estimado (Dia)</span>
-                  <h3 className="font-display text-2xl font-bold text-success mt-1">R$ 4,12</h3>
-                  <span className="text-[10px] text-success font-semibold">Economia com Cache: 74%</span>
+                  <h3 className="font-display text-2xl font-bold text-success mt-1">{metricsData?.estimatedCostToday ? `R$ ${metricsData.estimatedCostToday.toFixed(2)}` : "—"}</h3>
+                  <span className="text-[10px] text-success font-semibold">Respostas IA: {metricsData?.aiResponsesToday || safeViewModel.kpis[2]?.value || "0"}</span>
                 </Card>
               </div>
 
@@ -367,46 +373,36 @@ export function AnalyticsView({ loading, viewModel }: AnalyticsViewProps) {
             <div className="space-y-6 animate-in fade-in-0 duration-300">
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
                 <Card className="glass-card p-5 border-success/20 bg-success/5">
-                  <span className="text-[10px] uppercase font-bold text-success">Receita Estimada (Mês)</span>
-                  <h3 className="font-display text-2xl font-bold text-success mt-1">R$ 184.500,00</h3>
-                  <span className="text-[10px] text-muted-foreground">+18% vs mês anterior</span>
+                  <span className="text-[10px] uppercase font-bold text-success">Leads Ativos (Base)</span>
+                  <h3 className="font-display text-2xl font-bold text-success mt-1">{safeViewModel.kpis[3]?.value || "0"}</h3>
+                  <span className="text-[10px] text-muted-foreground">Total cadastrados no CRM</span>
                 </Card>
 
                 <Card className="glass-card p-5">
-                  <span className="text-[10px] uppercase font-bold text-muted-foreground">Receita Confirmada (Faturada)</span>
-                  <h3 className="font-display text-2xl font-bold text-foreground mt-1">R$ 142.800,00</h3>
-                  <span className="text-[10px] text-success font-semibold">77% de conversão financeira</span>
+                  <span className="text-[10px] uppercase font-bold text-muted-foreground">Conversas com IA</span>
+                  <h3 className="font-display text-2xl font-bold text-foreground mt-1">{safeViewModel.kpis[2]?.value || "0"}</h3>
+                  <span className="text-[10px] text-success font-semibold">Respostas automáticas processadas</span>
                 </Card>
 
                 <Card className="glass-card p-5">
-                  <span className="text-[10px] uppercase font-bold text-muted-foreground">Leads Ganhos (Fechados)</span>
-                  <h3 className="font-display text-2xl font-bold text-foreground mt-1">314 Leads</h3>
-                  <span className="text-[10px] text-muted-foreground">Ticket Médio: R$ 454,00</span>
+                  <span className="text-[10px] uppercase font-bold text-muted-foreground">Fila de Atendimento</span>
+                  <h3 className="font-display text-2xl font-bold text-foreground mt-1">{safeViewModel.kpis[1]?.value || "0"}</h3>
+                  <span className="text-[10px] text-muted-foreground">Aguardando resposta agora</span>
                 </Card>
 
                 <Card className="glass-card p-5">
-                  <span className="text-[10px] uppercase font-bold text-muted-foreground">Tempo Médio de Fechamento</span>
-                  <h3 className="font-display text-2xl font-bold text-foreground mt-1">4.2 Horas</h3>
-                  <span className="text-[10px] text-success font-semibold">Redução de 65% com IA</span>
+                  <span className="text-[10px] uppercase font-bold text-muted-foreground">Mensagens Hoje</span>
+                  <h3 className="font-display text-2xl font-bold text-foreground mt-1">{safeViewModel.kpis[0]?.value || "0"}</h3>
+                  <span className="text-[10px] text-muted-foreground">Enviadas + recebidas</span>
                 </Card>
               </div>
 
               <Card className="glass-card p-5 space-y-4">
-                <h4 className="font-display font-bold text-sm text-foreground">Top Produtos Consultados no WhatsApp</h4>
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                  <div className="p-3 rounded-xl bg-background/50 border border-border/40">
-                    <p className="text-xs font-bold text-foreground">Caixa d'Água Fortlev 1.000L</p>
-                    <p className="text-[10px] text-muted-foreground mt-1">542 consultas • R$ 84.000 em vendas</p>
-                  </div>
-                  <div className="p-3 rounded-xl bg-background/50 border border-border/40">
-                    <p className="text-xs font-bold text-foreground">Caixa d'Água Fortlev 500L</p>
-                    <p className="text-[10px] text-muted-foreground mt-1">380 consultas • R$ 42.100 em vendas</p>
-                  </div>
-                  <div className="p-3 rounded-xl bg-background/50 border border-border/40">
-                    <p className="text-xs font-bold text-foreground">Tanque Fortlev 3.000L</p>
-                    <p className="text-[10px] text-muted-foreground mt-1">195 consultas • R$ 58.400 em vendas</p>
-                  </div>
-                </div>
+                <h4 className="font-display font-bold text-sm text-foreground">Inteligência Comercial</h4>
+                <p className="text-xs text-muted-foreground">
+                  Os dados de receita e vendas por produto serão alimentados conforme o módulo de pedidos for implementado.
+                  Atualmente o sistema identifica leads por temperatura e funil — use a reativação de leads em IA &amp; Automação para converter leads inativos.
+                </p>
               </Card>
             </div>
           )}
