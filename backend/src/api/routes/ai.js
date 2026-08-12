@@ -396,5 +396,32 @@ router.get('/ai/lead-knowledge-graph/:leadId', async (req, res) => {
   }
 });
 
+// === Lead Reactivation with AI ===
+router.get('/ai/lead-reactivation-analysis', async (req, res) => {
+  try {
+    const leadReactivationService = require('../../../services/leadReactivationService');
+    const companyId = req.companyId || process.env.DEFAULT_COMPANY_ID || 'default';
+    const result = await leadReactivationService.analyzeLeadsForReactivation(companyId);
+    res.json({ success: true, data: result });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+router.post('/ai/reactivate-leads', async (req, res) => {
+  try {
+    const leadReactivationService = require('../../../services/leadReactivationService');
+    const companyId = req.companyId || process.env.DEFAULT_COMPANY_ID || 'default';
+    const { actions } = req.body || {};
+    if (!Array.isArray(actions) || actions.length === 0) {
+      return res.status(400).json({ success: false, error: 'actions array is required' });
+    }
+    const result = await leadReactivationService.executeReactivations(actions, companyId);
+    res.json({ success: true, data: result });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 module.exports = router;
 

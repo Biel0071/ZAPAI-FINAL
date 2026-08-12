@@ -1932,6 +1932,10 @@ export const apiService = {
     request<Record<string, unknown>>({ endpoint: "/api/ai/voices/test-synthesis", method: "POST", body: { voiceId, text, params } }),
   getLeadKnowledgeGraph: (leadId: string) =>
     request<Record<string, unknown>>({ endpoint: `/api/ai/lead-knowledge-graph/${encodeURIComponent(leadId)}`, method: "GET" }),
+  getLeadReactivationAnalysis: () =>
+    request<Record<string, unknown>>({ endpoint: "/api/ai/lead-reactivation-analysis", method: "GET" }),
+  reactivateLeads: (actions: Array<{ conversationId: string | number; action: string; message?: string }>) =>
+    request<Record<string, unknown>>({ endpoint: "/api/ai/reactivate-leads", method: "POST", body: { actions } }),
   patchConversation: (conversationId: string, payload: { status?: string; lead_temperature?: string; funnel_stage?: string; tags?: string[]; name?: string; notes?: string }) =>
     request<Record<string, unknown>>({ endpoint: `/api/conversations/${encodeURIComponent(conversationId)}`, method: "PATCH", body: payload }),
   createConversation: (payload: { phone: string; name?: string; sessionId?: string }) => {
