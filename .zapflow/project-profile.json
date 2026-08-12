@@ -1,0 +1,70 @@
+{
+  "packVersion": "1.0.0",
+  "project": "ZAPAI-FINAL",
+  "language": [
+    "TypeScript",
+    "JavaScript"
+  ],
+  "framework": [
+    "React",
+    "Express"
+  ],
+  "frontend": [
+    "React"
+  ],
+  "backend": [
+    "Express"
+  ],
+  "database": [
+    "PostgreSQL"
+  ],
+  "orm": [],
+  "testing": [
+    "Vitest",
+    "Playwright"
+  ],
+  "packageManager": "npm",
+  "build": [
+    "Vite",
+    "esbuild"
+  ],
+  "deployment": [
+    "Docker",
+    "PM2"
+  ],
+  "domainPacks": [
+    "whatsapp",
+    "graphify",
+    "analytics"
+  ],
+  "agents": [
+    "Claude Code",
+    "Google Antigravity"
+  ],
+  "skills": [
+    "architect",
+    "automation",
+    "autonomous-improvement",
+    "brainstorming",
+    "database",
+    "debugger",
+    "developer",
+    "devops",
+    "documentation",
+    "engineering-standards",
+    "karpathy",
+    "orchestrator",
+    "performance",
+    "project-context",
+    "project-hygiene",
+    "qa",
+    "release",
+    "reviewer",
+    "security",
+    "tester",
+    "whatsapp",
+    "graphify",
+    "analytics"
+  ],
+  "detectedAt": "2026-08-11T18:38:13.549Z"
+}

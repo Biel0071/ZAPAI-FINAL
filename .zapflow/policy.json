@@ -1,0 +1,68 @@
+{
+  "version": "1.0.0",
+  "description": "Skill Global Universal Engineering Policy",
+  "allowlist": {
+    "vendors": [
+      "superpowers",
+      "wshobson",
+      "anthropic",
+      "autoresearch"
+    ],
+    "repositories": [
+      "https://github.com/obra/superpowers.git",
+      "https://github.com/wshobson/agents.git",
+      "https://github.com/anthropics/skills.git",
+      "https://github.com/karpathy/autoresearch.git"
+    ]
+  },
+  "skill_permissions": {
+    "allowed_file_extensions": [
+      ".md",
+      ".txt",
+      ".json",
+      ".yaml",
+      ".yml"
+    ],
+    "forbidden_file_extensions": [
+      ".sh",
+      ".bat",
+      ".ps1",
+      ".py",
+      ".js",
+      ".exe",
+      ".bin"
+    ],
+    "auto_execute_scripts": false,
+    "require_approval_for_destructive": true
+  },
+  "protected_paths": {
+    "never_modify": [
+      ".env",
+      ".env.*",
+      "**/.env",
+      "*.pem",
+      "*.key",
+      "*.p12",
+      "backend/sessions/**",
+      "tmp_ssh/**",
+      "deploy/**",
+      ".git/**",
+      "node_modules/**"
+    ],
+    "never_read": [
+      "admin-credentials.txt",
+      ".ssh/**",
+      "*.pem",
+      "*.key"
+    ]
+  },
+  "forbidden_operations": [
+    "modify .env files",
+    "run SSH commands",
+    "deploy to production",
+    "commit to git automatically",
+    "push to GitHub automatically",
+    "modify database schema without migration",
+    "delete existing source files"
+  ]
+}

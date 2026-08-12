@@ -1,0 +1,82 @@
+{
+  "version": "1.0.0",
+  "pack": "Skill Global Universal Layer",
+  "created": "2026-08-11",
+  "update_policy": "manual",
+  "core": [
+    "architect",
+    "automation",
+    "autonomous-improvement",
+    "brainstorming",
+    "database",
+    "debugger",
+    "developer",
+    "devops",
+    "documentation",
+    "engineering-standards",
+    "karpathy",
+    "orchestrator",
+    "performance",
+    "project-context",
+    "project-hygiene",
+    "qa",
+    "release",
+    "reviewer",
+    "security",
+    "tester"
+  ],
+  "domainPacks": {
+    "whatsapp": {
+      "enabled": true,
+      "skills": [
+        "whatsapp"
+      ]
+    },
+    "graphify": {
+      "enabled": true,
+      "skills": [
+        "graphify"
+      ]
+    },
+    "analytics": {
+      "enabled": true,
+      "skills": [
+        "analytics"
+      ]
+    }
+  },
+  "installed_skills": [
+    "architect",
+    "automation",
+    "autonomous-improvement",
+    "brainstorming",
+    "database",
+    "debugger",
+    "developer",
+    "devops",
+    "documentation",
+    "engineering-standards",
+    "karpathy",
+    "orchestrator",
+    "performance",
+    "project-context",
+    "project-hygiene",
+    "qa",
+    "release",
+    "reviewer",
+    "security",
+    "tester",
+    "whatsapp",
+    "graphify",
+    "analytics"
+  ],
+  "native_agents": [
+    "architect",
+    "developer",
+    "debugger",
+    "tester",
+    "reviewer",
+    "security",
+    "release"
+  ]
+}

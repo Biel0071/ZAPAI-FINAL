@@ -1,0 +1,31 @@
+{
+  "name": "skill-global",
+  "version": "1.0.0",
+  "description": "Universal Stack-Agnostic AI Agent Engineering Layer",
+  "main": "bin/skill-global.js",
+  "bin": {
+    "skill-global": "bin/skill-global.js",
+    "zapflow-eng": "bin/skill-global.js"
+  },
+  "type": "commonjs",
+  "scripts": {
+    "test": "node tests/test-runner.js",
+    "skill-global": "node bin/skill-global.js",
+    "zapflow-eng": "node bin/zapflow-eng.js"
+  },
+  "keywords": [
+    "ai-agent",
+    "skill-global",
+    "engineering-pack",
+    "skills",
+    "agents",
+    "orchestrator",
+    "claude",
+    "antigravity",
+    "codex",
+    "gemini",
+    "qwen"
+  ],
+  "author": "Skill Global Engineering Layer",
+  "license": "MIT"
+}
