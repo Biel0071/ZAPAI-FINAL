@@ -1236,8 +1236,8 @@ export function DashboardView({
             <Card className="metric-card rounded-2xl border-border/70 bg-card/85">
               <CardContent className="space-y-2 p-5">
                 <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Uptime Global</p>
-                <h3 className="font-display text-2xl font-bold text-emerald-400">99.98%</h3>
-                <span className="text-[10px] text-muted-foreground">Zero indisponibilidade nos últimos 30 dias</span>
+                <h3 className="font-display text-2xl font-bold text-emerald-400">—</h3>
+                <span className="text-[10px] text-muted-foreground">Disponível em Status & Saúde</span>
               </CardContent>
             </Card>
           </div>
@@ -1369,10 +1369,7 @@ export function DashboardView({
             </h3>
             <div className="space-y-3">
               {[
-                { name: "Agente IA ZAPFLOW Aurora", role: "Especialista Comercial IA", status: "online", activeChats: 18, totalToday: 142 },
-                { name: "Rafael Silva", role: "Atendente Humano Nível 2", status: "online", activeChats: 4, totalToday: 38 },
-                { name: "Julia Santos", role: "Atendente Humana Vendas", status: "online", activeChats: 5, totalToday: 41 },
-                { name: "Pedro Costa", role: "Suporte Técnico B2B", status: "busy", activeChats: 6, totalToday: 29 },
+                { name: "Camila", role: "Atendente IA Principal", status: "online", activeChats: 0, totalToday: 0 },
               ].map((op) => (
                 <div key={op.name} className="flex items-center justify-between p-3.5 rounded-xl border border-border/50 bg-background/40 text-xs">
                   <div className="flex items-center gap-3">

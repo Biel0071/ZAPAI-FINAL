@@ -231,7 +231,7 @@ export function LeadDrawer({ lead, onClose, onUpdateLead }: LeadDrawerProps) {
                 </div>
                 <p className="text-xs text-foreground/90 leading-relaxed italic">
                   {aiData?.summary ||
-                    `O cliente ${lead.name} demonstrou forte interesse em reservatórios e caixas d'água de grande capacidade (Fortlev). Questionou sobre tabela de desconto para volumes acima de 3 unidades e prazos de entrega para ${lead.phone.includes("11") ? "São Paulo" : "Região Metropolitana"}. Objeção principal citada foi o valor do frete.`}
+                    `Resumo das interações com ${lead.name} (${lead.phone}). Informações detalhadas disponíveis no grafo de conhecimento do lead.`}
                 </p>
               </Card>
 
@@ -259,7 +259,7 @@ export function LeadDrawer({ lead, onClose, onUpdateLead }: LeadDrawerProps) {
                     Etiquetas & Tags Inteligentes
                   </span>
                   <div className="flex flex-wrap gap-1.5">
-                    {(lead.tags && lead.tags.length > 0 ? lead.tags : ["Decisor de Compra", "Lead Qualificado", "Aguardando Orçamento", "Fortlev"]).map((tag) => (
+                    {(lead.tags && lead.tags.length > 0 ? lead.tags : ["Sem tags"]).map((tag) => (
                       <Badge key={tag} variant="secondary" className="rounded-lg text-[10px] px-2.5 py-1">
                         {tag}
                       </Badge>
@@ -327,11 +327,11 @@ export function LeadDrawer({ lead, onClose, onUpdateLead }: LeadDrawerProps) {
                       <ShoppingBag className="h-5 w-5" />
                     </div>
                     <div>
-                      <p className="text-xs font-bold text-foreground">Caixa d'Água Fortlev 1.000L Polietileno</p>
-                      <p className="text-[10px] text-muted-foreground">Qtd: 2 unidades • Código: FLV-1000</p>
+                      <p className="text-xs font-bold text-foreground">Produto de interesse</p>
+                      <p className="text-[10px] text-muted-foreground">Dados do grafo de memória do lead</p>
                     </div>
                   </div>
-                  <span className="text-xs font-bold text-primary">R$ 1.480,00</span>
+                  <span className="text-xs font-bold text-primary">—</span>
                 </Card>
 
                 <Card className="rounded-2xl border-border/60 bg-card/60 p-3 flex items-center justify-between">

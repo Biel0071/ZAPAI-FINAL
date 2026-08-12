@@ -85,7 +85,7 @@ export default function Analytics() {
           <Card className="bg-card border-border/60 p-4">
             <span className="text-[10px] text-muted-foreground font-bold uppercase tracking-wider block">Taxa de Resolução IA</span>
             <div className="flex items-baseline justify-between mt-2">
-              <span className="text-2xl font-black text-cyan-400">91.4%</span>
+              <span className="text-2xl font-black text-cyan-400">—</span>
               <Brain className="h-4 w-4 text-cyan-400" />
             </div>
           </Card>
@@ -125,9 +125,9 @@ export default function Analytics() {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <Card className="bg-card border-border p-5 space-y-2">
                 <span className="text-xs font-bold text-muted-foreground uppercase">Receita Estimada no Mês</span>
-                <p className="text-3xl font-black text-emerald-400">R$ 148.500,00</p>
-                <span className="text-[11px] text-emerald-400 font-semibold flex items-center gap-1">
-                  <TrendingUp className="h-3.5 w-3.5" /> +24% em relação ao mês anterior
+                <p className="text-3xl font-black text-emerald-400">—</p>
+                <span className="text-[11px] text-muted-foreground font-semibold flex items-center gap-1">
+                  Módulo de vendas em desenvolvimento
                 </span>
               </Card>
 
@@ -151,7 +151,7 @@ export default function Analytics() {
                 <Clock className="h-5 w-5 text-emerald-400" /> SLAs e Resolução de Primeira Resposta (FCR)
               </CardTitle>
               <CardDescription className="text-xs text-muted-foreground">
-                98.2% dos atendimentos são respondidos em menos de 1 minuto pelo motor de automação ZAPFLOW.
+                A maioria dos atendimentos é processada automaticamente pelo motor de automação ZAPFLOW.
               </CardDescription>
             </Card>
           </TabsContent>

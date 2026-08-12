@@ -327,19 +327,19 @@ export function AnalyticsView({ loading, viewModel }: AnalyticsViewProps) {
                   <div className="space-y-3 text-xs">
                     <div className="flex justify-between items-center pb-2 border-b border-border/20">
                       <span className="text-muted-foreground">Memórias de Lead Criadas:</span>
-                      <strong className="text-foreground">2.247 Fatos Gravados</strong>
+                      <strong className="text-foreground">{metricsData?.memoryFacts || "—"} Fatos</strong>
                     </div>
                     <div className="flex justify-between items-center pb-2 border-b border-border/20">
-                      <span className="text-muted-foreground">Taxa de Hit de Cache Contextual:</span>
-                      <strong className="text-success">91.4%</strong>
+                      <span className="text-muted-foreground">Respostas IA Processadas:</span>
+                      <strong className="text-success">{metricsData?.aiResponsesToday || safeViewModel.kpis[2]?.value || "0"}</strong>
                     </div>
                     <div className="flex justify-between items-center pb-2 border-b border-border/20">
-                      <span className="text-muted-foreground">Follow-ups de IA Disparados:</span>
-                      <strong className="text-foreground">418 esta semana</strong>
+                      <span className="text-muted-foreground">Conversas Ativas:</span>
+                      <strong className="text-foreground">{safeViewModel.kpis[1]?.value || "0"} na fila</strong>
                     </div>
                     <div className="flex justify-between items-center">
-                      <span className="text-muted-foreground">Precisão de Resposta Medida:</span>
-                      <strong className="text-primary font-bold">98.2%</strong>
+                      <span className="text-muted-foreground">Status do Provider:</span>
+                      <strong className="text-primary font-bold">{aiData?.providerOnline ? "Online" : "Offline"}</strong>
                     </div>
                   </div>
                 </Card>
@@ -347,21 +347,12 @@ export function AnalyticsView({ loading, viewModel }: AnalyticsViewProps) {
                 <Card className="glass-card p-5 space-y-4">
                   <h4 className="font-display font-bold text-sm text-foreground flex items-center gap-2">
                     <Sparkle className="h-4 w-4 text-amber-400" />
-                    Ranking de Eficiência dos Agentes IA
+                    Agentes IA Configurados
                   </h4>
                   <div className="space-y-2.5">
-                    <div className="flex items-center justify-between p-2 rounded-xl bg-background/50 border border-border/40 text-xs">
-                      <span className="font-bold text-foreground">1. Agente Comercial Vendas</span>
-                      <Badge variant="outline" className="border-success/30 text-success text-[9px]">48% Conversão</Badge>
-                    </div>
-                    <div className="flex items-center justify-between p-2 rounded-xl bg-background/50 border border-border/40 text-xs">
-                      <span className="font-bold text-foreground">2. Agente Suporte &amp; Orçamentos</span>
-                      <Badge variant="outline" className="border-primary/30 text-primary text-[9px]">92% Resolvido</Badge>
-                    </div>
-                    <div className="flex items-center justify-between p-2 rounded-xl bg-background/50 border border-border/40 text-xs">
-                      <span className="font-bold text-foreground">3. Agente Reativação de Base</span>
-                      <Badge variant="outline" className="border-amber-500/30 text-amber-400 text-[9px]">34% Reativados</Badge>
-                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      Os agentes de IA são configurados em IA &amp; Automação → Atendentes. O ranking de eficiência será calculado quando houver volume de dados suficiente.
+                    </p>
                   </div>
                 </Card>
               </div>
@@ -425,17 +416,17 @@ export function AnalyticsView({ loading, viewModel }: AnalyticsViewProps) {
                     <span className="text-[10px] uppercase font-bold text-muted-foreground">Uso de RAM</span>
                     <Badge variant="outline" className="text-[9px] border-success/30 text-success">Saudável</Badge>
                   </div>
-                  <h3 className="font-display text-2xl font-bold text-foreground mt-1">1.8 / 8.0 GB</h3>
-                  <span className="text-[10px] text-muted-foreground">Memory Heap Node.js: 340 MB</span>
+                  <h3 className="font-display text-2xl font-bold text-foreground mt-1">—</h3>
+                  <span className="text-[10px] text-muted-foreground">Ver Status & Saúde para telemetria real</span>
                 </Card>
 
                 <Card className="glass-card p-5">
                   <div className="flex items-center justify-between">
-                    <span className="text-[10px] uppercase font-bold text-muted-foreground">Status Redis &amp; BullMQ</span>
+                    <span className="text-[10px] uppercase font-bold text-muted-foreground">Status Redis & Filas</span>
                     <Badge variant="outline" className="text-[9px] border-success/30 text-success">Online</Badge>
                   </div>
-                  <h3 className="font-display text-2xl font-bold text-success mt-1">0 Attrasos</h3>
-                  <span className="text-[10px] text-muted-foreground">Fila de Disparo: 100% Processada</span>
+                  <h3 className="font-display text-2xl font-bold text-success mt-1">Operacional</h3>
+                  <span className="text-[10px] text-muted-foreground">Fila de Disparo processando</span>
                 </Card>
 
                 <Card className="glass-card p-5">
@@ -443,8 +434,8 @@ export function AnalyticsView({ loading, viewModel }: AnalyticsViewProps) {
                     <span className="text-[10px] uppercase font-bold text-muted-foreground">Banco PostgreSQL</span>
                     <Badge variant="outline" className="text-[9px] border-success/30 text-success">Ativo</Badge>
                   </div>
-                  <h3 className="font-display text-2xl font-bold text-foreground mt-1">12 Conexões</h3>
-                  <span className="text-[10px] text-muted-foreground">Pool Máximo: 50 | Latência: 4ms</span>
+                  <h3 className="font-display text-2xl font-bold text-foreground mt-1">—</h3>
+                  <span className="text-[10px] text-muted-foreground">Pool ativo — detalhes em Status & Saúde</span>
                 </Card>
               </div>
             </div>
