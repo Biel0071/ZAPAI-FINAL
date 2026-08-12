@@ -24,10 +24,14 @@ const DisconnectReason = {
   unavailableService: 503
 };
 
+// Terminal = credencial realmente invalidada; só volta reescaneando o QR.
+// Apenas o logout real (401), replaced (440), multidevice mismatch (411) e
+// forbidden (403) são irrecuperáveis. badSession (500) NÃO é logout — é uma
+// sessão dessincronizada, quase sempre recuperável reconectando — por isso é
+// tratado como transiente (o backoff exponencial evita loop abusivo).
 const TERMINAL_DISCONNECT_CODES = new Set(
   [
     DisconnectReason.loggedOut,
-    DisconnectReason.badSession,
     DisconnectReason.connectionReplaced,
     DisconnectReason.multideviceMismatch,
     DisconnectReason.forbidden,
@@ -40,6 +44,8 @@ const TRANSIENT_DISCONNECT_CODES = new Set(
     DisconnectReason.connectionClosed,
     DisconnectReason.connectionLost,
     DisconnectReason.timedOut,
+    DisconnectReason.badSession,
+    DisconnectReason.unavailableService,
   ].filter((code) => Number.isFinite(code))
 );
 
