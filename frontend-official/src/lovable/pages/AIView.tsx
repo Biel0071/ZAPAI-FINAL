@@ -2813,13 +2813,16 @@ export function AIView(props: AIViewProps) {
                       Simulador de Conversa
                     </button>
                     <button
-                      onClick={() => setActiveAtendentesSubTab("evolucao")}
+                      onClick={() => {
+                        setActiveAnaliseSubTab("evolucao");
+                        onSectionChange?.("analise");
+                      }}
                       className={cn(
                         "px-3 py-1.5 text-xs font-semibold rounded-lg transition-all",
-                        activeAtendentesSubTab === "evolucao" ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                        activeInternalTab === "analise" && activeAnaliseSubTab === "evolucao" ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-muted hover:text-foreground"
                       )}
                     >
-                      Evolução do Atendente
+                      Evolução IA
                     </button>
                   </div>
 
@@ -4354,6 +4357,11 @@ export function AIView(props: AIViewProps) {
                           )}
                         </div>
                       )}
+                      
+                      {/* AI Auto-Learning Dashboard Unificado */}
+                      <div className="pt-4 border-t border-border/40">
+                        <AILearningDashboard onPromptApplied={onPromptApplied} />
+                      </div>
                     </div>
                   ) : (
                     <div className="space-y-4">
