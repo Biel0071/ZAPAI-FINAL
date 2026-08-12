@@ -8,7 +8,7 @@
  * Actions: reactivate_ai | send_followup | mark_cold | escalate | no_action
  */
 
-const { query } = require('../config/database');
+const { query } = require('../src/infrastructure/config/database');
 
 const STALE_HOURS_WARM = 24;
 const STALE_HOURS_HOT = 12;
