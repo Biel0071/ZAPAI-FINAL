@@ -94,9 +94,9 @@ function classifyAction(conv) {
  */
 async function analyzeLeadsForReactivation(companyId = 'default') {
   const result = await query(
-    `SELECT c.id, c.phone, c.lead_temperature, c.funnel_stage, c.tags, c.ai_enabled,
+    `SELECT c.id, c.lead_temperature, c.funnel_stage, c.tags, c.ai_enabled,
             c.agent_name, c.status, c.updated_at, c.summary, c.lead_intent,
-            l.name, l.phone as lead_phone
+            l.name, l.phone
      FROM conversations c
      LEFT JOIN leads l ON l.id = c.lead_id
      WHERE c.company_id = $1
@@ -122,8 +122,8 @@ async function analyzeLeadsForReactivation(companyId = 'default') {
 
     recommendations.push({
       conversationId: conv.id,
-      phone: conv.phone || conv.lead_phone,
-      name: conv.name || conv.phone || conv.lead_phone,
+      phone: conv.phone,
+      name: conv.name || conv.phone,
       temperature: conv.lead_temperature,
       funnelStage: conv.funnel_stage,
       lastActivity: conv.updated_at,
