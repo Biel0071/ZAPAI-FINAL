@@ -41,6 +41,8 @@ import {
 } from "recharts";
 import type { AnalyticsLovableViewModel } from "@/adapters/lovable/analyticsAdapter";
 
+import { apiService } from "@/services/apiService";
+
 const tooltipStyle = {
   backgroundColor: "hsl(var(--card))",
   border: "1px solid hsl(var(--border))",
@@ -60,7 +62,6 @@ export function AnalyticsView({ loading, viewModel }: AnalyticsViewProps) {
   const [metricsData, setMetricsData] = useState<any>(null);
 
   useEffect(() => {
-    const { apiService } = require("@/services/apiService");
     Promise.allSettled([
       apiService.getAIStatus(),
       apiService.getAIMetrics(),

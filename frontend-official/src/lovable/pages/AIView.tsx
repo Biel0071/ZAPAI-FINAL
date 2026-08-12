@@ -475,6 +475,32 @@ export function AIView(props: AIViewProps) {
   const [loadingPipelineLogs, setLoadingPipelineLogs] = useState(false);
   const [showApiKeyMap, setShowApiKeyMap] = useState<Record<string, boolean>>({});
 
+  // Fila de Reativação Play/Pause/Timer
+  const [isQueueRunning, setIsQueueRunning] = useState<boolean>(false);
+  const [queueTimerSeconds, setQueueTimerSeconds] = useState<number>(queueDelaySeconds || 60);
+
+  useEffect(() => {
+    setQueueTimerSeconds(queueDelaySeconds || 60);
+  }, [queueDelaySeconds]);
+
+  useEffect(() => {
+    let interval: any = null;
+    if (isQueueRunning) {
+      interval = setInterval(() => {
+        setQueueTimerSeconds((prev) => {
+          if (prev <= 1) {
+            void onProcessQueue?.();
+            return queueDelaySeconds || 60;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+    }
+    return () => {
+      if (interval) clearInterval(interval);
+    };
+  }, [isQueueRunning, queueDelaySeconds, onProcessQueue]);
+
   // Evolution & Learning States
   const [selectedAgentKey, setSelectedAgentKey] = useState<string>("");
   const [evolveInstruction, setEvolveInstruction] = useState<string>("");
@@ -3936,8 +3962,48 @@ export function AIView(props: AIViewProps) {
                             className="min-h-[60px] bg-background text-xs"
                           />
                         </div>
-                        <Button onClick={onProcessQueue} disabled={saving} size="sm" className="w-full h-8 gap-1">
-                          <Play className="h-3.5 w-3.5" /> Processar Fila ({queueWaiting} pendentes)
+                        <div className="flex items-center justify-between p-2 rounded-lg bg-background/50 border border-border/40">
+                          <div className="flex items-center gap-2">
+                            {isQueueRunning ? (
+                              <Badge className="bg-emerald-500/20 text-emerald-400 border-emerald-500/30 gap-1 animate-pulse text-[10px]">
+                                <Play className="h-3 w-3 fill-current" /> Fila Ativa (Auto)
+                              </Badge>
+                            ) : (
+                              <Badge variant="outline" className="text-muted-foreground gap-1 text-[10px]">
+                                <Pause className="h-3 w-3" /> Pausada
+                              </Badge>
+                            )}
+                            <span className="text-[10px] text-muted-foreground font-mono">
+                              {isQueueRunning ? `⏱️ Próximo disparo em ${queueTimerSeconds}s` : `Aguardando acionamento`}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-1.5">
+                            {isQueueRunning ? (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="h-7 text-[10px] text-amber-400 border-amber-500/30 hover:bg-amber-500/10 gap-1"
+                                onClick={() => setIsQueueRunning(false)}
+                              >
+                                <Pause className="h-3 w-3" /> Pausar
+                              </Button>
+                            ) : (
+                              <Button
+                                size="sm"
+                                className="h-7 text-[10px] bg-emerald-600 hover:bg-emerald-700 text-white gap-1"
+                                onClick={() => {
+                                  setIsQueueRunning(true);
+                                  toast({ title: "Fila de Reativação Automática iniciada!" });
+                                }}
+                              >
+                                <Play className="h-3 w-3 fill-current" /> Iniciar (Play)
+                              </Button>
+                            )}
+                          </div>
+                        </div>
+
+                        <Button onClick={onProcessQueue} disabled={saving} size="sm" variant="secondary" className="w-full h-8 gap-1">
+                          <Play className="h-3.5 w-3.5" /> Disparar Agora Manualmente ({queueWaiting} pendentes)
                         </Button>
                       </AccordionContent>
                     </AccordionItem>
@@ -3975,9 +4041,14 @@ export function AIView(props: AIViewProps) {
                           <Switch checked={memoryEnabled} onCheckedChange={onMemoryEnabledChange} />
                         </div>
 
-                        <Button onClick={onSaveMemory} disabled={saving} size="sm" className="gap-1 h-8">
-                          <FloppyDisk className="h-3.5 w-3.5" /> Salvar Memória
-                        </Button>
+                        <div className="pt-2 border-t border-border/40 flex items-center justify-between gap-2">
+                          <Button onClick={onSaveMemory} disabled={saving} size="sm" className="gap-1 h-8">
+                            <FloppyDisk className="h-3.5 w-3.5" /> Salvar Configurações
+                          </Button>
+                          <Button variant="outline" size="sm" className="gap-1.5 h-8 text-[11px] border-primary/40 hover:bg-primary/10 text-primary" onClick={() => navigate('/memory')}>
+                            <BrainCircuit className="h-3.5 w-3.5" /> Abrir Central Unificada de Memória IA →
+                          </Button>
+                        </div>
                       </AccordionContent>
                     </AccordionItem>
                   </Accordion>
