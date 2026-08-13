@@ -468,7 +468,8 @@ export function AIView(props: AIViewProps) {
   const [activeInternalTab, setActiveInternalTab] = useState<string>("dashboard");
   const [activeAtendentesSubTab, setActiveAtendentesSubTab] = useState<"lista" | "simulador" | "evolucao">("lista");
   const [activeConhecimentoSubTab, setActiveConhecimentoSubTab] = useState<"templates" | "treinamento">("templates");
-  const [activeAnaliseSubTab, setActiveAnaliseSubTab] = useState<"evolucao" | "logs" | "templates" | "treinamento">("evolucao");
+  const [activeAnaliseSubTab, setActiveAnaliseSubTab] = useState<"evolucao" | "learning" | "logs" | "templates" | "treinamento">("evolucao");
+  const [quickAdjustModalOpen, setQuickAdjustModalOpen] = useState(false);
 
   const [evolutionData, setEvolutionData] = useState<any[]>([]);
   const [pipelineLogs, setPipelineLogs] = useState<any[]>([]);
@@ -610,6 +611,7 @@ export function AIView(props: AIViewProps) {
         setPreviewChanges(res.preview.changes);
         setPreviewReasoning(res.preview.reasoning);
         setPreviewSuggestions(res.preview.suggestions || []);
+        setQuickAdjustModalOpen(true);
         toast({
           title: "Análise Concluída",
           description: "A IA propôs alterações abaixo. Revise e clique em aplicar.",
@@ -3912,6 +3914,15 @@ export function AIView(props: AIViewProps) {
                       Evolução IA
                     </button>
                     <button
+                      onClick={() => setActiveAnaliseSubTab("learning")}
+                      className={cn(
+                        "px-3 py-1.5 text-xs font-semibold rounded-lg transition-all",
+                        activeAnaliseSubTab === "learning" ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                      )}
+                    >
+                      AI Learning
+                    </button>
+                    <button
                       onClick={() => setActiveAnaliseSubTab("logs")}
                       className={cn(
                         "px-3 py-1.5 text-xs font-semibold rounded-lg transition-all",
@@ -4028,15 +4039,6 @@ export function AIView(props: AIViewProps) {
                             </div>
                           </CardHeader>
                           <CardContent className="p-0 overflow-hidden h-[450px]">
-                            {Array.isArray(agentMemoryGraph?.nodes) && agentMemoryGraph.nodes.length > 0 ? (
-                              <MemoryGraphViewer graphData={agentMemoryGraph} height={450} />
-                            ) : (
-                              <div className="flex h-full items-center justify-center text-center p-6">
-                                <p className="text-sm text-muted-foreground">
-                                  Nenhuma memória em grafo encontrada ainda.<br />
-                                  <span className="text-xs">As interações reais irão gerar a rede de conhecimento (nodes & edges) aqui.</span>
-                                </p>
-                              </div>
                             )}
                           </CardContent>
                         </Card>
@@ -4139,78 +4141,7 @@ export function AIView(props: AIViewProps) {
                                 )}
                               </Button>
 
-                              {/* Preview de mudanças propostas */}
-                              {previewChanges && (
-                                <div className="rounded-xl border border-primary/20 bg-primary/5 p-4 space-y-4 animate-fade-in">
-                                  <div className="flex items-center gap-2 border-b border-primary/20 pb-2">
-                                    <Sparkles className="h-4.5 w-4.5 text-primary animate-pulse" />
-                                    <span className="font-bold text-primary text-xs uppercase tracking-wider">Alterações Propostas pela IA</span>
-                                  </div>
-
-                                  <div className="space-y-3">
-                                    <div className="bg-background/55 p-3 rounded-lg border border-border/30">
-                                      <span className="block font-semibold text-[11px] text-foreground mb-1">Raciocínio da IA:</span>
-                                      <p className="text-[11px] text-muted-foreground leading-relaxed">{previewReasoning}</p>
-                                    </div>
-
-                                    {Object.keys(previewChanges).map((field) => {
-                                      const change = previewChanges[field];
-                                      return (
-                                        <div key={field} className="space-y-1 text-xs">
-                                          <div className="flex items-center justify-between">
-                                            <span className="font-bold capitalize text-foreground">{field === "personality" ? "Prompt Principal" : field}</span>
-                                            <Badge variant="outline" className={`h-4.5 text-[8px] uppercase font-bold leading-none ${
-                                              change.action === "append" ? "border-emerald-500/30 text-emerald-400 bg-emerald-500/5" : "border-amber-500/30 text-amber-400 bg-amber-500/5"
-                                            }`}>
-                                              {change.action === "append" ? "Adicionar" : "Substituir"}
-                                            </Badge>
-                                          </div>
-                                          <pre className="text-[10px] bg-background/55 p-2 rounded border border-border/30 overflow-x-auto max-h-[100px] whitespace-pre-wrap font-mono text-muted-foreground leading-relaxed">
-                                            {change.value}
-                                          </pre>
-                                        </div>
-                                      );
-                                    })}
-
-                                    {previewSuggestions && previewSuggestions.length > 0 && (
-                                      <div className="bg-background/25 p-2.5 rounded-lg border border-border/20 text-[10px] space-y-1">
-                                        <span className="block font-bold text-foreground">💡 Sugestões adicionais:</span>
-                                        <ul className="list-disc list-inside text-muted-foreground space-y-0.5">
-                                          {previewSuggestions.map((s, idx) => <li key={idx}>{s}</li>)}
-                                        </ul>
-                                      </div>
-                                    )}
-                                  </div>
-
-                                  <div className="flex gap-2 pt-1 border-t border-primary/20">
-                                    <Button
-                                      onClick={handleApplyChanges}
-                                      disabled={isApplying}
-                                      className="flex-grow h-8 text-[11px] font-bold rounded-lg"
-                                      variant="default"
-                                    >
-                                      {isApplying ? (
-                                        <>
-                                          <Loader2 className="h-3 w-3 animate-spin mr-1" /> Aplicando...
-                                        </>
-                                      ) : (
-                                        <>
-                                          <CheckCircle className="h-3.5 w-3.5 mr-1" /> Aplicar e Salvar no Atendente
-                                        </>
-                                      )}
-                                    </Button>
-                                    <Button
-                                      onClick={() => setPreviewChanges(null)}
-                                      variant="outline"
-                                      size="sm"
-                                      disabled={isApplying}
-                                      className="h-8 text-[11px] rounded-lg border-border/50 hover:bg-background"
-                                    >
-                                      Descartar
-                                    </Button>
-                                  </div>
-                                </div>
-                              )}
+                              {/* O modal de quick adjust será aberto quando previewChanges != null (veja o Dialog no final do arquivo) */}
                             </CardContent>
                           </Card>
                         </div>
@@ -4269,10 +4200,18 @@ export function AIView(props: AIViewProps) {
                               )}
                             </CardContent>
                           </Card>
+                      </div>
+                    </div>
+                  )}
+                  {activeAnaliseSubTab === "learning" && (
+                    <div className="space-y-6 animate-fade-in">
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-card/35 border border-border/50 rounded-xl p-4 shadow-sm">
+                        <div className="space-y-1">
+                          <h3 className="text-sm font-bold text-foreground">AI Learning</h3>
+                          <p className="text-[11px] text-muted-foreground">Analise as conversas da IA e aplique melhorias no conhecimento.</p>
                         </div>
                       </div>
-                        <AILearningDashboard onPromptApplied={onPromptApplied} />
-                      </div>
+                      <AILearningDashboard onPromptApplied={onPromptApplied} />
                     </div>
                   )}
                   {activeAnaliseSubTab === "logs" && (
@@ -4696,6 +4635,83 @@ export function AIView(props: AIViewProps) {
               Salvar Prompt
             </Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      {/* QUICK ADJUST MODAL */}
+      <Dialog open={quickAdjustModalOpen} onOpenChange={setQuickAdjustModalOpen}>
+        <DialogContent className="sm:max-w-xl max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Sparkles className="h-5 w-5 text-primary" />
+              Alterações Propostas pela IA
+            </DialogTitle>
+          </DialogHeader>
+          
+          {previewChanges && (
+            <div className="space-y-4 pt-2">
+              <div className="bg-background/55 p-3 rounded-lg border border-border/30">
+                <span className="block font-semibold text-[11px] text-foreground mb-1">Raciocínio da IA:</span>
+                <p className="text-[11px] text-muted-foreground leading-relaxed">{previewReasoning}</p>
+              </div>
+
+              {Object.keys(previewChanges).map((field) => {
+                const change = previewChanges[field];
+                return (
+                  <div key={field} className="space-y-1 text-xs">
+                    <div className="flex items-center justify-between">
+                      <span className="font-bold capitalize text-foreground">{field === "personality" ? "Prompt Principal" : field}</span>
+                      <Badge variant="outline" className={`h-4.5 text-[8px] uppercase font-bold leading-none ${
+                        change.action === "append" ? "border-emerald-500/30 text-emerald-400 bg-emerald-500/5" : "border-amber-500/30 text-amber-400 bg-amber-500/5"
+                      }`}>
+                        {change.action === "append" ? "Adicionar" : "Substituir"}
+                      </Badge>
+                    </div>
+                    <pre className="text-[10px] bg-background/55 p-2 rounded border border-border/30 overflow-x-auto max-h-[150px] whitespace-pre-wrap font-mono text-muted-foreground leading-relaxed">
+                      {change.value}
+                    </pre>
+                  </div>
+                );
+              })}
+
+              {previewSuggestions && previewSuggestions.length > 0 && (
+                <div className="bg-background/25 p-2.5 rounded-lg border border-border/20 text-[10px] space-y-1">
+                  <span className="block font-bold text-foreground">💡 Sugestões adicionais:</span>
+                  <ul className="list-disc list-inside text-muted-foreground space-y-0.5">
+                    {previewSuggestions.map((s, idx) => <li key={idx}>{s}</li>)}
+                  </ul>
+                </div>
+              )}
+
+              <div className="flex gap-2 pt-4">
+                <Button
+                  onClick={async () => {
+                    await handleApplyChanges();
+                    setQuickAdjustModalOpen(false);
+                  }}
+                  disabled={isApplying}
+                  className="flex-grow h-9 text-xs font-bold rounded-lg"
+                  variant="default"
+                >
+                  {isApplying ? (
+                    <><Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" /> Aplicando...</>
+                  ) : (
+                    <><CheckCircle className="h-4 w-4 mr-1.5" /> Aplicar e Salvar no Atendente</>
+                  )}
+                </Button>
+                <Button
+                  onClick={() => {
+                    setPreviewChanges(null);
+                    setQuickAdjustModalOpen(false);
+                  }}
+                  variant="outline"
+                  disabled={isApplying}
+                  className="h-9 text-xs rounded-lg border-border/50 hover:bg-background"
+                >
+                  Descartar
+                </Button>
+              </div>
+            </div>
+          )}
         </DialogContent>
       </Dialog>
     </div>
