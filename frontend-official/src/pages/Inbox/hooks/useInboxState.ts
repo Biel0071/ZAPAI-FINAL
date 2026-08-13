@@ -71,7 +71,7 @@ import type {
 
 const CONVERSATIONS_PAGE_SIZE = 20;
 const MESSAGE_PAGE_SIZE = 50;
-const MESSAGE_CACHE_TTL_MS = 30_000;
+const MESSAGE_CACHE_TTL_MS = 60_000;
 const DRAFT_TTL_MS = 5 * 60 * 1000;
 const RUNTIME_RECONNECTED_EVENT = "runtime:reconnected";
 const OFFLINE_MESSAGE_POLL_INTERVAL_MS = 45_000;
@@ -1163,13 +1163,17 @@ export function useInboxState() {
         return;
       }
 
+      // Show persisted messages as a skeleton ONLY if they belong to this exact conversation.
+      // They will be replaced immediately once the server fetch completes.
       if (!cached && persisted.length > 0) {
         const sortedPersisted = sortMessagesAsc(persisted);
-        if (normalizeId(selectedConversationRef.current?.id) === normalizeId(normalizedConversationId)) {
+        const allBelongToConv = sortedPersisted.every(
+          (msg) => !msg.conversationId || normalizeId(msg.conversationId) === normalizeId(normalizedConversationId),
+        );
+        if (allBelongToConv && normalizeId(selectedConversationRef.current?.id) === normalizeId(normalizedConversationId)) {
           setMessagesForConversation(normalizedConversationId, sortedPersisted);
           setHasMoreMessages(sortedPersisted.length >= MESSAGE_PAGE_SIZE);
         }
-        updateConversationMessageStore(normalizedConversationId, sortedPersisted, sortedPersisted.length >= MESSAGE_PAGE_SIZE);
       }
 
       const requestId = Date.now();
@@ -1190,10 +1194,16 @@ export function useInboxState() {
           ? data.map((item, index) => normalizeLoadedMessage(item, normalizedConversationId, index))
           : [];
 
+        // Server response is the authoritative source of truth.
+        // Only merge temp outgoing messages (not yet confirmed) from the current in-memory state.
         const sorted = sortMessagesAsc(
           normalizedData.filter((item) => normalizeId(item.conversationId) === normalizeId(normalizedConversationId)),
         );
-        const mergedWithCache = sortMessagesAsc(mergeMessagesById(cached?.messages ?? persisted, sorted));
+        const currentInMemory = messagesRef.current.filter(
+          (msg) => String(msg.id).startsWith("temp-") && normalizeId(msg.conversationId) === normalizeId(normalizedConversationId),
+        );
+        // Use server data as the base; only append unconfirmed outgoing temp messages on top.
+        const mergedWithCache = sortMessagesAsc(mergeMessagesById(sorted, currentInMemory));
         const hasMore = normalizedData.length >= MESSAGE_PAGE_SIZE;
 
         const isSelectedConversation = normalizeId(selectedConversationRef.current?.id) === normalizeId(normalizedConversationId);
@@ -1211,7 +1221,8 @@ export function useInboxState() {
           return;
         }
 
-        if (normalizeId(selectedConversationRef.current?.id) === normalizeId(normalizedConversationId)) {
+        if (isSelectedConversation) {
+          // Always replace with server data — no stale localStorage bleed-through.
           setMessagesForConversation(normalizedConversationId, mergedWithCache);
           setHasMoreMessages(hasMore);
           setPendingBackgroundUpdates(0);
