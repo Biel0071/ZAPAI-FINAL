@@ -461,7 +461,7 @@ export const MessageRow = memo(function MessageRow({
                 </div>
               )}
 
-              {(resolvedMediaType === "file" || resolvedMediaType === "document" || !resolvedMediaType) && (
+              {(resolvedMediaType === "file" || resolvedMediaType === "document" || resolvedMediaType === "product" || resolvedMediaType === "catalog" || !resolvedMediaType) && (
                 <div
                   role="button"
                   tabIndex={0}

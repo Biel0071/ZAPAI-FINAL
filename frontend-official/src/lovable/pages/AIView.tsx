@@ -1,4 +1,4 @@
-import { motion } from "framer-motion";
+﻿import { motion } from "framer-motion";
 import { MemoryGraphViewer } from "@/components/MemoryGraphViewer";
 import { LeadReactivationPanel } from "@/components/ai/LeadReactivationPanel";
 import { BlacklistPanel } from "@/components/ai/BlacklistPanel";
@@ -467,7 +467,7 @@ export function AIView(props: AIViewProps) {
   const [activeInternalTab, setActiveInternalTab] = useState<string>("dashboard");
   const [activeAtendentesSubTab, setActiveAtendentesSubTab] = useState<"lista" | "simulador" | "evolucao">("lista");
   const [activeConhecimentoSubTab, setActiveConhecimentoSubTab] = useState<"templates" | "treinamento">("templates");
-  const [activeAnaliseSubTab, setActiveAnaliseSubTab] = useState<"evolucao" | "logs">("evolucao");
+  const [activeAnaliseSubTab, setActiveAnaliseSubTab] = useState<"evolucao" | "logs" | "templates" | "treinamento">("evolucao");
 
   const [evolutionData, setEvolutionData] = useState<any[]>([]);
   const [pipelineLogs, setPipelineLogs] = useState<any[]>([]);
@@ -2583,17 +2583,6 @@ export function AIView(props: AIViewProps) {
               </button>
 
               <button
-                onClick={() => onSectionChange("conhecimento")}
-                className={cn(
-                  "w-full flex items-center gap-2.5 px-3 py-2 text-xs font-semibold rounded-xl transition-all text-left",
-                  activeInternalTab === "conhecimento" ? "bg-primary text-primary-foreground shadow-sm shadow-primary/20" : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                )}
-              >
-                <GraduationCap className="h-4 w-4" />
-                <span>Conhecimento</span>
-              </button>
-
-              <button
                 onClick={() => onSectionChange("operacao")}
                 className={cn(
                   "w-full flex items-center gap-2.5 px-3 py-2 text-xs font-semibold rounded-xl transition-all text-left",
@@ -2612,7 +2601,7 @@ export function AIView(props: AIViewProps) {
                 )}
               >
                 <BarChart3 className="h-4 w-4" />
-                <span>Análise</span>
+                <span>Evolução IA</span>
               </button>
             </aside>
 
@@ -3385,471 +3374,10 @@ export function AIView(props: AIViewProps) {
                     </div>
                   )}
 
-                  {activeAtendentesSubTab === "evolucao" && (
-                    <div className="space-y-6 animate-fade-in">
-                      {/* Cabecalho de Selecao */}
-                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-card/35 border border-border/50 rounded-xl p-4 shadow-sm">
-                        <div className="space-y-1">
-                          <h3 className="text-sm font-bold text-foreground">Painel de Evolução do Atendente</h3>
-                          <p className="text-[11px] text-muted-foreground">Melhore, ajuste e ensine novas informações ao seu atendente de forma contínua.</p>
-                        </div>
-                        <div className="flex items-center gap-3">
-                          <Label htmlFor="evolution-agent-select" className="text-xs font-semibold text-foreground shrink-0">Atendente:</Label>
-                          <Select value={selectedAgentKey} onValueChange={setSelectedAgentKey}>
-                            <SelectTrigger id="evolution-agent-select" className="h-9 text-xs w-48 bg-background/50">
-                              <SelectValue placeholder="Selecione o Atendente" />
-                            </SelectTrigger>
-                            <SelectContent className="bg-card border-border">
-                              {(agents || []).map((a) => (
-                                <SelectItem key={a.key || a.name} value={a.key || a.name} className="text-xs">
-                                  <div className="flex items-center gap-2">
-                                    {getAgentAvatarIcon(a.avatar, "h-3.5 w-3.5 text-primary")}
-                                    <span>{a.name}</span>
-                                  </div>
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                          <Button 
-                            variant="outline" 
-                            size="sm" 
-                            onClick={handleDetectGaps}
-                            className="h-9 text-xs gap-1 rounded-lg hover:bg-primary/5"
-                          >
-                            <RefreshCw className="h-3.5 w-3.5" /> Detectar Dúvidas
-                          </Button>
-                        </div>
-                      </div>
-
-                      <div className="grid gap-4 lg:grid-cols-[0.9fr_1.6fr]">
-                        <Card className="overflow-hidden rounded-xl border border-primary/25 bg-gradient-to-br from-primary/10 via-card/60 to-card/40">
-                          <CardContent className="p-5 space-y-4">
-                            <div className="flex items-start justify-between gap-4">
-                              <div>
-                                <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-primary">{"N\u00edvel do atendente"}</p>
-                                <p className="mt-1 text-lg font-bold text-foreground">{evolutionOverview.level}</p>
-                              </div>
-                              <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full border-4 border-primary/30 bg-background/60 shadow-glow">
-                                <span className="font-display text-xl font-black text-primary">{evolutionOverview.score}</span>
-                                <span className="text-[9px] text-muted-foreground">/100</span>
-                              </div>
-                            </div>
-                            <div className="space-y-2">
-                              <div className="flex items-center justify-between text-[10px]">
-                                <span className="font-semibold text-foreground">Meta de respostas ensinadas</span>
-                                <span className="font-mono text-primary">{evolutionOverview.goal.current}/{evolutionOverview.goal.target}</span>
-                              </div>
-                              <div className="h-2 overflow-hidden rounded-full bg-muted/60">
-                                <div
-                                  className="h-full rounded-full bg-gradient-to-r from-primary to-emerald-400 transition-all duration-500"
-                                  style={{ width: `${evolutionOverview.goal.percentage}%` }}
-                                />
-                              </div>
-                              <p className="text-[9px] leading-relaxed text-muted-foreground">
-                                Cada resposta aplicada vira conhecimento permanente e aumenta a maturidade do atendente.
-                              </p>
-                            </div>
-                            <div className="grid grid-cols-2 gap-2 text-[9px]">
-                              <div className="rounded-lg border border-border/40 bg-background/35 p-2"><span className="block text-muted-foreground">Respostas</span><strong>+{evolutionOverview.components.answers}</strong></div>
-                              <div className="rounded-lg border border-border/40 bg-background/35 p-2"><span className="block text-muted-foreground">Refinamentos</span><strong>+{evolutionOverview.components.refinements}</strong></div>
-                              <div className="rounded-lg border border-border/40 bg-background/35 p-2"><span className="block text-muted-foreground">Cobertura</span><strong>+{evolutionOverview.components.coverage}</strong></div>
-                              <div className="rounded-lg border border-border/40 bg-background/35 p-2"><span className="block text-muted-foreground">Fila em dia</span><strong>+{evolutionOverview.components.queue}</strong></div>
-                            </div>
-                          </CardContent>
-                        </Card>
-
-                        <Card className="rounded-xl border border-border/60 bg-card/40">
-                          <CardHeader className="p-4 pb-2">
-                            <div className="flex items-center justify-between gap-3">
-                              <div className="flex items-center gap-2">
-                                <BrainCircuit className="h-5 w-5 text-primary" />
-                                <div>
-                                  <CardTitle className="text-xs font-bold uppercase tracking-wider">{"Mem\u00f3ria em grafo"}</CardTitle>
-                                  <CardDescription className="text-[10px]">Conexoes reais entre contatos, conversas, conceitos e respostas.</CardDescription>
-                                </div>
-                              </div>
-                              <Badge variant="outline" className="text-[9px]">{(agentMemoryGraph?.edges || []).length} conexoes</Badge>
-                            </div>
-                          </CardHeader>
-                          <CardContent className="p-0 overflow-hidden h-[450px]">
-                            {Array.isArray(agentMemoryGraph?.nodes) && agentMemoryGraph.nodes.length > 0 ? (
-                              <MemoryGraphViewer graphData={agentMemoryGraph} height={450} />
-                            ) : (
-                              <div className="flex h-full items-center justify-center text-center p-6">
-                                <p className="text-sm text-muted-foreground">
-                                  Nenhuma memória em grafo encontrada ainda.<br />
-                                  <span className="text-xs">As interações reais irão gerar a rede de conhecimento (nodes & edges) aqui.</span>
-                                </p>
-                              </div>
-                            )}
-                          </CardContent>
-                        </Card>
-                      </div>
-
-                        {/* Coluna 1 e 2: Ajuste Inteligente & Perguntas Sem Resposta */}
-                      <div className="grid gap-6 lg:grid-cols-3">
-                        <div className="lg:col-span-2 space-y-6">
-                          {/* CARD 1: AJUSTE VIA PROMPT */}
-                          <Card className="border border-border/60 bg-card/40 shadow-sm rounded-xl">
-                            <CardHeader className="p-4 border-b border-border/40 flex flex-row items-center gap-2">
-                              <BrainCircuit className="h-5 w-5 text-primary" />
-                              <div>
-                                <CardTitle className="text-xs font-bold text-foreground uppercase tracking-wider">Ajuste Rápido via IA (Instrução Direta)</CardTitle>
-                                <CardDescription className="text-[10px] text-muted-foreground mt-0.5">Escreva o que você deseja mudar ou ensinar em linguagem natural (ex: preços, comportamento, políticas).</CardDescription>
-                              </div>
-                            </CardHeader>
-                            <CardContent className="p-4 space-y-4">
-                              <div className="space-y-1.5">
-                                <Label htmlFor="evolve-instruction" className="text-xs font-semibold text-foreground">O que você deseja ensinar ou alterar?</Label>
-                                <Textarea
-                                  id="evolve-instruction"
-                                  placeholder="Ex: Agora vendemos cimento CP-II por R$32 a saca. Ofereça frete grátis acima de 50 sacas. Seja muito simpático."
-                                  value={evolveInstruction}
-                                  onChange={(e) => setEvolveInstruction(e.target.value)}
-                                  className="min-h-[90px] bg-background/40 text-xs leading-relaxed rounded-lg"
-                                  disabled={isAnalyzing}
-                                />
-                              </div>
-
-                              <Button
-                                onClick={handleEvolveAgent}
-                                disabled={isAnalyzing || !evolveInstruction.trim()}
-                                className="w-full h-9 text-xs gap-1.5 rounded-lg font-bold shadow-sm"
-                              >
-                                {isAnalyzing ? (
-                                  <>
-                                    <Loader2 className="h-3.5 w-3.5 animate-spin" /> Analisando Atendente...
-                                  </>
-                                ) : (
-                                  <>
-                                    <Sparkles className="h-4 w-4" /> Analisar e Propor Mudanças
-                                  </>
-                                )}
-                              </Button>
-
-                              {/* Preview de mudanças propostas */}
-                              {previewChanges && (
-                                <div className="rounded-xl border border-primary/20 bg-primary/5 p-4 space-y-4 animate-fade-in">
-                                  <div className="flex items-center gap-2 border-b border-primary/20 pb-2">
-                                    <Sparkles className="h-4.5 w-4.5 text-primary animate-pulse" />
-                                    <span className="font-bold text-primary text-xs uppercase tracking-wider">Alterações Propostas pela IA</span>
-                                  </div>
-
-                                  <div className="space-y-3">
-                                    <div className="bg-background/55 p-3 rounded-lg border border-border/30">
-                                      <span className="block font-semibold text-[11px] text-foreground mb-1">Raciocínio da IA:</span>
-                                      <p className="text-[11px] text-muted-foreground leading-relaxed">{previewReasoning}</p>
-                                    </div>
-
-                                    {Object.keys(previewChanges).map((field) => {
-                                      const change = previewChanges[field];
-                                      return (
-                                        <div key={field} className="space-y-1 text-xs">
-                                          <div className="flex items-center justify-between">
-                                            <span className="font-bold capitalize text-foreground">{field === "personality" ? "Prompt Principal" : field}</span>
-                                            <Badge variant="outline" className={`h-4.5 text-[8px] uppercase font-bold leading-none ${
-                                              change.action === "append" ? "border-emerald-500/30 text-emerald-400 bg-emerald-500/5" : "border-amber-500/30 text-amber-400 bg-amber-500/5"
-                                            }`}>
-                                              {change.action === "append" ? "Adicionar" : "Substituir"}
-                                            </Badge>
-                                          </div>
-                                          <pre className="text-[10px] bg-background/55 p-2 rounded border border-border/30 overflow-x-auto max-h-[100px] whitespace-pre-wrap font-mono text-muted-foreground leading-relaxed">
-                                            {change.value}
-                                          </pre>
-                                        </div>
-                                      );
-                                    })}
-
-                                    {previewSuggestions && previewSuggestions.length > 0 && (
-                                      <div className="bg-background/25 p-2.5 rounded-lg border border-border/20 text-[10px] space-y-1">
-                                        <span className="block font-bold text-foreground">💡 Sugestões adicionais:</span>
-                                        <ul className="list-disc list-inside text-muted-foreground space-y-0.5">
-                                          {previewSuggestions.map((s, idx) => <li key={idx}>{s}</li>)}
-                                        </ul>
-                                      </div>
-                                    )}
-                                  </div>
-
-                                  <div className="flex gap-2 pt-1 border-t border-primary/20">
-                                    <Button
-                                      onClick={handleApplyChanges}
-                                      disabled={isApplying}
-                                      className="flex-grow h-8 text-[11px] font-bold rounded-lg"
-                                      variant="default"
-                                    >
-                                      {isApplying ? (
-                                        <>
-                                          <Loader2 className="h-3 w-3 animate-spin mr-1" /> Aplicando...
-                                        </>
-                                      ) : (
-                                        <>
-                                          <CheckCircle className="h-3.5 w-3.5 mr-1" /> Aplicar e Salvar no Atendente
-                                        </>
-                                      )}
-                                    </Button>
-                                    <Button
-                                      onClick={() => setPreviewChanges(null)}
-                                      variant="outline"
-                                      size="sm"
-                                      disabled={isApplying}
-                                      className="h-8 text-[11px] rounded-lg border-border/50 hover:bg-background"
-                                    >
-                                      Descartar
-                                    </Button>
-                                  </div>
-                                </div>
-                              )}
-                            </CardContent>
-                          </Card>
-
-                          {/* CARD 2: FEED DE PERGUNTAS SEM RESPOSTA */}
-                          <Card className="border border-border/60 bg-card/40 shadow-sm rounded-xl">
-                            <CardHeader className="p-4 border-b border-border/40 flex flex-row items-center justify-between gap-2">
-                              <div className="flex items-center gap-2">
-                                <WarningCircle className="h-5 w-5 text-amber-500" />
-                                <div>
-                                  <CardTitle className="text-xs font-bold text-foreground uppercase tracking-wider">Perguntas Sem Resposta dos Clientes</CardTitle>
-                                  <CardDescription className="text-[10px] text-muted-foreground mt-0.5">Ensine seu atendente respondendo dúvidas reais que ele não soube responder nas conversas.</CardDescription>
-                                </div>
-                              </div>
-                              <Badge variant="secondary" className="bg-amber-500/10 text-amber-400 border border-amber-500/25 h-5 px-2 font-bold text-[10px]">
-                                {learningStats.pending} Pendentes
-                              </Badge>
-                            </CardHeader>
-                            <CardContent className="p-4">
-                              {isLoadingLearning ? (
-                                <div className="flex h-36 items-center justify-center">
-                                  <Loader2 className="h-6 w-6 animate-spin text-primary" />
-                                </div>
-                              ) : (!Array.isArray(learningEvents) || learningEvents.length === 0) ? (
-                                <div className="text-center py-12 text-muted-foreground space-y-2 border border-dashed border-border/50 rounded-xl bg-background/5">
-                                  <CheckCircle className="h-8 w-8 mx-auto text-emerald-500/60" />
-                                  <p className="text-xs font-semibold">Tudo em dia! O atendente não tem dúvidas.</p>
-                                  <p className="text-[10px] text-muted-foreground/80 max-w-[320px] mx-auto">Toda vez que a IA falhar em uma resposta ou o cliente acionar transbordo, a dúvida aparecerá aqui para você treinar.</p>
-                                </div>
-                              ) : (
-                                <div className="space-y-4 max-h-[460px] overflow-y-auto pr-1 scrollbar-thin">
-                                  {learningEvents.map((event) => (
-                                    <div key={event.id} className="group rounded-xl border border-border/40 bg-background/25 p-4 space-y-3 hover:border-border/60 hover:bg-background/45 transition-all shadow-sm">
-                                      <div className="flex items-start justify-between gap-2">
-                                        <div className="space-y-0.5">
-                                          <p className="font-bold text-xs text-foreground/90 leading-tight">“ {event.customer_question} ”</p>
-                                          <div className="flex items-center gap-1.5 text-[9px] text-muted-foreground font-medium">
-                                            <span>Cliente: {event.contact_name || event.contact_phone || "Desconhecido"}</span>
-                                            <span>•</span>
-                                            <span>{new Date(event.created_at).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}</span>
-                                          </div>
-                                        </div>
-                                        <Button
-                                          size="icon"
-                                          variant="ghost"
-                                          onClick={() => handleIgnoreEvent(event.id)}
-                                          className="h-6 w-6 text-muted-foreground hover:text-destructive hover:bg-destructive/10 shrink-0"
-                                        >
-                                          <Trash className="h-3.5 w-3.5" />
-                                        </Button>
-                                      </div>
-
-                                      {event.ai_response && (
-                                        <div className="bg-destructive/5 text-destructive/90 border border-destructive/15 rounded-lg p-2.5 text-[10px] leading-relaxed">
-                                          <span className="font-bold block uppercase text-[8.5px] tracking-wider mb-0.5">Resposta Falha da IA:</span>
-                                          {event.ai_response}
-                                        </div>
-                                      )}
-
-                                      <div className="flex gap-2">
-                                        <Input
-                                          placeholder="Digite a resposta correta para treinar o atendente..."
-                                          value={answeringAnswers[event.id] || ""}
-                                          onChange={(e) => setAnsweringAnswers(prev => ({ ...prev, [event.id]: e.target.value }))}
-                                          className="h-8.5 text-xs bg-background"
-                                          disabled={isTeachingId === event.id}
-                                          onKeyDown={(e) => e.key === "Enter" && handleAnswerQuestion(event.id)}
-                                        />
-                                        <Button
-                                          size="sm"
-                                          onClick={() => handleAnswerQuestion(event.id)}
-                                          disabled={isTeachingId === event.id || !(answeringAnswers[event.id] || "").trim()}
-                                          className="h-8.5 font-semibold text-xs px-3 rounded-lg shadow-sm"
-                                        >
-                                          {isTeachingId === event.id ? (
-                                            <Loader2 className="h-3 w-3 animate-spin mr-1" />
-                                          ) : (
-                                            <Sparkles className="h-3.5 w-3.5 mr-1" />
-                                          )}
-                                          Ensinar
-                                        </Button>
-                                      </div>
-                                    </div>
-                                  ))}
-                                </div>
-                              )}
-                            </CardContent>
-                          </Card>
-                        </div>
-
-                        {/* Coluna 3: Histórico de Evolução */}
-                        <div className="space-y-6">
-                          <Card className="border border-border/60 bg-card/40 shadow-sm rounded-xl">
-                            <CardHeader className="p-4 border-b border-border/40 flex flex-row items-center gap-2">
-                              <HistoryIcon className="h-5 w-5 text-muted-foreground" />
-                              <div>
-                                <CardTitle className="text-xs font-bold text-foreground uppercase tracking-wider">Histórico de Evolução</CardTitle>
-                                <CardDescription className="text-[10px] text-muted-foreground mt-0.5">Linha do tempo de aprendizados e refinamentos aplicados.</CardDescription>
-                              </div>
-                            </CardHeader>
-                            <CardContent className="p-4">
-                              {isLoadingHistory ? (
-                                <div className="flex h-36 items-center justify-center">
-                                  <Loader2 className="h-6 w-6 animate-spin text-primary" />
-                                </div>
-                              ) : evolutionHistory.length === 0 ? (
-                                <div className="text-center py-10 text-muted-foreground/80 text-[10px] space-y-1">
-                                  <HistoryIcon className="h-6 w-6 mx-auto text-muted-foreground/30 mb-1" />
-                                  <p>Nenhuma modificação registrada ainda.</p>
-                                  <p>As atualizações via prompt ou respostas salvas aparecerão aqui.</p>
-                                </div>
-                              ) : (
-                                <div className="relative pl-4 border-l border-border/50 ml-1 space-y-5 py-1.5 max-h-[640px] overflow-y-auto scrollbar-thin pr-1">
-                                  {evolutionHistory.map((log) => {
-                                    const fields = Object.keys(log.fields_changed || {});
-                                    return (
-                                      <div key={log.id} className="relative space-y-1.5 text-xs">
-                                        {/* Dot */}
-                                        <div className="absolute -left-[21px] top-1.5 h-2.5 w-2.5 rounded-full bg-primary border-2 border-background" />
-                                        
-                                        <div className="flex items-center justify-between text-[9px] text-muted-foreground">
-                                          <span className="font-semibold">{new Date(log.created_at).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}</span>
-                                          <Badge variant="secondary" className="h-4.5 px-1.5 text-[8.5px] uppercase font-bold bg-muted/80 text-muted-foreground">
-                                            {log.change_type === "prompt_refinement" ? "Prompt" : 
-                                             log.change_type === "question_learned" ? "Dúvida" : "Ajuste"}
-                                          </Badge>
-                                        </div>
-
-                                        <p className="font-semibold text-foreground/90 leading-normal">{log.source_description}</p>
-                                        
-                                        {fields.length > 0 && (
-                                          <div className="flex flex-wrap gap-1">
-                                            {fields.map((f) => (
-                                              <span key={f} className="text-[8px] font-bold uppercase tracking-wider px-1.5 py-0.2 rounded border border-primary/20 bg-primary/5 text-primary scale-90">
-                                                {f}
-                                              </span>
-                                            ))}
-                                          </div>
-                                        )}
-                                      </div>
-                                    );
-                                  })}
-                                </div>
-                              )}
-                            </CardContent>
-                          </Card>
-                        </div>
-                      </div>
-                    </div>
-                  )}
                 </div>
               )}
 
-              {/* TAB 3: CONHECIMENTO */}
-              {activeInternalTab === "conhecimento" && (
-                <div className="space-y-6">
-                  {/* Subtabs Menu */}
-                  <div className="flex gap-2 border-b border-border/60 pb-2">
-                    <button
-                      onClick={() => setActiveConhecimentoSubTab("templates")}
-                      className={cn(
-                        "px-3 py-1.5 text-xs font-semibold rounded-lg transition-all",
-                        activeConhecimentoSubTab === "templates" ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                      )}
-                    >
-                      Templates de Prompt
-                    </button>
-                    <button
-                      onClick={() => setActiveConhecimentoSubTab("treinamento")}
-                      className={cn(
-                        "px-3 py-1.5 text-xs font-semibold rounded-lg transition-all",
-                        activeConhecimentoSubTab === "treinamento" ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                      )}
-                    >
-                      Treinamento de Casos
-                    </button>
-                  </div>
 
-                  {activeConhecimentoSubTab === "templates" ? (
-                    <div className="space-y-4">
-                      <div className="flex justify-between items-center">
-                        <Label className="text-xs text-muted-foreground">Escolha um template rápido para o prompt de personalidade</Label>
-                        <Input
-                          placeholder="Buscar templates..."
-                          value={templateSearch}
-                          onChange={(e) => setTemplateSearch(e.target.value)}
-                          className="bg-background h-8 text-xs max-w-xs"
-                        />
-                      </div>
-                      <div className="grid gap-4 sm:grid-cols-3">
-                        {filteredTemplates.map((template) => (
-                          <Card key={template.id} className="border border-border/60 bg-card/45 hover:border-primary/20 transition-all flex flex-col justify-between p-3.5 text-xs shadow-sm">
-                            <div>
-                              <div className="flex items-center justify-between mb-1.5">
-                                <span className="font-semibold text-foreground">{template.title}</span>
-                                <Badge className="text-[8px] h-4">{template.category}</Badge>
-                              </div>
-                              <p className="text-[10px] text-muted-foreground mb-3 leading-relaxed">{template.description}</p>
-                            </div>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              className="w-full text-[10px] h-7"
-                              onClick={() => {
-                                onPromptChange(template.prompt);
-                                toast({ title: `Template "${template.title}" copiado. Cole no campo correspondente.` });
-                              }}
-                            >
-                              Copiar Instruções
-                            </Button>
-                          </Card>
-                        ))}
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="space-y-4">
-                      <Card className="glass-card shadow-sm">
-                        <CardHeader className="p-4 pb-2">
-                          <CardTitle className="text-xs font-semibold">Tabela de Interações de Clientes</CardTitle>
-                          <CardDescription className="text-[10px]">Ajuste e revise respostas sugeridas baseando-se em casos reais de leads perdidos.</CardDescription>
-                        </CardHeader>
-                        <CardContent className="p-0">
-                          <div className="overflow-x-auto text-xs">
-                            <table className="w-full text-left">
-                              <thead className="bg-muted/30 text-[10px] uppercase text-muted-foreground tracking-wider border-b border-border/60">
-                                <tr>
-                                  <th className="p-3">Pergunta do Cliente</th>
-                                  <th className="p-3">Resposta Atual da IA</th>
-                                  <th className="p-3">Ações</th>
-                                </tr>
-                              </thead>
-                              <tbody className="divide-y divide-border/30">
-                                {trainingRows.map((row) => (
-                                  <tr key={row.id} className="hover:bg-muted/10">
-                                    <td className="p-3 font-medium text-foreground">{row.customerQuestion}</td>
-                                    <td className="p-3 text-muted-foreground">{row.aiResponse}</td>
-                                    <td className="p-3">
-                                      <Button size="sm" variant="ghost" onClick={() => onOpenImproveModal(row)} className="h-7 px-2 text-[10px]">
-                                        Revisar
-                                      </Button>
-                                    </td>
-                                  </tr>
-                                ))}
-                              </tbody>
-                            </table>
-                          </div>
-                        </CardContent>
-                      </Card>
-                    </div>
-                  )}
-                </div>
-              )}
 
               {/* TAB 4: OPERAÇÃO */}
               {activeInternalTab === "operacao" && (
@@ -4391,9 +3919,27 @@ export function AIView(props: AIViewProps) {
                     >
                       Logs de Auditoria IA
                     </button>
+                    <button
+                      onClick={() => setActiveAnaliseSubTab("templates")}
+                      className={cn(
+                        "px-3 py-1.5 text-xs font-semibold rounded-lg transition-all",
+                        activeAnaliseSubTab === "templates" ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                      )}
+                    >
+                      Templates de Prompt
+                    </button>
+                    <button
+                      onClick={() => setActiveAnaliseSubTab("treinamento")}
+                      className={cn(
+                        "px-3 py-1.5 text-xs font-semibold rounded-lg transition-all",
+                        activeAnaliseSubTab === "treinamento" ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                      )}
+                    >
+                      Treinamento de Casos
+                    </button>
                   </div>
 
-                  {activeAnaliseSubTab === "evolucao" ? (
+                  {activeAnaliseSubTab === "evolucao" && (
                     <div className="space-y-6 animate-fade-in">
                       {/* Cabecalho de Selecao */}
                       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-card/35 border border-border/50 rounded-xl p-4 shadow-sm">
@@ -4552,11 +4098,184 @@ export function AIView(props: AIViewProps) {
                       
                       {/* AI Auto-Learning Dashboard Unificado */}
                       <div className="pt-4 border-t border-border/40">
+                      <div className="grid gap-6 lg:grid-cols-3 mb-6">
+                        <div className="lg:col-span-2 space-y-6">
+                          {/* CARD 1: AJUSTE VIA PROMPT */}
+                          <Card className="border border-border/60 bg-card/40 shadow-sm rounded-xl">
+                            <CardHeader className="p-4 border-b border-border/40 flex flex-row items-center gap-2">
+                              <BrainCircuit className="h-5 w-5 text-primary" />
+                              <div>
+                                <CardTitle className="text-xs font-bold text-foreground uppercase tracking-wider">Ajuste Rápido via IA (Instrução Direta)</CardTitle>
+                                <CardDescription className="text-[10px] text-muted-foreground mt-0.5">Escreva o que você deseja mudar ou ensinar em linguagem natural (ex: preços, comportamento, políticas).</CardDescription>
+                              </div>
+                            </CardHeader>
+                            <CardContent className="p-4 space-y-4">
+                              <div className="space-y-1.5">
+                                <Label htmlFor="evolve-instruction" className="text-xs font-semibold text-foreground">O que você deseja ensinar ou alterar?</Label>
+                                <Textarea
+                                  id="evolve-instruction"
+                                  placeholder="Ex: Agora vendemos cimento CP-II por R$32 a saca. Ofereça frete grátis acima de 50 sacas. Seja muito simpático."
+                                  value={evolveInstruction}
+                                  onChange={(e) => setEvolveInstruction(e.target.value)}
+                                  className="min-h-[90px] bg-background/40 text-xs leading-relaxed rounded-lg"
+                                  disabled={isAnalyzing}
+                                />
+                              </div>
+
+                              <Button
+                                onClick={handleEvolveAgent}
+                                disabled={isAnalyzing || !evolveInstruction.trim()}
+                                className="w-full h-9 text-xs gap-1.5 rounded-lg font-bold shadow-sm"
+                              >
+                                {isAnalyzing ? (
+                                  <>
+                                    <Loader2 className="h-3.5 w-3.5 animate-spin" /> Analisando Atendente...
+                                  </>
+                                ) : (
+                                  <>
+                                    <Sparkles className="h-4 w-4" /> Analisar e Propor Mudanças
+                                  </>
+                                )}
+                              </Button>
+
+                              {/* Preview de mudanças propostas */}
+                              {previewChanges && (
+                                <div className="rounded-xl border border-primary/20 bg-primary/5 p-4 space-y-4 animate-fade-in">
+                                  <div className="flex items-center gap-2 border-b border-primary/20 pb-2">
+                                    <Sparkles className="h-4.5 w-4.5 text-primary animate-pulse" />
+                                    <span className="font-bold text-primary text-xs uppercase tracking-wider">Alterações Propostas pela IA</span>
+                                  </div>
+
+                                  <div className="space-y-3">
+                                    <div className="bg-background/55 p-3 rounded-lg border border-border/30">
+                                      <span className="block font-semibold text-[11px] text-foreground mb-1">Raciocínio da IA:</span>
+                                      <p className="text-[11px] text-muted-foreground leading-relaxed">{previewReasoning}</p>
+                                    </div>
+
+                                    {Object.keys(previewChanges).map((field) => {
+                                      const change = previewChanges[field];
+                                      return (
+                                        <div key={field} className="space-y-1 text-xs">
+                                          <div className="flex items-center justify-between">
+                                            <span className="font-bold capitalize text-foreground">{field === "personality" ? "Prompt Principal" : field}</span>
+                                            <Badge variant="outline" className={`h-4.5 text-[8px] uppercase font-bold leading-none ${
+                                              change.action === "append" ? "border-emerald-500/30 text-emerald-400 bg-emerald-500/5" : "border-amber-500/30 text-amber-400 bg-amber-500/5"
+                                            }`}>
+                                              {change.action === "append" ? "Adicionar" : "Substituir"}
+                                            </Badge>
+                                          </div>
+                                          <pre className="text-[10px] bg-background/55 p-2 rounded border border-border/30 overflow-x-auto max-h-[100px] whitespace-pre-wrap font-mono text-muted-foreground leading-relaxed">
+                                            {change.value}
+                                          </pre>
+                                        </div>
+                                      );
+                                    })}
+
+                                    {previewSuggestions && previewSuggestions.length > 0 && (
+                                      <div className="bg-background/25 p-2.5 rounded-lg border border-border/20 text-[10px] space-y-1">
+                                        <span className="block font-bold text-foreground">💡 Sugestões adicionais:</span>
+                                        <ul className="list-disc list-inside text-muted-foreground space-y-0.5">
+                                          {previewSuggestions.map((s, idx) => <li key={idx}>{s}</li>)}
+                                        </ul>
+                                      </div>
+                                    )}
+                                  </div>
+
+                                  <div className="flex gap-2 pt-1 border-t border-primary/20">
+                                    <Button
+                                      onClick={handleApplyChanges}
+                                      disabled={isApplying}
+                                      className="flex-grow h-8 text-[11px] font-bold rounded-lg"
+                                      variant="default"
+                                    >
+                                      {isApplying ? (
+                                        <>
+                                          <Loader2 className="h-3 w-3 animate-spin mr-1" /> Aplicando...
+                                        </>
+                                      ) : (
+                                        <>
+                                          <CheckCircle className="h-3.5 w-3.5 mr-1" /> Aplicar e Salvar no Atendente
+                                        </>
+                                      )}
+                                    </Button>
+                                    <Button
+                                      onClick={() => setPreviewChanges(null)}
+                                      variant="outline"
+                                      size="sm"
+                                      disabled={isApplying}
+                                      className="h-8 text-[11px] rounded-lg border-border/50 hover:bg-background"
+                                    >
+                                      Descartar
+                                    </Button>
+                                  </div>
+                                </div>
+                              )}
+                            </CardContent>
+                          </Card>
+                        </div>
+                        <div className="space-y-6">
+                          <Card className="border border-border/60 bg-card/40 shadow-sm rounded-xl">
+                            <CardHeader className="p-4 border-b border-border/40 flex flex-row items-center gap-2">
+                              <HistoryIcon className="h-5 w-5 text-muted-foreground" />
+                              <div>
+                                <CardTitle className="text-xs font-bold text-foreground uppercase tracking-wider">Histórico de Evolução</CardTitle>
+                                <CardDescription className="text-[10px] text-muted-foreground mt-0.5">Linha do tempo de aprendizados e refinamentos aplicados.</CardDescription>
+                              </div>
+                            </CardHeader>
+                            <CardContent className="p-4">
+                              {isLoadingHistory ? (
+                                <div className="flex h-36 items-center justify-center">
+                                  <Loader2 className="h-6 w-6 animate-spin text-primary" />
+                                </div>
+                              ) : evolutionHistory.length === 0 ? (
+                                <div className="text-center py-10 text-muted-foreground/80 text-[10px] space-y-1">
+                                  <HistoryIcon className="h-6 w-6 mx-auto text-muted-foreground/30 mb-1" />
+                                  <p>Nenhuma modificação registrada ainda.</p>
+                                  <p>As atualizações via prompt ou respostas salvas aparecerão aqui.</p>
+                                </div>
+                              ) : (
+                                <div className="relative pl-4 border-l border-border/50 ml-1 space-y-5 py-1.5 max-h-[640px] overflow-y-auto scrollbar-thin pr-1">
+                                  {evolutionHistory.map((log) => {
+                                    const fields = Object.keys(log.fields_changed || {});
+                                    return (
+                                      <div key={log.id} className="relative space-y-1.5 text-xs">
+                                        {/* Dot */}
+                                        <div className="absolute -left-[21px] top-1.5 h-2.5 w-2.5 rounded-full bg-primary border-2 border-background" />
+                                        
+                                        <div className="flex items-center justify-between text-[9px] text-muted-foreground">
+                                          <span className="font-semibold">{new Date(log.created_at).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}</span>
+                                          <Badge variant="secondary" className="h-4.5 px-1.5 text-[8.5px] uppercase font-bold bg-muted/80 text-muted-foreground">
+                                            {log.change_type === "prompt_refinement" ? "Prompt" : 
+                                             log.change_type === "question_learned" ? "Dúvida" : "Ajuste"}
+                                          </Badge>
+                                        </div>
+
+                                        <p className="font-semibold text-foreground/90 leading-normal">{log.source_description}</p>
+                                        
+                                        {fields.length > 0 && (
+                                          <div className="flex flex-wrap gap-1">
+                                            {fields.map((f) => (
+                                              <span key={f} className="text-[8px] font-bold uppercase tracking-wider px-1.5 py-0.2 rounded border border-primary/20 bg-primary/5 text-primary scale-90">
+                                                {f}
+                                              </span>
+                                            ))}
+                                          </div>
+                                        )}
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                              )}
+                            </CardContent>
+                          </Card>
+                        </div>
+                      </div>
                         <AILearningDashboard onPromptApplied={onPromptApplied} />
                       </div>
                     </div>
-                  ) : (
-                    <div className="space-y-4">
+                  )}
+                  {activeAnaliseSubTab === "logs" && (
+                    <div className="space-y-4 animate-fade-in">
                       {loadingPipelineLogs ? (
                         <div className="flex h-36 items-center justify-center">
                           <Loader2 className="h-6 w-6 animate-spin text-primary" />
@@ -4618,6 +4337,79 @@ export function AIView(props: AIViewProps) {
                           </CardContent>
                         </Card>
                       )}
+                    </div>
+                  )}
+                  {activeAnaliseSubTab === "templates" && (
+                    <div className="space-y-4 animate-fade-in">
+                      <div className="flex justify-between items-center">
+                        <Label className="text-xs text-muted-foreground">Escolha um template rápido para o prompt de personalidade</Label>
+                        <Input
+                          placeholder="Buscar templates..."
+                          value={templateSearch}
+                          onChange={(e) => setTemplateSearch(e.target.value)}
+                          className="bg-background h-8 text-xs max-w-xs"
+                        />
+                      </div>
+                      <div className="grid gap-4 sm:grid-cols-3">
+                        {filteredTemplates.map((template) => (
+                          <Card key={template.id} className="border border-border/60 bg-card/45 hover:border-primary/20 transition-all flex flex-col justify-between p-3.5 text-xs shadow-sm">
+                            <div>
+                              <div className="flex items-center justify-between mb-1.5">
+                                <span className="font-semibold text-foreground">{template.title}</span>
+                                <Badge className="text-[8px] h-4">{template.category}</Badge>
+                              </div>
+                              <p className="text-[10px] text-muted-foreground mb-3 leading-relaxed">{template.description}</p>
+                            </div>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="w-full text-[10px] h-7"
+                              onClick={() => {
+                                onPromptChange(template.prompt);
+                                toast({ title: `Template "${template.title}" copiado. Cole no campo correspondente.` });
+                              }}
+                            >
+                              Copiar Instruções
+                            </Button>
+                          </Card>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  {activeAnaliseSubTab === "treinamento" && (
+                    <div className="space-y-4 animate-fade-in">
+                      <Card className="glass-card shadow-sm">
+                        <CardHeader className="p-4 pb-2">
+                          <CardTitle className="text-xs font-semibold">Tabela de Interações de Clientes</CardTitle>
+                          <CardDescription className="text-[10px]">Ajuste e revise respostas sugeridas baseando-se em casos reais de leads perdidos.</CardDescription>
+                        </CardHeader>
+                        <CardContent className="p-0">
+                          <div className="overflow-x-auto text-xs">
+                            <table className="w-full text-left">
+                              <thead className="bg-muted/30 text-[10px] uppercase text-muted-foreground tracking-wider border-b border-border/60">
+                                <tr>
+                                  <th className="p-3">Pergunta do Cliente</th>
+                                  <th className="p-3">Resposta Atual da IA</th>
+                                  <th className="p-3">Ações</th>
+                                </tr>
+                              </thead>
+                              <tbody className="divide-y divide-border/30">
+                                {trainingRows.map((row) => (
+                                  <tr key={row.id} className="hover:bg-muted/10">
+                                    <td className="p-3 font-medium text-foreground">{row.customerQuestion}</td>
+                                    <td className="p-3 text-muted-foreground">{row.aiResponse}</td>
+                                    <td className="p-3">
+                                      <Button size="sm" variant="ghost" onClick={() => onOpenImproveModal(row)} className="h-7 px-2 text-[10px]">
+                                        Revisar
+                                      </Button>
+                                    </td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+                        </CardContent>
+                      </Card>
                     </div>
                   )}
                 </div>

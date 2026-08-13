@@ -90,7 +90,11 @@ function collectFrequentQuestions(messages = []) {
 }
 
 function analyzeConversationsSnapshot(messages = [], conversations = []) {
-  const grouped = groupMessagesByConversation(messages);
+  // Apenas contatos individuais (ignora grupos)
+  const contactMessages = messages.filter(m => !m.phone || !String(m.phone).includes('@g.us'));
+  const contactConversations = conversations.filter(c => !c.phone || !String(c.phone).includes('@g.us'));
+
+  const grouped = groupMessagesByConversation(contactMessages);
   const issues = [];
   const dropPoints = [];
   let missingResponses = 0;
@@ -168,7 +172,7 @@ function analyzeConversationsSnapshot(messages = [], conversations = []) {
     }
   }
 
-  const frequentQuestions = collectFrequentQuestions(messages);
+  const frequentQuestions = collectFrequentQuestions(contactMessages);
   for (const question of frequentQuestions) {
     issues.push(
       buildSuggestion('frequently_asked_question', `faq:${question.question}`, {
@@ -189,7 +193,7 @@ function analyzeConversationsSnapshot(messages = [], conversations = []) {
     uniqueIssues.push(issue);
   }
 
-  const totalConversationsAnalyzed = conversations.length || Object.keys(grouped).length;
+  const totalConversationsAnalyzed = contactConversations.length || Object.keys(grouped).length;
   const conversionRate = totalConversationsAnalyzed
     ? Number(((answeredConversations / totalConversationsAnalyzed) * 100).toFixed(2))
     : 0;

@@ -135,7 +135,12 @@ async function executeQuickReplyFlow(req, res) {
 
       const isText = step.type === 'text' || (!step.type && !step.mediaUrl && !step.fileUrl);
       const mediaPath = !isText ? (step.value || step.mediaUrl || step.fileUrl) : undefined;
-      const textContent = isText ? (step.value || step.text || '') : (step.caption || step.text || '');
+      let textContent = isText ? (step.value || step.text || '') : (step.caption || step.text || '');
+      
+      // Override text for the first step if edited in frontend
+      if (index === 0 && req.body.item && req.body.item.text) {
+        textContent = req.body.item.text;
+      }
 
       const itemPayload = {
         phone,

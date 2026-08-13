@@ -55,6 +55,9 @@ export function AILearningDashboard({
   const [editFlow, setEditFlow] = useState("");
   const [dashboard, setDashboard] = useState<LearningDashboardData | null>(null);
 
+  const [currentPage, setCurrentPage] = useState(1);
+  const [viewingItem, setViewingItem] = useState<LearningSuggestion | null>(null);
+  
   const load = useCallback(async () => {
     setLoading(true);
     try {
@@ -247,35 +250,82 @@ export function AILearningDashboard({
             {loading ? (
               <p className="text-sm text-muted-foreground">Carregando sugestões...</p>
             ) : dashboard?.issues?.length ? (
-              dashboard.issues.map((item) => (
-                <div key={item.id} className="rounded-xl border border-border p-3 space-y-3">
-                  <div className="flex flex-wrap items-center justify-between gap-2">
-                    <Badge variant={item.status === "pending" ? "secondary" : "outline"}>{issueLabel[item.issueType] ?? item.issueType}</Badge>
-                    <Badge variant="outline">{item.status}</Badge>
-                  </div>
-                  <p className="text-sm"><span className="text-muted-foreground">Problema detectado:</span> {item.problemDetected}</p>
-                  <p className="text-sm"><span className="text-muted-foreground">Resposta sugerida:</span> {item.suggestedResponse || "-"}</p>
-                  <p className="text-sm"><span className="text-muted-foreground">Melhoria de prompt:</span> {item.suggestedPromptImprovement || "-"}</p>
-                  <p className="text-sm"><span className="text-muted-foreground">Novo fluxo sugerido:</span> {item.suggestedNewFlow || "-"}</p>
-                  <div className="flex flex-wrap gap-2">
-                    <Button size="sm" onClick={() => void apply(item)} disabled={applyingId === item.id || item.status === "applied"} className="gap-1">
-                      <Check className="h-3.5 w-3.5" /> Aplicar melhoria
-                    </Button>
-                    <Button size="sm" variant="outline" onClick={() => openEdit(item)} className="gap-1">
-                      <PencilSimple className="h-3.5 w-3.5" /> Editar sugestão
-                    </Button>
-                    <Button size="sm" variant="ghost" onClick={() => void ignore(item.id)} className="gap-1">
-                      <X className="h-3.5 w-3.5" /> Ignorar sugestão
-                    </Button>
-                  </div>
+              <div className="space-y-4">
+                <div className="grid gap-3 sm:grid-cols-2">
+                  {(dashboard.issues.slice((currentPage - 1) * 6, currentPage * 6)).map((item) => (
+                    <Card key={item.id} className="cursor-pointer hover:border-primary/50 transition-colors" onClick={() => setViewingItem(item)}>
+                      <CardContent className="p-3 space-y-2">
+                        <div className="flex justify-between items-start gap-2">
+                          <Badge variant={item.status === "pending" ? "secondary" : "outline"} className="text-[10px] truncate max-w-[150px]">
+                            {issueLabel[item.issueType] ?? item.issueType}
+                          </Badge>
+                          <Badge variant="outline" className="text-[10px]">{item.status}</Badge>
+                        </div>
+                        <p className="text-xs font-medium line-clamp-2">{item.problemDetected}</p>
+                      </CardContent>
+                    </Card>
+                  ))}
                 </div>
-              ))
+                
+                {Math.ceil(dashboard.issues.length / 6) > 1 && (
+                  <div className="flex justify-center items-center gap-4 pt-2">
+                    <Button variant="outline" size="sm" onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1}>Anterior</Button>
+                    <span className="text-xs text-muted-foreground">Página {currentPage} de {Math.ceil(dashboard.issues.length / 6)}</span>
+                    <Button variant="outline" size="sm" onClick={() => setCurrentPage(p => Math.min(Math.ceil(dashboard.issues.length / 6), p + 1))} disabled={currentPage === Math.ceil(dashboard.issues.length / 6)}>Próxima</Button>
+                  </div>
+                )}
+              </div>
             ) : (
               <p className="text-sm text-muted-foreground">Nenhuma sugestão registrada hoje. A análise diária roda às 02:00.</p>
             )}
           </CardContent>
         </Card>
       </CardContent>
+
+      <Dialog open={Boolean(viewingItem)} onOpenChange={(open) => !open && setViewingItem(null)}>
+        <DialogContent className="max-w-xl">
+          <DialogHeader>
+            <DialogTitle>Detalhes da Sugestão</DialogTitle>
+          </DialogHeader>
+          {viewingItem && (
+            <div className="space-y-4">
+              <div className="flex flex-wrap items-center gap-2">
+                <Badge variant={viewingItem.status === "pending" ? "secondary" : "outline"}>{issueLabel[viewingItem.issueType] ?? viewingItem.issueType}</Badge>
+                <Badge variant="outline">{viewingItem.status}</Badge>
+              </div>
+              <div>
+                <p className="text-xs font-semibold text-muted-foreground mb-1">Problema detectado</p>
+                <div className="p-3 bg-muted/40 rounded-lg text-sm">{viewingItem.problemDetected}</div>
+              </div>
+              <div>
+                <p className="text-xs font-semibold text-muted-foreground mb-1">Resposta sugerida</p>
+                <div className="p-3 bg-muted/40 rounded-lg text-sm">{viewingItem.suggestedResponse || "-"}</div>
+              </div>
+              <div>
+                <p className="text-xs font-semibold text-muted-foreground mb-1">Melhoria de prompt</p>
+                <div className="p-3 bg-muted/40 rounded-lg text-sm font-medium text-primary">{viewingItem.suggestedPromptImprovement || "-"}</div>
+              </div>
+              {viewingItem.suggestedNewFlow && (
+                <div>
+                  <p className="text-xs font-semibold text-muted-foreground mb-1">Novo fluxo sugerido</p>
+                  <div className="p-3 bg-muted/40 rounded-lg text-sm">{viewingItem.suggestedNewFlow}</div>
+                </div>
+              )}
+            </div>
+          )}
+          <DialogFooter className="flex-col sm:flex-row gap-2 mt-4">
+            <Button size="sm" variant="ghost" onClick={() => { viewingItem && void ignore(viewingItem.id); setViewingItem(null); }} className="gap-1 sm:mr-auto">
+              <X className="h-4 w-4" /> Ignorar
+            </Button>
+            <Button size="sm" variant="outline" onClick={() => { viewingItem && openEdit(viewingItem); setViewingItem(null); }} className="gap-1">
+              <PencilSimple className="h-4 w-4" /> Editar
+            </Button>
+            <Button size="sm" onClick={() => { viewingItem && void apply(viewingItem); setViewingItem(null); }} disabled={viewingItem?.status === "applied" || applyingId === viewingItem?.id} className="gap-1">
+              <Check className="h-4 w-4" /> Aplicar Melhoria
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={Boolean(editing)} onOpenChange={(open) => !open && setEditing(null)}>
         <DialogContent>

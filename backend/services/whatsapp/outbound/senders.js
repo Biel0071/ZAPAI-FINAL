@@ -84,7 +84,7 @@ async function sendWithRetry(fn, retries = 3) {
   for (let i = 0; i < totalRetries; i += 1) {
     try {
       const promise = fn();
-      return await withTimeout(promise, 15000, 'WhatsApp send timeout');
+      return await withTimeout(promise, 45000, 'WhatsApp send timeout');
     } catch (error) {
       // eslint-disable-next-line no-console
       console.error(`Send message attempt ${i + 1} failed:`, error.message || error);
@@ -426,8 +426,12 @@ async function sendMediaMessage(
       return sendDocument(sock, phone, mediaPath, fileName, mimetype);
     case 'sticker':
       return sendSticker(sock, phone, mediaPath);
+    case 'product':
+    case 'catalog':
+      // Fallback: If it's a catalog or product, just send the text/URL so it doesn't crash the queue.
+      return sendMessage(sock, phone, caption ? `${caption}\n${mediaPath}` : String(mediaPath || ''));
     default:
-      throw new Error('Unsupported mediaType. Use image, video, audio, document, or sticker.');
+      throw new Error('Unsupported mediaType. Use image, video, audio, document, sticker, product, or catalog.');
   }
 }
 

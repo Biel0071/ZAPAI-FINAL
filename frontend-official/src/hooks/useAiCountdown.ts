@@ -32,7 +32,7 @@ export function useAiCountdown(reactivateAt: string | null | undefined) {
       const parts = [];
       if (hours > 0) parts.push(`${hours}h`);
       if (minutes > 0 || hours > 0) parts.push(`${minutes}m`);
-      parts.push(`${seconds}s`);
+      if (hours === 0 && minutes === 0) parts.push('< 1m');
       
       setTimeLeft(parts.join(' '));
     };
