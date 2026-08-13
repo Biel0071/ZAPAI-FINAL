@@ -147,6 +147,8 @@ export function useInboxState() {
   const [messagesLoadFailed, setMessagesLoadFailed] = useState(false);
   const [sending, setSending] = useState(false);
   const sendingRef = useRef(false);
+  const sendingQuickReplyRef = useRef(false);
+  const lastSentTextRef = useRef("");
   const [error, setError] = useState<string | null>(null);
   const [backendOnline, setBackendOnline] = useState(true);
   const [isRealtimeConnected, setIsRealtimeConnected] = useState(false);
@@ -1816,6 +1818,14 @@ export function useInboxState() {
     const currentReplyingTo = replyingTo;
 
     if (!selectedConversation?.phone || (!textWithReply && currentAttachments.length === 0)) return;
+    
+    // Prevent double clicking send for the exact same message concurrently
+    const textToCheck = overrideText ?? text;
+    if (sendingRef.current && textToCheck === lastSentTextRef.current) {
+      return;
+    }
+    lastSentTextRef.current = textToCheck;
+
     if (!canUseBackend) {
       setError("Servidor reconectando... envio temporariamente indisponível.");
       return;
@@ -2826,12 +2836,19 @@ export function useInboxState() {
 
   const sendQuickReply = useCallback(async (arg: string | QuickReplyItem) => {
     if (!selectedConversation) return;
+    if (sendingQuickReplyRef.current) return;
 
     if (typeof arg === "string") {
-      await handleSendMessage(interpolateTemplateVariables(arg, conversationVariableContext));
+      sendingQuickReplyRef.current = true;
+      try {
+        await handleSendMessage(interpolateTemplateVariables(arg, conversationVariableContext));
+      } finally {
+        sendingQuickReplyRef.current = false;
+      }
       return;
     }
 
+    sendingQuickReplyRef.current = true;
     setSending(true);
     try {
       await apiService.executeQuickReplyFlow(arg.id || "custom", {
@@ -2849,6 +2866,7 @@ export function useInboxState() {
       }
     } finally {
       setSending(false);
+      sendingQuickReplyRef.current = false;
     }
   }, [selectedConversation, preferredSessionId, handleSendMessage, conversationVariableContext]);
 

@@ -16,6 +16,7 @@ import {
   Warning,
   Robot,
   User,
+  Storefront,
 } from "@phosphor-icons/react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -461,29 +462,49 @@ export const MessageRow = memo(function MessageRow({
                 </div>
               )}
 
-              {(resolvedMediaType === "file" || resolvedMediaType === "document" || resolvedMediaType === "product" || resolvedMediaType === "catalog" || !resolvedMediaType) && (
+              {(resolvedMediaType === "file" || resolvedMediaType === "document" || !resolvedMediaType) && (
                 <div
                   role="button"
                   tabIndex={0}
                   className="flex items-center gap-3 rounded-lg bg-[#202c33] border border-border/40 p-3 text-xs font-medium text-foreground hover:bg-[#202c33]/80 transition-all select-none w-64 shadow-sm text-left"
                   onClick={() => onOpenMediaPreview({ url: mediaUrl, type: "file", fileName: getMediaFileName(message), messageId: message.id })}
-                  onKeyDown={(event) => {
-                    if (event.key === "Enter" || event.key === " ") {
-                      event.preventDefault();
-                      onOpenMediaPreview({ url: mediaUrl, type: "file", fileName: getMediaFileName(message), messageId: message.id });
-                    }
-                  }}
                 >
                   <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-[#00a884] text-white">
                     <FileIcon className="h-5 w-5" weight="fill" />
                   </div>
                   <div className="min-w-0 flex-1">
-                    <p className="truncate font-semibold text-foreground">{getMediaFileName(message)}</p>
-                    <p className="text-[10px] text-muted-foreground uppercase mt-0.5">{getMediaFileReferenceLabel(message, resolvedMediaType)}</p>
+                    <p className="truncate text-sm font-medium text-[#e9edef] leading-tight mb-0.5">{getMediaFileName(message)}</p>
+                    <p className="truncate text-xs text-[#8696a0] opacity-80 uppercase tracking-wide">{getMediaFileReferenceLabel(message)}</p>
                   </div>
-                  <div className="h-8 w-8 flex items-center justify-center rounded-full bg-secondary/60 hover:bg-secondary text-foreground transition-colors shrink-0">
-                    <ArrowDown className="h-4 w-4" />
+                </div>
+              )}
+
+              {(resolvedMediaType === "product" || resolvedMediaType === "catalog") && (
+                <div
+                  role="button"
+                  tabIndex={0}
+                  className="flex flex-col gap-2 rounded-lg bg-[#202c33] border border-border/40 p-3 text-xs font-medium text-foreground hover:bg-[#202c33]/80 transition-all select-none w-64 shadow-sm text-left"
+                  onClick={() => onOpenMediaPreview({ url: mediaUrl, type: "image", fileName: "Produto/Catálogo", messageId: message.id })}
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-[#00a884] text-white">
+                      <Storefront className="h-5 w-5" weight="fill" />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-medium text-[#e9edef] leading-tight mb-0.5">Item do Catálogo</p>
+                      <p className="truncate text-xs text-[#8696a0] opacity-80 uppercase tracking-wide">Produto</p>
+                    </div>
                   </div>
+                  {mediaUrl && (
+                    <div className="relative w-full aspect-square bg-[#111b21] rounded-md overflow-hidden mt-1 border border-white/5">
+                       <img src={mediaUrl} alt="Produto" className="w-full h-full object-cover" />
+                    </div>
+                  )}
+                  {displayContent && (
+                    <p className="text-[#e9edef] text-sm whitespace-pre-wrap mt-1 opacity-90 line-clamp-3">
+                      {displayContent}
+                    </p>
+                  )}
                 </div>
               )}
             </div>
