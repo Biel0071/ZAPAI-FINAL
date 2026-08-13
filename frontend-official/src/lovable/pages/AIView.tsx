@@ -4039,7 +4039,13 @@ export function AIView(props: AIViewProps) {
                             </div>
                           </CardHeader>
                           <CardContent className="p-0 overflow-hidden h-[450px]">
-                            )}
+                            <div className={activeAnaliseSubTab === "graph" ? 'block' : 'hidden'}>
+                              <LeadKnowledgeGraph 
+                                data={agentMemoryGraph || { nodes: [], edges: [] }} 
+                                width={800} 
+                                height={450} 
+                              />
+                            </div>
                           </CardContent>
                         </Card>
                       </div>
@@ -4202,8 +4208,7 @@ export function AIView(props: AIViewProps) {
                           </Card>
                       </div>
                     </div>
-                  )}
-                  {activeAnaliseSubTab === "learning" && (
+                    {activeAnaliseSubTab === "learning" && (
                     <div className="space-y-6 animate-fade-in">
                       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-card/35 border border-border/50 rounded-xl p-4 shadow-sm">
                         <div className="space-y-1">
@@ -4353,9 +4358,7 @@ export function AIView(props: AIViewProps) {
                     </div>
                   )}
                 </div>
-              )}
-
-            </main>
+              </main>
           </div>
 
         </div>
