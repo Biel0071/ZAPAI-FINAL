@@ -1,4 +1,4 @@
-﻿import { motion } from "framer-motion";
+import { motion } from "framer-motion";
 import { MemoryGraphViewer } from "@/components/MemoryGraphViewer";
 import { LeadReactivationPanel } from "@/components/ai/LeadReactivationPanel";
 import { BlacklistPanel } from "@/components/ai/BlacklistPanel";
@@ -16,6 +16,7 @@ import {
   Sparkles,
   Loader2,
   Play,
+  Pause,
   LayoutDashboard,
   Users,
   Cpu,
