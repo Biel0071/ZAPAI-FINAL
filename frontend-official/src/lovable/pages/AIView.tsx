@@ -4358,7 +4358,8 @@ export function AIView(props: AIViewProps) {
                     </div>
                   )}
                 </div>
-              </main>
+              )}
+            </main>
           </div>
 
         </div>
