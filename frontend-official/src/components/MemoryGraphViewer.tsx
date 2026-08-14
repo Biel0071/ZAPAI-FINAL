@@ -2,16 +2,17 @@ import React, { useRef, useEffect, useState } from 'react';
 import ForceGraph2D from 'react-force-graph-2d';
 import { useTheme } from 'next-themes';
 
-interface MemoryGraphViewerProps {
+export interface MemoryGraphViewerProps {
   graphData: {
     nodes: any[];
     edges: any[];
   };
   width?: number;
   height?: number;
+  onNodeClick?: (node: any) => void;
 }
 
-export const MemoryGraphViewer: React.FC<MemoryGraphViewerProps> = ({ graphData, width, height }) => {
+export const MemoryGraphViewer: React.FC<MemoryGraphViewerProps> = ({ graphData, width, height, onNodeClick }) => {
   const fgRef = useRef<any>();
   const { theme } = useTheme();
   const [dimensions, setDimensions] = useState({ width: width || 800, height: height || 600 });
@@ -110,6 +111,7 @@ export const MemoryGraphViewer: React.FC<MemoryGraphViewerProps> = ({ graphData,
           // Center/zoom on node
           fgRef.current?.centerAt(node.x, node.y, 1000);
           fgRef.current?.zoom(8, 2000);
+          if (onNodeClick) onNodeClick(node);
         }}
       />
       <div className="absolute bottom-4 left-4 flex flex-col gap-2 p-3 bg-background/80 backdrop-blur-md border border-border rounded-lg text-xs shadow-lg">

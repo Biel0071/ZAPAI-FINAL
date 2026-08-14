@@ -274,10 +274,7 @@ function buildDashboard(store) {
 
   return {
     conversationDropPoints: analysis.conversationDropPoints,
-    dailyDetectedIssues: (store.aiLearningLogs || []).filter((issue) => {
-      const today = new Date().toISOString().slice(0, 10);
-      return String(issue.createdAt || '').startsWith(today);
-    }),
+    dailyDetectedIssues: (store.aiLearningLogs || []).filter((issue) => issue.status === 'pending'),
     frequentCustomerQuestions: analysis.frequentCustomerQuestions,
     metrics: {
       ...analysis.metrics,

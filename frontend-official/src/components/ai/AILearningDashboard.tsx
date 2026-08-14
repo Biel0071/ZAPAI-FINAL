@@ -9,6 +9,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { useToast } from "@/hooks/use-toast";
 import { aiLearningService, type LearningDashboardData, type LearningSuggestion } from "@/services/aiLearningService";
 import { apiService } from "@/services/apiService";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 
 function InfoTitle({ label, hint }: { label: string; hint: string }) {
   return (
@@ -155,23 +156,29 @@ export function AILearningDashboard({
 
   return (
     <Card className="glass-card">
-      <CardHeader className="space-y-3">
+      <CardHeader className="space-y-3 pb-2">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <CardTitle className="flex items-center gap-2">
             <Lightbulb className="h-5 w-5 text-primary" />
-            <InfoTitle label="AI Learning" hint="Analisa conversas diariamente e sugere melhorias para o atendimento." />
+            <InfoTitle label="AI Learning" hint="Analisa conversas e sugere melhorias para o atendimento." />
           </CardTitle>
           <Button onClick={() => void runNow()} disabled={running || loading}>Executar análise agora</Button>
         </div>
       </CardHeader>
-      <CardContent className="space-y-4">
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
-          <Card className="bg-muted/40">
-            <CardContent className="p-3">
-              <p className="text-xs text-muted-foreground">Conversas analisadas</p>
-              <p className="text-xl font-semibold">{metrics.totalConversationsAnalyzed}</p>
-            </CardContent>
-          </Card>
+      <CardContent className="space-y-4 pt-0">
+        <Accordion type="single" collapsible defaultValue="issues" className="w-full space-y-4">
+          <AccordionItem value="metrics" className="border-none">
+            <AccordionTrigger className="py-2 hover:no-underline rounded-lg bg-muted/20 px-4 mb-2">
+              <span className="font-semibold text-sm">Métricas de Atendimento</span>
+            </AccordionTrigger>
+            <AccordionContent className="pt-2">
+              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+                <Card className="bg-muted/40">
+                  <CardContent className="p-3">
+                    <p className="text-xs text-muted-foreground">Conversas analisadas</p>
+                    <p className="text-xl font-semibold">{metrics.totalConversationsAnalyzed}</p>
+                  </CardContent>
+                </Card>
           <Card className="bg-muted/40">
             <CardContent className="p-3">
               <p className="text-xs text-muted-foreground">Sem resposta</p>
@@ -214,7 +221,7 @@ export function AILearningDashboard({
                   </div>
                 ))
               ) : (
-                <p className="text-sm text-muted-foreground">Nenhuma pergunta frequente detectada hoje.</p>
+                <p className="text-sm text-muted-foreground">Nenhuma pergunta frequente detectada recentemente.</p>
               )}
             </CardContent>
           </Card>
@@ -234,16 +241,23 @@ export function AILearningDashboard({
                   </div>
                 ))
               ) : (
-                <p className="text-sm text-muted-foreground">Nenhum ponto de abandono detectado hoje.</p>
+                <p className="text-sm text-muted-foreground">Nenhum ponto de abandono detectado recentemente.</p>
               )}
             </CardContent>
           </Card>
         </div>
+            </AccordionContent>
+          </AccordionItem>
 
+          <AccordionItem value="issues" className="border-none">
+            <AccordionTrigger className="py-2 hover:no-underline rounded-lg bg-muted/20 px-4 mb-2">
+              <span className="font-semibold text-sm">Sugestões de melhoria pendentes</span>
+            </AccordionTrigger>
+            <AccordionContent className="pt-2">
         <Card className="bg-muted/30">
           <CardHeader className="pb-2">
             <CardTitle className="text-base">
-              <InfoTitle label="Sugestões de melhoria detectadas hoje" hint="Lista problemas encontrados e propostas automáticas de melhoria." />
+              <InfoTitle label="Sugestões de melhoria pendentes" hint="Lista problemas encontrados e propostas automáticas de melhoria." />
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
@@ -276,10 +290,13 @@ export function AILearningDashboard({
                 )}
               </div>
             ) : (
-              <p className="text-sm text-muted-foreground">Nenhuma sugestão registrada hoje. A análise diária roda às 02:00.</p>
+              <p className="text-sm text-muted-foreground">Nenhuma sugestão registrada pendente.</p>
             )}
           </CardContent>
         </Card>
+            </AccordionContent>
+          </AccordionItem>
+        </Accordion>
       </CardContent>
 
       <Dialog open={Boolean(viewingItem)} onOpenChange={(open) => !open && setViewingItem(null)}>

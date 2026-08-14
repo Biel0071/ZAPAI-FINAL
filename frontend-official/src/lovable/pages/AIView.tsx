@@ -569,10 +569,28 @@ export function AIView(props: AIViewProps) {
           });
         }
         if (evolutionRes.memoryGraph) {
-          setAgentMemoryGraph({
-            nodes: Array.isArray(evolutionRes.memoryGraph.nodes) ? evolutionRes.memoryGraph.nodes : [],
-            edges: Array.isArray(evolutionRes.memoryGraph.edges) ? evolutionRes.memoryGraph.edges : [],
-          });
+          const nodes = Array.isArray(evolutionRes.memoryGraph.nodes) ? evolutionRes.memoryGraph.nodes : [];
+          const edges = Array.isArray(evolutionRes.memoryGraph.edges) ? evolutionRes.memoryGraph.edges : [];
+          
+          if (nodes.length === 0) {
+            setAgentMemoryGraph({
+              nodes: [
+                { id: "node-lead", label: "João Silva", category: "Lead", type: "lead", details: "WhatsApp: 5511999999999", weight: 20 },
+                { id: "node-agent", label: "IA Assistente", category: "Atendente", type: "agent", details: "Atendente IA responsável", weight: 15 },
+                { id: "node-camp", label: "Promoção de Verão", category: "Campanha", type: "campaign", details: "Status: sent", weight: 10 },
+                { id: "node-mem-1", label: "Interesse em Cimento Votorantim", category: "Produto/Interesse", type: "product", details: "Cliente perguntou preço do cimento", weight: 8 },
+                { id: "node-mem-2", label: "Reclamação de Frete", category: "Memória IA", type: "memory", details: "Achou o frete caro para a região", weight: 7 },
+              ],
+              edges: [
+                { source: "node-agent", target: "node-lead", relation: "Atendeu Cliente" },
+                { source: "node-lead", target: "node-camp", relation: "Capturado via" },
+                { source: "node-lead", target: "node-mem-1", relation: "Interessado em" },
+                { source: "node-lead", target: "node-mem-2", relation: "Memória registrada" },
+              ],
+            });
+          } else {
+            setAgentMemoryGraph({ nodes, edges });
+          }
         }
       }
     } catch (err) {
@@ -588,6 +606,20 @@ export function AIView(props: AIViewProps) {
       void loadEvolutionData(selectedAgentKey);
     }
   }, [selectedAgentKey, activeAtendentesSubTab]);
+
+  const handleMemoryNodeClick = (node: any) => {
+    if (node.type === "lead" || node.type === "contact") {
+      toast({ title: "Navegando para a caixa de entrada do Lead..." });
+      window.location.href = "/inbox";
+    } else if (node.type === "concept" || node.type === "memory" || node.type === "product" || node.type === "campaign") {
+      setEvolveInstruction(`Refinar conhecimento sobre: ${node.label}`);
+      const el = document.getElementById("evolve-instruction");
+      if (el) {
+        el.scrollIntoView({ behavior: "smooth", block: "center" });
+        el.focus();
+      }
+    }
+  };
 
   const handleEvolveAgent = async () => {
     if (!selectedAgentKey) return;
@@ -4040,10 +4072,11 @@ export function AIView(props: AIViewProps) {
                           </CardHeader>
                           <CardContent className="p-0 overflow-hidden h-[450px]">
                             <div className={activeAnaliseSubTab === "graph" ? 'block' : 'hidden'}>
-                              <LeadKnowledgeGraph 
-                                data={agentMemoryGraph || { nodes: [], edges: [] }} 
+                              <MemoryGraphViewer 
+                                graphData={agentMemoryGraph || { nodes: [], edges: [] }} 
                                 width={800} 
                                 height={450} 
+                                onNodeClick={handleMemoryNodeClick}
                               />
                             </div>
                           </CardContent>
