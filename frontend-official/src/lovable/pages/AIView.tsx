@@ -4239,9 +4239,11 @@ export function AIView(props: AIViewProps) {
                               )}
                             </CardContent>
                           </Card>
+                        </div>
                       </div>
                     </div>
-                    {activeAnaliseSubTab === "learning" && (
+                  )}
+                  {activeAnaliseSubTab === "learning" && (
                     <div className="space-y-6 animate-fade-in">
                       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-card/35 border border-border/50 rounded-xl p-4 shadow-sm">
                         <div className="space-y-1">
