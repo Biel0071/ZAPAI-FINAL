@@ -491,7 +491,7 @@ export function DashboardView({
         <div className="space-y-6 animate-in fade-in-0 duration-300">
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-5">
             <Card
-              className="metric-card rounded-2xl border-border/70 bg-card/85 hover:border-primary/50 transition-all duration-200 cursor-pointer hover:scale-[1.02]"
+              className="glass-card metric-card rounded-2xl border-border/70 hover:border-primary/50 transition-all duration-200 cursor-pointer hover-lift"
               onClick={() => navigate('/inbox')}
             >
               <CardContent className="space-y-2 p-5">
@@ -504,7 +504,7 @@ export function DashboardView({
             </Card>
 
             <Card
-              className="metric-card rounded-2xl border-border/70 bg-card/85 hover:border-primary/50 transition-all duration-200 cursor-pointer hover:scale-[1.02]"
+              className="glass-card metric-card rounded-2xl border-border/70 hover:border-primary/50 transition-all duration-200 cursor-pointer hover-lift"
               onClick={() => navigate('/contacts')}
             >
               <CardContent className="space-y-2 p-5">
@@ -517,7 +517,7 @@ export function DashboardView({
             </Card>
 
             <Card
-              className="metric-card rounded-2xl border-border/70 bg-card/85 hover:border-primary/50 transition-all duration-200 cursor-pointer hover:scale-[1.02]"
+              className="glass-card metric-card rounded-2xl border-border/70 hover:border-primary/50 transition-all duration-200 cursor-pointer hover-lift"
               onClick={() => onTabChange('operations')}
             >
               <CardContent className="space-y-2 p-5">
@@ -533,7 +533,7 @@ export function DashboardView({
             </Card>
 
             <Card
-              className="metric-card rounded-2xl border-border/70 bg-card/85 hover:border-primary/50 transition-all duration-200 cursor-pointer hover:scale-[1.02]"
+              className="glass-card metric-card rounded-2xl border-border/70 hover:border-primary/50 transition-all duration-200 cursor-pointer hover-lift"
               onClick={() => onTabChange('operations')}
             >
               <CardContent className="space-y-2 p-5">
@@ -549,7 +549,7 @@ export function DashboardView({
             </Card>
 
             <Card
-              className="metric-card rounded-2xl border-border/70 bg-card/85 hover:border-primary/50 transition-all duration-200 cursor-pointer hover:scale-[1.02]"
+              className="glass-card metric-card rounded-2xl border-border/70 hover:border-primary/50 transition-all duration-200 cursor-pointer hover-lift"
               onClick={() => onTabChange('ai')}
             >
               <CardContent className="space-y-2 p-5">
@@ -561,7 +561,7 @@ export function DashboardView({
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            <Card className="lg:col-span-2 glass-card rounded-2xl border-border/70 bg-card/85">
+            <Card className="lg:col-span-2 glass-card rounded-2xl border-border/70 hover-lift">
               <CardHeader className="py-4">
                 <CardTitle className="text-xs font-bold uppercase tracking-widest flex items-center gap-2 text-muted-foreground">
                   <Clock weight="bold" className="h-4 w-4 text-primary" /> Fluxo de Atividade Comercial
@@ -587,7 +587,7 @@ export function DashboardView({
               </CardContent>
             </Card>
 
-            <Card className="glass-card rounded-2xl border-border/70 bg-card/85">
+            <Card className="glass-card rounded-2xl border-border/70 hover-lift">
               <CardHeader className="py-4">
                 <CardTitle className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Temperatura da Base</CardTitle>
               </CardHeader>
@@ -612,7 +612,7 @@ export function DashboardView({
 
           {/* Esteira Comercial & Performance IA (Real Data) */}
           <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
-            <Card className="xl:col-span-2 glass-card rounded-2xl border-border/70 bg-card/85 flex flex-col h-full max-h-[380px] overflow-hidden">
+            <Card className="xl:col-span-2 glass-card rounded-2xl border-border/70 hover-lift flex flex-col h-full max-h-[380px] overflow-hidden">
               <CardHeader className="py-4 border-b border-border/50 shrink-0">
                 <CardTitle className="text-xs font-bold uppercase tracking-widest flex items-center gap-2 text-muted-foreground">
                   <CheckCircle weight="bold" className="h-4 w-4 text-success" /> Esteira Comercial (Fechamentos)
@@ -653,7 +653,7 @@ export function DashboardView({
               </CardContent>
             </Card>
 
-            <Card className="glass-card rounded-2xl border-border/70 bg-card/85">
+            <Card className="glass-card rounded-2xl border-border/70 hover-lift">
               <CardHeader className="py-4 border-b border-border/50">
                 <CardTitle className="text-xs font-bold uppercase tracking-widest flex items-center gap-2 text-muted-foreground">
                   <Brain weight="bold" className="h-4 w-4 text-primary" /> Uso Real da IA
@@ -828,7 +828,7 @@ export function DashboardView({
             {/* Sidebar Column (Leads list or geography lists) */}
             <div className="space-y-4 flex flex-col h-full">
               {/* Tab Selector inside Sidebar */}
-              <Card className="glass-card rounded-2xl border-border/70 bg-card/85 p-1 shrink-0">
+              <Card className="glass-card rounded-2xl border-border/70 hover-lift p-1 shrink-0">
                 <div className="grid grid-cols-2 gap-1 rounded-xl bg-background/40 p-1">
                   <button
                     type="button"
@@ -872,7 +872,7 @@ export function DashboardView({
 
               {/* Leads Panel */}
               {rightPanelTab === "leads" && (
-                <Card className="glass-card rounded-2xl border-border/70 bg-card/85 flex-1 flex flex-col overflow-hidden max-h-[460px]">
+                <Card className="glass-card rounded-2xl border-border/70 hover-lift flex-1 flex flex-col overflow-hidden max-h-[460px]">
                   <div className="p-3 border-b border-border/50 shrink-0">
                     <div className="relative">
                       <Input
@@ -932,7 +932,7 @@ export function DashboardView({
               {/* Geography Panel */}
               {rightPanelTab === "geography" && (
                 <div className="space-y-3 flex-1 flex flex-col">
-                  <Card className="glass-card rounded-2xl border-border/70 bg-card/85 p-2 shrink-0">
+                  <Card className="glass-card rounded-2xl border-border/70 hover-lift p-2 shrink-0">
                     <div className="grid grid-cols-3 gap-1 rounded-xl bg-background/40 p-1">
                       {viewModel.map.scopes.map((scope) => (
                         <button
@@ -951,7 +951,7 @@ export function DashboardView({
                     </div>
                   </Card>
 
-                  <Card className="glass-card rounded-2xl border-border/70 bg-card/85 flex-1 overflow-y-auto max-h-[380px] scrollbar-thin">
+                  <Card className="glass-card rounded-2xl border-border/70 hover-lift flex-1 overflow-y-auto max-h-[380px] scrollbar-thin">
                     <CardContent className="space-y-3 p-3">
                       {mapRows.length === 0 ? (
                         <p className="text-xs text-muted-foreground">Sem dados para o escopo atual.</p>
@@ -991,26 +991,26 @@ export function DashboardView({
       {activeTab === "conversations" && (
         <div className="space-y-6 animate-in fade-in-0 duration-300">
           <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-            <Card className="metric-card rounded-2xl border-border/70 bg-card/85">
+            <Card className="glass-card metric-card rounded-2xl border-border/70 hover-lift">
               <CardContent className="space-y-2 p-5">
                 <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Total Mapeado</p>
                 <h3 className="font-display text-2xl font-bold">{viewModel.map.summaryCards[0]?.value ?? "0"}</h3>
               </CardContent>
             </Card>
-            <Card className="metric-card rounded-2xl border-border/70 bg-card/85">
+            <Card className="glass-card metric-card rounded-2xl border-border/70 hover-lift">
               <CardContent className="space-y-2 p-5">
                 <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Estados Ativos</p>
                 <h3 className="font-display text-2xl font-bold">{viewModel.map.summaryCards[1]?.value ?? "0"}</h3>
               </CardContent>
             </Card>
-            <Card className="metric-card rounded-2xl border-border/70 bg-card/85">
+            <Card className="glass-card metric-card rounded-2xl border-border/70 hover-lift">
               <CardContent className="space-y-2 p-5">
                 <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">DDDs Identificados</p>
                 <h3 className="font-display text-2xl font-bold">{viewModel.map.summaryCards[2]?.value ?? "0"}</h3>
               </CardContent>
             </Card>
           </div>
-          <Card className="glass-card rounded-2xl border-border/70 bg-card/85">
+          <Card className="glass-card rounded-2xl border-border/70 hover-lift">
             <CardContent className="space-y-3 p-5">
               {viewModel.map.stateRows.length === 0 ? (
                 <p className="text-sm text-muted-foreground">Nenhuma conversa com localização identificada.</p>
@@ -1037,28 +1037,28 @@ export function DashboardView({
       {activeTab === "ai" && (
         <div className="space-y-6 animate-in fade-in-0 duration-300">
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-5">
-            <Card className="metric-card rounded-2xl border-border/70 bg-card/85">
+            <Card className="glass-card metric-card rounded-2xl border-border/70 hover-lift">
               <CardContent className="space-y-2 p-5">
                 <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Tokens do Período</p>
                 <h3 className="font-display text-2xl font-bold">{tokensPeriodFormatted}</h3>
                 <span className="text-[10px] text-muted-foreground">Uso de LLM pelo ZAPFLOW</span>
               </CardContent>
             </Card>
-            <Card className="metric-card rounded-2xl border-border/70 bg-card/85">
+            <Card className="glass-card metric-card rounded-2xl border-border/70 hover-lift">
               <CardContent className="space-y-2 p-5">
                 <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Custo Diário LLM</p>
                 <h3 className="font-display text-2xl font-bold text-amber-400">{aiCost}</h3>
                 <span className="text-[10px] text-amber-400/80 font-semibold">Estimado do dia atual</span>
               </CardContent>
             </Card>
-            <Card className="metric-card rounded-2xl border-border/70 bg-card/85">
+            <Card className="glass-card metric-card rounded-2xl border-border/70 hover-lift">
               <CardContent className="space-y-2 p-5">
                 <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Automação IA</p>
                 <h3 className="font-display text-2xl font-bold">{automationPercentage}%</h3>
                 <span className="text-[10px] text-success font-semibold">Contatos resolvidos sem humano</span>
               </CardContent>
             </Card>
-            <Card className="metric-card rounded-2xl border-border/70 bg-card/85">
+            <Card className="glass-card metric-card rounded-2xl border-border/70 hover-lift">
               <CardContent className="space-y-2 p-5">
                 <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Modelo Ativo</p>
                 <h3 className="font-display text-[14px] font-bold truncate mt-1 pt-1 leading-tight" title={activeModelName}>
@@ -1067,7 +1067,7 @@ export function DashboardView({
                 <span className="text-[10px] text-muted-foreground">LLM Padrão de Automação</span>
               </CardContent>
             </Card>
-            <Card className="metric-card rounded-2xl border-border/70 bg-card/85">
+            <Card className="glass-card metric-card rounded-2xl border-border/70 hover-lift">
               <CardContent className="space-y-2 p-5">
                 <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Fatos Salvos (Memória)</p>
                 <h3 className="font-display text-2xl font-bold">{viewModel.rawMetrics?.aiMemories ?? 0} fatos</h3>
@@ -1077,7 +1077,7 @@ export function DashboardView({
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            <Card className="lg:col-span-2 glass-card rounded-2xl border-border/70 bg-card/85">
+            <Card className="lg:col-span-2 glass-card rounded-2xl border-border/70 hover-lift">
               <CardHeader className="py-4">
                 <CardTitle className="text-xs font-bold uppercase tracking-widest text-muted-foreground flex items-center gap-2">
                   <Cpu className="h-4 w-4 text-primary" /> Uso de Tokens (Prompt vs Completion)
@@ -1097,7 +1097,7 @@ export function DashboardView({
               </CardContent>
             </Card>
 
-            <Card className="glass-card rounded-2xl border-border/70 bg-card/85">
+            <Card className="glass-card rounded-2xl border-border/70 hover-lift">
               <CardHeader className="py-4">
                 <CardTitle className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Distribuição de Modelos</CardTitle>
               </CardHeader>
@@ -1128,7 +1128,7 @@ export function DashboardView({
       {(activeTab === "commercial" || activeTab === "schedule") && (
         <div className="space-y-6 animate-in fade-in-0 duration-300">
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-4">
-            <Card className="metric-card rounded-2xl border-border/70 bg-card/85">
+            <Card className="glass-card metric-card rounded-2xl border-border/70 hover-lift">
               <CardContent className="space-y-2 p-5">
                 <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Taxa de Conversão</p>
                 <h3 className="font-display text-2xl font-bold text-emerald-400">
@@ -1139,14 +1139,14 @@ export function DashboardView({
                 <span className="text-[10px] text-emerald-400 font-semibold">Leads identificados</span>
               </CardContent>
             </Card>
-            <Card className="metric-card rounded-2xl border-border/70 bg-card/85">
+            <Card className="glass-card metric-card rounded-2xl border-border/70 hover-lift">
               <CardContent className="space-y-2 p-5">
                 <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Tempo Médio de Resposta</p>
                 <h3 className="font-display text-2xl font-bold">{viewModel.commercialMetrics?.avgResponseTimeSeconds ? `${viewModel.commercialMetrics.avgResponseTimeSeconds} seg` : "—"}</h3>
                 <span className="text-[10px] text-emerald-400 font-semibold">SLA de Atendimento Rápido</span>
               </CardContent>
             </Card>
-            <Card className="metric-card rounded-2xl border-border/70 bg-card/85">
+            <Card className="glass-card metric-card rounded-2xl border-border/70 hover-lift">
               <CardContent className="space-y-2 p-5">
                 <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Leads Quentes (Hot)</p>
                 <h3 className="font-display text-2xl font-bold text-amber-400">
@@ -1155,7 +1155,7 @@ export function DashboardView({
                 <span className="text-[10px] text-muted-foreground">Em fase de decisão de compra</span>
               </CardContent>
             </Card>
-            <Card className="metric-card rounded-2xl border-border/70 bg-card/85">
+            <Card className="glass-card metric-card rounded-2xl border-border/70 hover-lift">
               <CardContent className="space-y-2 p-5">
                 <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Total de Atendimentos</p>
                 <h3 className="font-display text-2xl font-bold">{viewModel.commercialMetrics?.conversationsCount ?? 0}</h3>
@@ -1166,7 +1166,7 @@ export function DashboardView({
 
           <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1.7fr)_390px]">
             {/* Peak Hours interactive Chart */}
-            <Card className="glass-card rounded-2xl border-border/70 bg-card/85">
+            <Card className="glass-card rounded-2xl border-border/70 hover-lift">
               <CardHeader className="py-4">
                 <CardTitle className="text-xs font-bold uppercase tracking-widest flex items-center gap-2 text-muted-foreground">
                   <ChartBar className="h-4 w-4 text-primary" /> Volumetria por Bloco de Horários
@@ -1225,12 +1225,12 @@ export function DashboardView({
                   </CardContent>
                 </Card>
               ) : (
-                <Card className="glass-card rounded-2xl border-border/70 bg-card/85 p-5 text-center text-xs text-muted-foreground">
+                <Card className="glass-card rounded-2xl border-border/70 hover-lift p-5 text-center text-xs text-muted-foreground">
                   Selecione um bloco no gráfico para visualizar métricas comerciais detalhadas.
                 </Card>
               )}
 
-              <Card className="glass-card rounded-2xl border-border/70 bg-card/85">
+              <Card className="glass-card rounded-2xl border-border/70 hover-lift">
                 <CardContent className="p-5 space-y-4">
                   <div className="flex items-center gap-3">
                     <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary shrink-0">
@@ -1253,7 +1253,7 @@ export function DashboardView({
                 </CardContent>
               </Card>
 
-              <Card className="border-border/70 bg-card/85 rounded-2xl overflow-hidden hover:border-primary/45 transition-all">
+              <Card className="glass-card rounded-2xl border-border/70 hover-lift overflow-hidden hover:border-primary/45 transition-all">
                 <CardContent className="p-5 flex flex-col gap-4">
                   <div className="flex items-start gap-3">
                     <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary shrink-0 mt-0.5">
@@ -1284,7 +1284,7 @@ export function DashboardView({
       {(["operations", "infrastructure", "diagnostics"] as const).includes(activeTab as any) && (
         <div className="space-y-6 animate-in fade-in-0 duration-300">
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-4">
-            <Card className="metric-card rounded-2xl border-border/70 bg-card/85">
+            <Card className="glass-card metric-card rounded-2xl border-border/70 hover-lift">
               <CardContent className="space-y-2 p-5">
                 <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Status do Servidor Node / PM2</p>
                 <div className="flex items-center gap-2">
@@ -1294,7 +1294,7 @@ export function DashboardView({
                 <span className="text-[10px] text-muted-foreground">VPS Linux | Node.js Backend</span>
               </CardContent>
             </Card>
-            <Card className="metric-card rounded-2xl border-border/70 bg-card/85">
+            <Card className="glass-card metric-card rounded-2xl border-border/70 hover-lift">
               <CardContent className="space-y-2 p-5">
                 <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Sessões WhatsApp Baileys</p>
                 <h3 className="font-display text-2xl font-bold text-primary">
@@ -1303,7 +1303,7 @@ export function DashboardView({
                 <span className="text-[10px] text-emerald-400 font-semibold">Sockets WebSocket sincronizados</span>
               </CardContent>
             </Card>
-            <Card className="metric-card rounded-2xl border-border/70 bg-card/85">
+            <Card className="glass-card metric-card rounded-2xl border-border/70 hover-lift">
               <CardContent className="space-y-2 p-5">
                 <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">PostgreSQL Storage Pool</p>
                 <h3 className="font-display text-2xl font-bold text-foreground">
@@ -1312,7 +1312,7 @@ export function DashboardView({
                 <span className="text-[10px] text-emerald-400 font-semibold">Conexões seguras & resilientes</span>
               </CardContent>
             </Card>
-            <Card className="metric-card rounded-2xl border-border/70 bg-card/85">
+            <Card className="glass-card metric-card rounded-2xl border-border/70 hover-lift">
               <CardContent className="space-y-2 p-5">
                 <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Uptime Global</p>
                 <h3 className="font-display text-2xl font-bold text-emerald-400">—</h3>
@@ -1322,7 +1322,7 @@ export function DashboardView({
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <Card className="glass-card rounded-2xl border-border/70 bg-card/85">
+            <Card className="glass-card rounded-2xl border-border/70 hover-lift">
               <CardHeader className="py-4">
                 <CardTitle className="text-xs font-bold uppercase tracking-widest text-muted-foreground flex items-center gap-2">
                   <Database className="h-4 w-4 text-primary" /> Telemetria de CPU & Memória VPS
@@ -1361,7 +1361,7 @@ export function DashboardView({
               </CardContent>
             </Card>
 
-            <Card className="glass-card rounded-2xl border-border/70 bg-card/85">
+            <Card className="glass-card rounded-2xl border-border/70 hover-lift">
               <CardHeader className="py-4">
                 <CardTitle className="text-xs font-bold uppercase tracking-widest text-muted-foreground flex items-center gap-2">
                   <ShieldCheck className="h-4 w-4 text-primary" /> Saúde dos Serviços do Sistema
@@ -1442,7 +1442,7 @@ export function DashboardView({
             </Card>
           </div>
 
-          <Card className="glass-card rounded-2xl border-border/70 bg-card/85 p-6 space-y-4">
+          <Card className="glass-card rounded-2xl border-border/70 hover-lift p-6 space-y-4">
             <h3 className="font-bold text-base text-foreground flex items-center gap-2">
               <ShieldCheck className="h-5 w-5 text-primary" /> Operadores & Atendentes Híbridos em Operação
             </h3>

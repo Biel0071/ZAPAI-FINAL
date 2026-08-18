@@ -28,7 +28,7 @@ export function MainLayout() {
       <Sidebar />
       <main
         className={cn(
-          "h-screen transition-all duration-200",
+          "h-screen transition-all duration-200 animate-fade-in scrollbar-thin",
           isMobile
             ? "ml-0 w-full"
             : collapsed

@@ -2550,7 +2550,7 @@ export function AIView(props: AIViewProps) {
           
           {/* Summary Dashboard Cards */}
           <div className="grid gap-3 sm:grid-cols-3">
-            <Card className="metric-card rounded-2xl border-border/70 bg-card/85 shadow-sm">
+            <Card className="glass-card metric-card rounded-2xl border-border/70 hover-lift shadow-sm">
               <CardContent className="space-y-2 p-4">
                 <div>
                   <p className="text-[11px] uppercase tracking-wide text-muted-foreground font-semibold">Status Geral da IA</p>
@@ -2560,7 +2560,7 @@ export function AIView(props: AIViewProps) {
               </CardContent>
             </Card>
 
-            <Card className="metric-card rounded-2xl border-border/70 bg-card/85 shadow-sm">
+            <Card className="glass-card metric-card rounded-2xl border-border/70 hover-lift shadow-sm">
               <CardContent className="space-y-2 p-4">
                 <p className="text-[11px] uppercase tracking-wide text-muted-foreground font-semibold">Tráfego de Respostas</p>
                 <p className="text-lg font-bold mt-1 text-foreground">{aiMetrics?.messagesToday ?? 0} hoje</p>
@@ -2568,7 +2568,7 @@ export function AIView(props: AIViewProps) {
               </CardContent>
             </Card>
 
-            <Card className="metric-card rounded-2xl border-border/70 bg-card/85 shadow-sm">
+            <Card className="glass-card metric-card rounded-2xl border-border/70 hover-lift shadow-sm">
               <CardContent className="space-y-2 p-4">
                 <p className="text-[11px] uppercase tracking-wide text-muted-foreground font-semibold">Fila de Reativação</p>
                 <p className="text-lg font-bold mt-1 text-foreground">{queueWaiting} leads</p>

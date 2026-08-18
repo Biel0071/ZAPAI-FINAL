@@ -35,7 +35,7 @@ export function ConnectionsView({
   return (
     <div className="page-container section-stack">
       <div className="grid grid-cols-1 gap-4 md:grid-cols-3 xl:grid-cols-3">
-        <Card className="metric-card rounded-2xl border-border/70 bg-card/85">
+        <Card className="glass-card metric-card rounded-2xl border-border/70 hover-lift">
           <CardContent className="p-5">
             <div className="flex items-center gap-4">
               <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-success/10">
@@ -48,7 +48,7 @@ export function ConnectionsView({
             </div>
           </CardContent>
         </Card>
-        <Card className="metric-card rounded-2xl border-border/70 bg-card/85">
+        <Card className="glass-card metric-card rounded-2xl border-border/70 hover-lift">
           <CardContent className="p-5">
             <div className="flex items-center gap-4">
               <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-warning/10">
@@ -61,7 +61,7 @@ export function ConnectionsView({
             </div>
           </CardContent>
         </Card>
-        <Card className="metric-card rounded-2xl border-border/70 bg-card/85">
+        <Card className="glass-card metric-card rounded-2xl border-border/70 hover-lift">
           <CardContent className="p-5">
             <div className="flex items-center gap-4">
               <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-muted">

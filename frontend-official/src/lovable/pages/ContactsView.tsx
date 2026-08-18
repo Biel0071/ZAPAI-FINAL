@@ -117,7 +117,7 @@ export function ContactsView({
               <Card
                 key={card.label}
                 className={cn(
-                  "metric-card rounded-2xl border-border/70 bg-card/85 cursor-pointer transition-all hover:scale-[1.02] hover:bg-card/95 select-none",
+                  "glass-card metric-card rounded-2xl border-border/70 hover-lift cursor-pointer transition-all hover:scale-[1.02] hover:bg-card/95 select-none",
                   isActive && "border-primary/50 bg-primary/5 shadow-glow"
                 )}
                 onClick={() => onSegmentChange(cardSegment)}
@@ -197,7 +197,7 @@ export function ContactsView({
           <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
             <Card
               className={cn(
-                "glass-card rounded-2xl border-border/70 bg-card/85 cursor-pointer transition-all hover:scale-[1.02] hover:bg-card/95 select-none",
+                "glass-card rounded-2xl border-border/70 hover-lift cursor-pointer transition-all hover:scale-[1.02] hover:bg-card/95 select-none",
                 activeSegment === "all" && "border-primary/50 bg-primary/5 shadow-glow"
               )}
               onClick={() => onSegmentChange("all")}
@@ -213,7 +213,7 @@ export function ContactsView({
 
             <Card
               className={cn(
-                "glass-card rounded-2xl border-border/70 bg-card/85 cursor-pointer transition-all hover:scale-[1.02] hover:bg-card/95 select-none",
+                "glass-card rounded-2xl border-border/70 hover-lift cursor-pointer transition-all hover:scale-[1.02] hover:bg-card/95 select-none",
                 activeSegment === "individual" && "border-info/50 bg-info/5 shadow-glow"
               )}
               onClick={() => onSegmentChange("individual")}
@@ -229,7 +229,7 @@ export function ContactsView({
 
             <Card
               className={cn(
-                "glass-card rounded-2xl border-border/70 bg-card/85 cursor-pointer transition-all hover:scale-[1.02] hover:bg-card/95 select-none",
+                "glass-card rounded-2xl border-border/70 hover-lift cursor-pointer transition-all hover:scale-[1.02] hover:bg-card/95 select-none",
                 activeSegment === "grupos" && "border-success/50 bg-success/5 shadow-glow"
               )}
               onClick={() => onSegmentChange("grupos")}
@@ -348,7 +348,7 @@ export function ContactsView({
           {loading ? (
             <ListSkeleton rows={6} />
           ) : viewModel.contacts.length === 0 ? (
-            <Card className="glass-card rounded-2xl border-border/70 bg-card/85">
+            <Card className="glass-card rounded-2xl border-border/70 hover-lift">
               <CardContent className="p-0">
                 <EmptyState
                   icon={<AddressBook className="h-8 w-8 text-muted-foreground/50" />}

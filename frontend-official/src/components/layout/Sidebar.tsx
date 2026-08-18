@@ -398,7 +398,7 @@ export function Sidebar() {
             <List className="h-5 w-5" />
           </Button>
         </DrawerTrigger>
-        <DrawerContent className="h-[88dvh] border-border bg-sidebar p-0">{sidebarBody(false, true)}</DrawerContent>
+        <DrawerContent className="h-[88dvh] border-border bg-sidebar/95 backdrop-blur-xl p-0 shadow-2xl">{sidebarBody(false, true)}</DrawerContent>
       </Drawer>
     );
   }
