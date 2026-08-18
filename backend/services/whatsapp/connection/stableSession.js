@@ -81,7 +81,8 @@ const {
   safeUpdateSessionStatus,
 } = require('./persistence');
 const { logSessionEvent, pushConnectionLog } = require('./logger');
-const { sendMessage, sendAudio } = require('../outbound/senders');
+const { sendMessage, sendAudio, sendMediaMessage } = require('../outbound/senders');
+const quickReplyService = require('../../quickReplyService');
 const { saveMessage } = require('../chat/operations');
 const { activeSessions } = require('../state/registry');
 const contactsEngine = require('../../contactsEngine');
@@ -483,6 +484,7 @@ async function runAIForChat({ chatId, incomingFormattedMessage, session, sock })
 
   let aiResult;
   try {
+    const quickReplies = await quickReplyService.listQuickReplies().catch(() => []);
     aiResult = await enterpriseAiService.evaluateInboundAi({
       agent,
       chatId,
@@ -493,6 +495,7 @@ async function runAIForChat({ chatId, incomingFormattedMessage, session, sock })
         contact,
         isGroup: Boolean(chat?.isGroup),
         conversationSummary: fresh?.summary || chat?.summary || null,
+        quickReplies,
       },
       forceAutoReply: conversationAIEnabled,
       conversationId: fresh?.id || incomingFormattedMessage?.conversationId || null,
@@ -521,7 +524,7 @@ async function runAIForChat({ chatId, incomingFormattedMessage, session, sock })
 
   const safeResponse = String(aiResult?.response || '').trim();
 
-  if (!safeResponse || aiResult?.action === 'human') {
+  if (aiResult?.action === 'human' || (!safeResponse && !aiResult?.analysis?.trigger_quick_reply)) {
     return null;
   }
 
@@ -532,6 +535,100 @@ async function runAIForChat({ chatId, incomingFormattedMessage, session, sock })
       response: safeResponse,
       suggested: true,
     });
+    return null;
+  }
+
+  // Disparo automático de Resposta Rápida (Mídia/Texto pré-configurado)
+  const triggerQrId = aiResult?.analysis?.trigger_quick_reply;
+  if (triggerQrId) {
+    try {
+      const quickReplies = await quickReplyService.listQuickReplies().catch(() => []);
+      const matchedQr = quickReplies.find(qr => String(qr.id) === String(triggerQrId) || String(qr.title) === String(triggerQrId));
+      
+      if (matchedQr) {
+        console.log(`[WHATSAPP_AI] Triggering quick reply: ${matchedQr.title} (${matchedQr.id}) for ${chatId}`);
+        await sock.presenceSubscribe(chatId).catch(() => {});
+        
+        const itemsToSend = matchedQr.items && matchedQr.items.length > 0 ? matchedQr.items : matchedQr.steps;
+        
+        if (Array.isArray(itemsToSend)) {
+          for (const item of itemsToSend) {
+            await sock.sendPresenceUpdate('composing', chatId).catch(() => {});
+            const delay = Number(item.delayMs) || 1000;
+            const typing = Number(item.typingMs) || 1500;
+            if (delay > 0) await sleep(delay);
+            await sleep(typing);
+            
+            if (!await isAIReplyStillAllowed({ chatId, conversationId: fresh?.id || incomingFormattedMessage?.conversationId, session })) {
+               return null;
+            }
+
+            const itemType = String(item.type || 'text').trim().toLowerCase();
+            const itemValue = String(item.value || '').trim();
+            const caption = item.caption ? String(item.caption).trim() : '';
+
+            let qrSent = null;
+            if (itemType === 'text') {
+              if (itemValue) {
+                qrSent = await sendMessage(sock, chatId, itemValue);
+              }
+            } else {
+              // It's media
+              if (itemValue) {
+                let absolutePath = itemValue;
+                if (itemValue.startsWith('/upload/') || itemValue.startsWith('upload/')) {
+                  const cleanPath = itemValue.replace(/^\//, '');
+                  absolutePath = path.join(__dirname, '..', '..', '..', cleanPath);
+                }
+                qrSent = await sendMediaMessage(sock, chatId, itemType, absolutePath, { caption, ptt: itemType === 'audio' });
+              }
+            }
+
+            if (qrSent) {
+              try {
+                const persistedQr = await enterpriseMessageService.persistInboundMessage({
+                  companyId,
+                  fromMe: true,
+                  mediaPath: itemType !== 'text' ? itemValue : null,
+                  mediaType: itemType !== 'text' ? itemType : null,
+                  name: session?.phone || 'AI QuickReply',
+                  phone: normalizePhone(chatId),
+                  sessionId: session?.sessionId || DEFAULT_SESSION,
+                  status: 'sent',
+                  text: itemType === 'text' ? itemValue : (caption || ''),
+                  timestamp: new Date().toISOString(),
+                  type: itemType,
+                  conversationId: fresh?.id || incomingFormattedMessage?.conversationId || null,
+                });
+                
+                const outgoingQrMessage = {
+                  chatId,
+                  conversationId: persistedQr?.conversation?.id || fresh?.id || null,
+                  content: itemType === 'text' ? itemValue : (caption || ''),
+                  fromMe: true,
+                  id: persistedQr?.message?.id || qrSent?.key?.id || `qr-${Date.now()}`,
+                  status: 'sent',
+                  text: itemType === 'text' ? itemValue : (caption || ''),
+                  timestamp: Date.now(),
+                  type: itemType,
+                  url: itemType !== 'text' ? itemValue : null,
+                };
+                addMessageToRealtimeStore(session, outgoingQrMessage);
+                enterpriseRealtimeService.emitNewMessage(session.io || global.io, outgoingQrMessage);
+              } catch (persistErr) {
+                console.error(`[WHATSAPP_AI] Failed to persist QR item:`, persistErr.message);
+              }
+            }
+          }
+          await sock.sendPresenceUpdate('paused', chatId).catch(() => {});
+        }
+      }
+    } catch (qrErr) {
+      console.error(`[WHATSAPP_AI] Failed to send triggered quick reply ${triggerQrId}:`, qrErr.message);
+    }
+  }
+
+  if (!safeResponse) {
     return null;
   }
 

@@ -337,11 +337,14 @@ function compileSystemPrompt(agent, store, contact = null) {
   if (Array.isArray(quickRepliesList) && quickRepliesList.length > 0) {
     for (const qr of quickRepliesList) {
       const label = typeof qr === 'string' ? qr : (qr.title || qr.label || qr.cmd || qr.text);
-      const text = typeof qr === 'string' ? qr : (qr.content || qr.text || '');
+      let text = typeof qr === 'string' ? qr : (qr.content || qr.text || '');
+      if (!text && qr.items && Array.isArray(qr.items)) {
+        text = qr.items.filter(i => i.type === 'text').map(i => i.value).join(' | ');
+      }
       const qrId = typeof qr === 'string' ? label : qr.id;
       const hasMedia = qr.items && qr.items.some(i => i.type !== 'text') || qr.mediaUrl || qr.fileUrl || qr.steps && qr.steps.some(s => s.type !== 'text');
-      const media = hasMedia ? `[Contém Mídia]` : '';
-      compiled += `  * Resposta Rápida/Mídia: ID "${qrId}" (Título: "${label}") -> Conteúdo textual base: "${text.substring(0,100).replace(/\n/g, ' ')}..." ${media}\n`;
+      const media = hasMedia ? `[Contém Mídia/Arquivos]` : '';
+      compiled += `  * Resposta Rápida/Mídia (ID: "${qrId}") -> Título: "${label}" | Resumo: "${text.substring(0,150).replace(/\n/g, ' ')}..." ${media}\n`;
     }
   } else {
     compiled += `  * Mídias cadastradas para envio automático: Fotos de Churrasqueiras pré-moldadas, Cimento Liz/Campeão, Tijolos e Tabela de Preços da Loja.\n`;
