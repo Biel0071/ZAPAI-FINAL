@@ -177,9 +177,15 @@ async function getMetrics(store, sessionId) {
 
       let memoryFacts = 0;
       try {
-        const memRes = await query(`SELECT COUNT(*)::int as count FROM lead_memories`).catch(() => ({ rows: [{ count: 0 }] }));
-        memoryFacts = Number(memRes.rows?.[0]?.count || 0);
-      } catch {}
+        const tableCheck = await query(`SELECT EXISTS (
+          SELECT FROM information_schema.tables 
+          WHERE table_name = 'lead_memories'
+        )`);
+        if (tableCheck.rows[0].exists) {
+          const memRes = await query(`SELECT COUNT(*)::int as count FROM lead_memories`);
+          memoryFacts = Number(memRes.rows?.[0]?.count || 0);
+        }
+      } catch (e) {}
 
       const estimatedCostToday = (promptTokensToday / 1000000 * 0.15) + (completionTokensToday / 1000000 * 0.60);
 
