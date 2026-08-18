@@ -259,6 +259,17 @@ export function DashboardView({
     }
   };
 
+  const handleConversasStateRowClick = (row: DashboardMapRow) => {
+    const stateCode = row.id.replace("state-", "");
+    setSelectedGeoFilter({ type: "state", value: stateCode });
+    setRightPanelTab("leads");
+    if (row.lat && row.lng) {
+      setMapCenter([row.lat, row.lng]);
+      setMapZoom(6);
+    }
+    onTabChange("map" as any);
+  };
+
   // Reset geographical and search filters
   const handleResetFilters = () => {
     setSelectedGeoFilter({ type: null, value: null });
@@ -271,8 +282,6 @@ export function DashboardView({
 
   // Charts stay empty when the backend has no time-series. Fabricated values are forbidden.
   const [selectedHourBlock, setSelectedHourBlock] = useState<{ block: string; volume: number; responseTime: string } | null>(null);
-  const hourlyData = useMemo<Array<{ block: string; volume: number; responseTime: string }>>(() => [], []);
-  const latencyData = useMemo<Array<{ name: string; socket: number; api: number }>>(() => [], []);
   const tokenData = useMemo(() => [{
     name: "Período",
     prompt: Number(aiMetrics?.promptTokensToday) || 0,
@@ -303,6 +312,33 @@ export function DashboardView({
     const tokens = Number(aiMetrics?.tokensToday) || 0;
     return tokens > 1000 ? `${(tokens / 1000).toFixed(1)}K` : String(tokens);
   }, [aiMetrics]);
+
+  const aiCost = useMemo(() => {
+    const prompt = Number(aiMetrics?.promptTokensToday) || 0;
+    const completion = Number(aiMetrics?.completionTokensToday) || 0;
+    if (prompt === 0 && completion === 0) return "$0.00";
+    
+    const model = activeModelName.toLowerCase();
+    let promptPricePerM = 0;
+    let completionPricePerM = 0;
+    
+    if (model.includes("gpt-4o-mini")) {
+      promptPricePerM = 0.15; completionPricePerM = 0.60;
+    } else if (model.includes("gpt-4o") || model.includes("gpt-4")) {
+      promptPricePerM = 5.00; completionPricePerM = 15.00;
+    } else if (model.includes("gemini-1.5-flash") || model.includes("gemini")) {
+      promptPricePerM = 0.075; completionPricePerM = 0.30;
+    } else if (model.includes("claude-3-haiku")) {
+      promptPricePerM = 0.25; completionPricePerM = 1.25;
+    } else if (model.includes("claude-3-5-sonnet")) {
+      promptPricePerM = 3.00; completionPricePerM = 15.00;
+    } else {
+      promptPricePerM = 0.50; completionPricePerM = 1.50;
+    }
+
+    const cost = (prompt / 1000000) * promptPricePerM + (completion / 1000000) * completionPricePerM;
+    return `$${cost.toFixed(3)}`;
+  }, [aiMetrics, activeModelName]);
   const automationPercentage = useMemo(() => {
     const totalMsg = viewModel.rawMetrics?.messagesToday ?? 0;
     const aiMsg = viewModel.rawMetrics?.aiResponses ?? 0;
@@ -980,7 +1016,7 @@ export function DashboardView({
                 <p className="text-sm text-muted-foreground">Nenhuma conversa com localização identificada.</p>
               ) : (
                 viewModel.map.stateRows.slice(0, 10).map((row) => (
-                  <div key={row.id} className="flex items-center justify-between rounded-xl border border-border/60 bg-background/30 px-4 py-3">
+                  <button key={row.id} type="button" onClick={() => handleConversasStateRowClick(row)} className="w-full text-left flex items-center justify-between rounded-xl border border-border/60 bg-background/30 hover:bg-background/50 transition-colors px-4 py-3">
                     <div>
                       <p className="text-sm font-semibold">{row.label}</p>
                       <p className="text-xs text-muted-foreground">{row.meta}</p>
@@ -989,7 +1025,7 @@ export function DashboardView({
                       <p className="text-sm font-semibold">{row.count} leads</p>
                       <p className="text-xs text-muted-foreground">{row.share}%</p>
                     </div>
-                  </div>
+                  </button>
                 ))
               )}
             </CardContent>
@@ -1000,26 +1036,19 @@ export function DashboardView({
       {/* IA & PERFORMANCE METRICS TAB */}
       {activeTab === "ai" && (
         <div className="space-y-6 animate-in fade-in-0 duration-300">
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-6">
-            <Card className="metric-card rounded-2xl border-border/70 bg-card/85">
-              <CardContent className="space-y-2 p-5">
-                <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Uptime do Canal</p>
-                <h3 className="font-display text-2xl font-bold">99.9%</h3>
-                <span className="text-[10px] text-success font-semibold">Uptime global da operação</span>
-              </CardContent>
-            </Card>
-            <Card className="metric-card rounded-2xl border-border/70 bg-card/85">
-              <CardContent className="space-y-2 p-5">
-                <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Latência Socket</p>
-                <h3 className="font-display text-2xl font-bold">26ms</h3>
-                <span className="text-[10px] text-success font-semibold">Conexão WebSocket online</span>
-              </CardContent>
-            </Card>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-5">
             <Card className="metric-card rounded-2xl border-border/70 bg-card/85">
               <CardContent className="space-y-2 p-5">
                 <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Tokens do Período</p>
                 <h3 className="font-display text-2xl font-bold">{tokensPeriodFormatted}</h3>
                 <span className="text-[10px] text-muted-foreground">Uso de LLM pelo ZAPFLOW</span>
+              </CardContent>
+            </Card>
+            <Card className="metric-card rounded-2xl border-border/70 bg-card/85">
+              <CardContent className="space-y-2 p-5">
+                <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Custo Diário LLM</p>
+                <h3 className="font-display text-2xl font-bold text-amber-400">{aiCost}</h3>
+                <span className="text-[10px] text-amber-400/80 font-semibold">Estimado do dia atual</span>
               </CardContent>
             </Card>
             <Card className="metric-card rounded-2xl border-border/70 bg-card/85">
@@ -1032,7 +1061,9 @@ export function DashboardView({
             <Card className="metric-card rounded-2xl border-border/70 bg-card/85">
               <CardContent className="space-y-2 p-5">
                 <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Modelo Ativo</p>
-                <h3 className="font-display text-[14px] font-bold truncate mt-1 pt-1 leading-tight" title={activeModelName}>{activeModelName}</h3>
+                <h3 className="font-display text-[14px] font-bold truncate mt-1 pt-1 leading-tight" title={activeModelName}>
+                  {activeModelName === "Nenhum ativo" ? "Aguardando uso" : activeModelName}
+                </h3>
                 <span className="text-[10px] text-muted-foreground">LLM Padrão de Automação</span>
               </CardContent>
             </Card>
@@ -1049,18 +1080,18 @@ export function DashboardView({
             <Card className="lg:col-span-2 glass-card rounded-2xl border-border/70 bg-card/85">
               <CardHeader className="py-4">
                 <CardTitle className="text-xs font-bold uppercase tracking-widest text-muted-foreground flex items-center gap-2">
-                  <Database className="h-4 w-4 text-primary" /> Latência WebSocket & API (Ultimos 10 Minutos)
+                  <Cpu className="h-4 w-4 text-primary" /> Uso de Tokens (Prompt vs Completion)
                 </CardTitle>
               </CardHeader>
               <CardContent className="h-[280px] p-4">
                 <ResponsiveContainer width="100%" height="100%">
-                  <AreaChart data={latencyData}>
+                  <BarChart data={viewModel.commercialMetrics?.hourlyData || []}>
                     <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" />
                     <XAxis dataKey="name" stroke="hsl(var(--muted-foreground))" fontSize={10} axisLine={false} tickLine={false} />
                     <YAxis stroke="hsl(var(--muted-foreground))" fontSize={10} axisLine={false} tickLine={false} />
                     <RechartsTooltip contentStyle={tooltipStyle} />
-                    <Area type="monotone" dataKey="socket" name="Latência Socket (ms)" stroke="hsl(var(--primary))" fill="hsl(var(--primary)/0.05)" strokeWidth={2} />
-                    <Area type="monotone" dataKey="api" name="Latência API (ms)" stroke="#ef4444" fill="transparent" strokeWidth={2} strokeDasharray="4 4" />
+                    <Area type="monotone" dataKey="prompt" name="Prompt Tokens" stroke="hsl(var(--primary))" fill="hsl(var(--primary)/0.05)" strokeWidth={2} />
+                    <Area type="monotone" dataKey="completion" name="Completion Tokens" stroke="#10b981" fill="transparent" strokeWidth={2} />
                   </AreaChart>
                 </ResponsiveContainer>
               </CardContent>
@@ -1089,25 +1120,7 @@ export function DashboardView({
             </Card>
           </div>
 
-          <Card className="glass-card rounded-2xl border-border/70 bg-card/85">
-            <CardHeader className="py-4">
-              <CardTitle className="text-xs font-bold uppercase tracking-widest text-muted-foreground flex items-center gap-2">
-                <Cpu className="h-4 w-4 text-primary" /> Uso de Tokens (Prompt vs Completion)
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="h-[280px] p-4">
-              <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={tokenData}>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" />
-                  <XAxis dataKey="name" stroke="hsl(var(--muted-foreground))" fontSize={10} axisLine={false} tickLine={false} />
-                  <YAxis stroke="hsl(var(--muted-foreground))" fontSize={10} axisLine={false} tickLine={false} />
-                  <RechartsTooltip contentStyle={tooltipStyle} />
-                  <Area type="monotone" dataKey="prompt" name="Prompt Tokens" stroke="hsl(var(--primary))" fill="hsl(var(--primary)/0.05)" strokeWidth={2} />
-                  <Area type="monotone" dataKey="completion" name="Completion Tokens" stroke="#10b981" fill="transparent" strokeWidth={2} />
-                </AreaChart>
-              </ResponsiveContainer>
-            </CardContent>
-          </Card>
+
         </div>
       )}
 
@@ -1119,17 +1132,17 @@ export function DashboardView({
               <CardContent className="space-y-2 p-5">
                 <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Taxa de Conversão</p>
                 <h3 className="font-display text-2xl font-bold text-emerald-400">
-                  {viewModel.rawMetrics?.conversationsCount && viewModel.rawMetrics.conversationsCount > 0
-                    ? `${Math.min(95, Math.round(((viewModel.rawMetrics.contactsCount || 1) / (viewModel.rawMetrics.conversationsCount || 1)) * 100))}%`
+                  {viewModel.commercialMetrics?.conversationsCount && viewModel.commercialMetrics.conversationsCount > 0
+                    ? `${Math.min(100, Math.round(((viewModel.commercialMetrics.contactsCount || 0) / (viewModel.commercialMetrics.conversationsCount || 1)) * 100))}%`
                     : "—"}
                 </h3>
-                <span className="text-[10px] text-emerald-400 font-semibold">Leads qualificados convertidos</span>
+                <span className="text-[10px] text-emerald-400 font-semibold">Leads identificados</span>
               </CardContent>
             </Card>
             <Card className="metric-card rounded-2xl border-border/70 bg-card/85">
               <CardContent className="space-y-2 p-5">
                 <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Tempo Médio de Resposta</p>
-                <h3 className="font-display text-2xl font-bold">{viewModel.rawMetrics?.avgResponseTimeSeconds ? `${viewModel.rawMetrics.avgResponseTimeSeconds} seg` : "—"}</h3>
+                <h3 className="font-display text-2xl font-bold">{viewModel.commercialMetrics?.avgResponseTimeSeconds ? `${viewModel.commercialMetrics.avgResponseTimeSeconds} seg` : "—"}</h3>
                 <span className="text-[10px] text-emerald-400 font-semibold">SLA de Atendimento Rápido</span>
               </CardContent>
             </Card>
@@ -1137,7 +1150,7 @@ export function DashboardView({
               <CardContent className="space-y-2 p-5">
                 <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Leads Quentes (Hot)</p>
                 <h3 className="font-display text-2xl font-bold text-amber-400">
-                  {viewModel.rawMetrics?.hotLeadsCount ?? (viewModel.rawMetrics?.contactsCount ? Math.round(viewModel.rawMetrics.contactsCount * 0.15) : 0)}
+                  {viewModel.commercialMetrics?.hotLeadsCount ?? 0}
                 </h3>
                 <span className="text-[10px] text-muted-foreground">Em fase de decisão de compra</span>
               </CardContent>
@@ -1145,7 +1158,7 @@ export function DashboardView({
             <Card className="metric-card rounded-2xl border-border/70 bg-card/85">
               <CardContent className="space-y-2 p-5">
                 <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Total de Atendimentos</p>
-                <h3 className="font-display text-2xl font-bold">{viewModel.rawMetrics?.conversationsCount ?? 0}</h3>
+                <h3 className="font-display text-2xl font-bold">{viewModel.commercialMetrics?.conversationsCount ?? 0}</h3>
                 <span className="text-[10px] text-muted-foreground">Registrados no banco</span>
               </CardContent>
             </Card>
@@ -1163,7 +1176,7 @@ export function DashboardView({
                 <div className="h-[300px]">
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart
-                      data={hourlyData}
+                      data={viewModel.commercialMetrics?.hourlyData || []}
                       onClick={(data) => {
                         if (data && data.activePayload && data.activePayload[0]) {
                           setSelectedHourBlock(data.activePayload[0].payload);

@@ -51,6 +51,13 @@ export type DashboardLovableViewModel = {
   tabs: DashboardLovableTab[];
   overviewCards: DashboardLovableMetricCard[];
   rawMetrics?: MetricsSummary | null;
+  commercialMetrics: {
+    conversationsCount: number;
+    contactsCount: number;
+    hotLeadsCount: number;
+    avgResponseTimeSeconds: number | null;
+    hourlyData: Array<{ block: string; volume: number; responseTime: string }>;
+  };
   map: {
     title: string;
     description: string;
@@ -351,6 +358,33 @@ export function createDashboardLovableViewModel(params: {
   const newLeads = resolveMetricNumber(metrics, ["newLeads", "leads"]);
   const { totalMapped, regionRows, stateRows, dddRows, points, leadPins } = buildAggregates(conversations);
 
+  // Computando métricas comerciais baseadas em dados REAIS do sistema
+  const conversationsCount = conversations.length;
+  const contactsCount = conversations.filter((c) => c.phone || c.contactId).length;
+  const hotLeadsCount = conversations.filter(
+    (c) => c.funnel_stage === "hot" || c.funnel_stage === "negotiation"
+  ).length;
+
+  let totalResponseTime = 0;
+  let countResponseTime = 0;
+  const hourCounts = new Array(24).fill(0);
+
+  conversations.forEach((c) => {
+    if (c.updatedAt) {
+      const hour = new Date(c.updatedAt).getHours();
+      if (hour >= 0 && hour < 24) {
+        hourCounts[hour]++;
+      }
+    }
+  });
+
+  const hourlyData = [
+    { block: "Madrugada (00-06)", volume: hourCounts.slice(0, 6).reduce((a, b) => a + b, 0), responseTime: "—" },
+    { block: "Manhã (06-12)", volume: hourCounts.slice(6, 12).reduce((a, b) => a + b, 0), responseTime: "—" },
+    { block: "Tarde (12-18)", volume: hourCounts.slice(12, 18).reduce((a, b) => a + b, 0), responseTime: "—" },
+    { block: "Noite (18-24)", volume: hourCounts.slice(18, 24).reduce((a, b) => a + b, 0), responseTime: "—" },
+  ];
+
   return {
     tabs: DASHBOARD_TABS,
     overviewCards: [
@@ -399,5 +433,12 @@ export function createDashboardLovableViewModel(params: {
       exportDescription: "Baixe volumetria em CSV",
     },
     rawMetrics: metrics,
+    commercialMetrics: {
+      conversationsCount,
+      contactsCount,
+      hotLeadsCount,
+      avgResponseTimeSeconds: null,
+      hourlyData,
+    },
   };
 }
