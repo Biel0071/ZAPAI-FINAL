@@ -574,13 +574,79 @@ export function DashboardView({
             </Card>
           </div>
 
-          {/* KPI bottom items */}
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-5">
-            <Card className="glass-card rounded-2xl border-border/70 bg-card/85"><CardContent className="p-4 flex items-center gap-3"><div className="h-9 w-9 rounded-xl bg-primary/10 flex items-center justify-center text-primary"><Plugs weight="fill" className="h-4 w-4" /></div><div><p className="text-[10px] font-bold uppercase text-muted-foreground">Camada IA</p><p className="text-xs font-bold text-foreground">Operando Ativa</p></div></CardContent></Card>
-            <Card className="glass-card rounded-2xl border-border/70 bg-card/85"><CardContent className="p-4 flex items-center gap-3"><div className="h-9 w-9 rounded-xl bg-warning/10 flex items-center justify-center text-warning"><Shield weight="fill" className="h-4 w-4" /></div><div><p className="text-[10px] font-bold uppercase text-muted-foreground">Fallback</p><p className="text-xs font-bold text-foreground">Habilitado</p></div></CardContent></Card>
-            <Card className="glass-card rounded-2xl border-border/70 bg-card/85"><CardContent className="p-4 flex items-center gap-3"><div className="h-9 w-9 rounded-xl bg-info/10 flex items-center justify-center text-info"><Brain weight="fill" className="h-4 w-4" /></div><div><p className="text-[10px] font-bold uppercase text-muted-foreground">Memória Ativa</p><p className="text-xs font-bold text-foreground">Consolidando Fatos</p></div></CardContent></Card>
-            <Card className="glass-card rounded-2xl border-border/70 bg-card/85"><CardContent className="p-4 flex items-center gap-3"><div className="h-9 w-9 rounded-xl bg-success/10 flex items-center justify-center text-success"><Cpu weight="fill" className="h-4 w-4" /></div><div><p className="text-[10px] font-bold uppercase text-muted-foreground">Uso de Tokens</p><p className="text-xs font-bold text-foreground">Otimizado</p></div></CardContent></Card>
-            <Card className="glass-card rounded-2xl border-border/70 bg-card/85"><CardContent className="p-4 flex items-center gap-3"><div className="h-9 w-9 rounded-xl bg-purple-500/10 flex items-center justify-center text-purple-400"><Database weight="fill" className="h-4 w-4" /></div><div><p className="text-[10px] font-bold uppercase text-muted-foreground">Instâncias</p><p className="text-xs font-bold text-foreground">{viewModel.overviewCards[3].badgeLabel}</p></div></CardContent></Card>
+          {/* Esteira Comercial & Performance IA (Real Data) */}
+          <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
+            <Card className="xl:col-span-2 glass-card rounded-2xl border-border/70 bg-card/85 flex flex-col h-full max-h-[380px] overflow-hidden">
+              <CardHeader className="py-4 border-b border-border/50 shrink-0">
+                <CardTitle className="text-xs font-bold uppercase tracking-widest flex items-center gap-2 text-muted-foreground">
+                  <CheckCircle weight="bold" className="h-4 w-4 text-success" /> Esteira Comercial (Fechamentos)
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="p-0 overflow-y-auto flex-1 scrollbar-thin">
+                {viewModel.map.leadPins.filter(l => l.funnelStage === 'closed' || l.funnelStage === 'negotiation').length === 0 ? (
+                  <p className="text-center text-xs text-muted-foreground py-10">Nenhum lead em fase final de funil.</p>
+                ) : (
+                  <div className="divide-y divide-border/20">
+                    {viewModel.map.leadPins
+                      .filter(l => l.funnelStage === 'closed' || l.funnelStage === 'negotiation')
+                      .sort((a, b) => (a.funnelStage === 'closed' ? -1 : 1))
+                      .slice(0, 10)
+                      .map((lead) => (
+                        <div key={`com-${lead.id}`} className="p-4 flex items-center justify-between hover:bg-card/50 transition-colors">
+                          <div className="flex items-center gap-3">
+                            <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center text-primary text-xs font-bold shrink-0">
+                              {lead.name.slice(0, 2).toUpperCase()}
+                            </div>
+                            <div>
+                              <p className="text-sm font-bold text-foreground">{lead.name}</p>
+                              <p className="text-[10px] text-muted-foreground font-mono">{lead.phone}</p>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-4">
+                            <Badge variant="outline" className={`text-[9px] rounded-full px-2 py-0.5 capitalize ${lead.funnelStage === 'closed' ? 'bg-success/10 text-success border-success/20' : 'bg-warning/10 text-warning border-warning/20'}`}>
+                              {lead.funnelStage === 'closed' ? 'Venda Fechada' : 'Negociação'}
+                            </Badge>
+                            <Button size="sm" variant="secondary" className="h-7 text-[10px] px-3 rounded-lg" onClick={() => navigate(`/inbox?chatId=${lead.phone}`)}>
+                              Abrir
+                            </Button>
+                          </div>
+                        </div>
+                      ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            <Card className="glass-card rounded-2xl border-border/70 bg-card/85">
+              <CardHeader className="py-4 border-b border-border/50">
+                <CardTitle className="text-xs font-bold uppercase tracking-widest flex items-center gap-2 text-muted-foreground">
+                  <Brain weight="bold" className="h-4 w-4 text-primary" /> Uso Real da IA
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="p-5 space-y-5">
+                <div>
+                  <p className="text-[10px] font-bold uppercase text-muted-foreground">Modelo Principal</p>
+                  <p className="text-sm font-bold text-foreground mt-0.5">{activeModelName}</p>
+                </div>
+                <div>
+                  <p className="text-[10px] font-bold uppercase text-muted-foreground">Total de Tokens (Hoje)</p>
+                  <p className="text-2xl font-display font-bold text-foreground mt-0.5">{tokensPeriodFormatted}</p>
+                  <div className="flex gap-4 mt-2">
+                    <span className="text-[10px] text-muted-foreground">Prompt: {Number(aiMetrics?.promptTokensToday || 0).toLocaleString('pt-BR')}</span>
+                    <span className="text-[10px] text-muted-foreground">Completion: {Number(aiMetrics?.completionTokensToday || 0).toLocaleString('pt-BR')}</span>
+                  </div>
+                </div>
+                <div>
+                  <p className="text-[10px] font-bold uppercase text-muted-foreground">Taxa de Automação</p>
+                  <div className="flex items-center gap-3 mt-1">
+                    <div className="flex-1 h-2 rounded-full bg-muted overflow-hidden">
+                      <div className="h-full bg-success rounded-full transition-all" style={{ width: `${automationPercentage}%` }} />
+                    </div>
+                    <span className="text-xs font-bold">{automationPercentage}%</span>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
           </div>
         </div>
       )}

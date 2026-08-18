@@ -30,13 +30,13 @@ function AppSplash() {
         </div>
 
         <h2 className="font-display text-2xl font-black tracking-tight text-white mb-2">
-          ZAPFLOW <span className="text-emerald-400">AI</span>
+          ZAI <span className="text-emerald-400">AI</span>
         </h2>
         <p className="text-xs text-muted-foreground font-medium mb-6">Plataforma de Inteligência & Automação WhatsApp Enterprise</p>
 
         <div className="flex items-center gap-2 rounded-full border border-emerald-500/20 bg-emerald-500/10 px-4 py-1.5 text-xs text-emerald-400 font-semibold">
           <span className="h-2 w-2 rounded-full bg-emerald-400 animate-ping" />
-          Inicializando ZAPFLOW AI Engine...
+          Inicializando ZAI Engine...
         </div>
 
         <button

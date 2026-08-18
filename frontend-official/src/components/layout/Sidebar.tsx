@@ -309,11 +309,10 @@ export function Sidebar() {
           </div>
           {!compact && (
             <div className="min-w-0 flex-1">
-              <div className="flex items-center gap-2">
-                <h1 className="truncate font-display text-[15px] font-bold leading-tight text-sidebar-foreground">ZAPFLOW AI</h1>
-                <Sparkle weight="fill" className="h-3.5 w-3.5 text-primary" />
+              <div className="flex flex-col">
+                <h1 className="truncate font-display text-[15px] font-bold leading-tight text-sidebar-foreground">ZAI</h1>
+                <span className="truncate text-xs text-sidebar-foreground/70">CRM ENTERPRISE</span>
               </div>
-              <p className="mt-1 text-[10px] uppercase tracking-[0.24em] text-sidebar-muted">CRM Enterprise</p>
               <div className="mt-2 flex flex-wrap items-center gap-2">
                 <span className="flex items-center gap-1.5 rounded-full border border-sidebar-border/80 bg-muted/20 px-2 py-1 text-[9px] font-semibold uppercase tracking-wide text-sidebar-foreground">
                   <span className="h-1.5 w-1.5 rounded-full bg-success" />

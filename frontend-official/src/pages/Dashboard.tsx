@@ -21,7 +21,7 @@ import { useRuntime } from "@/providers/RuntimeProvider";
 
 const STATUS_POLL_MS = 15_000;
 const HEAVY_REFRESH_MS = 30_000;
-const VALID_TABS = ["overview", "conversations", "ai", "commercial", "operations", "analytics", "infrastructure", "map", "executive", "diagnostics", "reports"] as const;
+const VALID_TABS = ["overview", "map"] as const;
 
 type DashboardTab = (typeof VALID_TABS)[number];
 type DashboardDateRange = "today" | "yesterday" | "7days" | "15days" | "30days" | "90days" | "week" | "month" | "year" | "hour" | "custom" | "all";
@@ -217,10 +217,10 @@ export default function Dashboard() {
   }, [activeMapScope, currentMapRows]);
 
   return (
-    <div className="min-h-screen">
-      <Header title="Business Intelligence (BI)" subtitle="Hub unificado de inteligência comercial, IA e infraestrutura" />
+    <div className="min-h-screen bg-background">
+      <Header title="Hub ZAI" subtitle="Central inteligente de atendimento, IA e inteligência comercial" />
 
-      <div className="page-container section-stack space-y-6">
+      <div className="w-full px-2 sm:px-6 py-6 space-y-6">
         <AIExecutiveInsightsCard />
         <DashboardView
           viewModel={dashboardViewModel}
