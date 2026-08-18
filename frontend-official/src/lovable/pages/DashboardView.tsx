@@ -1085,7 +1085,7 @@ export function DashboardView({
               </CardHeader>
               <CardContent className="h-[280px] p-4">
                 <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={viewModel.commercialMetrics?.hourlyData || []}>
+                  <AreaChart data={tokenData}>
                     <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" />
                     <XAxis dataKey="name" stroke="hsl(var(--muted-foreground))" fontSize={10} axisLine={false} tickLine={false} />
                     <YAxis stroke="hsl(var(--muted-foreground))" fontSize={10} axisLine={false} tickLine={false} />
