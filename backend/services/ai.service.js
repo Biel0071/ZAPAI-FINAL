@@ -344,7 +344,8 @@ function compileSystemPrompt(agent, store, contact = null) {
       const qrId = typeof qr === 'string' ? label : qr.id;
       const hasMedia = qr.items && qr.items.some(i => i.type !== 'text') || qr.mediaUrl || qr.fileUrl || qr.steps && qr.steps.some(s => s.type !== 'text');
       const media = hasMedia ? `[Contém Mídia/Arquivos]` : '';
-      compiled += `  * Resposta Rápida/Mídia (ID: "${qrId}") -> Título: "${label}" | Resumo: "${text.substring(0,150).replace(/\n/g, ' ')}..." ${media}\n`;
+      const memoryStr = qr.aiMemory ? ` | Memória Visual: "${qr.aiMemory.replace(/\n/g, ' ')}"` : '';
+      compiled += `  * Resposta Rápida/Mídia (ID: "${qrId}") -> Título: "${label}" | Resumo: "${text.substring(0,150).replace(/\n/g, ' ')}..." ${media}${memoryStr}\n`;
     }
   } else {
     compiled += `  * Mídias cadastradas para envio automático: Fotos de Churrasqueiras pré-moldadas, Cimento Liz/Campeão, Tijolos e Tabela de Preços da Loja.\n`;

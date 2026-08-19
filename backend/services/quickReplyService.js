@@ -35,7 +35,9 @@ function normalizeCategory(value) {
   return String(value || 'general').trim().toLowerCase();
 }
 
-async function processBase64Items(items) {
+const { analyzeImageWithVision } = require('../src/infrastructure/config/ai');
+
+async function processBase64Items(items, visionMemories = []) {
   if (!Array.isArray(items)) return [];
 
   const processed = [];
@@ -54,6 +56,13 @@ async function processBase64Items(items) {
         const mimeType = match[1];
         const base64Data = match[2];
         const buffer = Buffer.from(base64Data, 'base64');
+
+        if (mimeType.startsWith('image/') && typeof analyzeImageWithVision === 'function') {
+           const analysis = await analyzeImageWithVision(base64Data, mimeType).catch(() => null);
+           if (analysis) {
+             visionMemories.push(`[Análise da imagem ${filename || 'mídia'}]: ${analysis}`);
+           }
+        }
 
         // Map mime type to extension
         const mimeMap = {
@@ -93,7 +102,7 @@ async function processBase64Items(items) {
   return processed;
 }
 
-async function processBase64Steps(steps) {
+async function processBase64Steps(steps, visionMemories = []) {
   if (!Array.isArray(steps)) return [];
 
   const processed = [];
@@ -111,6 +120,13 @@ async function processBase64Steps(steps) {
         const mimeType = match[1];
         const base64Data = match[2];
         const buffer = Buffer.from(base64Data, 'base64');
+
+        if (mimeType.startsWith('image/') && typeof analyzeImageWithVision === 'function') {
+           const analysis = await analyzeImageWithVision(base64Data, mimeType).catch(() => null);
+           if (analysis) {
+             visionMemories.push(`[Análise da imagem ${filename || 'mídia'}]: ${analysis}`);
+           }
+        }
 
         const mimeMap = {
           'image/png': 'png',
@@ -178,6 +194,7 @@ function normalizeQuickReply(payload = {}) {
     tags: Array.isArray(payload.tags) ? payload.tags.map((item) => String(item || '').trim()).filter(Boolean) : [],
     favorite: Boolean(payload.favorite),
     isFlow: Boolean(payload.isFlow),
+    aiMemory: payload.aiMemory ? String(payload.aiMemory).trim() : undefined,
     steps: Array.isArray(payload.steps) ? payload.steps.map((step) => ({
       id: step.id || `step-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
       type: String(step.type || 'text').trim().toLowerCase(),
@@ -232,11 +249,15 @@ async function listQuickReplies(filters = {}) {
 }
 
 async function createQuickReply(payload = {}) {
+  const visionMemories = [];
   if (payload.items) {
-    payload.items = await processBase64Items(payload.items);
+    payload.items = await processBase64Items(payload.items, visionMemories);
   }
   if (payload.steps) {
-    payload.steps = await processBase64Steps(payload.steps);
+    payload.steps = await processBase64Steps(payload.steps, visionMemories);
+  }
+  if (visionMemories.length > 0) {
+    payload.aiMemory = visionMemories.join('\n\n');
   }
   assertPayload(payload);
   const all = await readQuickReplies();
@@ -254,11 +275,15 @@ async function updateQuickReply(id, payload = {}) {
     return null;
   }
 
+  const visionMemories = [];
   if (payload.items) {
-    payload.items = await processBase64Items(payload.items);
+    payload.items = await processBase64Items(payload.items, visionMemories);
   }
   if (payload.steps) {
-    payload.steps = await processBase64Steps(payload.steps);
+    payload.steps = await processBase64Steps(payload.steps, visionMemories);
+  }
+  if (visionMemories.length > 0) {
+    payload.aiMemory = visionMemories.join('\n\n');
   }
 
   const merged = {

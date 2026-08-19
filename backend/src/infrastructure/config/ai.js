@@ -121,4 +121,35 @@ module.exports = {
   SYSTEM_PROMPT: DEFAULT_SYSTEM_PROMPT,
   generateAutoReply,
   generateConversationSummaryWithAI,
+  analyzeImageWithVision,
 };
+
+async function analyzeImageWithVision(base64Data, mimeType) {
+  const openai = getClient();
+  if (!openai) return null;
+
+  try {
+    const response = await openai.chat.completions.create({
+      model: 'gpt-4o-mini',
+      messages: [
+        {
+          role: 'user',
+          content: [
+            { type: 'text', text: 'Analise esta imagem de produto ou material de vendas. Descreva em detalhes o produto, preço, características e apelo de vendas visível. Essa análise será usada como "memória" para uma IA de vendas recomendar este produto no WhatsApp. Seja direto e descritivo.' },
+            {
+              type: 'image_url',
+              image_url: {
+                url: `data:${mimeType};base64,${base64Data}`,
+              },
+            },
+          ],
+        },
+      ],
+      max_tokens: 300,
+    });
+    return response.choices[0]?.message?.content || null;
+  } catch (error) {
+    console.error('[VISION_AI] Error analyzing image:', error.message);
+    return null;
+  }
+}
