@@ -949,23 +949,30 @@ export function estimateBase64Bytes(base64: string): number {
 
 export function sortMessagesAsc(list: ChatMessage[]): ChatMessage[] {
   const result: ChatMessage[] = [];
+  const idMap = new Map<string, number>();
+  const waIdMap = new Map<string, number>();
 
   list.forEach((item) => {
     if (!item?.id) return;
-    const existingIdx = result.findIndex((m) => {
-      if (m.id === item.id) return true;
-      const mWaId = (m as any).whatsappMessageId || (m as any).externalMessageId;
+    
+    let existingIdx = idMap.get(String(item.id));
+    if (existingIdx === undefined) {
       const itemWaId = (item as any).whatsappMessageId || (item as any).externalMessageId;
-      if (mWaId && itemWaId && mWaId === itemWaId) return true;
-      if (mWaId && mWaId === item.id) return true;
-      if (itemWaId && itemWaId === m.id) return true;
-      return false;
-    });
+      if (itemWaId) {
+        existingIdx = waIdMap.get(String(itemWaId)) ?? idMap.get(String(itemWaId));
+      }
+    }
 
-    if (existingIdx === -1) {
+    if (existingIdx === undefined || existingIdx === -1) {
       result.push(item);
-    } else if (String(result[existingIdx].id).startsWith("temp-") && !String(item.id).startsWith("temp-")) {
-      result[existingIdx] = item;
+      const newIdx = result.length - 1;
+      idMap.set(String(item.id), newIdx);
+      const itemWaId = (item as any).whatsappMessageId || (item as any).externalMessageId;
+      if (itemWaId) waIdMap.set(String(itemWaId), newIdx);
+    } else {
+      if (String(result[existingIdx].id).startsWith("temp-") && !String(item.id).startsWith("temp-")) {
+        result[existingIdx] = item;
+      }
     }
   });
 
@@ -980,31 +987,31 @@ export function sortMessagesAsc(list: ChatMessage[]): ChatMessage[] {
 
 export function mergeMessagesById(base: ChatMessage[], incoming: ChatMessage[]): ChatMessage[] {
   const result = [...base];
+  const idMap = new Map<string, number>();
+  const waIdMap = new Map<string, number>();
+  
+  result.forEach((m, idx) => {
+    if (m.id) idMap.set(String(m.id), idx);
+    const mWaId = (m as any).whatsappMessageId || (m as any).externalMessageId;
+    if (mWaId) waIdMap.set(String(mWaId), idx);
+  });
+
   for (const item of incoming) {
-    const existingIdx = result.findIndex((m) => {
-      if (m.id === item.id) return true;
-      const mWaId = (m as any).whatsappMessageId || (m as any).externalMessageId;
+    if (!item?.id) continue;
+    let existingIdx = idMap.get(String(item.id));
+    if (existingIdx === undefined) {
       const itemWaId = (item as any).whatsappMessageId || (item as any).externalMessageId;
-      if (mWaId && itemWaId && mWaId === itemWaId) return true;
-      if (mWaId && mWaId === item.id) return true;
-      if (itemWaId && itemWaId === m.id) return true;
-
-      const contentM = (m.content || "").trim();
-      const contentItem = (item.content || "").trim();
-      const timeDiff = Math.abs(new Date(m.createdAt).getTime() - new Date(item.createdAt).getTime());
-      if (
-        contentM &&
-        contentM === contentItem &&
-        Boolean(m.fromMe) === Boolean(item.fromMe) &&
-        (Number.isNaN(timeDiff) || timeDiff < 5000)
-      ) {
-        return true;
+      if (itemWaId) {
+        existingIdx = waIdMap.get(String(itemWaId)) ?? idMap.get(String(itemWaId));
       }
-      return false;
-    });
+    }
 
-    if (existingIdx === -1) {
+    if (existingIdx === undefined) {
       result.push(item);
+      const newIdx = result.length - 1;
+      idMap.set(String(item.id), newIdx);
+      const itemWaId = (item as any).whatsappMessageId || (item as any).externalMessageId;
+      if (itemWaId) waIdMap.set(String(itemWaId), newIdx);
     } else {
       if (String(result[existingIdx].id).startsWith("temp-") && !String(item.id).startsWith("temp-")) {
         result[existingIdx] = item;

@@ -1345,30 +1345,32 @@ export default function Campaigns() {
         accept=".csv"
         className="hidden"
       />
-      <Header
-        title="Campanhas"
-        subtitle="Disparos em massa e campanhas programadas"
-        actions={
-          <>
-            <Button variant="outline" size="sm" className="rounded-xl" onClick={() => void persistCampaign("save")}>
-              Salvar Rascunho
-            </Button>
-            <Button variant="outline" size="sm" className="rounded-xl" onClick={() => fileInputRef.current?.click()}>
-              Importar Contatos
-            </Button>
-            <Button variant="outline" size="sm" className="gap-2 rounded-xl border-primary/40 hover:bg-primary/10" onClick={() => setIsAiModalOpen(true)}>
-              <Sparkle className="h-4 w-4 text-primary animate-pulse" weight="fill" />
-              Criar Campanha por IA
-            </Button>
-            <Button size="sm" className="rounded-xl shadow-glow" onClick={resetComposer}>
-              <Plus className="h-4 w-4" />
-              Disparo Manual
-            </Button>
-          </>
-        }
-      />
+      {campaignsTab !== "compose" && (
+        <Header
+          title="Campanhas"
+          subtitle="Disparos em massa e campanhas programadas"
+          actions={
+            <>
+              <Button variant="outline" size="sm" className="rounded-xl" onClick={() => void persistCampaign("save")}>
+                Salvar Rascunho
+              </Button>
+              <Button variant="outline" size="sm" className="rounded-xl" onClick={() => fileInputRef.current?.click()}>
+                Importar Contatos
+              </Button>
+              <Button variant="outline" size="sm" className="gap-2 rounded-xl border-primary/40 hover:bg-primary/10" onClick={() => setIsAiModalOpen(true)}>
+                <Sparkle className="h-4 w-4 text-primary animate-pulse" weight="fill" />
+                Criar Campanha por IA
+              </Button>
+              <Button size="sm" className="rounded-xl shadow-glow" onClick={resetComposer}>
+                <Plus className="h-4 w-4" />
+                Disparo Manual
+              </Button>
+            </>
+          }
+        />
+      )}
 
-      <div>
+      <div className={campaignsTab === "compose" ? "h-screen pb-4" : ""}>
         {loading ? (
           <div className="page-container section-stack">
             <StatGridSkeleton count={4} />
@@ -1376,71 +1378,73 @@ export default function Campaigns() {
         ) : (
           <CampaignsView
             summaryCards={
-              <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
-                <Card className="metric-card rounded-2xl border-border/70 bg-card/85">
-                  <CardContent className="space-y-2 p-5">
-                    <div className="flex items-center gap-4">
-                      <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10">
-                        <Megaphone weight="duotone" className="h-6 w-6 text-primary" />
+              campaignsTab !== "compose" ? (
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+                  <Card className="metric-card rounded-2xl border-border/70 bg-card/85">
+                    <CardContent className="space-y-2 p-5">
+                      <div className="flex items-center gap-4">
+                        <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10">
+                          <Megaphone weight="duotone" className="h-6 w-6 text-primary" />
+                        </div>
+                        <div>
+                          <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Campanhas</p>
+                          <h3 className="font-display text-lg font-bold">{lovableCampaignsViewModel.totalCampaigns}</h3>
+                          <p className="text-xs text-muted-foreground">{campaignMetrics.active} ativas / {campaignMetrics.drafts} rascunhos</p>
+                        </div>
                       </div>
-                      <div>
-                        <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Campanhas</p>
-                        <h3 className="font-display text-lg font-bold">{lovableCampaignsViewModel.totalCampaigns}</h3>
-                        <p className="text-xs text-muted-foreground">{campaignMetrics.active} ativas / {campaignMetrics.drafts} rascunhos</p>
-                      </div>
-                    </div>
-                    <OperationalStatusBadge label="Base persistida" tone="syncing" />
-                  </CardContent>
-                </Card>
+                      <OperationalStatusBadge label="Base persistida" tone="syncing" />
+                    </CardContent>
+                  </Card>
 
-                <Card className="metric-card rounded-2xl border-border/70 bg-card/85">
-                  <CardContent className="space-y-2 p-5">
-                    <div className="flex items-center gap-4">
-                      <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-info/10">
-                        <PaperPlaneTilt weight="fill" className="h-6 w-6 text-info" />
+                  <Card className="metric-card rounded-2xl border-border/70 bg-card/85">
+                    <CardContent className="space-y-2 p-5">
+                      <div className="flex items-center gap-4">
+                        <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-info/10">
+                          <PaperPlaneTilt weight="fill" className="h-6 w-6 text-info" />
+                        </div>
+                        <div>
+                          <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Envios concluídos</p>
+                          <h3 className="font-display text-lg font-bold">{campaignMetrics.sent.toLocaleString("pt-BR")}</h3>
+                          <p className="text-xs text-muted-foreground">{campaignMetrics.failed} falha(s)</p>
+                        </div>
                       </div>
-                      <div>
-                        <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Envios concluídos</p>
-                        <h3 className="font-display text-lg font-bold">{campaignMetrics.sent.toLocaleString("pt-BR")}</h3>
-                        <p className="text-xs text-muted-foreground">{campaignMetrics.failed} falha(s)</p>
-                      </div>
-                    </div>
-                    <OperationalStatusBadge label="Pipeline ativo" tone="online" />
-                  </CardContent>
-                </Card>
+                      <OperationalStatusBadge label="Pipeline ativo" tone="online" />
+                    </CardContent>
+                  </Card>
 
-                <Card className="metric-card rounded-2xl border-border/70 bg-card/85">
-                  <CardContent className="space-y-2 p-5">
-                    <div className="flex items-center gap-4">
-                      <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-success/10">
-                        <Eye weight="duotone" className="h-6 w-6 text-success" />
+                  <Card className="metric-card rounded-2xl border-border/70 bg-card/85">
+                    <CardContent className="space-y-2 p-5">
+                      <div className="flex items-center gap-4">
+                        <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-success/10">
+                          <Eye weight="duotone" className="h-6 w-6 text-success" />
+                        </div>
+                        <div>
+                          <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Base / fila</p>
+                          <h3 className="font-display text-lg font-bold">{contacts.length.toLocaleString("pt-BR")}</h3>
+                          <p className="text-xs text-muted-foreground">{campaignMetrics.totalQueue.toLocaleString("pt-BR")} em campanhas</p>
+                        </div>
                       </div>
-                      <div>
-                        <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Base / fila</p>
-                        <h3 className="font-display text-lg font-bold">{contacts.length.toLocaleString("pt-BR")}</h3>
-                        <p className="text-xs text-muted-foreground">{campaignMetrics.totalQueue.toLocaleString("pt-BR")} em campanhas</p>
-                      </div>
-                    </div>
-                    <OperationalStatusBadge label="Segmentação pronta" tone="online" />
-                  </CardContent>
-                </Card>
+                      <OperationalStatusBadge label="Segmentação pronta" tone="online" />
+                    </CardContent>
+                  </Card>
 
-                <Card className="metric-card rounded-2xl border-border/70 bg-card/85">
-                  <CardContent className="space-y-2 p-5">
-                    <div className="flex items-center gap-4">
-                      <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-warning/10">
-                        <CheckCircle weight="fill" className="h-6 w-6 text-warning" />
+                  <Card className="metric-card rounded-2xl border-border/70 bg-card/85">
+                    <CardContent className="space-y-2 p-5">
+                      <div className="flex items-center gap-4">
+                        <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-warning/10">
+                          <CheckCircle weight="fill" className="h-6 w-6 text-warning" />
+                        </div>
+                        <div>
+                          <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Selecionados</p>
+                          <h3 className="font-display text-lg font-bold">{selectedContactCount}</h3>
+                          <p className="text-xs text-muted-foreground">Etapa {campaignStep}/{STEP_LABELS.length}</p>
+                        </div>
                       </div>
-                      <div>
-                        <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Selecionados</p>
-                        <h3 className="font-display text-lg font-bold">{selectedContactCount}</h3>
-                        <p className="text-xs text-muted-foreground">Etapa {campaignStep}/{STEP_LABELS.length}</p>
-                      </div>
-                    </div>
-                    <OperationalStatusBadge label={composerMode === "edit" ? "Modo edição" : composerMode === "duplicate" ? "Duplicando" : "Novo rascunho"} tone="warning" />
-                  </CardContent>
-                </Card>
-              </div>
+                      <OperationalStatusBadge label={composerMode === "edit" ? "Modo edição" : composerMode === "duplicate" ? "Duplicando" : "Novo rascunho"} tone="warning" />
+                    </CardContent>
+                  </Card>
+                </div>
+              ) : null
             }
             composer={
               <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_380px]">

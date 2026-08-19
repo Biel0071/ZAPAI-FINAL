@@ -1818,14 +1818,10 @@ export function useInboxState() {
     const currentReplyingTo = replyingTo;
 
     if (!selectedConversation?.phone || (!textWithReply && currentAttachments.length === 0)) return;
+    // We no longer block sending multiple messages concurrently.
+    // The message store optimizes optimistic updates natively via sortMessagesAsc
+    // and mergeMessagesById without freezing the UI.
     
-    // Prevent double clicking send for the exact same message concurrently
-    const textToCheck = overrideText ?? text;
-    if (sendingRef.current && textToCheck === lastSentTextRef.current) {
-      return;
-    }
-    lastSentTextRef.current = textToCheck;
-
     if (!canUseBackend) {
       setError("Servidor reconectando... envio temporariamente indisponível.");
       return;
