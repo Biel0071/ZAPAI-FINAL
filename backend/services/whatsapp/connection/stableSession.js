@@ -1781,10 +1781,25 @@ async function createStableSession({
             const humanTimeoutMs = Number(process.env.HUMAN_TAKEOVER_TIMEOUT_MS || 86400000);
             conversationRuntimeService.setHumanTakeover(store, targetConvId, humanTimeoutMs);
             if (result?.conversation?.id) {
+              const aiReactivateAt = new Date(Date.now() + humanTimeoutMs).toISOString();
               await conversationRepository.updateConversationState(result.conversation.id, {
                 aiEnabled: false,
-                ai_paused_until: new Date(Date.now() + humanTimeoutMs).toISOString(),
+                ai_reactivate_at: aiReactivateAt,
               }).catch(() => {});
+              
+              const payloadUpdate = {
+                ...result.conversation,
+                aiEnabled: false,
+                ai_enabled: false,
+                aiPausedUntil: aiReactivateAt,
+                ai_reactivate_at: aiReactivateAt,
+                aiReactivateAt: aiReactivateAt,
+                humanActive: true,
+              };
+              const sockIo = io || global.io;
+              sockIo?.emit('conversation:update', payloadUpdate);
+              sockIo?.emit('conversation_updated', payloadUpdate);
+              sockIo?.emit('conversation-update', payloadUpdate);
             }
             console.log(`[WHATSAPP] Manual phone message detected for ${normalizedChatId}. Human takeover activated for ${humanTimeoutMs}ms.`);
           } catch (error) {

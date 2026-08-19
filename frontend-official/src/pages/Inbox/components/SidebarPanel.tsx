@@ -31,6 +31,9 @@ import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipProvider, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import { InboxSectionBoundary } from "@/components/system/InboxSectionBoundary";
 import type { ChatMessage, Conversation } from "@/services/apiService";
+import { apiService } from "@/services/apiService";
+import { getSharedSocket } from "../../../runtime/socket/socketManager";
+import { FlowExecutionBanner, type FlowExecutionData } from "./FlowExecutionBanner";
 import type { AiMemoryRecord, InboxAiRuntime, PreviewMediaState, QuickReplyItem } from "../types";
 import {
   sortMessagesAsc,
@@ -418,6 +421,60 @@ export function SidebarPanel({
   const { toast } = useToast();
   const [fileFilter, setFileFilter] = useState<"all" | "image" | "video" | "file">("all");
   const [expandedTimeline, setExpandedTimeline] = useState<Set<string>>(new Set());
+  const [activeFlowData, setActiveFlowData] = useState<FlowExecutionData | null>(null);
+
+  useEffect(() => {
+    let active = true;
+    if (!selectedConversation?.phone) {
+      setActiveFlowData(null);
+      return;
+    }
+    const currentPhone = selectedConversation.phone;
+
+    apiService.getActiveQuickReplyFlow(currentPhone).then(res => {
+      if (active && res && res.flow) setActiveFlowData(res.flow);
+    }).catch(console.error);
+
+    const handleFlowStarted = (data: FlowExecutionData) => {
+      if (data.chatId === currentPhone || String(data.chatId) === String(selectedConversation.id)) {
+        setActiveFlowData(data);
+      }
+    };
+
+    const handleFlowUpdated = (data: FlowExecutionData) => {
+      if (data.chatId === currentPhone || String(data.chatId) === String(selectedConversation.id)) {
+        setActiveFlowData((prev) => ({ ...(prev || {}), ...data }));
+      }
+    };
+
+    const handleFlowEnded = (data: { chatId: string; status?: string }) => {
+      if (data.chatId === currentPhone || String(data.chatId) === String(selectedConversation.id)) {
+        setActiveFlowData((prev) => {
+          if (!prev) return null;
+          return { ...prev, status: (data.status as any) || "completed" };
+        });
+        setTimeout(() => {
+          if (active) setActiveFlowData(null);
+        }, 5000);
+      }
+    };
+
+    const socket = getSharedSocket();
+    if (socket && typeof socket.on === "function") {
+      socket.on("flow:started", handleFlowStarted);
+      socket.on("flow:step_updated", handleFlowUpdated);
+      socket.on("flow:cancelled", (data: any) => handleFlowEnded({ ...data, status: "cancelled" }));
+      socket.on("flow:finished", (data: any) => handleFlowEnded({ ...data, status: "completed" }));
+      return () => {
+        active = false;
+        socket.off("flow:started", handleFlowStarted);
+        socket.off("flow:step_updated", handleFlowUpdated);
+        socket.off("flow:cancelled", handleFlowEnded);
+        socket.off("flow:finished", handleFlowEnded);
+      };
+    }
+    return () => { active = false; };
+  }, [selectedConversation]);
 
   const toggleTimelineItem = (id: string) => {
     setExpandedTimeline((prev) => {
@@ -802,7 +859,8 @@ export function SidebarPanel({
   );
 
   const leadPanelContent = selectedConversation ? (
-    <div className="flex h-full w-full flex-col overflow-hidden">
+    <div className="flex h-full w-full flex-col min-h-0 bg-background/95">
+      <FlowExecutionBanner flowData={activeFlowData} onCancelFlow={() => setActiveFlowData(null)} />
       <Tabs
         value={rightPanelTab ?? ""}
         onValueChange={(value) => setRightPanelTab(value as RightPanelTabId)}

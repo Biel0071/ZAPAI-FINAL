@@ -40,7 +40,7 @@ export function FlowExecutionBanner({ flowData, onCancelFlow }: FlowExecutionBan
     return () => clearInterval(interval);
   }, [flowData]);
 
-  if (!flowData || flowData.status === "cancelled" || flowData.status === "completed") {
+  if (!flowData) {
     return null;
   }
 
@@ -154,17 +154,23 @@ export function FlowExecutionBanner({ flowData, onCancelFlow }: FlowExecutionBan
             </Button>
           </div>
 
-          <Button
-            type="button"
-            variant="destructive"
-            size="sm"
-            onClick={() => setShowConfirmModal(true)}
-            disabled={cancelling}
-            className="h-7 text-[11px] px-2.5 rounded-lg flex items-center gap-1 shrink-0 bg-red-600/90 hover:bg-red-600 font-semibold"
-          >
-            <StopCircle className="h-3.5 w-3.5" />
-            <span>Cancelar Fluxo</span>
-          </Button>
+          {flowData.status === "cancelled" ? (
+            <span className="text-red-400 font-bold px-2 py-1 bg-red-500/20 rounded">Cancelado</span>
+          ) : flowData.status === "completed" ? (
+            <span className="text-blue-400 font-bold px-2 py-1 bg-blue-500/20 rounded">Concluído</span>
+          ) : (
+            <Button
+              type="button"
+              variant="destructive"
+              size="sm"
+              onClick={() => setShowConfirmModal(true)}
+              disabled={cancelling}
+              className="h-7 text-[11px] px-2.5 rounded-lg flex items-center gap-1 shrink-0 bg-red-600/90 hover:bg-red-600 font-semibold"
+            >
+              <StopCircle className="h-3.5 w-3.5" />
+              <span>Cancelar Fluxo</span>
+            </Button>
+          )}
         </div>
       </div>
 

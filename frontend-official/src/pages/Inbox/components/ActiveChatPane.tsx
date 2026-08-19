@@ -37,7 +37,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { ChatHeaderBar } from "@/components/inbox/ChatHeaderBar";
 import { NewMessagesBanner } from "@/components/inbox/NewMessagesBanner";
 import { MessageRow } from "./MessageRow";
-import { FlowExecutionBanner, type FlowExecutionData } from "./FlowExecutionBanner";
 import { QuickResponseModal, type QuickResponseItem } from "./QuickResponseModal";
 import { useAiCountdown } from "@/hooks/useAiCountdown";
 import { getSharedSocket } from "../../../runtime/socket/socketManager";
@@ -243,52 +242,13 @@ export function ActiveChatPane({
 }: ActiveChatPaneProps) {
   const navigate = useNavigate();
 
-  const [activeFlowData, setActiveFlowData] = useState<FlowExecutionData | null>(null);
   const [selectedQuickReplyModal, setSelectedQuickReplyModal] = useState<QuickResponseItem | null>(null);
   const [isQuickReplyModalOpen, setIsQuickReplyModalOpen] = useState(false);
 
   const targetReactivateAt = selectedConversation?.ai_reactivate_at || selectedConversation?.aiReactivateAt || selectedConversation?.aiPausedUntil;
   const { timeLeft, isWaiting: isAiCountdownActive } = useAiCountdown(targetReactivateAt);
 
-  useEffect(() => {
-    if (!selectedConversation?.phone) {
-      setActiveFlowData(null);
-      return;
-    }
-    const currentPhone = selectedConversation.phone;
 
-    const handleFlowStarted = (data: FlowExecutionData) => {
-      if (data.chatId === currentPhone || String(data.chatId) === String(selectedConversation.id)) {
-        setActiveFlowData(data);
-      }
-    };
-
-    const handleFlowUpdated = (data: FlowExecutionData) => {
-      if (data.chatId === currentPhone || String(data.chatId) === String(selectedConversation.id)) {
-        setActiveFlowData((prev) => ({ ...(prev || {}), ...data }));
-      }
-    };
-
-    const handleFlowEnded = (data: { chatId: string }) => {
-      if (data.chatId === currentPhone || String(data.chatId) === String(selectedConversation.id)) {
-        setActiveFlowData(null);
-      }
-    };
-
-    const socket = getSharedSocket();
-    if (socket && typeof socket.on === "function") {
-      socket.on("flow:started", handleFlowStarted);
-      socket.on("flow:step_updated", handleFlowUpdated);
-      socket.on("flow:cancelled", handleFlowEnded);
-      socket.on("flow:finished", handleFlowEnded);
-      return () => {
-        socket.off("flow:started", handleFlowStarted);
-        socket.off("flow:step_updated", handleFlowUpdated);
-        socket.off("flow:cancelled", handleFlowEnded);
-        socket.off("flow:finished", handleFlowEnded);
-      };
-    }
-  }, [selectedConversation]);
 
   const handleDispatchQuickReply = async (item: QuickResponseItem, customDelayMs: number) => {
     if (!selectedConversation?.phone) return;
@@ -857,7 +817,7 @@ export function ActiveChatPane({
             </div>
           )}
 
-          <FlowExecutionBanner flowData={activeFlowData} onCancelFlow={() => setActiveFlowData(null)} />
+
 
           <ScrollArea className="min-h-0 flex-1 chat-area-bg">
             <div

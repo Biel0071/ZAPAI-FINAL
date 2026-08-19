@@ -145,10 +145,10 @@ function formatApiMessage(message) {
     filename: message.filename || message.fileName || null,
     thumbnail: message.thumbnail ? buildMediaUrl(message.thumbnail) : null,
     whatsappMessageId: message.whatsappMessageId || message.whatsapp_message_id || null,
-    isAI: message.isAI || message.is_ai || message.source === 'ai' || message.sender === 'ai' || false,
+    isAI: message.isAI || message.is_ai || message.source === 'ai' || message.sender === 'ai' || (message.metadata && (message.metadata.source === 'ai' || message.metadata.ai_response)) || false,
     sender: message.sender || null,
-    source: message.source || null,
-    agentName: message.agentName || message.aiAgentName || null,
+    source: message.source || (message.metadata && message.metadata.source) || (message.metadata && message.metadata.ai_response ? 'ai' : null) || null,
+    agentName: message.agentName || message.aiAgentName || (message.metadata && message.metadata.agentName) || null,
   };
 }
 
