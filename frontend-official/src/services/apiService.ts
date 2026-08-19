@@ -2003,6 +2003,12 @@ export const apiService = {
       body: { phone },
     });
   },
+  async getActiveQuickReplyFlow(phone: string) {
+    return request<any>({
+      endpoint: `/api/quick-replies/active-flow/${encodeURIComponent(phone)}`,
+      method: "GET",
+    });
+  },
   async analyzeMediaWithAI(payload: { fileName: string; fileType: string; agentName?: string; companyDesc?: string }) {
     return request<{ success: boolean; descricao_ia: string; descricao_humana: string }>({
       endpoint: "/api/ai/analyze-media",
