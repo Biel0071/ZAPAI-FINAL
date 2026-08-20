@@ -1502,12 +1502,12 @@ export default function Campaigns() {
                     </div>
                   </div>
 
-                  <div className="rounded-2xl border border-primary/20 bg-primary/5 p-4">
-                    <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end">
-                      <div className="space-y-2">
-                        <Label htmlFor="campaign-name" className="text-sm font-semibold text-foreground">Nome da campanha</Label>
-                        <Input id="campaign-name" value={campaignName} onChange={(event) => setCampaignName(event.target.value)} placeholder="Ex: Campanha orcamento quente Julho" className="h-11 rounded-xl border-primary/25 bg-background/70 text-base font-medium" />
-                        <p className="text-xs text-muted-foreground">Esse nome aparece na lista, rascunhos e padroes salvos.</p>
+                  <div className="rounded-2xl border border-primary/20 bg-primary/5 p-3">
+                    <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center">
+                      <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
+                        <Label htmlFor="campaign-name" className="text-sm font-semibold text-foreground whitespace-nowrap">Nome da campanha:</Label>
+                        <Input id="campaign-name" value={campaignName} onChange={(event) => setCampaignName(event.target.value)} placeholder="Ex: Campanha orcamento quente Julho" className="h-9 rounded-lg border-primary/25 bg-background/70 text-sm font-medium flex-1 max-w-md" />
+                        <p className="text-[10px] text-muted-foreground hidden lg:block">Aparece na lista e rascunhos.</p>
                       </div>
                       {!campaignName.trim() && <OperationalStatusBadge label="Nome obrigatorio para lancar" tone="warning" />}
                     </div>
@@ -1580,7 +1580,7 @@ export default function Campaigns() {
 
                   {creationMode === "manual" && (
                     <>
-                      <div className="grid grid-cols-1 gap-2 md:grid-cols-5">
+                      <div className="grid grid-cols-5 gap-2 border-b border-border/40 pb-4">
                     {STEP_LABELS.map((label, index) => {
                       const step = index + 1;
                       const active = campaignStep === step;
@@ -1590,14 +1590,14 @@ export default function Campaigns() {
                           key={label}
                           type="button"
                           className={cn(
-                            "flex flex-col items-center gap-2 rounded-xl border border-transparent px-3 py-4 text-center transition-all",
+                            "flex flex-col items-center gap-1.5 rounded-xl border border-transparent px-2 py-2 text-center transition-all",
                             active && "border-primary/30 bg-primary/10 shadow-glow",
                             complete && !active && "text-success",
                           )}
                           onClick={() => setCampaignStep(step)}
                         >
-                          <span className={cn("inline-flex h-10 w-10 items-center justify-center rounded-full border text-sm", active ? "border-primary/40 text-primary" : "border-border/70 text-muted-foreground")}>{step}</span>
-                          <span className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">{label}</span>
+                          <span className={cn("inline-flex h-8 w-8 items-center justify-center rounded-full border text-xs", active ? "border-primary/40 text-primary" : "border-border/70 text-muted-foreground")}>{step}</span>
+                          <span className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">{label}</span>
                         </button>
                       );
                     })}
@@ -1606,18 +1606,18 @@ export default function Campaigns() {
                     <div className="flex-1 min-w-0">
 
                   {campaignStep === 1 && (
-                    <div className="space-y-6">
+                    <div className="space-y-4">
                       <div className="flex items-center justify-between">
                         <div>
-                          <h3 className="text-2xl font-semibold">Definir Público-Alvo</h3>
-                          <p className="mt-2 text-base text-muted-foreground">Escolha os contatos que receberão esta campanha.</p>
+                          <h3 className="text-lg font-semibold">Definir Público-Alvo</h3>
+                          <p className="mt-1 text-sm text-muted-foreground">Escolha os contatos que receberão esta campanha.</p>
                         </div>
-                        <Badge variant="secondary" className="rounded-full border border-success/30 bg-success/10 px-4 py-2 text-sm font-semibold text-success">
+                        <Badge variant="secondary" className="rounded-full border border-success/30 bg-success/10 px-3 py-1.5 text-xs font-semibold text-success">
                           {selectedContactCount} Leads Selecionados
                         </Badge>
                       </div>
 
-                      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+                      <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
                         {[
                           { key: "all", title: "Todos os contatos", desc: "Toda a base disponivel", count: contactSegments.counts.all },
                           { key: "normal", title: "Contatos individuais", desc: "Sem grupos, envio normal", count: contactSegments.counts.normal },
@@ -1626,13 +1626,15 @@ export default function Campaigns() {
                           { key: "cold", title: "Leads frios", desc: "Abordagem mais leve", count: contactSegments.counts.cold },
                           { key: "inactive", title: "Recuperar inativos", desc: "Chamar depois de dias", count: contactSegments.counts.inactive },
                         ].map((segment) => (
-                          <button key={segment.key} type="button" onClick={() => applyContactSegment(segment.key as keyof typeof contactSegments.counts)} className="rounded-2xl border border-border/70 bg-background/30 p-4 text-left transition hover:border-primary/40 hover:bg-card/70">
-                            <div className="flex items-start justify-between gap-3">
-                              <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-success/10"><Users className="h-5 w-5 text-success" /></span>
-                              <Badge variant="secondary" className="rounded-full">{segment.count}</Badge>
+                          <button key={segment.key} type="button" onClick={() => applyContactSegment(segment.key as keyof typeof contactSegments.counts)} className="rounded-xl border border-border/70 bg-background/30 p-3 text-left transition hover:border-primary/40 hover:bg-card/70">
+                            <div className="flex items-center justify-between gap-2">
+                              <div className="flex items-center gap-2">
+                                <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-success/10"><Users className="h-4 w-4 text-success" /></span>
+                                <p className="text-sm font-semibold">{segment.title}</p>
+                              </div>
+                              <Badge variant="secondary" className="rounded-full text-[10px]">{segment.count}</Badge>
                             </div>
-                            <p className="mt-4 text-base font-semibold">{segment.title}</p>
-                            <p className="mt-1 text-xs text-muted-foreground">{segment.desc}</p>
+                            <p className="mt-1.5 text-[10px] text-muted-foreground">{segment.desc}</p>
                           </button>
                         ))}
                       </div>
@@ -2178,37 +2180,37 @@ export default function Campaigns() {
                     </div> {/* End Left Column */}
 
                     {/* Right Column: Side Summary */}
-                    <div className="w-full lg:w-[320px] xl:w-[350px] shrink-0">
-                      <div className="sticky top-24 space-y-4">
+                    <div className="w-full lg:w-[280px] xl:w-[320px] shrink-0">
+                      <div className="sticky top-4 space-y-4">
                         <Card className="rounded-2xl border-border/70 bg-card/60 shadow-xl overflow-hidden">
-                          <div className="bg-primary/10 border-b border-primary/20 px-5 py-3">
+                          <div className="bg-primary/10 border-b border-primary/20 px-4 py-2.5">
                             <h3 className="font-display text-sm font-semibold text-primary">Resumo da Campanha</h3>
                           </div>
-                          <CardContent className="p-5 space-y-5">
+                          <CardContent className="p-4 space-y-4">
                             <div>
                               <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Nome da Campanha</p>
-                              <p className="mt-1 text-sm font-medium text-foreground">{campaignName || "Pendente..."}</p>
+                              <p className="mt-0.5 text-sm font-medium text-foreground">{campaignName || "Pendente..."}</p>
                             </div>
                             
-                            <div className="grid grid-cols-2 gap-4">
+                            <div className="grid grid-cols-2 gap-3">
                               <div>
                                 <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Contatos</p>
-                                <p className="mt-1 font-display text-2xl font-bold">{selectedContactCount}</p>
+                                <p className="mt-0.5 font-display text-xl font-bold">{selectedContactCount}</p>
                               </div>
                               <div>
                                 <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Mensagens</p>
-                                <p className="mt-1 font-display text-2xl font-bold">{activeMessageCount}</p>
+                                <p className="mt-0.5 font-display text-xl font-bold">{activeMessageCount}</p>
                               </div>
                             </div>
 
                             <div>
                               <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Agendamento</p>
-                              <p className="mt-1 text-sm font-medium text-foreground">{startAt ? formatDateTime(new Date(startAt).toISOString()) : "Execução imediata"}</p>
+                              <p className="mt-0.5 text-sm font-medium text-foreground">{startAt ? formatDateTime(new Date(startAt).toISOString()) : "Execução imediata"}</p>
                             </div>
 
-                            <div className="rounded-xl border border-border/50 bg-background/50 p-3">
-                              <p className="text-[10px] uppercase tracking-wide text-muted-foreground mb-2">Cadência de Envio</p>
-                              <div className="flex flex-col gap-1.5 text-xs text-muted-foreground">
+                            <div className="rounded-xl border border-border/50 bg-background/50 p-2.5">
+                              <p className="text-[10px] uppercase tracking-wide text-muted-foreground mb-1.5">Cadência de Envio</p>
+                              <div className="flex flex-col gap-1 text-[11px] text-muted-foreground">
                                 <div className="flex justify-between"><span>Delay digitação:</span> <span className="font-medium text-foreground">{typingDelay[0]?.toFixed(1) || 0}s{typingDelay.length > 1 ? ` a ${typingDelay[1]?.toFixed(1) || 0}s` : ''}</span></div>
                                 <div className="flex justify-between"><span>Intervalo entre envios:</span> <span className="font-medium text-foreground">{intervalSeconds[0] || 0}s{intervalSeconds.length > 1 ? ` a ${intervalSeconds[1] || 0}s` : ''}</span></div>
                                 <div className="flex justify-between"><span>Pausa de segurança:</span> <span className="font-medium text-foreground">{pauseSeconds || 0}s a cada {pauseEvery || 0} msg</span></div>
@@ -2216,9 +2218,9 @@ export default function Campaigns() {
                             </div>
                             
                             {launchReadiness.length > 0 && (
-                              <div className="rounded-xl border border-warning/30 bg-warning/10 p-3">
-                                <p className="text-[11px] font-semibold text-warning mb-1">Atenção</p>
-                                <ul className="text-[10px] text-warning/90 space-y-1">
+                              <div className="rounded-xl border border-warning/30 bg-warning/10 p-2.5">
+                                <p className="text-[10px] font-semibold text-warning mb-1">Atenção</p>
+                                <ul className="text-[10px] text-warning/90 space-y-0.5">
                                   {launchReadiness.slice(0, 2).map((item, i) => (
                                     <li key={i}>• {item}</li>
                                   ))}
