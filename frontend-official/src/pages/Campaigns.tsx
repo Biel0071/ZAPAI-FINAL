@@ -73,6 +73,8 @@ type CampaignDraftMessage = {
   fileName?: string | null;
   mimetype?: string | null;
   ptt?: boolean;
+  localUrl?: string;
+  uploadStatus?: "local" | "uploading" | "done" | "failed";
 };
 
 const STEP_LABELS = [
@@ -1602,8 +1604,8 @@ export default function Campaigns() {
                       );
                     })}
                   </div>
-                  <div className="flex flex-col xl:flex-row gap-4 mt-4">
-                    <div className="flex-1 min-w-0">
+                  <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_320px] gap-6 mt-6 items-start relative">
+                    <div className="flex-1 min-w-0 pb-10">
 
                   {campaignStep === 1 && (
                     <div className="space-y-4">
@@ -1795,86 +1797,171 @@ export default function Campaigns() {
                             </div>
                           </div>
 
-                          <div className="space-y-3">
-                            {messageVariants.map((variant, index) => (
-                              <Card key={`variant-${index}`} className="rounded-2xl border-border/70 bg-background/30">
-                                <CardContent className="space-y-2 p-3">
-                                  <div className="flex items-center justify-between gap-3">
-                                    <div>
-                                      <p className="text-sm font-medium">Mensagem {index + 1}</p>
-                                      <p className="text-xs text-muted-foreground">Texto, legenda ou midia enviada durante a campanha.</p>
+                          <div className="grid lg:grid-cols-[minmax(0,1fr)_350px] gap-6">
+                            <div className="space-y-4">
+                              {messageVariants.map((variant, index) => (
+                                <Card key={`variant-${index}`} className="rounded-2xl border-border/70 bg-background/30">
+                                  <div className="flex items-center justify-between gap-3 border-b border-border/70 px-4 py-3 bg-card/40">
+                                    <div className="flex items-center gap-3">
+                                      <span className="text-sm font-semibold text-foreground">Mensagem {index + 1}</span>
                                     </div>
-                                    {messageVariants.length > 1 && (
-                                      <Button
-                                        variant="ghost"
-                                        size="icon"
-                                        className="rounded-xl"
-                                        onClick={() => setMessageVariants((current) => current.filter((_, itemIndex) => itemIndex !== index))}
-                                      >
-                                        <X className="h-4 w-4" />
+                                    <div className="flex items-center gap-1">
+                                      <Button type="button" variant="ghost" size="icon" className="h-8 w-8 rounded-lg" onClick={() => document.getElementById(`campaign-media-${index}`)?.click()}>
+                                        <Paperclip className="h-4 w-4 text-muted-foreground" />
                                       </Button>
-                                    )}
+                                      <Button type="button" variant="ghost" size="icon" className="h-8 w-8 rounded-lg" onClick={() => setMessageVariants((current) => [...current, { ...variant, id: crypto.randomUUID() }])}>
+                                        <Copy className="h-4 w-4 text-muted-foreground" />
+                                      </Button>
+                                      {messageVariants.length > 1 && (
+                                        <Button type="button" variant="ghost" size="icon" className="h-8 w-8 rounded-lg text-destructive hover:bg-destructive/10 hover:text-destructive" onClick={() => setMessageVariants((current) => current.filter((_, itemIndex) => itemIndex !== index))}>
+                                          <Trash className="h-4 w-4" />
+                                        </Button>
+                                      )}
+                                    </div>
                                   </div>
-                                  <Textarea
-                                    value={variant.content}
-                                    onChange={(event) =>
-                                      setMessageVariants((current) =>
-                                        current.map((entry, itemIndex) =>
-                                          itemIndex === index ? { ...entry, content: event.target.value } : entry,
-                                        ),
-                                      )
-                                    }
-                                    placeholder="Escreva o texto ou legenda da midia"
-                                    className="min-h-[120px]"
-                                  />
-                                  <div className="rounded-2xl border border-border/70 bg-card/70 p-3">
-                                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                                      <div className="flex min-w-0 items-center gap-3 text-sm">
-                                        <span className="flex h-9 w-9 items-center justify-center rounded-xl border border-border/70 bg-background/70 text-muted-foreground">
-                                          {getDraftMediaIcon(variant.type)}
-                                        </span>
-                                        <div className="min-w-0">
-                                          <p className="truncate font-medium text-foreground">
-                                            {variant.fileName || "Nenhuma midia anexada"}
-                                          </p>
-                                          <p className="text-xs text-muted-foreground">
-                                            {variant.fileName ? `${variant.type.toUpperCase()} - ${variant.mimetype || "tipo automatico"}` : "Aceita imagem, video, audio, PDF, planilha, ZIP e documentos do WhatsApp."}
-                                          </p>
+                                  <CardContent className="p-0">
+                                    <div className="p-4">
+                                      <Textarea
+                                        value={variant.content}
+                                        onChange={(event) =>
+                                          setMessageVariants((current) =>
+                                            current.map((entry, itemIndex) =>
+                                              itemIndex === index ? { ...entry, content: event.target.value } : entry,
+                                            ),
+                                          )
+                                        }
+                                        placeholder="Escreva a mensagem ou legenda da mídia"
+                                        className="min-h-[120px] resize-y border-0 focus-visible:ring-0 p-0 text-sm bg-transparent"
+                                      />
+                                    </div>
+
+                                    <div className="flex items-center justify-between px-4 py-3 bg-muted/20 border-t border-border/40">
+                                      <DropdownMenu>
+                                        <DropdownMenuTrigger asChild>
+                                          <Button variant="outline" size="sm" className="rounded-full h-7 px-3 text-xs bg-background/60">
+                                            <Plus className="mr-1 h-3 w-3" /> Personalizar
+                                          </Button>
+                                        </DropdownMenuTrigger>
+                                        <DropdownMenuContent align="start" className="w-48 rounded-xl">
+                                          <DropdownMenuItem onClick={() => {
+                                            const v = variant.content;
+                                            setMessageVariants(cur => cur.map((entry, i) => i === index ? { ...entry, content: v + "{{nome}}" } : entry));
+                                          }}>{{nome}}</DropdownMenuItem>
+                                          <DropdownMenuItem onClick={() => {
+                                            const v = variant.content;
+                                            setMessageVariants(cur => cur.map((entry, i) => i === index ? { ...entry, content: v + "{{telefone}}" } : entry));
+                                          }}>{{telefone}}</DropdownMenuItem>
+                                        </DropdownMenuContent>
+                                      </DropdownMenu>
+
+                                      <div className="text-xs text-muted-foreground">
+                                        {variant.content.length} caracteres
+                                      </div>
+                                    </div>
+
+                                    {(variant.localUrl || variant.mediaUrl || variant.fileName) && (
+                                      <div className="border-t border-border/40 p-4 bg-background/40">
+                                        <div className="flex min-w-0 items-center gap-3">
+                                          <div className="h-12 w-12 shrink-0 rounded-lg overflow-hidden bg-muted flex items-center justify-center border border-border/50">
+                                            {variant.localUrl && variant.type === "image" ? (
+                                              <img src={variant.localUrl} alt="Preview" className="h-full w-full object-cover" />
+                                            ) : (
+                                              <span className="text-muted-foreground">{getDraftMediaIcon(variant.type)}</span>
+                                            )}
+                                          </div>
+                                          <div className="min-w-0 flex-1">
+                                            <div className="flex items-center gap-2">
+                                              <p className="truncate font-medium text-foreground text-sm">{variant.fileName || "Mídia anexa"}</p>
+                                              {variant.uploadStatus === "uploading" && <Badge variant="secondary" className="text-[10px] bg-warning/20 text-warning border-warning/30">Enviando...</Badge>}
+                                              {variant.uploadStatus === "done" && <Badge variant="secondary" className="text-[10px] bg-success/20 text-success border-success/30">Pronto</Badge>}
+                                              {variant.uploadStatus === "failed" && <Badge variant="destructive" className="text-[10px]">Falha</Badge>}
+                                            </div>
+                                            <p className="text-xs text-muted-foreground">{variant.mimetype || variant.type}</p>
+                                          </div>
+                                          <div className="flex gap-1 shrink-0">
+                                            <Button type="button" variant="ghost" size="icon" className="h-8 w-8 rounded-lg" onClick={() => document.getElementById(`campaign-media-${index}`)?.click()}>
+                                              <ArrowClockwise className="h-4 w-4 text-muted-foreground" />
+                                            </Button>
+                                            <Button type="button" variant="ghost" size="icon" className="h-8 w-8 rounded-lg" onClick={() => clearMediaFromMessage(index)}>
+                                              <X className="h-4 w-4 text-destructive" />
+                                            </Button>
+                                          </div>
                                         </div>
                                       </div>
-                                      <div className="flex flex-wrap gap-1.5">
-                                        <input
-                                          id={`campaign-media-${index}`}
-                                          type="file"
-                                          accept={CAMPAIGN_MEDIA_ACCEPT}
-                                          className="hidden"
-                                          onChange={(event) => {
-                                            const file = event.target.files?.[0];
-                                            if (file) void attachMediaToMessage(index, file);
-                                            event.currentTarget.value = "";
-                                          }}
-                                        />
-                                        <Button
-                                          type="button"
-                                          variant="outline"
-                                          className="rounded-xl"
-                                          onClick={() => document.getElementById(`campaign-media-${index}`)?.click()}
-                                        >
-                                          <Paperclip className="h-4 w-4" />
-                                          {variant.fileName ? "Trocar midia" : "Adicionar midia"}
-                                        </Button>
-                                        {variant.fileName && (
-                                          <Button type="button" variant="ghost" className="rounded-xl" onClick={() => clearMediaFromMessage(index)}>
-                                            <X className="h-4 w-4" />
-                                            Remover
-                                          </Button>
-                                        )}
-                                      </div>
-                                    </div>
+                                    )}
+
+                                    <input
+                                      id={`campaign-media-${index}`}
+                                      type="file"
+                                      accept={CAMPAIGN_MEDIA_ACCEPT}
+                                      className="hidden"
+                                      onChange={(event) => {
+                                        const file = event.target.files?.[0];
+                                        if (file) {
+                                          const localUrl = URL.createObjectURL(file);
+                                          setMessageVariants((current) =>
+                                            current.map((entry, itemIndex) =>
+                                              itemIndex === index ? { ...entry, localUrl, fileName: file.name, uploadStatus: "uploading", type: file.type.startsWith("image/") ? "image" : file.type.startsWith("video/") ? "video" : file.type.startsWith("audio/") ? "audio" : "document" } : entry
+                                            )
+                                          );
+                                          // Keep original logic to upload
+                                          void attachMediaToMessage(index, file).then(() => {
+                                            setMessageVariants((current) => current.map((entry, itemIndex) => itemIndex === index ? { ...entry, uploadStatus: "done" } : entry));
+                                          }).catch(() => {
+                                            setMessageVariants((current) => current.map((entry, itemIndex) => itemIndex === index ? { ...entry, uploadStatus: "failed" } : entry));
+                                          });
+                                        }
+                                        event.currentTarget.value = "";
+                                      }}
+                                    />
+                                  </CardContent>
+                                </Card>
+                              ))}
+                            </div>
+
+                            {/* Preview WhatsApp Panel */}
+                            <div className="sticky top-4">
+                              <Card className="rounded-2xl border-border/70 overflow-hidden flex flex-col h-[500px] shadow-lg">
+                                <div className="bg-[#202c33] px-4 py-2.5 flex items-center gap-3 border-b border-border/20 shrink-0">
+                                  <div className="h-8 w-8 rounded-full bg-muted overflow-hidden flex shrink-0 items-center justify-center">
+                                    <Users className="h-4 w-4 text-muted-foreground" />
                                   </div>
-                                </CardContent>
+                                  <div>
+                                    <p className="text-[13px] font-semibold text-white">Preview Cliente</p>
+                                    <p className="text-[11px] text-white/70">Online</p>
+                                  </div>
+                                </div>
+                                <div className="flex-1 overflow-y-auto bg-[#0b141a] p-4 bg-[url('https://web.whatsapp.com/img/bg-chat-tile-dark_a4be512e7195b6b733d9110b408f075d.png')] bg-repeat bg-opacity-5">
+                                  <div className="space-y-4">
+                                    {messageVariants.map((variant, i) => (
+                                      <div key={i} className="flex justify-end">
+                                        <div className="max-w-[85%] rounded-lg bg-[#005c4b] text-[#e9edef] p-2 shadow-sm text-[14px] leading-relaxed relative">
+                                          {(variant.localUrl || variant.mediaUrl) && variant.type === 'image' && (
+                                            <div className="mb-2 rounded-md overflow-hidden relative group">
+                                              <img src={variant.localUrl || variant.mediaUrl || ""} className="w-full h-auto max-h-48 object-cover" alt="Midia preview" />
+                                              {variant.uploadStatus === 'uploading' && (
+                                                <div className="absolute inset-0 bg-black/40 flex items-center justify-center"><Clock className="h-6 w-6 text-white animate-spin" /></div>
+                                              )}
+                                            </div>
+                                          )}
+                                          {(variant.fileName && variant.type !== 'image') && (
+                                            <div className="mb-2 rounded-md bg-black/20 p-2 flex items-center gap-2">
+                                              {getDraftMediaIcon(variant.type)} <span className="truncate text-xs">{variant.fileName}</span>
+                                            </div>
+                                          )}
+                                          <p className="whitespace-pre-wrap break-words pr-8">
+                                            {variant.content.replace(/{{nome}}/g, "João").replace(/{{telefone}}/g, "551199999999") || <span className="opacity-50 italic">Sem texto...</span>}
+                                          </p>
+                                          <span className="text-[10px] text-white/50 absolute bottom-1 right-1.5 flex items-center gap-1">
+                                            12:00 <CheckCircle className="h-3 w-3 text-[#53bdeb] drop-shadow-sm" weight="fill" />
+                                          </span>
+                                        </div>
+                                      </div>
+                                    ))}
+                                  </div>
+                                </div>
                               </Card>
-                            ))}
+                            </div>
                           </div>
                         </>
                       ) : (
@@ -1932,7 +2019,7 @@ export default function Campaigns() {
                   )}
 
                   {campaignStep === 3 && (
-                    <div className="grid items-start gap-4 lg:grid-cols-[minmax(220px,280px)_minmax(0,1fr)] xl:grid-cols-[minmax(220px,280px)_minmax(0,1fr)_minmax(320px,380px)]">
+                    <div className="grid items-start gap-6 md:grid-cols-2">
                       <Card className="rounded-2xl border-border/70 bg-background/30">
                         <CardContent className="space-y-4 p-4">
                           <div className="flex items-center justify-between">
@@ -2039,7 +2126,7 @@ export default function Campaigns() {
                   )}
 
                   {campaignStep === 4 && (
-                    <div className="grid gap-4 lg:grid-cols-2">
+                    <div className="grid gap-6 md:grid-cols-2">
                       <Card className="rounded-2xl border-border/70 bg-background/30">
                         <CardContent className="space-y-4 p-4">
                           <div>
@@ -2126,7 +2213,7 @@ export default function Campaigns() {
                   )}
 
                   {campaignStep === 5 && (
-                    <div className="grid gap-4 lg:grid-cols-2">
+                    <div className="grid gap-6 md:grid-cols-2">
                       <Card className="rounded-2xl border-border/70 bg-background/30">
                         <CardContent className="space-y-4 p-4">
                           <div>
@@ -2180,7 +2267,7 @@ export default function Campaigns() {
                     </div> {/* End Left Column */}
 
                     {/* Right Column: Side Summary */}
-                    <div className="w-full lg:w-[280px] xl:w-[320px] shrink-0">
+                    <div className="w-full">
                       <div className="sticky top-4 space-y-4">
                         <Card className="rounded-2xl border-border/70 bg-card/60 shadow-xl overflow-hidden">
                           <div className="bg-primary/10 border-b border-primary/20 px-4 py-2.5">
