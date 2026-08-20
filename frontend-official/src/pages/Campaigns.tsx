@@ -1370,7 +1370,7 @@ export default function Campaigns() {
         />
       )}
 
-      <div className={campaignsTab === "compose" ? "h-screen pb-4" : ""}>
+      <div className={campaignsTab === "compose" ? "pb-4" : ""}>
         {loading ? (
           <div className="page-container section-stack">
             <StatGridSkeleton count={4} />
@@ -1447,7 +1447,7 @@ export default function Campaigns() {
               ) : null
             }
             composer={
-              <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_380px]">
+              <div className="flex flex-col gap-4">
                 <Card className="glass-card rounded-2xl border-border/70 bg-card/85">
                   <CardContent className="space-y-5 p-5">
                   <div className="flex flex-col gap-2 lg:flex-row lg:items-start lg:justify-between">
@@ -1991,7 +1991,7 @@ export default function Campaigns() {
                   )}
 
                   {campaignStep === 4 && (
-                    <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_320px]">
+                    <div className="grid gap-4 lg:grid-cols-2">
                       <Card className="rounded-2xl border-border/70 bg-background/30">
                         <CardContent className="space-y-4 p-4">
                           <div>
@@ -2078,7 +2078,7 @@ export default function Campaigns() {
                   )}
 
                   {campaignStep === 5 && (
-                    <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_320px]">
+                    <div className="grid gap-4 lg:grid-cols-2">
                       <Card className="rounded-2xl border-border/70 bg-background/30">
                         <CardContent className="space-y-4 p-4">
                           <div>
@@ -2130,73 +2130,56 @@ export default function Campaigns() {
                     </div>
                   )}
 
-                  <div className="flex flex-col gap-3 border-t border-border/70 pt-5 sm:flex-row sm:items-center sm:justify-between">
-                    <Button variant="outline" className="rounded-xl" onClick={resetComposer}>
+                  <div className="mt-4 border-t border-border/70 pt-4">
+                    <div className="mb-3">
+                      <p className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground/70">Resumo da configuração</p>
+                      <h3 className="font-display text-base font-semibold">Operação da campanha</h3>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3 md:grid-cols-5">
+                      <div className="rounded-lg border border-border/70 bg-background/35 p-2">
+                        <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Nome atual</p>
+                        <p className="mt-1 truncate text-sm font-medium text-foreground">{campaignName || "Pendente"}</p>
+                      </div>
+                      <div className="rounded-lg border border-border/70 bg-background/35 p-2">
+                        <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Contatos</p>
+                        <p className="mt-1 font-display text-lg font-bold">{selectedContactCount}</p>
+                      </div>
+                      <div className="rounded-lg border border-border/70 bg-background/35 p-2">
+                        <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Variantes</p>
+                        <p className="mt-1 font-display text-lg font-bold">{activeMessageCount}</p>
+                      </div>
+                      <div className="rounded-lg border border-border/70 bg-background/35 p-2 md:col-span-2">
+                        <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Cadência</p>
+                        <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground">
+                          <p>Delay: <span className="font-medium text-foreground">{typingDelay[0].toFixed(1)}s</span></p>
+                          <p>Intervalo: <span className="font-medium text-foreground">{intervalSeconds[0]}s</span></p>
+                          <p>Pausa: <span className="font-medium text-foreground">{pauseEvery} / {pauseSeconds}s</span></p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex flex-col gap-3 border-t border-border/70 pt-4 sm:flex-row sm:items-center sm:justify-between">
+                    <Button variant="outline" size="sm" className="rounded-xl" onClick={resetComposer}>
                       Cancelar
                     </Button>
                     <div className="flex flex-wrap gap-1.5">
-                      <Button variant="outline" className="rounded-xl" disabled={campaignStep === 1} onClick={() => setCampaignStep((current) => Math.max(1, current - 1))}>
+                      <Button variant="outline" size="sm" className="rounded-xl" disabled={campaignStep === 1} onClick={() => setCampaignStep((current) => Math.max(1, current - 1))}>
                         Voltar
                       </Button>
                       {campaignStep < STEP_LABELS.length ? (
-                        <Button className="rounded-xl shadow-glow" onClick={goToNextCampaignStep}>
+                        <Button size="sm" className="rounded-xl shadow-glow" onClick={goToNextCampaignStep}>
                           Próximo Passo
                         </Button>
                       ) : (
                         <>
-                          <Button variant="outline" className="rounded-xl" onClick={() => void persistCampaign("save")} disabled={isSaving}>Salvar rascunho</Button>
-                          <Button className="rounded-xl shadow-glow" onClick={() => void persistCampaign("launch")} disabled={isSaving || launchReadiness.length > 0}>
+                          <Button variant="outline" size="sm" className="rounded-xl" onClick={() => void persistCampaign("save")} disabled={isSaving}>Salvar rascunho</Button>
+                          <Button size="sm" className="rounded-xl shadow-glow" onClick={() => void persistCampaign("launch")} disabled={isSaving || launchReadiness.length > 0}>
                             {isSaving && actionType === "launch" ? <Clock className="h-4 w-4 animate-spin" /> : <PaperPlaneTilt className="h-4 w-4" />}
                             Enviar campanha
                           </Button>
                         </>
                       )}
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card className="glass-card rounded-2xl border-border/70 bg-card/85">
-                <CardContent className="space-y-2 p-3">
-                  <div>
-                    <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground/70">Resumo lateral</p>
-                    <h3 className="mt-1 font-display text-lg font-semibold">Operação da campanha</h3>
-                  </div>
-                  <div className="space-y-3">
-                    <div className="rounded-lg border border-border/70 bg-background/35 p-2">
-                      <p className="text-xs uppercase tracking-wide text-muted-foreground">Nome atual</p>
-                      <p className="mt-1 text-sm font-medium text-foreground">{campaignName || "Aguardando definição"}</p>
-                    </div>
-                    <div className="grid grid-cols-2 gap-3">
-                      <div className="rounded-lg border border-border/70 bg-background/35 p-2">
-                        <p className="text-xs uppercase tracking-wide text-muted-foreground">Contatos</p>
-                        <p className="mt-1 font-display text-lg font-bold">{selectedContactCount}</p>
-                      </div>
-                      <div className="rounded-lg border border-border/70 bg-background/35 p-2">
-                        <p className="text-xs uppercase tracking-wide text-muted-foreground">Variantes</p>
-                        <p className="mt-1 font-display text-lg font-bold">{activeMessageCount}</p>
-                      </div>
-                    </div>
-                    <div className="rounded-lg border border-border/70 bg-background/35 p-2">
-                      <p className="text-xs uppercase tracking-wide text-muted-foreground">Cadência</p>
-                      <div className="mt-2 space-y-2 text-sm text-muted-foreground">
-                        <p>Typing delay: <span className="font-medium text-foreground">{typingDelay[0].toFixed(1)}s</span></p>
-                        <p>Intervalo: <span className="font-medium text-foreground">{intervalSeconds[0]}s</span></p>
-                        <p>Pausa: <span className="font-medium text-foreground">{pauseEvery} / {pauseSeconds}s</span></p>
-                      </div>
-                    </div>
-                    <div className="rounded-lg border border-border/70 bg-background/35 p-2">
-                      <p className="text-xs uppercase tracking-wide text-muted-foreground">Prévia da audiência</p>
-                      <div className="mt-3 space-y-2">
-                        {selectedContacts.slice(0, 5).map((contact) => (
-                          <div key={`${contact.id}-${contact.phone}`} className="rounded-xl border border-border/70 bg-card/70 px-3 py-2 text-sm">
-                            <p className="font-medium">{contact.name || "Contato"}</p>
-                            <p className="text-xs text-muted-foreground">{contact.phone || "Sem telefone"}</p>
-                          </div>
-                        ))}
-                        {selectedContacts.length === 0 && <p className="text-sm text-muted-foreground">Nenhum contato selecionado.</p>}
-                        {selectedContacts.length > 5 && <p className="text-xs text-muted-foreground">+ {selectedContacts.length - 5} contatos adicionais</p>}
-                      </div>
                     </div>
                   </div>
                 </CardContent>
@@ -2604,7 +2587,7 @@ export default function Campaigns() {
                 )}
               </div>
 
-              <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_320px]">
+              <div className="grid gap-4 lg:grid-cols-2">
                 <div className="space-y-4">
                   <div className="space-y-3 rounded-2xl border border-border/70 bg-background/30 p-4">
                     <p className="text-sm font-semibold">Mensagens e mídias do disparo</p>
