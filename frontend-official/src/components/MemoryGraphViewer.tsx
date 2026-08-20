@@ -68,7 +68,7 @@ export const MemoryGraphViewer: React.FC<MemoryGraphViewerProps> = ({ graphData,
         ref={fgRef}
         width={dimensions.width}
         height={dimensions.height}
-        graphData={graphData}
+        graphData={{ nodes: graphData?.nodes || [], links: graphData?.edges || [] }}
         nodeLabel="label"
         nodeColor={(node: any) => getNodeColor(node.type)}
         nodeRelSize={6}
