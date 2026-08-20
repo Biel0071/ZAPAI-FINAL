@@ -59,6 +59,7 @@ const crmItems: SidebarNavItem[] = [
   { icon: Broadcast, label: "Conexões", path: "/connections", minRole: "user" },
   { icon: Users, label: "Contatos", path: "/contacts", minRole: "user" },
   { icon: Megaphone, label: "Campanhas", path: "/campaigns", minRole: "user" },
+  { icon: ChartLineUp, label: "Operações", path: "/operations", minRole: "user" },
   { icon: AIIcon, label: "IA & Automação", path: "/ai", minRole: "user" },
   { icon: Brain, label: "Memória IA", path: "/memory", minRole: "user" },
   { icon: TreeStructure, label: "Fluxos", path: "/flows", minRole: "admin", dev: true },

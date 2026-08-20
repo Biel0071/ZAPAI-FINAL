@@ -111,6 +111,7 @@ const MasterVersions = lazyWithRetry(() => import("./pages/MasterVersions"), "ma
 const Memory = lazyWithRetry(() => import("./pages/Memory"), "memory");
 const Tests = lazyWithRetry(() => import("./pages/Tests"), "tests");
 const Queue = lazyWithRetry(() => import("./pages/Queue"), "queue");
+const Operations = lazyWithRetry(() => import("./pages/Operations"), "operations");
 
 function RequireAdminAuth({ children }: { children: JSX.Element }) {
   const { isAuthenticated, isLoading } = useAdminAuth();
@@ -174,7 +175,7 @@ const App = () => {
                       <Route path="/flows" element={<ProtectedRoute minRole="admin"><PageRouteBoundary pageName="Fluxos"><Flows /></PageRouteBoundary></ProtectedRoute>} />
                       <Route path="/ai" element={<PageRouteBoundary pageName="Inteligência Artificial"><AI /></PageRouteBoundary>} />
                       <Route path="/analytics" element={<Navigate to="/dashboard?tab=analytics" replace />} />
-                      <Route path="/operations" element={<Navigate to="/dashboard?tab=operations" replace />} />
+                      <Route path="/operations" element={<ProtectedRoute minRole="user"><PageRouteBoundary pageName="Operações"><Operations /></PageRouteBoundary></ProtectedRoute>} />
                       <Route path="/campaigns" element={<PageRouteBoundary pageName="Campanhas"><Campaigns /></PageRouteBoundary>} />
                       <Route path="/automation" element={<Navigate to="/flows" replace />} />
                       <Route path="/integrations" element={<Navigate to="/connections" replace />} />
