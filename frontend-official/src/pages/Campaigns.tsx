@@ -1572,7 +1572,6 @@ export default function Campaigns() {
                       </div>
                     </div>
                   </div>
-                    </div>
                   )}
 
                   {creationMode === "manual" && (
@@ -2251,14 +2250,13 @@ export default function Campaigns() {
                         </>
                       )}
                     </div>
-                    </div>
                   </div>
                   </>
                   )}
                 </CardContent>
               </Card>
             </div>
-            }
+            )}
             listSection={
               <>
                 <div className="flex items-center justify-between gap-3">
