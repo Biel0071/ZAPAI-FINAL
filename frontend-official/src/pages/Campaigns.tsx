@@ -1469,33 +1469,33 @@ export default function Campaigns() {
                       </div>
                     </div>
 
-                    <div className="flex flex-col sm:flex-row gap-4">
+                    <div className="flex flex-col sm:flex-row gap-3">
                       <Card 
-                        className={cn("flex-1 cursor-pointer transition-all border-2", creationMode === "ai" ? "border-info bg-info/5" : "border-border/50 bg-background/50 hover:border-info/30")}
+                        className={cn("flex-1 cursor-pointer transition-all border", creationMode === "ai" ? "border-info bg-info/5 ring-1 ring-info/50" : "border-border/50 bg-background/50 hover:border-info/30")}
                         onClick={() => setCreationMode("ai")}
                       >
-                        <CardContent className="p-4 flex items-center gap-4">
-                          <div className={cn("w-12 h-12 rounded-xl flex items-center justify-center shrink-0", creationMode === "ai" ? "bg-info/20 text-info" : "bg-muted text-muted-foreground")}>
-                            <Sparkle className="w-6 h-6" weight={creationMode === "ai" ? "fill" : "regular"} />
+                        <CardContent className="p-3 flex items-center gap-3">
+                          <div className={cn("w-10 h-10 rounded-lg flex items-center justify-center shrink-0", creationMode === "ai" ? "bg-info/20 text-info" : "bg-muted text-muted-foreground")}>
+                            <Sparkle className="w-5 h-5" weight={creationMode === "ai" ? "fill" : "regular"} />
                           </div>
                           <div>
-                            <h3 className={cn("font-bold text-lg", creationMode === "ai" ? "text-info" : "text-foreground")}>✨ Gerar com IA</h3>
-                            <p className="text-sm text-muted-foreground">A IA monta público, mensagens e delays para você.</p>
+                            <h3 className={cn("font-bold text-sm", creationMode === "ai" ? "text-info" : "text-foreground")}>✨ Gerar com IA</h3>
+                            <p className="text-xs text-muted-foreground mt-0.5">A IA monta público, mensagens e delays para você.</p>
                           </div>
                         </CardContent>
                       </Card>
 
                       <Card 
-                        className={cn("flex-1 cursor-pointer transition-all border-2", creationMode === "manual" ? "border-primary bg-primary/5" : "border-border/50 bg-background/50 hover:border-primary/30")}
+                        className={cn("flex-1 cursor-pointer transition-all border", creationMode === "manual" ? "border-primary bg-primary/5 ring-1 ring-primary/50" : "border-border/50 bg-background/50 hover:border-primary/30")}
                         onClick={() => setCreationMode("manual")}
                       >
-                        <CardContent className="p-4 flex items-center gap-4">
-                          <div className={cn("w-12 h-12 rounded-xl flex items-center justify-center shrink-0", creationMode === "manual" ? "bg-primary/20 text-primary" : "bg-muted text-muted-foreground")}>
-                            <Plus className="w-6 h-6" weight={creationMode === "manual" ? "bold" : "regular"} />
+                        <CardContent className="p-3 flex items-center gap-3">
+                          <div className={cn("w-10 h-10 rounded-lg flex items-center justify-center shrink-0", creationMode === "manual" ? "bg-primary/20 text-primary" : "bg-muted text-muted-foreground")}>
+                            <Plus className="w-5 h-5" weight={creationMode === "manual" ? "bold" : "regular"} />
                           </div>
                           <div>
-                            <h3 className={cn("font-bold text-lg", creationMode === "manual" ? "text-primary" : "text-foreground")}>⚙️ Criar Manualmente</h3>
-                            <p className="text-sm text-muted-foreground">Configure cada passo da sua campanha manualmente.</p>
+                            <h3 className={cn("font-bold text-sm", creationMode === "manual" ? "text-primary" : "text-foreground")}>⚙️ Criar Manualmente</h3>
+                            <p className="text-xs text-muted-foreground mt-0.5">Configure cada passo da sua campanha manualmente.</p>
                           </div>
                         </CardContent>
                       </Card>
@@ -1602,7 +1602,7 @@ export default function Campaigns() {
                       );
                     })}
                   </div>
-                  <div className="flex flex-col lg:flex-row gap-6 mt-6">
+                  <div className="flex flex-col xl:flex-row gap-4 mt-4">
                     <div className="flex-1 min-w-0">
 
                   {campaignStep === 1 && (

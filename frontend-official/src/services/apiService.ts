@@ -1130,6 +1130,10 @@ function is404Error(error: unknown): boolean {
 }
 
 export const apiService = {
+  async getHealth() {
+    return request<any>({ endpoint: "/api/health", method: "GET" });
+  },
+
   async getAdminUsers(): Promise<{ id: number; username: string; email: string | null; role: string }[]> {
     const res = await request<{ ok: boolean; data: any[] }>({
       endpoint: "/api/admin/users",

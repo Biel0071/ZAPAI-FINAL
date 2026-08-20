@@ -40,6 +40,7 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { type AppUserRole, useUserRole } from "@/hooks/useUserRole";
 import { OperationalStatusBadge } from "@/components/enterprise/OperationalStatusBadge";
 import { useAppStore } from "@/stores/appStore";
+import { useSystemHealthStore } from "@/stores/systemHealthStore";
 
 const SIDEBAR_COLLAPSE_EVENT = "sidebar:collapsed";
 
@@ -91,6 +92,12 @@ export function Sidebar() {
   const isMobile = useIsMobile();
   const { role, isLoading, roleLevel } = useUserRole();
   const activeConversationId = useAppStore((state) => state.activeConversationId);
+  const health = useSystemHealthStore((state) => state.health);
+  const startPollingHealth = useSystemHealthStore((state) => state.startPolling);
+
+  useEffect(() => {
+    startPollingHealth(30000); // 30s
+  }, [startPollingHealth]);
 
   useEffect(() => {
     if (isMobile) return;
@@ -202,6 +209,17 @@ export function Sidebar() {
               >
                 {item.badge}
               </Badge>
+            )}
+            {item.path === "/diagnostics" && health.status !== "unknown" && (
+              <div
+                className={cn(
+                  "ml-auto h-2 w-2 rounded-full",
+                  health.status === "ok" ? "bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]" :
+                  health.status === "degraded" ? "bg-orange-500 shadow-[0_0_8px_rgba(249,115,22,0.5)]" :
+                  "bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.5)]"
+                )}
+                title={`Status: ${health.status}`}
+              />
             )}
           </>
         )}

@@ -259,6 +259,7 @@ export function ActiveChatPane({
         companyId: selectedConversation.tenantId || "default",
         overrideDelayMs: customDelayMs,
         item: item,
+        sendId: crypto.randomUUID(),
       });
     } else {
       setMessageInput(item.text);
