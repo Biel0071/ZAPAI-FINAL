@@ -94,22 +94,8 @@ export function Sidebar() {
   useEffect(() => {
     if (isMobile) return;
     
-    let lastWidth = window.innerWidth;
-    
-    const handleResize = () => {
-      const currentWidth = window.innerWidth;
-      if (currentWidth < 1024 && lastWidth >= 1024) {
-        setCollapsed(true);
-      }
-      lastWidth = currentWidth;
-    };
-    
-    if (window.innerWidth < 1024) {
-      setCollapsed(true);
-    }
-    
-    window.addEventListener("resize", handleResize);
-    return () => window.removeEventListener("resize", handleResize);
+    // Removido auto-collapse para o menu lateral ficar sempre aberto por padrão,
+    // a menos que o usuário clique explicitamente para recolher.
   }, [isMobile]);
 
   const visibleCrmItems = useMemo(
@@ -166,7 +152,7 @@ export function Sidebar() {
         >
           <item.icon
             weight="regular"
-            className="h-[14px] w-[14px] flex-shrink-0 text-sidebar-muted"
+            className="h-[18px] w-[18px] flex-shrink-0 text-sidebar-foreground/85"
           />
           {!compact && (
             <>
@@ -195,8 +181,8 @@ export function Sidebar() {
         <item.icon
           weight={isActive ? "fill" : "regular"}
           className={cn(
-            "h-[14px] w-[14px] flex-shrink-0 transition-colors",
-            isActive ? "text-primary" : "text-sidebar-muted group-hover:text-sidebar-foreground",
+            "h-[18px] w-[18px] flex-shrink-0 transition-colors",
+            isActive ? "text-primary" : "text-sidebar-foreground/85 group-hover:text-sidebar-foreground",
           )}
         />
         {!compact && (
@@ -263,8 +249,8 @@ export function Sidebar() {
             <item.icon
               weight={isAnyActive ? "fill" : "regular"}
               className={cn(
-                "h-[14px] w-[14px] flex-shrink-0 transition-colors",
-                isAnyActive ? "text-primary" : "text-sidebar-muted group-hover:text-sidebar-foreground",
+                "h-[18px] w-[18px] flex-shrink-0 transition-colors",
+                isAnyActive ? "text-primary" : "text-sidebar-foreground/85 group-hover:text-sidebar-foreground",
               )}
             />
             <span className={cn("min-w-0 flex-1 truncate text-[13px] font-medium", isAnyActive && "text-sidebar-foreground")}>

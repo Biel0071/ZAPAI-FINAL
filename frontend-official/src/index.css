@@ -425,7 +425,8 @@
 
   /* SaaS premium layout helpers — density matched to Lovable */
   .page-container {
-    @apply px-4 sm:px-5 lg:px-6 py-4 lg:py-6 max-w-[1400px] mx-auto w-full;
+    @apply px-4 sm:px-5 lg:px-6 py-4 lg:py-6 mx-auto w-full;
+    max-width: none !important;
   }
 
   /* Full-bleed variant: removes horizontal padding and max-width for
