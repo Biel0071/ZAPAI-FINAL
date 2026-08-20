@@ -59,6 +59,16 @@ async function executeQuickReplyFlow(req, res) {
       return res.status(400).json({ error: 'phone is required.' });
     }
 
+    const sendId = req.body.sendId;
+    if (sendId) {
+      const messageDedupeService = require('../../../services/messageDedupeService');
+      const isNew = messageDedupeService.markSeen('quick_reply_intent', sendId, 5 * 60000); // 5 minutes TTL
+      if (!isNew) {
+        // Idempotent success - already processing this exact intent
+        return res.status(200).json({ success: true, stepsCount: 0, duplicate: true });
+      }
+    }
+
     const allReplies = await quickReplyService.listQuickReplies();
     let flow = allReplies.find((item) => String(item.id) === String(id));
 
@@ -147,6 +157,7 @@ async function executeQuickReplyFlow(req, res) {
         sessionId: sessionId || 'main',
         companyId: companyId || 'default',
         text: textContent,
+        correlationId: sendId,
         mediaType: !isText ? (step.type || 'image') : undefined,
         mediaPath: mediaPath,
         fileName: step.filename || step.fileName,

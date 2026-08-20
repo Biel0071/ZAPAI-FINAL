@@ -182,7 +182,7 @@ export function Sidebar() {
           weight={isActive ? "fill" : "regular"}
           className={cn(
             "h-[18px] w-[18px] flex-shrink-0 transition-colors",
-            isActive ? "text-primary" : "text-sidebar-foreground/85 group-hover:text-sidebar-foreground",
+            isActive ? "text-primary" : "text-primary/70 group-hover:text-primary",
           )}
         />
         {!compact && (

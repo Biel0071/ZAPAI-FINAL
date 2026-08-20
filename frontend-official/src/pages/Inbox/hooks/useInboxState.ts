@@ -2847,10 +2847,12 @@ export function useInboxState() {
     sendingQuickReplyRef.current = true;
     setSending(true);
     try {
+      const currentSendId = crypto.randomUUID ? crypto.randomUUID() : `sqr_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
       await apiService.executeQuickReplyFlow(arg.id || "custom", {
         phone: selectedConversation.phone,
         sessionId: selectedConversation.sessionId || preferredSessionId || undefined,
         item: arg,
+        sendId: currentSendId
       });
       notify.success("Fluxo / Resposta Rápida iniciada.");
     } catch (err: any) {
