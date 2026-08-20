@@ -1453,35 +1453,52 @@ export default function Campaigns() {
               <div className="flex flex-col gap-4">
                 <Card className="glass-card rounded-2xl border-border/70 bg-card/85">
                   <CardContent className="space-y-5 p-5">
-                  <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between border-b border-border/50 pb-4">
-                    <div className="flex items-center gap-4">
-                      <h2 className="font-display text-2xl font-semibold">
-                        Nova Campanha
-                      </h2>
-                      <div className="flex items-center rounded-lg border border-border/70 bg-background/50 p-1">
-                        <button
-                          className={cn("flex items-center gap-2 rounded-md px-3 py-1.5 text-sm font-medium transition-all", creationMode === "ai" ? "bg-info/10 text-info" : "text-muted-foreground hover:bg-white/5")}
-                          onClick={() => setCreationMode("ai")}
-                        >
-                          <Sparkle className="h-4 w-4" weight={creationMode === "ai" ? "fill" : "regular"} />
-                          Gerar com IA
-                        </button>
-                        <button
-                          className={cn("flex items-center gap-2 rounded-md px-3 py-1.5 text-sm font-medium transition-all", creationMode === "manual" ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-white/5")}
-                          onClick={() => setCreationMode("manual")}
-                        >
-                          <Plus className="h-4 w-4" weight={creationMode === "manual" ? "bold" : "regular"} />
-                          Criar Manualmente
-                        </button>
+                  <div className="flex flex-col gap-6 border-b border-border/50 pb-6">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                      <div>
+                        <h2 className="font-display text-3xl font-bold">Nova Campanha</h2>
+                        <p className="text-muted-foreground mt-1">Escolha o modo de criação e configure seu disparo.</p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Button variant="outline" className="rounded-xl" onClick={() => fileInputRef.current?.click()}>
+                          Importar CSV
+                        </Button>
+                        <Button variant="outline" className="rounded-xl" onClick={() => void persistCampaign("save")}>
+                          Salvar Rascunho
+                        </Button>
                       </div>
                     </div>
-                    <div className="flex flex-wrap gap-2 pt-1 items-center">
-                      <Button variant="outline" className="rounded-xl" onClick={() => fileInputRef.current?.click()}>
-                        Importar CSV
-                      </Button>
-                      <Button variant="outline" className="rounded-xl" onClick={() => void persistCampaign("save")}>
-                        Salvar Rascunho
-                      </Button>
+
+                    <div className="flex flex-col sm:flex-row gap-4">
+                      <Card 
+                        className={cn("flex-1 cursor-pointer transition-all border-2", creationMode === "ai" ? "border-info bg-info/5" : "border-border/50 bg-background/50 hover:border-info/30")}
+                        onClick={() => setCreationMode("ai")}
+                      >
+                        <CardContent className="p-4 flex items-center gap-4">
+                          <div className={cn("w-12 h-12 rounded-xl flex items-center justify-center shrink-0", creationMode === "ai" ? "bg-info/20 text-info" : "bg-muted text-muted-foreground")}>
+                            <Sparkle className="w-6 h-6" weight={creationMode === "ai" ? "fill" : "regular"} />
+                          </div>
+                          <div>
+                            <h3 className={cn("font-bold text-lg", creationMode === "ai" ? "text-info" : "text-foreground")}>✨ Gerar com IA</h3>
+                            <p className="text-sm text-muted-foreground">A IA monta público, mensagens e delays para você.</p>
+                          </div>
+                        </CardContent>
+                      </Card>
+
+                      <Card 
+                        className={cn("flex-1 cursor-pointer transition-all border-2", creationMode === "manual" ? "border-primary bg-primary/5" : "border-border/50 bg-background/50 hover:border-primary/30")}
+                        onClick={() => setCreationMode("manual")}
+                      >
+                        <CardContent className="p-4 flex items-center gap-4">
+                          <div className={cn("w-12 h-12 rounded-xl flex items-center justify-center shrink-0", creationMode === "manual" ? "bg-primary/20 text-primary" : "bg-muted text-muted-foreground")}>
+                            <Plus className="w-6 h-6" weight={creationMode === "manual" ? "bold" : "regular"} />
+                          </div>
+                          <div>
+                            <h3 className={cn("font-bold text-lg", creationMode === "manual" ? "text-primary" : "text-foreground")}>⚙️ Criar Manualmente</h3>
+                            <p className="text-sm text-muted-foreground">Configure cada passo da sua campanha manualmente.</p>
+                          </div>
+                        </CardContent>
+                      </Card>
                     </div>
                   </div>
 
