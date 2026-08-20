@@ -377,7 +377,7 @@ export default function Campaigns() {
 
   // Abas (Novo Disparo | Histórico | Análise IA) + paginação/filtros do histórico
   const [campaignsTab, setCampaignsTab] = useState<CampaignsTab>("compose");
-  const [creationMode, setCreationMode] = useState<CreationMode>("select");
+  const [creationMode, setCreationMode] = useState<CreationMode>("ai");
   const [historyPage, setHistoryPage] = useState(1);
   const [historyPageSize, setHistoryPageSize] = useState(12);
   const [historyStatusFilter, setHistoryStatusFilter] = useState<string>("all");
@@ -1450,47 +1450,32 @@ export default function Campaigns() {
               ) : null
             }
             composer={
-              creationMode === "select" ? (
-                <div className="flex flex-col gap-4 items-center justify-center py-12">
-                  <div className="text-center space-y-4 max-w-2xl">
-                    <h2 className="font-display text-4xl font-bold">Nova Campanha</h2>
-                    <p className="text-lg text-muted-foreground">Crie campanhas de WhatsApp com IA ou configure cada detalhe manualmente.</p>
-                  </div>
-                  <div className="grid md:grid-cols-2 gap-6 mt-8 max-w-4xl w-full">
-                    <Card className="glass-card rounded-3xl border border-info/30 bg-info/5 hover:border-info/60 hover:bg-info/10 transition-all cursor-pointer overflow-hidden group" onClick={() => setCreationMode("ai")}>
-                      <CardContent className="p-10 flex flex-col items-center text-center space-y-6">
-                        <div className="w-20 h-20 rounded-full bg-info/20 flex items-center justify-center group-hover:scale-110 transition-transform">
-                          <Sparkle className="w-10 h-10 text-info" weight="fill" />
-                        </div>
-                        <h3 className="font-display text-2xl font-bold text-info">✨ Gerar com IA</h3>
-                        <p className="text-muted-foreground">Descreva o objetivo e a IA monta o público, mensagens e funil de conversão.</p>
-                      </CardContent>
-                    </Card>
-                    <Card className="glass-card rounded-3xl border border-border/70 bg-card/60 hover:border-primary/50 hover:bg-card/80 transition-all cursor-pointer overflow-hidden group" onClick={() => setCreationMode("manual")}>
-                      <CardContent className="p-10 flex flex-col items-center text-center space-y-6">
-                        <div className="w-20 h-20 rounded-full bg-primary/10 flex items-center justify-center group-hover:scale-110 transition-transform">
-                          <Plus className="w-10 h-10 text-primary" weight="bold" />
-                        </div>
-                        <h3 className="font-display text-2xl font-bold text-primary">⚙️ Criar Manualmente</h3>
-                        <p className="text-muted-foreground">Monte sua campanha passo a passo, definindo público, mensagem e agendamento.</p>
-                      </CardContent>
-                    </Card>
-                  </div>
-                </div>
-              ) : (
               <div className="flex flex-col gap-4">
                 <Card className="glass-card rounded-2xl border-border/70 bg-card/85">
                   <CardContent className="space-y-5 p-5">
-                  <div className="flex flex-col gap-2 lg:flex-row lg:items-start lg:justify-between">
-                    <div>
-                      <h2 className="mt-1 font-display text-2xl font-semibold">
-                        {creationMode === "ai" ? "Gerar Campanha com IA" : "Campaign Builder"}
+                  <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between border-b border-border/50 pb-4">
+                    <div className="flex items-center gap-4">
+                      <h2 className="font-display text-2xl font-semibold">
+                        Nova Campanha
                       </h2>
+                      <div className="flex items-center rounded-lg border border-border/70 bg-background/50 p-1">
+                        <button
+                          className={cn("flex items-center gap-2 rounded-md px-3 py-1.5 text-sm font-medium transition-all", creationMode === "ai" ? "bg-info/10 text-info" : "text-muted-foreground hover:bg-white/5")}
+                          onClick={() => setCreationMode("ai")}
+                        >
+                          <Sparkle className="h-4 w-4" weight={creationMode === "ai" ? "fill" : "regular"} />
+                          Gerar com IA
+                        </button>
+                        <button
+                          className={cn("flex items-center gap-2 rounded-md px-3 py-1.5 text-sm font-medium transition-all", creationMode === "manual" ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-white/5")}
+                          onClick={() => setCreationMode("manual")}
+                        >
+                          <Plus className="h-4 w-4" weight={creationMode === "manual" ? "bold" : "regular"} />
+                          Criar Manualmente
+                        </button>
+                      </div>
                     </div>
-                    <div className="flex flex-wrap gap-2 pt-1">
-                      <Button variant="ghost" className="rounded-xl text-muted-foreground" onClick={() => setCreationMode("select")}>
-                        Voltar
-                      </Button>
+                    <div className="flex flex-wrap gap-2 pt-1 items-center">
                       <Button variant="outline" className="rounded-xl" onClick={() => fileInputRef.current?.click()}>
                         Importar CSV
                       </Button>
@@ -1511,26 +1496,27 @@ export default function Campaigns() {
                     </div>
                   </div>
                   {creationMode === "ai" && (
-                    <div className="rounded-2xl border border-info/25 bg-info/5 p-4">
-                    <div className="grid gap-4 2xl:grid-cols-[minmax(0,1fr)_minmax(320px,380px)]">
-                      <div className="space-y-3">
+                    <div className="rounded-2xl border border-info/20 bg-info/5 p-5">
+                    <div className="grid gap-6 lg:grid-cols-3">
+                      <div className="space-y-4 lg:col-span-2">
                         <div className="flex items-start gap-3">
                           <span className="mt-1 flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border border-info/25 bg-info/10 text-info">
                             <Sparkle className="h-5 w-5" />
                           </span>
                           <div>
-                            <p className="text-sm font-semibold text-foreground">Criar campanha por IA / prompt</p>
-                            <p className="text-xs text-muted-foreground">Descreva o produto, tipo de lead e objetivo. O sistema monta nome, publico, mensagens, follow-up e delays humanizados para voce aprovar.</p>
+                            <h3 className="font-semibold text-info">Descreva sua Campanha</h3>
+                            <p className="text-sm text-muted-foreground">O sistema montará o público, mensagens, follow-ups e delays humanizados para você aprovar.</p>
                           </div>
                         </div>
                         <Textarea
                           value={aiCampaignPrompt}
                           onChange={(event) => setAiCampaignPrompt(event.target.value)}
-                          placeholder="Ex: criar campanha para venda de seguro empresarial para leads quentes, com follow-up depois de alguns dias e tom consultivo"
-                          className="min-h-[150px] rounded-2xl border-info/20 bg-background/70 text-base"
+                          placeholder="Ex: criar campanha para venda de seguro empresarial para leads quentes..."
+                          className="min-h-[180px] rounded-2xl border-info/30 bg-background/60 p-4 text-sm leading-relaxed"
                         />
                       </div>
-                      <div className="space-y-3">
+                      <div className="space-y-4 lg:col-span-1 rounded-2xl border border-info/10 bg-info/[0.02] p-4">
+                        <div className="space-y-3">
                         <div>
                           <Label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Atendente IA criador</Label>
                           <select
@@ -1571,6 +1557,7 @@ export default function Campaigns() {
                         </Button>
                       </div>
                     </div>
+                  </div>
                   </div>
                   )}
 
@@ -2205,9 +2192,9 @@ export default function Campaigns() {
                             <div className="rounded-xl border border-border/50 bg-background/50 p-3">
                               <p className="text-[10px] uppercase tracking-wide text-muted-foreground mb-2">Cadência de Envio</p>
                               <div className="flex flex-col gap-1.5 text-xs text-muted-foreground">
-                                <div className="flex justify-between"><span>Delay digitação:</span> <span className="font-medium text-foreground">{typingDelay[0].toFixed(1)}s a {typingDelay[1].toFixed(1)}s</span></div>
-                                <div className="flex justify-between"><span>Intervalo entre envios:</span> <span className="font-medium text-foreground">{intervalSeconds[0]}s a {intervalSeconds[1]}s</span></div>
-                                <div className="flex justify-between"><span>Pausa de segurança:</span> <span className="font-medium text-foreground">{pauseSeconds}s a cada {pauseEvery} msg</span></div>
+                                <div className="flex justify-between"><span>Delay digitação:</span> <span className="font-medium text-foreground">{typingDelay[0]?.toFixed(1) || 0}s{typingDelay.length > 1 ? ` a ${typingDelay[1]?.toFixed(1) || 0}s` : ''}</span></div>
+                                <div className="flex justify-between"><span>Intervalo entre envios:</span> <span className="font-medium text-foreground">{intervalSeconds[0] || 0}s{intervalSeconds.length > 1 ? ` a ${intervalSeconds[1] || 0}s` : ''}</span></div>
+                                <div className="flex justify-between"><span>Pausa de segurança:</span> <span className="font-medium text-foreground">{pauseSeconds || 0}s a cada {pauseEvery || 0} msg</span></div>
                               </div>
                             </div>
                             
@@ -2256,7 +2243,7 @@ export default function Campaigns() {
                 </CardContent>
               </Card>
             </div>
-            )}
+            }
             listSection={
               <>
                 <div className="flex items-center justify-between gap-3">
