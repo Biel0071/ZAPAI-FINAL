@@ -32,6 +32,7 @@ const enterpriseMessageService = require('../../enterprise/message-service');
 const enterpriseRealtimeService = require('../../enterprise/realtime-service');
 const { getAgentByName, pickRandomAgent } = require('../../../src/infrastructure/config/agents');
 const MessageAuditService = require('../../messageAuditService');
+const agentMemoryGraphService = require('../../agentMemoryGraphService');
 
 const {
   DEFAULT_SESSION,
@@ -865,6 +866,26 @@ async function runAIForChat({ chatId, incomingFormattedMessage, session, sock })
     });
   } catch (err) {
     console.error('[WHATSAPP] Failed to log RESPONSE_SENT:', err);
+  }
+
+  // --- ACIONAMENTO DA MEMÓRIA EM GRAFO EVOLUTIVA (APRENDIZADO CONTÍNUO) ---
+  if (aiResult?.response && safeResponse) {
+    try {
+      await agentMemoryGraphService.learnFromInteraction({
+        agentKey: agent?.key || agent?.name || 'Atendente',
+        companyId: companyId || 'default',
+        contact: {
+          phone: normalizePhone(chatId),
+          name: chat?.name || contact?.name || '',
+          conversationId: session?.sessionId || 'main'
+        },
+        message: String(incomingFormattedMessage?.text || incomingFormattedMessage?.body || ''),
+        reply: safeResponse,
+      });
+      console.log(`[WHATSAPP_AI] Graph Memory updated successfully for ${chatId}`);
+    } catch (graphErr) {
+      console.error('[WHATSAPP_AI] Graph Memory learn failed:', graphErr.message);
+    }
   }
 
   // Disparar resposta rápida associada (se a IA pediu)

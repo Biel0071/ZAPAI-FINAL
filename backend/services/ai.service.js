@@ -308,7 +308,8 @@ function compileSystemPrompt(agent, store, contact = null) {
     }
   }
   if (agent?.memory) {
-    compiled += `- Memória Fixa do Atendente: ${agent.memory}\n`;
+    compiled += `- INSTRUÇÕES DE APRENDIZADO E MEMÓRIA DO ATENDENTE (PRIORIDADE ALTA):\n  ${agent.memory.replace(/\n/g, '\n  ')}\n`;
+    compiled += `  (Regra: Aja como se sempre soubesse essas informações. Use-as de forma natural se o cliente perguntar sobre redes sociais, site, ou se o contexto exigir recomendações baseadas nessas dicas.)\n`;
   }
   compiled += `\n`;
 

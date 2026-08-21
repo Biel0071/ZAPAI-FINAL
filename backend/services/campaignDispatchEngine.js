@@ -18,6 +18,7 @@ const campaignRepository = require('../src/data/repositories/campaignRepository'
 const sessionManager = require('./sessionManager');
 const backpressureController = require('./backpressureController');
 const whatsappService = require('./whatsappService');
+const conversationRepository = require('../src/data/repositories/conversationRepository');
 
 const DEFAULT_COMPANY_ID = String(process.env.DEFAULT_COMPANY_ID || 'default').trim();
 
@@ -315,6 +316,32 @@ async function dispatchSingleMessage(state, contact, io) {
     state.metrics.sent += 1;
     state.metrics.totalDeliveryMs += deliveryMs;
     state.metrics.avgDeliveryMs = Math.round(state.metrics.totalDeliveryMs / state.metrics.sent);
+
+    // AI POST-DISPATCH ACTIVATION
+    if (state.settings.enableAIPostDispatch) {
+      try {
+        const conversation = await conversationRepository.getConversationByPhone(phone, state.companyId);
+        if (conversation) {
+          // Ativa o bot e atualiza estágios caso definido via aiSetup
+          const updates = { ai_enabled: true };
+          if (state.settings.aiSetup?.autoFunnel) {
+             updates.funnel_stage = 'Lead_Quente';
+             updates.lead_temperature = 'hot';
+          }
+          await conversationRepository.updateConversationState(conversation.id, updates);
+          
+          if (state.settings.aiSetup?.autoTagging) {
+             const currentTags = Array.isArray(conversation.tags) ? conversation.tags : [];
+             if (!currentTags.includes('robo_ativo')) {
+                currentTags.push('robo_ativo');
+                await conversationRepository.updateConversationState(conversation.id, { tags: currentTags });
+             }
+          }
+        }
+      } catch (aiErr) {
+        console.error(`[CampaignEngine] Failed to enable AI for ${phone}:`, aiErr.message);
+      }
+    }
 
     return { success: true, deliveryMs };
   } catch (err) {
