@@ -75,7 +75,7 @@ function leadMarkerIcon(funnelStage: string) {
   const shadow = isClosed ? "rgba(16, 185, 129, 0.4)" : "rgba(59, 130, 246, 0.4)";
   return L.divIcon({
     className: "",
-    html: `<div style="width:16px;height:16px;border-radius:9999px;background:${color};box-shadow:0 0 0 4px ${shadow};display:flex;align-items:center;justify-content:center;color:#fff;font-size:9px;font-weight:bold">📍</div>`,
+    html: `<div style="width:16px;height:16px;border-radius:9999px;background:${color};box-shadow:0 0 0 4px ${shadow};display:flex;align-items:center;justify-content:center;color:#fff;"><svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" fill="currentColor" viewBox="0 0 256 256"><path d="M128,64a40,40,0,1,0,40,40A40,40,0,0,0,128,64Zm0,64a24,24,0,1,1,24-24A24,24,0,0,1,128,128Zm0-112a88.1,88.1,0,0,0-88,88c0,31.4,14.51,64.68,42,96.25,18.76,21.56,38.72,37.19,39.91,38.12a16,16,0,0,0,19.18,0c1.2-.93,21.15-16.56,39.91-38.12,27.5-31.57,42-64.85,42-96.25A88.1,88.1,0,0,0,128,16Zm0,206c-16.53-13.22-72-59.26-72-118a72,72,0,0,1,144,0C200,162.74,144.53,208.78,128,222Z"></path></svg></div>`,
     iconSize: [16, 16],
     iconAnchor: [8, 8],
   });
@@ -489,7 +489,7 @@ export function DashboardView({
       {/* OVERVIEW TAB */}
       {activeTab === "overview" && (
         <div className="space-y-6 animate-in fade-in-0 duration-300">
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-5">
+          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-5 xl:grid-cols-5">
             <Card
               className="glass-card metric-card rounded-2xl border-border/70 hover:border-primary/50 transition-all duration-200 cursor-pointer hover-lift"
               onClick={() => navigate('/inbox')}
@@ -560,8 +560,8 @@ export function DashboardView({
             </Card>
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            <Card className="lg:col-span-2 glass-card rounded-2xl border-border/70 hover-lift">
+          <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
+            <Card className="lg:col-span-3 glass-card rounded-2xl border-border/70 hover-lift">
               <CardHeader className="py-4">
                 <CardTitle className="text-xs font-bold uppercase tracking-widest flex items-center gap-2 text-muted-foreground">
                   <Clock weight="bold" className="h-4 w-4 text-primary" /> Fluxo de Atividade Comercial
@@ -587,7 +587,7 @@ export function DashboardView({
               </CardContent>
             </Card>
 
-            <Card className="glass-card rounded-2xl border-border/70 hover-lift">
+            <Card className="lg:col-span-2 glass-card rounded-2xl border-border/70 hover-lift">
               <CardHeader className="py-4">
                 <CardTitle className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Temperatura da Base</CardTitle>
               </CardHeader>
@@ -611,8 +611,8 @@ export function DashboardView({
           </div>
 
           {/* Esteira Comercial & Performance IA (Real Data) */}
-          <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
-            <Card className="xl:col-span-2 glass-card rounded-2xl border-border/70 hover-lift flex flex-col h-full max-h-[380px] overflow-hidden">
+          <div className="grid grid-cols-1 xl:grid-cols-5 gap-6">
+            <Card className="xl:col-span-3 glass-card rounded-2xl border-border/70 hover-lift flex flex-col h-full max-h-[380px] overflow-hidden">
               <CardHeader className="py-4 border-b border-border/50 shrink-0">
                 <CardTitle className="text-xs font-bold uppercase tracking-widest flex items-center gap-2 text-muted-foreground">
                   <CheckCircle weight="bold" className="h-4 w-4 text-success" /> Esteira Comercial (Fechamentos)
@@ -653,7 +653,7 @@ export function DashboardView({
               </CardContent>
             </Card>
 
-            <Card className="glass-card rounded-2xl border-border/70 hover-lift">
+            <Card className="xl:col-span-2 glass-card rounded-2xl border-border/70 hover-lift">
               <CardHeader className="py-4 border-b border-border/50">
                 <CardTitle className="text-xs font-bold uppercase tracking-widest flex items-center gap-2 text-muted-foreground">
                   <Brain weight="bold" className="h-4 w-4 text-primary" /> Uso Real da IA
@@ -1036,7 +1036,7 @@ export function DashboardView({
       {/* IA & PERFORMANCE METRICS TAB */}
       {activeTab === "ai" && (
         <div className="space-y-6 animate-in fade-in-0 duration-300">
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-5">
+          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-5 xl:grid-cols-5">
             <Card className="glass-card metric-card rounded-2xl border-border/70 hover-lift">
               <CardContent className="space-y-2 p-5">
                 <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Tokens do Período</p>
@@ -1076,8 +1076,8 @@ export function DashboardView({
             </Card>
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            <Card className="lg:col-span-2 glass-card rounded-2xl border-border/70 hover-lift">
+          <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
+            <Card className="lg:col-span-3 glass-card rounded-2xl border-border/70 hover-lift">
               <CardHeader className="py-4">
                 <CardTitle className="text-xs font-bold uppercase tracking-widest text-muted-foreground flex items-center gap-2">
                   <Cpu className="h-4 w-4 text-primary" /> Uso de Tokens (Prompt vs Completion)
@@ -1097,7 +1097,7 @@ export function DashboardView({
               </CardContent>
             </Card>
 
-            <Card className="glass-card rounded-2xl border-border/70 hover-lift">
+            <Card className="lg:col-span-2 glass-card rounded-2xl border-border/70 hover-lift">
               <CardHeader className="py-4">
                 <CardTitle className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Distribuição de Modelos</CardTitle>
               </CardHeader>

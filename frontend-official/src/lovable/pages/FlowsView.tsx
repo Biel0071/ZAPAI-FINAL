@@ -28,7 +28,7 @@ export function FlowsView({ viewModel, loading, flows, draft, editingId, onDraft
 
   return (
     <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="page-container section-stack">
-      <div className="grid gap-4 md:grid-cols-3">
+      <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 xl:grid-cols-5">
         <Card className="metric-card rounded-2xl"><CardContent className="flex items-center justify-between p-5"><div><p className="text-xs uppercase tracking-wide text-muted-foreground">Total Flows</p><p className="font-display text-2xl font-bold">{viewModel.totalFlows}</p></div><TreeStructure className="h-8 w-8 text-primary" /></CardContent></Card>
         <Card className="metric-card rounded-2xl"><CardContent className="flex items-center justify-between p-5"><div><p className="text-xs uppercase tracking-wide text-muted-foreground">Origem dos dados</p><p className="font-display text-2xl font-bold">{viewModel.dataSourceLabel}</p></div><Lightning className="h-8 w-8 text-info" /></CardContent></Card>
         <Card className="metric-card rounded-2xl"><CardContent className="flex items-center justify-between p-5"><div><p className="text-xs uppercase tracking-wide text-muted-foreground">Estado</p><p className="font-display text-2xl font-bold">{viewModel.stateLabel}</p></div><ChatCircleText className="h-8 w-8 text-success" /></CardContent></Card>

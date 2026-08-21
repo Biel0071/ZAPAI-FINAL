@@ -109,7 +109,7 @@ export function ContactsView({
       {loading ? (
         <StatGridSkeleton count={3} />
       ) : (
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+        <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
           {viewModel.summaryCards.map((card) => {
             const cardSegment = card.segment;
             const isActive = activeSegment === cardSegment;
@@ -193,8 +193,7 @@ export function ContactsView({
               </CardContent>
             </Card>
           ) : null}
-
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
             <Card
               className={cn(
                 "glass-card rounded-2xl border-border/70 hover-lift cursor-pointer transition-all hover:scale-[1.02] hover:bg-card/95 select-none",
@@ -386,7 +385,7 @@ export function ContactsView({
                   onDeleteContact={onDeleteContact}
                 />
               ) : viewMode === "kanban" ? (
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-4 overflow-x-auto pb-4">
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 overflow-x-auto pb-4">
                   {stages.map((stage) => {
                     const stageContacts = viewModel.contacts.filter(
                       (c: any) => (c.funnelStage || "new_lead") === stage

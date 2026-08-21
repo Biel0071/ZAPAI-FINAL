@@ -94,7 +94,7 @@ export function AnalyticsView({ loading, viewModel }: AnalyticsViewProps) {
   return (
     <div className="page-container section-stack space-y-6">
       {loading ? (
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
+        <div className="grid grid-cols-2 gap-4 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-7">
           {Array.from({ length: 4 }).map((_, index) => (
             <Skeleton key={`analytics-skeleton-${index}`} className="h-32 w-full rounded-2xl" />
           ))}
@@ -133,7 +133,7 @@ export function AnalyticsView({ loading, viewModel }: AnalyticsViewProps) {
           {/* TAB 1: CONVERSAS & MENSAGENS */}
           {activeBiTab === "conversations" && (
             <div className="space-y-6 animate-in fade-in-0 duration-300">
-              <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+              <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-5 xl:grid-cols-5">
                 <Card className="metric-card border-primary/20 bg-primary/5 cursor-pointer hover:border-primary/40 transition-all" onClick={() => navigate('/inbox')}>
                   <CardContent className="p-5">
                     <div className="flex items-center justify-between">
@@ -197,8 +197,8 @@ export function AnalyticsView({ loading, viewModel }: AnalyticsViewProps) {
                 </Card>
               </div>
 
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                <Card className="lg:col-span-2 glass-card">
+              <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
+                <Card className="lg:col-span-3 glass-card">
                   <CardHeader>
                     <CardTitle className="text-sm font-bold uppercase tracking-widest flex items-center gap-2">
                       <Clock weight="bold" /> Volumetria de Mensagens por Bloco Horário
@@ -264,7 +264,7 @@ export function AnalyticsView({ loading, viewModel }: AnalyticsViewProps) {
                   </Badge>
                 </div>
 
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3">
+                <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-3">
                   {heatmapBlocks.map((block) => (
                     <button
                       key={block.label}
@@ -293,7 +293,7 @@ export function AnalyticsView({ loading, viewModel }: AnalyticsViewProps) {
           {/* TAB 2: PERFORMANCE IA */}
           {activeBiTab === "ai" && (
             <div className="space-y-6 animate-in fade-in-0 duration-300">
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+              <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5">
                 <Card className="glass-card p-5">
                   <span className="text-[10px] uppercase font-bold text-muted-foreground">Modelo IA Principal</span>
                   <h3 className="font-display text-2xl font-bold text-foreground mt-1">{aiData?.model || metricsData?.model || "gpt-4o-mini"}</h3>
@@ -319,8 +319,8 @@ export function AnalyticsView({ loading, viewModel }: AnalyticsViewProps) {
                 </Card>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <Card className="glass-card p-5 space-y-4">
+              <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
+                <Card className="lg:col-span-3 glass-card p-5 space-y-4">
                   <h4 className="font-display font-bold text-sm text-foreground flex items-center gap-2">
                     <Brain className="h-4 w-4 text-primary" />
                     Métricas de Aprendizado & Memória Hierárquica
@@ -363,7 +363,7 @@ export function AnalyticsView({ loading, viewModel }: AnalyticsViewProps) {
           {/* TAB 3: COMERCIAL & VENDAS */}
           {activeBiTab === "commercial" && (
             <div className="space-y-6 animate-in fade-in-0 duration-300">
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+              <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 xl:grid-cols-5">
                 <Card className="glass-card p-5 border-success/20 bg-success/5">
                   <span className="text-[10px] uppercase font-bold text-success">Leads Ativos (Base)</span>
                   <h3 className="font-display text-2xl font-bold text-success mt-1">{safeViewModel.kpis[3]?.value || "0"}</h3>
@@ -402,7 +402,7 @@ export function AnalyticsView({ loading, viewModel }: AnalyticsViewProps) {
           {/* TAB 4: OPERAÇÃO & INFRAESTRUTURA */}
           {activeBiTab === "operations" && (
             <div className="space-y-6 animate-in fade-in-0 duration-300">
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+              <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 xl:grid-cols-5">
                 <Card className="glass-card p-5">
                   <div className="flex items-center justify-between">
                     <span className="text-[10px] uppercase font-bold text-muted-foreground">Uso de CPU</span>
