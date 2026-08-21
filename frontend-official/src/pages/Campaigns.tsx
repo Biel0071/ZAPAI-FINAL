@@ -912,9 +912,19 @@ export default function Campaigns() {
         value: message.type === "text" ? message.content : message.mediaUrl || message.mediaPath || message.content,
         filename: message.fileName || undefined,
         caption: message.type === "text" ? undefined : message.content,
-      const created = await apiService.createQuickReply(payload);
-      setQuickReplies((current) => [created, ...current.filter((item) => item.id !== created.id)]);
-      notify.success(asFlow ? "Fluxo salvo como padrao de campanha." : "Resposta rapida salva como padrao de campanha.");
+      })),
+    };
+    try {
+      if (editingQuickReplyId) {
+        await apiService.updateQuickReply(editingQuickReplyId, payload);
+        notify.success(asFlow ? "Fluxo atualizado com sucesso!" : "Modelo atualizado com sucesso!");
+        setEditingQuickReplyId(null);
+      } else {
+        const created = await apiService.createQuickReply(payload);
+        setQuickReplies((current) => [created, ...current.filter((item) => item.id !== created.id)]);
+        notify.success(asFlow ? "Fluxo salvo com sucesso!" : "Modelo salvo com sucesso!");
+      }
+      loadQuickReplies();
     } catch (error) {
       notify.error(error instanceof Error ? error.message : "Falha ao salvar padrao de campanha");
     }
