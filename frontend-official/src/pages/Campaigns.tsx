@@ -1864,11 +1864,11 @@ export default function Campaigns() {
                                           <DropdownMenuItem onClick={() => {
                                             const v = variant.content;
                                             setMessageVariants(cur => cur.map((entry, i) => i === index ? { ...entry, content: v + "{{nome}}" } : entry));
-                                          }}>{{nome}}</DropdownMenuItem>
+                                          }}>{"{{nome}}"}</DropdownMenuItem>
                                           <DropdownMenuItem onClick={() => {
                                             const v = variant.content;
                                             setMessageVariants(cur => cur.map((entry, i) => i === index ? { ...entry, content: v + "{{telefone}}" } : entry));
-                                          }}>{{telefone}}</DropdownMenuItem>
+                                          }}>{"{{telefone}}"}</DropdownMenuItem>
                                         </DropdownMenuContent>
                                       </DropdownMenu>
 
