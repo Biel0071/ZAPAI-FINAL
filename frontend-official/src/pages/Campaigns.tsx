@@ -927,7 +927,7 @@ export default function Campaigns() {
         setQuickReplies((current) => [created, ...current.filter((item) => item.id !== created.id)]);
         notify.success(asFlow ? "Fluxo salvo com sucesso!" : "Modelo salvo com sucesso!");
       }
-      loadQuickReplies();
+      loadPageData({ silent: true });
     } catch (error) {
       notify.error(error instanceof Error ? error.message : "Falha ao salvar padrao de campanha");
     }
@@ -1803,7 +1803,7 @@ export default function Campaigns() {
                                 <div key={reply.id} className="group relative w-full rounded-xl border border-border/70 bg-card/60 transition hover:border-primary/40 hover:bg-card">
                                   <button type="button" className="w-full p-3 text-left" onClick={() => applyQuickReplyTemplate(reply)}>
                                     <p className="truncate text-sm font-semibold text-foreground pr-16">{reply.title}</p>
-                                    <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">{getQuickReplyTemplatePreview(reply)}</p>
+                                    <p className="mt-1 line-clamp-2 whitespace-pre-line text-xs text-muted-foreground">{getQuickReplyTemplatePreview(reply)}</p>
                                   </button>
                                   <div className="absolute right-2 top-2 hidden gap-1 group-hover:flex">
                                     <Button type="button" variant="ghost" size="icon" className="h-7 w-7 rounded-lg" onClick={(e) => { e.stopPropagation(); setEditingQuickReplyId(reply.id); setCampaignName(reply.title || ""); setCampaignStep(2); window.scrollTo({ top: 0, behavior: 'smooth' }); applyQuickReplyTemplate(reply); }}>
@@ -1829,7 +1829,7 @@ export default function Campaigns() {
                                 <div key={reply.id} className={cn("group relative w-full rounded-xl border transition hover:border-primary/40 hover:bg-card", selectedFlowId === reply.id ? "border-primary/40 bg-primary/10" : "border-border/70 bg-card/60")}>
                                   <button type="button" className="w-full p-3 text-left" onClick={() => applyQuickReplyFlow(reply)}>
                                     <p className="truncate text-sm font-semibold text-foreground pr-16">{reply.title}</p>
-                                    <p className="mt-1 text-xs text-muted-foreground">{getQuickReplyTemplatePreview(reply)}</p>
+                                    <p className="mt-1 line-clamp-2 whitespace-pre-line text-xs text-muted-foreground">{getQuickReplyTemplatePreview(reply)}</p>
                                   </button>
                                   <div className="absolute right-2 top-2 hidden gap-1 group-hover:flex">
                                     <Button type="button" variant="ghost" size="icon" className="h-7 w-7 rounded-lg" onClick={(e) => { e.stopPropagation(); setEditingQuickReplyId(reply.id); setSelectedFlowId(null); setCampaignName(reply.title || ""); setCampaignStep(2); window.scrollTo({ top: 0, behavior: 'smooth' }); const items = (reply.steps || []).map((step: any) => ({ type: step.type === 'text' ? 'text' : (step.type === 'image' ? 'image' : (step.type === 'video' ? 'video' : (step.type === 'audio' ? 'audio' : 'document'))), content: step.type === 'text' ? step.value : step.caption, mediaUrl: step.type !== 'text' ? step.value : undefined, fileName: step.filename, id: Math.random().toString(36).substring(2, 15) })); setMessageVariants(items.length ? items : [createEmptyDraftMessage()]); }}>
