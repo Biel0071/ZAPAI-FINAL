@@ -2369,6 +2369,73 @@ export default function Campaigns() {
             }
             listSection={
               <>
+                {/* ─── Painel de Agendamentos ─── */}
+                {campaigns.some((c) => c.status === "scheduled") && (
+                  <div className="mb-4 rounded-2xl border border-info/30 bg-info/5 p-4">
+                    <div className="mb-3 flex items-center gap-2">
+                      <Clock className="h-4 w-4 text-info" />
+                      <h3 className="font-display text-sm font-semibold text-info">Campanhas Agendadas</h3>
+                      <span className="rounded-full bg-info/20 px-2 py-0.5 text-[10px] font-bold text-info">
+                        {campaigns.filter((c) => c.status === "scheduled").length}
+                      </span>
+                    </div>
+                    <div className="flex flex-col gap-2">
+                      {campaigns.filter((c) => c.status === "scheduled").map((scheduledCampaign) => (
+                        <div key={scheduledCampaign.id} className="flex flex-col gap-2 rounded-xl border border-info/20 bg-background/60 p-3 sm:flex-row sm:items-center sm:justify-between">
+                          <div className="min-w-0 flex-1">
+                            <p className="truncate font-medium text-sm">{scheduledCampaign.name}</p>
+                            <p className="mt-0.5 text-xs text-muted-foreground">
+                              {(scheduledCampaign.messages ?? []).map((m) => m.content).filter(Boolean).join(" • ").slice(0, 80) || "Sem mensagem"}
+                            </p>
+                            <p className="mt-1 text-xs font-medium text-info">
+                              🕐 Agendado: {formatDateTime((scheduledCampaign.settings as any)?.startAt || (scheduledCampaign.settings as any)?.scheduledAt)}
+                            </p>
+                            <p className="mt-0.5 text-xs text-muted-foreground">
+                              {scheduledCampaign.selectedContacts?.length ?? 0} contatos • {scheduledCampaign.tags?.join(", ") || "Sem tags"}
+                            </p>
+                          </div>
+                          <div className="flex flex-wrap items-center gap-1.5 shrink-0">
+                            <Button
+                              variant="outline"
+                              className="h-8 rounded-lg px-3 text-xs"
+                              onClick={() => hydrateComposer(scheduledCampaign, "edit")}
+                            >
+                              <PencilSimple className="mr-1 h-3.5 w-3.5" />
+                              Editar
+                            </Button>
+                            <Button
+                              variant="outline"
+                              className="h-8 rounded-lg px-3 text-xs"
+                              onClick={() => hydrateComposer(scheduledCampaign, "duplicate")}
+                            >
+                              <Copy className="mr-1 h-3.5 w-3.5" />
+                              Duplicar
+                            </Button>
+                            <Button
+                              className="h-8 rounded-lg px-3 text-xs bg-info text-white hover:bg-info/80"
+                              onClick={() => void runCampaignAction(scheduledCampaign.id, "start")}
+                              disabled={actionCampaignId === scheduledCampaign.id}
+                            >
+                              <Play className="mr-1 h-3.5 w-3.5" />
+                              Ativar Agora
+                            </Button>
+                            <Button
+                              variant="outline"
+                              className="h-8 rounded-lg border-destructive/30 px-3 text-xs text-destructive hover:bg-destructive/10"
+                              onClick={() => void runCampaignAction(scheduledCampaign.id, "delete")}
+                              disabled={actionCampaignId === scheduledCampaign.id}
+                            >
+                              <Trash className="mr-1 h-3.5 w-3.5" />
+                              Cancelar
+                            </Button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {/* ─── Fim Painel de Agendamentos ─── */}
+
                 <div className="flex items-center justify-between gap-3">
               <div>
                 <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground/70">Campanhas persistidas</p>
