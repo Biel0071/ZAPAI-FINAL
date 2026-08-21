@@ -2162,18 +2162,43 @@ export default function Campaigns() {
                             />
                             <Stepper
                               label="Limite por Hora de Envios"
-                              value={Number(hourlyLimit) || 0}
-                              onChange={(next) => setHourlyLimit(next === 0 ? "" : String(next))}
-                              min={0}
-                              max={10000}
-                              step={5}
-                              hint="0 = sem limite"
-                            />
-                            <div className="md:col-span-2">
-                              <label className="mb-2 block text-sm font-medium">Agendamento opcional</label>
-                              <Input type="datetime-local" value={startAt} onChange={(event) => setStartAt(event.target.value)} />
-                            </div>
-                          </div>
+                                            <Stepper
+                                              label="Limite por Hora de Envios"
+                                              value={Number(hourlyLimit) || 0}
+                                              onChange={(next) => setHourlyLimit(next === 0 ? "" : String(next))}
+                                              min={0}
+                                              max={10000}
+                                              step={5}
+                                              hint="0 = sem limite"
+                                            />
+                                            <div className="md:col-span-2">
+                                              <label className="mb-2 block text-sm font-medium">Agendamento opcional</label>
+                                              <div className="relative">
+                                                <Button 
+                                                  variant="outline" 
+                                                  className="w-full justify-start text-left font-normal h-11"
+                                                  onClick={(e) => {
+                                                    const input = e.currentTarget.nextElementSibling as HTMLInputElement;
+                                                    if (input && typeof input.showPicker === 'function') {
+                                                      try { input.showPicker(); } catch(err) { input.focus(); }
+                                                    } else if (input) {
+                                                      input.focus();
+                                                    }
+                                                  }}
+                                                >
+                                                  <CalendarBlank className="mr-2 h-4 w-4" />
+                                                  {startAt ? formatDateTime(new Date(startAt).toISOString()) : <span>Agendar disparo futuro (opcional)</span>}
+                                                </Button>
+                                                <Input 
+                                                  type="datetime-local" 
+                                                  value={startAt} 
+                                                  onChange={(event) => setStartAt(event.target.value)} 
+                                                  className="absolute inset-0 h-full w-full opacity-0 pointer-events-none"
+                                                  style={{ zIndex: -1 }}
+                                                />
+                                              </div>
+                                            </div>
+                                          </div>
 
                           <div className="rounded-xl border border-info/20 bg-info/5 p-3 text-muted-foreground text-xs leading-relaxed space-y-1 mt-2">
                             <p className="font-bold text-info flex items-center gap-1.5">Dica Anti-Ban e Aquecimento</p>
@@ -2430,7 +2455,11 @@ export default function Campaigns() {
                               {(scheduledCampaign.messages ?? []).map((m) => m.content).filter(Boolean).join(" • ").slice(0, 80) || "Sem mensagem"}
                             </p>
                             <p className="mt-1 text-xs font-medium text-info">
-                              🕐 Agendado: {formatDateTime((scheduledCampaign.settings as any)?.startAt || (scheduledCampaign.settings as any)?.scheduledAt)}
+                              ⏳ Agendado: {formatDateTime((scheduledCampaign.settings as any)?.startAt || (scheduledCampaign.settings as any)?.scheduledAt)}
+                            </p>
+                            <p className="mt-1 text-xs font-semibold text-warning flex items-center gap-1.5">
+                              <Users className="h-3.5 w-3.5" />
+                              Fila de Espera: {dispatchStatuses[scheduledCampaign.id]?.pending ?? scheduledCampaign.queue?.total ?? scheduledCampaign.selectedContacts?.length ?? 0} mensagens aguardando
                             </p>
                             <p className="mt-0.5 text-xs text-muted-foreground">
                               {scheduledCampaign.selectedContacts?.length ?? 0} contatos • {scheduledCampaign.tags?.join(", ") || "Sem tags"}
@@ -2748,7 +2777,7 @@ export default function Campaigns() {
           </DialogHeader>
           {selectedCampaignPreview && (
             <div className="space-y-5 py-2">
-              <div className="grid gap-3 md:grid-cols-4">
+              <div className="grid gap-3 md:grid-cols-5">
                 <div className="rounded-lg border border-border/70 bg-background/35 p-2">
                   <p className="text-xs uppercase tracking-wide text-muted-foreground">Status</p>
                   <div className="mt-2"><OperationalStatusBadge label={statusMeta(selectedCampaignPreview).label} tone={statusMeta(selectedCampaignPreview).tone} /></div>
@@ -2756,6 +2785,10 @@ export default function Campaigns() {
                 <div className="rounded-lg border border-border/70 bg-background/35 p-2">
                   <p className="text-xs uppercase tracking-wide text-muted-foreground">Contatos</p>
                   <p className="mt-1 font-display text-lg font-bold">{selectedCampaignPreview.queue?.total ?? selectedCampaignPreview.selectedContacts?.length ?? 0}</p>
+                </div>
+                <div className="rounded-lg border border-warning/30 bg-warning/10 p-2">
+                  <p className="text-xs uppercase tracking-wide text-warning/80">Fila (Espera)</p>
+                  <p className="mt-1 font-display text-lg font-bold text-warning">{dispatchStatuses[selectedCampaignPreview.id]?.pending ?? Math.max(0, (selectedCampaignPreview.queue?.total ?? selectedCampaignPreview.selectedContacts?.length ?? 0) - ((selectedCampaignPreview.queue?.sent ?? 0) + (selectedCampaignPreview.queue?.failed ?? 0)))}</p>
                 </div>
                 <div className="rounded-lg border border-border/70 bg-background/35 p-2">
                   <p className="text-xs uppercase tracking-wide text-muted-foreground">Enviadas</p>
