@@ -572,25 +572,7 @@ export function AIView(props: AIViewProps) {
           const nodes = Array.isArray(evolutionRes.memoryGraph.nodes) ? evolutionRes.memoryGraph.nodes : [];
           const edges = Array.isArray(evolutionRes.memoryGraph.edges) ? evolutionRes.memoryGraph.edges : [];
           
-          if (nodes.length === 0) {
-            setAgentMemoryGraph({
-              nodes: [
-                { id: "node-lead", label: "João Silva", category: "Lead", type: "lead", details: "WhatsApp: 5511999999999", weight: 20 },
-                { id: "node-agent", label: "IA Assistente", category: "Atendente", type: "agent", details: "Atendente IA responsável", weight: 15 },
-                { id: "node-camp", label: "Promoção de Verão", category: "Campanha", type: "campaign", details: "Status: sent", weight: 10 },
-                { id: "node-mem-1", label: "Interesse em Cimento Votorantim", category: "Produto/Interesse", type: "product", details: "Cliente perguntou preço do cimento", weight: 8 },
-                { id: "node-mem-2", label: "Reclamação de Frete", category: "Memória IA", type: "memory", details: "Achou o frete caro para a região", weight: 7 },
-              ],
-              edges: [
-                { source: "node-agent", target: "node-lead", relation: "Atendeu Cliente" },
-                { source: "node-lead", target: "node-camp", relation: "Capturado via" },
-                { source: "node-lead", target: "node-mem-1", relation: "Interessado em" },
-                { source: "node-lead", target: "node-mem-2", relation: "Memória registrada" },
-              ],
-            });
-          } else {
-            setAgentMemoryGraph({ nodes, edges });
-          }
+          setAgentMemoryGraph({ nodes, edges });
         }
       }
     } catch (err) {

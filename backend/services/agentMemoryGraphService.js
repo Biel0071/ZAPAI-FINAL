@@ -34,7 +34,7 @@ async function bootstrapAgentMemoryGraph({ agentKey, agentName, companyId = 'def
 
   await query(`
     INSERT INTO agent_memory_nodes (company_id, agent_key, node_key, node_type, label, searchable_text, properties, weight, created_at, last_seen_at)
-    SELECT $1, $2, 'contact:' || l.id, 'contact', COALESCE(NULLIF(l.name, ''), l.phone),
+    SELECT $1::varchar, $2::varchar, 'contact:' || l.id, 'contact', COALESCE(NULLIF(l.name, ''), l.phone),
            CONCAT_WS(' ', l.name, l.phone), jsonb_build_object('contactPhone', l.phone, 'contactName', l.name),
            GREATEST(1, COUNT(DISTINCT conv.id)), MIN(conv.created_at), MAX(conv.updated_at)
     FROM conversations conv
@@ -48,7 +48,7 @@ async function bootstrapAgentMemoryGraph({ agentKey, agentName, companyId = 'def
 
   await query(`
     INSERT INTO agent_memory_nodes (company_id, agent_key, node_key, node_type, label, searchable_text, properties, weight, created_at, last_seen_at)
-    SELECT $1, $2, 'conversation:' || conv.id, 'conversation', COALESCE(NULLIF(l.name, ''), l.phone),
+    SELECT $1::varchar, $2::varchar, 'conversation:' || conv.id, 'conversation', COALESCE(NULLIF(l.name, ''), l.phone),
            CONCAT_WS(' ', l.name, l.phone, conv.summary, conv.last_message),
            jsonb_build_object('conversationId', conv.id, 'contactPhone', l.phone, 'contactKey', 'contact:' || l.id),
            1, conv.created_at, conv.updated_at
@@ -77,7 +77,7 @@ async function bootstrapAgentMemoryGraph({ agentKey, agentName, companyId = 'def
       ORDER BY timestamp DESC
     )
     INSERT INTO agent_memory_nodes (company_id, agent_key, node_key, node_type, label, content, searchable_text, properties, weight, created_at, last_seen_at)
-    SELECT $1, $2, 'episode:' || id, 'episode', LEFT(question, 160),
+    SELECT $1::varchar, $2::varchar, 'episode:' || id, 'episode', LEFT(question, 160),
            'Cliente: ' || question || E'\nAtendente: ' || response,
            question || ' ' || response,
            jsonb_build_object('conversationId', conversation_id, 'contactPhone', phone, 'contactName', name,
@@ -89,7 +89,7 @@ async function bootstrapAgentMemoryGraph({ agentKey, agentName, companyId = 'def
 
   await query(`
     INSERT INTO agent_memory_edges (company_id, agent_key, source_key, target_key, relation, weight, last_seen_at)
-    SELECT $1, $2, properties->>'contactKey', node_key, 'participou_de', 1, last_seen_at
+    SELECT $1::varchar, $2::varchar, properties->>'contactKey', node_key, 'participou_de', 1, last_seen_at
     FROM agent_memory_nodes
     WHERE company_id = $1 AND agent_key = $2 AND node_type = 'conversation'
       AND properties ? 'contactKey'
@@ -99,7 +99,7 @@ async function bootstrapAgentMemoryGraph({ agentKey, agentName, companyId = 'def
 
   await query(`
     INSERT INTO agent_memory_edges (company_id, agent_key, source_key, target_key, relation, weight, last_seen_at)
-    SELECT $1, $2, properties->>'conversationKey', node_key, 'teve_interacao', 1, last_seen_at
+    SELECT $1::varchar, $2::varchar, properties->>'conversationKey', node_key, 'teve_interacao', 1, last_seen_at
     FROM agent_memory_nodes
     WHERE company_id = $1 AND agent_key = $2 AND node_type = 'episode'
       AND properties ? 'conversationKey'
