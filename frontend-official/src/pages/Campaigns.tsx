@@ -2162,43 +2162,41 @@ export default function Campaigns() {
                             />
                             <Stepper
                               label="Limite por Hora de Envios"
-                                            <Stepper
-                                              label="Limite por Hora de Envios"
-                                              value={Number(hourlyLimit) || 0}
-                                              onChange={(next) => setHourlyLimit(next === 0 ? "" : String(next))}
-                                              min={0}
-                                              max={10000}
-                                              step={5}
-                                              hint="0 = sem limite"
-                                            />
-                                            <div className="md:col-span-2">
-                                              <label className="mb-2 block text-sm font-medium">Agendamento opcional</label>
-                                              <div className="relative">
-                                                <Button 
-                                                  variant="outline" 
-                                                  className="w-full justify-start text-left font-normal h-11"
-                                                  onClick={(e) => {
-                                                    const input = e.currentTarget.nextElementSibling as HTMLInputElement;
-                                                    if (input && typeof input.showPicker === 'function') {
-                                                      try { input.showPicker(); } catch(err) { input.focus(); }
-                                                    } else if (input) {
-                                                      input.focus();
-                                                    }
-                                                  }}
-                                                >
-                                                  <CalendarBlank className="mr-2 h-4 w-4" />
-                                                  {startAt ? formatDateTime(new Date(startAt).toISOString()) : <span>Agendar disparo futuro (opcional)</span>}
-                                                </Button>
-                                                <Input 
-                                                  type="datetime-local" 
-                                                  value={startAt} 
-                                                  onChange={(event) => setStartAt(event.target.value)} 
-                                                  className="absolute inset-0 h-full w-full opacity-0 pointer-events-none"
-                                                  style={{ zIndex: -1 }}
-                                                />
-                                              </div>
-                                            </div>
-                                          </div>
+                              value={Number(hourlyLimit) || 0}
+                              onChange={(next) => setHourlyLimit(next === 0 ? "" : String(next))}
+                              min={0}
+                              max={10000}
+                              step={5}
+                              hint="0 = sem limite"
+                            />
+                            <div className="md:col-span-2">
+                              <label className="mb-2 block text-sm font-medium">Agendamento opcional</label>
+                              <div className="relative">
+                                <Button 
+                                  variant="outline" 
+                                  className="w-full justify-start text-left font-normal h-11"
+                                  onClick={(e) => {
+                                    const input = e.currentTarget.nextElementSibling as HTMLInputElement;
+                                    if (input && typeof input.showPicker === 'function') {
+                                      try { input.showPicker(); } catch(err) { input.focus(); }
+                                    } else if (input) {
+                                      input.focus();
+                                    }
+                                  }}
+                                >
+                                  <CalendarBlank className="mr-2 h-4 w-4" />
+                                  {startAt ? formatDateTime(new Date(startAt).toISOString()) : <span>Agendar disparo futuro (opcional)</span>}
+                                </Button>
+                                <Input 
+                                  type="datetime-local" 
+                                  value={startAt} 
+                                  onChange={(event) => setStartAt(event.target.value)} 
+                                  className="absolute inset-0 h-full w-full opacity-0 pointer-events-none"
+                                  style={{ zIndex: -1 }}
+                                />
+                              </div>
+                            </div>
+                          </div>
 
                           <div className="rounded-xl border border-info/20 bg-info/5 p-3 text-muted-foreground text-xs leading-relaxed space-y-1 mt-2">
                             <p className="font-bold text-info flex items-center gap-1.5">Dica Anti-Ban e Aquecimento</p>
