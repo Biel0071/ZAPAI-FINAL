@@ -21,6 +21,7 @@ import {
   MusicNotes,
   FileText,
   ArrowsOutSimple,
+  CalendarBlank,
 } from "@phosphor-icons/react";
 import { Header } from "@/components/layout/Header";
 import { CampaignsView, type CampaignsTab } from "@/lovable/pages/CampaignsView";
@@ -2521,7 +2522,7 @@ export default function Campaigns() {
                 </CardContent>
               </Card>
             ) : (
-              <div className="grid grid-cols-1 gap-3 xl:grid-cols-2 2xl:grid-cols-3">
+              <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 min-[1920px]:grid-cols-6">
                 {paginatedHistoryCampaigns.map((campaign) => {
                   const liveStatus = dispatchStatuses[campaign.id];
                   const liveMetrics = liveStatus?.metrics ?? {};
@@ -2540,113 +2541,87 @@ export default function Campaigns() {
                   return (
                     <Card key={campaign.id} role="button" tabIndex={0} onClick={() => setSelectedCampaignPreview(campaign)} onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") setSelectedCampaignPreview(campaign); }} className="glass-card cursor-pointer overflow-hidden rounded-2xl border-border/70 bg-card/85 transition hover:-translate-y-0.5 hover:border-primary/40">
                       <div className={cn("h-1", meta.cardLine)} />
-                      <CardContent className="space-y-2 p-3">
-                        <div className="flex flex-col gap-2 lg:flex-row lg:items-start lg:justify-between">
-                          <div className="min-w-0 flex-1">
-                            <div className="flex flex-wrap items-center gap-2">
-                              <h3 className="truncate font-display text-base font-semibold">{campaign.name}</h3>
-                              <OperationalStatusBadge label={meta.label} tone={meta.tone} pulse={meta.tone === "syncing"} />
-                            </div>
-                            <p className="mt-1 line-clamp-1 text-xs text-muted-foreground">
-                              {(campaign.messages ?? []).map((message) => message.content).filter(Boolean).join(" ⬢ ") || "Sem mensagem cadastrada"}
-                            </p>
-                            <div className="mt-2 flex flex-wrap gap-2">
-                              {(campaign.tags ?? []).map((tag) => (
-                                <Badge key={tag} variant="secondary" className="rounded-full border border-border/70 bg-background/60 text-xs">
-                                  {tag}
-                                </Badge>
-                              ))}
-                              {mediaCount > 0 && <Badge variant="secondary" className="rounded-full border border-info/30 bg-info/10 text-info">{mediaCount} midia(s)</Badge>}
-                              {(campaign.tags ?? []).length === 0 && <Badge variant="secondary">Sem tags</Badge>}
-                            </div>
+                      <CardContent className="space-y-3 p-4 flex flex-col">
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <div className="flex items-center gap-2 max-w-full">
+                            <h3 className="truncate font-display text-base font-semibold">{campaign.name}</h3>
+                            <OperationalStatusBadge label={meta.label} tone={meta.tone} pulse={meta.tone === "syncing"} />
                           </div>
-
-                          <div className="grid grid-cols-2 gap-1.5 lg:w-[170px]">
-                            <Button variant="outline" className="h-8 rounded-lg px-2 text-xs" onClick={(event) => { event.stopPropagation(); hydrateComposer(campaign, "edit"); }}>
-                              <PencilSimple className="h-4 w-4" />
-                              Editar
-                            </Button>
-                            <Button variant="outline" className="h-8 rounded-lg px-2 text-xs" onClick={(event) => { event.stopPropagation(); hydrateComposer(campaign, "duplicate"); }}>
-                              <Copy className="h-4 w-4" />
-                              Duplicar
-                            </Button>
-                            {normalizeCampaignStatus(campaign) === "scheduled" ? (
-                              <Button className="h-8 rounded-lg px-2 text-xs shadow-glow" onClick={(event) => { event.stopPropagation(); void runCampaignAction(campaign.id, "start"); }} disabled={busy}>
-                                {busy && actionType === "start" ? <Clock className="h-4 w-4 animate-spin" /> : <Play className="h-4 w-4" />}
-                                Disparar Agora
-                              </Button>
-                            ) : normalizeCampaignStatus(campaign) === "paused" ? (
-                              <Button className="h-8 rounded-lg px-2 text-xs shadow-glow" onClick={(event) => { event.stopPropagation(); void runCampaignAction(campaign.id, "resume"); }} disabled={busy}>
-                                {busy && actionType === "resume" ? <Clock className="h-4 w-4 animate-spin" /> : <Play className="h-4 w-4" />}
-                                Retomar
-                              </Button>
-                            ) : (
-                              <Button className="h-8 rounded-lg px-2 text-xs shadow-glow" onClick={(event) => { event.stopPropagation(); void runCampaignAction(campaign.id, "start"); }} disabled={busy}>
-                                {busy && actionType === "start" ? <Clock className="h-4 w-4 animate-spin" /> : <Play className="h-4 w-4" />}
-                                Iniciar
-                              </Button>
-                            )}
-                            <Button
-                              variant="outline"
-                              className="h-8 rounded-lg border-destructive/30 px-2 text-xs text-destructive hover:bg-destructive/10"
-                              onClick={(event) => { event.stopPropagation(); void runCampaignAction(campaign.id, "delete"); }}
-                              disabled={busy}
-                            >
-                              {busy && actionType === "delete" ? <Clock className="h-4 w-4 animate-spin" /> : <Trash className="h-4 w-4" />}
-                              Excluir
-                            </Button>
-                          </div>
+                          <span className="text-xs font-medium text-muted-foreground whitespace-nowrap flex items-center">
+                            <CalendarBlank className="mr-1.5 h-3.5 w-3.5 opacity-70" />
+                            {campaign.settings?.startAt || (campaign.settings as any)?.scheduledAt ? formatDateTime(campaign.settings?.startAt || (campaign.settings as any)?.scheduledAt) : formatDateTime(campaign.createdAt)}
+                          </span>
                         </div>
 
-                        <div className="grid grid-cols-2 gap-1.5 md:grid-cols-4">
-                          <div className="rounded-lg border border-border/70 bg-background/35 p-2">
-                            <p className="text-xs uppercase tracking-wide text-muted-foreground">Contatos</p>
-                            <p className="mt-1 font-display text-lg font-bold">{recipients}</p>
-                          </div>
-                          <div className="rounded-lg border border-border/70 bg-background/35 p-2">
-                            <p className="text-xs uppercase tracking-wide text-muted-foreground">Enviadas</p>
-                            <p className="mt-1 font-display text-lg font-bold">{sent}</p>
-                          </div>
-                          <div className="rounded-lg border border-border/70 bg-background/35 p-2">
-                            <p className="text-xs uppercase tracking-wide text-muted-foreground">Falhas</p>
-                            <p className="mt-1 font-display text-lg font-bold">{failed}</p>
-                          </div>
-                          <div className="rounded-lg border border-border/70 bg-background/35 p-2">
-                            <p className="text-xs uppercase tracking-wide text-muted-foreground">Agendamento</p>
-                            <p className="mt-1 text-sm font-medium text-foreground">{formatDateTime(campaign.settings?.startAt || (campaign.settings as any)?.scheduledAt)}</p>
-                          </div>
+                        <p className="line-clamp-1 text-xs text-muted-foreground">
+                          {(campaign.messages ?? []).map((message) => message.content).filter(Boolean).join(" ⬢ ") || "Sem mensagem cadastrada"}
+                        </p>
+
+                        <div className="flex flex-wrap items-center gap-2">
+                          <Badge variant="secondary" className="rounded-full border border-border/70 bg-background/60 text-xs flex items-center">
+                              <Users className="mr-1.5 h-3 w-3 opacity-70" />
+                              {recipients} contatos
+                          </Badge>
+                          {(campaign.tags ?? []).map((tag) => (
+                            <Badge key={tag} variant="secondary" className="rounded-full border border-border/70 bg-background/60 text-xs font-normal">
+                              {tag}
+                            </Badge>
+                          ))}
+                          {mediaCount > 0 && <Badge variant="secondary" className="rounded-full border border-info/30 bg-info/10 text-info font-normal">{mediaCount} midia(s)</Badge>}
+                          {(campaign.tags ?? []).length === 0 && <Badge variant="secondary" className="font-normal text-muted-foreground border-dashed">Sem tags</Badge>}
                         </div>
 
-                        <div className="rounded-lg border border-border/70 bg-background/35 p-2">
-                          <div className="mb-1.5 flex items-center justify-between text-xs">
-                            <span className="text-muted-foreground">Progresso operacional</span>
-                            <span className="font-medium text-foreground">{progress}%</span>
+                        <div className="rounded-lg bg-muted/30 p-3 mt-1">
+                          <div className="mb-2 flex items-center justify-between text-xs">
+                            <span className="text-muted-foreground font-medium">Progresso</span>
+                            <span className="font-bold text-foreground">{progress}%</span>
                           </div>
-                          <div className="h-2 overflow-hidden rounded-full bg-muted/70">
+                          <div className="h-1.5 overflow-hidden rounded-full bg-muted/70">
                             <div className="h-full rounded-full bg-primary transition-[width]" style={{ width: `${progress}%` }} />
                           </div>
-                          <div className="mt-1.5 flex flex-wrap gap-x-2 gap-y-1 text-[10px] text-muted-foreground">
-                            <span>{processed}/{recipients} processados</span>
+                          <div className="mt-2 flex flex-wrap justify-between gap-x-2 gap-y-1 text-[10px] text-muted-foreground">
+                            <span>{processed} de {recipients} processados</span>
                             <span>{pending} pendentes</span>
-                            <span>tempo {elapsed}</span>
+                            <span className="flex items-center">
+                              <Clock className="mr-1 h-3 w-3 opacity-70" />
+                              {elapsed}
+                            </span>
                           </div>
                         </div>
 
-                        <div className="flex flex-wrap gap-1.5">
-                          <Button variant="outline" className="h-8 rounded-lg px-2 text-xs" onClick={(event) => { event.stopPropagation(); setSelectedCampaignPreview(campaign); }}>
-                            <ArrowsOutSimple className="h-4 w-4" />
+                        <div className="flex flex-wrap items-center justify-end gap-2 pt-1">
+                          <Button variant="ghost" className="h-8 rounded-lg px-2 text-xs" onClick={(event) => { event.stopPropagation(); setSelectedCampaignPreview(campaign); }}>
+                            <ArrowsOutSimple className="h-4 w-4 mr-1" />
                             Detalhes
                           </Button>
-                          <Button variant="outline" className="h-8 rounded-lg px-2 text-xs" onClick={(event) => { event.stopPropagation(); hydrateComposer(campaign, "edit"); }}>
-                            <ArrowClockwise className="h-4 w-4" />
+                          <Button variant="ghost" className="h-8 rounded-lg px-2 text-xs" onClick={(event) => { event.stopPropagation(); hydrateComposer(campaign, "edit"); }}>
+                            <ArrowClockwise className="h-4 w-4 mr-1" />
                             Editar
                           </Button>
-                          {normalizeCampaignStatus(campaign) !== "paused" && normalizeCampaignStatus(campaign) !== "completed" && (
-                            <Button variant="outline" className="h-8 rounded-lg px-2 text-xs" onClick={(event) => { event.stopPropagation(); void runCampaignAction(campaign.id, "pause"); }} disabled={busy}>
-                              {busy && actionType === "pause" ? <Clock className="h-4 w-4 animate-spin" /> : <Pause className="h-4 w-4" />}
+                          {normalizeCampaignStatus(campaign) === "scheduled" ? (
+                            <Button className="h-8 rounded-lg px-3 text-xs shadow-glow bg-info hover:bg-info/90 text-white" onClick={(event) => { event.stopPropagation(); void runCampaignAction(campaign.id, "start"); }} disabled={busy}>
+                              {busy && actionType === "start" ? <Clock className="h-4 w-4 mr-1 animate-spin" /> : <Play className="h-4 w-4 mr-1" />}
+                              Disparar Agora
+                            </Button>
+                          ) : normalizeCampaignStatus(campaign) === "paused" ? (
+                            <Button className="h-8 rounded-lg px-3 text-xs shadow-glow" onClick={(event) => { event.stopPropagation(); void runCampaignAction(campaign.id, "resume"); }} disabled={busy}>
+                              {busy && actionType === "resume" ? <Clock className="h-4 w-4 mr-1 animate-spin" /> : <Play className="h-4 w-4 mr-1" />}
+                              Retomar
+                            </Button>
+                          ) : normalizeCampaignStatus(campaign) !== "completed" ? (
+                            <Button variant="outline" className="h-8 rounded-lg px-3 text-xs" onClick={(event) => { event.stopPropagation(); void runCampaignAction(campaign.id, "pause"); }} disabled={busy}>
+                              {busy && actionType === "pause" ? <Clock className="h-4 w-4 mr-1 animate-spin" /> : <Pause className="h-4 w-4 mr-1" />}
                               Pausar
                             </Button>
-                          )}
+                          ) : null}
+                          <Button
+                            variant="ghost"
+                            className="h-8 rounded-lg px-2 text-xs text-destructive hover:bg-destructive/10 hover:text-destructive"
+                            onClick={(event) => { event.stopPropagation(); void runCampaignAction(campaign.id, "delete"); }}
+                            disabled={busy}
+                          >
+                            {busy && actionType === "delete" ? <Clock className="h-4 w-4 animate-spin" /> : <Trash className="h-4 w-4" />}
+                          </Button>
                         </div>
                       </CardContent>
                     </Card>
