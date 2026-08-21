@@ -8,7 +8,7 @@ node_modules/
 
 # WhatsApp session state (persisted runtime, NOT for git)
 sessions/
-data/
+/data/
 
 # Runtime output (root-level only — code in subdirs stays tracked)
 logs/
