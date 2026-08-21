@@ -45,13 +45,13 @@ export function LeadMemoryGraphModal({ isOpen, onClose, lead }: LeadMemoryGraphM
 
   const nodes = [
     { type: "cliente", title: lead.name, sub: lead.phone, icon: User, color: "bg-blue-500/20 text-blue-400 border-blue-500/40" },
-    { type: "empresa", title: lead.company || "Empresa B2B", sub: lead.city || "São Paulo - SP", icon: Tag, color: "bg-indigo-500/20 text-indigo-400 border-indigo-500/40" },
-    { type: "produtos", title: lead.products?.[0] || "Plano Enterprise V4", sub: "R$ 4.990,00", icon: ShoppingBag, color: "bg-emerald-500/20 text-emerald-400 border-emerald-500/40" },
-    { type: "campanhas", title: "Disparo Inbound Q3", sub: "WhatsApp Direct", icon: PaperPlaneTilt, color: "bg-purple-500/20 text-purple-400 border-purple-500/40" },
-    { type: "mensagens", title: "18 Mensagens", sub: "Última inter. há 10m", icon: ChatTeardropText, color: "bg-amber-500/20 text-amber-400 border-amber-500/40" },
-    { type: "pedidos", title: "Proposta #1092", sub: "Status: Em Negociação", icon: Receipt, color: "bg-pink-500/20 text-pink-400 border-pink-500/40" },
-    { type: "atendentes", title: "IA ZAPFLOW + Rafael", sub: "Atendimento Híbrido", icon: Headset, color: "bg-teal-500/20 text-teal-400 border-teal-500/40" },
-    { type: "memoria", title: "Grafo de Memória Indexado", sub: `${lead.preferences?.length || 3} preferências salvas`, icon: Brain, color: "bg-emerald-500/20 text-emerald-300 border-emerald-400/60" },
+    { type: "empresa", title: lead.company || "Empresa não informada", sub: lead.city || "S/N", icon: Tag, color: "bg-indigo-500/20 text-indigo-400 border-indigo-500/40" },
+    { type: "produtos", title: lead.products?.[0] || "Nenhum produto associado", sub: lead.products?.length ? `${lead.products.length} itens` : "-", icon: ShoppingBag, color: "bg-emerald-500/20 text-emerald-400 border-emerald-500/40" },
+    { type: "campanhas", title: "Campanhas Inbound", sub: "Não vinculado", icon: PaperPlaneTilt, color: "bg-purple-500/20 text-purple-400 border-purple-500/40" },
+    { type: "mensagens", title: "Mensagens", sub: "Sem interações", icon: ChatTeardropText, color: "bg-amber-500/20 text-amber-400 border-amber-500/40" },
+    { type: "pedidos", title: "Propostas", sub: "Nenhuma proposta", icon: Receipt, color: "bg-pink-500/20 text-pink-400 border-pink-500/40" },
+    { type: "atendentes", title: "Atendimento", sub: "Aguardando", icon: Headset, color: "bg-teal-500/20 text-teal-400 border-teal-500/40" },
+    { type: "memoria", title: "Memória IA", sub: `${lead.preferences?.length || 0} salva(s)`, icon: Brain, color: "bg-emerald-500/20 text-emerald-300 border-emerald-400/60" },
   ];
 
   return (
@@ -156,17 +156,17 @@ export function LeadMemoryGraphModal({ isOpen, onClose, lead }: LeadMemoryGraphM
                   </h4>
                   <p className="text-xs leading-relaxed text-muted-foreground">
                     {lead.summary ||
-                      "Cliente tomador de decisão com alto interesse em automação WhatsApp Enterprise. Busca integração com ERP/CRM e redução de custo operacional."}
+                      "Ainda não há dados suficientes para gerar o resumo executivo e perfil da IA. A memória será indexada após as interações iniciais."}
                   </p>
                   <div className="flex flex-wrap gap-1.5 pt-2 border-t border-border/40">
                     <Badge variant="secondary" className="text-[10px]">
-                      Urgência: {lead.urgency || "Alta"}
+                      Urgência: {lead.urgency || "Indefinido"}
                     </Badge>
                     <Badge variant="secondary" className="text-[10px]">
-                      Perfil: {lead.persona || "Decisor B2B"}
+                      Perfil: {lead.persona || "Não mapeado"}
                     </Badge>
                     <Badge variant="secondary" className="text-[10px]">
-                      Sentimento: {lead.sentiment || "Muito Positivo (88%)"}
+                      Sentimento: {lead.sentiment || "Indefinido"}
                     </Badge>
                   </div>
                 </Card>
@@ -180,19 +180,23 @@ export function LeadMemoryGraphModal({ isOpen, onClose, lead }: LeadMemoryGraphM
                     <div>
                       <span className="font-bold text-foreground block mb-1">Preferências Mapeadas:</span>
                       <ul className="list-disc list-inside text-muted-foreground space-y-0.5">
-                        {(lead.preferences || ["Suporte 24/7 via WhatsApp", "Voz neural customizada", "Dashboard BI completo"]).map(
+                        {lead.preferences?.length ? lead.preferences.map(
                           (p, i) => (
                             <li key={i}>{p}</li>
                           )
+                        ) : (
+                          <li>Nenhuma preferência registrada.</li>
                         )}
                       </ul>
                     </div>
                     <div className="pt-2 border-t border-border/40">
                       <span className="font-bold text-foreground block mb-1">Objeções Superadas:</span>
                       <ul className="list-disc list-inside text-muted-foreground space-y-0.5">
-                        {(lead.objections || ["Prazo de implementação", "Validação de concorrência"]).map((o, i) => (
+                        {lead.objections?.length ? lead.objections.map((o, i) => (
                           <li key={i}>{o}</li>
-                        ))}
+                        )) : (
+                          <li>Nenhuma objeção registrada.</li>
+                        )}
                       </ul>
                     </div>
                   </div>
@@ -209,26 +213,7 @@ export function LeadMemoryGraphModal({ isOpen, onClose, lead }: LeadMemoryGraphM
               </h4>
 
               <div className="space-y-3 pl-4 border-l-2 border-primary/40">
-                <div className="relative space-y-1">
-                  <div className="absolute -left-[21px] top-1 h-3 w-3 rounded-full bg-emerald-500" />
-                  <p className="text-xs font-bold text-foreground">Proposta Aceita - ZAPFLOW Enterprise V4</p>
-                  <p className="text-[11px] text-muted-foreground">Valor: R$ 4.990,00 • Contrato anual ativo</p>
-                  <span className="text-[10px] text-muted-foreground/60">Hoje às 14:10</span>
-                </div>
-
-                <div className="relative space-y-1">
-                  <div className="absolute -left-[21px] top-1 h-3 w-3 rounded-full bg-primary" />
-                  <p className="text-xs font-bold text-foreground">Demonstração de Áudio com ZAPFLOW Aurora</p>
-                  <p className="text-[11px] text-muted-foreground">Cliente testou síntese neural e aprovou pitch comercial</p>
-                  <span className="text-[10px] text-muted-foreground/60">Ontem às 16:45</span>
-                </div>
-
-                <div className="relative space-y-1">
-                  <div className="absolute -left-[21px] top-1 h-3 w-3 rounded-full bg-muted-foreground/50" />
-                  <p className="text-xs font-bold text-foreground">Primeiro Contato via Disparo Inbound</p>
-                  <p className="text-[11px] text-muted-foreground">Origem: Campanha WhatsApp Direta</p>
-                  <span className="text-[10px] text-muted-foreground/60">há 3 dias</span>
-                </div>
+                <p className="text-xs text-muted-foreground">Não há histórico comercial ainda. Assim que as primeiras interações de venda ou propostas forem registradas, o grafo exibirá as trilhas de dados.</p>
               </div>
             </div>
           )}
@@ -237,3 +222,4 @@ export function LeadMemoryGraphModal({ isOpen, onClose, lead }: LeadMemoryGraphM
     </div>
   );
 }
+
