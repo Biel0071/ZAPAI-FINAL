@@ -1803,7 +1803,7 @@ export default function Campaigns() {
                                     <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">{getQuickReplyTemplatePreview(reply)}</p>
                                   </button>
                                   <div className="absolute right-2 top-2 hidden gap-1 group-hover:flex">
-                                    <Button type="button" variant="ghost" size="icon" className="h-7 w-7 rounded-lg" onClick={(e) => { e.stopPropagation(); setEditingQuickReplyId(reply.id); setCampaignName(reply.title || ""); applyQuickReplyTemplate(reply); }}>
+                                    <Button type="button" variant="ghost" size="icon" className="h-7 w-7 rounded-lg" onClick={(e) => { e.stopPropagation(); setEditingQuickReplyId(reply.id); setCampaignName(reply.title || ""); setCampaignStep(2); window.scrollTo({ top: 0, behavior: 'smooth' }); applyQuickReplyTemplate(reply); }}>
                                       <PencilSimple className="h-3.5 w-3.5 text-muted-foreground" />
                                     </Button>
                                     <Button type="button" variant="ghost" size="icon" className="h-7 w-7 rounded-lg hover:bg-destructive/10 hover:text-destructive" onClick={(e) => handleDeleteQuickReply(reply.id, e)}>
@@ -1829,7 +1829,7 @@ export default function Campaigns() {
                                     <p className="mt-1 text-xs text-muted-foreground">{getQuickReplyTemplatePreview(reply)}</p>
                                   </button>
                                   <div className="absolute right-2 top-2 hidden gap-1 group-hover:flex">
-                                    <Button type="button" variant="ghost" size="icon" className="h-7 w-7 rounded-lg" onClick={(e) => { e.stopPropagation(); setEditingQuickReplyId(reply.id); setSelectedFlowId(null); setCampaignName(reply.title || ""); const items = (reply.steps || []).map((step: any) => ({ type: step.type === 'text' ? 'text' : (step.type === 'image' ? 'image' : (step.type === 'video' ? 'video' : (step.type === 'audio' ? 'audio' : 'document'))), content: step.type === 'text' ? step.value : step.caption, mediaUrl: step.type !== 'text' ? step.value : undefined, fileName: step.filename, id: crypto.randomUUID() })); setMessageVariants(items.length ? items : [createEmptyDraftMessage()]); }}>
+                                    <Button type="button" variant="ghost" size="icon" className="h-7 w-7 rounded-lg" onClick={(e) => { e.stopPropagation(); setEditingQuickReplyId(reply.id); setSelectedFlowId(null); setCampaignName(reply.title || ""); setCampaignStep(2); window.scrollTo({ top: 0, behavior: 'smooth' }); const items = (reply.steps || []).map((step: any) => ({ type: step.type === 'text' ? 'text' : (step.type === 'image' ? 'image' : (step.type === 'video' ? 'video' : (step.type === 'audio' ? 'audio' : 'document'))), content: step.type === 'text' ? step.value : step.caption, mediaUrl: step.type !== 'text' ? step.value : undefined, fileName: step.filename, id: Math.random().toString(36).substring(2, 15) })); setMessageVariants(items.length ? items : [createEmptyDraftMessage()]); }}>
                                       <PencilSimple className="h-3.5 w-3.5 text-muted-foreground" />
                                     </Button>
                                     <Button type="button" variant="ghost" size="icon" className="h-7 w-7 rounded-lg hover:bg-destructive/10 hover:text-destructive" onClick={(e) => handleDeleteQuickReply(reply.id, e)}>
@@ -1868,7 +1868,7 @@ export default function Campaigns() {
                                       <Button type="button" variant="ghost" size="icon" className="h-8 w-8 rounded-lg" onClick={() => document.getElementById(`campaign-media-${index}`)?.click()}>
                                         <Paperclip className="h-4 w-4 text-muted-foreground" />
                                       </Button>
-                                      <Button type="button" variant="ghost" size="icon" className="h-8 w-8 rounded-lg" onClick={() => setMessageVariants((current) => [...current, { ...variant, id: crypto.randomUUID() }])}>
+                                      <Button type="button" variant="ghost" size="icon" className="h-8 w-8 rounded-lg" onClick={() => setMessageVariants((current) => [...current, { ...variant, id: Math.random().toString(36).substring(2, 15) }])}>
                                         <Copy className="h-4 w-4 text-muted-foreground" />
                                       </Button>
                                       {messageVariants.length > 1 && (
