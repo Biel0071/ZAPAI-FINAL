@@ -1053,7 +1053,7 @@ function normalizeCampaignRecord(item: unknown, index: number): CampaignRecord {
       pauseEvery: Number(settingsRaw.pauseEvery ?? raw.pauseEvery ?? 10),
       pauseSeconds: Number(settingsRaw.pauseSeconds ?? raw.pauseSeconds ?? 60),
       typingDelaySeconds: Number(settingsRaw.typingDelaySeconds ?? raw.typingDelaySeconds ?? 3),
-      startAt: typeof settingsRaw.startAt === "string" ? settingsRaw.startAt : typeof raw.scheduledFor === "string" ? raw.scheduledFor : null,
+      startAt: typeof settingsRaw.startAt === "string" ? settingsRaw.startAt : typeof settingsRaw.scheduledAt === "string" ? settingsRaw.scheduledAt : typeof raw.scheduledFor === "string" ? raw.scheduledFor : null,
       flowId: typeof settingsRaw.flowId === "string" ? settingsRaw.flowId : null,
       sessionId: typeof settingsRaw.sessionId === "string" ? settingsRaw.sessionId : null,
       shuffleEnabled: Boolean(settingsRaw.shuffleEnabled ?? true),

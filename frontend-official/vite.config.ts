@@ -140,7 +140,8 @@ export default defineConfig(({ mode }) => {
   },
   plugins: [
     react(),
-    mode === "development" && enableLovableTagger && componentTagger(),
+    // lovable-tagger disabled (missing package breaks SWC/ESBuild)
+    // mode === "development" && enableLovableTagger && componentTagger(),
   ].filter(Boolean),
   resolve: {
     alias: {

@@ -48,6 +48,12 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { StatGridSkeleton } from "@/components/ui/loading-skeleton";
 import { OperationalStatusBadge } from "@/components/enterprise/OperationalStatusBadge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+} from "@/components/ui/dropdown-menu";
 import { Label } from "@/components/ui/label";
 import {
   apiService,
@@ -157,7 +163,9 @@ function getDraftMediaIcon(type: CampaignDraftMediaType) {
 
 function normalizeCampaignStatus(campaign: CampaignRecord): CampaignRecord["status"] {
   if (campaign.queue?.paused) return "paused";
-  return campaign.status || "draft";
+  const st = campaign.status || "draft";
+  // Keep scheduled as-is so filter works
+  return st;
 }
 
 function statusMeta(campaign: CampaignRecord) {
@@ -173,7 +181,7 @@ function statusMeta(campaign: CampaignRecord) {
     return { label: "Pausada", tone: "warning" as const, cardLine: "bg-warning" };
   }
   if (["scheduled", "ready"].includes(status)) {
-    return { label: "Pronta para lançar", tone: "warning" as const, cardLine: "bg-warning" };
+    return { label: "Agendada", tone: "syncing" as const, cardLine: "bg-info" };
   }
   if (["cancelled", "canceled"].includes(status)) {
     return { label: "Cancelada", tone: "offline" as const, cardLine: "bg-muted" };
@@ -547,7 +555,7 @@ export default function Campaigns() {
     setWarmupDelayMultiplier(String(campaign.settings?.warmupDelayMultiplier ?? 3));
     setDailyLimit(campaign.settings?.dailyLimit ? String(campaign.settings.dailyLimit) : "");
     setHourlyLimit(campaign.settings?.hourlyLimit ? String(campaign.settings.hourlyLimit) : "");
-    setStartAt(formatInputDateTime(campaign.settings?.startAt));
+    setStartAt(formatInputDateTime(campaign.settings?.startAt || (campaign.settings as any)?.scheduledAt));
     setTagsInput(Array.isArray(campaign.tags) ? campaign.tags.join(", ") : "");
     setCampaignStep(1);
     setSelectedFlowId(campaign.settings?.flowId || null);
@@ -617,7 +625,11 @@ export default function Campaigns() {
   const filteredHistoryCampaigns = useMemo(() => {
     const term = historySearch.trim().toLowerCase();
     return campaigns.filter((campaign) => {
-      if (historyStatusFilter !== "all" && normalizeCampaignStatus(campaign) !== historyStatusFilter) return false;
+      if (historyStatusFilter !== "all") {
+        const status = normalizeCampaignStatus(campaign);
+        if (historyStatusFilter === "scheduled" && status !== "scheduled") return false;
+        if (historyStatusFilter !== "scheduled" && status !== historyStatusFilter) return false;
+      }
       if (!term) return true;
       const haystack = [campaign.name, ...(campaign.tags ?? []), ...(campaign.messages ?? []).map((m) => m.content)]
         .filter(Boolean)
@@ -1087,14 +1099,19 @@ export default function Campaigns() {
           : await apiService.createCampaign(payload);
 
         if (mode === "launch") {
-          try {
-            await apiService.startCampaignDispatch(savedCampaign.id);
-          } catch (error) {
-            if (!(error instanceof Error) || !error.message.toLowerCase().includes("already running")) throw error;
+          const isFuture = payload.settings?.startAt && new Date(payload.settings.startAt).getTime() > Date.now();
+          if (!isFuture) {
+            try {
+              await apiService.startCampaignDispatch(savedCampaign.id);
+            } catch (error) {
+              if (!(error instanceof Error) || !error.message.toLowerCase().includes("already running")) throw error;
+            }
+            setTrackedDispatchIds((current) => Array.from(new Set([...current, savedCampaign.id])));
+            await refreshCampaignDispatchStatus(savedCampaign.id);
+            notify.success("Campanha criada e lancada. Progresso em atualizacao...");
+          } else {
+            notify.success("Campanha salva e agendada para disparo futuro.");
           }
-          setTrackedDispatchIds((current) => Array.from(new Set([...current, savedCampaign.id])));
-          await refreshCampaignDispatchStatus(savedCampaign.id);
-          notify.success("Campanha criada e lancada. Progresso em atualizacao...");
           resetComposer();
         } else {
           notify.success(editingCampaignId ? "Campanha atualizada" : "Campanha salva como rascunho");
@@ -2377,6 +2394,7 @@ export default function Campaigns() {
                       { id: "all", label: "Todas" },
                       { id: "running", label: "Ativas" },
                       { id: "draft", label: "Rascunhos" },
+                      { id: "scheduled", label: "Agendadas" },
                       { id: "completed", label: "Concluídas" },
                       { id: "paused", label: "Pausadas" },
                     ].map((filter) => (
@@ -2485,7 +2503,12 @@ export default function Campaigns() {
                               <Copy className="h-4 w-4" />
                               Duplicar
                             </Button>
-                            {normalizeCampaignStatus(campaign) === "paused" ? (
+                            {normalizeCampaignStatus(campaign) === "scheduled" ? (
+                              <Button className="h-8 rounded-lg px-2 text-xs shadow-glow" onClick={(event) => { event.stopPropagation(); void runCampaignAction(campaign.id, "start"); }} disabled={busy}>
+                                {busy && actionType === "start" ? <Clock className="h-4 w-4 animate-spin" /> : <Play className="h-4 w-4" />}
+                                Disparar Agora
+                              </Button>
+                            ) : normalizeCampaignStatus(campaign) === "paused" ? (
                               <Button className="h-8 rounded-lg px-2 text-xs shadow-glow" onClick={(event) => { event.stopPropagation(); void runCampaignAction(campaign.id, "resume"); }} disabled={busy}>
                                 {busy && actionType === "resume" ? <Clock className="h-4 w-4 animate-spin" /> : <Play className="h-4 w-4" />}
                                 Retomar
@@ -2523,7 +2546,7 @@ export default function Campaigns() {
                           </div>
                           <div className="rounded-lg border border-border/70 bg-background/35 p-2">
                             <p className="text-xs uppercase tracking-wide text-muted-foreground">Agendamento</p>
-                            <p className="mt-1 text-sm font-medium text-foreground">{formatDateTime(campaign.settings?.startAt)}</p>
+                            <p className="mt-1 text-sm font-medium text-foreground">{formatDateTime(campaign.settings?.startAt || (campaign.settings as any)?.scheduledAt)}</p>
                           </div>
                         </div>
 
@@ -2823,7 +2846,7 @@ export default function Campaigns() {
                   <p>Intervalo: <span className="font-medium text-foreground">{selectedCampaignPreview.settings?.intervalSeconds ?? 10}s</span></p>
                   <p>Pausa: <span className="font-medium text-foreground">{selectedCampaignPreview.settings?.pauseEvery ?? 10} / {selectedCampaignPreview.settings?.pauseSeconds ?? 60}s</span></p>
                   <p>Sessão: <span className="font-medium text-foreground">{selectedCampaignPreview.settings?.sessionId || "automática"}</span></p>
-                  <p>Agendamento: <span className="font-medium text-foreground">{formatDateTime(selectedCampaignPreview.settings?.startAt)}</span></p>
+                  <p>Agendamento: <span className="font-medium text-foreground">{formatDateTime(selectedCampaignPreview.settings?.startAt || (selectedCampaignPreview.settings as any)?.scheduledAt)}</span></p>
                   <div className="pt-3 flex flex-wrap gap-2">
                     <Button variant="outline" className="rounded-xl" onClick={() => hydrateComposer(selectedCampaignPreview, "edit")}>
                       <PencilSimple className="h-4 w-4" /> Editar

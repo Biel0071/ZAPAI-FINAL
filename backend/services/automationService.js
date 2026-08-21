@@ -37,7 +37,7 @@ function normalizeCampaign(payload = {}) {
       pauseEvery: Number(settings.pauseEvery ?? payload.pauseEvery ?? 10),
       pauseSeconds: Number(settings.pauseSeconds ?? payload.pauseSeconds ?? 60),
       typingDelaySeconds: Number(settings.typingDelaySeconds ?? payload.typingDelaySeconds ?? 3),
-      startAt: settings.startAt || payload.scheduledFor || null,
+      startAt: payload.startAt || settings.startAt || settings.scheduledAt || payload.scheduledFor || payload.settings?.scheduledAt || null,
       shuffleEnabled: settings.shuffleEnabled !== undefined ? Boolean(settings.shuffleEnabled) : Boolean(payload.shuffleEnabled ?? true),
       warmupMessages: Number(settings.warmupMessages ?? payload.warmupMessages ?? 5),
       warmupDelayMultiplier: Number(settings.warmupDelayMultiplier ?? payload.warmupDelayMultiplier ?? 3),
