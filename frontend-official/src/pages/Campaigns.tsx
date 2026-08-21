@@ -349,6 +349,7 @@ export default function Campaigns() {
   const [campaigns, setCampaigns] = useState<CampaignRecord[]>([]);
   const [quickReplies, setQuickReplies] = useState<QuickReplyItem[]>([]);
   const [selectedFlowId, setSelectedFlowId] = useState<string | null>(null);
+  const [editingQuickReplyId, setEditingQuickReplyId] = useState<string | null>(null);
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [campaignStep, setCampaignStep] = useState(1);
   const [composerMode, setComposerMode] = useState<ComposerMode>("create");
@@ -873,6 +874,21 @@ export default function Campaigns() {
     [campaignName, cleanMessages, editingCampaign, editingCampaignId, intervalSeconds, pauseEvery, pauseSeconds, selectedContacts, selectedFlowId, shuffleEnabled, startAt, tagsInput, typingDelay, warmupMessages, warmupDelayMultiplier, dailyLimit, hourlyLimit],
   );
 
+  const handleDeleteQuickReply = useCallback(async (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (confirm("Tem certeza que deseja excluir esta resposta rápida?")) {
+      try {
+        await apiService.deleteQuickReply(id);
+        notify.success("Resposta rápida excluída com sucesso.");
+        setQuickReplies(prev => prev.filter(q => q.id !== id));
+        if (selectedFlowId === id) setSelectedFlowId(null);
+        if (editingQuickReplyId === id) setEditingQuickReplyId(null);
+      } catch (error: any) {
+        notify.error("Erro ao excluir resposta: " + (error.message || "Erro desconhecido"));
+      }
+    }
+  }, [selectedFlowId, editingQuickReplyId]);
+
   const saveCurrentMessagesAsQuickReply = useCallback(async (asFlow = false) => {
     if (!campaignName.trim()) { notify.error("Informe o nome da campanha antes de salvar como padrao."); setCampaignStep(1); return; }
     if (cleanMessages.length === 0) { notify.error("Crie ao menos uma mensagem para salvar como padrao."); setCampaignStep(2); return; }
@@ -896,11 +912,6 @@ export default function Campaigns() {
         value: message.type === "text" ? message.content : message.mediaUrl || message.mediaPath || message.content,
         filename: message.fileName || undefined,
         caption: message.type === "text" ? undefined : message.content,
-        delayMs: intervalSeconds[0] * 1000,
-        typingMs: typingDelay[0] * 1000,
-      })),
-    };
-    try {
       const created = await apiService.createQuickReply(payload);
       setQuickReplies((current) => [created, ...current.filter((item) => item.id !== created.id)]);
       notify.success(asFlow ? "Fluxo salvo como padrao de campanha." : "Resposta rapida salva como padrao de campanha.");
@@ -1775,11 +1786,21 @@ export default function Campaigns() {
                               <Badge variant="secondary">{quickReplyMessageTemplates.length}</Badge>
                             </div>
                             <div className="max-h-56 space-y-2 overflow-y-auto pr-1">
-                              {quickReplyMessageTemplates.length === 0 ? <p className="rounded-xl border border-border/70 bg-card/60 p-3 text-xs text-muted-foreground">Nenhuma resposta rapida avulsa salva ainda.</p> : quickReplyMessageTemplates.slice(0, 8).map((reply) => (
-                                <button key={reply.id} type="button" className="w-full rounded-xl border border-border/70 bg-card/60 p-3 text-left transition hover:border-primary/40 hover:bg-card" onClick={() => applyQuickReplyTemplate(reply)}>
-                                  <p className="truncate text-sm font-semibold text-foreground">{reply.title}</p>
-                                  <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">{getQuickReplyTemplatePreview(reply)}</p>
-                                </button>
+                              {quickReplyMessageTemplates.length === 0 ? <p className="rounded-xl border border-border/70 bg-card/60 p-3 text-xs text-muted-foreground">Nenhuma resposta rapida avulsa salva ainda.</p> : quickReplyMessageTemplates.map((reply) => (
+                                <div key={reply.id} className="group relative w-full rounded-xl border border-border/70 bg-card/60 transition hover:border-primary/40 hover:bg-card">
+                                  <button type="button" className="w-full p-3 text-left" onClick={() => applyQuickReplyTemplate(reply)}>
+                                    <p className="truncate text-sm font-semibold text-foreground pr-16">{reply.title}</p>
+                                    <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">{getQuickReplyTemplatePreview(reply)}</p>
+                                  </button>
+                                  <div className="absolute right-2 top-2 hidden gap-1 group-hover:flex">
+                                    <Button type="button" variant="ghost" size="icon" className="h-7 w-7 rounded-lg" onClick={(e) => { e.stopPropagation(); setEditingQuickReplyId(reply.id); setCampaignName(reply.title || ""); applyQuickReplyTemplate(reply); }}>
+                                      <PencilSimple className="h-3.5 w-3.5 text-muted-foreground" />
+                                    </Button>
+                                    <Button type="button" variant="ghost" size="icon" className="h-7 w-7 rounded-lg hover:bg-destructive/10 hover:text-destructive" onClick={(e) => handleDeleteQuickReply(reply.id, e)}>
+                                      <Trash className="h-3.5 w-3.5" />
+                                    </Button>
+                                  </div>
+                                </div>
                               ))}
                             </div>
                           </CardContent>
@@ -1791,11 +1812,21 @@ export default function Campaigns() {
                               <Badge variant="secondary">{quickReplyFlowTemplates.length}</Badge>
                             </div>
                             <div className="max-h-56 space-y-2 overflow-y-auto pr-1">
-                              {quickReplyFlowTemplates.length === 0 ? <p className="rounded-xl border border-border/70 bg-card/60 p-3 text-xs text-muted-foreground">Nenhum fluxo salvo ainda. Monte mensagens abaixo e salve como fluxo.</p> : quickReplyFlowTemplates.slice(0, 8).map((reply) => (
-                                <button key={reply.id} type="button" className={cn("w-full rounded-xl border p-3 text-left transition hover:border-primary/40 hover:bg-card", selectedFlowId === reply.id ? "border-primary/40 bg-primary/10" : "border-border/70 bg-card/60")} onClick={() => applyQuickReplyFlow(reply)}>
-                                  <p className="truncate text-sm font-semibold text-foreground">{reply.title}</p>
-                                  <p className="mt-1 text-xs text-muted-foreground">{getQuickReplyTemplatePreview(reply)}</p>
-                                </button>
+                              {quickReplyFlowTemplates.length === 0 ? <p className="rounded-xl border border-border/70 bg-card/60 p-3 text-xs text-muted-foreground">Nenhum fluxo salvo ainda. Monte mensagens abaixo e salve como fluxo.</p> : quickReplyFlowTemplates.map((reply) => (
+                                <div key={reply.id} className={cn("group relative w-full rounded-xl border transition hover:border-primary/40 hover:bg-card", selectedFlowId === reply.id ? "border-primary/40 bg-primary/10" : "border-border/70 bg-card/60")}>
+                                  <button type="button" className="w-full p-3 text-left" onClick={() => applyQuickReplyFlow(reply)}>
+                                    <p className="truncate text-sm font-semibold text-foreground pr-16">{reply.title}</p>
+                                    <p className="mt-1 text-xs text-muted-foreground">{getQuickReplyTemplatePreview(reply)}</p>
+                                  </button>
+                                  <div className="absolute right-2 top-2 hidden gap-1 group-hover:flex">
+                                    <Button type="button" variant="ghost" size="icon" className="h-7 w-7 rounded-lg" onClick={(e) => { e.stopPropagation(); setEditingQuickReplyId(reply.id); setSelectedFlowId(null); setCampaignName(reply.title || ""); const items = (reply.steps || []).map((step: any) => ({ type: step.type === 'text' ? 'text' : (step.type === 'image' ? 'image' : (step.type === 'video' ? 'video' : (step.type === 'audio' ? 'audio' : 'document'))), content: step.type === 'text' ? step.value : step.caption, mediaUrl: step.type !== 'text' ? step.value : undefined, fileName: step.filename, id: crypto.randomUUID() })); setMessageVariants(items.length ? items : [createEmptyDraftMessage()]); }}>
+                                      <PencilSimple className="h-3.5 w-3.5 text-muted-foreground" />
+                                    </Button>
+                                    <Button type="button" variant="ghost" size="icon" className="h-7 w-7 rounded-lg hover:bg-destructive/10 hover:text-destructive" onClick={(e) => handleDeleteQuickReply(reply.id, e)}>
+                                      <Trash className="h-3.5 w-3.5" />
+                                    </Button>
+                                  </div>
+                                </div>
                               ))}
                             </div>
                           </CardContent>
@@ -1951,7 +1982,7 @@ export default function Campaigns() {
                                 </div>
                                 <div className="flex-1 overflow-y-auto bg-[#0b141a] p-4 bg-[url('https://web.whatsapp.com/img/bg-chat-tile-dark_a4be512e7195b6b733d9110b408f075d.png')] bg-repeat bg-opacity-5">
                                   <div className="space-y-4">
-                                    {messageVariants.map((variant, i) => (
+                                    {(selectedFlowId ? (quickReplies.find(q => q.id === selectedFlowId)?.steps || []) : messageVariants).map((variant: any, i: number) => (
                                       <div key={i} className="flex justify-end">
                                         <div className="max-w-[85%] rounded-lg bg-[#005c4b] text-[#e9edef] p-2 shadow-sm text-[14px] leading-relaxed relative">
                                           {(variant.localUrl || variant.mediaUrl) && variant.type === 'image' && (
