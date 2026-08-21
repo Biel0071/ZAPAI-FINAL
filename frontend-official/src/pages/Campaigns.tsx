@@ -22,6 +22,9 @@ import {
   FileText,
   ArrowsOutSimple,
   CalendarBlank,
+  Hourglass,
+  Timer,
+  ShuffleAngular,
 } from "@phosphor-icons/react";
 import { Header } from "@/components/layout/Header";
 import { CampaignsView, type CampaignsTab } from "@/lovable/pages/CampaignsView";
@@ -2266,13 +2269,13 @@ export default function Campaigns() {
                         <CardContent className="space-y-4 p-4">
                           <p className="text-sm font-medium">Checklist operacional</p>
                           <div className="space-y-2 text-sm text-muted-foreground">
-                            <p>⬢ Tipo de Envio: <span className="font-medium text-foreground">{selectedFlowId ? "Fluxo de Resposta Rápida" : "Mensagens Avulsas"}</span></p>
-                            {!selectedFlowId && <p>⬢ Typing delay: <span className="font-medium text-foreground">{typingDelay[0].toFixed(1)}s</span></p>}
-                            <p>⬢ Intervalo por contato: <span className="font-medium text-foreground">{intervalSeconds[0]}s</span></p>
-                            <p>⬢ Pausa a cada: <span className="font-medium text-foreground">{pauseEvery} envios</span></p>
-                            <p>⬢ Tempo da pausa: <span className="font-medium text-foreground">{pauseSeconds}s</span></p>
-                            <p>⬢ Agendamento: <span className="font-medium text-foreground">{startAt ? formatDateTime(new Date(startAt).toISOString()) : "Imediato"}</span></p>
-                            {!selectedFlowId && <p>⬢ Shuffle: <span className="font-medium text-foreground">{shuffleEnabled ? "Ativo" : "Desligado"}</span></p>}
+                            <p className="flex items-center gap-1.5"><PaperPlaneTilt className="h-3.5 w-3.5 text-primary" /> Tipo de Envio: <span className="font-medium text-foreground">{selectedFlowId ? "Fluxo de Resposta Rápida" : "Mensagens Avulsas"}</span></p>
+                            {!selectedFlowId && <p className="flex items-center gap-1.5"><Clock className="h-3.5 w-3.5 text-primary" /> Typing delay: <span className="font-medium text-foreground">{typingDelay[0].toFixed(1)}s</span></p>}
+                            <p className="flex items-center gap-1.5"><Hourglass className="h-3.5 w-3.5 text-primary" /> Intervalo por contato: <span className="font-medium text-foreground">{intervalSeconds[0]}s</span></p>
+                            <p className="flex items-center gap-1.5"><Pause className="h-3.5 w-3.5 text-primary" /> Pausa a cada: <span className="font-medium text-foreground">{pauseEvery} envios</span></p>
+                            <p className="flex items-center gap-1.5"><Timer className="h-3.5 w-3.5 text-primary" /> Tempo da pausa: <span className="font-medium text-foreground">{pauseSeconds}s</span></p>
+                            <p className="flex items-center gap-1.5"><CalendarBlank className="h-3.5 w-3.5 text-primary" /> Agendamento: <span className="font-medium text-foreground">{startAt ? formatDateTime(new Date(startAt).toISOString()) : "Imediato"}</span></p>
+                            {!selectedFlowId && <p className="flex items-center gap-1.5"><ShuffleAngular className="h-3.5 w-3.5 text-primary" /> Shuffle: <span className="font-medium text-foreground">{shuffleEnabled ? "Ativo" : "Desligado"}</span></p>}
                           </div>
                           <div className="rounded-2xl border border-border/70 bg-card/80 p-4">
                             <p className="text-xs uppercase tracking-wide text-muted-foreground">Tags</p>
@@ -2452,8 +2455,8 @@ export default function Campaigns() {
                             <p className="mt-0.5 text-xs text-muted-foreground">
                               {(scheduledCampaign.messages ?? []).map((m) => m.content).filter(Boolean).join(" • ").slice(0, 80) || "Sem mensagem"}
                             </p>
-                            <p className="mt-1 text-xs font-medium text-info">
-                              ⏳ Agendado: {formatDateTime((scheduledCampaign.settings as any)?.startAt || (scheduledCampaign.settings as any)?.scheduledAt)}
+                            <p className="mt-1 text-xs font-medium text-info flex items-center">
+                              <Clock className="mr-1 h-3.5 w-3.5" /> Agendado: {formatDateTime((scheduledCampaign.settings as any)?.startAt || (scheduledCampaign.settings as any)?.scheduledAt)}
                             </p>
                             <p className="mt-1 text-xs font-semibold text-warning flex items-center gap-1.5">
                               <Users className="h-3.5 w-3.5" />
@@ -2590,7 +2593,7 @@ export default function Campaigns() {
                 </CardContent>
               </Card>
             ) : (
-              <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 min-[1920px]:grid-cols-6">
+              <div className="grid grid-cols-1 gap-3 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 min-[1920px]:grid-cols-7">
                 {paginatedHistoryCampaigns.map((campaign) => {
                   const liveStatus = dispatchStatuses[campaign.id];
                   const liveMetrics = liveStatus?.metrics ?? {};
