@@ -521,13 +521,6 @@ export const MessageRow = memo(function MessageRow({
           )}
 
           <div className={cn("mt-1 flex items-center gap-1.5 text-[10px]", message.fromMe ? "justify-end text-primary-foreground/70" : "text-muted-foreground")}>
-            {message.fromMe && (
-              isAiMessage ? (
-                <Robot className="h-3.5 w-3.5 text-emerald-400 shrink-0" weight="fill" title="Enviado pela IA" />
-              ) : (
-                <User className="h-3.5 w-3.5 text-blue-400 shrink-0" weight="fill" title="Enviado pelo Atendente" />
-              )
-            )}
             <span>{formatTime(message.createdAt)}</span>
             {message.fromMe && (
               <span className="flex items-center shrink-0 ml-0.5" aria-label={statusMeta.label} title={statusMeta.label}>
@@ -629,6 +622,16 @@ export const MessageRow = memo(function MessageRow({
           </div>
         )}
       </div>
+
+      {message.fromMe && (
+        <div className="flex-shrink-0 self-end mb-3 flex items-center justify-center h-7 w-7 rounded-full bg-background border border-border shadow-sm">
+          {isAiMessage ? (
+            <Robot className="h-4 w-4 text-emerald-400" weight="fill" title="Enviado pela IA" />
+          ) : (
+            <User className="h-4 w-4 text-blue-400" weight="fill" title="Enviado pelo Atendente" />
+          )}
+        </div>
+      )}
     </div>
   );
 }, (prevProps, nextProps) => {
