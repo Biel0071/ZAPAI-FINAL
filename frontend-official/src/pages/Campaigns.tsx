@@ -1427,7 +1427,7 @@ export default function Campaigns() {
             summaryCards={
               campaignsTab !== "compose" ? (
                 <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
-                  <Card className="metric-card rounded-2xl border-border/70 bg-card/85">
+                  <Card className="metric-card rounded-2xl border-border/70">
                     <CardContent className="space-y-2 p-5">
                       <div className="flex items-center gap-4">
                         <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10">
@@ -1443,7 +1443,7 @@ export default function Campaigns() {
                     </CardContent>
                   </Card>
 
-                  <Card className="metric-card rounded-2xl border-border/70 bg-card/85">
+                  <Card className="metric-card rounded-2xl border-border/70">
                     <CardContent className="space-y-2 p-5">
                       <div className="flex items-center gap-4">
                         <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-info/10">
@@ -1459,7 +1459,7 @@ export default function Campaigns() {
                     </CardContent>
                   </Card>
 
-                  <Card className="metric-card rounded-2xl border-border/70 bg-card/85">
+                  <Card className="metric-card rounded-2xl border-border/70">
                     <CardContent className="space-y-2 p-5">
                       <div className="flex items-center gap-4">
                         <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-success/10">
@@ -1475,7 +1475,7 @@ export default function Campaigns() {
                     </CardContent>
                   </Card>
 
-                  <Card className="metric-card rounded-2xl border-border/70 bg-card/85">
+                  <Card className="metric-card rounded-2xl border-border/70">
                     <CardContent className="space-y-2 p-5">
                       <div className="flex items-center gap-4">
                         <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-warning/10">
@@ -1580,19 +1580,26 @@ export default function Campaigns() {
                         <div className="space-y-3">
                         <div>
                           <Label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Atendente IA criador</Label>
-                          <select
-                            value={selectedAiAgentKey}
-                            onChange={(event) => setSelectedAiAgentKey(event.target.value)}
-                            className="mt-2 h-11 w-full rounded-xl border border-border bg-background px-3 text-sm text-foreground focus:border-primary focus:outline-none"
-                          >
-                            {aiAgents.map((agent) => (
-                              <option key={agent.key || agent.name} value={agent.key || agent.name}>
-                                {agent.name || agent.key} {agent.active === false ? "(inativo)" : ""}
-                              </option>
-                            ))}
-                            {aiAgents.length === 0 && <option value="">Atendente padrao</option>}
-                          </select>
-                          <p className="mt-1 text-[11px] text-muted-foreground">Usa a personalidade e inteligencia do atendente para escrever a campanha.</p>
+                          <div className="mt-2 flex gap-3 items-center">
+                            <div className="relative flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-primary/20 to-primary/5 shadow-inner border border-primary/20 overflow-hidden">
+                              <img src={`https://api.dicebear.com/7.x/pixel-art/svg?seed=${encodeURIComponent(selectedAiAgentKey || 'Agent')}`} alt="Agent" className="w-full h-full object-cover p-1" />
+                            </div>
+                            <div className="flex-grow">
+                              <select
+                                value={selectedAiAgentKey}
+                                onChange={(event) => setSelectedAiAgentKey(event.target.value)}
+                                className="h-11 w-full rounded-xl border border-border bg-background px-3 text-sm text-foreground focus:border-primary focus:outline-none"
+                              >
+                                {aiAgents.map((agent) => (
+                                  <option key={agent.key || agent.name} value={agent.key || agent.name}>
+                                    {agent.name || agent.key} {agent.active === false ? "(inativo)" : ""}
+                                  </option>
+                                ))}
+                                {aiAgents.length === 0 && <option value="">Atendente padrao</option>}
+                              </select>
+                            </div>
+                          </div>
+                          <p className="mt-1.5 text-[11px] text-muted-foreground">Usa a personalidade e inteligencia do atendente para escrever a campanha.</p>
                         </div>
                         <div>
                           <Label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Tipo de lead</Label>

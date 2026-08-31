@@ -23,6 +23,7 @@
  */
 
 const { query } = require('../src/infrastructure/config/database');
+const aiCompressionService = require('./aiCompressionService');
 
 // ─── Config ───────────────────────────────────────────────────────────────────
 const GROUP_MESSAGE_RETENTION_HOURS  = Number(process.env.GROUP_MSG_RETENTION_HOURS  || 24);
@@ -97,7 +98,7 @@ async function cleanGroupMessages() {
 
 // ─── Individual message cleanup ────────────────────────────────────────────────
 
-async function cleanIndividualMessages() {
+async function cleanIndividualMessages(store) {
   const hasTable = await tableExists('messages');
   if (!hasTable) {
     return { skipped: true, reason: 'messages table does not exist' };
@@ -116,16 +117,42 @@ async function cleanIndividualMessages() {
   let batch;
 
   do {
-    const result = await query(
-      `DELETE FROM messages
-       WHERE id IN (
-         SELECT id FROM messages
-         WHERE chat_id NOT LIKE '%@g.us'
-           AND created_at < $1
-         LIMIT $2
-       )`,
+    // 1. Antes de deletar, buscamos os chats que estão nesse lote para compressão
+    const toDeleteRes = await query(
+      `SELECT id, chat_id, content, from_me, created_at, company_id
+       FROM messages
+       WHERE chat_id NOT LIKE '%@g.us'
+         AND created_at < $1
+       ORDER BY chat_id, created_at ASC
+       LIMIT $2`,
       [cutoff, RETENTION_BATCH_SIZE]
     );
+
+    const msgsToDelete = toDeleteRes.rows || [];
+    if (msgsToDelete.length === 0) break;
+
+    // Agrupa mensagens por chat_id para compressão
+    const grouped = {};
+    for (const msg of msgsToDelete) {
+      if (!grouped[msg.chat_id]) grouped[msg.chat_id] = { companyId: msg.company_id, messages: [] };
+      grouped[msg.chat_id].messages.push(msg);
+    }
+
+    // Chama o serviço de compressão para cada chat (em background/await)
+    for (const chatId of Object.keys(grouped)) {
+      const { companyId, messages } = grouped[chatId];
+      if (messages.length > 5) { // Só comprime se houver um contexto relevante a ser deletado
+        await aiCompressionService.compressContactHistory(chatId, companyId, messages, store).catch(e => console.error(e));
+      }
+    }
+
+    // 2. Agora deletamos o lote que já foi comprimido
+    const idsToDelete = msgsToDelete.map(m => m.id);
+    const result = await query(
+      `DELETE FROM messages WHERE id = ANY($1::int[])`,
+      [idsToDelete]
+    );
+    
     batch = result.rowCount || 0;
     totalDeleted += batch;
   } while (batch >= RETENTION_BATCH_SIZE);
@@ -174,7 +201,7 @@ async function cleanOrphanConversations() {
 
 // ─── Main entry point ─────────────────────────────────────────────────────────
 
-async function runRetention() {
+async function runRetention(store) {
   if (isRunning) {
     console.log('[RETENTION] Already running — skipping');
     return { skipped: true, reason: 'already running' };
@@ -208,7 +235,7 @@ async function runRetention() {
 
   try {
     report.groups     = await cleanGroupMessages();
-    report.individual = await cleanIndividualMessages();
+    report.individual = await cleanIndividualMessages(store);
     report.orphans    = await cleanOrphanConversations();
   } catch (err) {
     report.error = err?.message || String(err);

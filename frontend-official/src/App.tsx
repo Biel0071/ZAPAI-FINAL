@@ -112,6 +112,7 @@ const Memory = lazyWithRetry(() => import("./pages/Memory"), "memory");
 const Tests = lazyWithRetry(() => import("./pages/Tests"), "tests");
 const Queue = lazyWithRetry(() => import("./pages/Queue"), "queue");
 const Operations = lazyWithRetry(() => import("./pages/Operations"), "operations");
+const AdminHub = lazyWithRetry(() => import("./pages/AdminHub"), "admin_hub");
 
 function RequireAdminAuth({ children }: { children: JSX.Element }) {
   const { isAuthenticated, isLoading } = useAdminAuth();
@@ -181,14 +182,14 @@ const App = () => {
                       <Route path="/integrations" element={<Navigate to="/connections" replace />} />
                       <Route path="/dev-tools" element={<ProtectedRoute minRole="user"><Navigate to="/diagnostics" replace /></ProtectedRoute>} />
                       <Route path="/memory" element={<PageRouteBoundary pageName="Memória de Sistema"><Memory /></PageRouteBoundary>} />
-                      <Route path="/queue" element={<ProtectedRoute minRole="user"><PageRouteBoundary pageName="Fila de Envios"><Queue /></PageRouteBoundary></ProtectedRoute>} />
-                      <Route path="/users" element={<ProtectedRoute minRole="user"><PageRouteBoundary pageName="Usuários Master"><MasterAdmins /></PageRouteBoundary></ProtectedRoute>} />
-
-                      <Route path="/nodes" element={<ProtectedRoute minRole="user"><PageRouteBoundary pageName="Nós do Cluster"><MasterNodes /></PageRouteBoundary></ProtectedRoute>} />
+                      <Route path="/queue" element={<Navigate to="/admin" replace />} />
+                      <Route path="/users" element={<Navigate to="/admin" replace />} />
+                      <Route path="/nodes" element={<Navigate to="/admin" replace />} />
                       <Route path="/nodes/:id" element={<ProtectedRoute minRole="user"><PageRouteBoundary pageName="Detalhes do Nó"><NodeDetails /></PageRouteBoundary></ProtectedRoute>} />
-                      <Route path="/deployments" element={<ProtectedRoute minRole="user"><PageRouteBoundary pageName="Implantações"><MasterDeployments /></PageRouteBoundary></ProtectedRoute>} />
-                      <Route path="/logs" element={<ProtectedRoute minRole="user"><PageRouteBoundary pageName="Logs do Cluster"><MasterLogs /></PageRouteBoundary></ProtectedRoute>} />
-                      <Route path="/versions" element={<ProtectedRoute minRole="user"><PageRouteBoundary pageName="Histórico de Versões"><MasterVersions /></PageRouteBoundary></ProtectedRoute>} />
+                      <Route path="/deployments" element={<Navigate to="/admin" replace />} />
+                      <Route path="/logs" element={<Navigate to="/admin" replace />} />
+                      <Route path="/versions" element={<Navigate to="/admin" replace />} />
+                      <Route path="/admin" element={<ProtectedRoute minRole="user"><PageRouteBoundary pageName="Administração"><AdminHub /></PageRouteBoundary></ProtectedRoute>} />
                       <Route path="/system/runtime" element={<Navigate to="/diagnostics" replace />} />
                       <Route path="/system/performance" element={<Navigate to="/diagnostics" replace />} />
                       <Route path="/system/websocket" element={<Navigate to="/diagnostics" replace />} />

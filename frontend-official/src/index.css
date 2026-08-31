@@ -251,9 +251,17 @@
   }
 
   .metric-card {
-    @apply bg-card border border-border/60 rounded-xl relative overflow-hidden;
-    box-shadow: var(--shadow-card);
-    transition: box-shadow 0.25s ease, border-color 0.25s ease, transform 0.25s ease;
+    @apply rounded-xl relative overflow-hidden bg-card/60 border-border/40;
+    backdrop-filter: blur(12px);
+    box-shadow: 0 4px 20px rgba(0,0,0,0.05), inset 0 1px 1px rgba(255,255,255,0.03);
+    background-image: linear-gradient(145deg, rgba(var(--card), 0.7), rgba(var(--background), 0.3));
+    transition: box-shadow 0.3s ease, border-color 0.3s ease, transform 0.3s ease;
+  }
+
+  .glass-card {
+    @apply rounded-xl bg-card/40 border border-border/30 backdrop-blur-md;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.05), inset 0 1px 1px rgba(255,255,255,0.05);
+    background-image: linear-gradient(135deg, rgba(var(--card), 0.6) 0%, rgba(var(--background), 0.2) 100%);
   }
 
   .metric-card::before {

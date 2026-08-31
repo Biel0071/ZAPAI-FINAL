@@ -62,19 +62,11 @@ const crmItems: SidebarNavItem[] = [
   { icon: Megaphone, label: "Campanhas", path: "/campaigns", minRole: "user" },
   { icon: ChartLineUp, label: "Operações", path: "/operations", minRole: "user" },
   { icon: AIIcon, label: "IA & Automação", path: "/ai", minRole: "user" },
-  { icon: Brain, label: "Memória IA", path: "/memory", minRole: "user" },
   { icon: TreeStructure, label: "Fluxos", path: "/flows", minRole: "admin", dev: true },
 ];
 
 const adminItems: SidebarNavItem[] = [
-  { icon: Queue, label: "Fila de Envios", path: "/queue", minRole: "user" },
-  { icon: HardDrives, label: "Cluster", path: "/nodes", minRole: "user" },
-  { icon: ShieldCheck, label: "Usuários", path: "/users", minRole: "user" },
-  { icon: TrendUp, label: "Deployments", path: "/deployments", minRole: "user" },
-  { icon: Cpu, label: "Memória", path: "/memory", minRole: "user" },
-  { icon: GitCommit, label: "Versões", path: "/versions", minRole: "user" },
-  { icon: FileText, label: "Logs", path: "/logs", minRole: "user" },
-  { icon: Flask, label: "Central de Testes", path: "/tests", minRole: "admin", dev: true },
+  { icon: ShieldCheck, label: "Administração", path: "/admin", minRole: "user" },
 ];
 
 const bottomItems: SidebarNavItem[] = [

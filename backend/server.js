@@ -66,6 +66,7 @@ const aiMemoryEngine = require('./services/aiMemoryEngine');
 const websocketGateway = require('./services/websocketGateway');
 const campaignDispatchEngine = require('./services/campaignDispatchEngine');
 const campaignScheduler = require('./services/campaignScheduler');
+const agentEvolutionCron = require('./services/agentEvolutionCron');
 const envValidator = require('./services/envValidator');
 const sessionWatchdog = require('./services/sessionWatchdog');
 const { createHealthService } = require('./services/healthService');
@@ -1805,7 +1806,7 @@ async function bootstrap() {
       workerSupervisor.registerWorker('message_retention', async () => {
         try {
           const retentionService = require('./services/retentionService');
-          const report = await retentionService.runRetention();
+          const report = await retentionService.runRetention(app.locals.store);
           if (!report.skipped) {
             console.log(`[SERVER] Retention complete: groups=${report.groups?.deleted ?? 0} individual=${report.individual?.deleted ?? 0}`);
           }
@@ -1824,8 +1825,9 @@ async function bootstrap() {
       }, 60000); // every minute
       workerSupervisor.startWorker('ai_reactivation');
 
-      // Phase 9: Campaign Scheduler
+      // Phase 9: Campaign Scheduler and AI Evolution
       campaignScheduler.startCampaignScheduler(io);
+      agentEvolutionCron.startEvolutionScan();
 
       // Signal PM2 that the process is fully ready (wait_ready: true)
       // This tells PM2 it can safely route traffic and manage restarts

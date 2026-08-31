@@ -759,7 +759,26 @@ async function processAI({ contact, history, message, store, agentName, companyI
   }
 
   const agentMemoryGraphService = require('./agentMemoryGraphService');
+  const aiLocalBrainService = require('./aiLocalBrainService');
   const resolvedAgentKey = resolvedAgent?.key || resolvedAgent?.name || agentName || 'agent';
+
+  // -- LOCAL BRAIN CACHE (Zero Tokens) --
+  const localMatch = await aiLocalBrainService.queryLocalBrain(resolvedAgentKey, resolvedCompanyId, message);
+  if (localMatch) {
+    return {
+      ok: true,
+      provider: 'local_brain',
+      model: 'cache',
+      status: 'connected',
+      response: localMatch,
+      responseTimeMs: Date.now() - startedAt,
+      promptTokens: 0,
+      completionTokens: 0,
+      totalTokens: 0,
+    };
+  }
+  // -- END LOCAL BRAIN --
+
   let graphMemory = { prompt: '', memories: [] };
   try {
     graphMemory = await agentMemoryGraphService.recallRelevantMemory({
@@ -986,6 +1005,13 @@ async function processAI({ contact, history, message, store, agentName, companyI
       timestamp: Date.now(),
       result: finalResult
     });
+
+    // -- AUTO LEARN (Self-Learning from API success) --
+    if (finalResult.response && finalResult.response.length >= 15 && message && message.length >= 15) {
+      aiLocalBrainService.autoLearn(resolvedAgentKey, resolvedCompanyId, message, finalResult.response)
+        .catch(err => console.error('[AI SERVICE] Auto-Learn error:', err.message));
+    }
+    // -- END AUTO LEARN --
 
     return finalResult;
   } catch (error) {
@@ -1239,5 +1265,11 @@ async function transcribeAudio({ mediaUrl, companyId }) {
   return response.text;
 }
 
-module.exports = { processAI, testAIConnection, testProviderConnection, getAIIntegrationStatus, clearResponseCache, refineAgentPrompt, transcribeAudio };
+async function describeImage({ mediaUrl, companyId }) {
+  // Placeholder implementation for Image Vision
+  // Future: Use OpenAI GPT-4 Vision with image_url payload
+  return "O cliente enviou uma imagem. (Visão Computacional simulada)";
+}
+
+module.exports = { processAI, testAIConnection, testProviderConnection, getAIIntegrationStatus, clearResponseCache, refineAgentPrompt, transcribeAudio, describeImage };
 

@@ -134,7 +134,7 @@ export function AnalyticsView({ loading, viewModel }: AnalyticsViewProps) {
           {activeBiTab === "conversations" && (
             <div className="space-y-6 animate-in fade-in-0 duration-300">
               <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-5 xl:grid-cols-5">
-                <Card className="metric-card border-primary/20 bg-primary/5 cursor-pointer hover:border-primary/40 transition-all" onClick={() => navigate('/inbox')}>
+                <Card className="metric-card border-primary/20 cursor-pointer hover:border-primary/40 transition-all" onClick={() => navigate('/inbox')}>
                   <CardContent className="p-5">
                     <div className="flex items-center justify-between">
                       <div>

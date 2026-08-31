@@ -2896,27 +2896,46 @@ export function AIView(props: AIViewProps) {
                         <div className="grid gap-4 sm:grid-cols-2">
                           {(agents || []).map((agent) => (
                             <Card key={agent.key || agent.name} className="relative overflow-hidden border border-border/60 bg-card/45 hover:border-primary/20 transition-all shadow-sm">
-                              <CardHeader className="flex flex-row items-center gap-3 p-4 pb-2">
-                                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 text-primary shrink-0">
-                                  {getAgentAvatarIcon(agent.avatar, "h-5 w-5")}
+                              <CardHeader className="flex flex-row items-center gap-4 p-5 pb-3">
+                                <div className="relative flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-primary/20 to-primary/5 text-primary shrink-0 shadow-inner border border-primary/20 overflow-hidden">
+                                  <img src={`https://api.dicebear.com/7.x/pixel-art/svg?seed=${encodeURIComponent(agent.name || 'Agent')}`} alt={agent.name} className="w-full h-full object-cover p-1" />
+                                  <div className="absolute -bottom-1 -right-1 h-3.5 w-3.5 rounded-full bg-emerald-500 border-2 border-background shadow-sm"></div>
                                 </div>
                                 <div className="min-w-0 flex-grow">
-                                  <CardTitle className="text-xs font-bold text-foreground truncate">{agent.name}</CardTitle>
-                                  <CardDescription className="text-[10px] text-muted-foreground truncate">{agent.sector || "Comercial"}</CardDescription>
+                                  <div className="flex items-center gap-2">
+                                    <CardTitle className="text-sm font-black text-foreground uppercase tracking-tight truncate">{agent.name}</CardTitle>
+                                    <Badge variant="outline" className="text-[9px] bg-primary/10 text-primary border-primary/20 h-4 px-1.5 shrink-0">
+                                      Nível {(agent.evolution_score ? Math.max(1, Math.floor(agent.evolution_score/10)) : 1)}
+                                    </Badge>
+                                  </div>
+                                  <CardDescription className="text-[11px] font-medium text-primary/80 truncate mt-0.5 flex items-center gap-1">
+                                    <User className="w-3 h-3" /> {agent.sector || "Comercial / Vendas"}
+                                  </CardDescription>
                                 </div>
                                 <Switch
                                   checked={agent.active !== false}
                                   onCheckedChange={(checked) => void onToggleAgent(agent.key || agent.name, checked)}
+                                  className="data-[state=checked]:bg-emerald-500"
                                 />
                               </CardHeader>
-                              <CardContent className="p-4 pt-1 space-y-2 text-xs">
-                                <p className="line-clamp-2 text-[11px] text-muted-foreground">
-                                  {agent.personality || agent.prompt || "Sem personalidade definida."}
-                                </p>
-                                <div className="flex items-center justify-between pt-2 border-t border-border/30">
-                                  <span className="text-[10px] text-muted-foreground font-semibold uppercase">Temp: {agent.temperature ?? 0.7}</span>
+                              <CardContent className="p-5 pt-2 space-y-4">
+                                <div className="rounded-lg bg-background/40 border border-border/50 p-3 relative overflow-hidden group">
+                                  <div className="absolute top-0 left-0 w-1 h-full bg-primary/40 group-hover:bg-primary transition-colors"></div>
+                                  <p className="line-clamp-2 text-[11px] text-muted-foreground/90 italic leading-relaxed">
+                                    "{agent.personality || agent.prompt || "Estilo de comunicação adaptativo, focado em alta conversão e atendimento humanizado."}"
+                                  </p>
+                                </div>
+                                <div className="flex items-center justify-between pt-1">
+                                  <div className="flex gap-1.5">
+                                    <Badge variant="outline" className="text-[9px] text-muted-foreground bg-background/50 border-border/40">
+                                      Temp: {agent.temperature ?? 0.7}
+                                    </Badge>
+                                    <Badge variant="outline" className="text-[9px] text-emerald-400 bg-emerald-500/10 border-emerald-500/20 flex gap-1 items-center font-medium">
+                                      <BrainCircuit className="w-2.5 h-2.5" /> Auto-Aprendizado
+                                    </Badge>
+                                  </div>
                                   <TooltipProvider>
-                                    <div className="flex gap-1">
+                                    <div className="flex gap-0.5">
                                       <Tooltip>
                                         <TooltipTrigger asChild>
                                           <Button
@@ -4053,7 +4072,8 @@ export function AIView(props: AIViewProps) {
                             </div>
                           </CardHeader>
                           <CardContent className="p-0 overflow-hidden h-[450px]">
-                            <div className={activeAnaliseSubTab === "graph" ? 'block' : 'hidden'}>
+                            <div className="block h-full w-full bg-background/50 relative">
+                              <div className="absolute inset-0 pointer-events-none bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-primary/5 via-transparent to-transparent opacity-50 mix-blend-screen"></div>
                               <MemoryGraphViewer 
                                 graphData={agentMemoryGraph || { nodes: [], edges: [] }} 
                                 width={800} 
@@ -4343,8 +4363,8 @@ export function AIView(props: AIViewProps) {
                     <div className="space-y-4 animate-fade-in">
                       <Card className="glass-card shadow-sm">
                         <CardHeader className="p-4 pb-2">
-                          <CardTitle className="text-xs font-semibold">Tabela de Interações de Clientes</CardTitle>
-                          <CardDescription className="text-[10px]">Ajuste e revise respostas sugeridas baseando-se em casos reais de leads perdidos.</CardDescription>
+                          <CardTitle className="text-xs font-semibold">Caixa de Treinamento da IA (Evolução Real)</CardTitle>
+                          <CardDescription className="text-[10px]">Dúvidas e mensagens onde a IA respondeu que não sabia ou que não tinha informações.</CardDescription>
                         </CardHeader>
                         <CardContent className="p-0">
                           <div className="overflow-x-auto text-xs">
@@ -4352,24 +4372,51 @@ export function AIView(props: AIViewProps) {
                               <thead className="bg-muted/30 text-[10px] uppercase text-muted-foreground tracking-wider border-b border-border/60">
                                 <tr>
                                   <th className="p-3">Pergunta do Cliente</th>
-                                  <th className="p-3">Resposta Atual da IA</th>
+                                  <th className="p-3">Resposta (Incerteza)</th>
+                                  <th className="p-3 w-1/3">Sua Resposta (Ensinar a IA)</th>
                                   <th className="p-3">Ações</th>
                                 </tr>
                               </thead>
                               <tbody className="divide-y divide-border/30">
-                                {trainingRows.map((row) => (
-                                  <tr key={row.id} className="hover:bg-muted/10">
-                                    <td className="p-3 font-medium text-foreground">{row.customerQuestion}</td>
-                                    <td className="p-3 text-muted-foreground">{row.aiResponse}</td>
+                                {learningEvents.map((evt) => (
+                                  <tr key={evt.id} className="hover:bg-muted/10">
+                                    <td className="p-3 font-medium text-foreground">{evt.customer_question}</td>
+                                    <td className="p-3 text-muted-foreground text-[10px]">{evt.ai_response}</td>
                                     <td className="p-3">
-                                      <Button size="sm" variant="ghost" onClick={() => onOpenImproveModal(row)} className="h-7 px-2 text-[10px]">
-                                        Revisar
-                                      </Button>
+                                      <Input 
+                                        placeholder="Escreva a resposta correta aqui..." 
+                                        value={answeringAnswers[evt.id] || ""} 
+                                        onChange={(e) => setAnsweringAnswers({...answeringAnswers, [evt.id]: e.target.value})} 
+                                        className="h-8 text-[11px]"
+                                      />
+                                    </td>
+                                    <td className="p-3">
+                                      <div className="flex gap-2">
+                                        <Button size="sm" variant="default" disabled={isTeachingId === evt.id} onClick={() => handleAnswerQuestion(evt.id)} className="h-7 px-3 text-[10px]">
+                                          Treinar
+                                        </Button>
+                                        <Button size="sm" variant="ghost" disabled={isTeachingId === evt.id} onClick={() => handleIgnoreEvent(evt.id)} className="h-7 px-2 text-[10px] text-destructive">
+                                          <X className="w-3 h-3" />
+                                        </Button>
+                                      </div>
                                     </td>
                                   </tr>
                                 ))}
+                                {learningEvents.length === 0 && (
+                                  <tr>
+                                    <td colSpan={4} className="p-6 text-center text-muted-foreground text-xs">
+                                      <CheckCircle className="w-8 h-8 text-green-500/50 mx-auto mb-2" />
+                                      Tudo limpo! Nenhuma dúvida sem resposta detectada no momento.
+                                    </td>
+                                  </tr>
+                                )}
                               </tbody>
                             </table>
+                          </div>
+                          <div className="p-4 border-t border-border/30 bg-muted/10">
+                            <Button size="sm" variant="outline" onClick={handleDetectGaps} className="w-full text-xs h-8">
+                              <Sparkles className="w-3 h-3 mr-2" /> Varredura Automática de Dúvidas
+                            </Button>
                           </div>
                         </CardContent>
                       </Card>

@@ -2611,6 +2611,32 @@ async function runAIForChatDebounced({ chatId, incomingFormattedMessage, session
     }
   }
 
+  // Automatic Image Description (Vision)
+  const isImage =
+    incomingFormattedMessage?.mediaType === 'image' ||
+    incomingFormattedMessage?.type === 'image' ||
+    String(incomingFormattedMessage?.text || '').includes('[image]');
+
+  if (isImage && (!incomingFormattedMessage.text || incomingFormattedMessage.text === '[image]' || incomingFormattedMessage.text === '[media]')) {
+    const imageUrl = incomingFormattedMessage.url || incomingFormattedMessage.mediaUrl || incomingFormattedMessage.mediaPath;
+    if (imageUrl) {
+      try {
+        const { describeImage } = require('../../ai.service');
+        const companyId = session?.companyId || process.env.DEFAULT_COMPANY_ID || 'default';
+        console.log(`[WHATSAPP_AI] Describing image for ${chatId}...`);
+        const description = await describeImage({ mediaUrl: imageUrl, companyId });
+        if (description && description.trim()) {
+          const caption = incomingFormattedMessage.caption || incomingFormattedMessage.text || '';
+          const baseCap = caption !== '[image]' && caption !== '[media]' && caption ? caption + ' ' : '';
+          incomingFormattedMessage.text = `${baseCap}[Imagem Analisada]: "${description.trim()}"`;
+          console.log(`[WHATSAPP_AI] Image described for ${chatId}: ${incomingFormattedMessage.text}`);
+        }
+      } catch (visErr) {
+        console.error('[WHATSAPP_AI] Image description failed:', visErr?.message || visErr);
+      }
+    }
+  }
+
   const currentText = String(incomingFormattedMessage?.text || '').trim();
   if (!currentText) return;
 
