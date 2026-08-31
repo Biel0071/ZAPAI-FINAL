@@ -172,7 +172,6 @@ async function sendMessage(req, res) {
     sessionName,
     text,
   } = req.body;
-  try {
   const store = getStore(req);
   const correlationId = req.correlationId || correlationTracker.generateMessageTraceId();
   const companyId = String(req.body?.companyId || req.companyId || req.tenantId || process.env.DEFAULT_COMPANY_ID || 'default');
