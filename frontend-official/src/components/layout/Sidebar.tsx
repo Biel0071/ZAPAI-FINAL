@@ -65,12 +65,9 @@ const crmItems: SidebarNavItem[] = [
   { icon: TreeStructure, label: "Fluxos", path: "/flows", minRole: "admin", dev: true },
 ];
 
-const adminItems: SidebarNavItem[] = [
-  { icon: ShieldCheck, label: "Administração", path: "/admin", minRole: "user" },
-];
+const adminItems: SidebarNavItem[] = [];
 
 const bottomItems: SidebarNavItem[] = [
-  { icon: Pulse, label: "Status & Saúde", path: "/diagnostics", minRole: "user" },
   { icon: Gear, label: "Configurações", path: "/settings", minRole: "user" },
 ];
 

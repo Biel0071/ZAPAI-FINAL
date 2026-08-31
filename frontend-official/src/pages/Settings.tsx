@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import {
   User,
@@ -14,6 +14,13 @@ import {
   Link,
   Code,
   Robot,
+  Queue,
+  HardDrives,
+  TrendUp,
+  GitCommit,
+  FileText,
+  Flask,
+  Pulse,
 } from "@phosphor-icons/react";
 import { Header } from "@/components/layout/Header";
 import SettingsView from "@/lovable/pages/SettingsPageView";
@@ -32,6 +39,16 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { UnderConstruction } from "@/components/layout/UnderConstruction";
 import { useTheme } from "next-themes";
 import { cn } from "@/lib/utils";
+
+// Lazy load admin pages
+const QueuePage = React.lazy(() => import("./Queue"));
+const MasterNodesPage = React.lazy(() => import("./MasterNodes"));
+const MasterAdminsPage = React.lazy(() => import("./MasterAdmins"));
+const MasterDeploymentsPage = React.lazy(() => import("./MasterDeployments"));
+const MasterVersionsPage = React.lazy(() => import("./MasterVersions"));
+const MasterLogsPage = React.lazy(() => import("./MasterLogs"));
+const TestsPage = React.lazy(() => import("./Tests"));
+const DiagnosticsPage = React.lazy(() => import("@/components/enterprise/Diagnostics"));
 
 const LANGUAGE_STORAGE_KEY = "zapai_language";
 const LANGUAGE_OPTIONS = [
@@ -260,7 +277,10 @@ export default function Settings() {
           navigation={
             <nav className="flex gap-1 overflow-x-auto pb-2 lg:flex-col lg:overflow-x-visible lg:pb-0">
               {settingsViewModel.sections.map((item, index) => {
-                const iconMap = [User, Buildings, Users, Bell, Shield, CreditCard, Palette, Globe, Key, Link, Database];
+                const iconMap = [
+                  User, Buildings, Users, Bell, Shield, CreditCard, Palette, Globe, Key, Link, Database,
+                  Queue, HardDrives, Shield, TrendUp, GitCommit, FileText, Flask, Pulse
+                ];
                 const Icon = iconMap[index] ?? User;
                 const active = activeSection === index;
                 return (
@@ -431,7 +451,34 @@ export default function Settings() {
                 </Card>
               )}
 
-              {activeSection !== 0 && activeSection !== 6 && activeSection !== 7 && activeSection !== 8 && (
+              {activeSection >= 11 && activeSection <= 18 && (
+                <Card className="glass-card overflow-hidden">
+                  <React.Suspense fallback={<div className="flex h-32 items-center justify-center text-muted-foreground text-sm">Carregando painel...</div>}>
+                    <style>{`
+                      .admin-hub-content-wrapper header,
+                      .admin-hub-content-wrapper .sticky.top-0 {
+                        display: none !important;
+                      }
+                      .admin-hub-content-wrapper > div {
+                        height: auto !important;
+                        min-height: 500px;
+                      }
+                    `}</style>
+                    <div className="admin-hub-content-wrapper">
+                      {activeSection === 11 && <QueuePage />}
+                      {activeSection === 12 && <MasterNodesPage />}
+                      {activeSection === 13 && <MasterAdminsPage />}
+                      {activeSection === 14 && <MasterDeploymentsPage />}
+                      {activeSection === 15 && <MasterVersionsPage />}
+                      {activeSection === 16 && <MasterLogsPage />}
+                      {activeSection === 17 && <TestsPage />}
+                      {activeSection === 18 && <DiagnosticsPage />}
+                    </div>
+                  </React.Suspense>
+                </Card>
+              )}
+
+              {![0, 6, 7, 8, 11, 12, 13, 14, 15, 16, 17, 18].includes(activeSection) && (
                 <Card className="glass-card">
                   <UnderConstruction
                     title={settingsViewModel.sections[activeSection]?.label || "Módulo em Desenvolvimento"}

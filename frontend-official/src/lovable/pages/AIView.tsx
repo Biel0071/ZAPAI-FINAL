@@ -527,9 +527,11 @@ export function AIView(props: AIViewProps) {
     components: { answers: 0, refinements: 0, coverage: 0, queue: 0 },
   });
   const [agentMemoryGraph, setAgentMemoryGraph] = useState<{
-    nodes: Array<{ id: string; type: string; label: string; weight: number }>;
+    nodes: Array<{ id: string; type: string; label: string; weight: number; avatar?: string }>;
     edges: Array<{ source: string; target: string; relation: string }>;
   }>({ nodes: [], edges: [] });
+  const [selectedMemoryNode, setSelectedMemoryNode] = useState<any>(null);
+  const [isMemoryModalOpen, setIsMemoryModalOpen] = useState(false);
 
   useEffect(() => {
     if (agents && agents.length > 0 && !selectedAgentKey) {
@@ -590,17 +592,8 @@ export function AIView(props: AIViewProps) {
   }, [selectedAgentKey, activeAtendentesSubTab]);
 
   const handleMemoryNodeClick = (node: any) => {
-    if (node.type === "lead" || node.type === "contact") {
-      toast({ title: "Navegando para a caixa de entrada do Lead..." });
-      window.location.href = "/inbox";
-    } else if (node.type === "concept" || node.type === "memory" || node.type === "product" || node.type === "campaign") {
-      setEvolveInstruction(`Refinar conhecimento sobre: ${node.label}`);
-      const el = document.getElementById("evolve-instruction");
-      if (el) {
-        el.scrollIntoView({ behavior: "smooth", block: "center" });
-        el.focus();
-      }
-    }
+    setSelectedMemoryNode(node);
+    setIsMemoryModalOpen(true);
   };
 
   const handleEvolveAgent = async () => {
@@ -4085,166 +4078,166 @@ export function AIView(props: AIViewProps) {
                         </Card>
                       </div>
 
-                      {loadingEvolution ? (
-                        <div className="flex h-36 items-center justify-center">
-                          <Loader2 className="h-6 w-6 animate-spin text-primary" />
-                        </div>
-                      ) : (
-                        <div className="grid gap-4 sm:grid-cols-2">
-                          {evolutionData.map((agent) => (
-                            <Card key={agent.agent_key} className="border border-border/60 bg-card/45 p-4 text-xs space-y-3 shadow-sm">
-                              <div className="flex items-center justify-between">
-                                <span className="font-bold text-foreground capitalize">{agent.agent_key}</span>
-                                <Badge variant="outline" className="text-[10px] text-primary border-primary/20 bg-primary/5">
-                                  Score: {agent.evolution_score}/100
-                                </Badge>
-                              </div>
-                              <div className="grid grid-cols-2 gap-2 text-[10px]">
-                                <div className="rounded border border-border/40 p-2 bg-background/20">
-                                  <span className="block text-muted-foreground">Conversas Analisadas</span>
-                                  <span className="font-bold text-foreground">{agent.conversations_analyzed}</span>
-                                </div>
-                                <div className="rounded border border-border/40 p-2 bg-background/20">
-                                  <span className="block text-muted-foreground">Leads de Ads</span>
-                                  <span className="font-bold text-foreground text-blue-400">{agent.ads_leads || 0}</span>
-                                </div>
-                                <div className="rounded border border-border/40 p-2 bg-background/20">
-                                  <span className="block text-muted-foreground">Conversões</span>
-                                  <span className="font-bold text-foreground text-emerald-500">{agent.conversions}</span>
-                                </div>
-                                <div className="rounded border border-border/40 p-2 bg-background/20">
-                                  <span className="block text-muted-foreground">Taxa de Sucesso</span>
-                                  <span className="font-bold text-foreground">{agent.success_rate}%</span>
-                                </div>
-                              </div>
-                              {agent.faq_data?.top_questions && (
-                                <div className="space-y-1.5 pt-2 border-t border-border/30">
-                                  <span className="block text-[10px] font-bold text-muted-foreground uppercase">Tópicos Mais Frequentes</span>
-                                  <div className="space-y-1">
-                                    {agent.faq_data.top_questions.map((q: any, idx: number) => (
-                                      <div key={idx} className="flex justify-between text-[10px] text-muted-foreground">
-                                        <span className="truncate max-w-[80%]">"{q.question}"</span>
-                                        <span className="font-semibold text-foreground">{q.count}x</span>
-                                      </div>
-                                    ))}
-                                  </div>
-                                </div>
-                              )}
-                            </Card>
-                          ))}
-                          {evolutionData.length === 0 && (
-                            <div className="sm:col-span-2 py-8 text-center text-xs text-muted-foreground bg-background/20 rounded-xl border border-dashed border-border">
-                              Nenhuma métrica de evolução disponível ainda. As métricas são coletadas conforme as conversas são processadas.
-                            </div>
-                          )}
-                        </div>
-                      )}
-                      
-                      {/* AI Auto-Learning Dashboard Unificado */}
+                      {/* AI Auto-Learning Dashboard Unificado (Stats + Ajuste + Histórico em 1 linha) */}
                       <div className="pt-4 border-t border-border/40">
-                      <div className="grid gap-6 lg:grid-cols-3 mb-6">
-                        <div className="lg:col-span-2 space-y-6">
-                          {/* CARD 1: AJUSTE VIA PROMPT */}
-                          <Card className="border border-border/60 bg-card/40 shadow-sm rounded-xl">
-                            <CardHeader className="p-4 border-b border-border/40 flex flex-row items-center gap-2">
-                              <BrainCircuit className="h-5 w-5 text-primary" />
-                              <div>
-                                <CardTitle className="text-xs font-bold text-foreground uppercase tracking-wider">Ajuste Rápido via IA (Instrução Direta)</CardTitle>
-                                <CardDescription className="text-[10px] text-muted-foreground mt-0.5">Escreva o que você deseja mudar ou ensinar em linguagem natural (ex: preços, comportamento, políticas).</CardDescription>
+                        <div className="grid gap-6 lg:grid-cols-3 mb-6">
+                          
+                          {/* COLUNA 1: ESTATÍSTICAS (CAMILA/AGENTES) */}
+                          <div className="space-y-4">
+                            {loadingEvolution ? (
+                              <div className="flex h-36 items-center justify-center">
+                                <Loader2 className="h-6 w-6 animate-spin text-primary" />
                               </div>
-                            </CardHeader>
-                            <CardContent className="p-4 space-y-4">
-                              <div className="space-y-1.5">
-                                <Label htmlFor="evolve-instruction" className="text-xs font-semibold text-foreground">O que você deseja ensinar ou alterar?</Label>
-                                <Textarea
-                                  id="evolve-instruction"
-                                  placeholder="Ex: Agora vendemos cimento CP-II por R$32 a saca. Ofereça frete grátis acima de 50 sacas. Seja muito simpático."
-                                  value={evolveInstruction}
-                                  onChange={(e) => setEvolveInstruction(e.target.value)}
-                                  className="min-h-[90px] bg-background/40 text-xs leading-relaxed rounded-lg"
-                                  disabled={isAnalyzing}
-                                />
-                              </div>
-
-                              <Button
-                                onClick={handleEvolveAgent}
-                                disabled={isAnalyzing || !evolveInstruction.trim()}
-                                className="w-full h-9 text-xs gap-1.5 rounded-lg font-bold shadow-sm"
-                              >
-                                {isAnalyzing ? (
-                                  <>
-                                    <Loader2 className="h-3.5 w-3.5 animate-spin" /> Analisando Atendente...
-                                  </>
-                                ) : (
-                                  <>
-                                    <Sparkles className="h-4 w-4" /> Analisar e Propor Mudanças
-                                  </>
-                                )}
-                              </Button>
-
-                              {/* O modal de quick adjust será aberto quando previewChanges != null (veja o Dialog no final do arquivo) */}
-                            </CardContent>
-                          </Card>
-                        </div>
-                        <div className="space-y-6">
-                          <Card className="border border-border/60 bg-card/40 shadow-sm rounded-xl">
-                            <CardHeader className="p-4 border-b border-border/40 flex flex-row items-center gap-2">
-                              <HistoryIcon className="h-5 w-5 text-muted-foreground" />
-                              <div>
-                                <CardTitle className="text-xs font-bold text-foreground uppercase tracking-wider">Histórico de Evolução</CardTitle>
-                                <CardDescription className="text-[10px] text-muted-foreground mt-0.5">Linha do tempo de aprendizados e refinamentos aplicados.</CardDescription>
-                              </div>
-                            </CardHeader>
-                            <CardContent className="p-4">
-                              {isLoadingHistory ? (
-                                <div className="flex h-36 items-center justify-center">
-                                  <Loader2 className="h-6 w-6 animate-spin text-primary" />
-                                </div>
-                              ) : evolutionHistory.length === 0 ? (
-                                <div className="text-center py-10 text-muted-foreground/80 text-[10px] space-y-1">
-                                  <HistoryIcon className="h-6 w-6 mx-auto text-muted-foreground/30 mb-1" />
-                                  <p>Nenhuma modificação registrada ainda.</p>
-                                  <p>As atualizações via prompt ou respostas salvas aparecerão aqui.</p>
-                                </div>
-                              ) : (
-                                <div className="relative pl-4 border-l border-border/50 ml-1 space-y-5 py-1.5 max-h-[640px] overflow-y-auto scrollbar-thin pr-1">
-                                  {evolutionHistory.map((log) => {
-                                    const fields = Object.keys(log.fields_changed || {});
-                                    return (
-                                      <div key={log.id} className="relative space-y-1.5 text-xs">
-                                        {/* Dot */}
-                                        <div className="absolute -left-[21px] top-1.5 h-2.5 w-2.5 rounded-full bg-primary border-2 border-background" />
-                                        
-                                        <div className="flex items-center justify-between text-[9px] text-muted-foreground">
-                                          <span className="font-semibold">{new Date(log.created_at).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}</span>
-                                          <Badge variant="secondary" className="h-4.5 px-1.5 text-[8.5px] uppercase font-bold bg-muted/80 text-muted-foreground">
-                                            {log.change_type === "prompt_refinement" ? "Prompt" : 
-                                             log.change_type === "question_learned" ? "Dúvida" : "Ajuste"}
-                                          </Badge>
-                                        </div>
-
-                                        <p className="font-semibold text-foreground/90 leading-normal">{log.source_description}</p>
-                                        
-                                        {fields.length > 0 && (
-                                          <div className="flex flex-wrap gap-1">
-                                            {fields.map((f) => (
-                                              <span key={f} className="text-[8px] font-bold uppercase tracking-wider px-1.5 py-0.2 rounded border border-primary/20 bg-primary/5 text-primary scale-90">
-                                                {f}
-                                              </span>
-                                            ))}
-                                          </div>
-                                        )}
+                            ) : (
+                              <div className="space-y-4">
+                                {evolutionData.map((agent) => (
+                                  <Card key={agent.agent_key} className="border border-border/60 bg-card/45 p-4 text-xs space-y-3 shadow-sm rounded-xl">
+                                    <div className="flex items-center justify-between">
+                                      <span className="font-bold text-foreground capitalize">{agent.agent_key}</span>
+                                      <Badge variant="outline" className="text-[10px] text-primary border-primary/20 bg-primary/5">
+                                        Score: {agent.evolution_score}/100
+                                      </Badge>
+                                    </div>
+                                    <div className="grid grid-cols-2 gap-2 text-[10px]">
+                                      <div className="rounded border border-border/40 p-2 bg-background/20">
+                                        <span className="block text-muted-foreground">Analisadas</span>
+                                        <span className="font-bold text-foreground">{agent.conversations_analyzed}</span>
                                       </div>
-                                    );
-                                  })}
+                                      <div className="rounded border border-border/40 p-2 bg-background/20">
+                                        <span className="block text-muted-foreground">Ads Leads</span>
+                                        <span className="font-bold text-foreground text-blue-400">{agent.ads_leads || 0}</span>
+                                      </div>
+                                      <div className="rounded border border-border/40 p-2 bg-background/20">
+                                        <span className="block text-muted-foreground">Conversões</span>
+                                        <span className="font-bold text-foreground text-emerald-500">{agent.conversions}</span>
+                                      </div>
+                                      <div className="rounded border border-border/40 p-2 bg-background/20">
+                                        <span className="block text-muted-foreground">Sucesso</span>
+                                        <span className="font-bold text-foreground">{agent.success_rate}%</span>
+                                      </div>
+                                    </div>
+                                    {agent.faq_data?.top_questions && (
+                                      <div className="space-y-1.5 pt-2 border-t border-border/30">
+                                        <span className="block text-[10px] font-bold text-muted-foreground uppercase">Tópicos Mais Frequentes</span>
+                                        <div className="space-y-1">
+                                          {agent.faq_data.top_questions.map((q: any, idx: number) => (
+                                            <div key={idx} className="flex justify-between text-[10px] text-muted-foreground">
+                                              <span className="truncate max-w-[80%]">"{q.question}"</span>
+                                              <span className="font-semibold text-foreground">{q.count}x</span>
+                                            </div>
+                                          ))}
+                                        </div>
+                                      </div>
+                                    )}
+                                  </Card>
+                                ))}
+                                {evolutionData.length === 0 && (
+                                  <div className="py-8 text-center text-[10px] text-muted-foreground bg-background/20 rounded-xl border border-dashed border-border">
+                                    Nenhuma métrica disponível.
+                                  </div>
+                                )}
+                              </div>
+                            )}
+                          </div>
+
+                          {/* COLUNA 2: AJUSTE RÁPIDO VIA PROMPT */}
+                          <div className="space-y-6">
+                            <Card className="border border-border/60 bg-card/40 shadow-sm rounded-xl h-full flex flex-col">
+                              <CardHeader className="p-4 border-b border-border/40 flex flex-row items-center gap-2">
+                                <BrainCircuit className="h-5 w-5 text-primary shrink-0" />
+                                <div>
+                                  <CardTitle className="text-xs font-bold text-foreground uppercase tracking-wider">Ajuste Rápido via IA</CardTitle>
+                                  <CardDescription className="text-[9px] text-muted-foreground mt-0.5">Escreva o que deseja mudar ou ensinar.</CardDescription>
                                 </div>
-                              )}
-                            </CardContent>
-                          </Card>
+                              </CardHeader>
+                              <CardContent className="p-4 space-y-4 flex-grow flex flex-col justify-between">
+                                <div className="space-y-1.5">
+                                  <Textarea
+                                    id="evolve-instruction"
+                                    placeholder="Ex: Ofereça frete grátis..."
+                                    value={evolveInstruction}
+                                    onChange={(e) => setEvolveInstruction(e.target.value)}
+                                    className="min-h-[140px] bg-background/40 text-xs leading-relaxed rounded-lg resize-none"
+                                    disabled={isAnalyzing}
+                                  />
+                                </div>
+                                <Button
+                                  onClick={handleEvolveAgent}
+                                  disabled={isAnalyzing || !evolveInstruction.trim()}
+                                  className="w-full h-9 text-xs gap-1.5 rounded-lg font-bold shadow-sm"
+                                >
+                                  {isAnalyzing ? (
+                                    <>
+                                      <Loader2 className="h-3.5 w-3.5 animate-spin" /> Analisando...
+                                    </>
+                                  ) : (
+                                    <>
+                                      <Sparkles className="h-4 w-4" /> Propor Mudanças
+                                    </>
+                                  )}
+                                </Button>
+                              </CardContent>
+                            </Card>
+                          </div>
+
+                          {/* COLUNA 3: HISTÓRICO DE EVOLUÇÃO */}
+                          <div className="space-y-6">
+                            <Card className="border border-border/60 bg-card/40 shadow-sm rounded-xl h-full flex flex-col">
+                              <CardHeader className="p-4 border-b border-border/40 flex flex-row items-center gap-2">
+                                <HistoryIcon className="h-5 w-5 text-muted-foreground shrink-0" />
+                                <div>
+                                  <CardTitle className="text-xs font-bold text-foreground uppercase tracking-wider">Histórico</CardTitle>
+                                  <CardDescription className="text-[9px] text-muted-foreground mt-0.5">Linha do tempo de aprendizados.</CardDescription>
+                                </div>
+                              </CardHeader>
+                              <CardContent className="p-4 flex-grow overflow-hidden">
+                                {isLoadingHistory ? (
+                                  <div className="flex h-36 items-center justify-center">
+                                    <Loader2 className="h-6 w-6 animate-spin text-primary" />
+                                  </div>
+                                ) : evolutionHistory.length === 0 ? (
+                                  <div className="text-center py-10 text-muted-foreground/80 text-[10px] space-y-1">
+                                    <HistoryIcon className="h-6 w-6 mx-auto text-muted-foreground/30 mb-1" />
+                                    <p>Nenhuma modificação.</p>
+                                  </div>
+                                ) : (
+                                  <div className="relative pl-4 border-l border-border/50 ml-1 space-y-5 py-1.5 h-[240px] overflow-y-auto scrollbar-thin pr-1">
+                                    {evolutionHistory.map((log) => {
+                                      const fields = Object.keys(log.fields_changed || {});
+                                      return (
+                                        <div key={log.id} className="relative space-y-1.5 text-xs">
+                                          {/* Dot */}
+                                          <div className="absolute -left-[21px] top-1.5 h-2.5 w-2.5 rounded-full bg-primary border-2 border-background" />
+                                          
+                                          <div className="flex items-center justify-between text-[9px] text-muted-foreground">
+                                            <span className="font-semibold">{new Date(log.created_at).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}</span>
+                                            <Badge variant="secondary" className="h-4.5 px-1.5 text-[8.5px] uppercase font-bold bg-muted/80 text-muted-foreground">
+                                              {log.change_type === "prompt_refinement" ? "Prompt" : 
+                                               log.change_type === "question_learned" ? "Dúvida" : "Ajuste"}
+                                            </Badge>
+                                          </div>
+
+                                          <p className="font-semibold text-foreground/90 leading-normal line-clamp-2">{log.source_description}</p>
+                                          
+                                          {fields.length > 0 && (
+                                            <div className="flex flex-wrap gap-1">
+                                              {fields.map((f) => (
+                                                <span key={f} className="text-[8px] font-bold uppercase tracking-wider px-1.5 py-0.2 rounded border border-primary/20 bg-primary/5 text-primary scale-90">
+                                                  {f}
+                                                </span>
+                                              ))}
+                                            </div>
+                                          )}
+                                        </div>
+                                      );
+                                    })}
+                                  </div>
+                                )}
+                              </CardContent>
+                            </Card>
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  </div>
                   )}
                   {activeAnaliseSubTab === "learning" && (
                     <div className="space-y-6 animate-fade-in">
@@ -4777,6 +4770,53 @@ export function AIView(props: AIViewProps) {
                   className="h-9 text-xs rounded-lg border-border/50 hover:bg-background"
                 >
                   Descartar
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+        </DialogContent>
+      </Dialog>
+      
+      {/* MEMORY NODE DETAILS MODAL */}
+      <Dialog open={isMemoryModalOpen} onOpenChange={setIsMemoryModalOpen}>
+        <DialogContent className="max-w-md bg-card/90 backdrop-blur-md border border-border/50 rounded-2xl shadow-2xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-foreground">
+              <BrainCircuit className="h-5 w-5 text-primary" />
+              Detalhes do Aprendizado
+            </DialogTitle>
+          </DialogHeader>
+          {selectedMemoryNode && (
+            <div className="space-y-4 pt-2">
+              <div className="flex items-center justify-between border-b border-border/40 pb-3">
+                <div>
+                  <span className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider block">Tópico</span>
+                  <span className="text-sm font-semibold text-foreground">{selectedMemoryNode.label || selectedMemoryNode.id}</span>
+                </div>
+                <Badge variant="outline" className="uppercase text-[9px] bg-primary/10 text-primary border-primary/20">
+                  {selectedMemoryNode.type}
+                </Badge>
+              </div>
+
+              <div className="space-y-2">
+                <span className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider block">Contexto Relacionado</span>
+                <p className="text-xs text-muted-foreground bg-background/50 p-3 rounded-lg border border-border/40 leading-relaxed">
+                  Este nó representa um conhecimento adquirido ou uma entidade mapeada (como Lead, Produto ou Dúvida). As conexões mostram como a IA associou este termo às conversas recentes ou às orientações dadas pelo gerente.
+                </p>
+              </div>
+
+              <div className="flex justify-end pt-2">
+                <Button 
+                  onClick={() => {
+                    setIsMemoryModalOpen(false);
+                    setEvolveInstruction(`Refinar conhecimento sobre: ${selectedMemoryNode.label || selectedMemoryNode.id}`);
+                    const el = document.getElementById("evolve-instruction");
+                    if (el) el.scrollIntoView({ behavior: "smooth", block: "center" });
+                  }} 
+                  className="h-8 text-xs font-semibold"
+                >
+                  <Pencil className="w-3.5 h-3.5 mr-1" /> Refinar este Conhecimento
                 </Button>
               </div>
             </div>

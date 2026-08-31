@@ -182,35 +182,24 @@ const App = () => {
                       <Route path="/integrations" element={<Navigate to="/connections" replace />} />
                       <Route path="/dev-tools" element={<ProtectedRoute minRole="user"><Navigate to="/diagnostics" replace /></ProtectedRoute>} />
                       <Route path="/memory" element={<PageRouteBoundary pageName="Memória de Sistema"><Memory /></PageRouteBoundary>} />
-                      <Route path="/queue" element={<Navigate to="/admin" replace />} />
-                      <Route path="/users" element={<Navigate to="/admin" replace />} />
-                      <Route path="/nodes" element={<Navigate to="/admin" replace />} />
+                      <Route path="/queue" element={<Navigate to="/settings" replace />} />
+                      <Route path="/users" element={<Navigate to="/settings" replace />} />
+                      <Route path="/nodes" element={<Navigate to="/settings" replace />} />
                       <Route path="/nodes/:id" element={<ProtectedRoute minRole="user"><PageRouteBoundary pageName="Detalhes do Nó"><NodeDetails /></PageRouteBoundary></ProtectedRoute>} />
-                      <Route path="/deployments" element={<Navigate to="/admin" replace />} />
-                      <Route path="/logs" element={<Navigate to="/admin" replace />} />
-                      <Route path="/versions" element={<Navigate to="/admin" replace />} />
-                      <Route path="/admin" element={<ProtectedRoute minRole="user"><PageRouteBoundary pageName="Administração"><AdminHub /></PageRouteBoundary></ProtectedRoute>} />
-                      <Route path="/system/runtime" element={<Navigate to="/diagnostics" replace />} />
-                      <Route path="/system/performance" element={<Navigate to="/diagnostics" replace />} />
-                      <Route path="/system/websocket" element={<Navigate to="/diagnostics" replace />} />
-                      <Route path="/system/database" element={<Navigate to="/diagnostics" replace />} />
-                      <Route path="/system/files" element={<Navigate to="/diagnostics" replace />} />
-                      <Route path="/system/health" element={<Navigate to="/diagnostics" replace />} />
-                      <Route path="/system/metrics" element={<Navigate to="/diagnostics" replace />} />
-
-                      <Route
-                        path="/diagnostics"
-                        element={
-                          <ProtectedRoute minRole="user">
-                            <PageRouteBoundary pageName="Status & Saúde">
-                              <Diagnostics />
-                            </PageRouteBoundary>
-                          </ProtectedRoute>
-                        }
-                      />
-
+                      <Route path="/deployments" element={<Navigate to="/settings" replace />} />
+                      <Route path="/logs" element={<Navigate to="/settings" replace />} />
+                      <Route path="/versions" element={<Navigate to="/settings" replace />} />
+                      <Route path="/admin" element={<Navigate to="/settings" replace />} />
+                      <Route path="/system/runtime" element={<Navigate to="/settings" replace />} />
+                      <Route path="/system/performance" element={<Navigate to="/settings" replace />} />
+                      <Route path="/system/websocket" element={<Navigate to="/settings" replace />} />
+                      <Route path="/system/database" element={<Navigate to="/settings" replace />} />
+                      <Route path="/system/files" element={<Navigate to="/settings" replace />} />
+                      <Route path="/system/health" element={<Navigate to="/settings" replace />} />
+                      <Route path="/system/metrics" element={<Navigate to="/settings" replace />} />
+                      <Route path="/diagnostics" element={<Navigate to="/settings" replace />} />
                       <Route path="/settings" element={<PageRouteBoundary pageName="Configurações"><Settings /></PageRouteBoundary>} />
-                      <Route path="/tests" element={<ProtectedRoute minRole="admin"><PageRouteBoundary pageName="Central de Testes"><Tests /></PageRouteBoundary></ProtectedRoute>} />
+                      <Route path="/tests" element={<Navigate to="/settings" replace />} />
                     </Route>
                     <Route path="*" element={<CatchAllRoute />} />
                   </Routes>

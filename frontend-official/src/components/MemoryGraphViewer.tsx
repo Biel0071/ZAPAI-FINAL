@@ -12,6 +12,9 @@ export interface MemoryGraphViewerProps {
   onNodeClick?: (node: any) => void;
 }
 
+// Cache de imagens para os avatares (evita recarregar toda vez que o canvas renderiza)
+const imageCache = new Map<string, HTMLImageElement>();
+
 export const MemoryGraphViewer: React.FC<MemoryGraphViewerProps> = ({ graphData, width, height, onNodeClick }) => {
   const fgRef = useRef<any>();
   const { theme } = useTheme();
@@ -60,7 +63,6 @@ export const MemoryGraphViewer: React.FC<MemoryGraphViewerProps> = ({ graphData,
 
   const isDark = theme === 'dark';
   const textColor = isDark ? '#e2e8f0' : '#1e293b';
-  const linkColor = isDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.15)';
 
   return (
     <div ref={containerRef} className="w-full h-full min-h-[500px] rounded-xl overflow-hidden border border-border/50 bg-background relative shadow-inner">
@@ -72,8 +74,17 @@ export const MemoryGraphViewer: React.FC<MemoryGraphViewerProps> = ({ graphData,
         nodeLabel="label"
         nodeColor={(node: any) => getNodeColor(node.type)}
         nodeRelSize={6}
-        linkColor={() => linkColor}
-        linkWidth={1.5}
+        linkColor={(link: any) => {
+          // A ramificação puxa a cor do nó de origem para ficar mais vivo
+          const sourceNode = link.source;
+          if (sourceNode && typeof sourceNode === 'object' && sourceNode.type) {
+            const hex = getNodeColor(sourceNode.type);
+            // adiciona transparência (ex: 50% = 80 no final do hex ou usando rgba)
+            return `${hex}80`;
+          }
+          return isDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.15)';
+        }}
+        linkWidth={2}
         linkDirectionalParticles={2}
         linkDirectionalParticleWidth={2}
         d3VelocityDecay={0.3}
@@ -87,35 +98,81 @@ export const MemoryGraphViewer: React.FC<MemoryGraphViewerProps> = ({ graphData,
           const radius = node.val ? Math.sqrt(node.val) * 4 : 5;
           const color = getNodeColor(node.type);
 
-          ctx.beginPath();
-          ctx.arc(node.x, node.y, radius, 0, 2 * Math.PI, false);
-          ctx.fillStyle = color;
-          ctx.fill();
-          
-          // Outer glow for Obsidian effect
-          ctx.shadowColor = color;
-          ctx.shadowBlur = 10;
+          // Se for o agente, desenhamos o avatar
+          if (node.type === 'agent') {
+            const avatarUrl = node.avatar || `https://api.dicebear.com/7.x/pixel-art/svg?seed=${encodeURIComponent(label)}`;
+            let img = imageCache.get(avatarUrl);
+            
+            if (!img) {
+              // Inicia o carregamento da imagem
+              img = new Image();
+              img.src = avatarUrl;
+              img.onload = () => {
+                // Força um tick para renderizar com a imagem pronta
+                fgRef.current?.d3ReheatSimulation();
+              };
+              imageCache.set(avatarUrl, img);
+            }
 
+            const imgSize = radius * 4; // Um pouco maior que o círculo padrão
+            ctx.save();
+            ctx.beginPath();
+            ctx.arc(node.x, node.y, imgSize / 2, 0, 2 * Math.PI, false);
+            ctx.fillStyle = color;
+            ctx.fill();
+            
+            ctx.shadowColor = color;
+            ctx.shadowBlur = 15;
+            
+            ctx.clip(); // Corta em círculo
+            
+            if (img.complete && img.naturalHeight !== 0) {
+              ctx.drawImage(img, node.x - imgSize / 2, node.y - imgSize / 2, imgSize, imgSize);
+            }
+            ctx.restore();
+            
+            // Borda do avatar
+            ctx.beginPath();
+            ctx.arc(node.x, node.y, imgSize / 2, 0, 2 * Math.PI, false);
+            ctx.strokeStyle = color;
+            ctx.lineWidth = 1 / globalScale;
+            ctx.stroke();
+
+          } else {
+            // Desenho padrão para os outros nós
+            ctx.beginPath();
+            ctx.arc(node.x, node.y, radius, 0, 2 * Math.PI, false);
+            ctx.fillStyle = color;
+            ctx.fill();
+            
+            // Outer glow
+            ctx.shadowColor = color;
+            ctx.shadowBlur = 10;
+          }
+
+          // Fundo do Texto
           const textWidth = ctx.measureText(label).width;
           const bckgDimensions = [textWidth, fontSize].map(n => n + fontSize * 0.2); // some padding
+          const yOffset = node.type === 'agent' ? radius * 2.5 : radius;
 
           ctx.fillStyle = isDark ? 'rgba(0, 0, 0, 0.7)' : 'rgba(255, 255, 255, 0.7)';
-          ctx.fillRect(node.x - bckgDimensions[0] / 2, node.y + radius + 2, bckgDimensions[0], bckgDimensions[1]);
+          ctx.fillRect(node.x - bckgDimensions[0] / 2, node.y + yOffset + 2, bckgDimensions[0], bckgDimensions[1]);
 
           ctx.textAlign = 'center';
           ctx.textBaseline = 'middle';
           ctx.fillStyle = textColor;
-          ctx.fillText(label, node.x, node.y + radius + 2 + fontSize / 2);
+          ctx.fillText(label, node.x, node.y + yOffset + 2 + fontSize / 2);
         }}
         onNodeClick={(node) => {
           // Center/zoom on node
           fgRef.current?.centerAt(node.x, node.y, 1000);
-          fgRef.current?.zoom(8, 2000);
+          fgRef.current?.zoom(5, 2000);
           if (onNodeClick) onNodeClick(node);
         }}
       />
-      <div className="absolute bottom-4 left-4 flex flex-col gap-2 p-3 bg-background/80 backdrop-blur-md border border-border rounded-lg text-xs shadow-lg">
+      <div className="absolute bottom-4 left-4 flex flex-col gap-2 p-3 bg-background/80 backdrop-blur-md border border-border rounded-lg text-xs shadow-lg pointer-events-none">
         <h4 className="font-semibold mb-1">Legenda</h4>
+        <div className="flex items-center gap-2"><div className="w-3 h-3 rounded-full bg-[#6366f1]"></div> Cérebro da IA</div>
         <div className="flex items-center gap-2"><div className="w-3 h-3 rounded-full bg-[#3b82f6]"></div> Clientes</div>
         <div className="flex items-center gap-2"><div className="w-3 h-3 rounded-full bg-[#10b981]"></div> Interações</div>
         <div className="flex items-center gap-2"><div className="w-3 h-3 rounded-full bg-[#8b5cf6]"></div> Conceitos</div>
