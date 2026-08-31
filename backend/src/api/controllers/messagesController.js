@@ -172,6 +172,7 @@ async function sendMessage(req, res) {
     sessionName,
     text,
   } = req.body;
+  try {
   const store = getStore(req);
   const correlationId = req.correlationId || correlationTracker.generateMessageTraceId();
   const companyId = String(req.body?.companyId || req.companyId || req.tenantId || process.env.DEFAULT_COMPANY_ID || 'default');
@@ -559,7 +560,7 @@ async function sendMessage(req, res) {
 
     const errMsg = message.toLowerCase();
     const isBlockedError = errMsg.includes('blocked') || errMsg.includes('forbidden') || errMsg.includes('recipient unavailable');
-    if (isBlockedError && store.databaseEnabled) {
+    if (isBlockedError && store?.databaseEnabled) {
       try {
         const companyId = req.body?.companyId || req.companyId || req.tenantId || 'default';
         await dbQuery(
@@ -625,7 +626,8 @@ async function sendMessage(req, res) {
     });
 
     return res.status(500).json({
-      error: error.message || 'Failed to send WhatsApp message.',
+      error: 'Internal server error while sending message',
+      details: message,
       success: false,
     });
   }

@@ -41,9 +41,16 @@ async function ensureConversationForMessage({ companyId, contactId, conversation
   }
 
   if (contactId) {
-    const existingConversation = await conversationRepository.getConversationByContact(contactId, companyId, sessionId);
-    if (existingConversation) {
-      return existingConversation;
+    const numericContactId = Number(contactId);
+    if (Number.isSafeInteger(numericContactId) && numericContactId <= 2147483647) {
+      try {
+        const existingConversation = await conversationRepository.getConversationByContact(contactId, companyId, sessionId);
+        if (existingConversation) {
+          return existingConversation;
+        }
+      } catch (err) {
+        console.warn(`[CONVERSATION-UPSERT] Failed to lookup conversation by contactId ${contactId}:`, err.message);
+      }
     }
   }
 
