@@ -220,7 +220,7 @@ else
 
   # Build with Vite
   echo "  → Building frontend bundle..."
-  NODE_ENV=production VITE_API_URL="${VITE_API_URL:-/}" ./node_modules/.bin/vite build --emptyOutDir 2>&1 | tail -15
+  NODE_OPTIONS="--max-old-space-size=4096" NODE_ENV=production VITE_API_URL="${VITE_API_URL:-/}" ./node_modules/.bin/vite build --emptyOutDir 2>&1 | tail -15
   log "Frontend built: $(find dist/assets -name '*.js' 2>/dev/null | wc -l) JS chunks"
 
   # Validate build artifact
