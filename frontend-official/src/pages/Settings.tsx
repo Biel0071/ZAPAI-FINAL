@@ -48,7 +48,7 @@ const MasterDeploymentsPage = React.lazy(() => import("./MasterDeployments"));
 const MasterVersionsPage = React.lazy(() => import("./MasterVersions"));
 const MasterLogsPage = React.lazy(() => import("./MasterLogs"));
 const TestsPage = React.lazy(() => import("./Tests"));
-const DiagnosticsPage = React.lazy(() => import("@/components/enterprise/Diagnostics"));
+const DiagnosticsPage = React.lazy(() => import("@/runtime/diagnostics/Diagnostics"));
 
 const LANGUAGE_STORAGE_KEY = "zapai_language";
 const LANGUAGE_OPTIONS = [
