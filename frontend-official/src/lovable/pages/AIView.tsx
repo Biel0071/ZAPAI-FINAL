@@ -4238,6 +4238,7 @@ export function AIView(props: AIViewProps) {
                           </div>
                         </div>
                       </div>
+                    </div>
                   )}
                   {activeAnaliseSubTab === "learning" && (
                     <div className="space-y-6 animate-fade-in">
@@ -4774,7 +4775,6 @@ export function AIView(props: AIViewProps) {
               </div>
             </div>
           )}
-        </DialogContent>
         </DialogContent>
       </Dialog>
       
