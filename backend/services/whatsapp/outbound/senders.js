@@ -131,57 +131,10 @@ async function resolveRegisteredJid(sock, jid, options = {}) {
     return jid;
   }
 
-  // A LID is an address already observed from WhatsApp. Reuse it instead of
-  // revalidating on every send: USync may transiently return no result and
-  // previously turned a valid second message into a false HTTP 422.
+  // A LID is an address already observed from WhatsApp. Return it directly so
+  // Baileys sends to the active LID conversation without breaking multi-device delivery.
   if (jid.endsWith('@lid')) {
-    const cleanLid = jid.split('@')[0].split(':')[0];
-    const cachedLid = getCachedJid(cleanLid);
-    if (cachedLid) return cachedLid;
-
-    const mappedPhone = global.lidToPhoneMap?.get(cleanLid);
-    const cleanPhone = mappedPhone
-      ? String(mappedPhone).split('@')[0].split(':')[0]
-      : null;
-    const cachedPhone = cleanPhone ? getCachedJid(cleanPhone) : null;
-    if (cachedPhone) {
-      setCachedJid(cleanLid, cachedPhone);
-      return cachedPhone;
-    }
-
-    if (!cleanPhone) {
-      setCachedJid(cleanLid, jid);
-      return jid;
-    }
-
-    try {
-      const checkResult = await sock.onWhatsApp(`${cleanPhone}@s.whatsapp.net`);
-      const match = Array.isArray(checkResult) ? checkResult.find((entry) => entry?.exists) : null;
-      if (!match) {
-        console.warn(`[JID-RESOLVE] transient LID confirmation miss for ${jid}; reusing known address`);
-        setCachedJid(cleanPhone, jid);
-        setCachedJid(cleanLid, jid);
-        return jid;
-      }
-
-      const authoritativePhoneJid = match.jid
-        ? match.jid
-        : `${cleanPhone}@s.whatsapp.net`;
-      if (match.lid) {
-        const lidStr = `${String(match.lid).split('@')[0].split(':')[0]}@lid`;
-        global.phoneToLidMap?.set(cleanPhone, lidStr.split('@')[0]);
-        global.lidToPhoneMap?.set(lidStr.split('@')[0], cleanPhone);
-      }
-      setCachedJid(cleanPhone, authoritativePhoneJid);
-      setCachedJid(cleanLid, authoritativePhoneJid);
-      console.log(`[JID-RESOLVE] confirmed ${cleanPhone} -> ${authoritativePhoneJid}`);
-      return authoritativePhoneJid;
-    } catch (error) {
-      console.warn(`[JID-RESOLVE] LID confirmation failed for ${jid}; reusing known address:`, error?.message || error);
-      setCachedJid(cleanPhone, jid);
-      setCachedJid(cleanLid, jid);
-      return jid;
-    }
+    return jid;
   }
   if (!jid.endsWith('@s.whatsapp.net')) {
     return jid;

@@ -30,8 +30,10 @@ function mergeMessageStatus(
   incoming: ChatMessage["status"],
 ): ChatMessage["status"] {
   if (!incoming || current === incoming) return current ?? incoming;
-  if (incoming === "failed") return current === "read" || current === "played" ? current : incoming;
-  if (current === "failed") return incoming;
+  const isIncomingError = incoming === "failed" || incoming === "error" || incoming === "blocked";
+  const isCurrentError = current === "failed" || current === "error" || current === "blocked";
+  if (isIncomingError) return current === "read" || current === "played" ? current : "failed";
+  if (isCurrentError) return incoming;
 
   const currentRank = MESSAGE_STATUS_RANK[String(current ?? "").toLowerCase()] ?? -1;
   const incomingRank = MESSAGE_STATUS_RANK[String(incoming).toLowerCase()] ?? -1;
