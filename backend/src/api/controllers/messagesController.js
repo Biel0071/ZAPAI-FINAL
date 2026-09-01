@@ -204,33 +204,21 @@ async function sendMessage(req, res) {
     sessionName || sessionId || requestedSessionId || sessionManager.DEFAULT_SESSION
   );
   const existingSession = sessionManager.getSession(targetSessionName);
+  let session = existingSession;
+  
+  if (!session) {
+    session = await sessionManager.getDefaultSession();
+  }
 
   const isSessionConnected = (s) => s && String(s.status || '').toLowerCase() === 'connected';
+  const sock = session?.sock;
 
-  let session = existingSession;
-  if (!isSessionConnected(session)) {
-    const defaultSession = await sessionManager.getDefaultSession();
-    if (isSessionConnected(defaultSession)) {
-      session = defaultSession;
-    } else {
-      const allSessions = sessionManager.listSessions();
-      const connectedSessionInfo = allSessions.find(
-        (s) => String(s.status || '').toLowerCase() === 'connected'
-      );
-      if (connectedSessionInfo) {
-        session = sessionManager.getSession(connectedSessionInfo.sessionId);
-      }
-    }
+  if (!session || !isSessionConnected(session) || !sock || !sock.ws || sock.ws.readyState !== 1) {
+    return res.status(409).json({
+      error: `Sessão do WhatsApp (${targetSessionName}) está offline ou desconectada. Aguarde a reconexão.`,
+      success: false
+    });
   }
-
-  if (!session) {
-    session = existingSession || (await sessionManager.getDefaultSession());
-  }
-
-  const connectedFallbackSession = sessionManager.getConnectedSessionOrNull();
-  const sock = session?.sock || store?.sock || connectedFallbackSession?.sock;
-  const activeSession = (session && String(session.status || '').toLowerCase() === 'connected') ? session : connectedFallbackSession;
-  const normalizedSessionStatus = String(activeSession?.status || 'disconnected').toLowerCase();
 
   // Auto-activate runtime if inactive so message sending is never blocked
   if (!sessionManager.isRuntimeActive()) {
@@ -364,6 +352,22 @@ async function sendMessage(req, res) {
       });
     }
 
+    let checkedMediaTransportPath = null;
+    if (mediaTransportPath || mediaPath) {
+      try {
+        checkedMediaTransportPath = await messageService.assertLocalMediaPathExists(
+          mediaTransportPath || mediaPath
+        );
+        await messageService.ensureUploadDirectories();
+      } catch (err) {
+        return res.status(400).json({
+          error: 'Falha ao processar arquivo de mídia.',
+          details: err.message,
+          success: false
+        });
+      }
+    }
+
     // 2. Return 200 OK immediately so frontend is responsive
     res.status(200).json({
       chatId: normalizeChatId(normalizedPhone),
@@ -376,10 +380,6 @@ async function sendMessage(req, res) {
       try {
         let sendResult;
         if (mediaTransportPath || mediaPath) {
-          const checkedMediaTransportPath = await messageService.assertLocalMediaPathExists(
-            mediaTransportPath || mediaPath
-          );
-          await messageService.ensureUploadDirectories();
           sendResult = await whatsappService.sendMediaMessage(
             sock,
             targetJidOrPhone,
