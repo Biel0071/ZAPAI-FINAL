@@ -1811,26 +1811,26 @@ export function useInboxState() {
 
   // Message sending implementation
   const handleSendMessage = useCallback(async (overrideText?: string) => {
+    // Always use refs for volatile state to avoid stale closures on rapid re-renders
     const text = (overrideText ?? messageInputStateRef.current).trim();
-    const replyExcerpt = (replyingTo?.caption ?? replyingTo?.content ?? "").trim();
-    const textWithReply = replyingTo && replyExcerpt ? `↩ ${replyExcerpt}\n${text}`.trim() : text;
+    const replyingToSnapshot = replyingToStateRef.current;
+    const replyExcerpt = (replyingToSnapshot?.caption ?? replyingToSnapshot?.content ?? "").trim();
+    const textWithReply = replyingToSnapshot && replyExcerpt ? `↩ ${replyExcerpt}\n${text}`.trim() : text;
     const currentAttachments = [...attachmentsStateRef.current];
-    const currentReplyingTo = replyingTo;
+    // Always read the latest conversation from ref — avoids stale closure after re-renders
+    const currentConversation = selectedConversationRef.current;
 
-    if (!selectedConversation?.phone || (!textWithReply && currentAttachments.length === 0)) return;
-    // We no longer block sending multiple messages concurrently.
-    // The message store optimizes optimistic updates natively via sortMessagesAsc
-    // and mergeMessagesById without freezing the UI.
-    
-    // Clear refs immediately to prevent concurrent rapid-fire duplicate sends
+    if (!currentConversation?.phone || (!textWithReply && currentAttachments.length === 0)) return;
+
+    // Clear refs immediately to prevent concurrent rapid-fire duplicate sends.
     if (overrideText === undefined) {
       messageInputStateRef.current = "";
     }
     attachmentsStateRef.current = [];
-    
+
     if (!canUseBackend) {
       setError("Servidor reconectando... envio temporariamente indisponível.");
-      // Restore refs if unavailable
+      // Restore refs so the user can retry
       if (overrideText === undefined) messageInputStateRef.current = text;
       attachmentsStateRef.current = currentAttachments;
       return;
@@ -1842,24 +1842,27 @@ export function useInboxState() {
     const pendingTempIds = new Set<string>();
 
     try {
-      const safeSessions = Array.isArray(sessions) ? sessions : [];
+      // Always read latest sessions directly from the Zustand store to avoid stale closure
+      const storeSessions = useAppStore.getState().sessions as unknown as SessionInfo[];
+      const safeSessions = Array.isArray(storeSessions) ? storeSessions : [];
       const latestSessions = safeSessions.length > 0 ? safeSessions : await refreshSessions();
+
       const resolvedActiveSession = pickActiveSession(
         latestSessions,
-        selectedConversation.sessionId ?? preferredSessionId,
+        currentConversation.sessionId ?? preferredSessionId,
       );
       if (!resolvedActiveSession?.id) {
         const unavailableMessage = "Nenhuma sessão do WhatsApp está conectada. Reconecte uma sessão e tente novamente.";
         setError(unavailableMessage);
         showErrorToast(unavailableMessage);
-        // Restore refs if unavailable
+        // Restore refs so the user can retry
         if (overrideText === undefined) messageInputStateRef.current = text;
         attachmentsStateRef.current = currentAttachments;
         return;
       }
 
-      const conversationSession = selectedConversation.sessionId
-        ? latestSessions.find((session) => session.id === selectedConversation.sessionId)
+      const conversationSession = currentConversation.sessionId
+        ? latestSessions.find((session) => session.id === currentConversation.sessionId)
         : null;
       const sessionIdToSend = conversationSession && isSessionActive(conversationSession)
         ? conversationSession.id
@@ -1870,13 +1873,13 @@ export function useInboxState() {
       setMessageInput("");
       setAttachments([]);
       setReplyingTo(null);
-      clearDraftFromStorage(selectedConversation.id);
+      clearDraftFromStorage(currentConversation.id);
       setDraftsByConversationId((prev) => {
-        if (!prev[selectedConversation.id]) return prev;
-        const { [selectedConversation.id]: _removed, ...rest } = prev;
+        if (!prev[currentConversation.id]) return prev;
+        const { [currentConversation.id]: _removed, ...rest } = prev;
         return rest;
       });
-      persistDraftSnapshot(selectedConversation.id, {
+      persistDraftSnapshot(currentConversation.id, {
         draftMessage: "",
         draftMedia: [],
         draftReply: null,
@@ -1890,12 +1893,12 @@ export function useInboxState() {
 
       // Clear typing status immediately upon sending a message
       const storeState = useAppStore.getState();
-      storeState.updateTypingStatus(selectedConversation.id, false);
-      if (selectedConversation.chatId) {
-        storeState.updateTypingStatus(selectedConversation.chatId, false);
+      storeState.updateTypingStatus(currentConversation.id, false);
+      if (currentConversation.chatId) {
+        storeState.updateTypingStatus(currentConversation.chatId, false);
       }
-      if (selectedConversation.phone) {
-        storeState.updateTypingStatus(selectedConversation.phone, false);
+      if (currentConversation.phone) {
+        storeState.updateTypingStatus(currentConversation.phone, false);
       }
 
       const optimisticMessages: ChatMessage[] = currentAttachments.length
@@ -1904,7 +1907,7 @@ export function useInboxState() {
             pendingTempIds.add(tempId);
             return {
               id: tempId,
-              conversationId: selectedConversation.id,
+              conversationId: currentConversation.id,
               content: attachment.caption || (index === 0 ? textWithReply : ""),
               fromMe: true,
               createdAt: now,
@@ -1919,7 +1922,7 @@ export function useInboxState() {
               pendingTempIds.add(tempId);
               return {
                 id: tempId,
-                conversationId: selectedConversation.id,
+                conversationId: currentConversation.id,
                 content: textWithReply,
                 fromMe: true,
                 createdAt: now,
@@ -1928,26 +1931,26 @@ export function useInboxState() {
             })(),
           ];
 
-      setMessagesForConversation(selectedConversation.id, (prev) => {
+      setMessagesForConversation(currentConversation.id, (prev) => {
         const next = sortMessagesAsc([...prev, ...optimisticMessages]);
         updateConversationMessageStore(
-          selectedConversation.id,
+          currentConversation.id,
           next,
-          messageCacheRef.current.get(selectedConversation.id)?.hasMore ?? hasMoreMessages,
+          messageCacheRef.current.get(currentConversation.id)?.hasMore ?? hasMoreMessages,
         );
         return next;
       });
 
-      const pendingQueue = pendingOutgoingTempIdsRef.current.get(selectedConversation.id) ?? [];
+      const pendingQueue = pendingOutgoingTempIdsRef.current.get(currentConversation.id) ?? [];
       pendingOutgoingTempIdsRef.current.set(
-        selectedConversation.id,
+        currentConversation.id,
         [...pendingQueue, ...optimisticMessages.map((item) => item.id)],
       );
 
       const optimisticLast = optimisticMessages[optimisticMessages.length - 1];
       const reactivateAt24h = new Date(Date.now() + 86400000).toISOString();
       setConversations((prev) => {
-        const current = prev.find((item) => item.id === selectedConversation.id);
+        const current = prev.find((item) => item.id === currentConversation.id);
         if (!current) return prev;
 
         const updated: Conversation = {
@@ -1962,7 +1965,7 @@ export function useInboxState() {
           updatedAt: optimisticLast?.createdAt ?? now,
         };
 
-        return [updated, ...prev.filter((item) => item.id !== selectedConversation.id)];
+        return [updated, ...prev.filter((item) => item.id !== currentConversation.id)];
       });
 
       for (let i = 0; i < optimisticMessages.length; i += 1) {
@@ -1980,23 +1983,23 @@ export function useInboxState() {
 
         const response: MessageSendResponse = attachment
           ? await apiService.sendMediaMessage({
-              phone: selectedConversation.phone,
-              chatId: selectedConversation.chatId,
+              phone: currentConversation.phone,
+              chatId: currentConversation.chatId,
               caption: attachment.caption || (i === 0 ? textWithReply : ""),
               fileName: attachment.file.name,
               mimeType: attachment.file.type || "application/octet-stream",
               mediaType: attachment.mediaType,
               dataBase64: base64Payload ?? "",
-              conversationId: selectedConversation.id,
-              contactId: selectedConversation.contactId,
+              conversationId: currentConversation.id,
+              contactId: currentConversation.contactId,
               sessionId: sessionIdToSend,
             })
           : await apiService.sendMessage({
-              phone: selectedConversation.phone,
-              chatId: selectedConversation.chatId,
+              phone: currentConversation.phone,
+              chatId: currentConversation.chatId,
               text: textWithReply,
-              conversationId: selectedConversation.id,
-              contactId: selectedConversation.contactId,
+              conversationId: currentConversation.id,
+              contactId: currentConversation.contactId,
               sessionId: sessionIdToSend,
             });
 
@@ -2016,13 +2019,13 @@ export function useInboxState() {
           optimistic.mediaUrl;
         const returnedMediaType = returnedMsg?.mediaType ?? attachment?.mediaType ?? optimistic.mediaType;
 
-        setMessagesForConversation(selectedConversation.id, (prev) => {
+        setMessagesForConversation(currentConversation.id, (prev) => {
           if (realId && prev.some((m) => String(m.id) === String(realId))) {
             const next = prev.filter((m) => m.id !== optimistic.id);
             updateConversationMessageStore(
-              selectedConversation.id,
+              currentConversation.id,
               next,
-              messageCacheRef.current.get(selectedConversation.id)?.hasMore ?? hasMoreMessages,
+              messageCacheRef.current.get(currentConversation.id)?.hasMore ?? hasMoreMessages,
             );
             return next;
           }
@@ -2044,15 +2047,15 @@ export function useInboxState() {
             return msg;
           });
           updateConversationMessageStore(
-            selectedConversation.id,
+            currentConversation.id,
             next,
-            messageCacheRef.current.get(selectedConversation.id)?.hasMore ?? hasMoreMessages,
+            messageCacheRef.current.get(currentConversation.id)?.hasMore ?? hasMoreMessages,
           );
           return next;
         });
 
         pendingTempIds.delete(optimistic.id);
-        removePendingTempIdsForConversation(selectedConversation.id, [optimistic.id]);
+        removePendingTempIdsForConversation(currentConversation.id, [optimistic.id]);
         clearPendingFallbackTimersForTempId(optimistic.id);
       }
 
@@ -2079,29 +2082,31 @@ export function useInboxState() {
       setError(message);
       showErrorToast(message);
 
+      // Re-read conversation from ref in catch to avoid stale closure
+      const failedConversation = selectedConversationRef.current;
       const errMsg = message.toLowerCase();
       const isBlockedError = errMsg.includes("blocked") || errMsg.includes("forbidden") || errMsg.includes("recipient unavailable");
-      if (isBlockedError && selectedConversation) {
+      if (isBlockedError && failedConversation) {
         setConversations((prev) =>
-          prev.map((c) => (c.id === selectedConversation.id ? { ...c, isBlocked: true } : c))
+          prev.map((c) => (c.id === failedConversation.id ? { ...c, isBlocked: true } : c))
         );
       }
 
-      if (pendingTempIds.size > 0) {
-        const currentPending = pendingOutgoingTempIdsRef.current.get(selectedConversation.id) ?? [];
+      if (pendingTempIds.size > 0 && failedConversation) {
+        const currentPending = pendingOutgoingTempIdsRef.current.get(failedConversation.id) ?? [];
         pendingOutgoingTempIdsRef.current.set(
-          selectedConversation.id,
+          failedConversation.id,
           currentPending.filter((id) => !pendingTempIds.has(id)),
         );
         pendingTempIds.forEach((tempId) => {
           clearPendingFallbackTimersForTempId(tempId);
         });
-        setMessagesForConversation(selectedConversation.id, (prev) => {
+        setMessagesForConversation(failedConversation.id, (prev) => {
           const next = prev.map((item) => (pendingTempIds.has(item.id) ? { ...item, status: "failed" as const } : item));
           updateConversationMessageStore(
-            selectedConversation.id,
+            failedConversation.id,
             next,
-            messageCacheRef.current.get(selectedConversation.id)?.hasMore ?? hasMoreMessages,
+            messageCacheRef.current.get(failedConversation.id)?.hasMore ?? hasMoreMessages,
           );
           return next;
         });
@@ -2110,7 +2115,10 @@ export function useInboxState() {
       setSending(false);
       sendingRef.current = false;
     }
-  }, [activeSession, attachments, canUseBackend, clearPendingFallbackTimersForTempId, hasMoreMessages, inboxRuntimeState, isWhatsappConnected, loadConversationMessages, messageInput, persistDraftSnapshot, preferredSessionId, refreshSessions, removePendingTempIdsForConversation, replyingTo, selectedConversation, sending, sessions, showErrorToast, updateConversationMessageStore, setMessagesForConversation, setConversations]);
+  // Stable dep array: volatile state (messageInput, attachments, sessions, selectedConversation,
+  // sending) is intentionally read from refs inside the function body to prevent stale closures
+  // and the freeze-after-first-message bug.
+  }, [canUseBackend, clearPendingFallbackTimersForTempId, hasMoreMessages, loadConversationMessages, persistDraftSnapshot, preferredSessionId, refreshSessions, removePendingTempIdsForConversation, replyingTo, selectedConversation, showErrorToast, updateConversationMessageStore, setMessagesForConversation, setConversations]);
 
   const handleSetConversationAiEnabledById = useCallback(async (conversationId: string, enabled: boolean, reactivateAt?: string | null) => {
     const targetConversation = conversationsRef.current.find((conversation) => conversation.id === conversationId);
