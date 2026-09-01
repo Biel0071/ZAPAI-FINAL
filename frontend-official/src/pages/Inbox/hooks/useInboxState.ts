@@ -1811,10 +1811,10 @@ export function useInboxState() {
 
   // Message sending implementation
   const handleSendMessage = useCallback(async (overrideText?: string) => {
-    const text = (overrideText ?? messageInput).trim();
+    const text = (overrideText ?? messageInputStateRef.current).trim();
     const replyExcerpt = (replyingTo?.caption ?? replyingTo?.content ?? "").trim();
     const textWithReply = replyingTo && replyExcerpt ? `↩ ${replyExcerpt}\n${text}`.trim() : text;
-    const currentAttachments = [...attachments];
+    const currentAttachments = [...attachmentsStateRef.current];
     const currentReplyingTo = replyingTo;
 
     if (!selectedConversation?.phone || (!textWithReply && currentAttachments.length === 0)) return;
@@ -1822,11 +1822,19 @@ export function useInboxState() {
     // The message store optimizes optimistic updates natively via sortMessagesAsc
     // and mergeMessagesById without freezing the UI.
     
+    // Clear refs immediately to prevent concurrent rapid-fire duplicate sends
+    if (overrideText === undefined) {
+      messageInputStateRef.current = "";
+    }
+    attachmentsStateRef.current = [];
+    
     if (!canUseBackend) {
       setError("Servidor reconectando... envio temporariamente indisponível.");
+      // Restore refs if unavailable
+      if (overrideText === undefined) messageInputStateRef.current = text;
+      attachmentsStateRef.current = currentAttachments;
       return;
     }
-
 
     setError(null);
 
@@ -1844,6 +1852,9 @@ export function useInboxState() {
         const unavailableMessage = "Nenhuma sessão do WhatsApp está conectada. Reconecte uma sessão e tente novamente.";
         setError(unavailableMessage);
         showErrorToast(unavailableMessage);
+        // Restore refs if unavailable
+        if (overrideText === undefined) messageInputStateRef.current = text;
+        attachmentsStateRef.current = currentAttachments;
         return;
       }
 

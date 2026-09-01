@@ -187,13 +187,44 @@ export function Sidebar() {
             <span className={cn("min-w-0 flex-1 truncate text-[13px] font-medium", isActive && "text-sidebar-foreground")}>
               {item.label}
             </span>
-            {item.badge && (
+            {item.path === "/inbox" ? (
+              (() => {
+                const sessions = useAppStore.getState().sessions;
+                const activeSessionId = useAppStore.getState().activeSessionId;
+                const mainSession = sessions.find((s: any) => s.id === activeSessionId) || sessions[0];
+                
+                const isBanned = mainSession?.isBanned || mainSession?.raw?.status === "banned" || mainSession?.status === "error";
+                const isConnected = mainSession ? ["connected", "online", "active"].includes((mainSession.status || "").toLowerCase()) : false;
+                
+                let badgeLabel = "OFF";
+                let badgeClasses = "border border-yellow-500/50 bg-yellow-500/10 text-yellow-500";
+                
+                if (mainSession) {
+                  if (isBanned) {
+                    badgeLabel = "BAN";
+                    badgeClasses = "border border-destructive/50 bg-destructive/10 text-destructive animate-pulse";
+                  } else if (isConnected) {
+                    badgeLabel = "LIVE";
+                    badgeClasses = "border border-[#25D366]/30 bg-[#25D366]/20 text-[#25D366] animate-pulse";
+                  }
+                }
+                
+                return (
+                  <Badge
+                    className={cn(
+                      "rounded-full px-2 py-0.5 text-[9px] uppercase tracking-wide font-bold",
+                      badgeClasses
+                    )}
+                  >
+                    {badgeLabel}
+                  </Badge>
+                );
+              })()
+            ) : item.badge && (
               <Badge
                 className={cn(
                   "rounded-full px-2 py-0.5 text-[9px] uppercase tracking-wide font-bold",
-                  item.badge === "LIVE"
-                    ? "bg-[#25D366]/20 text-[#25D366] border border-[#25D366]/30 animate-pulse"
-                    : "border border-border/70 bg-background/60 text-muted-foreground",
+                  "border border-border/70 bg-background/60 text-muted-foreground",
                 )}
               >
                 {item.badge}

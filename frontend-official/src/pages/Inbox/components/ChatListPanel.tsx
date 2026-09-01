@@ -167,8 +167,20 @@ export function ChatListPanel({
             className="cursor-pointer transition-transform hover:scale-[1.03] active:scale-[0.98]"
           >
             <OperationalStatusBadge
-              label={activeSession && isSessionActive(activeSession) ? "Sessão ON" : "Sessão OFF"}
-              tone={activeSession && isSessionActive(activeSession) ? "online" : "warning"}
+              label={
+                activeSession?.isBanned || activeSession?.raw?.status === "banned" || activeSession?.status === "error"
+                  ? "Sessão Banida"
+                  : activeSession && isSessionActive(activeSession)
+                  ? "Sessão ON"
+                  : "Sessão OFF"
+              }
+              tone={
+                activeSession?.isBanned || activeSession?.raw?.status === "banned" || activeSession?.status === "error"
+                  ? "destructive"
+                  : activeSession && isSessionActive(activeSession)
+                  ? "online"
+                  : "warning"
+              }
               pulse={Boolean(activeSession && isSessionActive(activeSession))}
             />
           </div>
