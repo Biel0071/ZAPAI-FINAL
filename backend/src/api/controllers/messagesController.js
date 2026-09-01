@@ -408,6 +408,7 @@ async function sendMessage(req, res) {
               {
                 chatId: normalizedPhone,
                 sessionId: session?.sessionId || targetSessionName,
+                companyId: companyId,
               }
             );
 
@@ -416,27 +417,27 @@ async function sendMessage(req, res) {
               messageAckPipeline.emitAckUpdate(io, ackEntry);
             }
             
-            // Optionally, we could update the DB to save the whatsappMessageId, 
+            // Optionally, we could update the DB to save the whatsapp_message_id, 
             // but the mapping in messageAckPipeline is usually enough.
             if (store.databaseEnabled) {
                 try {
-                    await dbQuery('UPDATE messages SET whatsapp_id = $1, status = $2 WHERE id = $3', [whatsappMessageId, 'sent', apiMessage.id]);
+                    await dbQuery('UPDATE messages SET whatsapp_message_id = $1, status = $2 WHERE id = $3', [whatsappMessageId, 'sent', apiMessage.id]);
                 } catch (e) {
-                    console.error('Error updating whatsapp_id async', e);
+                    console.error('Error updating whatsapp_message_id async', e);
                 }
             }
         }
       } catch (err) {
         console.error('[WHATSAPP-SEND-ASYNC-ERROR]', err);
         // Fail the message in UI
-        const io = store?.io || global.io;
+        const io = store?.io || global.io || req.app?.get?.('io') || req.app?.locals?.io;
         if (io) {
-          io.emit('message_ack', {
-            id: apiMessage.id, // we don't have whatsappId, so we use db id
-            dbId: apiMessage.id,
-            status: 'failed',
+          const { emitToTenantWithAliases } = require('../../../services/realtime/tenantRooms');
+          emitToTenantWithAliases(io, companyId, 'message_status', {
+            messageId: apiMessage.id,
+            status: 'error',
             chatId: normalizedPhone,
-          });
+          }, ['message:status']);
         }
         if (store.databaseEnabled) {
             try {
