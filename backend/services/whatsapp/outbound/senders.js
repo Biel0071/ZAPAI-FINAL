@@ -243,14 +243,14 @@ async function resolveRegisteredJid(sock, jid, options = {}) {
   return jid;
 }
 
-async function sendMessage(sock, phone, text) {
+async function sendMessage(sock, phone, text, options = {}) {
   ensureSocket(sock);
   let jid = ensureWhatsAppJid(phone);
   jid = await resolveRegisteredJid(sock, jid, { requireRegistered: true });
 
   try {
     return await sendWithRetry(
-      () => sock.sendMessage(jid, { text }),
+      () => sock.sendMessage(jid, { text }, options),
       3
     );
   } catch (error) {

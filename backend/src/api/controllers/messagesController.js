@@ -289,89 +289,14 @@ async function sendMessage(req, res) {
   }
 
   try {
-    let sendResult;
+    const deliveryStatus = 'pending';
+    let memEntry;
+    let persistedResult;
+    let apiMessage;
 
-    if (mediaTransportPath || mediaPath) {
-      const checkedMediaTransportPath = await messageService.assertLocalMediaPathExists(
-        mediaTransportPath || mediaPath
-      );
-      await messageService.ensureUploadDirectories();
-      sendResult = await whatsappService.sendMediaMessage(
-        sock,
-        targetJidOrPhone,
-        resolvedMediaType,
-        checkedMediaTransportPath || mediaPath,
-        {
-        caption: resolvedText || '',
-        fileName,
-        mimetype,
-        ptt,
-        }
-      );
-    } else {
-      sendResult = await whatsappService.sendMessage(sock, targetJidOrPhone, resolvedText);
-    }
-
-    if (!sendResult || !sendResult.key || !sendResult.key.id) {
-      MessageAuditService.log('message_failed', {
-        error: 'Message send failed: Baileys did not return a valid key ID',
-        phone: normalizedPhone,
-        text: resolvedText,
-      });
-
-      return res.status(500).json({
-        error: 'Message send failed: Baileys confirmation missing.',
-        success: false,
-      });
-    }
-
-    const whatsappMessageId = String(sendResult.key.id);
-    const transportRemoteJid = sendResult.key.remoteJid || targetJidOrPhone;
-    correlationTracker.traceLog(correlationId, 'baileys.transport_accepted', 'Baileys returned a message key; awaiting server ACK.', {
-      companyId,
-      messageId: whatsappMessageId,
-      remoteJid: transportRemoteJid,
-    });
-    const transportParticipantJid = sendResult.key.participant || null;
-    messageAckPipeline.transitionAck(
-      whatsappMessageId,
-      messageAckPipeline.ACK_STATES.SENT,
-      {
-        chatId: normalizedPhone,
-        sessionId: session?.sessionId || targetSessionName,
-      }
-    );
-    const deliveryStatus = 'sent';
-    setImmediate(async () => {
-      try {
-        const ackConfirmation = await waitForWhatsappServerAck(whatsappMessageId, 4000);
-        if (ackConfirmation && ackConfirmation.status) {
-          const io = store?.io || global.io;
-          if (io) {
-            io.emit('message_ack', {
-              id: whatsappMessageId,
-              status: ackConfirmation.status,
-              chatId: normalizedPhone,
-            });
-          }
-        }
-      } catch (_) {}
-    });
-    correlationTracker.traceLog(correlationId, 'ack.sent', 'Message sent to transport; async ACK monitoring started.', {
-      companyId,
-      messageId: whatsappMessageId,
-    });
-
-    console.log('[WHATSAPP-SEND-RESULT]', {
-      ackStatus: 'async_pending',
-      messageId: whatsappMessageId,
-      remoteJid: transportRemoteJid,
-      requestedTarget: targetJidOrPhone,
-      sessionId: session?.sessionId || targetSessionName,
-    });
+    // 1. Immediately persist to database as pending
     if (!store.databaseEnabled) {
-      // Persist to in-memory store when PostgreSQL is unavailable
-      const memEntry = messageStore.addMessage(normalizedPhone, {
+      memEntry = messageStore.addMessage(normalizedPhone, {
         content: resolvedText || '',
         createdAt: new Date().toISOString(),
         fromMe: true,
@@ -387,19 +312,7 @@ async function sendMessage(req, res) {
         text: resolvedText,
       });
 
-      if (sendResult?.key?.id && memEntry?.id) {
-        messageAckPipeline.registerDbMapping(sendResult.key.id, memEntry.id);
-        const ackEntry = messageAckPipeline.transitionAck(sendResult.key.id, messageAckPipeline.ACK_STATES.SENT, {
-          chatId: normalizedPhone,
-          sessionId: session?.sessionId || targetSessionName,
-        });
-        const io = store?.io || global.io || req.app?.get?.('io') || req.app?.locals?.io;
-        if (io && ackEntry) {
-          messageAckPipeline.emitAckUpdate(io, ackEntry);
-        }
-      }
-
-      const inboxPayload = {
+      apiMessage = {
         conversationId: memEntry?.conversationId || `chat-${normalizedPhone}`,
         content: resolvedText || '',
         createdAt: memEntry?.createdAt || new Date().toISOString(),
@@ -410,76 +323,130 @@ async function sendMessage(req, res) {
         phone: normalizedPhone,
         status: deliveryStatus,
       };
+    } else {
+      persistedResult = await registerOutgoingMessage(store, {
+        companyId,
+        contactId,
+        conversationId,
+        mediaPath: persistedMediaPath || mediaPath,
+        mediaType: resolvedMediaType,
+        name: session?.phone || 'Unknown',
+        phone: normalizedPhone,
+        sessionId: session?.sessionId || targetSessionName,
+        source: 'human',
+        text: resolvedText,
+        status: deliveryStatus,
+        whatsappMessageId: null, // Will be updated asynchronously
+        remoteJid: targetJidOrPhone,
+        participantJid: null,
+      });
 
-      if (!inboxPayload.id) {
-        return res.status(500).json({
-          error: 'Message persistence failed: missing id.',
-          success: false,
-        });
-      }
-
-      void aiIntelligenceService
-        .captureMessageEvent(store, {
-          conversationId: inboxPayload.conversationId,
-          direction: 'outgoing',
-          mediaType: inboxPayload.mediaType || null,
-          messageId: inboxPayload.id,
-          name: normalizedPhone,
+      if (!persistedResult?.message) {
+        MessageAuditService.log('message_failed', {
+          error: 'Message persistence failed',
           phone: normalizedPhone,
-          source: 'human-fallback',
-          text: resolvedText || '',
-          timestamp: inboxPayload.createdAt,
-        })
-        .catch((error) => {
-          console.error('[AI INTELLIGENCE] Failed to capture outbound memory fallback:', error.message || error);
+          text: resolvedText,
         });
 
-      if (!sendResult?.key?.id && !whatsappMessageId) {
-        return res.status(502).json({
-          chatId: normalizeChatId(normalizedPhone),
-          code: 'WHATSAPP_ACK_TIMEOUT',
-          error: 'O WhatsApp nao confirmou o envio dentro do prazo. A mensagem permanece pendente.',
-          message: { ...inboxPayload, status: deliveryStatus },
+        return res.status(500).json({
+          error: 'Message persistence failed',
           success: false,
         });
       }
+      
+      apiMessage = formatApiMessage(persistedResult.message);
+    }
 
-      return res.status(200).json({
-        chatId: normalizeChatId(normalizedPhone),
-        message: inboxPayload,
-        success: true,
+    if (!apiMessage?.id) {
+      return res.status(500).json({
+        error: 'Message persistence failed: missing id.',
+        success: false,
       });
     }
 
-    const persistedResult = await registerOutgoingMessage(store, {
-      companyId,
-      contactId,
-      conversationId,
-      mediaPath: persistedMediaPath || mediaPath,
-      mediaType: resolvedMediaType,
-      name: session?.phone || 'Unknown',
-      phone: normalizedPhone,
-      sessionId: session?.sessionId || targetSessionName,
-      source: 'human',
-      text: resolvedText,
-      status: deliveryStatus,
-      whatsappMessageId,
-      remoteJid: transportRemoteJid,
-      participantJid: transportParticipantJid,
+    // 2. Return 200 OK immediately so frontend is responsive
+    res.status(200).json({
+      chatId: normalizeChatId(normalizedPhone),
+      message: apiMessage,
+      success: true,
     });
 
-    if (whatsappMessageId && persistedResult?.message?.id) {
-      messageAckPipeline.registerDbMapping(whatsappMessageId, persistedResult.message.id);
-      const ackEntry = messageAckPipeline.transitionAck(whatsappMessageId, messageAckPipeline.ACK_STATES.SENT, {
-        chatId: normalizedPhone,
-        sessionId: session?.sessionId || targetSessionName,
-      });
-      const io = store?.io || global.io || req.app?.get?.('io') || req.app?.locals?.io;
-      if (io && ackEntry) {
-        messageAckPipeline.emitAckUpdate(io, ackEntry);
-      }
-    }
+    // 3. Fire-and-forget Baileys Send
+    (async () => {
+      try {
+        let sendResult;
+        if (mediaTransportPath || mediaPath) {
+          const checkedMediaTransportPath = await messageService.assertLocalMediaPathExists(
+            mediaTransportPath || mediaPath
+          );
+          await messageService.ensureUploadDirectories();
+          sendResult = await whatsappService.sendMediaMessage(
+            sock,
+            targetJidOrPhone,
+            resolvedMediaType,
+            checkedMediaTransportPath || mediaPath,
+            {
+              caption: resolvedText || '',
+              fileName,
+              mimetype,
+              ptt,
+            }
+          );
+        } else {
+          sendResult = await whatsappService.sendMessage(sock, targetJidOrPhone, resolvedText);
+        }
 
+        if (sendResult?.key?.id) {
+            const whatsappMessageId = String(sendResult.key.id);
+            const transportRemoteJid = sendResult.key.remoteJid || targetJidOrPhone;
+            
+            // Register mapping so ACKs map back to our DB ID
+            messageAckPipeline.registerDbMapping(whatsappMessageId, apiMessage.id);
+            const ackEntry = messageAckPipeline.transitionAck(
+              whatsappMessageId,
+              messageAckPipeline.ACK_STATES.SENT,
+              {
+                chatId: normalizedPhone,
+                sessionId: session?.sessionId || targetSessionName,
+              }
+            );
+
+            const io = store?.io || global.io || req.app?.get?.('io') || req.app?.locals?.io;
+            if (io && ackEntry) {
+              messageAckPipeline.emitAckUpdate(io, ackEntry);
+            }
+            
+            // Optionally, we could update the DB to save the whatsappMessageId, 
+            // but the mapping in messageAckPipeline is usually enough.
+            if (store.databaseEnabled) {
+                try {
+                    await dbQuery('UPDATE messages SET whatsapp_id = $1, status = $2 WHERE id = $3', [whatsappMessageId, 'sent', apiMessage.id]);
+                } catch (e) {
+                    console.error('Error updating whatsapp_id async', e);
+                }
+            }
+        }
+      } catch (err) {
+        console.error('[WHATSAPP-SEND-ASYNC-ERROR]', err);
+        // Fail the message in UI
+        const io = store?.io || global.io;
+        if (io) {
+          io.emit('message_ack', {
+            id: apiMessage.id, // we don't have whatsappId, so we use db id
+            dbId: apiMessage.id,
+            status: 'failed',
+            chatId: normalizedPhone,
+          });
+        }
+        if (store.databaseEnabled) {
+            try {
+                await dbQuery('UPDATE messages SET status = $1 WHERE id = $2', ['error', apiMessage.id]);
+            } catch (e) {}
+        }
+      }
+    })();
+
+    // 4. Handle AI deactivation
     if (store.databaseEnabled && conversationId && String(req.body.source) !== 'ai' && String(req.body.source) !== 'bot') {
       try {
         await dbQuery(
@@ -493,7 +460,6 @@ async function sendMessage(req, res) {
           io.emit('conversation_updated', {
             id: conversationId,
             ai_enabled: false,
-            // the frontend will need to fetch or we can estimate it:
             ai_reactivate_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString()
           });
         }
@@ -502,58 +468,6 @@ async function sendMessage(req, res) {
         console.error('[AI-DEACTIVATE] Error updating DB:', err.message);
       }
     }
-
-    if (!persistedResult?.message) {
-      MessageAuditService.log('message_failed', {
-        error: 'Message persistence failed',
-        phone: normalizedPhone,
-        text: resolvedText,
-      });
-
-      return res.status(500).json({
-        error: 'Message persistence failed',
-        success: false,
-      });
-    }
-
-    const apiMessage = formatApiMessage(persistedResult.message);
-
-    if (!apiMessage?.id) {
-      return res.status(500).json({
-        error: 'Message persistence failed: missing id.',
-        success: false,
-      });
-    }
-
-    console.log('MESSAGE SAVED', apiMessage);
-
-    if (sendResult?.key?.id && apiMessage?.id) {
-      messageAckPipeline.registerDbMapping(sendResult.key.id, apiMessage.id);
-      const ackEntry = messageAckPipeline.transitionAck(sendResult.key.id, messageAckPipeline.ACK_STATES.SENT, {
-        chatId: normalizedPhone,
-        sessionId: session?.sessionId || targetSessionName,
-      });
-      const io = store?.io || global.io || req.app?.get?.('io') || req.app?.locals?.io;
-      if (io && ackEntry) {
-        messageAckPipeline.emitAckUpdate(io, ackEntry);
-      }
-    }
-
-    if (!sendResult?.key?.id && !whatsappMessageId) {
-      return res.status(502).json({
-        chatId: normalizeChatId(normalizedPhone),
-        code: 'WHATSAPP_ACK_TIMEOUT',
-        error: 'O WhatsApp nao confirmou o envio dentro do prazo. A mensagem permanece pendente.',
-        message: { ...apiMessage, status: deliveryStatus },
-        success: false,
-      });
-    }
-
-    return res.status(200).json({
-      chatId: normalizeChatId(normalizedPhone),
-      message: apiMessage,
-      success: true,
-    });
   } catch (error) {
     const message = String(error?.message || '');
 
