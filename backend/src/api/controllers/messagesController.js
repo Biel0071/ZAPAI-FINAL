@@ -16,6 +16,7 @@ const aiIntelligenceService = require('../../../services/aiIntelligenceService')
 const messageDedupeService = require('../../../services/messageDedupeService');
 const messageAckPipeline = require('../../../services/messageAckPipeline');
 const correlationTracker = require('../../../services/correlationTracker');
+const outboundQueueService = require('../../../services/outboundQueueService');
 
 // Phase 2a: pure helpers live under ./messages/*. Names are destructured here
 // so all internal callers and module.exports stay byte-compatible.
@@ -188,9 +189,14 @@ async function sendMessage(req, res) {
       console.warn('[SEND_MESSAGE] Failed to resolve conversation target:', lookupError.message);
     }
   }
-  // The Inbox sends the target currently shown to the operator. Prefer that
-  // explicit value over a possibly stale conversation mapping from the DB.
-  const targetJidOrPhone = chatId || phone || conversationTarget?.remote_jid || conversationTarget?.remoteJid;
+  // The Inbox normally sends the explicit JID/phone. If a stale conversation
+  // selection sends only a short numeric database id (e.g. "16"), never send
+  // to that id as a WhatsApp destination; resolve the conversation's real JID.
+  const explicitTarget = chatId || phone;
+  const looksLikeConversationId = /^\d{1,6}$/.test(String(explicitTarget || '').trim());
+  const targetJidOrPhone = looksLikeConversationId && conversationTarget
+    ? (conversationTarget.remote_jid || conversationTarget.remoteJid || explicitTarget)
+    : (explicitTarget || conversationTarget?.remote_jid || conversationTarget?.remoteJid);
   const normalizedPhone = whatsappService.normalizePhone(targetJidOrPhone);
   const mediaTransportPath = await messageService.resolveOutboundMediaPath(_transportMediaPath || mediaPath);
   const resolvedMediaType =
@@ -213,7 +219,7 @@ async function sendMessage(req, res) {
   const isSessionConnected = (s) => s && String(s.status || '').toLowerCase() === 'connected';
   const sock = session?.sock;
 
-  if (!session || !isSessionConnected(session) || !sock || !sock.ws || sock.ws.readyState !== 1) {
+  if (!session || !isSessionConnected(session) || !sock) {
     return res.status(409).json({
       error: `Sessão do WhatsApp (${targetSessionName}) está offline ou desconectada. Aguarde a reconexão.`,
       success: false
@@ -375,77 +381,32 @@ async function sendMessage(req, res) {
       success: true,
     });
 
-    // 3. Fire-and-forget Baileys Send
-    (async () => {
-      try {
-        let sendResult;
-        if (mediaTransportPath || mediaPath) {
-          sendResult = await whatsappService.sendMediaMessage(
-            sock,
-            targetJidOrPhone,
-            resolvedMediaType,
-            checkedMediaTransportPath || mediaPath,
-            {
-              caption: resolvedText || '',
-              fileName,
-              mimetype,
-              ptt,
-            }
-          );
-        } else {
-          sendResult = await whatsappService.sendMessage(sock, targetJidOrPhone, resolvedText);
-        }
-
-        if (sendResult?.key?.id) {
-            const whatsappMessageId = String(sendResult.key.id);
-            const transportRemoteJid = sendResult.key.remoteJid || targetJidOrPhone;
-            
-            // Register mapping so ACKs map back to our DB ID
-            messageAckPipeline.registerDbMapping(whatsappMessageId, apiMessage.id);
-            const ackEntry = messageAckPipeline.transitionAck(
-              whatsappMessageId,
-              messageAckPipeline.ACK_STATES.SENT,
-              {
-                chatId: normalizedPhone,
-                sessionId: session?.sessionId || targetSessionName,
-                companyId: companyId,
-              }
-            );
-
-            const io = store?.io || global.io || req.app?.get?.('io') || req.app?.locals?.io;
-            if (io && ackEntry) {
-              messageAckPipeline.emitAckUpdate(io, ackEntry);
-            }
-            
-            // Optionally, we could update the DB to save the whatsapp_message_id, 
-            // but the mapping in messageAckPipeline is usually enough.
-            if (store.databaseEnabled) {
-                try {
-                    await dbQuery('UPDATE messages SET whatsapp_message_id = $1, status = $2 WHERE id = $3', [whatsappMessageId, 'sent', apiMessage.id]);
-                } catch (e) {
-                    console.error('Error updating whatsapp_message_id async', e);
-                }
-            }
-        }
-      } catch (err) {
-        console.error('[WHATSAPP-SEND-ASYNC-ERROR]', err);
-        // Fail the message in UI
-        const io = store?.io || global.io || req.app?.get?.('io') || req.app?.locals?.io;
-        if (io) {
-          const { emitToTenantWithAliases } = require('../../../services/realtime/tenantRooms');
-          emitToTenantWithAliases(io, companyId, 'message_status', {
-            messageId: apiMessage.id,
-            status: 'error',
-            chatId: normalizedPhone,
-          }, ['message:status']);
-        }
-        if (store.databaseEnabled) {
-            try {
-                await dbQuery('UPDATE messages SET status = $1 WHERE id = $2', ['error', apiMessage.id]);
-            } catch (e) {}
-        }
-      }
-    })();
+    // 3. Enqueue transport delivery. The queue serializes Baileys calls and
+    // updates the already-persisted pending record; do not send directly here.
+    const queueItem = await outboundQueueService.enqueue({
+      phone: targetJidOrPhone,
+      text: resolvedText || '',
+      mediaType: resolvedMediaType,
+      mediaPath: checkedMediaTransportPath || mediaPath || null,
+      fileName,
+      sessionId: session?.sessionId || targetSessionName,
+      companyId,
+      correlationId,
+      metadata: {
+        source: 'human',
+        conversationId,
+        contactId,
+        persistedMessageId: apiMessage.id,
+        mimetype,
+        ptt,
+        ...(store.databaseEnabled ? {} : { memoryMessageId: apiMessage.id }),
+      },
+    });
+    correlationTracker.traceLog(correlationId, 'queue.enqueued', 'Manual outbound message queued.', {
+      companyId,
+      queueId: queueItem.id,
+      messageId: apiMessage.id,
+    });
 
     // 4. Handle AI deactivation
     if (store.databaseEnabled && conversationId && String(req.body.source) !== 'ai' && String(req.body.source) !== 'bot') {

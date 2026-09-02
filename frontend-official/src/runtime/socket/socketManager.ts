@@ -833,6 +833,7 @@ function bindSharedSocketEvents() {
     });
   });
 
+  const recentMessageStatusEvents = new Map<string, number>();
   const messageStatusEvents = ["message_status", "message:status", "messages.update", "whatsapp:message_status"];
   messageStatusEvents.forEach((eventName) => {
     sharedSocket?.on(eventName, (payload: { id?: string; messageId?: string; message_id?: string; status?: string; conversationId?: string; conversation_id?: string; chatId?: string; chat_id?: string; phone?: string }) => {
@@ -840,6 +841,16 @@ function bindSharedSocketEvents() {
       const status = payload.status;
       const conversationId = payload.conversationId ?? payload.conversation_id ?? payload.chatId ?? payload.chat_id ?? payload.phone;
       if (messageId && status) {
+        const dedupeKey = `${messageId}:${String(status).toLowerCase()}`;
+        const now = Date.now();
+        const previousAt = recentMessageStatusEvents.get(dedupeKey);
+        if (previousAt && now - previousAt < 5000) return;
+        recentMessageStatusEvents.set(dedupeKey, now);
+        if (recentMessageStatusEvents.size > 1000) {
+          for (const [key, timestamp] of recentMessageStatusEvents) {
+            if (now - timestamp >= 5000) recentMessageStatusEvents.delete(key);
+          }
+        }
         notifySubscribers((subscriber) => subscriber.onMessageStatus?.({
           messageId,
           status,

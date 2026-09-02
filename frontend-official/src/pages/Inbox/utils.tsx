@@ -986,10 +986,32 @@ export function sortMessagesAsc(list: ChatMessage[]): ChatMessage[] {
 }
 
 export function mergeMessagesById(base: ChatMessage[], incoming: ChatMessage[]): ChatMessage[] {
-  const result = [...base];
+  const result: ChatMessage[] = [];
   const idMap = new Map<string, number>();
   const waIdMap = new Map<string, number>();
-  
+
+  const addBaseMessage = (message: ChatMessage) => {
+    if (!message?.id) return;
+    const messageWaId = (message as any).whatsappMessageId || (message as any).externalMessageId;
+    const messageTime = new Date(String(message.createdAt ?? (message as any).timestamp ?? "")).getTime();
+    const duplicateIndex = result.findIndex((candidate) => {
+      if (String(candidate.id) === String(message.id)) return true;
+      const candidateWaId = (candidate as any).whatsappMessageId || (candidate as any).externalMessageId;
+      if (candidateWaId && messageWaId && String(candidateWaId) === String(messageWaId)) return true;
+      if (!message.fromMe || !candidate.fromMe || messageWaId || candidateWaId) return false;
+      if ((candidate.content ?? "").trim() !== (message.content ?? "").trim()) return false;
+      const candidateTime = new Date(String(candidate.createdAt ?? (candidate as any).timestamp ?? "")).getTime();
+      return Number.isFinite(messageTime) && Number.isFinite(candidateTime) && Math.abs(messageTime - candidateTime) <= 3000;
+    });
+    if (duplicateIndex >= 0) return;
+    const idx = result.length;
+    result.push(message);
+    idMap.set(String(message.id), idx);
+    if (messageWaId) waIdMap.set(String(messageWaId), idx);
+  };
+
+  base.forEach(addBaseMessage);
+
   result.forEach((m, idx) => {
     if (m.id) idMap.set(String(m.id), idx);
     const mWaId = (m as any).whatsappMessageId || (m as any).externalMessageId;
@@ -1004,6 +1026,24 @@ export function mergeMessagesById(base: ChatMessage[], incoming: ChatMessage[]):
       if (itemWaId) {
         existingIdx = waIdMap.get(String(itemWaId)) ?? idMap.get(String(itemWaId));
       }
+    }
+
+    // Realtime ACKs can arrive once from the HTTP response and again from
+    // Socket.IO with different local IDs but the same persisted content.
+    // Collapse only an exact outgoing text duplicate inside a short window;
+    // repeated operator messages outside that window remain independent.
+    if (existingIdx === undefined && item.fromMe && !String(item.id).startsWith("temp-")) {
+      const itemTime = new Date(String(item.createdAt ?? item.timestamp ?? "")).getTime();
+      existingIdx = result.findIndex((candidate) => {
+        if (!candidate.fromMe || String(candidate.id).startsWith("temp-")) return false;
+        if ((candidate.content ?? "").trim() !== (item.content ?? "").trim()) return false;
+        const candidateWaId = (candidate as any).whatsappMessageId || (candidate as any).externalMessageId;
+        const itemWaId = (item as any).whatsappMessageId || (item as any).externalMessageId;
+        if (candidateWaId && itemWaId && String(candidateWaId) !== String(itemWaId)) return false;
+        const candidateTime = new Date(String(candidate.createdAt ?? (candidate as any).timestamp ?? "")).getTime();
+        return Number.isFinite(itemTime) && Number.isFinite(candidateTime) && Math.abs(itemTime - candidateTime) <= 3000;
+      });
+      if (existingIdx < 0) existingIdx = undefined;
     }
 
     if (existingIdx === undefined) {

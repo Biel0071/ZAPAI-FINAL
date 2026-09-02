@@ -1605,6 +1605,10 @@ async function createStableSession({
   });
 
   sock.ev.on('messages.upsert', async ({ messages, type }) => {
+    // Reuse the session-scoped realtime store for human-takeover updates.
+    // Keeping this local avoids relying on an out-of-scope `store` variable
+    // when Baileys echoes an outgoing message back through messages.upsert.
+    const store = ensureRealtimeStore(session);
     session.lastPingAt = Date.now();
     if (session.isDisposed || session.isClosing) return;
     if (process.env.DEBUG_WHATSAPP === 'true') {

@@ -366,6 +366,9 @@ export function useInboxState() {
   const replyingToStateRef = useRef<ChatMessage | null>(null);
   const lastRenderedTailKeyRef = useRef<string>("");
   const prevConvIdScrollRef = useRef<string>("");
+  const scrollFrameRef = useRef<number | null>(null);
+  const scrollTimerRef = useRef<number | null>(null);
+  const pendingScrollBehaviorRef = useRef<ScrollBehavior>("auto");
   const fallbackSyncBusyRef = useRef(false);
   const lastForceReconnectAtRef = useRef(0);
   const preferredSessionIdRef = useRef<string | null>(preferredSessionId);
@@ -441,17 +444,40 @@ export function useInboxState() {
   }, []);
 
   const scheduleScrollToBottom = useCallback((behavior: ScrollBehavior = "auto") => {
+    // Coalesce bursts from Socket.IO, optimistic updates and React renders.
+    // The old implementation scheduled two independent scrolls per update,
+    // which caused visible jumps and unnecessary layout/repaint work.
+    if (behavior === "auto") {
+      pendingScrollBehaviorRef.current = "auto";
+    } else if (pendingScrollBehaviorRef.current !== "auto") {
+      pendingScrollBehaviorRef.current = behavior;
+    }
+
     const runScroll = () => {
+      if (scrollTimerRef.current !== null) {
+        window.clearTimeout(scrollTimerRef.current);
+      }
+      scrollFrameRef.current = null;
+      scrollTimerRef.current = null;
       const viewport = getMessagesViewport();
       if (!viewport) return;
-      viewport.scrollTo({ top: viewport.scrollHeight, behavior });
+      viewport.scrollTo({ top: viewport.scrollHeight, behavior: pendingScrollBehaviorRef.current });
       autoScrollRef.current = true;
       setUnseenRealtimeCount(0);
     };
 
-    window.requestAnimationFrame(runScroll);
-    window.setTimeout(runScroll, 180);
+    if (scrollFrameRef.current === null) {
+      scrollFrameRef.current = window.requestAnimationFrame(runScroll);
+    }
+    if (scrollTimerRef.current === null) {
+      scrollTimerRef.current = window.setTimeout(runScroll, 180);
+    }
   }, [getMessagesViewport]);
+
+  useEffect(() => () => {
+    if (scrollFrameRef.current !== null) window.cancelAnimationFrame(scrollFrameRef.current);
+    if (scrollTimerRef.current !== null) window.clearTimeout(scrollTimerRef.current);
+  }, []);
 
   const rememberContacts = useCallback((nextConversations: Conversation[]) => {
     const mergedDirectory = mergeContactDirectory(contactDirectoryRef.current, nextConversations);
@@ -523,7 +549,7 @@ export function useInboxState() {
     if (selectedConversation.chatId) {
       const byChatId = typingByConversationId[selectedConversation.chatId];
       if (byChatId !== undefined) return byChatId;
-      
+
       const cleanChatId = selectedConversation.chatId.replace(/@s\.whatsapp\.net$/i, "");
       const byCleanChatId = typingByConversationId[cleanChatId];
       if (byCleanChatId !== undefined) return byCleanChatId;
@@ -532,7 +558,7 @@ export function useInboxState() {
     if (selectedConversation.phone) {
       const byPhone = typingByConversationId[selectedConversation.phone];
       if (byPhone !== undefined) return byPhone;
-      
+
       const cleanPhone = selectedConversation.phone.replace(/\D/g, "");
       const byCleanPhone = typingByConversationId[cleanPhone];
       if (byCleanPhone !== undefined) return byCleanPhone;
@@ -1815,12 +1841,40 @@ export function useInboxState() {
     const text = (overrideText ?? messageInputStateRef.current).trim();
     const replyingToSnapshot = replyingToStateRef.current;
     const replyExcerpt = (replyingToSnapshot?.caption ?? replyingToSnapshot?.content ?? "").trim();
-    const textWithReply = replyingToSnapshot && replyExcerpt ? `↩ ${replyExcerpt}\n${text}`.trim() : text;
+    const textToSend = (overrideText ?? messageInputStateRef.current).trim();
     const currentAttachments = [...attachmentsStateRef.current];
     // Always read the latest conversation from ref — avoids stale closure after re-renders
     const currentConversation = selectedConversationRef.current;
 
-    if (!currentConversation?.phone || (!textWithReply && currentAttachments.length === 0)) return;
+    if (!textToSend && currentAttachments.length === 0) {
+      console.log("[SEND] No text and no attachments. Aborting.");
+      return;
+    }
+
+    if (!currentConversation?.id) {
+      console.log("[SEND] No current conversation id. Aborting.");
+      return;
+    }
+
+    console.log(`[SEND] Initializing send. Text: "${textToSend}", Attachments: ${currentAttachments.length}`);
+
+    if (!canUseBackend) {
+      console.log("[SEND] canUseBackend is false. Aborting.");
+      setError("Servidor reconectando... envio temporariamente indisponível.");
+      showErrorToast("Servidor reconectando... aguarde um momento.");
+      return;
+    }
+
+    // Lock before the first await so button + Enter (or rapid clicks) cannot
+    // create concurrent API requests for the same composer action.
+    if (sendingRef.current) {
+      console.log("[SEND] Ignoring duplicate send while another send is active.");
+      return;
+    }
+    sendingRef.current = true;
+    setSending(true);
+
+    setError(null);
 
     // Clear refs immediately to prevent concurrent rapid-fire duplicate sends.
     if (overrideText === undefined) {
@@ -1828,15 +1882,8 @@ export function useInboxState() {
     }
     attachmentsStateRef.current = [];
 
-    if (!canUseBackend) {
-      setError("Servidor reconectando... envio temporariamente indisponível.");
-      // Restore refs so the user can retry
-      if (overrideText === undefined) messageInputStateRef.current = text;
-      attachmentsStateRef.current = currentAttachments;
-      return;
-    }
-
-    setError(null);
+    const startTime = Date.now();
+    console.log(`[SEND] State updated to sending=true at ${startTime}`);
 
     const now = new Date().toISOString();
     const pendingTempIds = new Set<string>();
@@ -1856,7 +1903,7 @@ export function useInboxState() {
         setError(unavailableMessage);
         showErrorToast(unavailableMessage);
         // Restore refs so the user can retry
-        if (overrideText === undefined) messageInputStateRef.current = text;
+        if (overrideText === undefined) messageInputStateRef.current = textToSend;
         attachmentsStateRef.current = currentAttachments;
         return;
       }
@@ -1868,8 +1915,7 @@ export function useInboxState() {
         ? conversationSession.id
         : resolvedActiveSession.id;
 
-      // Only clear the composer after a connected session has been resolved. If
-      // WhatsApp is offline, the user's draft remains available for a retry.
+      // Only clear the composer after a connected session has been resolved.
       setMessageInput("");
       setAttachments([]);
       setReplyingTo(null);
@@ -1886,8 +1932,6 @@ export function useInboxState() {
         draftMentions: [],
       });
 
-      setSending(true);
-      sendingRef.current = true;
       setPreferredSessionId(sessionIdToSend);
       localStorage.setItem("zapai_inbox_active_session", sessionIdToSend);
 
@@ -1908,7 +1952,7 @@ export function useInboxState() {
             return {
               id: tempId,
               conversationId: currentConversation.id,
-              content: attachment.caption || (index === 0 ? textWithReply : ""),
+              content: attachment.caption || (index === 0 ? textToSend : ""),
               fromMe: true,
               createdAt: now,
               status: "sending",
@@ -1923,7 +1967,7 @@ export function useInboxState() {
               return {
                 id: tempId,
                 conversationId: currentConversation.id,
-                content: textWithReply,
+                content: textToSend,
                 fromMe: true,
                 createdAt: now,
                 status: "sending" as const,
@@ -1960,7 +2004,7 @@ export function useInboxState() {
           aiPausedUntil: reactivateAt24h,
           ai_reactivate_at: reactivateAt24h,
           aiReactivateAt: reactivateAt24h,
-          lastMessage: optimisticLast?.content || textWithReply || (currentAttachments[0]?.mediaType ? getMediaTypeLabel(currentAttachments[0].mediaType) : current.lastMessage || ""),
+          lastMessage: optimisticLast?.content || textToSend || (currentAttachments[0]?.mediaType ? getMediaTypeLabel(currentAttachments[0].mediaType) : current.lastMessage || ""),
           lastMessageType: optimisticLast?.mediaType ?? currentAttachments[0]?.mediaType ?? "text",
           updatedAt: optimisticLast?.createdAt ?? now,
         };
@@ -1968,7 +2012,9 @@ export function useInboxState() {
         return [updated, ...prev.filter((item) => item.id !== currentConversation.id)];
       });
 
+      console.log("[SEND] Sending loop starting...");
       for (let i = 0; i < optimisticMessages.length; i += 1) {
+        console.log(`[SEND] Processing message ${i + 1}/${optimisticMessages.length}`);
         const optimistic = optimisticMessages[i];
         const attachment = currentAttachments[i];
 
@@ -1981,11 +2027,12 @@ export function useInboxState() {
           throw new Error(`A mídia ${attachment.file.name} ultrapassou o limite de ${formatFileSize(getUploadLimitBytes(attachment.mediaType))} após processamento.`);
         }
 
+        console.log(`[SEND] Calling API for message ${i + 1}...`);
         const response: MessageSendResponse = attachment
           ? await apiService.sendMediaMessage({
               phone: currentConversation.phone,
               chatId: currentConversation.chatId,
-              caption: attachment.caption || (i === 0 ? textWithReply : ""),
+              caption: attachment.caption || (i === 0 ? textToSend : ""),
               fileName: attachment.file.name,
               mimeType: attachment.file.type || "application/octet-stream",
               mediaType: attachment.mediaType,
@@ -1997,11 +2044,12 @@ export function useInboxState() {
           : await apiService.sendMessage({
               phone: currentConversation.phone,
               chatId: currentConversation.chatId,
-              text: textWithReply,
+              text: textToSend,
               conversationId: currentConversation.id,
               contactId: currentConversation.contactId,
               sessionId: sessionIdToSend,
             });
+        console.log(`[SEND] API response received for message ${i + 1}:`, response);
 
         if (!response.success) {
           throw new Error(String(response.error ?? "Falha ao enviar mensagem"));
@@ -2051,6 +2099,7 @@ export function useInboxState() {
             next,
             messageCacheRef.current.get(currentConversation.id)?.hasMore ?? hasMoreMessages,
           );
+          console.log(`[SEND] Message ${i + 1} UI update complete.`);
           return next;
         });
 
@@ -2059,9 +2108,12 @@ export function useInboxState() {
         clearPendingFallbackTimersForTempId(optimistic.id);
       }
 
+      console.log(`[SEND] All messages processed successfully in ${Date.now() - startTime}ms`);
+
       pendingTempIds.forEach((tempId) => {
         const fallbackTimerKey = `fallback-${tempId}-500`;
         const fallbackTimerId = window.setTimeout(() => {
+          console.log(`[SEND] Fallback timer fired for tempId ${tempId}`);
           pendingSendFallbackTimersRef.current.delete(fallbackTimerKey);
           const conversationId = selectedConversationRef.current?.id;
           if (!conversationId) return;

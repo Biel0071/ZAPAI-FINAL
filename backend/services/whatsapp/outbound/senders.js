@@ -78,13 +78,13 @@ const withTimeout = (promise, ms, errorMessage = 'Operation timed out') => {
   });
 };
 
-async function sendWithRetry(fn, retries = 3) {
-  const totalRetries = Math.max(1, Number(retries) || 3);
+async function sendWithRetry(fn, retries = 2) {
+  const totalRetries = Math.max(1, Number(retries) || 2);
 
   for (let i = 0; i < totalRetries; i += 1) {
     try {
       const promise = fn();
-      return await withTimeout(promise, 45000, 'WhatsApp send timeout');
+      return await withTimeout(promise, 20000, 'WhatsApp send timeout');
     } catch (error) {
       // eslint-disable-next-line no-console
       console.error(`Send message attempt ${i + 1} failed:`, error.message || error);
@@ -151,7 +151,13 @@ async function resolveRegisteredJid(sock, jid, options = {}) {
   }
 
   const queryCandidate = async (candidateJid, reason) => {
-    const checkResult = await sock.onWhatsApp(candidateJid);
+    let checkResult;
+    try {
+      checkResult = await withTimeout(sock.onWhatsApp(candidateJid), 10000, 'onWhatsApp timeout');
+    } catch (err) {
+      console.warn(`[JID-RESOLVE] onWhatsApp timeout for ${candidateJid}:`, err.message);
+      return null;
+    }
     if (Array.isArray(checkResult) && checkResult.length > 0 && checkResult[0].exists) {
       const resolvedJid = checkResult[0].jid || candidateJid;
       if (checkResult[0].lid) {
@@ -202,9 +208,13 @@ async function sendMessage(sock, phone, text, options = {}) {
   jid = await resolveRegisteredJid(sock, jid, { requireRegistered: true });
 
   try {
+    console.log(`[WHATSAPP-SEND] transport_call kind=text jid=${jid}`);
     return await sendWithRetry(
       () => sock.sendMessage(jid, { text }, options),
-      3
+      // A send timeout is ambiguous: WhatsApp may already have accepted the
+      // message. Retrying here can create duplicate deliveries. Retries are
+      // handled by the outbound queue at item level instead.
+      1
     );
   } catch (error) {
     console.error(`[WHATSAPP-SEND-ERROR] sendMessage failed JID=${jid}:`, {
@@ -231,7 +241,7 @@ async function sendImage(sock, phone, imagePath, caption = '') {
           image: toMediaPayload(imagePath),
           ...(caption ? { caption } : {}),
         }),
-      3
+      1
     );
   } catch (error) {
     console.error(`[WHATSAPP-SEND-ERROR] sendImage failed JID=${jid}:`, {
@@ -259,7 +269,7 @@ async function sendVideo(sock, phone, videoPath, caption = '') {
           video: toMediaPayload(videoPath),
           ...(caption ? { caption } : {}),
         }),
-      3
+      1
     );
   } catch (error) {
     console.error(`[WHATSAPP-SEND-ERROR] sendVideo failed JID=${jid}:`, {
@@ -288,7 +298,7 @@ async function sendAudio(sock, phone, audioPath, ptt = false, mimetype) {
           mimetype: mimetype || (ptt ? 'audio/ogg; codecs=opus' : 'audio/mp4'),
           ptt,
         }),
-      3
+      1
     );
   } catch (error) {
     console.error(`[WHATSAPP-SEND-ERROR] sendAudio failed JID=${jid}:`, {
@@ -318,7 +328,7 @@ async function sendDocument(sock, phone, docPath, fileName, mimetype) {
           fileName: getDocumentFileName(docPath, fileName),
           ...(mimetype ? { mimetype } : {}),
         }),
-      3
+      1
     );
   } catch (error) {
     console.error(`[WHATSAPP-SEND-ERROR] sendDocument failed JID=${jid}:`, {
@@ -346,7 +356,7 @@ async function sendSticker(sock, phone, stickerPath) {
         sock.sendMessage(jid, {
           sticker: toMediaPayload(stickerPath),
         }),
-      3
+      1
     );
   } catch (error) {
     console.error(`[WHATSAPP-SEND-ERROR] sendSticker failed JID=${jid}:`, {

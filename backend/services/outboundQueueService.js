@@ -9,6 +9,8 @@ const { getAutomatedReplyPermission } = require('./aiReplyGuard');
 const { emitAIResponseProgress } = require('./aiResponseProgressService');
 const correlationTracker = require('./correlationTracker');
 const messageAckPipeline = require('./messageAckPipeline');
+const { query: dbQuery } = require('../src/infrastructure/config/database');
+const { emitToTenantWithAliases } = require('./realtime/tenantRooms');
 
 const QUEUE_FILE_PATH = path.join(__dirname, '..', 'data', 'outbound_queue.json');
 
@@ -211,6 +213,14 @@ function buildQueuedItem(payload = {}) {
 async function persistSuccessfulSend(item) {
   const normalizedPhone = normalizePhone(item.phone);
 
+  if (item.metadata?.persistedMessageId && storeRef?.databaseEnabled) {
+    const persisted = await dbQuery(
+      'UPDATE messages SET whatsapp_message_id = $1, status = $2 WHERE id = $3 RETURNING *',
+      [item.whatsappMessageId || null, item.status || 'sent', item.metadata.persistedMessageId]
+    );
+    return { message: persisted.rows?.[0] || { id: item.metadata.persistedMessageId }, mode: 'database' };
+  }
+
   if (!storeRef?.databaseEnabled) {
     const memEntry = messageStore.addMessage(normalizedPhone, {
       content: item.text,
@@ -329,11 +339,15 @@ async function executeOutbound(item) {
 
   let sendResult;
   if (item.mediaType && item.mediaPath) {
+    console.log(`[OUTBOUND_QUEUE] transport_send correlationId=${item.correlationId || 'n/a'} queueId=${item.id} kind=media phone=${item.phone}`);
     sendResult = await whatsappService.sendMediaMessage(sock, item.phone, item.mediaType, item.mediaPath, {
       caption: item.text,
       fileName: item.fileName,
+      mimetype: item.metadata?.mimetype,
+      ptt: item.metadata?.ptt,
     });
   } else {
+    console.log(`[OUTBOUND_QUEUE] transport_send correlationId=${item.correlationId || 'n/a'} queueId=${item.id} kind=text phone=${item.phone}`);
     sendResult = await whatsappService.sendMessage(sock, item.phone, item.text);
   }
 
@@ -353,6 +367,16 @@ async function executeOutbound(item) {
     remoteJid: sendResult.key.remoteJid || null,
   });
 
+  const statusIo = storeRef?.io || global.io;
+  if (statusIo && item.metadata?.persistedMessageId) {
+    emitToTenantWithAliases(statusIo, item.companyId, 'message_status', {
+      messageId: item.metadata.persistedMessageId,
+      status: 'sent',
+      chatId: item.phone,
+      whatsappMessageId,
+    }, ['message:status']);
+  }
+
   messageAckPipeline.transitionAck(whatsappMessageId, messageAckPipeline.ACK_STATES.PENDING, {
     chatId: item.phone,
     sessionId: session?.sessionId || item.sessionId,
@@ -369,16 +393,14 @@ async function executeOutbound(item) {
     messageId: whatsappMessageId,
     queueId: item.id,
   });
-  const ackEntry = await messageAckPipeline.waitForAck(whatsappMessageId, {
-    timeoutMs: Math.max(3000, Number(process.env.WHATSAPP_SEND_ACK_TIMEOUT_MS) || 10000),
-  });
-  if (!ackEntry || ackEntry.status === messageAckPipeline.ACK_STATES.FAILED) {
-    throw Object.assign(new Error(ackEntry ? 'WhatsApp rejected the message.' : 'WhatsApp server ACK timed out.'), {
-      code: ackEntry ? 'WHATSAPP_SEND_REJECTED' : 'WHATSAPP_ACK_TIMEOUT',
-      nonRetryable: true,
-    });
-  }
-
+  // Baileys returning a WhatsApp message id means the transport accepted the
+  // send. Do not hold the queue item waiting for a later ACK: an ACK timeout
+  // is ambiguous and re-running this item can deliver the same message twice.
+  // Subsequent ACK events update the persisted record asynchronously.
+  const ackEntry = messageAckPipeline.getAckState(whatsappMessageId) || {
+    status: messageAckPipeline.ACK_STATES.PENDING,
+    messageId: whatsappMessageId,
+  };
   if (res?.message?.id) {
     const io = storeRef?.io || global.io;
     if (io) messageAckPipeline.emitAckUpdate(io, ackEntry);
@@ -592,7 +614,35 @@ async function processOneItem() {
     } catch (error) {
       item.attemptCount = Number(item.attemptCount || 0) + 1;
       const failure = sanitizeError(error);
+      // A transport timeout is ambiguous: WhatsApp may have accepted the
+      // message even though the local request did not receive its response.
+      // Retrying a human send here can deliver the same message twice.
+      const ambiguousManualSend = item.metadata?.source === 'human' &&
+        /whatsapp send timeout|connection closed|timed?out|econnreset|socket hang up/i.test(
+          `${failure.code || ''} ${failure.message || ''}`,
+        );
+      if (ambiguousManualSend) {
+        error.nonRetryable = true;
+        failure.nonRetryable = true;
+        console.warn(`[OUTBOUND_QUEUE] Manual send marked non-retryable correlationId=${item.correlationId || 'n/a'} reason=${failure.message}`);
+      }
       item.lastFailure = failure;
+      if (item.metadata?.persistedMessageId && storeRef?.databaseEnabled) {
+        try {
+          await dbQuery('UPDATE messages SET status = $1 WHERE id = $2', ['error', item.metadata.persistedMessageId]);
+        } catch (persistError) {
+          console.error('[OUTBOUND_QUEUE] Failed to persist manual error status:', persistError.message);
+        }
+      }
+      const io = storeRef?.io || global.io;
+      if (io && item.metadata?.persistedMessageId) {
+        emitToTenantWithAliases(io, item.companyId, 'message_status', {
+          messageId: item.metadata.persistedMessageId,
+          status: 'error',
+          chatId: item.phone,
+          error: failure.message,
+        }, ['message:status']);
+      }
       if (item.metadata?.ai_response === true) {
         emitAIResponseProgress(storeRef?.io || global.io, {
           companyId: item.companyId,
