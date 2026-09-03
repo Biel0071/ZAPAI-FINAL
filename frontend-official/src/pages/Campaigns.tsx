@@ -23,6 +23,10 @@ import {
   ArrowsOutSimple,
   CalendarBlank,
   Hourglass,
+  Target,
+  TrendUp,
+  ChatCircle,
+  MagicWand,
   Timer,
   ShuffleAngular,
   Warning,
@@ -1572,8 +1576,8 @@ export default function Campaigns() {
                       <div className="space-y-4">
                         <div className="rounded-2xl border border-border/70 bg-background/40 p-5">
                           <div className="flex items-start gap-3">
-                            <span className="mt-1 flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
-                              <Sparkle className="h-5 w-5" weight="fill" />
+                            <span className="mt-1 flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-info/10 text-info">
+                              <MagicWand className="h-5 w-5" weight="fill" />
                             </span>
                             <div>
                               <h3 className="font-semibold text-primary text-lg">Descreva sua Campanha</h3>
@@ -1595,19 +1599,19 @@ export default function Campaigns() {
                               <p className="text-xs font-semibold mb-3 text-foreground">Dicas para melhores resultados:</p>
                               <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                                 <div className="rounded-xl border border-border/50 bg-card/30 p-3">
-                                  <div className="flex items-center gap-2 text-primary mb-1.5"><div className="w-5 h-5 rounded flex items-center justify-center bg-primary/10"><CheckCircle weight="fill" className="w-3.5 h-3.5" /></div><span className="text-xs font-semibold">Seja específico</span></div>
+                                  <div className="flex items-center gap-2 text-info mb-1.5"><div className="w-5 h-5 rounded flex items-center justify-center bg-info/10"><Target weight="fill" className="w-3.5 h-3.5" /></div><span className="text-xs font-semibold">Seja específico</span></div>
                                   <p className="text-[10px] text-muted-foreground">Informe exatamente o que você quer alcançar e para quem.</p>
                                 </div>
                                 <div className="rounded-xl border border-border/50 bg-card/30 p-3">
-                                  <div className="flex items-center gap-2 text-primary mb-1.5"><div className="w-5 h-5 rounded flex items-center justify-center bg-primary/10"><Users weight="fill" className="w-3.5 h-3.5" /></div><span className="text-xs font-semibold">Informe o contexto</span></div>
+                                  <div className="flex items-center gap-2 text-success mb-1.5"><div className="w-5 h-5 rounded flex items-center justify-center bg-success/10"><Users weight="fill" className="w-3.5 h-3.5" /></div><span className="text-xs font-semibold">Informe o contexto</span></div>
                                   <p className="text-[10px] text-muted-foreground">Diga de onde são os leads e em que etapa estão.</p>
                                 </div>
                                 <div className="rounded-xl border border-border/50 bg-card/30 p-3">
-                                  <div className="flex items-center gap-2 text-primary mb-1.5"><div className="w-5 h-5 rounded flex items-center justify-center bg-primary/10"><Megaphone weight="fill" className="w-3.5 h-3.5" /></div><span className="text-xs font-semibold">Defina o tom</span></div>
+                                  <div className="flex items-center gap-2 text-primary mb-1.5"><div className="w-5 h-5 rounded flex items-center justify-center bg-primary/10"><ChatCircle weight="fill" className="w-3.5 h-3.5" /></div><span className="text-xs font-semibold">Defina o tom</span></div>
                                   <p className="text-[10px] text-muted-foreground">Ex: profissional, consultivo, descontraído, urgente.</p>
                                 </div>
                                 <div className="rounded-xl border border-border/50 bg-card/30 p-3">
-                                  <div className="flex items-center gap-2 text-primary mb-1.5"><div className="w-5 h-5 rounded flex items-center justify-center bg-primary/10"><ArrowClockwise weight="fill" className="w-3.5 h-3.5" /></div><span className="text-xs font-semibold">Resultados esperados</span></div>
+                                  <div className="flex items-center gap-2 text-primary mb-1.5"><div className="w-5 h-5 rounded flex items-center justify-center bg-primary/10"><TrendUp weight="fill" className="w-3.5 h-3.5" /></div><span className="text-xs font-semibold">Resultados esperados</span></div>
                                   <p className="text-[10px] text-muted-foreground">Ex: agendar reunião, gerar proposta, fechar venda.</p>
                                 </div>
                               </div>
@@ -1629,13 +1633,15 @@ export default function Campaigns() {
                         </div>
                       </div>
 
-                      <div className="rounded-2xl border border-border/70 bg-card/60 p-5 shadow-xl sticky top-4">
-                        <div className="flex items-center gap-2 mb-6 pb-4 border-b border-border/50">
-                          <div className="w-6 h-6 rounded flex items-center justify-center bg-primary/20 text-primary">
-                            <Sparkle className="w-3.5 h-3.5" weight="fill" />
+                      <div className="rounded-2xl border border-border/70 bg-card/60 p-5 shadow-xl sticky top-4 max-h-[calc(100vh-2rem)] overflow-y-auto scrollbar-thin scrollbar-thumb-border">
+                        <div className="flex items-start gap-3 mb-6 pb-4 border-b border-border/50">
+                          <div className="w-8 h-8 rounded-lg flex items-center justify-center bg-primary/10 text-primary shrink-0 mt-0.5">
+                            <Sparkle className="w-4 h-4" weight="fill" />
                           </div>
-                          <h3 className="font-semibold text-foreground text-sm">Configurações da IA</h3>
-                          <p className="text-[10px] text-muted-foreground ml-auto hidden sm:block">Personalize como a IA irá criar sua campanha.</p>
+                          <div className="flex flex-col">
+                            <h3 className="font-semibold text-foreground text-sm">Configurações da IA</h3>
+                            <p className="text-[10px] text-muted-foreground mt-0.5">Personalize como a IA irá criar sua campanha.</p>
+                          </div>
                         </div>
                         
                         <div className="space-y-5">
