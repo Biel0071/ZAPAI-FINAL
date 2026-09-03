@@ -1572,9 +1572,9 @@ export default function Campaigns() {
                   </div>
                   
                   {creationMode === "ai" && (
-                    <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_340px] items-start mt-4">
-                      <div className="space-y-4">
-                        <div className="rounded-2xl border border-border/70 bg-background/40 p-5">
+                    <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_340px] items-start mt-1">
+                      <div className="space-y-3">
+                        <div className="rounded-2xl border border-border/70 bg-background/40 p-3">
                           <div className="flex items-start gap-3">
                             <span className="mt-1 flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-info/10 text-info">
                               <MagicWand className="h-5 w-5" weight="fill" />
@@ -1590,7 +1590,7 @@ export default function Campaigns() {
                                 value={aiCampaignPrompt}
                                 onChange={(event) => setAiCampaignPrompt(event.target.value)}
                                 placeholder="Descreva sua campanha com o máximo de detalhes possível...&#10;Ex: Quero uma campanha para vender seguro empresarial para leads que já demonstraram interesse."
-                                className="min-h-[160px] rounded-xl border-border/70 bg-card/50 p-4 text-sm leading-relaxed pb-8"
+                                className="min-h-[100px] rounded-xl border-border/70 bg-card/50 p-3 text-sm leading-relaxed pb-8"
                               />
                               <div className="absolute bottom-3 right-3 text-[10px] text-muted-foreground">{aiCampaignPrompt.length}/4000</div>
                             </div>
@@ -1598,26 +1598,26 @@ export default function Campaigns() {
                             <div>
                               <p className="text-xs font-semibold mb-3 text-foreground">Dicas para melhores resultados:</p>
                               <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                                <div className="rounded-xl border border-border/50 bg-card/30 p-3">
-                                  <div className="flex items-center gap-2 text-info mb-1.5"><div className="w-5 h-5 rounded flex items-center justify-center bg-info/10"><Target weight="fill" className="w-3.5 h-3.5" /></div><span className="text-xs font-semibold">Seja específico</span></div>
-                                  <p className="text-[10px] text-muted-foreground">Informe exatamente o que você quer alcançar e para quem.</p>
+                                <div className="rounded-xl border border-border/50 bg-card/30 p-2">
+                                  <div className="flex items-center gap-2 text-info mb-1"><div className="w-5 h-5 rounded flex items-center justify-center bg-info/10"><Target weight="fill" className="w-3.5 h-3.5" /></div><span className="text-[11px] font-semibold">Seja específico</span></div>
+                                  <p className="text-[9px] text-muted-foreground hidden sm:block">Informe exatamente o que você quer alcançar e para quem.</p>
                                 </div>
-                                <div className="rounded-xl border border-border/50 bg-card/30 p-3">
-                                  <div className="flex items-center gap-2 text-success mb-1.5"><div className="w-5 h-5 rounded flex items-center justify-center bg-success/10"><Users weight="fill" className="w-3.5 h-3.5" /></div><span className="text-xs font-semibold">Informe o contexto</span></div>
-                                  <p className="text-[10px] text-muted-foreground">Diga de onde são os leads e em que etapa estão.</p>
+                                <div className="rounded-xl border border-border/50 bg-card/30 p-2">
+                                  <div className="flex items-center gap-2 text-success mb-1"><div className="w-5 h-5 rounded flex items-center justify-center bg-success/10"><Users weight="fill" className="w-3.5 h-3.5" /></div><span className="text-[11px] font-semibold">Informe o contexto</span></div>
+                                  <p className="text-[9px] text-muted-foreground hidden sm:block">Diga de onde são os leads e em que etapa estão.</p>
                                 </div>
-                                <div className="rounded-xl border border-border/50 bg-card/30 p-3">
-                                  <div className="flex items-center gap-2 text-primary mb-1.5"><div className="w-5 h-5 rounded flex items-center justify-center bg-primary/10"><ChatCircle weight="fill" className="w-3.5 h-3.5" /></div><span className="text-xs font-semibold">Defina o tom</span></div>
-                                  <p className="text-[10px] text-muted-foreground">Ex: profissional, consultivo, descontraído, urgente.</p>
+                                <div className="rounded-xl border border-border/50 bg-card/30 p-2">
+                                  <div className="flex items-center gap-2 text-primary mb-1"><div className="w-5 h-5 rounded flex items-center justify-center bg-primary/10"><ChatCircle weight="fill" className="w-3.5 h-3.5" /></div><span className="text-[11px] font-semibold">Defina o tom</span></div>
+                                  <p className="text-[9px] text-muted-foreground hidden sm:block">Ex: profissional, consultivo, descontraído, urgente.</p>
                                 </div>
-                                <div className="rounded-xl border border-border/50 bg-card/30 p-3">
-                                  <div className="flex items-center gap-2 text-primary mb-1.5"><div className="w-5 h-5 rounded flex items-center justify-center bg-primary/10"><TrendUp weight="fill" className="w-3.5 h-3.5" /></div><span className="text-xs font-semibold">Resultados esperados</span></div>
-                                  <p className="text-[10px] text-muted-foreground">Ex: agendar reunião, gerar proposta, fechar venda.</p>
+                                <div className="rounded-xl border border-border/50 bg-card/30 p-2">
+                                  <div className="flex items-center gap-2 text-primary mb-1"><div className="w-5 h-5 rounded flex items-center justify-center bg-primary/10"><TrendUp weight="fill" className="w-3.5 h-3.5" /></div><span className="text-[11px] font-semibold">Resultados esperados</span></div>
+                                  <p className="text-[9px] text-muted-foreground hidden sm:block">Ex: agendar reunião, gerar proposta, fechar venda.</p>
                                 </div>
                               </div>
                             </div>
 
-                            <div className="rounded-xl border border-dashed border-border bg-card/30 p-4 flex items-center justify-between transition-colors hover:bg-card/50 hover:border-primary/50 cursor-pointer">
+                            <div className="rounded-xl border border-dashed border-border bg-card/30 p-3 flex items-center justify-between transition-colors hover:bg-card/50 hover:border-primary/50 cursor-pointer">
                               <div className="flex items-center gap-3">
                                 <div className="w-10 h-10 rounded-lg bg-background/50 flex items-center justify-center text-muted-foreground border border-border/50">
                                   <Paperclip className="w-5 h-5" />
@@ -1633,8 +1633,8 @@ export default function Campaigns() {
                         </div>
                       </div>
 
-                      <div className="rounded-2xl border border-border/70 bg-card/60 p-5 shadow-xl sticky top-4 max-h-[calc(100vh-2rem)] overflow-y-auto scrollbar-thin scrollbar-thumb-border">
-                        <div className="flex items-start gap-3 mb-6 pb-4 border-b border-border/50">
+                      <div className="rounded-2xl border border-border/70 bg-card/60 p-3 shadow-xl sticky top-4 max-h-[calc(100vh-80px)] overflow-y-auto scrollbar-thin scrollbar-thumb-border">
+                        <div className="flex items-start gap-3 mb-3 pb-3 border-b border-border/50">
                           <div className="w-8 h-8 rounded-lg flex items-center justify-center bg-primary/10 text-primary shrink-0 mt-0.5">
                             <Sparkle className="w-4 h-4" weight="fill" />
                           </div>
@@ -1644,11 +1644,11 @@ export default function Campaigns() {
                           </div>
                         </div>
                         
-                        <div className="space-y-4">
+                        <div className="space-y-3">
                           <div>
-                            <Label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-3 block">Atendente IA criador</Label>
+                            <Label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-2 block">Atendente IA criador</Label>
                             <div className="flex gap-4 items-center">
-                              <div className="relative flex h-24 w-20 shrink-0 items-end justify-center rounded-lg bg-gradient-to-t from-primary/20 to-transparent border border-primary/10 overflow-hidden">
+                              <div className="relative flex h-16 w-16 shrink-0 items-end justify-center rounded-lg bg-gradient-to-t from-primary/20 to-transparent border border-primary/10 overflow-hidden">
                                 <img src={`https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(selectedAiAgentKey || 'Camila')}&backgroundColor=transparent`} alt="Agent" className="w-full h-full object-contain drop-shadow-md pb-1" />
                               </div>
                               <div className="flex-grow min-w-0">
@@ -1727,7 +1727,7 @@ export default function Campaigns() {
 
                   {creationMode === "manual" && (
                     <>
-                      <div className="flex w-full items-center justify-between border-b border-border/40 pb-6 overflow-x-auto gap-2 scrollbar-none">
+                      <div className="flex w-full items-center justify-between border-b border-border/40 pb-3 overflow-x-auto gap-2 scrollbar-none">
                     {STEP_LABELS.map((label, index) => {
                       const step = index + 1;
                       const active = campaignStep === step;
