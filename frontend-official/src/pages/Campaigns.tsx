@@ -1521,6 +1521,11 @@ export default function Campaigns() {
                         <Button variant="outline" className="rounded-xl" onClick={() => void persistCampaign("save")}>
                           Salvar Rascunho
                         </Button>
+                        {creationMode === "ai" && (
+                          <Button className="rounded-xl bg-primary hover:bg-primary/90 text-primary-foreground font-semibold gap-1.5 px-5" onClick={() => void generateCampaignFromPrompt()} disabled={isAiCampaignGenerating}>
+                            Próximo Passo <span className="ml-0.5">→</span>
+                          </Button>
+                        )}
                       </div>
                     </div>
 
@@ -1611,7 +1616,7 @@ export default function Campaigns() {
                                   <p className="text-[10px] leading-relaxed text-muted-foreground hidden sm:block">Ex: profissional, consultivo, descontraído, urgente.</p>
                                 </div>
                                 <div className="rounded-xl border border-border/50 bg-card/30 p-3">
-                                  <div className="flex items-center gap-2 text-primary mb-2"><div className="w-6 h-6 rounded flex items-center justify-center bg-primary/10"><TrendUp weight="fill" className="w-3.5 h-3.5" /></div><span className="text-xs font-semibold">Resultados esperados</span></div>
+                                  <div className="flex items-center gap-2 text-warning mb-2"><div className="w-6 h-6 rounded flex items-center justify-center bg-warning/10"><TrendUp weight="fill" className="w-3.5 h-3.5" /></div><span className="text-xs font-semibold">Resultados esperados</span></div>
                                   <p className="text-[10px] leading-relaxed text-muted-foreground hidden sm:block">Ex: agendar reunião, gerar proposta, fechar venda.</p>
                                 </div>
                               </div>
@@ -1648,14 +1653,14 @@ export default function Campaigns() {
                           <div>
                             <Label className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground mb-3 block">Atendente IA criador</Label>
                             <div className="flex gap-4 items-center">
-                              <div className="relative flex h-24 w-24 shrink-0 items-end justify-center rounded-xl bg-gradient-to-t from-primary/20 to-transparent border border-primary/10 overflow-hidden">
+                              <div className="relative flex h-[88px] w-[88px] shrink-0 items-end justify-center rounded-xl bg-gradient-to-t from-primary/20 to-transparent border border-primary/10 overflow-hidden">
                                 <img src={`https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(selectedAiAgentKey || 'Camila')}&backgroundColor=transparent`} alt="Agent" className="w-full h-full object-contain drop-shadow-md pb-1" />
                               </div>
                               <div className="flex-grow min-w-0 flex flex-col justify-center">
                                 <h4 className="text-lg font-bold text-foreground leading-tight mb-1">{aiAgents.find(a => (a.key || a.name) === selectedAiAgentKey)?.name || selectedAiAgentKey || 'Camila'}</h4>
-                                <p className="text-[11px] text-success flex items-center gap-1.5 mb-1.5 font-medium"><span className="w-1.5 h-1.5 rounded-full bg-success"></span>Online agora</p>
-                                <p className="text-[11px] text-muted-foreground leading-snug mb-3 pr-2">Atendente inteligente especialista em campanhas avançadas e copywriting.</p>
-                                <Button variant="outline" size="sm" className="w-full rounded-lg text-xs h-8 bg-background/50 hover:bg-background/80 hover:text-primary transition-colors border-border/80"><ArrowClockwise className="w-3.5 h-3.5 mr-1.5" /> Trocar atendente</Button>
+                                <p className="text-[11px] text-success flex items-center gap-1.5 mb-1.5 font-medium"><span className="w-1.5 h-1.5 rounded-full bg-success"></span>Online</p>
+                                <p className="text-[11px] text-muted-foreground leading-snug mb-3 pr-2">Atendente inteligente e especialista em campanhas que convertem.</p>
+                                <Button variant="outline" size="sm" className="w-full rounded-lg text-xs h-8 bg-background/50 hover:bg-background/80 hover:text-primary transition-colors border-border/80"><ArrowClockwise className="w-3.5 h-3.5 mr-1.5" /> Alterar atendente</Button>
                               </div>
                             </div>
                           </div>
@@ -1718,7 +1723,7 @@ export default function Campaigns() {
                               {isAiCampaignGenerating ? <Clock className="h-5 w-5 animate-spin mr-2" /> : <Sparkle className="h-5 w-5 mr-2" weight="fill" />}
                               {isAiCampaignGenerating ? "Atendente criando..." : "Gerar campanha com IA"}
                             </Button>
-                            <p className="text-center mt-3 text-xs text-muted-foreground">A IA criará a estrutura completa da sua campanha.</p>
+                            <p className="text-center mt-3 text-xs text-muted-foreground">A IA irá criar sua campanha completa em segundos.</p>
                           </div>
                         </div>
                       </div>
