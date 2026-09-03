@@ -1644,19 +1644,20 @@ export default function Campaigns() {
                           </div>
                         </div>
                         
-                        <div className="space-y-5">
+                        <div className="space-y-4">
                           <div>
-                            <Label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Atendente IA criador</Label>
-                            <div className="mt-2 flex gap-3 items-center rounded-xl bg-background/40 p-2 border border-border/50">
-                              <div className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-primary/20 to-primary/5 border border-primary/20 overflow-hidden">
-                                <img src={`https://api.dicebear.com/7.x/pixel-art/svg?seed=${encodeURIComponent(selectedAiAgentKey || 'Agent')}`} alt="Agent" className="w-full h-full object-cover p-1" />
+                            <Label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-3 block">Atendente IA criador</Label>
+                            <div className="flex gap-4 items-center">
+                              <div className="relative flex h-24 w-20 shrink-0 items-end justify-center rounded-lg bg-gradient-to-t from-primary/20 to-transparent border border-primary/10 overflow-hidden">
+                                <img src={`https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(selectedAiAgentKey || 'Camila')}&backgroundColor=transparent`} alt="Agent" className="w-full h-full object-contain drop-shadow-md pb-1" />
                               </div>
                               <div className="flex-grow min-w-0">
-                                <p className="text-sm font-semibold truncate text-foreground">{aiAgents.find(a => (a.key || a.name) === selectedAiAgentKey)?.name || selectedAiAgentKey || 'Camila'}</p>
-                                <p className="text-[10px] text-success flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-success"></span>Online</p>
+                                <h4 className="text-base font-bold text-foreground">{aiAgents.find(a => (a.key || a.name) === selectedAiAgentKey)?.name || selectedAiAgentKey || 'Camila'}</h4>
+                                <p className="text-[10px] text-success flex items-center gap-1 mb-1"><span className="w-1.5 h-1.5 rounded-full bg-success"></span>Online</p>
+                                <p className="text-[10px] text-muted-foreground leading-tight mb-2">Atendente inteligente e especialista em campanhas que convertem.</p>
+                                <Button variant="outline" size="sm" className="w-full rounded-lg text-[10px] h-7 bg-background/30"><ArrowClockwise className="w-3 h-3 mr-1" /> Alterar atendente</Button>
                               </div>
                             </div>
-                            <Button variant="outline" size="sm" className="w-full mt-2 rounded-lg text-xs h-8 bg-background/30"><ArrowClockwise className="w-3 h-3 mr-1" /> Alterar atendente</Button>
                           </div>
                           
                           <div>
@@ -1664,7 +1665,7 @@ export default function Campaigns() {
                             <select
                               value={aiLeadProfile}
                               onChange={(event) => setAiLeadProfile(event.target.value)}
-                              className="mt-1.5 h-10 w-full rounded-lg border border-border/70 bg-background/60 px-3 text-sm text-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary/50 transition-shadow"
+                              className="mt-1 h-9 w-full rounded-lg border border-border/70 bg-background/60 px-3 text-sm text-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary/50 transition-shadow"
                             >
                               <option value="all">Todos / detectar pela base</option>
                               <option value="hot">Leads quentes</option>
@@ -1672,13 +1673,13 @@ export default function Campaigns() {
                               <option value="cold">Leads frios</option>
                               <option value="inactive">Recuperar inativos</option>
                             </select>
-                            <p className="mt-1.5 text-[10px] text-muted-foreground">A IA irá adaptar a campanha conforme o tipo de lead.</p>
+                            <p className="mt-1 text-[10px] text-muted-foreground">A IA irá adaptar a campanha conforme o tipo de lead.</p>
                           </div>
 
                           <div>
                             <Label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Follow-up após dias</Label>
-                            <Input value={aiFollowUpDays} onChange={(event) => setAiFollowUpDays(event.target.value)} inputMode="numeric" className="mt-1.5 h-10 rounded-lg border-border/70 bg-background/60 focus-visible:ring-primary/50" />
-                            <p className="mt-1.5 text-[10px] text-muted-foreground">Dias após o primeiro contato para iniciar follow-up.</p>
+                            <Input value={aiFollowUpDays} onChange={(event) => setAiFollowUpDays(event.target.value)} inputMode="numeric" className="mt-1 h-9 rounded-lg border-border/70 bg-background/60 focus-visible:ring-primary/50" />
+                            <p className="mt-1 text-[10px] text-muted-foreground">Dias após o primeiro contato para iniciar follow-up.</p>
                           </div>
 
                           <div>
@@ -1686,7 +1687,7 @@ export default function Campaigns() {
                             <select
                               value={aiObjective}
                               onChange={(event) => setAiObjective(event.target.value)}
-                              className="mt-1.5 h-10 w-full rounded-lg border border-border/70 bg-background/60 px-3 text-sm text-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary/50 transition-shadow"
+                              className="mt-1 h-9 w-full rounded-lg border border-border/70 bg-background/60 px-3 text-sm text-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary/50 transition-shadow"
                             >
                               <option value="gerar_orcamento">Gerar orçamento / proposta</option>
                               <option value="agendar_reuniao">Agendar reunião / call</option>
@@ -1694,7 +1695,7 @@ export default function Campaigns() {
                               <option value="nutrir_lead">Nutrir lead / gerar valor</option>
                               <option value="pesquisa">Pesquisa / Feedback</option>
                             </select>
-                            <p className="mt-1.5 text-[10px] text-muted-foreground">Qual o principal resultado que deseja alcançar.</p>
+                            <p className="mt-1 text-[10px] text-muted-foreground">Qual o principal resultado que deseja alcançar.</p>
                           </div>
 
                           <div>
@@ -1702,14 +1703,14 @@ export default function Campaigns() {
                             <select
                               value={aiTone}
                               onChange={(event) => setAiTone(event.target.value)}
-                              className="mt-1.5 h-10 w-full rounded-lg border border-border/70 bg-background/60 px-3 text-sm text-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary/50 transition-shadow"
+                              className="mt-1 h-9 w-full rounded-lg border border-border/70 bg-background/60 px-3 text-sm text-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary/50 transition-shadow"
                             >
                               <option value="profissional">Profissional e consultivo</option>
                               <option value="descontraido">Descontraído e amigável</option>
                               <option value="urgente">Urgente (escassez / oferta limit)</option>
                               <option value="direto">Direto ao ponto</option>
                             </select>
-                            <p className="mt-1.5 text-[10px] text-muted-foreground">Define o tom das mensagens que serão geradas.</p>
+                            <p className="mt-1 text-[10px] text-muted-foreground">Define o tom das mensagens que serão geradas.</p>
                           </div>
                           
                           <div className="pt-2">
