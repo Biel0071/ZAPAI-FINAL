@@ -380,6 +380,8 @@ export default function Campaigns() {
   const [aiCampaignPrompt, setAiCampaignPrompt] = useState("");
   const [aiLeadProfile, setAiLeadProfile] = useState("all");
   const [aiFollowUpDays, setAiFollowUpDays] = useState("3");
+  const [aiObjective, setAiObjective] = useState("gerar_orcamento");
+  const [aiTone, setAiTone] = useState("profissional");
   const [aiAgents, setAiAgents] = useState<any[]>([]);
   const [selectedAiAgentKey, setSelectedAiAgentKey] = useState("");
   const [isAiCampaignGenerating, setIsAiCampaignGenerating] = useState(false);
@@ -524,6 +526,8 @@ export default function Campaigns() {
     setAiCampaignPrompt("");
     setAiLeadProfile("all");
     setAiFollowUpDays("3");
+    setAiObjective("gerar_orcamento");
+    setAiTone("profissional");
     setIsAiCampaignGenerating(false);
   }, []);
 
@@ -980,6 +984,8 @@ export default function Campaigns() {
           "Produto/tema detectado: " + product,
           "Tipo de lead: " + aiLeadProfile,
           "Follow-up apos dias: " + followUpDays,
+          "Objetivo principal: " + aiObjective,
+          "Tom da comunicacao: " + aiTone,
           "Crie mensagens naturais, curtas, humanas, sem prometer o que nao sabe, com CTA claro e follow-up de recuperacao.",
           "Retorne APENAS JSON valido neste formato:",
           "{\"name\":\"nome da campanha\",\"messages\":[\"mensagem 1\",\"mensagem 2\",\"mensagem 3\",\"follow-up 1\",\"follow-up 2\"],\"tags\":[\"ia\",\"campanha\"],\"delayProfile\":{\"typingSeconds\":6,\"intervalSeconds\":60,\"pauseEvery\":8,\"pauseSeconds\":180,\"dailyLimit\":80,\"hourlyLimit\":12}}"
@@ -1081,7 +1087,7 @@ export default function Campaigns() {
       setCampaignStep(4);
       setIsAiCampaignGenerating(false);
     }
-  }, [aiAgents, aiCampaignPrompt, aiFollowUpDays, aiLeadProfile, contacts, selectedAiAgentKey]);
+  }, [aiAgents, aiCampaignPrompt, aiFollowUpDays, aiLeadProfile, aiObjective, aiTone, contacts, selectedAiAgentKey]);
 
   useEffect(() => {
     const liveIds = Array.from(new Set([
@@ -1515,30 +1521,33 @@ export default function Campaigns() {
 
                     <div className="flex flex-col sm:flex-row gap-3">
                       <Card 
-                        className={cn("flex-1 cursor-pointer transition-all border", creationMode === "ai" ? "border-info bg-info/5 ring-1 ring-info/50" : "border-border/50 bg-background/50 hover:border-info/30")}
+                        className={cn("flex-1 cursor-pointer transition-all border", creationMode === "ai" ? "border-primary bg-primary/5 ring-1 ring-primary/50" : "border-border/50 bg-background/50 hover:border-primary/30")}
                         onClick={() => setCreationMode("ai")}
                       >
-                        <CardContent className="p-3 flex items-center gap-3">
-                          <div className={cn("w-10 h-10 rounded-lg flex items-center justify-center shrink-0", creationMode === "ai" ? "bg-info/20 text-info" : "bg-muted text-muted-foreground")}>
-                            <Sparkle className="w-5 h-5" weight={creationMode === "ai" ? "fill" : "regular"} />
+                        <CardContent className="p-3 flex items-center justify-between gap-3">
+                          <div className="flex items-center gap-3">
+                            <div className={cn("w-10 h-10 rounded-lg flex items-center justify-center shrink-0", creationMode === "ai" ? "bg-primary/20 text-primary" : "bg-muted text-muted-foreground")}>
+                              <Sparkle className="w-5 h-5" weight={creationMode === "ai" ? "fill" : "regular"} />
+                            </div>
+                            <div>
+                              <h3 className={cn("font-bold text-sm", creationMode === "ai" ? "text-primary" : "text-foreground")}>✨ Gerar com IA</h3>
+                              <p className="text-xs text-muted-foreground mt-0.5">A IA cria sua campanha completa com base nos seus objetivos.</p>
+                            </div>
                           </div>
-                          <div>
-                            <h3 className={cn("font-bold text-sm", creationMode === "ai" ? "text-info" : "text-foreground")}>✨ Gerar com IA</h3>
-                            <p className="text-xs text-muted-foreground mt-0.5">A IA monta público, mensagens e delays para você.</p>
-                          </div>
+                          {creationMode === "ai" && <Badge variant="outline" className="border-primary/50 text-primary bg-primary/10 rounded-full font-semibold hidden md:flex text-[10px]">Recomendado</Badge>}
                         </CardContent>
                       </Card>
 
                       <Card 
-                        className={cn("flex-1 cursor-pointer transition-all border", creationMode === "manual" ? "border-primary bg-primary/5 ring-1 ring-primary/50" : "border-border/50 bg-background/50 hover:border-primary/30")}
+                        className={cn("flex-1 cursor-pointer transition-all border", creationMode === "manual" ? "border-border/70 bg-card/50 ring-1 ring-border/80" : "border-border/50 bg-background/50 hover:border-foreground/20")}
                         onClick={() => setCreationMode("manual")}
                       >
                         <CardContent className="p-3 flex items-center gap-3">
-                          <div className={cn("w-10 h-10 rounded-lg flex items-center justify-center shrink-0", creationMode === "manual" ? "bg-primary/20 text-primary" : "bg-muted text-muted-foreground")}>
+                          <div className={cn("w-10 h-10 rounded-lg flex items-center justify-center shrink-0", creationMode === "manual" ? "bg-muted text-foreground" : "bg-muted/50 text-muted-foreground")}>
                             <Plus className="w-5 h-5" weight={creationMode === "manual" ? "bold" : "regular"} />
                           </div>
                           <div>
-                            <h3 className={cn("font-bold text-sm", creationMode === "manual" ? "text-primary" : "text-foreground")}>⚙️ Criar Manualmente</h3>
+                            <h3 className={cn("font-bold text-sm", creationMode === "manual" ? "text-foreground" : "text-foreground/70")}>⚙️ Criar Manualmente</h3>
                             <p className="text-xs text-muted-foreground mt-0.5">Configure cada passo da sua campanha manualmente.</p>
                           </div>
                         </CardContent>
@@ -1546,92 +1555,171 @@ export default function Campaigns() {
                     </div>
                   </div>
 
-                  <div className="rounded-2xl border border-primary/20 bg-primary/5 p-3">
+                  <div className="rounded-2xl border border-border/70 bg-background/40 p-3">
                     <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center">
                       <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
-                        <Label htmlFor="campaign-name" className="text-sm font-semibold text-foreground whitespace-nowrap">Nome da campanha:</Label>
-                        <Input id="campaign-name" value={campaignName} onChange={(event) => setCampaignName(event.target.value)} placeholder="Ex: Campanha orcamento quente Julho" className="h-9 rounded-lg border-primary/25 bg-background/70 text-sm font-medium flex-1 max-w-md" />
-                        <p className="text-[10px] text-muted-foreground hidden lg:block">Aparece na lista e rascunhos.</p>
+                        <Label htmlFor="campaign-name" className="text-sm font-semibold text-foreground whitespace-nowrap">Nome da campanha</Label>
+                        <Input id="campaign-name" value={campaignName} onChange={(event) => setCampaignName(event.target.value)} placeholder="Ex: Campanha orcamento quente Julho" className="h-9 rounded-lg border-border/70 bg-card/70 text-sm font-medium flex-1 max-w-md" />
+                        <p className="text-[10px] text-muted-foreground hidden lg:block">Aparece apenas na sua lista de campanhas.</p>
                       </div>
-                      {!campaignName.trim() && <OperationalStatusBadge label="Nome obrigatorio para lancar" tone="warning" />}
+                      {!campaignName.trim() ? <OperationalStatusBadge label="Nome obrigatorio para lancar" tone="warning" /> : <div/>}
                     </div>
                   </div>
+                  
                   {creationMode === "ai" && (
-                    <div className="rounded-2xl border border-info/20 bg-info/5 p-5">
-                    <div className="grid gap-6 lg:grid-cols-3">
-                      <div className="space-y-4 lg:col-span-2">
-                        <div className="flex items-start gap-3">
-                          <span className="mt-1 flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border border-info/25 bg-info/10 text-info">
-                            <Sparkle className="h-5 w-5" />
-                          </span>
-                          <div>
-                            <h3 className="font-semibold text-info">Descreva sua Campanha</h3>
-                            <p className="text-sm text-muted-foreground">O sistema montará o público, mensagens, follow-ups e delays humanizados para você aprovar.</p>
+                    <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_340px] items-start mt-4">
+                      <div className="space-y-4">
+                        <div className="rounded-2xl border border-border/70 bg-background/40 p-5">
+                          <div className="flex items-start gap-3">
+                            <span className="mt-1 flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
+                              <Sparkle className="h-5 w-5" weight="fill" />
+                            </span>
+                            <div>
+                              <h3 className="font-semibold text-primary text-lg">Descreva sua Campanha</h3>
+                              <p className="text-sm text-muted-foreground">Quanto mais detalhes, melhor será o resultado da IA.</p>
+                            </div>
+                          </div>
+                          <div className="mt-5 space-y-4">
+                            <div className="relative">
+                              <Textarea
+                                value={aiCampaignPrompt}
+                                onChange={(event) => setAiCampaignPrompt(event.target.value)}
+                                placeholder="Descreva sua campanha com o máximo de detalhes possível...&#10;Ex: Quero uma campanha para vender seguro empresarial para leads que já demonstraram interesse."
+                                className="min-h-[160px] rounded-xl border-border/70 bg-card/50 p-4 text-sm leading-relaxed pb-8"
+                              />
+                              <div className="absolute bottom-3 right-3 text-[10px] text-muted-foreground">{aiCampaignPrompt.length}/4000</div>
+                            </div>
+                            
+                            <div>
+                              <p className="text-xs font-semibold mb-3 text-foreground">Dicas para melhores resultados:</p>
+                              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                                <div className="rounded-xl border border-border/50 bg-card/30 p-3">
+                                  <div className="flex items-center gap-2 text-primary mb-1.5"><div className="w-5 h-5 rounded flex items-center justify-center bg-primary/10"><CheckCircle weight="fill" className="w-3.5 h-3.5" /></div><span className="text-xs font-semibold">Seja específico</span></div>
+                                  <p className="text-[10px] text-muted-foreground">Informe exatamente o que você quer alcançar e para quem.</p>
+                                </div>
+                                <div className="rounded-xl border border-border/50 bg-card/30 p-3">
+                                  <div className="flex items-center gap-2 text-primary mb-1.5"><div className="w-5 h-5 rounded flex items-center justify-center bg-primary/10"><Users weight="fill" className="w-3.5 h-3.5" /></div><span className="text-xs font-semibold">Informe o contexto</span></div>
+                                  <p className="text-[10px] text-muted-foreground">Diga de onde são os leads e em que etapa estão.</p>
+                                </div>
+                                <div className="rounded-xl border border-border/50 bg-card/30 p-3">
+                                  <div className="flex items-center gap-2 text-primary mb-1.5"><div className="w-5 h-5 rounded flex items-center justify-center bg-primary/10"><Megaphone weight="fill" className="w-3.5 h-3.5" /></div><span className="text-xs font-semibold">Defina o tom</span></div>
+                                  <p className="text-[10px] text-muted-foreground">Ex: profissional, consultivo, descontraído, urgente.</p>
+                                </div>
+                                <div className="rounded-xl border border-border/50 bg-card/30 p-3">
+                                  <div className="flex items-center gap-2 text-primary mb-1.5"><div className="w-5 h-5 rounded flex items-center justify-center bg-primary/10"><ArrowClockwise weight="fill" className="w-3.5 h-3.5" /></div><span className="text-xs font-semibold">Resultados esperados</span></div>
+                                  <p className="text-[10px] text-muted-foreground">Ex: agendar reunião, gerar proposta, fechar venda.</p>
+                                </div>
+                              </div>
+                            </div>
+
+                            <div className="rounded-xl border border-dashed border-border bg-card/30 p-4 flex items-center justify-between transition-colors hover:bg-card/50 hover:border-primary/50 cursor-pointer">
+                              <div className="flex items-center gap-3">
+                                <div className="w-10 h-10 rounded-lg bg-background/50 flex items-center justify-center text-muted-foreground border border-border/50">
+                                  <Paperclip className="w-5 h-5" />
+                                </div>
+                                <div>
+                                  <p className="text-sm font-medium">Anexar brief ou documento (opcional)</p>
+                                  <p className="text-[10px] text-muted-foreground">PDF, DOC, DOCX, TXT até 10MB</p>
+                                </div>
+                              </div>
+                              <Button variant="outline" size="sm" className="rounded-lg bg-background/50 h-8 text-xs font-medium"><Plus className="w-3 h-3 mr-1"/> Selecionar arquivo</Button>
+                            </div>
                           </div>
                         </div>
-                        <Textarea
-                          value={aiCampaignPrompt}
-                          onChange={(event) => setAiCampaignPrompt(event.target.value)}
-                          placeholder="Ex: criar campanha para venda de seguro empresarial para leads quentes..."
-                          className="min-h-[180px] rounded-2xl border-info/30 bg-background/60 p-4 text-sm leading-relaxed"
-                        />
                       </div>
-                      <div className="space-y-4 lg:col-span-1 rounded-2xl border border-info/10 bg-info/[0.02] p-4">
-                        <div className="space-y-3">
-                        <div>
-                          <Label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Atendente IA criador</Label>
-                          <div className="mt-2 flex gap-3 items-center">
-                            <div className="relative flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-primary/20 to-primary/5 shadow-inner border border-primary/20 overflow-hidden">
-                              <img src={`https://api.dicebear.com/7.x/pixel-art/svg?seed=${encodeURIComponent(selectedAiAgentKey || 'Agent')}`} alt="Agent" className="w-full h-full object-cover p-1" />
-                            </div>
-                            <div className="flex-grow">
-                              <select
-                                value={selectedAiAgentKey}
-                                onChange={(event) => setSelectedAiAgentKey(event.target.value)}
-                                className="h-11 w-full rounded-xl border border-border bg-background px-3 text-sm text-foreground focus:border-primary focus:outline-none"
-                              >
-                                {aiAgents.map((agent) => (
-                                  <option key={agent.key || agent.name} value={agent.key || agent.name}>
-                                    {agent.name || agent.key} {agent.active === false ? "(inativo)" : ""}
-                                  </option>
-                                ))}
-                                {aiAgents.length === 0 && <option value="">Atendente padrao</option>}
-                              </select>
-                            </div>
+
+                      <div className="rounded-2xl border border-border/70 bg-card/60 p-5 shadow-xl sticky top-4">
+                        <div className="flex items-center gap-2 mb-6 pb-4 border-b border-border/50">
+                          <div className="w-6 h-6 rounded flex items-center justify-center bg-primary/20 text-primary">
+                            <Sparkle className="w-3.5 h-3.5" weight="fill" />
                           </div>
-                          <p className="mt-1.5 text-[11px] text-muted-foreground">Usa a personalidade e inteligencia do atendente para escrever a campanha.</p>
+                          <h3 className="font-semibold text-foreground text-sm">Configurações da IA</h3>
+                          <p className="text-[10px] text-muted-foreground ml-auto hidden sm:block">Personalize como a IA irá criar sua campanha.</p>
                         </div>
-                        <div>
-                          <Label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Tipo de lead</Label>
-                          <select
-                            value={aiLeadProfile}
-                            onChange={(event) => setAiLeadProfile(event.target.value)}
-                            className="mt-2 h-11 w-full rounded-xl border border-border bg-background px-3 text-sm text-foreground focus:border-primary focus:outline-none"
-                          >
-                            <option value="all">Todos / detectar pela base</option>
-                            <option value="hot">Leads quentes</option>
-                            <option value="warm">Leads mornos</option>
-                            <option value="cold">Leads frios</option>
-                            <option value="inactive">Recuperar inativos</option>
-                          </select>
+                        
+                        <div className="space-y-5">
+                          <div>
+                            <Label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Atendente IA criador</Label>
+                            <div className="mt-2 flex gap-3 items-center rounded-xl bg-background/40 p-2 border border-border/50">
+                              <div className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-primary/20 to-primary/5 border border-primary/20 overflow-hidden">
+                                <img src={`https://api.dicebear.com/7.x/pixel-art/svg?seed=${encodeURIComponent(selectedAiAgentKey || 'Agent')}`} alt="Agent" className="w-full h-full object-cover p-1" />
+                              </div>
+                              <div className="flex-grow min-w-0">
+                                <p className="text-sm font-semibold truncate text-foreground">{aiAgents.find(a => (a.key || a.name) === selectedAiAgentKey)?.name || selectedAiAgentKey || 'Camila'}</p>
+                                <p className="text-[10px] text-success flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-success"></span>Online</p>
+                              </div>
+                            </div>
+                            <Button variant="outline" size="sm" className="w-full mt-2 rounded-lg text-xs h-8 bg-background/30"><ArrowClockwise className="w-3 h-3 mr-1" /> Alterar atendente</Button>
+                          </div>
+                          
+                          <div>
+                            <Label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Tipo de lead</Label>
+                            <select
+                              value={aiLeadProfile}
+                              onChange={(event) => setAiLeadProfile(event.target.value)}
+                              className="mt-1.5 h-10 w-full rounded-lg border border-border/70 bg-background/60 px-3 text-sm text-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary/50 transition-shadow"
+                            >
+                              <option value="all">Todos / detectar pela base</option>
+                              <option value="hot">Leads quentes</option>
+                              <option value="warm">Leads mornos</option>
+                              <option value="cold">Leads frios</option>
+                              <option value="inactive">Recuperar inativos</option>
+                            </select>
+                            <p className="mt-1.5 text-[10px] text-muted-foreground">A IA irá adaptar a campanha conforme o tipo de lead.</p>
+                          </div>
+
+                          <div>
+                            <Label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Follow-up após dias</Label>
+                            <Input value={aiFollowUpDays} onChange={(event) => setAiFollowUpDays(event.target.value)} inputMode="numeric" className="mt-1.5 h-10 rounded-lg border-border/70 bg-background/60 focus-visible:ring-primary/50" />
+                            <p className="mt-1.5 text-[10px] text-muted-foreground">Dias após o primeiro contato para iniciar follow-up.</p>
+                          </div>
+
+                          <div>
+                            <Label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Objetivo Principal</Label>
+                            <select
+                              value={aiObjective}
+                              onChange={(event) => setAiObjective(event.target.value)}
+                              className="mt-1.5 h-10 w-full rounded-lg border border-border/70 bg-background/60 px-3 text-sm text-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary/50 transition-shadow"
+                            >
+                              <option value="gerar_orcamento">Gerar orçamento / proposta</option>
+                              <option value="agendar_reuniao">Agendar reunião / call</option>
+                              <option value="fechar_venda">Fechar venda direto</option>
+                              <option value="nutrir_lead">Nutrir lead / gerar valor</option>
+                              <option value="pesquisa">Pesquisa / Feedback</option>
+                            </select>
+                            <p className="mt-1.5 text-[10px] text-muted-foreground">Qual o principal resultado que deseja alcançar.</p>
+                          </div>
+
+                          <div>
+                            <Label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Tom da Comunicação</Label>
+                            <select
+                              value={aiTone}
+                              onChange={(event) => setAiTone(event.target.value)}
+                              className="mt-1.5 h-10 w-full rounded-lg border border-border/70 bg-background/60 px-3 text-sm text-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary/50 transition-shadow"
+                            >
+                              <option value="profissional">Profissional e consultivo</option>
+                              <option value="descontraido">Descontraído e amigável</option>
+                              <option value="urgente">Urgente (escassez / oferta limit)</option>
+                              <option value="direto">Direto ao ponto</option>
+                            </select>
+                            <p className="mt-1.5 text-[10px] text-muted-foreground">Define o tom das mensagens que serão geradas.</p>
+                          </div>
+                          
+                          <div className="pt-2">
+                            <Button type="button" className="w-full rounded-xl bg-primary hover:bg-primary/90 text-primary-foreground shadow-[0_0_20px_-5px_rgba(20,184,116,0.4)]" onClick={() => void generateCampaignFromPrompt()} disabled={isAiCampaignGenerating}>
+                              {isAiCampaignGenerating ? <Clock className="h-4 w-4 animate-spin mr-2" /> : <Sparkle className="h-4 w-4 mr-2" weight="fill" />}
+                              {isAiCampaignGenerating ? "Atendente criando..." : "Gerar campanha com IA"}
+                            </Button>
+                            <p className="text-center mt-2 text-[10px] text-muted-foreground">A IA irá criar sua campanha completa em segundos.</p>
+                          </div>
                         </div>
-                        <div>
-                          <Label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Follow-up apos dias</Label>
-                          <Input value={aiFollowUpDays} onChange={(event) => setAiFollowUpDays(event.target.value)} inputMode="numeric" className="mt-2 h-11 rounded-xl" />
-                        </div>
-                        <Button type="button" className="w-full rounded-xl shadow-glow" onClick={() => void generateCampaignFromPrompt()} disabled={isAiCampaignGenerating}>
-                          {isAiCampaignGenerating ? <Clock className="h-4 w-4 animate-spin" /> : <Sparkle className="h-4 w-4" />}
-                          {isAiCampaignGenerating ? "Atendente criando..." : "Gerar campanha pronta"}
-                        </Button>
                       </div>
                     </div>
-                  </div>
-                  </div>
                   )}
 
                   {creationMode === "manual" && (
                     <>
-                      <div className="grid grid-cols-5 gap-2 border-b border-border/40 pb-4">
+                      <div className="flex w-full items-center justify-between border-b border-border/40 pb-6 overflow-x-auto gap-2 scrollbar-none">
                     {STEP_LABELS.map((label, index) => {
                       const step = index + 1;
                       const active = campaignStep === step;
@@ -1641,14 +1729,18 @@ export default function Campaigns() {
                           key={label}
                           type="button"
                           className={cn(
-                            "flex flex-col items-center gap-1.5 rounded-xl border border-transparent px-2 py-2 text-center transition-all",
-                            active && "border-primary/30 bg-primary/10 shadow-glow",
-                            complete && !active && "text-success",
+                            "flex flex-1 flex-col items-start gap-1.5 px-3 py-2 text-left transition-all min-w-[120px] rounded-lg",
+                            active && "bg-primary/10",
+                            !active && "hover:bg-card/50"
                           )}
                           onClick={() => setCampaignStep(step)}
                         >
-                          <span className={cn("inline-flex h-8 w-8 items-center justify-center rounded-full border text-xs", active ? "border-primary/40 text-primary" : "border-border/70 text-muted-foreground")}>{step}</span>
-                          <span className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">{label}</span>
+                          <div className="flex items-center justify-between w-full">
+                            <span className={cn("text-[10px] font-bold tracking-wider", active ? "text-primary" : complete ? "text-success" : "text-muted-foreground")}>PASSO {step}</span>
+                            {complete && !active && <CheckCircle className="w-3 h-3 text-success" weight="fill" />}
+                          </div>
+                          <span className={cn("text-sm font-semibold whitespace-nowrap", active ? "text-foreground" : "text-muted-foreground")}>{label}</span>
+                          <div className={cn("h-1 w-full mt-1 rounded-full", active ? "bg-primary shadow-[0_0_8px_rgba(20,184,116,0.5)]" : complete ? "bg-success/50" : "bg-border/50")}></div>
                         </button>
                       );
                     })}
@@ -1670,24 +1762,30 @@ export default function Campaigns() {
 
                       <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
                         {[
-                          { key: "all", title: "Todos os contatos", desc: "Toda a base disponivel", count: contactSegments.counts.all },
-                          { key: "normal", title: "Contatos individuais", desc: "Sem grupos, envio normal", count: contactSegments.counts.normal },
-                          { key: "hot", title: "Leads quentes", desc: "Interessados ou em andamento", count: contactSegments.counts.hot },
-                          { key: "warm", title: "Leads mornos", desc: "Nutrir e tirar duvidas", count: contactSegments.counts.warm },
-                          { key: "cold", title: "Leads frios", desc: "Abordagem mais leve", count: contactSegments.counts.cold },
-                          { key: "inactive", title: "Recuperar inativos", desc: "Chamar depois de dias", count: contactSegments.counts.inactive },
-                        ].map((segment) => (
-                          <button key={segment.key} type="button" onClick={() => applyContactSegment(segment.key as keyof typeof contactSegments.counts)} className="rounded-xl border border-border/70 bg-background/30 p-3 text-left transition hover:border-primary/40 hover:bg-card/70">
-                            <div className="flex items-center justify-between gap-2">
-                              <div className="flex items-center gap-2">
-                                <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-success/10"><Users className="h-4 w-4 text-success" /></span>
-                                <p className="text-sm font-semibold">{segment.title}</p>
+                          { key: "all", title: "Todos os contatos", desc: "Toda a base disponível", count: contactSegments.counts.all, icon: Users },
+                          { key: "normal", title: "Contatos individuais", desc: "Sem grupos, envio normal", count: contactSegments.counts.normal, icon: Users },
+                          { key: "hot", title: "Leads quentes", desc: "Interessados ou em andamento", count: contactSegments.counts.hot, icon: Sparkle },
+                          { key: "warm", title: "Leads mornos", desc: "Nutrir e tirar duvidas", count: contactSegments.counts.warm, icon: Users },
+                          { key: "cold", title: "Leads frios", desc: "Abordagem mais leve", count: contactSegments.counts.cold, icon: Users },
+                          { key: "inactive", title: "Recuperar inativos", desc: "Chamar depois de dias", count: contactSegments.counts.inactive, icon: ArrowClockwise },
+                        ].map((segment) => {
+                          const Icon = segment.icon;
+                          return (
+                          <button key={segment.key} type="button" onClick={() => applyContactSegment(segment.key as keyof typeof contactSegments.counts)} className="rounded-xl border border-border/70 bg-card/40 p-4 text-left transition hover:border-primary/40 hover:bg-card/80 group">
+                            <div className="flex items-start justify-between">
+                              <div className="flex items-center gap-3">
+                                <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-background/50 border border-border/50 text-muted-foreground group-hover:bg-primary/10 group-hover:text-primary group-hover:border-primary/30 transition-colors"><Icon className="h-5 w-5" weight="fill" /></span>
+                                <div>
+                                  <p className="text-sm font-semibold group-hover:text-primary transition-colors">{segment.title}</p>
+                                  <p className="mt-0.5 text-[10px] text-muted-foreground">{segment.desc}</p>
+                                </div>
                               </div>
-                              <Badge variant="secondary" className="rounded-full text-[10px]">{segment.count}</Badge>
+                              <div className="text-right">
+                                <span className="text-xl font-display font-bold text-foreground group-hover:text-primary transition-colors">{segment.count}</span>
+                              </div>
                             </div>
-                            <p className="mt-1.5 text-[10px] text-muted-foreground">{segment.desc}</p>
                           </button>
-                        ))}
+                        )})}
                       </div>
 
                       <div className="grid gap-3 md:grid-cols-2">
@@ -2397,13 +2495,24 @@ export default function Campaigns() {
                             </div>
                             
                             {launchReadiness.length > 0 && (
-                              <div className="rounded-xl border border-warning/30 bg-warning/10 p-2.5">
-                                <p className="text-[10px] font-semibold text-warning mb-1">Atenção</p>
-                                <ul className="text-[10px] text-warning/90 space-y-0.5">
-                                  {launchReadiness.slice(0, 2).map((item, i) => (
-                                    <li key={i}>• {item}</li>
+                              <div className="rounded-xl border-l-4 border-l-warning border-r border-r-border/50 border-t border-t-border/50 border-b border-b-border/50 bg-warning/5 p-3 mt-4">
+                                <div className="flex items-center gap-2 mb-2">
+                                  <Warning className="w-4 h-4 text-warning" weight="fill" />
+                                  <p className="text-xs font-semibold text-warning uppercase tracking-wider">Atenção Necessária</p>
+                                </div>
+                                <ul className="text-xs text-muted-foreground space-y-1.5 ml-1">
+                                  {launchReadiness.slice(0, 3).map((item, i) => (
+                                    <li key={i} className="flex items-start gap-2">
+                                      <span className="mt-1 w-1 h-1 rounded-full bg-warning shrink-0"></span>
+                                      <span>{item}</span>
+                                    </li>
                                   ))}
-                                  {launchReadiness.length > 2 && <li>• E mais {launchReadiness.length - 2} avisos...</li>}
+                                  {launchReadiness.length > 3 && (
+                                    <li className="flex items-start gap-2">
+                                      <span className="mt-1 w-1 h-1 rounded-full bg-warning shrink-0"></span>
+                                      <span>E mais {launchReadiness.length - 3} avisos...</span>
+                                    </li>
+                                  )}
                                 </ul>
                               </div>
                             )}
