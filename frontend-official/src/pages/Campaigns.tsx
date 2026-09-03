@@ -1507,7 +1507,7 @@ export default function Campaigns() {
             composer={
               <div className="flex flex-col gap-4">
                 <Card className="glass-card rounded-2xl border-border/70 bg-card/85">
-                  <CardContent className="space-y-5 p-5">
+                  <CardContent className="space-y-6 p-6">
                   <div className="flex flex-col gap-6 border-b border-border/50 pb-6">
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                       <div>
@@ -1560,7 +1560,7 @@ export default function Campaigns() {
                     </div>
                   </div>
 
-                  <div className="rounded-2xl border border-border/70 bg-background/40 p-3">
+                  <div className="rounded-2xl border border-border/70 bg-background/40 p-4">
                     <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center">
                       <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
                         <Label htmlFor="campaign-name" className="text-sm font-semibold text-foreground whitespace-nowrap">Nome da campanha</Label>
@@ -1572,9 +1572,9 @@ export default function Campaigns() {
                   </div>
                   
                   {creationMode === "ai" && (
-                    <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_340px] items-start mt-1">
-                      <div className="space-y-3">
-                        <div className="rounded-2xl border border-border/70 bg-background/40 p-3">
+                    <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_360px] items-start mt-2">
+                      <div className="space-y-4">
+                        <div className="rounded-2xl border border-border/70 bg-background/40 p-5">
                           <div className="flex items-start gap-3">
                             <span className="mt-1 flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-info/10 text-info">
                               <MagicWand className="h-5 w-5" weight="fill" />
@@ -1586,33 +1586,33 @@ export default function Campaigns() {
                           </div>
                           <div className="mt-5 space-y-4">
                             <div className="relative">
-                              <Textarea
-                                value={aiCampaignPrompt}
-                                onChange={(event) => setAiCampaignPrompt(event.target.value)}
-                                placeholder="Descreva sua campanha com o máximo de detalhes possível...&#10;Ex: Quero uma campanha para vender seguro empresarial para leads que já demonstraram interesse."
-                                className="min-h-[100px] rounded-xl border-border/70 bg-card/50 p-3 text-sm leading-relaxed pb-8"
-                              />
+                                <Textarea
+                                  value={aiCampaignPrompt}
+                                  onChange={(event) => setAiCampaignPrompt(event.target.value)}
+                                  placeholder="Descreva sua campanha com o máximo de detalhes possível...&#10;Ex: Quero uma campanha para vender seguro empresarial para leads que já demonstraram interesse."
+                                  className="min-h-[140px] rounded-xl border-border/70 bg-card/50 p-4 text-sm leading-relaxed pb-8"
+                                />
                               <div className="absolute bottom-3 right-3 text-[10px] text-muted-foreground">{aiCampaignPrompt.length}/4000</div>
                             </div>
                             
                             <div>
                               <p className="text-xs font-semibold mb-3 text-foreground">Dicas para melhores resultados:</p>
-                              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                                <div className="rounded-xl border border-border/50 bg-card/30 p-2">
-                                  <div className="flex items-center gap-2 text-info mb-1"><div className="w-5 h-5 rounded flex items-center justify-center bg-info/10"><Target weight="fill" className="w-3.5 h-3.5" /></div><span className="text-[11px] font-semibold">Seja específico</span></div>
-                                  <p className="text-[9px] text-muted-foreground hidden sm:block">Informe exatamente o que você quer alcançar e para quem.</p>
+                              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                                <div className="rounded-xl border border-border/50 bg-card/30 p-3">
+                                  <div className="flex items-center gap-2 text-info mb-2"><div className="w-6 h-6 rounded flex items-center justify-center bg-info/10"><Target weight="fill" className="w-3.5 h-3.5" /></div><span className="text-xs font-semibold">Seja específico</span></div>
+                                  <p className="text-[10px] leading-relaxed text-muted-foreground hidden sm:block">Informe exatamente o que você quer alcançar e para quem.</p>
                                 </div>
-                                <div className="rounded-xl border border-border/50 bg-card/30 p-2">
-                                  <div className="flex items-center gap-2 text-success mb-1"><div className="w-5 h-5 rounded flex items-center justify-center bg-success/10"><Users weight="fill" className="w-3.5 h-3.5" /></div><span className="text-[11px] font-semibold">Informe o contexto</span></div>
-                                  <p className="text-[9px] text-muted-foreground hidden sm:block">Diga de onde são os leads e em que etapa estão.</p>
+                                <div className="rounded-xl border border-border/50 bg-card/30 p-3">
+                                  <div className="flex items-center gap-2 text-success mb-2"><div className="w-6 h-6 rounded flex items-center justify-center bg-success/10"><Users weight="fill" className="w-3.5 h-3.5" /></div><span className="text-xs font-semibold">Informe o contexto</span></div>
+                                  <p className="text-[10px] leading-relaxed text-muted-foreground hidden sm:block">Diga de onde são os leads e em que etapa estão.</p>
                                 </div>
-                                <div className="rounded-xl border border-border/50 bg-card/30 p-2">
-                                  <div className="flex items-center gap-2 text-primary mb-1"><div className="w-5 h-5 rounded flex items-center justify-center bg-primary/10"><ChatCircle weight="fill" className="w-3.5 h-3.5" /></div><span className="text-[11px] font-semibold">Defina o tom</span></div>
-                                  <p className="text-[9px] text-muted-foreground hidden sm:block">Ex: profissional, consultivo, descontraído, urgente.</p>
+                                <div className="rounded-xl border border-border/50 bg-card/30 p-3">
+                                  <div className="flex items-center gap-2 text-primary mb-2"><div className="w-6 h-6 rounded flex items-center justify-center bg-primary/10"><ChatCircle weight="fill" className="w-3.5 h-3.5" /></div><span className="text-xs font-semibold">Defina o tom</span></div>
+                                  <p className="text-[10px] leading-relaxed text-muted-foreground hidden sm:block">Ex: profissional, consultivo, descontraído, urgente.</p>
                                 </div>
-                                <div className="rounded-xl border border-border/50 bg-card/30 p-2">
-                                  <div className="flex items-center gap-2 text-primary mb-1"><div className="w-5 h-5 rounded flex items-center justify-center bg-primary/10"><TrendUp weight="fill" className="w-3.5 h-3.5" /></div><span className="text-[11px] font-semibold">Resultados esperados</span></div>
-                                  <p className="text-[9px] text-muted-foreground hidden sm:block">Ex: agendar reunião, gerar proposta, fechar venda.</p>
+                                <div className="rounded-xl border border-border/50 bg-card/30 p-3">
+                                  <div className="flex items-center gap-2 text-primary mb-2"><div className="w-6 h-6 rounded flex items-center justify-center bg-primary/10"><TrendUp weight="fill" className="w-3.5 h-3.5" /></div><span className="text-xs font-semibold">Resultados esperados</span></div>
+                                  <p className="text-[10px] leading-relaxed text-muted-foreground hidden sm:block">Ex: agendar reunião, gerar proposta, fechar venda.</p>
                                 </div>
                               </div>
                             </div>
@@ -1633,35 +1633,35 @@ export default function Campaigns() {
                         </div>
                       </div>
 
-                      <div className="rounded-2xl border border-border/70 bg-card/60 p-3 shadow-xl sticky top-4 max-h-[calc(100vh-80px)] overflow-y-auto scrollbar-thin scrollbar-thumb-border">
+                      <div className="rounded-2xl border border-border/70 bg-card/60 p-5 shadow-xl sticky top-4 max-h-[calc(100vh-100px)] overflow-y-auto scrollbar-thin scrollbar-thumb-border">
                         <div className="flex items-start gap-3 mb-3 pb-3 border-b border-border/50">
                           <div className="w-8 h-8 rounded-lg flex items-center justify-center bg-primary/10 text-primary shrink-0 mt-0.5">
                             <Sparkle className="w-4 h-4" weight="fill" />
                           </div>
                           <div className="flex flex-col">
                             <h3 className="font-semibold text-foreground text-sm">Configurações da IA</h3>
-                            <p className="text-[10px] text-muted-foreground mt-0.5">Personalize como a IA irá criar sua campanha.</p>
+                            <p className="text-[11px] text-muted-foreground mt-0.5">Personalize como a IA irá criar sua campanha.</p>
                           </div>
                         </div>
                         
                         <div className="space-y-3">
                           <div>
-                            <Label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-2 block">Atendente IA criador</Label>
+                            <Label className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground mb-3 block">Atendente IA criador</Label>
                             <div className="flex gap-4 items-center">
-                              <div className="relative flex h-16 w-16 shrink-0 items-end justify-center rounded-lg bg-gradient-to-t from-primary/20 to-transparent border border-primary/10 overflow-hidden">
+                              <div className="relative flex h-24 w-24 shrink-0 items-end justify-center rounded-xl bg-gradient-to-t from-primary/20 to-transparent border border-primary/10 overflow-hidden">
                                 <img src={`https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(selectedAiAgentKey || 'Camila')}&backgroundColor=transparent`} alt="Agent" className="w-full h-full object-contain drop-shadow-md pb-1" />
                               </div>
-                              <div className="flex-grow min-w-0">
-                                <h4 className="text-base font-bold text-foreground">{aiAgents.find(a => (a.key || a.name) === selectedAiAgentKey)?.name || selectedAiAgentKey || 'Camila'}</h4>
-                                <p className="text-[10px] text-success flex items-center gap-1 mb-1"><span className="w-1.5 h-1.5 rounded-full bg-success"></span>Online</p>
-                                <p className="text-[10px] text-muted-foreground leading-tight mb-2">Atendente inteligente e especialista em campanhas que convertem.</p>
-                                <Button variant="outline" size="sm" className="w-full rounded-lg text-[10px] h-7 bg-background/30"><ArrowClockwise className="w-3 h-3 mr-1" /> Alterar atendente</Button>
+                              <div className="flex-grow min-w-0 flex flex-col justify-center">
+                                <h4 className="text-lg font-bold text-foreground leading-tight mb-1">{aiAgents.find(a => (a.key || a.name) === selectedAiAgentKey)?.name || selectedAiAgentKey || 'Camila'}</h4>
+                                <p className="text-[11px] text-success flex items-center gap-1.5 mb-1.5 font-medium"><span className="w-1.5 h-1.5 rounded-full bg-success"></span>Online agora</p>
+                                <p className="text-[11px] text-muted-foreground leading-snug mb-3 pr-2">Atendente inteligente especialista em campanhas avançadas e copywriting.</p>
+                                <Button variant="outline" size="sm" className="w-full rounded-lg text-xs h-8 bg-background/50 hover:bg-background/80 hover:text-primary transition-colors border-border/80"><ArrowClockwise className="w-3.5 h-3.5 mr-1.5" /> Trocar atendente</Button>
                               </div>
                             </div>
                           </div>
                           
-                          <div>
-                            <Label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Tipo de lead</Label>
+                          <div className="pt-2">
+                            <Label className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">Tipo de lead</Label>
                             <select
                               value={aiLeadProfile}
                               onChange={(event) => setAiLeadProfile(event.target.value)}
@@ -1673,17 +1673,17 @@ export default function Campaigns() {
                               <option value="cold">Leads frios</option>
                               <option value="inactive">Recuperar inativos</option>
                             </select>
-                            <p className="mt-1 text-[10px] text-muted-foreground">A IA irá adaptar a campanha conforme o tipo de lead.</p>
+                            <p className="mt-1 text-[11px] text-muted-foreground">A IA irá adaptar a campanha conforme o tipo de lead.</p>
                           </div>
 
-                          <div>
-                            <Label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Follow-up após dias</Label>
+                          <div className="pt-2">
+                            <Label className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">Follow-up após dias</Label>
                             <Input value={aiFollowUpDays} onChange={(event) => setAiFollowUpDays(event.target.value)} inputMode="numeric" className="mt-1 h-9 rounded-lg border-border/70 bg-background/60 focus-visible:ring-primary/50" />
-                            <p className="mt-1 text-[10px] text-muted-foreground">Dias após o primeiro contato para iniciar follow-up.</p>
+                            <p className="mt-1 text-[11px] text-muted-foreground">Dias após o primeiro contato para iniciar follow-up.</p>
                           </div>
 
-                          <div>
-                            <Label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Objetivo Principal</Label>
+                          <div className="pt-2">
+                            <Label className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">Objetivo Principal</Label>
                             <select
                               value={aiObjective}
                               onChange={(event) => setAiObjective(event.target.value)}
@@ -1695,11 +1695,11 @@ export default function Campaigns() {
                               <option value="nutrir_lead">Nutrir lead / gerar valor</option>
                               <option value="pesquisa">Pesquisa / Feedback</option>
                             </select>
-                            <p className="mt-1 text-[10px] text-muted-foreground">Qual o principal resultado que deseja alcançar.</p>
+                            <p className="mt-1 text-[11px] text-muted-foreground">Qual o principal resultado que deseja alcançar.</p>
                           </div>
 
-                          <div>
-                            <Label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Tom da Comunicação</Label>
+                          <div className="pt-2">
+                            <Label className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">Tom da Comunicação</Label>
                             <select
                               value={aiTone}
                               onChange={(event) => setAiTone(event.target.value)}
@@ -1710,15 +1710,15 @@ export default function Campaigns() {
                               <option value="urgente">Urgente (escassez / oferta limit)</option>
                               <option value="direto">Direto ao ponto</option>
                             </select>
-                            <p className="mt-1 text-[10px] text-muted-foreground">Define o tom das mensagens que serão geradas.</p>
+                            <p className="mt-1 text-[11px] text-muted-foreground">Define o tom das mensagens que serão geradas.</p>
                           </div>
                           
-                          <div className="pt-2">
-                            <Button type="button" className="w-full rounded-xl bg-primary hover:bg-primary/90 text-primary-foreground shadow-[0_0_20px_-5px_rgba(20,184,116,0.4)]" onClick={() => void generateCampaignFromPrompt()} disabled={isAiCampaignGenerating}>
-                              {isAiCampaignGenerating ? <Clock className="h-4 w-4 animate-spin mr-2" /> : <Sparkle className="h-4 w-4 mr-2" weight="fill" />}
+                          <div className="pt-6">
+                            <Button type="button" className="w-full rounded-xl bg-primary hover:bg-primary/90 text-primary-foreground shadow-[0_0_20px_-5px_rgba(20,184,116,0.4)] h-11 text-sm font-semibold transition-all hover:scale-[1.02]" onClick={() => void generateCampaignFromPrompt()} disabled={isAiCampaignGenerating}>
+                              {isAiCampaignGenerating ? <Clock className="h-5 w-5 animate-spin mr-2" /> : <Sparkle className="h-5 w-5 mr-2" weight="fill" />}
                               {isAiCampaignGenerating ? "Atendente criando..." : "Gerar campanha com IA"}
                             </Button>
-                            <p className="text-center mt-2 text-[10px] text-muted-foreground">A IA irá criar sua campanha completa em segundos.</p>
+                            <p className="text-center mt-3 text-xs text-muted-foreground">A IA criará a estrutura completa da sua campanha.</p>
                           </div>
                         </div>
                       </div>
