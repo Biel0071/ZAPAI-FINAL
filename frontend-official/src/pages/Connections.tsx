@@ -509,7 +509,7 @@ export default function Connections() {
               </Card>
             }
             sessionCards={
-              <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+              <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
                 {safeSessions.map((session) => {
                   const meta = statusMeta(session.status);
                   const normalizedId = normalizeSessionName(session.id);
@@ -528,7 +528,7 @@ export default function Connections() {
                       onClick={isConnected ? () => navigate("/analytics") : undefined}
                     >
                       <div className={meta.lineClass} />
-                      <CardContent className="space-y-3.5 p-4">
+                      <CardContent className="space-y-3 p-3">
                         <div className="flex items-start justify-between gap-3">
                           <div className="flex items-center gap-3 min-w-0">
                             <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-whatsapp/10">

@@ -1875,6 +1875,12 @@ async function shutdownGracefully(signal) {
       io.close();
       await outboundQueueService.shutdownOutboundQueue();
       await enterpriseQueueService.shutdown();
+      
+      // Force flush conversational AI memory to PostgreSQL before shutting down
+      if (app.locals.store) {
+        await aiMemoryEngine.forceFlushMemoryToPostgres(app.locals.store);
+      }
+      
       await systemManager.shutdownSystem(app.locals.store);
       await pool.end().catch((err) => console.error('[SERVER] DB pool end error:', err?.message || err));
       process.exit(0);

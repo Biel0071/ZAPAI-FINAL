@@ -33,6 +33,8 @@ import {
 } from "@phosphor-icons/react";
 import { Header } from "@/components/layout/Header";
 import { CampaignsView, type CampaignsTab } from "@/lovable/pages/CampaignsView";
+import { CampaignContextInput } from '@/components/campaigns/CampaignContextInput';
+import { CampaignPreview } from '@/components/campaigns/CampaignPreview';
 import { ConversionHeatmap } from "@/components/campaigns/ConversionHeatmap";
 import { Stepper } from "@/components/campaigns/Stepper";
 import { LeadKnowledgeGraph } from "@/components/contacts/LeadKnowledgeGraph";
@@ -1505,7 +1507,7 @@ export default function Campaigns() {
               ) : null
             }
             composer={
-              <div className="flex flex-col gap-4">
+<div className="grid grid-cols-1 lg:grid-cols-12 gap-6 w-full"><div className="lg:col-span-8 flex flex-col gap-4">
                 <Card className="glass-card rounded-2xl border-border/70 bg-card/85">
                   <CardContent className="space-y-6 p-6">
                   <div className="flex flex-col gap-6 border-b border-border/50 pb-6">
@@ -1590,50 +1592,7 @@ export default function Campaigns() {
                             </div>
                           </div>
                           <div className="mt-5 space-y-4">
-                            <div className="relative">
-                                <Textarea
-                                  value={aiCampaignPrompt}
-                                  onChange={(event) => setAiCampaignPrompt(event.target.value)}
-                                  placeholder="Descreva sua campanha com o máximo de detalhes possível...&#10;Ex: Quero uma campanha para vender seguro empresarial para leads que já demonstraram interesse."
-                                  className="min-h-[140px] rounded-xl border-border/70 bg-card/50 p-4 text-sm leading-relaxed pb-8"
-                                />
-                              <div className="absolute bottom-3 right-3 text-[10px] text-muted-foreground">{aiCampaignPrompt.length}/4000</div>
-                            </div>
-                            
-                            <div>
-                              <p className="text-xs font-semibold mb-3 text-foreground">Dicas para melhores resultados:</p>
-                              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                                <div className="rounded-xl border border-border/50 bg-card/30 p-3">
-                                  <div className="flex items-center gap-2 text-info mb-2"><div className="w-6 h-6 rounded flex items-center justify-center bg-info/10"><Target weight="fill" className="w-3.5 h-3.5" /></div><span className="text-xs font-semibold">Seja específico</span></div>
-                                  <p className="text-[10px] leading-relaxed text-muted-foreground hidden sm:block">Informe exatamente o que você quer alcançar e para quem.</p>
-                                </div>
-                                <div className="rounded-xl border border-border/50 bg-card/30 p-3">
-                                  <div className="flex items-center gap-2 text-success mb-2"><div className="w-6 h-6 rounded flex items-center justify-center bg-success/10"><Users weight="fill" className="w-3.5 h-3.5" /></div><span className="text-xs font-semibold">Informe o contexto</span></div>
-                                  <p className="text-[10px] leading-relaxed text-muted-foreground hidden sm:block">Diga de onde são os leads e em que etapa estão.</p>
-                                </div>
-                                <div className="rounded-xl border border-border/50 bg-card/30 p-3">
-                                  <div className="flex items-center gap-2 text-primary mb-2"><div className="w-6 h-6 rounded flex items-center justify-center bg-primary/10"><ChatCircle weight="fill" className="w-3.5 h-3.5" /></div><span className="text-xs font-semibold">Defina o tom</span></div>
-                                  <p className="text-[10px] leading-relaxed text-muted-foreground hidden sm:block">Ex: profissional, consultivo, descontraído, urgente.</p>
-                                </div>
-                                <div className="rounded-xl border border-border/50 bg-card/30 p-3">
-                                  <div className="flex items-center gap-2 text-warning mb-2"><div className="w-6 h-6 rounded flex items-center justify-center bg-warning/10"><TrendUp weight="fill" className="w-3.5 h-3.5" /></div><span className="text-xs font-semibold">Resultados esperados</span></div>
-                                  <p className="text-[10px] leading-relaxed text-muted-foreground hidden sm:block">Ex: agendar reunião, gerar proposta, fechar venda.</p>
-                                </div>
-                              </div>
-                            </div>
-
-                            <div className="rounded-xl border border-dashed border-border bg-card/30 p-3 flex items-center justify-between transition-colors hover:bg-card/50 hover:border-primary/50 cursor-pointer">
-                              <div className="flex items-center gap-3">
-                                <div className="w-10 h-10 rounded-lg bg-background/50 flex items-center justify-center text-muted-foreground border border-border/50">
-                                  <Paperclip className="w-5 h-5" />
-                                </div>
-                                <div>
-                                  <p className="text-sm font-medium">Anexar brief ou documento (opcional)</p>
-                                  <p className="text-[10px] text-muted-foreground">PDF, DOC, DOCX, TXT até 10MB</p>
-                                </div>
-                              </div>
-                              <Button variant="outline" size="sm" className="rounded-lg bg-background/50 h-8 text-xs font-medium"><Plus className="w-3 h-3 mr-1"/> Selecionar arquivo</Button>
-                            </div>
+                            <CampaignContextInput value={aiCampaignPrompt} onChange={setAiCampaignPrompt} />
                           </div>
                         </div>
                       </div>
@@ -2562,9 +2521,11 @@ export default function Campaigns() {
                   )}
                 </CardContent>
               </Card>
-            </div>
-            }
-            listSection={
+</div>
+<div className="lg:col-span-4 flex flex-col gap-4 sticky top-6 self-start"><CampaignPreview payload={{ objective: aiCampaignPrompt, audience: "Geral", steps: messageVariants.map((m,i)=>({ delay: i===0?"":"1 dia", message: m.content, mediaType: m.type, mediaName: m.mediaName })) }} /></div>
+</div>
+}
+listSection={
               <>
                 {/* ─── Painel de Agendamentos ─── */}
                 {campaigns.some((c) => c.status === "scheduled") && (

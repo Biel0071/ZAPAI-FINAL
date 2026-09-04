@@ -57,6 +57,10 @@
     --radius: 0.75rem;
 
     /* Sidebar - Dark theme */
+    --sidebar-width: 16rem;
+    --sidebar-width-collapsed: 4rem;
+    --header-height: 4rem;
+    
     --sidebar-background: 226 40% 7%;
     --sidebar-foreground: 220 24% 92%;
     --sidebar-primary: 142 70% 45%;

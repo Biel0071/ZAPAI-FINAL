@@ -63,7 +63,7 @@ export function HeaderShell({
 
   return (
     <header className="sticky top-0 z-40 shrink-0 border-b border-border/70 bg-card/60 backdrop-blur-xl">
-      <div className="flex h-16 items-center justify-between gap-3 px-4 pl-14 md:gap-4 md:px-6 md:pl-6">
+      <div className="flex h-header items-center justify-between gap-3 px-4 pl-14 md:gap-4 md:px-6 md:pl-6">
         <div className="flex items-center gap-3">
           <div className="relative">
             <MagnifyingGlass className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />

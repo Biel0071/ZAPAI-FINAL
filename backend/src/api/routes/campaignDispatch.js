@@ -11,7 +11,10 @@
 
 const express = require('express');
 const router = express.Router();
+const multer = require('multer');
+const upload = multer({ dest: 'uploads/' });
 const campaignDispatchEngine = require('../../../services/campaignDispatchEngine');
+const contextService = require('../../../services/contextService');
 
 function safeJson(res, data, status = 200) {
   try {
@@ -110,6 +113,23 @@ router.post('/campaigns/preview-audience', async (req, res) => {
     return safeJson(res, result);
   } catch (error) {
     return safeJson(res, { success: false, error: error?.message || 'Audience estimation failed' }, 400);
+  }
+});
+
+// Parse Context File
+router.post('/campaigns/parse-context', upload.single('file'), async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ success: false, error: 'Nenhum arquivo enviado.' });
+    }
+    const text = await contextService.extractTextFromFile(req.file.path, req.file.mimetype);
+    // Optional: cleanup the file
+    const fs = require('fs');
+    fs.unlink(req.file.path, (err) => { if (err) console.error('Erro ao deletar arquivo de contexto', err) });
+    
+    return res.json({ success: true, text });
+  } catch (error) {
+    return res.status(500).json({ success: false, error: error.message || 'Erro ao processar arquivo' });
   }
 });
 

@@ -157,6 +157,28 @@ async function flushMemoryToPostgres(store, companyId = DEFAULT_COMPANY_ID) {
   return flushInFlight;
 }
 
+async function forceFlushMemoryToPostgres(store, companyId = DEFAULT_COMPANY_ID) {
+  if (!Array.isArray(store?.conversationMemory)) return 0;
+  if (store?.databaseEnabled === false) return 0;
+
+  console.log('[AIMemory] Force flushing memory to PostgreSQL before shutdown...');
+  let flushed = 0;
+  const entries = store.conversationMemory;
+
+  for (let i = 0; i < entries.length; i += FLUSH_BATCH_SIZE) {
+    const batch = entries.slice(i, i + FLUSH_BATCH_SIZE);
+    for (const entry of batch) {
+      if (entry?.contact_id) {
+        await persistMemoryEntry(entry, companyId);
+        flushed += 1;
+      }
+    }
+  }
+
+  console.log(`[AIMemory] Successfully force flushed ${flushed} entries.`);
+  return flushed;
+}
+
 // ─── Ensure Database Table ───
 
 async function ensureMemoryTable() {
@@ -247,6 +269,7 @@ module.exports = {
   // Persistence
   ensureMemoryTable,
   flushMemoryToPostgres,
+  forceFlushMemoryToPostgres,
   loadMemoryFromPostgres,
   persistMemoryEntry,
 

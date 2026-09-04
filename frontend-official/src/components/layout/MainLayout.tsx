@@ -29,11 +29,11 @@ export function MainLayout() {
       <main
         className={cn(
           "h-screen transition-all duration-200 animate-fade-in scrollbar-thin",
-          isMobile
-            ? "ml-0 w-full"
-            : collapsed
-              ? "ml-[88px] w-[calc(100%-88px)]"
-              : "ml-[288px] w-[calc(100%-288px)]",
+            isMobile
+              ? "ml-0 w-full"
+              : collapsed
+                ? "ml-[var(--sidebar-width-collapsed)] w-[calc(100%-var(--sidebar-width-collapsed))]"
+                : "ml-[var(--sidebar-width)] w-[calc(100%-var(--sidebar-width))]",
           isInbox ? "overflow-hidden" : "overflow-y-auto overflow-x-hidden"
         )}
       >

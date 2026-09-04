@@ -109,7 +109,7 @@ export function ContactsView({
       {loading ? (
         <StatGridSkeleton count={3} />
       ) : (
-        <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
           {viewModel.summaryCards.map((card) => {
             const cardSegment = card.segment;
             const isActive = activeSegment === cardSegment;
@@ -132,7 +132,7 @@ export function ContactsView({
         </div>
       )}
 
-      <div className="grid gap-6 xl:grid-cols-[280px_minmax(0,1fr)]">
+      <div className="grid gap-4 xl:grid-cols-[280px_minmax(0,1fr)]">
         <ContactSidebar activeSegment={activeSegment} counts={counts} onSegmentChange={onSegmentChange} />
 
         <div className="space-y-4">
@@ -193,7 +193,7 @@ export function ContactsView({
               </CardContent>
             </Card>
           ) : null}
-          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
             <Card
               className={cn(
                 "glass-card rounded-2xl border-border/70 hover-lift cursor-pointer transition-all hover:scale-[1.02] hover:bg-card/95 select-none",
@@ -245,7 +245,7 @@ export function ContactsView({
 
           {selectedIds.size > 0 && (
             <Card className="border-primary/50 bg-primary/5 rounded-2xl shadow-glow">
-              <CardContent className="flex flex-col gap-4 p-4 sm:flex-row sm:items-center sm:justify-between">
+              <CardContent className="flex flex-col gap-3 p-3 sm:flex-row sm:items-center sm:justify-between">
                 <div className="flex items-center gap-3">
                   <span className="text-sm font-medium text-primary">
                     {selectedIds.size} {selectedIds.size === 1 ? "contato selecionado" : "contatos selecionados"}
@@ -357,7 +357,7 @@ export function ContactsView({
               </CardContent>
             </Card>
           ) : (
-            <div className="space-y-4">
+            <div className="space-y-3">
               <div className="flex items-center justify-between">
                 <OperationalStatusBadge label="Base sincronizada" tone="online" />
                 <div className="flex items-center gap-2">

@@ -129,7 +129,7 @@ export function Sidebar() {
     }
   }, [location.pathname]);
 
-  const sidebarWidth = useMemo(() => (collapsed ? 88 : 288), [collapsed]);
+  const sidebarWidth = useMemo(() => (collapsed ? "var(--sidebar-width-collapsed)" : "var(--sidebar-width)"), [collapsed]);
 
   const renderNavItem = (item: SidebarNavItem, compact: boolean, keyPrefix: string) => {
     const targetPathname = item.path.split("?")[0];

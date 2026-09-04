@@ -13,6 +13,11 @@ export default {
       },
     },
     extend: {
+      spacing: {
+        'sidebar': '16rem',
+        'sidebar-collapsed': '4rem',
+        'header': '4rem',
+      },
       fontFamily: {
         sans: ['Inter', 'sans-serif'],
         display: ['Outfit', 'sans-serif'],

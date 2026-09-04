@@ -1904,6 +1904,12 @@ export const apiService = {
   },
   createCampaign: (payload: Partial<CampaignRecord> & Record<string, unknown>) =>
     request<CampaignRecord>({ endpoint: "/api/campaigns", method: "POST", body: payload }),
+  parseContext: (formData: FormData) => axios.post(`${API_BASE_URL}/api/campaigns/parse-context`, formData, {
+    headers: {
+      ...buildApiHeaders(),
+      "Content-Type": "multipart/form-data",
+    }
+  }).then(res => res.data as { success: boolean; text: string; error?: string }),
   updateCampaign: (campaignId: string, payload: Partial<CampaignRecord> & Record<string, unknown>) =>
     request<CampaignRecord>({ endpoint: `/api/campaigns/${encodeURIComponent(campaignId)}`, method: "PUT", body: payload }),
   deleteCampaign: (campaignId: string) =>
