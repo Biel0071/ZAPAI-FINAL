@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
@@ -55,9 +56,26 @@ export function LeadMemoryGraphModal({ isOpen, onClose, lead }: LeadMemoryGraphM
   ];
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-xs p-4 animate-in fade-in-0 duration-200">
-      <div className="w-full max-w-4xl max-h-[90vh] bg-card border border-border/80 rounded-2xl shadow-2xl flex flex-col overflow-hidden">
-        {/* Header */}
+    <AnimatePresence>
+      {isOpen && lead && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.3 }}
+          className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4"
+        >
+          <motion.div
+            initial={{ scale: 0.95, opacity: 0, y: 20 }}
+            animate={{ scale: 1, opacity: 1, y: 0 }}
+            exit={{ scale: 0.95, opacity: 0, y: 20 }}
+            transition={{ type: "spring", bounce: 0.3, duration: 0.5 }}
+            className="w-full max-w-4xl max-h-[90vh] bg-card/95 border border-border/60 rounded-2xl shadow-2xl shadow-emerald-500/10 flex flex-col overflow-hidden relative"
+          >
+            {/* Inner Glow / Glass Reflection */}
+            <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/20 to-transparent pointer-events-none" />
+            
+            {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-border/60 bg-muted/20">
           <div className="flex items-center gap-3">
             <div className="h-12 w-12 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-emerald-400">
@@ -112,24 +130,40 @@ export function LeadMemoryGraphModal({ isOpen, onClose, lead }: LeadMemoryGraphM
               </div>
 
               {/* Node Graph Visualizer Grid */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
+              <motion.div 
+                className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4"
+                initial="hidden"
+                animate="visible"
+                variants={{
+                  visible: { transition: { staggerChildren: 0.08 } },
+                  hidden: {}
+                }}
+              >
                 {nodes.map((node, i) => {
                   const Icon = node.icon;
                   return (
-                    <Card
+                    <motion.div
                       key={node.type}
-                      className={`relative rounded-2xl border p-4 transition-all duration-200 hover:scale-[1.03] ${node.color}`}
+                      variants={{
+                        hidden: { opacity: 0, scale: 0.8, y: 15 },
+                        visible: { opacity: 1, scale: 1, y: 0, transition: { type: "spring", bounce: 0.4 } }
+                      }}
+                      whileHover={{ scale: 1.03 }}
                     >
-                      <div className="flex items-center gap-2 mb-2">
-                        <Icon size={20} weight="duotone" />
-                        <span className="text-[10px] font-bold uppercase tracking-wider">{node.type}</span>
-                      </div>
-                      <h5 className="font-bold text-sm text-foreground truncate">{node.title}</h5>
-                      <p className="text-xs text-muted-foreground mt-0.5">{node.sub}</p>
-                    </Card>
+                      <Card
+                        className={`relative h-full rounded-2xl border p-4 transition-colors ${node.color} border-transparent bg-origin-border [background-image:linear-gradient(to_bottom,var(--border)_0%,transparent_100%)]`}
+                      >
+                        <div className="flex items-center gap-2 mb-2">
+                          <Icon size={20} weight="duotone" />
+                          <span className="text-[10px] font-bold uppercase tracking-[0.1em]">{node.type}</span>
+                        </div>
+                        <h5 className="font-bold text-sm text-foreground truncate">{node.title}</h5>
+                        <p className="text-xs text-muted-foreground mt-0.5">{node.sub}</p>
+                      </Card>
+                    </motion.div>
                   );
                 })}
-              </div>
+              </motion.div>
 
               <div className="p-4 rounded-xl border border-emerald-500/20 bg-emerald-500/10 text-xs text-emerald-300 flex items-center justify-between">
                 <div className="flex items-center gap-2">
@@ -150,11 +184,12 @@ export function LeadMemoryGraphModal({ isOpen, onClose, lead }: LeadMemoryGraphM
             <div className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {/* Resumo & Perfil */}
-                <Card className="rounded-2xl border-border/80 bg-card p-4 space-y-3">
-                  <h4 className="text-xs font-bold uppercase tracking-wider text-primary flex items-center gap-1.5">
+                <Card className="rounded-2xl border-transparent bg-origin-border [background-image:linear-gradient(to_bottom,var(--border)_0%,transparent_100%)] bg-card/60 p-4 space-y-3 relative overflow-hidden">
+                  <div className="absolute inset-x-0 top-0 h-px bg-white/5" />
+                  <h4 className="text-xs font-bold uppercase tracking-[0.1em] text-primary flex items-center gap-1.5">
                     <Brain size={16} /> Resumo Executivo & Perfil IA
                   </h4>
-                  <p className="text-xs leading-relaxed text-muted-foreground">
+                  <p className="text-xs leading-relaxed text-muted-foreground text-balance">
                     {lead.summary ||
                       "Ainda não há dados suficientes para gerar o resumo executivo e perfil da IA. A memória será indexada após as interações iniciais."}
                   </p>
@@ -218,8 +253,9 @@ export function LeadMemoryGraphModal({ isOpen, onClose, lead }: LeadMemoryGraphM
             </div>
           )}
         </div>
-      </div>
-    </div>
+      </motion.div>
+      )}
+    </AnimatePresence>
   );
 }
 

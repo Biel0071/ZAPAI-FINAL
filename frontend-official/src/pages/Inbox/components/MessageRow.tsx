@@ -1,4 +1,5 @@
 import { memo, useState, useEffect, useRef } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import {
   ArrowBendUpRight,
   CopySimple,
@@ -551,8 +552,16 @@ export const MessageRow = memo(function MessageRow({
           </button>
         )}
 
+        <AnimatePresence>
         {isMenuOpen && (
-          <div className={cn("absolute z-20 mt-1 w-40 rounded-lg border border-border bg-popover p-1 shadow-lg", message.fromMe ? "right-0" : "left-0")}>
+          <motion.div 
+            initial={{ opacity: 0, scale: 0.95, y: -5 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.95, y: -5 }}
+            transition={{ type: "spring", bounce: 0.2, duration: 0.4 }}
+            className={cn("absolute z-20 mt-1 w-40 rounded-xl border border-transparent bg-origin-border [background-image:linear-gradient(to_bottom,var(--border)_0%,transparent_100%)] bg-popover/95 backdrop-blur-md p-1 shadow-xl shadow-black/20", message.fromMe ? "right-0" : "left-0")}
+          >
+            <div className="absolute inset-x-0 top-0 h-px bg-white/10 rounded-t-xl pointer-events-none" />
             <button
               type="button"
               className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-xs hover:bg-muted"
@@ -604,23 +613,34 @@ export const MessageRow = memo(function MessageRow({
                 Excluir para todos
               </button>
             )}
-          </div>
+          </motion.div>
         )}
+        </AnimatePresence>
 
+        <AnimatePresence>
         {isReactionPickerOpen && (
-          <div className={cn("absolute z-20 mt-1 flex items-center gap-1 rounded-full border border-border bg-popover p-1 shadow-lg", message.fromMe ? "right-0" : "left-0")}>
+          <motion.div
+            initial={{ opacity: 0, scale: 0.8, y: 10 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.8, y: 10 }}
+            transition={{ type: "spring", bounce: 0.5, duration: 0.5 }}
+            className={cn("absolute z-20 mt-1 flex items-center gap-1.5 rounded-full border border-border/60 bg-popover/95 backdrop-blur-md p-1 shadow-xl shadow-black/20", message.fromMe ? "right-0" : "left-0")}
+          >
             {EMOJI_OPTIONS.slice(0, 6).map((emoji) => (
-              <button
+              <motion.button
+                whileTap={{ scale: 0.8 }}
+                whileHover={{ scale: 1.2 }}
                 key={`${message.id}-${emoji}`}
                 type="button"
                 onClick={() => onReact(message.id, emoji)}
                 className={cn("rounded-full px-1.5 py-0.5 text-sm transition-colors", reaction === emoji ? "bg-primary/15" : "hover:bg-muted")}
               >
                 {emoji}
-              </button>
+              </motion.button>
             ))}
-          </div>
+          </motion.div>
         )}
+        </AnimatePresence>
       </div>
 
       {message.fromMe && (

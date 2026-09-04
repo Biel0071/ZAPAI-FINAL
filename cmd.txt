@@ -1,7 +1,0 @@
-cd /workspace
-git fetch origin
-git reset --hard origin/main
-
-echo "=== REBUILDING CONTAINERS ==="
-docker compose build api
-docker compose up -d api

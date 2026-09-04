@@ -393,18 +393,26 @@ export function ContactsView({
                     return (
                       <div
                         key={stage}
-                        className="rounded-2xl border border-border/75 bg-card/65 p-3 min-w-[250px] flex flex-col gap-2 min-h-[500px]"
-                        onDragOver={(e) => e.preventDefault()}
+                        className="rounded-2xl border border-transparent bg-origin-border [background-image:linear-gradient(to_bottom,var(--border)_0%,transparent_100%)] bg-card/40 backdrop-blur-md p-3 min-w-[250px] flex flex-col gap-2 min-h-[500px] shadow-sm relative overflow-hidden"
+                        onDragOver={(e) => {
+                          e.preventDefault();
+                          e.currentTarget.classList.add('bg-card/60');
+                        }}
+                        onDragLeave={(e) => {
+                          e.currentTarget.classList.remove('bg-card/60');
+                        }}
                         onDrop={(e) => {
                           e.preventDefault();
+                          e.currentTarget.classList.remove('bg-card/60');
                           const contactId = e.dataTransfer.getData("contactId");
                           if (contactId && onUpdateContact) {
                             onUpdateContact(contactId, { funnel_stage: stage });
                           }
                         }}
                       >
+                        <div className="absolute inset-x-0 top-0 h-px bg-white/5 pointer-events-none" />
                         <div className="flex items-center justify-between pb-2 border-b border-border/40 mb-1">
-                          <span className="font-bold text-xs capitalize text-foreground">
+                          <span className="font-bold text-xs capitalize text-foreground tracking-[0.05em]">
                             {stageLabels[stage] || stage}
                           </span>
                           <Badge variant="secondary" className="text-[10px] rounded-full">
@@ -425,9 +433,9 @@ export function ContactsView({
                                   }
                                   e.dataTransfer.setData("contactId", contact.id);
                                 }}
-                                className={`rounded-xl border border-border/50 bg-background/55 p-3 space-y-2 transition-all select-none ${
+                                className={`rounded-xl border border-border/50 bg-background/55 p-3 space-y-2 transition-all duration-300 select-none ${
                                   hasConv
-                                    ? "cursor-grab active:cursor-grabbing hover:border-primary/45 hover:shadow-sm"
+                                    ? "cursor-grab active:cursor-grabbing hover:border-primary/45 hover:shadow-md hover:-translate-y-0.5 hover:bg-background/80"
                                     : "opacity-60 cursor-not-allowed"
                                 }`}
                               >
