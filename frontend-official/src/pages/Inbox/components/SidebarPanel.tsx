@@ -285,46 +285,48 @@ const SharedMediaCard = memo(function SharedMediaCard({
 
         {/* Hover overlay with download and attach actions */}
         {mediaUrl && !assetError && (
-          <div className="absolute inset-0 bg-emerald-950/80 opacity-0 group-hover:opacity-100 transition-all duration-300 flex flex-col items-center justify-center gap-2 p-3 z-10 backdrop-blur-sm">
+        <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-all duration-200 flex items-center justify-center gap-2 z-10">
             <Button
               type="button"
-              variant="default"
-              size="sm"
-              className="h-8 w-full text-[11px] rounded-full bg-emerald-500 hover:bg-emerald-400 text-white gap-1.5 justify-center font-semibold shadow-[0_0_15px_rgba(16,185,129,0.4)] border-none"
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 rounded-full bg-emerald-500/90 hover:bg-emerald-400 text-white"
               onClick={(e) => {
                 e.stopPropagation();
                 if (onAttachMedia) onAttachMedia(message);
               }}
+              title="Anexar"
             >
-              <Paperclip className="h-3.5 w-3.5" /> Anexar
+              <Paperclip className="h-3.5 w-3.5" />
             </Button>
             <Button
               type="button"
-              variant="secondary"
-              size="sm"
-              className="h-8 w-full text-[11px] rounded-full bg-white/10 hover:bg-white/20 text-white border border-white/20 gap-1.5 justify-center font-semibold"
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 rounded-full bg-white/20 hover:bg-white/30 text-white"
               onClick={(e) => {
                 e.stopPropagation();
                 onDownloadMedia(message);
               }}
+              title="Baixar"
             >
-              <DownloadSimple className="h-3.5 w-3.5" /> Baixar
+              <DownloadSimple className="h-3.5 w-3.5" />
             </Button>
           </div>
         )}
       </div>
-      <div className="mt-2.5 space-y-0.5">
-        <p className="truncate text-[11px] font-semibold text-foreground/90" title={fileName}>{fileName}</p>
-        <p className="truncate text-[10px] text-muted-foreground/80">
-          {getMediaTypeLabel(mediaType)} • {assetSize ? formatFileSize(assetSize) : "Tamanho n/d"}
+      <div className="mt-1.5 space-y-0.5">
+        <p className="truncate text-[10px] font-semibold text-foreground/90" title={fileName}>{fileName}</p>
+        <p className="truncate text-[9px] text-muted-foreground/80">
+          {getMediaTypeLabel(mediaType)} • {assetSize ? formatFileSize(assetSize) : ""}
         </p>
       </div>
-      <div className="mt-2.5 flex items-center gap-1.5">
+      <div className="mt-1.5 flex items-center gap-1">
         <Button
           type="button"
           variant="secondary"
           size="sm"
-          className="h-7 flex-1 text-[10px] rounded-lg bg-background/50 hover:bg-primary/10 hover:text-primary transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+          className="h-6 flex-1 text-[9px] rounded-md bg-background/50 hover:bg-primary/10 hover:text-primary transition-all disabled:opacity-40 disabled:cursor-not-allowed"
           disabled={!mediaUrl || Boolean(assetError)}
           onClick={() => {
             if (!mediaUrl) return;
@@ -337,7 +339,7 @@ const SharedMediaCard = memo(function SharedMediaCard({
           type="button"
           variant="secondary"
           size="sm"
-          className="h-7 flex-1 text-[10px] rounded-lg bg-background/50 hover:bg-primary/10 hover:text-primary transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+          className="h-6 flex-1 text-[9px] rounded-md bg-background/50 hover:bg-primary/10 hover:text-primary transition-all disabled:opacity-40 disabled:cursor-not-allowed"
           disabled={!mediaUrl || Boolean(assetError)}
           onClick={() => onDownloadMedia(message)}
         >
@@ -826,11 +828,11 @@ export function SidebarPanel({
             })}
         </div>
       )}
-      <div className="flex items-center gap-1.5 pt-1">
+      <div className="flex items-center gap-1 pt-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
         <Button
           size="sm"
           className={cn(
-            "h-8 flex-grow text-[11px] font-bold rounded-lg shadow-sm transition-all border-none",
+            "h-6 px-2.5 text-[10px] font-bold rounded-md shadow-sm transition-all border-none",
             item.isFlow ? "bg-purple-600 hover:bg-purple-500 text-white" : "bg-emerald-500 hover:bg-emerald-400 text-white"
           )}
           onClick={(e) => {
@@ -838,84 +840,60 @@ export function SidebarPanel({
             void sendQuickReply(item);
           }}
         >
-          {item.isFlow ? (
-            <>
-              <PaperPlaneTilt className="mr-1.5 h-4 w-4" weight="fill" /> Disparar
-            </>
-          ) : (
-            <>
-              <PaperPlaneTilt className="mr-1.5 h-4 w-4" weight="fill" /> Enviar
-            </>
-          )}
+          <PaperPlaneTilt className="mr-1 h-3 w-3" weight="fill" />
+          {item.isFlow ? "Disparar" : "Enviar"}
         </Button>
-        <div className="flex gap-1">
-          <Button
-            size="icon"
-            variant="outline"
-            className={cn(
-              "h-8 w-8 rounded-lg border-border/50 transition-colors",
-              item.favorite ? "bg-amber-500/10 text-amber-500 border-amber-500/20 hover:bg-amber-500/20" : "text-muted-foreground hover:bg-muted/50 hover:text-foreground"
-            )}
-            onClick={(e) => {
-              e.stopPropagation();
-              toggleFavoriteQuickReply(item.id);
-            }}
-            title="Favoritar"
-          >
-            <Star
-              className="h-4 w-4"
-              weight={item.favorite ? "fill" : "regular"}
-            />
-          </Button>
-          <Button
-            size="icon"
-            variant="outline"
-            className="h-8 w-8 rounded-lg border-border/50 text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
-            onClick={(e) => {
-              e.stopPropagation();
-              openEditQuickReplyDialog(item);
-            }}
-            title="Editar"
-          >
-            <PencilSimple className="h-4 w-4" />
-          </Button>
-          <Button
-            size="icon"
-            variant="outline"
-            className="h-8 w-8 rounded-lg border-border/50 text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
-            onClick={(e) => {
-              e.stopPropagation();
-              duplicateQuickReply(item);
-            }}
-            title="Duplicar"
-          >
-            <CopySimple className="h-4 w-4" />
-          </Button>
-          <Button
-            size="icon"
-            variant="outline"
-            className="h-8 w-8 rounded-lg border-border/50 text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
-            onClick={(e) => {
-              e.stopPropagation();
-              duplicateQuickReply(item);
-            }}
-            title="Duplicar"
-          >
-            <CopySimple className="h-4 w-4" />
-          </Button>
-          <Button
-            size="icon"
-            variant="outline"
-            className="h-8 w-8 rounded-lg border-border/50 text-muted-foreground hover:text-destructive hover:bg-destructive/10 hover:border-destructive/20 transition-colors"
-            onClick={(e) => {
-              e.stopPropagation();
-              deleteQuickReply(item.id);
-            }}
-            title="Excluir"
-          >
-            <Trash className="h-4 w-4" />
-          </Button>
-        </div>
+        <Button
+          size="icon"
+          variant="ghost"
+          className={cn(
+            "h-6 w-6 rounded-md transition-colors",
+            item.favorite ? "text-amber-500 hover:bg-amber-500/20" : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
+          )}
+          onClick={(e) => {
+            e.stopPropagation();
+            toggleFavoriteQuickReply(item.id);
+          }}
+          title="Favoritar"
+        >
+          <Star className="h-3 w-3" weight={item.favorite ? "fill" : "regular"} />
+        </Button>
+        <Button
+          size="icon"
+          variant="ghost"
+          className="h-6 w-6 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
+          onClick={(e) => {
+            e.stopPropagation();
+            openEditQuickReplyDialog(item);
+          }}
+          title="Editar"
+        >
+          <PencilSimple className="h-3 w-3" />
+        </Button>
+        <Button
+          size="icon"
+          variant="ghost"
+          className="h-6 w-6 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
+          onClick={(e) => {
+            e.stopPropagation();
+            duplicateQuickReply(item);
+          }}
+          title="Duplicar"
+        >
+          <CopySimple className="h-3 w-3" />
+        </Button>
+        <Button
+          size="icon"
+          variant="ghost"
+          className="h-6 w-6 rounded-md text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+          onClick={(e) => {
+            e.stopPropagation();
+            deleteQuickReply(item.id);
+          }}
+          title="Excluir"
+        >
+          <Trash className="h-3 w-3" />
+        </Button>
       </div>
     </div>
   );
@@ -1075,7 +1053,7 @@ export function SidebarPanel({
               </div>
 
               {/* Footer animado */}
-              <div className="mt-4 flex flex-col items-center justify-center gap-1 py-3 rounded-xl bg-emerald-500/[0.04] border border-emerald-500/10 shadow-[inset_0_0_15px_rgba(16,185,129,0.02)]">
+              <div className="mt-3 flex flex-col items-center justify-center gap-1 py-2.5 rounded-xl bg-emerald-500/[0.04] border border-emerald-500/10">
                 <div className="flex items-center gap-1.5">
                   <Brain className="h-3.5 w-3.5 text-emerald-500 animate-pulse" />
                   <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-600/90 dark:text-emerald-400/90">
@@ -1084,23 +1062,9 @@ export function SidebarPanel({
                 </div>
                 <span className="text-[9px] text-muted-foreground/80 font-medium">Respostas mais rápidas, leads mais qualificados.</span>
               </div>
-            </div>
 
-            {/* Nova seção de Controles e Métricas IA */}
-            <div className="rounded-xl border border-border/40 bg-card/25 p-3.5 shadow-sm space-y-4 mt-3">
-              <div className="flex items-center justify-between border-b border-border/10 pb-3">
-                <div className="flex items-center gap-2">
-                  <div className="flex h-8 w-8 items-center justify-center rounded-full bg-blue-500/10">
-                    <Bot className="h-4 w-4 text-blue-500" />
-                  </div>
-                  <div>
-                    <h4 className="text-[13px] font-bold text-foreground">Configurações e Métricas</h4>
-                    <p className="text-[10px] text-muted-foreground">Controles do Agente</p>
-                  </div>
-                </div>
-              </div>
-              
-              <div className="space-y-3">
+              {/* Controles e Métricas — integrado no mesmo card */}
+              <div className="space-y-2.5 pt-3 border-t border-border/10">
                 <div className="flex items-center justify-between">
                   <span className="text-[11px] font-semibold text-foreground/80">Atendimento por IA</span>
                   <Switch
@@ -1110,13 +1074,13 @@ export function SidebarPanel({
                   />
                 </div>
 
-                <div className="space-y-1.5">
-                  <span className="text-[11px] font-semibold text-foreground/80">Agente de IA</span>
+                <div className="space-y-1">
+                  <span className="text-[10px] font-semibold text-muted-foreground">Agente de IA</span>
                   <select
                     value={(selectedConversation as any)?.ai_agent || ""}
                     onChange={(e) => handleSetConversationAgent && handleSetConversationAgent(e.target.value)}
                     disabled={loadingAgents}
-                    className="w-full h-8 rounded-lg border border-border bg-background/50 px-2 text-xs outline-none focus:ring-1 focus:ring-emerald-500 focus:border-emerald-500 text-foreground"
+                    className="w-full h-7 rounded-lg border border-border bg-background/50 px-2 text-[11px] outline-none focus:ring-1 focus:ring-emerald-500 focus:border-emerald-500 text-foreground"
                   >
                     <option value="" disabled>Selecione um agente</option>
                     {(aiAgents || []).map((agent) => (
@@ -1126,33 +1090,31 @@ export function SidebarPanel({
                 </div>
 
                 {aiRuntime.model && (
-                  <div className="flex items-center gap-2 bg-muted/30 p-2 rounded-lg border border-border/30">
+                  <div className="flex items-center gap-2 bg-muted/20 p-2 rounded-lg border border-border/20">
                     {(() => {
                       const ProviderIcon = getProviderIcon(aiRuntime.provider);
-                      return <ProviderIcon className="h-4 w-4 text-muted-foreground" />;
+                      return <ProviderIcon className="h-3.5 w-3.5 text-muted-foreground" />;
                     })()}
                     <div className="flex-grow min-w-0">
-                      <p className="text-[10px] text-muted-foreground capitalize">{aiRuntime.provider}</p>
-                      <p className="text-[11px] font-semibold text-foreground truncate">{aiRuntime.model}</p>
+                      <p className="text-[9px] text-muted-foreground capitalize">{aiRuntime.provider}</p>
+                      <p className="text-[10px] font-semibold text-foreground truncate">{aiRuntime.model}</p>
                     </div>
                     {(!((selectedConversation as any)?.assignedAgentName)) && (
-                      <span className="text-[9px] bg-muted border border-border/50 px-1.5 py-0.5 rounded text-muted-foreground font-semibold shrink-0">Padrão</span>
+                      <span className="text-[8px] bg-muted border border-border/50 px-1 py-0.5 rounded text-muted-foreground font-semibold shrink-0">Padrão</span>
                     )}
                   </div>
                 )}
 
-                <details className="group border border-border/30 rounded-lg bg-muted/20">
-                  <summary className="text-[11px] font-semibold text-foreground/80 cursor-pointer p-2 list-none flex justify-between items-center">
-                    Mais Métricas
-                    <CaretRight className="h-3 w-3 transition-transform group-open:rotate-90 text-muted-foreground" />
+                <details className="group border border-border/20 rounded-lg bg-muted/10">
+                  <summary className="text-[10px] font-semibold text-muted-foreground cursor-pointer p-1.5 list-none flex justify-between items-center">
+                    Métricas
+                    <CaretRight className="h-2.5 w-2.5 transition-transform group-open:rotate-90 text-muted-foreground" />
                   </summary>
-                  <div className="p-2 pt-0 text-[10px] text-muted-foreground space-y-1">
-                    <div className="flex justify-between"><span>Status da Memória:</span> <span className="font-medium text-foreground">{aiLiveInsights.isFromDb ? "Sincronizada" : "Local"}</span></div>
+                  <div className="px-1.5 pb-1.5 text-[9px] text-muted-foreground space-y-0.5">
+                    <div className="flex justify-between"><span>Memória:</span> <span className="font-medium text-foreground">{aiLiveInsights.isFromDb ? "Sincronizada" : "Local"}</span></div>
                     <div className="flex justify-between"><span>Última Resposta:</span> <span className="font-medium text-foreground">{formatRelativeTime(aiRuntime.lastResponseAt || conversationMetrics.lastAiResponseAt)}</span></div>
                     <div className="flex justify-between"><span>Latência:</span> <span className="font-medium text-foreground">{conversationMetrics.lastAiResponseTimeMs ? `${conversationMetrics.lastAiResponseTimeMs}ms` : "N/D"}</span></div>
-                    <div className="flex justify-between"><span>Tokens (Prompt):</span> <span className="font-medium text-foreground">{aiRuntime.promptTokens || 0}</span></div>
-                    <div className="flex justify-between"><span>Tokens (Completion):</span> <span className="font-medium text-foreground">{aiRuntime.completionTokens || 0}</span></div>
-                    <div className="flex justify-between"><span>Total Tokens:</span> <span className="font-medium text-foreground">{(aiRuntime.promptTokens || 0) + (aiRuntime.completionTokens || 0)}</span></div>
+                    <div className="flex justify-between"><span>Tokens:</span> <span className="font-medium text-foreground">{(aiRuntime.promptTokens || 0) + (aiRuntime.completionTokens || 0)}</span></div>
                   </div>
                 </details>
               </div>
@@ -1550,8 +1512,8 @@ export function SidebarPanel({
                 </div>
               </div>
               
-              <div className="flex items-center justify-between">
-                <div className="flex flex-wrap gap-1.5">
+              <div className="flex items-center gap-1.5">
+                <div className="flex flex-wrap gap-1">
                   {(
                     [
                       { value: "all", label: "Todos", icon: Folder },
@@ -1567,8 +1529,8 @@ export function SidebarPanel({
                         size="sm"
                         variant={fileFilter === option.value ? "default" : "outline"}
                         className={cn(
-                          "h-7 rounded-full px-3 text-[11px] font-semibold flex items-center gap-1.5 transition-all",
-                          fileFilter === option.value ? "bg-emerald-500 text-white border-none shadow-[0_0_10px_rgba(16,185,129,0.2)]" : "bg-card text-muted-foreground hover:bg-muted/50 border-border/50"
+                          "h-6 rounded-full px-2 text-[10px] font-semibold flex items-center gap-1 transition-all",
+                          fileFilter === option.value ? "bg-emerald-500 text-white border-none shadow-sm" : "bg-card text-muted-foreground hover:bg-muted/50 border-border/50"
                         )}
                         onClick={() => setFileFilter(option.value)}
                       >
@@ -1578,12 +1540,12 @@ export function SidebarPanel({
                     );
                   })}
                 </div>
-                <div className="flex items-center gap-1 shrink-0 ml-2">
-                  <Button variant="outline" size="icon" className="h-7 w-7 rounded-full border-border/50 text-muted-foreground hover:text-foreground">
-                    <MagnifyingGlass className="h-3.5 w-3.5" />
+                <div className="flex items-center gap-1 shrink-0">
+                  <Button variant="ghost" size="icon" className="h-6 w-6 rounded-full text-muted-foreground hover:text-foreground">
+                    <MagnifyingGlass className="h-3 w-3" />
                   </Button>
-                  <Button variant="outline" size="icon" className="h-7 w-7 rounded-full border-border/50 text-muted-foreground hover:text-foreground">
-                    <ArrowsDownUp className="h-3.5 w-3.5" />
+                  <Button variant="ghost" size="icon" className="h-6 w-6 rounded-full text-muted-foreground hover:text-foreground">
+                    <ArrowsDownUp className="h-3 w-3" />
                   </Button>
                 </div>
               </div>
