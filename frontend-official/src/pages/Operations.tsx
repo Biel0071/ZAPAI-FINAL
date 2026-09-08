@@ -72,13 +72,13 @@ export default function Operations() {
   }, []);
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="flex flex-col min-h-full bg-background">
       <Header
         title="Operação e Gestão de Atendimento em Tempo Real"
         subtitle="Monitoramento ao vivo de filas de espera, operadores, cumprimento de SLA e produtividade"
       />
 
-      <div className="p-6 space-y-6 max-w-7xl mx-auto">
+      <div className="w-full max-w-[var(--content-max-width)] mx-auto px-3.5 sm:px-5 lg:px-6 py-3.5 sm:py-4 space-y-4">
         <AIAssistantGuideCard />
 
         {/* METRICAS PRINCIPAIS DA OPERACAO */}

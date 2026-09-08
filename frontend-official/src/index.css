@@ -55,11 +55,19 @@
     --ring: 142 70% 45%;
 
     --radius: 0.75rem;
+    --radius-input: 0.5rem;
+    --radius-button: 0.625rem;
+    --radius-card: 0.875rem;
+    --radius-modal: 1rem;
+    --radius-panel: 1rem;
 
-    /* Sidebar - Dark theme */
-    --sidebar-width: 16rem;
+    /* Enterprise Layout Tokens */
+    --sidebar-width: 15rem;
     --sidebar-width-collapsed: 4rem;
-    --header-height: 4rem;
+    --header-height: 3.25rem;
+    --content-max-width: 1600px;
+    --page-padding-x: 1.25rem;
+    --page-padding-y: 1rem;
     
     --sidebar-background: 226 40% 7%;
     --sidebar-foreground: 220 24% 92%;
@@ -435,16 +443,16 @@
     animation: shimmer 1.5s ease-in-out infinite;
   }
 
-  /* SaaS premium layout helpers — density matched to Lovable */
+  /* SaaS premium layout helpers — enterprise density and responsive bounds */
   .page-container {
-    @apply px-4 sm:px-5 lg:px-6 py-4 lg:py-6 mx-auto w-full;
-    max-width: none !important;
+    @apply px-3.5 sm:px-5 lg:px-6 py-3.5 sm:py-4 lg:py-4 mx-auto w-full;
+    max-width: var(--content-max-width, 1600px);
   }
 
   /* Full-bleed variant: removes horizontal padding and max-width for
      layouts that need edge-to-edge panels (e.g. Inbox 3-column grid) */
   .page-container-flush {
-    @apply py-3 lg:py-4 mx-auto w-full;
+    @apply py-2 sm:py-3 mx-auto w-full;
     padding-left: 0;
     padding-right: 0;
     max-width: none;
@@ -540,13 +548,14 @@
    Standalone rule (outside @layer) to win over Tailwind utilities
    like pt-4, lg:pt-6, px-4, etc. that are applied inline in InboxView. */
 .inbox-layout .page-container {
-  padding: 0.25rem 0 0 0 !important;
+  padding: 0 !important;
   max-width: none !important;
 }
 
 /* Make the inbox grid take the full remaining viewport after header */
 .inbox-layout .page-container > div:first-child {
-  min-height: calc(100vh - 4.5rem);
+  height: calc(100vh - var(--header-height, 3.25rem));
+  min-height: calc(100vh - var(--header-height, 3.25rem));
 }
 
 /* ─── Mobile Hardening ─────────────────────────────────────── */

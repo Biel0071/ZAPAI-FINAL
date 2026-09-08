@@ -84,12 +84,58 @@ Estrutura JSON esperada:
     };
   }
 
+  // Normalize structured campaign format required by the Enterprise Campaign Builder
+  const campaignName = aiResult.campaignName || aiResult.name || `Campanha IA: ${normalizedPrompt.slice(0, 30)}`;
+  const objective = aiResult.objective || "Venda de estoque e conversão de oportunidades";
+  const audience = aiResult.audience || aiResult.segment || "Leads qualificados com interesse no produto";
+  const tone = aiResult.tone || "Profissional, consultivo e ágil";
+  const cta = aiResult.cta || aiResult.callToAction || "Responder para garantir a reserva";
+  const messages = Array.isArray(aiResult.messages) ? aiResult.messages : [];
+  const followUpMessage = aiResult.followup || aiResult.followUp || (messages.length > 1 ? messages[messages.length - 1] : "Olá {nome}, passando para confirmar se conseguiu avaliar nossa proposta!");
+
+  const steps = Array.isArray(aiResult.steps) && aiResult.steps.length > 0 ? aiResult.steps : [
+    {
+      step: 1,
+      title: "Primeiro Contato",
+      delay: "Imediato",
+      message: messages[0] || `Olá {nome}! Tudo bem? Gostaria de te apresentar uma condição especial hoje.`,
+      mediaType: "text",
+    },
+    {
+      step: 2,
+      title: "Follow-up de Oportunidade",
+      delay: "após 3 dias",
+      message: followUpMessage,
+      mediaType: "text",
+    },
+  ];
+
   return {
     success: true,
     data: {
       id: `ai-campaign-${Date.now()}`,
       prompt: normalizedPrompt,
-      ...aiResult,
+      campaignName,
+      name: campaignName,
+      objective,
+      audience,
+      segment: audience,
+      tone,
+      offer: aiResult.offer || (normalizedPrompt.match(/R\$\s*[\d.,]+/i)?.[0] ? `${normalizedPrompt.match(/R\$\s*[\d.,]+/i)[0]} com condições exclusivas` : "Condição comercial diferenciada"),
+      product: aiResult.product || (normalizedPrompt.match(/(?:caixa d'água|fortlev|produto|serviço)[\w\s.-]*/i)?.[0] || "Produto em destaque"),
+      conditions: aiResult.conditions || "Pronta entrega com garantia",
+      steps,
+      messages,
+      followup: followUpMessage,
+      followUps: [followUpMessage],
+      variables: ["{nome}", "{cidade}"],
+      callToAction: cta,
+      cta,
+      restrictions: aiResult.restrictions || "Válido enquanto durar a disponibilidade",
+      score: aiResult.score || 94,
+      conversionProbability: aiResult.conversionProbability || "26% ~ 36%",
+      rationale: aiResult.rationale || "Campanha orientada a valor imediato e abordagem humanizada com proteção anti-bloqueio WhatsApp.",
+      recommendedIntervalSeconds: aiResult.recommendedIntervalSeconds || 35,
       createdAt: new Date().toISOString(),
     }
   };

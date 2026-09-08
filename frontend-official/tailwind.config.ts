@@ -14,9 +14,12 @@ export default {
     },
     extend: {
       spacing: {
-        'sidebar': '16rem',
+        'sidebar': '15rem',
         'sidebar-collapsed': '4rem',
-        'header': '4rem',
+        'header': '3.25rem',
+      },
+      maxWidth: {
+        'content': '1600px',
       },
       fontFamily: {
         sans: ['Inter', 'sans-serif'],

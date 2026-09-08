@@ -126,7 +126,7 @@ export default function Flows() {
   const flowsViewModel = createFlowsLovableViewModel({ flows, loading });
 
   return (
-    <div className="min-h-screen">
+    <div className="flex flex-col min-h-full">
       <Header title="Fluxos de Automação" subtitle="Sistema de fluxos comerciais automatizados" />
       <FlowsView
         viewModel={flowsViewModel}

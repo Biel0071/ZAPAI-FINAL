@@ -680,9 +680,9 @@ export default function AI() {
   const aiViewModel = createAILovableViewModel();
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="flex flex-col min-h-full bg-background">
       <Header title={aiViewModel.title} subtitle={aiViewModel.subtitle} />
-      <div className="p-6 pb-0">
+      <div className="max-w-[var(--content-max-width)] mx-auto w-full px-3.5 sm:px-5 lg:px-6 pt-3.5 pb-0">
         <AIExecutiveInsightsCard />
       </div>
       <AIView

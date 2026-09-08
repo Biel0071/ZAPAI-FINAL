@@ -45,13 +45,13 @@ export default function Analytics() {
   }, []);
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="flex flex-col min-h-full bg-background">
       <Header
         title="Business Intelligence & Analytics Enterprise (50+ Indicadores)"
         subtitle="Telemetria executiva, análise de retenção, custos de IA, funil de vendas e performance em tempo real"
       />
 
-      <div className="p-6 space-y-6 max-w-7xl mx-auto">
+      <div className="w-full max-w-[var(--content-max-width)] mx-auto px-3.5 sm:px-5 lg:px-6 py-3.5 sm:py-4 space-y-4">
         <AIAssistantGuideCard />
 
         <AIExecutiveInsightsCard />

@@ -34,7 +34,8 @@ import {
 import { Header } from "@/components/layout/Header";
 import { CampaignsView, type CampaignsTab } from "@/lovable/pages/CampaignsView";
 import { CampaignContextInput } from '@/components/campaigns/CampaignContextInput';
-import { CampaignPreview } from '@/components/campaigns/CampaignPreview';
+import { CampaignPreview, type StructuredCampaignPayload } from '@/components/campaigns/CampaignPreview';
+import { AIAssistantAvatar } from '@/components/brand/AIAssistantAvatar';
 import { ConversionHeatmap } from "@/components/campaigns/ConversionHeatmap";
 import { Stepper } from "@/components/campaigns/Stepper";
 import { LeadKnowledgeGraph } from "@/components/contacts/LeadKnowledgeGraph";
@@ -393,6 +394,7 @@ export default function Campaigns() {
   const [selectedAiAgentKey, setSelectedAiAgentKey] = useState("");
   const [isAiCampaignGenerating, setIsAiCampaignGenerating] = useState(false);
   const [isAiModalOpen, setIsAiModalOpen] = useState(false);
+  const [aiGeneratedCampaign, setAiGeneratedCampaign] = useState<StructuredCampaignPayload | null>(null);
 
   // Análise de IA do disparo (modal) + grafo do lead
   const [campaignAnalysis, setCampaignAnalysis] = useState<any | null>(null);
@@ -984,7 +986,22 @@ export default function Campaigns() {
     let aiDelayProfile: AICampaignDraft["delayProfile"] | undefined;
 
     try {
-      if (activeAgent) {
+      const aiResponse = await apiService.generateCampaignAI(prompt, aiLeadProfile).catch(() => null);
+      const data = (aiResponse?.data || aiResponse) as any;
+
+      if (data && (data.steps || data.messages)) {
+        setAiGeneratedCampaign(data);
+        if (data.campaignName || data.name) generatedName = data.campaignName || data.name;
+        if (Array.isArray(data.steps) && data.steps.length > 0) {
+          generatedMessages = data.steps.map((s: any) => ({
+            type: s.mediaType || "text",
+            content: s.message,
+          }));
+        } else if (Array.isArray(data.messages) && data.messages.length > 0) {
+          generatedMessages = data.messages.map((m: string) => ({ type: "text" as const, content: m }));
+        }
+        aiSource = "Motor ZAI IA";
+      } else if (activeAgent) {
         const aiInstruction = [
           "Voce e o atendente comercial configurado neste sistema. Use sua personalidade, tom, empresa, produtos e forma de atendimento para criar uma campanha de WhatsApp pronta para aprovacao.",
           "Pedido do usuario: " + prompt,
@@ -1397,7 +1414,7 @@ export default function Campaigns() {
   const lovableCampaignsViewModel = createCampaignsLovableViewModel(campaigns);
 
   return (
-    <div className="min-h-screen">
+    <div className="flex flex-col min-h-full">
       <input
         type="file"
         ref={fileInputRef}
@@ -1507,7 +1524,7 @@ export default function Campaigns() {
               ) : null
             }
             composer={
-<div className="grid grid-cols-1 lg:grid-cols-12 gap-6 w-full"><div className="lg:col-span-8 flex flex-col gap-4">
+              <div className="w-full flex flex-col gap-4">
                 <Card className="glass-card rounded-2xl border-border/70 bg-card/85">
                   <CardContent className="space-y-6 p-6">
                   <div className="flex flex-col gap-6 border-b border-border/50 pb-6">
@@ -1579,111 +1596,157 @@ export default function Campaigns() {
                   </div>
                   
                   {creationMode === "ai" && (
-                    <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_360px] items-start mt-2">
-                      <div className="space-y-4">
-                        <div className="rounded-2xl border border-border/70 bg-background/40 p-5">
+                    <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start mt-4">
+                      {/* Coluna Esquerda: Ingestão de Contexto e Visualização da Campanha Gerada */}
+                      <div className="lg:col-span-7 xl:col-span-8 flex flex-col gap-5">
+                        <div className="rounded-2xl border border-border/70 bg-background/40 p-5 space-y-4">
                           <div className="flex items-start gap-3">
-                            <span className="mt-1 flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-info/10 text-info">
+                            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-400">
                               <MagicWand className="h-5 w-5" weight="fill" />
                             </span>
                             <div>
-                              <h3 className="font-semibold text-primary text-lg">Descreva sua Campanha</h3>
-                              <p className="text-sm text-muted-foreground">Quanto mais detalhes, melhor será o resultado da IA.</p>
+                              <h3 className="font-display font-bold text-foreground text-base">Contexto da Campanha</h3>
+                              <p className="text-xs text-muted-foreground mt-0.5">Cole informações, briefing, oferta, produtos ou instruções para a IA.</p>
                             </div>
                           </div>
-                          <div className="mt-5 space-y-4">
-                            <CampaignContextInput value={aiCampaignPrompt} onChange={setAiCampaignPrompt} />
-                          </div>
+                          <CampaignContextInput value={aiCampaignPrompt} onChange={setAiCampaignPrompt} />
                         </div>
+
+                        {/* Visualização da Campanha Estruturada com WhatsApp Preview */}
+                        {aiGeneratedCampaign && (
+                          <div className="rounded-2xl border border-border/70 bg-card/60 p-5 shadow-lg space-y-4 animate-fade-in">
+                            <CampaignPreview
+                              payload={aiGeneratedCampaign}
+                              attendantName={aiAgents.find(a => (a.key || a.name) === selectedAiAgentKey)?.name || "Camila • Especialista ZAI"}
+                              onApplyCampaign={(structured) => {
+                                if (structured.name || structured.campaignName) setCampaignName(structured.name || structured.campaignName || "");
+                                if (structured.steps) {
+                                  setMessageVariants(structured.steps.map(s => ({ type: s.mediaType || "text", content: s.message })));
+                                }
+                                setCreationMode("manual");
+                                setCampaignStep(4);
+                                notify.success("Campanha aplicada! Revise os detalhes antes de enviar.");
+                              }}
+                              onSaveDraft={() => void persistCampaign("save")}
+                            />
+                          </div>
+                        )}
                       </div>
 
-                      <div className="rounded-2xl border border-border/70 bg-card/60 p-5 shadow-xl sticky top-4 max-h-[calc(100vh-100px)] overflow-y-auto scrollbar-thin scrollbar-thumb-border">
-                        <div className="flex items-start gap-3 mb-3 pb-3 border-b border-border/50">
+                      {/* Coluna Direita: Parâmetros da IA e Atendente */}
+                      <div className="lg:col-span-5 xl:col-span-4 rounded-2xl border border-border/70 bg-card/60 p-5 shadow-sm sticky top-4 space-y-4">
+                        <div className="flex items-start gap-3 pb-3 border-b border-border/50">
                           <div className="w-8 h-8 rounded-lg flex items-center justify-center bg-primary/10 text-primary shrink-0 mt-0.5">
                             <Sparkle className="w-4 h-4" weight="fill" />
                           </div>
-                          <div className="flex flex-col">
-                            <h3 className="font-semibold text-foreground text-sm">Configurações da IA</h3>
-                            <p className="text-[11px] text-muted-foreground mt-0.5">Personalize como a IA irá criar sua campanha.</p>
+                          <div>
+                            <h3 className="font-display font-bold text-foreground text-sm">Configurações da IA</h3>
+                            <p className="text-[11px] text-muted-foreground mt-0.5">Personalize como a IA irá estruturar a campanha.</p>
                           </div>
                         </div>
-                        
-                        <div className="space-y-3">
-                          <div>
-                            <Label className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground mb-3 block">Atendente IA criador</Label>
-                            <div className="flex gap-4 items-center">
-                              <div className="relative flex h-[88px] w-[88px] shrink-0 items-end justify-center rounded-xl bg-gradient-to-t from-primary/20 to-transparent border border-primary/10 overflow-hidden">
-                                <img src={`https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(selectedAiAgentKey || 'Camila')}&backgroundColor=transparent`} alt="Agent" className="w-full h-full object-contain drop-shadow-md pb-1" />
+
+                        {/* Atendente IA com identidade visual real */}
+                        <div>
+                          <Label className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground mb-2 block">
+                            Atendente IA Responsável
+                          </Label>
+                          <div className="rounded-xl border border-border/60 bg-background/50 p-3.5 space-y-3">
+                            <AIAssistantAvatar
+                              name={aiAgents.find(a => (a.key || a.name) === selectedAiAgentKey)?.name || selectedAiAgentKey || "Camila — Especialista ZAI"}
+                              role="Atendente Comercial de Alta Conversão"
+                              description="Treinada para criar mensagens humanizadas, ofertas irresistíveis e follow-up estratégico."
+                              status="online"
+                              size="md"
+                            />
+                            {aiAgents.length > 1 && (
+                              <div className="pt-1 border-t border-border/40">
+                                <Label className="text-[10px] text-muted-foreground mb-1 block">Trocar Atendente:</Label>
+                                <select
+                                  value={selectedAiAgentKey}
+                                  onChange={(e) => setSelectedAiAgentKey(e.target.value)}
+                                  className="h-8 w-full rounded-lg border border-border/60 bg-card/90 px-2.5 text-xs text-foreground focus:border-primary focus:outline-none"
+                                >
+                                  {aiAgents.map((ag) => (
+                                    <option key={ag.key || ag.id} value={ag.key || ag.name}>
+                                      {ag.name || ag.key} ({ag.role || "Atendente"})
+                                    </option>
+                                  ))}
+                                </select>
                               </div>
-                              <div className="flex-grow min-w-0 flex flex-col justify-center">
-                                <h4 className="text-lg font-bold text-foreground leading-tight mb-1">{aiAgents.find(a => (a.key || a.name) === selectedAiAgentKey)?.name || selectedAiAgentKey || 'Camila'}</h4>
-                                <p className="text-[11px] text-success flex items-center gap-1.5 mb-1.5 font-medium"><span className="w-1.5 h-1.5 rounded-full bg-success"></span>Online</p>
-                                <p className="text-[11px] text-muted-foreground leading-snug mb-3 pr-2">Atendente inteligente e especialista em campanhas que convertem.</p>
-                                <Button variant="outline" size="sm" className="w-full rounded-lg text-xs h-8 bg-background/50 hover:bg-background/80 hover:text-primary transition-colors border-border/80"><ArrowClockwise className="w-3.5 h-3.5 mr-1.5" /> Alterar atendente</Button>
-                              </div>
-                            </div>
+                            )}
                           </div>
-                          
-                          <div className="pt-2">
-                            <Label className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">Tipo de lead</Label>
-                            <select
-                              value={aiLeadProfile}
-                              onChange={(event) => setAiLeadProfile(event.target.value)}
-                              className="mt-1 h-9 w-full rounded-lg border border-border/70 bg-background/60 px-3 text-sm text-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary/50 transition-shadow"
-                            >
-                              <option value="all">Todos / detectar pela base</option>
-                              <option value="hot">Leads quentes</option>
-                              <option value="warm">Leads mornos</option>
-                              <option value="cold">Leads frios</option>
-                              <option value="inactive">Recuperar inativos</option>
-                            </select>
-                            <p className="mt-1 text-[11px] text-muted-foreground">A IA irá adaptar a campanha conforme o tipo de lead.</p>
-                          </div>
+                        </div>
 
-                          <div className="pt-2">
-                            <Label className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">Follow-up após dias</Label>
-                            <Input value={aiFollowUpDays} onChange={(event) => setAiFollowUpDays(event.target.value)} inputMode="numeric" className="mt-1 h-9 rounded-lg border-border/70 bg-background/60 focus-visible:ring-primary/50" />
-                            <p className="mt-1 text-[11px] text-muted-foreground">Dias após o primeiro contato para iniciar follow-up.</p>
-                          </div>
+                        <div>
+                          <Label className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Público / Tipo de Lead</Label>
+                          <select
+                            value={aiLeadProfile}
+                            onChange={(event) => setAiLeadProfile(event.target.value)}
+                            className="mt-1 h-9 w-full rounded-lg border border-border/70 bg-background/60 px-3 text-xs text-foreground focus:border-primary focus:outline-none"
+                          >
+                            <option value="all">Toda a base (Segmentação automática)</option>
+                            <option value="hot">Leads Quentes (Prontos para comprar)</option>
+                            <option value="warm">Leads Mornos (Tirando dúvidas)</option>
+                            <option value="cold">Leads Frios (Primeira abordagem)</option>
+                            <option value="inactive">Reativação de Inativos</option>
+                          </select>
+                        </div>
 
-                          <div className="pt-2">
-                            <Label className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">Objetivo Principal</Label>
-                            <select
-                              value={aiObjective}
-                              onChange={(event) => setAiObjective(event.target.value)}
-                              className="mt-1 h-9 w-full rounded-lg border border-border/70 bg-background/60 px-3 text-sm text-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary/50 transition-shadow"
-                            >
-                              <option value="gerar_orcamento">Gerar orçamento / proposta</option>
-                              <option value="agendar_reuniao">Agendar reunião / call</option>
-                              <option value="fechar_venda">Fechar venda direto</option>
-                              <option value="nutrir_lead">Nutrir lead / gerar valor</option>
-                              <option value="pesquisa">Pesquisa / Feedback</option>
-                            </select>
-                            <p className="mt-1 text-[11px] text-muted-foreground">Qual o principal resultado que deseja alcançar.</p>
-                          </div>
+                        <div>
+                          <Label className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Follow-up após (dias)</Label>
+                          <Input
+                            value={aiFollowUpDays}
+                            onChange={(event) => setAiFollowUpDays(event.target.value)}
+                            inputMode="numeric"
+                            className="mt-1 h-9 rounded-lg border-border/70 bg-background/60 text-xs focus-visible:ring-primary/50"
+                          />
+                        </div>
 
-                          <div className="pt-2">
-                            <Label className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">Tom da Comunicação</Label>
-                            <select
-                              value={aiTone}
-                              onChange={(event) => setAiTone(event.target.value)}
-                              className="mt-1 h-9 w-full rounded-lg border border-border/70 bg-background/60 px-3 text-sm text-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary/50 transition-shadow"
-                            >
-                              <option value="profissional">Profissional e consultivo</option>
-                              <option value="descontraido">Descontraído e amigável</option>
-                              <option value="urgente">Urgente (escassez / oferta limit)</option>
-                              <option value="direto">Direto ao ponto</option>
-                            </select>
-                            <p className="mt-1 text-[11px] text-muted-foreground">Define o tom das mensagens que serão geradas.</p>
-                          </div>
-                          
-                          <div className="pt-6">
-                            <Button type="button" className="w-full rounded-xl bg-primary hover:bg-primary/90 text-primary-foreground shadow-[0_0_20px_-5px_rgba(20,184,116,0.4)] h-11 text-sm font-semibold transition-all hover:scale-[1.02]" onClick={() => void generateCampaignFromPrompt()} disabled={isAiCampaignGenerating}>
-                              {isAiCampaignGenerating ? <Clock className="h-5 w-5 animate-spin mr-2" /> : <Sparkle className="h-5 w-5 mr-2" weight="fill" />}
-                              {isAiCampaignGenerating ? "Atendente criando..." : "Gerar campanha com IA"}
-                            </Button>
-                            <p className="text-center mt-3 text-xs text-muted-foreground">A IA irá criar sua campanha completa em segundos.</p>
-                          </div>
+                        <div>
+                          <Label className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Objetivo Principal</Label>
+                          <select
+                            value={aiObjective}
+                            onChange={(event) => setAiObjective(event.target.value)}
+                            className="mt-1 h-9 w-full rounded-lg border border-border/70 bg-background/60 px-3 text-xs text-foreground focus:border-primary focus:outline-none"
+                          >
+                            <option value="gerar_orcamento">Gerar orçamento / proposta</option>
+                            <option value="fechar_venda">Fechar venda direto (Liquidação)</option>
+                            <option value="agendar_reuniao">Agendar reunião / call</option>
+                            <option value="nutrir_lead">Nutrir lead / gerar valor</option>
+                          </select>
+                        </div>
+
+                        <div>
+                          <Label className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Tom da Comunicação</Label>
+                          <select
+                            value={aiTone}
+                            onChange={(event) => setAiTone(event.target.value)}
+                            className="mt-1 h-9 w-full rounded-lg border border-border/70 bg-background/60 px-3 text-xs text-foreground focus:border-primary focus:outline-none"
+                          >
+                            <option value="profissional">Profissional e consultivo</option>
+                            <option value="urgente">Urgente (escassez de estoque)</option>
+                            <option value="descontraido">Descontraído e amigável</option>
+                            <option value="direto">Direto ao ponto com oferta</option>
+                          </select>
+                        </div>
+
+                        <div className="pt-3">
+                          <Button
+                            type="button"
+                            className="w-full rounded-xl bg-primary hover:bg-primary/90 text-primary-foreground shadow-[0_0_20px_-5px_rgba(16,185,129,0.5)] h-11 text-xs font-bold transition-all hover:scale-[1.01] gap-2"
+                            onClick={() => void generateCampaignFromPrompt()}
+                            disabled={isAiCampaignGenerating}
+                          >
+                            {isAiCampaignGenerating ? (
+                              <ArrowClockwise className="h-4 w-4 animate-spin" />
+                            ) : (
+                              <Sparkle className="h-4 w-4" weight="fill" />
+                            )}
+                            {isAiCampaignGenerating ? "Atendente gerando campanha..." : "Gerar Campanha com IA"}
+                          </Button>
+                          <p className="text-center mt-2 text-[11px] text-muted-foreground">
+                            A IA interpreta o contexto e cria as etapas completas.
+                          </p>
                         </div>
                       </div>
                     </div>
@@ -2521,10 +2584,8 @@ export default function Campaigns() {
                   )}
                 </CardContent>
               </Card>
-</div>
-<div className="lg:col-span-4 flex flex-col gap-4 sticky top-6 self-start"><CampaignPreview payload={{ objective: aiCampaignPrompt, audience: "Geral", steps: messageVariants.map((m,i)=>({ delay: i===0?"":"1 dia", message: m.content, mediaType: m.type, mediaName: m.mediaName })) }} /></div>
-</div>
-}
+            </div>
+          }
 listSection={
               <>
                 {/* ─── Painel de Agendamentos ─── */}

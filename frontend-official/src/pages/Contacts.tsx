@@ -470,7 +470,7 @@ export default function Contacts() {
   const [selectedLead, setSelectedLead] = useState<ContactRow | null>(null);
 
   return (
-    <div className="min-h-screen">
+    <div className="flex flex-col min-h-full">
       <Header title="Leads CRM / Contatos" subtitle="Gestão de base e qualificação de leads" />
       <ContactsView
         loading={loading}

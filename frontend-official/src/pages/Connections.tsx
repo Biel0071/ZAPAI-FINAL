@@ -465,7 +465,7 @@ export default function Connections() {
   const lovableConnectionsViewModel = createConnectionsLovableViewModel(safeSessions);
 
   return (
-    <div className="min-h-screen">
+    <div className="flex flex-col min-h-full">
       <Header
         title="Conexões WhatsApp"
         subtitle="Gerencie suas sessões oficiais de WhatsApp em tempo real"
