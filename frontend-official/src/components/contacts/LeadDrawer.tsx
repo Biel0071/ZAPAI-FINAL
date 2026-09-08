@@ -29,6 +29,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { LeadKnowledgeGraph } from "@/components/contacts/LeadKnowledgeGraph";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { apiService } from "@/services/apiService";
 import { notify } from "@/services/notifyService";
 
@@ -44,6 +45,7 @@ export interface LeadDrawerLead {
   updatedAt?: string;
   conversationId?: string;
   sessionId?: string;
+  avatarUrl?: string;
 }
 
 interface LeadDrawerProps {
@@ -141,9 +143,12 @@ export function LeadDrawer({ lead, onClose, onUpdateLead }: LeadDrawerProps) {
 
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div className="flex items-center gap-4">
-              <div className="h-14 w-14 rounded-2xl bg-primary/10 border border-primary/20 flex items-center justify-center text-primary font-display font-bold text-xl shadow-glow">
-                {lead.name.slice(0, 2).toUpperCase()}
-              </div>
+              <Avatar className="h-14 w-14 rounded-2xl border border-primary/20 shadow-glow">
+                {lead.avatarUrl && <AvatarImage src={lead.avatarUrl} alt={lead.name} className="object-cover" />}
+                <AvatarFallback className="bg-primary/10 text-primary font-display font-bold text-xl rounded-2xl">
+                  {lead.name.slice(0, 2).toUpperCase()}
+                </AvatarFallback>
+              </Avatar>
               <div>
                 <div className="flex items-center gap-2">
                   <h2 className="font-display text-xl font-bold text-foreground">{lead.name}</h2>

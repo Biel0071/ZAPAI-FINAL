@@ -1135,8 +1135,8 @@ export function SidebarPanel({
               {/* Avatar e Infos */}
               <div className="flex flex-col items-center text-center space-y-2 pt-2">
                 <div className="h-16 w-16 rounded-full bg-emerald-500/10 border-2 border-emerald-500/20 flex items-center justify-center text-emerald-600 dark:text-emerald-400 font-bold text-xl uppercase tracking-wider shadow-[0_0_15px_rgba(16,185,129,0.15)] overflow-hidden">
-                  {selectedConversation?.profilePicUrl || selectedLead?.profilePic || selectedLead?.avatar ? (
-                    <img src={selectedConversation?.profilePicUrl || selectedLead?.profilePic || selectedLead?.avatar} alt={selectedConversation.contactName} className="h-full w-full object-cover" />
+                  {selectedConversation?.avatar || selectedLead?.profilePic || selectedLead?.avatar ? (
+                    <img src={selectedConversation?.avatar || selectedLead?.profilePic || selectedLead?.avatar} alt={selectedConversation.contactName} className="h-full w-full object-cover" />
                   ) : (
                     selectedConversation.contactName?.substring(0,2) || "LD"
                   )}

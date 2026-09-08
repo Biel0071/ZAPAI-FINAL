@@ -9,6 +9,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { EmptyState } from "@/components/ui/empty-state";
 import { StatGridSkeleton, ListSkeleton } from "@/components/ui/loading-skeleton";
 import { OperationalStatusBadge } from "@/components/enterprise/OperationalStatusBadge";
@@ -523,9 +524,17 @@ export function ContactsView({
                               />
                             </TableCell>
                             <TableCell className="font-medium">
-                              <div className="flex flex-col">
-                                <span className="font-bold text-sm text-foreground">{contact.name}</span>
-                                <span className="text-xs text-muted-foreground">{contact.phone}</span>
+                              <div className="flex items-center gap-3">
+                                <Avatar className="h-9 w-9 border border-border/50">
+                                  {contact.avatarUrl && <AvatarImage src={contact.avatarUrl} alt={contact.name} />}
+                                  <AvatarFallback className="bg-primary/10 text-primary font-bold text-[10px]">
+                                    {contact.name.slice(0, 2).toUpperCase()}
+                                  </AvatarFallback>
+                                </Avatar>
+                                <div className="flex flex-col">
+                                  <span className="font-bold text-sm text-foreground">{contact.name}</span>
+                                  <span className="text-xs text-muted-foreground">{contact.phone}</span>
+                                </div>
                               </div>
                             </TableCell>
                             <TableCell className="max-w-xs truncate text-xs text-muted-foreground">

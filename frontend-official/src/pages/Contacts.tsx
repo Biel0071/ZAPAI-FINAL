@@ -34,6 +34,7 @@ type ContactRow = {
   status?: string;
   temperature?: string;
   funnelStage?: string;
+  avatarUrl?: string;
 };
 
 function normalizePhone(phone?: string): string {
@@ -181,6 +182,7 @@ export default function Contacts() {
           status: contact.status,
           temperature: contact.lead_temperature,
           funnelStage: contact.funnel_stage,
+          avatarUrl: contact.profilePicUrl || contact.avatarUrl || contact.profilePictureUrl || contact.profile_picture_url || contact.avatar,
         } satisfies ContactRow));
 
 
