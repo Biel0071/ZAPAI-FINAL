@@ -773,99 +773,26 @@ export function SidebarPanel({
       onDoubleClick={() => {
         void sendQuickReply(item);
       }}
-      className="group rounded-xl border border-border/30 bg-card/40 p-3.5 transition-all duration-300 hover:border-emerald-500/40 hover:bg-card/60 hover:shadow-[0_0_15px_rgba(16,185,129,0.06)] cursor-pointer active:scale-[0.99] select-none space-y-2.5"
+      className="group flex items-center gap-2 h-8 px-2 rounded-lg transition-all duration-150 hover:bg-muted/40 cursor-pointer active:scale-[0.99] select-none"
     >
-      <div className="flex items-start justify-between gap-2">
-        <h4 className="font-bold text-xs text-foreground/90 truncate flex-grow flex items-center gap-1.5">
-          {item.isFlow && (
-            <Badge className="bg-purple-600 hover:bg-purple-700 text-white text-[9px] px-1 py-0.2 h-[15px] leading-none font-bold shrink-0 shadow-sm border-none">
-              Fluxo
-            </Badge>
-          )}
-          <span className="truncate">{item.title || getQuickReplyPreviewText(item, conversationVariableContext).split("\n")[0]}</span>
-        </h4>
-        {item.tags && item.tags.length > 0 && (
-          <div className="flex gap-1 max-w-[45%] overflow-hidden shrink-0">
-            {item.tags.slice(0, 2).map((t) => (
-              <span
-                key={t}
-                className="text-[9px] font-medium px-1.5 py-0.5 rounded-md bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20"
-              >
-                {t}
-              </span>
-            ))}
-          </div>
-        )}
-      </div>
-      <p className="line-clamp-2 text-[11px] leading-relaxed text-muted-foreground">
-        {getQuickReplyPreviewText(item, conversationVariableContext)}
-      </p>
-      {item.items && item.items.some((entry) => entry.type !== "text") && (
-        <div className="flex flex-wrap gap-1.5">
-          {item.items
-            .filter((entry) => entry.type !== "text")
-            .map((entry, index) => {
-              const type = entry.type === "pdf" ? "document" : entry.type;
-              const badgeStyle = 
-                type === "image" ? "bg-emerald-500/10 text-emerald-500 border-emerald-500/20" :
-                type === "video" ? "bg-rose-500/10 text-rose-500 border-rose-500/20" :
-                type === "audio" ? "bg-amber-500/10 text-amber-500 border-amber-500/20" :
-                type === "document" || type === "file" ? "bg-sky-500/10 text-sky-500 border-sky-500/20" :
-                "bg-slate-500/10 text-slate-500 border-slate-500/20";
-              const label = 
-                type === "image" ? "IMAGEM" :
-                type === "video" ? "VÍDEO" :
-                type === "audio" ? "ÁUDIO" :
-                type === "document" || type === "file" ? "DOCUMENTO" : "MÍDIA";
-              return (
-                <span
-                  key={`${item.id}-${entry.type}-${index}`}
-                  className={`rounded-md border px-1.5 py-0.5 text-[9px] font-bold tracking-wider ${badgeStyle}`}
-                >
-                  {label}
-                </span>
-              );
-            })}
-        </div>
+      {item.isFlow ? (
+        <Workflow className="h-3.5 w-3.5 text-purple-500 shrink-0" />
+      ) : item.items?.some((e) => e.type === "audio") ? (
+        <Waveform className="h-3.5 w-3.5 text-amber-500 shrink-0" />
+      ) : item.items?.some((e) => e.type === "image" || e.type === "video") ? (
+        <FileIcon className="h-3.5 w-3.5 text-emerald-500 shrink-0" />
+      ) : (
+        <PaperPlaneTilt className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
       )}
-      <div className="flex items-center gap-1 pt-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-        <Button
-          size="sm"
-          className={cn(
-            "h-6 px-2.5 text-[10px] font-bold rounded-md shadow-sm transition-all border-none",
-            item.isFlow ? "bg-purple-600 hover:bg-purple-500 text-white" : "bg-emerald-500 hover:bg-emerald-400 text-white"
-          )}
-          onClick={(e) => {
-            e.stopPropagation();
-            void sendQuickReply(item);
-          }}
-        >
-          <PaperPlaneTilt className="mr-1 h-3 w-3" weight="fill" />
-          {item.isFlow ? "Disparar" : "Enviar"}
-        </Button>
+      <span className="text-[11px] font-medium text-foreground/90 truncate flex-grow min-w-0">
+        {item.title || getQuickReplyPreviewText(item, conversationVariableContext).split("\n")[0]}
+      </span>
+      <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity duration-150 shrink-0">
         <Button
           size="icon"
           variant="ghost"
-          className={cn(
-            "h-6 w-6 rounded-md transition-colors",
-            item.favorite ? "text-amber-500 hover:bg-amber-500/20" : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
-          )}
-          onClick={(e) => {
-            e.stopPropagation();
-            toggleFavoriteQuickReply(item.id);
-          }}
-          title="Favoritar"
-        >
-          <Star className="h-3 w-3" weight={item.favorite ? "fill" : "regular"} />
-        </Button>
-        <Button
-          size="icon"
-          variant="ghost"
-          className="h-6 w-6 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
-          onClick={(e) => {
-            e.stopPropagation();
-            openEditQuickReplyDialog(item);
-          }}
+          className="h-5 w-5 rounded text-muted-foreground hover:text-foreground"
+          onClick={(e) => { e.stopPropagation(); openEditQuickReplyDialog(item); }}
           title="Editar"
         >
           <PencilSimple className="h-3 w-3" />
@@ -873,11 +800,8 @@ export function SidebarPanel({
         <Button
           size="icon"
           variant="ghost"
-          className="h-6 w-6 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
-          onClick={(e) => {
-            e.stopPropagation();
-            duplicateQuickReply(item);
-          }}
+          className="h-5 w-5 rounded text-muted-foreground hover:text-foreground"
+          onClick={(e) => { e.stopPropagation(); duplicateQuickReply(item); }}
           title="Duplicar"
         >
           <CopySimple className="h-3 w-3" />
@@ -885,14 +809,14 @@ export function SidebarPanel({
         <Button
           size="icon"
           variant="ghost"
-          className="h-6 w-6 rounded-md text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
-          onClick={(e) => {
-            e.stopPropagation();
-            deleteQuickReply(item.id);
-          }}
-          title="Excluir"
+          className={cn(
+            "h-5 w-5 rounded",
+            item.isFlow ? "text-purple-500 hover:bg-purple-500/20" : "text-emerald-500 hover:bg-emerald-500/20"
+          )}
+          onClick={(e) => { e.stopPropagation(); void sendQuickReply(item); }}
+          title={item.isFlow ? "Disparar" : "Enviar"}
         >
-          <Trash className="h-3 w-3" />
+          <PaperPlaneTilt className="h-3 w-3" weight="fill" />
         </Button>
       </div>
     </div>
@@ -1320,11 +1244,11 @@ export function SidebarPanel({
                   value={responseSearchQuery}
                   onChange={(event) => setResponseSearchQuery(event.target.value)}
                   placeholder="Buscar resposta..."
-                  className="h-9 pl-9 text-xs bg-background/50 border-border rounded-lg focus:border-primary/50"
+                  className="h-7 pl-8 text-[11px] bg-background/50 border-border rounded-lg focus:border-primary/50"
                 />
               </div>
-              <Button onClick={openCreateQuickReplyDialog} size="sm" variant="outline" className="h-9 gap-1 rounded-lg px-3 hover:bg-primary/5 hover:text-primary">
-                <Plus className="h-4 w-4" /> Novo
+              <Button onClick={openCreateQuickReplyDialog} size="sm" variant="outline" className="h-7 gap-1 rounded-lg px-2.5 text-[11px] hover:bg-primary/5 hover:text-primary shrink-0">
+                <Plus className="h-3.5 w-3.5" /> Novo
               </Button>
             </div>
 
@@ -1332,7 +1256,7 @@ export function SidebarPanel({
               <Button
                 size="sm"
                 variant={quickReplyCategory === "all" ? "default" : "outline"}
-                className="h-6.5 rounded-full px-3 text-[10.5px] font-medium capitalize"
+                className="h-5 rounded-full px-2 text-[10px] font-medium capitalize"
                 onClick={() => setQuickReplyCategory("all")}
               >
                 Todas
@@ -1342,7 +1266,7 @@ export function SidebarPanel({
                   key={cat}
                   size="sm"
                   variant={quickReplyCategory === cat ? "default" : "outline"}
-                  className="h-6.5 rounded-full px-3 text-[10.5px] font-medium capitalize"
+                  className="h-5 rounded-full px-2 text-[10px] font-medium capitalize"
                   onClick={() => setQuickReplyCategory(cat)}
                 >
                   {cat}
@@ -1351,15 +1275,20 @@ export function SidebarPanel({
             </div>
 
             {favoriteQuickReplies.length > 0 && (
-              <div className="rounded-xl border border-warning/20 bg-warning/5 p-4 shadow-sm space-y-3">
-                <p className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-amber-500">
-                  <Star className="h-4 w-4" weight="fill" /> Favoritas
-                </p>
-                <div className="space-y-3">{favoriteQuickReplies.map(renderQuickReplyRow)}</div>
-              </div>
+              <details className="group rounded-lg border border-amber-500/20 bg-amber-500/[0.03]" open>
+                <summary className="flex items-center gap-1.5 px-3 py-2 cursor-pointer list-none text-[11px] font-bold uppercase tracking-wider text-amber-500">
+                  <Star className="h-3.5 w-3.5" weight="fill" />
+                  Favoritas
+                  <Badge variant="secondary" className="ml-auto h-4 px-1.5 text-[9px] rounded-full bg-amber-500/10 text-amber-500 border border-amber-500/20 font-bold">
+                    {favoriteQuickReplies.length}
+                  </Badge>
+                  <CaretRight className="h-3 w-3 transition-transform group-open:rotate-90 text-amber-500/60" />
+                </summary>
+                <div className="px-1 pb-1.5">{favoriteQuickReplies.map(renderQuickReplyRow)}</div>
+              </details>
             )}
 
-            <Accordion type="multiple" defaultValue={allCategories} className="space-y-2">
+            <Accordion type="multiple" defaultValue={allCategories} className="space-y-1">
               {allCategories.map((cat) => {
                 const items = quickRepliesByCategory[cat] ?? [];
                 if (items.length === 0) return null;
@@ -1367,17 +1296,17 @@ export function SidebarPanel({
                   <AccordionItem
                     key={cat}
                     value={cat}
-                    className="rounded-xl border border-border/40 bg-card/25 px-1 overflow-hidden transition-all duration-200 hover:border-emerald-500/30 hover:bg-card/45 shadow-sm"
+                    className="rounded-lg border border-border/30 bg-card/20 overflow-hidden"
                   >
-                    <AccordionTrigger className="py-2.5 px-3 text-[13px] font-bold capitalize hover:no-underline text-foreground">
+                    <AccordionTrigger className="py-2 px-3 text-[12px] font-bold capitalize hover:no-underline text-foreground">
                       <span className="flex items-center gap-2">
                         {cat}
-                        <Badge variant="secondary" className="h-5 px-2 text-[10px] rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 font-bold">
+                        <Badge variant="secondary" className="h-4 px-1.5 text-[9px] rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 font-bold">
                           {items.length}
                         </Badge>
                       </span>
                     </AccordionTrigger>
-                    <AccordionContent className="space-y-3 px-3 pb-3">
+                    <AccordionContent className="px-1 pb-1.5">
                       {items.map(renderQuickReplyRow)}
                     </AccordionContent>
                   </AccordionItem>
