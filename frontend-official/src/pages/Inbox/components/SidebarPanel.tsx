@@ -16,6 +16,8 @@ import {
   Paperclip,
   EnvelopeSimple,
   ArrowsDownUp,
+  DotsThree,
+  CalendarPlus,
 } from "@phosphor-icons/react";
 import { Folder, History, UserRound, Workflow, type LucideIcon, Sparkles, Cpu, Bot, Brain, Phone } from "lucide-react";
 import { AIIcon } from "@/components/ai/AIIcon";
@@ -30,6 +32,13 @@ import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Tooltip, TooltipProvider, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import { InboxSectionBoundary } from "@/components/system/InboxSectionBoundary";
 import type { ChatMessage, Conversation } from "@/services/apiService";
@@ -787,33 +796,86 @@ export function SidebarPanel({
       <span className="text-[11px] font-medium text-foreground/90 truncate flex-grow min-w-0">
         {item.title || getQuickReplyPreviewText(item, conversationVariableContext).split("\n")[0]}
       </span>
-      <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity duration-150 shrink-0">
-        <Button
-          size="icon"
-          variant="ghost"
-          className="h-5 w-5 rounded text-muted-foreground hover:text-foreground"
-          onClick={(e) => { e.stopPropagation(); openEditQuickReplyDialog(item); }}
-          title="Editar"
-        >
-          <PencilSimple className="h-3 w-3" />
-        </Button>
-        <Button
-          size="icon"
-          variant="ghost"
-          className="h-5 w-5 rounded text-muted-foreground hover:text-foreground"
-          onClick={(e) => { e.stopPropagation(); duplicateQuickReply(item); }}
-          title="Duplicar"
-        >
-          <CopySimple className="h-3 w-3" />
-        </Button>
+      <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity duration-150 shrink-0" onClick={(e) => e.stopPropagation()}>
+        {/* 3-dots dropdown */}
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button
+              size="icon"
+              variant="ghost"
+              className="h-5 w-5 rounded text-muted-foreground hover:text-foreground hover:bg-muted/60"
+              title="Mais opções"
+            >
+              <DotsThree className="h-4 w-4" weight="bold" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent side="left" align="start" className="w-48 text-xs">
+            <div className="px-2 py-1.5 text-[10px] font-semibold text-muted-foreground uppercase tracking-wide truncate">
+              {item.title || "Resposta Rápida"}
+            </div>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem
+              className="gap-2 text-xs cursor-pointer"
+              onClick={() => duplicateQuickReply(item)}
+            >
+              <CopySimple className="h-3.5 w-3.5" /> Duplicar Resposta Rápida
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              className="gap-2 text-xs cursor-pointer"
+              onClick={() => openEditQuickReplyDialog(item)}
+            >
+              <PencilSimple className="h-3.5 w-3.5" /> Editar
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              className="gap-2 text-xs cursor-pointer"
+              onClick={() => {
+                /* Criar Agendamento — handler futuro */
+              }}
+            >
+              <CalendarPlus className="h-3.5 w-3.5" /> Criar Agendamento
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              className="gap-2 text-xs cursor-pointer"
+              onClick={() => {
+                setMessageInput(getQuickReplyPreviewText(item, conversationVariableContext));
+                openEditQuickReplyDialog(item);
+              }}
+            >
+              <PencilSimple className="h-3.5 w-3.5 text-emerald-500" /> Editar e enviar
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem
+              className="gap-2 text-xs cursor-pointer text-destructive focus:text-destructive"
+              onClick={() => deleteQuickReply(item.id)}
+            >
+              <Trash className="h-3.5 w-3.5" /> Deletar
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+
+        {/* Favoritar */}
         <Button
           size="icon"
           variant="ghost"
           className={cn(
-            "h-5 w-5 rounded",
+            "h-5 w-5 rounded transition-colors",
+            item.favorite ? "text-amber-500 hover:bg-amber-500/20" : "text-muted-foreground hover:text-amber-500"
+          )}
+          onClick={() => toggleFavoriteQuickReply(item.id)}
+          title="Favoritar"
+        >
+          <Star className="h-3 w-3" weight={item.favorite ? "fill" : "regular"} />
+        </Button>
+
+        {/* Enviar */}
+        <Button
+          size="icon"
+          variant="ghost"
+          className={cn(
+            "h-5 w-5 rounded transition-colors",
             item.isFlow ? "text-purple-500 hover:bg-purple-500/20" : "text-emerald-500 hover:bg-emerald-500/20"
           )}
-          onClick={(e) => { e.stopPropagation(); void sendQuickReply(item); }}
+          onClick={() => void sendQuickReply(item)}
           title={item.isFlow ? "Disparar" : "Enviar"}
         >
           <PaperPlaneTilt className="h-3 w-3" weight="fill" />
