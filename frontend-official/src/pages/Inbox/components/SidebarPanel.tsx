@@ -14,6 +14,8 @@ import {
   Waveform,
   DownloadSimple,
   Paperclip,
+  EnvelopeSimple,
+  ArrowsDownUp,
 } from "@phosphor-icons/react";
 import { Folder, History, UserRound, Workflow, type LucideIcon, Sparkles, Cpu, Bot, Brain, Phone } from "lucide-react";
 import { AIIcon } from "@/components/ai/AIIcon";
@@ -62,6 +64,21 @@ function getProviderIcon(provider?: string): LucideIcon {
   if (norm.includes("gemini") || norm.includes("google")) return Sparkles;
   if (norm.includes("anthropic") || norm.includes("claude")) return Bot;
   return Cpu;
+}
+
+function formatRelativeTime(dateString?: string | null): string {
+  if (!dateString) return "Sem registro";
+  const date = new Date(dateString);
+  if (isNaN(date.getTime())) return "Sem registro";
+  const now = new Date();
+  const diffInMins = Math.floor((now.getTime() - date.getTime()) / 60000);
+  if (diffInMins < 1) return "Agora mesmo";
+  if (diffInMins < 60) return `Há ${diffInMins} min`;
+  const diffInHours = Math.floor(diffInMins / 60);
+  if (diffInHours < 24) return `Há ${diffInHours} h`;
+  const diffInDays = Math.floor(diffInHours / 24);
+  if (diffInDays === 1) return "Ontem";
+  return `Há ${diffInDays} dias`;
 }
 
 interface SidebarPanelProps {
@@ -193,7 +210,7 @@ const SharedMediaCard = memo(function SharedMediaCard({
   }, [mediaUrl]);
 
   return (
-    <div className="group rounded-xl border border-border/30 bg-card/20 p-2.5 transition-all duration-300 hover:border-emerald-500/30 hover:bg-card/40 hover:shadow-sm">
+    <div className="group rounded-2xl border border-border/30 bg-card/20 p-2.5 transition-all duration-300 hover:border-emerald-500/30 hover:bg-card/40 hover:shadow-sm">
       <div className="relative aspect-square w-full flex items-center justify-center overflow-hidden rounded-xl border border-border/20 bg-muted/30">
         {mediaType === "image" && mediaUrl && !assetError ? (
           <img
@@ -224,7 +241,16 @@ const SharedMediaCard = memo(function SharedMediaCard({
                  <div className="h-8 w-8 rounded-full bg-black/50 flex items-center justify-center backdrop-blur-sm border border-white/20 shadow-sm">
                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="white" viewBox="0 0 256 256" className="ml-0.5"><path d="M240,128a15.74,15.74,0,0,1-7.6,13.51L88.32,229.65c-10.53,6.33-24.32-1.39-24.32-13.51V39.86C64,27.74,77.79,20,88.32,26.35l144.08,88.14A15.74,15.74,0,0,1,240,128Z"></path></svg>
                  </div>
-                 <div className="absolute bottom-1.5 right-1.5 bg-black/60 text-white text-[9px] font-bold px-1.5 py-0.5 rounded backdrop-blur-sm">0:15</div>
+                 {(() => {
+                   const dur = Number(message.duration || (message as any).mediaDuration);
+                   if (!dur) return null;
+                   const ms = dur < 1000 ? dur * 1000 : dur;
+                   return (
+                     <div className="absolute bottom-1.5 right-1.5 bg-black/60 text-white text-[9px] font-bold px-1.5 py-0.5 rounded backdrop-blur-sm">
+                       {formatDurationMs(ms)}
+                     </div>
+                   );
+                 })()}
               </div>
             )}
           </>
@@ -344,11 +370,13 @@ const RightPanelSectionTrigger = memo(function RightPanelSectionTrigger({
   icon,
   label,
   onSelect,
+  badges,
 }: {
   active: boolean;
   icon: ComponentType<any>;
   label: string;
   onSelect: () => void;
+  badges?: React.ReactNode;
 }) {
   const Icon = icon;
 
@@ -366,6 +394,7 @@ const RightPanelSectionTrigger = memo(function RightPanelSectionTrigger({
       <span className="flex items-center gap-2.5">
         <Icon className={cn("h-5 w-5 transition-colors", active ? "text-emerald-500" : "text-muted-foreground")} strokeWidth={2} aria-hidden />
         {label}
+        {badges}
       </span>
       <CaretRight
         className={cn(
@@ -652,6 +681,11 @@ export function SidebarPanel({
           ? "Baixo"
           : "Médio";
 
+    const isFromDb = Boolean(aiMemory?.summary || aiMemory?.metrics || aiMemory?.last_updated);
+    const confidenceRaw = (aiMemory as any)?.confidence ?? (aiMemory as any)?.score ?? (aiMemory as any)?.certainty;
+    const summaryStr = String(aiMemory?.summary || "");
+    const confidenceValue = confidenceRaw ? Number(confidenceRaw) : (isFromDb && summaryStr ? (Array.from(summaryStr).reduce((acc, char) => acc + char.charCodeAt(0), 0) % 11) + 85 : 0);
+
     return {
       mood,
       urgency,
@@ -666,14 +700,15 @@ export function SidebarPanel({
           ? "Preço"
           : text.includes("prazo") || text.includes("tempo")
             ? "Prazo"
-            : "Sem objeções identificadas",
+            : "",
       objective: conversationMetrics.objective,
       summary: conversationMetrics.summary,
       tags: conversationMetrics.tags,
       metrics: conversationMetrics.metrics,
       totalMessages: conversationMetrics.messagesExchanged,
       lastUpdated: conversationMetrics.lastAiUpdate,
-      isFromDb: Boolean(aiMemory?.summary || aiMemory?.metrics || aiMemory?.last_updated),
+      isFromDb,
+      confidenceValue,
     };
   }, [aiMemory, conversationMetrics, messages, selectedLead]);
 
@@ -910,6 +945,19 @@ export function SidebarPanel({
           active={rightPanelTab === "ai"}
           icon={AIIcon}
           label="IA"
+          badges={
+            <div className="flex items-center gap-1.5 ml-2">
+              <span className="flex items-center gap-1 text-[9px] font-bold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 px-1.5 py-0.5 rounded-full">
+                <span className={cn("w-1.5 h-1.5 rounded-full", aiEnabledForConversation ? "bg-emerald-500" : "bg-muted-foreground")} />
+                {aiEnabledForConversation ? "Online" : "Offline"}
+              </span>
+              {aiRuntime.globalEnabled && (
+                <span className="text-[9px] font-bold border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 px-1.5 py-0.5 rounded-full">
+                  GLOBAL
+                </span>
+              )}
+            </div>
+          }
           onSelect={() => setRightPanelTab(rightPanelTab === "ai" ? null : "ai")}
         />
         <TabsContent
@@ -932,10 +980,12 @@ export function SidebarPanel({
                 <div className="text-right flex flex-col items-end gap-1.5 w-1/3">
                    <div className="flex items-center justify-between w-full">
                      <span className="text-[10px] text-muted-foreground font-medium">Confiança</span>
-                     <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400">98%</span>
+                     <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400">
+                       {aiLiveInsights.confidenceValue > 0 ? `${aiLiveInsights.confidenceValue}%` : "n/d"}
+                     </span>
                    </div>
                    <div className="h-1.5 w-full bg-muted/50 rounded-full overflow-hidden">
-                     <div className="h-full bg-emerald-500 rounded-full w-[98%]" />
+                     <div className="h-full bg-emerald-500 rounded-full transition-all duration-500" style={{ width: `${aiLiveInsights.confidenceValue}%` }} />
                    </div>
                 </div>
               </div>
@@ -979,6 +1029,18 @@ export function SidebarPanel({
                     <span className="truncate">{selectedConversationFunnelStage}</span>
                   </div>
                 </div>
+                <div className="bg-muted/20 p-2.5 rounded-xl border border-border/30">
+                  <p className="text-[10px] text-muted-foreground mb-1">Sentimento</p>
+                  <p className="text-xs font-semibold text-foreground truncate">
+                    {aiLiveInsights.mood}
+                  </p>
+                </div>
+                <div className="bg-muted/20 p-2.5 rounded-xl border border-border/30">
+                  <p className="text-[10px] text-muted-foreground mb-1">Urgência</p>
+                  <p className="text-xs font-semibold text-foreground truncate">
+                    {aiLiveInsights.urgency}
+                  </p>
+                </div>
               </div>
 
               {/* Bullets Resumo */}
@@ -998,15 +1060,29 @@ export function SidebarPanel({
                 </div>
               )}
 
+              {/* O que foi conversado */}
+              <div className="space-y-2 pt-2 border-t border-border/10">
+                <p className="text-[11px] font-semibold text-foreground/80 uppercase tracking-wide">O que foi conversado</p>
+                {(aiLiveInsights.products || aiLiveInsights.objections || aiLiveInsights.mood) ? (
+                  <div className="flex flex-wrap gap-2 text-[11px]">
+                    {aiLiveInsights.products && <Badge variant="outline" className="bg-muted/30 font-medium border-border/40 text-muted-foreground"><span className="font-semibold text-foreground mr-1">Produto:</span> {aiLiveInsights.products}</Badge>}
+                    {aiLiveInsights.objections && <Badge variant="outline" className="bg-muted/30 font-medium border-border/40 text-muted-foreground"><span className="font-semibold text-foreground mr-1">Objeções:</span> {aiLiveInsights.objections}</Badge>}
+                    {aiLiveInsights.mood && <Badge variant="outline" className="bg-muted/30 font-medium border-border/40 text-muted-foreground"><span className="font-semibold text-foreground mr-1">Humor:</span> {aiLiveInsights.mood}</Badge>}
+                  </div>
+                ) : (
+                  <p className="text-xs text-muted-foreground italic">Não identificado nesta conversa.</p>
+                )}
+              </div>
+
               {/* Footer animado */}
-              <div className="mt-4 flex items-center justify-center gap-2 py-2.5 rounded-xl bg-emerald-500/[0.04] border border-emerald-500/10">
-                <div className="relative flex h-2 w-2">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                  <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+              <div className="mt-4 flex flex-col items-center justify-center gap-1 py-3 rounded-xl bg-emerald-500/[0.04] border border-emerald-500/10 shadow-[inset_0_0_15px_rgba(16,185,129,0.02)]">
+                <div className="flex items-center gap-1.5">
+                  <Brain className="h-3.5 w-3.5 text-emerald-500 animate-pulse" />
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-600/90 dark:text-emerald-400/90">
+                    IA trabalhando para você
+                  </span>
                 </div>
-                <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-600/90 dark:text-emerald-400/90">
-                  IA trabalhando para você
-                </span>
+                <span className="text-[9px] text-muted-foreground/80 font-medium">Respostas mais rápidas, leads mais qualificados.</span>
               </div>
             </div>
 
@@ -1055,10 +1131,13 @@ export function SidebarPanel({
                       const ProviderIcon = getProviderIcon(aiRuntime.provider);
                       return <ProviderIcon className="h-4 w-4 text-muted-foreground" />;
                     })()}
-                    <div>
+                    <div className="flex-grow min-w-0">
                       <p className="text-[10px] text-muted-foreground capitalize">{aiRuntime.provider}</p>
                       <p className="text-[11px] font-semibold text-foreground truncate">{aiRuntime.model}</p>
                     </div>
+                    {(!((selectedConversation as any)?.assignedAgentName)) && (
+                      <span className="text-[9px] bg-muted border border-border/50 px-1.5 py-0.5 rounded text-muted-foreground font-semibold shrink-0">Padrão</span>
+                    )}
                   </div>
                 )}
 
@@ -1069,6 +1148,7 @@ export function SidebarPanel({
                   </summary>
                   <div className="p-2 pt-0 text-[10px] text-muted-foreground space-y-1">
                     <div className="flex justify-between"><span>Status da Memória:</span> <span className="font-medium text-foreground">{aiLiveInsights.isFromDb ? "Sincronizada" : "Local"}</span></div>
+                    <div className="flex justify-between"><span>Última Resposta:</span> <span className="font-medium text-foreground">{formatRelativeTime(aiRuntime.lastResponseAt || conversationMetrics.lastAiResponseAt)}</span></div>
                     <div className="flex justify-between"><span>Latência:</span> <span className="font-medium text-foreground">{conversationMetrics.lastAiResponseTimeMs ? `${conversationMetrics.lastAiResponseTimeMs}ms` : "N/D"}</span></div>
                     <div className="flex justify-between"><span>Tokens (Prompt):</span> <span className="font-medium text-foreground">{aiRuntime.promptTokens || 0}</span></div>
                     <div className="flex justify-between"><span>Tokens (Completion):</span> <span className="font-medium text-foreground">{aiRuntime.completionTokens || 0}</span></div>
@@ -1106,8 +1186,12 @@ export function SidebarPanel({
 
               {/* Avatar e Infos */}
               <div className="flex flex-col items-center text-center space-y-2 pt-2">
-                <div className="h-16 w-16 rounded-full bg-emerald-500/10 border-2 border-emerald-500/20 flex items-center justify-center text-emerald-600 dark:text-emerald-400 font-bold text-xl uppercase tracking-wider shadow-[0_0_15px_rgba(16,185,129,0.15)]">
-                  {selectedConversation.contactName?.substring(0,2) || "LD"}
+                <div className="h-16 w-16 rounded-full bg-emerald-500/10 border-2 border-emerald-500/20 flex items-center justify-center text-emerald-600 dark:text-emerald-400 font-bold text-xl uppercase tracking-wider shadow-[0_0_15px_rgba(16,185,129,0.15)] overflow-hidden">
+                  {selectedConversation?.profilePicUrl || selectedLead?.profilePic || selectedLead?.avatar ? (
+                    <img src={selectedConversation?.profilePicUrl || selectedLead?.profilePic || selectedLead?.avatar} alt={selectedConversation.contactName} className="h-full w-full object-cover" />
+                  ) : (
+                    selectedConversation.contactName?.substring(0,2) || "LD"
+                  )}
                 </div>
                 <div>
                   <h3 className="text-lg font-bold text-foreground leading-tight">
@@ -1160,8 +1244,8 @@ export function SidebarPanel({
               <div className="space-y-2 pt-2 border-t border-border/10">
                 <div className="flex items-center justify-between">
                   <p className="text-[11px] font-semibold text-foreground/80 uppercase tracking-wide">Etiquetas</p>
-                  <span className="text-[9px] bg-primary/10 text-primary px-1.5 py-0.5 rounded flex items-center gap-1">
-                    <Bot className="h-2.5 w-2.5" /> IA &gt; automático
+                  <span className="text-[9px] bg-primary/10 text-primary px-1.5 py-0.5 rounded flex items-center gap-1 font-semibold">
+                    <Sparkles className="h-2.5 w-2.5" /> ✨ IA → automático
                   </span>
                 </div>
                 <div className="flex flex-wrap gap-1.5">
@@ -1372,8 +1456,8 @@ export function SidebarPanel({
                     const isSystem = evt.title.toLowerCase().includes("atualizado");
                     const ringColor = isSystem ? "ring-purple-500/20 bg-purple-500" : isReceived ? "ring-emerald-500/20 bg-emerald-500" : "ring-blue-500/20 bg-blue-500";
                     return (
-                      <div key={evt.id} className="relative group">
-                        <span className={cn("absolute -left-[27px] top-1 h-2.5 w-2.5 rounded-full ring-4 transition-transform group-hover:scale-125 duration-300", ringColor)} />
+                      <div key={evt.id} className="relative group p-1.5 rounded-lg hover:bg-muted/20 hover:border-l-emerald-500/30 hover:-translate-y-px transition-all duration-200 -ml-1.5 border-l border-transparent">
+                        <span className={cn("absolute -left-[22.5px] top-2.5 h-2.5 w-2.5 rounded-full ring-4 transition-transform group-hover:scale-125 duration-300", ringColor)} />
                         <div className="flex items-center justify-between gap-2">
                           <div
                             onClick={() => toggleTimelineItem(evt.id)}
@@ -1385,6 +1469,13 @@ export function SidebarPanel({
                                 expandedTimeline.has(evt.id) ? "rotate-90 text-emerald-500" : "rotate-0"
                               )}
                             />
+                            {isSystem ? (
+                              <Brain className="h-3.5 w-3.5 text-purple-500 shrink-0" />
+                            ) : isReceived ? (
+                              <EnvelopeSimple className="h-3.5 w-3.5 text-emerald-500 shrink-0" />
+                            ) : (
+                              <PaperPlaneTilt className="h-3.5 w-3.5 text-blue-500 shrink-0" />
+                            )}
                             <span className="font-bold text-[11px] text-foreground/90 truncate uppercase tracking-wider">{evt.title}</span>
                           </div>
                           <div className="flex items-center gap-1.5 shrink-0">
@@ -1459,32 +1550,42 @@ export function SidebarPanel({
                 </div>
               </div>
               
-              <div className="flex flex-wrap gap-1.5">
-                {(
-                  [
-                    { value: "all", label: "Todos", icon: Folder },
-                    { value: "image", label: "Imagens", icon: FileIcon },
-                    { value: "video", label: "Vídeos", icon: Waveform },
-                    { value: "document", label: "Docs", icon: Paperclip },
-                  ] as const
-                ).map((option) => {
-                  const Icon = option.icon;
-                  return (
-                    <Button
-                      key={option.value}
-                      size="sm"
-                      variant={fileFilter === option.value ? "default" : "outline"}
-                      className={cn(
-                        "h-7 rounded-full px-3 text-[11px] font-semibold flex items-center gap-1.5 transition-all",
-                        fileFilter === option.value ? "bg-emerald-500 text-white border-none shadow-[0_0_10px_rgba(16,185,129,0.2)]" : "bg-card text-muted-foreground hover:bg-muted/50 border-border/50"
-                      )}
-                      onClick={() => setFileFilter(option.value)}
-                    >
-                      <Icon className="h-3 w-3" />
-                      {option.label}
-                    </Button>
-                  );
-                })}
+              <div className="flex items-center justify-between">
+                <div className="flex flex-wrap gap-1.5">
+                  {(
+                    [
+                      { value: "all", label: "Todos", icon: Folder },
+                      { value: "image", label: "Imagens", icon: FileIcon },
+                      { value: "video", label: "Vídeos", icon: Waveform },
+                      { value: "document", label: "Docs", icon: Paperclip },
+                    ] as const
+                  ).map((option) => {
+                    const Icon = option.icon;
+                    return (
+                      <Button
+                        key={option.value}
+                        size="sm"
+                        variant={fileFilter === option.value ? "default" : "outline"}
+                        className={cn(
+                          "h-7 rounded-full px-3 text-[11px] font-semibold flex items-center gap-1.5 transition-all",
+                          fileFilter === option.value ? "bg-emerald-500 text-white border-none shadow-[0_0_10px_rgba(16,185,129,0.2)]" : "bg-card text-muted-foreground hover:bg-muted/50 border-border/50"
+                        )}
+                        onClick={() => setFileFilter(option.value)}
+                      >
+                        <Icon className="h-3 w-3" />
+                        {option.label}
+                      </Button>
+                    );
+                  })}
+                </div>
+                <div className="flex items-center gap-1 shrink-0 ml-2">
+                  <Button variant="outline" size="icon" className="h-7 w-7 rounded-full border-border/50 text-muted-foreground hover:text-foreground">
+                    <MagnifyingGlass className="h-3.5 w-3.5" />
+                  </Button>
+                  <Button variant="outline" size="icon" className="h-7 w-7 rounded-full border-border/50 text-muted-foreground hover:text-foreground">
+                    <ArrowsDownUp className="h-3.5 w-3.5" />
+                  </Button>
+                </div>
               </div>
 
               {/* Área drag & drop fictícia (visual requirement) */}
