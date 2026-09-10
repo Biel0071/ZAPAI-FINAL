@@ -62,8 +62,8 @@ export function InboxView({
           className="h-full w-full"
         >
           <ResizablePanel
-            defaultSize={26}
-            minSize={18}
+            defaultSize={28}
+            minSize={22}
             maxSize={38}
             id="inbox-conversations-panel"
             className="flex flex-col h-full overflow-hidden"
@@ -77,7 +77,7 @@ export function InboxView({
           />
 
           <ResizablePanel
-            defaultSize={rightPanel ? 48 : 74}
+            defaultSize={rightPanel ? 46 : 72}
             minSize={30}
             id="inbox-chat-pane"
             className="flex flex-col h-full overflow-hidden min-w-0 relative"
@@ -93,7 +93,7 @@ export function InboxView({
               />
               <ResizablePanel
                 defaultSize={26}
-                minSize={16}
+                minSize={20}
                 maxSize={42}
                 id="inbox-context-panel"
                 className="hidden lg:flex flex-col h-full overflow-hidden"

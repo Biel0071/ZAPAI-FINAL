@@ -362,39 +362,14 @@ export function DashboardView({
           </TabsList>
         </Tabs>
 
-        {/* Date Filter selector */}
+        {/* Date Filter selector (Compact SaaS toolbar) */}
         <div className="flex flex-wrap items-center gap-2">
-          {/* Períodos rápidos */}
-          <div className="flex flex-wrap items-center gap-0.5 rounded-xl border border-border bg-card/60 p-1">
+          {/* Quick Core Periods */}
+          <div className="flex items-center gap-0.5 rounded-xl border border-border bg-card/60 p-1">
             {[
               { id: "today", label: "Hoje" },
-              { id: "yesterday", label: "Ontem" },
               { id: "7days", label: "7D" },
-              { id: "15days", label: "15D" },
               { id: "30days", label: "30D" },
-              { id: "90days", label: "90D" },
-            ].map((range) => (
-              <button
-                key={range.id}
-                type="button"
-                onClick={() => onDateRangeChange(range.id as any)}
-                className={`rounded-lg px-2.5 py-1 text-xs font-medium transition-colors ${
-                  dateRange === range.id
-                    ? "bg-primary text-primary-foreground shadow-sm shadow-primary/20"
-                    : "text-muted-foreground hover:text-foreground"
-                }`}
-              >
-                {range.label}
-              </button>
-            ))}
-          </div>
-
-          {/* Calendário (semana/mês/ano/geral) */}
-          <div className="flex flex-wrap items-center gap-0.5 rounded-xl border border-border bg-card/60 p-1">
-            {[
-              { id: "week", label: "Semana" },
-              { id: "month", label: "Mês" },
-              { id: "year", label: "Ano" },
               { id: "all", label: "Geral" },
             ].map((range) => (
               <button
@@ -410,6 +385,30 @@ export function DashboardView({
                 {range.label}
               </button>
             ))}
+
+            {/* Extended Periods Selector */}
+            <select
+              aria-label="Mais períodos de análise"
+              value={["yesterday", "15days", "90days", "week", "month", "year"].includes(dateRange) ? dateRange : "more"}
+              onChange={(e) => {
+                if (e.target.value !== "more") {
+                  onDateRangeChange(e.target.value as any);
+                }
+              }}
+              className={`h-6 rounded-lg border-none bg-transparent px-2 text-xs font-medium transition-colors outline-none cursor-pointer ${
+                ["yesterday", "15days", "90days", "week", "month", "year"].includes(dateRange)
+                  ? "bg-primary text-primary-foreground font-semibold"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              <option value="more" disabled className="bg-popover text-foreground">Outros...</option>
+              <option value="yesterday" className="bg-popover text-foreground">Ontem</option>
+              <option value="15days" className="bg-popover text-foreground">15D</option>
+              <option value="90days" className="bg-popover text-foreground">90D</option>
+              <option value="week" className="bg-popover text-foreground">Semana</option>
+              <option value="month" className="bg-popover text-foreground">Mês</option>
+              <option value="year" className="bg-popover text-foreground">Ano</option>
+            </select>
           </div>
 
           {/* Personalizado (hora/datas + janela horária) */}
@@ -447,7 +446,7 @@ export function DashboardView({
               </div>
             )}
 
-            {/* Janela de horário: aparece quando há valor preenchido ou no modo custom */}
+            {/* Janela de horário */}
             {(dateRange === "custom" || timeStart || timeEnd) && (
               <div className="flex items-center gap-1.5 rounded-xl border border-border bg-card/60 p-1 shadow-sm text-xs text-muted-foreground">
                 <div className="flex items-center justify-center pl-2 pr-1">
@@ -501,7 +500,7 @@ export function DashboardView({
                 </div>
                 <h3 className="font-display text-2xl sm:text-3xl font-black">{safeAnalyticsViewModel.kpis[1]?.value || "0"}</h3>
                 <span className="text-[10px] text-primary font-semibold flex items-center gap-0.5 truncate">
-                  Leads aguardando (Abrir Inbox →)
+                  Leads no Inbox
                 </span>
               </CardContent>
             </Card>
@@ -517,7 +516,7 @@ export function DashboardView({
                 </div>
                 <h3 className="font-display text-2xl sm:text-3xl font-black">{safeAnalyticsViewModel.kpis[3]?.value || "0"}</h3>
                 <span className="text-[10px] text-primary font-semibold flex items-center gap-0.5 truncate">
-                  Base CRM ativa (Ver Contatos →)
+                  Contatos no CRM
                 </span>
               </CardContent>
             </Card>
@@ -534,7 +533,7 @@ export function DashboardView({
                   </Badge>
                 </div>
                 <h3 className="font-display text-2xl sm:text-3xl font-black">{viewModel.overviewCards?.[1]?.value ?? "Offline"}</h3>
-                <span className="text-[10px] text-muted-foreground truncate block">Telemetria de Infraestrutura</span>
+                <span className="text-[10px] text-muted-foreground truncate block">Status da Infraestrutura</span>
               </CardContent>
             </Card>
 
@@ -550,7 +549,7 @@ export function DashboardView({
                   </Badge>
                 </div>
                 <h3 className="font-display text-2xl sm:text-3xl font-black">{viewModel.overviewCards?.[2]?.value ?? "0"} canal</h3>
-                <span className="text-[10px] text-muted-foreground truncate block">Conexões Ativas em Tempo Real</span>
+                <span className="text-[10px] text-muted-foreground truncate block">Sessões Conectadas</span>
               </CardContent>
             </Card>
 
@@ -565,7 +564,7 @@ export function DashboardView({
                 </div>
                 <h3 className="font-display text-2xl sm:text-3xl font-black">{safeAnalyticsViewModel.kpis[2]?.value || "0"}</h3>
                 <span className="text-[10px] text-success font-semibold flex items-center gap-0.5 truncate">
-                  Respostas automáticas (Ver IA →)
+                  Taxa de Resolução
                 </span>
               </CardContent>
             </Card>

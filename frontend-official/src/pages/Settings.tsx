@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useMemo } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useSearchParams, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import {
   User,
@@ -71,6 +71,7 @@ function resolveAIEnabled(status: AIStatusResponse | null): boolean {
 }
 
 export default function Settings() {
+  const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const settingsViewModel = useMemo(() => createSettingsLovableViewModel(), []);
   const tabParam = searchParams.get("tab") || searchParams.get("section");
@@ -318,7 +319,24 @@ export default function Settings() {
 
   return (
     <div className="flex flex-1 flex-col overflow-y-auto">
-      <Header title="Configurações" subtitle="Gerencie sua conta e preferências" />
+      <Header
+        title="Configurações"
+        subtitle="Gerencie sua conta, preferências e motor de IA"
+        actions={
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => void handleAIToggle()}
+            disabled={isAIToggling || isAIStatusLoading}
+            className="h-8 gap-2 rounded-xl text-xs border-border/70 hover:bg-card/80"
+            title="Alternar motor global de IA para automações e respostas"
+          >
+            <Robot className="h-3.5 w-3.5 text-primary" />
+            <span className={cn("h-2 w-2 rounded-full", isAIEnabled ? "bg-emerald-500 animate-pulse" : "bg-muted-foreground/50")} />
+            <span className="font-semibold">{isAIEnabled ? "IA Ativa" : "IA Pausada"}</span>
+          </Button>
+        }
+      />
 
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
         <SettingsView
@@ -403,6 +421,33 @@ export default function Settings() {
                     </div>
                   </div>
                 ))}
+
+                {/* Quick Operational Hub Links */}
+                <div className="pt-2 border-t border-border/40 space-y-1">
+                  <p className="px-3 text-[10px] font-bold uppercase tracking-wider text-muted-foreground/60">
+                    Módulos do Sistema
+                  </p>
+                  <div className="space-y-0.5">
+                    {[
+                      { label: "WhatsApp Conexões", path: "/connections" },
+                      { label: "Inbox Cockpit", path: "/inbox" },
+                      { label: "Campanhas & Disparos", path: "/campaigns" },
+                      { label: "Estúdio IA & Agentes", path: "/ai" },
+                      { label: "Memória Neural", path: "/memory" },
+                      { label: "Central de Operações", path: "/operations" },
+                    ].map((mod) => (
+                      <button
+                        key={mod.path}
+                        type="button"
+                        onClick={() => navigate(mod.path)}
+                        className="flex w-full items-center justify-between rounded-xl px-3 py-1.5 text-xs text-muted-foreground hover:bg-muted/40 hover:text-foreground transition-colors text-left"
+                      >
+                        <span className="truncate">{mod.label}</span>
+                        <span className="text-[10px] text-muted-foreground/50">↗</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
               </nav>
             </div>
           }
@@ -410,22 +455,6 @@ export default function Settings() {
             <div className="space-y-6">
               {activeSection === 0 && (
                 <>
-                  <Card className="glass-card">
-                    <CardHeader>
-                      <CardTitle className="font-display flex items-center gap-2"><Robot className="w-5 h-5" />IA Global</CardTitle>
-                    </CardHeader>
-                    <CardContent className="flex items-center justify-between gap-4">
-                      <div>
-                        <p className="font-medium">IA Ativa</p>
-                        <p className="text-sm text-muted-foreground">Controla o motor de IA para automações e respostas.</p>
-                      </div>
-                      <Button variant="outline" onClick={() => void handleAIToggle()} disabled={isAIToggling || isAIStatusLoading} className="gap-2">
-                        <span className={cn("h-2.5 w-2.5 rounded-full", isAIEnabled ? "bg-success" : "bg-muted-foreground/50")} />
-                        IA Ativa
-                      </Button>
-                    </CardContent>
-                  </Card>
-
                   <Card className="glass-card">
                     <CardHeader><CardTitle className="font-display">Perfil</CardTitle></CardHeader>
                     <CardContent className="space-y-6">

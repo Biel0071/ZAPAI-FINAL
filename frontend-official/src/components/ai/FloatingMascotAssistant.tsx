@@ -20,6 +20,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { useAppStore } from "@/stores/appStore";
 
 const CONTEXTUAL_TIPS: Record<string, { title: string; tip: string; shortcut?: string; actionLabel?: string; actionPath?: string }> = {
@@ -80,9 +81,9 @@ export function FloatingMascotAssistant() {
   const [isOpen, setIsOpen] = useState(false);
   const [isMinimized, setIsMinimized] = useState(() => {
     try {
-      return localStorage.getItem("zapflow_mascot_minimized") === "true";
+      return localStorage.getItem("zapflow_mascot_minimized") !== "false";
     } catch {
-      return false;
+      return true;
     }
   });
   const [userQuery, setUserQuery] = useState("");
@@ -94,9 +95,9 @@ export function FloatingMascotAssistant() {
     return Array.isArray(sessions) && sessions.some((s) => s?.status === "connected");
   }, [sessions]);
 
-  // If in mobile chat view with active conversation, hide floating widget to prevent blocking input
-  const isMobile = typeof window !== "undefined" && window.innerWidth < 768;
-  const isInboxMobileChat = isMobile && location.pathname === "/inbox" && Boolean(activeConversationId);
+  const isMobile = useIsMobile();
+  const isInbox = location.pathname.startsWith("/inbox");
+  const isInboxMobileChat = isMobile && isInbox && Boolean(activeConversationId);
 
   const currentTip = useMemo(() => {
     const matchedPath = Object.keys(CONTEXTUAL_TIPS).find((p) => location.pathname.startsWith(p));
@@ -141,7 +142,15 @@ export function FloatingMascotAssistant() {
   }
 
   return (
-    <aside aria-label="Assistente Inteligente ZAI" className="fixed bottom-3 right-3 sm:bottom-5 sm:right-5 z-40 select-none">
+    <aside
+      aria-label="Assistente Inteligente ZAI"
+      className={cn(
+        "fixed z-40 select-none transition-all duration-200",
+        isInbox
+          ? "bottom-20 right-4 sm:bottom-24 sm:right-6"
+          : "bottom-3 right-3 sm:bottom-5 sm:right-5"
+      )}
+    >
       {/* EXPANDED ASSISTANT CARD */}
       <AnimatePresence>
         {isOpen && (

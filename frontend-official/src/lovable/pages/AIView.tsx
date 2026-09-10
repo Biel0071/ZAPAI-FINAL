@@ -2526,27 +2526,40 @@ export function AIView(props: AIViewProps) {
           {/* Summary Dashboard Cards */}
           <div className="grid gap-3 sm:grid-cols-3">
             <Card className="glass-card metric-card rounded-2xl border-border/70 hover-lift shadow-sm">
-              <CardContent className="space-y-2 p-4">
-                <div>
-                  <p className="text-[11px] uppercase tracking-wide text-muted-foreground font-semibold">Status Geral da IA</p>
-                  <p className="text-lg font-bold mt-1 text-foreground">{aiEnabled ? "Ativada" : "Desativada"}</p>
+              <CardContent className="space-y-1.5 p-3.5 sm:p-4">
+                <div className="flex items-center justify-between">
+                  <p className="text-[10px] sm:text-[11px] uppercase tracking-wider text-muted-foreground font-bold">Status Geral IA</p>
+                  <div className="h-6 w-6 rounded-lg bg-emerald-500/10 text-emerald-400 flex items-center justify-center">
+                    <Bot className="h-3.5 w-3.5" />
+                  </div>
                 </div>
+                <p className="font-display text-2xl font-black text-foreground">{aiEnabled ? "Ativada" : "Desativada"}</p>
                 <OperationalStatusBadge label={aiEnabled ? "Assistente online" : "Assistente offline"} tone={aiEnabled ? "online" : "offline"} />
               </CardContent>
             </Card>
 
             <Card className="glass-card metric-card rounded-2xl border-border/70 hover-lift shadow-sm">
-              <CardContent className="space-y-2 p-4">
-                <p className="text-[11px] uppercase tracking-wide text-muted-foreground font-semibold">Tráfego de Respostas</p>
-                <p className="text-lg font-bold mt-1 text-foreground">{aiMetrics?.messagesToday ?? 0} hoje</p>
+              <CardContent className="space-y-1.5 p-3.5 sm:p-4">
+                <div className="flex items-center justify-between">
+                  <p className="text-[10px] sm:text-[11px] uppercase tracking-wider text-muted-foreground font-bold">Tráfego de Respostas</p>
+                  <div className="h-6 w-6 rounded-lg bg-primary/10 text-primary flex items-center justify-center">
+                    <Sparkles className="h-3.5 w-3.5" />
+                  </div>
+                </div>
+                <p className="font-display text-2xl font-black text-foreground">{aiMetrics?.messagesToday ?? 0} hoje</p>
                 <OperationalStatusBadge label="Tráfego ativo" tone="online" />
               </CardContent>
             </Card>
 
             <Card className="glass-card metric-card rounded-2xl border-border/70 hover-lift shadow-sm">
-              <CardContent className="space-y-2 p-4">
-                <p className="text-[11px] uppercase tracking-wide text-muted-foreground font-semibold">Fila de Reativação</p>
-                <p className="text-lg font-bold mt-1 text-foreground">{queueWaiting} leads</p>
+              <CardContent className="space-y-1.5 p-3.5 sm:p-4">
+                <div className="flex items-center justify-between">
+                  <p className="text-[10px] sm:text-[11px] uppercase tracking-wider text-muted-foreground font-bold">Fila de Reativação</p>
+                  <div className="h-6 w-6 rounded-lg bg-amber-500/10 text-amber-400 flex items-center justify-center">
+                    <Clock className="h-3.5 w-3.5" />
+                  </div>
+                </div>
+                <p className="font-display text-2xl font-black text-foreground">{queueWaiting} leads</p>
                 <OperationalStatusBadge label="Reativação monitorada" tone="syncing" />
               </CardContent>
             </Card>

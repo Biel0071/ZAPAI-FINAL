@@ -203,7 +203,19 @@ export function useInboxState() {
     return window.localStorage.getItem("zapai_right_panel_collapsed") === "1";
   });
   const [mobileScreen, setMobileScreen] = useState<"conversations" | "chat">("conversations");
-  const [isTabletLayout, setIsTabletLayout] = useState<boolean>(() => window.innerWidth < 1440);
+  const [isTabletLayout, setIsTabletLayout] = useState<boolean>(() => {
+    if (typeof window === "undefined") return false;
+    return window.innerWidth < 1024;
+  });
+
+  useEffect(() => {
+    const handleResize = () => {
+      setIsTabletLayout(window.innerWidth < 1024);
+    };
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
+
   const [keyboardOffset, setKeyboardOffset] = useState(0);
 
   // Session management

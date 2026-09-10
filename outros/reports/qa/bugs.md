@@ -404,7 +404,7 @@ PASS (110/110 testes automatizados Playwright Chromium em produção, 0 overflow
 2560 PASS (2560x1080 Ultrawide)
 
 BUILD:
-PASS (Vite 5.4.19 production bundle index-B4Qv0m_q.js, 28.69s)
+PASS (Vite 5.4.19 production bundle index-CS-n2cqa.js, 32.23s)
 
 TESTS:
 PASS (3 arquivos Vitest, 6/6 testes unitários aprovados)
@@ -428,26 +428,34 @@ REGRESSÕES:
 0
 
 PROBLEMAS RESTANTES:
-Nenhum bloqueio técnico. Frontend com alta densidade de informação, painéis redimensionáveis no Inbox, mascote copiloto discreto não-intrusivo, sem duplicidade de cards em Contatos e cabeçalhos operacionais consolidados.
+Nenhum bloqueio técnico. Layout responsivo e visual enterprise homologado:
+1. Resizable panels com autoSaveId no desktop e Drawer Sheet no tablet/mobile (<1024px) com listener de resize em tempo real.
+2. Abas de filtro no Inbox (Todas, Não lidas, IA ativa, Arquivadas) com labels 100% legíveis sem truncamento em grid de 4 colunas.
+3. Mascote copiloto flutuante inteligente minimizável, com posicionamento elevado no chat para não sobrepor botões de ação e envio.
+4. Top header com nome de usuário limpo sem duplicação de iniciais ("zapadmin").
+5. Cards de métricas no Dashboard com legendas sem corte e seletor rápido com dropdown compacto para datas.
+6. Cards de CRM em Contatos com métricas reais, ícones dual-tone e telemetria da base.
+7. Switch IA Global e atalhos operacionais reorganizados no cabeçalho das Configurações.
+8. Cabeçalho de Campanhas unificado sem duplicação de botões de ação e 110/110 testes de viewport sem overflow.
 
 EVIDÊNCIAS:
-- Diretório de Screenshots: outros/reports/qa/screenshots/phase4/ (48 arquivos PNG)
-- Execução Playwright 110/110: scripts/qa/verify-phase3-responsive.cjs
+- Diretório de Screenshots: outros/reports/qa/screenshots/phase4/ (48 arquivos PNG capturados e homologados)
+- Execução Playwright 110/110: scripts/qa/verify-phase3-responsive.cjs (110/110 PASS, 0 falhas)
 - Script de Captura Visual: scripts/qa/capture-phase4-visuals.cjs
-- HTML e Bundle compilado em produção: http://209.50.241.22/assets/index-B4Qv0m_q.js
+- HTML e Bundle compilado em produção: http://209.50.241.22/assets/index-CS-n2cqa.js (HTTP 200 OK)
 - Healthcheck API backend: http://209.50.241.22/api/session-status (connected: true)
 
 ALTERAÇÕES REALIZADAS:
-- frontend-official/src/lovable/pages/InboxView.tsx: Implementação de ResizablePanelGroup, ResizablePanel e ResizableHandle (de @/components/ui/resizable) no desktop com persistência de proporções de layout via autoSaveId="zapflow-inbox-panels-layout-v1", garantindo flexibilidade total para o operador redimensionar as colunas de conversas, chat e inteligência.
-- frontend-official/src/pages/Inbox/components/SidebarPanel.tsx: Adaptação do aside direito de largura estática (w-[320px]) para largura fluida adaptativa (w-full).
-- frontend-official/src/components/layout/MainLayout.tsx & Sidebar.tsx: Persistência do estado de sidebar recolhida via localStorage.getItem("zapflow_sidebar_collapsed") com navegação em modo compact rail envolta em Radix Tooltips com ícones e status.
-- frontend-official/src/components/ai/FloatingMascotAssistant.tsx: Criação de mascote copiloto discreto, elegante e inteligente no canto inferior direito, com dicas contextuais de operação por rota, consulta rápida, minimizável para micro-indicador e ocultação automática em modo chat mobile para não sobrepor o campo de mensagem.
-- frontend-official/src/components/layout/AuthenticatedAppShell.tsx: Montagem global do FloatingMascotAssistant em todas as rotas autenticadas.
-- frontend-official/src/components/ai/AIExecutiveInsightsCard.tsx: Refatoração para formato compacto/colapsável com persistência via localStorage, reduzindo footprint vertical de ~250px para banner executivo de 36px com diagnóstico rápido e expansão sob demanda; correção da ordem dos hooks do React para prevenir erro 310.
-- frontend-official/src/lovable/pages/DashboardView.tsx: Aumento da densidade dos cards de KPI (Fila de Atendimento, Volume de Contatos, API Runtime, WebSocket, Automação IA), com indicadores visuais de pulso e atalhos diretos.
-- frontend-official/src/lovable/pages/ContactsView.tsx: Eliminação da duplicação de cards de contatos no rodapé da página e inclusão de barra inline de telemetria da base (Total, Individuais, Grupos, Visualização).
-- frontend-official/src/pages/Operations.tsx: Simplificação de cabeçalho e alinhamento flexível de operadores.
-- frontend-official/src/components/ai/AIAssistantGuideCard.tsx: Compactação visual e persistência de fechamento por rota em localStorage.
+- frontend-official/src/pages/Inbox/hooks/useInboxState.ts: Correção do breakpoint de tablet para <1024px com event listener dinâmico de resize para transição suave de janelas.
+- frontend-official/src/lovable/pages/InboxView.tsx: ResizablePanelGroup balanceado com tamanhos percentuais otimizados (28% conversas, 44% chat, 28% inteligência).
+- frontend-official/src/pages/Inbox/components/ChatListPanel.tsx: Reorganização das 4 abas de conversas em grid-cols-4 compacto para eliminar corte do texto "Todas".
+- frontend-official/src/components/ai/FloatingMascotAssistant.tsx: Elevação da ancoragem do copiloto flutuante no Inbox e minimização padrão com micro-indicador para desobstruir controles de envio.
+- frontend-official/src/lovable/layout/HeaderShell.tsx: Correção do badge de perfil para exibir o nome de usuário completo sem duplicar iniciais.
+- frontend-official/src/lovable/pages/DashboardView.tsx: Limpeza das legendas de métricas para prevenir corte de texto e compactação de seletores de intervalo temporal.
+- frontend-official/src/lovable/pages/ContactsView.tsx: Substituição de caixas vazias por KPIs de CRM com ícones Phosphor dual-tone.
+- frontend-official/src/pages/Settings.tsx: Movimentação do controle de IA Global para a barra de ações do cabeçalho unificado.
+- frontend-official/src/pages/Campaigns.tsx: Eliminação da duplicação do botão "Salvar Rascunho" condicionado a abas de listagem.
+- frontend-official/src/lovable/pages/AIView.tsx: Refinamento visual da sandbox de IA e alinhamento de métricas.
 
 ROLLBACK:
 NÃO ACIONADO (Todos os critérios de aceite cumpridos com 100% de aprovação).

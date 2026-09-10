@@ -133,18 +133,32 @@ export function ContactsView({
           {viewModel.summaryCards.map((card) => {
             const cardSegment = card.segment;
             const isActive = activeSegment === cardSegment;
+            const isAll = cardSegment === "all";
+            const isIndividual = cardSegment === "individual";
+            const Icon = isAll ? AddressBook : isIndividual ? Phone : ChatCircleDots;
+            const subtext = isAll ? "Leads cadastrados na base" : isIndividual ? "Contatos individuais ativos" : "Grupos e canais mapeados";
+
             return (
               <Card
                 key={card.label}
                 className={cn(
-                  "glass-card metric-card rounded-2xl border-border/70 hover-lift cursor-pointer transition-all hover:scale-[1.02] hover:bg-card/95 select-none",
+                  "glass-card metric-card rounded-2xl border-border/70 hover-lift cursor-pointer transition-all hover:scale-[1.01] hover:bg-card/95 select-none",
                   isActive && "border-primary/50 bg-primary/5 shadow-glow"
                 )}
                 onClick={() => onSegmentChange(cardSegment)}
               >
-                <CardContent className="space-y-1.5 p-3 sm:p-4">
-                  <p className="text-[10px] sm:text-[11px] uppercase tracking-wide text-muted-foreground truncate">{card.label}</p>
-                  <p className="font-display text-xl sm:text-2xl font-bold">{card.value}</p>
+                <CardContent className="space-y-1 p-3.5 sm:p-4">
+                  <div className="flex items-center justify-between">
+                    <p className="text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-muted-foreground truncate">{card.label}</p>
+                    <div className={cn(
+                      "h-6 w-6 rounded-lg flex items-center justify-center text-xs",
+                      isAll ? "bg-primary/10 text-primary" : isIndividual ? "bg-sky-500/10 text-sky-400" : "bg-emerald-500/10 text-emerald-400"
+                    )}>
+                      <Icon className="h-3.5 w-3.5" weight="duotone" />
+                    </div>
+                  </div>
+                  <p className="font-display text-2xl sm:text-3xl font-black">{card.value}</p>
+                  <p className="text-[10px] text-muted-foreground/80 truncate">{subtext}</p>
                 </CardContent>
               </Card>
             );

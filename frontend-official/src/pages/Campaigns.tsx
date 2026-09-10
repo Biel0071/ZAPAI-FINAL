@@ -1422,15 +1422,12 @@ export default function Campaigns() {
         accept=".csv"
         className="hidden"
       />
-      {campaignsTab !== "compose" && (
-        <Header
-          title="Campanhas"
-          subtitle="Disparos em massa e campanhas programadas"
-          actions={
+      <Header
+        title="Campanhas"
+        subtitle="Disparos em massa e campanhas programadas"
+        actions={
+          campaignsTab !== "compose" ? (
             <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
-              <Button variant="outline" size="sm" className="rounded-xl text-xs h-8 sm:h-9" onClick={() => void persistCampaign("save")}>
-                Salvar Rascunho
-              </Button>
               <Button variant="outline" size="sm" className="rounded-xl text-xs h-8 sm:h-9" onClick={() => fileInputRef.current?.click()}>
                 Importar Contatos
               </Button>
@@ -1445,9 +1442,9 @@ export default function Campaigns() {
                 <span className="sm:hidden">Novo</span>
               </Button>
             </div>
-          }
-        />
-      )}
+          ) : null
+        }
+      />
 
       <div className={campaignsTab === "compose" ? "pb-4" : ""}>
         {loading ? (

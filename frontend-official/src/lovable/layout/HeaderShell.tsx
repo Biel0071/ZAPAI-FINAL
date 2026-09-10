@@ -189,8 +189,8 @@ export function HeaderShell({
                     {(username || "ZA").slice(0, 2).toUpperCase()}
                   </AvatarFallback>
                 </Avatar>
-                <span className="text-xs font-semibold text-muted-foreground">
-                  {(username || "ZA").slice(0, 2).toUpperCase()}
+                <span className="text-xs font-semibold text-muted-foreground hidden sm:inline max-w-[120px] truncate">
+                  {username || "zapadmin"}
                 </span>
               </Button>
             </DropdownMenuTrigger>

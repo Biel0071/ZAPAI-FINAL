@@ -105,11 +105,11 @@ export function ChatListPanel({
           </Button>
         </div>
         <Tabs value={filter} onValueChange={setFilter}>
-          <TabsList className="w-full">
-            <TabsTrigger value="all" className="flex-1">Todas</TabsTrigger>
-            <TabsTrigger value="unread" className="flex-1">Não lidas</TabsTrigger>
-            <TabsTrigger value="ai" className="flex-1">IA ativa</TabsTrigger>
-            <TabsTrigger value="archived" className="flex-1">Arquivadas</TabsTrigger>
+          <TabsList className="grid w-full grid-cols-4 h-8 p-0.5 bg-muted/60">
+            <TabsTrigger value="all" className="text-[11px] px-1 py-1 data-[state=active]:font-bold">Todas</TabsTrigger>
+            <TabsTrigger value="unread" className="text-[11px] px-1 py-1 data-[state=active]:font-bold">Não lidas</TabsTrigger>
+            <TabsTrigger value="ai" className="text-[11px] px-1 py-1 data-[state=active]:font-bold">IA ativa</TabsTrigger>
+            <TabsTrigger value="archived" className="text-[11px] px-1 py-1 data-[state=active]:font-bold">Arquivadas</TabsTrigger>
           </TabsList>
         </Tabs>
         {setShowGroups && (
