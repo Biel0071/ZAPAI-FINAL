@@ -140,8 +140,20 @@ function mergeMessageLists(base: ChatMessage[] = [], incoming: ChatMessage[] = [
       if (existing.id === message.id) return true;
       if (existing.whatsappMessageId && message.whatsappMessageId && existing.whatsappMessageId === message.whatsappMessageId) return true;
       
-      // Heuristic deduplication for outgoing messages duplicated by Baileys sync race-conditions
+      const existingIsTemp = String(existing.id).startsWith("temp-") || String(existing.id).startsWith("rt-");
+      const messageIsTemp = String(message.id).startsWith("temp-") || String(message.id).startsWith("rt-");
+      // Distinct confirmed database IDs are legitimate distinct messages (Scenario E)
+      if (!existingIsTemp && !messageIsTemp && existing.id && message.id && String(existing.id) !== String(message.id)) {
+        return false;
+      }
+      // Distinct WhatsApp IDs are legitimate distinct messages
+      if (existing.whatsappMessageId && message.whatsappMessageId && existing.whatsappMessageId !== message.whatsappMessageId) {
+        return false;
+      }
+
+      // Heuristic deduplication for outgoing messages duplicated by Baileys sync race-conditions (only when unconfirmed/temp)
       if (
+        (existingIsTemp || messageIsTemp || !existing.id || !message.id) &&
         existing.fromMe === true &&
         message.fromMe === true &&
         existing.content === message.content &&
@@ -252,10 +264,21 @@ export function isSameOrDuplicateMessage(a: ChatMessage, b: ChatMessage): boolea
     }
   }
 
-  // 3. Content + Direction + Time match (Deduplicate WebSocket vs HTTP or Dual Socket Events)
+  // 3. Different whatsappMessageId = definitely distinct messages
+  if (a.whatsappMessageId && b.whatsappMessageId && a.whatsappMessageId !== b.whatsappMessageId) {
+    return false;
+  }
+
+  // 4. Both have confirmed, distinct IDs = definitely distinct messages (Scenario E)
+  if (!aIsTemp && !bIsTemp && a.id && b.id && String(a.id) !== String(b.id)) {
+    return false;
+  }
+
+  // 5. Content + Direction + Time match (Deduplicate WebSocket vs HTTP only when at least one is unconfirmed or temporary)
   const contentA = (a.content || "").trim();
   const contentB = (b.content || "").trim();
   if (
+    (aIsTemp || bIsTemp || !a.id || !b.id) &&
     contentA &&
     contentA === contentB &&
     Boolean(a.fromMe) === Boolean(b.fromMe) &&

@@ -1,0 +1,37 @@
+[
+  {
+    "id": 117725,
+    "whatsappMessageId": "3EB0C913D0EC3671F2C7A3",
+    "content": "[QA AUDITORIA 2026-09-10 A1] clique unico",
+    "status": "sent",
+    "createdAt": "2026-09-10T18:25:24.584Z"
+  },
+  {
+    "id": 117728,
+    "whatsappMessageId": "3EB066C4ED4018D45F4914",
+    "content": "[QA AUDITORIA 2026-09-10 B1] double",
+    "status": "sent",
+    "createdAt": "2026-09-10T18:26:14.581Z"
+  },
+  {
+    "id": 117729,
+    "whatsappMessageId": "3EB016F62CEB014A3BD475",
+    "content": "[QA AUDITORIA 2026-09-10 C1] enter",
+    "status": "sent",
+    "createdAt": "2026-09-10T18:26:16.488Z"
+  },
+  {
+    "id": 117731,
+    "whatsappMessageId": "3EB0496B89658228A6E5DD",
+    "content": "[QA AUDITORIA 2026-09-10 C2] enter-click",
+    "status": "sent",
+    "createdAt": "2026-09-10T18:26:20.087Z"
+  },
+  {
+    "id": 117733,
+    "whatsappMessageId": "3EB0722B6F4AE9632DF3B7",
+    "content": "[QA AUDITORIA 2026-09-10 E1] duas operacoes intencionais iguais",
+    "status": "sent",
+    "createdAt": "2026-09-10T18:26:59.386Z"
+  }
+]

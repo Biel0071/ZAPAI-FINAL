@@ -1,5 +1,9 @@
 const runningFlows = new Map();
 
+function snapshot(flowData) {
+  return flowData ? { ...flowData } : flowData;
+}
+
 /**
  * Starts tracking a flow execution for a chat
  */
@@ -14,15 +18,14 @@ function startFlow({ chatId, flowName, totalSteps = 1, companyId = 'default' }) 
     stepDescription: 'Iniciando envio...',
     startedAt: Date.now(),
     companyId,
-    status: 'running',
+    status: 'preparing',
   };
 
   runningFlows.set(chatId, flowData);
 
   const io = global.io;
   if (io) {
-    io.emit('flow:started', flowData);
-    io.to(`chat:${chatId}`).emit('flow:started', flowData);
+    io.emit('flow:started', snapshot(flowData));
   }
 
   return flowData;
@@ -31,19 +34,19 @@ function startFlow({ chatId, flowName, totalSteps = 1, companyId = 'default' }) 
 /**
  * Updates the current step of a running flow
  */
-function updateFlowStep({ chatId, currentStep, stepDescription }) {
+function updateFlowStep({ chatId, currentStep, stepDescription, status }) {
   if (!chatId) return null;
   const flowData = runningFlows.get(chatId);
   if (!flowData) return null;
 
   flowData.currentStep = currentStep || flowData.currentStep;
   if (stepDescription) flowData.stepDescription = stepDescription;
+  if (status) flowData.status = status;
   flowData.updatedAt = Date.now();
 
   const io = global.io;
   if (io) {
-    io.emit('flow:step_updated', flowData);
-    io.to(`chat:${chatId}`).emit('flow:step_updated', flowData);
+    io.emit('flow:step_updated', snapshot(flowData));
   }
 
   return flowData;
@@ -61,8 +64,7 @@ function cancelFlow(chatId) {
 
     const io = global.io;
     if (io) {
-      io.emit('flow:cancelled', { chatId, flowName: flowData.flowName });
-      io.to(`chat:${chatId}`).emit('flow:cancelled', { chatId, flowName: flowData.flowName });
+      io.emit('flow:cancelled', { chatId, flowName: flowData.flowName, status: 'cancelled' });
     }
     return true;
   }
@@ -81,8 +83,7 @@ function finishFlow(chatId) {
 
     const io = global.io;
     if (io) {
-      io.emit('flow:finished', { chatId, flowName: flowData.flowName });
-      io.to(`chat:${chatId}`).emit('flow:finished', { chatId, flowName: flowData.flowName });
+      io.emit('flow:finished', { chatId, flowName: flowData.flowName, status: 'completed' });
     }
     return true;
   }

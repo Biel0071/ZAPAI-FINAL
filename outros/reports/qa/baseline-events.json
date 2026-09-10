@@ -1,0 +1,6146 @@
+[
+  {
+    "scope": "login",
+    "type": "response",
+    "url": "http://209.50.241.22/",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:17:42.530Z"
+  },
+  {
+    "scope": "login",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/index-sIMh6ftu.css",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:17:42.932Z"
+  },
+  {
+    "scope": "login",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/index-BGhDa48D.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:17:43.138Z"
+  },
+  {
+    "scope": "login",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/vendor-react-B2OXR1tR.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:17:43.326Z"
+  },
+  {
+    "scope": "login",
+    "type": "response",
+    "url": "https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Outfit:wght@400;500;600;700;800&display=swap",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:17:43.352Z"
+  },
+  {
+    "scope": "login",
+    "type": "response",
+    "url": "https://fonts.gstatic.com/s/outfit/v15/QGYvz_MVcBeNP4NJtEtq.woff2",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:17:43.719Z"
+  },
+  {
+    "scope": "login",
+    "type": "response",
+    "url": "https://fonts.gstatic.com/s/inter/v20/UcC73FwrK3iLTeHuS_nVMrMxCp50SjIa1ZL7.woff2",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:17:43.730Z"
+  },
+  {
+    "scope": "login",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/button-C3SRKl_4.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:17:43.733Z"
+  },
+  {
+    "scope": "login",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/input-CQkiiuAv.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:17:43.734Z"
+  },
+  {
+    "scope": "login",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/Login-Bb_oQuoQ.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:17:43.734Z"
+  },
+  {
+    "scope": "login",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/checkbox-D0A4xJ-R.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:17:43.934Z"
+  },
+  {
+    "scope": "login",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/label-m_oy1xKw.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:17:43.934Z"
+  },
+  {
+    "scope": "login",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/index-jcde_6CK.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:17:43.935Z"
+  },
+  {
+    "scope": "login",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/loader-circle-Ckfv7SKl.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:17:43.942Z"
+  },
+  {
+    "scope": "login",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/proxy-Fwyu43Qd.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:17:44.128Z"
+  },
+  {
+    "scope": "login",
+    "type": "response",
+    "url": "http://209.50.241.22/api/auth/login",
+    "status": 200,
+    "method": "POST",
+    "at": "2026-09-10T18:17:45.545Z"
+  },
+  {
+    "scope": "dashboard",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/Broadcast.es-9UV26ykw.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:17:45.728Z"
+  },
+  {
+    "scope": "dashboard",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/index-DEX1K6UF.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:17:45.728Z"
+  },
+  {
+    "scope": "dashboard",
+    "type": "response",
+    "url": "http://209.50.241.22/dashboard",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:17:45.730Z"
+  },
+  {
+    "scope": "dashboard",
+    "type": "requestfailed",
+    "url": "http://209.50.241.22/assets/ArrowsClockwise.es-CFOFvV1j.js",
+    "error": "net::ERR_ABORTED"
+  },
+  {
+    "scope": "dashboard",
+    "type": "requestfailed",
+    "url": "http://209.50.241.22/api/sessions/recover",
+    "error": "net::ERR_ABORTED"
+  },
+  {
+    "scope": "dashboard",
+    "type": "requestfailed",
+    "url": "http://209.50.241.22/assets/badge-DbZGLBCJ.js",
+    "error": "net::ERR_ABORTED"
+  },
+  {
+    "scope": "dashboard",
+    "type": "requestfailed",
+    "url": "http://209.50.241.22/assets/ChatCircleDots.es-DMmDK79v.js",
+    "error": "net::ERR_ABORTED"
+  },
+  {
+    "scope": "dashboard",
+    "type": "requestfailed",
+    "url": "http://209.50.241.22/assets/SquaresFour.es-CF7Cteb1.js",
+    "error": "net::ERR_ABORTED"
+  },
+  {
+    "scope": "dashboard",
+    "type": "requestfailed",
+    "url": "http://209.50.241.22/assets/AuthenticatedAppShell-Cosxuxlm.js",
+    "error": "net::ERR_ABORTED"
+  },
+  {
+    "scope": "dashboard",
+    "type": "requestfailed",
+    "url": "http://209.50.241.22/assets/use-mobile-DivOMuuV.js",
+    "error": "net::ERR_ABORTED"
+  },
+  {
+    "scope": "dashboard",
+    "type": "requestfailed",
+    "url": "http://209.50.241.22/assets/TreeStructure.es-Cw4p0YGP.js",
+    "error": "net::ERR_ABORTED"
+  },
+  {
+    "scope": "dashboard",
+    "type": "requestfailed",
+    "url": "http://209.50.241.22/assets/Users.es-Brymu-X_.js",
+    "error": "net::ERR_ABORTED"
+  },
+  {
+    "scope": "dashboard",
+    "type": "requestfailed",
+    "url": "http://209.50.241.22/assets/vendor-socket-D1aRZ6Ki.js",
+    "error": "net::ERR_ABORTED"
+  },
+  {
+    "scope": "dashboard",
+    "type": "requestfailed",
+    "url": "http://209.50.241.22/assets/collapsible-CCo8FmpV.js",
+    "error": "net::ERR_ABORTED"
+  },
+  {
+    "scope": "dashboard",
+    "type": "requestfailed",
+    "url": "http://209.50.241.22/assets/CaretRight.es-Cxl6-rgX.js",
+    "error": "net::ERR_ABORTED"
+  },
+  {
+    "scope": "dashboard",
+    "type": "requestfailed",
+    "url": "http://209.50.241.22/assets/Warning.es-2ZC00ndy.js",
+    "error": "net::ERR_ABORTED"
+  },
+  {
+    "scope": "dashboard",
+    "type": "requestfailed",
+    "url": "http://209.50.241.22/assets/index-DNyVo76M.js",
+    "error": "net::ERR_ABORTED"
+  },
+  {
+    "scope": "dashboard",
+    "type": "requestfailed",
+    "url": "http://209.50.241.22/assets/Spinner.es-C-ljZbZm.js",
+    "error": "net::ERR_ABORTED"
+  },
+  {
+    "scope": "dashboard",
+    "type": "requestfailed",
+    "url": "http://209.50.241.22/assets/dialog-DL_6HYu1.js",
+    "error": "net::ERR_ABORTED"
+  },
+  {
+    "scope": "dashboard",
+    "type": "requestfailed",
+    "url": "http://209.50.241.22/assets/Gear.es-Y76Sbpwt.js",
+    "error": "net::ERR_ABORTED"
+  },
+  {
+    "scope": "dashboard",
+    "type": "requestfailed",
+    "url": "http://209.50.241.22/assets/select-HGt9OCAe.js",
+    "error": "net::ERR_ABORTED"
+  },
+  {
+    "scope": "dashboard",
+    "type": "requestfailed",
+    "url": "http://209.50.241.22/assets/ChartLineUp.es-B39hsGeZ.js",
+    "error": "net::ERR_ABORTED"
+  },
+  {
+    "scope": "dashboard",
+    "type": "requestfailed",
+    "url": "http://209.50.241.22/assets/index-pAeM8f7I.js",
+    "error": "net::ERR_ABORTED"
+  },
+  {
+    "scope": "dashboard",
+    "type": "requestfailed",
+    "url": "http://209.50.241.22/assets/RuntimeProvider-DALjk9wj.js",
+    "error": "net::ERR_ABORTED"
+  },
+  {
+    "scope": "dashboard",
+    "type": "requestfailed",
+    "url": "http://209.50.241.22/assets/Megaphone.es-BmOWW3hx.js",
+    "error": "net::ERR_ABORTED"
+  },
+  {
+    "scope": "dashboard",
+    "type": "requestfailed",
+    "url": "http://209.50.241.22/assets/index-BdQq_4o_.js",
+    "error": "net::ERR_ABORTED"
+  },
+  {
+    "scope": "dashboard",
+    "type": "requestfailed",
+    "url": "http://209.50.241.22/assets/AIIcon-7ulDPRzW.js",
+    "error": "net::ERR_ABORTED"
+  },
+  {
+    "scope": "dashboard",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/index-BGhDa48D.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:17:45.748Z"
+  },
+  {
+    "scope": "dashboard",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/vendor-react-B2OXR1tR.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:17:45.748Z"
+  },
+  {
+    "scope": "dashboard",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/index-sIMh6ftu.css",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:17:45.748Z"
+  },
+  {
+    "scope": "dashboard",
+    "type": "response",
+    "url": "https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Outfit:wght@400;500;600;700;800&display=swap",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:17:45.751Z"
+  },
+  {
+    "scope": "dashboard",
+    "type": "response",
+    "url": "https://fonts.gstatic.com/s/inter/v20/UcC73FwrK3iLTeHuS_nVMrMxCp50SjIa1ZL7.woff2",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:17:45.761Z"
+  },
+  {
+    "scope": "dashboard",
+    "type": "response",
+    "url": "https://fonts.gstatic.com/s/outfit/v15/QGYvz_MVcBeNP4NJtEtq.woff2",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:17:45.762Z"
+  },
+  {
+    "scope": "dashboard",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/Broadcast.es-9UV26ykw.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:17:45.800Z"
+  },
+  {
+    "scope": "dashboard",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/index-DEX1K6UF.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:17:45.800Z"
+  },
+  {
+    "scope": "dashboard",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/button-C3SRKl_4.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:17:45.800Z"
+  },
+  {
+    "scope": "dashboard",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/label-m_oy1xKw.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:17:45.801Z"
+  },
+  {
+    "scope": "dashboard",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/input-CQkiiuAv.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:17:45.801Z"
+  },
+  {
+    "scope": "dashboard",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/index-jcde_6CK.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:17:45.801Z"
+  },
+  {
+    "scope": "dashboard",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/collapsible-CCo8FmpV.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:17:45.801Z"
+  },
+  {
+    "scope": "dashboard",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/CaretRight.es-Cxl6-rgX.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:17:46.124Z"
+  },
+  {
+    "scope": "dashboard",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/index-DNyVo76M.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:17:46.128Z"
+  },
+  {
+    "scope": "dashboard",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/use-mobile-DivOMuuV.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:17:46.128Z"
+  },
+  {
+    "scope": "dashboard",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/ChartLineUp.es-B39hsGeZ.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:17:46.133Z"
+  },
+  {
+    "scope": "dashboard",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/Gear.es-Y76Sbpwt.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:17:46.141Z"
+  },
+  {
+    "scope": "dashboard",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/AuthenticatedAppShell-Cosxuxlm.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:17:46.322Z"
+  },
+  {
+    "scope": "dashboard",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/Megaphone.es-BmOWW3hx.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:17:46.324Z"
+  },
+  {
+    "scope": "dashboard",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/ChatCircleDots.es-DMmDK79v.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:17:46.325Z"
+  },
+  {
+    "scope": "dashboard",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/SquaresFour.es-CF7Cteb1.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:17:46.325Z"
+  },
+  {
+    "scope": "dashboard",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/AIIcon-7ulDPRzW.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:17:46.330Z"
+  },
+  {
+    "scope": "dashboard",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/Users.es-Brymu-X_.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:17:46.339Z"
+  },
+  {
+    "scope": "dashboard",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/badge-DbZGLBCJ.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:17:46.450Z"
+  },
+  {
+    "scope": "dashboard",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/TreeStructure.es-Cw4p0YGP.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:17:46.523Z"
+  },
+  {
+    "scope": "dashboard",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/index-pAeM8f7I.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:17:46.529Z"
+  },
+  {
+    "scope": "dashboard",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/vendor-socket-D1aRZ6Ki.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:17:46.533Z"
+  },
+  {
+    "scope": "dashboard",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/dialog-DL_6HYu1.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:17:46.539Z"
+  },
+  {
+    "scope": "dashboard",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/RuntimeProvider-DALjk9wj.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:17:46.623Z"
+  },
+  {
+    "scope": "dashboard",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/select-HGt9OCAe.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:17:46.626Z"
+  },
+  {
+    "scope": "dashboard",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/Spinner.es-C-ljZbZm.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:17:46.726Z"
+  },
+  {
+    "scope": "dashboard",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/Warning.es-2ZC00ndy.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:17:46.727Z"
+  },
+  {
+    "scope": "dashboard",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/index-BdQq_4o_.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:17:46.735Z"
+  },
+  {
+    "scope": "dashboard",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/ArrowsClockwise.es-CFOFvV1j.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:17:46.742Z"
+  },
+  {
+    "scope": "dashboard",
+    "type": "ws-open",
+    "url": "ws://209.50.241.22/socket.io/?EIO=4&transport=websocket"
+  },
+  {
+    "scope": "dashboard",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/Header-CyQa-odp.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:17:46.932Z"
+  },
+  {
+    "scope": "dashboard",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/Dashboard-Dgihpmma.css",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:17:47.128Z"
+  },
+  {
+    "scope": "dashboard",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/card-BqpfiZbS.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:17:47.324Z"
+  },
+  {
+    "scope": "dashboard",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/Dashboard-BIesRXJc.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:17:47.326Z"
+  },
+  {
+    "scope": "dashboard",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/tabs-CwR7ce5P.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:17:47.450Z"
+  },
+  {
+    "scope": "dashboard",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/index-CeGL8cwR.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:17:47.450Z"
+  },
+  {
+    "scope": "dashboard",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/Brain.es-Bhygm7fv.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:17:47.628Z"
+  },
+  {
+    "scope": "dashboard",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/ChartBar.es-WoHcAYbD.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:17:47.628Z"
+  },
+  {
+    "scope": "dashboard",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/Flame.es-CzPbUXDz.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:17:47.831Z"
+  },
+  {
+    "scope": "dashboard",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/CheckCircle.es-CPBOJTcD.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:17:47.831Z"
+  },
+  {
+    "scope": "dashboard",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/Cpu.es-DTtgIfNq.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:17:48.024Z"
+  },
+  {
+    "scope": "dashboard",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/Clock.es-BkHkYRA9.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:17:48.025Z"
+  },
+  {
+    "scope": "dashboard",
+    "type": "response",
+    "url": "http://209.50.241.22/api/conversations?limit=30",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:17:48.143Z"
+  },
+  {
+    "scope": "dashboard",
+    "type": "response",
+    "url": "http://209.50.241.22/api/metrics",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:17:48.227Z"
+  },
+  {
+    "scope": "dashboard",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/Database.es-BPenKqC_.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:17:48.230Z"
+  },
+  {
+    "scope": "dashboard",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/PaperPlaneTilt.es-BZ1ydDfL.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:17:48.230Z"
+  },
+  {
+    "scope": "dashboard",
+    "type": "response",
+    "url": "http://209.50.241.22/api/sessions/recover",
+    "status": 200,
+    "method": "POST",
+    "at": "2026-09-10T18:17:48.348Z"
+  },
+  {
+    "scope": "dashboard",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/ShieldCheck.es-BKiGHMSo.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:17:48.423Z"
+  },
+  {
+    "scope": "dashboard",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/WarningCircle.es-C24AhEXE.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:17:48.425Z"
+  },
+  {
+    "scope": "dashboard",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/Lightning.es-DpuHmBYL.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:17:48.425Z"
+  },
+  {
+    "scope": "dashboard",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/X.es-C4aTC9T-.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:17:48.426Z"
+  },
+  {
+    "scope": "dashboard",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/Sparkle.es-DvpaUUGS.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:17:48.538Z"
+  },
+  {
+    "scope": "dashboard",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/TrendUp.es-B2z3nLTX.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:17:48.626Z"
+  },
+  {
+    "scope": "dashboard",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/skeleton-D5sDd1qE.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:17:48.627Z"
+  },
+  {
+    "scope": "dashboard",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/CartesianGrid-B0Wkf2y3.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:17:48.671Z"
+  },
+  {
+    "scope": "dashboard",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/index-D2cPMPym.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:17:48.739Z"
+  },
+  {
+    "scope": "dashboard",
+    "type": "response",
+    "url": "http://209.50.241.22/api/sessions/status",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:17:48.740Z"
+  },
+  {
+    "scope": "dashboard",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/refresh-cw-BbtZqcYg.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:17:48.823Z"
+  },
+  {
+    "scope": "dashboard",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/AIExecutiveInsightsCard-DPCz3h9g.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:17:48.825Z"
+  },
+  {
+    "scope": "dashboard",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/brain-C0jP4iug.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:17:48.825Z"
+  },
+  {
+    "scope": "dashboard",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/PieChart-M3_QnI4r.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:17:48.950Z"
+  },
+  {
+    "scope": "dashboard",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/sparkles-CK3nFywQ.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:17:49.022Z"
+  },
+  {
+    "scope": "dashboard",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/shield-check-BmPELhgJ.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:17:49.024Z"
+  },
+  {
+    "scope": "dashboard",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/clock-BW88hERz.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:17:49.024Z"
+  },
+  {
+    "scope": "dashboard",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/AreaChart-Dz7gfnGR.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:17:49.032Z"
+  },
+  {
+    "scope": "dashboard",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/trending-up-D0-RQnJ-.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:17:49.130Z"
+  },
+  {
+    "scope": "dashboard",
+    "type": "response",
+    "url": "http://209.50.241.22/api/ai/executive-insights",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:17:49.445Z"
+  },
+  {
+    "scope": "dashboard",
+    "type": "response",
+    "url": "http://209.50.241.22/health",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:17:49.445Z"
+  },
+  {
+    "scope": "dashboard",
+    "type": "response",
+    "url": "http://209.50.241.22/api/health",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:17:49.445Z"
+  },
+  {
+    "scope": "dashboard",
+    "type": "response",
+    "url": "http://209.50.241.22/api/conversations?limit=30&sessionId=material",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:17:49.635Z"
+  },
+  {
+    "scope": "dashboard",
+    "type": "response",
+    "url": "http://209.50.241.22/api/metrics",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:17:50.342Z"
+  },
+  {
+    "scope": "dashboard",
+    "type": "response",
+    "url": "http://209.50.241.22/api/ai/metrics",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:17:50.534Z"
+  },
+  {
+    "scope": "dashboard",
+    "type": "response",
+    "url": "http://209.50.241.22/api/ai/status",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:17:50.542Z"
+  },
+  {
+    "scope": "connections",
+    "type": "response",
+    "url": "http://209.50.241.22/connections",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:17:50.922Z"
+  },
+  {
+    "scope": "connections",
+    "type": "ws-close"
+  },
+  {
+    "scope": "connections",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/index-BGhDa48D.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:17:50.928Z"
+  },
+  {
+    "scope": "connections",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/vendor-react-B2OXR1tR.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:17:50.928Z"
+  },
+  {
+    "scope": "connections",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/index-sIMh6ftu.css",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:17:50.929Z"
+  },
+  {
+    "scope": "connections",
+    "type": "response",
+    "url": "https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Outfit:wght@400;500;600;700;800&display=swap",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:17:50.931Z"
+  },
+  {
+    "scope": "connections",
+    "type": "response",
+    "url": "https://fonts.gstatic.com/s/inter/v20/UcC73FwrK3iLTeHuS_nVMrMxCp50SjIa1ZL7.woff2",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:17:50.940Z"
+  },
+  {
+    "scope": "connections",
+    "type": "response",
+    "url": "https://fonts.gstatic.com/s/outfit/v15/QGYvz_MVcBeNP4NJtEtq.woff2",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:17:50.940Z"
+  },
+  {
+    "scope": "connections",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/AuthenticatedAppShell-Cosxuxlm.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:17:50.958Z"
+  },
+  {
+    "scope": "connections",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/Broadcast.es-9UV26ykw.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:17:50.960Z"
+  },
+  {
+    "scope": "connections",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/index-DEX1K6UF.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:17:50.960Z"
+  },
+  {
+    "scope": "connections",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/collapsible-CCo8FmpV.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:17:50.960Z"
+  },
+  {
+    "scope": "connections",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/index-DNyVo76M.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:17:50.960Z"
+  },
+  {
+    "scope": "connections",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/use-mobile-DivOMuuV.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:17:50.960Z"
+  },
+  {
+    "scope": "connections",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/CaretRight.es-Cxl6-rgX.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:17:50.960Z"
+  },
+  {
+    "scope": "connections",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/ChartLineUp.es-B39hsGeZ.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:17:50.960Z"
+  },
+  {
+    "scope": "connections",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/ChatCircleDots.es-DMmDK79v.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:17:50.960Z"
+  },
+  {
+    "scope": "connections",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/Gear.es-Y76Sbpwt.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:17:50.960Z"
+  },
+  {
+    "scope": "connections",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/SquaresFour.es-CF7Cteb1.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:17:50.960Z"
+  },
+  {
+    "scope": "connections",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/Megaphone.es-BmOWW3hx.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:17:50.960Z"
+  },
+  {
+    "scope": "connections",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/TreeStructure.es-Cw4p0YGP.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:17:50.961Z"
+  },
+  {
+    "scope": "connections",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/Users.es-Brymu-X_.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:17:50.961Z"
+  },
+  {
+    "scope": "connections",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/AIIcon-7ulDPRzW.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:17:50.961Z"
+  },
+  {
+    "scope": "connections",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/button-C3SRKl_4.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:17:50.961Z"
+  },
+  {
+    "scope": "connections",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/badge-DbZGLBCJ.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:17:50.961Z"
+  },
+  {
+    "scope": "connections",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/index-pAeM8f7I.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:17:50.961Z"
+  },
+  {
+    "scope": "connections",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/RuntimeProvider-DALjk9wj.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:17:50.961Z"
+  },
+  {
+    "scope": "connections",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/vendor-socket-D1aRZ6Ki.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:17:50.961Z"
+  },
+  {
+    "scope": "connections",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/dialog-DL_6HYu1.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:17:50.961Z"
+  },
+  {
+    "scope": "connections",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/label-m_oy1xKw.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:17:50.963Z"
+  },
+  {
+    "scope": "connections",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/input-CQkiiuAv.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:17:50.963Z"
+  },
+  {
+    "scope": "connections",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/select-HGt9OCAe.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:17:50.964Z"
+  },
+  {
+    "scope": "connections",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/index-BdQq_4o_.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:17:50.964Z"
+  },
+  {
+    "scope": "connections",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/index-jcde_6CK.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:17:50.964Z"
+  },
+  {
+    "scope": "connections",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/Spinner.es-C-ljZbZm.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:17:50.964Z"
+  },
+  {
+    "scope": "connections",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/Warning.es-2ZC00ndy.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:17:50.964Z"
+  },
+  {
+    "scope": "connections",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/ArrowsClockwise.es-CFOFvV1j.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:17:50.964Z"
+  },
+  {
+    "scope": "connections",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/Header-CyQa-odp.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:17:50.977Z"
+  },
+  {
+    "scope": "connections",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/index-CeGL8cwR.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:17:50.977Z"
+  },
+  {
+    "scope": "connections",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/card-BqpfiZbS.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:17:50.978Z"
+  },
+  {
+    "scope": "connections",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/CheckCircle.es-CPBOJTcD.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:17:50.978Z"
+  },
+  {
+    "scope": "connections",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/skeleton-D5sDd1qE.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:17:50.978Z"
+  },
+  {
+    "scope": "connections",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/proxy-Fwyu43Qd.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:17:50.978Z"
+  },
+  {
+    "scope": "connections",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/loading-skeleton-DyEmoxld.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:17:51.127Z"
+  },
+  {
+    "scope": "connections",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/Phone.es-htmLEdqS.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:17:51.127Z"
+  },
+  {
+    "scope": "connections",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/Trash.es-CEGez0pd.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:17:51.127Z"
+  },
+  {
+    "scope": "connections",
+    "type": "ws-open",
+    "url": "ws://209.50.241.22/socket.io/?EIO=4&transport=websocket"
+  },
+  {
+    "scope": "connections",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/XCircle.es-C2cheEFs.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:17:51.131Z"
+  },
+  {
+    "scope": "connections",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/Connections-Cp70INf7.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:17:51.134Z"
+  },
+  {
+    "scope": "connections",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/OperationalStatusBadge-CR9OVvfJ.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:17:51.139Z"
+  },
+  {
+    "scope": "connections",
+    "type": "response",
+    "url": "http://209.50.241.22/health",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:17:51.539Z"
+  },
+  {
+    "scope": "connections",
+    "type": "response",
+    "url": "http://209.50.241.22/api/conversations?limit=30",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:17:51.633Z"
+  },
+  {
+    "scope": "connections",
+    "type": "response",
+    "url": "http://209.50.241.22/api/health",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:17:51.739Z"
+  },
+  {
+    "scope": "connections",
+    "type": "response",
+    "url": "http://209.50.241.22/api/sessions/status",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:17:51.744Z"
+  },
+  {
+    "scope": "connections",
+    "type": "response",
+    "url": "http://209.50.241.22/api/sessions/recover",
+    "status": 200,
+    "method": "POST",
+    "at": "2026-09-10T18:17:51.842Z"
+  },
+  {
+    "scope": "connections",
+    "type": "response",
+    "url": "http://209.50.241.22/api/conversations?limit=30&sessionId=material",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:17:52.332Z"
+  },
+  {
+    "scope": "connections",
+    "type": "response",
+    "url": "http://209.50.241.22/api/metrics",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:17:52.531Z"
+  },
+  {
+    "scope": "contacts",
+    "type": "response",
+    "url": "http://209.50.241.22/contacts",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:17:55.647Z"
+  },
+  {
+    "scope": "contacts",
+    "type": "ws-close"
+  },
+  {
+    "scope": "contacts",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/index-BGhDa48D.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:17:55.651Z"
+  },
+  {
+    "scope": "contacts",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/vendor-react-B2OXR1tR.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:17:55.651Z"
+  },
+  {
+    "scope": "contacts",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/index-sIMh6ftu.css",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:17:55.651Z"
+  },
+  {
+    "scope": "contacts",
+    "type": "response",
+    "url": "https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Outfit:wght@400;500;600;700;800&display=swap",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:17:55.653Z"
+  },
+  {
+    "scope": "contacts",
+    "type": "response",
+    "url": "https://fonts.gstatic.com/s/inter/v20/UcC73FwrK3iLTeHuS_nVMrMxCp50SjIa1ZL7.woff2",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:17:55.661Z"
+  },
+  {
+    "scope": "contacts",
+    "type": "response",
+    "url": "https://fonts.gstatic.com/s/outfit/v15/QGYvz_MVcBeNP4NJtEtq.woff2",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:17:55.661Z"
+  },
+  {
+    "scope": "contacts",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/AuthenticatedAppShell-Cosxuxlm.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:17:55.673Z"
+  },
+  {
+    "scope": "contacts",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/Broadcast.es-9UV26ykw.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:17:55.673Z"
+  },
+  {
+    "scope": "contacts",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/index-DEX1K6UF.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:17:55.673Z"
+  },
+  {
+    "scope": "contacts",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/collapsible-CCo8FmpV.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:17:55.673Z"
+  },
+  {
+    "scope": "contacts",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/index-DNyVo76M.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:17:55.673Z"
+  },
+  {
+    "scope": "contacts",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/use-mobile-DivOMuuV.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:17:55.675Z"
+  },
+  {
+    "scope": "contacts",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/CaretRight.es-Cxl6-rgX.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:17:55.675Z"
+  },
+  {
+    "scope": "contacts",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/ChartLineUp.es-B39hsGeZ.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:17:55.675Z"
+  },
+  {
+    "scope": "contacts",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/ChatCircleDots.es-DMmDK79v.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:17:55.676Z"
+  },
+  {
+    "scope": "contacts",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/Gear.es-Y76Sbpwt.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:17:55.676Z"
+  },
+  {
+    "scope": "contacts",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/SquaresFour.es-CF7Cteb1.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:17:55.676Z"
+  },
+  {
+    "scope": "contacts",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/Megaphone.es-BmOWW3hx.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:17:55.676Z"
+  },
+  {
+    "scope": "contacts",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/TreeStructure.es-Cw4p0YGP.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:17:55.676Z"
+  },
+  {
+    "scope": "contacts",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/Users.es-Brymu-X_.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:17:55.676Z"
+  },
+  {
+    "scope": "contacts",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/AIIcon-7ulDPRzW.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:17:55.676Z"
+  },
+  {
+    "scope": "contacts",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/button-C3SRKl_4.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:17:55.676Z"
+  },
+  {
+    "scope": "contacts",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/badge-DbZGLBCJ.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:17:55.676Z"
+  },
+  {
+    "scope": "contacts",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/index-pAeM8f7I.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:17:55.676Z"
+  },
+  {
+    "scope": "contacts",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/RuntimeProvider-DALjk9wj.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:17:55.676Z"
+  },
+  {
+    "scope": "contacts",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/vendor-socket-D1aRZ6Ki.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:17:55.676Z"
+  },
+  {
+    "scope": "contacts",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/dialog-DL_6HYu1.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:17:55.677Z"
+  },
+  {
+    "scope": "contacts",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/label-m_oy1xKw.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:17:55.677Z"
+  },
+  {
+    "scope": "contacts",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/input-CQkiiuAv.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:17:55.678Z"
+  },
+  {
+    "scope": "contacts",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/select-HGt9OCAe.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:17:55.678Z"
+  },
+  {
+    "scope": "contacts",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/index-BdQq_4o_.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:17:55.678Z"
+  },
+  {
+    "scope": "contacts",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/index-jcde_6CK.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:17:55.678Z"
+  },
+  {
+    "scope": "contacts",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/Spinner.es-C-ljZbZm.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:17:55.678Z"
+  },
+  {
+    "scope": "contacts",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/Warning.es-2ZC00ndy.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:17:55.678Z"
+  },
+  {
+    "scope": "contacts",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/ArrowsClockwise.es-CFOFvV1j.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:17:55.678Z"
+  },
+  {
+    "scope": "contacts",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/Header-CyQa-odp.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:17:55.689Z"
+  },
+  {
+    "scope": "contacts",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/index-CeGL8cwR.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:17:55.690Z"
+  },
+  {
+    "scope": "contacts",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/Phone.es-htmLEdqS.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:17:55.690Z"
+  },
+  {
+    "scope": "contacts",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/Trash.es-CEGez0pd.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:17:55.690Z"
+  },
+  {
+    "scope": "contacts",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/card-BqpfiZbS.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:17:55.690Z"
+  },
+  {
+    "scope": "contacts",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/checkbox-D0A4xJ-R.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:17:55.690Z"
+  },
+  {
+    "scope": "contacts",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/loading-skeleton-DyEmoxld.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:17:55.690Z"
+  },
+  {
+    "scope": "contacts",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/skeleton-D5sDd1qE.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:17:55.690Z"
+  },
+  {
+    "scope": "contacts",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/OperationalStatusBadge-CR9OVvfJ.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:17:55.690Z"
+  },
+  {
+    "scope": "contacts",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/Brain.es-Bhygm7fv.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:17:55.690Z"
+  },
+  {
+    "scope": "contacts",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/Flame.es-CzPbUXDz.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:17:55.690Z"
+  },
+  {
+    "scope": "contacts",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/Clock.es-BkHkYRA9.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:17:55.690Z"
+  },
+  {
+    "scope": "contacts",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/Sparkle.es-DvpaUUGS.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:17:55.691Z"
+  },
+  {
+    "scope": "contacts",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/ShieldCheck.es-BKiGHMSo.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:17:55.691Z"
+  },
+  {
+    "scope": "contacts",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/TrendUp.es-B2z3nLTX.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:17:55.691Z"
+  },
+  {
+    "scope": "contacts",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/X.es-C4aTC9T-.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:17:55.691Z"
+  },
+  {
+    "scope": "contacts",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/tabs-CwR7ce5P.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:17:55.691Z"
+  },
+  {
+    "scope": "contacts",
+    "type": "ws-open",
+    "url": "ws://209.50.241.22/socket.io/?EIO=4&transport=websocket"
+  },
+  {
+    "scope": "contacts",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/ChatCircle.es-Db7Udqjj.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:17:55.827Z"
+  },
+  {
+    "scope": "contacts",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/PencilSimple.es-dTtQOj2M.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:17:55.828Z"
+  },
+  {
+    "scope": "contacts",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/Tag.es-YXgwGVj6.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:17:55.828Z"
+  },
+  {
+    "scope": "contacts",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/scroll-area-VBmyLpsF.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:17:55.828Z"
+  },
+  {
+    "scope": "contacts",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/ThermometerHot.es-D1dt9p_f.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:17:55.843Z"
+  },
+  {
+    "scope": "contacts",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/table-B-VTWwge.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:17:56.023Z"
+  },
+  {
+    "scope": "contacts",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/FileText.es-B36GAemx.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:17:56.025Z"
+  },
+  {
+    "scope": "contacts",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/LeadKnowledgeGraph-D0AMfmWp.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:17:56.025Z"
+  },
+  {
+    "scope": "contacts",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/ArrowRight.es-DLdY8Jy1.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:17:56.025Z"
+  },
+  {
+    "scope": "contacts",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/Contacts-BdEzApsY.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:17:56.030Z"
+  },
+  {
+    "scope": "contacts",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/Robot.es-B7KHJmJy.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:17:56.039Z"
+  },
+  {
+    "scope": "contacts",
+    "type": "response",
+    "url": "http://209.50.241.22/api/conversations?limit=30",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:17:56.244Z"
+  },
+  {
+    "scope": "contacts",
+    "type": "response",
+    "url": "http://209.50.241.22/api/sessions/status",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:17:56.342Z"
+  },
+  {
+    "scope": "contacts",
+    "type": "response",
+    "url": "http://209.50.241.22/health",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:17:56.359Z"
+  },
+  {
+    "scope": "contacts",
+    "type": "response",
+    "url": "http://209.50.241.22/api/health",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:17:56.449Z"
+  },
+  {
+    "scope": "contacts",
+    "type": "response",
+    "url": "http://209.50.241.22/api/sessions/recover",
+    "status": 200,
+    "method": "POST",
+    "at": "2026-09-10T18:17:56.631Z"
+  },
+  {
+    "scope": "contacts",
+    "type": "response",
+    "url": "http://209.50.241.22/api/metrics",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:17:57.232Z"
+  },
+  {
+    "scope": "contacts",
+    "type": "response",
+    "url": "http://209.50.241.22/api/contacts",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:17:57.236Z"
+  },
+  {
+    "scope": "contacts",
+    "type": "response",
+    "url": "http://209.50.241.22/api/conversations?limit=30",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:17:57.240Z"
+  },
+  {
+    "scope": "contacts",
+    "type": "response",
+    "url": "https://fonts.gstatic.com/s/outfit/v15/QGYvz_MVcBeNP4NJuktqQ4E.woff2",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:17:58.274Z"
+  },
+  {
+    "scope": "contacts",
+    "type": "response",
+    "url": "https://fonts.gstatic.com/s/inter/v20/UcC73FwrK3iLTeHuS_nVMrMxCp50SjIa2JL7SUc.woff2",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:17:58.277Z"
+  },
+  {
+    "scope": "contacts",
+    "type": "response",
+    "url": "https://fonts.gstatic.com/s/inter/v20/UcC73FwrK3iLTeHuS_nVMrMxCp50SjIa25L7SUc.woff2",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:17:58.400Z"
+  },
+  {
+    "scope": "campaigns",
+    "type": "response",
+    "url": "http://209.50.241.22/campaigns",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:07.044Z"
+  },
+  {
+    "scope": "campaigns",
+    "type": "ws-close"
+  },
+  {
+    "scope": "campaigns",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/index-BGhDa48D.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:07.198Z"
+  },
+  {
+    "scope": "campaigns",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/vendor-react-B2OXR1tR.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:07.198Z"
+  },
+  {
+    "scope": "campaigns",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/index-sIMh6ftu.css",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:07.198Z"
+  },
+  {
+    "scope": "campaigns",
+    "type": "response",
+    "url": "https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Outfit:wght@400;500;600;700;800&display=swap",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:07.201Z"
+  },
+  {
+    "scope": "campaigns",
+    "type": "response",
+    "url": "https://fonts.gstatic.com/s/inter/v20/UcC73FwrK3iLTeHuS_nVMrMxCp50SjIa2JL7SUc.woff2",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:07.210Z"
+  },
+  {
+    "scope": "campaigns",
+    "type": "response",
+    "url": "https://fonts.gstatic.com/s/inter/v20/UcC73FwrK3iLTeHuS_nVMrMxCp50SjIa25L7SUc.woff2",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:07.211Z"
+  },
+  {
+    "scope": "campaigns",
+    "type": "response",
+    "url": "https://fonts.gstatic.com/s/inter/v20/UcC73FwrK3iLTeHuS_nVMrMxCp50SjIa1ZL7.woff2",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:07.211Z"
+  },
+  {
+    "scope": "campaigns",
+    "type": "response",
+    "url": "https://fonts.gstatic.com/s/outfit/v15/QGYvz_MVcBeNP4NJuktqQ4E.woff2",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:07.211Z"
+  },
+  {
+    "scope": "campaigns",
+    "type": "response",
+    "url": "https://fonts.gstatic.com/s/outfit/v15/QGYvz_MVcBeNP4NJtEtq.woff2",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:07.211Z"
+  },
+  {
+    "scope": "campaigns",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/AuthenticatedAppShell-Cosxuxlm.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:07.233Z"
+  },
+  {
+    "scope": "campaigns",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/Broadcast.es-9UV26ykw.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:07.235Z"
+  },
+  {
+    "scope": "campaigns",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/index-DEX1K6UF.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:07.235Z"
+  },
+  {
+    "scope": "campaigns",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/collapsible-CCo8FmpV.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:07.235Z"
+  },
+  {
+    "scope": "campaigns",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/index-DNyVo76M.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:07.235Z"
+  },
+  {
+    "scope": "campaigns",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/use-mobile-DivOMuuV.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:07.235Z"
+  },
+  {
+    "scope": "campaigns",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/CaretRight.es-Cxl6-rgX.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:07.235Z"
+  },
+  {
+    "scope": "campaigns",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/ChartLineUp.es-B39hsGeZ.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:07.235Z"
+  },
+  {
+    "scope": "campaigns",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/ChatCircleDots.es-DMmDK79v.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:07.235Z"
+  },
+  {
+    "scope": "campaigns",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/Gear.es-Y76Sbpwt.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:07.235Z"
+  },
+  {
+    "scope": "campaigns",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/SquaresFour.es-CF7Cteb1.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:07.235Z"
+  },
+  {
+    "scope": "campaigns",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/Megaphone.es-BmOWW3hx.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:07.235Z"
+  },
+  {
+    "scope": "campaigns",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/TreeStructure.es-Cw4p0YGP.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:07.235Z"
+  },
+  {
+    "scope": "campaigns",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/Users.es-Brymu-X_.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:07.235Z"
+  },
+  {
+    "scope": "campaigns",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/AIIcon-7ulDPRzW.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:07.235Z"
+  },
+  {
+    "scope": "campaigns",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/button-C3SRKl_4.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:07.235Z"
+  },
+  {
+    "scope": "campaigns",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/badge-DbZGLBCJ.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:07.236Z"
+  },
+  {
+    "scope": "campaigns",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/index-pAeM8f7I.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:07.236Z"
+  },
+  {
+    "scope": "campaigns",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/RuntimeProvider-DALjk9wj.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:07.236Z"
+  },
+  {
+    "scope": "campaigns",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/vendor-socket-D1aRZ6Ki.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:07.236Z"
+  },
+  {
+    "scope": "campaigns",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/dialog-DL_6HYu1.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:07.236Z"
+  },
+  {
+    "scope": "campaigns",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/label-m_oy1xKw.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:07.237Z"
+  },
+  {
+    "scope": "campaigns",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/input-CQkiiuAv.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:07.237Z"
+  },
+  {
+    "scope": "campaigns",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/select-HGt9OCAe.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:07.237Z"
+  },
+  {
+    "scope": "campaigns",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/index-BdQq_4o_.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:07.237Z"
+  },
+  {
+    "scope": "campaigns",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/index-jcde_6CK.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:07.237Z"
+  },
+  {
+    "scope": "campaigns",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/Spinner.es-C-ljZbZm.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:07.237Z"
+  },
+  {
+    "scope": "campaigns",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/Warning.es-2ZC00ndy.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:07.237Z"
+  },
+  {
+    "scope": "campaigns",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/ArrowsClockwise.es-CFOFvV1j.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:07.237Z"
+  },
+  {
+    "scope": "campaigns",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/Header-CyQa-odp.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:07.254Z"
+  },
+  {
+    "scope": "campaigns",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/index-CeGL8cwR.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:07.254Z"
+  },
+  {
+    "scope": "campaigns",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/ChartBar.es-WoHcAYbD.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:07.254Z"
+  },
+  {
+    "scope": "campaigns",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/CheckCircle.es-CPBOJTcD.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:07.254Z"
+  },
+  {
+    "scope": "campaigns",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/Clock.es-BkHkYRA9.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:07.255Z"
+  },
+  {
+    "scope": "campaigns",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/FileText.es-B36GAemx.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:07.255Z"
+  },
+  {
+    "scope": "campaigns",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/LeadKnowledgeGraph-D0AMfmWp.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:07.255Z"
+  },
+  {
+    "scope": "campaigns",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/ArrowRight.es-DLdY8Jy1.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:07.255Z"
+  },
+  {
+    "scope": "campaigns",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/Brain.es-Bhygm7fv.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:07.255Z"
+  },
+  {
+    "scope": "campaigns",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/Robot.es-B7KHJmJy.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:07.255Z"
+  },
+  {
+    "scope": "campaigns",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/Sparkle.es-DvpaUUGS.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:07.256Z"
+  },
+  {
+    "scope": "campaigns",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/card-BqpfiZbS.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:07.256Z"
+  },
+  {
+    "scope": "campaigns",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/PaperPlaneTilt.es-BZ1ydDfL.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:07.256Z"
+  },
+  {
+    "scope": "campaigns",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/PencilSimple.es-dTtQOj2M.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:07.256Z"
+  },
+  {
+    "scope": "campaigns",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/Trash.es-CEGez0pd.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:07.257Z"
+  },
+  {
+    "scope": "campaigns",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/X.es-C4aTC9T-.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:07.257Z"
+  },
+  {
+    "scope": "campaigns",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/tabs-CwR7ce5P.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:07.257Z"
+  },
+  {
+    "scope": "campaigns",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/WarningCircle.es-C24AhEXE.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:07.257Z"
+  },
+  {
+    "scope": "campaigns",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/ShieldCheck.es-BKiGHMSo.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:07.257Z"
+  },
+  {
+    "scope": "campaigns",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/Tag.es-YXgwGVj6.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:07.257Z"
+  },
+  {
+    "scope": "campaigns",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/TrendUp.es-B2z3nLTX.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:07.257Z"
+  },
+  {
+    "scope": "campaigns",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/checkbox-D0A4xJ-R.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:07.257Z"
+  },
+  {
+    "scope": "campaigns",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/loading-skeleton-DyEmoxld.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:07.257Z"
+  },
+  {
+    "scope": "campaigns",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/skeleton-D5sDd1qE.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:07.258Z"
+  },
+  {
+    "scope": "campaigns",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/OperationalStatusBadge-CR9OVvfJ.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:07.258Z"
+  },
+  {
+    "scope": "campaigns",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/Copy.es-DPANg2VH.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:07.422Z"
+  },
+  {
+    "scope": "campaigns",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/Check.es-Bws4XgWJ.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:07.423Z"
+  },
+  {
+    "scope": "campaigns",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/VideoCamera.es-u97rVqOf.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:07.423Z"
+  },
+  {
+    "scope": "campaigns",
+    "type": "ws-open",
+    "url": "ws://209.50.241.22/socket.io/?EIO=4&transport=websocket"
+  },
+  {
+    "scope": "campaigns",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/Play.es-Dkcqlqka.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:07.444Z"
+  },
+  {
+    "scope": "campaigns",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/Timer.es-DMvjl8k9.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:07.451Z"
+  },
+  {
+    "scope": "campaigns",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/Checks.es-BuF5Ps68.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:07.624Z"
+  },
+  {
+    "scope": "campaigns",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/textarea-DMQ49NcW.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:07.626Z"
+  },
+  {
+    "scope": "campaigns",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/switch-Cmhnpwy2.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:07.626Z"
+  },
+  {
+    "scope": "campaigns",
+    "type": "response",
+    "url": "http://209.50.241.22/api/sessions/status",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:07.761Z"
+  },
+  {
+    "scope": "campaigns",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/Campaigns-DxDL6cNo.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:07.823Z"
+  },
+  {
+    "scope": "campaigns",
+    "type": "response",
+    "url": "http://209.50.241.22/api/sessions/recover",
+    "status": 200,
+    "method": "POST",
+    "at": "2026-09-10T18:18:07.847Z"
+  },
+  {
+    "scope": "campaigns",
+    "type": "response",
+    "url": "http://209.50.241.22/api/health",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:08.048Z"
+  },
+  {
+    "scope": "campaigns",
+    "type": "response",
+    "url": "http://209.50.241.22/api/campaigns",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:08.138Z"
+  },
+  {
+    "scope": "campaigns",
+    "type": "response",
+    "url": "http://209.50.241.22/api/quick-replies",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:08.252Z"
+  },
+  {
+    "scope": "campaigns",
+    "type": "response",
+    "url": "http://209.50.241.22/api/config/ai-agents",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:08.354Z"
+  },
+  {
+    "scope": "campaigns",
+    "type": "response",
+    "url": "http://209.50.241.22/api/contacts",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:08.739Z"
+  },
+  {
+    "scope": "campaigns",
+    "type": "response",
+    "url": "http://209.50.241.22/api/conversations?limit=30",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:08.823Z"
+  },
+  {
+    "scope": "campaigns",
+    "type": "response",
+    "url": "http://209.50.241.22/api/conversations?limit=500",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:10.145Z"
+  },
+  {
+    "scope": "campaigns",
+    "type": "response",
+    "url": "http://209.50.241.22/api/metrics",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:10.432Z"
+  },
+  {
+    "scope": "campaigns",
+    "type": "response",
+    "url": "https://api.dicebear.com/7.x/adventurer/svg?seed=Camila&backgroundColor=b6e3f4,c0aede,d1d4f9",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:11.333Z"
+  },
+  {
+    "scope": "operations",
+    "type": "response",
+    "url": "http://209.50.241.22/operations",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:12.145Z"
+  },
+  {
+    "scope": "operations",
+    "type": "ws-close"
+  },
+  {
+    "scope": "operations",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/index-BGhDa48D.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:12.150Z"
+  },
+  {
+    "scope": "operations",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/vendor-react-B2OXR1tR.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:12.150Z"
+  },
+  {
+    "scope": "operations",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/index-sIMh6ftu.css",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:12.150Z"
+  },
+  {
+    "scope": "operations",
+    "type": "response",
+    "url": "https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Outfit:wght@400;500;600;700;800&display=swap",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:12.152Z"
+  },
+  {
+    "scope": "operations",
+    "type": "response",
+    "url": "https://fonts.gstatic.com/s/inter/v20/UcC73FwrK3iLTeHuS_nVMrMxCp50SjIa2JL7SUc.woff2",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:12.159Z"
+  },
+  {
+    "scope": "operations",
+    "type": "response",
+    "url": "https://fonts.gstatic.com/s/inter/v20/UcC73FwrK3iLTeHuS_nVMrMxCp50SjIa25L7SUc.woff2",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:12.159Z"
+  },
+  {
+    "scope": "operations",
+    "type": "response",
+    "url": "https://fonts.gstatic.com/s/inter/v20/UcC73FwrK3iLTeHuS_nVMrMxCp50SjIa1ZL7.woff2",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:12.159Z"
+  },
+  {
+    "scope": "operations",
+    "type": "response",
+    "url": "https://fonts.gstatic.com/s/outfit/v15/QGYvz_MVcBeNP4NJuktqQ4E.woff2",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:12.159Z"
+  },
+  {
+    "scope": "operations",
+    "type": "response",
+    "url": "https://fonts.gstatic.com/s/outfit/v15/QGYvz_MVcBeNP4NJtEtq.woff2",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:12.159Z"
+  },
+  {
+    "scope": "operations",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/AuthenticatedAppShell-Cosxuxlm.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:12.172Z"
+  },
+  {
+    "scope": "operations",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/Broadcast.es-9UV26ykw.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:12.172Z"
+  },
+  {
+    "scope": "operations",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/index-DEX1K6UF.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:12.173Z"
+  },
+  {
+    "scope": "operations",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/collapsible-CCo8FmpV.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:12.173Z"
+  },
+  {
+    "scope": "operations",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/index-DNyVo76M.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:12.173Z"
+  },
+  {
+    "scope": "operations",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/use-mobile-DivOMuuV.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:12.173Z"
+  },
+  {
+    "scope": "operations",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/CaretRight.es-Cxl6-rgX.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:12.173Z"
+  },
+  {
+    "scope": "operations",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/ChartLineUp.es-B39hsGeZ.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:12.173Z"
+  },
+  {
+    "scope": "operations",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/ChatCircleDots.es-DMmDK79v.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:12.173Z"
+  },
+  {
+    "scope": "operations",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/Gear.es-Y76Sbpwt.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:12.173Z"
+  },
+  {
+    "scope": "operations",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/SquaresFour.es-CF7Cteb1.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:12.173Z"
+  },
+  {
+    "scope": "operations",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/Megaphone.es-BmOWW3hx.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:12.174Z"
+  },
+  {
+    "scope": "operations",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/TreeStructure.es-Cw4p0YGP.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:12.174Z"
+  },
+  {
+    "scope": "operations",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/Users.es-Brymu-X_.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:12.174Z"
+  },
+  {
+    "scope": "operations",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/AIIcon-7ulDPRzW.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:12.174Z"
+  },
+  {
+    "scope": "operations",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/button-C3SRKl_4.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:12.174Z"
+  },
+  {
+    "scope": "operations",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/badge-DbZGLBCJ.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:12.175Z"
+  },
+  {
+    "scope": "operations",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/index-pAeM8f7I.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:12.175Z"
+  },
+  {
+    "scope": "operations",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/RuntimeProvider-DALjk9wj.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:12.175Z"
+  },
+  {
+    "scope": "operations",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/vendor-socket-D1aRZ6Ki.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:12.175Z"
+  },
+  {
+    "scope": "operations",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/dialog-DL_6HYu1.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:12.175Z"
+  },
+  {
+    "scope": "operations",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/label-m_oy1xKw.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:12.175Z"
+  },
+  {
+    "scope": "operations",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/input-CQkiiuAv.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:12.175Z"
+  },
+  {
+    "scope": "operations",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/select-HGt9OCAe.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:12.175Z"
+  },
+  {
+    "scope": "operations",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/index-BdQq_4o_.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:12.175Z"
+  },
+  {
+    "scope": "operations",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/index-jcde_6CK.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:12.175Z"
+  },
+  {
+    "scope": "operations",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/Spinner.es-C-ljZbZm.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:12.175Z"
+  },
+  {
+    "scope": "operations",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/Warning.es-2ZC00ndy.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:12.175Z"
+  },
+  {
+    "scope": "operations",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/ArrowsClockwise.es-CFOFvV1j.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:12.175Z"
+  },
+  {
+    "scope": "operations",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/Header-CyQa-odp.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:12.198Z"
+  },
+  {
+    "scope": "operations",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/index-CeGL8cwR.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:12.199Z"
+  },
+  {
+    "scope": "operations",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/card-BqpfiZbS.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:12.199Z"
+  },
+  {
+    "scope": "operations",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/clock-BW88hERz.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:12.199Z"
+  },
+  {
+    "scope": "operations",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/trending-up-D0-RQnJ-.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:12.199Z"
+  },
+  {
+    "scope": "operations",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/sparkles-CK3nFywQ.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:12.199Z"
+  },
+  {
+    "scope": "operations",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/refresh-cw-BbtZqcYg.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:12.199Z"
+  },
+  {
+    "scope": "operations",
+    "type": "ws-open",
+    "url": "ws://209.50.241.22/socket.io/?EIO=4&transport=websocket"
+  },
+  {
+    "scope": "operations",
+    "type": "response",
+    "url": "http://209.50.241.22/api/conversations?limit=30",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:12.338Z"
+  },
+  {
+    "scope": "operations",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/Operations-DesC1FR3.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:12.343Z"
+  },
+  {
+    "scope": "operations",
+    "type": "response",
+    "url": "http://209.50.241.22/api/health",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:12.448Z"
+  },
+  {
+    "scope": "operations",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/users-BBWJztJz.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:12.530Z"
+  },
+  {
+    "scope": "operations",
+    "type": "response",
+    "url": "http://209.50.241.22/api/sessions/recover",
+    "status": 200,
+    "method": "POST",
+    "at": "2026-09-10T18:18:12.532Z"
+  },
+  {
+    "scope": "operations",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/circle-check-Dy37sGea.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:12.542Z"
+  },
+  {
+    "scope": "operations",
+    "type": "response",
+    "url": "http://209.50.241.22/api/sessions/status",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:12.645Z"
+  },
+  {
+    "scope": "operations",
+    "type": "response",
+    "url": "http://209.50.241.22/health",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:12.757Z"
+  },
+  {
+    "scope": "operations",
+    "type": "response",
+    "url": "http://209.50.241.22/api/conversations?limit=30",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:13.547Z"
+  },
+  {
+    "scope": "operations",
+    "type": "response",
+    "url": "http://209.50.241.22/api/operations/metrics",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:13.841Z"
+  },
+  {
+    "scope": "operations",
+    "type": "response",
+    "url": "http://209.50.241.22/api/metrics",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:14.023Z"
+  },
+  {
+    "scope": "ai",
+    "type": "response",
+    "url": "http://209.50.241.22/ai",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:17.030Z"
+  },
+  {
+    "scope": "ai",
+    "type": "ws-close"
+  },
+  {
+    "scope": "ai",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/index-BGhDa48D.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:17.035Z"
+  },
+  {
+    "scope": "ai",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/vendor-react-B2OXR1tR.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:17.035Z"
+  },
+  {
+    "scope": "ai",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/index-sIMh6ftu.css",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:17.035Z"
+  },
+  {
+    "scope": "ai",
+    "type": "response",
+    "url": "https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Outfit:wght@400;500;600;700;800&display=swap",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:17.037Z"
+  },
+  {
+    "scope": "ai",
+    "type": "response",
+    "url": "https://fonts.gstatic.com/s/inter/v20/UcC73FwrK3iLTeHuS_nVMrMxCp50SjIa2JL7SUc.woff2",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:17.045Z"
+  },
+  {
+    "scope": "ai",
+    "type": "response",
+    "url": "https://fonts.gstatic.com/s/inter/v20/UcC73FwrK3iLTeHuS_nVMrMxCp50SjIa25L7SUc.woff2",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:17.045Z"
+  },
+  {
+    "scope": "ai",
+    "type": "response",
+    "url": "https://fonts.gstatic.com/s/inter/v20/UcC73FwrK3iLTeHuS_nVMrMxCp50SjIa1ZL7.woff2",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:17.046Z"
+  },
+  {
+    "scope": "ai",
+    "type": "response",
+    "url": "https://fonts.gstatic.com/s/outfit/v15/QGYvz_MVcBeNP4NJuktqQ4E.woff2",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:17.046Z"
+  },
+  {
+    "scope": "ai",
+    "type": "response",
+    "url": "https://fonts.gstatic.com/s/outfit/v15/QGYvz_MVcBeNP4NJtEtq.woff2",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:17.046Z"
+  },
+  {
+    "scope": "ai",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/AuthenticatedAppShell-Cosxuxlm.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:17.059Z"
+  },
+  {
+    "scope": "ai",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/Broadcast.es-9UV26ykw.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:17.059Z"
+  },
+  {
+    "scope": "ai",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/index-DEX1K6UF.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:17.060Z"
+  },
+  {
+    "scope": "ai",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/collapsible-CCo8FmpV.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:17.060Z"
+  },
+  {
+    "scope": "ai",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/index-DNyVo76M.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:17.060Z"
+  },
+  {
+    "scope": "ai",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/use-mobile-DivOMuuV.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:17.060Z"
+  },
+  {
+    "scope": "ai",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/CaretRight.es-Cxl6-rgX.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:17.060Z"
+  },
+  {
+    "scope": "ai",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/ChartLineUp.es-B39hsGeZ.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:17.060Z"
+  },
+  {
+    "scope": "ai",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/ChatCircleDots.es-DMmDK79v.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:17.060Z"
+  },
+  {
+    "scope": "ai",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/Gear.es-Y76Sbpwt.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:17.060Z"
+  },
+  {
+    "scope": "ai",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/SquaresFour.es-CF7Cteb1.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:17.060Z"
+  },
+  {
+    "scope": "ai",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/Megaphone.es-BmOWW3hx.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:17.061Z"
+  },
+  {
+    "scope": "ai",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/TreeStructure.es-Cw4p0YGP.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:17.061Z"
+  },
+  {
+    "scope": "ai",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/Users.es-Brymu-X_.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:17.061Z"
+  },
+  {
+    "scope": "ai",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/AIIcon-7ulDPRzW.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:17.061Z"
+  },
+  {
+    "scope": "ai",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/button-C3SRKl_4.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:17.061Z"
+  },
+  {
+    "scope": "ai",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/badge-DbZGLBCJ.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:17.061Z"
+  },
+  {
+    "scope": "ai",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/index-pAeM8f7I.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:17.062Z"
+  },
+  {
+    "scope": "ai",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/RuntimeProvider-DALjk9wj.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:17.062Z"
+  },
+  {
+    "scope": "ai",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/vendor-socket-D1aRZ6Ki.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:17.062Z"
+  },
+  {
+    "scope": "ai",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/dialog-DL_6HYu1.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:17.062Z"
+  },
+  {
+    "scope": "ai",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/label-m_oy1xKw.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:17.062Z"
+  },
+  {
+    "scope": "ai",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/input-CQkiiuAv.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:17.062Z"
+  },
+  {
+    "scope": "ai",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/select-HGt9OCAe.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:17.062Z"
+  },
+  {
+    "scope": "ai",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/index-BdQq_4o_.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:17.062Z"
+  },
+  {
+    "scope": "ai",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/index-jcde_6CK.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:17.062Z"
+  },
+  {
+    "scope": "ai",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/Spinner.es-C-ljZbZm.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:17.062Z"
+  },
+  {
+    "scope": "ai",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/Warning.es-2ZC00ndy.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:17.062Z"
+  },
+  {
+    "scope": "ai",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/ArrowsClockwise.es-CFOFvV1j.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:17.062Z"
+  },
+  {
+    "scope": "ai",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/Header-CyQa-odp.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:17.075Z"
+  },
+  {
+    "scope": "ai",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/index-CeGL8cwR.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:17.075Z"
+  },
+  {
+    "scope": "ai",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/index-D2cPMPym.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:17.075Z"
+  },
+  {
+    "scope": "ai",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/Lightning.es-DpuHmBYL.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:17.076Z"
+  },
+  {
+    "scope": "ai",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/ThermometerHot.es-D1dt9p_f.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:17.076Z"
+  },
+  {
+    "scope": "ai",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/card-BqpfiZbS.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:17.076Z"
+  },
+  {
+    "scope": "ai",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/Trash.es-CEGez0pd.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:17.076Z"
+  },
+  {
+    "scope": "ai",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/PaperPlaneTilt.es-BZ1ydDfL.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:17.077Z"
+  },
+  {
+    "scope": "ai",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/OperationalStatusBadge-CR9OVvfJ.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:17.077Z"
+  },
+  {
+    "scope": "ai",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/switch-Cmhnpwy2.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:17.077Z"
+  },
+  {
+    "scope": "ai",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/textarea-DMQ49NcW.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:17.077Z"
+  },
+  {
+    "scope": "ai",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/Check.es-Bws4XgWJ.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:17.077Z"
+  },
+  {
+    "scope": "ai",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/PencilSimple.es-dTtQOj2M.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:17.077Z"
+  },
+  {
+    "scope": "ai",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/X.es-C4aTC9T-.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:17.077Z"
+  },
+  {
+    "scope": "ai",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/proxy-Fwyu43Qd.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:17.077Z"
+  },
+  {
+    "scope": "ai",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/users-BBWJztJz.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:17.077Z"
+  },
+  {
+    "scope": "ai",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/shield-check-BmPELhgJ.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:17.077Z"
+  },
+  {
+    "scope": "ai",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/loader-circle-Ckfv7SKl.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:17.077Z"
+  },
+  {
+    "scope": "ai",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/sparkles-CK3nFywQ.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:17.077Z"
+  },
+  {
+    "scope": "ai",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/refresh-cw-BbtZqcYg.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:17.077Z"
+  },
+  {
+    "scope": "ai",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/clock-BW88hERz.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:17.077Z"
+  },
+  {
+    "scope": "ai",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/Play.es-Dkcqlqka.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:17.078Z"
+  },
+  {
+    "scope": "ai",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/AIExecutiveInsightsCard-DPCz3h9g.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:17.078Z"
+  },
+  {
+    "scope": "ai",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/brain-C0jP4iug.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:17.078Z"
+  },
+  {
+    "scope": "ai",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/trending-up-D0-RQnJ-.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:17.078Z"
+  },
+  {
+    "scope": "ai",
+    "type": "ws-open",
+    "url": "ws://209.50.241.22/socket.io/?EIO=4&transport=websocket"
+  },
+  {
+    "scope": "ai",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/accordion-5OHPuBbW.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:17.225Z"
+  },
+  {
+    "scope": "ai",
+    "type": "response",
+    "url": "http://209.50.241.22/api/conversations?limit=30",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:17.238Z"
+  },
+  {
+    "scope": "ai",
+    "type": "response",
+    "url": "http://209.50.241.22/api/sessions/status",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:17.324Z"
+  },
+  {
+    "scope": "ai",
+    "type": "response",
+    "url": "http://209.50.241.22/api/sessions/recover",
+    "status": 200,
+    "method": "POST",
+    "at": "2026-09-10T18:18:17.538Z"
+  },
+  {
+    "scope": "ai",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/AI-BrsWxR_0.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:17.827Z"
+  },
+  {
+    "scope": "ai",
+    "type": "response",
+    "url": "http://209.50.241.22/health",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:18.027Z"
+  },
+  {
+    "scope": "ai",
+    "type": "response",
+    "url": "http://209.50.241.22/api/ai/executive-insights",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:18.036Z"
+  },
+  {
+    "scope": "ai",
+    "type": "response",
+    "url": "http://209.50.241.22/api/ai/prompt",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:18.140Z"
+  },
+  {
+    "scope": "ai",
+    "type": "response",
+    "url": "http://209.50.241.22/api/health",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:18.141Z"
+  },
+  {
+    "scope": "ai",
+    "type": "response",
+    "url": "http://209.50.241.22/api/ai/status",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:18.227Z"
+  },
+  {
+    "scope": "ai",
+    "type": "response",
+    "url": "http://209.50.241.22/api/config/absence-message",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:18.242Z"
+  },
+  {
+    "scope": "ai",
+    "type": "response",
+    "url": "http://209.50.241.22/api/config/business-hours",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:18.245Z"
+  },
+  {
+    "scope": "ai",
+    "type": "response",
+    "url": "http://209.50.241.22/api/queue",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:18.345Z"
+  },
+  {
+    "scope": "ai",
+    "type": "response",
+    "url": "http://209.50.241.22/api/ai/memory",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:18.428Z"
+  },
+  {
+    "scope": "ai",
+    "type": "response",
+    "url": "http://209.50.241.22/api/metrics",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:18.433Z"
+  },
+  {
+    "scope": "ai",
+    "type": "response",
+    "url": "http://209.50.241.22/api/config/advanced-ai",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:18.438Z"
+  },
+  {
+    "scope": "ai",
+    "type": "response",
+    "url": "http://209.50.241.22/api/ai/logs",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:18.528Z"
+  },
+  {
+    "scope": "ai",
+    "type": "response",
+    "url": "http://209.50.241.22/api/ai/metrics",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:18.539Z"
+  },
+  {
+    "scope": "ai",
+    "type": "response",
+    "url": "http://209.50.241.22/api/session-status",
+    "status": 403,
+    "method": "GET",
+    "at": "2026-09-10T18:18:18.547Z"
+  },
+  {
+    "scope": "ai",
+    "type": "console",
+    "level": "error",
+    "text": "Failed to load resource: the server responded with a status of 403 (Forbidden)"
+  },
+  {
+    "scope": "ai",
+    "type": "console",
+    "level": "warning",
+    "text": "%c[API] color:#fbbf24 API error on /api/session-status (/api/session-status | HTTP 403 | req_mtvuovn7_v4lwd)"
+  },
+  {
+    "scope": "ai",
+    "type": "console",
+    "level": "warning",
+    "text": "%c[API] color:#fbbf24 Request failed: /api/session-status (/api/session-status)"
+  },
+  {
+    "scope": "ai",
+    "type": "response",
+    "url": "http://209.50.241.22/api/config/user-providers",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:18.727Z"
+  },
+  {
+    "scope": "ai",
+    "type": "response",
+    "url": "http://209.50.241.22/api/integrations/webhooks",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:18.728Z"
+  },
+  {
+    "scope": "ai",
+    "type": "response",
+    "url": "http://209.50.241.22/api/config/ai-agents",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:18.737Z"
+  },
+  {
+    "scope": "ai",
+    "type": "response",
+    "url": "http://209.50.241.22/api/conversations?limit=30",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:18.744Z"
+  },
+  {
+    "scope": "ai",
+    "type": "response",
+    "url": "http://209.50.241.22/api/system/error-log",
+    "status": 200,
+    "method": "POST",
+    "at": "2026-09-10T18:18:18.758Z"
+  },
+  {
+    "scope": "flows",
+    "type": "response",
+    "url": "http://209.50.241.22/flows",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:22.139Z"
+  },
+  {
+    "scope": "flows",
+    "type": "ws-close"
+  },
+  {
+    "scope": "flows",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/index-BGhDa48D.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:22.145Z"
+  },
+  {
+    "scope": "flows",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/vendor-react-B2OXR1tR.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:22.145Z"
+  },
+  {
+    "scope": "flows",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/index-sIMh6ftu.css",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:22.145Z"
+  },
+  {
+    "scope": "flows",
+    "type": "response",
+    "url": "https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Outfit:wght@400;500;600;700;800&display=swap",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:22.147Z"
+  },
+  {
+    "scope": "flows",
+    "type": "response",
+    "url": "https://fonts.gstatic.com/s/inter/v20/UcC73FwrK3iLTeHuS_nVMrMxCp50SjIa2JL7SUc.woff2",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:22.158Z"
+  },
+  {
+    "scope": "flows",
+    "type": "response",
+    "url": "https://fonts.gstatic.com/s/inter/v20/UcC73FwrK3iLTeHuS_nVMrMxCp50SjIa25L7SUc.woff2",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:22.158Z"
+  },
+  {
+    "scope": "flows",
+    "type": "response",
+    "url": "https://fonts.gstatic.com/s/inter/v20/UcC73FwrK3iLTeHuS_nVMrMxCp50SjIa1ZL7.woff2",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:22.158Z"
+  },
+  {
+    "scope": "flows",
+    "type": "response",
+    "url": "https://fonts.gstatic.com/s/outfit/v15/QGYvz_MVcBeNP4NJuktqQ4E.woff2",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:22.158Z"
+  },
+  {
+    "scope": "flows",
+    "type": "response",
+    "url": "https://fonts.gstatic.com/s/outfit/v15/QGYvz_MVcBeNP4NJtEtq.woff2",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:22.158Z"
+  },
+  {
+    "scope": "flows",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/AuthenticatedAppShell-Cosxuxlm.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:22.174Z"
+  },
+  {
+    "scope": "flows",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/Broadcast.es-9UV26ykw.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:22.177Z"
+  },
+  {
+    "scope": "flows",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/index-DEX1K6UF.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:22.177Z"
+  },
+  {
+    "scope": "flows",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/collapsible-CCo8FmpV.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:22.177Z"
+  },
+  {
+    "scope": "flows",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/index-DNyVo76M.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:22.177Z"
+  },
+  {
+    "scope": "flows",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/use-mobile-DivOMuuV.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:22.177Z"
+  },
+  {
+    "scope": "flows",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/CaretRight.es-Cxl6-rgX.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:22.177Z"
+  },
+  {
+    "scope": "flows",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/ChartLineUp.es-B39hsGeZ.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:22.177Z"
+  },
+  {
+    "scope": "flows",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/ChatCircleDots.es-DMmDK79v.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:22.177Z"
+  },
+  {
+    "scope": "flows",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/Gear.es-Y76Sbpwt.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:22.177Z"
+  },
+  {
+    "scope": "flows",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/SquaresFour.es-CF7Cteb1.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:22.177Z"
+  },
+  {
+    "scope": "flows",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/Megaphone.es-BmOWW3hx.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:22.177Z"
+  },
+  {
+    "scope": "flows",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/TreeStructure.es-Cw4p0YGP.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:22.177Z"
+  },
+  {
+    "scope": "flows",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/Users.es-Brymu-X_.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:22.180Z"
+  },
+  {
+    "scope": "flows",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/AIIcon-7ulDPRzW.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:22.180Z"
+  },
+  {
+    "scope": "flows",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/button-C3SRKl_4.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:22.180Z"
+  },
+  {
+    "scope": "flows",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/badge-DbZGLBCJ.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:22.181Z"
+  },
+  {
+    "scope": "flows",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/index-pAeM8f7I.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:22.181Z"
+  },
+  {
+    "scope": "flows",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/RuntimeProvider-DALjk9wj.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:22.181Z"
+  },
+  {
+    "scope": "flows",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/vendor-socket-D1aRZ6Ki.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:22.181Z"
+  },
+  {
+    "scope": "flows",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/dialog-DL_6HYu1.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:22.181Z"
+  },
+  {
+    "scope": "flows",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/label-m_oy1xKw.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:22.181Z"
+  },
+  {
+    "scope": "flows",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/input-CQkiiuAv.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:22.182Z"
+  },
+  {
+    "scope": "flows",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/select-HGt9OCAe.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:22.182Z"
+  },
+  {
+    "scope": "flows",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/index-BdQq_4o_.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:22.182Z"
+  },
+  {
+    "scope": "flows",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/index-jcde_6CK.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:22.182Z"
+  },
+  {
+    "scope": "flows",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/Spinner.es-C-ljZbZm.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:22.182Z"
+  },
+  {
+    "scope": "flows",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/Warning.es-2ZC00ndy.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:22.182Z"
+  },
+  {
+    "scope": "flows",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/ArrowsClockwise.es-CFOFvV1j.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:22.182Z"
+  },
+  {
+    "scope": "flows",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/Header-CyQa-odp.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:22.204Z"
+  },
+  {
+    "scope": "flows",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/index-CeGL8cwR.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:22.204Z"
+  },
+  {
+    "scope": "flows",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/ArrowRight.es-DLdY8Jy1.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:22.204Z"
+  },
+  {
+    "scope": "flows",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/Lightning.es-DpuHmBYL.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:22.204Z"
+  },
+  {
+    "scope": "flows",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/PencilSimple.es-dTtQOj2M.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:22.204Z"
+  },
+  {
+    "scope": "flows",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/Trash.es-CEGez0pd.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:22.204Z"
+  },
+  {
+    "scope": "flows",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/card-BqpfiZbS.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:22.204Z"
+  },
+  {
+    "scope": "flows",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/textarea-DMQ49NcW.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:22.204Z"
+  },
+  {
+    "scope": "flows",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/loading-skeleton-DyEmoxld.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:22.205Z"
+  },
+  {
+    "scope": "flows",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/skeleton-D5sDd1qE.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:22.205Z"
+  },
+  {
+    "scope": "flows",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/proxy-Fwyu43Qd.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:22.205Z"
+  },
+  {
+    "scope": "flows",
+    "type": "ws-open",
+    "url": "ws://209.50.241.22/socket.io/?EIO=4&transport=websocket"
+  },
+  {
+    "scope": "flows",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/Flows-Ds5sqtmf.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:22.328Z"
+  },
+  {
+    "scope": "flows",
+    "type": "response",
+    "url": "http://209.50.241.22/api/sessions/status",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:22.443Z"
+  },
+  {
+    "scope": "flows",
+    "type": "response",
+    "url": "http://209.50.241.22/api/conversations?limit=30",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:22.447Z"
+  },
+  {
+    "scope": "flows",
+    "type": "response",
+    "url": "http://209.50.241.22/api/health",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:22.745Z"
+  },
+  {
+    "scope": "flows",
+    "type": "response",
+    "url": "http://209.50.241.22/health",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:22.837Z"
+  },
+  {
+    "scope": "flows",
+    "type": "response",
+    "url": "http://209.50.241.22/api/sessions/recover",
+    "status": 200,
+    "method": "POST",
+    "at": "2026-09-10T18:18:22.839Z"
+  },
+  {
+    "scope": "flows",
+    "type": "response",
+    "url": "http://209.50.241.22/api/flows",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:22.926Z"
+  },
+  {
+    "scope": "flows",
+    "type": "response",
+    "url": "http://209.50.241.22/api/metrics",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:24.127Z"
+  },
+  {
+    "scope": "flows",
+    "type": "response",
+    "url": "http://209.50.241.22/api/conversations?limit=30",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:24.135Z"
+  },
+  {
+    "scope": "memory",
+    "type": "response",
+    "url": "http://209.50.241.22/memory",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:27.037Z"
+  },
+  {
+    "scope": "memory",
+    "type": "ws-close"
+  },
+  {
+    "scope": "memory",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/index-BGhDa48D.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:27.044Z"
+  },
+  {
+    "scope": "memory",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/vendor-react-B2OXR1tR.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:27.044Z"
+  },
+  {
+    "scope": "memory",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/index-sIMh6ftu.css",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:27.044Z"
+  },
+  {
+    "scope": "memory",
+    "type": "response",
+    "url": "https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Outfit:wght@400;500;600;700;800&display=swap",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:27.047Z"
+  },
+  {
+    "scope": "memory",
+    "type": "response",
+    "url": "https://fonts.gstatic.com/s/inter/v20/UcC73FwrK3iLTeHuS_nVMrMxCp50SjIa2JL7SUc.woff2",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:27.055Z"
+  },
+  {
+    "scope": "memory",
+    "type": "response",
+    "url": "https://fonts.gstatic.com/s/inter/v20/UcC73FwrK3iLTeHuS_nVMrMxCp50SjIa25L7SUc.woff2",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:27.056Z"
+  },
+  {
+    "scope": "memory",
+    "type": "response",
+    "url": "https://fonts.gstatic.com/s/inter/v20/UcC73FwrK3iLTeHuS_nVMrMxCp50SjIa1ZL7.woff2",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:27.056Z"
+  },
+  {
+    "scope": "memory",
+    "type": "response",
+    "url": "https://fonts.gstatic.com/s/outfit/v15/QGYvz_MVcBeNP4NJuktqQ4E.woff2",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:27.056Z"
+  },
+  {
+    "scope": "memory",
+    "type": "response",
+    "url": "https://fonts.gstatic.com/s/outfit/v15/QGYvz_MVcBeNP4NJtEtq.woff2",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:27.056Z"
+  },
+  {
+    "scope": "memory",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/AuthenticatedAppShell-Cosxuxlm.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:27.071Z"
+  },
+  {
+    "scope": "memory",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/Broadcast.es-9UV26ykw.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:27.074Z"
+  },
+  {
+    "scope": "memory",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/index-DEX1K6UF.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:27.074Z"
+  },
+  {
+    "scope": "memory",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/collapsible-CCo8FmpV.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:27.074Z"
+  },
+  {
+    "scope": "memory",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/index-DNyVo76M.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:27.074Z"
+  },
+  {
+    "scope": "memory",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/use-mobile-DivOMuuV.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:27.074Z"
+  },
+  {
+    "scope": "memory",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/CaretRight.es-Cxl6-rgX.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:27.074Z"
+  },
+  {
+    "scope": "memory",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/ChartLineUp.es-B39hsGeZ.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:27.076Z"
+  },
+  {
+    "scope": "memory",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/ChatCircleDots.es-DMmDK79v.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:27.076Z"
+  },
+  {
+    "scope": "memory",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/Gear.es-Y76Sbpwt.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:27.076Z"
+  },
+  {
+    "scope": "memory",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/SquaresFour.es-CF7Cteb1.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:27.076Z"
+  },
+  {
+    "scope": "memory",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/Megaphone.es-BmOWW3hx.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:27.076Z"
+  },
+  {
+    "scope": "memory",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/TreeStructure.es-Cw4p0YGP.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:27.076Z"
+  },
+  {
+    "scope": "memory",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/Users.es-Brymu-X_.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:27.076Z"
+  },
+  {
+    "scope": "memory",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/AIIcon-7ulDPRzW.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:27.076Z"
+  },
+  {
+    "scope": "memory",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/button-C3SRKl_4.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:27.076Z"
+  },
+  {
+    "scope": "memory",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/badge-DbZGLBCJ.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:27.076Z"
+  },
+  {
+    "scope": "memory",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/index-pAeM8f7I.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:27.076Z"
+  },
+  {
+    "scope": "memory",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/RuntimeProvider-DALjk9wj.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:27.076Z"
+  },
+  {
+    "scope": "memory",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/vendor-socket-D1aRZ6Ki.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:27.076Z"
+  },
+  {
+    "scope": "memory",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/dialog-DL_6HYu1.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:27.076Z"
+  },
+  {
+    "scope": "memory",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/label-m_oy1xKw.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:27.076Z"
+  },
+  {
+    "scope": "memory",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/input-CQkiiuAv.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:27.078Z"
+  },
+  {
+    "scope": "memory",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/select-HGt9OCAe.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:27.078Z"
+  },
+  {
+    "scope": "memory",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/index-BdQq_4o_.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:27.078Z"
+  },
+  {
+    "scope": "memory",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/index-jcde_6CK.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:27.078Z"
+  },
+  {
+    "scope": "memory",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/Spinner.es-C-ljZbZm.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:27.078Z"
+  },
+  {
+    "scope": "memory",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/Warning.es-2ZC00ndy.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:27.078Z"
+  },
+  {
+    "scope": "memory",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/ArrowsClockwise.es-CFOFvV1j.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:27.078Z"
+  },
+  {
+    "scope": "memory",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/Header-CyQa-odp.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:27.087Z"
+  },
+  {
+    "scope": "memory",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/index-CeGL8cwR.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:27.088Z"
+  },
+  {
+    "scope": "memory",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/card-BqpfiZbS.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:27.088Z"
+  },
+  {
+    "scope": "memory",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/switch-Cmhnpwy2.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:27.088Z"
+  },
+  {
+    "scope": "memory",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/proxy-Fwyu43Qd.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:27.088Z"
+  },
+  {
+    "scope": "memory",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/Brain.es-Bhygm7fv.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:27.088Z"
+  },
+  {
+    "scope": "memory",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/ChatCircle.es-Db7Udqjj.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:27.088Z"
+  },
+  {
+    "scope": "memory",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/Checks.es-BuF5Ps68.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:27.088Z"
+  },
+  {
+    "scope": "memory",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/Clock.es-BkHkYRA9.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:27.088Z"
+  },
+  {
+    "scope": "memory",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/Cpu.es-DTtgIfNq.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:27.088Z"
+  },
+  {
+    "scope": "memory",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/Database.es-BPenKqC_.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:27.088Z"
+  },
+  {
+    "scope": "memory",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/FileText.es-B36GAemx.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:27.088Z"
+  },
+  {
+    "scope": "memory",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/Sparkle.es-DvpaUUGS.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:27.088Z"
+  },
+  {
+    "scope": "memory",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/Tag.es-YXgwGVj6.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:27.088Z"
+  },
+  {
+    "scope": "memory",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/TrendUp.es-B2z3nLTX.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:27.088Z"
+  },
+  {
+    "scope": "memory",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/WarningCircle.es-C24AhEXE.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:27.089Z"
+  },
+  {
+    "scope": "memory",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/AreaChart-Dz7gfnGR.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:27.090Z"
+  },
+  {
+    "scope": "memory",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/index-D2cPMPym.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:27.090Z"
+  },
+  {
+    "scope": "memory",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/PieChart-M3_QnI4r.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:27.090Z"
+  },
+  {
+    "scope": "memory",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/CartesianGrid-B0Wkf2y3.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:27.090Z"
+  },
+  {
+    "scope": "memory",
+    "type": "ws-open",
+    "url": "ws://209.50.241.22/socket.io/?EIO=4&transport=websocket"
+  },
+  {
+    "scope": "memory",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/index-CPMyIchR.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:27.227Z"
+  },
+  {
+    "scope": "memory",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/Memory-Ck53pBVu.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:27.228Z"
+  },
+  {
+    "scope": "memory",
+    "type": "response",
+    "url": "http://209.50.241.22/api/conversations?limit=30",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:27.325Z"
+  },
+  {
+    "scope": "memory",
+    "type": "response",
+    "url": "http://209.50.241.22/health",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:27.432Z"
+  },
+  {
+    "scope": "memory",
+    "type": "response",
+    "url": "http://209.50.241.22/api/health",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:27.545Z"
+  },
+  {
+    "scope": "memory",
+    "type": "response",
+    "url": "http://209.50.241.22/api/sessions/status",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:27.633Z"
+  },
+  {
+    "scope": "memory",
+    "type": "response",
+    "url": "http://209.50.241.22/api/ai/memory",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:27.633Z"
+  },
+  {
+    "scope": "memory",
+    "type": "response",
+    "url": "http://209.50.241.22/api/sessions/recover",
+    "status": 200,
+    "method": "POST",
+    "at": "2026-09-10T18:18:27.643Z"
+  },
+  {
+    "scope": "memory",
+    "type": "response",
+    "url": "http://209.50.241.22/api/ai/memory/analytics",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:27.826Z"
+  },
+  {
+    "scope": "memory",
+    "type": "response",
+    "url": "http://209.50.241.22/api/ai/memory/search?q=",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:28.224Z"
+  },
+  {
+    "scope": "memory",
+    "type": "response",
+    "url": "http://209.50.241.22/api/metrics",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:28.540Z"
+  },
+  {
+    "scope": "memory",
+    "type": "response",
+    "url": "http://209.50.241.22/api/conversations?limit=30",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:28.547Z"
+  },
+  {
+    "scope": "settings",
+    "type": "response",
+    "url": "http://209.50.241.22/settings",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:32.023Z"
+  },
+  {
+    "scope": "settings",
+    "type": "ws-close"
+  },
+  {
+    "scope": "settings",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/index-BGhDa48D.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:32.027Z"
+  },
+  {
+    "scope": "settings",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/vendor-react-B2OXR1tR.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:32.027Z"
+  },
+  {
+    "scope": "settings",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/index-sIMh6ftu.css",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:32.027Z"
+  },
+  {
+    "scope": "settings",
+    "type": "response",
+    "url": "https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Outfit:wght@400;500;600;700;800&display=swap",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:32.029Z"
+  },
+  {
+    "scope": "settings",
+    "type": "response",
+    "url": "https://fonts.gstatic.com/s/inter/v20/UcC73FwrK3iLTeHuS_nVMrMxCp50SjIa2JL7SUc.woff2",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:32.036Z"
+  },
+  {
+    "scope": "settings",
+    "type": "response",
+    "url": "https://fonts.gstatic.com/s/inter/v20/UcC73FwrK3iLTeHuS_nVMrMxCp50SjIa25L7SUc.woff2",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:32.036Z"
+  },
+  {
+    "scope": "settings",
+    "type": "response",
+    "url": "https://fonts.gstatic.com/s/inter/v20/UcC73FwrK3iLTeHuS_nVMrMxCp50SjIa1ZL7.woff2",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:32.036Z"
+  },
+  {
+    "scope": "settings",
+    "type": "response",
+    "url": "https://fonts.gstatic.com/s/outfit/v15/QGYvz_MVcBeNP4NJuktqQ4E.woff2",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:32.036Z"
+  },
+  {
+    "scope": "settings",
+    "type": "response",
+    "url": "https://fonts.gstatic.com/s/outfit/v15/QGYvz_MVcBeNP4NJtEtq.woff2",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:32.037Z"
+  },
+  {
+    "scope": "settings",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/AuthenticatedAppShell-Cosxuxlm.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:32.050Z"
+  },
+  {
+    "scope": "settings",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/Broadcast.es-9UV26ykw.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:32.051Z"
+  },
+  {
+    "scope": "settings",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/index-DEX1K6UF.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:32.051Z"
+  },
+  {
+    "scope": "settings",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/collapsible-CCo8FmpV.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:32.051Z"
+  },
+  {
+    "scope": "settings",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/index-DNyVo76M.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:32.051Z"
+  },
+  {
+    "scope": "settings",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/use-mobile-DivOMuuV.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:32.051Z"
+  },
+  {
+    "scope": "settings",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/CaretRight.es-Cxl6-rgX.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:32.051Z"
+  },
+  {
+    "scope": "settings",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/ChartLineUp.es-B39hsGeZ.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:32.051Z"
+  },
+  {
+    "scope": "settings",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/ChatCircleDots.es-DMmDK79v.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:32.052Z"
+  },
+  {
+    "scope": "settings",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/Gear.es-Y76Sbpwt.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:32.052Z"
+  },
+  {
+    "scope": "settings",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/SquaresFour.es-CF7Cteb1.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:32.052Z"
+  },
+  {
+    "scope": "settings",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/Megaphone.es-BmOWW3hx.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:32.052Z"
+  },
+  {
+    "scope": "settings",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/TreeStructure.es-Cw4p0YGP.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:32.052Z"
+  },
+  {
+    "scope": "settings",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/Users.es-Brymu-X_.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:32.052Z"
+  },
+  {
+    "scope": "settings",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/AIIcon-7ulDPRzW.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:32.052Z"
+  },
+  {
+    "scope": "settings",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/button-C3SRKl_4.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:32.052Z"
+  },
+  {
+    "scope": "settings",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/badge-DbZGLBCJ.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:32.052Z"
+  },
+  {
+    "scope": "settings",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/index-pAeM8f7I.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:32.052Z"
+  },
+  {
+    "scope": "settings",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/RuntimeProvider-DALjk9wj.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:32.052Z"
+  },
+  {
+    "scope": "settings",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/vendor-socket-D1aRZ6Ki.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:32.053Z"
+  },
+  {
+    "scope": "settings",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/dialog-DL_6HYu1.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:32.054Z"
+  },
+  {
+    "scope": "settings",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/label-m_oy1xKw.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:32.054Z"
+  },
+  {
+    "scope": "settings",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/input-CQkiiuAv.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:32.054Z"
+  },
+  {
+    "scope": "settings",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/select-HGt9OCAe.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:32.054Z"
+  },
+  {
+    "scope": "settings",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/index-BdQq_4o_.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:32.054Z"
+  },
+  {
+    "scope": "settings",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/index-jcde_6CK.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:32.054Z"
+  },
+  {
+    "scope": "settings",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/Spinner.es-C-ljZbZm.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:32.054Z"
+  },
+  {
+    "scope": "settings",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/Warning.es-2ZC00ndy.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:32.054Z"
+  },
+  {
+    "scope": "settings",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/ArrowsClockwise.es-CFOFvV1j.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:32.054Z"
+  },
+  {
+    "scope": "settings",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/Header-CyQa-odp.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:32.065Z"
+  },
+  {
+    "scope": "settings",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/index-CeGL8cwR.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:32.065Z"
+  },
+  {
+    "scope": "settings",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/Database.es-BPenKqC_.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:32.067Z"
+  },
+  {
+    "scope": "settings",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/FileText.es-B36GAemx.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:32.067Z"
+  },
+  {
+    "scope": "settings",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/Robot.es-B7KHJmJy.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:32.067Z"
+  },
+  {
+    "scope": "settings",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/TrendUp.es-B2z3nLTX.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:32.067Z"
+  },
+  {
+    "scope": "settings",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/card-BqpfiZbS.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:32.067Z"
+  },
+  {
+    "scope": "settings",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/proxy-Fwyu43Qd.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:32.067Z"
+  },
+  {
+    "scope": "settings",
+    "type": "ws-open",
+    "url": "ws://209.50.241.22/socket.io/?EIO=4&transport=websocket"
+  },
+  {
+    "scope": "settings",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/HardDrives.es-L0jT14Q3.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:32.228Z"
+  },
+  {
+    "scope": "settings",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/Palette.es-CakSWFqg.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:32.231Z"
+  },
+  {
+    "scope": "settings",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/Queue.es-BRuT8DrB.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:32.231Z"
+  },
+  {
+    "scope": "settings",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/Settings-DfaovPXd.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:32.232Z"
+  },
+  {
+    "scope": "settings",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/Flask.es-B10JhLfE.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:32.238Z"
+  },
+  {
+    "scope": "settings",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/Code.es-tsJ7ay4v.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:32.246Z"
+  },
+  {
+    "scope": "settings",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/Pulse.es-CGpauF7E.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:32.428Z"
+  },
+  {
+    "scope": "settings",
+    "type": "response",
+    "url": "http://209.50.241.22/api/conversations?limit=30",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:32.645Z"
+  },
+  {
+    "scope": "settings",
+    "type": "response",
+    "url": "http://209.50.241.22/health",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:32.727Z"
+  },
+  {
+    "scope": "settings",
+    "type": "response",
+    "url": "http://209.50.241.22/api/health",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:32.744Z"
+  },
+  {
+    "scope": "settings",
+    "type": "response",
+    "url": "http://209.50.241.22/api/sessions/recover",
+    "status": 200,
+    "method": "POST",
+    "at": "2026-09-10T18:18:32.745Z"
+  },
+  {
+    "scope": "settings",
+    "type": "response",
+    "url": "http://209.50.241.22/api/ai/status",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:32.835Z"
+  },
+  {
+    "scope": "settings",
+    "type": "response",
+    "url": "http://209.50.241.22/api/sessions/status",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:32.931Z"
+  },
+  {
+    "scope": "settings",
+    "type": "response",
+    "url": "http://209.50.241.22/api/admin/users",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:33.022Z"
+  },
+  {
+    "scope": "settings",
+    "type": "response",
+    "url": "http://209.50.241.22/api/conversations?limit=30",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:33.627Z"
+  },
+  {
+    "scope": "settings",
+    "type": "response",
+    "url": "http://209.50.241.22/api/metrics",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:33.629Z"
+  },
+  {
+    "scope": "inbox",
+    "type": "response",
+    "url": "http://209.50.241.22/inbox",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:36.930Z"
+  },
+  {
+    "scope": "inbox",
+    "type": "ws-close"
+  },
+  {
+    "scope": "inbox",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/index-BGhDa48D.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:36.937Z"
+  },
+  {
+    "scope": "inbox",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/vendor-react-B2OXR1tR.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:36.937Z"
+  },
+  {
+    "scope": "inbox",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/index-sIMh6ftu.css",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:36.937Z"
+  },
+  {
+    "scope": "inbox",
+    "type": "response",
+    "url": "https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Outfit:wght@400;500;600;700;800&display=swap",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:36.939Z"
+  },
+  {
+    "scope": "inbox",
+    "type": "response",
+    "url": "https://fonts.gstatic.com/s/inter/v20/UcC73FwrK3iLTeHuS_nVMrMxCp50SjIa2JL7SUc.woff2",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:36.949Z"
+  },
+  {
+    "scope": "inbox",
+    "type": "response",
+    "url": "https://fonts.gstatic.com/s/inter/v20/UcC73FwrK3iLTeHuS_nVMrMxCp50SjIa25L7SUc.woff2",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:36.949Z"
+  },
+  {
+    "scope": "inbox",
+    "type": "response",
+    "url": "https://fonts.gstatic.com/s/inter/v20/UcC73FwrK3iLTeHuS_nVMrMxCp50SjIa1ZL7.woff2",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:36.950Z"
+  },
+  {
+    "scope": "inbox",
+    "type": "response",
+    "url": "https://fonts.gstatic.com/s/outfit/v15/QGYvz_MVcBeNP4NJuktqQ4E.woff2",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:36.950Z"
+  },
+  {
+    "scope": "inbox",
+    "type": "response",
+    "url": "https://fonts.gstatic.com/s/outfit/v15/QGYvz_MVcBeNP4NJtEtq.woff2",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:36.950Z"
+  },
+  {
+    "scope": "inbox",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/AuthenticatedAppShell-Cosxuxlm.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:36.964Z"
+  },
+  {
+    "scope": "inbox",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/Broadcast.es-9UV26ykw.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:36.965Z"
+  },
+  {
+    "scope": "inbox",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/index-DEX1K6UF.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:36.965Z"
+  },
+  {
+    "scope": "inbox",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/collapsible-CCo8FmpV.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:36.965Z"
+  },
+  {
+    "scope": "inbox",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/index-DNyVo76M.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:36.965Z"
+  },
+  {
+    "scope": "inbox",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/use-mobile-DivOMuuV.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:36.965Z"
+  },
+  {
+    "scope": "inbox",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/CaretRight.es-Cxl6-rgX.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:36.965Z"
+  },
+  {
+    "scope": "inbox",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/ChartLineUp.es-B39hsGeZ.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:36.967Z"
+  },
+  {
+    "scope": "inbox",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/ChatCircleDots.es-DMmDK79v.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:36.967Z"
+  },
+  {
+    "scope": "inbox",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/Gear.es-Y76Sbpwt.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:36.967Z"
+  },
+  {
+    "scope": "inbox",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/SquaresFour.es-CF7Cteb1.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:36.967Z"
+  },
+  {
+    "scope": "inbox",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/Megaphone.es-BmOWW3hx.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:36.967Z"
+  },
+  {
+    "scope": "inbox",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/TreeStructure.es-Cw4p0YGP.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:36.967Z"
+  },
+  {
+    "scope": "inbox",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/Users.es-Brymu-X_.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:36.967Z"
+  },
+  {
+    "scope": "inbox",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/AIIcon-7ulDPRzW.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:36.967Z"
+  },
+  {
+    "scope": "inbox",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/button-C3SRKl_4.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:36.967Z"
+  },
+  {
+    "scope": "inbox",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/badge-DbZGLBCJ.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:36.968Z"
+  },
+  {
+    "scope": "inbox",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/index-pAeM8f7I.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:36.969Z"
+  },
+  {
+    "scope": "inbox",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/RuntimeProvider-DALjk9wj.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:36.969Z"
+  },
+  {
+    "scope": "inbox",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/vendor-socket-D1aRZ6Ki.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:36.969Z"
+  },
+  {
+    "scope": "inbox",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/dialog-DL_6HYu1.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:36.969Z"
+  },
+  {
+    "scope": "inbox",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/label-m_oy1xKw.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:36.969Z"
+  },
+  {
+    "scope": "inbox",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/input-CQkiiuAv.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:36.969Z"
+  },
+  {
+    "scope": "inbox",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/select-HGt9OCAe.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:36.969Z"
+  },
+  {
+    "scope": "inbox",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/index-BdQq_4o_.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:36.969Z"
+  },
+  {
+    "scope": "inbox",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/index-jcde_6CK.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:36.969Z"
+  },
+  {
+    "scope": "inbox",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/Spinner.es-C-ljZbZm.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:36.969Z"
+  },
+  {
+    "scope": "inbox",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/Warning.es-2ZC00ndy.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:36.969Z"
+  },
+  {
+    "scope": "inbox",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/ArrowsClockwise.es-CFOFvV1j.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:36.969Z"
+  },
+  {
+    "scope": "inbox",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/scroll-area-VBmyLpsF.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:36.984Z"
+  },
+  {
+    "scope": "inbox",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/VideoCamera.es-u97rVqOf.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:36.986Z"
+  },
+  {
+    "scope": "inbox",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/Check.es-Bws4XgWJ.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:36.986Z"
+  },
+  {
+    "scope": "inbox",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/Clock.es-BkHkYRA9.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:36.986Z"
+  },
+  {
+    "scope": "inbox",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/Lightning.es-DpuHmBYL.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:36.986Z"
+  },
+  {
+    "scope": "inbox",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/PencilSimple.es-dTtQOj2M.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:36.986Z"
+  },
+  {
+    "scope": "inbox",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/Header-CyQa-odp.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:36.986Z"
+  },
+  {
+    "scope": "inbox",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/index-CeGL8cwR.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:36.986Z"
+  },
+  {
+    "scope": "inbox",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/Tag.es-YXgwGVj6.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:36.986Z"
+  },
+  {
+    "scope": "inbox",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/Trash.es-CEGez0pd.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:36.986Z"
+  },
+  {
+    "scope": "inbox",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/index-CPMyIchR.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:36.986Z"
+  },
+  {
+    "scope": "inbox",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/proxy-Fwyu43Qd.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:36.986Z"
+  },
+  {
+    "scope": "inbox",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/OperationalStatusBadge-CR9OVvfJ.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:36.986Z"
+  },
+  {
+    "scope": "inbox",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/skeleton-D5sDd1qE.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:36.986Z"
+  },
+  {
+    "scope": "inbox",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/tabs-CwR7ce5P.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:36.988Z"
+  },
+  {
+    "scope": "inbox",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/accordion-5OHPuBbW.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:36.988Z"
+  },
+  {
+    "scope": "inbox",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/Robot.es-B7KHJmJy.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:36.988Z"
+  },
+  {
+    "scope": "inbox",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/checkbox-D0A4xJ-R.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:36.988Z"
+  },
+  {
+    "scope": "inbox",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/PaperPlaneTilt.es-BZ1ydDfL.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:36.988Z"
+  },
+  {
+    "scope": "inbox",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/X.es-C4aTC9T-.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:36.988Z"
+  },
+  {
+    "scope": "inbox",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/Checks.es-BuF5Ps68.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:36.988Z"
+  },
+  {
+    "scope": "inbox",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/sparkles-CK3nFywQ.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:36.988Z"
+  },
+  {
+    "scope": "inbox",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/switch-Cmhnpwy2.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:36.988Z"
+  },
+  {
+    "scope": "inbox",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/clock-BW88hERz.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:36.988Z"
+  },
+  {
+    "scope": "inbox",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/brain-C0jP4iug.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:36.988Z"
+  },
+  {
+    "scope": "inbox",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/DownloadSimple.es-w259vGtp.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:37.124Z"
+  },
+  {
+    "scope": "inbox",
+    "type": "ws-open",
+    "url": "ws://209.50.241.22/socket.io/?EIO=4&transport=websocket"
+  },
+  {
+    "scope": "inbox",
+    "type": "response",
+    "url": "http://209.50.241.22/api/conversations?limit=30",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:37.144Z"
+  },
+  {
+    "scope": "inbox",
+    "type": "response",
+    "url": "http://209.50.241.22/api/sessions/status",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:37.229Z"
+  },
+  {
+    "scope": "inbox",
+    "type": "response",
+    "url": "http://209.50.241.22/api/sessions/recover",
+    "status": 200,
+    "method": "POST",
+    "at": "2026-09-10T18:18:37.345Z"
+  },
+  {
+    "scope": "inbox",
+    "type": "response",
+    "url": "http://209.50.241.22/assets/Inbox-q_-zfVqd.js",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:37.533Z"
+  },
+  {
+    "scope": "inbox",
+    "type": "response",
+    "url": "http://209.50.241.22/api/config/ai-agents",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:37.742Z"
+  },
+  {
+    "scope": "inbox",
+    "type": "response",
+    "url": "http://209.50.241.22/health",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:37.743Z"
+  },
+  {
+    "scope": "inbox",
+    "type": "response",
+    "url": "http://209.50.241.22/api/health",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:37.746Z"
+  },
+  {
+    "scope": "inbox",
+    "type": "response",
+    "url": "http://209.50.241.22/api/quick-replies",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:37.835Z"
+  },
+  {
+    "scope": "inbox",
+    "type": "response",
+    "url": "http://209.50.241.22/api/conversations?limit=20&sessionId=material",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:38.130Z"
+  },
+  {
+    "scope": "inbox",
+    "type": "response",
+    "url": "http://209.50.241.22/api/metrics",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:38.231Z"
+  },
+  {
+    "scope": "inbox",
+    "type": "response",
+    "url": "https://user-images.githubusercontent.com/15075759/[NUMBER]dc0f70-73b1-11e7-911d-60d70fcded21.png",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:38.245Z"
+  },
+  {
+    "scope": "inbox",
+    "type": "response",
+    "url": "http://209.50.241.22/api/ai/conversation-memory/18423",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:38.425Z"
+  },
+  {
+    "scope": "inbox",
+    "type": "response",
+    "url": "http://209.50.241.22/api/ai/status",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:38.436Z"
+  },
+  {
+    "scope": "inbox",
+    "type": "response",
+    "url": "http://209.50.241.22/api/quick-replies/active-flow/[NUMBER]%40lid",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:38.445Z"
+  },
+  {
+    "scope": "inbox",
+    "type": "response",
+    "url": "http://209.50.241.22/api/ai/memory",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:38.451Z"
+  },
+  {
+    "scope": "inbox",
+    "type": "response",
+    "url": "http://209.50.241.22/api/config/advanced-ai",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:38.531Z"
+  },
+  {
+    "scope": "inbox",
+    "type": "response",
+    "url": "http://209.50.241.22/api/conversations/controls",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:38.751Z"
+  },
+  {
+    "scope": "inbox",
+    "type": "response",
+    "url": "http://209.50.241.22/api/ai/logs",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:38.838Z"
+  },
+  {
+    "scope": "inbox",
+    "type": "response",
+    "url": "http://209.50.241.22/api/conversations/2735/read",
+    "status": 200,
+    "method": "POST",
+    "at": "2026-09-10T18:18:38.931Z"
+  },
+  {
+    "scope": "inbox",
+    "type": "response",
+    "url": "http://209.50.241.22/api/sessions/status",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:39.029Z"
+  },
+  {
+    "scope": "inbox",
+    "type": "response",
+    "url": "http://209.50.241.22/api/conversations?limit=30&sessionId=material",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:39.039Z"
+  },
+  {
+    "scope": "inbox",
+    "type": "response",
+    "url": "http://209.50.241.22/api/quick-replies/active-flow/[NUMBER]%40lid",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:39.129Z"
+  },
+  {
+    "scope": "inbox",
+    "type": "response",
+    "url": "http://209.50.241.22/health",
+    "status": 200,
+    "method": "GET",
+    "at": "2026-09-10T18:18:42.327Z"
+  }
+]

@@ -1883,6 +1883,7 @@ export function useInboxState() {
     attachmentsStateRef.current = [];
 
     const startTime = Date.now();
+    const requestIdBase = `inbox-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
     console.log(`[SEND] State updated to sending=true at ${startTime}`);
 
     const now = new Date().toISOString();
@@ -2028,6 +2029,7 @@ export function useInboxState() {
         }
 
         console.log(`[SEND] Calling API for message ${i + 1}...`);
+        const requestId = `${requestIdBase}-${i}`;
         const response: MessageSendResponse = attachment
           ? await apiService.sendMediaMessage({
               phone: currentConversation.phone,
@@ -2040,6 +2042,7 @@ export function useInboxState() {
               conversationId: currentConversation.id,
               contactId: currentConversation.contactId,
               sessionId: sessionIdToSend,
+              requestId,
             })
           : await apiService.sendMessage({
               phone: currentConversation.phone,
@@ -2048,6 +2051,7 @@ export function useInboxState() {
               conversationId: currentConversation.id,
               contactId: currentConversation.contactId,
               sessionId: sessionIdToSend,
+              requestId,
             });
         console.log(`[SEND] API response received for message ${i + 1}:`, response);
 
@@ -2928,11 +2932,9 @@ export function useInboxState() {
       notify.success("Fluxo / Resposta Rápida iniciada.");
     } catch (err: any) {
       console.error("[SEND_QUICK_REPLY_ERROR]", err);
-      if (arg.text && !arg.mediaUrl && (!arg.items || arg.items.length === 0)) {
-        await handleSendMessage(interpolateTemplateVariables(arg.text, conversationVariableContext));
-      } else {
-        notify.error("Falha ao disparar resposta rápida.");
-      }
+      // Do not fall back to a second send after an ambiguous flow response.
+      // The backend may already have accepted/enqueued the request.
+      notify.error("Falha ao disparar resposta rápida. Verifique o status antes de tentar novamente.");
     } finally {
       setSending(false);
       sendingQuickReplyRef.current = false;

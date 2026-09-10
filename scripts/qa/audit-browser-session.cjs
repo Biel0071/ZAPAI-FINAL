@@ -1,0 +1,25 @@
+const {chromium}=require('../../frontend-official/node_modules/playwright');
+const fs=require('fs'),path=require('path');
+const root=path.resolve(__dirname,'../..'),out=path.join(root,'outros/reports/qa');
+(async()=>{
+ const browser=await chromium.launch({headless:true,args:['--remote-debugging-port=9338','--remote-debugging-address=127.0.0.1']});
+ const ctx=await browser.newContext({viewport:{width:1440,height:900}}),page=await ctx.newPage();
+ page.setDefaultTimeout(5000);page.setDefaultNavigationTimeout(20000);
+ const events=[];
+ const clean=s=>String(s).replace(/Bearer\s+\S+/gi,'[TOKEN]').replace(/[\w.+-]+@[\w.-]+\.[A-Za-z]{2,}/g,'[EMAIL]').replace(/\b\d{8,15}\b/g,'[PHONE]');
+ page.on('console',m=>{if(['warning','error'].includes(m.type()))events.push({route:page.url(),type:'console',level:m.type(),text:clean(m.text()),at:new Date().toISOString()})});
+ page.on('pageerror',e=>events.push({route:page.url(),type:'pageerror',text:clean(e.message)}));
+ page.on('response',r=>events.push({route:page.url(),type:'response',url:clean(r.url()),method:r.request().method(),status:r.status(),at:new Date().toISOString()}));
+ page.on('requestfailed',r=>events.push({route:page.url(),type:'requestfailed',url:clean(r.url()),text:r.failure()?.errorText}));
+ page.on('websocket',ws=>{events.push({route:page.url(),type:'ws-open',url:clean(ws.url())});ws.on('close',()=>events.push({route:page.url(),type:'ws-close'}));ws.on('socketerror',e=>events.push({route:page.url(),type:'ws-error',text:clean(e)}))});
+ await page.goto('http://209.50.241.22/');
+ const legacy=fs.readFileSync(path.join(root,'frontend-official/tests/ui/visual-full-e2e.spec.ts'),'utf8');
+ await page.getByPlaceholder('Digite o usuário').fill(legacy.match(/const USERNAME = "([^"]+)"/)[1]);
+ await page.getByPlaceholder('Digite a senha').fill(legacy.match(/const PASSWORD = "([^"]+)"/)[1]);
+ await page.getByRole('button',{name:'Entrar no Dashboard'}).click();
+ await page.waitForURL('**/dashboard');await page.getByRole('tab',{name:'Hub ZAI',exact:true}).waitFor();
+ fs.mkdirSync(path.join(root,'outros/temp'),{recursive:true});
+ fs.writeFileSync(path.join(root,'outros/temp/qa-browser-endpoint.txt'),'http://127.0.0.1:9338');
+ setInterval(()=>fs.writeFileSync(path.join(out,'functional-events.json'),JSON.stringify(events,null,2)),1500);
+ console.log('READY: authenticated browser session');
+})().catch(e=>{console.error(e.message);process.exitCode=1});

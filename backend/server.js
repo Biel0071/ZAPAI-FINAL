@@ -105,6 +105,57 @@ const io = new Server(server, {
 });
 app.set('io', io);
 
+// Native WebSocket support for /ws/* endpoints (Master Nodes, Metrics, Deployments)
+let masterWsServer = null;
+try {
+  const { WebSocketServer } = require('ws');
+  masterWsServer = new WebSocketServer({ noServer: true });
+
+  server.on('upgrade', (request, socket, head) => {
+    try {
+      const parsedUrl = new URL(request.url, 'http://localhost');
+      if (parsedUrl.pathname.startsWith('/ws/')) {
+        masterWsServer.handleUpgrade(request, socket, head, (ws) => {
+          masterWsServer.emit('connection', ws, request);
+        });
+      }
+    } catch {
+      // Ignore URL parse error; let Socket.IO or other handlers proceed
+    }
+  });
+
+  masterWsServer.on('connection', (ws, request) => {
+    try {
+      const parsedUrl = new URL(request.url, 'http://localhost');
+      const channel = parsedUrl.pathname;
+      ws.send(JSON.stringify({ type: 'connected', channel, timestamp: new Date().toISOString() }));
+    } catch {
+      /* noop */
+    }
+
+    const heartbeatInterval = setInterval(() => {
+      try {
+        if (ws.readyState === 1) {
+          ws.ping();
+        }
+      } catch {
+        /* noop */
+      }
+    }, 25_000);
+
+    ws.on('close', () => {
+      clearInterval(heartbeatInterval);
+    });
+
+    ws.on('error', () => {
+      clearInterval(heartbeatInterval);
+    });
+  });
+  app.set('masterWsServer', masterWsServer);
+} catch (err) {
+  console.warn('[SERVER] Native WebSocket server initialization skipped:', err?.message || err);
+}
+
 // Socket.io JWT authentication middleware
 const { verifyHs256Jwt } = require('./src/api/middleware/jwtAuth');
 io.use((socket, next) => {
@@ -854,6 +905,12 @@ const handleHealthCheck = (_req, res) => {
 
 app.get('/health', handleHealthCheck);
 app.get('/api/health', handleHealthCheck);
+app.get('/api/session-status', (_req, res) => {
+  return res.status(200).json(buildSessionStatusPayload());
+});
+app.get('/session-status', (_req, res) => {
+  return res.status(200).json(buildSessionStatusPayload());
+});
 
 registerRoutes(app, {
   requireJwtAuth: authMiddleware,
@@ -868,14 +925,6 @@ app.get('/api', (_req, res) => {
     service: 'whatsapp-crm-api',
     status: 'ok',
   });
-});
-
-app.get('/api/session-status', (_req, res) => {
-  return res.status(200).json(buildSessionStatusPayload());
-});
-
-app.get('/session-status', (_req, res) => {
-  return res.status(200).json(buildSessionStatusPayload());
 });
 
 app.get('/api/diagnostics', (_req, res) => {

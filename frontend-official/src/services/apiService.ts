@@ -1348,7 +1348,7 @@ export const apiService = {
     return res?.stickers ?? [];
   },
 
-  async sendMessage(payload: { phone: string; chatId?: string; text: string; conversationId?: string; contactId?: string; sessionId?: string }) {
+  async sendMessage(payload: { phone: string; chatId?: string; text: string; conversationId?: string; contactId?: string; sessionId?: string; requestId?: string }) {
     const response = await request<MessageSendResponse>({ endpoint: "/api/send-message", method: "POST", body: payload, timeoutMs: 45000 });
     invalidateCache("conversations");
     return response;
@@ -1365,6 +1365,7 @@ export const apiService = {
     conversationId?: string;
     contactId?: string;
     sessionId?: string;
+    requestId?: string;
   }) {
     const normalizedCaption = (payload.caption ?? "").trim();
     const normalizedBase64 = String(payload.dataBase64 ?? "").trim();
@@ -1399,6 +1400,7 @@ export const apiService = {
       conversationId: payload.conversationId,
       contactId: payload.contactId,
       sessionId: payload.sessionId,
+      requestId: payload.requestId,
     };
 
     const candidateEndpoints = ["/api/send-media", "/send-media"];
@@ -1974,13 +1976,13 @@ export const apiService = {
     request<Record<string, unknown>>({ endpoint: `/api/messages/${encodeURIComponent(messageId)}/forward`, method: "POST", body: payload }),
 
   getOutboundQueuePending: (limit?: number) =>
-    request<{ items: OutboundQueueItem[] }>({ endpoint: withQuery("/api/messages/outbound-queue/pending", { limit }), method: "GET" }),
+    request<{ items: OutboundQueueItem[] }>({ endpoint: withQuery("/api/outbound-queue/pending", { limit }), method: "GET" }),
 
   getOutboundQueueDeadLetters: (limit?: number) =>
-    request<{ items: OutboundQueueItem[] }>({ endpoint: withQuery("/api/messages/outbound-queue/dlq", { limit }), method: "GET" }),
+    request<{ items: OutboundQueueItem[] }>({ endpoint: withQuery("/api/outbound-queue/dlq", { limit }), method: "GET" }),
 
   reprocessDeadLetter: (id: string, testing?: boolean) =>
-    request<{ item: OutboundQueueItem }>({ endpoint: `/api/messages/outbound-queue/dlq/${encodeURIComponent(id)}/reprocess`, method: "POST", body: { testing } }),
+    request<{ item: OutboundQueueItem }>({ endpoint: `/api/outbound-queue/dlq/${encodeURIComponent(id)}/reprocess`, method: "POST", body: { testing } }),
 
   async getQuickReplies() {
     try {

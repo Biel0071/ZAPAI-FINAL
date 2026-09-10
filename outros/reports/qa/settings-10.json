@@ -1,0 +1,109 @@
+{
+  "label": "Fila de Envios",
+  "controls": [
+    {
+      "label": "Buscar",
+      "tag": "INPUT"
+    },
+    {
+      "label": "Todas as Conexõesmaterial (Online)main (Offline)",
+      "tag": "SELECT"
+    },
+    {
+      "label": "Nova Conversa",
+      "tag": "BUTTON"
+    },
+    {
+      "label": "ZAZA",
+      "tag": "BUTTON"
+    },
+    {
+      "label": "Perfil",
+      "tag": "BUTTON"
+    },
+    {
+      "label": "Empresa",
+      "tag": "BUTTON"
+    },
+    {
+      "label": "Equipe",
+      "tag": "BUTTON"
+    },
+    {
+      "label": "Notificações",
+      "tag": "BUTTON"
+    },
+    {
+      "label": "Segurança",
+      "tag": "BUTTON"
+    },
+    {
+      "label": "Faturamento",
+      "tag": "BUTTON"
+    },
+    {
+      "label": "Aparência",
+      "tag": "BUTTON"
+    },
+    {
+      "label": "Idioma",
+      "tag": "BUTTON"
+    },
+    {
+      "label": "API Keys",
+      "tag": "BUTTON"
+    },
+    {
+      "label": "Webhooks",
+      "tag": "BUTTON"
+    },
+    {
+      "label": "Dados",
+      "tag": "BUTTON"
+    },
+    {
+      "label": "Fila de Envios",
+      "tag": "BUTTON"
+    },
+    {
+      "label": "Cluster",
+      "tag": "BUTTON"
+    },
+    {
+      "label": "Usuários Master",
+      "tag": "BUTTON"
+    },
+    {
+      "label": "Deployments",
+      "tag": "BUTTON"
+    },
+    {
+      "label": "Versões",
+      "tag": "BUTTON"
+    },
+    {
+      "label": "Logs",
+      "tag": "BUTTON"
+    },
+    {
+      "label": "Central de Testes",
+      "tag": "BUTTON"
+    },
+    {
+      "label": "Diagnóstico & Saúde",
+      "tag": "BUTTON"
+    },
+    {
+      "label": "Atualizar",
+      "tag": "BUTTON"
+    },
+    {
+      "label": " Pendentes (0)",
+      "tag": "BUTTON"
+    },
+    {
+      "label": " Falhas Irrecuperáveis (...)",
+      "tag": "BUTTON"
+    }
+  ]
+}

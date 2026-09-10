@@ -72,7 +72,7 @@ test.describe("Diagnose Inbox Send", () => {
     await page.waitForLoadState("networkidle");
 
     console.log("Waiting for conversations...");
-    const row = page.locator("button.inbox-message").first();
+    const row = page.locator('[role="button"].inbox-message').first();
     await expect(row).toBeVisible({ timeout: 10000 });
     await row.click();
     console.log("Clicked conversation row.");

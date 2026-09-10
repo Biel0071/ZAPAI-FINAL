@@ -336,7 +336,7 @@ async function loadUserStats(req) {
 // the frontend route declares.
 router.get('/master/versions', getMasterVersions);
 
-router.use(requireMasterAdmin);
+router.use('/master', requireMasterAdmin);
 
 router.get('/master/overview', async (req, res) => {
   try {

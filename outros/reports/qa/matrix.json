@@ -1,0 +1,710 @@
+[
+  {
+    "id": "AUTH-001",
+    "module": "Auth",
+    "screen": "login",
+    "route": "http://209.50.241.22/login",
+    "viewport": {
+      "width": 1440,
+      "height": 900
+    },
+    "feature": "Campos obrigatórios",
+    "action": "Inspecionar botão com usuário e senha vazios",
+    "status": "PASS",
+    "observation": "Botão de login desabilitado quando campos estão vazios",
+    "evidence": "evidence/auth-empty.png",
+    "console": [],
+    "network": []
+  },
+  {
+    "id": "AUTH-002",
+    "module": "Auth",
+    "screen": "login",
+    "route": "http://209.50.241.22/dashboard",
+    "viewport": {
+      "width": 1440,
+      "height": 900
+    },
+    "feature": "Login",
+    "action": "Preencher credencial existente e clicar Entrar",
+    "status": "PASS",
+    "observation": "Redirecionou para /dashboard e exibiu navegação autenticada",
+    "evidence": "evidence/auth-success.png",
+    "console": [],
+    "network": []
+  },
+  {
+    "id": "DASH-TAB-Conversas",
+    "module": "Dashboard",
+    "screen": "login",
+    "route": "http://209.50.241.22/dashboard?tab=conversations",
+    "viewport": {
+      "width": 1440,
+      "height": 900
+    },
+    "feature": "Aba Conversas",
+    "action": "Clicar aba e conferir seleção e painel",
+    "status": "FAIL",
+    "observation": "aria-selected=true; painel visível=false",
+    "evidence": "evidence/dash-Conversas.png",
+    "console": [],
+    "network": []
+  },
+  {
+    "id": "DASH-TAB-Performance IA",
+    "module": "Dashboard",
+    "screen": "login",
+    "route": "http://209.50.241.22/dashboard?tab=ai",
+    "viewport": {
+      "width": 1440,
+      "height": 900
+    },
+    "feature": "Aba Performance IA",
+    "action": "Clicar aba e conferir seleção e painel",
+    "status": "FAIL",
+    "observation": "aria-selected=true; painel visível=false",
+    "evidence": "evidence/dash-Performance_IA.png",
+    "console": [],
+    "network": []
+  },
+  {
+    "id": "DASH-TAB-Comercial",
+    "module": "Dashboard",
+    "screen": "login",
+    "route": "http://209.50.241.22/dashboard?tab=commercial",
+    "viewport": {
+      "width": 1440,
+      "height": 900
+    },
+    "feature": "Aba Comercial",
+    "action": "Clicar aba e conferir seleção e painel",
+    "status": "FAIL",
+    "observation": "aria-selected=true; painel visível=false",
+    "evidence": "evidence/dash-Comercial.png",
+    "console": [],
+    "network": []
+  },
+  {
+    "id": "DASH-TAB-Mapa Interativo",
+    "module": "Dashboard",
+    "screen": "login",
+    "route": "http://209.50.241.22/dashboard?tab=map",
+    "viewport": {
+      "width": 1440,
+      "height": 900
+    },
+    "feature": "Aba Mapa Interativo",
+    "action": "Clicar aba e conferir seleção e painel",
+    "status": "FAIL",
+    "observation": "aria-selected=true; painel visível=false",
+    "evidence": "evidence/dash-Mapa_Interativo.png",
+    "console": [],
+    "network": []
+  },
+  {
+    "id": "DASH-TAB-Hub ZAI",
+    "module": "Dashboard",
+    "screen": "login",
+    "route": "http://209.50.241.22/dashboard",
+    "viewport": {
+      "width": 1440,
+      "height": 900
+    },
+    "feature": "Aba Hub ZAI",
+    "action": "Clicar aba e conferir seleção e painel",
+    "status": "FAIL",
+    "observation": "aria-selected=true; painel visível=false",
+    "evidence": "evidence/dash-Hub_ZAI.png",
+    "console": [],
+    "network": [
+      {
+        "type": "requestfailed",
+        "phase": "login",
+        "url": "https://mt1.google.com/vt/lyrs=m&x=5&y=8&z=4",
+        "text": "net::ERR_ABORTED"
+      },
+      {
+        "type": "requestfailed",
+        "phase": "login",
+        "url": "https://mt1.google.com/vt/lyrs=m&x=6&y=8&z=4",
+        "text": "net::ERR_ABORTED"
+      },
+      {
+        "type": "requestfailed",
+        "phase": "login",
+        "url": "https://mt1.google.com/vt/lyrs=m&x=5&y=7&z=4",
+        "text": "net::ERR_ABORTED"
+      },
+      {
+        "type": "requestfailed",
+        "phase": "login",
+        "url": "https://mt1.google.com/vt/lyrs=m&x=6&y=7&z=4",
+        "text": "net::ERR_ABORTED"
+      },
+      {
+        "type": "requestfailed",
+        "phase": "login",
+        "url": "https://mt1.google.com/vt/lyrs=m&x=5&y=9&z=4",
+        "text": "net::ERR_ABORTED"
+      },
+      {
+        "type": "requestfailed",
+        "phase": "login",
+        "url": "https://mt1.google.com/vt/lyrs=m&x=6&y=9&z=4",
+        "text": "net::ERR_ABORTED"
+      },
+      {
+        "type": "requestfailed",
+        "phase": "login",
+        "url": "https://mt1.google.com/vt/lyrs=m&x=4&y=8&z=4",
+        "text": "net::ERR_ABORTED"
+      },
+      {
+        "type": "requestfailed",
+        "phase": "login",
+        "url": "https://mt1.google.com/vt/lyrs=m&x=7&y=8&z=4",
+        "text": "net::ERR_ABORTED"
+      },
+      {
+        "type": "requestfailed",
+        "phase": "login",
+        "url": "https://mt1.google.com/vt/lyrs=m&x=4&y=7&z=4",
+        "text": "net::ERR_ABORTED"
+      },
+      {
+        "type": "requestfailed",
+        "phase": "login",
+        "url": "https://mt1.google.com/vt/lyrs=m&x=7&y=7&z=4",
+        "text": "net::ERR_ABORTED"
+      },
+      {
+        "type": "requestfailed",
+        "phase": "login",
+        "url": "https://mt1.google.com/vt/lyrs=m&x=4&y=9&z=4",
+        "text": "net::ERR_ABORTED"
+      },
+      {
+        "type": "requestfailed",
+        "phase": "login",
+        "url": "https://mt1.google.com/vt/lyrs=m&x=7&y=9&z=4",
+        "text": "net::ERR_ABORTED"
+      }
+    ]
+  },
+  {
+    "id": "DASH-TAB-Conversas",
+    "module": "Dashboard",
+    "screen": "login",
+    "route": "http://209.50.241.22/dashboard?tab=conversations",
+    "viewport": {
+      "width": 1440,
+      "height": 900
+    },
+    "feature": "Aba Conversas",
+    "action": "Clicar aba e comparar conteúdo do main",
+    "status": "PASS",
+    "observation": "Seleção=true; conteúdo mudou=true",
+    "evidence": "evidence/dash-Conversas.png",
+    "console": [],
+    "network": [
+      {
+        "type": "requestfailed",
+        "phase": "login",
+        "url": "https://mt1.google.com/vt/lyrs=m&x=5&y=8&z=4",
+        "text": "net::ERR_ABORTED"
+      },
+      {
+        "type": "requestfailed",
+        "phase": "login",
+        "url": "https://mt1.google.com/vt/lyrs=m&x=6&y=8&z=4",
+        "text": "net::ERR_ABORTED"
+      },
+      {
+        "type": "requestfailed",
+        "phase": "login",
+        "url": "https://mt1.google.com/vt/lyrs=m&x=5&y=7&z=4",
+        "text": "net::ERR_ABORTED"
+      },
+      {
+        "type": "requestfailed",
+        "phase": "login",
+        "url": "https://mt1.google.com/vt/lyrs=m&x=6&y=7&z=4",
+        "text": "net::ERR_ABORTED"
+      },
+      {
+        "type": "requestfailed",
+        "phase": "login",
+        "url": "https://mt1.google.com/vt/lyrs=m&x=5&y=9&z=4",
+        "text": "net::ERR_ABORTED"
+      },
+      {
+        "type": "requestfailed",
+        "phase": "login",
+        "url": "https://mt1.google.com/vt/lyrs=m&x=6&y=9&z=4",
+        "text": "net::ERR_ABORTED"
+      },
+      {
+        "type": "requestfailed",
+        "phase": "login",
+        "url": "https://mt1.google.com/vt/lyrs=m&x=4&y=8&z=4",
+        "text": "net::ERR_ABORTED"
+      },
+      {
+        "type": "requestfailed",
+        "phase": "login",
+        "url": "https://mt1.google.com/vt/lyrs=m&x=7&y=8&z=4",
+        "text": "net::ERR_ABORTED"
+      },
+      {
+        "type": "requestfailed",
+        "phase": "login",
+        "url": "https://mt1.google.com/vt/lyrs=m&x=4&y=7&z=4",
+        "text": "net::ERR_ABORTED"
+      },
+      {
+        "type": "requestfailed",
+        "phase": "login",
+        "url": "https://mt1.google.com/vt/lyrs=m&x=7&y=7&z=4",
+        "text": "net::ERR_ABORTED"
+      },
+      {
+        "type": "requestfailed",
+        "phase": "login",
+        "url": "https://mt1.google.com/vt/lyrs=m&x=4&y=9&z=4",
+        "text": "net::ERR_ABORTED"
+      },
+      {
+        "type": "requestfailed",
+        "phase": "login",
+        "url": "https://mt1.google.com/vt/lyrs=m&x=7&y=9&z=4",
+        "text": "net::ERR_ABORTED"
+      }
+    ]
+  },
+  {
+    "id": "DASH-TAB-Performance IA",
+    "module": "Dashboard",
+    "screen": "login",
+    "route": "http://209.50.241.22/dashboard?tab=ai",
+    "viewport": {
+      "width": 1440,
+      "height": 900
+    },
+    "feature": "Aba Performance IA",
+    "action": "Clicar aba e comparar conteúdo do main",
+    "status": "PASS",
+    "observation": "Seleção=true; conteúdo mudou=true",
+    "evidence": "evidence/dash-Performance_IA.png",
+    "console": [],
+    "network": [
+      {
+        "type": "requestfailed",
+        "phase": "login",
+        "url": "https://mt1.google.com/vt/lyrs=m&x=5&y=8&z=4",
+        "text": "net::ERR_ABORTED"
+      },
+      {
+        "type": "requestfailed",
+        "phase": "login",
+        "url": "https://mt1.google.com/vt/lyrs=m&x=6&y=8&z=4",
+        "text": "net::ERR_ABORTED"
+      },
+      {
+        "type": "requestfailed",
+        "phase": "login",
+        "url": "https://mt1.google.com/vt/lyrs=m&x=5&y=7&z=4",
+        "text": "net::ERR_ABORTED"
+      },
+      {
+        "type": "requestfailed",
+        "phase": "login",
+        "url": "https://mt1.google.com/vt/lyrs=m&x=6&y=7&z=4",
+        "text": "net::ERR_ABORTED"
+      },
+      {
+        "type": "requestfailed",
+        "phase": "login",
+        "url": "https://mt1.google.com/vt/lyrs=m&x=5&y=9&z=4",
+        "text": "net::ERR_ABORTED"
+      },
+      {
+        "type": "requestfailed",
+        "phase": "login",
+        "url": "https://mt1.google.com/vt/lyrs=m&x=6&y=9&z=4",
+        "text": "net::ERR_ABORTED"
+      },
+      {
+        "type": "requestfailed",
+        "phase": "login",
+        "url": "https://mt1.google.com/vt/lyrs=m&x=4&y=8&z=4",
+        "text": "net::ERR_ABORTED"
+      },
+      {
+        "type": "requestfailed",
+        "phase": "login",
+        "url": "https://mt1.google.com/vt/lyrs=m&x=7&y=8&z=4",
+        "text": "net::ERR_ABORTED"
+      },
+      {
+        "type": "requestfailed",
+        "phase": "login",
+        "url": "https://mt1.google.com/vt/lyrs=m&x=4&y=7&z=4",
+        "text": "net::ERR_ABORTED"
+      },
+      {
+        "type": "requestfailed",
+        "phase": "login",
+        "url": "https://mt1.google.com/vt/lyrs=m&x=7&y=7&z=4",
+        "text": "net::ERR_ABORTED"
+      },
+      {
+        "type": "requestfailed",
+        "phase": "login",
+        "url": "https://mt1.google.com/vt/lyrs=m&x=4&y=9&z=4",
+        "text": "net::ERR_ABORTED"
+      },
+      {
+        "type": "requestfailed",
+        "phase": "login",
+        "url": "https://mt1.google.com/vt/lyrs=m&x=7&y=9&z=4",
+        "text": "net::ERR_ABORTED"
+      }
+    ]
+  },
+  {
+    "id": "DASH-TAB-Comercial",
+    "module": "Dashboard",
+    "screen": "login",
+    "route": "http://209.50.241.22/dashboard?tab=commercial",
+    "viewport": {
+      "width": 1440,
+      "height": 900
+    },
+    "feature": "Aba Comercial",
+    "action": "Clicar aba e comparar conteúdo do main",
+    "status": "PASS",
+    "observation": "Seleção=true; conteúdo mudou=true",
+    "evidence": "evidence/dash-Comercial.png",
+    "console": [],
+    "network": [
+      {
+        "type": "requestfailed",
+        "phase": "login",
+        "url": "https://mt1.google.com/vt/lyrs=m&x=5&y=8&z=4",
+        "text": "net::ERR_ABORTED"
+      },
+      {
+        "type": "requestfailed",
+        "phase": "login",
+        "url": "https://mt1.google.com/vt/lyrs=m&x=6&y=8&z=4",
+        "text": "net::ERR_ABORTED"
+      },
+      {
+        "type": "requestfailed",
+        "phase": "login",
+        "url": "https://mt1.google.com/vt/lyrs=m&x=5&y=7&z=4",
+        "text": "net::ERR_ABORTED"
+      },
+      {
+        "type": "requestfailed",
+        "phase": "login",
+        "url": "https://mt1.google.com/vt/lyrs=m&x=6&y=7&z=4",
+        "text": "net::ERR_ABORTED"
+      },
+      {
+        "type": "requestfailed",
+        "phase": "login",
+        "url": "https://mt1.google.com/vt/lyrs=m&x=5&y=9&z=4",
+        "text": "net::ERR_ABORTED"
+      },
+      {
+        "type": "requestfailed",
+        "phase": "login",
+        "url": "https://mt1.google.com/vt/lyrs=m&x=6&y=9&z=4",
+        "text": "net::ERR_ABORTED"
+      },
+      {
+        "type": "requestfailed",
+        "phase": "login",
+        "url": "https://mt1.google.com/vt/lyrs=m&x=4&y=8&z=4",
+        "text": "net::ERR_ABORTED"
+      },
+      {
+        "type": "requestfailed",
+        "phase": "login",
+        "url": "https://mt1.google.com/vt/lyrs=m&x=7&y=8&z=4",
+        "text": "net::ERR_ABORTED"
+      },
+      {
+        "type": "requestfailed",
+        "phase": "login",
+        "url": "https://mt1.google.com/vt/lyrs=m&x=4&y=7&z=4",
+        "text": "net::ERR_ABORTED"
+      },
+      {
+        "type": "requestfailed",
+        "phase": "login",
+        "url": "https://mt1.google.com/vt/lyrs=m&x=7&y=7&z=4",
+        "text": "net::ERR_ABORTED"
+      },
+      {
+        "type": "requestfailed",
+        "phase": "login",
+        "url": "https://mt1.google.com/vt/lyrs=m&x=4&y=9&z=4",
+        "text": "net::ERR_ABORTED"
+      },
+      {
+        "type": "requestfailed",
+        "phase": "login",
+        "url": "https://mt1.google.com/vt/lyrs=m&x=7&y=9&z=4",
+        "text": "net::ERR_ABORTED"
+      }
+    ]
+  },
+  {
+    "id": "DASH-TAB-Mapa Interativo",
+    "module": "Dashboard",
+    "screen": "login",
+    "route": "http://209.50.241.22/dashboard?tab=map",
+    "viewport": {
+      "width": 1440,
+      "height": 900
+    },
+    "feature": "Aba Mapa Interativo",
+    "action": "Clicar aba e comparar conteúdo do main",
+    "status": "PASS",
+    "observation": "Seleção=true; conteúdo mudou=true",
+    "evidence": "evidence/dash-Mapa_Interativo.png",
+    "console": [],
+    "network": [
+      {
+        "type": "requestfailed",
+        "phase": "login",
+        "url": "https://mt1.google.com/vt/lyrs=m&x=5&y=8&z=4",
+        "text": "net::ERR_ABORTED"
+      },
+      {
+        "type": "requestfailed",
+        "phase": "login",
+        "url": "https://mt1.google.com/vt/lyrs=m&x=6&y=8&z=4",
+        "text": "net::ERR_ABORTED"
+      },
+      {
+        "type": "requestfailed",
+        "phase": "login",
+        "url": "https://mt1.google.com/vt/lyrs=m&x=5&y=7&z=4",
+        "text": "net::ERR_ABORTED"
+      },
+      {
+        "type": "requestfailed",
+        "phase": "login",
+        "url": "https://mt1.google.com/vt/lyrs=m&x=6&y=7&z=4",
+        "text": "net::ERR_ABORTED"
+      },
+      {
+        "type": "requestfailed",
+        "phase": "login",
+        "url": "https://mt1.google.com/vt/lyrs=m&x=5&y=9&z=4",
+        "text": "net::ERR_ABORTED"
+      },
+      {
+        "type": "requestfailed",
+        "phase": "login",
+        "url": "https://mt1.google.com/vt/lyrs=m&x=6&y=9&z=4",
+        "text": "net::ERR_ABORTED"
+      },
+      {
+        "type": "requestfailed",
+        "phase": "login",
+        "url": "https://mt1.google.com/vt/lyrs=m&x=4&y=8&z=4",
+        "text": "net::ERR_ABORTED"
+      },
+      {
+        "type": "requestfailed",
+        "phase": "login",
+        "url": "https://mt1.google.com/vt/lyrs=m&x=7&y=8&z=4",
+        "text": "net::ERR_ABORTED"
+      },
+      {
+        "type": "requestfailed",
+        "phase": "login",
+        "url": "https://mt1.google.com/vt/lyrs=m&x=4&y=7&z=4",
+        "text": "net::ERR_ABORTED"
+      },
+      {
+        "type": "requestfailed",
+        "phase": "login",
+        "url": "https://mt1.google.com/vt/lyrs=m&x=7&y=7&z=4",
+        "text": "net::ERR_ABORTED"
+      },
+      {
+        "type": "requestfailed",
+        "phase": "login",
+        "url": "https://mt1.google.com/vt/lyrs=m&x=4&y=9&z=4",
+        "text": "net::ERR_ABORTED"
+      },
+      {
+        "type": "requestfailed",
+        "phase": "login",
+        "url": "https://mt1.google.com/vt/lyrs=m&x=7&y=9&z=4",
+        "text": "net::ERR_ABORTED"
+      }
+    ]
+  },
+  {
+    "id": "DASH-TAB-Hub ZAI",
+    "module": "Dashboard",
+    "screen": "login",
+    "route": "http://209.50.241.22/dashboard",
+    "viewport": {
+      "width": 1440,
+      "height": 900
+    },
+    "feature": "Aba Hub ZAI",
+    "action": "Clicar aba e comparar conteúdo do main",
+    "status": "PASS",
+    "observation": "Seleção=true; conteúdo mudou=true",
+    "evidence": "evidence/dash-Hub_ZAI.png",
+    "console": [],
+    "network": [
+      {
+        "type": "requestfailed",
+        "phase": "login",
+        "url": "https://mt1.google.com/vt/lyrs=m&x=5&y=8&z=4",
+        "text": "net::ERR_ABORTED"
+      },
+      {
+        "type": "requestfailed",
+        "phase": "login",
+        "url": "https://mt1.google.com/vt/lyrs=m&x=6&y=8&z=4",
+        "text": "net::ERR_ABORTED"
+      },
+      {
+        "type": "requestfailed",
+        "phase": "login",
+        "url": "https://mt1.google.com/vt/lyrs=m&x=5&y=7&z=4",
+        "text": "net::ERR_ABORTED"
+      },
+      {
+        "type": "requestfailed",
+        "phase": "login",
+        "url": "https://mt1.google.com/vt/lyrs=m&x=6&y=7&z=4",
+        "text": "net::ERR_ABORTED"
+      },
+      {
+        "type": "requestfailed",
+        "phase": "login",
+        "url": "https://mt1.google.com/vt/lyrs=m&x=5&y=9&z=4",
+        "text": "net::ERR_ABORTED"
+      },
+      {
+        "type": "requestfailed",
+        "phase": "login",
+        "url": "https://mt1.google.com/vt/lyrs=m&x=6&y=9&z=4",
+        "text": "net::ERR_ABORTED"
+      },
+      {
+        "type": "requestfailed",
+        "phase": "login",
+        "url": "https://mt1.google.com/vt/lyrs=m&x=4&y=8&z=4",
+        "text": "net::ERR_ABORTED"
+      },
+      {
+        "type": "requestfailed",
+        "phase": "login",
+        "url": "https://mt1.google.com/vt/lyrs=m&x=7&y=8&z=4",
+        "text": "net::ERR_ABORTED"
+      },
+      {
+        "type": "requestfailed",
+        "phase": "login",
+        "url": "https://mt1.google.com/vt/lyrs=m&x=4&y=7&z=4",
+        "text": "net::ERR_ABORTED"
+      },
+      {
+        "type": "requestfailed",
+        "phase": "login",
+        "url": "https://mt1.google.com/vt/lyrs=m&x=7&y=7&z=4",
+        "text": "net::ERR_ABORTED"
+      },
+      {
+        "type": "requestfailed",
+        "phase": "login",
+        "url": "https://mt1.google.com/vt/lyrs=m&x=4&y=9&z=4",
+        "text": "net::ERR_ABORTED"
+      },
+      {
+        "type": "requestfailed",
+        "phase": "login",
+        "url": "https://mt1.google.com/vt/lyrs=m&x=7&y=9&z=4",
+        "text": "net::ERR_ABORTED"
+      },
+      {
+        "type": "requestfailed",
+        "phase": "login",
+        "url": "https://mt1.google.com/vt/lyrs=m&x=6&y=8&z=4",
+        "text": "net::ERR_ABORTED"
+      },
+      {
+        "type": "requestfailed",
+        "phase": "login",
+        "url": "https://mt1.google.com/vt/lyrs=m&x=5&y=7&z=4",
+        "text": "net::ERR_ABORTED"
+      },
+      {
+        "type": "requestfailed",
+        "phase": "login",
+        "url": "https://mt1.google.com/vt/lyrs=m&x=6&y=7&z=4",
+        "text": "net::ERR_ABORTED"
+      },
+      {
+        "type": "requestfailed",
+        "phase": "login",
+        "url": "https://mt1.google.com/vt/lyrs=m&x=5&y=9&z=4",
+        "text": "net::ERR_ABORTED"
+      },
+      {
+        "type": "requestfailed",
+        "phase": "login",
+        "url": "https://mt1.google.com/vt/lyrs=m&x=6&y=9&z=4",
+        "text": "net::ERR_ABORTED"
+      },
+      {
+        "type": "requestfailed",
+        "phase": "login",
+        "url": "https://mt1.google.com/vt/lyrs=m&x=4&y=8&z=4",
+        "text": "net::ERR_ABORTED"
+      },
+      {
+        "type": "requestfailed",
+        "phase": "login",
+        "url": "https://mt1.google.com/vt/lyrs=m&x=7&y=8&z=4",
+        "text": "net::ERR_ABORTED"
+      },
+      {
+        "type": "requestfailed",
+        "phase": "login",
+        "url": "https://mt1.google.com/vt/lyrs=m&x=4&y=7&z=4",
+        "text": "net::ERR_ABORTED"
+      },
+      {
+        "type": "requestfailed",
+        "phase": "login",
+        "url": "https://mt1.google.com/vt/lyrs=m&x=7&y=7&z=4",
+        "text": "net::ERR_ABORTED"
+      },
+      {
+        "type": "requestfailed",
+        "phase": "login",
+        "url": "https://mt1.google.com/vt/lyrs=m&x=4&y=9&z=4",
+        "text": "net::ERR_ABORTED"
+      },
+      {
+        "type": "requestfailed",
+        "phase": "login",
+        "url": "https://mt1.google.com/vt/lyrs=m&x=7&y=9&z=4",
+        "text": "net::ERR_ABORTED"
+      }
+    ]
+  }
+]

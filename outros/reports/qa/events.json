@@ -1,0 +1,6627 @@
+[
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:12:35.935Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/index-sIMh6ftu.css",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:12:36.332Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/index-BGhDa48D.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:12:36.542Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/vendor-react-B2OXR1tR.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:12:36.736Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Outfit:wght@400;500;600;700;800&display=swap",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:12:36.772Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "https://fonts.gstatic.com/s/outfit/v15/QGYvz_MVcBeNP4NJtEtq.woff2",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:12:37.223Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "https://fonts.gstatic.com/s/inter/v20/UcC73FwrK3iLTeHuS_nVMrMxCp50SjIa1ZL7.woff2",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:12:37.230Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/input-CQkiiuAv.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:12:37.249Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/button-C3SRKl_4.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:12:37.249Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/Login-Bb_oQuoQ.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:12:37.250Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/label-m_oy1xKw.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:12:37.425Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/checkbox-D0A4xJ-R.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:12:37.427Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/index-jcde_6CK.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:12:37.439Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/loader-circle-Ckfv7SKl.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:12:37.440Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/proxy-Fwyu43Qd.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:12:37.441Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/api/auth/login",
+    "method": "POST",
+    "status": 200,
+    "time": "2026-09-10T18:12:49.237Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/collapsible-CCo8FmpV.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:12:49.429Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/index-DEX1K6UF.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:12:49.430Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/Broadcast.es-9UV26ykw.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:12:49.435Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/index-DNyVo76M.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:12:49.444Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/api/sessions/recover",
+    "method": "POST",
+    "status": 200,
+    "time": "2026-09-10T18:12:49.534Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/AuthenticatedAppShell-Cosxuxlm.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:12:49.625Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/use-mobile-DivOMuuV.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:12:49.627Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/CaretRight.es-Cxl6-rgX.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:12:49.629Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/ChartLineUp.es-B39hsGeZ.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:12:49.629Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/ChatCircleDots.es-DMmDK79v.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:12:49.637Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/SquaresFour.es-CF7Cteb1.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:12:49.824Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/Megaphone.es-BmOWW3hx.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:12:49.826Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/TreeStructure.es-Cw4p0YGP.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:12:49.827Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/Gear.es-Y76Sbpwt.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:12:49.828Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/Users.es-Brymu-X_.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:12:49.828Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/AIIcon-7ulDPRzW.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:12:49.835Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/badge-DbZGLBCJ.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:12:50.026Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/select-HGt9OCAe.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:12:50.027Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/index-pAeM8f7I.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:12:50.033Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/vendor-socket-D1aRZ6Ki.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:12:50.033Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/dialog-DL_6HYu1.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:12:50.034Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/Spinner.es-C-ljZbZm.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:12:50.157Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/RuntimeProvider-DALjk9wj.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:12:50.227Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/Warning.es-2ZC00ndy.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:12:50.228Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/index-BdQq_4o_.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:12:50.228Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/ArrowsClockwise.es-CFOFvV1j.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:12:50.234Z"
+  },
+  {
+    "type": "ws-open",
+    "phase": "login",
+    "url": "ws://209.50.241.22/socket.io/?EIO=4&transport=websocket"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/Header-CyQa-odp.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:12:50.438Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/Dashboard-BIesRXJc.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:12:50.634Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/Dashboard-Dgihpmma.css",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:12:50.639Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/api/sessions/status",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:12:50.737Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/api/sessions/recover",
+    "method": "POST",
+    "status": 200,
+    "time": "2026-09-10T18:12:50.848Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/index-CeGL8cwR.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:12:50.854Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/card-BqpfiZbS.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:12:50.855Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/tabs-CwR7ce5P.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:12:50.929Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/Brain.es-Bhygm7fv.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:12:51.030Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/ChartBar.es-WoHcAYbD.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:12:51.030Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/CheckCircle.es-CPBOJTcD.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:12:51.036Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/Flame.es-CzPbUXDz.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:12:51.130Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/Cpu.es-DTtgIfNq.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:12:51.225Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/Clock.es-BkHkYRA9.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:12:51.227Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/Database.es-BPenKqC_.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:12:51.235Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/ShieldCheck.es-BKiGHMSo.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:12:51.328Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/api/conversations?limit=30",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:12:51.427Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/PaperPlaneTilt.es-BZ1ydDfL.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:12:51.432Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/X.es-C4aTC9T-.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:12:51.434Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/WarningCircle.es-C24AhEXE.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:12:51.434Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/Lightning.es-DpuHmBYL.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:12:51.526Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/TrendUp.es-B2z3nLTX.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:12:51.625Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/Sparkle.es-DvpaUUGS.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:12:51.633Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/skeleton-D5sDd1qE.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:12:51.643Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/index-D2cPMPym.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:12:51.728Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/CartesianGrid-B0Wkf2y3.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:12:51.827Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/AIExecutiveInsightsCard-DPCz3h9g.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:12:51.827Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/refresh-cw-BbtZqcYg.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:12:51.834Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/PieChart-M3_QnI4r.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:12:51.927Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/brain-C0jP4iug.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:12:52.026Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/sparkles-CK3nFywQ.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:12:52.026Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/clock-BW88hERz.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:12:52.034Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/AreaChart-Dz7gfnGR.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:12:52.035Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/shield-check-BmPELhgJ.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:12:52.127Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/trending-up-D0-RQnJ-.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:12:52.224Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/api/conversations?limit=30",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:12:52.269Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/api/health",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:12:52.533Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/api/conversations?limit=30",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:12:52.638Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/health",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:12:52.745Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/api/ai/executive-insights",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:12:52.827Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/api/metrics",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:12:53.043Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/api/ai/status",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:12:53.234Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/api/ai/metrics",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:12:53.327Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/api/sessions/status",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:13:07.639Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/api/conversations?limit=30&sessionId=material",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:13:08.449Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/api/metrics",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:13:09.033Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/api/ai/metrics",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:13:09.637Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/api/conversations?limit=30&sessionId=material",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:13:22.543Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/api/health",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:13:22.631Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/api/sessions/status",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:13:22.938Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/api/metrics",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:13:24.039Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/api/ai/status",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:13:24.241Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/api/ai/metrics",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:13:24.338Z"
+  },
+  {
+    "type": "requestfailed",
+    "phase": "login",
+    "url": "https://mt1.google.com/vt/lyrs=m&x=5&y=8&z=4",
+    "text": "net::ERR_ABORTED"
+  },
+  {
+    "type": "requestfailed",
+    "phase": "login",
+    "url": "https://mt1.google.com/vt/lyrs=m&x=6&y=8&z=4",
+    "text": "net::ERR_ABORTED"
+  },
+  {
+    "type": "requestfailed",
+    "phase": "login",
+    "url": "https://mt1.google.com/vt/lyrs=m&x=5&y=7&z=4",
+    "text": "net::ERR_ABORTED"
+  },
+  {
+    "type": "requestfailed",
+    "phase": "login",
+    "url": "https://mt1.google.com/vt/lyrs=m&x=6&y=7&z=4",
+    "text": "net::ERR_ABORTED"
+  },
+  {
+    "type": "requestfailed",
+    "phase": "login",
+    "url": "https://mt1.google.com/vt/lyrs=m&x=5&y=9&z=4",
+    "text": "net::ERR_ABORTED"
+  },
+  {
+    "type": "requestfailed",
+    "phase": "login",
+    "url": "https://mt1.google.com/vt/lyrs=m&x=6&y=9&z=4",
+    "text": "net::ERR_ABORTED"
+  },
+  {
+    "type": "requestfailed",
+    "phase": "login",
+    "url": "https://mt1.google.com/vt/lyrs=m&x=4&y=8&z=4",
+    "text": "net::ERR_ABORTED"
+  },
+  {
+    "type": "requestfailed",
+    "phase": "login",
+    "url": "https://mt1.google.com/vt/lyrs=m&x=7&y=8&z=4",
+    "text": "net::ERR_ABORTED"
+  },
+  {
+    "type": "requestfailed",
+    "phase": "login",
+    "url": "https://mt1.google.com/vt/lyrs=m&x=4&y=7&z=4",
+    "text": "net::ERR_ABORTED"
+  },
+  {
+    "type": "requestfailed",
+    "phase": "login",
+    "url": "https://mt1.google.com/vt/lyrs=m&x=7&y=7&z=4",
+    "text": "net::ERR_ABORTED"
+  },
+  {
+    "type": "requestfailed",
+    "phase": "login",
+    "url": "https://mt1.google.com/vt/lyrs=m&x=4&y=9&z=4",
+    "text": "net::ERR_ABORTED"
+  },
+  {
+    "type": "requestfailed",
+    "phase": "login",
+    "url": "https://mt1.google.com/vt/lyrs=m&x=7&y=9&z=4",
+    "text": "net::ERR_ABORTED"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/api/sessions/status",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:13:37.825Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/api/conversations?limit=30&sessionId=material",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:13:37.946Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/api/metrics",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:13:38.634Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/api/ai/metrics",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:13:38.946Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/api/conversations?limit=30&sessionId=material",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:13:52.540Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/api/health",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:13:52.627Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/api/sessions/status",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:13:52.645Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/health",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:13:52.929Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/api/metrics",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:13:55.427Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/api/ai/status",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:13:55.653Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/api/ai/metrics",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:13:55.746Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "https://mt1.google.com/vt/lyrs=m&x=5&y=8&z=4",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:13:56.219Z"
+  },
+  {
+    "type": "requestfailed",
+    "phase": "login",
+    "url": "https://mt1.google.com/vt/lyrs=m&x=6&y=8&z=4",
+    "text": "net::ERR_ABORTED"
+  },
+  {
+    "type": "requestfailed",
+    "phase": "login",
+    "url": "https://mt1.google.com/vt/lyrs=m&x=5&y=7&z=4",
+    "text": "net::ERR_ABORTED"
+  },
+  {
+    "type": "requestfailed",
+    "phase": "login",
+    "url": "https://mt1.google.com/vt/lyrs=m&x=6&y=7&z=4",
+    "text": "net::ERR_ABORTED"
+  },
+  {
+    "type": "requestfailed",
+    "phase": "login",
+    "url": "https://mt1.google.com/vt/lyrs=m&x=5&y=9&z=4",
+    "text": "net::ERR_ABORTED"
+  },
+  {
+    "type": "requestfailed",
+    "phase": "login",
+    "url": "https://mt1.google.com/vt/lyrs=m&x=6&y=9&z=4",
+    "text": "net::ERR_ABORTED"
+  },
+  {
+    "type": "requestfailed",
+    "phase": "login",
+    "url": "https://mt1.google.com/vt/lyrs=m&x=4&y=8&z=4",
+    "text": "net::ERR_ABORTED"
+  },
+  {
+    "type": "requestfailed",
+    "phase": "login",
+    "url": "https://mt1.google.com/vt/lyrs=m&x=7&y=8&z=4",
+    "text": "net::ERR_ABORTED"
+  },
+  {
+    "type": "requestfailed",
+    "phase": "login",
+    "url": "https://mt1.google.com/vt/lyrs=m&x=4&y=7&z=4",
+    "text": "net::ERR_ABORTED"
+  },
+  {
+    "type": "requestfailed",
+    "phase": "login",
+    "url": "https://mt1.google.com/vt/lyrs=m&x=7&y=7&z=4",
+    "text": "net::ERR_ABORTED"
+  },
+  {
+    "type": "requestfailed",
+    "phase": "login",
+    "url": "https://mt1.google.com/vt/lyrs=m&x=4&y=9&z=4",
+    "text": "net::ERR_ABORTED"
+  },
+  {
+    "type": "requestfailed",
+    "phase": "login",
+    "url": "https://mt1.google.com/vt/lyrs=m&x=7&y=9&z=4",
+    "text": "net::ERR_ABORTED"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/api/sessions/status",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:07.729Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/api/conversations?limit=30&sessionId=material",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:08.839Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/api/metrics",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:08.929Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/api/ai/metrics",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:09.146Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/connections",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:10.537Z"
+  },
+  {
+    "type": "ws-close",
+    "phase": "login"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/index-BGhDa48D.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:10.568Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/vendor-react-B2OXR1tR.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:10.568Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/index-sIMh6ftu.css",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:10.568Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Outfit:wght@400;500;600;700;800&display=swap",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:10.573Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "https://fonts.gstatic.com/s/inter/v20/UcC73FwrK3iLTeHuS_nVMrMxCp50SjIa1ZL7.woff2",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:10.589Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "https://fonts.gstatic.com/s/outfit/v15/QGYvz_MVcBeNP4NJtEtq.woff2",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:10.589Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/AuthenticatedAppShell-Cosxuxlm.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:10.622Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/Broadcast.es-9UV26ykw.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:10.623Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/index-DEX1K6UF.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:10.623Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/collapsible-CCo8FmpV.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:10.623Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/index-DNyVo76M.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:10.623Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/use-mobile-DivOMuuV.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:10.623Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/CaretRight.es-Cxl6-rgX.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:10.623Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/ChartLineUp.es-B39hsGeZ.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:10.623Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/ChatCircleDots.es-DMmDK79v.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:10.623Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/Gear.es-Y76Sbpwt.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:10.627Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/SquaresFour.es-CF7Cteb1.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:10.627Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/Megaphone.es-BmOWW3hx.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:10.627Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/TreeStructure.es-Cw4p0YGP.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:10.627Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/Users.es-Brymu-X_.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:10.627Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/AIIcon-7ulDPRzW.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:10.627Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/button-C3SRKl_4.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:10.627Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/badge-DbZGLBCJ.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:10.627Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/index-pAeM8f7I.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:10.627Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/RuntimeProvider-DALjk9wj.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:10.627Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/vendor-socket-D1aRZ6Ki.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:10.627Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/dialog-DL_6HYu1.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:10.627Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/label-m_oy1xKw.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:10.627Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/input-CQkiiuAv.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:10.627Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/select-HGt9OCAe.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:10.627Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/index-BdQq_4o_.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:10.627Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/index-jcde_6CK.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:10.628Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/Spinner.es-C-ljZbZm.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:10.628Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/Warning.es-2ZC00ndy.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:10.628Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/ArrowsClockwise.es-CFOFvV1j.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:10.628Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/Header-CyQa-odp.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:10.650Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/index-CeGL8cwR.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:10.650Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/card-BqpfiZbS.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:10.651Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/CheckCircle.es-CPBOJTcD.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:10.651Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/skeleton-D5sDd1qE.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:10.651Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/proxy-Fwyu43Qd.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:10.651Z"
+  },
+  {
+    "type": "ws-open",
+    "phase": "login",
+    "url": "ws://209.50.241.22/socket.io/?EIO=4&transport=websocket"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/api/sessions/status",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:11.030Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/Connections-Cp70INf7.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:11.031Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/Phone.es-htmLEdqS.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:11.031Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/api/sessions/recover",
+    "method": "POST",
+    "status": 200,
+    "time": "2026-09-10T18:14:11.228Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/api/conversations?limit=30",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:11.230Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/Trash.es-CEGez0pd.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:11.230Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/XCircle.es-C2cheEFs.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:11.233Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/loading-skeleton-DyEmoxld.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:11.234Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/OperationalStatusBadge-CR9OVvfJ.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:11.428Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/health",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:11.631Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/api/health",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:11.644Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/api/conversations?limit=30&sessionId=material",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:12.036Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/api/metrics",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:12.228Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/api/sessions/status",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:16.645Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/contacts",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:20.132Z"
+  },
+  {
+    "type": "ws-close",
+    "phase": "login"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/index-BGhDa48D.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:20.138Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/vendor-react-B2OXR1tR.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:20.139Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/index-sIMh6ftu.css",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:20.139Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Outfit:wght@400;500;600;700;800&display=swap",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:20.139Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "https://fonts.gstatic.com/s/inter/v20/UcC73FwrK3iLTeHuS_nVMrMxCp50SjIa1ZL7.woff2",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:20.146Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "https://fonts.gstatic.com/s/outfit/v15/QGYvz_MVcBeNP4NJtEtq.woff2",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:20.147Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/AuthenticatedAppShell-Cosxuxlm.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:20.161Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/Broadcast.es-9UV26ykw.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:20.162Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/index-DEX1K6UF.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:20.163Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/collapsible-CCo8FmpV.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:20.163Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/index-DNyVo76M.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:20.163Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/use-mobile-DivOMuuV.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:20.163Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/CaretRight.es-Cxl6-rgX.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:20.163Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/ChartLineUp.es-B39hsGeZ.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:20.163Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/ChatCircleDots.es-DMmDK79v.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:20.163Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/Gear.es-Y76Sbpwt.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:20.163Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/SquaresFour.es-CF7Cteb1.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:20.163Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/Megaphone.es-BmOWW3hx.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:20.163Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/TreeStructure.es-Cw4p0YGP.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:20.163Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/Users.es-Brymu-X_.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:20.163Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/AIIcon-7ulDPRzW.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:20.163Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/button-C3SRKl_4.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:20.163Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/badge-DbZGLBCJ.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:20.166Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/index-pAeM8f7I.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:20.166Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/RuntimeProvider-DALjk9wj.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:20.166Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/vendor-socket-D1aRZ6Ki.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:20.166Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/dialog-DL_6HYu1.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:20.166Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/label-m_oy1xKw.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:20.166Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/input-CQkiiuAv.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:20.166Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/select-HGt9OCAe.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:20.166Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/index-BdQq_4o_.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:20.166Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/index-jcde_6CK.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:20.166Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/Spinner.es-C-ljZbZm.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:20.166Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/Warning.es-2ZC00ndy.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:20.166Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/ArrowsClockwise.es-CFOFvV1j.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:20.166Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/Header-CyQa-odp.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:20.176Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/index-CeGL8cwR.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:20.180Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/Phone.es-htmLEdqS.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:20.180Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/Trash.es-CEGez0pd.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:20.180Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/card-BqpfiZbS.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:20.180Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/checkbox-D0A4xJ-R.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:20.180Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/loading-skeleton-DyEmoxld.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:20.180Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/skeleton-D5sDd1qE.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:20.180Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/OperationalStatusBadge-CR9OVvfJ.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:20.180Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/Brain.es-Bhygm7fv.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:20.180Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/Flame.es-CzPbUXDz.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:20.180Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/Clock.es-BkHkYRA9.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:20.180Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/Sparkle.es-DvpaUUGS.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:20.180Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/ShieldCheck.es-BKiGHMSo.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:20.180Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/TrendUp.es-B2z3nLTX.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:20.181Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/X.es-C4aTC9T-.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:20.181Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/tabs-CwR7ce5P.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:20.181Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/Tag.es-YXgwGVj6.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:20.328Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/PencilSimple.es-dTtQOj2M.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:20.329Z"
+  },
+  {
+    "type": "ws-open",
+    "phase": "login",
+    "url": "ws://209.50.241.22/socket.io/?EIO=4&transport=websocket"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/ChatCircle.es-Db7Udqjj.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:20.334Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/ThermometerHot.es-D1dt9p_f.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:20.339Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/scroll-area-VBmyLpsF.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:20.339Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/Contacts-BdEzApsY.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:20.524Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/FileText.es-B36GAemx.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:20.528Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/ArrowRight.es-DLdY8Jy1.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:20.530Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/table-B-VTWwge.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:20.626Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/LeadKnowledgeGraph-D0AMfmWp.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:20.629Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/Robot.es-B7KHJmJy.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:20.630Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/api/conversations?limit=30",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:21.044Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/api/sessions/status",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:21.233Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/health",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:21.331Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/api/health",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:21.343Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/campaigns",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:21.426Z"
+  },
+  {
+    "type": "requestfailed",
+    "phase": "login",
+    "url": "http://209.50.241.22/api/contacts",
+    "text": "net::ERR_ABORTED"
+  },
+  {
+    "type": "requestfailed",
+    "phase": "login",
+    "url": "http://209.50.241.22/api/metrics",
+    "text": "net::ERR_ABORTED"
+  },
+  {
+    "type": "requestfailed",
+    "phase": "login",
+    "url": "http://209.50.241.22/api/sessions/recover",
+    "text": "net::ERR_ABORTED"
+  },
+  {
+    "type": "ws-close",
+    "phase": "login"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/index-BGhDa48D.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:21.433Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/vendor-react-B2OXR1tR.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:21.433Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/index-sIMh6ftu.css",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:21.433Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Outfit:wght@400;500;600;700;800&display=swap",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:21.435Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "https://fonts.gstatic.com/s/inter/v20/UcC73FwrK3iLTeHuS_nVMrMxCp50SjIa1ZL7.woff2",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:21.445Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "https://fonts.gstatic.com/s/outfit/v15/QGYvz_MVcBeNP4NJtEtq.woff2",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:21.445Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/AuthenticatedAppShell-Cosxuxlm.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:21.463Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/Broadcast.es-9UV26ykw.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:21.467Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/index-DEX1K6UF.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:21.467Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/collapsible-CCo8FmpV.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:21.467Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/index-DNyVo76M.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:21.467Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/use-mobile-DivOMuuV.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:21.467Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/CaretRight.es-Cxl6-rgX.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:21.467Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/ChartLineUp.es-B39hsGeZ.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:21.467Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/ChatCircleDots.es-DMmDK79v.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:21.467Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/Gear.es-Y76Sbpwt.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:21.467Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/SquaresFour.es-CF7Cteb1.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:21.468Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/Megaphone.es-BmOWW3hx.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:21.468Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/TreeStructure.es-Cw4p0YGP.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:21.468Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/Users.es-Brymu-X_.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:21.468Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/AIIcon-7ulDPRzW.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:21.470Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/button-C3SRKl_4.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:21.470Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/badge-DbZGLBCJ.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:21.470Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/index-pAeM8f7I.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:21.470Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/RuntimeProvider-DALjk9wj.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:21.470Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/vendor-socket-D1aRZ6Ki.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:21.470Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/dialog-DL_6HYu1.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:21.470Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/label-m_oy1xKw.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:21.470Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/input-CQkiiuAv.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:21.470Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/select-HGt9OCAe.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:21.470Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/index-BdQq_4o_.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:21.470Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/index-jcde_6CK.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:21.470Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/Spinner.es-C-ljZbZm.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:21.470Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/Warning.es-2ZC00ndy.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:21.470Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/ArrowsClockwise.es-CFOFvV1j.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:21.470Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/Header-CyQa-odp.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:21.485Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/index-CeGL8cwR.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:21.486Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/ChartBar.es-WoHcAYbD.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:21.488Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/CheckCircle.es-CPBOJTcD.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:21.488Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/Clock.es-BkHkYRA9.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:21.488Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/FileText.es-B36GAemx.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:21.488Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/LeadKnowledgeGraph-D0AMfmWp.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:21.488Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/ArrowRight.es-DLdY8Jy1.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:21.489Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/Brain.es-Bhygm7fv.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:21.489Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/Robot.es-B7KHJmJy.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:21.489Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/Sparkle.es-DvpaUUGS.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:21.489Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/card-BqpfiZbS.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:21.489Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/PaperPlaneTilt.es-BZ1ydDfL.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:21.489Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/PencilSimple.es-dTtQOj2M.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:21.489Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/Trash.es-CEGez0pd.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:21.489Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/X.es-C4aTC9T-.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:21.489Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/tabs-CwR7ce5P.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:21.491Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/WarningCircle.es-C24AhEXE.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:21.491Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/ShieldCheck.es-BKiGHMSo.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:21.491Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/Tag.es-YXgwGVj6.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:21.491Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/TrendUp.es-B2z3nLTX.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:21.491Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/checkbox-D0A4xJ-R.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:21.491Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/loading-skeleton-DyEmoxld.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:21.491Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/skeleton-D5sDd1qE.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:21.491Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/OperationalStatusBadge-CR9OVvfJ.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:21.491Z"
+  },
+  {
+    "type": "ws-open",
+    "phase": "login",
+    "url": "ws://209.50.241.22/socket.io/?EIO=4&transport=websocket"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/Copy.es-DPANg2VH.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:21.629Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/VideoCamera.es-u97rVqOf.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:21.630Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/Play.es-Dkcqlqka.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:21.826Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/Check.es-Bws4XgWJ.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:21.828Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/Timer.es-DMvjl8k9.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:21.828Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/Checks.es-BuF5Ps68.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:21.829Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/textarea-DMQ49NcW.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:21.833Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/Campaigns-DxDL6cNo.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:22.026Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/switch-Cmhnpwy2.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:22.030Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/api/conversations?limit=30",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:22.454Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/api/health",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:22.740Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/api/sessions/status",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:22.847Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/operations",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:23.027Z"
+  },
+  {
+    "type": "requestfailed",
+    "phase": "login",
+    "url": "http://209.50.241.22/api/conversations?limit=30",
+    "text": "net::ERR_ABORTED"
+  },
+  {
+    "type": "requestfailed",
+    "phase": "login",
+    "url": "http://209.50.241.22/api/config/ai-agents",
+    "text": "net::ERR_ABORTED"
+  },
+  {
+    "type": "requestfailed",
+    "phase": "login",
+    "url": "http://209.50.241.22/api/sessions/recover",
+    "text": "net::ERR_ABORTED"
+  },
+  {
+    "type": "requestfailed",
+    "phase": "login",
+    "url": "http://209.50.241.22/api/metrics",
+    "text": "net::ERR_ABORTED"
+  },
+  {
+    "type": "requestfailed",
+    "phase": "login",
+    "url": "http://209.50.241.22/api/campaigns",
+    "text": "net::ERR_ABORTED"
+  },
+  {
+    "type": "requestfailed",
+    "phase": "login",
+    "url": "http://209.50.241.22/api/contacts",
+    "text": "net::ERR_ABORTED"
+  },
+  {
+    "type": "requestfailed",
+    "phase": "login",
+    "url": "http://209.50.241.22/api/quick-replies",
+    "text": "net::ERR_ABORTED"
+  },
+  {
+    "type": "requestfailed",
+    "phase": "login",
+    "url": "http://209.50.241.22/api/conversations?limit=500",
+    "text": "net::ERR_ABORTED"
+  },
+  {
+    "type": "ws-close",
+    "phase": "login"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/index-BGhDa48D.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:23.035Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/vendor-react-B2OXR1tR.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:23.035Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/index-sIMh6ftu.css",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:23.035Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Outfit:wght@400;500;600;700;800&display=swap",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:23.039Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "https://fonts.gstatic.com/s/inter/v20/UcC73FwrK3iLTeHuS_nVMrMxCp50SjIa1ZL7.woff2",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:23.043Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "https://fonts.gstatic.com/s/outfit/v15/QGYvz_MVcBeNP4NJtEtq.woff2",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:23.044Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/AuthenticatedAppShell-Cosxuxlm.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:23.073Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/Broadcast.es-9UV26ykw.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:23.077Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/index-DEX1K6UF.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:23.078Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/collapsible-CCo8FmpV.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:23.078Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/index-DNyVo76M.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:23.078Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/use-mobile-DivOMuuV.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:23.078Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/CaretRight.es-Cxl6-rgX.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:23.078Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/ChartLineUp.es-B39hsGeZ.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:23.078Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/ChatCircleDots.es-DMmDK79v.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:23.078Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/Gear.es-Y76Sbpwt.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:23.078Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/SquaresFour.es-CF7Cteb1.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:23.079Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/Megaphone.es-BmOWW3hx.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:23.079Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/TreeStructure.es-Cw4p0YGP.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:23.079Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/Users.es-Brymu-X_.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:23.084Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/AIIcon-7ulDPRzW.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:23.084Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/button-C3SRKl_4.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:23.084Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/badge-DbZGLBCJ.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:23.084Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/index-pAeM8f7I.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:23.084Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/RuntimeProvider-DALjk9wj.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:23.084Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/vendor-socket-D1aRZ6Ki.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:23.084Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/dialog-DL_6HYu1.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:23.085Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/label-m_oy1xKw.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:23.085Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/input-CQkiiuAv.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:23.085Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/select-HGt9OCAe.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:23.085Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/index-BdQq_4o_.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:23.085Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/index-jcde_6CK.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:23.085Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/Spinner.es-C-ljZbZm.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:23.085Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/Warning.es-2ZC00ndy.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:23.085Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/ArrowsClockwise.es-CFOFvV1j.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:23.087Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/Header-CyQa-odp.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:23.124Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/index-CeGL8cwR.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:23.125Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/card-BqpfiZbS.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:23.125Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/clock-BW88hERz.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:23.125Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/trending-up-D0-RQnJ-.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:23.125Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/sparkles-CK3nFywQ.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:23.125Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/refresh-cw-BbtZqcYg.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:23.125Z"
+  },
+  {
+    "type": "ws-open",
+    "phase": "login",
+    "url": "ws://209.50.241.22/socket.io/?EIO=4&transport=websocket"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/Operations-DesC1FR3.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:23.433Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/users-BBWJztJz.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:23.628Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/circle-check-Dy37sGea.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:23.827Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/api/sessions/status",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:25.341Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/api/conversations?limit=30",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:25.551Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/health",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:25.838Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/api/health",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:25.848Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/api/sessions/recover",
+    "method": "POST",
+    "status": 200,
+    "time": "2026-09-10T18:14:25.928Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/api/conversations?limit=30",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:26.136Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/api/operations/metrics",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:26.755Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/api/metrics",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:26.755Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/ai",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:29.345Z"
+  },
+  {
+    "type": "ws-close",
+    "phase": "login"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/index-BGhDa48D.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:29.351Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/vendor-react-B2OXR1tR.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:29.352Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/index-sIMh6ftu.css",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:29.352Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Outfit:wght@400;500;600;700;800&display=swap",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:29.353Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "https://fonts.gstatic.com/s/inter/v20/UcC73FwrK3iLTeHuS_nVMrMxCp50SjIa1ZL7.woff2",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:29.366Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "https://fonts.gstatic.com/s/outfit/v15/QGYvz_MVcBeNP4NJtEtq.woff2",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:29.366Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/AuthenticatedAppShell-Cosxuxlm.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:29.394Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/Broadcast.es-9UV26ykw.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:29.396Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/index-DEX1K6UF.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:29.396Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/collapsible-CCo8FmpV.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:29.396Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/index-DNyVo76M.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:29.396Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/use-mobile-DivOMuuV.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:29.396Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/CaretRight.es-Cxl6-rgX.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:29.396Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/ChartLineUp.es-B39hsGeZ.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:29.396Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/ChatCircleDots.es-DMmDK79v.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:29.396Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/Gear.es-Y76Sbpwt.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:29.400Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/SquaresFour.es-CF7Cteb1.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:29.400Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/Megaphone.es-BmOWW3hx.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:29.401Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/TreeStructure.es-Cw4p0YGP.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:29.401Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/Users.es-Brymu-X_.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:29.401Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/AIIcon-7ulDPRzW.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:29.401Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/button-C3SRKl_4.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:29.401Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/badge-DbZGLBCJ.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:29.401Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/index-pAeM8f7I.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:29.401Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/RuntimeProvider-DALjk9wj.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:29.401Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/vendor-socket-D1aRZ6Ki.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:29.401Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/dialog-DL_6HYu1.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:29.401Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/label-m_oy1xKw.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:29.401Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/input-CQkiiuAv.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:29.401Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/select-HGt9OCAe.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:29.401Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/index-BdQq_4o_.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:29.401Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/index-jcde_6CK.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:29.401Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/Spinner.es-C-ljZbZm.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:29.401Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/Warning.es-2ZC00ndy.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:29.401Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/ArrowsClockwise.es-CFOFvV1j.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:29.401Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/Header-CyQa-odp.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:29.424Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/index-CeGL8cwR.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:29.424Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/index-D2cPMPym.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:29.424Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/Lightning.es-DpuHmBYL.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:29.424Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/ThermometerHot.es-D1dt9p_f.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:29.426Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/card-BqpfiZbS.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:29.426Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/Trash.es-CEGez0pd.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:29.426Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/PaperPlaneTilt.es-BZ1ydDfL.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:29.426Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/OperationalStatusBadge-CR9OVvfJ.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:29.426Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/switch-Cmhnpwy2.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:29.426Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/textarea-DMQ49NcW.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:29.426Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/Check.es-Bws4XgWJ.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:29.427Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/PencilSimple.es-dTtQOj2M.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:29.427Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/X.es-C4aTC9T-.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:29.427Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/proxy-Fwyu43Qd.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:29.427Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/users-BBWJztJz.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:29.427Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/shield-check-BmPELhgJ.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:29.427Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/loader-circle-Ckfv7SKl.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:29.427Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/sparkles-CK3nFywQ.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:29.427Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/refresh-cw-BbtZqcYg.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:29.430Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/clock-BW88hERz.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:29.430Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/Play.es-Dkcqlqka.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:29.431Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/AIExecutiveInsightsCard-DPCz3h9g.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:29.431Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/brain-C0jP4iug.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:29.431Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/trending-up-D0-RQnJ-.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:29.431Z"
+  },
+  {
+    "type": "ws-open",
+    "phase": "login",
+    "url": "ws://209.50.241.22/socket.io/?EIO=4&transport=websocket"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/accordion-5OHPuBbW.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:29.840Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/api/sessions/status",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:30.053Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/api/sessions/recover",
+    "method": "POST",
+    "status": 200,
+    "time": "2026-09-10T18:14:30.133Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/AI-BrsWxR_0.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:30.236Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/health",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:30.447Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/api/health",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:30.455Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/api/ai/executive-insights",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:30.729Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/api/conversations?limit=30",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:30.749Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/api/config/business-hours",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:30.941Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/api/ai/prompt",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:30.944Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/api/queue",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:31.046Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/api/config/absence-message",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:31.060Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/api/ai/memory",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:31.132Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/api/config/advanced-ai",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:31.142Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/api/ai/logs",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:31.247Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/api/ai/metrics",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:31.254Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/api/metrics",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:31.333Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/api/session-status",
+    "method": "GET",
+    "status": 403,
+    "time": "2026-09-10T18:14:31.342Z"
+  },
+  {
+    "type": "console",
+    "level": "error",
+    "phase": "login",
+    "route": "http://209.50.241.22/ai?tab=dashboard",
+    "text": "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+    "time": "2026-09-10T18:14:31.342Z"
+  },
+  {
+    "type": "console",
+    "level": "warning",
+    "phase": "login",
+    "route": "http://209.50.241.22/ai?tab=dashboard",
+    "text": "%c[API] color:#fbbf24 API error on /api/session-status (/api/session-status | HTTP 403 | req_mtvuk0bx_5fgdk)",
+    "time": "2026-09-10T18:14:31.343Z"
+  },
+  {
+    "type": "console",
+    "level": "warning",
+    "phase": "login",
+    "route": "http://209.50.241.22/ai?tab=dashboard",
+    "text": "%c[API] color:#fbbf24 Request failed: /api/session-status (/api/session-status)",
+    "time": "2026-09-10T18:14:31.343Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/api/integrations/webhooks",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:31.354Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/api/config/ai-agents",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:31.448Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/api/config/user-providers",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:31.464Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/api/system/error-log",
+    "method": "POST",
+    "status": 200,
+    "time": "2026-09-10T18:14:31.532Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/api/ai/status",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:35.236Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/flows",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:41.226Z"
+  },
+  {
+    "type": "ws-close",
+    "phase": "login"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/index-BGhDa48D.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:41.233Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/vendor-react-B2OXR1tR.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:41.234Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/index-sIMh6ftu.css",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:41.234Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Outfit:wght@400;500;600;700;800&display=swap",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:41.235Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "https://fonts.gstatic.com/s/inter/v20/UcC73FwrK3iLTeHuS_nVMrMxCp50SjIa1ZL7.woff2",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:41.245Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "https://fonts.gstatic.com/s/outfit/v15/QGYvz_MVcBeNP4NJtEtq.woff2",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:41.245Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/AuthenticatedAppShell-Cosxuxlm.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:41.268Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/Broadcast.es-9UV26ykw.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:41.268Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/index-DEX1K6UF.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:41.269Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/collapsible-CCo8FmpV.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:41.269Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/index-DNyVo76M.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:41.269Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/use-mobile-DivOMuuV.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:41.272Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/CaretRight.es-Cxl6-rgX.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:41.272Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/ChartLineUp.es-B39hsGeZ.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:41.272Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/ChatCircleDots.es-DMmDK79v.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:41.272Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/Gear.es-Y76Sbpwt.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:41.272Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/SquaresFour.es-CF7Cteb1.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:41.272Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/Megaphone.es-BmOWW3hx.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:41.272Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/TreeStructure.es-Cw4p0YGP.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:41.272Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/Users.es-Brymu-X_.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:41.272Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/AIIcon-7ulDPRzW.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:41.272Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/button-C3SRKl_4.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:41.272Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/badge-DbZGLBCJ.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:41.272Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/index-pAeM8f7I.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:41.272Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/RuntimeProvider-DALjk9wj.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:41.273Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/vendor-socket-D1aRZ6Ki.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:41.273Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/dialog-DL_6HYu1.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:41.273Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/label-m_oy1xKw.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:41.273Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/input-CQkiiuAv.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:41.275Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/select-HGt9OCAe.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:41.275Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/index-BdQq_4o_.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:41.275Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/index-jcde_6CK.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:41.275Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/Spinner.es-C-ljZbZm.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:41.275Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/Warning.es-2ZC00ndy.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:41.275Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/ArrowsClockwise.es-CFOFvV1j.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:41.275Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/Header-CyQa-odp.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:41.304Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/index-CeGL8cwR.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:41.305Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/ArrowRight.es-DLdY8Jy1.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:41.306Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/Lightning.es-DpuHmBYL.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:41.306Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/PencilSimple.es-dTtQOj2M.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:41.306Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/Trash.es-CEGez0pd.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:41.306Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/card-BqpfiZbS.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:41.306Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/textarea-DMQ49NcW.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:41.306Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/loading-skeleton-DyEmoxld.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:41.306Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/skeleton-D5sDd1qE.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:41.306Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/proxy-Fwyu43Qd.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:41.306Z"
+  },
+  {
+    "type": "ws-open",
+    "phase": "login",
+    "url": "ws://209.50.241.22/socket.io/?EIO=4&transport=websocket"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/Flows-Ds5sqtmf.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:41.439Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/api/conversations?limit=30",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:41.471Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/api/health",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:41.532Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/api/sessions/status",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:41.644Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/api/sessions/recover",
+    "method": "POST",
+    "status": 200,
+    "time": "2026-09-10T18:14:41.729Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/health",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:41.766Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/api/flows",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:41.846Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/api/metrics",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:42.449Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/api/conversations?limit=30",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:42.645Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/memory",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:43.728Z"
+  },
+  {
+    "type": "ws-close",
+    "phase": "login"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/index-BGhDa48D.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:43.735Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/vendor-react-B2OXR1tR.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:43.736Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/index-sIMh6ftu.css",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:43.736Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Outfit:wght@400;500;600;700;800&display=swap",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:43.738Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "https://fonts.gstatic.com/s/inter/v20/UcC73FwrK3iLTeHuS_nVMrMxCp50SjIa1ZL7.woff2",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:43.743Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "https://fonts.gstatic.com/s/outfit/v15/QGYvz_MVcBeNP4NJtEtq.woff2",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:43.743Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/AuthenticatedAppShell-Cosxuxlm.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:43.774Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/Broadcast.es-9UV26ykw.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:43.776Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/index-DEX1K6UF.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:43.776Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/collapsible-CCo8FmpV.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:43.777Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/index-DNyVo76M.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:43.777Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/use-mobile-DivOMuuV.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:43.777Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/CaretRight.es-Cxl6-rgX.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:43.786Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/ChartLineUp.es-B39hsGeZ.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:43.787Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/ChatCircleDots.es-DMmDK79v.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:43.787Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/Gear.es-Y76Sbpwt.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:43.787Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/SquaresFour.es-CF7Cteb1.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:43.787Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/Megaphone.es-BmOWW3hx.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:43.787Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/TreeStructure.es-Cw4p0YGP.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:43.787Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/Users.es-Brymu-X_.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:43.787Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/AIIcon-7ulDPRzW.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:43.787Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/button-C3SRKl_4.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:43.787Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/badge-DbZGLBCJ.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:43.787Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/index-pAeM8f7I.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:43.787Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/RuntimeProvider-DALjk9wj.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:43.787Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/vendor-socket-D1aRZ6Ki.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:43.787Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/dialog-DL_6HYu1.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:43.787Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/label-m_oy1xKw.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:43.787Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/input-CQkiiuAv.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:43.787Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/select-HGt9OCAe.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:43.788Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/index-BdQq_4o_.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:43.788Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/index-jcde_6CK.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:43.788Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/Spinner.es-C-ljZbZm.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:43.788Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/Warning.es-2ZC00ndy.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:43.790Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/ArrowsClockwise.es-CFOFvV1j.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:43.790Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/Header-CyQa-odp.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:43.816Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/index-CeGL8cwR.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:43.820Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/card-BqpfiZbS.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:43.820Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/switch-Cmhnpwy2.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:43.821Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/proxy-Fwyu43Qd.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:43.821Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/Brain.es-Bhygm7fv.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:43.821Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/ChatCircle.es-Db7Udqjj.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:43.821Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/Checks.es-BuF5Ps68.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:43.822Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/Clock.es-BkHkYRA9.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:43.822Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/Cpu.es-DTtgIfNq.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:43.822Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/Database.es-BPenKqC_.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:43.822Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/FileText.es-B36GAemx.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:43.822Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/Sparkle.es-DvpaUUGS.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:43.823Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/Tag.es-YXgwGVj6.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:43.823Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/TrendUp.es-B2z3nLTX.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:43.823Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/WarningCircle.es-C24AhEXE.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:43.823Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/AreaChart-Dz7gfnGR.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:43.823Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/index-D2cPMPym.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:43.824Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/PieChart-M3_QnI4r.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:43.824Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/CartesianGrid-B0Wkf2y3.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:43.833Z"
+  },
+  {
+    "type": "ws-open",
+    "phase": "login",
+    "url": "ws://209.50.241.22/socket.io/?EIO=4&transport=websocket"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/index-CPMyIchR.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:43.947Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/Memory-Ck53pBVu.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:44.036Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/api/conversations?limit=30",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:44.071Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/api/sessions/status",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:44.135Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/api/sessions/recover",
+    "method": "POST",
+    "status": 200,
+    "time": "2026-09-10T18:14:44.237Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/api/ai/memory",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:44.249Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/api/health",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:44.251Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/health",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:44.255Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/api/ai/memory/analytics",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:44.437Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/api/metrics",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:45.338Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/api/ai/memory/search?q=",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:45.443Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/api/conversations?limit=30",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:45.544Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/settings",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:46.156Z"
+  },
+  {
+    "type": "ws-close",
+    "phase": "login"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/index-BGhDa48D.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:46.168Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/vendor-react-B2OXR1tR.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:46.168Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/index-sIMh6ftu.css",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:46.168Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Outfit:wght@400;500;600;700;800&display=swap",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:46.173Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "https://fonts.gstatic.com/s/inter/v20/UcC73FwrK3iLTeHuS_nVMrMxCp50SjIa1ZL7.woff2",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:46.185Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "https://fonts.gstatic.com/s/outfit/v15/QGYvz_MVcBeNP4NJtEtq.woff2",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:46.185Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/AuthenticatedAppShell-Cosxuxlm.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:46.217Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/Broadcast.es-9UV26ykw.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:46.217Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/index-DEX1K6UF.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:46.217Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/collapsible-CCo8FmpV.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:46.217Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/index-DNyVo76M.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:46.217Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/use-mobile-DivOMuuV.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:46.221Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/CaretRight.es-Cxl6-rgX.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:46.221Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/ChartLineUp.es-B39hsGeZ.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:46.221Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/ChatCircleDots.es-DMmDK79v.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:46.221Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/Gear.es-Y76Sbpwt.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:46.221Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/SquaresFour.es-CF7Cteb1.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:46.221Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/Megaphone.es-BmOWW3hx.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:46.221Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/TreeStructure.es-Cw4p0YGP.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:46.221Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/Users.es-Brymu-X_.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:46.221Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/AIIcon-7ulDPRzW.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:46.222Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/button-C3SRKl_4.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:46.222Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/badge-DbZGLBCJ.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:46.222Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/index-pAeM8f7I.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:46.222Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/RuntimeProvider-DALjk9wj.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:46.222Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/vendor-socket-D1aRZ6Ki.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:46.222Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/dialog-DL_6HYu1.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:46.222Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/label-m_oy1xKw.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:46.224Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/input-CQkiiuAv.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:46.224Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/select-HGt9OCAe.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:46.224Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/index-BdQq_4o_.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:46.225Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/index-jcde_6CK.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:46.225Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/Spinner.es-C-ljZbZm.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:46.225Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/Warning.es-2ZC00ndy.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:46.225Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/ArrowsClockwise.es-CFOFvV1j.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:46.225Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/Header-CyQa-odp.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:46.254Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/index-CeGL8cwR.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:46.255Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/Database.es-BPenKqC_.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:46.255Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/FileText.es-B36GAemx.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:46.255Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/Robot.es-B7KHJmJy.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:46.255Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/TrendUp.es-B2z3nLTX.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:46.256Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/card-BqpfiZbS.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:46.257Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/proxy-Fwyu43Qd.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:46.257Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/Code.es-tsJ7ay4v.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:46.428Z"
+  },
+  {
+    "type": "ws-open",
+    "phase": "login",
+    "url": "ws://209.50.241.22/socket.io/?EIO=4&transport=websocket"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/Settings-DfaovPXd.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:46.435Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/Flask.es-B10JhLfE.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:46.633Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/Queue.es-BRuT8DrB.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:46.635Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/api/sessions/status",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:46.650Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/api/sessions/recover",
+    "method": "POST",
+    "status": 200,
+    "time": "2026-09-10T18:14:46.660Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/api/conversations?limit=30",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:46.744Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/HardDrives.es-L0jT14Q3.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:46.830Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/Palette.es-CakSWFqg.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:46.833Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/Pulse.es-CGpauF7E.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:46.847Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/api/health",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:47.047Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/health",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:47.049Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/api/admin/users",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:47.136Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/api/ai/status",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:47.144Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/api/metrics",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:47.535Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/api/conversations?limit=30&sessionId=material",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:48.347Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/api/metrics",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:49.636Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/campaigns",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:58.229Z"
+  },
+  {
+    "type": "ws-close",
+    "phase": "login"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/index-BGhDa48D.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:58.237Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/vendor-react-B2OXR1tR.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:58.237Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/index-sIMh6ftu.css",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:58.237Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Outfit:wght@400;500;600;700;800&display=swap",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:58.240Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "https://fonts.gstatic.com/s/inter/v20/UcC73FwrK3iLTeHuS_nVMrMxCp50SjIa1ZL7.woff2",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:58.252Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "https://fonts.gstatic.com/s/outfit/v15/QGYvz_MVcBeNP4NJtEtq.woff2",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:58.253Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/AuthenticatedAppShell-Cosxuxlm.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:58.287Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/Broadcast.es-9UV26ykw.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:58.287Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/index-DEX1K6UF.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:58.287Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/collapsible-CCo8FmpV.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:58.287Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/index-DNyVo76M.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:58.287Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/use-mobile-DivOMuuV.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:58.291Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/CaretRight.es-Cxl6-rgX.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:58.291Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/ChartLineUp.es-B39hsGeZ.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:58.291Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/ChatCircleDots.es-DMmDK79v.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:58.291Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/Gear.es-Y76Sbpwt.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:58.291Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/SquaresFour.es-CF7Cteb1.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:58.291Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/Megaphone.es-BmOWW3hx.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:58.291Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/TreeStructure.es-Cw4p0YGP.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:58.291Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/Users.es-Brymu-X_.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:58.292Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/AIIcon-7ulDPRzW.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:58.292Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/button-C3SRKl_4.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:58.292Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/badge-DbZGLBCJ.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:58.292Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/index-pAeM8f7I.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:58.292Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/RuntimeProvider-DALjk9wj.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:58.292Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/vendor-socket-D1aRZ6Ki.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:58.292Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/dialog-DL_6HYu1.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:58.296Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/label-m_oy1xKw.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:58.296Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/input-CQkiiuAv.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:58.297Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/select-HGt9OCAe.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:58.297Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/index-BdQq_4o_.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:58.297Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/index-jcde_6CK.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:58.297Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/Spinner.es-C-ljZbZm.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:58.297Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/Warning.es-2ZC00ndy.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:58.297Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/ArrowsClockwise.es-CFOFvV1j.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:58.297Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/Campaigns-DxDL6cNo.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:58.362Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/Header-CyQa-odp.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:58.362Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/index-CeGL8cwR.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:58.362Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/ChartBar.es-WoHcAYbD.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:58.363Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/CheckCircle.es-CPBOJTcD.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:58.364Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/Clock.es-BkHkYRA9.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:58.368Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/Copy.es-DPANg2VH.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:58.368Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/FileText.es-B36GAemx.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:58.368Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/VideoCamera.es-u97rVqOf.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:58.369Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/LeadKnowledgeGraph-D0AMfmWp.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:58.369Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/ArrowRight.es-DLdY8Jy1.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:58.369Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/Brain.es-Bhygm7fv.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:58.370Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/Robot.es-B7KHJmJy.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:58.370Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/Sparkle.es-DvpaUUGS.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:58.370Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/card-BqpfiZbS.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:58.370Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/PaperPlaneTilt.es-BZ1ydDfL.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:58.375Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/PencilSimple.es-dTtQOj2M.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:58.375Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/Play.es-Dkcqlqka.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:58.375Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/Timer.es-DMvjl8k9.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:58.376Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/Trash.es-CEGez0pd.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:58.376Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/X.es-C4aTC9T-.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:58.376Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/tabs-CwR7ce5P.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:58.376Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/Check.es-Bws4XgWJ.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:58.377Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/WarningCircle.es-C24AhEXE.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:58.377Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/Checks.es-BuF5Ps68.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:58.377Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/ShieldCheck.es-BKiGHMSo.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:58.377Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/Tag.es-YXgwGVj6.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:58.377Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/TrendUp.es-B2z3nLTX.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:58.377Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/textarea-DMQ49NcW.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:58.377Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/switch-Cmhnpwy2.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:58.377Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/checkbox-D0A4xJ-R.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:58.377Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/loading-skeleton-DyEmoxld.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:58.378Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/skeleton-D5sDd1qE.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:58.381Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/OperationalStatusBadge-CR9OVvfJ.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:58.381Z"
+  },
+  {
+    "type": "ws-open",
+    "phase": "login",
+    "url": "ws://209.50.241.22/socket.io/?EIO=4&transport=websocket"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/api/sessions/status",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:58.556Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/api/conversations?limit=30",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:58.646Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/api/health",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:58.737Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/api/campaigns",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:58.745Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/api/sessions/recover",
+    "method": "POST",
+    "status": 200,
+    "time": "2026-09-10T18:14:58.937Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/api/config/ai-agents",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:59.035Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/api/metrics",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:59.763Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/api/conversations?limit=30",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:59.838Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/api/conversations?limit=500",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:59.842Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/api/contacts",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:59.845Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/api/quick-replies",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:14:59.850Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/contacts",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:15:00.734Z"
+  },
+  {
+    "type": "requestfailed",
+    "phase": "login",
+    "url": "https://api.dicebear.com/7.x/adventurer/svg?seed=Camila&backgroundColor=b6e3f4,c0aede,d1d4f9",
+    "text": "net::ERR_ABORTED"
+  },
+  {
+    "type": "ws-close",
+    "phase": "login"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/index-BGhDa48D.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:15:00.742Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/vendor-react-B2OXR1tR.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:15:00.742Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/index-sIMh6ftu.css",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:15:00.742Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Outfit:wght@400;500;600;700;800&display=swap",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:15:00.744Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "https://fonts.gstatic.com/s/inter/v20/UcC73FwrK3iLTeHuS_nVMrMxCp50SjIa1ZL7.woff2",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:15:00.753Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "https://fonts.gstatic.com/s/outfit/v15/QGYvz_MVcBeNP4NJtEtq.woff2",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:15:00.754Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/AuthenticatedAppShell-Cosxuxlm.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:15:00.770Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/Broadcast.es-9UV26ykw.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:15:00.776Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/index-DEX1K6UF.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:15:00.776Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/collapsible-CCo8FmpV.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:15:00.777Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/index-DNyVo76M.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:15:00.777Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/use-mobile-DivOMuuV.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:15:00.777Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/CaretRight.es-Cxl6-rgX.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:15:00.777Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/ChartLineUp.es-B39hsGeZ.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:15:00.777Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/ChatCircleDots.es-DMmDK79v.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:15:00.777Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/Gear.es-Y76Sbpwt.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:15:00.777Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/SquaresFour.es-CF7Cteb1.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:15:00.777Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/Megaphone.es-BmOWW3hx.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:15:00.777Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/TreeStructure.es-Cw4p0YGP.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:15:00.778Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/Users.es-Brymu-X_.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:15:00.778Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/AIIcon-7ulDPRzW.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:15:00.778Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/button-C3SRKl_4.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:15:00.778Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/badge-DbZGLBCJ.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:15:00.778Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/index-pAeM8f7I.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:15:00.778Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/RuntimeProvider-DALjk9wj.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:15:00.778Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/vendor-socket-D1aRZ6Ki.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:15:00.781Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/dialog-DL_6HYu1.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:15:00.781Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/label-m_oy1xKw.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:15:00.781Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/input-CQkiiuAv.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:15:00.781Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/select-HGt9OCAe.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:15:00.781Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/index-BdQq_4o_.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:15:00.781Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/index-jcde_6CK.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:15:00.782Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/Spinner.es-C-ljZbZm.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:15:00.782Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/Warning.es-2ZC00ndy.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:15:00.782Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/ArrowsClockwise.es-CFOFvV1j.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:15:00.782Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/Contacts-BdEzApsY.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:15:00.798Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/Header-CyQa-odp.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:15:00.800Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/index-CeGL8cwR.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:15:00.800Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/scroll-area-VBmyLpsF.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:15:00.800Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/ChatCircle.es-Db7Udqjj.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:15:00.800Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/PencilSimple.es-dTtQOj2M.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:15:00.800Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/Phone.es-htmLEdqS.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:15:00.800Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/Tag.es-YXgwGVj6.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:15:00.800Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/Trash.es-CEGez0pd.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:15:00.801Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/card-BqpfiZbS.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:15:00.801Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/ThermometerHot.es-D1dt9p_f.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:15:00.801Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/checkbox-D0A4xJ-R.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:15:00.801Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/loading-skeleton-DyEmoxld.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:15:00.802Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/skeleton-D5sDd1qE.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:15:00.802Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/OperationalStatusBadge-CR9OVvfJ.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:15:00.802Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/table-B-VTWwge.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:15:00.802Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/Brain.es-Bhygm7fv.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:15:00.802Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/Flame.es-CzPbUXDz.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:15:00.802Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/Clock.es-BkHkYRA9.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:15:00.802Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/FileText.es-B36GAemx.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:15:00.802Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/LeadKnowledgeGraph-D0AMfmWp.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:15:00.802Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/ArrowRight.es-DLdY8Jy1.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:15:00.802Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/Robot.es-B7KHJmJy.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:15:00.802Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/Sparkle.es-DvpaUUGS.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:15:00.804Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/ShieldCheck.es-BKiGHMSo.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:15:00.804Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/TrendUp.es-B2z3nLTX.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:15:00.804Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/X.es-C4aTC9T-.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:15:00.804Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/assets/tabs-CwR7ce5P.js",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:15:00.804Z"
+  },
+  {
+    "type": "ws-open",
+    "phase": "login",
+    "url": "ws://209.50.241.22/socket.io/?EIO=4&transport=websocket"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/api/conversations?limit=30",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:15:01.040Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/health",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:15:01.160Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/api/sessions/status",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:15:01.344Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/api/health",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:15:01.348Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/api/sessions/recover",
+    "method": "POST",
+    "status": 200,
+    "time": "2026-09-10T18:15:01.555Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/api/contacts",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:15:02.151Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/api/metrics",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:15:03.170Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "https://fonts.gstatic.com/s/inter/v20/UcC73FwrK3iLTeHuS_nVMrMxCp50SjIa2JL7SUc.woff2",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:15:03.259Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "https://fonts.gstatic.com/s/outfit/v15/QGYvz_MVcBeNP4NJuktqQ4E.woff2",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:15:03.455Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "https://fonts.gstatic.com/s/inter/v20/UcC73FwrK3iLTeHuS_nVMrMxCp50SjIa25L7SUc.woff2",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:15:03.457Z"
+  },
+  {
+    "type": "response",
+    "phase": "login",
+    "url": "http://209.50.241.22/api/conversations?limit=30",
+    "method": "GET",
+    "status": 200,
+    "time": "2026-09-10T18:15:03.707Z"
+  }
+]

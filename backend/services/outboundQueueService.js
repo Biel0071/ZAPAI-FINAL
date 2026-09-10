@@ -454,6 +454,14 @@ function listDeadLetter(limit = 100) {
 }
 
 async function enqueue(payload = {}) {
+  const correlationId = String(payload.correlationId || '').trim();
+  if (correlationId) {
+    const existing = queueState.items.find((item) => item.correlationId === correlationId && item.state !== STATES.DEAD_LETTER && item.state !== STATES.CANCELLED);
+    if (existing) {
+      console.warn(`[OUTBOUND_QUEUE] duplicate enqueue suppressed correlationId=${correlationId} queueId=${existing.id}`);
+      return cloneItem(existing);
+    }
+  }
   const item = buildQueuedItem(payload);
   queueState.items.push(item);
   await saveQueueState();
@@ -601,6 +609,7 @@ async function processOneItem() {
             chatId: item.phone,
             currentStep: item.metadata.currentStep,
             stepDescription: `Etapa ${item.metadata.currentStep} enviada.`,
+            status: 'delivered',
           });
           if (Number(item.metadata.currentStep) >= Number(item.metadata.totalSteps)) {
             flowTrackerService.finishFlow(item.phone);

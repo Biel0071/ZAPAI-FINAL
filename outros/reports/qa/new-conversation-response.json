@@ -1,0 +1,53 @@
+[
+  {
+    "url": "http://209.50.241.22/api/conversations",
+    "status": 200,
+    "data": {
+      "success": true,
+      "data": {
+        "agent_name": "Camila",
+        "aiEnabled": false,
+        "company_id": "default",
+        "contact_id": 4,
+        "createdAt": "2026-07-07T12:15:45.441Z",
+        "funnel_stage": "new_lead",
+        "id": 4,
+        "chatId": "5531993807167@s.whatsapp.net",
+        "lastMessage": "[QA AUDITORIA 2026-09-10 E1] duas operacoes intencionais iguais",
+        "lastMessageType": "text",
+        "lead_id": 4,
+        "remote_jid": "5531993807167@s.whatsapp.net",
+        "remoteJid": "5531993807167@s.whatsapp.net",
+        "lead_confidence": 0,
+        "lead_intent": "information",
+        "lead_temperature": "cold",
+        "name": "🙏🏼",
+        "next_action": "educate",
+        "notes": "",
+        "phone": "5531993807167",
+        "lid": null,
+        "session_id": "material",
+        "status": "open",
+        "summary": "Conversa iniciada sem resumo disponível.",
+        "tags": [],
+        "unreadCount": 0,
+        "updatedAt": "2026-09-10T15:27:01.187Z",
+        "lastMessageAt": "2026-09-10T15:27:01.187Z",
+        "isBlocked": false,
+        "contactId": 4,
+        "conversationStatus": "open",
+        "assignedAgent": "Camila",
+        "intent": "information",
+        "leadScore": 0,
+        "ai_reactivate_at": "2026-09-11T18:27:01.187Z",
+        "lastInteractionAt": "2026-09-10T15:27:01.187Z",
+        "aiPausedUntil": "2026-09-11T18:27:01.187Z",
+        "aiReactivateAt": "2026-09-11T18:27:01.187Z",
+        "controlMode": "human_active",
+        "humanActive": true,
+        "maxAiIterations": 3
+      },
+      "error": null
+    }
+  }
+]

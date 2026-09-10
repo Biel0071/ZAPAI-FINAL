@@ -12,7 +12,7 @@ export interface FlowExecutionData {
   totalSteps: number;
   stepDescription?: string;
   startedAt?: number;
-  status?: "running" | "cancelled" | "completed";
+  status?: "preparing" | "running" | "sent" | "delivered" | "cancelled" | "completed";
 }
 
 interface FlowExecutionBannerProps {
@@ -154,11 +154,11 @@ export function FlowExecutionBanner({ flowData, onCancelFlow }: FlowExecutionBan
             </Button>
           </div>
 
-          {flowData.status === "cancelled" ? (
-            <span className="text-red-400 font-bold px-2 py-1 bg-red-500/20 rounded">Cancelado</span>
-          ) : flowData.status === "completed" ? (
-            <span className="text-blue-400 font-bold px-2 py-1 bg-blue-500/20 rounded">Concluído</span>
-          ) : (
+              {flowData.status === "cancelled" ? (
+                <span className="text-red-400 font-bold px-2 py-1 bg-red-500/20 rounded">Cancelado</span>
+              ) : flowData.status === "completed" ? (
+                <span className="text-blue-400 font-bold px-2 py-1 bg-blue-500/20 rounded">Concluído</span>
+              ) : (
             <Button
               type="button"
               variant="destructive"

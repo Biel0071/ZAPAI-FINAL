@@ -43,8 +43,6 @@ import { Tooltip, TooltipProvider, TooltipTrigger, TooltipContent } from "@/comp
 import { InboxSectionBoundary } from "@/components/system/InboxSectionBoundary";
 import type { ChatMessage, Conversation } from "@/services/apiService";
 import { apiService } from "@/services/apiService";
-import { getSharedSocket } from "../../../runtime/socket/socketManager";
-import { FlowExecutionBanner, type FlowExecutionData } from "./FlowExecutionBanner";
 import type { AiMemoryRecord, InboxAiRuntime, PreviewMediaState, QuickReplyItem } from "../types";
 import {
   sortMessagesAsc,
@@ -119,6 +117,7 @@ interface SidebarPanelProps {
   responseSearchQuery: string;
   setResponseSearchQuery: (val: string) => void;
   quickReplies: QuickReplyItem[];
+  sending: boolean;
   openCreateQuickReplyDialog: () => void;
   quickReplyCategory: string;
   setQuickReplyCategory: (val: string) => void;
@@ -144,7 +143,6 @@ const RIGHT_PANEL_SECTIONS = [
   { id: "ai", label: "IA", icon: AIIcon, shortcut: "Alt+1" },
   { id: "lead", label: "Lead", icon: UserRound, shortcut: "Alt+2" },
   { id: "qr", label: "Respostas Rápidas", icon: Workflow, shortcut: "Alt+4" },
-  { id: "history", label: "Histórico", icon: History, shortcut: "Alt+5" },
   { id: "files", label: "Arquivos", icon: Folder, shortcut: "Alt+3" },
 ] as const;
 
@@ -382,13 +380,16 @@ const RightPanelSectionTrigger = memo(function RightPanelSectionTrigger({
   label,
   onSelect,
   badges,
+  hidden = false,
 }: {
   active: boolean;
   icon: ComponentType<any>;
   label: string;
   onSelect: () => void;
   badges?: React.ReactNode;
+  hidden?: boolean;
 }) {
+  if (hidden) return null;
   const Icon = icon;
 
   return (
@@ -448,6 +449,7 @@ export function SidebarPanel({
   responseSearchQuery,
   setResponseSearchQuery,
   quickReplies,
+  sending,
   openCreateQuickReplyDialog,
   quickReplyCategory,
   setQuickReplyCategory,
@@ -471,60 +473,6 @@ export function SidebarPanel({
   const { toast } = useToast();
   const [fileFilter, setFileFilter] = useState<"all" | "image" | "video" | "file">("all");
   const [expandedTimeline, setExpandedTimeline] = useState<Set<string>>(new Set());
-  const [activeFlowData, setActiveFlowData] = useState<FlowExecutionData | null>(null);
-
-  useEffect(() => {
-    let active = true;
-    if (!selectedConversation?.phone) {
-      setActiveFlowData(null);
-      return;
-    }
-    const currentPhone = selectedConversation.phone;
-
-    apiService.getActiveQuickReplyFlow(currentPhone).then(res => {
-      if (active && res && res.flow) setActiveFlowData(res.flow);
-    }).catch(console.error);
-
-    const handleFlowStarted = (data: FlowExecutionData) => {
-      if (data.chatId === currentPhone || String(data.chatId) === String(selectedConversation.id)) {
-        setActiveFlowData(data);
-      }
-    };
-
-    const handleFlowUpdated = (data: FlowExecutionData) => {
-      if (data.chatId === currentPhone || String(data.chatId) === String(selectedConversation.id)) {
-        setActiveFlowData((prev) => ({ ...(prev || {}), ...data }));
-      }
-    };
-
-    const handleFlowEnded = (data: { chatId: string; status?: string }) => {
-      if (data.chatId === currentPhone || String(data.chatId) === String(selectedConversation.id)) {
-        setActiveFlowData((prev) => {
-          if (!prev) return null;
-          return { ...prev, status: (data.status as any) || "completed" };
-        });
-        setTimeout(() => {
-          if (active) setActiveFlowData(null);
-        }, 5000);
-      }
-    };
-
-    const socket = getSharedSocket();
-    if (socket && typeof socket.on === "function") {
-      socket.on("flow:started", handleFlowStarted);
-      socket.on("flow:step_updated", handleFlowUpdated);
-      socket.on("flow:cancelled", (data: any) => handleFlowEnded({ ...data, status: "cancelled" }));
-      socket.on("flow:finished", (data: any) => handleFlowEnded({ ...data, status: "completed" }));
-      return () => {
-        active = false;
-        socket.off("flow:started", handleFlowStarted);
-        socket.off("flow:step_updated", handleFlowUpdated);
-        socket.off("flow:cancelled", handleFlowEnded);
-        socket.off("flow:finished", handleFlowEnded);
-      };
-    }
-    return () => { active = false; };
-  }, [selectedConversation]);
 
   const toggleTimelineItem = (id: string) => {
     setExpandedTimeline((prev) => {
@@ -871,6 +819,7 @@ export function SidebarPanel({
         <Button
           size="icon"
           variant="ghost"
+          disabled={sending}
           className={cn(
             "h-5 w-5 rounded transition-colors",
             item.isFlow ? "text-purple-500 hover:bg-purple-500/20" : "text-emerald-500 hover:bg-emerald-500/20"
@@ -886,9 +835,8 @@ export function SidebarPanel({
 
   const leadPanelContent = selectedConversation ? (
     <div className="flex h-full w-full flex-col min-h-0 bg-background/95">
-      <FlowExecutionBanner flowData={activeFlowData} onCancelFlow={() => setActiveFlowData(null)} />
       <Tabs
-        value={rightPanelTab ?? ""}
+        value={rightPanelTab === "history" ? "ai" : (rightPanelTab ?? "")}
         onValueChange={(value) => setRightPanelTab(value as RightPanelTabId)}
         className="flex h-full w-full flex-col overflow-y-auto border-none bg-transparent"
       >
@@ -899,7 +847,6 @@ export function SidebarPanel({
               <TabsTrigger value="lead">Lead</TabsTrigger>
               <TabsTrigger value="files">Arquivos</TabsTrigger>
               <TabsTrigger value="qr">Respostas Rápidas</TabsTrigger>
-              <TabsTrigger value="history">Histórico</TabsTrigger>
             </TabsList>
           </div>
         </div>
@@ -1384,6 +1331,7 @@ export function SidebarPanel({
 
         {/* ============ TAB HISTÓRICO (TIMELINE) ============ */}
         <RightPanelSectionTrigger
+          hidden
           active={rightPanelTab === "history"}
           icon={History}
           label="Histórico"
@@ -1391,7 +1339,7 @@ export function SidebarPanel({
         />
         <TabsContent
           value="history"
-          className="mt-0 max-h-[calc(100vh-270px)] shrink-0 space-y-3 overflow-y-auto p-2 scrollbar-thin animate-fade-in data-[state=inactive]:hidden"
+          className="hidden"
         >
           <InboxSectionBoundary fallbackLabel="Histórico">
             <div className="rounded-xl border border-border/40 bg-card/25 p-4 shadow-sm relative">

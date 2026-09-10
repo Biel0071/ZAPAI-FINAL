@@ -426,6 +426,7 @@ export default function Inbox() {
     responseSearchQuery: state.responseSearchQuery,
     setResponseSearchQuery: state.setResponseSearchQuery,
     quickReplies: state.quickReplies,
+    sending: state.sending,
     openCreateQuickReplyDialog: state.openCreateQuickReplyDialog,
     quickReplyCategory: state.quickReplyCategory,
     setQuickReplyCategory: state.setQuickReplyCategory,
@@ -630,6 +631,7 @@ export default function Inbox() {
             audioProgress={state.audioProgress}
             audioDuration={state.audioDuration}
             quickReplies={state.quickReplies}
+            sendQuickReply={state.sendQuickReply}
             applyPendingBackgroundUpdates={state.applyPendingBackgroundUpdates}
             pendingBackgroundUpdates={state.pendingBackgroundUpdates}
             error={state.error}

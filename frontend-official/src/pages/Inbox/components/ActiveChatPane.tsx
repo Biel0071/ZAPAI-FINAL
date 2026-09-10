@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, useCallback } from "react";
+import { useState, useMemo, useEffect, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Brain,
@@ -38,6 +38,7 @@ import { ChatHeaderBar } from "@/components/inbox/ChatHeaderBar";
 import { NewMessagesBanner } from "@/components/inbox/NewMessagesBanner";
 import { MessageRow } from "./MessageRow";
 import { QuickResponseModal, type QuickResponseItem } from "./QuickResponseModal";
+import { FlowExecutionBanner, type FlowExecutionData } from "./FlowExecutionBanner";
 import { useAiCountdown } from "@/hooks/useAiCountdown";
 import { getSharedSocket } from "../../../runtime/socket/socketManager";
 import { cn } from "@/lib/utils";
@@ -137,6 +138,7 @@ interface ActiveChatPaneProps {
   audioProgress: number;
   audioDuration: number;
   quickReplies: any[];
+  sendQuickReply: (item: any) => Promise<void>;
   applyPendingBackgroundUpdates: () => Promise<void>;
   pendingBackgroundUpdates: number;
   error: string | null;
@@ -232,6 +234,7 @@ export function ActiveChatPane({
   audioProgress,
   audioDuration,
   quickReplies,
+  sendQuickReply,
   applyPendingBackgroundUpdates,
   pendingBackgroundUpdates,
   error,
@@ -244,6 +247,25 @@ export function ActiveChatPane({
 
   const [selectedQuickReplyModal, setSelectedQuickReplyModal] = useState<QuickResponseItem | null>(null);
   const [isQuickReplyModalOpen, setIsQuickReplyModalOpen] = useState(false);
+  const [activeFlowData, setActiveFlowData] = useState<FlowExecutionData | null>(null);
+  const quickReplyDispatchRef = useRef(false);
+
+  useEffect(() => {
+    let active = true;
+    const phone = selectedConversation?.phone;
+    if (!phone) { setActiveFlowData(null); return () => { active = false; }; }
+    apiService.getActiveQuickReplyFlow(phone).then((res) => {
+      if (active) setActiveFlowData(res?.flow ?? null);
+    }).catch((error) => console.warn("[FLOW_TIMELINE] active flow load failed", error));
+    const socket = getSharedSocket();
+    if (!socket) return () => { active = false; };
+    const matches = (data: any) => data?.chatId === phone || String(data?.chatId) === String(selectedConversation?.id);
+    const started = (data: FlowExecutionData) => { if (matches(data)) { console.info("[FLOW_TIMELINE] started", data); setActiveFlowData(data); } };
+    const updated = (data: FlowExecutionData) => { if (matches(data)) { console.info("[FLOW_TIMELINE] updated", data); setActiveFlowData((prev) => ({ ...(prev || {}), ...data })); } };
+    const ended = (data: any) => { if (matches(data)) { console.info("[FLOW_TIMELINE] completed", data); setActiveFlowData(null); } };
+    socket.on("flow:started", started); socket.on("flow:step_updated", updated); socket.on("flow:cancelled", ended); socket.on("flow:finished", ended);
+    return () => { active = false; socket.off("flow:started", started); socket.off("flow:step_updated", updated); socket.off("flow:cancelled", ended); socket.off("flow:finished", ended); };
+  }, [selectedConversation?.id, selectedConversation?.phone]);
 
   const targetReactivateAt = selectedConversation?.ai_reactivate_at || selectedConversation?.aiReactivateAt || selectedConversation?.aiPausedUntil;
   const { timeLeft, isWaiting: isAiCountdownActive } = useAiCountdown(targetReactivateAt);
@@ -252,18 +274,23 @@ export function ActiveChatPane({
 
   const handleDispatchQuickReply = async (item: QuickResponseItem, customDelayMs: number) => {
     if (!selectedConversation?.phone) return;
-    if (item.id) {
-      await apiService.executeQuickReplyFlow(item.id, {
-        phone: selectedConversation.phone,
-        sessionId: selectedConversation.sessionId || undefined,
-        companyId: selectedConversation.tenantId || "default",
-        overrideDelayMs: customDelayMs,
-        item: item,
-        sendId: crypto.randomUUID(),
-      });
-    } else {
-      setMessageInput(item.text);
-      await handleSendMessage(item.text);
+    if (quickReplyDispatchRef.current) return;
+    quickReplyDispatchRef.current = true;
+    try {
+      if (customDelayMs) {
+        await apiService.executeQuickReplyFlow(item.id || "custom", {
+          phone: selectedConversation.phone,
+          sessionId: selectedConversation.sessionId || undefined,
+          companyId: selectedConversation.tenantId || "default",
+          overrideDelayMs: customDelayMs,
+          item,
+          sendId: crypto.randomUUID(),
+        });
+        return;
+      }
+      await sendQuickReply(item as any);
+    } finally {
+      quickReplyDispatchRef.current = false;
     }
   };
   const [activeSlashIndex, setActiveSlashIndex] = useState(0);
@@ -303,6 +330,8 @@ export function ActiveChatPane({
 
   const handleSendSticker = async (stickerUrl: string) => {
     if (!selectedConversation) return;
+    if (quickReplyDispatchRef.current) return;
+    quickReplyDispatchRef.current = true;
     try {
       const fileName = stickerUrl.split('/').pop() || 'sticker.webp';
       const response = await fetch(stickerUrl);
@@ -320,17 +349,21 @@ export function ActiveChatPane({
             dataBase64: base64data,
             conversationId: selectedConversation.id,
             contactId: selectedConversation.contactId,
-            sessionId: selectedConversation.sessionId || undefined
+            sessionId: selectedConversation.sessionId || undefined,
+            requestId: `inbox-sticker-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`,
           });
           if (res.success) {
             setShowEmojiPicker(false);
           }
         } catch (err) {
           console.error('Failed to send sticker media message:', err);
+        } finally {
+          quickReplyDispatchRef.current = false;
         }
       };
     } catch (err) {
       console.error('Failed to process sticker for sending:', err);
+      quickReplyDispatchRef.current = false;
     }
   };
 
@@ -820,6 +853,11 @@ export function ActiveChatPane({
 
 
 
+          {activeFlowData && (
+            <div className="animate-fade-in transition-opacity duration-300">
+              <FlowExecutionBanner flowData={activeFlowData} onCancelFlow={() => setActiveFlowData(null)} />
+            </div>
+          )}
           <ScrollArea className="min-h-0 flex-1 chat-area-bg">
             <div
               ref={messagesScrollRef}

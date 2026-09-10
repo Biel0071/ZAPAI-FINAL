@@ -1,0 +1,1138 @@
+[
+  {
+    "id": "BASE-1",
+    "module": "login",
+    "screen": "login",
+    "route": "http://209.50.241.22/dashboard",
+    "viewport": {
+      "width": 1440,
+      "height": 900
+    },
+    "feature": "Login",
+    "action": "Autenticar pelo formulário",
+    "status": "PASS",
+    "detail": "Rota /dashboard alcançada",
+    "at": "2026-09-10T18:17:45.548Z"
+  },
+  {
+    "id": "BASE-2",
+    "module": "dashboard",
+    "screen": "dashboard",
+    "route": "http://209.50.241.22/dashboard",
+    "viewport": {
+      "width": 1440,
+      "height": 900
+    },
+    "feature": "Inventário",
+    "action": "Enumerar controles renderizados",
+    "status": "PASS",
+    "detail": "0 controles; não implica aprovação funcional",
+    "at": "2026-09-10T18:17:48.305Z"
+  },
+  {
+    "id": "BASE-3",
+    "module": "dashboard",
+    "screen": "dashboard",
+    "route": "http://209.50.241.22/dashboard",
+    "viewport": {
+      "width": 360,
+      "height": 800
+    },
+    "feature": "Geometria responsiva",
+    "action": "Medir documento e controles",
+    "status": "NOT TESTED",
+    "detail": "Triagem: overflow=false; controles fora da largura=0. Usabilidade requer exercício e inspeção visual.",
+    "evidence": "evidence/dashboard-360x800.png",
+    "at": "2026-09-10T18:17:48.679Z"
+  },
+  {
+    "id": "BASE-4",
+    "module": "dashboard",
+    "screen": "dashboard",
+    "route": "http://209.50.241.22/dashboard",
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "feature": "Geometria responsiva",
+    "action": "Medir documento e controles",
+    "status": "NOT TESTED",
+    "detail": "Triagem: overflow=false; controles fora da largura=0. Usabilidade requer exercício e inspeção visual.",
+    "evidence": "evidence/dashboard-390x844.png",
+    "at": "2026-09-10T18:17:49.002Z"
+  },
+  {
+    "id": "BASE-5",
+    "module": "dashboard",
+    "screen": "dashboard",
+    "route": "http://209.50.241.22/dashboard",
+    "viewport": {
+      "width": 768,
+      "height": 1024
+    },
+    "feature": "Geometria responsiva",
+    "action": "Medir documento e controles",
+    "status": "NOT TESTED",
+    "detail": "Triagem: overflow=false; controles fora da largura=4. Usabilidade requer exercício e inspeção visual.",
+    "evidence": "evidence/dashboard-768x1024.png",
+    "at": "2026-09-10T18:17:49.449Z"
+  },
+  {
+    "id": "BASE-6",
+    "module": "dashboard",
+    "screen": "dashboard",
+    "route": "http://209.50.241.22/dashboard",
+    "viewport": {
+      "width": 1024,
+      "height": 768
+    },
+    "feature": "Geometria responsiva",
+    "action": "Medir documento e controles",
+    "status": "NOT TESTED",
+    "detail": "Triagem: overflow=false; controles fora da largura=1. Usabilidade requer exercício e inspeção visual.",
+    "evidence": "evidence/dashboard-1024x768.png",
+    "at": "2026-09-10T18:17:49.849Z"
+  },
+  {
+    "id": "BASE-7",
+    "module": "dashboard",
+    "screen": "dashboard",
+    "route": "http://209.50.241.22/dashboard",
+    "viewport": {
+      "width": 1440,
+      "height": 900
+    },
+    "feature": "Geometria responsiva",
+    "action": "Medir documento e controles",
+    "status": "NOT TESTED",
+    "detail": "Triagem: overflow=false; controles fora da largura=0. Usabilidade requer exercício e inspeção visual.",
+    "evidence": "evidence/dashboard-1440x900.png",
+    "at": "2026-09-10T18:17:50.337Z"
+  },
+  {
+    "id": "BASE-8",
+    "module": "dashboard",
+    "screen": "dashboard",
+    "route": "http://209.50.241.22/dashboard",
+    "viewport": {
+      "width": 844,
+      "height": 390
+    },
+    "feature": "Geometria responsiva",
+    "action": "Medir documento e controles",
+    "status": "NOT TESTED",
+    "detail": "Triagem: overflow=false; controles fora da largura=2. Usabilidade requer exercício e inspeção visual.",
+    "evidence": "evidence/dashboard-844x390.png",
+    "at": "2026-09-10T18:17:50.718Z"
+  },
+  {
+    "id": "BASE-9",
+    "module": "connections",
+    "screen": "connections",
+    "route": "http://209.50.241.22/connections",
+    "viewport": {
+      "width": 1440,
+      "height": 900
+    },
+    "feature": "Inventário",
+    "action": "Enumerar controles renderizados",
+    "status": "PASS",
+    "detail": "24 controles; não implica aprovação funcional",
+    "at": "2026-09-10T18:17:53.456Z"
+  },
+  {
+    "id": "BASE-10",
+    "module": "connections",
+    "screen": "connections",
+    "route": "http://209.50.241.22/connections",
+    "viewport": {
+      "width": 360,
+      "height": 800
+    },
+    "feature": "Geometria responsiva",
+    "action": "Medir documento e controles",
+    "status": "NOT TESTED",
+    "detail": "Triagem: overflow=false; controles fora da largura=4. Usabilidade requer exercício e inspeção visual.",
+    "evidence": "evidence/connections-360x800.png",
+    "at": "2026-09-10T18:17:53.786Z"
+  },
+  {
+    "id": "BASE-11",
+    "module": "connections",
+    "screen": "connections",
+    "route": "http://209.50.241.22/connections",
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "feature": "Geometria responsiva",
+    "action": "Medir documento e controles",
+    "status": "NOT TESTED",
+    "detail": "Triagem: overflow=false; controles fora da largura=4. Usabilidade requer exercício e inspeção visual.",
+    "evidence": "evidence/connections-390x844.png",
+    "at": "2026-09-10T18:17:54.090Z"
+  },
+  {
+    "id": "BASE-12",
+    "module": "connections",
+    "screen": "connections",
+    "route": "http://209.50.241.22/connections",
+    "viewport": {
+      "width": 768,
+      "height": 1024
+    },
+    "feature": "Geometria responsiva",
+    "action": "Medir documento e controles",
+    "status": "NOT TESTED",
+    "detail": "Triagem: overflow=false; controles fora da largura=4. Usabilidade requer exercício e inspeção visual.",
+    "evidence": "evidence/connections-768x1024.png",
+    "at": "2026-09-10T18:17:54.448Z"
+  },
+  {
+    "id": "BASE-13",
+    "module": "connections",
+    "screen": "connections",
+    "route": "http://209.50.241.22/connections",
+    "viewport": {
+      "width": 1024,
+      "height": 768
+    },
+    "feature": "Geometria responsiva",
+    "action": "Medir documento e controles",
+    "status": "NOT TESTED",
+    "detail": "Triagem: overflow=false; controles fora da largura=1. Usabilidade requer exercício e inspeção visual.",
+    "evidence": "evidence/connections-1024x768.png",
+    "at": "2026-09-10T18:17:54.791Z"
+  },
+  {
+    "id": "BASE-14",
+    "module": "connections",
+    "screen": "connections",
+    "route": "http://209.50.241.22/connections",
+    "viewport": {
+      "width": 1440,
+      "height": 900
+    },
+    "feature": "Geometria responsiva",
+    "action": "Medir documento e controles",
+    "status": "NOT TESTED",
+    "detail": "Triagem: overflow=false; controles fora da largura=0. Usabilidade requer exercício e inspeção visual.",
+    "evidence": "evidence/connections-1440x900.png",
+    "at": "2026-09-10T18:17:55.172Z"
+  },
+  {
+    "id": "BASE-15",
+    "module": "connections",
+    "screen": "connections",
+    "route": "http://209.50.241.22/connections",
+    "viewport": {
+      "width": 844,
+      "height": 390
+    },
+    "feature": "Geometria responsiva",
+    "action": "Medir documento e controles",
+    "status": "NOT TESTED",
+    "detail": "Triagem: overflow=false; controles fora da largura=2. Usabilidade requer exercício e inspeção visual.",
+    "evidence": "evidence/connections-844x390.png",
+    "at": "2026-09-10T18:17:55.490Z"
+  },
+  {
+    "id": "BASE-16",
+    "module": "contacts",
+    "screen": "contacts",
+    "route": "http://209.50.241.22/contacts",
+    "viewport": {
+      "width": 1440,
+      "height": 900
+    },
+    "feature": "Inventário",
+    "action": "Enumerar controles renderizados",
+    "status": "PASS",
+    "detail": "2020 controles; não implica aprovação funcional",
+    "at": "2026-09-10T18:17:58.721Z"
+  },
+  {
+    "id": "BASE-17",
+    "module": "contacts",
+    "screen": "contacts",
+    "route": "http://209.50.241.22/contacts",
+    "viewport": {
+      "width": 360,
+      "height": 800
+    },
+    "feature": "Geometria responsiva",
+    "action": "Medir documento e controles",
+    "status": "NOT TESTED",
+    "detail": "Triagem: overflow=false; controles fora da largura=1342. Usabilidade requer exercício e inspeção visual.",
+    "evidence": "evidence/contacts-360x800.png",
+    "at": "2026-09-10T18:18:00.109Z"
+  },
+  {
+    "id": "BASE-18",
+    "module": "contacts",
+    "screen": "contacts",
+    "route": "http://209.50.241.22/contacts",
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "feature": "Geometria responsiva",
+    "action": "Medir documento e controles",
+    "status": "NOT TESTED",
+    "detail": "Triagem: overflow=false; controles fora da largura=681. Usabilidade requer exercício e inspeção visual.",
+    "evidence": "evidence/contacts-390x844.png",
+    "at": "2026-09-10T18:18:00.763Z"
+  },
+  {
+    "id": "BASE-19",
+    "module": "contacts",
+    "screen": "contacts",
+    "route": "http://209.50.241.22/contacts",
+    "viewport": {
+      "width": 768,
+      "height": 1024
+    },
+    "feature": "Geometria responsiva",
+    "action": "Medir documento e controles",
+    "status": "NOT TESTED",
+    "detail": "Triagem: overflow=false; controles fora da largura=4. Usabilidade requer exercício e inspeção visual.",
+    "evidence": "evidence/contacts-768x1024.png",
+    "at": "2026-09-10T18:18:02.099Z"
+  },
+  {
+    "id": "BASE-20",
+    "module": "contacts",
+    "screen": "contacts",
+    "route": "http://209.50.241.22/contacts",
+    "viewport": {
+      "width": 1024,
+      "height": 768
+    },
+    "feature": "Geometria responsiva",
+    "action": "Medir documento e controles",
+    "status": "NOT TESTED",
+    "detail": "Triagem: overflow=false; controles fora da largura=1. Usabilidade requer exercício e inspeção visual.",
+    "evidence": "evidence/contacts-1024x768.png",
+    "at": "2026-09-10T18:18:03.101Z"
+  },
+  {
+    "id": "BASE-21",
+    "module": "contacts",
+    "screen": "contacts",
+    "route": "http://209.50.241.22/contacts",
+    "viewport": {
+      "width": 1440,
+      "height": 900
+    },
+    "feature": "Geometria responsiva",
+    "action": "Medir documento e controles",
+    "status": "NOT TESTED",
+    "detail": "Triagem: overflow=false; controles fora da largura=0. Usabilidade requer exercício e inspeção visual.",
+    "evidence": "evidence/contacts-1440x900.png",
+    "at": "2026-09-10T18:18:04.509Z"
+  },
+  {
+    "id": "BASE-22",
+    "module": "contacts",
+    "screen": "contacts",
+    "route": "http://209.50.241.22/contacts",
+    "viewport": {
+      "width": 844,
+      "height": 390
+    },
+    "feature": "Geometria responsiva",
+    "action": "Medir documento e controles",
+    "status": "NOT TESTED",
+    "detail": "Triagem: overflow=false; controles fora da largura=2. Usabilidade requer exercício e inspeção visual.",
+    "evidence": "evidence/contacts-844x390.png",
+    "at": "2026-09-10T18:18:06.380Z"
+  },
+  {
+    "id": "BASE-23",
+    "module": "campaigns",
+    "screen": "campaigns",
+    "route": "http://209.50.241.22/campaigns",
+    "viewport": {
+      "width": 1440,
+      "height": 900
+    },
+    "feature": "Inventário",
+    "action": "Enumerar controles renderizados",
+    "status": "PASS",
+    "detail": "10 controles; não implica aprovação funcional",
+    "at": "2026-09-10T18:18:09.736Z"
+  },
+  {
+    "id": "BASE-24",
+    "module": "campaigns",
+    "screen": "campaigns",
+    "route": "http://209.50.241.22/campaigns",
+    "viewport": {
+      "width": 360,
+      "height": 800
+    },
+    "feature": "Geometria responsiva",
+    "action": "Medir documento e controles",
+    "status": "NOT TESTED",
+    "detail": "Triagem: overflow=false; controles fora da largura=0. Usabilidade requer exercício e inspeção visual.",
+    "evidence": "evidence/campaigns-360x800.png",
+    "at": "2026-09-10T18:18:10.058Z"
+  },
+  {
+    "id": "BASE-25",
+    "module": "campaigns",
+    "screen": "campaigns",
+    "route": "http://209.50.241.22/campaigns",
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "feature": "Geometria responsiva",
+    "action": "Medir documento e controles",
+    "status": "NOT TESTED",
+    "detail": "Triagem: overflow=false; controles fora da largura=0. Usabilidade requer exercício e inspeção visual.",
+    "evidence": "evidence/campaigns-390x844.png",
+    "at": "2026-09-10T18:18:10.379Z"
+  },
+  {
+    "id": "BASE-26",
+    "module": "campaigns",
+    "screen": "campaigns",
+    "route": "http://209.50.241.22/campaigns",
+    "viewport": {
+      "width": 768,
+      "height": 1024
+    },
+    "feature": "Geometria responsiva",
+    "action": "Medir documento e controles",
+    "status": "NOT TESTED",
+    "detail": "Triagem: overflow=false; controles fora da largura=0. Usabilidade requer exercício e inspeção visual.",
+    "evidence": "evidence/campaigns-768x1024.png",
+    "at": "2026-09-10T18:18:10.703Z"
+  },
+  {
+    "id": "BASE-27",
+    "module": "campaigns",
+    "screen": "campaigns",
+    "route": "http://209.50.241.22/campaigns",
+    "viewport": {
+      "width": 1024,
+      "height": 768
+    },
+    "feature": "Geometria responsiva",
+    "action": "Medir documento e controles",
+    "status": "NOT TESTED",
+    "detail": "Triagem: overflow=false; controles fora da largura=0. Usabilidade requer exercício e inspeção visual.",
+    "evidence": "evidence/campaigns-1024x768.png",
+    "at": "2026-09-10T18:18:11.130Z"
+  },
+  {
+    "id": "BASE-28",
+    "module": "campaigns",
+    "screen": "campaigns",
+    "route": "http://209.50.241.22/campaigns",
+    "viewport": {
+      "width": 1440,
+      "height": 900
+    },
+    "feature": "Geometria responsiva",
+    "action": "Medir documento e controles",
+    "status": "NOT TESTED",
+    "detail": "Triagem: overflow=false; controles fora da largura=0. Usabilidade requer exercício e inspeção visual.",
+    "evidence": "evidence/campaigns-1440x900.png",
+    "at": "2026-09-10T18:18:11.626Z"
+  },
+  {
+    "id": "BASE-29",
+    "module": "campaigns",
+    "screen": "campaigns",
+    "route": "http://209.50.241.22/campaigns",
+    "viewport": {
+      "width": 844,
+      "height": 390
+    },
+    "feature": "Geometria responsiva",
+    "action": "Medir documento e controles",
+    "status": "NOT TESTED",
+    "detail": "Triagem: overflow=false; controles fora da largura=1. Usabilidade requer exercício e inspeção visual.",
+    "evidence": "evidence/campaigns-844x390.png",
+    "at": "2026-09-10T18:18:11.979Z"
+  },
+  {
+    "id": "BASE-30",
+    "module": "operations",
+    "screen": "operations",
+    "route": "http://209.50.241.22/operations",
+    "viewport": {
+      "width": 1440,
+      "height": 900
+    },
+    "feature": "Inventário",
+    "action": "Enumerar controles renderizados",
+    "status": "PASS",
+    "detail": "18 controles; não implica aprovação funcional",
+    "at": "2026-09-10T18:18:14.684Z"
+  },
+  {
+    "id": "BASE-31",
+    "module": "operations",
+    "screen": "operations",
+    "route": "http://209.50.241.22/operations",
+    "viewport": {
+      "width": 360,
+      "height": 800
+    },
+    "feature": "Geometria responsiva",
+    "action": "Medir documento e controles",
+    "status": "NOT TESTED",
+    "detail": "Triagem: overflow=false; controles fora da largura=4. Usabilidade requer exercício e inspeção visual.",
+    "evidence": "evidence/operations-360x800.png",
+    "at": "2026-09-10T18:18:15.029Z"
+  },
+  {
+    "id": "BASE-32",
+    "module": "operations",
+    "screen": "operations",
+    "route": "http://209.50.241.22/operations",
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "feature": "Geometria responsiva",
+    "action": "Medir documento e controles",
+    "status": "NOT TESTED",
+    "detail": "Triagem: overflow=false; controles fora da largura=4. Usabilidade requer exercício e inspeção visual.",
+    "evidence": "evidence/operations-390x844.png",
+    "at": "2026-09-10T18:18:15.354Z"
+  },
+  {
+    "id": "BASE-33",
+    "module": "operations",
+    "screen": "operations",
+    "route": "http://209.50.241.22/operations",
+    "viewport": {
+      "width": 768,
+      "height": 1024
+    },
+    "feature": "Geometria responsiva",
+    "action": "Medir documento e controles",
+    "status": "NOT TESTED",
+    "detail": "Triagem: overflow=false; controles fora da largura=4. Usabilidade requer exercício e inspeção visual.",
+    "evidence": "evidence/operations-768x1024.png",
+    "at": "2026-09-10T18:18:15.706Z"
+  },
+  {
+    "id": "BASE-34",
+    "module": "operations",
+    "screen": "operations",
+    "route": "http://209.50.241.22/operations",
+    "viewport": {
+      "width": 1024,
+      "height": 768
+    },
+    "feature": "Geometria responsiva",
+    "action": "Medir documento e controles",
+    "status": "NOT TESTED",
+    "detail": "Triagem: overflow=false; controles fora da largura=1. Usabilidade requer exercício e inspeção visual.",
+    "evidence": "evidence/operations-1024x768.png",
+    "at": "2026-09-10T18:18:16.080Z"
+  },
+  {
+    "id": "BASE-35",
+    "module": "operations",
+    "screen": "operations",
+    "route": "http://209.50.241.22/operations",
+    "viewport": {
+      "width": 1440,
+      "height": 900
+    },
+    "feature": "Geometria responsiva",
+    "action": "Medir documento e controles",
+    "status": "NOT TESTED",
+    "detail": "Triagem: overflow=false; controles fora da largura=0. Usabilidade requer exercício e inspeção visual.",
+    "evidence": "evidence/operations-1440x900.png",
+    "at": "2026-09-10T18:18:16.465Z"
+  },
+  {
+    "id": "BASE-36",
+    "module": "operations",
+    "screen": "operations",
+    "route": "http://209.50.241.22/operations",
+    "viewport": {
+      "width": 844,
+      "height": 390
+    },
+    "feature": "Geometria responsiva",
+    "action": "Medir documento e controles",
+    "status": "NOT TESTED",
+    "detail": "Triagem: overflow=false; controles fora da largura=2. Usabilidade requer exercício e inspeção visual.",
+    "evidence": "evidence/operations-844x390.png",
+    "at": "2026-09-10T18:18:16.813Z"
+  },
+  {
+    "id": "BASE-37",
+    "module": "ai",
+    "screen": "ai",
+    "route": "http://209.50.241.22/ai?tab=dashboard",
+    "viewport": {
+      "width": 1440,
+      "height": 900
+    },
+    "feature": "Inventário",
+    "action": "Enumerar controles renderizados",
+    "status": "PASS",
+    "detail": "31 controles; não implica aprovação funcional",
+    "at": "2026-09-10T18:18:19.566Z"
+  },
+  {
+    "id": "BASE-38",
+    "module": "ai",
+    "screen": "ai",
+    "route": "http://209.50.241.22/ai?tab=dashboard",
+    "viewport": {
+      "width": 360,
+      "height": 800
+    },
+    "feature": "Geometria responsiva",
+    "action": "Medir documento e controles",
+    "status": "NOT TESTED",
+    "detail": "Triagem: overflow=false; controles fora da largura=6. Usabilidade requer exercício e inspeção visual.",
+    "evidence": "evidence/ai-360x800.png",
+    "at": "2026-09-10T18:18:19.952Z"
+  },
+  {
+    "id": "BASE-39",
+    "module": "ai",
+    "screen": "ai",
+    "route": "http://209.50.241.22/ai?tab=dashboard",
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "feature": "Geometria responsiva",
+    "action": "Medir documento e controles",
+    "status": "NOT TESTED",
+    "detail": "Triagem: overflow=false; controles fora da largura=6. Usabilidade requer exercício e inspeção visual.",
+    "evidence": "evidence/ai-390x844.png",
+    "at": "2026-09-10T18:18:20.293Z"
+  },
+  {
+    "id": "BASE-40",
+    "module": "ai",
+    "screen": "ai",
+    "route": "http://209.50.241.22/ai?tab=dashboard",
+    "viewport": {
+      "width": 768,
+      "height": 1024
+    },
+    "feature": "Geometria responsiva",
+    "action": "Medir documento e controles",
+    "status": "NOT TESTED",
+    "detail": "Triagem: overflow=false; controles fora da largura=4. Usabilidade requer exercício e inspeção visual.",
+    "evidence": "evidence/ai-768x1024.png",
+    "at": "2026-09-10T18:18:20.742Z"
+  },
+  {
+    "id": "BASE-41",
+    "module": "ai",
+    "screen": "ai",
+    "route": "http://209.50.241.22/ai?tab=dashboard",
+    "viewport": {
+      "width": 1024,
+      "height": 768
+    },
+    "feature": "Geometria responsiva",
+    "action": "Medir documento e controles",
+    "status": "NOT TESTED",
+    "detail": "Triagem: overflow=false; controles fora da largura=1. Usabilidade requer exercício e inspeção visual.",
+    "evidence": "evidence/ai-1024x768.png",
+    "at": "2026-09-10T18:18:21.126Z"
+  },
+  {
+    "id": "BASE-42",
+    "module": "ai",
+    "screen": "ai",
+    "route": "http://209.50.241.22/ai?tab=dashboard",
+    "viewport": {
+      "width": 1440,
+      "height": 900
+    },
+    "feature": "Geometria responsiva",
+    "action": "Medir documento e controles",
+    "status": "NOT TESTED",
+    "detail": "Triagem: overflow=false; controles fora da largura=0. Usabilidade requer exercício e inspeção visual.",
+    "evidence": "evidence/ai-1440x900.png",
+    "at": "2026-09-10T18:18:21.592Z"
+  },
+  {
+    "id": "BASE-43",
+    "module": "ai",
+    "screen": "ai",
+    "route": "http://209.50.241.22/ai?tab=dashboard",
+    "viewport": {
+      "width": 844,
+      "height": 390
+    },
+    "feature": "Geometria responsiva",
+    "action": "Medir documento e controles",
+    "status": "NOT TESTED",
+    "detail": "Triagem: overflow=false; controles fora da largura=2. Usabilidade requer exercício e inspeção visual.",
+    "evidence": "evidence/ai-844x390.png",
+    "at": "2026-09-10T18:18:21.945Z"
+  },
+  {
+    "id": "BASE-44",
+    "module": "flows",
+    "screen": "flows",
+    "route": "http://209.50.241.22/flows",
+    "viewport": {
+      "width": 1440,
+      "height": 900
+    },
+    "feature": "Inventário",
+    "action": "Enumerar controles renderizados",
+    "status": "PASS",
+    "detail": "22 controles; não implica aprovação funcional",
+    "at": "2026-09-10T18:18:24.680Z"
+  },
+  {
+    "id": "BASE-45",
+    "module": "flows",
+    "screen": "flows",
+    "route": "http://209.50.241.22/flows",
+    "viewport": {
+      "width": 360,
+      "height": 800
+    },
+    "feature": "Geometria responsiva",
+    "action": "Medir documento e controles",
+    "status": "NOT TESTED",
+    "detail": "Triagem: overflow=false; controles fora da largura=4. Usabilidade requer exercício e inspeção visual.",
+    "evidence": "evidence/flows-360x800.png",
+    "at": "2026-09-10T18:18:25.030Z"
+  },
+  {
+    "id": "BASE-46",
+    "module": "flows",
+    "screen": "flows",
+    "route": "http://209.50.241.22/flows",
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "feature": "Geometria responsiva",
+    "action": "Medir documento e controles",
+    "status": "NOT TESTED",
+    "detail": "Triagem: overflow=false; controles fora da largura=4. Usabilidade requer exercício e inspeção visual.",
+    "evidence": "evidence/flows-390x844.png",
+    "at": "2026-09-10T18:18:25.352Z"
+  },
+  {
+    "id": "BASE-47",
+    "module": "flows",
+    "screen": "flows",
+    "route": "http://209.50.241.22/flows",
+    "viewport": {
+      "width": 768,
+      "height": 1024
+    },
+    "feature": "Geometria responsiva",
+    "action": "Medir documento e controles",
+    "status": "NOT TESTED",
+    "detail": "Triagem: overflow=false; controles fora da largura=4. Usabilidade requer exercício e inspeção visual.",
+    "evidence": "evidence/flows-768x1024.png",
+    "at": "2026-09-10T18:18:25.733Z"
+  },
+  {
+    "id": "BASE-48",
+    "module": "flows",
+    "screen": "flows",
+    "route": "http://209.50.241.22/flows",
+    "viewport": {
+      "width": 1024,
+      "height": 768
+    },
+    "feature": "Geometria responsiva",
+    "action": "Medir documento e controles",
+    "status": "NOT TESTED",
+    "detail": "Triagem: overflow=false; controles fora da largura=1. Usabilidade requer exercício e inspeção visual.",
+    "evidence": "evidence/flows-1024x768.png",
+    "at": "2026-09-10T18:18:26.098Z"
+  },
+  {
+    "id": "BASE-49",
+    "module": "flows",
+    "screen": "flows",
+    "route": "http://209.50.241.22/flows",
+    "viewport": {
+      "width": 1440,
+      "height": 900
+    },
+    "feature": "Geometria responsiva",
+    "action": "Medir documento e controles",
+    "status": "NOT TESTED",
+    "detail": "Triagem: overflow=false; controles fora da largura=0. Usabilidade requer exercício e inspeção visual.",
+    "evidence": "evidence/flows-1440x900.png",
+    "at": "2026-09-10T18:18:26.547Z"
+  },
+  {
+    "id": "BASE-50",
+    "module": "flows",
+    "screen": "flows",
+    "route": "http://209.50.241.22/flows",
+    "viewport": {
+      "width": 844,
+      "height": 390
+    },
+    "feature": "Geometria responsiva",
+    "action": "Medir documento e controles",
+    "status": "NOT TESTED",
+    "detail": "Triagem: overflow=false; controles fora da largura=2. Usabilidade requer exercício e inspeção visual.",
+    "evidence": "evidence/flows-844x390.png",
+    "at": "2026-09-10T18:18:26.881Z"
+  },
+  {
+    "id": "BASE-51",
+    "module": "memory",
+    "screen": "memory",
+    "route": "http://209.50.241.22/memory",
+    "viewport": {
+      "width": 1440,
+      "height": 900
+    },
+    "feature": "Inventário",
+    "action": "Enumerar controles renderizados",
+    "status": "PASS",
+    "detail": "22 controles; não implica aprovação funcional",
+    "at": "2026-09-10T18:18:29.572Z"
+  },
+  {
+    "id": "BASE-52",
+    "module": "memory",
+    "screen": "memory",
+    "route": "http://209.50.241.22/memory",
+    "viewport": {
+      "width": 360,
+      "height": 800
+    },
+    "feature": "Geometria responsiva",
+    "action": "Medir documento e controles",
+    "status": "NOT TESTED",
+    "detail": "Triagem: overflow=false; controles fora da largura=4. Usabilidade requer exercício e inspeção visual.",
+    "evidence": "evidence/memory-360x800.png",
+    "at": "2026-09-10T18:18:29.914Z"
+  },
+  {
+    "id": "BASE-53",
+    "module": "memory",
+    "screen": "memory",
+    "route": "http://209.50.241.22/memory",
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "feature": "Geometria responsiva",
+    "action": "Medir documento e controles",
+    "status": "NOT TESTED",
+    "detail": "Triagem: overflow=false; controles fora da largura=4. Usabilidade requer exercício e inspeção visual.",
+    "evidence": "evidence/memory-390x844.png",
+    "at": "2026-09-10T18:18:30.247Z"
+  },
+  {
+    "id": "BASE-54",
+    "module": "memory",
+    "screen": "memory",
+    "route": "http://209.50.241.22/memory",
+    "viewport": {
+      "width": 768,
+      "height": 1024
+    },
+    "feature": "Geometria responsiva",
+    "action": "Medir documento e controles",
+    "status": "NOT TESTED",
+    "detail": "Triagem: overflow=false; controles fora da largura=3. Usabilidade requer exercício e inspeção visual.",
+    "evidence": "evidence/memory-768x1024.png",
+    "at": "2026-09-10T18:18:30.607Z"
+  },
+  {
+    "id": "BASE-55",
+    "module": "memory",
+    "screen": "memory",
+    "route": "http://209.50.241.22/memory",
+    "viewport": {
+      "width": 1024,
+      "height": 768
+    },
+    "feature": "Geometria responsiva",
+    "action": "Medir documento e controles",
+    "status": "NOT TESTED",
+    "detail": "Triagem: overflow=false; controles fora da largura=0. Usabilidade requer exercício e inspeção visual.",
+    "evidence": "evidence/memory-1024x768.png",
+    "at": "2026-09-10T18:18:31.026Z"
+  },
+  {
+    "id": "BASE-56",
+    "module": "memory",
+    "screen": "memory",
+    "route": "http://209.50.241.22/memory",
+    "viewport": {
+      "width": 1440,
+      "height": 900
+    },
+    "feature": "Geometria responsiva",
+    "action": "Medir documento e controles",
+    "status": "NOT TESTED",
+    "detail": "Triagem: overflow=false; controles fora da largura=0. Usabilidade requer exercício e inspeção visual.",
+    "evidence": "evidence/memory-1440x900.png",
+    "at": "2026-09-10T18:18:31.475Z"
+  },
+  {
+    "id": "BASE-57",
+    "module": "memory",
+    "screen": "memory",
+    "route": "http://209.50.241.22/memory",
+    "viewport": {
+      "width": 844,
+      "height": 390
+    },
+    "feature": "Geometria responsiva",
+    "action": "Medir documento e controles",
+    "status": "NOT TESTED",
+    "detail": "Triagem: overflow=false; controles fora da largura=1. Usabilidade requer exercício e inspeção visual.",
+    "evidence": "evidence/memory-844x390.png",
+    "at": "2026-09-10T18:18:31.845Z"
+  },
+  {
+    "id": "BASE-58",
+    "module": "settings",
+    "screen": "settings",
+    "route": "http://209.50.241.22/settings",
+    "viewport": {
+      "width": 1440,
+      "height": 900
+    },
+    "feature": "Inventário",
+    "action": "Enumerar controles renderizados",
+    "status": "PASS",
+    "detail": "42 controles; não implica aprovação funcional",
+    "at": "2026-09-10T18:18:34.552Z"
+  },
+  {
+    "id": "BASE-59",
+    "module": "settings",
+    "screen": "settings",
+    "route": "http://209.50.241.22/settings",
+    "viewport": {
+      "width": 360,
+      "height": 800
+    },
+    "feature": "Geometria responsiva",
+    "action": "Medir documento e controles",
+    "status": "NOT TESTED",
+    "detail": "Triagem: overflow=false; controles fora da largura=20. Usabilidade requer exercício e inspeção visual.",
+    "evidence": "evidence/settings-360x800.png",
+    "at": "2026-09-10T18:18:34.894Z"
+  },
+  {
+    "id": "BASE-60",
+    "module": "settings",
+    "screen": "settings",
+    "route": "http://209.50.241.22/settings",
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "feature": "Geometria responsiva",
+    "action": "Medir documento e controles",
+    "status": "NOT TESTED",
+    "detail": "Triagem: overflow=false; controles fora da largura=20. Usabilidade requer exercício e inspeção visual.",
+    "evidence": "evidence/settings-390x844.png",
+    "at": "2026-09-10T18:18:35.216Z"
+  },
+  {
+    "id": "BASE-61",
+    "module": "settings",
+    "screen": "settings",
+    "route": "http://209.50.241.22/settings",
+    "viewport": {
+      "width": 768,
+      "height": 1024
+    },
+    "feature": "Geometria responsiva",
+    "action": "Medir documento e controles",
+    "status": "NOT TESTED",
+    "detail": "Triagem: overflow=false; controles fora da largura=19. Usabilidade requer exercício e inspeção visual.",
+    "evidence": "evidence/settings-768x1024.png",
+    "at": "2026-09-10T18:18:35.569Z"
+  },
+  {
+    "id": "BASE-62",
+    "module": "settings",
+    "screen": "settings",
+    "route": "http://209.50.241.22/settings",
+    "viewport": {
+      "width": 1024,
+      "height": 768
+    },
+    "feature": "Geometria responsiva",
+    "action": "Medir documento e controles",
+    "status": "NOT TESTED",
+    "detail": "Triagem: overflow=false; controles fora da largura=1. Usabilidade requer exercício e inspeção visual.",
+    "evidence": "evidence/settings-1024x768.png",
+    "at": "2026-09-10T18:18:35.967Z"
+  },
+  {
+    "id": "BASE-63",
+    "module": "settings",
+    "screen": "settings",
+    "route": "http://209.50.241.22/settings",
+    "viewport": {
+      "width": 1440,
+      "height": 900
+    },
+    "feature": "Geometria responsiva",
+    "action": "Medir documento e controles",
+    "status": "NOT TESTED",
+    "detail": "Triagem: overflow=false; controles fora da largura=0. Usabilidade requer exercício e inspeção visual.",
+    "evidence": "evidence/settings-1440x900.png",
+    "at": "2026-09-10T18:18:36.382Z"
+  },
+  {
+    "id": "BASE-64",
+    "module": "settings",
+    "screen": "settings",
+    "route": "http://209.50.241.22/settings",
+    "viewport": {
+      "width": 844,
+      "height": 390
+    },
+    "feature": "Geometria responsiva",
+    "action": "Medir documento e controles",
+    "status": "NOT TESTED",
+    "detail": "Triagem: overflow=false; controles fora da largura=17. Usabilidade requer exercício e inspeção visual.",
+    "evidence": "evidence/settings-844x390.png",
+    "at": "2026-09-10T18:18:36.743Z"
+  },
+  {
+    "id": "BASE-65",
+    "module": "inbox",
+    "screen": "inbox",
+    "route": "http://209.50.241.22/inbox",
+    "viewport": {
+      "width": 1440,
+      "height": 900
+    },
+    "feature": "Inventário",
+    "action": "Enumerar controles renderizados",
+    "status": "PASS",
+    "detail": "80 controles; não implica aprovação funcional",
+    "at": "2026-09-10T18:18:39.480Z"
+  },
+  {
+    "id": "BASE-66",
+    "module": "inbox",
+    "screen": "inbox/Todas",
+    "route": "http://209.50.241.22/inbox",
+    "viewport": {
+      "width": 1440,
+      "height": 900
+    },
+    "feature": "Aba Todas",
+    "action": "Clicar e conferir seleção/conteúdo",
+    "status": "NOT TESTED",
+    "detail": "Selecionada=true; conteúdo mudou=false; aba inicial sem transição não é PASS",
+    "at": "2026-09-10T18:18:39.998Z"
+  },
+  {
+    "id": "BASE-67",
+    "module": "inbox",
+    "screen": "inbox/Não lidas",
+    "route": "http://209.50.241.22/inbox",
+    "viewport": {
+      "width": 1440,
+      "height": 900
+    },
+    "feature": "Aba Não lidas",
+    "action": "Clicar e conferir seleção/conteúdo",
+    "status": "PASS",
+    "detail": "Selecionada=true; conteúdo mudou=true; aba inicial sem transição não é PASS",
+    "at": "2026-09-10T18:18:40.478Z"
+  },
+  {
+    "id": "BASE-68",
+    "module": "inbox",
+    "screen": "inbox/IA ativa",
+    "route": "http://209.50.241.22/inbox",
+    "viewport": {
+      "width": 1440,
+      "height": 900
+    },
+    "feature": "Aba IA ativa",
+    "action": "Clicar e conferir seleção/conteúdo",
+    "status": "PASS",
+    "detail": "Selecionada=true; conteúdo mudou=true; aba inicial sem transição não é PASS",
+    "at": "2026-09-10T18:18:40.990Z"
+  },
+  {
+    "id": "BASE-69",
+    "module": "inbox",
+    "screen": "inbox/Arquivadas",
+    "route": "http://209.50.241.22/inbox",
+    "viewport": {
+      "width": 1440,
+      "height": 900
+    },
+    "feature": "Aba Arquivadas",
+    "action": "Clicar e conferir seleção/conteúdo",
+    "status": "PASS",
+    "detail": "Selecionada=true; conteúdo mudou=true; aba inicial sem transição não é PASS",
+    "at": "2026-09-10T18:18:41.460Z"
+  },
+  {
+    "id": "BASE-70",
+    "module": "inbox",
+    "screen": "inbox",
+    "route": "http://209.50.241.22/inbox",
+    "viewport": {
+      "width": 360,
+      "height": 800
+    },
+    "feature": "Geometria responsiva",
+    "action": "Medir documento e controles",
+    "status": "NOT TESTED",
+    "detail": "Triagem: overflow=false; controles fora da largura=3. Usabilidade requer exercício e inspeção visual.",
+    "evidence": "evidence/inbox-360x800.png",
+    "at": "2026-09-10T18:18:41.808Z"
+  },
+  {
+    "id": "BASE-71",
+    "module": "inbox",
+    "screen": "inbox",
+    "route": "http://209.50.241.22/inbox",
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "feature": "Geometria responsiva",
+    "action": "Medir documento e controles",
+    "status": "NOT TESTED",
+    "detail": "Triagem: overflow=false; controles fora da largura=3. Usabilidade requer exercício e inspeção visual.",
+    "evidence": "evidence/inbox-390x844.png",
+    "at": "2026-09-10T18:18:42.150Z"
+  },
+  {
+    "id": "BASE-72",
+    "module": "inbox",
+    "screen": "inbox",
+    "route": "http://209.50.241.22/inbox",
+    "viewport": {
+      "width": 768,
+      "height": 1024
+    },
+    "feature": "Acesso à tela",
+    "action": "Navegar e inventariar",
+    "status": "BLOCKED",
+    "detail": "Unterminated fractional number in JSON at position 1349 (line 1 column 1350)",
+    "at": "2026-09-10T18:18:42.441Z"
+  }
+]

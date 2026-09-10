@@ -1,0 +1,562 @@
+[
+  {
+    "id": "CAMP-001",
+    "module": "/campaigns",
+    "route": "http://209.50.241.22/campaigns",
+    "viewport": null,
+    "feature": "Validação de campanha vazia",
+    "action": "Clicar Próximo Passo sem preencher",
+    "status": "NOT TESTED",
+    "detail": "Resultado capturado para inspeção",
+    "evidence": "evidence/campaign-empty-next.png",
+    "at": "2026-09-10T18:21:45.977Z"
+  },
+  {
+    "id": "SET-0",
+    "module": "/settings",
+    "route": "http://209.50.241.22/settings",
+    "viewport": null,
+    "feature": "Seção Empresa",
+    "action": "Clicar seção e comparar conteúdo",
+    "status": "PASS",
+    "detail": "Conteúdo mudou=true",
+    "evidence": "evidence/settings-0.png",
+    "at": "2026-09-10T18:22:20.849Z"
+  },
+  {
+    "id": "SET-1",
+    "module": "/settings",
+    "route": "http://209.50.241.22/settings",
+    "viewport": null,
+    "feature": "Seção Equipe",
+    "action": "Clicar seção e comparar conteúdo",
+    "status": "PASS",
+    "detail": "Conteúdo mudou=true",
+    "evidence": "evidence/settings-1.png",
+    "at": "2026-09-10T18:22:21.555Z"
+  },
+  {
+    "id": "SET-2",
+    "module": "/settings",
+    "route": "http://209.50.241.22/settings",
+    "viewport": null,
+    "feature": "Seção Notificações",
+    "action": "Clicar seção e comparar conteúdo",
+    "status": "PASS",
+    "detail": "Conteúdo mudou=true",
+    "evidence": "evidence/settings-2.png",
+    "at": "2026-09-10T18:22:22.339Z"
+  },
+  {
+    "id": "SET-3",
+    "module": "/settings",
+    "route": "http://209.50.241.22/settings",
+    "viewport": null,
+    "feature": "Seção Segurança",
+    "action": "Clicar seção e comparar conteúdo",
+    "status": "PASS",
+    "detail": "Conteúdo mudou=true",
+    "evidence": "evidence/settings-3.png",
+    "at": "2026-09-10T18:22:22.990Z"
+  },
+  {
+    "id": "SET-4",
+    "module": "/settings",
+    "route": "http://209.50.241.22/settings",
+    "viewport": null,
+    "feature": "Seção Faturamento",
+    "action": "Clicar seção e comparar conteúdo",
+    "status": "PASS",
+    "detail": "Conteúdo mudou=true",
+    "evidence": "evidence/settings-4.png",
+    "at": "2026-09-10T18:22:23.609Z"
+  },
+  {
+    "id": "SET-5",
+    "module": "/settings",
+    "route": "http://209.50.241.22/settings",
+    "viewport": null,
+    "feature": "Seção Aparência",
+    "action": "Clicar seção e comparar conteúdo",
+    "status": "PASS",
+    "detail": "Conteúdo mudou=true",
+    "evidence": "evidence/settings-5.png",
+    "at": "2026-09-10T18:22:24.192Z"
+  },
+  {
+    "id": "SET-6",
+    "module": "/settings",
+    "route": "http://209.50.241.22/settings",
+    "viewport": null,
+    "feature": "Seção Idioma",
+    "action": "Clicar seção e comparar conteúdo",
+    "status": "PASS",
+    "detail": "Conteúdo mudou=true",
+    "evidence": "evidence/settings-6.png",
+    "at": "2026-09-10T18:22:24.810Z"
+  },
+  {
+    "id": "SET-7",
+    "module": "/settings",
+    "route": "http://209.50.241.22/settings",
+    "viewport": null,
+    "feature": "Seção API Keys",
+    "action": "Clicar seção e comparar conteúdo",
+    "status": "PASS",
+    "detail": "Conteúdo mudou=true",
+    "evidence": "evidence/settings-7.png",
+    "at": "2026-09-10T18:22:25.427Z"
+  },
+  {
+    "id": "SET-8",
+    "module": "/settings",
+    "route": "http://209.50.241.22/settings",
+    "viewport": null,
+    "feature": "Seção Webhooks",
+    "action": "Clicar seção e comparar conteúdo",
+    "status": "PASS",
+    "detail": "Conteúdo mudou=true",
+    "evidence": "evidence/settings-8.png",
+    "at": "2026-09-10T18:22:26.039Z"
+  },
+  {
+    "id": "SET-9",
+    "module": "/settings",
+    "route": "http://209.50.241.22/settings",
+    "viewport": null,
+    "feature": "Seção Dados",
+    "action": "Clicar seção e comparar conteúdo",
+    "status": "PASS",
+    "detail": "Conteúdo mudou=true",
+    "evidence": "evidence/settings-9.png",
+    "at": "2026-09-10T18:22:26.679Z"
+  },
+  {
+    "id": "SET-10",
+    "module": "/settings",
+    "route": "http://209.50.241.22/settings",
+    "viewport": null,
+    "feature": "Seção Fila de Envios",
+    "action": "Clicar seção e comparar conteúdo",
+    "status": "PASS",
+    "detail": "Conteúdo mudou=true",
+    "evidence": "evidence/settings-10.png",
+    "at": "2026-09-10T18:22:27.373Z"
+  },
+  {
+    "id": "SET-11",
+    "module": "/settings",
+    "route": "http://209.50.241.22/settings",
+    "viewport": null,
+    "feature": "Seção Cluster",
+    "action": "Clicar seção e comparar conteúdo",
+    "status": "PASS",
+    "detail": "Conteúdo mudou=true",
+    "evidence": "evidence/settings-11.png",
+    "at": "2026-09-10T18:22:28.038Z"
+  },
+  {
+    "id": "SET-12",
+    "module": "/settings",
+    "route": "http://209.50.241.22/settings",
+    "viewport": null,
+    "feature": "Seção Usuários Master",
+    "action": "Clicar seção e comparar conteúdo",
+    "status": "PASS",
+    "detail": "Conteúdo mudou=true",
+    "evidence": "evidence/settings-12.png",
+    "at": "2026-09-10T18:22:28.806Z"
+  },
+  {
+    "id": "SET-13",
+    "module": "/settings",
+    "route": "http://209.50.241.22/settings",
+    "viewport": null,
+    "feature": "Seção Deployments",
+    "action": "Clicar seção e comparar conteúdo",
+    "status": "PASS",
+    "detail": "Conteúdo mudou=true",
+    "evidence": "evidence/settings-13.png",
+    "at": "2026-09-10T18:22:29.430Z"
+  },
+  {
+    "id": "SET-14",
+    "module": "/settings",
+    "route": "http://209.50.241.22/settings",
+    "viewport": null,
+    "feature": "Seção Versões",
+    "action": "Clicar seção e comparar conteúdo",
+    "status": "PASS",
+    "detail": "Conteúdo mudou=true",
+    "evidence": "evidence/settings-14.png",
+    "at": "2026-09-10T18:22:30.101Z"
+  },
+  {
+    "id": "SET-15",
+    "module": "/settings",
+    "route": "http://209.50.241.22/settings",
+    "viewport": null,
+    "feature": "Seção Logs",
+    "action": "Clicar seção e comparar conteúdo",
+    "status": "PASS",
+    "detail": "Conteúdo mudou=true",
+    "evidence": "evidence/settings-15.png",
+    "at": "2026-09-10T18:22:30.717Z"
+  },
+  {
+    "id": "SET-16",
+    "module": "/settings",
+    "route": "http://209.50.241.22/settings",
+    "viewport": null,
+    "feature": "Seção Central de Testes",
+    "action": "Clicar seção e comparar conteúdo",
+    "status": "PASS",
+    "detail": "Conteúdo mudou=true",
+    "evidence": "evidence/settings-16.png",
+    "at": "2026-09-10T18:22:31.409Z"
+  },
+  {
+    "id": "SET-17",
+    "module": "/settings",
+    "route": "http://209.50.241.22/settings",
+    "viewport": null,
+    "feature": "Seção Diagnóstico & Saúde",
+    "action": "Clicar seção e comparar conteúdo",
+    "status": "PASS",
+    "detail": "Conteúdo mudou=true",
+    "evidence": "evidence/settings-17.png",
+    "at": "2026-09-10T18:22:32.347Z"
+  },
+  {
+    "id": "SET-18",
+    "module": "/settings",
+    "route": "http://209.50.241.22/settings",
+    "viewport": null,
+    "feature": "Seção Perfil",
+    "action": "Clicar seção e comparar conteúdo",
+    "status": "PASS",
+    "detail": "Conteúdo mudou=true",
+    "evidence": "evidence/settings-18.png",
+    "at": "2026-09-10T18:22:33.154Z"
+  },
+  {
+    "id": "QUEUE-001",
+    "module": "/settings",
+    "route": "http://209.50.241.22/settings",
+    "viewport": null,
+    "feature": "Listar pendentes",
+    "action": "Abrir Configurações > Fila de Envios",
+    "status": "FAIL",
+    "detail": "REPRODUCED P2: HTTP 404 em /api/messages/outbound-queue/pending?limit=500; erro junto a estado vazio",
+    "evidence": "evidence/queue-pending-404.png",
+    "at": "2026-09-10T18:23:20.945Z"
+  },
+  {
+    "id": "QUEUE-002",
+    "module": "/settings",
+    "route": "http://209.50.241.22/settings",
+    "viewport": null,
+    "feature": "Atualizar fila",
+    "action": "Clicar Atualizar",
+    "status": "FAIL",
+    "detail": "REPRODUCED: atualização mantém erro HTTP_404",
+    "evidence": "evidence/queue-refresh.png",
+    "at": "2026-09-10T18:23:21.913Z"
+  },
+  {
+    "id": "CAMP-002",
+    "module": "/campaigns",
+    "route": "http://209.50.241.22/campaigns",
+    "viewport": null,
+    "feature": "Histórico",
+    "action": "Clicar aba Histórico",
+    "status": "PASS",
+    "detail": "Aba selecionada e conteúdo do histórico exibido",
+    "evidence": "evidence/campaign-history.png",
+    "at": "2026-09-10T18:23:26.862Z"
+  },
+  {
+    "id": "CAMP-003",
+    "module": "/campaigns",
+    "route": "http://209.50.241.22/campaigns",
+    "viewport": null,
+    "feature": "Análise IA",
+    "action": "Clicar aba Análise IA",
+    "status": "PASS",
+    "detail": "Conteúdo alterado e aba selecionada",
+    "evidence": "evidence/campaign-analysis.png",
+    "at": "2026-09-10T18:23:27.687Z"
+  },
+  {
+    "id": "INBOX-SEARCH-EMPTY",
+    "module": "/inbox",
+    "route": "http://209.50.241.22/inbox",
+    "viewport": null,
+    "feature": "Busca sem resultado",
+    "action": "Pesquisar contato de teste pelo número",
+    "status": "PASS",
+    "detail": "Lista exibe Nenhuma conversa encontrada; conversa selecionada anteriormente é mantida",
+    "at": "2026-09-10T18:24:01.782Z"
+  },
+  {
+    "id": "MODAL-360",
+    "module": "/inbox",
+    "route": "http://209.50.241.22/inbox",
+    "viewport": {
+      "width": 360,
+      "height": 800
+    },
+    "feature": "Nova conversa responsiva",
+    "action": "Preencher número; rolar até Cancelar; cancelar",
+    "status": "PASS",
+    "detail": "Cancelamento fecha modal; botão dentro do viewport=true",
+    "evidence": "evidence/new-chat-modal-360.png",
+    "at": "2026-09-10T18:24:26.396Z"
+  },
+  {
+    "id": "MODAL-390",
+    "module": "/inbox",
+    "route": "http://209.50.241.22/inbox",
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "feature": "Nova conversa responsiva",
+    "action": "Preencher número; rolar até Cancelar; cancelar",
+    "status": "PASS",
+    "detail": "Cancelamento fecha modal; botão dentro do viewport=true",
+    "evidence": "evidence/new-chat-modal-390.png",
+    "at": "2026-09-10T18:24:27.147Z"
+  },
+  {
+    "id": "MODAL-768",
+    "module": "/inbox",
+    "route": "http://209.50.241.22/inbox",
+    "viewport": {
+      "width": 768,
+      "height": 1024
+    },
+    "feature": "Nova conversa responsiva",
+    "action": "Preencher número; rolar até Cancelar; cancelar",
+    "status": "PASS",
+    "detail": "Cancelamento fecha modal; botão dentro do viewport=true",
+    "evidence": "evidence/new-chat-modal-768.png",
+    "at": "2026-09-10T18:24:27.989Z"
+  },
+  {
+    "id": "MODAL-1024",
+    "module": "/inbox",
+    "route": "http://209.50.241.22/inbox",
+    "viewport": {
+      "width": 1024,
+      "height": 768
+    },
+    "feature": "Nova conversa responsiva",
+    "action": "Preencher número; rolar até Cancelar; cancelar",
+    "status": "PASS",
+    "detail": "Cancelamento fecha modal; botão dentro do viewport=true",
+    "evidence": "evidence/new-chat-modal-1024.png",
+    "at": "2026-09-10T18:24:28.805Z"
+  },
+  {
+    "id": "MODAL-1440",
+    "module": "/inbox",
+    "route": "http://209.50.241.22/inbox",
+    "viewport": {
+      "width": 1440,
+      "height": 900
+    },
+    "feature": "Nova conversa responsiva",
+    "action": "Preencher número; rolar até Cancelar; cancelar",
+    "status": "PASS",
+    "detail": "Cancelamento fecha modal; botão dentro do viewport=true",
+    "evidence": "evidence/new-chat-modal-1440.png",
+    "at": "2026-09-10T18:24:29.649Z"
+  },
+  {
+    "id": "MODAL-844",
+    "module": "/inbox",
+    "route": "http://209.50.241.22/inbox",
+    "viewport": {
+      "width": 844,
+      "height": 390
+    },
+    "feature": "Nova conversa responsiva",
+    "action": "Preencher número; rolar até Cancelar; cancelar",
+    "status": "PASS",
+    "detail": "Cancelamento fecha modal; botão dentro do viewport=true",
+    "evidence": "evidence/new-chat-modal-844.png",
+    "at": "2026-09-10T18:24:30.451Z"
+  },
+  {
+    "id": "MODAL-ESC",
+    "module": "/inbox",
+    "route": "http://209.50.241.22/inbox",
+    "viewport": {
+      "width": 1440,
+      "height": 900
+    },
+    "feature": "Fechar modal",
+    "action": "Pressionar Escape",
+    "status": "PASS",
+    "detail": "Modal fechado",
+    "at": "2026-09-10T18:24:30.856Z"
+  },
+  {
+    "id": "SEND-A1",
+    "module": "/inbox",
+    "route": "http://209.50.241.22/inbox",
+    "viewport": null,
+    "feature": "Envio clique único",
+    "action": "Clicar Enviar uma vez",
+    "status": "PASS",
+    "detail": "Uma chamada /api/send-message HTTP 200 no observador; uma bolha de conversa. Segunda ocorrência textual é preview da sidebar, não duplicação.",
+    "at": "2026-09-10T18:25:16.479Z"
+  },
+  {
+    "id": "SEND-B1",
+    "module": "/inbox",
+    "route": "http://209.50.241.22/inbox",
+    "viewport": null,
+    "feature": "Uma operação uma mensagem",
+    "action": "double",
+    "status": "PASS",
+    "detail": "1 requisições; 1 bolhas. Recebimento externo não conferido.",
+    "at": "2026-09-10T18:26:02.686Z"
+  },
+  {
+    "id": "SEND-C1",
+    "module": "/inbox",
+    "route": "http://209.50.241.22/inbox",
+    "viewport": null,
+    "feature": "Uma operação uma mensagem",
+    "action": "enter",
+    "status": "PASS",
+    "detail": "1 requisições; 1 bolhas. Recebimento externo não conferido.",
+    "at": "2026-09-10T18:26:06.927Z"
+  },
+  {
+    "id": "SEND-C2",
+    "module": "/inbox",
+    "route": "http://209.50.241.22/inbox",
+    "viewport": null,
+    "feature": "Uma operação uma mensagem",
+    "action": "enter-click",
+    "status": "PASS",
+    "detail": "1 requisições; 1 bolhas. Recebimento externo não conferido.",
+    "at": "2026-09-10T18:26:11.109Z"
+  },
+  {
+    "id": "SEND-E1",
+    "module": "/inbox",
+    "route": "http://209.50.241.22/inbox",
+    "viewport": null,
+    "feature": "Textos iguais legítimos",
+    "action": "Enviar duas operações sequenciais com conteúdo idêntico",
+    "status": "FAIL",
+    "detail": "2 requisições; 1 bolhas",
+    "at": "2026-09-10T18:26:51.171Z"
+  },
+  {
+    "id": "RESP-INBOX-360x800",
+    "module": "/inbox",
+    "route": "http://209.50.241.22/inbox",
+    "viewport": {
+      "width": 360,
+      "height": 800
+    },
+    "feature": "Compositor responsivo",
+    "action": "Digitar rascunho e testar alcance de Enviar sem disparar",
+    "status": "PASS",
+    "detail": "{\"button\":{\"x\":308,\"y\":724,\"width\":40,\"height\":44},\"field\":{\"x\":108,\"y\":704,\"width\":192,\"height\":84},\"document\":{\"w\":360,\"scroll\":360}}",
+    "evidence": "evidence/inbox-composer-360x800.png",
+    "at": "2026-09-10T18:26:51.809Z"
+  },
+  {
+    "id": "RESP-INBOX-390x844",
+    "module": "/inbox",
+    "route": "http://209.50.241.22/inbox",
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "feature": "Compositor responsivo",
+    "action": "Digitar rascunho e testar alcance de Enviar sem disparar",
+    "status": "PASS",
+    "detail": "{\"button\":{\"x\":338,\"y\":778,\"width\":40,\"height\":44},\"field\":{\"x\":108,\"y\":768,\"width\":222,\"height\":64},\"document\":{\"w\":390,\"scroll\":390}}",
+    "evidence": "evidence/inbox-composer-390x844.png",
+    "at": "2026-09-10T18:26:52.446Z"
+  },
+  {
+    "id": "RESP-INBOX-768x1024",
+    "module": "/inbox",
+    "route": "http://209.50.241.22/inbox",
+    "viewport": {
+      "width": 768,
+      "height": 1024
+    },
+    "feature": "Compositor responsivo",
+    "action": "Digitar rascunho e testar alcance de Enviar sem disparar",
+    "status": "PASS",
+    "detail": "{\"button\":{\"x\":712,\"y\":896,\"width\":40,\"height\":44},\"field\":{\"x\":632,\"y\":828,\"width\":72,\"height\":180},\"document\":{\"w\":768,\"scroll\":768}}",
+    "evidence": "evidence/inbox-composer-768x1024.png",
+    "at": "2026-09-10T18:26:53.212Z"
+  },
+  {
+    "id": "RESP-INBOX-1024x768",
+    "module": "/inbox",
+    "route": "http://209.50.241.22/inbox",
+    "viewport": {
+      "width": 1024,
+      "height": 768
+    },
+    "feature": "Compositor responsivo",
+    "action": "Digitar rascunho e testar alcance de Enviar sem disparar",
+    "status": "PASS",
+    "detail": "{\"button\":{\"x\":968,\"y\":708,\"width\":40,\"height\":44},\"field\":{\"x\":632,\"y\":708,\"width\":328,\"height\":44},\"document\":{\"w\":1024,\"scroll\":1024}}",
+    "evidence": "evidence/inbox-composer-1024x768.png",
+    "at": "2026-09-10T18:26:53.918Z"
+  },
+  {
+    "id": "RESP-INBOX-1440x900",
+    "module": "/inbox",
+    "route": "http://209.50.241.22/inbox",
+    "viewport": {
+      "width": 1440,
+      "height": 900
+    },
+    "feature": "Compositor responsivo",
+    "action": "Digitar rascunho e testar alcance de Enviar sem disparar",
+    "status": "PASS",
+    "detail": "{\"button\":{\"x\":1294,\"y\":840,\"width\":40,\"height\":44},\"field\":{\"x\":662,\"y\":840,\"width\":624,\"height\":44},\"document\":{\"w\":1440,\"scroll\":1440}}",
+    "evidence": "evidence/inbox-composer-1440x900.png",
+    "at": "2026-09-10T18:26:54.708Z"
+  },
+  {
+    "id": "RESP-INBOX-844x390",
+    "module": "/inbox",
+    "route": "http://209.50.241.22/inbox",
+    "viewport": {
+      "width": 844,
+      "height": 390
+    },
+    "feature": "Compositor responsivo",
+    "action": "Digitar rascunho e testar alcance de Enviar sem disparar",
+    "status": "PASS",
+    "detail": "{\"button\":{\"x\":788,\"y\":346,\"width\":40,\"height\":44},\"field\":{\"x\":632,\"y\":316,\"width\":148,\"height\":104},\"document\":{\"w\":844,\"scroll\":844}}",
+    "evidence": "evidence/inbox-composer-844x390.png",
+    "at": "2026-09-10T18:26:55.345Z"
+  },
+  {
+    "id": "SEND-E1-RELOAD",
+    "module": "/inbox",
+    "route": "http://209.50.241.22/inbox",
+    "viewport": null,
+    "feature": "Persistência após recarregar",
+    "action": "Recarregar e reabrir conversa de teste",
+    "status": "FAIL",
+    "detail": "Duas operações intencionais; inspecionar IDs em send-reload-payloads.json e bolhas",
+    "evidence": "evidence/send-identical-operations.png",
+    "at": "2026-09-10T18:29:11.140Z"
+  }
+]

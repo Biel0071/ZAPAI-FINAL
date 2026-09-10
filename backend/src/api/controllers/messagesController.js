@@ -174,7 +174,7 @@ async function sendMessage(req, res) {
     text,
   } = req.body;
   const store = getStore(req);
-  const correlationId = req.correlationId || correlationTracker.generateMessageTraceId();
+  const correlationId = String(req.correlationId || req.body?.requestId || '').trim() || correlationTracker.generateMessageTraceId();
   const companyId = String(req.body?.companyId || req.companyId || req.tenantId || process.env.DEFAULT_COMPANY_ID || 'default');
   correlationTracker.traceLog(correlationId, 'api.received', 'Outbound message request received.', {
     companyId,
@@ -280,6 +280,14 @@ async function sendMessage(req, res) {
       sessionId: session?.sessionId || targetSessionName,
       success: false,
     });
+  }
+
+  // Claim the idempotency key only after destination/session validation. A
+  // rejected offline/invalid request must remain retryable with the same key.
+  const idempotencyKey = `${companyId}:${correlationId}`;
+  if (!messageDedupeService.markSeen('outbound_request', idempotencyKey, 5 * 60 * 1000)) {
+    console.warn('[SEND_MESSAGE] duplicate request suppressed', { companyId, correlationId });
+    return res.status(200).json({ success: true, duplicate: true, correlationId });
   }
 
   try {

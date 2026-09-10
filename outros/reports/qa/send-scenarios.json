@@ -1,0 +1,152 @@
+[
+  {
+    "id": "B1",
+    "mode": "double",
+    "text": "[QA AUDITORIA 2026-09-10 B1] double",
+    "requests": [
+      {
+        "url": "http://209.50.241.22/api/send-message",
+        "text": "[QA AUDITORIA 2026-09-10 B1] double",
+        "sessionId": "material",
+        "conversationId": "4",
+        "destination": "AUTHORIZED TEST CONTACT"
+      }
+    ],
+    "responses": [
+      {
+        "status": 200,
+        "data": {
+          "success": true,
+          "data": {
+            "chatId": "5531993807167@s.whatsapp.net",
+            "message": {
+              "content": "[QA AUDITORIA 2026-09-10 B1] double",
+              "conversationId": 4,
+              "createdAt": "2026-09-10T18:26:09.993Z",
+              "fromMe": true,
+              "id": 117726,
+              "mediaPath": "",
+              "mediaType": null,
+              "mediaUrl": null,
+              "phone": "5531993807167",
+              "status": "pending",
+              "url": null,
+              "sessionId": "material",
+              "mimeType": null,
+              "filename": null,
+              "thumbnail": null,
+              "whatsappMessageId": null,
+              "isAI": false,
+              "sender": null,
+              "source": null,
+              "agentName": null
+            },
+            "success": true
+          },
+          "error": null
+        }
+      }
+    ],
+    "bubbles": 1
+  },
+  {
+    "id": "C1",
+    "mode": "enter",
+    "text": "[QA AUDITORIA 2026-09-10 C1] enter",
+    "requests": [
+      {
+        "url": "http://209.50.241.22/api/send-message",
+        "text": "[QA AUDITORIA 2026-09-10 C1] enter",
+        "sessionId": "material",
+        "conversationId": "4",
+        "destination": "AUTHORIZED TEST CONTACT"
+      }
+    ],
+    "responses": [
+      {
+        "status": 200,
+        "data": {
+          "success": true,
+          "data": {
+            "chatId": "5531993807167@s.whatsapp.net",
+            "message": {
+              "content": "[QA AUDITORIA 2026-09-10 C1] enter",
+              "conversationId": 4,
+              "createdAt": "2026-09-10T18:26:14.384Z",
+              "fromMe": true,
+              "id": 117727,
+              "mediaPath": "",
+              "mediaType": null,
+              "mediaUrl": null,
+              "phone": "5531993807167",
+              "status": "pending",
+              "url": null,
+              "sessionId": "material",
+              "mimeType": null,
+              "filename": null,
+              "thumbnail": null,
+              "whatsappMessageId": null,
+              "isAI": false,
+              "sender": null,
+              "source": null,
+              "agentName": null
+            },
+            "success": true
+          },
+          "error": null
+        }
+      }
+    ],
+    "bubbles": 1
+  },
+  {
+    "id": "C2",
+    "mode": "enter-click",
+    "text": "[QA AUDITORIA 2026-09-10 C2] enter-click",
+    "requests": [
+      {
+        "url": "http://209.50.241.22/api/send-message",
+        "text": "[QA AUDITORIA 2026-09-10 C2] enter-click",
+        "sessionId": "material",
+        "conversationId": "4",
+        "destination": "AUTHORIZED TEST CONTACT"
+      }
+    ],
+    "responses": [
+      {
+        "status": 200,
+        "data": {
+          "success": true,
+          "data": {
+            "chatId": "5531993807167@s.whatsapp.net",
+            "message": {
+              "content": "[QA AUDITORIA 2026-09-10 C2] enter-click",
+              "conversationId": 4,
+              "createdAt": "2026-09-10T18:26:18.474Z",
+              "fromMe": true,
+              "id": 117730,
+              "mediaPath": "",
+              "mediaType": null,
+              "mediaUrl": null,
+              "phone": "5531993807167",
+              "status": "pending",
+              "url": null,
+              "sessionId": "material",
+              "mimeType": null,
+              "filename": null,
+              "thumbnail": null,
+              "whatsappMessageId": null,
+              "isAI": false,
+              "sender": null,
+              "source": null,
+              "agentName": null
+            },
+            "success": true
+          },
+          "error": null
+        }
+      }
+    ],
+    "bubbles": 1
+  }
+]
