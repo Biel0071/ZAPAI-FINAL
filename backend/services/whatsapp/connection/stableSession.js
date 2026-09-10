@@ -1848,7 +1848,8 @@ async function createStableSession({
           } catch (error) {
             console.error('[WHATSAPP] outbound realtime persistence/takeover failed:', error?.message || error);
           }
-        } else {
+        }
+      } else {
           isDuplicateOutgoing = true;
           // If it IS in the memory mapping (sent from our API), result is null.
           // BUT we can load the message from the repository so we can populate `result`
