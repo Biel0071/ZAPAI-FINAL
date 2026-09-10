@@ -42,3 +42,22 @@ test('adds Brazil country code for local DDD numbers before creating the JID', (
     assert.equal(ensureWhatsAppJid('3199307167'), '553199307167@s.whatsapp.net');
   });
 });
+
+test('getPhoneAliases generates 12-digit alias for 13-digit Brazilian phone', () => {
+  const { getPhoneAliases } = require('../services/whatsapp/shared/identifiers');
+  const aliases = getPhoneAliases('5531993807167');
+  assert.ok(aliases.includes('5531993807167'));
+  assert.ok(aliases.includes('553193807167'));
+  assert.ok(aliases.includes('31993807167'));
+  assert.ok(aliases.includes('3193807167'));
+});
+
+test('getPhoneAliases generates 13-digit alias for 12-digit Brazilian phone', () => {
+  const { getPhoneAliases } = require('../services/whatsapp/shared/identifiers');
+  const aliases = getPhoneAliases('553193807167');
+  assert.ok(aliases.includes('553193807167'));
+  assert.ok(aliases.includes('5531993807167'));
+  assert.ok(aliases.includes('3193807167'));
+  assert.ok(aliases.includes('31993807167'));
+});
+

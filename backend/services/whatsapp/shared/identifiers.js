@@ -125,6 +125,33 @@ function getPhoneAliases(phone = '') {
     aliases.add(`${digits}@lid`);
   }
 
+  // Brazilian mobile number 9th digit and DDD aliasing:
+  // Country code 55 + 2-digit DDD + 8 or 9 digits.
+  // 13 digits (with 9th digit '9'): 55 + DD + 9 + 8 digits -> e.g. 5531993807167
+  // 12 digits (without 9th digit): 55 + DD + 8 digits -> e.g. 553193807167
+  if (digits.startsWith('55')) {
+    const ddd = digits.slice(2, 4);
+    if (digits.length === 13 && digits[4] === '9') {
+      const eightDigit = `55${ddd}${digits.slice(5)}`;
+      aliases.add(eightDigit);
+      // Also add local variants without country code 55
+      aliases.add(digits.slice(2)); // e.g. 31993807167
+      aliases.add(`${ddd}${digits.slice(5)}`); // e.g. 3193807167
+      if (normalized.includes('@')) {
+        aliases.add(`${eightDigit}@s.whatsapp.net`);
+      }
+    } else if (digits.length === 12) {
+      const nineDigit = `55${ddd}9${digits.slice(4)}`;
+      aliases.add(nineDigit);
+      // Also add local variants without country code 55
+      aliases.add(digits.slice(2)); // e.g. 3193807167
+      aliases.add(`${ddd}9${digits.slice(4)}`); // e.g. 31993807167
+      if (normalized.includes('@')) {
+        aliases.add(`${nineDigit}@s.whatsapp.net`);
+      }
+    }
+  }
+
   return Array.from(aliases);
 }
 

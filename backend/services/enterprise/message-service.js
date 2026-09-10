@@ -24,6 +24,19 @@ async function persistInboundMessage(payload = {}) {
   const companyId = payload.companyId || process.env.DEFAULT_COMPANY_ID || 'default';
   const sessionId = payload.sessionId || 'main';
 
+  const externalMessageId = payload.externalMessageId || payload.whatsappMessageId || payload.messageId || null;
+  if (externalMessageId) {
+    const existing = await messageRepository.findByWhatsappMessageId(externalMessageId);
+    if (existing) {
+      console.log(`[EnterpriseMessageService] Message already exists with whatsapp_message_id: ${externalMessageId} (dbId: ${existing.id}), skipping duplicate insert.`);
+      return {
+        conversation: null,
+        message: existing,
+        duplicate: true,
+      };
+    }
+  }
+
 
 
   const text = String(payload.text || '').trim();
@@ -49,8 +62,6 @@ async function persistInboundMessage(payload = {}) {
   if (!payload.fromMe && conversation && (conversation.aiEnabled === false || conversation.ai_enabled === false)) {
     console.log('[EnterpriseMessageService] AI remains OFF for conversation ' + phone + '; incoming message persisted without re-enabling automation.');
   }
-
-  const externalMessageId = payload.externalMessageId || payload.whatsappMessageId || payload.messageId || null;
 
   const savedMessage = await messageRepository.create({
     companyId,

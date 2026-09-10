@@ -1764,17 +1764,17 @@ async function createStableSession({
             backoffMs: 500,
           }
         );
-      } else {
-        // Historical append message: persist quietly without triggering worker queues/AI auto-reply
+      } else if (!fromMe) {
+        // Historical append message: only persist inbound messages quietly without triggering worker queues/AI auto-reply
         enterpriseMessageService.persistInboundMessage({
           companyId: process.env.DEFAULT_COMPANY_ID || 'default',
           externalMessageId: messageId,
-          fromMe,
+          fromMe: false,
           messageId,
           phone: remotePhone || cleanedPhone,
           sessionId: normalizedSessionName,
           text: extractMessageText(incomingMessage),
-          status: fromMe ? 'sent' : 'received',
+          status: 'received',
           whatsappMessageId: messageId,
         }).catch(() => {});
       }
@@ -1791,16 +1791,34 @@ async function createStableSession({
         let dbId = existingAck?.dbMessageId;
 
         if (!existingAck) {
-          // If not in memory mapping (e.g. sent manually from phone app), save to DB and pause AI
+          // Check if message was already created in DB by our API (e.g. before worker reload or concurrent thread)
+          let existingDbMsg = null;
           try {
-            result = await persistRealtimeMessage({
-              incomingMessage,
-              sessionId: normalizedSessionName,
-            });
-            if (result?.message?.id) {
-              dbId = result.message.id;
-              messageAckPipeline.registerDbMapping(messageId, dbId);
-            }
+            existingDbMsg = await messageRepository.findByWhatsappMessageId(messageId);
+          } catch (_) {}
+
+          if (existingDbMsg) {
+            dbId = existingDbMsg.id;
+            messageAckPipeline.registerDbMapping(messageId, dbId);
+            isDuplicateOutgoing = true;
+            try {
+              const dbConversation = await conversationRepository.getConversationById(existingDbMsg.conversationId);
+              result = {
+                message: existingDbMsg,
+                conversation: dbConversation,
+              };
+            } catch (_) {}
+          } else {
+            // If not in memory mapping and not in DB, it was sent manually from phone app: save to DB and pause AI
+            try {
+              result = await persistRealtimeMessage({
+                incomingMessage,
+                sessionId: normalizedSessionName,
+              });
+              if (result?.message?.id) {
+                dbId = result.message.id;
+                messageAckPipeline.registerDbMapping(messageId, dbId);
+              }
             const normalizedChatId = normalizePhone(remoteJid);
             const targetConvId = result?.conversation?.id || result?.message?.conversationId || normalizedChatId;
             const humanTimeoutMs = Number(process.env.HUMAN_TAKEOVER_TIMEOUT_MS || 86400000);
