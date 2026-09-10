@@ -1,7 +1,8 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { cn } from "@/lib/utils";
-import { AddressBook, ChatCircleDots, Phone, SquaresFour, List, DotsThreeVertical, Tag, ChatCircle, PencilSimple, Kanban, Archive, Megaphone } from "@phosphor-icons/react";
+import { AddressBook, ChatCircleDots, Phone, SquaresFour, List, DotsThreeVertical, Tag, ChatCircle, PencilSimple, Kanban, Archive, Megaphone, Funnel } from "@phosphor-icons/react";
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { ContactGrid, type ContactGridItem } from "@/components/contacts/ContactGrid";
 import { ContactSidebar, type ContactSegment } from "@/components/contacts/ContactSidebar";
 import { ChatSearchBar } from "@/components/inbox/ChatSearchBar";
@@ -75,7 +76,25 @@ export function ContactsView({
   onUpdateContact,
   onDeleteContact,
 }: ContactsViewProps) {
+  const [mobileFilterOpen, setMobileFilterOpen] = useState(false);
   const allFilteredSelected = viewModel.contacts.length > 0 && viewModel.contacts.every(c => selectedIds.has(c.id));
+
+  const segmentLabels: Record<string, string> = {
+    all: "Todos",
+    individual: "Individuais",
+    inbox: "Inbox",
+    lead: "Leads CRM",
+    saved: "Salvos",
+    grupos: "Grupos",
+    archived: "Arquivados",
+    lead_quente: "Lead Quente",
+    lead_morno: "Lead Morno",
+    lead_frio: "Lead Frio",
+    ativo: "Ativos",
+    recorrente: "Recorrentes",
+    em_risco: "Em Risco",
+    bloqueado: "Bloqueados",
+  };
 
   const stages = useMemo(() => {
     const list = Array.from(
@@ -106,11 +125,11 @@ export function ContactsView({
   };
 
   return (
-    <div className="page-container section-stack">
+    <div className="page-container section-stack w-full max-w-full overflow-x-hidden">
       {loading ? (
         <StatGridSkeleton count={3} />
       ) : (
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+        <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 sm:gap-3">
           {viewModel.summaryCards.map((card) => {
             const cardSegment = card.segment;
             const isActive = activeSegment === cardSegment;
@@ -123,9 +142,9 @@ export function ContactsView({
                 )}
                 onClick={() => onSegmentChange(cardSegment)}
               >
-                <CardContent className="space-y-2 p-4">
-                  <p className="text-[11px] uppercase tracking-wide text-muted-foreground">{card.label}</p>
-                  <p className="font-display text-2xl font-bold">{card.value}</p>
+                <CardContent className="space-y-1.5 p-3 sm:p-4">
+                  <p className="text-[10px] sm:text-[11px] uppercase tracking-wide text-muted-foreground truncate">{card.label}</p>
+                  <p className="font-display text-xl sm:text-2xl font-bold">{card.value}</p>
                 </CardContent>
               </Card>
             );
@@ -133,18 +152,67 @@ export function ContactsView({
         </div>
       )}
 
-      <div className="grid gap-4 xl:grid-cols-[280px_minmax(0,1fr)]">
-        <ContactSidebar activeSegment={activeSegment} counts={counts} onSegmentChange={onSegmentChange} />
+      {/* Mobile Segment Filter Bar (< xl) */}
+      <div className="xl:hidden flex items-center justify-between gap-2 p-2.5 rounded-xl border border-border/70 bg-card/60 backdrop-blur-md">
+        <div className="flex items-center gap-2 min-w-0">
+          <span className="text-xs text-muted-foreground shrink-0 font-medium">Segmento:</span>
+          <Badge variant="secondary" className="truncate text-xs font-semibold">
+            {segmentLabels[activeSegment] || activeSegment}
+          </Badge>
+        </div>
+        <Button
+          variant="outline"
+          size="sm"
+          className="h-8 rounded-lg text-xs gap-1.5 shrink-0"
+          onClick={() => setMobileFilterOpen(true)}
+        >
+          <Funnel className="h-3.5 w-3.5 text-primary" />
+          Filtrar ({counts[activeSegment] ?? 0})
+        </Button>
+      </div>
 
-        <div className="space-y-4">
-          <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
-            <div className="flex flex-1 flex-col gap-3 sm:flex-row">
-              <ChatSearchBar value={searchQuery} onChange={onSearchChange} placeholder="Buscar contatos..." />
-              <Input value={tagFilter} onChange={(event) => onTagFilterChange(event.target.value)} placeholder="Filtrar por tag" className="max-w-xs rounded-xl" />
+      <Sheet open={mobileFilterOpen} onOpenChange={setMobileFilterOpen}>
+        <SheetContent side="left" className="w-[300px] p-0">
+          <SheetHeader className="p-4 border-b border-border">
+            <SheetTitle className="text-sm font-bold flex items-center gap-2">
+              <Funnel className="h-4 w-4 text-primary" /> Segmentos & Filtros
+            </SheetTitle>
+          </SheetHeader>
+          <div className="h-[calc(100vh-65px)] overflow-y-auto">
+            <ContactSidebar
+              activeSegment={activeSegment}
+              counts={counts}
+              onSegmentChange={(s) => {
+                onSegmentChange(s);
+                setMobileFilterOpen(false);
+              }}
+            />
+          </div>
+        </SheetContent>
+      </Sheet>
+
+      <div className="grid gap-4 xl:grid-cols-[280px_minmax(0,1fr)] w-full min-w-0">
+        {/* Desktop Sidebar (>= xl) */}
+        <div className="hidden xl:block">
+          <ContactSidebar activeSegment={activeSegment} counts={counts} onSegmentChange={onSegmentChange} />
+        </div>
+
+        <div className="space-y-4 min-w-0 w-full">
+          <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between w-full min-w-0">
+            <div className="flex flex-1 flex-col gap-2.5 sm:flex-row min-w-0">
+              <div className="flex-1 min-w-0">
+                <ChatSearchBar value={searchQuery} onChange={onSearchChange} placeholder="Buscar contatos..." />
+              </div>
+              <Input
+                value={tagFilter}
+                onChange={(event) => onTagFilterChange(event.target.value)}
+                placeholder="Filtrar por tag..."
+                className="w-full sm:w-44 rounded-xl text-xs h-10"
+              />
             </div>
             
-            <div className="flex items-center gap-2">
-              <div className="flex items-center rounded-xl border border-border bg-card/50 p-1">
+            <div className="flex flex-wrap items-center gap-2 shrink-0">
+              <div className="flex items-center rounded-xl border border-border bg-card/50 p-0.5">
                 <Button
                   variant={viewMode === "grid" ? "secondary" : "ghost"}
                   size="icon"
@@ -173,16 +241,19 @@ export function ContactsView({
                   <Kanban className="h-4 w-4" />
                 </Button>
               </div>
-                <Button
-                  variant="outline"
-                  className="rounded-xl gap-2 border-emerald-500/40 bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 font-semibold"
-                  onClick={() => navigate(`/campaigns?segment=${encodeURIComponent(activeSegment)}`)}
-                  title="Criar disparo para estes contatos"
-                >
-                  <Megaphone className="h-4 w-4" />
-                  Disparar Campanha
-                </Button>
-                <Button variant="outline" className="rounded-xl" onClick={onRefresh}>Atualizar</Button>
+              <Button
+                variant="outline"
+                className="rounded-xl gap-1.5 border-emerald-500/40 bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 font-semibold h-8 sm:h-9 px-2.5 sm:px-3 text-xs"
+                onClick={() => navigate(`/campaigns?segment=${encodeURIComponent(activeSegment)}`)}
+                title="Criar disparo para estes contatos"
+              >
+                <Megaphone className="h-3.5 w-3.5 shrink-0" />
+                <span className="hidden sm:inline">Disparar Campanha</span>
+                <span className="sm:hidden">Campanha</span>
+              </Button>
+              <Button variant="outline" size="sm" className="rounded-xl h-8 sm:h-9 px-2.5 sm:px-3 text-xs" onClick={onRefresh}>
+                Atualizar
+              </Button>
             </div>
           </div>
 
@@ -486,8 +557,8 @@ export function ContactsView({
                   })}
                 </div>
               ) : (
-                <div className="overflow-x-auto rounded-2xl border border-border/70 bg-card/85">
-                  <Table>
+                <div className="w-full max-w-full overflow-x-auto rounded-2xl border border-border/70 bg-card/85 scrollbar-thin">
+                  <Table className="min-w-[650px]">
                     <TableHeader className="bg-muted/30">
                       <TableRow>
                         <TableHead className="w-12 text-center">

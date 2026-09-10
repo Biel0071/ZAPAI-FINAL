@@ -1,0 +1,509 @@
+{
+  "results": [
+    {
+      "viewport": "Mobile 360x800",
+      "size": "360x800",
+      "route": "/settings",
+      "screen": "P3-01-Settings",
+      "clientWidth": 360,
+      "scrollWidth": 360,
+      "overflowDiff": 0,
+      "status": "PASS"
+    },
+    {
+      "viewport": "Mobile 360x800",
+      "size": "360x800",
+      "route": "/contacts",
+      "screen": "P3-02-Contacts",
+      "clientWidth": 360,
+      "scrollWidth": 360,
+      "overflowDiff": 0,
+      "status": "PASS"
+    },
+    {
+      "viewport": "Mobile 360x800",
+      "size": "360x800",
+      "route": "/campaigns",
+      "screen": "P3-03-Campaigns",
+      "clientWidth": 360,
+      "scrollWidth": 360,
+      "overflowDiff": 0,
+      "status": "PASS"
+    },
+    {
+      "viewport": "Mobile 360x800",
+      "size": "360x800",
+      "route": "/ai",
+      "screen": "P3-04-AI",
+      "clientWidth": 360,
+      "scrollWidth": 360,
+      "overflowDiff": 0,
+      "status": "PASS"
+    },
+    {
+      "viewport": "Mobile 360x800",
+      "size": "360x800",
+      "route": "/inbox",
+      "screen": "Inbox-Ops",
+      "clientWidth": 360,
+      "scrollWidth": 360,
+      "overflowDiff": 0,
+      "status": "PASS"
+    },
+    {
+      "viewport": "Mobile iPhone 390x844",
+      "size": "390x844",
+      "route": "/settings",
+      "screen": "P3-01-Settings",
+      "clientWidth": 390,
+      "scrollWidth": 390,
+      "overflowDiff": 0,
+      "status": "PASS"
+    },
+    {
+      "viewport": "Mobile iPhone 390x844",
+      "size": "390x844",
+      "route": "/contacts",
+      "screen": "P3-02-Contacts",
+      "clientWidth": 390,
+      "scrollWidth": 390,
+      "overflowDiff": 0,
+      "status": "PASS"
+    },
+    {
+      "viewport": "Mobile iPhone 390x844",
+      "size": "390x844",
+      "route": "/campaigns",
+      "screen": "P3-03-Campaigns",
+      "clientWidth": 390,
+      "scrollWidth": 390,
+      "overflowDiff": 0,
+      "status": "PASS"
+    },
+    {
+      "viewport": "Mobile iPhone 390x844",
+      "size": "390x844",
+      "route": "/ai",
+      "screen": "P3-04-AI",
+      "clientWidth": 390,
+      "scrollWidth": 390,
+      "overflowDiff": 0,
+      "status": "PASS"
+    },
+    {
+      "viewport": "Mobile iPhone 390x844",
+      "size": "390x844",
+      "route": "/inbox",
+      "screen": "Inbox-Ops",
+      "clientWidth": 390,
+      "scrollWidth": 390,
+      "overflowDiff": 0,
+      "status": "PASS"
+    },
+    {
+      "viewport": "Mobile Android 412x915",
+      "size": "412x915",
+      "route": "/settings",
+      "screen": "P3-01-Settings",
+      "clientWidth": 412,
+      "scrollWidth": 412,
+      "overflowDiff": 0,
+      "status": "PASS"
+    },
+    {
+      "viewport": "Mobile Android 412x915",
+      "size": "412x915",
+      "route": "/contacts",
+      "screen": "P3-02-Contacts",
+      "clientWidth": 412,
+      "scrollWidth": 412,
+      "overflowDiff": 0,
+      "status": "PASS"
+    },
+    {
+      "viewport": "Mobile Android 412x915",
+      "size": "412x915",
+      "route": "/campaigns",
+      "screen": "P3-03-Campaigns",
+      "clientWidth": 412,
+      "scrollWidth": 412,
+      "overflowDiff": 0,
+      "status": "PASS"
+    },
+    {
+      "viewport": "Mobile Android 412x915",
+      "size": "412x915",
+      "route": "/ai",
+      "screen": "P3-04-AI",
+      "clientWidth": 412,
+      "scrollWidth": 412,
+      "overflowDiff": 0,
+      "status": "PASS"
+    },
+    {
+      "viewport": "Mobile Android 412x915",
+      "size": "412x915",
+      "route": "/inbox",
+      "screen": "Inbox-Ops",
+      "clientWidth": 412,
+      "scrollWidth": 412,
+      "overflowDiff": 0,
+      "status": "PASS"
+    },
+    {
+      "viewport": "Tablet 768x1024",
+      "size": "768x1024",
+      "route": "/settings",
+      "screen": "P3-01-Settings",
+      "clientWidth": 768,
+      "scrollWidth": 768,
+      "overflowDiff": 0,
+      "status": "PASS"
+    },
+    {
+      "viewport": "Tablet 768x1024",
+      "size": "768x1024",
+      "route": "/contacts",
+      "screen": "P3-02-Contacts",
+      "clientWidth": 768,
+      "scrollWidth": 768,
+      "overflowDiff": 0,
+      "status": "PASS"
+    },
+    {
+      "viewport": "Tablet 768x1024",
+      "size": "768x1024",
+      "route": "/campaigns",
+      "screen": "P3-03-Campaigns",
+      "clientWidth": 768,
+      "scrollWidth": 768,
+      "overflowDiff": 0,
+      "status": "PASS"
+    },
+    {
+      "viewport": "Tablet 768x1024",
+      "size": "768x1024",
+      "route": "/ai",
+      "screen": "P3-04-AI",
+      "clientWidth": 768,
+      "scrollWidth": 768,
+      "overflowDiff": 0,
+      "status": "PASS"
+    },
+    {
+      "viewport": "Tablet 768x1024",
+      "size": "768x1024",
+      "route": "/inbox",
+      "screen": "Inbox-Ops",
+      "clientWidth": 768,
+      "scrollWidth": 768,
+      "overflowDiff": 0,
+      "status": "PASS"
+    },
+    {
+      "viewport": "Tablet 844x1180",
+      "size": "844x1180",
+      "route": "/settings",
+      "screen": "P3-01-Settings",
+      "clientWidth": 844,
+      "scrollWidth": 844,
+      "overflowDiff": 0,
+      "status": "PASS"
+    },
+    {
+      "viewport": "Tablet 844x1180",
+      "size": "844x1180",
+      "route": "/contacts",
+      "screen": "P3-02-Contacts",
+      "clientWidth": 844,
+      "scrollWidth": 844,
+      "overflowDiff": 0,
+      "status": "PASS"
+    },
+    {
+      "viewport": "Tablet 844x1180",
+      "size": "844x1180",
+      "route": "/campaigns",
+      "screen": "P3-03-Campaigns",
+      "clientWidth": 844,
+      "scrollWidth": 844,
+      "overflowDiff": 0,
+      "status": "PASS"
+    },
+    {
+      "viewport": "Tablet 844x1180",
+      "size": "844x1180",
+      "route": "/ai",
+      "screen": "P3-04-AI",
+      "clientWidth": 844,
+      "scrollWidth": 844,
+      "overflowDiff": 0,
+      "status": "PASS"
+    },
+    {
+      "viewport": "Tablet 844x1180",
+      "size": "844x1180",
+      "route": "/inbox",
+      "screen": "Inbox-Ops",
+      "clientWidth": 844,
+      "scrollWidth": 844,
+      "overflowDiff": 0,
+      "status": "PASS"
+    },
+    {
+      "viewport": "Landscape 844x390",
+      "size": "844x390",
+      "route": "/settings",
+      "screen": "P3-01-Settings",
+      "clientWidth": 844,
+      "scrollWidth": 844,
+      "overflowDiff": 0,
+      "status": "PASS"
+    },
+    {
+      "viewport": "Landscape 844x390",
+      "size": "844x390",
+      "route": "/contacts",
+      "screen": "P3-02-Contacts",
+      "clientWidth": 844,
+      "scrollWidth": 844,
+      "overflowDiff": 0,
+      "status": "PASS"
+    },
+    {
+      "viewport": "Landscape 844x390",
+      "size": "844x390",
+      "route": "/campaigns",
+      "screen": "P3-03-Campaigns",
+      "clientWidth": 844,
+      "scrollWidth": 844,
+      "overflowDiff": 0,
+      "status": "PASS"
+    },
+    {
+      "viewport": "Landscape 844x390",
+      "size": "844x390",
+      "route": "/ai",
+      "screen": "P3-04-AI",
+      "clientWidth": 844,
+      "scrollWidth": 844,
+      "overflowDiff": 0,
+      "status": "PASS"
+    },
+    {
+      "viewport": "Landscape 844x390",
+      "size": "844x390",
+      "route": "/inbox",
+      "screen": "Inbox-Ops",
+      "clientWidth": 844,
+      "scrollWidth": 844,
+      "overflowDiff": 0,
+      "status": "PASS"
+    },
+    {
+      "viewport": "Landscape 915x412",
+      "size": "915x412",
+      "route": "/settings",
+      "screen": "P3-01-Settings",
+      "clientWidth": 915,
+      "scrollWidth": 915,
+      "overflowDiff": 0,
+      "status": "PASS"
+    },
+    {
+      "viewport": "Landscape 915x412",
+      "size": "915x412",
+      "route": "/contacts",
+      "screen": "P3-02-Contacts",
+      "clientWidth": 915,
+      "scrollWidth": 915,
+      "overflowDiff": 0,
+      "status": "PASS"
+    },
+    {
+      "viewport": "Landscape 915x412",
+      "size": "915x412",
+      "route": "/campaigns",
+      "screen": "P3-03-Campaigns",
+      "clientWidth": 915,
+      "scrollWidth": 915,
+      "overflowDiff": 0,
+      "status": "PASS"
+    },
+    {
+      "viewport": "Landscape 915x412",
+      "size": "915x412",
+      "route": "/ai",
+      "screen": "P3-04-AI",
+      "clientWidth": 915,
+      "scrollWidth": 915,
+      "overflowDiff": 0,
+      "status": "PASS"
+    },
+    {
+      "viewport": "Landscape 915x412",
+      "size": "915x412",
+      "route": "/inbox",
+      "screen": "Inbox-Ops",
+      "clientWidth": 915,
+      "scrollWidth": 915,
+      "overflowDiff": 0,
+      "status": "PASS"
+    },
+    {
+      "viewport": "HD Laptop 1280x720",
+      "size": "1280x720",
+      "route": "/settings",
+      "screen": "P3-01-Settings",
+      "clientWidth": 1280,
+      "scrollWidth": 1280,
+      "overflowDiff": 0,
+      "status": "PASS"
+    },
+    {
+      "viewport": "HD Laptop 1280x720",
+      "size": "1280x720",
+      "route": "/contacts",
+      "screen": "P3-02-Contacts",
+      "clientWidth": 1280,
+      "scrollWidth": 1280,
+      "overflowDiff": 0,
+      "status": "PASS"
+    },
+    {
+      "viewport": "HD Laptop 1280x720",
+      "size": "1280x720",
+      "route": "/campaigns",
+      "screen": "P3-03-Campaigns",
+      "clientWidth": 1280,
+      "scrollWidth": 1280,
+      "overflowDiff": 0,
+      "status": "PASS"
+    },
+    {
+      "viewport": "HD Laptop 1280x720",
+      "size": "1280x720",
+      "route": "/ai",
+      "screen": "P3-04-AI",
+      "clientWidth": 1280,
+      "scrollWidth": 1280,
+      "overflowDiff": 0,
+      "status": "PASS"
+    },
+    {
+      "viewport": "HD Laptop 1280x720",
+      "size": "1280x720",
+      "route": "/inbox",
+      "screen": "Inbox-Ops",
+      "clientWidth": 1280,
+      "scrollWidth": 1280,
+      "overflowDiff": 0,
+      "status": "PASS"
+    },
+    {
+      "viewport": "MacBook 1440x900",
+      "size": "1440x900",
+      "route": "/settings",
+      "screen": "P3-01-Settings",
+      "clientWidth": 1440,
+      "scrollWidth": 1440,
+      "overflowDiff": 0,
+      "status": "PASS"
+    },
+    {
+      "viewport": "MacBook 1440x900",
+      "size": "1440x900",
+      "route": "/contacts",
+      "screen": "P3-02-Contacts",
+      "clientWidth": 1440,
+      "scrollWidth": 1440,
+      "overflowDiff": 0,
+      "status": "PASS"
+    },
+    {
+      "viewport": "MacBook 1440x900",
+      "size": "1440x900",
+      "route": "/campaigns",
+      "screen": "P3-03-Campaigns",
+      "clientWidth": 1440,
+      "scrollWidth": 1440,
+      "overflowDiff": 0,
+      "status": "PASS"
+    },
+    {
+      "viewport": "MacBook 1440x900",
+      "size": "1440x900",
+      "route": "/ai",
+      "screen": "P3-04-AI",
+      "clientWidth": 1440,
+      "scrollWidth": 1440,
+      "overflowDiff": 0,
+      "status": "PASS"
+    },
+    {
+      "viewport": "MacBook 1440x900",
+      "size": "1440x900",
+      "route": "/inbox",
+      "screen": "Inbox-Ops",
+      "clientWidth": 1440,
+      "scrollWidth": 1440,
+      "overflowDiff": 0,
+      "status": "PASS"
+    },
+    {
+      "viewport": "FHD Desktop 1920x1080",
+      "size": "1920x1080",
+      "route": "/settings",
+      "screen": "P3-01-Settings",
+      "clientWidth": 1920,
+      "scrollWidth": 1920,
+      "overflowDiff": 0,
+      "status": "PASS"
+    },
+    {
+      "viewport": "FHD Desktop 1920x1080",
+      "size": "1920x1080",
+      "route": "/contacts",
+      "screen": "P3-02-Contacts",
+      "clientWidth": 1920,
+      "scrollWidth": 1920,
+      "overflowDiff": 0,
+      "status": "PASS"
+    },
+    {
+      "viewport": "FHD Desktop 1920x1080",
+      "size": "1920x1080",
+      "route": "/campaigns",
+      "screen": "P3-03-Campaigns",
+      "clientWidth": 1920,
+      "scrollWidth": 1920,
+      "overflowDiff": 0,
+      "status": "PASS"
+    },
+    {
+      "viewport": "FHD Desktop 1920x1080",
+      "size": "1920x1080",
+      "route": "/ai",
+      "screen": "P3-04-AI",
+      "clientWidth": 1920,
+      "scrollWidth": 1920,
+      "overflowDiff": 0,
+      "status": "PASS"
+    },
+    {
+      "viewport": "FHD Desktop 1920x1080",
+      "size": "1920x1080",
+      "route": "/inbox",
+      "screen": "Inbox-Ops",
+      "clientWidth": 1920,
+      "scrollWidth": 1920,
+      "overflowDiff": 0,
+      "status": "PASS"
+    }
+  ],
+  "summary": {
+    "total": 50,
+    "passed": 50,
+    "failed": 0
+  }
+}

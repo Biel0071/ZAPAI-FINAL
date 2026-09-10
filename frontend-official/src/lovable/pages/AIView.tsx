@@ -2644,18 +2644,18 @@ export function AIView(props: AIViewProps) {
                       </Card>
 
                       <Card className="glass-card">
-                        <CardHeader className="p-4 pb-2 flex flex-row items-center justify-between space-y-0">
+                        <CardHeader className="p-4 pb-2 flex flex-col sm:flex-row sm:items-center justify-between gap-3 space-y-0">
                           <div>
                             <CardTitle className="text-xs font-semibold flex items-center gap-2">
                               <ShieldCheck className="h-4 w-4 text-primary" /> Saúde e Integridade do Sistema
                             </CardTitle>
                             <CardDescription className="text-[11px] mt-0.5">Diagnósticos das integrações e serviços críticos.</CardDescription>
                           </div>
-                          <div className="flex gap-2">
+                          <div className="flex flex-wrap items-center gap-1.5 w-full sm:w-auto">
                             <Button
                               size="sm"
                               variant="outline"
-                              className="h-7 text-[11px] px-2.5 rounded-lg flex items-center gap-1 hover:text-primary"
+                              className="h-8 text-xs px-2.5 rounded-lg flex items-center gap-1 hover:text-primary shrink-0"
                               onClick={handleDeployVPS}
                               disabled={deployingVPS}
                             >
@@ -2670,7 +2670,7 @@ export function AIView(props: AIViewProps) {
                             <Button
                               size="sm"
                               variant="outline"
-                              className="h-7 text-[11px] px-2.5 rounded-lg flex items-center gap-1 hover:text-primary"
+                              className="h-8 text-xs px-2.5 rounded-lg flex items-center gap-1 hover:text-primary shrink-0"
                               onClick={handleRestartAI}
                               disabled={restartingAI}
                             >
@@ -2684,11 +2684,11 @@ export function AIView(props: AIViewProps) {
                             
                             <Dialog open={isTestModalOpen} onOpenChange={setIsTestModalOpen}>
                               <DialogTrigger asChild>
-                                <Button size="sm" variant="outline" className="h-7 text-[11px] px-2.5 rounded-lg flex items-center gap-1">
+                                <Button size="sm" variant="outline" className="h-8 text-xs px-2.5 rounded-lg flex items-center gap-1 border-primary/40 bg-primary/10 text-primary hover:bg-primary/20 shrink-0 font-medium">
                                   <Terminal className="h-3.5 w-3.5" /> Testar IA
                                 </Button>
                               </DialogTrigger>
-                            <DialogContent className="max-w-md rounded-2xl border-border bg-card">
+                            <DialogContent className="max-w-[calc(100vw-1.5rem)] w-full sm:max-w-md rounded-2xl border-border bg-card p-4 sm:p-6 max-h-[90vh] overflow-y-auto">
                               <DialogHeader>
                                 <DialogTitle className="text-sm font-bold flex items-center gap-2 text-foreground">
                                   <Terminal className="h-4 w-4 text-primary" /> Testar Resposta da IA
@@ -2700,8 +2700,8 @@ export function AIView(props: AIViewProps) {
                               <div className="space-y-4 py-2">
                                 <div className="space-y-1.5">
                                   <Label className="text-xs font-semibold">Selecionar Atendente</Label>
-                                                                  <Select value={localTestAttendant} onValueChange={setLocalTestAttendant}>
-                                    <SelectTrigger className="h-9 text-xs">
+                                  <Select value={localTestAttendant} onValueChange={setLocalTestAttendant}>
+                                    <SelectTrigger className="h-9 text-xs w-full">
                                       <SelectValue placeholder="Selecione o atendente para o teste" />
                                     </SelectTrigger>
                                     <SelectContent>
@@ -2724,14 +2724,14 @@ export function AIView(props: AIViewProps) {
                                     value={localTestMessage}
                                     onChange={(e) => setLocalTestMessage(e.target.value)}
                                     placeholder="Digite a mensagem que o cliente enviaria..."
-                                    className="min-h-[80px] text-xs resize-none"
+                                    className="min-h-[80px] text-xs resize-none w-full"
                                   />
                                 </div>
 
                                 {localTestResult && (
                                   <div className="p-3.5 rounded-xl border border-border/80 bg-muted/40 space-y-3">
                                     <h4 className="text-[11px] font-bold text-foreground">Resultado da Simulação</h4>
-                                    <div className="grid grid-cols-3 gap-2 text-center">
+                                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-center">
                                       <div className="p-2 rounded-lg bg-background border border-border/40">
                                         <span className="block text-[8px] uppercase tracking-wide text-muted-foreground">Tempo</span>
                                         <span className="text-xs font-bold text-foreground">
@@ -2756,19 +2756,19 @@ export function AIView(props: AIViewProps) {
                                     </div>
                                     <div className="mt-2 text-xs">
                                       <span className="font-semibold block text-muted-foreground mb-1">Resposta do Atendente:</span>
-                                      <div className="p-2.5 rounded-lg bg-background border border-border/60 text-foreground leading-relaxed whitespace-pre-wrap">
+                                      <div className="p-2.5 rounded-lg bg-background border border-border/60 text-foreground leading-relaxed whitespace-pre-wrap break-words max-h-48 overflow-y-auto">
                                         {localTestResult.ok ? localTestResult.response : localTestResult.error}
                                       </div>
                                     </div>
                                   </div>
                                 )}
                               </div>
-                              <DialogFooter className="gap-2 sm:gap-0 mt-2">
+                              <DialogFooter className="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 mt-4">
                                 <Button
                                   variant="ghost"
                                   size="sm"
                                   onClick={() => setIsTestModalOpen(false)}
-                                  className="text-xs"
+                                  className="text-xs h-9"
                                 >
                                   Fechar
                                 </Button>
@@ -2776,7 +2776,7 @@ export function AIView(props: AIViewProps) {
                                   size="sm"
                                   disabled={localTestingAI}
                                   onClick={handleRunAITest}
-                                  className="text-xs flex items-center gap-1"
+                                  className="text-xs flex items-center gap-1 h-9 shadow-glow"
                                 >
                                   {localTestingAI ? (
                                     <>

@@ -147,18 +147,44 @@ FROM messages WHERE id >= 117784 ORDER BY id ASC;
 | **BUG-P2-01** | Erro 404 em Configurações > Fila de Envios | P2 | REPRODUCED | **RESOLVIDO & VALIDADO EM PRODUÇÃO** |
 | **BUG-P2-02** | Erro 403 Forbidden no endpoint `/api/session-status` | P2 | REPRODUCED | **RESOLVIDO & VALIDADO EM PRODUÇÃO** |
 | **BUG-P2-03** | Falha de handshake WebSocket em `/ws/nodes` e `/ws/metrics` | P2 | REPRODUCED | **RESOLVIDO & VALIDADO EM PRODUÇÃO** |
-| **BUG-P3-01** | Overflow e truncamento de abas em Configurações (360px a 844px) | P3 | OPEN | **ABERTO (Backlog de Refinamento UI)** |
-| **BUG-P3-02** | Quebra horizontal e sobrecarga de filtros em Contatos (360px) | P3 | OPEN | **ABERTO (Backlog de Refinamento UI)** |
-| **BUG-P3-03** | Botão de ação primária cortado em Campanhas modo paisagem (844px) | P3 | OPEN | **ABERTO (Backlog de Refinamento UI)** |
-| **BUG-P3-04** | Botão "Testar IA" cortado em telas mobile estreitas (360px) | P3 | OPEN | **ABERTO (Backlog de Refinamento UI)** |
+| **BUG-P3-01** | Overflow e truncamento de abas em Configurações (360px a 844px) | P3 | OPEN | **RESOLVIDO & VALIDADO EM PRODUÇÃO** |
+| **BUG-P3-02** | Quebra horizontal e sobrecarga de filtros em Contatos (360px) | P3 | OPEN | **RESOLVIDO & VALIDADO EM PRODUÇÃO** |
+| **BUG-P3-03** | Botão de ação primária cortado em Campanhas modo paisagem (844px) | P3 | OPEN | **RESOLVIDO & VALIDADO EM PRODUÇÃO** |
+| **BUG-P3-04** | Botão "Testar IA" cortado em telas mobile estreitas (360px) | P3 | OPEN | **RESOLVIDO & VALIDADO EM PRODUÇÃO** |
 
 ---
 
-## 6. Próximos Passos Recomendados
+## 6. FASE 3 — Validação Visual e Responsividade Enterprise em Produção
 
-1. **Sprint de UI/UX Responsivo (Itens P3):**
-   - Substituir a barra lateral de 20 abas de `/settings` por um menu suspenso ou abas deslizantes horizontais em telas < 768px.
-   - Ajustar o container de filtros de `/contacts` para empilhar em telas de 360px.
-   - Adicionar `flex-wrap: wrap` no cabeçalho sticky do assistente de `/campaigns`.
-2. **Monitoramento Operacional:**
+Validação executada via Playwright contra o ambiente de produção publicado (`http://209.50.241.22/`), testando 50 combinações de Viewport x Rota quanto a quebra de layout, truncamento e overflow lateral (`scrollWidth > clientWidth`).
+
+### Matriz de Testes por Viewport (Playwright Real Execution):
+
+| Viewport | Resolução | Dispositivo Referência | `/settings` | `/contacts` | `/campaigns` | `/ai` | `/inbox` | Resultado |
+| :--- | :---: | :--- | :---: | :---: | :---: | :---: | :---: | :---: |
+| **Mobile Estreito** | 360x800 | Galaxy S20 / Android Budget | PASS (360px) | PASS (360px) | PASS (360px) | PASS (360px) | PASS (360px) | **100% PASS** |
+| **Mobile Standard** | 390x844 | iPhone 12/13/14 | PASS (390px) | PASS (390px) | PASS (390px) | PASS (390px) | PASS (390px) | **100% PASS** |
+| **Mobile Moderno** | 412x915 | Pixel 7 / Galaxy S24 | PASS (412px) | PASS (412px) | PASS (412px) | PASS (412px) | PASS (412px) | **100% PASS** |
+| **Tablet Portrait** | 768x1024 | iPad Mini / Air Portrait | PASS (768px) | PASS (768px) | PASS (768px) | PASS (768px) | PASS (768px) | **100% PASS** |
+| **Tablet Large** | 844x1180 | iPad 10th Gen Portrait | PASS (844px) | PASS (844px) | PASS (844px) | PASS (844px) | PASS (844px) | **100% PASS** |
+| **Mobile Landscape**| 844x390 | iPhone Landscape | PASS (844px) | PASS (844px) | PASS (844px) | PASS (844px) | PASS (844px) | **100% PASS** |
+| **Android Landscape**| 915x412 | Android Modern Landscape | PASS (915px) | PASS (915px) | PASS (915px) | PASS (915px) | PASS (915px) | **100% PASS** |
+| **Laptop HD** | 1280x720 | Notebook 13" / 14" HD | PASS (1280px) | PASS (1280px) | PASS (1280px) | PASS (1280px) | PASS (1280px) | **100% PASS** |
+| **MacBook / Laptop**| 1440x900 | MacBook Air / Pro 13" | PASS (1440px) | PASS (1440px) | PASS (1440px) | PASS (1440px) | PASS (1440px) | **100% PASS** |
+| **Desktop Full HD** | 1920x1080 | Monitor Desktop 24"-27" | PASS (1920px) | PASS (1920px) | PASS (1920px) | PASS (1920px) | PASS (1920px) | **100% PASS** |
+
+### Destaques das Melhorias Implementadas:
+1. **P3-01 (Configurações):** Abas horizontais excessivas substituídas em `< lg` por seletor responsivo categorizado (`<select>`) + pills de navegação rápida ("Geral", "Preferências", "Sistema & Operações"). Em `>= lg`, barra lateral agrupada com cabeçalhos de seção. Contêiner envolto em `w-full max-w-full overflow-x-hidden min-w-0`.
+2. **P3-02 (Contatos):** Barra lateral de segmentos convertida em gaveta deslizante (`Sheet`) em viewports `< xl`, eliminando a quebra de 600px+ verticais. Barra de pesquisa e filtro de tag empilham perfeitamente em 360px.
+3. **P3-03 (Campanhas):** Barra de ações inferiores convertida em rodapé sticky com backdrop blur (`sticky bottom-0 z-10 bg-card/95 border-t shadow-lg`), garantindo que "Próximo Passo" / "Salvar Rascunho" permaneçam 100% visíveis em 844x390 landscape e mobile.
+4. **P3-04 (Testar IA):** Cabeçalho de métricas e status com `flex-wrap` e ações organizadas. Dialog de simulação responsivo (`max-w-[calc(100vw-1.5rem)]`) com grid de métricas de 1 a 3 colunas.
+5. **HeaderShell & Inbox:** Campo de busca ajustado para `w-24 sm:w-36 md:w-52` e tag de status recolhível, eliminando qualquer colisão com a gaveta de navegação lateral em 360px. No Inbox, adicionado indicador de progresso operacional de envio em 5 etapas (`Preparando` ➔ `Processando` ➔ `Enviando` ➔ `Confirmando` ➔ `Concluído`).
+
+---
+
+## 7. Próximos Passos Recomendados
+
+1. **Monitoramento Operacional Contínuo:**
    - Manter os endpoints `/api/session-status` e `/api/outbound-queue/pending` integrados ao monitor de saúde do sistema.
+2. **Ciclos Periódicos de Auditoria de Regressão Visual:**
+   - Executar `scripts/qa/verify-phase3-responsive.cjs` no pipeline CI/CD antes de qualquer nova release frontend.

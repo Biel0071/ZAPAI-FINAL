@@ -1,4 +1,5 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useMemo } from "react";
+import { useSearchParams } from "react-router-dom";
 import { motion } from "framer-motion";
 import {
   User,
@@ -70,7 +71,35 @@ function resolveAIEnabled(status: AIStatusResponse | null): boolean {
 }
 
 export default function Settings() {
-  const [activeSection, setActiveSection] = useState(0);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const settingsViewModel = useMemo(() => createSettingsLovableViewModel(), []);
+  const tabParam = searchParams.get("tab") || searchParams.get("section");
+
+  const [activeSection, setActiveSection] = useState<number>(() => {
+    if (tabParam) {
+      const found = settingsViewModel.sections.findIndex((s) => s.id === tabParam);
+      if (found !== -1) return found;
+    }
+    return 0;
+  });
+
+  useEffect(() => {
+    if (tabParam) {
+      const found = settingsViewModel.sections.findIndex((s) => s.id === tabParam);
+      if (found !== -1 && found !== activeSection) {
+        setActiveSection(found);
+      }
+    }
+  }, [tabParam, settingsViewModel.sections, activeSection]);
+
+  const handleSectionChange = (index: number) => {
+    setActiveSection(index);
+    const item = settingsViewModel.sections[index];
+    if (item) {
+      setSearchParams({ tab: item.id });
+    }
+  };
+
   const [isAIEnabled, setIsAIEnabled] = useState(false);
   const [isAIStatusLoading, setIsAIStatusLoading] = useState(true);
   const [isAIToggling, setIsAIToggling] = useState(false);
@@ -266,7 +295,26 @@ export default function Settings() {
     notify.success("Chave copiada para a área de transferência.");
   };
 
-  const settingsViewModel = createSettingsLovableViewModel();
+  const iconMap: Record<number, any> = useMemo(() => ({
+    0: User, 1: Buildings, 2: Users, 3: Bell, 4: Shield, 5: CreditCard,
+    6: Palette, 7: Globe, 8: Key, 9: Link, 10: Database,
+    11: Queue, 12: HardDrives, 13: Shield, 14: TrendUp, 15: GitCommit, 16: FileText, 17: Flask, 18: Pulse
+  }), []);
+
+  const navGroups = useMemo(() => [
+    {
+      title: "Geral",
+      indices: [0, 1, 2, 3, 4, 5],
+    },
+    {
+      title: "Preferências & Chaves",
+      indices: [6, 7, 8, 9, 10],
+    },
+    {
+      title: "Sistema & Operações",
+      indices: [11, 12, 13, 14, 15, 16, 17, 18],
+    },
+  ], []);
 
   return (
     <div className="flex flex-1 flex-col overflow-y-auto">
@@ -275,26 +323,88 @@ export default function Settings() {
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
         <SettingsView
           navigation={
-            <nav className="flex gap-1 overflow-x-auto pb-2 lg:flex-col lg:overflow-x-visible lg:pb-0">
-              {settingsViewModel.sections.map((item, index) => {
-                const iconMap = [
-                  User, Buildings, Users, Bell, Shield, CreditCard, Palette, Globe, Key, Link, Database,
-                  Queue, HardDrives, Shield, TrendUp, GitCommit, FileText, Flask, Pulse
-                ];
-                const Icon = iconMap[index] ?? User;
-                const active = activeSection === index;
-                return (
-                  <button
-                    key={item.id}
-                    onClick={() => setActiveSection(index)}
-                    className={cn("flex items-center gap-3 whitespace-nowrap rounded-lg px-3 py-2.5 text-sm font-medium transition-colors", active ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-muted hover:text-foreground")}
+            <div className="w-full">
+              {/* Mobile Navigation (< lg): Dropdown selector + category pills */}
+              <div className="lg:hidden space-y-3 w-full pb-2">
+                <div className="relative w-full">
+                  <select
+                    value={activeSection}
+                    onChange={(e) => handleSectionChange(Number(e.target.value))}
+                    className="w-full h-11 rounded-xl border border-border/80 bg-card/90 px-3.5 text-sm font-semibold text-foreground focus:outline-none focus:ring-2 focus:ring-primary shadow-sm"
                   >
-                    <Icon className="w-5 h-5" />
-                    {item.label}
-                  </button>
-                );
-              })}
-            </nav>
+                    {navGroups.map((group) => (
+                      <optgroup key={group.title} label={group.title} className="bg-popover text-foreground font-bold">
+                        {group.indices.map((idx) => {
+                          const item = settingsViewModel.sections[idx];
+                          return item ? (
+                            <option key={item.id} value={idx} className="bg-card text-foreground font-medium py-1">
+                              {item.label}
+                            </option>
+                          ) : null;
+                        })}
+                      </optgroup>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Quick Category Jump Pills */}
+                <div className="flex gap-1.5 overflow-x-auto pb-1 scrollbar-none">
+                  {navGroups.map((group) => {
+                    const isCurrentGroup = group.indices.includes(activeSection);
+                    return (
+                      <button
+                        key={group.title}
+                        type="button"
+                        onClick={() => handleSectionChange(group.indices[0])}
+                        className={cn(
+                          "rounded-full px-3 py-1 text-xs font-semibold whitespace-nowrap transition-colors border",
+                          isCurrentGroup
+                            ? "border-primary/50 bg-primary/10 text-primary shadow-sm"
+                            : "border-border/60 bg-muted/40 text-muted-foreground hover:bg-muted hover:text-foreground"
+                        )}
+                      >
+                        {group.title}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Desktop Navigation (>= lg): Clean Grouped Sidebar with Sticky Positioning */}
+              <nav className="hidden lg:flex flex-col gap-5 sticky top-4">
+                {navGroups.map((group) => (
+                  <div key={group.title} className="space-y-1">
+                    <p className="px-3 text-[11px] font-bold uppercase tracking-wider text-muted-foreground/70">
+                      {group.title}
+                    </p>
+                    <div className="space-y-0.5">
+                      {group.indices.map((index) => {
+                        const item = settingsViewModel.sections[index];
+                        if (!item) return null;
+                        const Icon = iconMap[index] ?? User;
+                        const active = activeSection === index;
+                        return (
+                          <button
+                            key={item.id}
+                            type="button"
+                            onClick={() => handleSectionChange(index)}
+                            className={cn(
+                              "flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-xs font-semibold transition-all select-none text-left",
+                              active
+                                ? "bg-primary/15 text-primary shadow-sm font-bold"
+                                : "text-muted-foreground hover:bg-muted/60 hover:text-foreground"
+                            )}
+                          >
+                            <Icon className="w-4 h-4 shrink-0" weight={active ? "duotone" : "regular"} />
+                            <span className="truncate">{item.label}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ))}
+              </nav>
+            </div>
           }
           content={
             <div className="space-y-6">
@@ -319,11 +429,11 @@ export default function Settings() {
                   <Card className="glass-card">
                     <CardHeader><CardTitle className="font-display">Perfil</CardTitle></CardHeader>
                     <CardContent className="space-y-6">
-                      <div className="flex items-center gap-6">
-                        <Avatar className="w-20 h-20"><AvatarFallback className="bg-primary text-primary-foreground text-2xl font-bold">
+                      <div className="flex flex-col sm:flex-row items-center sm:items-start gap-4 sm:gap-6 text-center sm:text-left">
+                        <Avatar className="w-20 h-20 shrink-0"><AvatarFallback className="bg-primary text-primary-foreground text-2xl font-bold">
                           {profileName ? profileName.slice(0, 2).toUpperCase() : "AD"}
                         </AvatarFallback></Avatar>
-                        <div><Button variant="outline" size="sm">Alterar foto</Button><p className="mt-2 text-xs text-muted-foreground">JPG, PNG ou GIF. Máx 2MB.</p></div>
+                        <div><Button variant="outline" size="sm" className="rounded-xl">Alterar foto</Button><p className="mt-2 text-xs text-muted-foreground">JPG, PNG ou GIF. Máx 2MB.</p></div>
                       </div>
                       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                         <div className="space-y-2">
@@ -432,14 +542,14 @@ export default function Settings() {
                   <CardContent>
                     <div className="space-y-3">
                       {apiKeys.map((k, idx) => (
-                        <div key={idx} className="flex items-center justify-between rounded-lg bg-muted/50 p-3">
-                          <div>
-                            <p className="font-medium text-sm">{k.name}</p>
-                            <p className="font-mono text-xs text-muted-foreground">{k.key}</p>
+                        <div key={idx} className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-xl bg-muted/40 p-3 border border-border/40">
+                          <div className="min-w-0 flex-1">
+                            <p className="font-medium text-sm text-foreground">{k.name}</p>
+                            <p className="font-mono text-xs text-muted-foreground truncate">{k.key}</p>
                           </div>
-                          <div className="flex items-center gap-2">
-                            <Badge variant="secondary">{k.status}</Badge>
-                            <Button variant="ghost" size="sm" onClick={() => handleCopyKey(k.key)}>Copiar</Button>
+                          <div className="flex items-center gap-2 shrink-0">
+                            <Badge variant="secondary" className="rounded-full text-xs">{k.status}</Badge>
+                            <Button variant="ghost" size="sm" className="rounded-lg h-8 text-xs" onClick={() => handleCopyKey(k.key)}>Copiar</Button>
                           </div>
                         </div>
                       ))}
@@ -452,7 +562,7 @@ export default function Settings() {
               )}
 
               {activeSection >= 11 && activeSection <= 18 && (
-                <Card className="glass-card overflow-hidden">
+                <Card className="glass-card overflow-hidden w-full max-w-full min-w-0">
                   <React.Suspense fallback={<div className="flex h-32 items-center justify-center text-muted-foreground text-sm">Carregando painel...</div>}>
                     <style>{`
                       .admin-hub-content-wrapper header,
@@ -462,9 +572,10 @@ export default function Settings() {
                       .admin-hub-content-wrapper > div {
                         height: auto !important;
                         min-height: 500px;
+                        max-width: 100% !important;
                       }
                     `}</style>
-                    <div className="admin-hub-content-wrapper">
+                    <div className="admin-hub-content-wrapper w-full max-w-full overflow-x-auto min-w-0 scrollbar-thin">
                       {activeSection === 11 && <QueuePage />}
                       {activeSection === 12 && <MasterNodesPage />}
                       {activeSection === 13 && <MasterAdminsPage />}

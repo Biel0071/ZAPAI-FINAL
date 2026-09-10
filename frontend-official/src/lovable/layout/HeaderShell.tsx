@@ -63,33 +63,33 @@ export function HeaderShell({
 
   return (
     <header className="sticky top-0 z-40 shrink-0 border-b border-border/70 bg-card/60 backdrop-blur-xl">
-      <div className="flex h-header items-center justify-between gap-3 px-4 pl-14 md:gap-4 md:px-6 md:pl-6">
-        <div className="flex items-center gap-3">
-          <div className="relative">
+      <div className="flex h-header items-center justify-between gap-2 sm:gap-3 px-3 pl-14 md:gap-4 md:px-6 md:pl-6 max-w-full overflow-hidden">
+        <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+          <div className="relative shrink-0">
             <MagnifyingGlass className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
-            <Input placeholder="Buscar" className="h-8 w-52 rounded-xl border-border/60 bg-background/80 pl-9 text-sm" />
+            <Input placeholder="Buscar" className="h-8 w-24 sm:w-36 md:w-52 rounded-xl border-border/60 bg-background/80 pl-9 text-xs sm:text-sm transition-all" />
           </div>
           {runtimeTone === "online" ? (
-            <span className="inline-flex items-center gap-1.5 text-xs text-emerald-500/90 font-medium select-none">
+            <span className="inline-flex items-center gap-1.5 text-xs text-emerald-500/90 font-medium select-none shrink-0">
               <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
-              Online
+              <span className="hidden sm:inline">Online</span>
             </span>
           ) : runtimeTone === "warning" || runtimeTone === "syncing" ? (
-            <span className="inline-flex items-center gap-1.5 text-xs text-amber-500/90 font-medium select-none">
+            <span className="inline-flex items-center gap-1.5 text-xs text-amber-500/90 font-medium select-none shrink-0">
               <span className="h-1.5 w-1.5 rounded-full bg-amber-500 animate-pulse" />
-              Iniciando
+              <span className="hidden sm:inline">Iniciando</span>
             </span>
           ) : (
-            <span className="inline-flex items-center gap-1.5 text-xs text-rose-500/90 font-medium select-none">
+            <span className="inline-flex items-center gap-1.5 text-xs text-rose-500/90 font-medium select-none shrink-0">
               <span className="h-1.5 w-1.5 rounded-full bg-rose-500" />
-              Offline
+              <span className="hidden sm:inline">Offline</span>
             </span>
           )}
 
           <TooltipProvider>
             <Tooltip>
               <TooltipTrigger asChild>
-                <button type="button" className="text-muted-foreground/80 hover:text-foreground cursor-pointer transition-colors p-0.5" title="Informações do Sistema">
+                <button type="button" className="text-muted-foreground/80 hover:text-foreground cursor-pointer transition-colors p-0.5 shrink-0 hidden sm:inline-flex" title="Informações do Sistema">
                   <Info className="h-3.5 w-3.5" />
                 </button>
               </TooltipTrigger>
@@ -105,18 +105,18 @@ export function HeaderShell({
             <Button
               size="sm"
               variant="outline"
-              className="h-7 gap-1 rounded-xl border-warning/40 bg-warning/10 px-2.5 text-[10px] font-semibold hover:bg-warning/15"
+              className="h-7 gap-1 rounded-xl border-warning/40 bg-warning/10 px-2 text-[10px] font-semibold hover:bg-warning/15 shrink-0"
               onClick={onReconnect}
             >
               <ArrowClockwise className="h-3 w-3" />
-              Reconectar
+              <span className="hidden xs:inline">Reconectar</span>
             </Button>
           ) : null}
           {sessions && sessions.length > 0 && (
             <select
               value={activeSessionId || "all"}
               onChange={(e) => setActiveSessionId(e.target.value === "all" ? null : e.target.value)}
-              className="h-8 rounded-xl border border-border/65 bg-background/80 px-2 text-xs font-semibold text-foreground/90 hover:text-foreground focus:outline-none focus:ring-1 focus:ring-primary backdrop-blur-sm"
+              className="h-8 max-w-[100px] sm:max-w-[150px] md:max-w-xs truncate rounded-xl border border-border/65 bg-background/80 px-2 text-xs font-semibold text-foreground/90 hover:text-foreground focus:outline-none focus:ring-1 focus:ring-primary backdrop-blur-sm shrink-0"
             >
               <option value="all" className="bg-[#181d25] text-foreground">Todas as Conexões</option>
               {sessions.map((session) => (

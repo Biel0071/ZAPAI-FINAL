@@ -250,6 +250,57 @@ export function ActiveChatPane({
   const [activeFlowData, setActiveFlowData] = useState<FlowExecutionData | null>(null);
   const quickReplyDispatchRef = useRef(false);
 
+  const SEND_STAGES = [
+    "Preparando",
+    "Processando",
+    "Enviando",
+    "Confirmando",
+    "Concluído",
+  ] as const;
+
+  const [dispatchStageIndex, setDispatchStageIndex] = useState<number>(0);
+  const [showDispatchBanner, setShowDispatchBanner] = useState<boolean>(false);
+  const sendingPrevRef = useRef(false);
+
+  useEffect(() => {
+    let timer1: ReturnType<typeof setTimeout> | undefined;
+    let timer2: ReturnType<typeof setTimeout> | undefined;
+    let timer3: ReturnType<typeof setTimeout> | undefined;
+    let timerFinish: ReturnType<typeof setTimeout> | undefined;
+
+    if (sending) {
+      setShowDispatchBanner(true);
+      setDispatchStageIndex(0);
+
+      timer1 = setTimeout(() => {
+        setDispatchStageIndex(1);
+      }, 250);
+
+      timer2 = setTimeout(() => {
+        setDispatchStageIndex(2);
+      }, 650);
+
+      timer3 = setTimeout(() => {
+        setDispatchStageIndex(3);
+      }, 1200);
+    } else if (sendingPrevRef.current && !sending) {
+      setDispatchStageIndex(4);
+      timerFinish = setTimeout(() => {
+        setShowDispatchBanner(false);
+        setDispatchStageIndex(0);
+      }, 1400);
+    }
+
+    sendingPrevRef.current = sending;
+
+    return () => {
+      clearTimeout(timer1);
+      clearTimeout(timer2);
+      clearTimeout(timer3);
+      clearTimeout(timerFinish);
+    };
+  }, [sending]);
+
   useEffect(() => {
     let active = true;
     const phone = selectedConversation?.phone;
@@ -1144,6 +1195,46 @@ export function ActiveChatPane({
                 );
               })()}
 
+              {showDispatchBanner && (
+                <div className="flex flex-wrap items-center justify-between gap-2 px-3 py-1.5 bg-primary/10 border border-primary/20 rounded-xl text-xs animate-fade-in mb-2 shadow-xs">
+                  <div className="flex items-center gap-2">
+                    {dispatchStageIndex < 4 ? (
+                      <span className="relative flex h-2 w-2">
+                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75" />
+                        <span className="relative inline-flex rounded-full h-2 w-2 bg-primary" />
+                      </span>
+                    ) : (
+                      <Check className="h-3.5 w-3.5 text-emerald-500 font-bold" />
+                    )}
+                    <span className="font-semibold text-primary">
+                      {SEND_STAGES[dispatchStageIndex]}
+                      {dispatchStageIndex < 4 ? "..." : "!"}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-1 text-[10px] overflow-x-auto">
+                    {SEND_STAGES.map((stg, idx) => {
+                      const isCurrent = idx === dispatchStageIndex;
+                      const isPast = idx < dispatchStageIndex;
+                      return (
+                        <span
+                          key={stg}
+                          className={cn(
+                            "px-1.5 py-0.5 rounded transition-all",
+                            isCurrent
+                              ? "bg-primary text-primary-foreground font-semibold shadow-xs"
+                              : isPast
+                              ? "text-primary font-medium"
+                              : "text-muted-foreground/50"
+                          )}
+                        >
+                          {stg}
+                        </span>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
               <div className="relative flex items-center gap-2 w-full">
                 {isRecording ? (
                   /* Audio Recording Mode UI */
@@ -1339,7 +1430,7 @@ export function ActiveChatPane({
                         variant="ghost"
                         className={cn("rounded-full text-muted-foreground hover:text-foreground", MOBILE_TOUCH_TARGET_CLASS)}
                         onClick={handleToggleRecording}
-                        disabled={!selectedConversation || !canSendMessages}
+                        disabled={!selectedConversation || !canSendMessages || sending}
                         title="Gravar áudio"
                       >
                         <Microphone className="h-5 w-5" />
@@ -1349,10 +1440,14 @@ export function ActiveChatPane({
                         size="icon"
                         className={cn("rounded-full bg-primary text-primary-foreground", MOBILE_TOUCH_TARGET_CLASS)}
                         onClick={() => void handleSendMessage()}
-                        disabled={!selectedConversation || !canSendMessages}
+                        disabled={!selectedConversation || !canSendMessages || sending}
                         aria-label="Enviar mensagem"
                       >
-                        <PaperPlaneTilt weight="fill" className="h-5 w-5" />
+                        {sending ? (
+                          <span className="h-4 w-4 rounded-full border-2 border-primary-foreground border-t-transparent animate-spin" />
+                        ) : (
+                          <PaperPlaneTilt weight="fill" className="h-5 w-5" />
+                        )}
                       </Button>
                     )}
                   </>

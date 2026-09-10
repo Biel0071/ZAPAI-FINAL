@@ -1427,22 +1427,24 @@ export default function Campaigns() {
           title="Campanhas"
           subtitle="Disparos em massa e campanhas programadas"
           actions={
-            <>
-              <Button variant="outline" size="sm" className="rounded-xl" onClick={() => void persistCampaign("save")}>
+            <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
+              <Button variant="outline" size="sm" className="rounded-xl text-xs h-8 sm:h-9" onClick={() => void persistCampaign("save")}>
                 Salvar Rascunho
               </Button>
-              <Button variant="outline" size="sm" className="rounded-xl" onClick={() => fileInputRef.current?.click()}>
+              <Button variant="outline" size="sm" className="rounded-xl text-xs h-8 sm:h-9" onClick={() => fileInputRef.current?.click()}>
                 Importar Contatos
               </Button>
-              <Button variant="outline" size="sm" className="gap-2 rounded-xl border-primary/40 hover:bg-primary/10" onClick={() => setIsAiModalOpen(true)}>
-                <Sparkle className="h-4 w-4 text-primary animate-pulse" weight="fill" />
-                Criar Campanha por IA
+              <Button variant="outline" size="sm" className="gap-1.5 rounded-xl border-primary/40 hover:bg-primary/10 text-xs h-8 sm:h-9" onClick={() => setIsAiModalOpen(true)}>
+                <Sparkle className="h-3.5 w-3.5 text-primary animate-pulse" weight="fill" />
+                <span className="hidden xl:inline">Criar Campanha por IA</span>
+                <span className="xl:hidden">Criar com IA</span>
               </Button>
-              <Button size="sm" className="rounded-xl shadow-glow" onClick={resetComposer}>
-                <Plus className="h-4 w-4" />
-                Disparo Manual
+              <Button size="sm" className="rounded-xl shadow-glow text-xs h-8 sm:h-9" onClick={resetComposer}>
+                <Plus className="h-3.5 w-3.5" />
+                <span className="hidden sm:inline">Disparo Manual</span>
+                <span className="sm:hidden">Novo</span>
               </Button>
-            </>
+            </div>
           }
         />
       )}
@@ -1528,20 +1530,20 @@ export default function Campaigns() {
                 <Card className="glass-card rounded-2xl border-border/70 bg-card/85">
                   <CardContent className="space-y-6 p-6">
                   <div className="flex flex-col gap-6 border-b border-border/50 pb-6">
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                    <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
                       <div>
-                        <h2 className="font-display text-3xl font-bold">Nova Campanha</h2>
-                        <p className="text-muted-foreground mt-1">Escolha o modo de criação e configure seu disparo.</p>
+                        <h2 className="font-display text-2xl sm:text-3xl font-bold">Nova Campanha</h2>
+                        <p className="text-muted-foreground text-xs sm:text-sm mt-0.5 sm:mt-1">Escolha o modo de criação e configure seu disparo.</p>
                       </div>
-                      <div className="flex items-center gap-2">
-                        <Button variant="outline" className="rounded-xl" onClick={() => fileInputRef.current?.click()}>
+                      <div className="flex flex-wrap items-center gap-2 w-full lg:w-auto">
+                        <Button variant="outline" size="sm" className="rounded-xl text-xs sm:text-sm h-9" onClick={() => fileInputRef.current?.click()}>
                           Importar CSV
                         </Button>
-                        <Button variant="outline" className="rounded-xl" onClick={() => void persistCampaign("save")}>
+                        <Button variant="outline" size="sm" className="rounded-xl text-xs sm:text-sm h-9" onClick={() => void persistCampaign("save")}>
                           Salvar Rascunho
                         </Button>
                         {creationMode === "ai" && (
-                          <Button className="rounded-xl bg-primary hover:bg-primary/90 text-primary-foreground font-semibold gap-1.5 px-5" onClick={() => void generateCampaignFromPrompt()} disabled={isAiCampaignGenerating}>
+                          <Button className="rounded-xl bg-primary hover:bg-primary/90 text-primary-foreground font-semibold gap-1.5 px-4 sm:px-5 h-9 text-xs sm:text-sm shrink-0" onClick={() => void generateCampaignFromPrompt()} disabled={isAiCampaignGenerating}>
                             Próximo Passo <span className="ml-0.5">→</span>
                           </Button>
                         )}
@@ -2557,23 +2559,23 @@ export default function Campaigns() {
                     </div> {/* End Right Column */}
                   </div> {/* End Two-Column Layout */}
 
-                  <div className="flex flex-col gap-3 border-t border-border/70 pt-4 sm:flex-row sm:items-center sm:justify-between">
-                    <Button variant="outline" size="sm" className="rounded-xl" onClick={resetComposer}>
+                  <div className="sticky bottom-0 z-10 -mx-6 -mb-6 p-4 bg-card/95 backdrop-blur-md border-t border-border/70 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 shadow-lg rounded-b-2xl">
+                    <Button variant="outline" size="sm" className="rounded-xl text-xs" onClick={resetComposer}>
                       Cancelar
                     </Button>
-                    <div className="flex flex-wrap gap-1.5">
-                      <Button variant="outline" size="sm" className="rounded-xl" disabled={campaignStep === 1} onClick={() => setCampaignStep((current) => Math.max(1, current - 1))}>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <Button variant="outline" size="sm" className="rounded-xl text-xs" disabled={campaignStep === 1} onClick={() => setCampaignStep((current) => Math.max(1, current - 1))}>
                         Voltar
                       </Button>
                       {campaignStep < STEP_LABELS.length ? (
-                        <Button size="sm" className="rounded-xl shadow-glow" onClick={goToNextCampaignStep}>
-                          Próximo Passo
+                        <Button size="sm" className="rounded-xl shadow-glow px-4 text-xs font-semibold" onClick={goToNextCampaignStep}>
+                          Próximo Passo <span className="ml-1">→</span>
                         </Button>
                       ) : (
                         <>
-                          <Button variant="outline" size="sm" className="rounded-xl" onClick={() => void persistCampaign("save")} disabled={isSaving}>Salvar rascunho</Button>
-                          <Button size="sm" className="rounded-xl shadow-glow" onClick={() => void persistCampaign("launch")} disabled={isSaving || launchReadiness.length > 0}>
-                            {isSaving && actionType === "launch" ? <Clock className="h-4 w-4 animate-spin" /> : <PaperPlaneTilt className="h-4 w-4" />}
+                          <Button variant="outline" size="sm" className="rounded-xl text-xs" onClick={() => void persistCampaign("save")} disabled={isSaving}>Salvar rascunho</Button>
+                          <Button size="sm" className="rounded-xl shadow-glow px-4 text-xs font-semibold" onClick={() => void persistCampaign("launch")} disabled={isSaving || launchReadiness.length > 0}>
+                            {isSaving && actionType === "launch" ? <Clock className="h-4 w-4 animate-spin mr-1" /> : <PaperPlaneTilt className="h-4 w-4 mr-1" />}
                             Enviar campanha
                           </Button>
                         </>
