@@ -8,7 +8,13 @@ import { NewConversationDialog } from "./NewConversationDialog";
 const SIDEBAR_COLLAPSE_EVENT = "sidebar:collapsed";
 
 export function MainLayout() {
-  const [collapsed, setCollapsed] = useState(false);
+  const [collapsed, setCollapsed] = useState(() => {
+    try {
+      return localStorage.getItem("zapflow_sidebar_collapsed") === "true";
+    } catch {
+      return false;
+    }
+  });
   const isMobile = useIsMobile();
   const location = useLocation();
   const isInbox = location.pathname === "/inbox";

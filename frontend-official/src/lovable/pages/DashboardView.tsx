@@ -489,73 +489,84 @@ export function DashboardView({
       {/* OVERVIEW TAB */}
       {activeTab === "overview" && (
         <div className="space-y-6 animate-in fade-in-0 duration-300">
-          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-5 xl:grid-cols-5">
+          <div className="grid grid-cols-2 gap-2.5 sm:gap-3 sm:grid-cols-3 md:grid-cols-5 xl:grid-cols-5">
             <Card
-              className="glass-card metric-card rounded-2xl border-border/70 hover:border-primary/50 transition-all duration-200 cursor-pointer hover-lift"
+              className="glass-card metric-card rounded-2xl border-border/70 hover:border-primary/50 transition-all duration-200 cursor-pointer hover-lift select-none"
               onClick={() => navigate('/inbox')}
             >
-              <CardContent className="space-y-2 p-5">
-                <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Fila de Atendimento</p>
-                <h3 className="font-display text-3xl font-bold">{safeAnalyticsViewModel.kpis[1]?.value || "0"}</h3>
-                <span className="text-[10px] text-primary font-semibold flex items-center gap-1">
-                  Leads aguardando resposta (Clique para o Inbox)
+              <CardContent className="space-y-1 p-3.5 sm:p-4">
+                <div className="flex items-center justify-between">
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Fila de Atendimento</p>
+                  <span className="h-2 w-2 rounded-full bg-amber-400 animate-pulse" />
+                </div>
+                <h3 className="font-display text-2xl sm:text-3xl font-black">{safeAnalyticsViewModel.kpis[1]?.value || "0"}</h3>
+                <span className="text-[10px] text-primary font-semibold flex items-center gap-0.5 truncate">
+                  Leads aguardando (Abrir Inbox →)
                 </span>
               </CardContent>
             </Card>
 
             <Card
-              className="glass-card metric-card rounded-2xl border-border/70 hover:border-primary/50 transition-all duration-200 cursor-pointer hover-lift"
+              className="glass-card metric-card rounded-2xl border-border/70 hover:border-primary/50 transition-all duration-200 cursor-pointer hover-lift select-none"
               onClick={() => navigate('/contacts')}
             >
-              <CardContent className="space-y-2 p-5">
-                <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Volume de Contatos</p>
-                <h3 className="font-display text-3xl font-bold">{safeAnalyticsViewModel.kpis[3]?.value || "0"}</h3>
-                <span className="text-[10px] text-primary font-semibold flex items-center gap-1">
-                  Leads ativos na base (Abrir CRM de Contatos)
+              <CardContent className="space-y-1 p-3.5 sm:p-4">
+                <div className="flex items-center justify-between">
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Volume de Contatos</p>
+                  <span className="h-2 w-2 rounded-full bg-primary" />
+                </div>
+                <h3 className="font-display text-2xl sm:text-3xl font-black">{safeAnalyticsViewModel.kpis[3]?.value || "0"}</h3>
+                <span className="text-[10px] text-primary font-semibold flex items-center gap-0.5 truncate">
+                  Base CRM ativa (Ver Contatos →)
                 </span>
               </CardContent>
             </Card>
 
             <Card
-              className="glass-card metric-card rounded-2xl border-border/70 hover:border-primary/50 transition-all duration-200 cursor-pointer hover-lift"
+              className="glass-card metric-card rounded-2xl border-border/70 hover:border-primary/50 transition-all duration-200 cursor-pointer hover-lift select-none"
               onClick={() => onTabChange('operations')}
             >
-              <CardContent className="space-y-2 p-5">
+              <CardContent className="space-y-1 p-3.5 sm:p-4">
                 <div className="flex items-center justify-between">
                   <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">API Runtime</p>
-                  <Badge variant="secondary" className={`rounded-full border px-2 py-0.5 text-[8px] font-bold uppercase tracking-wider ${toneClasses(viewModel.overviewCards?.[1]?.tone ?? "offline")}`}>
+                  <Badge variant="secondary" className={`rounded-full border px-1.5 py-0 text-[8px] font-bold uppercase tracking-wider ${toneClasses(viewModel.overviewCards?.[1]?.tone ?? "offline")}`}>
                     {viewModel.overviewCards?.[1]?.badgeLabel ?? "OFFLINE"}
                   </Badge>
                 </div>
-                <h3 className="font-display text-3xl font-bold">{viewModel.overviewCards?.[1]?.value ?? "Offline"}</h3>
-                <span className="text-[10px] text-muted-foreground">Ver Telemetria de Infra</span>
+                <h3 className="font-display text-2xl sm:text-3xl font-black">{viewModel.overviewCards?.[1]?.value ?? "Offline"}</h3>
+                <span className="text-[10px] text-muted-foreground truncate block">Telemetria de Infraestrutura</span>
               </CardContent>
             </Card>
 
             <Card
-              className="glass-card metric-card rounded-2xl border-border/70 hover:border-primary/50 transition-all duration-200 cursor-pointer hover-lift"
+              className="glass-card metric-card rounded-2xl border-border/70 hover:border-primary/50 transition-all duration-200 cursor-pointer hover-lift select-none"
               onClick={() => onTabChange('operations')}
             >
-              <CardContent className="space-y-2 p-5">
+              <CardContent className="space-y-1 p-3.5 sm:p-4">
                 <div className="flex items-center justify-between">
                   <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">WebSocket</p>
-                  <Badge variant="secondary" className={`rounded-full border px-2 py-0.5 text-[8px] font-bold uppercase tracking-wider ${toneClasses(viewModel.overviewCards?.[2]?.tone ?? "offline")}`}>
+                  <Badge variant="secondary" className={`rounded-full border px-1.5 py-0 text-[8px] font-bold uppercase tracking-wider ${toneClasses(viewModel.overviewCards?.[2]?.tone ?? "offline")}`}>
                     {viewModel.overviewCards?.[2]?.badgeLabel ?? "OFFLINE"}
                   </Badge>
                 </div>
-                <h3 className="font-display text-3xl font-bold">{viewModel.overviewCards?.[2]?.value ?? "0"} canal</h3>
-                <span className="text-[10px] text-muted-foreground">Ver Conexões Ativas</span>
+                <h3 className="font-display text-2xl sm:text-3xl font-black">{viewModel.overviewCards?.[2]?.value ?? "0"} canal</h3>
+                <span className="text-[10px] text-muted-foreground truncate block">Conexões Ativas em Tempo Real</span>
               </CardContent>
             </Card>
 
             <Card
-              className="glass-card metric-card rounded-2xl border-border/70 hover:border-primary/50 transition-all duration-200 cursor-pointer hover-lift"
+              className="glass-card metric-card rounded-2xl border-border/70 hover:border-primary/50 transition-all duration-200 cursor-pointer hover-lift select-none"
               onClick={() => onTabChange('ai')}
             >
-              <CardContent className="space-y-2 p-5">
-                <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Automação de IA</p>
-                <h3 className="font-display text-3xl font-bold">{safeAnalyticsViewModel.kpis[2]?.value || "0"}</h3>
-                <span className="text-[10px] text-success font-semibold">Respostas por agentes (Ver IA)</span>
+              <CardContent className="space-y-1 p-3.5 sm:p-4">
+                <div className="flex items-center justify-between">
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Automação IA</p>
+                  <span className="h-2 w-2 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]" />
+                </div>
+                <h3 className="font-display text-2xl sm:text-3xl font-black">{safeAnalyticsViewModel.kpis[2]?.value || "0"}</h3>
+                <span className="text-[10px] text-success font-semibold flex items-center gap-0.5 truncate">
+                  Respostas automáticas (Ver IA →)
+                </span>
               </CardContent>
             </Card>
           </div>

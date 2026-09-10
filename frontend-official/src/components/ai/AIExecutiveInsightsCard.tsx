@@ -4,6 +4,7 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { apiService } from "@/services/apiService";
+import { cn } from "@/lib/utils";
 
 export interface AIExecutiveInsightData {
   companyId: string;
@@ -60,10 +61,63 @@ export function AIExecutiveInsightsCard({ className = "" }: AIExecutiveInsightsC
     );
   }
 
+  const [isExpanded, setIsExpanded] = useState(() => {
+    try {
+      return localStorage.getItem("zapflow_executive_insights_expanded") === "true";
+    } catch {
+      return false;
+    }
+  });
+
+  const toggleExpand = () => {
+    const next = !isExpanded;
+    setIsExpanded(next);
+    try {
+      localStorage.setItem("zapflow_executive_insights_expanded", String(next));
+    } catch {}
+  };
+
   if (!insight) return null;
 
   const generatedTime = new Date(insight.generatedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
   const nextTime = new Date(insight.nextUpdateAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+
+  if (!isExpanded) {
+    return (
+      <div className={cn("rounded-2xl border border-emerald-500/30 bg-gradient-to-r from-slate-950/90 via-slate-900/90 to-emerald-950/70 p-3 px-4 shadow-md backdrop-blur-xl flex flex-wrap items-center justify-between gap-3 text-xs", className)}>
+        <div className="flex items-center gap-2.5 min-w-0 flex-1">
+          <div className="p-1.5 rounded-lg bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 shrink-0">
+            <Sparkles className="h-4 w-4" />
+          </div>
+          <div className="min-w-0 flex-1 flex flex-wrap items-center gap-2">
+            <span className="font-bold text-foreground shrink-0">Diagnóstico IA:</span>
+            <span className="text-muted-foreground text-xs truncate max-w-xl">
+              {insight.summaryText}
+            </span>
+            <div className="hidden xl:flex items-center gap-2 text-[11px] text-muted-foreground/80">
+              <span className="font-semibold text-foreground">• {insight.metricsSummary.conversasAtivasHoje}</span> conversas
+              <span className="font-semibold text-emerald-400">• {insight.metricsSummary.taxaDeRetornoPercent}%</span> retorno
+            </div>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2 shrink-0">
+          <Badge variant="outline" className="border-emerald-500/40 bg-emerald-500/10 text-emerald-300 text-[10px] hidden sm:inline-flex">
+            {insight.flowStatus}
+          </Badge>
+          <Button
+            onClick={toggleExpand}
+            variant="ghost"
+            size="sm"
+            className="h-7 px-2.5 text-xs text-primary hover:text-primary hover:bg-primary/10 rounded-lg gap-1"
+          >
+            Detalhes
+            <ArrowRight className="h-3 w-3" />
+          </Button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <Card className={`relative overflow-hidden bg-gradient-to-r from-slate-950 via-slate-900 to-emerald-950/80 border border-emerald-500/30 shadow-2xl backdrop-blur-xl ${className}`}>
@@ -94,6 +148,14 @@ export function AIExecutiveInsightsCard({ className = "" }: AIExecutiveInsightsC
             </Badge>
             <Button onClick={fetchInsights} variant="ghost" size="sm" className="h-7 w-7 p-0 text-muted-foreground hover:text-foreground">
               <RefreshCw className={`h-3.5 w-3.5 ${loading ? "animate-spin" : ""}`} />
+            </Button>
+            <Button
+              onClick={toggleExpand}
+              variant="outline"
+              size="sm"
+              className="h-7 px-2.5 text-xs rounded-lg text-muted-foreground hover:text-foreground border-border/70"
+            >
+              Recolher
             </Button>
           </div>
         </div>

@@ -44,39 +44,53 @@ const ROUTE_GUIDANCE: Record<string, { title: string; tip: string; shortcut?: st
 
 export function AIAssistantGuideCard() {
   const location = useLocation();
-  const [dismissed, setDismissed] = useState(false);
+  const [dismissed, setDismissed] = useState(() => {
+    try {
+      return localStorage.getItem(`zapflow_guide_dismissed_${location.pathname}`) === "true";
+    } catch {
+      return false;
+    }
+  });
+
+  const handleDismiss = () => {
+    setDismissed(true);
+    try {
+      localStorage.setItem(`zapflow_guide_dismissed_${location.pathname}`, "true");
+    } catch {}
+  };
 
   const guide = ROUTE_GUIDANCE[location.pathname];
   if (!guide || dismissed) return null;
 
   return (
-    <div className="relative overflow-hidden bg-gradient-to-r from-emerald-950/60 via-card to-slate-900 border border-emerald-500/30 p-3.5 px-4 rounded-xl shadow-lg animate-fade-in flex items-center justify-between gap-4 text-xs">
-      <div className="flex items-center gap-3">
-        <div className="p-2 rounded-lg bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 shrink-0">
-          <Lightbulb className="h-4 w-4 animate-pulse" />
+    <div className="relative overflow-hidden bg-gradient-to-r from-emerald-950/50 via-card to-slate-900 border border-emerald-500/25 p-2.5 px-3.5 rounded-xl shadow-md animate-fade-in flex items-center justify-between gap-3 text-xs">
+      <div className="flex items-center gap-2.5 min-w-0 flex-1">
+        <div className="p-1.5 rounded-lg bg-emerald-500/10 border border-emerald-500/25 text-emerald-400 shrink-0">
+          <Lightbulb className="h-3.5 w-3.5" />
         </div>
 
-        <div className="flex flex-col">
+        <div className="flex flex-col min-w-0">
           <div className="flex items-center gap-2">
-            <span className="font-bold text-foreground">{guide.title}</span>
+            <span className="font-semibold text-foreground text-xs">{guide.title}</span>
             {guide.shortcut && (
-              <Badge variant="outline" className="text-[10px] border-emerald-500/30 text-emerald-300 bg-emerald-500/10">
+              <Badge variant="outline" className="text-[9px] py-0 px-1.5 border-emerald-500/30 text-emerald-300 bg-emerald-500/10 hidden sm:inline-flex">
                 {guide.shortcut}
               </Badge>
             )}
           </div>
-          <p className="text-muted-foreground text-[11px] mt-0.5 max-w-2xl">{guide.tip}</p>
+          <p className="text-muted-foreground text-[11px] truncate max-w-xl">{guide.tip}</p>
         </div>
       </div>
 
-      <div className="flex items-center gap-2 shrink-0">
+      <div className="flex items-center gap-1 shrink-0">
         <Button
-          onClick={() => setDismissed(true)}
+          onClick={handleDismiss}
           variant="ghost"
           size="sm"
-          className="h-6 w-6 p-0 text-muted-foreground hover:text-foreground"
+          className="h-6 w-6 p-0 text-muted-foreground hover:text-foreground rounded-lg"
+          title="Fechar dica"
         >
-          <X className="h-3.5 w-3.5" />
+          <X className="h-3 w-3" />
         </Button>
       </div>
     </div>

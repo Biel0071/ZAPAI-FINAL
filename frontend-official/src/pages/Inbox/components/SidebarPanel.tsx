@@ -1567,11 +1567,11 @@ export function SidebarPanel({
   return (
     <aside
       className={cn(
-        "min-h-0 border-l border-border bg-card/40 transition-[width,padding] duration-300 ease-out h-full shrink-0",
+        "min-h-0 bg-card/40 transition-[padding] duration-200 ease-out h-full w-full",
         isTabletLayout ? "hidden" : "hidden lg:flex lg:flex-col",
         rightPanelCollapsed
-          ? "lg:w-[60px] lg:min-w-[60px] lg:max-w-[60px] lg:p-1.5"
-          : "lg:w-[320px] lg:overflow-auto lg:p-4",
+          ? "w-full p-1.5 overflow-hidden"
+          : "w-full overflow-y-auto p-3.5 sm:p-4",
       )}
     >
       {rightPanelCollapsed ? (

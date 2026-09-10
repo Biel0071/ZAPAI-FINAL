@@ -271,54 +271,39 @@ export function ContactsView({
               </CardContent>
             </Card>
           ) : null}
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-            <Card
-              className={cn(
-                "glass-card rounded-2xl border-border/70 hover-lift cursor-pointer transition-all hover:scale-[1.02] hover:bg-card/95 select-none",
-                activeSegment === "all" && "border-primary/50 bg-primary/5 shadow-glow"
-              )}
-              onClick={() => onSegmentChange("all")}
-            >
-              <CardContent className="flex items-center gap-3 p-4">
-                <AddressBook className="h-5 w-5 text-primary" weight="duotone" />
-                <div>
-                  <p className="text-xs uppercase tracking-wide text-muted-foreground">Total filtrado</p>
-                  <p className="font-display text-2xl font-bold">{viewModel.totalFiltered}</p>
-                </div>
-              </CardContent>
-            </Card>
+          <div className="flex flex-wrap items-center justify-between gap-2 px-3.5 py-2 rounded-xl border border-border/60 bg-card/60 backdrop-blur-sm text-xs select-none">
+            <div className="flex items-center gap-2 sm:gap-4 overflow-x-auto text-muted-foreground">
+              <button
+                type="button"
+                onClick={() => onSegmentChange("all")}
+                className={cn("flex items-center gap-1.5 transition-colors font-medium hover:text-foreground cursor-pointer", activeSegment === "all" && "text-primary font-bold")}
+              >
+                <AddressBook className="h-3.5 w-3.5" weight={activeSegment === "all" ? "fill" : "regular"} />
+                <span>Total: <strong className="text-foreground">{viewModel.totalFiltered}</strong></span>
+              </button>
+              <span className="text-border">•</span>
+              <button
+                type="button"
+                onClick={() => onSegmentChange("individual")}
+                className={cn("flex items-center gap-1.5 transition-colors font-medium hover:text-foreground cursor-pointer", activeSegment === "individual" && "text-info font-bold")}
+              >
+                <Phone className="h-3.5 w-3.5" weight={activeSegment === "individual" ? "fill" : "regular"} />
+                <span>Individuais: <strong className="text-foreground">{viewModel.individualCount}</strong></span>
+              </button>
+              <span className="text-border">•</span>
+              <button
+                type="button"
+                onClick={() => onSegmentChange("grupos")}
+                className={cn("flex items-center gap-1.5 transition-colors font-medium hover:text-foreground cursor-pointer", activeSegment === "grupos" && "text-success font-bold")}
+              >
+                <ChatCircleDots className="h-3.5 w-3.5" weight={activeSegment === "grupos" ? "fill" : "regular"} />
+                <span>Grupos: <strong className="text-foreground">{viewModel.groupCount}</strong></span>
+              </button>
+            </div>
 
-            <Card
-              className={cn(
-                "glass-card rounded-2xl border-border/70 hover-lift cursor-pointer transition-all hover:scale-[1.02] hover:bg-card/95 select-none",
-                activeSegment === "individual" && "border-info/50 bg-info/5 shadow-glow"
-              )}
-              onClick={() => onSegmentChange("individual")}
-            >
-              <CardContent className="flex items-center gap-3 p-4">
-                <Phone className="h-5 w-5 text-info" weight="duotone" />
-                <div>
-                  <p className="text-xs uppercase tracking-wide text-muted-foreground">Individuais</p>
-                  <p className="font-display text-2xl font-bold">{viewModel.individualCount}</p>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card
-              className={cn(
-                "glass-card rounded-2xl border-border/70 hover-lift cursor-pointer transition-all hover:scale-[1.02] hover:bg-card/95 select-none",
-                activeSegment === "grupos" && "border-success/50 bg-success/5 shadow-glow"
-              )}
-              onClick={() => onSegmentChange("grupos")}
-            >
-              <CardContent className="flex items-center gap-3 p-4">
-                <ChatCircleDots className="h-5 w-5 text-success" weight="duotone" />
-                <div>
-                  <p className="text-xs uppercase tracking-wide text-muted-foreground">Grupos</p>
-                  <p className="font-display text-2xl font-bold">{viewModel.groupCount}</p>
-                </div>
-              </CardContent>
-            </Card>
+            <span className="text-[11px] text-muted-foreground font-medium hidden sm:inline">
+              Visualização: <strong className="text-foreground capitalize">{viewMode}</strong>
+            </span>
           </div>
 
           {selectedIds.size > 0 && (

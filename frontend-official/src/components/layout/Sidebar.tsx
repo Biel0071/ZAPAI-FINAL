@@ -35,6 +35,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Drawer, DrawerContent, DrawerTrigger } from "@/components/ui/drawer";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { type AppUserRole, useUserRole } from "@/hooks/useUserRole";
@@ -72,7 +73,13 @@ const bottomItems: SidebarNavItem[] = [
 ];
 
 export function Sidebar() {
-  const [collapsed, setCollapsed] = useState(false);
+  const [collapsed, setCollapsed] = useState(() => {
+    try {
+      return localStorage.getItem("zapflow_sidebar_collapsed") === "true";
+    } catch {
+      return false;
+    }
+  });
   const [mobileOpen, setMobileOpen] = useState(false);
   const [adminOpen, setAdminOpen] = useState(false);
   const [aiMenuOpen, setAiMenuOpen] = useState(false);
@@ -89,12 +96,24 @@ export function Sidebar() {
   }, [startPollingHealth]);
 
   useEffect(() => {
-    if (isMobile) return;
-    
-    // Removido auto-collapse para o menu lateral ficar sempre aberto por padrão,
-    // a menos que o usuário clique explicitamente para recolher.
-  }, [isMobile]);
+    if (!isMobile) {
+      window.dispatchEvent(new CustomEvent<boolean>(SIDEBAR_COLLAPSE_EVENT, { detail: collapsed }));
+      try {
+        localStorage.setItem("zapflow_sidebar_collapsed", String(collapsed));
+      } catch {}
+    }
+  }, [collapsed, isMobile]);
 
+  useEffect(() => {
+    setMobileOpen(false);
+  }, [location.pathname]);
+
+  useEffect(() => {
+    const isAdminPath = adminItems.some((item) => location.pathname.startsWith(item.path));
+    if (isAdminPath) {
+      setAdminOpen(true);
+    }
+  }, [location.pathname]);
   const visibleCrmItems = useMemo(
     () => crmItems.filter((item) => roleLevel[role] >= roleLevel[item.minRole ?? "user"]),
     [role, roleLevel],
@@ -111,23 +130,6 @@ export function Sidebar() {
   );
 
   const shouldShowAdminMenu = roleLevel[role] >= roleLevel.user && visibleAdminItems.length > 0;
-
-  useEffect(() => {
-    if (!isMobile) {
-      window.dispatchEvent(new CustomEvent<boolean>(SIDEBAR_COLLAPSE_EVENT, { detail: collapsed }));
-    }
-  }, [collapsed, isMobile]);
-
-  useEffect(() => {
-    setMobileOpen(false);
-  }, [location.pathname]);
-
-  useEffect(() => {
-    const isAdminPath = adminItems.some((item) => location.pathname.startsWith(item.path));
-    if (isAdminPath) {
-      setAdminOpen(true);
-    }
-  }, [location.pathname]);
 
   const sidebarWidth = useMemo(() => (collapsed ? "var(--sidebar-width-collapsed)" : "var(--sidebar-width)"), [collapsed]);
 
@@ -165,7 +167,7 @@ export function Sidebar() {
       );
     }
 
-    return (
+    const navElement = (
       <NavLink
         key={`${keyPrefix}:${item.label}:${item.path}`}
         to={item.path}
@@ -245,6 +247,23 @@ export function Sidebar() {
         )}
       </NavLink>
     );
+
+    if (compact) {
+      return (
+        <TooltipProvider key={`${keyPrefix}:${item.label}:${item.path}`} delayDuration={150}>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              {navElement}
+            </TooltipTrigger>
+            <TooltipContent side="right" className="font-semibold text-xs border-border/80 bg-popover text-foreground shadow-lg">
+              {item.label}
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+      );
+    }
+
+    return navElement;
   };
 
   const renderAiCollapsibleMenu = (item: SidebarNavItem, compact: boolean) => {
