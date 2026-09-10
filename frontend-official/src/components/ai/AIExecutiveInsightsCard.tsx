@@ -31,6 +31,13 @@ interface AIExecutiveInsightsCardProps {
 export function AIExecutiveInsightsCard({ className = "" }: AIExecutiveInsightsCardProps) {
   const [insight, setInsight] = useState<AIExecutiveInsightData | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
+  const [isExpanded, setIsExpanded] = useState(() => {
+    try {
+      return localStorage.getItem("zapflow_executive_insights_expanded") === "true";
+    } catch {
+      return false;
+    }
+  });
 
   const fetchInsights = async () => {
     setLoading(true);
@@ -60,14 +67,6 @@ export function AIExecutiveInsightsCard({ className = "" }: AIExecutiveInsightsC
       </Card>
     );
   }
-
-  const [isExpanded, setIsExpanded] = useState(() => {
-    try {
-      return localStorage.getItem("zapflow_executive_insights_expanded") === "true";
-    } catch {
-      return false;
-    }
-  });
 
   const toggleExpand = () => {
     const next = !isExpanded;
