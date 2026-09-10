@@ -15,6 +15,20 @@ const VIEWPORTS = [
   { name: 'HD Laptop 1280x720', width: 1280, height: 720 },
   { name: 'MacBook 1440x900', width: 1440, height: 900 },
   { name: 'FHD Desktop 1920x1080', width: 1920, height: 1080 },
+  { name: 'Ultrawide 2560x1080', width: 2560, height: 1080 },
+];
+
+const CORE_ROUTES = [
+  { route: '/settings', id: 'P3-01-Settings' },
+  { route: '/contacts', id: 'P3-02-Contacts' },
+  { route: '/campaigns', id: 'P3-03-Campaigns' },
+  { route: '/ai', id: 'P3-04-AI' },
+  { route: '/inbox', id: 'Inbox-Ops' },
+  { route: '/dashboard', id: 'Dashboard' },
+  { route: '/connections', id: 'Connections' },
+  { route: '/operations', id: 'Operations' },
+  { route: '/memory', id: 'Memory' },
+  { route: '/flows', id: 'Flows' },
 ];
 
 (async () => {
@@ -32,7 +46,7 @@ const VIEWPORTS = [
     const page = await context.newPage();
     page.setDefaultTimeout(15000);
 
-    console.log('[1/4] Autenticando no Zapflow CRM em producao...');
+    console.log('[1/5] Autenticando no Zapflow CRM em producao...');
     await page.goto(BASE_URL + '/login', { waitUntil: 'domcontentloaded' });
     await page.getByPlaceholder('Digite o usuário').fill('zapadmin');
     await page.getByPlaceholder('Digite a senha').fill('zapadmin1010');
@@ -44,8 +58,8 @@ const VIEWPORTS = [
     const storageState = await context.storageState();
     await context.close();
 
-    // 2. Test each viewport for horizontal overflow & layout integrity
-    console.log('[2/4] Testando responsividade e overflow horizontal...');
+    // 2. Test each viewport for horizontal overflow & layout integrity across ALL 10 core screens
+    console.log('[2/5] Testando responsividade e overflow horizontal em 11 viewports e 10 rotas...');
 
     for (const vp of VIEWPORTS) {
       const vpContext = await browser.newContext({
@@ -55,27 +69,17 @@ const VIEWPORTS = [
       const vpPage = await vpContext.newPage();
       vpPage.setDefaultTimeout(15000);
 
-      // Test pages
-      const testRoutes = [
-        { route: '/settings', id: 'P3-01-Settings' },
-        { route: '/contacts', id: 'P3-02-Contacts' },
-        { route: '/campaigns', id: 'P3-03-Campaigns' },
-        { route: '/ai', id: 'P3-04-AI' },
-        { route: '/inbox', id: 'Inbox-Ops' },
-      ];
-
-      for (const t of testRoutes) {
+      for (const t of CORE_ROUTES) {
         try {
           await vpPage.goto(BASE_URL + t.route, { waitUntil: 'domcontentloaded' });
-          await vpPage.waitForTimeout(1500);
+          await vpPage.waitForTimeout(1200);
 
-          // Check horizontal overflow (document.documentElement.scrollWidth > window.innerWidth)
           const overflowInfo = await vpPage.evaluate(() => {
             const docWidth = document.documentElement.clientWidth;
             const scrollWidth = document.documentElement.scrollWidth;
             const bodyScrollWidth = document.body ? document.body.scrollWidth : 0;
             const maxScroll = Math.max(scrollWidth, bodyScrollWidth);
-            const hasHorizontalScroll = maxScroll > docWidth + 2; // allowance of 2px for rounding
+            const hasHorizontalScroll = maxScroll > docWidth + 2; // allowance of 2px
             return {
               clientWidth: docWidth,
               scrollWidth: maxScroll,
@@ -113,8 +117,8 @@ const VIEWPORTS = [
       await vpContext.close();
     }
 
-    // 3. Specific validation for P3-01 (Settings tab dropdown/select on mobile)
-    console.log('\n[3/4] Validando especificamente P3-01 a P3-04...');
+    // 3. Specific validation for P3-01 to P3-04
+    console.log('\n[3/5] Validando especificamente P3-01 a P3-04...');
     const mobileContext = await browser.newContext({
       storageState,
       viewport: { width: 360, height: 800 },
@@ -151,8 +155,37 @@ const VIEWPORTS = [
 
     await mobileContext.close();
 
-    // 4. Summarize results
-    console.log('\n[4/4] RESUMO GERAL DE RESPONSIVIDADE E QUALIDADE:');
+    // 4. Validating route redirects and navigation links
+    console.log('\n[4/5] Validando redirecionamentos de rotas e integridade dos links...');
+    const desktopContext = await browser.newContext({
+      storageState,
+      viewport: { width: 1440, height: 900 },
+    });
+    const desktopPage = await desktopContext.newPage();
+
+    // Redirect tests
+    const redirectChecks = [
+      { from: '/queue', expectedUrlMatch: /tab=queue/ },
+      { from: '/diagnostics', expectedUrlMatch: /tab=diagnostics/ },
+      { from: '/users', expectedUrlMatch: /tab=users/ },
+      { from: '/nodes', expectedUrlMatch: /tab=nodes/ },
+    ];
+
+    for (const r of redirectChecks) {
+      try {
+        await desktopPage.goto(BASE_URL + r.from, { waitUntil: 'domcontentloaded' });
+        await desktopPage.waitForURL(r.expectedUrlMatch, { timeout: 10000 });
+        const curUrl = desktopPage.url();
+        console.log(`  Redirect ${r.from} -> ${curUrl}: PASS`);
+      } catch (err) {
+        console.log(`  Redirect ${r.from} -> ${desktopPage.url()}: FAIL (${err.message})`);
+      }
+    }
+
+    await desktopContext.close();
+
+    // 5. Summarize results
+    console.log('\n[5/5] RESUMO GERAL DE RESPONSIVIDADE E QUALIDADE:');
     const totalTests = results.length;
     const passedTests = results.filter(r => r.status === 'PASS').length;
     const failedTests = results.filter(r => r.status === 'FAIL').length;

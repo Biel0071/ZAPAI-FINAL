@@ -156,29 +156,33 @@ FROM messages WHERE id >= 117784 ORDER BY id ASC;
 
 ## 6. FASE 3 — Validação Visual e Responsividade Enterprise em Produção
 
-Validação executada via Playwright contra o ambiente de produção publicado (`http://209.50.241.22/`), testando 50 combinações de Viewport x Rota quanto a quebra de layout, truncamento e overflow lateral (`scrollWidth > clientWidth`).
+Validação executada via Playwright contra o ambiente de produção publicado (`http://209.50.241.22/`), testando 110 combinações de Viewport x Rota quanto a quebra de layout, truncamento e overflow lateral (`scrollWidth > clientWidth`).
 
-### Matriz de Testes por Viewport (Playwright Real Execution):
+### Matriz de Testes por Viewport (Playwright Real Execution - 110/110 PASS):
 
-| Viewport | Resolução | Dispositivo Referência | `/settings` | `/contacts` | `/campaigns` | `/ai` | `/inbox` | Resultado |
-| :--- | :---: | :--- | :---: | :---: | :---: | :---: | :---: | :---: |
-| **Mobile Estreito** | 360x800 | Galaxy S20 / Android Budget | PASS (360px) | PASS (360px) | PASS (360px) | PASS (360px) | PASS (360px) | **100% PASS** |
-| **Mobile Standard** | 390x844 | iPhone 12/13/14 | PASS (390px) | PASS (390px) | PASS (390px) | PASS (390px) | PASS (390px) | **100% PASS** |
-| **Mobile Moderno** | 412x915 | Pixel 7 / Galaxy S24 | PASS (412px) | PASS (412px) | PASS (412px) | PASS (412px) | PASS (412px) | **100% PASS** |
-| **Tablet Portrait** | 768x1024 | iPad Mini / Air Portrait | PASS (768px) | PASS (768px) | PASS (768px) | PASS (768px) | PASS (768px) | **100% PASS** |
-| **Tablet Large** | 844x1180 | iPad 10th Gen Portrait | PASS (844px) | PASS (844px) | PASS (844px) | PASS (844px) | PASS (844px) | **100% PASS** |
-| **Mobile Landscape**| 844x390 | iPhone Landscape | PASS (844px) | PASS (844px) | PASS (844px) | PASS (844px) | PASS (844px) | **100% PASS** |
-| **Android Landscape**| 915x412 | Android Modern Landscape | PASS (915px) | PASS (915px) | PASS (915px) | PASS (915px) | PASS (915px) | **100% PASS** |
-| **Laptop HD** | 1280x720 | Notebook 13" / 14" HD | PASS (1280px) | PASS (1280px) | PASS (1280px) | PASS (1280px) | PASS (1280px) | **100% PASS** |
-| **MacBook / Laptop**| 1440x900 | MacBook Air / Pro 13" | PASS (1440px) | PASS (1440px) | PASS (1440px) | PASS (1440px) | PASS (1440px) | **100% PASS** |
-| **Desktop Full HD** | 1920x1080 | Monitor Desktop 24"-27" | PASS (1920px) | PASS (1920px) | PASS (1920px) | PASS (1920px) | PASS (1920px) | **100% PASS** |
+| Viewport | Resolução | Dispositivo Referência | `/settings` | `/contacts` | `/campaigns` | `/ai` | `/inbox` | `/dashboard` | `/connections` | `/operations` | `/memory` | `/flows` | Resultado |
+| :--- | :---: | :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
+| **Mobile Estreito** | 360x800 | Galaxy S20 / Android Budget | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | **100% PASS** |
+| **Mobile Standard** | 390x844 | iPhone 12/13/14 | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | **100% PASS** |
+| **Mobile Moderno** | 412x915 | Pixel 7 / Galaxy S24 | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | **100% PASS** |
+| **Tablet Portrait** | 768x1024 | iPad Mini / Air Portrait | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | **100% PASS** |
+| **Tablet Large** | 844x1180 | iPad 10th Gen Portrait | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | **100% PASS** |
+| **Mobile Landscape**| 844x390 | iPhone Landscape | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | **100% PASS** |
+| **Android Landscape**| 915x412 | Android Modern Landscape | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | **100% PASS** |
+| **Laptop HD** | 1280x720 | Notebook 13" / 14" HD | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | **100% PASS** |
+| **MacBook / Laptop**| 1440x900 | MacBook Air / Pro 13" | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | **100% PASS** |
+| **Desktop Full HD** | 1920x1080 | Monitor Desktop 24"-27" | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | **100% PASS** |
+| **Desktop Ultrawide**| 2560x1080| Monitor 21:9 Ultrawide | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | **100% PASS** |
 
-### Destaques das Melhorias Implementadas:
+### Destaques das Melhorias Implementadas na Fase 3:
 1. **P3-01 (Configurações):** Abas horizontais excessivas substituídas em `< lg` por seletor responsivo categorizado (`<select>`) + pills de navegação rápida ("Geral", "Preferências", "Sistema & Operações"). Em `>= lg`, barra lateral agrupada com cabeçalhos de seção. Contêiner envolto em `w-full max-w-full overflow-x-hidden min-w-0`.
-2. **P3-02 (Contatos):** Barra lateral de segmentos convertida em gaveta deslizante (`Sheet`) em viewports `< xl`, eliminando a quebra de 600px+ verticais. Barra de pesquisa e filtro de tag empilham perfeitamente em 360px.
+2. **P3-02 (Contatos):** Barra lateral de segmentos convertida em gaveta deslizante (`Sheet`) em viewports `< xl`, eliminando a quebra de 600px+ verticais. Barra de pesquisa e filtro de tag empilham perfeitamente em 360px. Adicionado container enterprise card com bordas refinadas e remoção de borda duplicada interna.
 3. **P3-03 (Campanhas):** Barra de ações inferiores convertida em rodapé sticky com backdrop blur (`sticky bottom-0 z-10 bg-card/95 border-t shadow-lg`), garantindo que "Próximo Passo" / "Salvar Rascunho" permaneçam 100% visíveis em 844x390 landscape e mobile.
-4. **P3-04 (Testar IA):** Cabeçalho de métricas e status com `flex-wrap` e ações organizadas. Dialog de simulação responsivo (`max-w-[calc(100vw-1.5rem)]`) com grid de métricas de 1 a 3 colunas.
-5. **HeaderShell & Inbox:** Campo de busca ajustado para `w-24 sm:w-36 md:w-52` e tag de status recolhível, eliminando qualquer colisão com a gaveta de navegação lateral em 360px. No Inbox, adicionado indicador de progresso operacional de envio em 5 etapas (`Preparando` ➔ `Processando` ➔ `Enviando` ➔ `Confirmando` ➔ `Concluído`).
+4. **P3-04 (Testar IA):** Cabeçalho de métricas e status com `flex-wrap` e ações organizadas. Dialog de simulação responsivo (`max-w-[calc(100vw-1.5rem)]`) com grid de métricas de 1 a 3 colunas e quebra de palavras segura.
+5. **Preservação de Query Params em Redirects de Rotas:** Em `App.tsx`, as rotas legadas `/queue`, `/users`, `/nodes`, `/deployments`, `/logs`, `/versions`, `/diagnostics`, `/tests` redirecionam preservando os query params (`/settings?tab=queue`, etc.), evitando que o usuário caia indevidamente na aba padrão "Perfil".
+6. **Menu do Usuário (Header):** Em `HeaderShell.tsx` e `Header.tsx`, os itens "Perfil", "Configurações" e "Equipe" agora possuem navegação explícita com ícones Phosphor (`User`, `Gear`, `Users`) e cursor pointer interativo.
+7. **Operações Responsivo (`/operations`):** Em `Operations.tsx`, o cabeçalho dos operadores e as linhas de atendentes foram convertidos para layout responsivo (`flex-col sm:flex-row`, badges com quebra automática), prevenindo colisão de texto em telas de 360px.
+8. **HeaderShell & Inbox:** Campo de busca ajustado para `w-24 sm:w-36 md:w-52` e tag de status recolhível, eliminando qualquer colisão com a gaveta de navegação lateral em 360px. No Inbox, adicionado indicador de progresso operacional de envio em 5 etapas (`Preparando` ➔ `Processando` ➔ `Enviando` ➔ `Confirmando` ➔ `Concluído`).
 
 ---
 

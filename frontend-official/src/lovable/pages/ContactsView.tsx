@@ -186,6 +186,7 @@ export function ContactsView({
                 onSegmentChange(s);
                 setMobileFilterOpen(false);
               }}
+              className="border-0 bg-transparent"
             />
           </div>
         </SheetContent>
@@ -194,7 +195,12 @@ export function ContactsView({
       <div className="grid gap-4 xl:grid-cols-[280px_minmax(0,1fr)] w-full min-w-0">
         {/* Desktop Sidebar (>= xl) */}
         <div className="hidden xl:block">
-          <ContactSidebar activeSegment={activeSegment} counts={counts} onSegmentChange={onSegmentChange} />
+          <ContactSidebar
+            activeSegment={activeSegment}
+            counts={counts}
+            onSegmentChange={onSegmentChange}
+            className="rounded-2xl border border-border/70 overflow-hidden shadow-xs"
+          />
         </div>
 
         <div className="space-y-4 min-w-0 w-full">

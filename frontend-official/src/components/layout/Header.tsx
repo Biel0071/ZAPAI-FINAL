@@ -55,6 +55,9 @@ export function Header({ title, subtitle, runtimeState, actions }: HeaderProps) 
       actions={actions}
       username={username}
       onLogout={handleLogout}
+      onNavigateProfile={() => navigate("/settings?tab=perfil")}
+      onNavigateSettings={() => navigate("/settings")}
+      onNavigateTeam={() => navigate("/settings?tab=equipe")}
     />
   );
 }

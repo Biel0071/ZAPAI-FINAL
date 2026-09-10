@@ -182,24 +182,24 @@ const App = () => {
                       <Route path="/integrations" element={<Navigate to="/connections" replace />} />
                       <Route path="/dev-tools" element={<ProtectedRoute minRole="user"><Navigate to="/diagnostics" replace /></ProtectedRoute>} />
                       <Route path="/memory" element={<PageRouteBoundary pageName="Memória de Sistema"><Memory /></PageRouteBoundary>} />
-                      <Route path="/queue" element={<Navigate to="/settings" replace />} />
-                      <Route path="/users" element={<Navigate to="/settings" replace />} />
-                      <Route path="/nodes" element={<Navigate to="/settings" replace />} />
+                      <Route path="/queue" element={<Navigate to="/settings?tab=queue" replace />} />
+                      <Route path="/users" element={<Navigate to="/settings?tab=users" replace />} />
+                      <Route path="/nodes" element={<Navigate to="/settings?tab=nodes" replace />} />
                       <Route path="/nodes/:id" element={<ProtectedRoute minRole="user"><PageRouteBoundary pageName="Detalhes do Nó"><NodeDetails /></PageRouteBoundary></ProtectedRoute>} />
-                      <Route path="/deployments" element={<Navigate to="/settings" replace />} />
-                      <Route path="/logs" element={<Navigate to="/settings" replace />} />
-                      <Route path="/versions" element={<Navigate to="/settings" replace />} />
+                      <Route path="/deployments" element={<Navigate to="/settings?tab=deployments" replace />} />
+                      <Route path="/logs" element={<Navigate to="/settings?tab=logs" replace />} />
+                      <Route path="/versions" element={<Navigate to="/settings?tab=versions" replace />} />
                       <Route path="/admin" element={<Navigate to="/settings" replace />} />
-                      <Route path="/system/runtime" element={<Navigate to="/settings" replace />} />
-                      <Route path="/system/performance" element={<Navigate to="/settings" replace />} />
-                      <Route path="/system/websocket" element={<Navigate to="/settings" replace />} />
-                      <Route path="/system/database" element={<Navigate to="/settings" replace />} />
-                      <Route path="/system/files" element={<Navigate to="/settings" replace />} />
-                      <Route path="/system/health" element={<Navigate to="/settings" replace />} />
-                      <Route path="/system/metrics" element={<Navigate to="/settings" replace />} />
-                      <Route path="/diagnostics" element={<Navigate to="/settings" replace />} />
+                      <Route path="/system/runtime" element={<Navigate to="/settings?tab=diagnostics" replace />} />
+                      <Route path="/system/performance" element={<Navigate to="/settings?tab=diagnostics" replace />} />
+                      <Route path="/system/websocket" element={<Navigate to="/settings?tab=diagnostics" replace />} />
+                      <Route path="/system/database" element={<Navigate to="/settings?tab=dados" replace />} />
+                      <Route path="/system/files" element={<Navigate to="/settings?tab=dados" replace />} />
+                      <Route path="/system/health" element={<Navigate to="/settings?tab=diagnostics" replace />} />
+                      <Route path="/system/metrics" element={<Navigate to="/settings?tab=diagnostics" replace />} />
+                      <Route path="/diagnostics" element={<Navigate to="/settings?tab=diagnostics" replace />} />
                       <Route path="/settings" element={<PageRouteBoundary pageName="Configurações"><Settings /></PageRouteBoundary>} />
-                      <Route path="/tests" element={<Navigate to="/settings" replace />} />
+                      <Route path="/tests" element={<Navigate to="/settings?tab=tests" replace />} />
                     </Route>
                     <Route path="*" element={<CatchAllRoute />} />
                   </Routes>

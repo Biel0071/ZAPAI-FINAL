@@ -177,7 +177,7 @@ export default function Operations() {
         <Card className="bg-card border-border/80 shadow-xl">
 
           <CardHeader className="border-b border-border/40 pb-4">
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div>
                 <CardTitle className="text-base font-bold flex items-center gap-2">
                   <Headphones className="h-5 w-5 text-emerald-400" /> Status dos Atendentes & Operadores
@@ -187,7 +187,7 @@ export default function Operations() {
                 </CardDescription>
               </div>
 
-              <Button onClick={fetchMetrics} variant="outline" size="sm" className="h-8 text-xs gap-1.5">
+              <Button onClick={fetchMetrics} variant="outline" size="sm" className="h-8 text-xs gap-1.5 shrink-0 self-start sm:self-auto">
                 <RefreshCw className={`h-3.5 w-3.5 ${loading ? "animate-spin" : ""}`} /> Atualizar Dados
               </Button>
             </div>
@@ -196,30 +196,30 @@ export default function Operations() {
           <CardContent className="p-0">
             <div className="divide-y divide-border/40 text-xs">
               {data?.operators.map((op) => (
-                <div key={op.id} className="p-4 flex items-center justify-between hover:bg-muted/30 transition-colors">
-                  <div className="flex items-center gap-3">
-                    <div className="h-9 w-9 rounded-full bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-emerald-400 font-bold">
+                <div key={op.id} className="p-3.5 sm:p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:bg-muted/30 transition-colors">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="h-9 w-9 shrink-0 rounded-full bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-emerald-400 font-bold">
                       {op.name.charAt(0)}
                     </div>
-                    <div>
-                      <p className="font-bold text-foreground">{op.name}</p>
-                      <span className="text-[10px] text-muted-foreground">{op.role}</span>
+                    <div className="min-w-0">
+                      <p className="font-bold text-foreground truncate">{op.name}</p>
+                      <span className="text-[10px] text-muted-foreground truncate block">{op.role}</span>
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-6">
-                    <div className="text-right">
+                  <div className="flex flex-wrap items-center justify-between sm:justify-end gap-3 sm:gap-6 w-full sm:w-auto pt-2 sm:pt-0 border-t sm:border-t-0 border-border/20">
+                    <div className="text-left sm:text-right">
                       <span className="text-[10px] text-muted-foreground uppercase font-bold block">Chats Ativos</span>
                       <span className="font-bold text-foreground">{op.activeChats} em andamento</span>
                     </div>
 
-                    <div className="text-right">
+                    <div className="text-left sm:text-right">
                       <span className="text-[10px] text-muted-foreground uppercase font-bold block">Atendimentos Hoje</span>
                       <span className="font-bold text-emerald-400">{op.totalToday} total</span>
                     </div>
 
                     <Badge
-                      className={`text-[10px] uppercase font-bold px-2 py-0.5 ${
+                      className={`text-[10px] uppercase font-bold px-2 py-0.5 shrink-0 ${
                         op.status === "online"
                           ? "bg-emerald-500/20 text-emerald-300 border-emerald-500/40"
                           : "bg-amber-500/20 text-amber-300 border-amber-500/40"

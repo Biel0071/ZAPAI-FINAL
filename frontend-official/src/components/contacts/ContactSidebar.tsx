@@ -35,9 +35,10 @@ interface ContactSidebarProps {
   activeSegment: ContactSegment;
   onSegmentChange: (segment: ContactSegment) => void;
   counts: Record<string, number>;
+  className?: string;
 }
 
-export function ContactSidebar({ activeSegment, onSegmentChange, counts }: ContactSidebarProps) {
+export function ContactSidebar({ activeSegment, onSegmentChange, counts, className }: ContactSidebarProps) {
   const mainItems = [
     { id: "all", label: "Todos", icon: Users },
     { id: "individual", label: "Individuais", icon: Users },
@@ -83,7 +84,7 @@ export function ContactSidebar({ activeSegment, onSegmentChange, counts }: Conta
   );
 
   return (
-    <div className="flex h-full flex-col bg-card/50 border-r border-border">
+    <div className={cn("flex h-full flex-col bg-card/50", className)}>
       <ScrollArea className="flex-1 px-3 py-4">
         <div className="space-y-6">
           <section>

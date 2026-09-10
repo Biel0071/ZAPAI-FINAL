@@ -51,6 +51,56 @@
       "status": "PASS"
     },
     {
+      "viewport": "Mobile 360x800",
+      "size": "360x800",
+      "route": "/dashboard",
+      "screen": "Dashboard",
+      "clientWidth": 360,
+      "scrollWidth": 360,
+      "overflowDiff": 0,
+      "status": "PASS"
+    },
+    {
+      "viewport": "Mobile 360x800",
+      "size": "360x800",
+      "route": "/connections",
+      "screen": "Connections",
+      "clientWidth": 360,
+      "scrollWidth": 360,
+      "overflowDiff": 0,
+      "status": "PASS"
+    },
+    {
+      "viewport": "Mobile 360x800",
+      "size": "360x800",
+      "route": "/operations",
+      "screen": "Operations",
+      "clientWidth": 360,
+      "scrollWidth": 360,
+      "overflowDiff": 0,
+      "status": "PASS"
+    },
+    {
+      "viewport": "Mobile 360x800",
+      "size": "360x800",
+      "route": "/memory",
+      "screen": "Memory",
+      "clientWidth": 360,
+      "scrollWidth": 360,
+      "overflowDiff": 0,
+      "status": "PASS"
+    },
+    {
+      "viewport": "Mobile 360x800",
+      "size": "360x800",
+      "route": "/flows",
+      "screen": "Flows",
+      "clientWidth": 360,
+      "scrollWidth": 360,
+      "overflowDiff": 0,
+      "status": "PASS"
+    },
+    {
       "viewport": "Mobile iPhone 390x844",
       "size": "390x844",
       "route": "/settings",
@@ -95,6 +145,56 @@
       "size": "390x844",
       "route": "/inbox",
       "screen": "Inbox-Ops",
+      "clientWidth": 390,
+      "scrollWidth": 390,
+      "overflowDiff": 0,
+      "status": "PASS"
+    },
+    {
+      "viewport": "Mobile iPhone 390x844",
+      "size": "390x844",
+      "route": "/dashboard",
+      "screen": "Dashboard",
+      "clientWidth": 390,
+      "scrollWidth": 390,
+      "overflowDiff": 0,
+      "status": "PASS"
+    },
+    {
+      "viewport": "Mobile iPhone 390x844",
+      "size": "390x844",
+      "route": "/connections",
+      "screen": "Connections",
+      "clientWidth": 390,
+      "scrollWidth": 390,
+      "overflowDiff": 0,
+      "status": "PASS"
+    },
+    {
+      "viewport": "Mobile iPhone 390x844",
+      "size": "390x844",
+      "route": "/operations",
+      "screen": "Operations",
+      "clientWidth": 390,
+      "scrollWidth": 390,
+      "overflowDiff": 0,
+      "status": "PASS"
+    },
+    {
+      "viewport": "Mobile iPhone 390x844",
+      "size": "390x844",
+      "route": "/memory",
+      "screen": "Memory",
+      "clientWidth": 390,
+      "scrollWidth": 390,
+      "overflowDiff": 0,
+      "status": "PASS"
+    },
+    {
+      "viewport": "Mobile iPhone 390x844",
+      "size": "390x844",
+      "route": "/flows",
+      "screen": "Flows",
       "clientWidth": 390,
       "scrollWidth": 390,
       "overflowDiff": 0,
@@ -151,6 +251,56 @@
       "status": "PASS"
     },
     {
+      "viewport": "Mobile Android 412x915",
+      "size": "412x915",
+      "route": "/dashboard",
+      "screen": "Dashboard",
+      "clientWidth": 412,
+      "scrollWidth": 412,
+      "overflowDiff": 0,
+      "status": "PASS"
+    },
+    {
+      "viewport": "Mobile Android 412x915",
+      "size": "412x915",
+      "route": "/connections",
+      "screen": "Connections",
+      "clientWidth": 412,
+      "scrollWidth": 412,
+      "overflowDiff": 0,
+      "status": "PASS"
+    },
+    {
+      "viewport": "Mobile Android 412x915",
+      "size": "412x915",
+      "route": "/operations",
+      "screen": "Operations",
+      "clientWidth": 412,
+      "scrollWidth": 412,
+      "overflowDiff": 0,
+      "status": "PASS"
+    },
+    {
+      "viewport": "Mobile Android 412x915",
+      "size": "412x915",
+      "route": "/memory",
+      "screen": "Memory",
+      "clientWidth": 412,
+      "scrollWidth": 412,
+      "overflowDiff": 0,
+      "status": "PASS"
+    },
+    {
+      "viewport": "Mobile Android 412x915",
+      "size": "412x915",
+      "route": "/flows",
+      "screen": "Flows",
+      "clientWidth": 412,
+      "scrollWidth": 412,
+      "overflowDiff": 0,
+      "status": "PASS"
+    },
+    {
       "viewport": "Tablet 768x1024",
       "size": "768x1024",
       "route": "/settings",
@@ -195,6 +345,56 @@
       "size": "768x1024",
       "route": "/inbox",
       "screen": "Inbox-Ops",
+      "clientWidth": 768,
+      "scrollWidth": 768,
+      "overflowDiff": 0,
+      "status": "PASS"
+    },
+    {
+      "viewport": "Tablet 768x1024",
+      "size": "768x1024",
+      "route": "/dashboard",
+      "screen": "Dashboard",
+      "clientWidth": 768,
+      "scrollWidth": 768,
+      "overflowDiff": 0,
+      "status": "PASS"
+    },
+    {
+      "viewport": "Tablet 768x1024",
+      "size": "768x1024",
+      "route": "/connections",
+      "screen": "Connections",
+      "clientWidth": 768,
+      "scrollWidth": 768,
+      "overflowDiff": 0,
+      "status": "PASS"
+    },
+    {
+      "viewport": "Tablet 768x1024",
+      "size": "768x1024",
+      "route": "/operations",
+      "screen": "Operations",
+      "clientWidth": 768,
+      "scrollWidth": 768,
+      "overflowDiff": 0,
+      "status": "PASS"
+    },
+    {
+      "viewport": "Tablet 768x1024",
+      "size": "768x1024",
+      "route": "/memory",
+      "screen": "Memory",
+      "clientWidth": 768,
+      "scrollWidth": 768,
+      "overflowDiff": 0,
+      "status": "PASS"
+    },
+    {
+      "viewport": "Tablet 768x1024",
+      "size": "768x1024",
+      "route": "/flows",
+      "screen": "Flows",
       "clientWidth": 768,
       "scrollWidth": 768,
       "overflowDiff": 0,
@@ -251,6 +451,56 @@
       "status": "PASS"
     },
     {
+      "viewport": "Tablet 844x1180",
+      "size": "844x1180",
+      "route": "/dashboard",
+      "screen": "Dashboard",
+      "clientWidth": 844,
+      "scrollWidth": 844,
+      "overflowDiff": 0,
+      "status": "PASS"
+    },
+    {
+      "viewport": "Tablet 844x1180",
+      "size": "844x1180",
+      "route": "/connections",
+      "screen": "Connections",
+      "clientWidth": 844,
+      "scrollWidth": 844,
+      "overflowDiff": 0,
+      "status": "PASS"
+    },
+    {
+      "viewport": "Tablet 844x1180",
+      "size": "844x1180",
+      "route": "/operations",
+      "screen": "Operations",
+      "clientWidth": 844,
+      "scrollWidth": 844,
+      "overflowDiff": 0,
+      "status": "PASS"
+    },
+    {
+      "viewport": "Tablet 844x1180",
+      "size": "844x1180",
+      "route": "/memory",
+      "screen": "Memory",
+      "clientWidth": 844,
+      "scrollWidth": 844,
+      "overflowDiff": 0,
+      "status": "PASS"
+    },
+    {
+      "viewport": "Tablet 844x1180",
+      "size": "844x1180",
+      "route": "/flows",
+      "screen": "Flows",
+      "clientWidth": 844,
+      "scrollWidth": 844,
+      "overflowDiff": 0,
+      "status": "PASS"
+    },
+    {
       "viewport": "Landscape 844x390",
       "size": "844x390",
       "route": "/settings",
@@ -295,6 +545,56 @@
       "size": "844x390",
       "route": "/inbox",
       "screen": "Inbox-Ops",
+      "clientWidth": 844,
+      "scrollWidth": 844,
+      "overflowDiff": 0,
+      "status": "PASS"
+    },
+    {
+      "viewport": "Landscape 844x390",
+      "size": "844x390",
+      "route": "/dashboard",
+      "screen": "Dashboard",
+      "clientWidth": 844,
+      "scrollWidth": 844,
+      "overflowDiff": 0,
+      "status": "PASS"
+    },
+    {
+      "viewport": "Landscape 844x390",
+      "size": "844x390",
+      "route": "/connections",
+      "screen": "Connections",
+      "clientWidth": 844,
+      "scrollWidth": 844,
+      "overflowDiff": 0,
+      "status": "PASS"
+    },
+    {
+      "viewport": "Landscape 844x390",
+      "size": "844x390",
+      "route": "/operations",
+      "screen": "Operations",
+      "clientWidth": 844,
+      "scrollWidth": 844,
+      "overflowDiff": 0,
+      "status": "PASS"
+    },
+    {
+      "viewport": "Landscape 844x390",
+      "size": "844x390",
+      "route": "/memory",
+      "screen": "Memory",
+      "clientWidth": 844,
+      "scrollWidth": 844,
+      "overflowDiff": 0,
+      "status": "PASS"
+    },
+    {
+      "viewport": "Landscape 844x390",
+      "size": "844x390",
+      "route": "/flows",
+      "screen": "Flows",
       "clientWidth": 844,
       "scrollWidth": 844,
       "overflowDiff": 0,
@@ -351,6 +651,56 @@
       "status": "PASS"
     },
     {
+      "viewport": "Landscape 915x412",
+      "size": "915x412",
+      "route": "/dashboard",
+      "screen": "Dashboard",
+      "clientWidth": 915,
+      "scrollWidth": 915,
+      "overflowDiff": 0,
+      "status": "PASS"
+    },
+    {
+      "viewport": "Landscape 915x412",
+      "size": "915x412",
+      "route": "/connections",
+      "screen": "Connections",
+      "clientWidth": 915,
+      "scrollWidth": 915,
+      "overflowDiff": 0,
+      "status": "PASS"
+    },
+    {
+      "viewport": "Landscape 915x412",
+      "size": "915x412",
+      "route": "/operations",
+      "screen": "Operations",
+      "clientWidth": 915,
+      "scrollWidth": 915,
+      "overflowDiff": 0,
+      "status": "PASS"
+    },
+    {
+      "viewport": "Landscape 915x412",
+      "size": "915x412",
+      "route": "/memory",
+      "screen": "Memory",
+      "clientWidth": 915,
+      "scrollWidth": 915,
+      "overflowDiff": 0,
+      "status": "PASS"
+    },
+    {
+      "viewport": "Landscape 915x412",
+      "size": "915x412",
+      "route": "/flows",
+      "screen": "Flows",
+      "clientWidth": 915,
+      "scrollWidth": 915,
+      "overflowDiff": 0,
+      "status": "PASS"
+    },
+    {
       "viewport": "HD Laptop 1280x720",
       "size": "1280x720",
       "route": "/settings",
@@ -401,6 +751,56 @@
       "status": "PASS"
     },
     {
+      "viewport": "HD Laptop 1280x720",
+      "size": "1280x720",
+      "route": "/dashboard",
+      "screen": "Dashboard",
+      "clientWidth": 1280,
+      "scrollWidth": 1280,
+      "overflowDiff": 0,
+      "status": "PASS"
+    },
+    {
+      "viewport": "HD Laptop 1280x720",
+      "size": "1280x720",
+      "route": "/connections",
+      "screen": "Connections",
+      "clientWidth": 1280,
+      "scrollWidth": 1280,
+      "overflowDiff": 0,
+      "status": "PASS"
+    },
+    {
+      "viewport": "HD Laptop 1280x720",
+      "size": "1280x720",
+      "route": "/operations",
+      "screen": "Operations",
+      "clientWidth": 1280,
+      "scrollWidth": 1280,
+      "overflowDiff": 0,
+      "status": "PASS"
+    },
+    {
+      "viewport": "HD Laptop 1280x720",
+      "size": "1280x720",
+      "route": "/memory",
+      "screen": "Memory",
+      "clientWidth": 1280,
+      "scrollWidth": 1280,
+      "overflowDiff": 0,
+      "status": "PASS"
+    },
+    {
+      "viewport": "HD Laptop 1280x720",
+      "size": "1280x720",
+      "route": "/flows",
+      "screen": "Flows",
+      "clientWidth": 1280,
+      "scrollWidth": 1280,
+      "overflowDiff": 0,
+      "status": "PASS"
+    },
+    {
       "viewport": "MacBook 1440x900",
       "size": "1440x900",
       "route": "/settings",
@@ -451,6 +851,56 @@
       "status": "PASS"
     },
     {
+      "viewport": "MacBook 1440x900",
+      "size": "1440x900",
+      "route": "/dashboard",
+      "screen": "Dashboard",
+      "clientWidth": 1440,
+      "scrollWidth": 1440,
+      "overflowDiff": 0,
+      "status": "PASS"
+    },
+    {
+      "viewport": "MacBook 1440x900",
+      "size": "1440x900",
+      "route": "/connections",
+      "screen": "Connections",
+      "clientWidth": 1440,
+      "scrollWidth": 1440,
+      "overflowDiff": 0,
+      "status": "PASS"
+    },
+    {
+      "viewport": "MacBook 1440x900",
+      "size": "1440x900",
+      "route": "/operations",
+      "screen": "Operations",
+      "clientWidth": 1440,
+      "scrollWidth": 1440,
+      "overflowDiff": 0,
+      "status": "PASS"
+    },
+    {
+      "viewport": "MacBook 1440x900",
+      "size": "1440x900",
+      "route": "/memory",
+      "screen": "Memory",
+      "clientWidth": 1440,
+      "scrollWidth": 1440,
+      "overflowDiff": 0,
+      "status": "PASS"
+    },
+    {
+      "viewport": "MacBook 1440x900",
+      "size": "1440x900",
+      "route": "/flows",
+      "screen": "Flows",
+      "clientWidth": 1440,
+      "scrollWidth": 1440,
+      "overflowDiff": 0,
+      "status": "PASS"
+    },
+    {
       "viewport": "FHD Desktop 1920x1080",
       "size": "1920x1080",
       "route": "/settings",
@@ -497,13 +947,163 @@
       "screen": "Inbox-Ops",
       "clientWidth": 1920,
       "scrollWidth": 1920,
+      "overflowDiff": 0,
+      "status": "PASS"
+    },
+    {
+      "viewport": "FHD Desktop 1920x1080",
+      "size": "1920x1080",
+      "route": "/dashboard",
+      "screen": "Dashboard",
+      "clientWidth": 1920,
+      "scrollWidth": 1920,
+      "overflowDiff": 0,
+      "status": "PASS"
+    },
+    {
+      "viewport": "FHD Desktop 1920x1080",
+      "size": "1920x1080",
+      "route": "/connections",
+      "screen": "Connections",
+      "clientWidth": 1920,
+      "scrollWidth": 1920,
+      "overflowDiff": 0,
+      "status": "PASS"
+    },
+    {
+      "viewport": "FHD Desktop 1920x1080",
+      "size": "1920x1080",
+      "route": "/operations",
+      "screen": "Operations",
+      "clientWidth": 1920,
+      "scrollWidth": 1920,
+      "overflowDiff": 0,
+      "status": "PASS"
+    },
+    {
+      "viewport": "FHD Desktop 1920x1080",
+      "size": "1920x1080",
+      "route": "/memory",
+      "screen": "Memory",
+      "clientWidth": 1920,
+      "scrollWidth": 1920,
+      "overflowDiff": 0,
+      "status": "PASS"
+    },
+    {
+      "viewport": "FHD Desktop 1920x1080",
+      "size": "1920x1080",
+      "route": "/flows",
+      "screen": "Flows",
+      "clientWidth": 1920,
+      "scrollWidth": 1920,
+      "overflowDiff": 0,
+      "status": "PASS"
+    },
+    {
+      "viewport": "Ultrawide 2560x1080",
+      "size": "2560x1080",
+      "route": "/settings",
+      "screen": "P3-01-Settings",
+      "clientWidth": 2560,
+      "scrollWidth": 2560,
+      "overflowDiff": 0,
+      "status": "PASS"
+    },
+    {
+      "viewport": "Ultrawide 2560x1080",
+      "size": "2560x1080",
+      "route": "/contacts",
+      "screen": "P3-02-Contacts",
+      "clientWidth": 2560,
+      "scrollWidth": 2560,
+      "overflowDiff": 0,
+      "status": "PASS"
+    },
+    {
+      "viewport": "Ultrawide 2560x1080",
+      "size": "2560x1080",
+      "route": "/campaigns",
+      "screen": "P3-03-Campaigns",
+      "clientWidth": 2560,
+      "scrollWidth": 2560,
+      "overflowDiff": 0,
+      "status": "PASS"
+    },
+    {
+      "viewport": "Ultrawide 2560x1080",
+      "size": "2560x1080",
+      "route": "/ai",
+      "screen": "P3-04-AI",
+      "clientWidth": 2560,
+      "scrollWidth": 2560,
+      "overflowDiff": 0,
+      "status": "PASS"
+    },
+    {
+      "viewport": "Ultrawide 2560x1080",
+      "size": "2560x1080",
+      "route": "/inbox",
+      "screen": "Inbox-Ops",
+      "clientWidth": 2560,
+      "scrollWidth": 2560,
+      "overflowDiff": 0,
+      "status": "PASS"
+    },
+    {
+      "viewport": "Ultrawide 2560x1080",
+      "size": "2560x1080",
+      "route": "/dashboard",
+      "screen": "Dashboard",
+      "clientWidth": 2560,
+      "scrollWidth": 2560,
+      "overflowDiff": 0,
+      "status": "PASS"
+    },
+    {
+      "viewport": "Ultrawide 2560x1080",
+      "size": "2560x1080",
+      "route": "/connections",
+      "screen": "Connections",
+      "clientWidth": 2560,
+      "scrollWidth": 2560,
+      "overflowDiff": 0,
+      "status": "PASS"
+    },
+    {
+      "viewport": "Ultrawide 2560x1080",
+      "size": "2560x1080",
+      "route": "/operations",
+      "screen": "Operations",
+      "clientWidth": 2560,
+      "scrollWidth": 2560,
+      "overflowDiff": 0,
+      "status": "PASS"
+    },
+    {
+      "viewport": "Ultrawide 2560x1080",
+      "size": "2560x1080",
+      "route": "/memory",
+      "screen": "Memory",
+      "clientWidth": 2560,
+      "scrollWidth": 2560,
+      "overflowDiff": 0,
+      "status": "PASS"
+    },
+    {
+      "viewport": "Ultrawide 2560x1080",
+      "size": "2560x1080",
+      "route": "/flows",
+      "screen": "Flows",
+      "clientWidth": 2560,
+      "scrollWidth": 2560,
       "overflowDiff": 0,
       "status": "PASS"
     }
   ],
   "summary": {
-    "total": 50,
-    "passed": 50,
+    "total": 110,
+    "passed": 110,
     "failed": 0
   }
 }

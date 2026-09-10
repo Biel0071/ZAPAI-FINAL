@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { OperationalStatusBadge } from "@/components/enterprise/OperationalStatusBadge";
 import { useTheme } from "next-themes";
-import { Bell, MagnifyingGlass, Moon, Sun, Plus, User, ArrowClockwise, Info } from "@phosphor-icons/react";
+import { Bell, MagnifyingGlass, Moon, Sun, Plus, User, ArrowClockwise, Info, Gear, Users } from "@phosphor-icons/react";
 import {
   Tooltip,
   TooltipContent,
@@ -34,6 +34,8 @@ export interface HeaderShellProps {
   username?: string | null;
   onLogout?: () => void;
   onNavigateProfile?: () => void;
+  onNavigateSettings?: () => void;
+  onNavigateTeam?: () => void;
 }
 
 export function HeaderShell({
@@ -48,6 +50,8 @@ export function HeaderShell({
   username,
   onLogout,
   onNavigateProfile,
+  onNavigateSettings,
+  onNavigateTeam,
 }: HeaderShellProps) {
   const { theme, setTheme } = useTheme();
   const location = useLocation();
@@ -193,14 +197,20 @@ export function HeaderShell({
             <DropdownMenuContent align="end" className="w-48 border-border/80 bg-popover/90 backdrop-blur-xl">
               <DropdownMenuLabel className="text-xs">Minha Conta</DropdownMenuLabel>
               <DropdownMenuSeparator />
-              <DropdownMenuItem className="text-sm" onClick={onNavigateProfile}>
+              <DropdownMenuItem className="text-sm cursor-pointer" onClick={onNavigateProfile}>
                 <User className="mr-2 h-3.5 w-3.5" />
                 Perfil
               </DropdownMenuItem>
-              <DropdownMenuItem className="text-sm">Configurações</DropdownMenuItem>
-              <DropdownMenuItem className="text-sm">Equipe</DropdownMenuItem>
+              <DropdownMenuItem className="text-sm cursor-pointer" onClick={onNavigateSettings}>
+                <Gear className="mr-2 h-3.5 w-3.5" />
+                Configurações
+              </DropdownMenuItem>
+              <DropdownMenuItem className="text-sm cursor-pointer" onClick={onNavigateTeam}>
+                <Users className="mr-2 h-3.5 w-3.5" />
+                Equipe
+              </DropdownMenuItem>
               <DropdownMenuSeparator />
-              <DropdownMenuItem className="text-sm text-destructive" onClick={onLogout}>
+              <DropdownMenuItem className="text-sm text-destructive cursor-pointer" onClick={onLogout}>
                 Sair
               </DropdownMenuItem>
             </DropdownMenuContent>

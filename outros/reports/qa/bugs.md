@@ -267,27 +267,34 @@ A FASE 2 foi integralmente concluída com rigor técnico:
 ### 1. Resumo da Execução
 - **Data da Homologação:** 10 de Setembro de 2026
 - **Deploy em Produção:** Realizado via sync de bundle compilado (`vite build` v5.4.19, 0 erros TypeScript) para `/etc/icontainer/apps/openresty/openresty/www/zapai/` e `/opt/zapai/frontend-official/dist`.
-- **Validação Automatizada:** Suite Playwright (`scripts/qa/verify-phase3-responsive.cjs`) executada contra `http://209.50.241.22/` em 10 viewports distintas em 5 rotas críticas (50 combinações no total).
-- **Taxa de Sucesso:** **100% (50/50 PASS, 0 FAIL, 0 Overflow Horizontal)**.
+- **Validação Automatizada:** Suite Playwright (`scripts/qa/verify-phase3-responsive.cjs`) executada contra `http://209.50.241.22/` em 11 viewports distintas em 10 rotas principais (110 combinações no total).
+- **Taxa de Sucesso:** **100% (110/110 PASS, 0 FAIL, 0 Overflow Horizontal)**.
+- **Backend Baseline:** Node.js, Baileys, PostgreSQL, WebSocket e Fila mantidos 100% íntegros e congelados conforme especificação.
 
-### 2. Matriz Consolidada de Viewports Auditados
+### 2. Matriz Consolidada de Viewports Auditados (110 Combinações)
 
-| Dispositivo / Perfil | Resolução | Orientação | Settings | Contatos | Campanhas | IA | Inbox | Status |
-| :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
-| **Mobile Estreito (Galaxy S20)** | 360x800 | Retrato | PASS | PASS | PASS | PASS | PASS | **APROVADO** |
-| **Mobile iPhone (12/13/14)** | 390x844 | Retrato | PASS | PASS | PASS | PASS | PASS | **APROVADO** |
-| **Mobile Moderno (Pixel 7)** | 412x915 | Retrato | PASS | PASS | PASS | PASS | PASS | **APROVADO** |
-| **Tablet Standard (iPad)** | 768x1024 | Retrato | PASS | PASS | PASS | PASS | PASS | **APROVADO** |
-| **Tablet Large (iPad 10th)** | 844x1180 | Retrato | PASS | PASS | PASS | PASS | PASS | **APROVADO** |
-| **iPhone Paisagem** | 844x390 | Paisagem | PASS | PASS | PASS | PASS | PASS | **APROVADO** |
-| **Android Paisagem** | 915x412 | Paisagem | PASS | PASS | PASS | PASS | PASS | **APROVADO** |
-| **Laptop HD 13"/14"** | 1280x720 | Desktop | PASS | PASS | PASS | PASS | PASS | **APROVADO** |
-| **MacBook Air/Pro** | 1440x900 | Desktop | PASS | PASS | PASS | PASS | PASS | **APROVADO** |
-| **Monitor Full HD** | 1920x1080 | Desktop | PASS | PASS | PASS | PASS | PASS | **APROVADO** |
+| Dispositivo / Perfil | Resolução | Settings | Contatos | Campanhas | IA | Inbox | Dashboard | Conexões | Operações | Memória | Flows | Status |
+| :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
+| **Mobile Estreito (Galaxy S20)** | 360x800 | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | **APROVADO** |
+| **Mobile iPhone (12/13/14)** | 390x844 | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | **APROVADO** |
+| **Mobile Moderno (Pixel 7)** | 412x915 | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | **APROVADO** |
+| **Tablet Standard (iPad)** | 768x1024 | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | **APROVADO** |
+| **Tablet Large (iPad 10th)** | 844x1180 | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | **APROVADO** |
+| **iPhone Paisagem** | 844x390 | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | **APROVADO** |
+| **Android Paisagem** | 915x412 | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | **APROVADO** |
+| **Laptop HD 13"/14"** | 1280x720 | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | **APROVADO** |
+| **MacBook Air/Pro** | 1440x900 | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | **APROVADO** |
+| **Monitor Full HD** | 1920x1080 | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | **APROVADO** |
+| **Monitor Ultrawide** | 2560x1080 | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | **APROVADO** |
 
-### 3. Melhorias UX Enterprise Validadas
-1. **Configurações (`/settings`):** Substituição da barra horizontal densa de 19 botões por `<select>` categorizado com quick-pills em telas menores que 1024px. Sincronização bidirecional de URL search params (`/settings?tab=queue`).
-2. **Contatos (`/contacts`):** Barra lateral de segmentos convertida em `Sheet` deslizante em `< xl`, poupando mais de 600px verticais em mobile. Ações de busca e filtro organizadas com `flex-wrap`.
-3. **Campanhas (`/campaigns`):** Cabeçalho e botões de passo reorganizados com rodapé sticky blur. O botão "Próximo Passo" permanece em foco e perfeitamente clicável em qualquer altura ou orientação de viewport (inclusive iPhone landscape 844x390).
-4. **Testar IA (`/ai`):** Cartão de saúde reorganizado com flex wrapping; modal de simulação com limites de viewport (`calc(100vw - 1.5rem)`) e quebra de palavras para evitar estouro de texto da resposta da IA.
-5. **HeaderShell & Dispatch Operacional:** Barra de busca do topo flexível (`w-24 sm:w-36 md:w-52`) para não colidir com o trigger da barra lateral. Indicador de despacho em 5 passos (`Preparando` ➔ `Processando` ➔ `Enviando` ➔ `Confirmando` ➔ `Concluído`) no composer do Inbox com spinner e bloqueio contra duplo clique.
+### 3. Resolução dos Bugs Obrigatórios P3
+1. **BUG-P3-01 (Configurações):** Substituição da barra horizontal densa de 19 botões por `<select>` categorizado com quick-pills em telas menores que 1024px. Sincronização bidirecional de URL search params (`/settings?tab=queue`).
+2. **BUG-P3-02 (Contatos):** Barra lateral de segmentos convertida em `Sheet` deslizante em `< xl`, poupando mais de 600px verticais em mobile. Ações de busca e filtro organizadas com `flex-wrap`. Container desktop encapsulado em card com bordas refinadas.
+3. **BUG-P3-03 (Campanhas):** Cabeçalho e botões de passo reorganizados com rodapé sticky blur. O botão "Próximo Passo" permanece em foco e perfeitamente clicável em qualquer altura ou orientação de viewport (inclusive iPhone landscape 844x390).
+4. **BUG-P3-04 (Testar IA):** Cartão de saúde reorganizado com flex wrapping; modal de simulação com limites de viewport (`calc(100vw - 1.5rem)`) e quebra de palavras para evitar estouro de texto da resposta da IA.
+
+### 4. Correções Adicionais de Qualidade e Integridade Frontend
+1. **Preservação de Parâmetros de Busca em Rotas:** Correção em `App.tsx` para redirecionamentos legados (`/queue` ➔ `/settings?tab=queue`, `/diagnostics` ➔ `/settings?tab=diagnostics`, `/users` ➔ `/settings?tab=users`, etc.) mantendo intactos os parâmetros de busca para abertura da aba correta.
+2. **Navegação do Menu de Perfil no Topo:** Correção em `HeaderShell.tsx` e `Header.tsx` vinculando os itens "Perfil" (`/settings?tab=perfil`), "Configurações" (`/settings`) e "Equipe" (`/settings?tab=equipe`) com ícones e handlers ativos de navegação.
+3. **Responsividade em Operações (`/operations`):** Ajuste do layout de operadores de suporte (`flex-col sm:flex-row`), impedindo colisões de texto e quebras visuais em telas de 360px.
+4. **Dispatch Operacional do Inbox:** Indicador de despacho em 5 passos (`Preparando` ➔ `Processando` ➔ `Enviando` ➔ `Confirmando` ➔ `Concluído`) no composer do Inbox com spinner e bloqueio contra duplo clique.
