@@ -1470,7 +1470,7 @@ export function ActiveChatPane({
                   <div
                     ref={emojiPickerRef}
                     data-emoji-picker
-                    className="absolute bottom-14 left-0 z-30 rounded-lg border border-border bg-[#181d26]/95 p-2 shadow-2xl backdrop-blur flex flex-col gap-2 w-[352px]"
+                    className="absolute bottom-14 left-0 z-30 rounded-lg border border-border bg-[#181d26]/95 p-2 shadow-2xl backdrop-blur flex flex-col gap-2 w-[352px] max-w-[calc(100vw-32px)] max-w-full"
                   >
                     {/* Tab Header */}
                     <div className="flex border-b border-border pb-1.5 px-1 gap-4 text-xs font-semibold">

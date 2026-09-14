@@ -230,7 +230,7 @@ export function ConversationRow(props: RowComponentProps<ConversationRowData>) {
                   <span className="truncate">{conversation.lastMessage || "Sem mensagens"}</span>
                 )}
               </p>
-              <div className="flex items-center gap-1 shrink-0">
+              <div className="flex items-center gap-1 shrink-0 pr-1">
                 <span className="flex items-center gap-0.5 text-muted-foreground/70">
                   <TooltipProvider delayDuration={120}>
                     <Tooltip>
@@ -269,7 +269,7 @@ export function ConversationRow(props: RowComponentProps<ConversationRowData>) {
                 )}
 
                 {!isMultiSelectMode && (
-                  <div className="opacity-0 group-hover/row:opacity-100 transition-opacity duration-200" data-dropdown-trigger>
+                  <div className="hidden group-hover/row:flex items-center transition-opacity duration-200" data-dropdown-trigger>
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
                         <button

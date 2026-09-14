@@ -101,6 +101,12 @@ export function Sidebar() {
       try {
         localStorage.setItem("zapflow_sidebar_collapsed", String(collapsed));
       } catch {}
+      const t1 = setTimeout(() => window.dispatchEvent(new Event("resize")), 100);
+      const t2 = setTimeout(() => window.dispatchEvent(new Event("resize")), 220);
+      return () => {
+        clearTimeout(t1);
+        clearTimeout(t2);
+      };
     }
   }, [collapsed, isMobile]);
 
@@ -139,19 +145,21 @@ export function Sidebar() {
 
     // Itens em desenvolvimento: cinza, não-clicáveis, badge DEV. Só chegam aqui p/ admin+.
     if (item.dev) {
-      return (
+      const devElement = (
         <div
           key={`${keyPrefix}:${item.label}:${item.path}`}
           title="Em desenvolvimento — disponível apenas para administradores"
           aria-disabled="true"
           className={cn(
-            "sidebar-item group relative min-h-[38px] cursor-not-allowed opacity-45",
-            compact && "justify-center px-2.5",
+            "group relative cursor-not-allowed opacity-45 transition-all duration-150",
+            compact
+              ? "flex h-10 w-10 items-center justify-center rounded-xl mx-auto"
+              : "sidebar-item min-h-[38px]",
           )}
         >
           <item.icon
             weight="regular"
-            className="h-[18px] w-[18px] flex-shrink-0 text-sidebar-foreground/85"
+            className="h-[20px] w-[20px] flex-shrink-0 text-sidebar-foreground/85"
           />
           {!compact && (
             <>
@@ -165,6 +173,21 @@ export function Sidebar() {
           )}
         </div>
       );
+
+      if (compact) {
+        return (
+          <Tooltip key={`${keyPrefix}:${item.label}:${item.path}`}>
+            <TooltipTrigger asChild>
+              {devElement}
+            </TooltipTrigger>
+            <TooltipContent side="right" className="font-semibold text-xs border-border/80 bg-popover text-foreground shadow-lg">
+              {item.label} (DEV)
+            </TooltipContent>
+          </Tooltip>
+        );
+      }
+
+      return devElement;
     }
 
     const navElement = (
@@ -172,18 +195,30 @@ export function Sidebar() {
         key={`${keyPrefix}:${item.label}:${item.path}`}
         to={item.path}
         className={cn(
-          "sidebar-item group relative min-h-[38px]",
-          isActive && "sidebar-item-active",
-          compact && "justify-center px-2.5",
+          "group relative transition-all duration-150",
+          compact
+            ? "flex h-10 w-10 items-center justify-center rounded-xl mx-auto text-sidebar-foreground/75 hover:bg-sidebar-accent/80 hover:text-sidebar-foreground"
+            : "sidebar-item min-h-[38px]",
+          isActive && (compact ? "bg-sidebar-accent text-primary border border-primary/20 shadow-sm" : "sidebar-item-active"),
         )}
       >
         <item.icon
           weight={isActive ? "fill" : "regular"}
           className={cn(
-            "h-[18px] w-[18px] flex-shrink-0 transition-colors",
+            "h-[20px] w-[20px] flex-shrink-0 transition-colors",
             isActive ? "text-primary" : "text-primary/70 group-hover:text-primary",
           )}
         />
+        {compact && item.path === "/inbox" && (
+          (() => {
+            const sessions = useAppStore.getState().sessions;
+            const activeSessionId = useAppStore.getState().activeSessionId;
+            const mainSession = sessions.find((s: any) => s.id === activeSessionId) || sessions[0];
+            const isConnected = mainSession ? ["connected", "online", "active"].includes((mainSession.status || "").toLowerCase()) : false;
+            if (!isConnected) return null;
+            return <span className="absolute top-1.5 right-1.5 h-2 w-2 rounded-full bg-[#25D366] animate-pulse ring-1 ring-background" />;
+          })()
+        )}
         {!compact && (
           <>
             <span className={cn("min-w-0 flex-1 truncate text-[13px] font-medium", isActive && "text-sidebar-foreground")}>
@@ -250,16 +285,14 @@ export function Sidebar() {
 
     if (compact) {
       return (
-        <TooltipProvider key={`${keyPrefix}:${item.label}:${item.path}`} delayDuration={150}>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              {navElement}
-            </TooltipTrigger>
-            <TooltipContent side="right" className="font-semibold text-xs border-border/80 bg-popover text-foreground shadow-lg">
-              {item.label}
-            </TooltipContent>
-          </Tooltip>
-        </TooltipProvider>
+        <Tooltip key={`${keyPrefix}:${item.label}:${item.path}`}>
+          <TooltipTrigger asChild>
+            {navElement}
+          </TooltipTrigger>
+          <TooltipContent side="right" className="font-semibold text-xs border-border/80 bg-popover text-foreground shadow-lg">
+            {item.label}
+          </TooltipContent>
+        </Tooltip>
       );
     }
 
@@ -346,10 +379,13 @@ export function Sidebar() {
         boxShadow: "inset -1px 0 0 hsl(var(--sidebar-border)), 0 20px 40px -30px hsl(0 0% 0% / 0.9)",
       }}
     >
-      <div className="border-b border-sidebar-border/60 px-4 py-3">
-        <div className="flex items-start gap-3">
-          <div className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl bg-primary/10 border border-primary/20 shadow-glow p-1">
-            <BrandLogo size={36} forceZColor="white" />
+      <div className={cn("border-b border-sidebar-border/60 py-3", compact ? "px-2 flex justify-center" : "px-4")}>
+        <div className={cn("flex items-center", compact ? "justify-center w-full" : "gap-3")}>
+          <div className={cn(
+            "flex flex-shrink-0 items-center justify-center rounded-xl bg-primary/10 border border-primary/20 shadow-glow p-1",
+            compact ? "h-10 w-10" : "h-11 w-11"
+          )}>
+            <BrandLogo size={compact ? 28 : 36} forceZColor="white" />
           </div>
           {!compact && (
             <div className="min-w-0 flex-1">
@@ -373,56 +409,62 @@ export function Sidebar() {
         </div>
       </div>
 
+      <TooltipProvider delayDuration={100}>
+        <nav className={cn("scrollbar-thin flex-1 space-y-2 overflow-y-auto py-3", compact ? "px-2" : "px-3")}>
+          <div className="space-y-1">
+            {visibleCrmItems.map((item) => {
+              if (item.path === "/ai") {
+                return renderAiCollapsibleMenu(item, compact);
+              }
+              return renderNavItem(item, compact, "crm");
+            })}
+          </div>
 
-      <nav className="scrollbar-thin flex-1 space-y-2 overflow-y-auto px-3 py-3">
-        <div className="space-y-1">
-          {visibleCrmItems.map((item) => {
-            if (item.path === "/ai") {
-              return renderAiCollapsibleMenu(item, compact);
-            }
-            return renderNavItem(item, compact, "crm");
-          })}
-        </div>
-
-        {shouldShowAdminMenu && (
-          compact ? (
-            <div className="space-y-1">
-              {visibleAdminItems.map((item) => renderNavItem(item, compact, "system"))}
-            </div>
-          ) : (
-            <Collapsible open={adminOpen} onOpenChange={setAdminOpen}>
-              <CollapsibleTrigger className="flex w-full items-center justify-between rounded-xl px-2 py-2 text-left text-[10px] font-semibold uppercase tracking-[0.22em] text-sidebar-muted/70 hover:bg-sidebar-accent/40">
-                <span>Administração</span>
-                {adminOpen ? <CaretUp className="h-3.5 w-3.5" /> : <CaretDown className="h-3.5 w-3.5" />}
-              </CollapsibleTrigger>
-              <CollapsibleContent className="space-y-1">
+          {shouldShowAdminMenu && (
+            compact ? (
+              <div className="space-y-1">
                 {visibleAdminItems.map((item) => renderNavItem(item, compact, "system"))}
-              </CollapsibleContent>
-            </Collapsible>
-          )
-        )}
-      </nav>
-
-      <div className="space-y-1 border-t border-sidebar-border/60 px-3 py-3">
-        {visibleBottomItems.map((item) => renderNavItem(item, compact, "bottom"))}
-
-        {!mobileMode && (
-          <button
-            onClick={() => setCollapsed(!collapsed)}
-            className={cn("sidebar-item mt-1 w-full", compact && "justify-center px-2.5")}
-            aria-label={collapsed ? "Expandir menu" : "Recolher menu"}
-          >
-            {collapsed ? (
-              <CaretRight className="h-4 w-4 text-sidebar-muted" />
+              </div>
             ) : (
-              <>
-                <CaretLeft className="h-4 w-4 text-sidebar-muted" />
-                <span className="text-[13px] text-sidebar-muted">Recolher</span>
-              </>
-            )}
-          </button>
-        )}
-      </div>
+              <Collapsible open={adminOpen} onOpenChange={setAdminOpen}>
+                <CollapsibleTrigger className="flex w-full items-center justify-between rounded-xl px-2 py-2 text-left text-[10px] font-semibold uppercase tracking-[0.22em] text-sidebar-muted/70 hover:bg-sidebar-accent/40">
+                  <span>Administração</span>
+                  {adminOpen ? <CaretUp className="h-3.5 w-3.5" /> : <CaretDown className="h-3.5 w-3.5" />}
+                </CollapsibleTrigger>
+                <CollapsibleContent className="space-y-1">
+                  {visibleAdminItems.map((item) => renderNavItem(item, compact, "system"))}
+                </CollapsibleContent>
+              </Collapsible>
+            )
+          )}
+        </nav>
+
+        <div className={cn("space-y-1 border-t border-sidebar-border/60 py-3", compact ? "px-2 flex flex-col items-center" : "px-3")}>
+          {visibleBottomItems.map((item) => renderNavItem(item, compact, "bottom"))}
+
+          {!mobileMode && (
+            <button
+              onClick={() => setCollapsed(!collapsed)}
+              className={cn(
+                "group relative transition-all duration-150",
+                compact
+                  ? "flex h-10 w-10 items-center justify-center rounded-xl mx-auto text-sidebar-muted hover:bg-sidebar-accent/80 hover:text-sidebar-foreground"
+                  : "sidebar-item mt-1 w-full"
+              )}
+              aria-label={collapsed ? "Expandir menu" : "Recolher menu"}
+            >
+              {collapsed ? (
+                <CaretRight className="h-4.5 w-4.5 text-sidebar-muted group-hover:text-sidebar-foreground transition-colors" />
+              ) : (
+                <>
+                  <CaretLeft className="h-4 w-4 text-sidebar-muted" />
+                  <span className="text-[13px] text-sidebar-muted">Recolher</span>
+                </>
+              )}
+            </button>
+          )}
+        </div>
+      </TooltipProvider>
     </aside>
   );
 

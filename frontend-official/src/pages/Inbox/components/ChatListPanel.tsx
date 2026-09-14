@@ -1,3 +1,4 @@
+import { useRef, useState, useEffect } from "react";
 import { Check, ChatCircleDots, Star, CaretRight, Plus, Trash } from "@phosphor-icons/react";
 import { List } from "react-window";
 import { ChatSearchBar } from "@/components/inbox/ChatSearchBar";
@@ -76,6 +77,31 @@ export function ChatListPanel({
   showGroups = false,
   setShowGroups,
 }: ChatListPanelProps) {
+  const listContainerRef = useRef<HTMLDivElement | null>(null);
+  const [dynamicHeight, setDynamicHeight] = useState(conversationListHeight || 600);
+
+  useEffect(() => {
+    if (!listContainerRef.current) return;
+    const updateHeight = () => {
+      if (listContainerRef.current) {
+        const rect = listContainerRef.current.getBoundingClientRect();
+        if (rect.height > 100) {
+          setDynamicHeight(Math.floor(rect.height));
+        }
+      }
+    };
+    updateHeight();
+    const observer = new ResizeObserver(() => {
+      updateHeight();
+    });
+    observer.observe(listContainerRef.current);
+    window.addEventListener("resize", updateHeight);
+    return () => {
+      observer.disconnect();
+      window.removeEventListener("resize", updateHeight);
+    };
+  }, []);
+
   return (
     <div className={cn("flex min-h-0 flex-col border-r border-border bg-card/50 lg:overflow-auto h-full", isMobile && mobileScreen !== "conversations" && "hidden")}>
       <div className="space-y-2 border-b border-border p-3">
@@ -198,7 +224,7 @@ export function ChatListPanel({
         </div>
       </div>
 
-      <div className="min-h-0 flex-1 overflow-hidden p-2">
+      <div ref={listContainerRef} className="min-h-0 flex-1 overflow-hidden p-2">
         {conversationsLoadFailed && filteredConversations.length > 0 && (
           <div className="mb-2 rounded-lg border border-border bg-card p-3 text-center">
             <p className="text-sm text-muted-foreground">Falha temporária ao atualizar conversas. Mantendo os últimos dados em tela.</p>
@@ -245,7 +271,7 @@ export function ChatListPanel({
             rowCount={filteredConversations.length}
             rowHeight={CONVERSATION_ROW_HEIGHT}
             rowProps={conversationRowData}
-            style={{ height: conversationListHeight, width: "100%" }}
+            style={{ height: dynamicHeight, width: "100%" }}
           />
         )}
       </div>
