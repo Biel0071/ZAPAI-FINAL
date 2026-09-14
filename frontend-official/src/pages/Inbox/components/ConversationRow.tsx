@@ -177,7 +177,7 @@ export function ConversationRow(props: RowComponentProps<ConversationRowData>) {
 
         <div className="relative shrink-0 flex items-center">
           <Avatar className="h-11 w-11 border border-border/40">
-            {conversation.avatar ? <AvatarImage src={conversation.avatar} alt={conversation.contactName} loading="lazy" /> : null}
+            {conversation.avatar ? <AvatarImage src={conversation.avatar} alt={conversation.contactName} loading="lazy" className="object-cover" onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }} /> : null}
             <AvatarFallback className="bg-primary/10 font-bold text-xs text-primary">{getInitials(conversation.contactName)}</AvatarFallback>
           </Avatar>
         </div>

@@ -72,9 +72,10 @@ export function InboxView({
           </ResizablePanel>
 
           <ResizableHandle
-            withHandle
-            className="bg-border/60 hover:bg-primary/50 transition-colors w-1"
-          />
+            className="group relative w-2 cursor-col-resize bg-transparent transition-colors duration-200 hover:bg-transparent"
+          >
+            <div className="absolute inset-y-0 left-1/2 -translate-x-1/2 w-px bg-transparent transition-all duration-200 group-hover:bg-emerald-500 group-data-[resize-handle-state=drag]:bg-emerald-500" />
+          </ResizableHandle>
 
           <ResizablePanel
             defaultSize={rightPanel ? 46 : 72}
@@ -88,9 +89,10 @@ export function InboxView({
           {rightPanel && (
             <>
               <ResizableHandle
-                withHandle
-                className="bg-border/60 hover:bg-primary/50 transition-colors w-1 hidden lg:flex"
-              />
+                className="group relative w-2 cursor-col-resize bg-transparent transition-colors duration-200 hover:bg-transparent hidden lg:flex"
+              >
+                <div className="absolute inset-y-0 left-1/2 -translate-x-1/2 w-px bg-transparent transition-all duration-200 group-hover:bg-emerald-500 group-data-[resize-handle-state=drag]:bg-emerald-500" />
+              </ResizableHandle>
               <ResizablePanel
                 defaultSize={26}
                 minSize={20}

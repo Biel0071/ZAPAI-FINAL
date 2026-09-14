@@ -137,7 +137,7 @@ export function FloatingMascotAssistant() {
     setUserQuery("");
   };
 
-  if (isInboxMobileChat) {
+  if (isInbox) {
     return null;
   }
 

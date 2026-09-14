@@ -39,7 +39,7 @@ export function ChatHeaderBar({
         )}
 
         <Avatar className="h-11 w-11 border border-border/50">
-          {avatar ? <AvatarImage src={avatar} alt={contactName} loading="lazy" /> : null}
+          {avatar ? <AvatarImage src={avatar} alt={contactName} loading="lazy" className="object-cover" onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }} /> : null}
           <AvatarFallback className="bg-primary/10 font-bold text-sm text-primary">{initials}</AvatarFallback>
         </Avatar>
 

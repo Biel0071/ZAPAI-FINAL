@@ -1553,6 +1553,20 @@ export const apiService = {
       timeoutMs: 30_000,
     }),
 
+  aiCompose: (payload: {
+    conversationId: string;
+    contactName: string;
+    instruction: string;
+    recentMessages?: Array<{ role: string; content: string }>;
+    sessionId?: string;
+  }) =>
+    request<{ message: string; success?: boolean; error?: string }>({
+      endpoint: "/ai/compose",
+      method: "POST",
+      body: payload,
+      timeoutMs: 45_000,
+    }),
+
   evolveAgent: (payload: { agentKey: string; instruction: string; apply?: boolean; changes?: any; sourceDescription?: string }) =>
     request<{ success: boolean; preview?: any; agent?: any; error?: string }>({
       endpoint: "/ai/agent-evolve",
@@ -2116,6 +2130,7 @@ export const apiService = {
       method: "GET",
     });
   },
+
 };
 
 export async function requestApiEndpoint<T>(endpoint: string, method: "GET" | "POST" | "PUT" | "PATCH" | "DELETE" = "GET", body?: unknown): Promise<T> {

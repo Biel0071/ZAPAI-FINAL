@@ -39,6 +39,7 @@ import { NewMessagesBanner } from "@/components/inbox/NewMessagesBanner";
 import { MessageRow } from "./MessageRow";
 import { QuickResponseModal, type QuickResponseItem } from "./QuickResponseModal";
 import { FlowExecutionBanner, type FlowExecutionData } from "./FlowExecutionBanner";
+import { ZaiAssistantComposer } from "./ZaiAssistantComposer";
 import { useAiCountdown } from "@/hooks/useAiCountdown";
 import { getSharedSocket } from "../../../runtime/socket/socketManager";
 import { cn } from "@/lib/utils";
@@ -249,6 +250,7 @@ export function ActiveChatPane({
   const [isQuickReplyModalOpen, setIsQuickReplyModalOpen] = useState(false);
   const [activeFlowData, setActiveFlowData] = useState<FlowExecutionData | null>(null);
   const quickReplyDispatchRef = useRef(false);
+  const emojiPickerRef = useRef<HTMLDivElement | null>(null);
 
   const SEND_STAGES = [
     "Preparando",
@@ -1354,6 +1356,17 @@ export function ActiveChatPane({
                       accept="*/*"
                       onChange={handleAttachFiles}
                     />
+
+                    {selectedConversation && (
+                      <ZaiAssistantComposer
+                        selectedConversation={selectedConversation}
+                        messages={messages}
+                        handleSendMessage={handleSendMessage}
+                        setMessageInput={setMessageInput}
+                        messageInputRef={messageInputRef}
+                        disabled={!canSendMessages}
+                      />
+                    )}
 
                     <textarea
                       ref={messageInputRef}
