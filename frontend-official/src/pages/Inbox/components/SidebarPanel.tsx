@@ -1586,7 +1586,7 @@ export function SidebarPanel({
                   onClick={() => setRightPanelCollapsed(false)}
                   aria-label="Expandir painel"
                 >
-                  <CaretLeft className="h-4.5 w-4.5 shrink-0" weight="bold" />
+                  <CaretLeft className="h-[18px] w-[18px] shrink-0" weight="bold" />
                 </Button>
               </TooltipTrigger>
               <TooltipContent side="left">Expandir painel</TooltipContent>
@@ -1601,7 +1601,7 @@ export function SidebarPanel({
                     size="icon"
                     variant="ghost"
                     className={cn(
-                      "h-9.5 w-9.5 shrink-0 rounded-xl text-muted-foreground transition-all duration-200 hover:scale-[1.05] hover:bg-muted/30 hover:text-primary",
+                      "h-10 w-10 shrink-0 rounded-xl text-muted-foreground transition-colors duration-200 hover:bg-muted/50 hover:text-primary",
                       rightPanelTab === section.id && "bg-primary/10 text-primary border border-primary/20 shadow-sm",
                     )}
                     onClick={() => {

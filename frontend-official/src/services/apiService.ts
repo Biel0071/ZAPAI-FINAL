@@ -1556,15 +1556,46 @@ export const apiService = {
   aiCompose: (payload: {
     conversationId: string;
     contactName: string;
-    instruction: string;
+    contactPhone?: string;
+    instruction?: string;
+    currentDraft?: string;
+    action?: string;
     recentMessages?: Array<{ role: string; content: string }>;
     sessionId?: string;
   }) =>
-    request<{ message: string; success?: boolean; error?: string }>({
+    request<{
+      message: string;
+      detectedContext?: {
+        product?: string;
+        capacity?: string;
+        deliveryCity?: string;
+        intent?: string;
+        summary?: string;
+      };
+      suggestions?: string[];
+      success?: boolean;
+      error?: string;
+    }>({
       endpoint: "/ai/compose",
       method: "POST",
       body: payload,
       timeoutMs: 45_000,
+    }),
+
+  sendAssistantFeedback: (payload: {
+    agentKey?: string;
+    customerQuestion?: string;
+    aiResponse?: string;
+    humanAnswer?: string;
+    contactPhone?: string;
+    contactName?: string;
+    conversationId?: string;
+  }) =>
+    request<{ success: boolean; eventId?: number; status?: string }>({
+      endpoint: "/ai/learning/feedback",
+      method: "POST",
+      body: payload,
+      timeoutMs: 15_000,
     }),
 
   evolveAgent: (payload: { agentKey: string; instruction: string; apply?: boolean; changes?: any; sourceDescription?: string }) =>

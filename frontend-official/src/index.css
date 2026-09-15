@@ -266,14 +266,14 @@
     @apply rounded-xl relative overflow-hidden bg-card/60 border-border/40;
     backdrop-filter: blur(12px);
     box-shadow: 0 4px 20px rgba(0,0,0,0.05), inset 0 1px 1px rgba(255,255,255,0.03);
-    background-image: linear-gradient(145deg, rgba(var(--card), 0.7), rgba(var(--background), 0.3));
+    background-image: linear-gradient(145deg, hsl(var(--card) / 0.9), hsl(var(--background) / 0.45));
     transition: box-shadow 0.3s ease, border-color 0.3s ease, transform 0.3s ease;
   }
 
   .glass-card {
     @apply rounded-xl bg-card/40 border border-border/30 backdrop-blur-md;
     box-shadow: 0 8px 32px rgba(0, 0, 0, 0.05), inset 0 1px 1px rgba(255,255,255,0.05);
-    background-image: linear-gradient(135deg, rgba(var(--card), 0.6) 0%, rgba(var(--background), 0.2) 100%);
+    background-image: linear-gradient(135deg, hsl(var(--card) / 0.9) 0%, hsl(var(--background) / 0.35) 100%);
   }
 
   .metric-card::before {
@@ -285,7 +285,7 @@
   .metric-card:hover {
     box-shadow: var(--shadow-card-hover);
     @apply border-border;
-    transform: translateY(-2px);
+    /* Keep interactive card targets stationary while scanning dashboards. */
   }
 
   .metric-card:hover::before {
@@ -611,7 +611,6 @@
 }
 
 /* Emoji picker overflow protection */
-[data-emoji-picker],
 .emoji-picker-react {
   max-width: calc(100vw - 2rem);
   max-height: 65vh;
@@ -623,14 +622,23 @@ em-emoji-picker {
   --border-color: transparent !important;
   --shadow: none !important;
   --rgb-accent: 34, 197, 94 !important; /* Green primary theme color */
-  --rgb-background: 24, 29, 38 !important;
-  --rgb-border: 36, 43, 53 !important;
   --category-icon-size: 18px !important;
   --emoji-size: 20px !important;
   --emoji-padding: 5px !important;
   width: 100% !important;
-  height: 380px !important;
+  height: 100% !important;
+  min-height: 0;
   font-family: inherit !important;
+}
+
+.emoji-popover {
+  height: min(430px, var(--radix-popover-content-available-height, 65dvh));
+  max-height: var(--radix-popover-content-available-height);
+}
+
+.emoji-popover em-emoji-picker {
+  flex: 1;
+  min-height: 0;
 }
 
 /* Prevent horizontal overflow on the whole page */
@@ -658,7 +666,7 @@ html, body {
    ========================================================================== */
 
 .chat-area-bg {
-  background-color: #0b141a !important;
+  background-color: hsl(var(--background)) !important;
   position: relative;
 }
 
@@ -675,7 +683,8 @@ html, body {
 }
 
 .chat-bubble {
-  max-width: 65% !important;
+  max-width: 100% !important;
+  overflow-wrap: anywhere;
   padding: 8px 12px 6px 12px !important;
   border-radius: 8px !important;
   font-size: 14px !important;
@@ -695,8 +704,8 @@ html, body {
 }
 
 .chat-bubble-received {
-  background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%) !important;
-  color: #f1f5f9 !important;
+  background: hsl(var(--card)) !important;
+  color: hsl(var(--card-foreground)) !important;
   border-top-left-radius: 0px !important;
   border-top-right-radius: 8px !important;
   border-bottom-left-radius: 8px !important;

@@ -118,6 +118,7 @@ export function HeaderShell({
           ) : null}
           {sessions && sessions.length > 0 && (
             <select
+              aria-label="Filtrar por conexão"
               value={activeSessionId || "all"}
               onChange={(e) => setActiveSessionId(e.target.value === "all" ? null : e.target.value)}
               className="h-8 max-w-[100px] sm:max-w-[150px] md:max-w-xs truncate rounded-xl border border-border/65 bg-background/80 px-2 text-xs font-semibold text-foreground/90 hover:text-foreground focus:outline-none focus:ring-1 focus:ring-primary backdrop-blur-sm shrink-0"
@@ -150,7 +151,7 @@ export function HeaderShell({
 
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon" className="relative h-8 w-8 text-muted-foreground hover:text-foreground">
+              <Button variant="ghost" size="icon" aria-label="Notificações" className="relative h-8 w-8 text-muted-foreground hover:text-foreground">
                 <Bell className="h-4 w-4" />
               </Button>
             </DropdownMenuTrigger>

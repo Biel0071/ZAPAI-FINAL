@@ -22,6 +22,8 @@ import {
   Warning,
 } from "@phosphor-icons/react";
 import { Button } from "@/components/ui/button";
+import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
+import { useTheme } from "next-themes";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -250,7 +252,7 @@ export function ActiveChatPane({
   const [isQuickReplyModalOpen, setIsQuickReplyModalOpen] = useState(false);
   const [activeFlowData, setActiveFlowData] = useState<FlowExecutionData | null>(null);
   const quickReplyDispatchRef = useRef(false);
-  const emojiPickerRef = useRef<HTMLDivElement | null>(null);
+  const { resolvedTheme } = useTheme();
 
   const SEND_STAGES = [
     "Preparando",
@@ -558,6 +560,7 @@ export function ActiveChatPane({
   }, [slashSuggestions.length]);
 
   return (
+    <Popover open={showEmojiPicker} onOpenChange={setShowEmojiPicker}>
     <div className="flex flex-1 flex-col h-full min-w-0 overflow-hidden relative bg-background">
       {selectedConversation ? (
         <div className="flex flex-1 flex-col h-full min-w-0 overflow-hidden">
@@ -1324,18 +1327,19 @@ export function ActiveChatPane({
                       </div>
                     )}
 
+                    <PopoverTrigger asChild>
                     <Button
                       type="button"
                       variant="ghost"
                       size="icon"
                       className={MOBILE_TOUCH_TARGET_CLASS}
-                      onClick={() => setShowEmojiPicker((prev) => !prev)}
                       aria-label="Abrir emojis"
                       data-emoji-trigger
                       disabled={!selectedConversation || !canSendMessages}
                     >
                       <Smiley className="h-5 w-5" />
                     </Button>
+                    </PopoverTrigger>
 
                     <Button
                       type="button"
@@ -1467,10 +1471,16 @@ export function ActiveChatPane({
                 )}
 
                 {showEmojiPicker && (
-                  <div
-                    ref={emojiPickerRef}
+                  <PopoverContent
+                    side="top"
+                    align="start"
+                    sideOffset={8}
+                    collisionPadding={12}
+                    onOpenAutoFocus={(event) => event.preventDefault()}
+                    onCloseAutoFocus={(event) => { event.preventDefault(); messageInputRef.current?.focus(); }}
+                    aria-label="Emojis e figurinhas"
                     data-emoji-picker
-                    className="absolute bottom-14 left-0 z-30 rounded-lg border border-border bg-[#181d26]/95 p-2 shadow-2xl backdrop-blur flex flex-col gap-2 w-[352px] max-w-[calc(100vw-32px)] max-w-full"
+                    className="emoji-popover flex w-[352px] max-w-[calc(100vw-24px)] flex-col gap-2 overflow-hidden rounded-2xl border-border bg-popover p-2 shadow-xl"
                   >
                     {/* Tab Header */}
                     <div className="flex border-b border-border pb-1.5 px-1 gap-4 text-xs font-semibold">
@@ -1507,16 +1517,17 @@ export function ActiveChatPane({
                           onEmojiSelect={handleInsertEmoji}
                           previewPosition="none"
                           skinTonePosition="none"
-                          theme="dark"
+                          theme={resolvedTheme === "light" ? "light" : "dark"}
+                          dynamicWidth
                           locale="pt"
                           perLine={8}
                           emojiVersion={15}
                         />
                       ) : (
-                        <div className="w-[336px] p-3 text-xs text-muted-foreground text-center">Carregando emojis...</div>
+                        <div className="w-full p-3 text-xs text-muted-foreground text-center">Carregando emojis...</div>
                       )
                     ) : (
-                      <div className="w-[352px] h-[300px] overflow-y-auto scrollbar-thin">
+                      <div className="w-full min-h-0 flex-1 max-h-[300px] overflow-y-auto scrollbar-thin">
                         {loadingStickers ? (
                           <div className="flex items-center justify-center h-full text-xs text-muted-foreground">
                             Carregando figurinhas...
@@ -1545,7 +1556,7 @@ export function ActiveChatPane({
                         )}
                       </div>
                     )}
-                  </div>
+                  </PopoverContent>
                 )}
               </div>
             </div>
@@ -1575,5 +1586,6 @@ export function ActiveChatPane({
         />
       )}
     </div>
+    </Popover>
   );
 }

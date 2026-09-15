@@ -66,6 +66,9 @@ backend/logs/*.log
 tmp_*.js
 tmp_*.log
 *.tmp
+*.tar.gz
+**/.auth/
+graphify-out/cache/
 
 # ── PM2 ───────────────────────────────────────────────────────
 .pm2/

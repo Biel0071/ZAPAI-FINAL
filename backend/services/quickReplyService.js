@@ -14,21 +14,139 @@ async function ensureDataFile() {
   }
 }
 
-async function readQuickReplies() {
+async function readQuickReplies(companyId = null) {
   await ensureDataFile();
-  const raw = await fs.readFile(DATA_FILE, 'utf8');
-
+  let fileItems = [];
   try {
+    const raw = await fs.readFile(DATA_FILE, 'utf8');
     const parsed = JSON.parse(raw || '[]');
-    return Array.isArray(parsed) ? parsed : [];
+    fileItems = Array.isArray(parsed) ? parsed : [];
   } catch {
-    return [];
+    fileItems = [];
   }
+
+  let dbItems = [];
+  try {
+    const { query } = require('../src/infrastructure/config/database');
+    const sql = companyId 
+      ? 'SELECT * FROM quick_replies WHERE company_id = $1 OR company_id = \'default\'' 
+      : 'SELECT * FROM quick_replies';
+    const params = companyId ? [companyId] : [];
+    const res = await query(sql, params);
+    
+    dbItems = (res.rows || []).map((row) => {
+      let parsedContent = row.content;
+      let items = [];
+      let mediaUrl = null;
+      let mediaType = null;
+      let aiMemory = null;
+      let filename = null;
+
+      try {
+        if (typeof row.content === 'string' && row.content.trim().startsWith('{')) {
+          const obj = JSON.parse(row.content);
+          parsedContent = obj.text || obj.content || row.content;
+          items = obj.items || [];
+          mediaUrl = obj.mediaUrl || null;
+          mediaType = obj.mediaType || null;
+          aiMemory = obj.aiMemory || null;
+          filename = obj.filename || obj.fileName || null;
+
+          // Se mediaUrl não estiver na raiz, procura nos items
+          if (!mediaUrl && Array.isArray(items)) {
+            const firstMedia = items.find((i) => i.type && i.type !== 'text');
+            if (firstMedia) {
+              mediaUrl = firstMedia.value;
+              mediaType = firstMedia.type;
+              filename = firstMedia.filename || firstMedia.fileName || null;
+            }
+          }
+        }
+      } catch (_) {}
+
+      return {
+        id: row.id,
+        companyId: row.company_id || 'default',
+        title: row.title,
+        content: parsedContent,
+        items: items.length > 0 ? items : [{ type: 'text', value: parsedContent }],
+        category: row.category,
+        tags: Array.isArray(row.tags) ? row.tags : [],
+        mediaUrl,
+        mediaType,
+        aiMemory,
+        filename,
+        updatedAt: row.updated_at ? new Date(row.updated_at).toISOString() : new Date().toISOString(),
+        createdAt: row.created_at ? new Date(row.created_at).toISOString() : new Date().toISOString(),
+      };
+    });
+  } catch (err) {
+    // Database query failed, fallback to file items
+  }
+
+  // Merge items by id
+  const map = new Map();
+  for (const item of fileItems) {
+    if (item && item.id) map.set(item.id, item);
+  }
+  for (const item of dbItems) {
+    if (item && item.id) {
+      const existing = map.get(item.id);
+      map.set(item.id, { ...existing, ...item });
+    }
+  }
+
+  const allMerged = Array.from(map.values());
+  if (companyId && companyId !== 'all') {
+    return allMerged.filter((item) => {
+      const itemCompany = item.companyId || 'default';
+      return itemCompany === companyId || itemCompany === 'default';
+    });
+  }
+
+  return allMerged;
 }
 
 async function writeQuickReplies(items) {
   await ensureDataFile();
   await fs.writeFile(DATA_FILE, JSON.stringify(items, null, 2), 'utf8');
+
+  try {
+    const { query } = require('../src/infrastructure/config/database');
+    for (const item of items) {
+      if (!item?.id) continue;
+      const contentPayload = JSON.stringify({
+        text: item.content || '',
+        items: item.items || [],
+        steps: item.steps || [],
+        mediaUrl: item.mediaUrl || null,
+        mediaType: item.mediaType || null,
+        aiMemory: item.aiMemory || null,
+        filename: item.filename || null,
+      });
+
+      await query(
+        `INSERT INTO quick_replies (id, company_id, title, content, category, tags, updated_at)
+         VALUES ($1, $2, $3, $4, $5, $6, NOW())
+         ON CONFLICT (id) DO UPDATE SET
+           title = EXCLUDED.title,
+           content = EXCLUDED.content,
+           category = EXCLUDED.category,
+           tags = EXCLUDED.tags,
+           updated_at = NOW()`,
+        [
+          item.id,
+          item.companyId || 'default',
+          item.title,
+          contentPayload,
+          item.category || 'general',
+          item.tags || [],
+        ]
+      );
+    }
+  } catch (dbErr) {
+    console.warn('[QuickReplyService] Sync to DB warning:', dbErr.message);
+  }
 }
 
 function normalizeCategory(value) {
@@ -195,6 +313,10 @@ function normalizeQuickReply(payload = {}) {
     favorite: Boolean(payload.favorite),
     isFlow: Boolean(payload.isFlow),
     aiMemory: payload.aiMemory ? String(payload.aiMemory).trim() : undefined,
+    mediaUrl: payload.mediaUrl ? String(payload.mediaUrl).trim() : undefined,
+    mediaType: payload.mediaType ? String(payload.mediaType).trim().toLowerCase() : undefined,
+    filename: payload.filename ? String(payload.filename).trim() : undefined,
+    companyId: payload.companyId || 'default',
     steps: Array.isArray(payload.steps) ? payload.steps.map((step) => ({
       id: step.id || `step-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
       type: String(step.type || 'text').trim().toLowerCase(),
@@ -227,7 +349,7 @@ function assertPayload(payload = {}) {
 }
 
 async function listQuickReplies(filters = {}) {
-  const all = await readQuickReplies();
+  const all = await readQuickReplies(filters.companyId);
   const category = filters.category ? normalizeCategory(filters.category) : null;
   const term = String(filters.search || '').trim().toLowerCase();
 
@@ -313,6 +435,7 @@ async function removeQuickReply(id) {
 
 module.exports = {
   createQuickReply,
+  saveQuickReply: createQuickReply,
   listQuickReplies,
   removeQuickReply,
   updateQuickReply,

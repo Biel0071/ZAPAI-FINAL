@@ -1,0 +1,57 @@
+[
+  {
+    "id": "POLISH-COLLAPSE",
+    "module": "/inbox",
+    "route": "http://127.0.0.1:8080/inbox",
+    "viewport": null,
+    "feature": "Painel direito",
+    "action": "Recolher coluna",
+    "status": "PASS",
+    "detail": "{\"original\":307.84375,\"collapsed\":63.09375}",
+    "at": "2026-09-15T13:19:15.934Z"
+  },
+  {
+    "id": "POLISH-EXPAND",
+    "module": "/inbox",
+    "route": "http://127.0.0.1:8080/inbox",
+    "viewport": null,
+    "feature": "Painel direito",
+    "action": "Expandir coluna",
+    "status": "PASS",
+    "detail": "{\"original\":307.84375,\"expanded\":307.84375}",
+    "at": "2026-09-15T13:19:16.425Z"
+  },
+  {
+    "id": "POLISH-LEFT",
+    "module": "/inbox",
+    "route": "http://127.0.0.1:8080/inbox",
+    "viewport": null,
+    "feature": "Menu compacto",
+    "action": "Recolher menu e conferir ícone acessível",
+    "status": "PASS",
+    "detail": "{\"x\":22,\"y\":131,\"width\":20,\"height\":20}",
+    "at": "2026-09-15T13:19:16.854Z"
+  },
+  {
+    "id": "POLISH-EMOJI-INSERT",
+    "module": "/inbox",
+    "route": "http://127.0.0.1:8080/inbox",
+    "viewport": null,
+    "feature": "Emojis",
+    "action": "Abrir seletor e inserir emoji",
+    "status": "PASS",
+    "detail": "Emoji inserido no rascunho; nenhum envio",
+    "at": "2026-09-15T13:20:18.324Z"
+  },
+  {
+    "id": "POLISH-EMOJI-ESC",
+    "module": "/inbox",
+    "route": "http://127.0.0.1:8080/inbox",
+    "viewport": null,
+    "feature": "Emojis",
+    "action": "Fechar com Escape",
+    "status": "PASS",
+    "detail": "Popover fechado e rascunho preservado",
+    "at": "2026-09-15T13:20:18.893Z"
+  }
+]

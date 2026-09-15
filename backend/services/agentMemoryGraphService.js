@@ -124,6 +124,59 @@ async function learnFromInteraction({ agentKey, companyId = 'default', contact =
     [episodeKey, 'episode', safe(message).slice(0, 160), `Cliente: ${safe(message)}\nAtendente: ${safe(reply)}`, `${message} ${reply}`, { conversationId: safe(contact.conversationId), contactPhone: phone, contactName: safe(contact.name), contactKey, conversationKey }],
   ];
 
+  const extraEdges = [];
+
+  // 1. Nó de Produto de interesse explícito
+  const lowerMsg = `${message || ''} ${reply || ''}`.toLowerCase();
+  let identifiedProduct = contact.product || null;
+  if (!identifiedProduct) {
+    if (lowerMsg.includes('caixa d') || lowerMsg.includes('caixa dagua')) identifiedProduct = "Caixa d'água 5000L";
+    else if (lowerMsg.includes('churrasqueira')) identifiedProduct = "Churrasqueira pré-moldada";
+    else if (lowerMsg.includes('cimento')) identifiedProduct = "Cimento";
+  }
+  if (identifiedProduct) {
+    const prodKey = `product:${normalizeKey(identifiedProduct)}`;
+    nodes.push([prodKey, 'product', identifiedProduct, `Produto de interesse: ${identifiedProduct}`, identifiedProduct, { productName: identifiedProduct }]);
+    extraEdges.push([contactKey, prodKey, 'tem_interesse']);
+    extraEdges.push([episodeKey, prodKey, 'trata_de']);
+  }
+
+  // 2. Nó de Cidade / Localização
+  let identifiedCity = contact.city || null;
+  if (!identifiedCity) {
+    const cityMatch = lowerMsg.match(/entrega\s+para\s+([a-zá-ú\s]+)/i) || lowerMsg.match(/moro\s+em\s+([a-zá-ú\s]+)/i);
+    if (cityMatch && cityMatch[1]) {
+      const c = cityMatch[1].replace(/[?.,!].*$/, '').trim();
+      if (c.length > 2 && !c.includes('quanto') && !c.includes('onde')) identifiedCity = c;
+    }
+  }
+  if (identifiedCity) {
+    const cityKey = `city:${normalizeKey(identifiedCity)}`;
+    nodes.push([cityKey, 'city', identifiedCity, `Localização: ${identifiedCity}`, identifiedCity, { cityName: identifiedCity }]);
+    extraEdges.push([contactKey, cityKey, 'localizado_em']);
+  }
+
+  // 3. Nó de Intenção
+  let identifiedIntent = contact.intent || null;
+  if (!identifiedIntent) {
+    if (lowerMsg.includes('quanto') || lowerMsg.includes('preco') || lowerMsg.includes('preço') || lowerMsg.includes('valor')) identifiedIntent = 'compra';
+    else if (lowerMsg.includes('foto') || lowerMsg.includes('imagem')) identifiedIntent = 'ver_produto';
+    else if (lowerMsg.includes('entrega') || lowerMsg.includes('frete')) identifiedIntent = 'consulta_entrega';
+  }
+  if (identifiedIntent) {
+    const intentKey = `intent:${normalizeKey(identifiedIntent)}`;
+    nodes.push([intentKey, 'intent', `Intenção: ${identifiedIntent}`, `Intenção detectada: ${identifiedIntent}`, identifiedIntent, { intent: identifiedIntent }]);
+    extraEdges.push([episodeKey, intentKey, 'possui_intencao']);
+  }
+
+  // 4. Nó de Objeção
+  if (lowerMsg.includes('vou pensar') || lowerMsg.includes('caro') || lowerMsg.includes('depois vejo')) {
+    const objType = lowerMsg.includes('caro') ? 'Preço' : 'Tempo para pensar';
+    const objKey = `objection:${normalizeKey(objType)}`;
+    nodes.push([objKey, 'objection', `Objeção: ${objType}`, `Objeção registrada: ${objType}`, objType, { objection: objType }]);
+    extraEdges.push([contactKey, objKey, 'apresentou_objecao']);
+  }
+
   if (mediaUrl) {
     for (const concept of concepts) {
       const mediaNodeKey = `product_media:${concept}`;
@@ -163,6 +216,7 @@ async function learnFromInteraction({ agentKey, companyId = 'default', contact =
     [contactKey, conversationKey, 'participou_de'],
     [conversationKey, episodeKey, 'teve_interacao'],
     ...concepts.map((concept) => [episodeKey, `concept:${concept}`, 'menciona']),
+    ...extraEdges,
   ];
   if (mediaUrl) {
     concepts.forEach((concept) => edges.push([episodeKey, `product_media:${concept}`, 'contem_midia']));

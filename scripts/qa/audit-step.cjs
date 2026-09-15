@@ -1,6 +1,6 @@
 const {chromium}=require('../../frontend-official/node_modules/playwright');
 const fs=require('fs'),path=require('path');
-const root=path.resolve(__dirname,'../..'),out=path.join(root,'outros/reports/qa');
+const root=path.resolve(__dirname,'../..'),out=path.resolve(root,process.env.QA_OUTPUT||'outros/reports/qa');
 (async()=>{
  const browser=await chromium.connectOverCDP(fs.readFileSync(path.join(root,'outros/temp/qa-browser-endpoint.txt'),'utf8'));
  const ctx=browser.contexts()[0],page=ctx.pages()[0];

@@ -194,6 +194,7 @@ export function Sidebar() {
       <NavLink
         key={`${keyPrefix}:${item.label}:${item.path}`}
         to={item.path}
+        aria-label={compact ? item.label : undefined}
         className={cn(
           "group relative transition-all duration-150",
           compact

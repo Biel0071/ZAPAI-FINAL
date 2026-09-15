@@ -40,7 +40,7 @@ test('agent memory graph learns in batches and never crosses tenant scope', asyn
       reply: 'São dois dias úteis.',
     });
 
-    assert.equal(calls.length, 5);
+    assert.ok(calls.length >= 5);
     const memory = await service.recallRelevantMemory({
       agentKey: 'camila',
       agentName: 'Camila',

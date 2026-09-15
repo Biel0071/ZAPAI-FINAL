@@ -509,6 +509,8 @@ export default function Inbox() {
       <InboxView
         isMobile={state.isMobile}
         mobileScreen={state.mobileScreen}
+        rightPanelCollapsed={state.rightPanelCollapsed}
+        onRightPanelCollapsedChange={state.setRightPanelCollapsed}
         leftPanel={
           <ChatListPanel
             searchQuery={state.searchQuery}

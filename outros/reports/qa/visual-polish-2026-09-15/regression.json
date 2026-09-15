@@ -1,0 +1,434 @@
+[
+  {
+    "name": "right-panel-collapse-expand",
+    "route": "http://127.0.0.1:8080/inbox",
+    "viewport": {
+      "width": 1440,
+      "height": 900
+    },
+    "status": "PASS",
+    "details": {
+      "initial": 353.59375,
+      "collapsed": 63.265625,
+      "restored": 353.59375
+    },
+    "evidence": "evidence/right-panel-collapse-expand.png"
+  },
+  {
+    "name": "right-panel-resize-keyboard",
+    "route": "http://127.0.0.1:8080/inbox",
+    "viewport": {
+      "width": 1440,
+      "height": 900
+    },
+    "status": "PASS",
+    "details": {
+      "before": 353.59375,
+      "after": 489.59375
+    },
+    "evidence": "evidence/right-panel-resize-keyboard.png"
+  },
+  {
+    "name": "left-sidebar-icons",
+    "route": "http://127.0.0.1:8080/inbox",
+    "viewport": {
+      "width": 1440,
+      "height": 900
+    },
+    "status": "PASS",
+    "details": {
+      "icons": 8
+    },
+    "evidence": "evidence/left-sidebar-icons.png"
+  },
+  {
+    "name": "emoji-360x800",
+    "route": "http://127.0.0.1:8080/inbox",
+    "viewport": {
+      "width": 360,
+      "height": 800
+    },
+    "status": "PASS",
+    "details": {
+      "box": {
+        "x": 12,
+        "y": 305,
+        "width": 336,
+        "height": 430
+      },
+      "inserted": true,
+      "escape": true
+    },
+    "evidence": "evidence/emoji-360x800.png"
+  },
+  {
+    "name": "emoji-390x844",
+    "route": "http://127.0.0.1:8080/inbox",
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "status": "PASS",
+    "details": {
+      "box": {
+        "x": 13.298367500305176,
+        "y": 342.7663879394531,
+        "width": 349.4032621383667,
+        "height": 426.8278503417969
+      },
+      "inserted": true,
+      "escape": true
+    },
+    "evidence": "evidence/emoji-390x844.png"
+  },
+  {
+    "name": "emoji-768x1024",
+    "route": "http://127.0.0.1:8080/inbox",
+    "viewport": {
+      "width": 768,
+      "height": 1024
+    },
+    "status": "PASS",
+    "details": {
+      "box": {
+        "x": 404,
+        "y": 525,
+        "width": 352,
+        "height": 430
+      },
+      "inserted": true,
+      "escape": true
+    },
+    "evidence": "evidence/emoji-768x1024.png"
+  },
+  {
+    "name": "emoji-1024x768",
+    "route": "http://127.0.0.1:8080/inbox",
+    "viewport": {
+      "width": 1024,
+      "height": 768
+    },
+    "status": "PASS",
+    "details": {
+      "box": {
+        "x": 481,
+        "y": 260,
+        "width": 352,
+        "height": 430
+      },
+      "inserted": true,
+      "escape": true
+    },
+    "evidence": "evidence/emoji-1024x768.png"
+  },
+  {
+    "name": "emoji-1440x900",
+    "route": "http://127.0.0.1:8080/inbox",
+    "viewport": {
+      "width": 1440,
+      "height": 900
+    },
+    "status": "PASS",
+    "details": {
+      "box": {
+        "x": 596,
+        "y": 402,
+        "width": 352,
+        "height": 430
+      },
+      "inserted": true,
+      "escape": true
+    },
+    "evidence": "evidence/emoji-1440x900.png"
+  },
+  {
+    "name": "emoji-1920x1080",
+    "route": "http://127.0.0.1:8080/inbox",
+    "viewport": {
+      "width": 1920,
+      "height": 1080
+    },
+    "status": "PASS",
+    "details": {
+      "box": {
+        "x": 730,
+        "y": 582,
+        "width": 352,
+        "height": 430
+      },
+      "inserted": true,
+      "escape": true
+    },
+    "evidence": "evidence/emoji-1920x1080.png"
+  },
+  {
+    "name": "emoji-844x390",
+    "route": "http://127.0.0.1:8080/inbox",
+    "viewport": {
+      "width": 844,
+      "height": 390
+    },
+    "status": "PASS",
+    "details": {
+      "box": {
+        "x": 431,
+        "y": 12,
+        "width": 352,
+        "height": 310
+      },
+      "inserted": true,
+      "escape": true
+    },
+    "evidence": "evidence/emoji-844x390.png"
+  },
+  {
+    "name": "screen-contacts-1440",
+    "route": "http://127.0.0.1:8080/contacts",
+    "viewport": {
+      "width": 1440,
+      "height": 900
+    },
+    "status": "PASS",
+    "details": {
+      "viewport": 1440,
+      "document": 1440,
+      "note": "Layout geometry only; not business-flow approval"
+    },
+    "evidence": "evidence/screen-contacts-1440.png"
+  },
+  {
+    "name": "screen-campaigns-390",
+    "route": "http://127.0.0.1:8080/campaigns",
+    "viewport": {
+      "width": 390,
+      "height": 900
+    },
+    "status": "FAIL",
+    "error": "Content not ready",
+    "evidence": "evidence/screen-campaigns-390.png"
+  },
+  {
+    "name": "screen-campaigns-1440",
+    "route": "http://127.0.0.1:8080/campaigns",
+    "viewport": {
+      "width": 1440,
+      "height": 900
+    },
+    "status": "FAIL",
+    "error": "Content not ready",
+    "evidence": "evidence/screen-campaigns-1440.png"
+  },
+  {
+    "name": "screen-ai-390",
+    "route": "http://127.0.0.1:8080/ai?tab=dashboard",
+    "viewport": {
+      "width": 390,
+      "height": 900
+    },
+    "status": "PASS",
+    "details": {
+      "viewport": 390,
+      "document": 390,
+      "note": "Layout geometry only; not business-flow approval"
+    },
+    "evidence": "evidence/screen-ai-390.png"
+  },
+  {
+    "name": "screen-ai-1440",
+    "route": "http://127.0.0.1:8080/ai?tab=dashboard",
+    "viewport": {
+      "width": 1440,
+      "height": 900
+    },
+    "status": "PASS",
+    "details": {
+      "viewport": 1440,
+      "document": 1440,
+      "note": "Layout geometry only; not business-flow approval"
+    },
+    "evidence": "evidence/screen-ai-1440.png"
+  },
+  {
+    "name": "screen-settings-390",
+    "route": "http://127.0.0.1:8080/settings",
+    "viewport": {
+      "width": 390,
+      "height": 900
+    },
+    "status": "PASS",
+    "details": {
+      "viewport": 390,
+      "document": 390,
+      "note": "Layout geometry only; not business-flow approval"
+    },
+    "evidence": "evidence/screen-settings-390.png"
+  },
+  {
+    "name": "screen-settings-1440",
+    "route": "http://127.0.0.1:8080/settings",
+    "viewport": {
+      "width": 1440,
+      "height": 900
+    },
+    "status": "PASS",
+    "details": {
+      "viewport": 1440,
+      "document": 1440,
+      "note": "Layout geometry only; not business-flow approval"
+    },
+    "evidence": "evidence/screen-settings-1440.png"
+  },
+  {
+    "name": "screen-connections-390",
+    "route": "http://127.0.0.1:8080/connections",
+    "viewport": {
+      "width": 390,
+      "height": 900
+    },
+    "status": "PASS",
+    "details": {
+      "viewport": 390,
+      "document": 390,
+      "note": "Layout geometry only; not business-flow approval"
+    },
+    "evidence": "evidence/screen-connections-390.png"
+  },
+  {
+    "name": "screen-connections-1440",
+    "route": "http://127.0.0.1:8080/connections",
+    "viewport": {
+      "width": 1440,
+      "height": 900
+    },
+    "status": "PASS",
+    "details": {
+      "viewport": 1440,
+      "document": 1440,
+      "note": "Layout geometry only; not business-flow approval"
+    },
+    "evidence": "evidence/screen-connections-1440.png"
+  },
+  {
+    "name": "screen-operations-390",
+    "route": "http://127.0.0.1:8080/operations",
+    "viewport": {
+      "width": 390,
+      "height": 900
+    },
+    "status": "PASS",
+    "details": {
+      "viewport": 390,
+      "document": 390,
+      "note": "Layout geometry only; not business-flow approval"
+    },
+    "evidence": "evidence/screen-operations-390.png"
+  },
+  {
+    "name": "screen-operations-1440",
+    "route": "http://127.0.0.1:8080/operations",
+    "viewport": {
+      "width": 1440,
+      "height": 900
+    },
+    "status": "PASS",
+    "details": {
+      "viewport": 1440,
+      "document": 1440,
+      "note": "Layout geometry only; not business-flow approval"
+    },
+    "evidence": "evidence/screen-operations-1440.png"
+  },
+  {
+    "name": "screen-flows-390",
+    "route": "http://127.0.0.1:8080/flows",
+    "viewport": {
+      "width": 390,
+      "height": 900
+    },
+    "status": "PASS",
+    "details": {
+      "viewport": 390,
+      "document": 390,
+      "note": "Layout geometry only; not business-flow approval"
+    },
+    "evidence": "evidence/screen-flows-390.png"
+  },
+  {
+    "name": "screen-flows-1440",
+    "route": "http://127.0.0.1:8080/flows",
+    "viewport": {
+      "width": 1440,
+      "height": 900
+    },
+    "status": "PASS",
+    "details": {
+      "viewport": 1440,
+      "document": 1440,
+      "note": "Layout geometry only; not business-flow approval"
+    },
+    "evidence": "evidence/screen-flows-1440.png"
+  },
+  {
+    "name": "screen-memory-390",
+    "route": "http://127.0.0.1:8080/memory",
+    "viewport": {
+      "width": 390,
+      "height": 900
+    },
+    "status": "FAIL",
+    "error": "Content not ready",
+    "evidence": "evidence/screen-memory-390.png"
+  },
+  {
+    "name": "screen-memory-1440",
+    "route": "http://127.0.0.1:8080/memory",
+    "viewport": {
+      "width": 1440,
+      "height": 900
+    },
+    "status": "FAIL",
+    "error": "Content not ready",
+    "evidence": "evidence/screen-memory-1440.png"
+  },
+  {
+    "name": "screen-dashboard-390",
+    "route": "http://127.0.0.1:8080/dashboard",
+    "viewport": {
+      "width": 390,
+      "height": 900
+    },
+    "status": "PASS",
+    "details": {
+      "viewport": 390,
+      "document": 390,
+      "note": "Layout geometry only; not business-flow approval"
+    },
+    "evidence": "evidence/screen-dashboard-390.png"
+  },
+  {
+    "name": "screen-dashboard-1440",
+    "route": "http://127.0.0.1:8080/dashboard",
+    "viewport": {
+      "width": 1440,
+      "height": 900
+    },
+    "status": "PASS",
+    "details": {
+      "viewport": 1440,
+      "document": 1440,
+      "note": "Layout geometry only; not business-flow approval"
+    },
+    "evidence": "evidence/screen-dashboard-1440.png"
+  },
+  {
+    "name": "screen-contacts-390",
+    "route": "http://127.0.0.1:8080/contacts",
+    "viewport": {
+      "width": 390,
+      "height": 900
+    },
+    "status": "FAIL",
+    "error": "page.waitForFunction: Target page, context or browser has been closed",
+    "evidence": "Screenshot failed: page.screenshot: Target page, context or browser has been closed"
+  }
+]

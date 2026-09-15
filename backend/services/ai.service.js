@@ -292,6 +292,11 @@ function compileSystemPrompt(agent, store, contact = null) {
   }
   const memorySettings = store?.aiConfig?.memorySettings || {};
   compiled += `- Memória Ativa: ${memorySettings.enabled !== false ? 'Sim' : 'Não'}\n`;
+  
+  if (contact?.conversationMemoryPrompt) {
+    compiled += `${contact.conversationMemoryPrompt}\n\n`;
+  }
+
   const memoryContext = contact?.memoryContext;
   if (memorySettings.enabled !== false && memoryContext) {
     if (memoryContext.summary) compiled += `- Resumo acumulado do cliente: ${memoryContext.summary}\n`;
@@ -332,7 +337,12 @@ function compileSystemPrompt(agent, store, contact = null) {
   compiled += `[CAPACIDADES DE MÍDIA, ENVIOS E RESPOSTAS RÁPIDAS DA LOJA]\n`;
   compiled += `- CAPACIDADE DE ENVIO DE MÍDIAS: Você POSSUI suporte total e ativo para enviar fotos, imagens de produtos, catálogos em PDF, vídeos e áudios de voz aos clientes!\n`;
   compiled += `- REGRA CRÍTICA DE MÍDIA: JAMAIS diga ao cliente que "não consegue enviar fotos", "não pode mandar imagens" ou que "é apenas texto". Essa afirmação é estritamente PROIBIDA e considerada um erro grave.\n`;
-  compiled += `- Quando o cliente solicitar foto, imagem, demonstração ou tabela de preços em PDF (ex: 'Me manda a foto', 'Tem foto da churrasqueira?', 'Manda catálogo de cimentos'), você DEVE responder confirmando com entusiasmo que está enviando a foto/mídia do produto e solicitar se ele deseja ver mais detalhes ou realizar o pedido!\n`;
+  compiled += `- Quando o cliente solicitar foto, imagem, demonstração ou tabela de preços em PDF (ex: 'Me manda a foto', 'Tem foto da churrasqueira?', 'Manda foto da caixa d água'), você DEVE responder confirmando com entusiasmo que está enviando a foto/mídia do produto e solicitar se ele deseja ver mais detalhes ou realizar o pedido!\n`;
+  
+  if (contact?.matchedCapability) {
+    compiled += `- RECURSO MULTIMODAL COMBINADO DETECTADO: Para a demanda atual do cliente, o recurso "${contact.matchedCapability.title}" (ID: "${contact.matchedCapability.id}") é a melhor opção. Se o cliente pediu foto/imagem/áudio ou informações desse produto, declare no trigger_quick_reply o ID "${contact.matchedCapability.id}"!\n`;
+  }
+
   compiled += `- Respostas Rápidas e Mídias Mapeadas da Loja:\n`;
   const quickRepliesList = agent?.quickReplies || store?.quickReplies || [];
   if (Array.isArray(quickRepliesList) && quickRepliesList.length > 0) {
@@ -343,24 +353,30 @@ function compileSystemPrompt(agent, store, contact = null) {
         text = qr.items.filter(i => i.type === 'text').map(i => i.value).join(' | ');
       }
       const qrId = typeof qr === 'string' ? label : qr.id;
-      const hasMedia = qr.items && qr.items.some(i => i.type !== 'text') || qr.mediaUrl || qr.fileUrl || qr.steps && qr.steps.some(s => s.type !== 'text');
+      const hasMedia = (qr.items && qr.items.some(i => i.type !== 'text')) || qr.mediaUrl || qr.fileUrl || (qr.steps && qr.steps.some(s => s.type !== 'text'));
       const media = hasMedia ? `[Contém Mídia/Arquivos]` : '';
       const memoryStr = qr.aiMemory ? ` | Memória Visual: "${qr.aiMemory.replace(/\n/g, ' ')}"` : '';
       compiled += `  * Resposta Rápida/Mídia (ID: "${qrId}") -> Título: "${label}" | Resumo: "${text.substring(0,150).replace(/\n/g, ' ')}..." ${media}${memoryStr}\n`;
     }
   } else {
-    compiled += `  * Mídias cadastradas para envio automático: Fotos de Churrasqueiras pré-moldadas, Cimento Liz/Campeão, Tijolos e Tabela de Preços da Loja.\n`;
+    compiled += `  * Mídias cadastradas para envio automático: Fotos de Churrasqueiras pré-moldadas, Caixa d'Água 5.000L, Cimento Liz/Campeão, Tijolos e Tabela de Preços da Loja.\n`;
   }
   compiled += `\n`;
 
   // 11. DIRETRIZES GLOBAIS DE ATENDIMENTO
   compiled += `[DIRETRIZES GLOBAIS DE ATENDIMENTO]\n`;
+  compiled += `- ATENDIMENTO CONTEXTUAL OBRIGATÓRIO: Você é um AGENTE DE ATENDIMENTO CONTEXTUAL, não um chatbot de respostas genéricas prontas. Cada conversa deve ter personalidade e contexto próprio!\n`;
+  compiled += `- A mesma pergunta pode e deve receber respostas completamente diferentes dependendo do contexto da conversa:\n`;
+  compiled += `  * Cliente A pergunta "Quanto fica?" após falar de churrasqueira -> responda sobre churrasqueira.\n`;
+  compiled += `  * Cliente B pergunta "Quanto fica?" após falar de caixa d'água 5.000L -> responda sobre caixa d'água de 5.000L (R$ 2.490,00 à vista ou 10x).\n`;
+  compiled += `  * JAMAIS responda com uma frase universal ou pergunte novamente o que já está na memória ativa!\n`;
+  compiled += `- ADAPTAÇÃO PERSONALIZADA: Se o cliente for objetivo, seja direto e objetivo; se fizer uma pergunta detalhada, elabore; se pedir foto, mande a foto; se pedir áudio, utilize recurso de áudio quando disponível.\n`;
   compiled += `- Sempre responda em português brasileiro de forma natural, calorosa, empática, simpática e profissional.\n`;
   compiled += `- Respeite rigorosamente a Diretriz de Tamanho configurada para o seu perfil no bloco [TOM/PERSONALIDADE]. Respostas muito longas para atendentes objetivos ou muito curtas para detalhados serão consideradas falhas.\n`;
   compiled += `- Use uma variedade de palavras e expressões para evitar respostas repetitivas ou mecânicas. Adapte o tom ao humor e estilo de escrita do cliente.\n`;
   compiled += `- TRANSCRIÇÃO DE ÁUDIOS DE VOZ: Se o cliente enviar uma mensagem de áudio, ela será automaticamente convertida em texto e entregue como '[Áudio Transcrito]: "..."'. Trate essa transcrição exatamente como se o cliente tivesse digitado o texto. Extraia produtos, quantidades, dúvidas ou dados de entrega fornecidos no áudio e DÊ SEGUIMENTO NORMAL ao atendimento, avançando no funil sem repetir perguntas sobre o que já foi dito no áudio!\n`;
   compiled += `- SISTEMA DE ETAPAS DE ATENDIMENTO: Siga rigorosamente o atendimento por etapas. Não avance etapas sem que a anterior esteja concluída. Nunca pergunte novamente por informações que o cliente já forneceu (consulte o histórico recente e a memória). As etapas são:\n`;
-  compiled += `  1. Levantamento de Necessidades (Estágio: new_lead / interested): Pergunte quais produtos e quantidades o cliente precisa. Se o cliente já informou produtos e quantidades na mensagem inicial ou em áudio (ex: 'queria 150 cimentos'), CONFIRME e avance direto para a Etapa 2. Não pergunte o que ele quer novamente!\n`;
+  compiled += `  1. Levantamento de Necessidades (Estágio: new_lead / interested): Pergunte quais produtos e quantidades o cliente precisa. Se o cliente já informou produtos e quantidades na mensagem inicial ou em áudio (ex: 'queria 150 cimentos' ou 'caixa de 5 mil litros'), CONFIRME e avance direto para a Etapa 2. Não pergunte o que ele quer novamente!\n`;
   compiled += `  2. Cotação de Preços (Estágio: price_sent): Apresente os preços dos produtos desejados conforme a tabela de produtos cadastrada. Se houver mais de uma opção (ex: Campeão vs Liz), dê as opções e pergunte qual prefere.\n`;
   compiled += `  3. Entrega ou Retirada (Estágio: negotiation): Pergunte se o cliente prefere receber no endereço ou se deseja retirar na loja. Se for entrega, solicite o CEP ou endereço completo para cálculo do frete. Não passe para a próxima etapa sem o endereço de entrega ou confirmação de retirada.\n`;
   compiled += `  4. Forma de Pagamento e Fechamento (Estágio: ready_to_buy): Com os produtos, quantidades e frete definidos, apresente as opções de pagamento (PIX com 5% desc, Crédito em até 10x sem juros, ou Boleto faturado sob consulta). Solicite a confirmação final do pedido.\n`;
@@ -779,6 +795,32 @@ async function processAI({ contact, history, message, store, agentName, companyI
   }
   // -- END LOCAL BRAIN --
 
+  const conversationMemoryEngine = require('./conversationMemoryEngine');
+  const quickReplyCapability = require('./quickReplyCapability');
+
+  let convMemory = null;
+  let bestQuickReplyMatch = null;
+  try {
+    convMemory = await conversationMemoryEngine.getConversationMemory({
+      contactId: contact?.id || contact?.phone,
+      phone: contact?.phone,
+      companyId: resolvedCompanyId,
+    });
+    if (convMemory) {
+      conversationMemoryEngine.extractFactsFromContext(message, {}, convMemory);
+      contact.conversationMemoryPrompt = conversationMemoryEngine.buildContextualPrompt(convMemory);
+      bestQuickReplyMatch = await quickReplyCapability.findBestMatchForContext({
+        message,
+        intent: convMemory.intent,
+        product: convMemory.commercial?.activeProduct,
+        companyId: resolvedCompanyId,
+      });
+      contact.matchedCapability = bestQuickReplyMatch;
+    }
+  } catch (memErr) {
+    console.warn('[AI SERVICE] ConversationMemory load failed:', memErr.message);
+  }
+
   let graphMemory = { prompt: '', memories: [] };
   try {
     graphMemory = await agentMemoryGraphService.recallRelevantMemory({
@@ -954,6 +996,24 @@ async function processAI({ contact, history, message, store, agentName, companyI
       }
     }
 
+    // Auto-preenchimento de trigger_quick_reply se o cliente solicitou foto/mídia
+    const normMsg = String(message || '').toLowerCase();
+    const wantsMedia = normMsg.includes('foto') || normMsg.includes('imagem') || normMsg.includes('áudio') || normMsg.includes('audio') || normMsg.includes('video') || normMsg.includes('vídeo') || normMsg.includes('ver o produto') || normMsg.includes('mandar foto') || normMsg.includes('manda foto');
+    if (wantsMedia && bestQuickReplyMatch && (!analysisResult || !analysisResult.trigger_quick_reply)) {
+      if (!analysisResult) analysisResult = {};
+      analysisResult.trigger_quick_reply = bestQuickReplyMatch.id;
+    }
+
+    // Atualiza fatos e memória da conversa em 5 níveis
+    if (convMemory) {
+      try {
+        conversationMemoryEngine.extractFactsFromContext(replyClean, analysisResult, convMemory);
+        await conversationMemoryEngine.persistConversationMemory(convMemory, resolvedCompanyId);
+      } catch (saveMemErr) {
+        console.warn('[AI SERVICE] Error updating ConversationMemory:', saveMemErr.message);
+      }
+    }
+
     // Save log entry asynchronously
     replyClean = enforceResponseWordLimit(replyClean, resolvedAgent);
 
@@ -986,10 +1046,12 @@ async function processAI({ contact, history, message, store, agentName, companyI
     }
 
     const finalResult = {
-      intent: 'information',
+      intent: analysisResult?.intent || convMemory?.intent || 'information',
       leadScore: 0.5,
       reply: replyClean,
       analysis: analysisResult,
+      quickReplyTriggered: analysisResult?.trigger_quick_reply || null,
+      matchedCapability: bestQuickReplyMatch,
       suggestion: null,
       provider: providerId,
       model: model || 'default',

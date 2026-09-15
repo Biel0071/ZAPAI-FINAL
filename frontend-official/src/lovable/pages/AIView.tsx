@@ -4078,15 +4078,27 @@ export function AIView(props: AIViewProps) {
                             </div>
                           </CardHeader>
                           <CardContent className="p-0 overflow-hidden h-[450px]">
-                            <div className="block h-full w-full bg-background/50 relative">
-                              <div className="absolute inset-0 pointer-events-none bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-primary/5 via-transparent to-transparent opacity-50 mix-blend-screen"></div>
-                              <MemoryGraphViewer 
-                                graphData={agentMemoryGraph || { nodes: [], edges: [] }} 
-                                width={800} 
-                                height={450} 
-                                onNodeClick={handleMemoryNodeClick}
-                              />
-                            </div>
+                            {(!agentMemoryGraph?.nodes || agentMemoryGraph.nodes.length === 0) ? (
+                              <div className="flex flex-col items-center justify-center h-full text-center p-6 space-y-3 bg-background/40">
+                                <BrainCircuit className="h-10 w-10 text-primary/40 animate-pulse" />
+                                <div className="space-y-1">
+                                  <p className="text-xs font-bold text-foreground">Nenhuma conexão registrada no grafo ainda</p>
+                                  <p className="text-[11px] text-muted-foreground max-w-sm mx-auto leading-relaxed">
+                                    As conexões reais entre clientes, produtos, conversas e intenções são construídas conforme mensagens e mídias são trocadas no WhatsApp.
+                                  </p>
+                                </div>
+                              </div>
+                            ) : (
+                              <div className="block h-full w-full bg-background/50 relative">
+                                <div className="absolute inset-0 pointer-events-none bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-primary/5 via-transparent to-transparent opacity-50 mix-blend-screen"></div>
+                                <MemoryGraphViewer 
+                                  graphData={agentMemoryGraph} 
+                                  width={800} 
+                                  height={450} 
+                                  onNodeClick={handleMemoryNodeClick}
+                                />
+                              </div>
+                            )}
                           </CardContent>
                         </Card>
                       </div>
@@ -4095,7 +4107,7 @@ export function AIView(props: AIViewProps) {
                       <div className="pt-4 border-t border-border/40">
                         <div className="grid gap-6 lg:grid-cols-3 mb-6">
                           
-                          {/* COLUNA 1: ESTATÍSTICAS (CAMILA/AGENTES) */}
+                          {/* COLUNA 1: ESTATÍSTICAS REAIS (CAMILA/AGENTES) */}
                           <div className="space-y-4">
                             {loadingEvolution ? (
                               <div className="flex h-36 items-center justify-center">
@@ -4111,27 +4123,51 @@ export function AIView(props: AIViewProps) {
                                         Score: {agent.evolution_score}/100
                                       </Badge>
                                     </div>
-                                    <div className="grid grid-cols-2 gap-2 text-[10px]">
-                                      <div className="rounded border border-border/40 p-2 bg-background/20">
-                                        <span className="block text-muted-foreground">Analisadas</span>
-                                        <span className="font-bold text-foreground">{agent.conversations_analyzed}</span>
+                                    <div className="grid grid-cols-2 gap-1.5 text-[10px]">
+                                      <div className="rounded border border-border/40 p-1.5 bg-background/20">
+                                        <span className="block text-muted-foreground text-[9px]">Analisadas</span>
+                                        <span className="font-bold text-foreground">{agent.conversations_analyzed || 0}</span>
                                       </div>
-                                      <div className="rounded border border-border/40 p-2 bg-background/20">
-                                        <span className="block text-muted-foreground">Ads Leads</span>
-                                        <span className="font-bold text-foreground text-blue-400">{agent.ads_leads || 0}</span>
+                                      <div className="rounded border border-border/40 p-1.5 bg-background/20">
+                                        <span className="block text-muted-foreground text-[9px]">Clientes Atendidos</span>
+                                        <span className="font-bold text-foreground text-blue-400">{agent.clients_served || 0}</span>
                                       </div>
-                                      <div className="rounded border border-border/40 p-2 bg-background/20">
-                                        <span className="block text-muted-foreground">Conversões</span>
-                                        <span className="font-bold text-foreground text-emerald-500">{agent.conversions}</span>
+                                      <div className="rounded border border-border/40 p-1.5 bg-background/20">
+                                        <span className="block text-muted-foreground text-[9px]">Conversões</span>
+                                        <span className="font-bold text-foreground text-emerald-500">{agent.conversions || 0}</span>
                                       </div>
-                                      <div className="rounded border border-border/40 p-2 bg-background/20">
-                                        <span className="block text-muted-foreground">Sucesso</span>
-                                        <span className="font-bold text-foreground">{agent.success_rate}%</span>
+                                      <div className="rounded border border-border/40 p-1.5 bg-background/20">
+                                        <span className="block text-muted-foreground text-[9px]">Taxa de Acerto</span>
+                                        <span className="font-bold text-foreground text-emerald-400">{agent.accuracy_rate || 100}%</span>
+                                      </div>
+                                      <div className="rounded border border-border/40 p-1.5 bg-background/20">
+                                        <span className="block text-muted-foreground text-[9px]">Memórias Criadas</span>
+                                        <span className="font-bold text-foreground">{agent.memories_created || 0}</span>
+                                      </div>
+                                      <div className="rounded border border-border/40 p-1.5 bg-background/20">
+                                        <span className="block text-muted-foreground text-[9px]">Memórias Atualizadas</span>
+                                        <span className="font-bold text-foreground">{agent.memories_updated || 0}</span>
+                                      </div>
+                                      <div className="rounded border border-border/40 p-1.5 bg-background/20">
+                                        <span className="block text-muted-foreground text-[9px]">Respostas Aprendidas</span>
+                                        <span className="font-bold text-foreground text-amber-400">{agent.responses_learned || 0}</span>
+                                      </div>
+                                      <div className="rounded border border-border/40 p-1.5 bg-background/20">
+                                        <span className="block text-muted-foreground text-[9px]">Mídias Enviadas</span>
+                                        <span className="font-bold text-foreground text-indigo-400">{agent.media_used || 0}</span>
+                                      </div>
+                                      <div className="rounded border border-border/40 p-1.5 bg-background/20">
+                                        <span className="block text-muted-foreground text-[9px]">Intenções Mapeadas</span>
+                                        <span className="font-bold text-foreground">{agent.intents_identified || 0}</span>
+                                      </div>
+                                      <div className="rounded border border-border/40 p-1.5 bg-background/20">
+                                        <span className="block text-muted-foreground text-[9px]">Intervenção Humana</span>
+                                        <span className="font-bold text-foreground">{agent.human_intervention_rate || 0}%</span>
                                       </div>
                                     </div>
-                                    {agent.faq_data?.top_questions && (
+                                    {agent.faq_data?.top_questions?.length > 0 && (
                                       <div className="space-y-1.5 pt-2 border-t border-border/30">
-                                        <span className="block text-[10px] font-bold text-muted-foreground uppercase">Tópicos Mais Frequentes</span>
+                                        <span className="block text-[10px] font-bold text-muted-foreground uppercase">Perguntas Reais Frequentes</span>
                                         <div className="space-y-1">
                                           {agent.faq_data.top_questions.map((q: any, idx: number) => (
                                             <div key={idx} className="flex justify-between text-[10px] text-muted-foreground">

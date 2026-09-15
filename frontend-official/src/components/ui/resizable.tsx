@@ -21,7 +21,7 @@ const ResizableHandle = ({
 }) => (
   <ResizablePrimitive.PanelResizeHandle
     className={cn(
-      "group relative flex w-2 items-center justify-center bg-transparent transition-colors duration-200 cursor-col-resize data-[panel-group-direction=vertical]:cursor-row-resize focus-visible:outline-none",
+      "group relative flex w-2 items-center justify-center bg-transparent transition-colors duration-200 cursor-col-resize data-[panel-group-direction=vertical]:cursor-row-resize focus-visible:outline-none focus-visible:bg-primary/15 focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-primary",
       className,
     )}
     {...props}

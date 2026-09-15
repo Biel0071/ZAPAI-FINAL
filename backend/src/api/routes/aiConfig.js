@@ -11,69 +11,147 @@ router.get('/ai/memory/search', aiConfigController.searchMemory);
 router.post('/ai/memory/flush', aiConfigController.flushMemory);
 
 /**
- * POST /ai/compose
- * ZAI Inline Composer — generates a WhatsApp response from an attendant instruction.
- * Body: { conversationId, contactName, instruction, recentMessages?, sessionId? }
- * Response: { message: string, success: boolean }
+ * POST /ai/compose/**
+ * ZAI Inline Composer — generates or refines a WhatsApp response from an attendant instruction or action.
+ * Body: { conversationId, contactName, contactPhone?, instruction?, currentDraft?, action?, recentMessages?, sessionId? }
+ * Response: { message: string, detectedContext: object, suggestions: string[], success: boolean }
  */
 router.post('/ai/compose', async (req, res) => {
   try {
-    const { contactName, instruction, recentMessages } = req.body || {};
+    const {
+      conversationId,
+      contactName,
+      contactPhone,
+      instruction,
+      currentDraft,
+      action,
+      recentMessages,
+    } = req.body || {};
 
-    if (!instruction || !String(instruction).trim()) {
-      return res.status(400).json({ success: false, error: 'instruction is required.' });
+    const store = req.app.locals.store;
+    const companyId = store?.activeCompanyId || 'default';
+    const conversationMemoryEngine = require('../../../services/conversationMemoryEngine');
+    const quickReplyCapability = require('../../../services/quickReplyCapability');
+
+    // Recuperar memória ativa em múltiplos níveis
+    let memory = null;
+    try {
+      memory = await conversationMemoryEngine.getConversationMemory({
+        contactId: conversationId || contactPhone,
+        phone: contactPhone,
+        companyId,
+      });
+    } catch (_) {}
+
+    // Identificar contexto e produto discutido
+    let detectedProduct = memory?.commercial?.activeProduct || null;
+    if (!detectedProduct && Array.isArray(recentMessages)) {
+      const allText = recentMessages.map((m) => m.content || '').join(' ').toLowerCase();
+      if (allText.includes('caixa d') || allText.includes('caixa dagua')) detectedProduct = "Caixa d'água 5.000L";
+      else if (allText.includes('churrasqueira')) detectedProduct = "Churrasqueira pré-moldada";
+      else if (allText.includes('cimento')) detectedProduct = "Cimento";
     }
 
-    const COMPOSE_SYSTEM_PROMPT = `Você é um assistente de atendimento comercial brasileiro.
-Sua função é ajudar o atendente humano a redigir mensagens para clientes no WhatsApp.
-Responda APENAS com a mensagem que deve ser enviada ao cliente — sem aspas, sem explicações, sem prefixos como "Mensagem:" ou "Resposta:".
-Escreva de forma natural, cordial, objetiva e humana.
-Use português brasileiro informal mas profissional.
-Não invente informações de preço, prazo, estoque ou condições que não foram fornecidas.
-Limite a resposta a 1-3 parágrafos curtos.
-Use emojis com moderação (máximo 1-2 por mensagem).
-Nunca use linguagem robótica ou formalidade excessiva.`;
+    const detectedContext = {
+      product: detectedProduct || (memory?.commercial?.capacity ? `Produto (${memory.commercial.capacity})` : 'Produto de interesse'),
+      capacity: memory?.commercial?.capacity || null,
+      deliveryCity: memory?.commercial?.deliveryCity || null,
+      intent: memory?.intent || 'Cotação / Atendimento',
+      summary: memory?.summary || (detectedProduct ? `Interesse em ${detectedProduct}` : 'Atendimento ativo'),
+    };
 
-    const contactStr = contactName ? `Cliente: ${contactName}` : 'Cliente desconhecido';
+    const suggestions = [
+      'Enviar foto do produto',
+      'Informar preço e condições',
+      'Explicar prazo e entrega',
+      'Responder sobre formas de pagamento',
+    ];
 
+    // Se não há mensagens nem rascunho nem instrução nem ação (consulta vazia de contexto)
+    const hasHistory = Array.isArray(recentMessages) && recentMessages.length > 0;
+    if (!instruction && !currentDraft && !action && !hasHistory) {
+      return res.status(200).json({
+        success: true,
+        message: '',
+        detectedContext,
+        suggestions,
+      });
+    }
+
+    // Montar diretriz de ação
+    let actionInstruction = '';
+    if (action === 'shorten') {
+      actionInstruction = 'Reescreva a mensagem para torná-la extremamente curta, concisa e direta ao ponto (1 ou 2 frases), mantendo o tom amigável.';
+    } else if (action === 'expand') {
+      actionInstruction = 'Expanda a mensagem trazendo mais detalhes explicativos, benefícios e orientações completas para esclarecer o cliente.';
+    } else if (action === 'commercial') {
+      actionInstruction = 'Torne a mensagem mais persuasiva e comercialmente atraente, com foco em fechamento de venda e chamada para ação clara.';
+    } else if (action === 'natural') {
+      actionInstruction = 'Torne o texto mais humano, natural, simpático e informal (padrão WhatsApp brasileiro).';
+    } else if (action === 'professional') {
+      actionInstruction = 'Torne o texto profissional, polido, claro e seguro.';
+    } else if (action === 'friendly') {
+      actionInstruction = 'Torne a mensagem calorosa, acolhedora e muito simpática.';
+    } else if (action === 'add_delivery') {
+      actionInstruction = `Adicione informações ou pergunta sobre o prazo de entrega e cálculo do frete ${memory?.commercial?.deliveryCity ? `para ${memory.commercial.deliveryCity}` : 'solicitando o endereço ou CEP'}.`;
+    } else if (action === 'add_price') {
+      actionInstruction = `Adicione o valor e condições de pagamento do produto em foco (${detectedContext.product}), informando PIX com desconto e parcelamento em até 10x sem juros.`;
+    } else if (action === 'add_payment') {
+      actionInstruction = 'Apresente as opções de pagamento da loja: PIX à vista com 5% de desconto, Cartão de crédito em até 10x sem juros, ou faturamento sob consulta.';
+    } else if (action === 'improve') {
+      actionInstruction = 'Melhore a clareza, pontuação, simpatia e impacto da mensagem.';
+    } else if (!action && !instruction && !currentDraft && hasHistory) {
+      actionInstruction = 'Gere uma sugestão de resposta cordial, direta e comercialmente precisa respondendo à última mensagem do cliente, considerando o produto e memória.';
+    }
+
+    const COMPOSE_SYSTEM_PROMPT = `Você é um copiloto de atendimento comercial de elite para WhatsApp.
+Sua função é auxiliar o atendente humano a responder ou refinar mensagens para clientes.
+Responda APENAS com a mensagem pronta para envio ao cliente — sem aspas, sem explicações prévias, sem prefixos.
+Use português brasileiro natural, empático e profissional.
+Adapte-se estritamente ao produto em foco (${detectedContext.product}) e dados da conversa.
+Nunca invente preços ou prazos que contradigam o contexto.`;
+
+    const contactStr = contactName ? `Cliente: ${contactName}` : 'Cliente';
     let historyBlock = '';
     if (Array.isArray(recentMessages) && recentMessages.length > 0) {
       historyBlock = '\n\nHistórico recente da conversa:\n' +
-        recentMessages.map(m => `${m.role === 'assistant' ? 'Atendente' : 'Cliente'}: ${m.content}`).join('\n');
+        recentMessages.map((m) => `${m.role === 'assistant' ? 'Atendente' : 'Cliente'}: ${m.content}`).join('\n');
     }
 
-    const userMessage = `${contactStr}${historyBlock}
+    let memoryBlock = '';
+    if (memory) {
+      memoryBlock = `\nContexto registrado: Produto: ${detectedContext.product} | Cidade: ${detectedContext.deliveryCity || 'A definir'} | Intenção: ${detectedContext.intent}\n`;
+    }
 
-Instrução do atendente: ${String(instruction).trim()}
+    const draftBlock = currentDraft ? `\nTexto já rascunhado pelo atendente:\n"${currentDraft}"\n` : '';
+    const userInstructionText = instruction ? `\nInstrução adicional do atendente: ${instruction}` : '';
+    const actionText = actionInstruction ? `\nAção solicitada: ${actionInstruction}` : '';
 
-Escreva a mensagem que o atendente deve enviar ao cliente:`;
+    const userMessage = `${contactStr}${historyBlock}${memoryBlock}${draftBlock}${actionText}${userInstructionText}
 
-    const store = req.app.locals.store;
+Gere a versão final da mensagem para o atendente enviar ao cliente:`;
+
     const { testProviderConnection } = require('../../../services/ai.service');
+    const { query } = require('../../../src/infrastructure/config/database');
+    const crypto = require('crypto');
+    const rawEncKey = process.env.ENCRYPTION_KEY || '';
+    const encKey = crypto.createHash('sha256').update(rawEncKey).digest();
 
-    // Resolve active provider (same logic as processAI / testAIConnection)
+    function localDecrypt(text) {
+      if (!text || !text.includes(':')) return text;
+      try {
+        const parts = text.split(':');
+        const iv = Buffer.from(parts.shift(), 'hex');
+        const enc = Buffer.from(parts.join(':'), 'hex');
+        const decipher = crypto.createDecipheriv('aes-256-cbc', encKey, iv);
+        let dec = decipher.update(enc);
+        dec = Buffer.concat([dec, decipher.final()]);
+        return dec.toString();
+      } catch { return text; }
+    }
+
     let activeProvider = null;
-    const companyId = store?.activeCompanyId || 'default';
-
     try {
-      const { query } = require('../../../src/infrastructure/config/database');
-      const crypto = require('crypto');
-      const rawEncKey = process.env.ENCRYPTION_KEY || '';
-      const encKey = crypto.createHash('sha256').update(rawEncKey).digest();
-
-      function localDecrypt(text) {
-        if (!text || !text.includes(':')) return text;
-        try {
-          const parts = text.split(':');
-          const iv = Buffer.from(parts.shift(), 'hex');
-          const enc = Buffer.from(parts.join(':'), 'hex');
-          const decipher = crypto.createDecipheriv('aes-256-cbc', encKey, iv);
-          let dec = decipher.update(enc);
-          dec = Buffer.concat([dec, decipher.final()]);
-          return dec.toString();
-        } catch { return text; }
-      }
-
       const { rows } = await query(
         `SELECT * FROM provider_keys WHERE tenant_id = $1 AND enabled = TRUE LIMIT 1`,
         [companyId]
@@ -88,38 +166,77 @@ Escreva a mensagem que o atendente deve enviar ao cliente:`;
 
     if (!activeProvider) {
       const providers = store?.aiConfig?.advancedAISettings?.providers || [];
-      const found = providers.find(p => p.active) || providers[0];
+      const found = providers.find((p) => p.active) || providers[0];
       if (found) activeProvider = { id: found.id, apiKey: found.apiKey, model: found.model };
     }
 
     if (!activeProvider) {
-      return res.status(503).json({ success: false, error: 'Nenhum provedor de IA configurado. Acesse as configurações para adicionar uma chave de API.' });
+      return res.status(503).json({ success: false, error: 'Nenhum provedor de IA configurado.' });
     }
 
     const result = await testProviderConnection(activeProvider, {
       model: activeProvider.model,
       message: userMessage,
       prompt: COMPOSE_SYSTEM_PROMPT,
-      history: Array.isArray(recentMessages) ? recentMessages.map(m => ({
+      history: Array.isArray(recentMessages) ? recentMessages.map((m) => ({
         role: m.role === 'assistant' ? 'assistant' : 'user',
         content: m.content || '',
       })) : [],
       maxTokens: 600,
-      temperature: 0.7,
+      temperature: 0.6,
       timeoutMs: 40000,
     });
 
-    const message = result?.response || '';
+    const generatedMessage = result?.response || '';
 
-    if (!result?.ok || !message) {
-      const errorMsg = result?.error || 'Erro ao gerar resposta.';
-      return res.status(503).json({ success: false, error: errorMsg });
+    if (!result?.ok || !generatedMessage) {
+      return res.status(503).json({ success: false, error: result?.error || 'Erro ao gerar resposta.' });
     }
 
-    return res.status(200).json({ success: true, message: message.trim() });
+    return res.status(200).json({
+      success: true,
+      message: generatedMessage.trim(),
+      detectedContext,
+      suggestions,
+    });
   } catch (error) {
     console.error('[AI COMPOSE] Error:', error.message);
     return res.status(500).json({ success: false, error: error.message || 'Erro ao gerar resposta.' });
+  }
+});
+
+/**
+ * Registra feedback de edição humana sobre sugestão da IA para aprendizado progressivo
+ */
+router.post('/ai/learning/feedback', async (req, res) => {
+  try {
+    const { agentKey, customerQuestion, aiResponse, humanAnswer, contactPhone, contactName, conversationId } = req.body || {};
+    const { query } = require('../../../src/infrastructure/config/database');
+    const store = req.app.locals.store;
+    const companyId = store?.activeCompanyId || 'default';
+
+    const insertRes = await query(`
+      INSERT INTO agent_learning_events (
+        agent_key, company_id, event_type, customer_question, ai_response, human_answer,
+        contact_phone, contact_name, conversation_id, status, created_at
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'pending', NOW())
+      RETURNING id, status
+    `, [
+      agentKey || 'agent',
+      companyId,
+      'human_edit_feedback',
+      customerQuestion || 'Interação no atendimento',
+      aiResponse || '',
+      humanAnswer || '',
+      contactPhone || null,
+      contactName || null,
+      conversationId || null,
+    ]);
+
+    return res.status(200).json({ success: true, eventId: insertRes.rows[0]?.id, status: 'pending' });
+  } catch (err) {
+    console.error('[AI FEEDBACK] Error:', err.message);
+    return res.status(500).json({ success: false, error: err.message });
   }
 });
 

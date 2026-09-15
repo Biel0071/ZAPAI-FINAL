@@ -1,0 +1,1981 @@
+{
+  "timestamp": "2026-09-09T14:24:39.327Z",
+  "routes": [
+    {
+      "path": "/dashboard",
+      "status": "ok",
+      "title": "API Platform — Enterprise Gateway",
+      "redirectedTo": null,
+      "error": null
+    },
+    {
+      "path": "/inbox",
+      "status": "ok",
+      "title": "API Platform — Enterprise Gateway",
+      "redirectedTo": null,
+      "error": null
+    },
+    {
+      "path": "/connections",
+      "status": "ok",
+      "title": "API Platform — Enterprise Gateway",
+      "redirectedTo": null,
+      "error": null
+    },
+    {
+      "path": "/contacts",
+      "status": "ok",
+      "title": "API Platform — Enterprise Gateway",
+      "redirectedTo": null,
+      "error": null
+    },
+    {
+      "path": "/flows",
+      "status": "ok",
+      "title": "API Platform — Enterprise Gateway",
+      "redirectedTo": null,
+      "error": null
+    },
+    {
+      "path": "/ai",
+      "status": "ok",
+      "title": "API Platform — Enterprise Gateway",
+      "redirectedTo": null,
+      "error": null
+    },
+    {
+      "path": "/analytics",
+      "status": "ok",
+      "title": "API Platform — Enterprise Gateway",
+      "redirectedTo": null,
+      "error": null
+    },
+    {
+      "path": "/campaigns",
+      "status": "ok",
+      "title": "API Platform — Enterprise Gateway",
+      "redirectedTo": null,
+      "error": null
+    },
+    {
+      "path": "/memory",
+      "status": "ok",
+      "title": "API Platform — Enterprise Gateway",
+      "redirectedTo": null,
+      "error": null
+    },
+    {
+      "path": "/users",
+      "status": "ok",
+      "title": "API Platform — Enterprise Gateway",
+      "redirectedTo": null,
+      "error": null
+    },
+    {
+      "path": "/nodes",
+      "status": "ok",
+      "title": "API Platform — Enterprise Gateway",
+      "redirectedTo": null,
+      "error": null
+    },
+    {
+      "path": "/deployments",
+      "status": "ok",
+      "title": "API Platform — Enterprise Gateway",
+      "redirectedTo": null,
+      "error": null
+    },
+    {
+      "path": "/logs",
+      "status": "ok",
+      "title": "API Platform — Enterprise Gateway",
+      "redirectedTo": null,
+      "error": null
+    },
+    {
+      "path": "/diagnostics",
+      "status": "ok",
+      "title": "API Platform — Enterprise Gateway",
+      "redirectedTo": null,
+      "error": null
+    },
+    {
+      "path": "/settings",
+      "status": "ok",
+      "title": "API Platform — Enterprise Gateway",
+      "redirectedTo": null,
+      "error": null
+    }
+  ],
+  "buttons": [
+    {
+      "path": "/dashboard",
+      "text": "Mostrar",
+      "id": "toggle-password",
+      "className": "password-toggle",
+      "isDisabled": false,
+      "isDestructive": false,
+      "hasAction": true,
+      "clickResult": "Opened Modal"
+    },
+    {
+      "path": "/dashboard",
+      "text": "Entrar no Sistema →",
+      "id": "btn-login-submit",
+      "className": "",
+      "isDisabled": false,
+      "isDestructive": false,
+      "hasAction": true,
+      "clickResult": "Opened Modal"
+    },
+    {
+      "path": "/dashboard",
+      "text": "Geração e modelos⌄",
+      "id": "",
+      "className": "nav-group-toggle",
+      "isDisabled": false,
+      "isDestructive": false,
+      "hasAction": false,
+      "clickResult": "Not tested (safe/destructive mode or disabled)"
+    },
+    {
+      "path": "/dashboard",
+      "text": "⚙ System Status⌄",
+      "id": "",
+      "className": "nav-group-toggle",
+      "isDisabled": false,
+      "isDestructive": false,
+      "hasAction": false,
+      "clickResult": "Not tested (safe/destructive mode or disabled)"
+    },
+    {
+      "path": "/dashboard",
+      "text": "🛡️ Admin⌄",
+      "id": "",
+      "className": "nav-group-toggle",
+      "isDisabled": false,
+      "isDestructive": false,
+      "hasAction": false,
+      "clickResult": "Not tested (safe/destructive mode or disabled)"
+    },
+    {
+      "path": "/dashboard",
+      "text": "Integrações opcionais⌄",
+      "id": "",
+      "className": "nav-group-toggle",
+      "isDisabled": false,
+      "isDestructive": false,
+      "hasAction": false,
+      "clickResult": "Not tested (safe/destructive mode or disabled)"
+    },
+    {
+      "path": "/dashboard",
+      "text": "Sair do Sistema",
+      "id": "logout",
+      "className": "ghost",
+      "isDisabled": false,
+      "isDestructive": true,
+      "hasAction": false,
+      "clickResult": "Not tested (safe/destructive mode or disabled)"
+    },
+    {
+      "path": "/dashboard",
+      "text": "☰",
+      "id": "sidebar-toggle",
+      "className": "btn-icon mobile-only",
+      "isDisabled": false,
+      "isDestructive": false,
+      "hasAction": false,
+      "clickResult": "Not tested (safe/destructive mode or disabled)"
+    },
+    {
+      "path": "/dashboard",
+      "text": "🔊",
+      "id": "toggle-sound",
+      "className": "btn-icon sound-btn",
+      "isDisabled": false,
+      "isDestructive": false,
+      "hasAction": false,
+      "clickResult": "Not tested (safe/destructive mode or disabled)"
+    },
+    {
+      "path": "/dashboard",
+      "text": "×",
+      "id": "modal-close",
+      "className": "ghost modal-close-btn",
+      "isDisabled": false,
+      "isDestructive": false,
+      "hasAction": false,
+      "clickResult": "Not tested (safe/destructive mode or disabled)"
+    },
+    {
+      "path": "/inbox",
+      "text": "Mostrar",
+      "id": "toggle-password",
+      "className": "password-toggle",
+      "isDisabled": false,
+      "isDestructive": false,
+      "hasAction": true,
+      "clickResult": "Opened Modal"
+    },
+    {
+      "path": "/inbox",
+      "text": "Entrar no Sistema →",
+      "id": "btn-login-submit",
+      "className": "",
+      "isDisabled": false,
+      "isDestructive": false,
+      "hasAction": true,
+      "clickResult": "Opened Modal"
+    },
+    {
+      "path": "/inbox",
+      "text": "Geração e modelos⌄",
+      "id": "",
+      "className": "nav-group-toggle",
+      "isDisabled": false,
+      "isDestructive": false,
+      "hasAction": false,
+      "clickResult": "Not tested (safe/destructive mode or disabled)"
+    },
+    {
+      "path": "/inbox",
+      "text": "⚙ System Status⌄",
+      "id": "",
+      "className": "nav-group-toggle",
+      "isDisabled": false,
+      "isDestructive": false,
+      "hasAction": false,
+      "clickResult": "Not tested (safe/destructive mode or disabled)"
+    },
+    {
+      "path": "/inbox",
+      "text": "🛡️ Admin⌄",
+      "id": "",
+      "className": "nav-group-toggle",
+      "isDisabled": false,
+      "isDestructive": false,
+      "hasAction": false,
+      "clickResult": "Not tested (safe/destructive mode or disabled)"
+    },
+    {
+      "path": "/inbox",
+      "text": "Integrações opcionais⌄",
+      "id": "",
+      "className": "nav-group-toggle",
+      "isDisabled": false,
+      "isDestructive": false,
+      "hasAction": false,
+      "clickResult": "Not tested (safe/destructive mode or disabled)"
+    },
+    {
+      "path": "/inbox",
+      "text": "Sair do Sistema",
+      "id": "logout",
+      "className": "ghost",
+      "isDisabled": false,
+      "isDestructive": true,
+      "hasAction": false,
+      "clickResult": "Not tested (safe/destructive mode or disabled)"
+    },
+    {
+      "path": "/inbox",
+      "text": "☰",
+      "id": "sidebar-toggle",
+      "className": "btn-icon mobile-only",
+      "isDisabled": false,
+      "isDestructive": false,
+      "hasAction": false,
+      "clickResult": "Not tested (safe/destructive mode or disabled)"
+    },
+    {
+      "path": "/inbox",
+      "text": "🔊",
+      "id": "toggle-sound",
+      "className": "btn-icon sound-btn",
+      "isDisabled": false,
+      "isDestructive": false,
+      "hasAction": false,
+      "clickResult": "Not tested (safe/destructive mode or disabled)"
+    },
+    {
+      "path": "/inbox",
+      "text": "×",
+      "id": "modal-close",
+      "className": "ghost modal-close-btn",
+      "isDisabled": false,
+      "isDestructive": false,
+      "hasAction": false,
+      "clickResult": "Not tested (safe/destructive mode or disabled)"
+    },
+    {
+      "path": "/connections",
+      "text": "Mostrar",
+      "id": "toggle-password",
+      "className": "password-toggle",
+      "isDisabled": false,
+      "isDestructive": false,
+      "hasAction": true,
+      "clickResult": "Opened Modal"
+    },
+    {
+      "path": "/connections",
+      "text": "Entrar no Sistema →",
+      "id": "btn-login-submit",
+      "className": "",
+      "isDisabled": false,
+      "isDestructive": false,
+      "hasAction": true,
+      "clickResult": "Opened Modal"
+    },
+    {
+      "path": "/connections",
+      "text": "Geração e modelos⌄",
+      "id": "",
+      "className": "nav-group-toggle",
+      "isDisabled": false,
+      "isDestructive": false,
+      "hasAction": false,
+      "clickResult": "Not tested (safe/destructive mode or disabled)"
+    },
+    {
+      "path": "/connections",
+      "text": "⚙ System Status⌄",
+      "id": "",
+      "className": "nav-group-toggle",
+      "isDisabled": false,
+      "isDestructive": false,
+      "hasAction": false,
+      "clickResult": "Not tested (safe/destructive mode or disabled)"
+    },
+    {
+      "path": "/connections",
+      "text": "🛡️ Admin⌄",
+      "id": "",
+      "className": "nav-group-toggle",
+      "isDisabled": false,
+      "isDestructive": false,
+      "hasAction": false,
+      "clickResult": "Not tested (safe/destructive mode or disabled)"
+    },
+    {
+      "path": "/connections",
+      "text": "Integrações opcionais⌄",
+      "id": "",
+      "className": "nav-group-toggle",
+      "isDisabled": false,
+      "isDestructive": false,
+      "hasAction": false,
+      "clickResult": "Not tested (safe/destructive mode or disabled)"
+    },
+    {
+      "path": "/connections",
+      "text": "Sair do Sistema",
+      "id": "logout",
+      "className": "ghost",
+      "isDisabled": false,
+      "isDestructive": true,
+      "hasAction": false,
+      "clickResult": "Not tested (safe/destructive mode or disabled)"
+    },
+    {
+      "path": "/connections",
+      "text": "☰",
+      "id": "sidebar-toggle",
+      "className": "btn-icon mobile-only",
+      "isDisabled": false,
+      "isDestructive": false,
+      "hasAction": false,
+      "clickResult": "Not tested (safe/destructive mode or disabled)"
+    },
+    {
+      "path": "/connections",
+      "text": "🔊",
+      "id": "toggle-sound",
+      "className": "btn-icon sound-btn",
+      "isDisabled": false,
+      "isDestructive": false,
+      "hasAction": false,
+      "clickResult": "Not tested (safe/destructive mode or disabled)"
+    },
+    {
+      "path": "/connections",
+      "text": "×",
+      "id": "modal-close",
+      "className": "ghost modal-close-btn",
+      "isDisabled": false,
+      "isDestructive": false,
+      "hasAction": false,
+      "clickResult": "Not tested (safe/destructive mode or disabled)"
+    },
+    {
+      "path": "/contacts",
+      "text": "Mostrar",
+      "id": "toggle-password",
+      "className": "password-toggle",
+      "isDisabled": false,
+      "isDestructive": false,
+      "hasAction": true,
+      "clickResult": "Opened Modal"
+    },
+    {
+      "path": "/contacts",
+      "text": "Entrar no Sistema →",
+      "id": "btn-login-submit",
+      "className": "",
+      "isDisabled": false,
+      "isDestructive": false,
+      "hasAction": true,
+      "clickResult": "Opened Modal"
+    },
+    {
+      "path": "/contacts",
+      "text": "Geração e modelos⌄",
+      "id": "",
+      "className": "nav-group-toggle",
+      "isDisabled": false,
+      "isDestructive": false,
+      "hasAction": false,
+      "clickResult": "Not tested (safe/destructive mode or disabled)"
+    },
+    {
+      "path": "/contacts",
+      "text": "⚙ System Status⌄",
+      "id": "",
+      "className": "nav-group-toggle",
+      "isDisabled": false,
+      "isDestructive": false,
+      "hasAction": false,
+      "clickResult": "Not tested (safe/destructive mode or disabled)"
+    },
+    {
+      "path": "/contacts",
+      "text": "🛡️ Admin⌄",
+      "id": "",
+      "className": "nav-group-toggle",
+      "isDisabled": false,
+      "isDestructive": false,
+      "hasAction": false,
+      "clickResult": "Not tested (safe/destructive mode or disabled)"
+    },
+    {
+      "path": "/contacts",
+      "text": "Integrações opcionais⌄",
+      "id": "",
+      "className": "nav-group-toggle",
+      "isDisabled": false,
+      "isDestructive": false,
+      "hasAction": false,
+      "clickResult": "Not tested (safe/destructive mode or disabled)"
+    },
+    {
+      "path": "/contacts",
+      "text": "Sair do Sistema",
+      "id": "logout",
+      "className": "ghost",
+      "isDisabled": false,
+      "isDestructive": true,
+      "hasAction": false,
+      "clickResult": "Not tested (safe/destructive mode or disabled)"
+    },
+    {
+      "path": "/contacts",
+      "text": "☰",
+      "id": "sidebar-toggle",
+      "className": "btn-icon mobile-only",
+      "isDisabled": false,
+      "isDestructive": false,
+      "hasAction": false,
+      "clickResult": "Not tested (safe/destructive mode or disabled)"
+    },
+    {
+      "path": "/contacts",
+      "text": "🔊",
+      "id": "toggle-sound",
+      "className": "btn-icon sound-btn",
+      "isDisabled": false,
+      "isDestructive": false,
+      "hasAction": false,
+      "clickResult": "Not tested (safe/destructive mode or disabled)"
+    },
+    {
+      "path": "/contacts",
+      "text": "×",
+      "id": "modal-close",
+      "className": "ghost modal-close-btn",
+      "isDisabled": false,
+      "isDestructive": false,
+      "hasAction": false,
+      "clickResult": "Not tested (safe/destructive mode or disabled)"
+    },
+    {
+      "path": "/flows",
+      "text": "Mostrar",
+      "id": "toggle-password",
+      "className": "password-toggle",
+      "isDisabled": false,
+      "isDestructive": false,
+      "hasAction": true,
+      "clickResult": "Opened Modal"
+    },
+    {
+      "path": "/flows",
+      "text": "Entrar no Sistema →",
+      "id": "btn-login-submit",
+      "className": "",
+      "isDisabled": false,
+      "isDestructive": false,
+      "hasAction": true,
+      "clickResult": "Opened Modal"
+    },
+    {
+      "path": "/flows",
+      "text": "Geração e modelos⌄",
+      "id": "",
+      "className": "nav-group-toggle",
+      "isDisabled": false,
+      "isDestructive": false,
+      "hasAction": false,
+      "clickResult": "Not tested (safe/destructive mode or disabled)"
+    },
+    {
+      "path": "/flows",
+      "text": "⚙ System Status⌄",
+      "id": "",
+      "className": "nav-group-toggle",
+      "isDisabled": false,
+      "isDestructive": false,
+      "hasAction": false,
+      "clickResult": "Not tested (safe/destructive mode or disabled)"
+    },
+    {
+      "path": "/flows",
+      "text": "🛡️ Admin⌄",
+      "id": "",
+      "className": "nav-group-toggle",
+      "isDisabled": false,
+      "isDestructive": false,
+      "hasAction": false,
+      "clickResult": "Not tested (safe/destructive mode or disabled)"
+    },
+    {
+      "path": "/flows",
+      "text": "Integrações opcionais⌄",
+      "id": "",
+      "className": "nav-group-toggle",
+      "isDisabled": false,
+      "isDestructive": false,
+      "hasAction": false,
+      "clickResult": "Not tested (safe/destructive mode or disabled)"
+    },
+    {
+      "path": "/flows",
+      "text": "Sair do Sistema",
+      "id": "logout",
+      "className": "ghost",
+      "isDisabled": false,
+      "isDestructive": true,
+      "hasAction": false,
+      "clickResult": "Not tested (safe/destructive mode or disabled)"
+    },
+    {
+      "path": "/flows",
+      "text": "☰",
+      "id": "sidebar-toggle",
+      "className": "btn-icon mobile-only",
+      "isDisabled": false,
+      "isDestructive": false,
+      "hasAction": false,
+      "clickResult": "Not tested (safe/destructive mode or disabled)"
+    },
+    {
+      "path": "/flows",
+      "text": "🔊",
+      "id": "toggle-sound",
+      "className": "btn-icon sound-btn",
+      "isDisabled": false,
+      "isDestructive": false,
+      "hasAction": false,
+      "clickResult": "Not tested (safe/destructive mode or disabled)"
+    },
+    {
+      "path": "/flows",
+      "text": "×",
+      "id": "modal-close",
+      "className": "ghost modal-close-btn",
+      "isDisabled": false,
+      "isDestructive": false,
+      "hasAction": false,
+      "clickResult": "Not tested (safe/destructive mode or disabled)"
+    },
+    {
+      "path": "/ai",
+      "text": "Mostrar",
+      "id": "toggle-password",
+      "className": "password-toggle",
+      "isDisabled": false,
+      "isDestructive": false,
+      "hasAction": true,
+      "clickResult": "Opened Modal"
+    },
+    {
+      "path": "/ai",
+      "text": "Entrar no Sistema →",
+      "id": "btn-login-submit",
+      "className": "",
+      "isDisabled": false,
+      "isDestructive": false,
+      "hasAction": true,
+      "clickResult": "Opened Modal"
+    },
+    {
+      "path": "/ai",
+      "text": "Geração e modelos⌄",
+      "id": "",
+      "className": "nav-group-toggle",
+      "isDisabled": false,
+      "isDestructive": false,
+      "hasAction": false,
+      "clickResult": "Not tested (safe/destructive mode or disabled)"
+    },
+    {
+      "path": "/ai",
+      "text": "⚙ System Status⌄",
+      "id": "",
+      "className": "nav-group-toggle",
+      "isDisabled": false,
+      "isDestructive": false,
+      "hasAction": false,
+      "clickResult": "Not tested (safe/destructive mode or disabled)"
+    },
+    {
+      "path": "/ai",
+      "text": "🛡️ Admin⌄",
+      "id": "",
+      "className": "nav-group-toggle",
+      "isDisabled": false,
+      "isDestructive": false,
+      "hasAction": false,
+      "clickResult": "Not tested (safe/destructive mode or disabled)"
+    },
+    {
+      "path": "/ai",
+      "text": "Integrações opcionais⌄",
+      "id": "",
+      "className": "nav-group-toggle",
+      "isDisabled": false,
+      "isDestructive": false,
+      "hasAction": false,
+      "clickResult": "Not tested (safe/destructive mode or disabled)"
+    },
+    {
+      "path": "/ai",
+      "text": "Sair do Sistema",
+      "id": "logout",
+      "className": "ghost",
+      "isDisabled": false,
+      "isDestructive": true,
+      "hasAction": false,
+      "clickResult": "Not tested (safe/destructive mode or disabled)"
+    },
+    {
+      "path": "/ai",
+      "text": "☰",
+      "id": "sidebar-toggle",
+      "className": "btn-icon mobile-only",
+      "isDisabled": false,
+      "isDestructive": false,
+      "hasAction": false,
+      "clickResult": "Not tested (safe/destructive mode or disabled)"
+    },
+    {
+      "path": "/ai",
+      "text": "🔊",
+      "id": "toggle-sound",
+      "className": "btn-icon sound-btn",
+      "isDisabled": false,
+      "isDestructive": false,
+      "hasAction": false,
+      "clickResult": "Not tested (safe/destructive mode or disabled)"
+    },
+    {
+      "path": "/ai",
+      "text": "×",
+      "id": "modal-close",
+      "className": "ghost modal-close-btn",
+      "isDisabled": false,
+      "isDestructive": false,
+      "hasAction": false,
+      "clickResult": "Not tested (safe/destructive mode or disabled)"
+    },
+    {
+      "path": "/analytics",
+      "text": "Mostrar",
+      "id": "toggle-password",
+      "className": "password-toggle",
+      "isDisabled": false,
+      "isDestructive": false,
+      "hasAction": true,
+      "clickResult": "Opened Modal"
+    },
+    {
+      "path": "/analytics",
+      "text": "Entrar no Sistema →",
+      "id": "btn-login-submit",
+      "className": "",
+      "isDisabled": false,
+      "isDestructive": false,
+      "hasAction": true,
+      "clickResult": "Opened Modal"
+    },
+    {
+      "path": "/analytics",
+      "text": "Geração e modelos⌄",
+      "id": "",
+      "className": "nav-group-toggle",
+      "isDisabled": false,
+      "isDestructive": false,
+      "hasAction": false,
+      "clickResult": "Not tested (safe/destructive mode or disabled)"
+    },
+    {
+      "path": "/analytics",
+      "text": "⚙ System Status⌄",
+      "id": "",
+      "className": "nav-group-toggle",
+      "isDisabled": false,
+      "isDestructive": false,
+      "hasAction": false,
+      "clickResult": "Not tested (safe/destructive mode or disabled)"
+    },
+    {
+      "path": "/analytics",
+      "text": "🛡️ Admin⌄",
+      "id": "",
+      "className": "nav-group-toggle",
+      "isDisabled": false,
+      "isDestructive": false,
+      "hasAction": false,
+      "clickResult": "Not tested (safe/destructive mode or disabled)"
+    },
+    {
+      "path": "/analytics",
+      "text": "Integrações opcionais⌄",
+      "id": "",
+      "className": "nav-group-toggle",
+      "isDisabled": false,
+      "isDestructive": false,
+      "hasAction": false,
+      "clickResult": "Not tested (safe/destructive mode or disabled)"
+    },
+    {
+      "path": "/analytics",
+      "text": "Sair do Sistema",
+      "id": "logout",
+      "className": "ghost",
+      "isDisabled": false,
+      "isDestructive": true,
+      "hasAction": false,
+      "clickResult": "Not tested (safe/destructive mode or disabled)"
+    },
+    {
+      "path": "/analytics",
+      "text": "☰",
+      "id": "sidebar-toggle",
+      "className": "btn-icon mobile-only",
+      "isDisabled": false,
+      "isDestructive": false,
+      "hasAction": false,
+      "clickResult": "Not tested (safe/destructive mode or disabled)"
+    },
+    {
+      "path": "/analytics",
+      "text": "🔊",
+      "id": "toggle-sound",
+      "className": "btn-icon sound-btn",
+      "isDisabled": false,
+      "isDestructive": false,
+      "hasAction": false,
+      "clickResult": "Not tested (safe/destructive mode or disabled)"
+    },
+    {
+      "path": "/analytics",
+      "text": "×",
+      "id": "modal-close",
+      "className": "ghost modal-close-btn",
+      "isDisabled": false,
+      "isDestructive": false,
+      "hasAction": false,
+      "clickResult": "Not tested (safe/destructive mode or disabled)"
+    },
+    {
+      "path": "/campaigns",
+      "text": "Mostrar",
+      "id": "toggle-password",
+      "className": "password-toggle",
+      "isDisabled": false,
+      "isDestructive": false,
+      "hasAction": true,
+      "clickResult": "Opened Modal"
+    },
+    {
+      "path": "/campaigns",
+      "text": "Entrar no Sistema →",
+      "id": "btn-login-submit",
+      "className": "",
+      "isDisabled": false,
+      "isDestructive": false,
+      "hasAction": true,
+      "clickResult": "Opened Modal"
+    },
+    {
+      "path": "/campaigns",
+      "text": "Geração e modelos⌄",
+      "id": "",
+      "className": "nav-group-toggle",
+      "isDisabled": false,
+      "isDestructive": false,
+      "hasAction": false,
+      "clickResult": "Not tested (safe/destructive mode or disabled)"
+    },
+    {
+      "path": "/campaigns",
+      "text": "⚙ System Status⌄",
+      "id": "",
+      "className": "nav-group-toggle",
+      "isDisabled": false,
+      "isDestructive": false,
+      "hasAction": false,
+      "clickResult": "Not tested (safe/destructive mode or disabled)"
+    },
+    {
+      "path": "/campaigns",
+      "text": "🛡️ Admin⌄",
+      "id": "",
+      "className": "nav-group-toggle",
+      "isDisabled": false,
+      "isDestructive": false,
+      "hasAction": false,
+      "clickResult": "Not tested (safe/destructive mode or disabled)"
+    },
+    {
+      "path": "/campaigns",
+      "text": "Integrações opcionais⌄",
+      "id": "",
+      "className": "nav-group-toggle",
+      "isDisabled": false,
+      "isDestructive": false,
+      "hasAction": false,
+      "clickResult": "Not tested (safe/destructive mode or disabled)"
+    },
+    {
+      "path": "/campaigns",
+      "text": "Sair do Sistema",
+      "id": "logout",
+      "className": "ghost",
+      "isDisabled": false,
+      "isDestructive": true,
+      "hasAction": false,
+      "clickResult": "Not tested (safe/destructive mode or disabled)"
+    },
+    {
+      "path": "/campaigns",
+      "text": "☰",
+      "id": "sidebar-toggle",
+      "className": "btn-icon mobile-only",
+      "isDisabled": false,
+      "isDestructive": false,
+      "hasAction": false,
+      "clickResult": "Not tested (safe/destructive mode or disabled)"
+    },
+    {
+      "path": "/campaigns",
+      "text": "🔊",
+      "id": "toggle-sound",
+      "className": "btn-icon sound-btn",
+      "isDisabled": false,
+      "isDestructive": false,
+      "hasAction": false,
+      "clickResult": "Not tested (safe/destructive mode or disabled)"
+    },
+    {
+      "path": "/campaigns",
+      "text": "×",
+      "id": "modal-close",
+      "className": "ghost modal-close-btn",
+      "isDisabled": false,
+      "isDestructive": false,
+      "hasAction": false,
+      "clickResult": "Not tested (safe/destructive mode or disabled)"
+    },
+    {
+      "path": "/memory",
+      "text": "Mostrar",
+      "id": "toggle-password",
+      "className": "password-toggle",
+      "isDisabled": false,
+      "isDestructive": false,
+      "hasAction": true,
+      "clickResult": "Opened Modal"
+    },
+    {
+      "path": "/memory",
+      "text": "Entrar no Sistema →",
+      "id": "btn-login-submit",
+      "className": "",
+      "isDisabled": false,
+      "isDestructive": false,
+      "hasAction": true,
+      "clickResult": "Opened Modal"
+    },
+    {
+      "path": "/memory",
+      "text": "Geração e modelos⌄",
+      "id": "",
+      "className": "nav-group-toggle",
+      "isDisabled": false,
+      "isDestructive": false,
+      "hasAction": false,
+      "clickResult": "Not tested (safe/destructive mode or disabled)"
+    },
+    {
+      "path": "/memory",
+      "text": "⚙ System Status⌄",
+      "id": "",
+      "className": "nav-group-toggle",
+      "isDisabled": false,
+      "isDestructive": false,
+      "hasAction": false,
+      "clickResult": "Not tested (safe/destructive mode or disabled)"
+    },
+    {
+      "path": "/memory",
+      "text": "🛡️ Admin⌄",
+      "id": "",
+      "className": "nav-group-toggle",
+      "isDisabled": false,
+      "isDestructive": false,
+      "hasAction": false,
+      "clickResult": "Not tested (safe/destructive mode or disabled)"
+    },
+    {
+      "path": "/memory",
+      "text": "Integrações opcionais⌄",
+      "id": "",
+      "className": "nav-group-toggle",
+      "isDisabled": false,
+      "isDestructive": false,
+      "hasAction": false,
+      "clickResult": "Not tested (safe/destructive mode or disabled)"
+    },
+    {
+      "path": "/memory",
+      "text": "Sair do Sistema",
+      "id": "logout",
+      "className": "ghost",
+      "isDisabled": false,
+      "isDestructive": true,
+      "hasAction": false,
+      "clickResult": "Not tested (safe/destructive mode or disabled)"
+    },
+    {
+      "path": "/memory",
+      "text": "☰",
+      "id": "sidebar-toggle",
+      "className": "btn-icon mobile-only",
+      "isDisabled": false,
+      "isDestructive": false,
+      "hasAction": false,
+      "clickResult": "Not tested (safe/destructive mode or disabled)"
+    },
+    {
+      "path": "/memory",
+      "text": "🔊",
+      "id": "toggle-sound",
+      "className": "btn-icon sound-btn",
+      "isDisabled": false,
+      "isDestructive": false,
+      "hasAction": false,
+      "clickResult": "Not tested (safe/destructive mode or disabled)"
+    },
+    {
+      "path": "/memory",
+      "text": "×",
+      "id": "modal-close",
+      "className": "ghost modal-close-btn",
+      "isDisabled": false,
+      "isDestructive": false,
+      "hasAction": false,
+      "clickResult": "Not tested (safe/destructive mode or disabled)"
+    },
+    {
+      "path": "/users",
+      "text": "Mostrar",
+      "id": "toggle-password",
+      "className": "password-toggle",
+      "isDisabled": false,
+      "isDestructive": false,
+      "hasAction": true,
+      "clickResult": "Opened Modal"
+    },
+    {
+      "path": "/users",
+      "text": "Entrar no Sistema →",
+      "id": "btn-login-submit",
+      "className": "",
+      "isDisabled": false,
+      "isDestructive": false,
+      "hasAction": true,
+      "clickResult": "Opened Modal"
+    },
+    {
+      "path": "/users",
+      "text": "Geração e modelos⌄",
+      "id": "",
+      "className": "nav-group-toggle",
+      "isDisabled": false,
+      "isDestructive": false,
+      "hasAction": false,
+      "clickResult": "Not tested (safe/destructive mode or disabled)"
+    },
+    {
+      "path": "/users",
+      "text": "⚙ System Status⌄",
+      "id": "",
+      "className": "nav-group-toggle",
+      "isDisabled": false,
+      "isDestructive": false,
+      "hasAction": false,
+      "clickResult": "Not tested (safe/destructive mode or disabled)"
+    },
+    {
+      "path": "/users",
+      "text": "🛡️ Admin⌄",
+      "id": "",
+      "className": "nav-group-toggle",
+      "isDisabled": false,
+      "isDestructive": false,
+      "hasAction": false,
+      "clickResult": "Not tested (safe/destructive mode or disabled)"
+    },
+    {
+      "path": "/users",
+      "text": "Integrações opcionais⌄",
+      "id": "",
+      "className": "nav-group-toggle",
+      "isDisabled": false,
+      "isDestructive": false,
+      "hasAction": false,
+      "clickResult": "Not tested (safe/destructive mode or disabled)"
+    },
+    {
+      "path": "/users",
+      "text": "Sair do Sistema",
+      "id": "logout",
+      "className": "ghost",
+      "isDisabled": false,
+      "isDestructive": true,
+      "hasAction": false,
+      "clickResult": "Not tested (safe/destructive mode or disabled)"
+    },
+    {
+      "path": "/users",
+      "text": "☰",
+      "id": "sidebar-toggle",
+      "className": "btn-icon mobile-only",
+      "isDisabled": false,
+      "isDestructive": false,
+      "hasAction": false,
+      "clickResult": "Not tested (safe/destructive mode or disabled)"
+    },
+    {
+      "path": "/users",
+      "text": "🔊",
+      "id": "toggle-sound",
+      "className": "btn-icon sound-btn",
+      "isDisabled": false,
+      "isDestructive": false,
+      "hasAction": false,
+      "clickResult": "Not tested (safe/destructive mode or disabled)"
+    },
+    {
+      "path": "/users",
+      "text": "×",
+      "id": "modal-close",
+      "className": "ghost modal-close-btn",
+      "isDisabled": false,
+      "isDestructive": false,
+      "hasAction": false,
+      "clickResult": "Not tested (safe/destructive mode or disabled)"
+    },
+    {
+      "path": "/nodes",
+      "text": "Mostrar",
+      "id": "toggle-password",
+      "className": "password-toggle",
+      "isDisabled": false,
+      "isDestructive": false,
+      "hasAction": true,
+      "clickResult": "Opened Modal"
+    },
+    {
+      "path": "/nodes",
+      "text": "Entrar no Sistema →",
+      "id": "btn-login-submit",
+      "className": "",
+      "isDisabled": false,
+      "isDestructive": false,
+      "hasAction": true,
+      "clickResult": "Opened Modal"
+    },
+    {
+      "path": "/nodes",
+      "text": "Geração e modelos⌄",
+      "id": "",
+      "className": "nav-group-toggle",
+      "isDisabled": false,
+      "isDestructive": false,
+      "hasAction": false,
+      "clickResult": "Not tested (safe/destructive mode or disabled)"
+    },
+    {
+      "path": "/nodes",
+      "text": "⚙ System Status⌄",
+      "id": "",
+      "className": "nav-group-toggle",
+      "isDisabled": false,
+      "isDestructive": false,
+      "hasAction": false,
+      "clickResult": "Not tested (safe/destructive mode or disabled)"
+    },
+    {
+      "path": "/nodes",
+      "text": "🛡️ Admin⌄",
+      "id": "",
+      "className": "nav-group-toggle",
+      "isDisabled": false,
+      "isDestructive": false,
+      "hasAction": false,
+      "clickResult": "Not tested (safe/destructive mode or disabled)"
+    },
+    {
+      "path": "/nodes",
+      "text": "Integrações opcionais⌄",
+      "id": "",
+      "className": "nav-group-toggle",
+      "isDisabled": false,
+      "isDestructive": false,
+      "hasAction": false,
+      "clickResult": "Not tested (safe/destructive mode or disabled)"
+    },
+    {
+      "path": "/nodes",
+      "text": "Sair do Sistema",
+      "id": "logout",
+      "className": "ghost",
+      "isDisabled": false,
+      "isDestructive": true,
+      "hasAction": false,
+      "clickResult": "Not tested (safe/destructive mode or disabled)"
+    },
+    {
+      "path": "/nodes",
+      "text": "☰",
+      "id": "sidebar-toggle",
+      "className": "btn-icon mobile-only",
+      "isDisabled": false,
+      "isDestructive": false,
+      "hasAction": false,
+      "clickResult": "Not tested (safe/destructive mode or disabled)"
+    },
+    {
+      "path": "/nodes",
+      "text": "🔊",
+      "id": "toggle-sound",
+      "className": "btn-icon sound-btn",
+      "isDisabled": false,
+      "isDestructive": false,
+      "hasAction": false,
+      "clickResult": "Not tested (safe/destructive mode or disabled)"
+    },
+    {
+      "path": "/nodes",
+      "text": "×",
+      "id": "modal-close",
+      "className": "ghost modal-close-btn",
+      "isDisabled": false,
+      "isDestructive": false,
+      "hasAction": false,
+      "clickResult": "Not tested (safe/destructive mode or disabled)"
+    },
+    {
+      "path": "/deployments",
+      "text": "Mostrar",
+      "id": "toggle-password",
+      "className": "password-toggle",
+      "isDisabled": false,
+      "isDestructive": false,
+      "hasAction": true,
+      "clickResult": "Opened Modal"
+    },
+    {
+      "path": "/deployments",
+      "text": "Entrar no Sistema →",
+      "id": "btn-login-submit",
+      "className": "",
+      "isDisabled": false,
+      "isDestructive": false,
+      "hasAction": true,
+      "clickResult": "Opened Modal"
+    },
+    {
+      "path": "/deployments",
+      "text": "Geração e modelos⌄",
+      "id": "",
+      "className": "nav-group-toggle",
+      "isDisabled": false,
+      "isDestructive": false,
+      "hasAction": false,
+      "clickResult": "Not tested (safe/destructive mode or disabled)"
+    },
+    {
+      "path": "/deployments",
+      "text": "⚙ System Status⌄",
+      "id": "",
+      "className": "nav-group-toggle",
+      "isDisabled": false,
+      "isDestructive": false,
+      "hasAction": false,
+      "clickResult": "Not tested (safe/destructive mode or disabled)"
+    },
+    {
+      "path": "/deployments",
+      "text": "🛡️ Admin⌄",
+      "id": "",
+      "className": "nav-group-toggle",
+      "isDisabled": false,
+      "isDestructive": false,
+      "hasAction": false,
+      "clickResult": "Not tested (safe/destructive mode or disabled)"
+    },
+    {
+      "path": "/deployments",
+      "text": "Integrações opcionais⌄",
+      "id": "",
+      "className": "nav-group-toggle",
+      "isDisabled": false,
+      "isDestructive": false,
+      "hasAction": false,
+      "clickResult": "Not tested (safe/destructive mode or disabled)"
+    },
+    {
+      "path": "/deployments",
+      "text": "Sair do Sistema",
+      "id": "logout",
+      "className": "ghost",
+      "isDisabled": false,
+      "isDestructive": true,
+      "hasAction": false,
+      "clickResult": "Not tested (safe/destructive mode or disabled)"
+    },
+    {
+      "path": "/deployments",
+      "text": "☰",
+      "id": "sidebar-toggle",
+      "className": "btn-icon mobile-only",
+      "isDisabled": false,
+      "isDestructive": false,
+      "hasAction": false,
+      "clickResult": "Not tested (safe/destructive mode or disabled)"
+    },
+    {
+      "path": "/deployments",
+      "text": "🔊",
+      "id": "toggle-sound",
+      "className": "btn-icon sound-btn",
+      "isDisabled": false,
+      "isDestructive": false,
+      "hasAction": false,
+      "clickResult": "Not tested (safe/destructive mode or disabled)"
+    },
+    {
+      "path": "/deployments",
+      "text": "×",
+      "id": "modal-close",
+      "className": "ghost modal-close-btn",
+      "isDisabled": false,
+      "isDestructive": false,
+      "hasAction": false,
+      "clickResult": "Not tested (safe/destructive mode or disabled)"
+    },
+    {
+      "path": "/logs",
+      "text": "Mostrar",
+      "id": "toggle-password",
+      "className": "password-toggle",
+      "isDisabled": false,
+      "isDestructive": false,
+      "hasAction": true,
+      "clickResult": "Opened Modal"
+    },
+    {
+      "path": "/logs",
+      "text": "Entrar no Sistema →",
+      "id": "btn-login-submit",
+      "className": "",
+      "isDisabled": false,
+      "isDestructive": false,
+      "hasAction": true,
+      "clickResult": "Opened Modal"
+    },
+    {
+      "path": "/logs",
+      "text": "Geração e modelos⌄",
+      "id": "",
+      "className": "nav-group-toggle",
+      "isDisabled": false,
+      "isDestructive": false,
+      "hasAction": false,
+      "clickResult": "Not tested (safe/destructive mode or disabled)"
+    },
+    {
+      "path": "/logs",
+      "text": "⚙ System Status⌄",
+      "id": "",
+      "className": "nav-group-toggle",
+      "isDisabled": false,
+      "isDestructive": false,
+      "hasAction": false,
+      "clickResult": "Not tested (safe/destructive mode or disabled)"
+    },
+    {
+      "path": "/logs",
+      "text": "🛡️ Admin⌄",
+      "id": "",
+      "className": "nav-group-toggle",
+      "isDisabled": false,
+      "isDestructive": false,
+      "hasAction": false,
+      "clickResult": "Not tested (safe/destructive mode or disabled)"
+    },
+    {
+      "path": "/logs",
+      "text": "Integrações opcionais⌄",
+      "id": "",
+      "className": "nav-group-toggle",
+      "isDisabled": false,
+      "isDestructive": false,
+      "hasAction": false,
+      "clickResult": "Not tested (safe/destructive mode or disabled)"
+    },
+    {
+      "path": "/logs",
+      "text": "Sair do Sistema",
+      "id": "logout",
+      "className": "ghost",
+      "isDisabled": false,
+      "isDestructive": true,
+      "hasAction": false,
+      "clickResult": "Not tested (safe/destructive mode or disabled)"
+    },
+    {
+      "path": "/logs",
+      "text": "☰",
+      "id": "sidebar-toggle",
+      "className": "btn-icon mobile-only",
+      "isDisabled": false,
+      "isDestructive": false,
+      "hasAction": false,
+      "clickResult": "Not tested (safe/destructive mode or disabled)"
+    },
+    {
+      "path": "/logs",
+      "text": "🔊",
+      "id": "toggle-sound",
+      "className": "btn-icon sound-btn",
+      "isDisabled": false,
+      "isDestructive": false,
+      "hasAction": false,
+      "clickResult": "Not tested (safe/destructive mode or disabled)"
+    },
+    {
+      "path": "/logs",
+      "text": "×",
+      "id": "modal-close",
+      "className": "ghost modal-close-btn",
+      "isDisabled": false,
+      "isDestructive": false,
+      "hasAction": false,
+      "clickResult": "Not tested (safe/destructive mode or disabled)"
+    },
+    {
+      "path": "/diagnostics",
+      "text": "Mostrar",
+      "id": "toggle-password",
+      "className": "password-toggle",
+      "isDisabled": false,
+      "isDestructive": false,
+      "hasAction": true,
+      "clickResult": "Opened Modal"
+    },
+    {
+      "path": "/diagnostics",
+      "text": "Entrar no Sistema →",
+      "id": "btn-login-submit",
+      "className": "",
+      "isDisabled": false,
+      "isDestructive": false,
+      "hasAction": true,
+      "clickResult": "Opened Modal"
+    },
+    {
+      "path": "/diagnostics",
+      "text": "Geração e modelos⌄",
+      "id": "",
+      "className": "nav-group-toggle",
+      "isDisabled": false,
+      "isDestructive": false,
+      "hasAction": false,
+      "clickResult": "Not tested (safe/destructive mode or disabled)"
+    },
+    {
+      "path": "/diagnostics",
+      "text": "⚙ System Status⌄",
+      "id": "",
+      "className": "nav-group-toggle",
+      "isDisabled": false,
+      "isDestructive": false,
+      "hasAction": false,
+      "clickResult": "Not tested (safe/destructive mode or disabled)"
+    },
+    {
+      "path": "/diagnostics",
+      "text": "🛡️ Admin⌄",
+      "id": "",
+      "className": "nav-group-toggle",
+      "isDisabled": false,
+      "isDestructive": false,
+      "hasAction": false,
+      "clickResult": "Not tested (safe/destructive mode or disabled)"
+    },
+    {
+      "path": "/diagnostics",
+      "text": "Integrações opcionais⌄",
+      "id": "",
+      "className": "nav-group-toggle",
+      "isDisabled": false,
+      "isDestructive": false,
+      "hasAction": false,
+      "clickResult": "Not tested (safe/destructive mode or disabled)"
+    },
+    {
+      "path": "/diagnostics",
+      "text": "Sair do Sistema",
+      "id": "logout",
+      "className": "ghost",
+      "isDisabled": false,
+      "isDestructive": true,
+      "hasAction": false,
+      "clickResult": "Not tested (safe/destructive mode or disabled)"
+    },
+    {
+      "path": "/diagnostics",
+      "text": "☰",
+      "id": "sidebar-toggle",
+      "className": "btn-icon mobile-only",
+      "isDisabled": false,
+      "isDestructive": false,
+      "hasAction": false,
+      "clickResult": "Not tested (safe/destructive mode or disabled)"
+    },
+    {
+      "path": "/diagnostics",
+      "text": "🔊",
+      "id": "toggle-sound",
+      "className": "btn-icon sound-btn",
+      "isDisabled": false,
+      "isDestructive": false,
+      "hasAction": false,
+      "clickResult": "Not tested (safe/destructive mode or disabled)"
+    },
+    {
+      "path": "/diagnostics",
+      "text": "×",
+      "id": "modal-close",
+      "className": "ghost modal-close-btn",
+      "isDisabled": false,
+      "isDestructive": false,
+      "hasAction": false,
+      "clickResult": "Not tested (safe/destructive mode or disabled)"
+    },
+    {
+      "path": "/settings",
+      "text": "Mostrar",
+      "id": "toggle-password",
+      "className": "password-toggle",
+      "isDisabled": false,
+      "isDestructive": false,
+      "hasAction": true,
+      "clickResult": "Opened Modal"
+    },
+    {
+      "path": "/settings",
+      "text": "Entrar no Sistema →",
+      "id": "btn-login-submit",
+      "className": "",
+      "isDisabled": false,
+      "isDestructive": false,
+      "hasAction": true,
+      "clickResult": "Opened Modal"
+    },
+    {
+      "path": "/settings",
+      "text": "Geração e modelos⌄",
+      "id": "",
+      "className": "nav-group-toggle",
+      "isDisabled": false,
+      "isDestructive": false,
+      "hasAction": false,
+      "clickResult": "Not tested (safe/destructive mode or disabled)"
+    },
+    {
+      "path": "/settings",
+      "text": "⚙ System Status⌄",
+      "id": "",
+      "className": "nav-group-toggle",
+      "isDisabled": false,
+      "isDestructive": false,
+      "hasAction": false,
+      "clickResult": "Not tested (safe/destructive mode or disabled)"
+    },
+    {
+      "path": "/settings",
+      "text": "🛡️ Admin⌄",
+      "id": "",
+      "className": "nav-group-toggle",
+      "isDisabled": false,
+      "isDestructive": false,
+      "hasAction": false,
+      "clickResult": "Not tested (safe/destructive mode or disabled)"
+    },
+    {
+      "path": "/settings",
+      "text": "Integrações opcionais⌄",
+      "id": "",
+      "className": "nav-group-toggle",
+      "isDisabled": false,
+      "isDestructive": false,
+      "hasAction": false,
+      "clickResult": "Not tested (safe/destructive mode or disabled)"
+    },
+    {
+      "path": "/settings",
+      "text": "Sair do Sistema",
+      "id": "logout",
+      "className": "ghost",
+      "isDisabled": false,
+      "isDestructive": true,
+      "hasAction": false,
+      "clickResult": "Not tested (safe/destructive mode or disabled)"
+    },
+    {
+      "path": "/settings",
+      "text": "☰",
+      "id": "sidebar-toggle",
+      "className": "btn-icon mobile-only",
+      "isDisabled": false,
+      "isDestructive": false,
+      "hasAction": false,
+      "clickResult": "Not tested (safe/destructive mode or disabled)"
+    },
+    {
+      "path": "/settings",
+      "text": "🔊",
+      "id": "toggle-sound",
+      "className": "btn-icon sound-btn",
+      "isDisabled": false,
+      "isDestructive": false,
+      "hasAction": false,
+      "clickResult": "Not tested (safe/destructive mode or disabled)"
+    },
+    {
+      "path": "/settings",
+      "text": "×",
+      "id": "modal-close",
+      "className": "ghost modal-close-btn",
+      "isDisabled": false,
+      "isDestructive": false,
+      "hasAction": false,
+      "clickResult": "Not tested (safe/destructive mode or disabled)"
+    }
+  ],
+  "forms": [
+    {
+      "path": "/dashboard",
+      "id": "login-form",
+      "action": "",
+      "inputs": [
+        {
+          "name": "login-email",
+          "type": "text",
+          "placeholder": "seu-usuario"
+        },
+        {
+          "name": "login-password",
+          "type": "text",
+          "placeholder": "••••••••"
+        }
+      ]
+    },
+    {
+      "path": "/inbox",
+      "id": "login-form",
+      "action": "",
+      "inputs": [
+        {
+          "name": "login-email",
+          "type": "text",
+          "placeholder": "seu-usuario"
+        },
+        {
+          "name": "login-password",
+          "type": "text",
+          "placeholder": "••••••••"
+        }
+      ]
+    },
+    {
+      "path": "/connections",
+      "id": "login-form",
+      "action": "",
+      "inputs": [
+        {
+          "name": "login-email",
+          "type": "text",
+          "placeholder": "seu-usuario"
+        },
+        {
+          "name": "login-password",
+          "type": "text",
+          "placeholder": "••••••••"
+        }
+      ]
+    },
+    {
+      "path": "/contacts",
+      "id": "login-form",
+      "action": "",
+      "inputs": [
+        {
+          "name": "login-email",
+          "type": "text",
+          "placeholder": "seu-usuario"
+        },
+        {
+          "name": "login-password",
+          "type": "text",
+          "placeholder": "••••••••"
+        }
+      ]
+    },
+    {
+      "path": "/flows",
+      "id": "login-form",
+      "action": "",
+      "inputs": [
+        {
+          "name": "login-email",
+          "type": "text",
+          "placeholder": "seu-usuario"
+        },
+        {
+          "name": "login-password",
+          "type": "text",
+          "placeholder": "••••••••"
+        }
+      ]
+    },
+    {
+      "path": "/ai",
+      "id": "login-form",
+      "action": "",
+      "inputs": [
+        {
+          "name": "login-email",
+          "type": "text",
+          "placeholder": "seu-usuario"
+        },
+        {
+          "name": "login-password",
+          "type": "text",
+          "placeholder": "••••••••"
+        }
+      ]
+    },
+    {
+      "path": "/analytics",
+      "id": "login-form",
+      "action": "",
+      "inputs": [
+        {
+          "name": "login-email",
+          "type": "text",
+          "placeholder": "seu-usuario"
+        },
+        {
+          "name": "login-password",
+          "type": "text",
+          "placeholder": "••••••••"
+        }
+      ]
+    },
+    {
+      "path": "/campaigns",
+      "id": "login-form",
+      "action": "",
+      "inputs": [
+        {
+          "name": "login-email",
+          "type": "text",
+          "placeholder": "seu-usuario"
+        },
+        {
+          "name": "login-password",
+          "type": "text",
+          "placeholder": "••••••••"
+        }
+      ]
+    },
+    {
+      "path": "/memory",
+      "id": "login-form",
+      "action": "",
+      "inputs": [
+        {
+          "name": "login-email",
+          "type": "text",
+          "placeholder": "seu-usuario"
+        },
+        {
+          "name": "login-password",
+          "type": "text",
+          "placeholder": "••••••••"
+        }
+      ]
+    },
+    {
+      "path": "/users",
+      "id": "login-form",
+      "action": "",
+      "inputs": [
+        {
+          "name": "login-email",
+          "type": "text",
+          "placeholder": "seu-usuario"
+        },
+        {
+          "name": "login-password",
+          "type": "text",
+          "placeholder": "••••••••"
+        }
+      ]
+    },
+    {
+      "path": "/nodes",
+      "id": "login-form",
+      "action": "",
+      "inputs": [
+        {
+          "name": "login-email",
+          "type": "text",
+          "placeholder": "seu-usuario"
+        },
+        {
+          "name": "login-password",
+          "type": "text",
+          "placeholder": "••••••••"
+        }
+      ]
+    },
+    {
+      "path": "/deployments",
+      "id": "login-form",
+      "action": "",
+      "inputs": [
+        {
+          "name": "login-email",
+          "type": "text",
+          "placeholder": "seu-usuario"
+        },
+        {
+          "name": "login-password",
+          "type": "text",
+          "placeholder": "••••••••"
+        }
+      ]
+    },
+    {
+      "path": "/logs",
+      "id": "login-form",
+      "action": "",
+      "inputs": [
+        {
+          "name": "login-email",
+          "type": "text",
+          "placeholder": "seu-usuario"
+        },
+        {
+          "name": "login-password",
+          "type": "text",
+          "placeholder": "••••••••"
+        }
+      ]
+    },
+    {
+      "path": "/diagnostics",
+      "id": "login-form",
+      "action": "",
+      "inputs": [
+        {
+          "name": "login-email",
+          "type": "text",
+          "placeholder": "seu-usuario"
+        },
+        {
+          "name": "login-password",
+          "type": "text",
+          "placeholder": "••••••••"
+        }
+      ]
+    },
+    {
+      "path": "/settings",
+      "id": "login-form",
+      "action": "",
+      "inputs": [
+        {
+          "name": "login-email",
+          "type": "text",
+          "placeholder": "seu-usuario"
+        },
+        {
+          "name": "login-password",
+          "type": "text",
+          "placeholder": "••••••••"
+        }
+      ]
+    }
+  ],
+  "apis": [],
+  "broken_routes": [],
+  "orphan_pages": [
+    "/inbox",
+    "/connections",
+    "/contacts",
+    "/flows",
+    "/ai",
+    "/analytics",
+    "/campaigns",
+    "/memory",
+    "/users",
+    "/nodes",
+    "/deployments",
+    "/logs",
+    "/diagnostics",
+    "/settings"
+  ],
+  "console_errors": [],
+  "page_errors": [],
+  "responsiveness": [
+    {
+      "path": "/dashboard",
+      "desktopHealthy": true,
+      "mobileHealthy": true,
+      "mobileOverflowAmount": 0
+    },
+    {
+      "path": "/inbox",
+      "desktopHealthy": true,
+      "mobileHealthy": true,
+      "mobileOverflowAmount": 0
+    },
+    {
+      "path": "/connections",
+      "desktopHealthy": true,
+      "mobileHealthy": true,
+      "mobileOverflowAmount": 0
+    },
+    {
+      "path": "/contacts",
+      "desktopHealthy": true,
+      "mobileHealthy": true,
+      "mobileOverflowAmount": 0
+    },
+    {
+      "path": "/flows",
+      "desktopHealthy": true,
+      "mobileHealthy": true,
+      "mobileOverflowAmount": 0
+    },
+    {
+      "path": "/ai",
+      "desktopHealthy": true,
+      "mobileHealthy": true,
+      "mobileOverflowAmount": 0
+    },
+    {
+      "path": "/analytics",
+      "desktopHealthy": true,
+      "mobileHealthy": true,
+      "mobileOverflowAmount": 0
+    },
+    {
+      "path": "/campaigns",
+      "desktopHealthy": true,
+      "mobileHealthy": true,
+      "mobileOverflowAmount": 0
+    },
+    {
+      "path": "/memory",
+      "desktopHealthy": true,
+      "mobileHealthy": true,
+      "mobileOverflowAmount": 0
+    },
+    {
+      "path": "/users",
+      "desktopHealthy": true,
+      "mobileHealthy": true,
+      "mobileOverflowAmount": 0
+    },
+    {
+      "path": "/nodes",
+      "desktopHealthy": true,
+      "mobileHealthy": true,
+      "mobileOverflowAmount": 0
+    },
+    {
+      "path": "/deployments",
+      "desktopHealthy": true,
+      "mobileHealthy": true,
+      "mobileOverflowAmount": 0
+    },
+    {
+      "path": "/logs",
+      "desktopHealthy": true,
+      "mobileHealthy": true,
+      "mobileOverflowAmount": 0
+    },
+    {
+      "path": "/diagnostics",
+      "desktopHealthy": true,
+      "mobileHealthy": true,
+      "mobileOverflowAmount": 0
+    },
+    {
+      "path": "/settings",
+      "desktopHealthy": true,
+      "mobileHealthy": true,
+      "mobileOverflowAmount": 0
+    }
+  ]
+}

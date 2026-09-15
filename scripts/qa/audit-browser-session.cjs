@@ -1,10 +1,16 @@
 const {chromium}=require('../../frontend-official/node_modules/playwright');
 const fs=require('fs'),path=require('path');
-const root=path.resolve(__dirname,'../..'),out=path.join(root,'outros/reports/qa');
+const root=path.resolve(__dirname,'../..'),out=path.resolve(root,process.env.QA_OUTPUT||'outros/reports/qa');
 (async()=>{
  const browser=await chromium.launch({headless:true,args:['--remote-debugging-port=9338','--remote-debugging-address=127.0.0.1']});
  const ctx=await browser.newContext({viewport:{width:1440,height:900}}),page=await ctx.newPage();
- page.setDefaultTimeout(5000);page.setDefaultNavigationTimeout(20000);
+ fs.mkdirSync(path.join(out,'evidence'),{recursive:true});
+ page.setDefaultTimeout(20000);page.setDefaultNavigationTimeout(60000);
+ if(process.env.QA_READ_ONLY==='1')await ctx.route('**/api/**',route=>{
+  const request=route.request();
+  if(!['GET','HEAD','OPTIONS'].includes(request.method())&&!new URL(request.url()).pathname.startsWith('/api/auth/'))return route.fulfill({status:200,json:{success:true,data:{},qaSimulated:true}});
+  return route.continue();
+ });
  const events=[];
  const clean=s=>String(s).replace(/Bearer\s+\S+/gi,'[TOKEN]').replace(/[\w.+-]+@[\w.-]+\.[A-Za-z]{2,}/g,'[EMAIL]').replace(/\b\d{8,15}\b/g,'[PHONE]');
  page.on('console',m=>{if(['warning','error'].includes(m.type()))events.push({route:page.url(),type:'console',level:m.type(),text:clean(m.text()),at:new Date().toISOString()})});
@@ -12,7 +18,7 @@ const root=path.resolve(__dirname,'../..'),out=path.join(root,'outros/reports/qa
  page.on('response',r=>events.push({route:page.url(),type:'response',url:clean(r.url()),method:r.request().method(),status:r.status(),at:new Date().toISOString()}));
  page.on('requestfailed',r=>events.push({route:page.url(),type:'requestfailed',url:clean(r.url()),text:r.failure()?.errorText}));
  page.on('websocket',ws=>{events.push({route:page.url(),type:'ws-open',url:clean(ws.url())});ws.on('close',()=>events.push({route:page.url(),type:'ws-close'}));ws.on('socketerror',e=>events.push({route:page.url(),type:'ws-error',text:clean(e)}))});
- await page.goto('http://209.50.241.22/');
+ await page.goto(process.env.QA_BASE_URL||'http://209.50.241.22/');
  const legacy=fs.readFileSync(path.join(root,'frontend-official/tests/ui/visual-full-e2e.spec.ts'),'utf8');
  await page.getByPlaceholder('Digite o usuário').fill(legacy.match(/const USERNAME = "([^"]+)"/)[1]);
  await page.getByPlaceholder('Digite a senha').fill(legacy.match(/const PASSWORD = "([^"]+)"/)[1]);
