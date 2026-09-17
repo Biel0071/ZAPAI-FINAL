@@ -17,9 +17,10 @@ class LearningEngine {
   }
 
   /**
-   * Mine patterns from recent experience events and human overrides
-   */
-  async minePatterns({ companyId = 'default' }) {
+    * Mine patterns from recent experience events and human overrides
+    * Supports Hybrid Mode: 10% Sandbox testing + Autonomous promotion for >=5 non-price patterns
+    */
+  async minePatterns({ companyId = 'default', autoPromote = false }) {
     const cleanCompany = String(companyId || 'default');
 
     try {
@@ -39,26 +40,72 @@ class LearningEngine {
       for (const row of corrections.rows) {
         const snippet = (row.customer_utterance || '').substring(0, 100);
         const existing = await this.pool.query(
-          `SELECT id FROM ai_learning_suggestions
+          `SELECT id, status FROM ai_learning_suggestions
            WHERE company_id = $1 AND situation_summary ILIKE $2 LIMIT 1`,
           [cleanCompany, `%${snippet.substring(0, 40)}%`]
         );
 
-        if (existing.rows.length === 0 && row.human_correction_text) {
-          await this.pool.query(
+        const freq = Number(row.freq);
+        let suggId = existing.rows[0]?.id;
+
+        if (!suggId && row.human_correction_text) {
+          const insertRes = await this.pool.query(
             `INSERT INTO ai_learning_suggestions (
               company_id, pattern_type, situation_summary, suggested_strategy,
               suggested_cta, observed_frequency, continuity_impact_pct, status, created_at
-            ) VALUES ($1, 'operator_learned', $2, $3, $4, $5, $6, 'pending', NOW())`,
+            ) VALUES ($1, 'operator_learned', $2, $3, $4, $5, $6, 'pending', NOW())
+            RETURNING id`,
             [
               cleanCompany,
               `Cliente pergunta: "${snippet}"`,
               `Adotar padrão corrigido pelo atendente humano: "${row.human_correction_text.substring(0, 150)}"`,
               row.human_correction_text.substring(0, 120),
-              Number(row.freq),
-              15.0 + Number(row.freq) * 2.5
+              freq,
+              15.0 + freq * 2.5
             ]
           );
+          suggId = insertRes.rows[0]?.id;
+        }
+
+        // 3. Hybrid Autonomous / Sandbox Loop (Options 1 & 2)
+        if (autoPromote && suggId && row.human_correction_text) {
+          const containsPriceOrDiscount = /(?:R\$\s*[\d,.]+|\b(?:preço|preco|valor|desconto|promocional|pix|reais|por cento|%)\b)/i.test(row.human_correction_text);
+
+          if (freq >= 5 && !containsPriceOrDiscount) {
+            // High confidence & battle-tested non-price pattern -> Auto-promote to Approved Playbook (Option 2)
+            const slug = `auto_pb_${Date.now().toString(36)}_${suggId}`;
+            const pbRes = await this.pool.query(
+              `INSERT INTO ai_playbooks (
+                company_id, name, slug, trigger_condition, goal, steps,
+                recommended_cta, confidence, continuity_boost_pct, status,
+                created_by, approved_by, created_at, updated_at
+              ) VALUES ($1, $2, $3, $4, $5, $6, $7, 0.92, $8, 'approved', 'learning_engine', 'autonomous_guard', NOW(), NOW())
+              ON CONFLICT (company_id, slug) DO NOTHING
+              RETURNING id`,
+              [
+                cleanCompany,
+                `[Auto-Promovido] Padrão: ${snippet.substring(0, 40)}`,
+                slug,
+                'recurrent_operator_learned',
+                `Adotar padrão testado: ${row.human_correction_text.substring(0, 120)}`,
+                JSON.stringify([{ action: 'reply', text: row.human_correction_text }]),
+                row.human_correction_text.substring(0, 120),
+                20.0 + freq * 2
+              ]
+            );
+
+            if (pbRes.rows[0]?.id) {
+              await this.pool.query(
+                `UPDATE ai_learning_suggestions
+                 SET status = 'approved', proposed_playbook_id = $1, updated_at = NOW()
+                 WHERE id = $2`,
+                [pbRes.rows[0].id, suggId]
+              );
+            }
+          } else if (freq >= 2 && freq < 5 && existing.rows[0]?.status === 'pending') {
+            // Medium frequency -> Auto-test in 10% Sandbox (Option 1)
+            await this.testSuggestionSandbox({ suggestionId: suggId, companyId: cleanCompany });
+          }
         }
       }
 

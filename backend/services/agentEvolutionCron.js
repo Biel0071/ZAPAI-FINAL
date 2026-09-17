@@ -25,9 +25,9 @@ async function runEvolutionRound() {
     let totalMined = 0;
 
     for (const companyId of companies) {
-      // 1. Mineração contínua de padrões e correções humanas (Camada 5)
+      // 1. Mineração contínua de padrões e correções humanas (Camada 5: Híbrido Sandbox + Auto-promoção segura)
       try {
-        const mineRes = await learningEngine.minePatterns({ companyId });
+        const mineRes = await learningEngine.minePatterns({ companyId, autoPromote: true });
         if (mineRes.ok && mineRes.processed > 0) {
           totalMined += mineRes.processed;
           console.log(`[AI EVOLUTION] +${mineRes.processed} padrões/correções minerados para tenant ${companyId}`);
