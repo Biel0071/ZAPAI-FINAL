@@ -50,71 +50,29 @@ async function generateAIResponse({
 }) {
   const resolvedAgent = ensureAgent(agent);
 
-  // Call processAI as the main path
+  // Use EvolutionaryAgentOrchestrator (5-layer evolutionary learning pipeline)
   try {
-    const systemSettingsRepository = require('../src/data/repositories/systemSettingsRepository');
-    const { processAI } = require('./ai.service');
-    
-    let aiConfig = {};
-    const raw = await systemSettingsRepository.getSetting('ai_config');
-    if (raw && raw.value) {
-      aiConfig = typeof raw.value === 'string' ? JSON.parse(raw.value) : raw.value;
-    }
-
-    const processStore = {
-      ...store,
-      aiConfig
-    };
-
-    const contactData = {
-      name: store?.contact?.name || conversation?.phone || 'Cliente',
-      phone: conversation?.phone || 'unknown',
-      conversationId: conversation?.id || conversation?.phone || 'unknown',
-      sessionId: sessionId || store?.sessionId || null,
-      funnelStage: conversation?.funnel_stage || store?.contact?.funnelStage || null,
-      nextAction: leadAnalysis?.next_action || conversation?.next_action || store?.contact?.nextAction || null,
-      leadAnalysis: leadAnalysis || {
-        intent: conversation?.lead_intent || null,
-        lead_temperature: conversation?.lead_temperature || null,
-        confidence: conversation?.lead_confidence || null,
-        next_action: conversation?.next_action || null,
-      },
-      salesStrategy: salesStrategy || {
-        goal: conversation?.next_action || null,
-      },
-    };
-
-    const history = conversationHistory.map(h => ({
-      role: h.role || (h.from === 'agent' ? 'assistant' : 'user'),
-      content: h.content || h.text || '',
-    }));
-
-    const aiResult = await processAI({
-      contact: contactData,
-      history,
-      message: customerMessage,
-      store: processStore,
-      agentName: resolvedAgent?.name || 'Atendente'
+    const evolutionaryOrchestrator = require('../src/ai/evolutionary/orchestrator');
+    const result = await evolutionaryOrchestrator.orchestrateResponse({
+      agent: resolvedAgent,
+      conversation,
+      conversationHistory,
+      customerMessage,
+      leadAnalysis,
+      salesStrategy,
+      store,
+      sessionId,
+      companyId: conversation?.company_id || store?.activeCompanyId || 'default'
     });
 
-    if (aiResult && aiResult.reply) {
-      return {
-        response: aiResult.reply,
-        provider: aiResult.provider,
-        model: aiResult.model,
-        responseTimeMs: aiResult.responseTimeMs,
-        promptTokens: aiResult.promptTokens,
-        completionTokens: aiResult.completionTokens,
-        totalTokens: aiResult.totalTokens,
-        agentName: aiResult.agentName || resolvedAgent?.name,
-        analysis: aiResult.analysis,
-      };
+    if (result && result.response) {
+      return result;
     }
   } catch (err) {
-    console.error('[AI RESPONSE ENGINE] processAI failed, using fallback:', err.message);
+    console.error('[AI RESPONSE ENGINE] Evolutionary orchestrator error:', err.message);
   }
 
-  // Fallback if processAI fails or returns no reply
+  // Fallback if orchestrator fails completely
   const openai = getClient();
 
   if (!openai) {

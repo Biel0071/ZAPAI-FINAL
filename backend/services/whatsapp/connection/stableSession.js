@@ -1842,7 +1842,15 @@ async function createStableSession({
               const sockIo = io || global.io;
               sockIo?.emit('conversation:update', payloadUpdate);
               sockIo?.emit('conversation_updated', payloadUpdate);
-              sockIo?.emit('conversation-update', payloadUpdate);
+              try {
+                const experienceEngine = require('../../../src/ai/evolutionary/experienceEngine');
+                experienceEngine.registerHumanIntervention({
+                  conversationId: targetConvId,
+                  companyId: process.env.DEFAULT_COMPANY_ID || 'default',
+                  humanText: extractMessageText(incomingMessage),
+                  reason: 'manual_phone_takeover'
+                }).catch(() => {});
+              } catch (_) {}
             }
             console.log(`[WHATSAPP] Manual phone message detected for ${normalizedChatId}. Human takeover activated for ${humanTimeoutMs}ms.`);
           } catch (error) {
@@ -1916,6 +1924,17 @@ async function createStableSession({
         } catch (error) {
           // eslint-disable-next-line no-console
           console.error('[WHATSAPP] inbound persistence pipeline failed:', error?.message || error);
+        }
+
+        if (result?.conversation?.id) {
+          try {
+            const experienceEngine = require('../../../src/ai/evolutionary/experienceEngine');
+            experienceEngine.registerCustomerReaction({
+              conversationId: result.conversation.id,
+              companyId: result.conversation.company_id || 'default',
+              responseTimeSeconds: 30
+            }).catch(() => {});
+          } catch (_) {}
         }
 
         if (!result?.message) {

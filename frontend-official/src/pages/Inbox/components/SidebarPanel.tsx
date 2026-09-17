@@ -21,6 +21,7 @@ import {
 } from "@phosphor-icons/react";
 import { Folder, History, UserRound, Workflow, type LucideIcon, Sparkles, Cpu, Bot, Brain, Phone } from "lucide-react";
 import { AIIcon } from "@/components/ai/AIIcon";
+import { AILearningSidebar } from "@/components/inbox/AILearningSidebar";
 import {
   Accordion,
   AccordionContent,
@@ -1051,6 +1052,15 @@ export function SidebarPanel({
                   </div>
                 </details>
               </div>
+
+              {selectedConversation?.id && (
+                <div className="pt-2 border-t border-border/20">
+                  <AILearningSidebar
+                    conversationId={selectedConversation.id}
+                    phone={selectedConversation.phone}
+                  />
+                </div>
+              )}
             </div>
           </InboxSectionBoundary>
         </TabsContent>

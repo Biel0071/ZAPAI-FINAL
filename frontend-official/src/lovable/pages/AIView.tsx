@@ -91,6 +91,9 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion";
 import { AILearningDashboard } from "@/components/ai/AILearningDashboard";
+import { EvolutionCenter } from "@/components/evolution/EvolutionCenter";
+import { OfficialKnowledgeManager } from "@/components/evolution/OfficialKnowledgeManager";
+import { PlaybookManager } from "@/components/evolution/PlaybookManager";
 import type { AILovableViewModel } from "@/adapters/lovable/aiAdapter";
 import { apiService, API_ORIGIN } from "@/services/apiService";
 import { useToast } from "@/hooks/use-toast";
@@ -2617,6 +2620,42 @@ export function AIView(props: AIViewProps) {
               </button>
 
               <button
+                onClick={() => onSectionChange("evolution")}
+                className={cn(
+                  "w-full flex items-center gap-2.5 px-3 py-2 text-xs font-semibold rounded-xl transition-all text-left",
+                  activeInternalTab === "evolution" ? "bg-primary text-primary-foreground shadow-sm shadow-primary/20" : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                )}
+              >
+                <BrainCircuit className="h-4 w-4 text-emerald-400" />
+                <span className="flex items-center gap-1.5">
+                  Evolution Center
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                </span>
+              </button>
+
+              <button
+                onClick={() => onSectionChange("conhecimento")}
+                className={cn(
+                  "w-full flex items-center gap-2.5 px-3 py-2 text-xs font-semibold rounded-xl transition-all text-left",
+                  activeInternalTab === "conhecimento" ? "bg-primary text-primary-foreground shadow-sm shadow-primary/20" : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                )}
+              >
+                <ShieldCheck className="h-4 w-4 text-emerald-400" />
+                <span>Verdade Oficial</span>
+              </button>
+
+              <button
+                onClick={() => onSectionChange("playbooks")}
+                className={cn(
+                  "w-full flex items-center gap-2.5 px-3 py-2 text-xs font-semibold rounded-xl transition-all text-left",
+                  activeInternalTab === "playbooks" ? "bg-primary text-primary-foreground shadow-sm shadow-primary/20" : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                )}
+              >
+                <Target className="h-4 w-4 text-purple-400" />
+                <span>Playbooks</span>
+              </button>
+
+              <button
                 onClick={() => onSectionChange("analise")}
                 className={cn(
                   "w-full flex items-center gap-2.5 px-3 py-2 text-xs font-semibold rounded-xl transition-all text-left",
@@ -2631,6 +2670,21 @@ export function AIView(props: AIViewProps) {
             {/* Content Display */}
             <main className="flex-1 w-full min-w-0 bg-card/20 border border-border/50 rounded-2xl p-4 md:p-6 shadow-sm min-h-[500px]">
               
+              {/* TAB: EVOLUTION CENTER */}
+              {activeInternalTab === "evolution" && (
+                <EvolutionCenter />
+              )}
+
+              {/* TAB: CONHECIMENTO OFICIAL */}
+              {activeInternalTab === "conhecimento" && (
+                <OfficialKnowledgeManager />
+              )}
+
+              {/* TAB: PLAYBOOKS */}
+              {activeInternalTab === "playbooks" && (
+                <PlaybookManager />
+              )}
+
               {/* TAB 1: DASHBOARD IA */}
               {activeInternalTab === "dashboard" && (
                 <div className="space-y-6">

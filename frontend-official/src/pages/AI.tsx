@@ -16,7 +16,9 @@ type SectionId =
   | "provedores"
   | "conhecimento"
   | "operacao"
-  | "analise";
+  | "analise"
+  | "evolution"
+  | "playbooks";
 
 const DEFAULT_PROVIDERS: AIProviderConfig[] = [
   { id: "openai", name: "OpenAI", apiKey: "", model: "gpt-4o-mini", active: false },
@@ -92,7 +94,7 @@ export default function AI() {
   const [isVoiceStudioOpen, setIsVoiceStudioOpen] = useState(false);
 
   useEffect(() => {
-    if (tabParam && ["dashboard", "atendentes", "provedores", "conhecimento", "operacao", "analise"].includes(tabParam)) {
+    if (tabParam && ["dashboard", "atendentes", "provedores", "conhecimento", "operacao", "analise", "evolution", "playbooks"].includes(tabParam)) {
       setActiveSection(tabParam);
     } else if (!tabParam) {
       setSearchParams({ tab: "dashboard" });

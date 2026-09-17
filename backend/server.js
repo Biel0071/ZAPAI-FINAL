@@ -1200,6 +1200,10 @@ app.post('/api/ai/memory/flush', async (_req, res) => {
   }
 });
 
+// ─── Evolutionary AI (5-Layer Learning Architecture) ───
+const evolutionaryRoutes = require('./src/ai/evolutionary/evolutionaryRoutes');
+app.use('/api/ai/evolution', evolutionaryRoutes);
+
 app.get('/api/websocket/metrics', (_req, res) => {
   try {
     return sendSafeJson(res, { success: true, data: websocketGateway.getMetrics() });

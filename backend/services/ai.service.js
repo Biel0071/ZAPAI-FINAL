@@ -834,7 +834,26 @@ async function processAI({ contact, history, message, store, agentName, companyI
     console.warn('[AI MEMORY GRAPH] Recall unavailable:', memoryError.message);
   }
 
-  const systemPrompt = `${compileSystemPrompt(resolvedAgent, store, contact)}${graphMemory.prompt}`;
+  let evoPrompt = contact?.evolutionaryPrompt ? `\n\n${contact.evolutionaryPrompt}` : '';
+  if (!evoPrompt) {
+    try {
+      const orchestrator = require('../src/ai/evolutionary/orchestrator');
+      const evoData = await orchestrator.buildEvolutionaryPrompt({
+        companyId: resolvedCompanyId,
+        contact,
+        message,
+        conversationId: contact?.conversationId,
+        leadIntent: contact?.leadAnalysis?.intent,
+      });
+      if (evoData && evoData.prompt) {
+        evoPrompt = `\n\n${evoData.prompt}`;
+      }
+    } catch (evoErr) {
+      console.warn('[AI SERVICE] Evolutionary prompt auto-compile error:', evoErr.message);
+    }
+  }
+
+  const systemPrompt = `${compileSystemPrompt(resolvedAgent, store, contact)}${graphMemory.prompt}${evoPrompt}`;
   console.log('[AI SERVICE] System Prompt Compiled:\n' + systemPrompt);
   const slicedHistory = Array.isArray(history) ? history.slice(-8) : [];
 

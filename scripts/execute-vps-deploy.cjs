@@ -53,7 +53,13 @@ async function main() {
       'cd /opt/zapai && node scripts/activate-and-ingest-all-memory.cjs'
     );
 
-    // 4. Checar status do PM2 e logs de inicialização
+    // 4. Executar seed da Verdade Oficial e Playbooks no PostgreSQL da VPS
+    await runRemoteCommand(
+      'Popular Verdade Oficial da Loja e Playbooks na VPS',
+      'cd /opt/zapai/backend && node scripts/seed-official-knowledge-and-playbooks.cjs'
+    );
+
+    // 5. Checar status do PM2 e logs de inicialização
     await runRemoteCommand(
       'Checar status PM2 na VPS',
       'pm2 status zapflow-api'

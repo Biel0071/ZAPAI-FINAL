@@ -25,6 +25,7 @@ import { cn } from "@/lib/utils";
 import type { ChatMessage } from "@/services/apiService";
 import { apiService } from "@/services/apiService";
 import { useToast } from "@/hooks/use-toast";
+import { AIMessageFeedback } from "@/components/inbox/AIMessageFeedback";
 import type { PreviewMediaState } from "../types";
 import {
   resolveMediaUrl,
@@ -537,6 +538,14 @@ export const MessageRow = memo(function MessageRow({
               </span>
             )}
           </div>
+
+          {isAiMessage && message.fromMe && (
+            <AIMessageFeedback
+              conversationId={message.conversationId}
+              messageId={message.id}
+              aiResponseText={displayText}
+            />
+          )}
         </button>
 
         {reaction && (
