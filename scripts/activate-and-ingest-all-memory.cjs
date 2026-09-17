@@ -1,8 +1,15 @@
+process.env.DB_QUERY_TIMEOUT_MS = '60000';
+process.env.DB_STATEMENT_TIMEOUT_MS = '60000';
+
 const { Pool } = require('../backend/node_modules/pg');
 const agentMemoryGraphService = require('../backend/services/agentMemoryGraphService');
 const agentEvolutionService = require('../backend/services/agentEvolutionService');
 
-const pool = new Pool({ connectionString: 'postgresql://zapai:zapai_password@localhost:5432/zapai_crm' });
+const pool = new Pool({ 
+  connectionString: process.env.DATABASE_URL || 'postgresql://zapai:zapai_password@localhost:5432/zapai_crm',
+  query_timeout: 60000,
+  statement_timeout: 60000
+});
 
 async function activateAndIngestAll() {
   console.log('=== [1/6] ATIVANDO CONVERSATION MEMORY (ai_conversation_memory) ===');
@@ -333,15 +340,23 @@ async function activateAndIngestAll() {
   console.log('[5/6] ai_evolution_stats populada com métricas reais do agente Camila.');
 
   console.log('\n=== [6/6] BOOTSTRAP DO GRAFO DE MEMÓRIA E DETECÇÃO DE GAPS ===');
-  await agentMemoryGraphService.bootstrapAgentMemoryGraph({
-    agentKey: 'camila',
-    agentName: 'Camila',
-    companyId: 'default'
-  });
-  console.log('Grafo de memória bootstrappado com sucesso.');
+  try {
+    await agentMemoryGraphService.bootstrapAgentMemoryGraph({
+      agentKey: 'camila',
+      agentName: 'Camila',
+      companyId: 'default'
+    });
+    console.log('Grafo de memória bootstrappado com sucesso.');
+  } catch (err) {
+    console.warn('[AVISO] Falha ou timeout no bootstrap do grafo de memória:', err.message);
+  }
 
-  const detectedGaps = await agentEvolutionService.detectUnansweredQuestions('camila', 'default', { scanAll: true });
-  console.log(`Varredura de gaps concluída: ${detectedGaps} novos eventos de aprendizado detectados.`);
+  try {
+    const detectedGaps = await agentEvolutionService.detectUnansweredQuestions('camila', 'default', { scanAll: true });
+    console.log(`Varredura de gaps concluída: ${detectedGaps} novos eventos de aprendizado detectados.`);
+  } catch (err) {
+    console.warn('[AVISO] Falha na detecção de gaps:', err.message);
+  }
 
   // Final verification counts
   console.log('\n--- VERIFICAÇÃO FINAL DAS TABELAS ---');

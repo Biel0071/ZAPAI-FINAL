@@ -75,6 +75,7 @@ async function bootstrapAgentMemoryGraph({ agentKey, agentName, companyId = 'def
       SELECT * FROM ordered
       WHERE previous_from_me = FALSE AND response IS NOT NULL AND question IS NOT NULL
       ORDER BY timestamp DESC
+      LIMIT 1000
     )
     INSERT INTO agent_memory_nodes (company_id, agent_key, node_key, node_type, label, content, searchable_text, properties, weight, created_at, last_seen_at)
     SELECT $1::varchar, $2::varchar, 'episode:' || id, 'episode', LEFT(question, 160),
