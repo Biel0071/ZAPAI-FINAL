@@ -176,8 +176,8 @@ async function hydrateFromSettings(tenantId = DEFAULT_TENANT_ID) {
         console.log(`[AI AGENT SERVICE] Found v1 agents config. Migrating to v2 for tenant: ${normalizedTenantId}`);
         parsed = JSON.parse(v1Row.value);
         shouldPersist = true;
-      } else {
-        // Fallback 2: seed from filesystem agents/ folder if database has no configuration
+      } else if (normalizedTenantId === DEFAULT_TENANT_ID) {
+        // Fallback 2: seed from filesystem agents/ folder if database has no configuration (default tenant only)
         console.log(`[AI AGENT SERVICE] No database agents config found. Seeding default agents from disk for tenant: ${normalizedTenantId}`);
         const defaultAgents = [];
         const agentsDir = path.join(__dirname, '..', 'agents');
@@ -200,6 +200,8 @@ async function hydrateFromSettings(tenantId = DEFAULT_TENANT_ID) {
         
         parsed = defaultAgents;
         shouldPersist = true;
+      } else {
+        parsed = [];
       }
     }
 

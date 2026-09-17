@@ -72,23 +72,30 @@ async function resolveProvider(store, companyId = 'default') {
   return null;
 }
 
-async function detectUnansweredQuestions(agentKey, companyId = 'default') {
+async function detectUnansweredQuestions(agentKey, companyId = 'default', options = {}) {
   await aiAgentService.listAgents(companyId);
   const agent = aiAgentService.getAgentsSync(companyId).find(a => a.key === agentKey);
   if (!agent) return 0;
   
   const agentName = agent.name;
   
+  // Verifica se há mensagens nos últimos 15 dias; se não houver (ex.: sistema reativado), varre histórico completo
+  const recentCountRes = await query(
+    `SELECT COUNT(*)::int as count FROM messages WHERE timestamp >= NOW() - INTERVAL '15 days'`
+  ).catch(() => ({ rows: [{ count: 0 }] }));
+  const hasRecent = (recentCountRes.rows[0]?.count || 0) > 0;
+  const timeFilter = hasRecent && !options.scanAll ? "AND m.timestamp >= NOW() - INTERVAL '15 days'" : "";
+
   const result = await query(
     `
-      SELECT m.id, m.conversation_id, m.content, m.from_me, m.timestamp,
+      SELECT m.id, m.conversation_id, COALESCE(m.content, m.text, '') AS content, m.from_me, m.timestamp,
              l.phone, l.name as lead_name
       FROM messages m
       INNER JOIN conversations conv ON conv.id = m.conversation_id
       INNER JOIN leads l ON l.id = conv.lead_id
       WHERE conv.company_id = $2
         AND (conv.agent_name = $1 OR conv.agent_name IS NULL)
-        AND m.timestamp >= NOW() - INTERVAL '15 days'
+        ${timeFilter}
       ORDER BY m.conversation_id, m.timestamp ASC
       LIMIT 1000
     `,
@@ -104,7 +111,9 @@ async function detectUnansweredQuestions(agentKey, companyId = 'default') {
     /não posso ajudar com isso/i,
     /infelizmente não/i,
     /não disponho dessa informação/i,
-    /preciso consultar/i
+    /preciso consultar/i,
+    /não tive acesso/i,
+    /não tenho acesso/i,
   ];
   
   let createdCount = 0;

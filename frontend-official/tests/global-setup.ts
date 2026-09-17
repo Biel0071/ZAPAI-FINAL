@@ -47,6 +47,17 @@ async function globalSetup(config: FullConfig) {
         state: { token: jwt, user: { id: 1, role: 'admin' }, isAuthenticated: true, companyId: 'default' },
         version: 0
       }));
+      const adminSession = {
+        token: jwt,
+        username: 'zapadmin',
+        role: 'master',
+        tenantId: 'default',
+        companyId: 'default',
+        issuedAt: Date.now(),
+        expiresAt: Date.now() + 1000 * 60 * 60 * 8,
+        remember: true,
+      };
+      localStorage.setItem('zapai_admin_auth_session', JSON.stringify(adminSession));
     }, token);
 
     // Save state to file for all workers

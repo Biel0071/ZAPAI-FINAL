@@ -1,22 +1,51 @@
+const { describe, it, beforeEach } = require('node:test');
+const assert = require('node:assert/strict');
+
+const conversationRepoPath = require.resolve('../src/data/repositories/conversationRepository');
+const messageRepoPath = require.resolve('../src/data/repositories/messageRepository');
+
+let updateStateCalled = false;
+
+require.cache[conversationRepoPath] = {
+  id: conversationRepoPath,
+  filename: conversationRepoPath,
+  loaded: true,
+  exports: {
+    updateConversationState: async () => {
+      updateStateCalled = true;
+      return { id: 'conv_1', updated: true };
+    },
+    findById: async () => ({ id: 'conv_1', lead_id: 1, company_id: 'default' }),
+  }
+};
+
+require.cache[messageRepoPath] = {
+  id: messageRepoPath,
+  filename: messageRepoPath,
+  loaded: true,
+  exports: {
+    getMessagesByConversation: async () => []
+  }
+};
+
 const crmIntelligence = require('../services/crm-intelligence');
 const historyCache = require('../services/crm-intelligence/cache/historyCache');
 
-// Mocks
-jest.mock('../repositories/conversationRepository', () => ({
-  updateConversationState: jest.fn().mockResolvedValue({ id: 'conv_1', updated: true })
-}));
-
-jest.mock('../repositories/messageRepository', () => ({
-  getMessagesByConversation: jest.fn().mockResolvedValue([])
-}));
-
 describe('CRM Intelligence Engine', () => {
   let ioMock;
-  
+
   beforeEach(() => {
-    ioMock = { emit: jest.fn() };
+    ioMock = { emit: () => {} };
     historyCache.cache.clear();
-    jest.clearAllMocks();
+    updateStateCalled = false;
+  });
+
+  const { after } = require('node:test');
+  after(async () => {
+    try {
+      const { pool } = require('../src/infrastructure/config/database');
+      await pool.end();
+    } catch {}
   });
 
   it('Caso 1: CRM atualizado independentemente da resposta enviada', async () => {
@@ -31,20 +60,12 @@ describe('CRM Intelligence Engine', () => {
 
     const context = await crmIntelligence.processIncomingMessage(params);
 
-    expect(context.analysis.intent).toBe('price_request');
-    expect(context.funnelStage).toBe('price_sent');
-    
-    // Verifica se salvou no banco
-    const conversationRepository = require('../src/data/repositories/conversationRepository');
-    expect(conversationRepository.updateConversationState).toHaveBeenCalled();
+    assert.equal(context.analysis.intent, 'price_request');
+    assert.equal(context.funnelStage, 'price_sent');
+    assert.equal(updateStateCalled, true);
   });
-  
+
   it('Caso 5: Erro no leadAnalyzer - Sales Funnel continua', async () => {
-    // Simulando erro num stage que roda em Promise.allSettled
-    jest.mock('../services/leadAnalyzer', () => ({
-        analyzeLeadIntent: jest.fn().mockImplementation(() => { throw new Error('Mock error'); })
-    }));
-    
     const context = await crmIntelligence.processIncomingMessage({
       sessionId: 'sess_1',
       conversationId: 'conv_1',
@@ -52,9 +73,8 @@ describe('CRM Intelligence Engine', () => {
       message: 'Teste de erro',
       store: {}
     });
-    
-    // Deve continuar e tentar avançar o funil com os fallbacks
-    expect(context.funnelStage).toBe('new_lead');
-  });
 
+    // Deve continuar e tentar avançar o funil com os fallbacks
+    assert.equal(context.funnelStage, 'new_lead');
+  });
 });

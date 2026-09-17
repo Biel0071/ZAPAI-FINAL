@@ -101,7 +101,7 @@ test.describe("ZapAI CRM E2E Auto-Discovery Crawler & Auditor", () => {
     expect(token).toBeTruthy();
 
     await page.goto("http://localhost:8080/login");
-    await page.evaluate(({ token: authToken, expiresAt }) => {
+    await page.evaluate(({ authToken }) => {
       const session = {
         token: authToken,
         username: "zapadmin",
@@ -109,14 +109,12 @@ test.describe("ZapAI CRM E2E Auto-Discovery Crawler & Auditor", () => {
         tenantId: "default",
         companyId: "default",
         issuedAt: Date.now(),
-        expiresAt: typeof expiresAt === "number" && Number.isFinite(expiresAt)
-          ? (expiresAt > 1_000_000_000_000 ? expiresAt : expiresAt * 1000)
-          : Date.now() + 1000 * 60 * 60 * 8,
+        expiresAt: Date.now() + 1000 * 60 * 60 * 8,
         remember: true,
       };
       localStorage.setItem("zapai_admin_auth_session", JSON.stringify(session));
       window.dispatchEvent(new CustomEvent("zapai-admin-auth-changed"));
-    }, { token, expiresAt: expiresAtSeconds });
+    }, { authToken: token });
 
     // Verify authentication redirect
     await page.goto("http://localhost:8080/dashboard");

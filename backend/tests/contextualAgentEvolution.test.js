@@ -28,6 +28,10 @@ test.before(async () => {
 
 test.after(async () => {
   await cleanupTestData();
+  try {
+    const { pool } = require('../src/infrastructure/config/database');
+    await pool.end();
+  } catch {}
 });
 
 test('1. New client vs recurring client: memory continuity and multi-level structure', async () => {

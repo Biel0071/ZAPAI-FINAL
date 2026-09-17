@@ -159,11 +159,12 @@ async function resolveRegisteredJid(sock, jid, options = {}) {
       return null;
     }
     if (Array.isArray(checkResult) && checkResult.length > 0 && checkResult[0].exists) {
-      const resolvedJid = checkResult[0].jid || candidateJid;
+      let resolvedJid = checkResult[0].jid || candidateJid;
       if (checkResult[0].lid) {
         const lidStr = `${String(checkResult[0].lid).split('@')[0].split(':')[0]}@lid`;
         global.phoneToLidMap?.set(clean, lidStr.split('@')[0]);
         global.lidToPhoneMap?.set(lidStr.split('@')[0], clean);
+        resolvedJid = lidStr;
       }
       setCachedJid(clean, resolvedJid);
       if (resolvedJid !== jid || reason) {
@@ -196,6 +197,12 @@ async function resolveRegisteredJid(sock, jid, options = {}) {
   } catch (err) {
     console.warn(`[JID-RESOLVE] onWhatsApp query failed for ${clean}, proceeding with default JID:`, err.message);
     return jid;
+  }
+
+  if (options?.requireRegistered) {
+    const error = new Error(`Destinatário WhatsApp não encontrado para o número ${clean}.`);
+    error.code = 'WHATSAPP_NUMBER_NOT_FOUND';
+    throw error;
   }
 
   // Fallback to default formatted JID to guarantee delivery attempt over Baileys

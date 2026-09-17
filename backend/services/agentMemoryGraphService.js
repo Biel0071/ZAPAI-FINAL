@@ -62,8 +62,8 @@ async function bootstrapAgentMemoryGraph({ agentKey, agentName, companyId = 'def
 
   await query(`
     WITH ordered AS (
-      SELECT m.id, m.conversation_id, m.content AS response, m.timestamp,
-             LAG(m.content) OVER (PARTITION BY m.conversation_id ORDER BY m.timestamp, m.id) AS question,
+      SELECT m.id, m.conversation_id, COALESCE(m.content, m.text) AS response, m.timestamp,
+             LAG(COALESCE(m.content, m.text)) OVER (PARTITION BY m.conversation_id ORDER BY m.timestamp, m.id) AS question,
              LAG(m.from_me) OVER (PARTITION BY m.conversation_id ORDER BY m.timestamp, m.id) AS previous_from_me,
              l.id AS lead_id, l.phone, l.name
       FROM messages m

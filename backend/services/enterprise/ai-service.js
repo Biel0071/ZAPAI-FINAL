@@ -4,7 +4,22 @@ const { analyzeLeadIntent } = require('../leadAnalyzer');
 const { generateAIResponse } = require('../aiResponseEngine');
 const { generateSalesStrategy } = require('../salesStrategyEngine');
 
-const AI_MEMORY_FILE = path.join(__dirname, '..', '..', 'data', 'ai_memory.json');
+function resolveAiMemoryFile() {
+  const candidates = [
+    path.join(__dirname, '..', '..', 'storage', 'data', 'ai_memory.json'),
+    path.join(__dirname, '..', '..', 'src', 'infrastructure', 'data', 'ai_memory.json'),
+    path.join(__dirname, '..', '..', 'data', 'ai_memory.json'),
+  ];
+  for (const c of candidates) {
+    try {
+      const fsSync = require('fs');
+      if (fsSync.existsSync(c)) return c;
+    } catch {}
+  }
+  return candidates[0];
+}
+
+const AI_MEMORY_FILE = resolveAiMemoryFile();
 
 function classifyDecisionFromConfidence(confidence = 0) {
   const safeConfidence = Math.max(0, Math.min(1, Number(confidence || 0)));
@@ -40,7 +55,12 @@ async function appendAiMemory(entry = {}) {
     data = data.slice(-5000);
   }
 
-  await fs.writeFile(AI_MEMORY_FILE, JSON.stringify(data, null, 2), 'utf8');
+  try {
+    await fs.mkdir(path.dirname(AI_MEMORY_FILE), { recursive: true });
+    await fs.writeFile(AI_MEMORY_FILE, JSON.stringify(data, null, 2), 'utf8');
+  } catch (err) {
+    console.error('[AI Enterprise] Failed to write ai_memory.json:', err.message);
+  }
 }
 
 async function evaluateInboundAi({ agent, chatId, conversationHistory = [], customerMessage, store, forceAutoReply = false, conversationId = null, sessionId = null, conversation = null }) {

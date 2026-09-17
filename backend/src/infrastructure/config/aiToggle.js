@@ -65,7 +65,8 @@ async function disableAI(tenantId = DEFAULT_TENANT_ID) {
 }
 
 function isAIEnabled(tenantId = DEFAULT_TENANT_ID) {
-  return false; // disabled for testing
+  const normalizedTenantId = normalizeTenantId(tenantId);
+  return enabledByTenant.get(normalizedTenantId) === true;
 }
 
 module.exports = {

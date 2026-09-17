@@ -24,7 +24,7 @@ class CRMContext {
     
     this.crmState = null; // Result of the DB update
 
-    this.metrics = null; // Injected
+    this.metrics = params.metrics || null; // Injected
   }
 }
 
