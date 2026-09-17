@@ -62,11 +62,11 @@ async function analyze() {
   const variation = await pool.query(`
     WITH out_msgs AS (
       SELECT 
-        TRIM(COALESCE(content, '')) as clean_content,
-        LENGTH(TRIM(COALESCE(content, ''))) as char_length,
-        CARDINALITY(REGEXP_SPLIT_TO_ARRAY(TRIM(COALESCE(content, '')), '\\s+')) as word_count
+        TRIM(COALESCE(content, text, '')) as clean_content,
+        LENGTH(TRIM(COALESCE(content, text, ''))) as char_length,
+        CARDINALITY(REGEXP_SPLIT_TO_ARRAY(TRIM(COALESCE(content, text, '')), '\\s+')) as word_count
       FROM messages
-      WHERE from_me = true AND LENGTH(TRIM(COALESCE(content, ''))) > 0
+      WHERE from_me = true AND LENGTH(TRIM(COALESCE(content, text, ''))) > 0
     )
     SELECT 
       COUNT(*) as total_outbound,
@@ -85,11 +85,11 @@ async function analyze() {
   // 4. Respostas Mais Repetidas (Templates vs Frases Padrão)
   const topRepeated = await pool.query(`
     SELECT 
-      SUBSTRING(TRIM(content) FROM 1 FOR 90) as response_preview,
+      SUBSTRING(TRIM(COALESCE(content, text, '')) FROM 1 FOR 90) as response_preview,
       COUNT(*) as occurrences,
-      ROUND((COUNT(*)::numeric / (SELECT COUNT(*) FROM messages WHERE from_me = true)::numeric) * 100, 1) as pct_of_all_replies
+      ROUND((COUNT(*)::numeric / NULLIF((SELECT COUNT(*) FROM messages WHERE from_me = true AND LENGTH(TRIM(COALESCE(content, text, ''))) > 10), 0)::numeric) * 100, 1) as pct_of_all_replies
     FROM messages
-    WHERE from_me = true AND content IS NOT NULL AND LENGTH(TRIM(content)) > 10
+    WHERE from_me = true AND COALESCE(content, text) IS NOT NULL AND LENGTH(TRIM(COALESCE(content, text, ''))) > 10
     GROUP BY response_preview
     ORDER BY occurrences DESC
     LIMIT 8
@@ -102,18 +102,18 @@ async function analyze() {
   const elements = await pool.query(`
     SELECT 
       COUNT(*) as total_outbound,
-      COUNT(*) FILTER (WHERE content LIKE '%?%') as contains_question_cta,
-      ROUND((COUNT(*) FILTER (WHERE content LIKE '%?%')::numeric / COUNT(*)::numeric) * 100, 1) as question_cta_pct,
-      COUNT(*) FILTER (WHERE content ~* 'R\\$|reais|valor|preço|custa') as contains_pricing_info,
-      ROUND((COUNT(*) FILTER (WHERE content ~* 'R\\$|reais|valor|preço|custa')::numeric / COUNT(*)::numeric) * 100, 1) as pricing_info_pct,
-      COUNT(*) FILTER (WHERE content ~* 'pix|cartão|parcel|transferência|pagamento') as contains_payment_info,
-      ROUND((COUNT(*) FILTER (WHERE content ~* 'pix|cartão|parcel|transferência|pagamento')::numeric / COUNT(*)::numeric) * 100, 1) as payment_info_pct,
-      COUNT(*) FILTER (WHERE content ~* 'frete|entrega|prazo|enviar|retirada') as contains_delivery_info,
-      ROUND((COUNT(*) FILTER (WHERE content ~* 'frete|entrega|prazo|enviar|retirada')::numeric / COUNT(*)::numeric) * 100, 1) as delivery_info_pct,
-      COUNT(*) FILTER (WHERE content ~* '😊|👍|👋|🚀|✅|🤝|📦|🏠|🏗️|🙏') as contains_emojis,
-      ROUND((COUNT(*) FILTER (WHERE content ~* '😊|👍|👋|🚀|✅|🤝|📦|🏠|🏗️|🙏')::numeric / COUNT(*)::numeric) * 100, 1) as emoji_usage_pct
+      COUNT(*) FILTER (WHERE COALESCE(content, text, '') LIKE '%?%') as contains_question_cta,
+      ROUND((COUNT(*) FILTER (WHERE COALESCE(content, text, '') LIKE '%?%')::numeric / NULLIF(COUNT(*), 0)::numeric) * 100, 1) as question_cta_pct,
+      COUNT(*) FILTER (WHERE COALESCE(content, text, '') ~* 'R\\$|reais|valor|preço|custa') as contains_pricing_info,
+      ROUND((COUNT(*) FILTER (WHERE COALESCE(content, text, '') ~* 'R\\$|reais|valor|preço|custa')::numeric / NULLIF(COUNT(*), 0)::numeric) * 100, 1) as pricing_info_pct,
+      COUNT(*) FILTER (WHERE COALESCE(content, text, '') ~* 'pix|cartão|parcel|transferência|pagamento') as contains_payment_info,
+      ROUND((COUNT(*) FILTER (WHERE COALESCE(content, text, '') ~* 'pix|cartão|parcel|transferência|pagamento')::numeric / NULLIF(COUNT(*), 0)::numeric) * 100, 1) as payment_info_pct,
+      COUNT(*) FILTER (WHERE COALESCE(content, text, '') ~* 'frete|entrega|prazo|enviar|retirada') as contains_delivery_info,
+      ROUND((COUNT(*) FILTER (WHERE COALESCE(content, text, '') ~* 'frete|entrega|prazo|enviar|retirada')::numeric / NULLIF(COUNT(*), 0)::numeric) * 100, 1) as delivery_info_pct,
+      COUNT(*) FILTER (WHERE COALESCE(content, text, '') ~* '😊|👍|👋|🚀|✅|🤝|📦|🏠|🏗️|🙏') as contains_emojis,
+      ROUND((COUNT(*) FILTER (WHERE COALESCE(content, text, '') ~* '😊|👍|👋|🚀|✅|🤝|📦|🏠|🏗️|🙏')::numeric / NULLIF(COUNT(*), 0)::numeric) * 100, 1) as emoji_usage_pct
     FROM messages
-    WHERE from_me = true AND content IS NOT NULL
+    WHERE from_me = true AND COALESCE(content, text) IS NOT NULL
   `);
 
   console.log('\n5. ESTRUTURA E ELEMENTOS DE ENGAJAMENTO NAS RESPOSTAS:');
@@ -168,11 +168,11 @@ async function analyze() {
 
   // 8. Amostras Qualitativas de Variação de Resposta
   const qualitativeSamples = await pool.query(`
-    SELECT c.id as conv_id, l.name as client_name, m.content, m.timestamp
+    SELECT c.id as conv_id, l.name as client_name, COALESCE(m.content, m.text, '') as content, m.timestamp
     FROM messages m
     JOIN conversations c ON c.id = m.conversation_id
     LEFT JOIN leads l ON l.id = c.lead_id
-    WHERE m.from_me = true AND LENGTH(m.content) > 40
+    WHERE m.from_me = true AND LENGTH(COALESCE(m.content, m.text, '')) > 40
     ORDER BY RANDOM()
     LIMIT 6
   `);
