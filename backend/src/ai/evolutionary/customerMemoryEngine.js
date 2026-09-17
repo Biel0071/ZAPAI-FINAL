@@ -57,9 +57,15 @@ class CustomerMemoryEngine {
         context.leadTemperature = row.lead_temperature || context.leadTemperature;
         context.leadIntent = row.lead_intent || context.leadIntent;
         const cJson = row.context_json || {};
+        if (cJson.customerName || cJson.name) context.name = cJson.customerName || cJson.name;
         if (cJson.neighborhood) context.neighborhood = cJson.neighborhood;
         if (cJson.city) context.city = cJson.city;
-        if (cJson.quotedProducts) context.quotedProducts = cJson.quotedProducts;
+        if (cJson.quotedProducts || cJson.quotedItems) {
+          const raw = cJson.quotedProducts || cJson.quotedItems;
+          context.quotedProducts = Array.isArray(raw)
+            ? raw.map(i => typeof i === 'string' ? i : (i.item || i.name || JSON.stringify(i)))
+            : [String(raw)];
+        }
         if (cJson.paymentPreference) context.paymentPreference = cJson.paymentPreference;
       }
 
@@ -171,6 +177,37 @@ class CustomerMemoryEngine {
         );
       } catch (innerErr) {
         console.warn('[CustomerMemoryEngine] extractAndSaveFacts warning:', innerErr.message);
+      }
+    }
+  }
+
+  /**
+   * Save explicit customer facts directly to PostgreSQL
+   */
+  async saveCustomerFacts({ companyId = 'default', phone = '', conversationId = null, facts = {} }) {
+    const cleanCompany = String(companyId || 'default');
+    const cleanPhone = String(phone || '').replace(/\D/g, '');
+    const chatId = cleanPhone || String(conversationId || 'unknown');
+
+    try {
+      await this.pool.query(
+        `INSERT INTO ai_context (chat_id, company_id, context_json, updated_at)
+         VALUES ($1, $2, $3, NOW())
+         ON CONFLICT (chat_id) DO UPDATE SET
+           context_json = COALESCE(ai_context.context_json, '{}'::jsonb) || $3::jsonb,
+           updated_at = NOW()`,
+        [chatId, cleanCompany, JSON.stringify(facts)]
+      );
+    } catch (err) {
+      try {
+        await this.pool.query(
+          `UPDATE ai_context 
+           SET context_json = COALESCE(context_json, '{}'::jsonb) || $1::jsonb, updated_at = NOW()
+           WHERE company_id = $2 AND chat_id = $3`,
+          [JSON.stringify(facts), cleanCompany, chatId]
+        );
+      } catch (innerErr) {
+        console.warn('[CustomerMemoryEngine] saveCustomerFacts warning:', innerErr.message);
       }
     }
   }

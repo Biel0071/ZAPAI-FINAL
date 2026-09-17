@@ -94,7 +94,7 @@ class KnowledgeEngine {
       const res = await this.pool.query(
         `SELECT key, title, content, raw_text, tags
          FROM company_official_knowledge
-         WHERE company_id = $1 AND category = 'products' AND is_active = TRUE
+         WHERE company_id = $1 AND (category = 'products' OR category = 'catalog') AND is_active = TRUE
          ORDER BY title ASC`,
         [String(companyId || 'default')]
       );
@@ -115,21 +115,28 @@ class KnowledgeEngine {
     // Simple rule checks: ensure prices mentioned don't wildly contradict official pricing
     for (const prod of products) {
       const content = prod.content || {};
-      if (content.name && text.toLowerCase().includes(content.name.toLowerCase())) {
-        if (content.price) {
-          // If message mentions price for this product, verify it matches
-          const officialPrice = Number(content.price);
+      const prodName = String(content.name || prod.title || '').toLowerCase();
+
+      // Check if message mentions product name or key
+      if (prodName && (text.toLowerCase().includes(prodName) || text.toLowerCase().includes(prod.key.toLowerCase().replace(/_/g, ' ')))) {
+        const officialPrice = Number(content.price || 0);
+        const pixPrice = Number(content.pix_price || content.pix_discount_price || 0);
+
+        if (officialPrice > 0) {
           // Check if text has "R$ XXX"
           const matches = text.match(/R\$\s?([\d.,]+)/g);
           if (matches) {
             for (const m of matches) {
               const num = parseFloat(m.replace(/[^\d,]/g, '').replace(',', '.'));
-              if (num > 0 && Math.abs(num - officialPrice) > 50 && Math.abs(num - (content.pix_discount_price || 0)) > 50) {
+              const diffOfficial = Math.abs(num - officialPrice);
+              const diffPix = pixPrice > 0 ? Math.abs(num - pixPrice) : 999;
+
+              if (num > 0 && diffOfficial > 50 && diffPix > 50) {
                 issues.push({
-                  product: content.name,
+                  product: prod.title,
                   mentionedPrice: num,
                   officialPrice,
-                  pixPrice: content.pix_discount_price,
+                  pixPrice,
                   message: `Preço mencionado (R$ ${num}) diverge do preço oficial (R$ ${officialPrice})`
                 });
               }
@@ -141,6 +148,7 @@ class KnowledgeEngine {
 
     return {
       isValid: issues.length === 0,
+      valid: issues.length === 0,
       issues
     };
   }

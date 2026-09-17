@@ -31,6 +31,12 @@ function runRemoteCommand(cmdDescription, bashCommand) {
 
 async function main() {
   try {
+    // 0. Update repo on VPS and reload PM2
+    await runRemoteCommand(
+      'Atualizar código na VPS e recarregar PM2',
+      'cd /opt/zapai && git fetch origin main && git reset --hard origin/main && pm2 reload zapflow-api --update-env'
+    );
+
     // 1. Verify database tables and rows on VPS
     await runRemoteCommand(
       'Verificar contagem de tabelas evolutivas no PostgreSQL da VPS',
@@ -167,6 +173,12 @@ function apiGet(path) {
     await runRemoteCommand(
       'Verificar arquivos do Frontend compilados no OpenResty',
       'ls -lh /opt/zapai/frontend-official/dist/index.html'
+    );
+
+    // 4. Run full 8-scenario E2E test suite on VPS PostgreSQL
+    await runRemoteCommand(
+      'Executar Suíte E2E Completa de 8 Cenários no PostgreSQL da VPS',
+      'cd /opt/zapai/backend && node tests/evolutionaryE2EFullCycle.test.js'
     );
 
   } catch (err) {
