@@ -1,68 +1,86 @@
 const cron = require('node-cron');
 const { query } = require('../src/infrastructure/config/database');
 const agentEvolutionService = require('./agentEvolutionService');
-
 const aiAgentService = require('../src/ai/agents/services/aiAgentService');
+const learningEngine = require('../src/ai/evolutionary/learningEngine');
 
 /**
- * Inicia o worker que verifica periodicamente falhas de respostas da IA (Unanswered Questions).
- * A rotina passa pelas empresas ativas e aciona a varredura para cada atendente.
+ * Executa uma rodada completa de aprendizado e mineração evolutiva em background
+ */
+async function runEvolutionRound() {
+  try {
+    console.log('[AI EVOLUTION] Iniciando ciclo de aprendizado contínuo e mineração da Camada 5...');
+
+    // Pega todos os tenants / empresas ativas das conversas
+    const companiesRes = await query(`
+      SELECT DISTINCT company_id 
+      FROM conversations 
+      WHERE company_id IS NOT NULL
+    `).catch(() => ({ rows: [{ company_id: 'default' }] }));
+
+    let companies = (companiesRes.rows || []).map(r => r.company_id).filter(Boolean);
+    if (companies.length === 0) companies = ['default'];
+
+    let totalGaps = 0;
+    let totalMined = 0;
+
+    for (const companyId of companies) {
+      // 1. Mineração contínua de padrões e correções humanas (Camada 5)
+      try {
+        const mineRes = await learningEngine.minePatterns({ companyId });
+        if (mineRes.ok && mineRes.processed > 0) {
+          totalMined += mineRes.processed;
+          console.log(`[AI EVOLUTION] +${mineRes.processed} padrões/correções minerados para tenant ${companyId}`);
+        }
+      } catch (mineErr) {
+        console.warn(`[AI EVOLUTION] Falha na mineração para ${companyId}:`, mineErr.message);
+      }
+
+      // 2. Lista os agentes ativos para varredura de gaps e dúvidas sem resposta
+      let agents = [];
+      try {
+        agents = await aiAgentService.listAgents(companyId);
+      } catch (agentListErr) {
+        agents = [];
+      }
+
+      const activeAgents = (agents || []).filter(a => a && a.active !== false);
+
+      for (const agent of activeAgents) {
+        try {
+          const count = await agentEvolutionService.detectUnansweredQuestions(agent.key, companyId);
+          if (count > 0) {
+            totalGaps += count;
+            console.log(`[AI EVOLUTION] +${count} gaps encontrados para o agente ${agent.key} (Tenant: ${companyId})`);
+          }
+        } catch (agentErr) {
+          console.warn(`[AI EVOLUTION] Erro na varredura do agente ${agent.key}:`, agentErr.message);
+        }
+      }
+    }
+
+    console.log(`[AI EVOLUTION] Ciclo concluído. Padrões minerados: ${totalMined} | Dúvidas sem resposta: ${totalGaps}`);
+  } catch (error) {
+    console.error('[AI EVOLUTION] Falha geral no ciclo de evolução:', error.message);
+  }
+}
+
+/**
+ * Inicia o worker de evolução contínua da IA (roda a cada 15 minutos e logo após o startup)
  */
 function startEvolutionScan() {
-  console.log('[AI EVOLUTION] Cronjob de Evolução Real inicializado (Roda a cada 2 horas)');
-  
-  // Roda a cada 2 horas no minuto 0 (0 */2 * * *)
+  console.log('[AI EVOLUTION] Agente de Aprendizado Contínuo inicializado (Varredura ativa a cada 15 minutos)');
+
+  // Disparo inicial 15 segundos após startup para aquecer o cérebro
+  setTimeout(() => {
+    runEvolutionRound().catch(e => console.error('[AI EVOLUTION] Erro no aquecimento inicial:', e.message));
+  }, 15000);
+
+  // Roda a cada 15 minutos
   return cron.schedule(
-    '0 */2 * * *',
+    '*/15 * * * *',
     async () => {
-      try {
-        console.log('[AI EVOLUTION] Iniciando varredura em background...');
-        
-        // Pega todos os tenants / empresas ativas das conversas
-        const companiesRes = await query(`
-          SELECT DISTINCT company_id 
-          FROM conversations 
-          WHERE company_id IS NOT NULL
-        `).catch(() => ({ rows: [{ company_id: 'default' }] }));
-        
-        let companies = (companiesRes.rows || []).map(r => r.company_id).filter(Boolean);
-        if (companies.length === 0) companies = ['default'];
-
-        let totalGaps = 0;
-
-        for (const companyId of companies) {
-          // Lista os agentes ativos via aiAgentService
-          let agents = [];
-          try {
-            agents = await aiAgentService.listAgents(companyId);
-          } catch (agentListErr) {
-            agents = [];
-          }
-
-          const activeAgents = (agents || []).filter(a => a && a.active !== false);
-
-          for (const agent of activeAgents) {
-            try {
-              const count = await agentEvolutionService.detectUnansweredQuestions(agent.key, companyId);
-              if (count > 0) {
-                totalGaps += count;
-                console.log(`[AI EVOLUTION] +${count} gaps encontrados para o agente ${agent.key} (Tenant: ${companyId})`);
-              }
-            } catch (agentErr) {
-              console.warn(`[AI EVOLUTION] Erro na varredura do agente ${agent.key}:`, agentErr.message);
-            }
-          }
-        }
-        
-        if (totalGaps > 0) {
-          console.log(`[AI EVOLUTION] Varredura concluída. ${totalGaps} novas dúvidas pendentes de treinamento.`);
-        } else {
-          console.log('[AI EVOLUTION] Varredura concluída. Nenhum novo gap detectado.');
-        }
-
-      } catch (error) {
-        console.error('[AI EVOLUTION] Falha geral no cronjob de evolução:', error.message);
-      }
+      await runEvolutionRound();
     },
     {
       scheduled: true,
@@ -73,4 +91,5 @@ function startEvolutionScan() {
 
 module.exports = {
   startEvolutionScan,
+  runEvolutionRound,
 };
