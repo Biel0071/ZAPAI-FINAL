@@ -835,6 +835,7 @@ async function processAI({ contact, history, message, store, agentName, companyI
   }
 
   let evoPrompt = contact?.evolutionaryPrompt ? `\n\n${contact.evolutionaryPrompt}` : '';
+  let evoMetadata = null;
   if (!evoPrompt) {
     try {
       const orchestrator = require('../src/ai/evolutionary/orchestrator');
@@ -847,6 +848,7 @@ async function processAI({ contact, history, message, store, agentName, companyI
       });
       if (evoData && evoData.prompt) {
         evoPrompt = `\n\n${evoData.prompt}`;
+        evoMetadata = evoData;
       }
     } catch (evoErr) {
       console.warn('[AI SERVICE] Evolutionary prompt auto-compile error:', evoErr.message);
@@ -1062,6 +1064,31 @@ async function processAI({ contact, history, message, store, agentName, companyI
       });
     } catch (memoryError) {
       console.warn('[AI MEMORY GRAPH] Learning unavailable:', memoryError.message);
+    }
+
+    // Evolutionary AI Layer 4: Record experience event asynchronously
+    if (!contact?.evolutionaryPrompt) {
+      try {
+        const experienceEngine = require('../src/ai/evolutionary/experienceEngine');
+        experienceEngine.recordExperienceEvent({
+          conversationId: contact.conversationId || contact.phone || 'unknown',
+          leadId: contact.leadId || contact.id || null,
+          companyId: resolvedCompanyId,
+          customerUtterance: message,
+          intentDetected: analysisResult?.intent || convMemory?.intent || 'general',
+          strategyApplied: evoMetadata?.activePlaybook?.slug || 'padrao',
+          playbookId: evoMetadata?.activePlaybook?.id || null,
+          aiReply: replyClean,
+          metadata: {
+            provider: providerId,
+            model: model || 'default',
+            tokens: totalTokens,
+            playbookName: evoMetadata?.activePlaybook?.name || null,
+          }
+        }).catch(expErr => console.warn('[AI SERVICE] recordExperienceEvent error:', expErr.message));
+      } catch (evoExpErr) {
+        console.warn('[AI SERVICE] Evolutionary experience record error:', evoExpErr.message);
+      }
     }
 
     const finalResult = {
