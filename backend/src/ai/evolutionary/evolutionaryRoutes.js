@@ -66,6 +66,31 @@ router.get('/official-knowledge', async (req, res) => {
   }
 });
 
+// Alias: GET /api/ai/evolution/knowledge -> delegates to /official-knowledge
+router.get('/knowledge', async (req, res) => {
+  try {
+    const companyId = getCompanyId(req);
+    const category = req.query.category || null;
+    const search = req.query.q || '';
+    let items;
+    if (search) {
+      items = await knowledgeEngine.searchOfficialKnowledge(companyId, search, category, 50);
+    } else {
+      const result = await pool.query(
+        `SELECT id, category, key, title, content, raw_text, tags, is_active, updated_at
+         FROM company_official_knowledge
+         WHERE company_id = $1 AND ($2::varchar IS NULL OR category = $2)
+         ORDER BY id ASC`,
+        [companyId, category]
+      );
+      items = result.rows;
+    }
+    res.json({ success: true, data: items });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 // 3. POST /api/ai/evolution/official-knowledge
 router.post('/official-knowledge', async (req, res) => {
   try {
@@ -132,6 +157,19 @@ router.get('/playbooks', async (req, res) => {
     const companyId = getCompanyId(req);
     const playbooks = await playbookEngine.listPlaybooks(companyId);
     res.json({ success: true, data: playbooks });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// 5b. GET /api/ai/evolution/playbooks/match
+router.get('/playbooks/match', async (req, res) => {
+  try {
+    const companyId = getCompanyId(req);
+    const query = req.query.query || req.query.q || req.query.text || '';
+    const conversationId = req.query.conversationId || 'test-conv';
+    const matched = await playbookEngine.matchPlaybook({ companyId, message: query, intent: query, conversationId });
+    res.json({ success: true, data: matched });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
   }
