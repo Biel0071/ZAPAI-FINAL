@@ -90,7 +90,7 @@ class CustomerMemoryEngine {
 
       // 3. Query conversations table
       const convRes = await this.pool.query(
-        `SELECT id, lead_temperature, funnel_stage, summary, lead_intent, memory_json
+        `SELECT *
          FROM conversations
          WHERE company_id = $1 AND (session_id = $2 OR remote_jid ILIKE $3 OR id = $4)
          ORDER BY updated_at DESC LIMIT 1`,
@@ -102,13 +102,11 @@ class CustomerMemoryEngine {
         context.conversationId = row.id;
         context.stage = row.funnel_stage || context.stage;
         context.leadTemperature = row.lead_temperature || context.leadTemperature;
-        if (row.memory_json) {
-          const mem = row.memory_json;
-          if (mem.neighborhood && !context.neighborhood) context.neighborhood = mem.neighborhood;
-          if (mem.city && !context.city) context.city = mem.city;
-          if (mem.quotedProducts) {
-            context.quotedProducts = [...new Set([...context.quotedProducts, ...(Array.isArray(mem.quotedProducts) ? mem.quotedProducts : [mem.quotedProducts])])];
-          }
+        const mem = row.memory_json || row.metadata || row.context || {};
+        if (mem.neighborhood && !context.neighborhood) context.neighborhood = mem.neighborhood;
+        if (mem.city && !context.city) context.city = mem.city;
+        if (mem.quotedProducts) {
+          context.quotedProducts = [...new Set([...context.quotedProducts, ...(Array.isArray(mem.quotedProducts) ? mem.quotedProducts : [mem.quotedProducts])])];
         }
       }
     } catch (err) {
