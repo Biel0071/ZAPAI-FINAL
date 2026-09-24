@@ -47,6 +47,12 @@ async function main() {
       'cd /opt/zapai && bash deploy/auto-deploy.sh'
     );
 
+    // 2.1 Sincronizar dist e assets para o OpenResty
+    await runRemoteCommand(
+      'Sincronizar frontend com OpenResty',
+      'if [ -d /etc/icontainer/apps/openresty/openresty/www/zapai ]; then cp -rf /opt/zapai/frontend-official/dist/* /etc/icontainer/apps/openresty/openresty/www/zapai/; fi'
+    );
+
     // 3. Executar ativação e ingestão de memórias no PostgreSQL da VPS
     await runRemoteCommand(
       'Ativar e ingerir memórias e evolução no banco de dados da VPS',
