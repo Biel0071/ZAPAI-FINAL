@@ -22,7 +22,7 @@ try {
   console.log('\x1b[32m%s\x1b[0m', '✔ GitHub sincronizado com sucesso!');
 
   console.log('\n\x1b[32m%s\x1b[0m', '3. Disparando deploy ultrarrápido via SSH na VPS Master (209.50.241.22)...');
-  const sshCmd = 'c:\\projetos\\ZAPAI-FINAL\\node.exe tmp_ssh/run-ssh-cmd.js "cd /opt/zapai && bash deploy/auto-deploy.sh"';
+  const sshCmd = 'node scripts/execute-vps-deploy.cjs';
   
   execSync(sshCmd, { cwd: projectRoot, stdio: 'inherit' });
 

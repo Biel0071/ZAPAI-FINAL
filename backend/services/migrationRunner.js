@@ -61,7 +61,7 @@ async function runMigrations({ pool, migrationsDir } = {}) {
       await client.query('BEGIN');
       await migration.up(client);
       await client.query(
-        `INSERT INTO ${MIGRATIONS_TABLE} (version, description, applied_at) VALUES ($1, $2, NOW())`,
+        `INSERT INTO ${MIGRATIONS_TABLE} (version, description, applied_at) VALUES ($1, $2, NOW()) ON CONFLICT (version) DO NOTHING`,
         [version, description]
       );
       await client.query('COMMIT');
