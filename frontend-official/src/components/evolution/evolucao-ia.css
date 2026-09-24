@@ -224,6 +224,7 @@
   background: rgba(8, 11, 18, .85);
   border: 1px solid var(--zai-border);
   backdrop-filter: blur(12px);
+  max-width: 240px;
 }
 
 .zai-character-status-avatar {
@@ -232,6 +233,7 @@
   border-radius: 9px;
   overflow: hidden;
   border: 1px solid rgba(37,211,102,.35);
+  flex-shrink: 0;
 }
 
 .zai-character-status-avatar img {
@@ -244,12 +246,19 @@
   font-size: 12px;
   font-weight: 750;
   color: var(--zai-text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .zai-character-status-role {
   margin-top: 1px;
   font-size: 10px;
   color: var(--zai-muted);
+  max-width: 150px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .zai-status-active {

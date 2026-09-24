@@ -76,8 +76,18 @@ async function saveAdvancedAI(req, res) {
   }
 }
 
-function getQueue(req, res) {
-  return res.status(200).json(aiConfigService.getQueueSettings(getStore(req)));
+async function getQueue(req, res) {
+  try {
+    const reactivationService = require('../../../services/reactivationService');
+    const stats = await reactivationService.getQueueStats(getCompanyId(req));
+    const storeSettings = aiConfigService.getQueueSettings(getStore(req));
+    return res.status(200).json({
+      ...storeSettings,
+      ...stats,
+    });
+  } catch (error) {
+    return res.status(200).json(aiConfigService.getQueueSettings(getStore(req)));
+  }
 }
 
 function processQueue(req, res) {

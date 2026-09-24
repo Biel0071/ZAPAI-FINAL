@@ -132,8 +132,8 @@ function getQueueSettings(store) {
   return {
     ...DEFAULT_QUEUE_SETTINGS,
     ...config.queueSettings,
-    customersWaiting: Array.isArray(store.conversations) ? store.conversations.length : 0,
-    messagesSentToday: Array.isArray(store.messages) ? store.messages.length : 0,
+    customersWaiting: 0,
+    messagesSentToday: 0,
   };
 }
 

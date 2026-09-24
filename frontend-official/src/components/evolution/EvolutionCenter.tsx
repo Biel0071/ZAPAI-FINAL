@@ -381,7 +381,7 @@ export function EvolutionCenter() {
               {/* LEFT COLUMN: ISOMETRIC PIXEL CHARACTER STAGE */}
               <AICharacterViewer
                 agentName={activeAgent?.name || "Camila"}
-                agentRole={activeAgent?.personality || "Assistente de Vendas"}
+                agentRole="Assistente de Vendas"
                 isOnline={isOnline}
                 onToggleOnline={setIsOnline}
                 avatarUrl="/assets/evolution/camila_avatar.png"
