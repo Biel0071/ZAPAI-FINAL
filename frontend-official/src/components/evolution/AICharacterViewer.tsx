@@ -77,26 +77,28 @@ export const AICharacterViewer: React.FC<AICharacterViewerProps> = ({
         onWheel={handleWheel}
         onDoubleClick={handleDoubleClick}
       >
-        {/* CHARACTER STATUS OVERLAY */}
-        <div className="zai-character-status">
-          <div className="zai-character-status-avatar">
-            <img
-              src={avatarUrl}
-              alt={agentName}
-              onError={(e) => {
-                // Fallback pixel avatar
-                (e.target as HTMLElement).style.display = "none";
-              }}
-            />
-          </div>
-          <div>
-            <div className="zai-character-status-name">{agentName}</div>
-            <div className="zai-character-status-role">{agentRole}</div>
-            <div className={isOnline ? "zai-status-active" : "zai-status-offline"}>
-              {isOnline ? "Ativa · Atendendo" : "Desativada"}
+        {/* CHARACTER STATUS OVERLAY (Rendered dynamically when offline; active office scene has integrated badge) */}
+        {!isOnline && (
+          <div className="zai-character-status">
+            <div className="zai-character-status-avatar">
+              <img
+                src={avatarUrl}
+                alt={agentName}
+                onError={(e) => {
+                  // Fallback pixel avatar
+                  (e.target as HTMLElement).style.display = "none";
+                }}
+              />
+            </div>
+            <div>
+              <div className="zai-character-status-name">{agentName}</div>
+              <div className="zai-character-status-role">{agentRole}</div>
+              <div className="zai-status-offline">
+                Desativada
+              </div>
             </div>
           </div>
-        </div>
+        )}
 
         {/* OFFLINE / ONLINE TOGGLE */}
         <button
@@ -124,11 +126,11 @@ export const AICharacterViewer: React.FC<AICharacterViewerProps> = ({
           >
             {isOnline ? (
               /* ESTADO ATIVO: Camila sentada à mesa no escritório pixel-art com PC e monitores ZAI */
-              <div className="relative flex items-center justify-center w-full h-full p-4 select-none">
+              <div className="relative flex items-center justify-center w-full h-full p-2 select-none">
                 <img
                   src="/assets/evolution/camila_office_active.png"
                   alt="Camila Atendendo no Escritório ZAI"
-                  className="zai-character-art"
+                  className="zai-character-art h-[92%] object-contain"
                   draggable={false}
                 />
               </div>
@@ -150,11 +152,13 @@ export const AICharacterViewer: React.FC<AICharacterViewerProps> = ({
           </div>
         </div>
 
-        {/* STATUS PILL (BOTTOM CENTER) */}
-        <div className="zai-status-pill-bottom">
-          <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-          <span>{isOnline ? "Atendendo agora..." : "Em espera"}</span>
-        </div>
+        {/* STATUS PILL (BOTTOM CENTER) - Only when offline */}
+        {!isOnline && (
+          <div className="zai-status-pill-bottom">
+            <span className="w-2 h-2 rounded-full bg-slate-400" />
+            <span>Em espera</span>
+          </div>
+        )}
 
         {/* CHARACTER CONTROLS (VERTICAL LEFT) */}
         <div className="zai-character-controls">
