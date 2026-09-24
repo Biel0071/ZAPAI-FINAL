@@ -8,7 +8,7 @@ const { rateLimit } = require('express-rate-limit');
 
 function requireHistoryAuth(req, res, next) {
   if (!req.authTenantId || !req.auth) return res.status(401).json({ error: 'Autenticação obrigatória.' });
-  if (req.method !== 'GET' && !['admin', 'owner', 'superadmin', 'super_admin', 'manager'].includes(String(req.auth.role).toLowerCase())) {
+  if (req.method !== 'GET' && !['admin', 'owner', 'superadmin', 'super_admin', 'master_admin', 'manager'].includes(String(req.auth.role).toLowerCase())) {
     return res.status(403).json({ error: 'Somente administradores podem alterar o aprendizado.' });
   }
   next();
@@ -40,16 +40,28 @@ function createHistoryRouter({ repository = historySync.repository, db = pool, a
     } catch (_) { res.status(404).json({ error: 'Sessão não encontrada.' }); }
   });
   router.post('/stores', handle(async(req,res)=>{
-    const {name,segment='',knowledge=''}=req.body || {};
+    const {name,segment='',knowledge='',phone='',website='',business_hours='',policies='',catalog_summary=''}=req.body || {};
     if(typeof name!=='string' || !name.trim() || name.length>200 || typeof knowledge!=='string' || knowledge.length>30000) return res.status(400).json({error:'Informe nome e conhecimento válidos.'});
     const id=require('crypto').randomUUID();
-    await db.query('INSERT INTO ai_stores(company_id,id,name,segment,knowledge) VALUES($1,$2,$3,$4,$5)',[req.authTenantId,id,name.trim(),String(segment).slice(0,200),knowledge]);
+    try {
+      await db.query(`INSERT INTO ai_stores(company_id,id,name,segment,knowledge,phone,website,business_hours,policies,catalog_summary)
+        VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`,
+        [req.authTenantId,id,name.trim(),String(segment).slice(0,200),knowledge,String(phone).slice(0,50),String(website).slice(0,200),String(business_hours).slice(0,200),String(policies).slice(0,5000),String(catalog_summary).slice(0,10000)]);
+    } catch (_) {
+      await db.query('INSERT INTO ai_stores(company_id,id,name,segment,knowledge) VALUES($1,$2,$3,$4,$5)',[req.authTenantId,id,name.trim(),String(segment).slice(0,200),knowledge]);
+    }
     res.status(201).json({id});
   }));
   router.put('/stores/:storeId',handle(async(req,res)=>{
-    const {name,knowledge,segment=''}=req.body || {};
+    const {name,knowledge,segment='',phone='',website='',business_hours='',policies='',catalog_summary=''}=req.body || {};
     if(typeof name!=='string' || !name.trim() || name.length>200 || typeof knowledge!=='string' || knowledge.length>30000) return res.status(400).json({error:'Dados da loja inválidos.'});
-    const result=await db.query('UPDATE ai_stores SET name=$3,knowledge=$4,segment=$5 WHERE company_id=$1 AND id=$2 RETURNING id',[req.authTenantId,req.params.storeId,name,knowledge,String(segment).slice(0,200)]);
+    let result;
+    try {
+      result=await db.query(`UPDATE ai_stores SET name=$3,knowledge=$4,segment=$5,phone=$6,website=$7,business_hours=$8,policies=$9,catalog_summary=$10 WHERE company_id=$1 AND id=$2 RETURNING id`,
+        [req.authTenantId,req.params.storeId,name,knowledge,String(segment).slice(0,200),String(phone).slice(0,50),String(website).slice(0,200),String(business_hours).slice(0,200),String(policies).slice(0,5000),String(catalog_summary).slice(0,10000)]);
+    } catch (_) {
+      result=await db.query('UPDATE ai_stores SET name=$3,knowledge=$4,segment=$5 WHERE company_id=$1 AND id=$2 RETURNING id',[req.authTenantId,req.params.storeId,name,knowledge,String(segment).slice(0,200)]);
+    }
     res.status(result.rows.length?200:404).json({success:Boolean(result.rows.length)});
   }));
   router.get('/:sessionId/profile',handle(async(req,res)=>{

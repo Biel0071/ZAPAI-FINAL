@@ -324,9 +324,17 @@ async function validateSessions(companyId,sessionIds,client) {
 }
 async function sessionKnowledge(companyId,sessionId) {
   const {query}=require('../../../infrastructure/config/database');
-  const store=(await query(`SELECT s.name,s.knowledge FROM ai_stores s JOIN session_ai_profiles p
+  const store=(await query(`SELECT s.* FROM ai_stores s JOIN session_ai_profiles p
     ON p.company_id=s.company_id AND p.store_id=s.id WHERE p.company_id=$1 AND p.session_id=$2`,[companyId,sessionId])).rows[0];
-  return store ? '\nCONHECIMENTO OFICIAL ATUAL DA LOJA '+store.name+':\n'+store.knowledge : '';
+  if (!store) return '';
+  const parts = [`\n=== IDENTIDADE E CONHECIMENTO DA LOJA (${store.name}) ===`];
+  if (store.phone) parts.push(`Telefone/WhatsApp Oficial da Loja: ${store.phone}`);
+  if (store.website) parts.push(`Site Oficial: ${store.website}`);
+  if (store.business_hours) parts.push(`Horário de Atendimento: ${store.business_hours}`);
+  if (store.policies) parts.push(`Políticas Oficiais (Trocas/Garantia/Frete): ${store.policies}`);
+  if (store.catalog_summary) parts.push(`Catálogo & Produtos Principais:\n${store.catalog_summary}`);
+  if (store.knowledge) parts.push(`Instruções e Base de Conhecimento Específica:\n${store.knowledge}`);
+  return '\n' + parts.join('\n');
 }
 function validateStyle(value) {
   const result={};

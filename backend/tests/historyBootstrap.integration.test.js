@@ -51,6 +51,7 @@ if (!testUrl) {
     await migration.up(pool);
     await migration.up(pool);
     await require('../migrations/035_session_agent_memory').up(pool);
+    await require('../migrations/037_optimize_history_sync_and_stores').up(pool);
     const app = express();
     app.use(express.json());
     app.use(require('../src/api/middleware/jwtAuth').createJwtAuthMiddleware());

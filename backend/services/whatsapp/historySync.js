@@ -44,14 +44,14 @@ class HistorySync {
 
   async seedStoredMessages(companyId, sessionId) {
     const db = this.repository.pool;
-    const rows = (await db.query(`SELECT m.*,l.name AS contact_name,
-      COALESCE(m.remote_jid,CASE WHEN m.phone LIKE '%@%' THEN m.phone ELSE m.phone || '@s.whatsapp.net' END) AS jid
-      FROM messages m LEFT JOIN conversations c ON c.id=m.conversation_id AND c.company_id=m.company_id AND c.session_id=m.session_id
+    const rows = (await db.query(`SELECT m.id, m.company_id, m.session_id, m.remote_jid, m.phone, m.text, m.content, m.type, m.media_type, m.media_url, m.media_path, m.whatsapp_message_id, m.from_me, m.timestamp, m.created_at, m.message_origin, m.sender,
+      l.name AS contact_name,
+      COALESCE(m.remote_jid, CASE WHEN m.phone LIKE '%@%' THEN m.phone ELSE m.phone || '@s.whatsapp.net' END) AS jid
+      FROM messages m 
+      LEFT JOIN conversations c ON c.id=m.conversation_id AND c.company_id=m.company_id AND c.session_id=m.session_id
       LEFT JOIN leads l ON l.id=c.lead_id AND l.company_id=m.company_id
-      WHERE m.company_id=$1 AND m.session_id=$2 AND (m.remote_jid ~ '@(s\\.whatsapp\\.net|lid)$' OR (m.remote_jid IS NULL AND m.phone ~ '^[0-9]{7,20}(@(s\\.whatsapp\\.net|lid))?$'))
-      AND NOT EXISTS(SELECT 1 FROM whatsapp_history_items h WHERE h.company_id=$1 AND h.session_id=$2
-        AND (h.message_id=m.id OR (h.message_key=COALESCE(m.whatsapp_message_id,'stored:' || m.id::text)
-          AND h.chat_jid=COALESCE(m.remote_jid,CASE WHEN m.phone LIKE '%@%' THEN m.phone ELSE m.phone || '@s.whatsapp.net' END))))
+      WHERE m.company_id=$1 AND m.session_id=$2 AND m.history_item_id IS NULL
+        AND (m.remote_jid ~ '@(s\\.whatsapp\\.net|lid)$' OR (m.remote_jid IS NULL AND m.phone ~ '^[0-9]{7,20}(@(s\\.whatsapp\\.net|lid))?$'))
       ORDER BY m.id LIMIT 100`, [companyId, sessionId])).rows;
     if (!rows.length) return 0;
     const { proto } = await import('@whiskeysockets/baileys');
@@ -64,12 +64,18 @@ class HistorySync {
       const seconds = Math.max(0, Math.floor(new Date(row.timestamp || row.created_at || 0).getTime() / 1000)) || 0;
       const raw = Buffer.from(proto.WebMessageInfo.encode({ key: { remoteJid: row.jid, id: key, fromMe: row.from_me }, message, messageTimestamp: seconds }).finish()).toString('base64');
       const origin = row.message_origin !== 'unknown' ? row.message_origin : row.sender === 'ai' ? 'ai' : 'unknown';
-      await db.query(`INSERT INTO whatsapp_history_items(company_id,session_id,chat_jid,message_key,raw_message,from_me,occurred_at,chat_name,
+      const inserted = (await db.query(`INSERT INTO whatsapp_history_items(company_id,session_id,chat_jid,message_key,raw_message,from_me,occurred_at,chat_name,
         import_state,message_id,text,media_type,media_path,media_state,origin)
         VALUES($1,$2,$3,$4,$5,$6,$7,$8,'done',$9,$10,$11,$12,$13,$14)
-        ON CONFLICT(company_id,session_id,chat_jid,message_key) DO NOTHING`,
+        ON CONFLICT(company_id,session_id,chat_jid,message_key)
+        DO UPDATE SET message_id = COALESCE(whatsapp_history_items.message_id, EXCLUDED.message_id)
+        RETURNING id`,
       [companyId, sessionId, row.jid, key, raw, Boolean(row.from_me), row.timestamp || row.created_at, row.contact_name,
-        row.id, text, type, row.media_path || row.media_url, type === 'text' ? 'none' : 'pending', origin || 'unknown']);
+        row.id, text, type, row.media_path || row.media_url, type === 'text' ? 'none' : 'pending', origin || 'unknown'])).rows[0];
+      const itemId = inserted?.id;
+      if (itemId) {
+        await db.query(`UPDATE messages SET history_item_id=$1 WHERE id=$2 AND company_id=$3 AND session_id=$4`, [itemId, row.id, companyId, sessionId]);
+      }
     }
     return rows.length;
   }

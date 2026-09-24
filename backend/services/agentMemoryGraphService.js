@@ -89,7 +89,7 @@ async function bootstrapAgentMemoryGraph({ agentKey, agentName, companyId = 'def
            GREATEST(1, COUNT(DISTINCT conv.id)), MIN(conv.created_at), MAX(conv.updated_at)
     FROM conversations conv
     JOIN leads l ON l.id = conv.lead_id
-    WHERE conv.company_id = $1 AND (LOWER(COALESCE(conv.agent_name, $3)) = LOWER($3))
+    WHERE conv.company_id = $1 AND (conv.agent_name IS NULL OR conv.agent_name = '' OR LOWER(conv.agent_name) = LOWER($3) OR LOWER(conv.agent_name) IN ('atendente', 'atendente padrão', 'ia', 'bot', 'default'))
     GROUP BY l.id, l.name, l.phone
     ON CONFLICT (company_id, agent_key, node_key) DO UPDATE
       SET weight = GREATEST(agent_memory_nodes.weight, EXCLUDED.weight),
@@ -105,7 +105,7 @@ async function bootstrapAgentMemoryGraph({ agentKey, agentName, companyId = 'def
            1, conv.created_at, conv.updated_at
     FROM conversations conv
     JOIN leads l ON l.id = conv.lead_id
-    WHERE conv.company_id = $1 AND (LOWER(COALESCE(conv.agent_name, $3)) = LOWER($3))
+    WHERE conv.company_id = $1 AND (conv.agent_name IS NULL OR conv.agent_name = '' OR LOWER(conv.agent_name) = LOWER($3) OR LOWER(conv.agent_name) IN ('atendente', 'atendente padrão', 'ia', 'bot', 'default'))
     ON CONFLICT (company_id, agent_key, node_key) DO UPDATE
       SET content = EXCLUDED.content, searchable_text = EXCLUDED.searchable_text,
           properties = EXCLUDED.properties, last_seen_at = GREATEST(agent_memory_nodes.last_seen_at, EXCLUDED.last_seen_at)
@@ -122,7 +122,7 @@ async function bootstrapAgentMemoryGraph({ agentKey, agentName, companyId = 'def
       JOIN conversations conv ON conv.id = m.conversation_id
       JOIN leads l ON l.id = conv.lead_id
       WHERE conv.company_id = $1
-        AND (LOWER(COALESCE(conv.agent_name, $3)) = LOWER($3))
+        AND (conv.agent_name IS NULL OR conv.agent_name = '' OR LOWER(conv.agent_name) = LOWER($3) OR LOWER(conv.agent_name) IN ('atendente', 'atendente padrão', 'ia', 'bot', 'default'))
     ), pairs AS (
       SELECT * FROM ordered
       WHERE from_me = TRUE AND previous_from_me = FALSE AND response IS NOT NULL AND question IS NOT NULL

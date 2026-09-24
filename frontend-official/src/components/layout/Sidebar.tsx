@@ -329,9 +329,9 @@ export function Sidebar() {
       { label: "Provedores", tab: "provedores" },
       { label: "Conhecimento", tab: "conhecimento" },
       { label: "Operação", tab: "operacao" },
-      { label: "Evolution Center", tab: "evolution" },
+      { label: "Evolução IA", tab: "evolution" },
       { label: "Playbooks", tab: "playbooks" },
-      { label: "Análises", tab: "analise" },
+      { label: "Auditoria & Logs", tab: "analise" },
     ];
 
     const isSubActive = (tab: string) => {

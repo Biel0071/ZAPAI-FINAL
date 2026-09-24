@@ -472,7 +472,7 @@ export function AIView(props: AIViewProps) {
   const [activeInternalTab, setActiveInternalTab] = useState<string>("dashboard");
   const [activeAtendentesSubTab, setActiveAtendentesSubTab] = useState<"lista" | "simulador" | "evolucao">("lista");
   const [activeConhecimentoSubTab, setActiveConhecimentoSubTab] = useState<"templates" | "treinamento">("templates");
-  const [activeAnaliseSubTab, setActiveAnaliseSubTab] = useState<"evolucao" | "learning" | "logs" | "templates" | "treinamento">("evolucao");
+  const [activeAnaliseSubTab, setActiveAnaliseSubTab] = useState<"evolucao" | "learning" | "logs" | "templates" | "treinamento">("logs");
   const [quickAdjustModalOpen, setQuickAdjustModalOpen] = useState(false);
 
   const [evolutionData, setEvolutionData] = useState<any[]>([]);
@@ -2629,7 +2629,7 @@ export function AIView(props: AIViewProps) {
               >
                 <BrainCircuit className="h-4 w-4 text-emerald-400" />
                 <span className="flex items-center gap-1.5">
-                  Evolution Center
+                  Evolução IA
                   <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
                 </span>
               </button>
@@ -2664,7 +2664,7 @@ export function AIView(props: AIViewProps) {
                 )}
               >
                 <BarChart3 className="h-4 w-4" />
-                <span>Evolução IA</span>
+                <span>Auditoria & Logs</span>
               </button>
             </aside>
 
@@ -4003,13 +4003,13 @@ export function AIView(props: AIViewProps) {
                   {/* Subtabs Menu */}
                   <div className="flex gap-2 border-b border-border/60 pb-2">
                     <button
-                      onClick={() => setActiveAnaliseSubTab("evolucao")}
+                      onClick={() => onSectionChange("evolution")}
                       className={cn(
                         "px-3 py-1.5 text-xs font-semibold rounded-lg transition-all",
                         activeAnaliseSubTab === "evolucao" ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-muted hover:text-foreground"
                       )}
                     >
-                      Evolução IA
+                      Ir para Evolução IA
                     </button>
                     <button
                       onClick={() => setActiveAnaliseSubTab("learning")}
