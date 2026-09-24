@@ -14,6 +14,9 @@ const { generateSalesStrategy } = require('./salesStrategyEngine');
 const conversationRuntimeService = require('../src/messaging/inbox/inbox/services/ConversationRuntimeService');
 const { emitAIResponseProgress } = require('./aiResponseProgressService');
 
+const absenceCooldowns = new Map();
+const ABSENCE_COOLDOWN_MS = Number(process.env.ABSENCE_REPLY_COOLDOWN_MS || 7200000); // 2 hours cooldown
+
 function matchEscalationTrigger(text, triggers = []) {
   if (!text || !Array.isArray(triggers) || triggers.length === 0) return null;
   const lowerText = text.toLowerCase();
@@ -180,7 +183,6 @@ async function processMessage({ payload, conversation, store, sock, sessionId })
       }
     } catch {}
 
-    console.log(`[AutomationEngine] Business is closed. Enqueueing absence message & adding lead to opening reactivation queue.`);
     const reactivationService = require('./reactivationService');
     await reactivationService.enqueueOutofHoursContact({
       phone,
@@ -189,10 +191,34 @@ async function processMessage({ payload, conversation, store, sock, sessionId })
       sessionId,
     });
 
+    const cooldownKey = `${companyId}:${phone}`;
+    const lastSentAt = absenceCooldowns.get(cooldownKey) || (store?.absenceState?.[phone]?.sentAt ? new Date(store.absenceState[phone].sentAt).getTime() : 0);
+    const now = Date.now();
+    const isCooldownActive = lastSentAt && (now - lastSentAt) < ABSENCE_COOLDOWN_MS;
+
+    if (isCooldownActive) {
+      console.log(`[AutomationEngine] Absence reply suppressed by cooldown (${Math.round((now - lastSentAt) / 1000)}s ago) for ${phone}.`);
+      return { success: true, action: 'absence_reply_cooldown_suppressed' };
+    }
+
+    absenceCooldowns.set(cooldownKey, now);
+    if (store) {
+      if (!store.absenceState) store.absenceState = {};
+      store.absenceState[phone] = { sent: true, sentAt: new Date(now).toISOString(), companyId };
+      if (conversationId) {
+        store.absenceState[conversationId] = store.absenceState[phone];
+      }
+    }
+
+    console.log(`[AutomationEngine] Business is closed. Enqueueing single absence message for ${phone}.`);
+    const dateKey = new Date().toISOString().slice(0, 10);
+    const correlationId = `absence_${companyId}_${phone}_${dateKey}`;
+
     await outboundQueueService.enqueue({
       companyId,
       phone,
       sessionId,
+      correlationId,
       text: businessHours.absenceMessage || bhConfig.absenceMessage,
       metadata: { systemTag: 'absence' }
     });
@@ -204,8 +230,8 @@ async function processMessage({ payload, conversation, store, sock, sessionId })
   let matchedAgent = null;
   try {
     await aiAgentService.listAgents(companyId);
-    matchedAgent = aiAgentService.findByNameSync(authoritativeConversation?.agent_name || conversation?.agent_name, companyId)
-      || aiAgentService.pickRandomAgentSync(companyId);
+    const eligible = aiAgentService.getActiveAgentsSync(companyId).filter(a=>a.sessionIds?.includes(sessionId));
+    matchedAgent = eligible.find(a=>a.name===(authoritativeConversation?.agent_name || conversation?.agent_name)) || eligible[0] || null;
   } catch (err) {
     console.error('[AutomationEngine] Failed to load agent configuration:', err);
   }
@@ -504,10 +530,14 @@ function splitLongMessage(text) {
 
     console.log(`[AutomationEngine] Enqueueing AI response chunk ${i+1}/${chunks.length} for ${conversationId}: "${chunk.substring(0, 30)}..."`);
     
+    const inboundMsgId = payload?.externalMessageId || payload?.messageId || '';
+    const correlationId = inboundMsgId ? `ai_reply_${inboundMsgId}_chunk_${i}` : undefined;
+
     await outboundQueueService.enqueue({
       companyId,
       phone,
       sessionId,
+      correlationId,
       text: chunk,
       metadata: {
         ai_response: true,

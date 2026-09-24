@@ -851,10 +851,12 @@ async function getMessagesByConversationId(req, res) {
   const store = getStore(req);
   const limit = Math.max(1, Math.min(Number(req.query?.limit) || 50, 200));
   const before = typeof req.query?.before === 'string' ? req.query.before : undefined;
+  const beforeId = typeof req.query?.beforeId === 'string' ? req.query.beforeId : undefined;
+  if (!req.authTenantId) return res.status(401).json({ error: 'Autenticação da empresa obrigatória.' });
 
   try {
     if (store?.databaseEnabled) {
-      const messages = await messageRepository.getMessagesByConversation(conversationId, { limit, before });
+      const messages = await messageRepository.getMessagesByConversation(conversationId, { limit, before, beforeId, companyId: req.authTenantId });
       const sortedMessages = normalizeMessagesForApi(messages);
 
       return res.status(200).json(Array.isArray(sortedMessages) ? sortedMessages : []);

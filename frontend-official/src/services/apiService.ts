@@ -227,7 +227,10 @@ export interface AIConnectionTestResult {
 export interface SessionInfo {
   id: string;
   name?: string;
+  sessionName?: string;
   phone?: string;
+  whatsappName?: string | null;
+  whatsAppName?: string | null;
   connected?: boolean;
   status?: string;
   webhookUrl?: string | null;
@@ -1320,10 +1323,11 @@ export const apiService = {
     return response;
   },
 
-  async getMessages(conversationId: string, options?: { limit?: number; before?: string }) {
+  async getMessages(conversationId: string, options?: { limit?: number; before?: string; beforeId?: string }) {
     const primaryEndpoint = withQuery(`/api/conversations/${encodeURIComponent(conversationId)}/messages`, {
       limit: options?.limit,
       before: options?.before,
+      beforeId: options?.beforeId,
     });
 
     const data = await request<RawMessage[] | { messages?: RawMessage[]; data?: RawMessage[] | { messages?: RawMessage[] } }>({ endpoint: primaryEndpoint, method: "GET" });
@@ -1462,8 +1466,11 @@ export const apiService = {
       method: "GET",
     }),
 
-  async getMetrics(sessionId?: string | null) {
-    const queryParam = sessionId ? `?sessionId=${encodeURIComponent(sessionId)}` : "";
+  async getMetrics(sessionId?: string | null, window?: { start: string; end: string }) {
+    const params = new URLSearchParams();
+    if (sessionId) params.set('sessionId', sessionId);
+    if (window) { params.set('start', window.start); params.set('end', window.end); }
+    const queryParam = params.size ? `?${params.toString()}` : "";
     const candidateEndpoints = [`/api/metrics${queryParam}`];
     let lastError: unknown = new Error("Falha ao carregar métricas");
 
@@ -1815,19 +1822,43 @@ export const apiService = {
     return data;
   },
 
-  getMemoryAnalytics: () =>
-    request<{ success: boolean; data: MemoryAnalytics }>({ endpoint: "/ai/memory/analytics", method: "GET" }),
+  getMemoryAnalytics: (sessionId?: string) =>
+    request<{ success: boolean; data: MemoryAnalytics }>({ endpoint: `/ai/memory/analytics?sessionId=${encodeURIComponent(sessionId || "")}`, method: "GET" }),
 
-  searchMemory: (query: string) =>
-    request<{ success: boolean; data: MemoryEntry[] }>({ endpoint: `/ai/memory/search?q=${encodeURIComponent(query)}`, method: "GET" }),
-  getMemoryByContact: (contactId: string) =>
-    request<{ success: boolean; data?: any }>({ endpoint: `/ai/conversation-memory/${encodeURIComponent(contactId)}`, method: "GET" }),
+  searchMemory: (query: string, sessionId?: string) =>
+    request<{ success: boolean; data: MemoryEntry[] }>({ endpoint: `/ai/memory/search?q=${encodeURIComponent(query)}&sessionId=${encodeURIComponent(sessionId || "")}`, method: "GET" }),
+  getMemoryGraph: (agentKey?: string, limit?: number, sessionId?: string) =>
+    request<{
+      success: boolean;
+      data: {
+        nodes: Array<{ id: string; type: string; label: string; weight: number; properties?: Record<string, any> }>;
+        edges: Array<{ source: string; target: string; relation: string; weight?: number }>;
+        stats: {
+          episodes: number;
+          concepts: number;
+          contacts: number;
+          topics: number;
+          products: number;
+          objections: number;
+          preferences: number;
+          habits: number;
+          insights: number;
+          totalNodes: number;
+          totalEdges: number;
+        };
+      };
+    }>({
+      endpoint: `/ai/memory/graph?agentKey=${encodeURIComponent(agentKey || 'camila')}${limit ? `&limit=${limit}` : ''}${sessionId ? `&sessionId=${encodeURIComponent(sessionId)}` : ''}`,
+      method: "GET",
+    }),
+  getMemoryByContact: (contactId: string, sessionId?: string) =>
+    request<{ success: boolean; data?: any }>({ endpoint: `/ai/conversation-memory/${encodeURIComponent(contactId)}?sessionId=${encodeURIComponent(sessionId || "")}`, method: "GET" }),
 
   getWebhooks: () =>
     request<{ tenantId?: string; webhooks?: Array<Record<string, unknown>> }>({ endpoint: "/api/integrations/webhooks", method: "GET" }),
 
-  flushMemory: () =>
-    request<{ success: boolean; data: { flushed: number } }>({ endpoint: "/ai/memory/flush", method: "POST" }),
+  flushMemory: (sessionId?: string) =>
+    request<{ success: boolean; data: { flushed: number } }>({ endpoint: "/ai/memory/flush", method: "POST", body: {sessionId} }),
 
 
   async getAdvancedAISettings(forceRefresh = false) {

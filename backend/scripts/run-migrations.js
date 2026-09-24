@@ -1,6 +1,5 @@
-#!/usr/bin/env node
-
-require('dotenv').config();
+const path = require('path');
+require('dotenv').config({ path: path.join(__dirname, '..', '.env') });
 
 const { runMigrations } = require('../services/migrationRunner');
 const { pool } = require('../src/infrastructure/config/database');

@@ -2,6 +2,24 @@
 
 All notable changes to this project will be documented in this file.
 
+## Unreleased — 2026-09-22: Memória por WhatsApp e criação de atendentes
+
+- Memória persistente própria e isolada por WhatsApp: recuperação pós-reconexão no PostgreSQL vinculada por empresa proprietária, conexão e cliente.
+- Vínculo opcional com lojas da mesma conta: concessão de conhecimento oficial sem transferência ou mescla do histórico de conversas da conexão. Ao desvincular, o acesso é revogado preservando a memória própria do número.
+- Criação supervisionada de atendentes em três vias nas telas de Conexões e Atendentes: Manual, IA por prompt e Leitura de conversas anteriores.
+- Configuração de segmento da loja, tipo de atendimento e conexões atendidas com prévia editável e ativação explícita.
+- Evolução de estilo estruturada e versionada: propostas automáticas limitadas a estilo (tom, extensão), mantendo regras comerciais, preços e políticas sob revisão manual, com capacidade de restauração e pausa da evolução.
+- Migração versionada `035_session_agent_memory` para isolamento de memórias por conexão, lojas e versionamento de agentes.
+
+## Unreleased — 2026-09-18
+
+
+- Histórico WhatsApp com fila PostgreSQL, retomada, deduplicação por empresa/sessão/conversa e recuperação de mídias, sem disparar atendimento ou alterar não lidas.
+- Novas conexões autenticadas geram um atendente em rascunho a partir do histórico; números existentes podem habilitar o aprendizado em IA → Evolução.
+- Revisão de autoria, evidências anonimizadas, comparação em conversas reservadas, publicação versionada e preservação da configuração ativa até a revisão.
+- Visão de imagens real no lugar do retorno simulado. Mídias indisponíveis e limites de cobertura ficam explícitos.
+- Migração aditiva `034_whatsapp_history_bootstrap`; implantação e contratos em [docs/runtime/whatsapp-history-bootstrap.md](docs/runtime/whatsapp-history-bootstrap.md).
+
 ## [1.1.1] - 2026-07-02
 
 ### Added

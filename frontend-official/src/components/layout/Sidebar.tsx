@@ -28,6 +28,10 @@ import {
   Brain,
   GitCommit,
   Flask,
+  Sun,
+  Moon,
+  SignOut,
+  DownloadSimple,
 } from "@phosphor-icons/react";
 import { AIIcon } from "@/components/ai/AIIcon";
 import { BrandLogo } from "@/components/brand/BrandLogo";
@@ -37,7 +41,11 @@ import { Drawer, DrawerContent, DrawerTrigger } from "@/components/ui/drawer";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
-import { useIsMobile } from "@/hooks/use-mobile";
+import { useIsMobile, useViewMode, setViewMode } from "@/hooks/use-mobile";
+import { usePwaInstall } from "@/hooks/usePwaInstall";
+import { useToast } from "@/hooks/use-toast";
+import { useTheme } from "next-themes";
+import { useAdminAuth } from "@/hooks/useAdminAuth";
 import { type AppUserRole, useUserRole } from "@/hooks/useUserRole";
 import { OperationalStatusBadge } from "@/components/enterprise/OperationalStatusBadge";
 import { useAppStore } from "@/stores/appStore";
@@ -86,10 +94,24 @@ export function Sidebar() {
   const location = useLocation();
   const navigate = useNavigate();
   const isMobile = useIsMobile();
+  const [viewMode] = useViewMode();
+  const { theme, setTheme } = useTheme();
+  const { logout } = useAdminAuth();
+  const isDark = theme !== "light";
   const { role, isLoading, roleLevel } = useUserRole();
-  const activeConversationId = useAppStore((state) => state.activeConversationId);
+  const isMobileChatOpen = useAppStore((state) => state.isMobileChatOpen);
+  const sessions = useAppStore((state) => state.sessions);
+  const activeSessionId = useAppStore((state) => state.activeSessionId);
+  const { canInstall, isInstalled, promptInstall } = usePwaInstall();
+  const { toast } = useToast();
   const health = useSystemHealthStore((state) => state.health);
   const startPollingHealth = useSystemHealthStore((state) => state.startPolling);
+
+  useEffect(() => {
+    const handleOpen = () => setMobileOpen(true);
+    window.addEventListener("zapflow:open-mobile-menu", handleOpen);
+    return () => window.removeEventListener("zapflow:open-mobile-menu", handleOpen);
+  }, []);
 
   useEffect(() => {
     startPollingHealth(30000); // 30s
@@ -212,8 +234,6 @@ export function Sidebar() {
         />
         {compact && item.path === "/inbox" && (
           (() => {
-            const sessions = useAppStore.getState().sessions;
-            const activeSessionId = useAppStore.getState().activeSessionId;
             const mainSession = sessions.find((s: any) => s.id === activeSessionId) || sessions[0];
             const isConnected = mainSession ? ["connected", "online", "active"].includes((mainSession.status || "").toLowerCase()) : false;
             if (!isConnected) return null;
@@ -227,8 +247,6 @@ export function Sidebar() {
             </span>
             {item.path === "/inbox" ? (
               (() => {
-                const sessions = useAppStore.getState().sessions;
-                const activeSessionId = useAppStore.getState().activeSessionId;
                 const mainSession = sessions.find((s: any) => s.id === activeSessionId) || sessions[0];
                 
                 const isBanned = mainSession?.isBanned || mainSession?.raw?.status === "banned" || mainSession?.status === "error";
@@ -311,6 +329,8 @@ export function Sidebar() {
       { label: "Provedores", tab: "provedores" },
       { label: "Conhecimento", tab: "conhecimento" },
       { label: "Operação", tab: "operacao" },
+      { label: "Evolution Center", tab: "evolution" },
+      { label: "Playbooks", tab: "playbooks" },
       { label: "Análises", tab: "analise" },
     ];
 
@@ -443,6 +463,103 @@ export function Sidebar() {
         <div className={cn("space-y-1 border-t border-sidebar-border/60 py-3", compact ? "px-2 flex flex-col items-center" : "px-3")}>
           {visibleBottomItems.map((item) => renderNavItem(item, compact, "bottom"))}
 
+          {mobileMode && (
+            <div className="mt-3 space-y-2.5 pt-3 border-t border-sidebar-border/60">
+              {/* View Mode Switcher */}
+              <div className="rounded-xl border border-sidebar-border/60 bg-muted/20 p-2.5 space-y-1.5">
+                <div className="flex items-center justify-between text-[11px] font-semibold text-sidebar-foreground">
+                  <span>Modo de Exibição</span>
+                  <Badge variant="outline" className="text-[9px] uppercase tracking-wider">{viewMode}</Badge>
+                </div>
+                <div className="grid grid-cols-3 gap-1">
+                  <button
+                    type="button"
+                    onClick={() => setViewMode("mobile")}
+                    className={cn(
+                      "h-7 rounded-lg text-[10px] font-semibold transition-colors flex items-center justify-center gap-1",
+                      viewMode === "mobile" ? "bg-primary text-primary-foreground shadow-xs" : "bg-card/60 text-muted-foreground hover:text-foreground"
+                    )}
+                  >
+                    📱 Mobile
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setViewMode("desktop")}
+                    className={cn(
+                      "h-7 rounded-lg text-[10px] font-semibold transition-colors flex items-center justify-center gap-1",
+                      viewMode === "desktop" ? "bg-primary text-primary-foreground shadow-xs" : "bg-card/60 text-muted-foreground hover:text-foreground"
+                    )}
+                  >
+                    💻 Desktop
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setViewMode("auto")}
+                    className={cn(
+                      "h-7 rounded-lg text-[10px] font-semibold transition-colors flex items-center justify-center gap-1",
+                      viewMode === "auto" ? "bg-primary text-primary-foreground shadow-xs" : "bg-card/60 text-muted-foreground hover:text-foreground"
+                    )}
+                  >
+                    ⚙️ Auto
+                  </button>
+                </div>
+              </div>
+
+              {/* PWA Install Button */}
+              {!isInstalled && canInstall && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="w-full h-9 rounded-xl border-emerald-500/40 bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 text-xs font-semibold gap-2 transition-all active:scale-98"
+                  onClick={async () => {
+                    const result = await promptInstall();
+                    if (result === "accepted") {
+                      toast({ title: "App Instalado", description: "ZAI CRM foi adicionado à sua tela inicial!" });
+                    } else if (result === "manual_ios") {
+                      toast({
+                        title: "Instalar no iPhone / iPad",
+                        description: "Toque no botão Compartilhar do Safari e selecione 'Adicionar à Tela de Início'.",
+                        duration: 8000,
+                      });
+                    }
+                  }}
+                >
+                  <DownloadSimple className="h-4 w-4 text-emerald-400" />
+                  <span>Instalar como Aplicativo (PWA)</span>
+                </Button>
+              )}
+
+              {/* Theme Switcher & Logout */}
+              <div className="flex items-center gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="flex-1 h-9 rounded-xl border-sidebar-border/80 text-xs gap-1.5"
+                  onClick={() => setTheme(isDark ? "light" : "dark")}
+                >
+                  {isDark ? <Sun className="h-4 w-4 text-amber-400" /> : <Moon className="h-4 w-4 text-indigo-400" />}
+                  <span>{isDark ? "Tema Claro" : "Tema Escuro"}</span>
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="h-9 rounded-xl border-destructive/40 text-destructive hover:bg-destructive/10 text-xs gap-1 px-3"
+                  onClick={() => {
+                    logout();
+                    navigate("/login", { replace: true });
+                  }}
+                  title="Sair do sistema"
+                >
+                  <SignOut className="h-4 w-4" />
+                  <span>Sair</span>
+                </Button>
+              </div>
+            </div>
+          )}
+
           {!mobileMode && (
             <button
               onClick={() => setCollapsed(!collapsed)}
@@ -470,22 +587,25 @@ export function Sidebar() {
   );
 
   if (isMobile) {
-    const showTrigger = !(location.pathname === "/inbox" && activeConversationId);
-    if (!showTrigger) return null;
+    const showTrigger = !(location.pathname === "/inbox" && isMobileChatOpen);
 
     return (
       <Drawer open={mobileOpen} onOpenChange={setMobileOpen}>
-        <DrawerTrigger asChild>
-          <Button
-            variant="outline"
-            size="icon"
-            className="fixed left-3 top-3 z-[60] h-10 w-10 rounded-2xl border-border bg-card/90 backdrop-blur"
-            aria-label="Abrir menu"
-          >
-            <List className="h-5 w-5" />
-          </Button>
-        </DrawerTrigger>
-        <DrawerContent className="h-[88dvh] border-border bg-sidebar/95 backdrop-blur-xl p-0 shadow-2xl">{sidebarBody(false, true)}</DrawerContent>
+        {showTrigger && (
+          <DrawerTrigger asChild>
+            <Button
+              variant="outline"
+              size="icon"
+              className="fixed left-3 top-3 z-[60] h-10 w-10 rounded-2xl border-border bg-card/90 backdrop-blur"
+              aria-label="Abrir menu"
+            >
+              <List className="h-5 w-5" />
+            </Button>
+          </DrawerTrigger>
+        )}
+        <DrawerContent className="h-[88dvh] border-border bg-sidebar/95 backdrop-blur-xl p-0 shadow-2xl">
+          {sidebarBody(false, true)}
+        </DrawerContent>
       </Drawer>
     );
   }

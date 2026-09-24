@@ -540,7 +540,7 @@ async function generateProfileCard(req, res) {
   try {
     const { conversationId } = req.params;
     const conversation = await loadConversationForOperation(conversationId);
-    const messages = await messageRepository.findByConversationId(conversationId);
+    const messages = await messageRepository.findByConversationId(conversationId, req.authTenantId);
     const latestMessages = (Array.isArray(messages) ? messages : []).slice(-8);
 
     const customerMessages = latestMessages
@@ -843,16 +843,43 @@ async function updateConversationMeta(req, res) {
           updated.session_id || sessionManager.DEFAULT_SESSION
         );
         const preferredSession = sessionManager.getSession(preferredSessionId);
-        const fallbackSession = await sessionManager.getDefaultSession();
-        const activeSession = preferredSession?.sock ? preferredSession : fallbackSession;
+        const fallbackSession = await sessionManager.getDefaultSession().catch(() => null);
+        const connectedSession = sessionManager.getConnectedSessionOrNull();
+        const activeSession = preferredSession?.sock ? preferredSession : (fallbackSession?.sock ? fallbackSession : connectedSession);
         const sock = activeSession?.sock;
 
         if (sock) {
           const jid = updated.phone.includes('@') ? updated.phone : `${updated.phone}@s.whatsapp.net`;
           console.log(`[WHATSAPP_ARCHIVE] Syncing archive state (${isArchived}) to WhatsApp for ${jid}`);
-          await sock.chatModify({ archive: isArchived }, jid).catch((err) => {
+          const messageRepository = require('../../data/repositories/messageRepository');
+          const lastDbMsg = await messageRepository.getLastMessage(updated.id).catch(() => null);
+          const lastMessages = lastDbMsg ? [{
+            key: {
+              id: lastDbMsg.whatsapp_message_id || String(lastDbMsg.id),
+              remoteJid: jid,
+              fromMe: Boolean(lastDbMsg.from_me)
+            },
+            messageTimestamp: Math.floor(new Date(lastDbMsg.timestamp || lastDbMsg.created_at || Date.now()).getTime() / 1000)
+          }] : [];
+
+          await sock.chatModify({ archive: isArchived, lastMessages }, jid).catch((err) => {
             console.warn('[WHATSAPP_ARCHIVE] Failed to chatModify archive:', err.message);
           });
+        }
+
+        const io = req.app.get('io') || global.io;
+        if (io) {
+          const eventPayload = {
+            chatId: String(updated.id),
+            conversationId: String(updated.id),
+            status: fields.status,
+            archived: isArchived
+          };
+          if (isArchived) {
+            io.emit('chat_archived', eventPayload);
+          } else {
+            io.emit('chat_unarchived', eventPayload);
+          }
         }
       } catch (archiveErr) {
         console.warn('[WHATSAPP_ARCHIVE] Failed to sync archive state:', archiveErr.message);

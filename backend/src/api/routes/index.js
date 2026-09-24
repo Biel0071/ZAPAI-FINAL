@@ -54,6 +54,7 @@ function registerRoutes(app, options = {}) {
   app.use('/', authRouter);
   app.use('/api', authRouter);
   app.use(requireJwtAuth);
+  app.use('/api/ai/history', require('../../ai/evolutionary/historyRoutes').createHistoryRouter());
 
   // System routes
   app.use('/api/system', systemRouter);

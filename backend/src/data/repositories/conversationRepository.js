@@ -389,6 +389,31 @@ async function updateLeadTemperature(conversationId, leadTemperature) {
 }
 
 async function updateConversationState(conversationId, fields = {}) {
+  let targetId = conversationId;
+  if (typeof conversationId === 'string' && (conversationId.includes('@') || conversationId.length >= 10)) {
+    const cleanPhone = conversationId.replace(/@.*$/, '').replace(/\D/g, '');
+    if (cleanPhone.length >= 7) {
+      const conv = await getConversationByPhone(cleanPhone);
+      if (conv?.id) {
+        targetId = conv.id;
+      } else {
+        const jidResult = await query(
+          'SELECT id FROM conversations WHERE remote_jid = $1 LIMIT 1',
+          [conversationId]
+        );
+        if (jidResult.rows[0]?.id) {
+          targetId = jidResult.rows[0].id;
+        } else {
+          return null;
+        }
+      }
+    }
+  }
+
+  if (!targetId || isNaN(Number(targetId))) {
+    return null;
+  }
+
   const mapping = {
     aiEnabled: 'ai_enabled',
     agent_name: 'agent_name',
@@ -425,10 +450,10 @@ async function updateConversationState(conversationId, fields = {}) {
   }
 
   if (!updates.length) {
-    return getConversationById(conversationId);
+    return getConversationById(targetId);
   }
 
-  values.push(conversationId);
+  values.push(targetId);
 
   const result = await query(
     `
@@ -519,7 +544,7 @@ async function listConversations(companyId, limit = 50, options = {}) {
 
   if (requestedSessionId) {
     values.push(requestedSessionId);
-    whereClause += ` AND conv.session_id = $${values.length}`;
+    whereClause += ` AND (conv.session_id = $${values.length} OR NOT EXISTS (SELECT 1 FROM conversations c_active WHERE c_active.company_id = $1 AND c_active.session_id = $${values.length}))`;
   }
 
 

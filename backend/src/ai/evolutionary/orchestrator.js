@@ -39,35 +39,92 @@ class EvolutionaryAgentOrchestrator {
   }) {
     const cleanCompany = String(companyId || 'default');
     const cleanMsg = String(message || '').trim();
+    const sessionId = contact.sessionId || null;
 
-    // 1. Layer 1: Official Knowledge
-    const officialKnowledgePrompt = await this.knowledgeEngine.compileOfficialKnowledgePrompt(cleanCompany, cleanMsg);
+    // 1. Layer 1: Official Knowledge (Store or Session Knowledge)
+    let officialKnowledgePrompt = '';
+    if (sessionId) {
+      try {
+        const agents = require('../agents/services/aiAgentService');
+        officialKnowledgePrompt = await agents.sessionKnowledge(cleanCompany, sessionId);
+      } catch (_) {}
+    }
+    if (!officialKnowledgePrompt) {
+      try {
+        officialKnowledgePrompt = await this.knowledgeEngine.compileOfficialKnowledgePrompt(cleanCompany, cleanMsg);
+      } catch (_) {}
+    }
 
-    // 2. Layer 2: Customer Structured Memory
-    const customerContext = await this.customerMemoryEngine.loadCustomerContext({
-      companyId: cleanCompany,
-      phone: contact.phone || contact.id,
-      conversationId: conversationId || contact.conversationId,
-    });
-    const customerMemoryPrompt = this.customerMemoryEngine.compileCustomerMemoryPrompt(customerContext);
+    // 2. Layer 2: Customer Structured Memory & Active Memory Graph
+    let customerContext = {};
+    let customerMemoryPrompt = '';
+    if (sessionId) {
+      try {
+        const engine = require('../../../services/conversationMemoryEngine');
+        const memory = await engine.getConversationMemory({
+          companyId: cleanCompany,
+          sessionId,
+          contactId: contact.phone || contact.id,
+          phone: contact.phone,
+        });
+        customerContext = memory || {};
+        customerMemoryPrompt = memory ? engine.buildContextualPrompt(memory) : '';
+      } catch (_) {}
+    }
+    if (!customerMemoryPrompt) {
+      try {
+        customerContext = await this.customerMemoryEngine.loadCustomerContext({
+          companyId: cleanCompany,
+          phone: contact.phone || contact.id,
+          conversationId: conversationId || contact.conversationId,
+        });
+        customerMemoryPrompt = this.customerMemoryEngine.compileCustomerMemoryPrompt(customerContext);
+      } catch (_) {}
+    }
 
-    // 3. Layer 3: Playbook Selection (with 10% Sandbox support)
-    const activePlaybook = await this.playbookEngine.matchPlaybook({
-      companyId: cleanCompany,
-      message: cleanMsg,
-      intent: leadIntent || customerContext.leadIntent,
-      conversationId: conversationId || contact.conversationId,
-    });
-    const playbookPrompt = this.playbookEngine.compilePlaybookPrompt(activePlaybook);
+    // Active Agent Memory Graph Recall (Semantic & Graphify representation)
+    let graphMemoryPrompt = '';
+    try {
+      const agentMemoryGraphService = require('../../../services/agentMemoryGraphService');
+      const graphRecall = await agentMemoryGraphService.recallRelevantMemory({
+        agentKey: contact.agentKey || 'camila',
+        agentName: contact.agentName || 'Camila',
+        companyId: cleanCompany,
+        contact: { ...contact, hasSessionPrompt: Boolean(customerMemoryPrompt) },
+        message: cleanMsg,
+      });
+      if (graphRecall && graphRecall.prompt) {
+        graphMemoryPrompt = graphRecall.prompt;
+      }
+    } catch (_) {}
+
+    const combinedCustomerPrompt = [customerMemoryPrompt, graphMemoryPrompt].filter(Boolean).join('\n');
+
+    // 3. Layer 3: Playbook Selection
+    let activePlaybook = null;
+    let playbookPrompt = '';
+    try {
+      activePlaybook = await this.playbookEngine.matchPlaybook({
+        companyId: cleanCompany,
+        message: cleanMsg,
+        intent: leadIntent || customerContext.leadIntent,
+        conversationId: conversationId || contact.conversationId,
+      });
+      playbookPrompt = this.playbookEngine.compilePlaybookPrompt(activePlaybook);
+    } catch (_) {}
 
     // 4. Layer 4: Similar Successful Experiences
-    const pastExperiences = await this.experienceEngine.findSimilarExperiences({
-      companyId: cleanCompany,
-      message: cleanMsg,
-      intent: leadIntent || customerContext.leadIntent,
-      limit: 2,
-    });
-    const experiencePrompt = this.experienceEngine.compileExperiencePrompt(pastExperiences);
+    let pastExperiences = [];
+    let experiencePrompt = '';
+    try {
+      pastExperiences = await this.experienceEngine.findSimilarExperiences({
+        companyId: cleanCompany,
+        message: cleanMsg,
+        intent: leadIntent || customerContext.leadIntent,
+        limit: 2,
+      });
+      experiencePrompt = this.experienceEngine.compileExperiencePrompt(pastExperiences);
+    } catch (_) {}
 
     // 5. Layer 5: Authority Rules & Directive Synthesis
     const hierarchyPrompt = `
@@ -80,7 +137,7 @@ class EvolutionaryAgentOrchestrator {
 
     const fullEvolutionaryPrompt = [
       officialKnowledgePrompt,
-      customerMemoryPrompt,
+      combinedCustomerPrompt,
       playbookPrompt,
       experiencePrompt,
       hierarchyPrompt
@@ -113,7 +170,7 @@ class EvolutionaryAgentOrchestrator {
     const convId = conversation?.id || conversation?.phone || 'unknown';
     const phone = conversation?.phone || store?.contact?.phone || '';
 
-    // Step 1: Extract customer facts asynchronously from customerMessage
+    // Step 1: Extract customer facts asynchronously from customerMessage (Layer 2)
     this.customerMemoryEngine.extractAndSaveFacts({
       companyId: cleanCompany,
       phone,
@@ -124,7 +181,7 @@ class EvolutionaryAgentOrchestrator {
     // Step 2: Build 5-Layer Evolutionary Prompt
     const evoData = await this.buildEvolutionaryPrompt({
       companyId: cleanCompany,
-      contact: { phone, conversationId: convId, ...store?.contact },
+      contact: { ...store?.contact, phone, conversationId: convId, sessionId: sessionId || conversation?.sessionId },
       message: customerMessage,
       conversationId: convId,
       leadIntent: leadAnalysis?.intent || conversation?.lead_intent,
@@ -202,7 +259,21 @@ class EvolutionaryAgentOrchestrator {
       console.warn('[Orchestrator] Rule conflict detected in response:', validation.issues);
     }
 
-    // Step 6: Asynchronously record Experience Event (Layer 4)
+    // Step 6: Learn into Active Agent Memory Graph
+    try {
+      const agentMemoryGraphService = require('../../../services/agentMemoryGraphService');
+      agentMemoryGraphService.learnFromInteraction({
+        agentKey: agent?.key || 'camila',
+        agentName: agent?.name || 'Camila',
+        companyId: cleanCompany,
+        contact: { ...store?.contact, phone, id: conversation?.lead_id, conversationId: convId, sessionId: sessionId || conversation?.sessionId },
+        message: customerMessage,
+        reply: responseText,
+        sessionId: sessionId || conversation?.sessionId,
+      }).catch(e => console.warn('[Orchestrator] learnFromInteraction error:', e.message));
+    } catch (_) {}
+
+    // Step 7: Asynchronously record Experience Event (Layer 4)
     this.experienceEngine.recordExperienceEvent({
       conversationId: convId,
       leadId: conversation?.lead_id || null,

@@ -69,6 +69,9 @@ async function persistOutgoingMessageRecord(store, payload) {
   const exactText = toExactMessageText(payload.text);
   const messagePreview = exactText || getMessagePreviewLabel(payload.mediaType);
   const savedMessage = await messageRepository.create({
+    companyId: payload.companyId || conversation.companyId || conversation.company_id,
+    origin: payload.source === 'campaign_flow' || payload.source === 'campaign' ? 'campaign' :
+      payload.source === 'ai' ? 'ai' : payload.source === 'human' ? 'human' : 'unknown',
     content: exactText || '',
     conversationId: conversation.id,
     createdAt: new Date().toISOString(),

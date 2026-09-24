@@ -43,10 +43,10 @@ function getMessagePreview(message = {}) {
   return '';
 }
 
-function createRealtimeChatState({ chatId, isGroup, name }) {
+function createRealtimeChatState({ chatId, isGroup, name, archived = false }) {
   return {
     aiEnabled: true,
-    archived: false,
+    archived: Boolean(archived),
     assignedTo: null,
     id: chatId,
     isGroup: Boolean(isGroup),

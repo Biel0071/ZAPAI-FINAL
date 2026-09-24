@@ -39,7 +39,7 @@ const {
 
 const MAX_RECENT_MESSAGE_IDS = 500;
 
-async function downloadMedia(mediaMessage, mediaType) {
+async function downloadMedia(mediaMessage, mediaType, companyId) {
   if (!mediaMessage || !mediaType) {
     return null;
   }
@@ -52,7 +52,9 @@ async function downloadMedia(mediaMessage, mediaType) {
       downloadMediaMessage,
       mediaMessage,
       mediaType,
-      tenantId: process.env.DEFAULT_COMPANY_ID || 'default',
+      tenantId: companyId || process.env.DEFAULT_COMPANY_ID || 'default',
+      // History jobs are bounded independently of realtime media handling.
+      maxBytes: companyId ? 25 * 1024 * 1024 : undefined,
     });
 
     if (!downloaded) {
@@ -97,7 +99,7 @@ async function extractIncomingMessage(messageData = {}, options = {}) {
 
   if (mediaMessage && !skipMediaDownload) {
     try {
-      mediaInfo = await downloadMedia(mediaMessage, mediaType);
+      mediaInfo = await downloadMedia(mediaMessage, mediaType, options.companyId);
     } catch (error) {
       console.error('[PIPELINE] Media download failed during extraction:', error?.message || error);
     }
@@ -107,7 +109,7 @@ async function extractIncomingMessage(messageData = {}, options = {}) {
   const mediaUrl = mediaInfo?.url || null;
 
   return {
-    companyId: process.env.DEFAULT_COMPANY_ID || 'default',
+    companyId: options.companyId || process.env.DEFAULT_COMPANY_ID || 'default',
     externalMessageId: messageData.key?.id || null,
     remoteJid: messageData.key?.remoteJid || null,
     fileName: mediaInfo?.fileName || mediaMessage?.fileName || null,

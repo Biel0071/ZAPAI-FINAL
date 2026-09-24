@@ -578,7 +578,15 @@ async function getMemoryAnalytics(req, res) {
   try {
     const store = getStore(req);
     const companyId = getCompanyId(req);
-    const analytics = aiMemoryEngine.getMemoryAnalytics(store);
+    const tenantId = req.authTenantId || companyId;
+    let entries = [];
+    if (req.query.sessionId) {
+      entries = await aiMemoryEngine.searchPersisted(tenantId, req.query.sessionId);
+    } else {
+      const dbRes = await query('SELECT * FROM ai_conversation_memory WHERE company_id = $1 ORDER BY last_updated DESC LIMIT 100', [tenantId]).catch(() => ({ rows: [] }));
+      entries = dbRes.rows || [];
+    }
+    const analytics = aiMemoryEngine.getMemoryAnalytics({ conversationMemory: entries });
 
     let totalNodes = 0;
     let totalEdges = 0;
@@ -605,8 +613,21 @@ async function getMemoryAnalytics(req, res) {
 async function searchMemory(req, res) {
   try {
     const store = getStore(req);
+    const companyId = getCompanyId(req);
+    const tenantId = req.authTenantId || companyId;
     const queryStr = req.query?.q || '';
-    const results = aiMemoryEngine.searchMemory(store, queryStr);
+    let results = [];
+    if (req.query.sessionId) {
+      results = await aiMemoryEngine.searchPersisted(tenantId, req.query.sessionId, queryStr);
+    } else {
+      const dbRes = await query(`
+        SELECT * FROM ai_conversation_memory 
+        WHERE company_id = $1
+          AND (name ILIKE $2 OR phone ILIKE $2 OR summary ILIKE $2) 
+        ORDER BY last_updated DESC LIMIT 100
+      `, [tenantId, '%' + String(queryStr).slice(0, 200) + '%']).catch(() => ({ rows: [] }));
+      results = dbRes.rows || [];
+    }
     return res.status(200).json({ success: true, data: results });
   } catch (error) {
     return res.status(500).json({ success: false, error: error.message || 'Memory search failed.' });
@@ -616,11 +637,26 @@ async function searchMemory(req, res) {
 async function flushMemory(req, res) {
   try {
     const store = getStore(req);
-    const companyId = req.headers['x-company-id'] || req.headers['x-tenant-id'] || req.auth?.tenantId || 'default';
-    const flushedCount = await aiMemoryEngine.flushMemoryToPostgres(store, companyId);
+    const companyId = req.authTenantId;
+    await aiMemoryEngine.assertSession(companyId,req.body.sessionId);
+    const flushedCount = await aiMemoryEngine.projectPending(companyId,req.body.sessionId);
     return res.status(200).json({ success: true, data: { flushed: flushedCount } });
   } catch (error) {
     return res.status(500).json({ success: false, error: error.message || 'Memory flush failed.' });
+  }
+}
+
+async function getMemoryGraph(req, res) {
+  try {
+    const companyId = req.authTenantId || getCompanyId(req);
+    const agentKey = req.query.agentKey || 'camila';
+    const limit = Number(req.query.limit) || 60;
+    const sessionId = req.query.sessionId || null;
+    const agentMemoryGraphService = require('../../../services/agentMemoryGraphService');
+    const snapshot = await agentMemoryGraphService.getGraphSnapshot(agentKey, companyId, limit, sessionId);
+    return res.status(200).json({ success: true, data: snapshot });
+  } catch (error) {
+    return res.status(500).json({ success: false, error: error.message || 'Failed to load memory graph.' });
   }
 }
 
@@ -631,6 +667,7 @@ module.exports = {
   getAdvancedAI,
   getBusinessHours,
   getMemory,
+  getMemoryGraph,
   getQueue,
   improve,
   processQueue,

@@ -89,7 +89,7 @@ export function FloatingMascotAssistant() {
   const [userQuery, setUserQuery] = useState("");
   const [queryFeedback, setQueryFeedback] = useState<string | null>(null);
 
-  const activeConversationId = useAppStore((state) => state.activeConversationId);
+  const isMobileChatOpen = useAppStore((state) => state.isMobileChatOpen);
   const sessions = useAppStore((state) => state.sessions);
   const isWhatsappConnected = useMemo(() => {
     return Array.isArray(sessions) && sessions.some((s) => s?.status === "connected");
@@ -97,7 +97,7 @@ export function FloatingMascotAssistant() {
 
   const isMobile = useIsMobile();
   const isInbox = location.pathname.startsWith("/inbox");
-  const isInboxMobileChat = isMobile && isInbox && Boolean(activeConversationId);
+  const isInboxMobileChat = isMobile && isInbox && isMobileChatOpen;
 
   const currentTip = useMemo(() => {
     const matchedPath = Object.keys(CONTEXTUAL_TIPS).find((p) => location.pathname.startsWith(p));
@@ -146,9 +146,9 @@ export function FloatingMascotAssistant() {
       aria-label="Assistente Inteligente ZAI"
       className={cn(
         "fixed z-40 select-none transition-all duration-200",
-        isInbox
-          ? "bottom-20 right-4 sm:bottom-24 sm:right-6"
-          : "bottom-3 right-3 sm:bottom-5 sm:right-5"
+        isMobile
+          ? "bottom-[calc(4.5rem+env(safe-area-inset-bottom,0px)+8px)] right-3"
+          : "bottom-4 right-4 sm:bottom-5 sm:right-5"
       )}
     >
       {/* EXPANDED ASSISTANT CARD */}

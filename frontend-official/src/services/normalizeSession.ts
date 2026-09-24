@@ -38,7 +38,7 @@ export function normalizeSession(input: any): SessionItem {
     name: String(input?.name ?? input?.sessionName ?? input?.session ?? input?.id ?? ""),
     phone: input?.phone ?? input?.wid ?? input?.number ?? null,
     profilePicture: input?.profilePicture ?? input?.profilePictureUrl ?? input?.profile_picture_url ?? input?.avatar ?? null,
-    pushName: input?.pushName ?? input?.displayName ?? input?.contactName ?? null,
+    pushName: input?.pushName ?? input?.displayName ?? input?.contactName ?? input?.whatsappName ?? input?.whatsAppName ?? input?.whatsapp_name ?? null,
     status: normalizeSessionStatus(input),
     updatedAt: input?.updatedAt ?? input?.lastUpdate ?? null,
     raw: input,

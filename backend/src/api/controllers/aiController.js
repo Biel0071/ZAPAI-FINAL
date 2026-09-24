@@ -1089,9 +1089,10 @@ async function getAgentEvolution(req, res) {
           edges.push(snapshotEdge);
         }
       }
-      for (const node of graphSnapshot.nodes.filter((item) => ['contact', 'concept'].includes(item.type)).slice(0, 12)) {
+      for (const node of graphSnapshot.nodes.filter((item) => ['contact', 'concept', 'topic', 'product', 'objection', 'preference', 'habit', 'insight'].includes(item.type)).slice(0, 24)) {
         if (!edges.some((e) => e.source === rootId && e.target === node.id)) {
-          edges.push({ source: rootId, target: node.id, relation: node.type === 'contact' ? 'atendeu' : 'aprendeu' });
+          const relation = node.type === 'contact' ? 'atendeu' : (node.type === 'insight' ? 'registrou_insight' : 'aprendeu');
+          edges.push({ source: rootId, target: node.id, relation });
         }
       }
     }

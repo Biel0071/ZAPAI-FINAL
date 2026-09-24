@@ -244,7 +244,7 @@ export const MessageRow = memo(function MessageRow({
       <div className="relative pb-3 max-w-[80%]">
         <div
           className={cn(
-            "absolute top-2 hidden md:flex items-center gap-0.5 bg-[#181d26]/90 border border-border/80 rounded-full p-1 shadow-md backdrop-blur-sm z-20 opacity-0 group-hover/bubble:opacity-100 transition-opacity duration-150",
+            "absolute top-2 hidden md:flex items-center gap-0.5 bg-card/90 border border-border/80 rounded-full p-1 shadow-md backdrop-blur-sm z-20 opacity-0 group-hover/bubble:opacity-100 transition-opacity duration-150",
             message.fromMe ? "-left-32" : "-right-32"
           )}
         >

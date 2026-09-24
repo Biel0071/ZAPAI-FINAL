@@ -545,6 +545,15 @@ export function RuntimeProvider({ children }: { children: ReactNode }) {
         });
       },
 
+      onChatUnarchived: ({ chatId, conversationId }) => {
+        const resolvedId = chatId || conversationId;
+        if (!resolvedId) return;
+        useAppStore.getState().updateConversationRealtime({
+          id: resolvedId,
+          status: "open" as any,
+        });
+      },
+
       onChatTagUpdated: ({ chatId, conversationId, tag, action }) => {
         const resolvedId = chatId || conversationId;
         if (!resolvedId || !tag) return;

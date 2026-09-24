@@ -197,13 +197,15 @@ function ensureMemoryEntry(state, event = {}) {
   const normalizedPhone = String(event.phone || '').trim();
   const contactId = String(event.contactId || normalizedPhone || '').trim();
   const conversationId = String(event.conversationId || '').trim() || null;
+  const companyId = String(event.companyId || '').trim();
+  const sessionId = String(event.sessionId || '').trim();
 
   let memory = state.conversationMemory.find((entry) => {
     if (!entry || typeof entry !== 'object') {
       return false;
     }
 
-    return (
+    return entry.company_id === companyId && entry.session_id === sessionId && (
       String(entry.contact_id || '').trim() === contactId ||
       (normalizedPhone && String(entry.phone || '').trim() === normalizedPhone) ||
       (conversationId && String(entry.conversation_id || '').trim() === conversationId)
@@ -212,6 +214,8 @@ function ensureMemoryEntry(state, event = {}) {
 
   if (!memory) {
     memory = {
+      company_id: companyId,
+      session_id: sessionId,
       contact_id: contactId || normalizedPhone || `contact-${Date.now()}`,
       conversation_id: conversationId,
       phone: normalizedPhone || null,
@@ -252,28 +256,31 @@ function updateConversationMemory(state, event = {}) {
     event.direction !== 'outgoing' && detectAudioIntent(snapshot.text, '');
   const audioMediaDetected =
     event.direction !== 'outgoing' && detectAudioIntent('', snapshot.mediaType || '');
-  const snapshotKey = `${snapshot.id}:${snapshot.timestamp}:${snapshot.text}`;
+  const snapshotKey = snapshot.id;
   const existingKeys = new Set(
     (memory.messages || []).map(
-      (message) => `${message?.id || ''}:${message?.timestamp || ''}:${message?.text || ''}`
+      (message) => message?.id
     )
   );
 
+  if (existingKeys.has(snapshotKey)) return { memory, audioIntentDetected: false, audioMessageDetected: false };
+
   if (!existingKeys.has(snapshotKey)) {
-    memory.messages = [...(memory.messages || []), snapshot].slice(-40);
+    memory.messages = [...(memory.messages || []), snapshot].sort((a,b)=>new Date(a.timestamp)-new Date(b.timestamp)).slice(-40);
   }
 
   memory.phone = event.phone || memory.phone || null;
   memory.name = event.name || memory.name || memory.phone || 'Contato';
   memory.conversation_id = event.conversationId || memory.conversation_id || null;
-  memory.last_updated = event.timestamp || new Date().toISOString();
+  memory.last_updated = memory.messages.at(-1)?.timestamp || new Date().toISOString();
 
-  const leadIntent = analyzeLeadIntent(snapshot.text || '', buildLeadHistory(memory.messages));
+  const leadIntent = analyzeLeadIntent([...memory.messages].reverse().find(m=>m.from==='contact')?.text || '', buildLeadHistory(memory.messages));
   memory.intent = leadIntent.intent || memory.intent || 'information';
   memory.sentiment = detectSentiment(memory.messages);
   memory.tags = extractTags(memory, snapshot, leadIntent);
   memory.summary = buildSummary(memory);
   memory.metrics = {
+    ...memory.metrics,
     inboundMessages:
       (memory.metrics?.inboundMessages || 0) + Number(event.direction !== 'outgoing'),
     outboundMessages:
@@ -282,7 +289,7 @@ function updateConversationMemory(state, event = {}) {
     audioRequests: (memory.metrics?.audioRequests || 0) + Number(audioRequestedByContact),
     prefersAudio:
       Boolean(memory.metrics?.prefersAudio) || audioRequestedByContact || audioMediaDetected,
-    totalMessages: (memory.messages || []).length,
+    totalMessages: (memory.metrics?.totalMessages || 0) + 1,
   };
 
   state.conversationMemory = sortByLastUpdated(state.conversationMemory).slice(0, 500);
@@ -316,15 +323,15 @@ function buildOpenAIContext(memoryEntry) {
   };
 }
 
-function findMemoryByContact(state, contactId) {
+function findMemoryByContact(state, contactId, { companyId, sessionId } = {}) {
   const normalized = String(contactId || '').trim();
-  if (!normalized || !Array.isArray(state?.conversationMemory)) {
+  if (!companyId || !sessionId || !normalized || !Array.isArray(state?.conversationMemory)) {
     return null;
   }
 
   return (
     state.conversationMemory.find((entry) => {
-      return (
+      return entry.company_id === companyId && entry.session_id === sessionId && (
         String(entry?.contact_id || '').trim() === normalized ||
         String(entry?.phone || '').trim() === normalized ||
         String(entry?.conversation_id || '').trim() === normalized

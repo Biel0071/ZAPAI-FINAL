@@ -161,7 +161,7 @@ async function persistConversationMessage(store, payload) {
   // eslint-disable-next-line no-console
   console.log('Saving conversation to database');
   const existingMessages = await messageRepository.getMessagesByConversation(
-    currentConversation.id
+    currentConversation.id, { companyId }
   );
   const messagePreview = getConversationPreview(payload.text, payload.mediaType);
   const leadAnalysis =

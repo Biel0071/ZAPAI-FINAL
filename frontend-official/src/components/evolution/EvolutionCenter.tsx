@@ -18,6 +18,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { API_ORIGIN } from "@/services/apiService";
+import { HistoryBootstrapPanel } from './HistoryBootstrapPanel';
 
 interface EvolutionMetrics {
   officialKnowledgeCount: number;
@@ -146,6 +147,7 @@ export function EvolutionCenter() {
 
   return (
     <div className="space-y-6">
+      <HistoryBootstrapPanel />
       {/* Top Banner: Architecture & Continuous Learning status */}
       <div className="rounded-2xl border border-emerald-500/20 bg-gradient-to-r from-emerald-500/10 via-background to-teal-500/10 p-6 shadow-sm">
         <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
@@ -156,7 +158,7 @@ export function EvolutionCenter() {
                 Agente Evolutivo 5 Camadas
               </Badge>
               <Badge variant="outline" className="text-emerald-400 border-emerald-500/30">
-                118.785 Mensagens Ingeridas
+                Aprendizado supervisionado
               </Badge>
             </div>
             <h2 className="text-2xl font-bold tracking-tight text-foreground">

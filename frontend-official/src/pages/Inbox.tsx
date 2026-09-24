@@ -28,7 +28,7 @@ import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { useToast } from "@/hooks/use-toast";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { apiService } from "@/services/apiService";
+import { apiService, type ChatMessage } from "@/services/apiService";
 import { useAppStore } from "@/stores/appStore";
 
 // Modularized components and hook
@@ -123,7 +123,7 @@ export default function Inbox() {
           return false;
         }
 
-        const isArchived = archivedSet.has(conversationId);
+        const isArchived = archivedSet.has(conversationId) || String(conversation.status).toLowerCase() === "archived";
         if (state.filter === "archived") return isArchived;
         if (isArchived) return false;
         if (state.filter === "unread" && (conversation.unread ?? 0) <= 0) return false;
@@ -188,7 +188,10 @@ export default function Inbox() {
           window.setTimeout(() => state.scrollToLatestMessage("auto"), 120);
           window.setTimeout(() => state.scrollToLatestMessage("auto"), 320);
         });
-        if (state.isMobile) state.setMobileScreen("chat");
+        if (state.isMobile) {
+          state.setMobileScreen("chat");
+          useAppStore.getState().setIsMobileChatOpen(true);
+        }
         window.requestAnimationFrame(() => {
           if (state.messageInputRef.current) {
             state.messageInputRef.current.style.height = "auto";
@@ -598,6 +601,7 @@ export default function Inbox() {
             onBack={() => {
               state.setMobileScreen("conversations");
               state.setSelectedConversationId(null);
+              useAppStore.getState().setIsMobileChatOpen(false);
             }}
             handleClearSelectedConversation={state.handleClearSelectedConversation}
             archivedChatIds={state.archivedChatIds}
@@ -643,7 +647,7 @@ export default function Inbox() {
         tabletLeadSheet={
           state.isTabletLayout ? (
             <Sheet open={state.showLeadPanel} onOpenChange={state.setShowLeadPanel}>
-              <SheetContent side="right" className="w-full p-4 sm:max-w-md bg-[#0C0F14]/95 text-foreground border-border/80">
+              <SheetContent side="right" className="w-full p-4 sm:max-w-md bg-card/95 text-foreground border-border/80">
                 <SheetHeader>
                   <SheetTitle className="text-foreground">Painel do Lead</SheetTitle>
                 </SheetHeader>

@@ -1015,6 +1015,8 @@ async function createStableSession({
     return existingSession;
   }
 
+  const historyOwner = await require('../historySync').historySync.repository.owner(normalizedSessionName);
+
   // CRITICAL: If there's a stale entry (disposed/closing), clean it up first
   if (existingSession) {
     try {
@@ -1026,11 +1028,11 @@ async function createStableSession({
 
   const baileys = await import('@whiskeysockets/baileys');
   const makeWASocket = baileys.default || baileys;
-  const fetchLatestBaileysVersion = baileys.fetchLatestBaileysVersion;
+  const fetchLatestWaWebVersion = baileys.fetchLatestWaWebVersion;
   const useMultiFileAuthState = baileys.useMultiFileAuthState;
 
   const { state, saveCreds } = await useMultiFileAuthState(sessionPath);
-  const { version } = await fetchLatestBaileysVersion();
+  const { version } = await fetchLatestWaWebVersion();
 
   let baileysLogger;
   if (process.env.DEBUG_WHATSAPP === 'true') {
@@ -1052,9 +1054,10 @@ async function createStableSession({
 
   const sock = makeWASocket({
     auth: state,
-    browser: ['Windows', 'Chrome', '122.0.0'],
+    browser: baileys.Browsers.ubuntu('Chrome'),
     logger: baileysLogger,
     version,
+    syncFullHistory: true,
     shouldSyncHistoryMessage: () => true,
     connectTimeoutMs: 60000,
     defaultQueryTimeoutMs: 60000,
@@ -1122,6 +1125,8 @@ async function createStableSession({
   });
 
   await safeCreateSessionRecord(normalizedSessionName, session.sessionName);
+  session.companyId = historyOwner;
+  await require('../historySync').historySync.repository.ensure(session.companyId, normalizedSessionName);
   emitSessionStatus(io, session);
 
   sock.ev.on('creds.update', () => {
@@ -1297,16 +1302,18 @@ async function createStableSession({
           phone: session.phone,
         });
       }
+      const resolvedWhatsAppName = session.whatsAppName || sock.user?.name || sock.user?.notify || null;
       await safeUpdateSessionStatus(
         normalizedSessionName,
         'connected',
         session.phone,
-        session.sessionName
+        session.sessionName,
+        resolvedWhatsAppName
       );
 
       if (connectionChanged) {
         // eslint-disable-next-line no-console
-        console.log(`[WHATSAPP] Connected: ${normalizedSessionName}, phone: ${session.phone}`);
+        console.log(`[WHATSAPP] Connected: ${normalizedSessionName}, phone: ${session.phone}, zapName: ${resolvedWhatsAppName}`);
       }
 
       (io || global.io)?.emit('session_connected', {
@@ -1317,17 +1324,21 @@ async function createStableSession({
         status: 'connected',
         type: 'status',
         sessionName: session.sessionName,
+        whatsappName: resolvedWhatsAppName,
       });
       (io || global.io)?.emit('whatsapp_connection', {
         connected: true,
         sessionId: normalizedSessionName,
         sessionName: session.sessionName,
+        phone: session.phone,
+        whatsappName: resolvedWhatsAppName,
       });
       (io || global.io)?.emit('session.connected', {
         eventAt: Date.now(),
         phone: session.phone,
         sessionId: normalizedSessionName,
         sessionName: session.sessionName,
+        whatsappName: resolvedWhatsAppName,
         status: 'connected',
       });
       emitSessionStatus(io, session);
@@ -1628,6 +1639,11 @@ async function createStableSession({
       runtimeEngine.incrementMessageCounter(batchCount);
     }
 
+    if (type === 'append') {
+      await require('../historySync').historySync.receive(normalizedSessionName, messages || [])
+        .catch(() => pushConnectionLog(session, 'error', 'history_sync', 'Falha ao guardar histórico recebido.'));
+      return;
+    }
     if (type !== 'notify' && type !== 'append') {
       return;
     }
@@ -2090,6 +2106,8 @@ async function createStableSession({
         }
       }
     }
+    require('../historySync').historySync.receive(normalizedSessionName, messages || [], [], 'live_unknown')
+      .catch(() => pushConnectionLog(session, 'error', 'history_sync', 'Falha ao guardar amostra incremental.'));
   });
 
   sock.ev.on('messages.update', async (updates) => {
@@ -2180,7 +2198,6 @@ async function createStableSession({
     const store = ensureRealtimeStore(session);
 
     // Batch for DB persist — individual chats only (groups use a different schema)
-    const individualChatsToSync = [];
 
     for (const chat of chatList) {
       const chatId = chat?.id;
@@ -2190,6 +2207,7 @@ async function createStableSession({
 
       const isGroup = String(chatId).endsWith('@g.us');
       const name = chat?.name || chat?.subject || chatId;
+      const isArchived = Boolean(chat?.archived || chat?.archive);
 
       // 1. Update in-memory realtime store
       if (!store.chats[chatId]) {
@@ -2197,239 +2215,114 @@ async function createStableSession({
           chatId,
           isGroup,
           name,
+          archived: isArchived,
         });
       } else {
         if (name) {
           store.chats[chatId].name = name;
         }
+        store.chats[chatId].archived = isArchived;
       }
 
       // 2. Queue individual chats for DB persistence
-      if (!isGroup) {
-        // Extract phone number from JID (e.g. "5511999887766@s.whatsapp.net" → "5511999887766")
-        const phone = String(chatId).split('@')[0];
-        if (phone && /^\d{7,15}$/.test(phone)) {
-          individualChatsToSync.push({ phone, name, chatId });
-        }
-      }
     }
 
     // Re-emit chats loaded for any late-connecting frontend clients
     emitChatsLoaded(io || global.io, store);
 
-    // Async DB sync — fire and forget, does not block the event loop
-    // Uses lazy require to avoid circular dependency at module load time
-    if (individualChatsToSync.length > 0) {
-      setImmediate(async () => {
-        try {
-          const conversationRepository = require('../../../src/data/repositories/conversationRepository');
-          const companyId = process.env.DEFAULT_COMPANY_ID || 'default';
-          let synced = 0;
-          let errors = 0;
-
-          // Process in small batches to avoid overwhelming the DB pool
-          const BATCH_SIZE = 10;
-          for (let i = 0; i < individualChatsToSync.length; i += BATCH_SIZE) {
-            const batch = individualChatsToSync.slice(i, i + BATCH_SIZE);
-            await Promise.allSettled(batch.map(async ({ phone, name }) => {
-              try {
-                await conversationRepository.findOrCreateConversationByPhone({
-                  companyId,
-                  contactName: name || phone,
-                  phone,
-                  sessionId: normalizedSessionName,
-                  aiEnabled: false,
-                });
-                synced++;
-              } catch (err) {
-                errors++;
-                // Only log first few errors to avoid log spam
-                if (errors <= 3) {
-                  console.warn(`[WHATSAPP] chats.set DB sync failed for ${phone}: ${err?.message}`);
-                }
-              }
-            }));
-          }
-
-          console.log(
-            `[WHATSAPP] chats.set DB sync complete session=${normalizedSessionName} synced=${synced} errors=${errors} total=${individualChatsToSync.length}`
-          );
-
-          // Invalidate conversation cache so next GET /api/conversations sees fresh data
-          conversationRepository.invalidateConversationCache(companyId);
-        } catch (err) {
-          console.error(`[WHATSAPP] chats.set DB sync fatal: ${err?.message}`);
-        }
-      });
-    }
+    require('../historySync').historySync.receive(normalizedSessionName, [], chatList)
+      .catch(() => pushConnectionLog(session, 'error', 'history_sync', 'Falha ao guardar lista de conversas.'));
   });
 
   // ── History sync (fired when the connection retrieves historical messages/chats) ──
-  sock.ev.on('messaging-history.set', ({ chats = [], contacts = [], messages = [], isLatest }) => {
+  sock.ev.on('messaging-history.set', ({ chats = [], messages = [] }) => {
     session.lastPingAt = Date.now();
     if (session.isDisposed || session.isClosing) return;
+    // Durable history ingestion never enters realtime automation.
+    const hSync = require('../historySync').historySync;
+    hSync.receive(normalizedSessionName, messages, chats)
+      .then(async () => {
+        try {
+          await hSync.process(session.companyId || 'default', normalizedSessionName);
+          const activeIo = io || session.io || global.io;
+          if (activeIo) {
+            activeIo.emit('conversation:update', { sessionId: normalizedSessionName });
+            activeIo.emit('chats:loaded', { sessionId: normalizedSessionName });
+          }
+        } catch (_) {}
+      })
+      .catch(() => pushConnectionLog(session, 'error', 'history_sync', 'Falha ao guardar lote de histórico. Retome a sincronização.'));
+  });
 
-    console.log(
-      `[WHATSAPP] messaging-history.set session=${normalizedSessionName} chats=${chats.length} contacts=${contacts.length} messages=${messages.length} isLatest=${isLatest}`
-    );
-
+  // ── Chats update (name/archive changes) ─────────────────────────────────
+  sock.ev.on('chats.update', async (updates) => {
+    session.lastPingAt = Date.now();
+    if (session.isDisposed || session.isClosing) return;
     const store = ensureRealtimeStore(session);
+    const activeIo = io || session.io || global.io;
 
-    // 1. Process chats to populate store
-    const individualChatsToSync = [];
-    for (const chat of chats || []) {
-      const chatId = chat?.id;
-      if (!isValidRealtimeChatId(chatId)) continue;
+    for (const update of updates || []) {
+      const chatId = update?.id;
+      if (!chatId) {
+        continue;
+      }
 
       const isGroup = String(chatId).endsWith('@g.us');
-      const name = chat?.name || chat?.subject || chatId;
-
       if (!store.chats[chatId]) {
         store.chats[chatId] = createRealtimeChatState({
           chatId,
           isGroup,
-          name,
+          name: update.name || chatId,
         });
-      } else if (name) {
-        store.chats[chatId].name = name;
-      }
-
-      if (!isGroup) {
-        const phone = String(chatId).split('@')[0];
-        if (phone && /^\d{7,15}$/.test(phone)) {
-          individualChatsToSync.push({ phone, name, chatId });
-        }
-      }
-    }
-
-    emitChatsLoaded(io || global.io, store);
-
-    // Sync conversations and messages asynchronously
-    setImmediate(async () => {
-      try {
-        const conversationRepository = require('../../../src/data/repositories/conversationRepository');
-        const companyId = process.env.DEFAULT_COMPANY_ID || 'default';
-
-        // Sync contacts through ContactsEngine pipeline
-        if (contacts && contacts.length > 0) {
-          contactsEngine.fullSync(
-            contacts,
-            normalizedSessionName,
-            companyId,
-            io || global.io
-          ).catch((err) => {
-            console.error(`[WHATSAPP] ContactsEngine history sync failed: ${err?.message || err}`);
-          });
-        }
-
-        let chatsSynced = 0;
-
-        // Persist conversations
-        if (individualChatsToSync.length > 0) {
-          const BATCH_SIZE = 15;
-          for (let i = 0; i < individualChatsToSync.length; i += BATCH_SIZE) {
-            const batch = individualChatsToSync.slice(i, i + BATCH_SIZE);
-            await Promise.allSettled(
-              batch.map(async ({ phone, name }) => {
-                await conversationRepository.findOrCreateConversationByPhone({
-                  companyId,
-                  contactName: name || phone,
-                  phone,
-                  sessionId: normalizedSessionName,
-                  aiEnabled: false,
-                });
-                chatsSynced++;
-              })
-            );
-          }
-          console.log(`[WHATSAPP] history-sync conversations persisted session=${normalizedSessionName} synced=${chatsSynced}/${individualChatsToSync.length}`);
-          conversationRepository.invalidateConversationCache(companyId);
-        }
-
-        // Persist historical messages (limit to 150 most recent items to avoid event loop & DB lockup)
-        if (Array.isArray(messages) && messages.length > 0) {
-          const messagesToSync = messages.length > 150 ? messages.slice(-150) : messages;
-          const pipeline = require('../inbound/pipeline');
-          let msgsSynced = 0;
-          let msgsErrors = 0;
-
-          // Process messages in batch sequence
-          const MSG_BATCH_SIZE = 20;
-          for (let i = 0; i < messagesToSync.length; i += MSG_BATCH_SIZE) {
-            const batch = messagesToSync.slice(i, i + MSG_BATCH_SIZE);
-            await Promise.allSettled(
-              batch.map(async (msg) => {
-                try {
-                  const remoteJid = msg?.key?.remoteJid || '';
-                  const messageId = msg?.key?.id;
-
-                  if (!isValidRealtimeChatId(remoteJid) || remoteJid.endsWith('@newsletter') || !msg?.message) {
-                    return;
-                  }
-
-                  // Call extractIncomingMessage with skipMediaDownload option
-                  const payload = await pipeline.extractIncomingMessage(msg, { skipMediaDownload: true });
-                  if (!payload?.phone) return;
-
-                  // Persist historical message directly using enterpriseMessageService
-                  await enterpriseMessageService.persistInboundMessage({
-                    companyId,
-                    fileName: payload.fileName,
-                    fromMe: Boolean(msg.key?.fromMe),
-                    mediaPath: payload.mediaPath,
-                    mediaType: payload.mediaType,
-                    mimeType: payload.mimeType,
-                    name: payload.name,
-                    participant: payload.participant,
-                    phone: payload.phone,
-                    sessionId: normalizedSessionName,
-                    size: payload.size,
-                    status: msg.key?.fromMe ? 'sent' : 'received',
-                    text: payload.text,
-                    timestamp: payload.timestamp,
-                    type: payload.type,
-                    url: payload.mediaUrl || payload.mediaPath,
-                    hash: payload.hash,
-                  });
-                  msgsSynced++;
-                } catch (msgErr) {
-                  msgsErrors++;
-                }
-              })
-            );
-          }
-          console.log(`[WHATSAPP] history-sync messages persisted session=${normalizedSessionName} synced=${msgsSynced} errors=${msgsErrors}`);
-        }
-      } catch (err) {
-        console.error(`[WHATSAPP] history-sync background process failure:`, err?.message || err);
-      }
-    });
-  });
-
-  // ── Chats update (name/archive changes) ─────────────────────────────────
-  sock.ev.on('chats.update', (updates) => {
-    session.lastPingAt = Date.now();
-    if (session.isDisposed || session.isClosing) return;
-    const store = ensureRealtimeStore(session);
-
-    for (const update of updates || []) {
-      const chatId = update?.id;
-      if (!chatId || !store.chats[chatId]) {
-        continue;
       }
 
       if (update.name) {
         store.chats[chatId].name = update.name;
       }
-      if (typeof update.archived === 'boolean') {
-        store.chats[chatId].archived = update.archived;
+
+      const isArchived = typeof update.archive === 'boolean'
+        ? update.archive
+        : (typeof update.archived === 'boolean' ? update.archived : null);
+
+      if (isArchived !== null) {
+        store.chats[chatId].archived = isArchived;
+        store.chats[chatId].updatedAt = Date.now();
+
         // Sync to database
-        const conversationRepository = require('../../../src/data/repositories/conversationRepository');
-        conversationRepository.updateConversationState(chatId, {
-          status: update.archived ? 'archived' : 'active'
-        }).catch((err) => {
+        try {
+          const conversationRepository = require('../../../src/data/repositories/conversationRepository');
+          const updatedConv = await conversationRepository.updateConversationState(chatId, {
+            status: isArchived ? 'archived' : 'open'
+          });
+
+          const conversationId = updatedConv ? String(updatedConv.id) : chatId;
+          const eventPayload = {
+            chatId: conversationId,
+            conversationId,
+            jid: chatId,
+            archived: isArchived,
+            status: isArchived ? 'archived' : 'open'
+          };
+
+          if (activeIo) {
+            if (isArchived) {
+              activeIo.emit('chat_archived', eventPayload);
+            } else {
+              activeIo.emit('chat_unarchived', eventPayload);
+            }
+
+            if (updatedConv) {
+              activeIo.emit('conversation:update', updatedConv);
+              activeIo.emit('conversation_updated', updatedConv);
+            }
+          }
+
+          emitChatUpdated(activeIo, store.chats[chatId]);
+          emitChatsLoaded(activeIo, store);
+          emitRealtimeMetrics(activeIo, store);
+        } catch (err) {
           console.error('[WHATSAPP_SYNC] Failed to sync archive state to database:', err.message);
-        });
+        }
       }
     }
   });

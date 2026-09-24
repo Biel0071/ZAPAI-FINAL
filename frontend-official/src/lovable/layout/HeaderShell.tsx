@@ -21,6 +21,11 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useAppStore } from "@/stores/appStore";
+import { useViewMode, setViewMode } from "@/hooks/use-mobile";
+import { usePwaInstall } from "@/hooks/usePwaInstall";
+import { useToast } from "@/hooks/use-toast";
+import { Smartphone, Monitor, Laptop, Download } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 export interface HeaderShellProps {
   title: string;
@@ -59,6 +64,9 @@ export function HeaderShell({
   const activeSessionId = useAppStore((state) => state.activeSessionId);
   const setActiveSessionId = useAppStore((state) => state.setActiveSessionId);
   const setIsNewChatDialogOpen = useAppStore((state) => state.setIsNewChatDialogOpen);
+  const [viewMode] = useViewMode();
+  const { canInstall, isInstalled, promptInstall } = usePwaInstall();
+  const { toast } = useToast();
   const isDark = theme !== "light";
 
   const isAdminPage = ["/nodes", "/users", "/deployments", "/memory", "/logs", "/versions"].some(
@@ -69,7 +77,7 @@ export function HeaderShell({
     <header className="sticky top-0 z-40 shrink-0 border-b border-border/70 bg-card/60 backdrop-blur-xl">
       <div className="flex h-header items-center justify-between gap-2 sm:gap-3 px-3 pl-14 md:gap-4 md:px-6 md:pl-6 max-w-full overflow-hidden">
         <div className="flex items-center gap-2 sm:gap-3 min-w-0">
-          <div className="relative shrink-0">
+          <div className="relative shrink-0 hidden sm:block">
             <MagnifyingGlass className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
             <Input placeholder="Buscar" className="h-8 w-24 sm:w-36 md:w-52 rounded-xl border-border/60 bg-background/80 pl-9 text-xs sm:text-sm transition-all" />
           </div>
@@ -123,9 +131,9 @@ export function HeaderShell({
               onChange={(e) => setActiveSessionId(e.target.value === "all" ? null : e.target.value)}
               className="h-8 max-w-[100px] sm:max-w-[150px] md:max-w-xs truncate rounded-xl border border-border/65 bg-background/80 px-2 text-xs font-semibold text-foreground/90 hover:text-foreground focus:outline-none focus:ring-1 focus:ring-primary backdrop-blur-sm shrink-0"
             >
-              <option value="all" className="bg-[#181d25] text-foreground">Todas as Conexões</option>
+              <option value="all" className="bg-background text-foreground">Todas as Conexões</option>
               {sessions.map((session) => (
-                <option key={session.id} value={session.id} className="bg-[#181d25] text-foreground">
+                <option key={session.id} value={session.id} className="bg-background text-foreground">
                   {session.name || session.id} ({session.status === "connected" ? "Online" : "Offline"})
                 </option>
               ))}
@@ -134,6 +142,81 @@ export function HeaderShell({
         </div>
 
         <div className="flex shrink-0 items-center gap-1 md:gap-2">
+          {/* Mobile / Desktop View Mode Switcher */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8 text-muted-foreground hover:text-foreground transition-all"
+                title={`Modo de visualização: ${viewMode}`}
+                aria-label="Alternar modo de visualização (Mobile / Desktop)"
+              >
+                {viewMode === "mobile" ? (
+                  <Smartphone className="h-4 w-4 text-emerald-400" />
+                ) : viewMode === "desktop" ? (
+                  <Monitor className="h-4 w-4 text-indigo-400" />
+                ) : (
+                  <Laptop className="h-4 w-4 text-muted-foreground" />
+                )}
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-48 border-border/80 bg-popover/95 backdrop-blur-xl shadow-xl">
+              <DropdownMenuLabel className="text-xs font-semibold">Modo de Exibição</DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                onClick={() => setViewMode("mobile")}
+                className={cn("cursor-pointer text-xs flex items-center justify-between", viewMode === "mobile" && "text-emerald-400 font-bold bg-emerald-500/10")}
+              >
+                <span className="flex items-center gap-2">
+                  <Smartphone className="h-4 w-4" /> Modo Mobile
+                </span>
+                {viewMode === "mobile" && <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />}
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={() => setViewMode("desktop")}
+                className={cn("cursor-pointer text-xs flex items-center justify-between", viewMode === "desktop" && "text-indigo-400 font-bold bg-indigo-500/10")}
+              >
+                <span className="flex items-center gap-2">
+                  <Monitor className="h-4 w-4" /> Modo Desktop
+                </span>
+                {viewMode === "desktop" && <span className="h-1.5 w-1.5 rounded-full bg-indigo-400" />}
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={() => setViewMode("auto")}
+                className={cn("cursor-pointer text-xs flex items-center justify-between", viewMode === "auto" && "text-primary font-bold bg-primary/10")}
+              >
+                <span className="flex items-center gap-2">
+                  <Laptop className="h-4 w-4" /> Automático (Tela)
+                </span>
+                {viewMode === "auto" && <span className="h-1.5 w-1.5 rounded-full bg-primary" />}
+              </DropdownMenuItem>
+
+              {!isInstalled && canInstall && (
+                <>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem
+                    onClick={async () => {
+                      const res = await promptInstall();
+                      if (res === "accepted") {
+                        toast({ title: "App Instalado", description: "ZAI CRM foi adicionado à sua tela inicial!" });
+                      } else if (res === "manual_ios") {
+                        toast({
+                          title: "Instalar no iPhone / iPad",
+                          description: "Toque no botão Compartilhar do Safari e selecione 'Adicionar à Tela de Início'.",
+                          duration: 8000,
+                        });
+                      }
+                    }}
+                    className="cursor-pointer text-xs flex items-center gap-2 text-emerald-400 font-semibold"
+                  >
+                    <Download className="h-4 w-4" /> Instalar App (PWA)
+                  </DropdownMenuItem>
+                </>
+              )}
+            </DropdownMenuContent>
+          </DropdownMenu>
+
           {/* Light / Dark Theme Switcher */}
           <Button
             variant="ghost"

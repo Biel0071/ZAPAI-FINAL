@@ -8,6 +8,7 @@ router.post('/ai/memory', aiConfigController.saveMemory);
 router.get('/ai/memory/analytics', aiConfigController.getMemoryAnalytics);
 router.get('/ai/analytics', aiConfigController.getMemoryAnalytics); // alias used by Memory.tsx
 router.get('/ai/memory/search', aiConfigController.searchMemory);
+router.get('/ai/memory/graph', aiConfigController.getMemoryGraph);
 router.post('/ai/memory/flush', aiConfigController.flushMemory);
 
 /**
@@ -28,18 +29,26 @@ router.post('/ai/compose', async (req, res) => {
       recentMessages,
     } = req.body || {};
 
-    const store = req.app.locals.store;
-    const companyId = store?.activeCompanyId || 'default';
+    const companyId = req.authTenantId;
+    if (!companyId) return res.status(401).json({ success: false, error: 'Authentication required' });
+    if (!conversationId) return res.status(400).json({ success: false, error: 'conversationId required' });
+    const { query } = require('../../infrastructure/config/database');
+    const conversation = (await query(`SELECT c.session_id, c.remote_jid, l.phone
+      FROM conversations c LEFT JOIN leads l ON l.id=c.lead_id AND l.company_id=c.company_id
+      WHERE c.id=$1 AND c.company_id=$2`, [conversationId, companyId])).rows[0];
+    if (!conversation) return res.status(404).json({ success: false, error: 'Conversation not found' });
+    const verifiedPhone = conversation.remote_jid || conversation.phone;
     const conversationMemoryEngine = require('../../../services/conversationMemoryEngine');
     const quickReplyCapability = require('../../../services/quickReplyCapability');
 
     // Recuperar memória ativa em múltiplos níveis
     let memory = null;
     try {
-      memory = await conversationMemoryEngine.getConversationMemory({
-        contactId: conversationId || contactPhone,
-        phone: contactPhone,
+      if (conversation.session_id && verifiedPhone) memory = await conversationMemoryEngine.getConversationMemory({
+        contactId: verifiedPhone,
+        phone: verifiedPhone,
         companyId,
+        sessionId: conversation.session_id,
       });
     } catch (_) {}
 
@@ -132,7 +141,6 @@ Nunca invente preços ou prazos que contradigam o contexto.`;
 Gere a versão final da mensagem para o atendente enviar ao cliente:`;
 
     const { testProviderConnection } = require('../../../services/ai.service');
-    const { query } = require('../../../src/infrastructure/config/database');
     const crypto = require('crypto');
     const rawEncKey = process.env.ENCRYPTION_KEY || '';
     const encKey = crypto.createHash('sha256').update(rawEncKey).digest();

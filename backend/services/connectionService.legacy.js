@@ -209,11 +209,11 @@ function getSessionCompat(sessionId = DEFAULT_SESSION) {
   return rows.find((item) => String(item.sessionId || item.name) === String(sessionId)) || null;
 }
 
-async function listConnections() {
+async function listConnections(companyId) {
   const activeSessions = sessionManager.listSessions?.() || [];
   let dbSessions = [];
   try {
-    dbSessions = await sessionRepository.getSessions(undefined, { activeOnly: false });
+    dbSessions = await sessionRepository.getSessions(companyId, { activeOnly: false });
   } catch (err) {
     // ignore
   }
@@ -229,6 +229,7 @@ async function listConnections() {
         sessionName: dbSession.sessionName || dbSession.name || id,
         status: 'disconnected',
         phone: dbSession.phone || null,
+        whatsAppName: dbSession.whatsappName || null,
         systemConnected: false,
       });
     }
@@ -237,13 +238,15 @@ async function listConnections() {
   for (const activeSession of activeSessions) {
     const id = activeSession.sessionId;
     const existing = merged.get(id);
+    if (companyId && !existing) continue;
     const realSession = getSessionCompat(id) || activeSession;
     merged.set(id, {
       ...realSession,
       sessionId: id,
-      sessionName: activeSession.sessionName || activeSession.name || id,
+      sessionName: existing?.sessionName || activeSession.sessionName || activeSession.name || id,
       status: realSession.status || activeSession.status || 'disconnected',
       phone: realSession.phone || activeSession.phone || (existing ? existing.phone : null),
+      whatsAppName: realSession.whatsAppName || activeSession.whatsAppName || existing?.whatsAppName || null,
       systemConnected: true,
     });
   }

@@ -292,7 +292,7 @@ export function ConversationRow(props: RowComponentProps<ConversationRowData>) {
                           className="flex items-center gap-2 text-xs cursor-pointer text-foreground hover:bg-muted"
                           onClick={() => onToggleArchive(conversation.id)}
                         >
-                          {archivedChatIds.includes(conversation.id) ? (
+                          {(archivedChatIds.includes(conversation.id) || String(conversation.status).toLowerCase() === 'archived') ? (
                             <>
                               <CaretLeft className="h-3.5 w-3.5" />
                               Desarquivar

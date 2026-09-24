@@ -166,7 +166,7 @@ export function ZaiAssistantComposer({
     <>
       {/* Painel Contextual ancorado sobre o compositor */}
       {open && (
-        <div className="absolute bottom-full left-0 right-0 z-40 mb-2 mx-auto max-w-2xl rounded-xl border border-emerald-500/30 bg-[#161a22]/98 shadow-2xl backdrop-blur-xl animate-fade-in text-foreground overflow-hidden">
+        <div className="absolute bottom-full left-0 right-0 z-40 mb-2 mx-auto max-w-2xl rounded-xl border border-emerald-500/30 bg-card/98 shadow-2xl backdrop-blur-xl animate-fade-in text-foreground overflow-hidden">
           {/* Header */}
           <div className="flex items-center justify-between px-3.5 py-2.5 border-b border-border/60 bg-muted/40">
             <div className="flex items-center gap-2">

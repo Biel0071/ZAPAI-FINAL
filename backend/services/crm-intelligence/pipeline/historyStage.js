@@ -29,7 +29,7 @@ class HistoryStage {
       context.metrics.increment('cache_miss');
       
       const dbMessages = await messageRepository
-        .getMessagesByConversation(context.conversationId)
+        .getMessagesByConversation(context.conversationId, { companyId: context.companyId })
         .catch(() => []);
 
       context.history = dbMessages.slice(-20).map((msg) => ({

@@ -91,6 +91,7 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion";
 import { AILearningDashboard } from "@/components/ai/AILearningDashboard";
+import { HistoryBootstrapPanel } from '@/components/evolution/HistoryBootstrapPanel';
 import { EvolutionCenter } from "@/components/evolution/EvolutionCenter";
 import { OfficialKnowledgeManager } from "@/components/evolution/OfficialKnowledgeManager";
 import { PlaybookManager } from "@/components/evolution/PlaybookManager";
@@ -2943,7 +2944,7 @@ export function AIView(props: AIViewProps) {
                     <div className="space-y-6">
                       <div className="flex items-center justify-between">
                         <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Atendentes Ativos</h3>
-                        <Button onClick={handleOpenAddAgent} size="sm" className="h-8 gap-1">
+                        <Button onClick={() => document.getElementById("connection-agent-creation")?.scrollIntoView({behavior:"smooth"})} size="sm" className="h-8 gap-1">
                           <Plus className="h-4 w-4" /> Novo Atendente
                         </Button>
                       </div>
@@ -3466,6 +3467,10 @@ export function AIView(props: AIViewProps) {
                             </div>
                           )}
                         </Card>
+                      </div>
+
+                      <div id="connection-agent-creation" className="pt-4">
+                        <HistoryBootstrapPanel />
                       </div>
                     </div>
                   )}

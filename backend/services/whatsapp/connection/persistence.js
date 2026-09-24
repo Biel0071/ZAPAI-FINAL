@@ -50,26 +50,28 @@ function getPersistenceHealth() {
 
 async function safeCreateSessionRecord(sessionId, sessionName) {
   try {
-    await sessionRepository.createSession({
-      phoneNumber: null,
-      sessionId,
-      sessionName,
-      status: 'connecting',
-    });
-    markPersistenceSuccess('create_session_record');
+    const { query } = require('../../../src/infrastructure/config/database');
+    const existing = await query('SELECT company_id FROM sessions WHERE session_id=$1', [sessionId]);
+    // A reconnect must never reassign a session to DEFAULT_COMPANY_ID.
+    if (existing.rows[0]) { markPersistenceSuccess('create_session_record'); return; }
+    throw new Error('Create the session through authenticated onboarding before connecting.');
   } catch (error) {
     markPersistenceFailure(sessionId, 'create_session_record', error);
   }
 }
 
-async function safeUpdateSessionStatus(sessionId, status, phone, sessionName) {
+async function safeUpdateSessionStatus(sessionId, status, phone, sessionName, whatsappName = null) {
   try {
+    const { query } = require('../../../src/infrastructure/config/database');
+    const existing = await query('SELECT company_id FROM sessions WHERE session_id=$1', [sessionId]);
+    if (!existing.rows[0]?.company_id) throw new Error('Session owner is missing.');
     await sessionRepository.updateSessionStatus(
       sessionId,
       status,
       phone,
-      undefined,
-      sessionName
+      existing.rows[0].company_id,
+      sessionName,
+      whatsappName
     );
     markPersistenceSuccess('update_session_status');
   } catch (error) {

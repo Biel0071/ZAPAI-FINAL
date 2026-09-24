@@ -57,6 +57,9 @@ function normalizeAgent(agent = {}) {
       minMs: Math.max(0, Number(agent?.typingDelayProfile?.minMs) || 1000),
     },
     key,
+    sessionIds: Array.isArray(agent.sessionIds) ? [...new Set(agent.sessionIds.map(String))] : [],
+    segment: String(agent.segment || '').slice(0,200),
+    serviceType: String(agent.serviceType || '').slice(0,200),
     name: String(agent.name || key).trim(),
     personality: String(agent.personality || agent.prompt || 'Atendente da loja.').trim(),
     responseStyle: String(agent.responseStyle || 'short_natural').trim(),
@@ -226,74 +229,40 @@ async function listAgents(tenantId = DEFAULT_TENANT_ID) {
   return getAgentsSync(tenantId);
 }
 
-async function createAgent(payload = {}, tenantId = DEFAULT_TENANT_ID) {
-  const normalizedTenantId = normalizeTenantId(tenantId);
-  await hydrateFromSettings(normalizedTenantId);
-  const agents = getTenantCache(normalizedTenantId);
-  const nextAgent = normalizeAgent(payload);
-
-  if (agents.some((agent) => agent.key === nextAgent.key)) {
-    throw new Error('Agent key already exists for this store.');
-  }
-
-  agents.push(nextAgent);
-  await persistAgents(normalizedTenantId);
-  return nextAgent;
+async function mutateAgents(companyId, change, reason) {
+  if (!companyId) throw new Error('Empresa obrigatória.');
+  const {pool}=require('../../../infrastructure/config/database');
+  const client=await pool.connect();
+  try {
+    await client.query('BEGIN');
+    await client.query('SELECT pg_advisory_xact_lock(hashtext($1))',[settingsKey(companyId)]);
+    const row=(await client.query('SELECT value FROM system_settings WHERE key=$1 FOR UPDATE',[settingsKey(companyId)])).rows[0];
+    const all=row?.value ? JSON.parse(row.value) : [];
+    const result=await change(all,client);
+    await client.query(`INSERT INTO system_settings(key,value,updated_at) VALUES($1,$2,NOW()) ON CONFLICT(key) DO UPDATE SET value=EXCLUDED.value,updated_at=NOW()`,[settingsKey(companyId),JSON.stringify(all)]);
+    if(reason && result) for(const sessionId of result.sessionIds || []) {
+      await client.query(`INSERT INTO ai_agent_versions(company_id,session_id,agent_key,snapshot,reason) VALUES($1,$2,$3,$4,$5)`,[companyId,sessionId,result.key,JSON.stringify(result),reason]);
+    }
+    await client.query('COMMIT'); resetCache(companyId);return result;
+  }catch(error){await client.query('ROLLBACK');throw error;}finally{client.release();}
 }
-
-async function updateAgent(agentKey, payload = {}, tenantId = DEFAULT_TENANT_ID) {
-  const normalizedTenantId = normalizeTenantId(tenantId);
-  await hydrateFromSettings(normalizedTenantId);
-  const agents = getTenantCache(normalizedTenantId);
-  const normalizedKey = String(agentKey || '').trim().toLowerCase();
-  const index = agents.findIndex((agent) => agent.key === normalizedKey);
-
-  if (index < 0) throw new Error('Agent not found for this store.');
-
-  const merged = normalizeAgent({ ...agents[index], ...payload, key: normalizedKey });
-  agents[index] = merged;
-  await persistAgents(normalizedTenantId);
-  return merged;
+async function createAgent(payload={},tenantId) {
+  await validateSessions(tenantId,payload.sessionIds);
+  const next=normalizeAgent({...payload,active:payload.active===true});
+  return mutateAgents(tenantId,all=>{if(all.some(a=>a.key===next.key))throw new Error('Atendente já existe.');all.push(next);return next;},'configuration');
 }
-
-async function setAgentActive(agentKey, active, tenantId = DEFAULT_TENANT_ID) {
-  return updateAgent(agentKey, { active: Boolean(active) }, tenantId);
+async function updateAgent(agentKey,payload={},tenantId) {
+  return mutateAgents(tenantId,async (all,client)=>{
+    const index=all.findIndex(a=>a.key===agentKey);if(index<0)throw new Error('Atendente não encontrado.');
+    const next=normalizeAgent({...all[index],...payload,key:agentKey});
+    await validateSessions(tenantId,next.sessionIds,client);
+    all[index]=next;return next;
+  },'configuration');
 }
-
-async function deleteAgent(agentKey, tenantId = DEFAULT_TENANT_ID) {
-  const normalizedTenantId = normalizeTenantId(tenantId);
-  await hydrateFromSettings(normalizedTenantId);
-  const agents = getTenantCache(normalizedTenantId);
-  const normalizedKey = String(agentKey || '').trim().toLowerCase();
-  const index = agents.findIndex((agent) => agent.key === normalizedKey);
-
-  if (index < 0) throw new Error('Agent not found for this store.');
-
-  const deleted = agents.splice(index, 1)[0];
-  await persistAgents(normalizedTenantId);
-  return deleted;
-}
-
-async function cloneAgent(agentKey, tenantId = DEFAULT_TENANT_ID) {
-  const normalizedTenantId = normalizeTenantId(tenantId);
-  await hydrateFromSettings(normalizedTenantId);
-  const agents = getTenantCache(normalizedTenantId);
-  const normalizedKey = String(agentKey || '').trim().toLowerCase();
-  const original = agents.find((agent) => agent.key === normalizedKey);
-
-  if (!original) throw new Error('Agent not found for this store.');
-
-  const timestamp = Date.now();
-  const cloned = normalizeAgent({
-    ...original,
-    name: `${original.name} (Cópia)`,
-    key: `${original.key}-copia-${timestamp}`,
-    active: false,
-  });
-
-  agents.push(cloned);
-  await persistAgents(normalizedTenantId);
-  return cloned;
+async function setAgentActive(agentKey,active,tenantId){return updateAgent(agentKey,{active:Boolean(active)},tenantId);}
+async function deleteAgent(agentKey,tenantId){return mutateAgents(tenantId,all=>{const i=all.findIndex(a=>a.key===agentKey);if(i<0)throw new Error('Atendente não encontrado.');return all.splice(i,1)[0];},'deleted');}
+async function cloneAgent(agentKey,tenantId){
+  return mutateAgents(tenantId,all=>{const original=all.find(a=>a.key===agentKey);if(!original)throw new Error('Atendente não encontrado.');const next=normalizeAgent({...original,key:require('crypto').randomUUID(),name:original.name+' (Cópia)',active:false});all.push(next);return next;},'configuration');
 }
 
 function resetCache(tenantId) {
@@ -307,7 +276,137 @@ function resetCache(tenantId) {
   agentsByTenant.clear();
 }
 
+// Atomically publish a reviewed history draft with its audit snapshot. No live
+// cache mutation happens until the database transaction has committed.
+async function publishHistoryCandidate({ companyId, sessionId, draftId, reviewedBy, expectedRevision }) {
+  if (!companyId || !reviewedBy) throw new Error('Revisão autenticada obrigatória.');
+  const { pool } = require('../../../infrastructure/config/database');
+  await hydrateFromSettings(companyId);
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    await client.query('SELECT pg_advisory_xact_lock(hashtext($1))', [settingsKey(companyId)]);
+    const draft = (await client.query(`SELECT * FROM ai_history_drafts WHERE id=$1 AND company_id=$2 AND session_id=$3 FOR UPDATE`, [draftId, companyId, sessionId])).rows[0];
+    if (!draft || draft.status !== 'draft') throw new Error('Rascunho não disponível para publicação.');
+    if (require('../../../data/repositories/historyRepository').draftRevision(draft.candidate) !== expectedRevision) {
+      const error = new Error('O rascunho mudou. Revise a versão atual antes de publicar.'); error.status = 409; throw error;
+    }
+    const setting = (await client.query('SELECT value FROM system_settings WHERE key=$1 FOR UPDATE', [settingsKey(companyId)])).rows[0];
+    const agents = setting?.value ? JSON.parse(setting.value) : [];
+    const index = agents.findIndex(a => a.key === draft.target_agent_key);
+    if (draft.target_agent_key && index < 0) throw new Error('Atendente de destino não existe mais.');
+    const previous = index < 0 ? null : agents[index];
+    const key = previous?.key || `history-${draft.id}`;
+    const candidate = draft.candidate;
+    const profile = (await client.query("SELECT segment,service_type FROM session_ai_profiles WHERE company_id=$1 AND session_id=$2",[companyId,sessionId])).rows[0] || {};
+    const next = normalizeAgent({ ...(previous || { followUp: { active: false } }), key,
+      sessionIds: [...new Set([...(previous?.sessionIds || []),sessionId])], segment: candidate.segment || profile.segment, serviceType: candidate.serviceType || profile.service_type,
+      name: candidate.name, personality: candidate.personality, rules: candidate.rules,
+      responseStyle: candidate.responseStyle, tone: candidate.tone, active: previous ? previous.active : true });
+    if (index < 0) agents.push(next); else agents[index] = next;
+    await client.query(`INSERT INTO system_settings(key,value,updated_at) VALUES($1,$2,NOW())
+      ON CONFLICT(key) DO UPDATE SET value=EXCLUDED.value,updated_at=NOW()`, [settingsKey(companyId), JSON.stringify(agents)]);
+    await client.query(`UPDATE ai_history_drafts SET status='published',previous_agent=$4,reviewed_by=$5,published_agent_key=$6,updated_at=NOW()
+      WHERE id=$1 AND company_id=$2 AND session_id=$3`, [draft.id, companyId, sessionId, previous ? JSON.stringify(previous) : null, reviewedBy, key]);
+    for (const assignedSession of next.sessionIds) await client.query(`INSERT INTO ai_agent_versions(company_id,session_id,agent_key,snapshot,evidence,reason) VALUES($1,$2,$3,$4,$5,'history_publication')`,[companyId,assignedSession,key,JSON.stringify(next),JSON.stringify(candidate.evidenceIds || [])]);
+    await client.query('COMMIT');
+    resetCache(companyId);
+    await hydrateFromSettings(companyId);
+    return next;
+  } catch (error) { await client.query('ROLLBACK'); throw error; } finally { client.release(); }
+}
+
+
+async function validateSessions(companyId,sessionIds,client) {
+  if (!Array.isArray(sessionIds) || !sessionIds.length || sessionIds.length > 50) throw new Error('Selecione pelo menos um WhatsApp.');
+  const memory = require('../../../../services/aiMemoryEngine');
+  for (const sessionId of sessionIds) await memory.assertSession(companyId,sessionId,client);
+}
+async function sessionKnowledge(companyId,sessionId) {
+  const {query}=require('../../../infrastructure/config/database');
+  const store=(await query(`SELECT s.name,s.knowledge FROM ai_stores s JOIN session_ai_profiles p
+    ON p.company_id=s.company_id AND p.store_id=s.id WHERE p.company_id=$1 AND p.session_id=$2`,[companyId,sessionId])).rows[0];
+  return store ? '\nCONHECIMENTO OFICIAL ATUAL DA LOJA '+store.name+':\n'+store.knowledge : '';
+}
+function validateStyle(value) {
+  const result={};
+  if (['professional','friendly','neutral'].includes(value?.tone)) result.tone=value.tone;
+  if (['short_natural','elaborate'].includes(value?.responseStyle)) result.responseStyle=value.responseStyle;
+  return result;
+}
+async function withSessionStyle(agent,companyId,sessionId) {
+  const {query}=require('../../../infrastructure/config/database');
+  const row=(await query('SELECT style FROM ai_session_agent_styles WHERE company_id=$1 AND session_id=$2 AND agent_key=$3',[companyId,sessionId,agent.key])).rows[0];
+  return {...agent,...validateStyle(row?.style)};
+}
+async function restoreSessionStyle(companyId,sessionId,agentKey,versionId) {
+  await validateSessions(companyId,[sessionId]);
+  const {pool}=require('../../../infrastructure/config/database');
+  const version=(await pool.query('SELECT snapshot FROM ai_agent_versions WHERE company_id=$1 AND session_id=$2 AND agent_key=$3 AND id=$4',[companyId,sessionId,agentKey,versionId])).rows[0];
+  if(!version) throw new Error('Versão não encontrada.');
+  if(version.snapshot.name) {
+    const rawSessions = Array.isArray(version.snapshot.sessionIds) && version.snapshot.sessionIds.length > 0
+      ? version.snapshot.sessionIds
+      : [sessionId];
+    const existing = (await pool.query('SELECT session_id FROM sessions WHERE company_id=$1 AND session_id=ANY($2::text[])',[companyId,rawSessions])).rows.map(r=>r.session_id);
+    const validSessions = existing.length > 0 ? existing : [sessionId];
+    await validateSessions(companyId,validSessions);
+    return mutateAgents(companyId,async (all,client)=>{
+      await client.query("UPDATE session_ai_profiles SET evolution_mode='paused' WHERE company_id=$1 AND session_id=ANY($2::text[])",[companyId,validSessions]);
+      await client.query("DELETE FROM ai_session_agent_styles WHERE company_id=$1 AND agent_key=$2",[companyId,agentKey]);
+      const index=all.findIndex(a=>a.key===agentKey);if(index<0)throw new Error('Atendente não encontrado.');
+      all[index]=normalizeAgent({...version.snapshot,key:agentKey,sessionIds:validSessions});return all[index];
+    },'configuration_restore');
+  }
+  const c=await pool.connect();
+  try {
+    await c.query('BEGIN');
+    const scope=[companyId,sessionId,agentKey];
+    await c.query('SELECT pg_advisory_xact_lock(hashtext($1))',[JSON.stringify(scope)]);
+    const row=(await c.query('SELECT snapshot FROM ai_agent_versions WHERE company_id=$1 AND session_id=$2 AND agent_key=$3 AND id=$4',[...scope,versionId])).rows[0];
+    if(!row) throw new Error('Versão não encontrada.');
+    const style=validateStyle(row.snapshot);
+    await c.query(`INSERT INTO ai_session_agent_styles(company_id,session_id,agent_key,style) VALUES($1,$2,$3,$4)
+      ON CONFLICT(company_id,session_id,agent_key) DO UPDATE SET style=EXCLUDED.style`,[...scope,JSON.stringify(style)]);
+    await c.query(`INSERT INTO ai_agent_versions(company_id,session_id,agent_key,snapshot,reason) VALUES($1,$2,$3,$4,'restore')`,[...scope,JSON.stringify(style)]);
+    await c.query(`UPDATE session_ai_profiles SET evolution_mode='paused' WHERE company_id=$1 AND session_id=$2`,[companyId,sessionId]);
+    await c.query('COMMIT'); return style;
+  }catch(e){await c.query('ROLLBACK');throw e;}finally{c.release();}
+}
+// Derive only bounded length/style from explicitly human messages. No generated rules are executable.
+async function evolveSessionStyles() {
+  const {pool}=require('../../../infrastructure/config/database');
+  const profiles=(await pool.query(`SELECT p.company_id,p.session_id FROM session_ai_profiles p
+    JOIN sessions s ON s.company_id=p.company_id AND s.session_id=p.session_id WHERE p.evolution_mode='limited'`)).rows;
+  for(const profile of profiles) {
+    const agents=(await listAgents(profile.company_id)).filter(a=>a.active && (!a.sessionIds?.length || a.sessionIds.includes(profile.session_id)));
+    for(const agent of agents) {
+      const c=await pool.connect();const scope=[profile.company_id,profile.session_id,agent.key];
+      try {
+        await c.query('BEGIN');
+        await c.query('SELECT pg_advisory_xact_lock(hashtext($1))',[JSON.stringify(scope)]);
+        const enabled=(await c.query(`SELECT evolution_mode FROM session_ai_profiles WHERE company_id=$1 AND session_id=$2 FOR UPDATE`,scope.slice(0,2))).rows[0];
+        if(enabled?.evolution_mode!=='limited'){await c.query('COMMIT');continue;}
+        const rows=(await c.query(`SELECT id,text,content FROM messages WHERE company_id=$1 AND session_id=$2
+          AND from_me=TRUE AND (message_origin='human' OR message_origin='unknown') AND memory_projected=TRUE ORDER BY id DESC LIMIT 100`,scope.slice(0,2))).rows;
+        const count=Number((await c.query(`SELECT COUNT(*) AS n FROM messages WHERE company_id=$1 AND session_id=$2 AND from_me=TRUE AND (message_origin='human' OR message_origin='unknown') AND memory_projected=TRUE`,scope.slice(0,2))).rows[0].n);
+        const previous=(await c.query('SELECT * FROM ai_session_agent_styles WHERE company_id=$1 AND session_id=$2 AND agent_key=$3',scope)).rows[0];
+        if(count-(previous?.observed_count || 0)<10){await c.query('COMMIT');continue;}
+        const lengths=rows.map(r=>String(r.content || r.text || '').split(/\s+/).length);
+        const style={responseStyle:lengths.reduce((a,b)=>a+b,0)/lengths.length>60 ? 'elaborate':'short_natural'};
+        if(!previous) await c.query(`INSERT INTO ai_agent_versions(company_id,session_id,agent_key,snapshot,reason) VALUES($1,$2,$3,$4,'baseline')`,[...scope,JSON.stringify(validateStyle(agent))]);
+        await c.query(`INSERT INTO ai_session_agent_styles(company_id,session_id,agent_key,style,observed_count) VALUES($1,$2,$3,$4,$5)
+          ON CONFLICT(company_id,session_id,agent_key) DO UPDATE SET style=EXCLUDED.style,observed_count=EXCLUDED.observed_count`,[...scope,JSON.stringify(style),count]);
+        if(JSON.stringify(previous?.style)!==JSON.stringify(style)) await c.query(`INSERT INTO ai_agent_versions(company_id,session_id,agent_key,snapshot,evidence,reason)
+          VALUES($1,$2,$3,$4,$5,'automatic_style')`,[...scope,JSON.stringify(style),JSON.stringify(rows.map(r=>r.id))]);
+        await c.query('COMMIT');
+      }catch(e){await c.query('ROLLBACK');throw e;}finally{c.release();}
+    }
+  }
+}
+
 module.exports = {
+  validateSessions, sessionKnowledge, validateStyle, withSessionStyle, restoreSessionStyle, evolveSessionStyles,
   buildPersonalityPrompt,
   cloneAgent,
   createAgent,
@@ -319,6 +418,7 @@ module.exports = {
   hydrateFromSettings,
   listAgents,
   pickRandomAgentSync,
+  publishHistoryCandidate,
   resetCache,
   setAgentActive,
   updateAgent,

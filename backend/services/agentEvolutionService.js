@@ -203,7 +203,32 @@ async function refineWholeAgent(agentKey, userInstruction, store, companyId = 'd
   
   const pendingText = pendingEvents.map((e, index) => `${index + 1}. Pergunta: "${e.customer_question}" | IA: "${e.ai_response || ''}"`).join('\n') || 'Nenhuma pergunta pendente.';
   const historyText = history.map((h) => `- Alteração em ${h.created_at.toISOString().split('T')[0]}: ${h.source_description}`).join('\n') || 'Nenhum histórico recente.';
-  
+
+  let graphInsightsText = '';
+  try {
+    const agentMemoryGraphService = require('./agentMemoryGraphService');
+    const insights = await agentMemoryGraphService.extractInsightsForEvolution({ agentKey, companyId, limit: 10 });
+    const parts = [];
+    if (insights.topObjections?.length) {
+      parts.push(`- Objeções recorrentes no grafo: ${insights.topObjections.map(o => `${o.label} (${o.weight}x)`).join(', ')}`);
+    }
+    if (insights.topTopics?.length) {
+      parts.push(`- Tópicos mais frequentes: ${insights.topTopics.map(t => `${t.label} (${t.weight}x)`).join(', ')}`);
+    }
+    if (insights.topProducts?.length) {
+      parts.push(`- Produtos com maior procura: ${insights.topProducts.map(p => `${p.label} (${p.weight}x)`).join(', ')}`);
+    }
+    if (insights.customerPreferences?.length) {
+      parts.push(`- Preferências observadas: ${insights.customerPreferences.map(p => p.label).join(', ')}`);
+    }
+    if (insights.customerHabits?.length) {
+      parts.push(`- Hábitos de comunicação: ${insights.customerHabits.map(h => h.label).join(', ')}`);
+    }
+    if (parts.length) {
+      graphInsightsText = `\nINSIGHTS COGNITIVOS DO GRAFO DE MEMÓRIA ATIVA:\n${parts.join('\n')}\n`;
+    }
+  } catch (_) {}
+
   const refPrompt = `Você é um especialista em configuração de atendentes virtuais de WhatsApp.
 
 CONFIGURAÇÃO ATUAL DO ATENDENTE:
@@ -216,7 +241,7 @@ ${pendingText}
 
 ÚLTIMAS EVOLUÇÕES APLICADAS:
 ${historyText}
-
+${graphInsightsText}
 INSTRUÇÃO DO DONO DA CONTA (O que ensinar ou alterar no atendente):
 "${userInstruction}"
 

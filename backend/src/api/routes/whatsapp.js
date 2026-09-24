@@ -11,6 +11,7 @@ const sessionsController = require('../controllers/sessionsController');
 
 // GET /api/whatsapp/sessions — list all sessions
 router.get('/sessions', sessionsController.list);
+router.patch('/sessions/:id/name', sessionsController.rename);
 
 // POST /api/whatsapp/sessions — create new session
 router.post('/sessions', sessionsController.create);

@@ -29,6 +29,23 @@ async function create(req, res) {
   const targetSessionId = getRequestedSessionId(req);
   const requestedDisplayName = getRequestedDisplayName(req);
 
+  // Bind the number to the verified JWT tenant before the socket can deliver history.
+  if (!req.authTenantId) return res.status(401).json({ error: 'Autenticação da empresa obrigatória.' });
+  try {
+    const { query } = require('../../infrastructure/config/database');
+    const owner = await query('SELECT company_id FROM sessions WHERE session_id=$1', [targetSessionId]);
+    if (owner.rows[0] && owner.rows[0].company_id !== req.authTenantId) return res.status(403).json({ error: 'Sessão pertence a outra empresa.' });
+    await query(`INSERT INTO sessions(company_id,session_id,session_name,status) VALUES($1,$2,$3,'connecting') ON CONFLICT(session_id) DO NOTHING`, [req.authTenantId, targetSessionId, requestedDisplayName]);
+    const verified = await query('SELECT company_id FROM sessions WHERE session_id=$1', [targetSessionId]);
+    if (verified.rows[0]?.company_id !== req.authTenantId) return res.status(403).json({ error: 'Sessão pertence a outra empresa.' });
+    const agents = await require('../../ai/agents/services/aiAgentService').listAgents(req.authTenantId);
+    const targetAgent = agents.find(agent => agent.key === 'camila') || agents.find(agent => agent.active);
+    // New QR onboarding generates a draft automatically. Existing enrollment or a
+    // deliberate pause survives reconnects; nothing enables live replies here.
+    await query(`INSERT INTO whatsapp_history_sync(company_id,session_id,learning_enabled,target_agent_key)
+      VALUES($1,$2,TRUE,$3) ON CONFLICT(company_id,session_id) DO NOTHING`, [req.authTenantId, targetSessionId, targetAgent?.key || null]);
+  } catch (_) { return res.status(503).json({ error: 'Não foi possível vincular a sessão à empresa.' }); }
+
   // Auto-activate system if not yet running — no manual POST /system/start needed
   if (!sessionManager.isRuntimeActive()) {
     try {
@@ -73,11 +90,32 @@ async function list(req, res) {
     console.error('[SessionsController] Failed to load sessionRecoveryService:', err);
   }
 
-  const result = await connectionService.listConnections();
+  if (!req.authTenantId) return res.status(401).json({ error: 'Autenticação da empresa obrigatória.' });
+  const result = await connectionService.listConnections(req.authTenantId);
   return res.status(200).json(result);
 }
 
+async function rename(req, res) {
+  const sessionId = getTargetSessionId(req);
+  const sessionName = String(req.body?.sessionName || '').trim();
+  if (!req.authTenantId) return res.status(401).json({ error: 'Autenticação da empresa obrigatória.' });
+  if (!sessionName || sessionName.length > 100 || /[\u0000-\u001f]/.test(sessionName)) {
+    return res.status(400).json({ error: 'Informe um nome de sessão com até 100 caracteres.' });
+  }
+  const { query } = require('../../infrastructure/config/database');
+  const result = await query(`UPDATE sessions SET session_name=$3 WHERE company_id=$1 AND session_id=$2 AND status<>'deleted' RETURNING session_id,session_name`,
+    [req.authTenantId, sessionId, sessionName]);
+  if (!result.rows[0]) return res.status(404).json({ error: 'Sessão não encontrada.' });
+  const runtime = sessionManager.getSession?.(sessionId);
+  if (runtime) {
+    runtime.sessionName = sessionName;
+    runtime.displayName = sessionName;
+  }
+  return res.json({ success: true, sessionId, sessionName });
+}
+
 async function getStatus(req, res) {
+  if (!req.authTenantId) return res.status(401).json({ error: 'Autenticação da empresa obrigatória.' });
   try {
     const sessionRecoveryService = require('../../../services/sessionRecoveryService');
     sessionRecoveryService.recoverSessions().catch((err) => {
@@ -95,8 +133,11 @@ async function getStatus(req, res) {
   );
 
   if (!hasSpecificTarget) {
-    const sessions = await connectionService.listConnections();
-    const status = await connectionService.getConnectionStatus(SINGLE_SESSION);
+    const sessions = await connectionService.listConnections(req.authTenantId);
+    const ownMain = sessions.some(session => session.sessionId === SINGLE_SESSION);
+    const status = ownMain ? await connectionService.getConnectionStatus(SINGLE_SESSION) : {
+      sessionId: SINGLE_SESSION, sessionName: SINGLE_SESSION, status: 'disconnected', connected: false, qrReady: false,
+    };
     return res.status(200).json({
       ...status,
       sessions,
@@ -104,6 +145,8 @@ async function getStatus(req, res) {
   }
 
   const targetSessionId = getTargetSessionId(req);
+  const owned = (await connectionService.listConnections(req.authTenantId)).some(session => session.sessionId === targetSessionId);
+  if (!owned) return res.status(404).json({ error: 'Session not found.' });
   const status = await connectionService.getConnectionStatus(targetSessionId);
 
   return res.status(200).json(status);
@@ -187,14 +230,17 @@ async function restart(req, res) {
   }
 
   try {
+    const owned = (await require('../../data/repositories/sessionRepository').getSessions(req.authTenantId))
+      .find(item => item.sessionId === targetSessionId);
+    if (!owned) return res.status(404).json({ error: 'Session not found.' });
     const session = await sessionManager.restartSession(targetSessionId, {
-      displayName: targetSessionId,
+      displayName: owned.sessionName,
     });
 
     return res.status(200).json({
-      name: targetSessionId,
+      name: owned.sessionName,
       sessionId: targetSessionId,
-      sessionName: targetSessionId,
+      sessionName: owned.sessionName,
       status: session.status,
     });
   } catch (error) {
@@ -416,6 +462,7 @@ module.exports = {
   recover,
   remove,
   reconnect,
+  rename,
   resetError,
   restart,
   start,

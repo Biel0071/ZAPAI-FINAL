@@ -668,29 +668,43 @@ io.on('connection', (socket) => {
       console.log(`[SERVER] Received archive_chat for ${chatId}`);
       const chatOperations = require('./services/whatsapp/chat/operations');
       const conversationRepository = require('./src/data/repositories/conversationRepository');
+      const messageRepository = require('./src/data/repositories/messageRepository');
+      const sessionManager = require('./services/sessionManager');
 
       // Update DB
-      await conversationRepository.updateConversationState(chatId, { status: 'archived' }).catch(() => {});
+      const updatedConv = await conversationRepository.updateConversationState(chatId, { status: 'archived' }).catch(() => null);
 
-      const conv = await conversationRepository.getConversationById(chatId);
+      let conv = updatedConv || await conversationRepository.getConversationById(chatId).catch(() => null);
       if (conv) {
         const jid = conv.phone.includes('@') ? conv.phone : `${conv.phone}@s.whatsapp.net`;
 
         // Update Memory store using real WhatsApp JID
         chatOperations.archiveChat(jid);
 
-        // Send command to Baileys socket using real WhatsApp JID
-        const session = chatOperations.findSessionForChat(jid);
+        // Find session
+        const preferredSessionId = sessionManager.normalizeSessionName(
+          conv.sessionId || conv.session_id || sessionManager.DEFAULT_SESSION
+        );
+        let session = sessionManager.getSession(preferredSessionId);
+        if (!session?.sock) {
+          session = await sessionManager.getDefaultSession().catch(() => null);
+        }
+        if (!session?.sock) {
+          session = sessionManager.getConnectedSessionOrNull();
+        }
+        if (!session?.sock) {
+          session = chatOperations.findSessionForChat(jid, preferredSessionId);
+        }
+
         if (session && session.sock) {
-          const chat = chatOperations.getOrCreateChat(jid);
-          const lastMsg = chat?.messages?.[chat.messages.length - 1];
-          const lastMessages = lastMsg ? [{
+          const lastDbMsg = await messageRepository.getLastMessage(conv.id).catch(() => null);
+          const lastMessages = lastDbMsg ? [{
             key: {
-              id: lastMsg.id,
+              id: lastDbMsg.whatsapp_message_id || String(lastDbMsg.id),
               remoteJid: jid,
-              fromMe: lastMsg.fromMe
+              fromMe: Boolean(lastDbMsg.from_me)
             },
-            messageTimestamp: typeof lastMsg.createdAt === 'string' ? Math.floor(new Date(lastMsg.createdAt).getTime() / 1000) : Math.floor(Date.now() / 1000)
+            messageTimestamp: Math.floor(new Date(lastDbMsg.timestamp || lastDbMsg.created_at || Date.now()).getTime() / 1000)
           }] : [];
 
           await session.sock.chatModify({ archive: true, lastMessages }, jid).catch((err) => {
@@ -702,8 +716,18 @@ io.on('connection', (socket) => {
         chatOperations.archiveChat(chatId);
       }
 
-      // Notify other frontend clients
-      socket.broadcast.emit('chat_archived', { chatId });
+      // Notify all frontend clients
+      const eventPayload = {
+        chatId: String(conv?.id || chatId),
+        conversationId: String(conv?.id || chatId),
+        status: 'archived',
+        archived: true
+      };
+      io.emit('chat_archived', eventPayload);
+      if (conv) {
+        io.emit('conversation:update', { ...conv, status: 'archived' });
+        io.emit('conversation_updated', { ...conv, status: 'archived' });
+      }
     } catch (err) {
       console.error('[SERVER] archive_chat error:', err);
     }
@@ -714,18 +738,34 @@ io.on('connection', (socket) => {
       console.log(`[SERVER] Received unarchive_chat for ${chatId}`);
       const chatOperations = require('./services/whatsapp/chat/operations');
       const conversationRepository = require('./src/data/repositories/conversationRepository');
+      const messageRepository = require('./src/data/repositories/messageRepository');
+      const sessionManager = require('./services/sessionManager');
       const { ensureRealtimeStore } = require('./services/whatsapp/realtime/chatState');
       const { emitChatUpdated, emitChatsLoaded } = require('./services/whatsapp/realtime/events');
       const { emitRealtimeMetrics } = require('./services/whatsapp/realtime/metrics');
 
-      // Update DB
-      await conversationRepository.updateConversationState(chatId, { status: 'active' }).catch(() => {});
+      // Update DB to open
+      const updatedConv = await conversationRepository.updateConversationState(chatId, { status: 'open' }).catch(() => null);
 
-      const conv = await conversationRepository.getConversationById(chatId);
+      let conv = updatedConv || await conversationRepository.getConversationById(chatId).catch(() => null);
       const targetId = conv ? (conv.phone.includes('@') ? conv.phone : `${conv.phone}@s.whatsapp.net`) : chatId;
 
+      // Find session
+      const preferredSessionId = sessionManager.normalizeSessionName(
+        conv?.sessionId || conv?.session_id || sessionManager.DEFAULT_SESSION
+      );
+      let session = sessionManager.getSession(preferredSessionId);
+      if (!session?.sock) {
+        session = await sessionManager.getDefaultSession().catch(() => null);
+      }
+      if (!session?.sock) {
+        session = sessionManager.getConnectedSessionOrNull();
+      }
+      if (!session?.sock) {
+        session = chatOperations.findSessionForChat(targetId, preferredSessionId);
+      }
+
       // Update Memory store
-      const session = chatOperations.findSessionForChat(targetId);
       const store = session ? ensureRealtimeStore(session) : null;
       const targetChat = store?.chats?.[targetId];
       if (targetChat) {
@@ -742,14 +782,14 @@ io.on('connection', (socket) => {
 
       // Send command to Baileys socket
       if (session && session.sock) {
-        const lastMsg = chat?.messages?.[chat.messages.length - 1];
-        const lastMessages = lastMsg ? [{
+        const lastDbMsg = conv ? await messageRepository.getLastMessage(conv.id).catch(() => null) : null;
+        const lastMessages = lastDbMsg ? [{
           key: {
-            id: lastMsg.id,
+            id: lastDbMsg.whatsapp_message_id || String(lastDbMsg.id),
             remoteJid: targetId,
-            fromMe: lastMsg.fromMe
+            fromMe: Boolean(lastDbMsg.from_me)
           },
-          messageTimestamp: typeof lastMsg.createdAt === 'string' ? Math.floor(new Date(lastMsg.createdAt).getTime() / 1000) : Math.floor(Date.now() / 1000)
+          messageTimestamp: Math.floor(new Date(lastDbMsg.timestamp || lastDbMsg.created_at || Date.now()).getTime() / 1000)
         }] : [];
 
         await session.sock.chatModify({ archive: false, lastMessages }, targetId).catch((err) => {
@@ -757,8 +797,18 @@ io.on('connection', (socket) => {
         });
       }
 
-      // Notify other frontend clients
-      socket.broadcast.emit('chat_unarchived', { chatId });
+      // Notify all frontend clients
+      const eventPayload = {
+        chatId: String(conv?.id || chatId),
+        conversationId: String(conv?.id || chatId),
+        status: 'open',
+        archived: false
+      };
+      io.emit('chat_unarchived', eventPayload);
+      if (conv) {
+        io.emit('conversation:update', { ...conv, status: 'open' });
+        io.emit('conversation_updated', { ...conv, status: 'open' });
+      }
     } catch (err) {
       console.error('[SERVER] unarchive_chat error:', err);
     }
@@ -1173,27 +1223,28 @@ app.get('/api/traces/stats', (_req, res) => {
 
 // ─── Phase 6: Enterprise Stabilization endpoints ───
 
-app.get('/api/ai/memory/search', (req, res) => {
+app.get('/api/ai/memory/search', async (req, res) => {
   try {
     const query = req.query.q || req.query.query || '';
-    const results = aiMemoryEngine.searchMemory(app.locals.store, query);
+    const results = await aiMemoryEngine.searchPersisted(req.authTenantId,req.query.sessionId,query);
     return sendSafeJson(res, { success: true, data: results.slice(0, 50) });
   } catch (error) {
     return sendSafeJson(res, { success: false, error: error?.message || 'Memory search failed' }, 500);
   }
 });
 
-app.get('/api/ai/memory/analytics', (_req, res) => {
+app.get('/api/ai/memory/analytics', async (req, res) => {
   try {
-    return sendSafeJson(res, { success: true, data: aiMemoryEngine.getMemoryAnalytics(app.locals.store) });
+    return sendSafeJson(res, { success: true, data: aiMemoryEngine.getMemoryAnalytics({conversationMemory:await aiMemoryEngine.searchPersisted(req.authTenantId,req.query.sessionId)}) });
   } catch (error) {
     return sendSafeJson(res, { success: false, error: error?.message || 'Memory analytics failed' }, 500);
   }
 });
 
-app.post('/api/ai/memory/flush', async (_req, res) => {
+app.post('/api/ai/memory/flush', async (req, res) => {
   try {
-    const flushed = await aiMemoryEngine.flushMemoryToPostgres(app.locals.store);
+    await aiMemoryEngine.assertSession(req.authTenantId,req.body.sessionId);
+    const flushed = await aiMemoryEngine.projectPending(req.authTenantId,req.body.sessionId);
     return sendSafeJson(res, { success: true, data: { flushed } });
   } catch (error) {
     return sendSafeJson(res, { success: false, error: error?.message || 'Memory flush failed' }, 500);
@@ -1527,6 +1578,11 @@ async function legacyIncomingMessageFlow({ incomingMessage, sessionId, sock }) {
       messagePayload
     );
 
+    if (result?.duplicate) {
+      console.log(`[INBOUND] Duplicate message suppressed for ${incoming.phone} (id=${payload.externalMessageId || 'n/a'}), skipping automation pipeline.`);
+      return result;
+    }
+
     if (result?.message) {
       console.log(`MESSAGE SAVED: ${incoming.phone}`);
     } else if (result?.conversation?.id) {
@@ -1804,6 +1860,8 @@ async function bootstrap() {
       workerSupervisor.registerWorker('stale_worker_check', () => {
         workerSupervisor.checkStaleWorkers();
       }, 60_000);
+      const { historySync } = require('./services/whatsapp/historySync');
+      workerSupervisor.registerWorker('whatsapp_history', () => historySync.tick(), 5000);
       workerSupervisor.startAll();
 
       // Phase 5: Start SocketSafety periodic audit
@@ -1824,10 +1882,12 @@ async function bootstrap() {
       });
 
       // Phase 6: Register AI memory flush worker
+      workerSupervisor.registerWorker('ai_session_style', () => require('./src/ai/agents/services/aiAgentService').evolveSessionStyles(), 60000);
       workerSupervisor.registerWorker('ai_memory_flush', async () => {
         await aiMemoryEngine.flushMemoryToPostgres(app.locals.store);
-      }, Math.max(300_000, Number(process.env.AI_MEMORY_FLUSH_MS) || 900_000), { runImmediately: false });
+      }, Math.max(1000, Number(process.env.AI_MEMORY_FLUSH_MS) || 5000), { runImmediately: true });
       workerSupervisor.startWorker('ai_memory_flush');
+      workerSupervisor.startWorker('ai_session_style');
 
       // Phase 7: Session Watchdog worker
       if (process.env.ENABLE_SESSION_WATCHDOG !== 'false') {

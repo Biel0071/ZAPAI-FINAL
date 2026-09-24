@@ -27,7 +27,7 @@ async function runEvolutionRound() {
     for (const companyId of companies) {
       // 1. Mineração contínua de padrões e correções humanas (Camada 5: Híbrido Sandbox + Auto-promoção segura)
       try {
-        const mineRes = await learningEngine.minePatterns({ companyId, autoPromote: true });
+        const mineRes = await learningEngine.minePatterns({ companyId, autoPromote: false });
         if (mineRes.ok && mineRes.processed > 0) {
           totalMined += mineRes.processed;
           console.log(`[AI EVOLUTION] +${mineRes.processed} padrões/correções minerados para tenant ${companyId}`);
@@ -46,8 +46,17 @@ async function runEvolutionRound() {
 
       const activeAgents = (agents || []).filter(a => a && a.active !== false);
 
+      const agentMemoryGraphService = require('./agentMemoryGraphService');
+
       for (const agent of activeAgents) {
         try {
+          // Mantém o grafo de memória do atendente aquecido e atualizado
+          await agentMemoryGraphService.bootstrapAgentMemoryGraph({
+            agentKey: agent.key,
+            agentName: agent.name || agent.key,
+            companyId,
+          }).catch(() => {});
+
           const count = await agentEvolutionService.detectUnansweredQuestions(agent.key, companyId);
           if (count > 0) {
             totalGaps += count;

@@ -16,6 +16,11 @@ const upload = multer({ dest: 'uploads/' });
 const campaignDispatchEngine = require('../../../services/campaignDispatchEngine');
 const contextService = require('../../../services/contextService');
 
+router.use((req, res, next) => {
+  if (!req.authTenantId) return res.status(401).json({ success: false, error: 'Authentication required' });
+  next();
+});
+
 function safeJson(res, data, status = 200) {
   try {
     return res.status(status).json(data);
@@ -27,7 +32,7 @@ function safeJson(res, data, status = 200) {
 // Start campaign dispatch
 router.post('/campaigns/:id/start', async (req, res) => {
   try {
-    const companyId = req.companyId || process.env.DEFAULT_COMPANY_ID || 'default';
+    const companyId = req.authTenantId;
     const io = req.app?.locals?.io || global.io;
     const result = await campaignDispatchEngine.startCampaign(req.params.id, companyId, io);
     return safeJson(res, { success: true, data: result });
@@ -40,7 +45,7 @@ router.post('/campaigns/:id/start', async (req, res) => {
 // Pause campaign
 router.post('/campaigns/:id/pause', (req, res) => {
   try {
-    const result = campaignDispatchEngine.pauseCampaign(req.params.id);
+    const result = campaignDispatchEngine.pauseCampaign(req.params.id, req.authTenantId);
     if (!result) {
       return safeJson(res, { success: false, error: 'Campaign not active' }, 404);
     }
@@ -54,7 +59,7 @@ router.post('/campaigns/:id/pause', (req, res) => {
 router.post('/campaigns/:id/resume', (req, res) => {
   try {
     const io = req.app?.locals?.io || global.io;
-    const result = campaignDispatchEngine.resumeCampaign(req.params.id, io);
+    const result = campaignDispatchEngine.resumeCampaign(req.params.id, io, req.authTenantId);
     if (!result) {
       return safeJson(res, { success: false, error: 'Campaign not paused' }, 404);
     }
@@ -67,7 +72,7 @@ router.post('/campaigns/:id/resume', (req, res) => {
 // Cancel campaign
 router.post('/campaigns/:id/cancel', (req, res) => {
   try {
-    const result = campaignDispatchEngine.cancelCampaign(req.params.id);
+    const result = campaignDispatchEngine.cancelCampaign(req.params.id, req.authTenantId);
     if (!result) {
       return safeJson(res, { success: false, error: 'Campaign not active' }, 404);
     }
@@ -80,7 +85,7 @@ router.post('/campaigns/:id/cancel', (req, res) => {
 // Get campaign dispatch status
 router.get('/campaigns/:id/status', (req, res) => {
   try {
-    const result = campaignDispatchEngine.getStatus(req.params.id);
+    const result = campaignDispatchEngine.getStatus(req.params.id, req.authTenantId);
     if (!result) {
       return safeJson(res, { success: false, error: 'Campaign not active' }, 404);
     }
@@ -94,7 +99,7 @@ router.get('/campaigns/:id/status', (req, res) => {
 router.post('/campaigns/generate-ai', async (req, res) => {
   try {
     const aiCampaignGenerator = require('../../../services/aiCampaignGenerator');
-    const companyId = req.companyId || process.env.DEFAULT_COMPANY_ID || 'default';
+    const companyId = req.authTenantId;
     const { prompt, temperature } = req.body || {};
     const result = await aiCampaignGenerator.generateCampaignFromPrompt({ prompt, companyId, targetTemperature: temperature });
     return safeJson(res, result);
@@ -107,7 +112,7 @@ router.post('/campaigns/generate-ai', async (req, res) => {
 router.post('/campaigns/preview-audience', async (req, res) => {
   try {
     const aiCampaignGenerator = require('../../../services/aiCampaignGenerator');
-    const companyId = req.companyId || process.env.DEFAULT_COMPANY_ID || 'default';
+    const companyId = req.authTenantId;
     const filters = req.body || {};
     const result = await aiCampaignGenerator.estimateAudience({ companyId, filters });
     return safeJson(res, result);
@@ -137,7 +142,7 @@ router.post('/campaigns/parse-context', upload.single('file'), async (req, res) 
 router.get('/campaigns/:id/analysis', async (req, res) => {
   try {
     const campaignAnalysisService = require('../../../services/campaignAnalysisService');
-    const companyId = req.companyId || process.env.DEFAULT_COMPANY_ID || 'default';
+    const companyId = req.authTenantId;
     const result = await campaignAnalysisService.analyzeCampaign(req.params.id, companyId);
     return safeJson(res, { success: true, data: result });
   } catch (error) {
@@ -147,9 +152,9 @@ router.get('/campaigns/:id/analysis', async (req, res) => {
 });
 
 // List all active campaigns
-router.get('/campaigns/active', (_req, res) => {
+router.get('/campaigns/active', (req, res) => {
   try {
-    return safeJson(res, { success: true, data: campaignDispatchEngine.listActive() });
+    return safeJson(res, { success: true, data: campaignDispatchEngine.listActive(req.authTenantId) });
   } catch (error) {
     return safeJson(res, { success: false, error: error?.message || 'List failed' }, 500);
   }

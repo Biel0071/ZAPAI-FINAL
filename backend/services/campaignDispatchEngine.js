@@ -503,25 +503,25 @@ async function startCampaign(campaignId, companyId, io) {
   return getStatus(campaignId);
 }
 
-function pauseCampaign(campaignId) {
+function pauseCampaign(campaignId, companyId) {
   const state = activeCampaigns.get(campaignId);
-  if (!state) return null;
+  if (!state || (companyId && state.companyId !== companyId)) return null;
   state.status = 'paused';
   persistProgress(state).catch(() => {});
   return getStatus(campaignId);
 }
 
-function resumeCampaign(campaignId, io) {
+function resumeCampaign(campaignId, io, companyId) {
   const state = activeCampaigns.get(campaignId);
-  if (!state || state.status !== 'paused') return null;
+  if (!state || (companyId && state.companyId !== companyId) || state.status !== 'paused') return null;
   state.status = 'running';
   runDispatchLoop(state, io).catch(() => {});
   return getStatus(campaignId);
 }
 
-function cancelCampaign(campaignId) {
+function cancelCampaign(campaignId, companyId) {
   const state = activeCampaigns.get(campaignId);
-  if (!state) return null;
+  if (!state || (companyId && state.companyId !== companyId)) return null;
   state.status = 'cancelled';
   state.metrics.completedAt = new Date().toISOString();
   persistProgress(state).catch(() => {});
@@ -529,9 +529,9 @@ function cancelCampaign(campaignId) {
   return { id: campaignId, status: 'cancelled' };
 }
 
-function getStatus(campaignId) {
+function getStatus(campaignId, companyId) {
   const state = activeCampaigns.get(campaignId);
-  if (!state) return null;
+  if (!state || (companyId && state.companyId !== companyId)) return null;
 
   return {
     id: state.id,
@@ -543,10 +543,10 @@ function getStatus(campaignId) {
   };
 }
 
-function listActive() {
+function listActive(companyId) {
   const results = [];
-  for (const [id] of activeCampaigns) {
-    results.push(getStatus(id));
+  for (const [id, state] of activeCampaigns) {
+    if (!companyId || state.companyId === companyId) results.push(getStatus(id));
   }
   return results;
 }

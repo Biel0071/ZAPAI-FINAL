@@ -380,6 +380,7 @@ type AppState = {
   apiHealth: "ONLINE" | "RECONNECTING" | "OFFLINE";
   apiLatency: number | null;
   activeConversationId: string | null;
+  isMobileChatOpen: boolean;
   messagesByConversationId: Record<string, ChatMessage[]>;
   unreadCounters: Record<string, number>;
   reconnectState: { attempts: number; lastAttemptAt: number | null };
@@ -405,6 +406,7 @@ type AppState = {
   updateWebsocketHealth: (health: "online" | "offline" | "reconnecting") => void;
   updateApiHealth: (health: "ONLINE" | "RECONNECTING" | "OFFLINE", latency?: number | null) => void;
   setActiveConversationId: (id: string | null) => void;
+  setIsMobileChatOpen: (isOpen: boolean) => void;
   setActiveSessionId: (id: string | null) => void;
   setIsNewChatDialogOpen: (open: boolean) => void;
   setMessages: (conversationId: string, messages: ChatMessage[]) => void;
@@ -430,6 +432,7 @@ export const useAppStore = create<AppState>((set) => ({
   apiHealth: "ONLINE",
   apiLatency: null,
   activeConversationId: null,
+  isMobileChatOpen: false,
   messagesByConversationId: {},
   unreadCounters: {},
   reconnectState: { attempts: 0, lastAttemptAt: null },
@@ -597,6 +600,7 @@ export const useAppStore = create<AppState>((set) => ({
       runtimeStatus: "offline",
       websocketHealth: "offline",
       activeConversationId: null,
+      isMobileChatOpen: false,
       messagesByConversationId: {},
       unreadCounters: {},
       reconnectState: { attempts: 0, lastAttemptAt: null },
@@ -611,6 +615,8 @@ export const useAppStore = create<AppState>((set) => ({
   updateApiHealth: (apiHealth, apiLatency = null) => set({ apiHealth, apiLatency }),
 
   setActiveConversationId: (activeConversationId) => set({ activeConversationId }),
+
+  setIsMobileChatOpen: (isMobileChatOpen) => set({ isMobileChatOpen }),
 
   setMessages: (conversationId, messages) =>
     set((state) => {

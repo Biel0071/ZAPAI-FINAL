@@ -254,6 +254,7 @@ export function LeadMemoryGraphModal({ isOpen, onClose, lead }: LeadMemoryGraphM
           )}
         </div>
       </motion.div>
+      </motion.div>
       )}
     </AnimatePresence>
   );

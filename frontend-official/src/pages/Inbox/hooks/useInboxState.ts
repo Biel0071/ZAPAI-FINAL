@@ -438,7 +438,7 @@ export function useInboxState() {
       conversationsRef.current.find((item) => String(item.id) === normalizedConversationId) ??
       (String(selectedConversationRef.current?.id ?? "") === normalizedConversationId ? selectedConversationRef.current : null);
     const conversationKey = getConversationKey(linkedConversation ?? { id: normalizedConversationId });
-    const oldestCursor = nextMessages.length > 0 ? String(nextMessages[0]?.createdAt ?? nextMessages[0]?.timestamp ?? "") || null : null;
+    const oldestCursor = nextMessages.length > 0 ? String(nextMessages[0]?.timestamp ?? nextMessages[0]?.createdAt ?? "") || null : null;
 
     messageCacheRef.current.set(conversationKey, {
       messages: nextMessages,
@@ -742,12 +742,18 @@ export function useInboxState() {
 
     if (selectedConversationId && !conversations.some((item) => normalizeId(item.id) === normalizeId(selectedConversationId))) {
       if (!urlConvId && !normUrlPhone) {
-        setSelectedConversationId(conversations[0]?.id ?? null);
+        setSelectedConversationId(isMobile ? null : (conversations[0]?.id ?? null));
+        if (isMobile) {
+          setMobileScreen("conversations");
+          useAppStore.getState().setIsMobileChatOpen(false);
+        }
       }
     } else if (!selectedConversationId && conversations.length > 0 && !urlConvId && !normUrlPhone) {
-      setSelectedConversationId(conversations[0]?.id ?? null);
+      if (!isMobile) {
+        setSelectedConversationId(conversations[0]?.id ?? null);
+      }
     }
-  }, [conversations, selectedConversationId, setSelectedConversationId, setConversations, preferredSessionId]);
+  }, [conversations, selectedConversationId, setSelectedConversationId, setConversations, preferredSessionId, isMobile]);
 
   useEffect(() => {
     if (!activeSession?.id) return;
@@ -962,13 +968,23 @@ export function useInboxState() {
   useEffect(() => {
     if (!isMobile) {
       setMobileScreen("chat");
+      useAppStore.getState().setIsMobileChatOpen(false);
       return;
     }
 
     if (!selectedConversationId) {
       setMobileScreen("conversations");
+      useAppStore.getState().setIsMobileChatOpen(false);
+    } else if (mobileScreen === "chat") {
+      useAppStore.getState().setIsMobileChatOpen(true);
     }
-  }, [isMobile, selectedConversationId]);
+  }, [isMobile, selectedConversationId, mobileScreen]);
+
+  useEffect(() => {
+    return () => {
+      useAppStore.getState().setIsMobileChatOpen(false);
+    };
+  }, []);
 
   useEffect(() => {
     const viewport = window.visualViewport;
@@ -1144,7 +1160,8 @@ export function useInboxState() {
 
     const normalizedConversationId = String(conversationId);
     let merged = seedMessages;
-    let before = seedMessages[0]?.createdAt;
+    let before = seedMessages[0]?.timestamp || seedMessages[0]?.createdAt;
+    let beforeId = /^\d+$/.test(String(seedMessages[0]?.id || '')) ? String(seedMessages[0].id) : undefined;
 
     for (let page = 0; page < 2; page += 1) {
       if (!before) break;
@@ -1152,6 +1169,7 @@ export function useInboxState() {
       const olderBatch = await apiService.getMessages(conversationId, {
         limit: MESSAGE_PAGE_SIZE,
         before,
+        beforeId,
       });
 
       if (!olderBatch.length) break;
@@ -1163,7 +1181,8 @@ export function useInboxState() {
       if (!normalizedBatch.length) break;
 
       merged = sortMessagesAsc(mergeMessagesById(merged, normalizedBatch));
-      before = normalizedBatch[0]?.createdAt;
+      before = normalizedBatch[0]?.timestamp || normalizedBatch[0]?.createdAt;
+      beforeId = /^\d+$/.test(String(normalizedBatch[0]?.id || '')) ? String(normalizedBatch[0].id) : undefined;
 
       if (olderBatch.length < MESSAGE_PAGE_SIZE) break;
     }
@@ -1305,7 +1324,7 @@ export function useInboxState() {
       conversationsRef.current.find((item) => String(item.id) === normalizedConversationId) ??
       (String(selectedConversationRef.current?.id ?? "") === normalizedConversationId ? selectedConversationRef.current : null);
     const conversationKey = getConversationKey(linkedConversation ?? { id: normalizedConversationId });
-    const oldestCursor = messages.length > 0 ? String(messages[0]?.createdAt ?? messages[0]?.timestamp ?? "") || null : null;
+    const oldestCursor = messages.length > 0 ? String(messages[0]?.timestamp ?? messages[0]?.createdAt ?? "") || null : null;
     const cached = messageCacheRef.current.get(conversationKey);
     const hasMore = cached ? cached.hasMore : messages.length >= MESSAGE_PAGE_SIZE;
 
@@ -1496,10 +1515,11 @@ export function useInboxState() {
     setLoadingOlderMessages(true);
     try {
       const cacheKey = selectedConversation ? getConversationKey(selectedConversation) : null;
-      const before = (cacheKey ? messageCacheRef.current.get(cacheKey)?.oldestCursor : null) || messages[0]?.createdAt;
+      const before = (cacheKey ? messageCacheRef.current.get(cacheKey)?.oldestCursor : null) || messages[0]?.timestamp || messages[0]?.createdAt;
       const olderBatch = await apiService.getMessages(selectedConversation.id, {
         limit: MESSAGE_PAGE_SIZE,
         before,
+        beforeId: /^\d+$/.test(String(messages[0]?.id || '')) ? String(messages[0].id) : undefined,
       });
 
       const normalizedOlderBatch = Array.isArray(olderBatch)
@@ -2586,17 +2606,23 @@ export function useInboxState() {
     if (!selectedConversation) return;
     const chatId = String(selectedConversation.id);
     setArchivedChatIds((prev) => (prev.includes(chatId) ? prev : [...prev, chatId]));
+    setConversations((prev) =>
+      prev.map((c) => (String(c.id) === chatId ? { ...c, status: "archived" } : c))
+    );
     socketActions.emitArchiveChat(chatId);
     toast({ title: "Conversa arquivada." });
-  }, [selectedConversation, socketActions, toast]);
+  }, [selectedConversation, socketActions, toast, setConversations]);
 
   const handleUnarchiveSelectedConversation = useCallback(() => {
     if (!selectedConversation) return;
     const chatId = String(selectedConversation.id);
     setArchivedChatIds((prev) => prev.filter((id) => id !== chatId));
+    setConversations((prev) =>
+      prev.map((c) => (String(c.id) === chatId ? { ...c, status: "open" } : c))
+    );
     socketActions.emitUnarchiveChat(chatId);
     toast({ title: "Conversa desarquivada." });
-  }, [selectedConversation, socketActions, toast]);
+  }, [selectedConversation, socketActions, toast, setConversations]);
 
   const handleClearSelectedConversation = useCallback(() => {
     if (!selectedConversation?.id) return;
@@ -2738,16 +2764,25 @@ export function useInboxState() {
   }, []);
 
   const handleToggleArchive = useCallback((conversationId: string) => {
-    setArchivedChatIds((current) => {
-      const isArchived = current.includes(conversationId);
-      if (isArchived) {
-        socketActions.emitUnarchiveChat(conversationId);
-        return current.filter((id) => id !== conversationId);
-      }
+    const conv = conversationsRef.current.find((c) => String(c.id) === String(conversationId));
+    const isCurrentlyArchived = archivedChatIds.includes(conversationId) || String(conv?.status).toLowerCase() === "archived";
+
+    if (isCurrentlyArchived) {
+      setArchivedChatIds((current) => current.filter((id) => id !== conversationId));
+      setConversations((prev) =>
+        prev.map((c) => (String(c.id) === String(conversationId) ? { ...c, status: "open" } : c))
+      );
+      socketActions.emitUnarchiveChat(conversationId);
+      toast({ title: "Conversa desarquivada." });
+    } else {
+      setArchivedChatIds((current) => (current.includes(conversationId) ? current : [...current, conversationId]));
+      setConversations((prev) =>
+        prev.map((c) => (String(c.id) === String(conversationId) ? { ...c, status: "archived" } : c))
+      );
       socketActions.emitArchiveChat(conversationId);
-      return [...current, conversationId];
-    });
-  }, [socketActions]);
+      toast({ title: "Conversa arquivada." });
+    }
+  }, [socketActions, archivedChatIds, setConversations, toast]);
 
   const handleDeleteConversation = useCallback(async (conversationId: string) => {
     try {
@@ -2771,19 +2806,28 @@ export function useInboxState() {
   }, [persistConversationMetadata, setConversations]);
 
   const handleBulkArchive = useCallback(() => {
-    const allArchived = selectedChatIds.every((id) => archivedChatIds.includes(id));
+    const allArchived = selectedChatIds.every((id) => {
+      const conv = conversationsRef.current.find((c) => String(c.id) === String(id));
+      return archivedChatIds.includes(id) || String(conv?.status).toLowerCase() === "archived";
+    });
     if (allArchived) {
       setArchivedChatIds((prev) => prev.filter((id) => !selectedChatIds.includes(id)));
+      setConversations((prev) =>
+        prev.map((c) => (selectedChatIds.includes(String(c.id)) ? { ...c, status: "open" } : c))
+      );
       selectedChatIds.forEach((id) => socketActions.emitUnarchiveChat(id));
       toast({ title: "Conversas desarquivadas." });
     } else {
       setArchivedChatIds((prev) => Array.from(new Set([...prev, ...selectedChatIds])));
+      setConversations((prev) =>
+        prev.map((c) => (selectedChatIds.includes(String(c.id)) ? { ...c, status: "archived" } : c))
+      );
       selectedChatIds.forEach((id) => socketActions.emitArchiveChat(id));
       toast({ title: "Conversas arquivadas." });
     }
     setSelectedChatIds([]);
     setIsMultiSelectMode(false);
-  }, [selectedChatIds, archivedChatIds, socketActions, toast]);
+  }, [selectedChatIds, archivedChatIds, socketActions, toast, setConversations]);
 
   const handleBulkAddTag = useCallback(async (tag: string) => {
     setConversations((prev) =>

@@ -53,19 +53,33 @@ function normalizeFactKey(key = '') {
 /**
  * Recupera ou inicializa a memória de um cliente/conversa por telefone/contactId e companyId.
  */
-async function getConversationMemory({ contactId, phone, companyId = 'default' }) {
+async function getConversationMemory({ contactId, phone, companyId = 'default', sessionId }) {
   const normalizedId = String(contactId || phone || '').trim();
   const normalizedPhone = String(phone || contactId || '').trim();
+  const cleanCompany = String(companyId || 'default').trim();
   if (!normalizedId) return null;
+  const cleanSessionId = sessionId ? String(sessionId).trim() : null;
 
   try {
-    const res = await query(
-      `SELECT contact_id, company_id, phone, name, intent, sentiment, tags, summary, metrics, messages, last_updated, updated_at
-       FROM ai_conversation_memory
-       WHERE (contact_id = $1 OR phone = $2) AND company_id = $3
-       LIMIT 1`,
-      [normalizedId, normalizedPhone, companyId]
-    );
+    let res;
+    if (cleanSessionId) {
+      res = await query(
+        `SELECT contact_id, company_id, phone, name, intent, sentiment, session_id, tags, summary, metrics, messages, last_updated, updated_at
+         FROM ai_conversation_memory
+         WHERE (contact_id = $1 OR phone = $2) AND company_id = $3 AND session_id = $4
+         LIMIT 1`,
+        [normalizedId, normalizedPhone, cleanCompany, cleanSessionId]
+      );
+    } else {
+      res = await query(
+        `SELECT contact_id, company_id, phone, name, intent, sentiment, session_id, tags, summary, metrics, messages, last_updated, updated_at
+         FROM ai_conversation_memory
+         WHERE (contact_id = $1 OR phone = $2) AND company_id = $3
+         ORDER BY updated_at DESC
+         LIMIT 1`,
+        [normalizedId, normalizedPhone, cleanCompany]
+      );
+    }
 
     if (res.rows.length > 0) {
       const row = res.rows[0];
@@ -88,6 +102,7 @@ async function getConversationMemory({ contactId, phone, companyId = 'default' }
         phone: row.phone,
         name: row.name,
         companyId: row.company_id,
+        sessionId,
         intent: row.intent || 'information',
         sentiment: row.sentiment || 'neutral',
         tags: Array.isArray(row.tags) ? row.tags : [],
@@ -110,6 +125,7 @@ async function getConversationMemory({ contactId, phone, companyId = 'default' }
     phone: normalizedPhone,
     name: 'Cliente',
     companyId,
+    sessionId,
     intent: 'information',
     sentiment: 'neutral',
     tags: [],
@@ -312,6 +328,8 @@ function extractFactsFromContext(text = '', analysis = {}, memory) {
 async function persistConversationMemory(memory, companyId = 'default') {
   if (!memory || (!memory.contactId && !memory.phone)) return;
 
+  const cleanCompany = String(companyId || memory.companyId || 'default').trim();
+  const sessionId = String(memory.sessionId || 'default').trim();
   const contactId = memory.contactId || memory.phone;
   const phone = memory.phone || memory.contactId;
   const metrics = {
@@ -325,10 +343,10 @@ async function persistConversationMemory(memory, companyId = 'default') {
   try {
     await query(
       `INSERT INTO ai_conversation_memory (
-        contact_id, company_id, phone, name, intent, sentiment,
+        contact_id, company_id, phone, name, intent, sentiment, session_id,
         tags, summary, metrics, messages, last_updated, created_at, updated_at
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9::jsonb, $10::jsonb, NOW(), NOW(), NOW())
-      ON CONFLICT (contact_id, company_id) DO UPDATE SET
+      ) VALUES ($1, $2, $3, $4, $5, $6, $11, $7, $8, $9::jsonb, $10::jsonb, NOW(), NOW(), NOW())
+      ON CONFLICT (company_id, session_id, contact_id) DO UPDATE SET
         name = COALESCE(NULLIF(EXCLUDED.name, ''), ai_conversation_memory.name),
         phone = COALESCE(NULLIF(EXCLUDED.phone, ''), ai_conversation_memory.phone),
         intent = EXCLUDED.intent,
@@ -341,7 +359,7 @@ async function persistConversationMemory(memory, companyId = 'default') {
         updated_at = NOW()`,
       [
         contactId,
-        companyId,
+        cleanCompany,
         phone,
         memory.name || 'Cliente',
         memory.intent || 'information',
@@ -350,10 +368,11 @@ async function persistConversationMemory(memory, companyId = 'default') {
         memory.summary || '',
         JSON.stringify(metrics),
         JSON.stringify((memory.messages || []).slice(-40)),
+        sessionId,
       ]
     );
   } catch (err) {
-    console.error('[ConversationMemory] Erro ao persistir memória:', err.message);
+    throw err;
   }
 }
 

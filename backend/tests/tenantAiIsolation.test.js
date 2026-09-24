@@ -37,7 +37,7 @@ test('AI toggle is persisted and isolated per store', async () => {
   assert.equal(toggle.isAIEnabled('store-b'), false);
 });
 
-test('stores start without system agents and cannot see each other agents', async () => {
+test('stores start without system agents and cannot create an unbound agent', async () => {
   installMemorySettings();
   delete require.cache[require.resolve('../src/ai/agents/services/aiAgentService')];
   const agents = require('../src/ai/agents/services/aiAgentService');
@@ -45,8 +45,11 @@ test('stores start without system agents and cannot see each other agents', asyn
   assert.deepEqual(await agents.listAgents('store-a'), []);
   assert.deepEqual(await agents.listAgents('store-b'), []);
 
-  await agents.createAgent({ name: 'Atendente da Loja A', key: 'vendas' }, 'store-a');
-  assert.equal((await agents.listAgents('store-a')).length, 1);
+  await assert.rejects(
+    () => agents.createAgent({ name: 'Atendente da Loja A', key: 'vendas' }, 'store-a'),
+    /Selecione pelo menos um WhatsApp/
+  );
+  assert.deepEqual(await agents.listAgents('store-a'), []);
   assert.deepEqual(await agents.listAgents('store-b'), []);
   assert.equal(agents.findByNameSync('Atendente da Loja A', 'store-b'), null);
 });

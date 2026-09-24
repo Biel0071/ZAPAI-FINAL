@@ -104,11 +104,36 @@ function clearLegacyRuntimeCaches() {
   }
 }
 
+function registerServiceWorker() {
+  if (typeof window !== "undefined" && "serviceWorker" in navigator) {
+    window.addEventListener("load", () => {
+      navigator.serviceWorker
+        .register("/sw.js")
+        .then((reg) => {
+          reg.onupdatefound = () => {
+            const installing = reg.installing;
+            if (installing) {
+              installing.onstatechange = () => {
+                if (installing.state === "installed" && navigator.serviceWorker.controller) {
+                  console.info("[PWA] Nova versão disponível em background.");
+                }
+              };
+            }
+          };
+        })
+        .catch((err) => {
+          console.warn("[PWA] Service worker registration failed:", err);
+        });
+    });
+  }
+}
+
 async function bootstrap() {
   persistBuildInfo();
   initRuntimeIdentity(zapaiBuildInfo.hash);
   enforceDarkThemeDom();
   clearLegacyRuntimeCaches();
+  registerServiceWorker();
 
   const url = new URL(window.location.href);
   if (url.searchParams.has("runtime_recover")) {

@@ -1,235 +1,110 @@
-/**
- * AI Memory Engine — Persistent conversational memory with PostgreSQL.
- *
- * Wraps aiConversationMemoryService (in-memory) with:
- * - PostgreSQL persistence for conversation context
- * - Context hydration on startup
- * - Periodic flush to database
- * - Memory search by phone/contact/conversation
- * - AI context building for prompt injection
- * - Analytics aggregation
- *
- * This module does NOT replace aiConversationMemoryService — it adds
- * persistence on top of the existing in-memory implementation.
- */
-
 const db = require('../src/infrastructure/config/database');
-const aiConversationMemoryService = require('./aiConversationMemoryService');
+const memoryService = require('./aiConversationMemoryService');
 
-const DEFAULT_COMPANY_ID = String(process.env.DEFAULT_COMPANY_ID || 'default').trim();
-const FLUSH_BATCH_SIZE = Math.max(1, Number(process.env.AI_MEMORY_FLUSH_BATCH_SIZE) || 20);
-const FLUSH_MAX_ENTRIES = Math.max(FLUSH_BATCH_SIZE, Number(process.env.AI_MEMORY_FLUSH_MAX_ENTRIES) || FLUSH_BATCH_SIZE * 5);
-const MIN_FLUSH_INTERVAL_MS = Math.max(60_000, Number(process.env.AI_MEMORY_MIN_FLUSH_MS) || 300_000);
-let flushInFlight = null;
-let lastFlushAt = 0;
-
-// ─── PostgreSQL Persistence ───
-
-async function persistMemoryEntry(entry, companyId = DEFAULT_COMPANY_ID) {
-  if (!entry?.contact_id) return;
-
-  try {
-    await db.query(
-      `INSERT INTO ai_conversation_memory (
-        contact_id, company_id, phone, name, intent, sentiment,
-        tags, summary, metrics, messages, last_updated, created_at, updated_at
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9::jsonb, $10::jsonb, $11, NOW(), NOW())
-      ON CONFLICT (contact_id, company_id) DO UPDATE SET
-        name = EXCLUDED.name,
-        intent = EXCLUDED.intent,
-        sentiment = EXCLUDED.sentiment,
-        tags = EXCLUDED.tags,
-        summary = EXCLUDED.summary,
-        metrics = EXCLUDED.metrics,
-        messages = EXCLUDED.messages,
-        last_updated = EXCLUDED.last_updated,
-        updated_at = NOW()`,
-      [
-        entry.contact_id,
-        companyId,
-        entry.phone || null,
-        entry.name || entry.phone || 'Contato',
-        entry.intent || 'information',
-        entry.sentiment || 'neutral',
-        entry.tags || [],
-        entry.summary || '',
-        JSON.stringify(entry.metrics || {}),
-        JSON.stringify((entry.messages || []).slice(-40)),
-        entry.last_updated || new Date().toISOString(),
-      ]
-    );
-  } catch (err) {
-    if (err?.code !== '42P01') { // table doesn't exist
-      console.error(`[AIMemory] Persist failed for ${entry.contact_id}:`, err?.message || err);
-    }
-  }
+function requireScope(companyId, sessionId) {
+  if (typeof companyId !== 'string' || !companyId.trim() || typeof sessionId !== 'string' || !sessionId.trim()) throw new Error('Empresa e conexão são obrigatórias para memória.');
 }
-
-async function loadMemoryFromPostgres(store, companyId = DEFAULT_COMPANY_ID) {
-  try {
-    const result = await db.query(
-      `SELECT contact_id, phone, name, intent, sentiment, tags, summary, metrics, messages, last_updated
-       FROM ai_conversation_memory
-       WHERE company_id = $1
-       ORDER BY last_updated DESC
-       LIMIT 500`,
-      [companyId]
-    );
-
-    if (!Array.isArray(store.conversationMemory)) {
-      store.conversationMemory = [];
-    }
-
-    let loaded = 0;
-    for (const row of result.rows || []) {
-      const existingIndex = store.conversationMemory.findIndex(
-        (e) => e?.contact_id === row.contact_id
-      );
-
-      const entry = {
-        contact_id: row.contact_id,
-        phone: row.phone,
-        name: row.name,
-        intent: row.intent || 'information',
-        sentiment: row.sentiment || 'neutral',
-        tags: row.tags || [],
-        summary: row.summary || '',
-        metrics: typeof row.metrics === 'object' ? row.metrics : {},
-        messages: Array.isArray(row.messages) ? row.messages : [],
-        last_updated: row.last_updated ? new Date(row.last_updated).toISOString() : null,
-      };
-
-      if (existingIndex >= 0) {
-        // Merge: keep newer data
-        const existing = store.conversationMemory[existingIndex];
-        if (!existing.last_updated || new Date(entry.last_updated) > new Date(existing.last_updated)) {
-          store.conversationMemory[existingIndex] = entry;
-        }
-      } else {
-        store.conversationMemory.push(entry);
-        loaded += 1;
-      }
-    }
-
-    console.log(`[AIMemory] Loaded ${loaded} memory entries from PostgreSQL`);
-    return loaded;
-  } catch (err) {
-    if (err?.code !== '42P01') {
-      console.error('[AIMemory] Load from Postgres failed:', err?.message || err);
-    }
-    return 0;
-  }
+async function assertSession(companyId, sessionId, client = db) {
+  requireScope(companyId, sessionId);
+  const row = (await client.query('SELECT session_id FROM sessions WHERE company_id=$1 AND session_id=$2', [companyId,sessionId])).rows[0];
+  if (!row) throw new Error('Conexão não encontrada.');
 }
-
-async function flushMemoryToPostgres(store, companyId = DEFAULT_COMPANY_ID) {
-  if (!Array.isArray(store?.conversationMemory)) return 0;
-  if (store?.databaseEnabled === false) return 0;
-
-  const now = Date.now();
-  if (flushInFlight) {
-    return flushInFlight;
-  }
-
-  if ((now - lastFlushAt) < MIN_FLUSH_INTERVAL_MS) {
-    return 0;
-  }
-
-  flushInFlight = (async () => {
-    let flushed = 0;
-    const entries = store.conversationMemory.slice(0, FLUSH_MAX_ENTRIES);
-
-    for (let i = 0; i < entries.length; i += FLUSH_BATCH_SIZE) {
-      const batch = entries.slice(i, i + FLUSH_BATCH_SIZE);
-      for (const entry of batch) {
-        if (entry?.contact_id) {
-          await persistMemoryEntry(entry, companyId);
-          flushed += 1;
+async function loadEntry(companyId, sessionId, contactId, client = db) {
+  requireScope(companyId, sessionId);
+  return (await client.query('SELECT * FROM ai_conversation_memory WHERE company_id=$1 AND session_id=$2 AND contact_id=$3', [companyId,sessionId,String(contactId)])).rows[0] || null;
+}
+async function persistMemoryEntry(entry, companyId = entry?.company_id, client = db) {
+  requireScope(companyId,entry?.session_id);
+  await client.query(`INSERT INTO ai_conversation_memory
+    (company_id,session_id,contact_id,phone,name,intent,sentiment,tags,summary,metrics,messages,last_updated)
+    VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10::jsonb,$11::jsonb,$12)
+    ON CONFLICT(company_id,session_id,contact_id) DO UPDATE SET phone=EXCLUDED.phone,name=EXCLUDED.name,
+    intent=EXCLUDED.intent,sentiment=EXCLUDED.sentiment,tags=EXCLUDED.tags,summary=EXCLUDED.summary,
+    metrics=EXCLUDED.metrics,messages=EXCLUDED.messages,last_updated=EXCLUDED.last_updated,updated_at=NOW()`,
+    [companyId,entry.session_id,entry.contact_id,entry.phone,entry.name,entry.intent,entry.sentiment,entry.tags,
+      entry.summary,JSON.stringify(entry.metrics),JSON.stringify(entry.messages),entry.last_updated]);
+  return true;
+}
+// The message table is the durable queue. Receipt + projection + acknowledgement commit together.
+async function projectPending(companyId, sessionId, limit = 100, contactPhone = null) {
+  if (companyId || sessionId) requireScope(companyId,sessionId);
+  const client = await db.pool.connect();
+  try {
+    await client.query('BEGIN');
+    if (companyId) await assertSession(companyId,sessionId,client);
+    const messages = (await client.query(`SELECT m.* FROM messages m
+      JOIN sessions s ON s.company_id=m.company_id AND s.session_id=m.session_id
+      WHERE m.memory_projected=FALSE AND ($1::text IS NULL OR m.company_id=$1)
+      AND ($2::text IS NULL OR m.session_id=$2) AND ($4::text IS NULL OR m.phone=$4 OR m.remote_jid=$4) ORDER BY m.timestamp ASC,m.id ASC LIMIT $3 FOR UPDATE OF m SKIP LOCKED`, [companyId || null,sessionId || null,limit,contactPhone])).rows;
+    messages.sort((a,b)=>new Date(a.timestamp)-new Date(b.timestamp) || Number(a.id)-Number(b.id));
+    for (const m of messages) {
+      const contactId = String(m.remote_jid || m.phone || '').trim();
+      if (contactId) {
+        const scope = [m.company_id,m.session_id];
+        await client.query('SELECT pg_advisory_xact_lock(hashtext($1))',[JSON.stringify([...scope,contactId])]);
+        const receipt = await client.query(`INSERT INTO ai_memory_receipts(company_id,session_id,event_key) VALUES($1,$2,$3) ON CONFLICT DO NOTHING RETURNING event_key`, [...scope,String(m.whatsapp_message_id || m.id)]);
+        if (receipt.rows.length) {
+          const previous = await loadEntry(...scope,contactId,client);
+          const state = { conversationMemory: previous ? [previous] : [] };
+          const text = String(m.content || m.text || '').split('\n[META]')[0];
+          const { memory } = memoryService.updateConversationMemory(state,{ companyId:m.company_id,sessionId:m.session_id,
+            contactId,phone:m.phone,conversationId:m.conversation_id,messageId:String(m.whatsapp_message_id || m.id),
+            direction:m.from_me ? 'outgoing':'incoming',text,mediaType:m.media_type,timestamp:new Date(m.timestamp || m.created_at).toISOString() });
+          const engine = require('./conversationMemoryEngine');
+          const structured = { facts:memory.metrics.facts || {},commercial:memory.metrics.commercial || {} };
+          if (!m.from_me && (!memory.metrics.lastFactAt || new Date(m.timestamp)>=new Date(memory.metrics.lastFactAt))) {
+            engine.extractFactsFromContext(text,{},structured);memory.metrics.lastFactAt=m.timestamp;
+          }
+          memory.metrics = {...memory.metrics,facts:structured.facts,commercial:structured.commercial};
+          await persistMemoryEntry(memory,m.company_id,client);
         }
       }
+      await client.query('UPDATE messages SET memory_projected=TRUE WHERE id=$1 AND company_id=$2 AND session_id=$3',[m.id,m.company_id,m.session_id]);
+      await client.query(`INSERT INTO session_ai_profiles(company_id,session_id,last_processed_at) VALUES($1,$2,NOW())
+        ON CONFLICT(company_id,session_id) DO UPDATE SET last_processed_at=NOW(),last_error=NULL`,[m.company_id,m.session_id]);
     }
-
-    lastFlushAt = Date.now();
-    return flushed;
-  })().finally(() => {
-    flushInFlight = null;
-  });
-
-  return flushInFlight;
+    await client.query('COMMIT');
+    return messages.length;
+  } catch(error) {
+    await client.query('ROLLBACK');
+    if (companyId && sessionId) await db.query(`INSERT INTO session_ai_profiles(company_id,session_id,last_error) VALUES($1,$2,'Falha ao persistir memória; processamento pendente.') ON CONFLICT(company_id,session_id) DO UPDATE SET last_error=EXCLUDED.last_error`,[companyId,sessionId]).catch(()=>{});
+    throw error;
+  } finally { client.release(); }
 }
-
-async function forceFlushMemoryToPostgres(store, companyId = DEFAULT_COMPANY_ID) {
-  if (!Array.isArray(store?.conversationMemory)) return 0;
-  if (store?.databaseEnabled === false) return 0;
-
-  console.log('[AIMemory] Force flushing memory to PostgreSQL before shutdown...');
-  let flushed = 0;
-  const entries = store.conversationMemory;
-
-  for (let i = 0; i < entries.length; i += FLUSH_BATCH_SIZE) {
-    const batch = entries.slice(i, i + FLUSH_BATCH_SIZE);
-    for (const entry of batch) {
-      if (entry?.contact_id) {
-        await persistMemoryEntry(entry, companyId);
-        flushed += 1;
-      }
-    }
+async function flushPending() {
+  const sessions=(await db.query(`SELECT s.company_id,s.session_id FROM sessions s
+    LEFT JOIN session_ai_profiles p ON p.company_id=s.company_id AND p.session_id=s.session_id
+    WHERE EXISTS(SELECT 1 FROM messages m WHERE m.company_id=s.company_id AND m.session_id=s.session_id AND NOT m.memory_projected)
+    ORDER BY p.last_processed_at NULLS FIRST LIMIT 25`)).rows;
+  let total=0, failed=false;
+  for(const s of sessions) {
+    try{total+=await projectPending(s.company_id,s.session_id);}catch(_){failed=true;}
   }
-
-  console.log(`[AIMemory] Successfully force flushed ${flushed} entries.`);
-  return flushed;
+  if(failed) throw new Error('Uma ou mais conexões têm memória pendente; nova tentativa automática.');
+  return total;
 }
-
-// ─── Ensure Database Table ───
-
-async function ensureMemoryTable() {
-  try {
-    await db.query(`
-      CREATE TABLE IF NOT EXISTS ai_conversation_memory (
-        id SERIAL PRIMARY KEY,
-        contact_id VARCHAR(255) NOT NULL,
-        company_id VARCHAR(100) NOT NULL DEFAULT 'default',
-        phone VARCHAR(50),
-        name VARCHAR(255),
-        intent VARCHAR(100) DEFAULT 'information',
-        sentiment VARCHAR(50) DEFAULT 'neutral',
-        tags TEXT[] DEFAULT '{}',
-        summary TEXT DEFAULT '',
-        metrics JSONB DEFAULT '{}',
-        messages JSONB DEFAULT '[]',
-        last_updated TIMESTAMPTZ,
-        created_at TIMESTAMPTZ DEFAULT NOW(),
-        updated_at TIMESTAMPTZ DEFAULT NOW(),
-        UNIQUE(contact_id, company_id)
-      )
-    `);
-    console.log('[AIMemory] Table ai_conversation_memory ensured');
-  } catch (err) {
-    console.error('[AIMemory] Table creation failed:', err?.message || err);
-  }
+async function searchPersisted(companyId,sessionId,q='') {
+  await assertSession(companyId,sessionId);
+  return (await db.query(`SELECT * FROM ai_conversation_memory WHERE company_id=$1 AND session_id=$2
+    AND (name ILIKE $3 OR phone ILIKE $3 OR summary ILIKE $3) ORDER BY last_updated DESC LIMIT 100`,[companyId,sessionId,'%'+String(q).slice(0,200)+'%'])).rows;
 }
-
-// ─── Memory Search ───
-
-function searchMemory(store, query = '') {
-  if (!Array.isArray(store?.conversationMemory)) return [];
-
-  const normalized = String(query).toLowerCase().trim();
-  if (!normalized) {
-    return store.conversationMemory;
-  }
-  return store.conversationMemory.filter((entry) => {
-    if (!entry) return false;
-    return (
-      String(entry.phone || '').includes(normalized) ||
-      String(entry.name || '').toLowerCase().includes(normalized) ||
-      String(entry.contact_id || '').includes(normalized) ||
-      (entry.tags || []).some((tag) => String(tag).toLowerCase().includes(normalized))
-    );
-  });
+async function status(companyId,sessionId) {
+  await assertSession(companyId,sessionId);
+  const result = (await db.query(`SELECT COUNT(*)::int AS total,COUNT(*) FILTER(WHERE NOT memory_projected)::int AS pending FROM messages WHERE company_id=$1 AND session_id=$2`,[companyId,sessionId])).rows[0];
+  const profile = (await db.query('SELECT * FROM session_ai_profiles WHERE company_id=$1 AND session_id=$2',[companyId,sessionId])).rows[0];
+  return {...result,...profile,persistence:result.pending ? 'pending':'saved'};
 }
-
-// ─── Analytics ───
-
+async function loadMemoryFromPostgres(store,companyId,sessionId) {
+  if (!companyId || !sessionId) return 0;
+  const rows=await searchPersisted(companyId,sessionId);
+  store.conversationMemory=rows;
+  return rows.length;
+}
+// Schema changes are exclusively managed by migration 035.
+async function ensureMemoryTable() { await db.query('SELECT session_id FROM ai_conversation_memory LIMIT 0'); }
+function searchMemory(store,q='',scope={}) {
+  return (store?.conversationMemory || []).filter(e=>scope.companyId && scope.sessionId && e.company_id===scope.companyId && e.session_id===scope.sessionId && JSON.stringify(e).toLowerCase().includes(String(q).toLowerCase()));
+}
 function getMemoryAnalytics(store) {
   const entries = Array.isArray(store?.conversationMemory) ? store.conversationMemory : [];
 
@@ -263,22 +138,8 @@ function getMemoryAnalytics(store) {
   };
 }
 
-// ─── Public API ───
 
-module.exports = {
-  // Persistence
-  ensureMemoryTable,
-  flushMemoryToPostgres,
-  forceFlushMemoryToPostgres,
-  loadMemoryFromPostgres,
-  persistMemoryEntry,
-
-  // Search & Analytics
-  getMemoryAnalytics,
-  searchMemory,
-
-  // Re-export aiConversationMemoryService for convenience
-  buildOpenAIContext: aiConversationMemoryService.buildOpenAIContext,
-  findMemoryByContact: aiConversationMemoryService.findMemoryByContact,
-  updateConversationMemory: aiConversationMemoryService.updateConversationMemory,
-};
+module.exports={requireScope,assertSession,loadEntry,persistMemoryEntry,projectPending,searchPersisted,status,
+ ensureMemoryTable,loadMemoryFromPostgres,searchMemory,getMemoryAnalytics,
+ flushMemoryToPostgres:flushPending,forceFlushMemoryToPostgres:flushPending,
+ ...memoryService};

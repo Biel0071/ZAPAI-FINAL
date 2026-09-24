@@ -620,7 +620,7 @@ export function ActiveChatPane({
                       {aiEnabledForConversation ? "Ativado" : isAiCountdownActive ? `Desativado (${timeLeft})` : "Desativado"}
                     </Button>
                   </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" className="w-48 bg-[#1C2028]/95 border-border/80">
+                  <DropdownMenuContent align="end" className="w-48 bg-popover/95 border-border/80 text-popover-foreground">
                     <DropdownMenuItem 
                       onClick={() => void handleSetConversationAiEnabled(true, null)}
                       className="gap-2 cursor-pointer focus:bg-emerald-500/10 focus:text-emerald-500"
@@ -646,7 +646,7 @@ export function ActiveChatPane({
                 </DropdownMenu>
 
                 {aiEnabledForConversation && aiAgents && aiAgents.length > 0 && handleSetConversationAgent && (
-                  <div className="flex min-w-0 items-center gap-1 bg-[#1C2028] border border-border/40 rounded-md px-2 py-0.5 text-[10px]">
+                  <div className="flex min-w-0 items-center gap-1 bg-muted/50 border border-border/40 rounded-md px-2 py-0.5 text-[10px]">
                     <span className="hidden text-[10px] text-muted-foreground uppercase font-semibold xl:inline">Agente:</span>
                     <Select
                       value={selectedConversation?.agent_name || (selectedConversation as any)?.assignedAgentName || "Não atribuído"}
@@ -655,7 +655,7 @@ export function ActiveChatPane({
                       <SelectTrigger className="h-6 min-w-[62px] max-w-[96px] bg-transparent border-none text-[11px] font-semibold text-primary focus:ring-0 p-0 gap-1 hover:text-primary-foreground justify-between">
                         <SelectValue placeholder="Selecione..." />
                       </SelectTrigger>
-                      <SelectContent className="bg-[#1C2028]/95 border-border/80 text-foreground">
+                      <SelectContent className="bg-popover border-border/80 text-popover-foreground">
                         {aiAgents.map((agent) => (
                           <SelectItem
                             key={agent.id || agent.name}
@@ -709,7 +709,7 @@ export function ActiveChatPane({
                     <DropdownMenuItem
                       className="flex items-center gap-2 text-xs cursor-pointer text-foreground hover:bg-muted"
                       onClick={() => {
-                        const isArchived = archivedChatIds.includes(selectedConversation.id);
+                        const isArchived = archivedChatIds.includes(selectedConversation.id) || String(selectedConversation.status).toLowerCase() === 'archived';
                         if (isArchived) {
                           handleUnarchiveSelectedConversation();
                         } else {
@@ -717,7 +717,7 @@ export function ActiveChatPane({
                         }
                       }}
                     >
-                      {archivedChatIds.includes(selectedConversation.id) ? (
+                      {(archivedChatIds.includes(selectedConversation.id) || String(selectedConversation.status).toLowerCase() === 'archived') ? (
                         <>
                           <CaretLeft className="h-3.5 w-3.5" />
                           Desarquivar conversa
@@ -1280,7 +1280,7 @@ export function ActiveChatPane({
                   <>
                     {/* Floating Slash Commands Autocomplete */}
                     {slashSuggestions.length > 0 && (
-                      <div className="absolute bottom-full left-0 right-0 z-40 mb-2 max-h-52 overflow-y-auto rounded-lg border border-border bg-[#181d26]/95 p-1.5 shadow-2xl backdrop-blur scrollbar-thin">
+                      <div className="absolute bottom-full left-0 right-0 z-40 mb-2 max-h-52 overflow-y-auto rounded-lg border border-border bg-popover/95 text-popover-foreground p-1.5 shadow-2xl backdrop-blur scrollbar-thin">
                         <div className="px-2 py-1 text-[10px] font-semibold text-muted-foreground/60 uppercase tracking-wider border-b border-border/40 mb-1">
                           Comandos e Respostas Rápidas
                         </div>

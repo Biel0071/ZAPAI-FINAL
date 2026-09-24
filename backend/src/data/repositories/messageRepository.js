@@ -93,9 +93,10 @@ async function createMessage(data) {
       direction,
       whatsapp_message_id,
       remote_jid,
-      participant_jid
+      participant_jid,
+      message_origin
     )
-    VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16)
+    VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17)
     RETURNING *
   `;
 
@@ -116,6 +117,7 @@ async function createMessage(data) {
     data.whatsappMessageId || null,
     data.remoteJid || null,
     data.participantJid || null,
+    ['human', 'ai', 'automation', 'campaign'].includes(data.origin) ? data.origin : 'unknown',
   ];
 
   const result = await db.query(query, values);
@@ -146,6 +148,7 @@ async function create({
   whatsappMessageId = null,
   remoteJid = null,
   participantJid = null,
+  origin = 'unknown',
 }) {
   return createMessage({
     companyId,
@@ -168,20 +171,23 @@ async function create({
     whatsappMessageId,
     remoteJid,
     participantJid,
+    origin,
   });
 }
 
 async function getMessagesByConversation(conversationId, options = {}) {
   const limit = Math.max(1, Math.min(Number(options.limit) || 50, 200));
   const before = options.before ? new Date(String(options.before)) : null;
-  const values = [conversationId, limit];
+  const beforeId = /^\d+$/.test(String(options.beforeId || '')) ? Number(options.beforeId) : null;
+  const values = [conversationId, limit, options.companyId || process.env.DEFAULT_COMPANY_ID || 'default'];
   let beforeClause = '';
 
   if (before && !Number.isNaN(before.getTime())) {
     values.push(before.toISOString());
-    beforeClause = ` AND m.timestamp < $${values.length}`;
-  } else {
-    beforeClause = " AND m.timestamp >= NOW() - INTERVAL '45 days'";
+    beforeClause = beforeId
+      ? ` AND (m.timestamp,m.id) < ($${values.length}::timestamp,$${values.length + 1}::integer)`
+      : ` AND m.timestamp < $${values.length}::timestamp`;
+    if (beforeId) values.push(beforeId);
   }
 
   const result = await db.query(
@@ -208,7 +214,7 @@ async function getMessagesByConversation(conversationId, options = {}) {
         FROM messages m
         INNER JOIN conversations conv ON conv.id = m.conversation_id
         INNER JOIN leads l ON l.id = conv.lead_id
-        WHERE m.conversation_id = $1
+        WHERE m.conversation_id = $1 AND conv.company_id = $3 AND m.company_id = $3
         ${beforeClause}
         ORDER BY m.timestamp DESC, m.id DESC
         LIMIT $2
@@ -221,8 +227,8 @@ async function getMessagesByConversation(conversationId, options = {}) {
   return result.rows.map(mapMessage);
 }
 
-async function findByConversationId(conversationId) {
-  return getMessagesByConversation(conversationId);
+async function findByConversationId(conversationId, companyId) {
+  return getMessagesByConversation(conversationId, { companyId });
 }
 
 async function getMessagesByPhone(phone, companyId, sessionId) {

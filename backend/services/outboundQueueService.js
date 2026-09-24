@@ -337,34 +337,45 @@ async function executeOutbound(item) {
 
   publishProgress('sending', { message: 'Enviando resposta para o WhatsApp.' });
 
-  let sendResult;
-  if (item.mediaType && item.mediaPath) {
-    console.log(`[OUTBOUND_QUEUE] transport_send correlationId=${item.correlationId || 'n/a'} queueId=${item.id} kind=media phone=${item.phone}`);
-    sendResult = await whatsappService.sendMediaMessage(sock, item.phone, item.mediaType, item.mediaPath, {
-      caption: item.text,
-      fileName: item.fileName,
-      mimetype: item.metadata?.mimetype,
-      ptt: item.metadata?.ptt,
-    });
+  let whatsappMessageId = item.whatsappMessageId ? String(item.whatsappMessageId) : null;
+  let remoteJid = item.remoteJid || null;
+
+  if (whatsappMessageId) {
+    console.log(`[OUTBOUND_QUEUE] transport_send SKIPPED - already dispatched to WhatsApp whatsappMessageId=${whatsappMessageId} correlationId=${item.correlationId || 'n/a'} queueId=${item.id}`);
   } else {
-    console.log(`[OUTBOUND_QUEUE] transport_send correlationId=${item.correlationId || 'n/a'} queueId=${item.id} kind=text phone=${item.phone}`);
-    sendResult = await whatsappService.sendMessage(sock, item.phone, item.text);
-  }
+    let sendResult;
+    if (item.mediaType && item.mediaPath) {
+      console.log(`[OUTBOUND_QUEUE] transport_send correlationId=${item.correlationId || 'n/a'} queueId=${item.id} kind=media phone=${item.phone}`);
+      sendResult = await whatsappService.sendMediaMessage(sock, item.phone, item.mediaType, item.mediaPath, {
+        caption: item.text,
+        fileName: item.fileName,
+        mimetype: item.metadata?.mimetype,
+        ptt: item.metadata?.ptt,
+      });
+    } else {
+      console.log(`[OUTBOUND_QUEUE] transport_send correlationId=${item.correlationId || 'n/a'} queueId=${item.id} kind=text phone=${item.phone}`);
+      sendResult = await whatsappService.sendMessage(sock, item.phone, item.text);
+    }
 
-  if (!sendResult?.key?.id) {
-    throw Object.assign(new Error('Message send failed: Baileys did not return a message id.'), {
-      code: 'SEND_FAILED',
-    });
-  }
+    if (!sendResult?.key?.id) {
+      throw Object.assign(new Error('Message send failed: Baileys did not return a message id.'), {
+        code: 'SEND_FAILED',
+      });
+    }
 
-  const whatsappMessageId = String(sendResult.key.id);
+    whatsappMessageId = String(sendResult.key.id);
+    remoteJid = sendResult.key.remoteJid || null;
+    item.whatsappMessageId = whatsappMessageId;
+    item.remoteJid = remoteJid;
+    item.transportDelivered = true;
+  }
 
   const res = await persistSuccessfulSend({
     ...item,
     sessionId: session?.sessionId || item.sessionId,
     status: messageAckPipeline.ACK_STATES.PENDING,
     whatsappMessageId,
-    remoteJid: sendResult.key.remoteJid || null,
+    remoteJid,
   });
 
   const statusIo = storeRef?.io || global.io;
@@ -625,15 +636,14 @@ async function processOneItem() {
       const failure = sanitizeError(error);
       // A transport timeout is ambiguous: WhatsApp may have accepted the
       // message even though the local request did not receive its response.
-      // Retrying a human send here can deliver the same message twice.
-      const ambiguousManualSend = item.metadata?.source === 'human' &&
-        /whatsapp send timeout|connection closed|timed?out|econnreset|socket hang up/i.test(
-          `${failure.code || ''} ${failure.message || ''}`,
-        );
-      if (ambiguousManualSend) {
+      // Retrying can deliver the same message twice.
+      const ambiguousTimeout = /whatsapp send timeout|connection closed|timed?out|econnreset|socket hang up/i.test(
+        `${failure.code || ''} ${failure.message || ''}`,
+      );
+      if (item.transportDelivered || ambiguousTimeout) {
         error.nonRetryable = true;
         failure.nonRetryable = true;
-        console.warn(`[OUTBOUND_QUEUE] Manual send marked non-retryable correlationId=${item.correlationId || 'n/a'} reason=${failure.message}`);
+        console.warn(`[OUTBOUND_QUEUE] Send marked non-retryable to prevent duplicate delivery correlationId=${item.correlationId || 'n/a'} reason=${failure.message}`);
       }
       item.lastFailure = failure;
       if (item.metadata?.persistedMessageId && storeRef?.databaseEnabled) {

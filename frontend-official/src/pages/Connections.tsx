@@ -11,6 +11,10 @@ import {
   Spinner,
   Phone,
   ArrowClockwise,
+  PencilSimple,
+  ChartBar,
+  Sparkle,
+  Chats,
 } from "@phosphor-icons/react";
 import { Header } from "@/components/layout/Header";
 import ConnectionsView from "@/lovable/pages/ConnectionsPageView";
@@ -32,22 +36,25 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { apiService, type SessionInfo } from "@/services/apiService";
+import { apiService, requestApiEndpoint, type SessionInfo } from "@/services/apiService";
 import { notify } from "@/services/notifyService";
 import { reportFrontendIssue } from "@/runtime/services/frontendHealthService";
 import { useAppStore } from "@/stores/appStore";
 import { normalizeSession as backendNormalizeSession } from "@/services/normalizeSession";
 import { SafeRender } from "@/components/system/SafeRender";
+import { HistoryBootstrapPanel } from '@/components/evolution/HistoryBootstrapPanel';
 
 interface Session extends SessionInfo {
   name: string;
   status: "connected" | "connecting" | "qr" | "disconnected";
+  whatsappName?: string | null;
 }
 
 type SessionEventPayload = {
   sessionId?: string;
   name?: string;
   sessionName?: string;
+  whatsappName?: string;
   qr?: string;
   qrCode?: string;
   qrcode?: string;
@@ -69,12 +76,14 @@ function normalizeBackendStatus(status?: string, connected?: boolean): Session["
 function localNormalizeSession(item: SessionInfo): Session {
   const legacyName = (item as SessionInfo & { session_name?: string; name?: string }).session_name;
   const resolvedName = item.name || legacyName || item.id;
+  const whatsappName = (item as any).whatsappName || (item as any).whatsAppName || (item as any).whatsapp_name || null;
 
   return {
     id: item.id || resolvedName,
     phone: item.phone,
     connected: item.connected,
     name: resolvedName,
+    whatsappName,
     status: normalizeBackendStatus(item.status, item.connected),
   };
 }
@@ -116,6 +125,10 @@ export default function Connections() {
   const [isActivationDialogOpen, setIsActivationDialogOpen] = useState(false);
   const [newSessionName, setNewSessionName] = useState("");
   const [sessionNameError, setSessionNameError] = useState<string | null>(null);
+  const [editingSession, setEditingSession] = useState<Session | null>(null);
+  const [editedSessionName, setEditedSessionName] = useState('');
+  const [onboardingMode, setOnboardingMode] = useState<'manual' | 'prompt' | 'history' | null>(null);
+  const [onboardingStatus, setOnboardingStatus] = useState<{ total: number; imported: number; pending: number; failed: number } | null>(null);
   const [isConnecting, setIsConnecting] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
   const [isSessionsLoading, setIsSessionsLoading] = useState(true);
@@ -126,6 +139,11 @@ export default function Connections() {
   const [deleteConfirmSessionId, setDeleteConfirmSessionId] = useState<string | null>(null);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const sessionLoadInFlightRef = useRef(false);
+
+  const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false);
+  const [historyModalSessionId, setHistoryModalSessionId] = useState<string | null>(null);
+  const [historyModalMode, setHistoryModalMode] = useState<'history' | 'prompt' | 'manual' | 'store'>('history');
+  const prevSessionStatusesRef = useRef<Record<string, string>>({});
 
   const sessions = useMemo(() => {
     return (storeSessions ?? []).map((s) => ({
@@ -140,6 +158,30 @@ export default function Connections() {
   const safeSessions = useMemo(() => (Array.isArray(sessions) ? sessions : []), [sessions]);
   const sessionsRef = useRef<Session[]>(safeSessions);
   const creatingSessionsRef = useRef<Set<string>>(new Set());
+
+  const activeSession = useMemo(() => {
+    return safeSessions.find((s) => s.status === "connected" || s.connected);
+  }, [safeSessions]);
+
+  const handleOpenHistoryModal = useCallback((sessionId?: string, mode: 'history' | 'prompt' | 'manual' | 'store' = 'history') => {
+    const targetId = sessionId || activeSession?.id || safeSessions[0]?.id || null;
+    setHistoryModalSessionId(targetId);
+    setHistoryModalMode(mode);
+    setIsHistoryModalOpen(true);
+  }, [activeSession, safeSessions]);
+
+  // Auto-open modal when connection connects
+  useEffect(() => {
+    safeSessions.forEach((s) => {
+      const prev = prevSessionStatusesRef.current[s.id];
+      if (prev && (prev === "connecting" || prev === "qr") && s.status === "connected") {
+        handleOpenHistoryModal(s.id, 'history');
+        setIsActivationDialogOpen(false);
+        setShowQRModal(false);
+      }
+      prevSessionStatusesRef.current[s.id] = s.status;
+    });
+  }, [safeSessions, handleOpenHistoryModal]);
  
   const [isLogsDialogOpen, setIsLogsDialogOpen] = useState(false);
   const [logsSessionId, setLogsSessionId] = useState<string | null>(null);
@@ -195,20 +237,33 @@ export default function Connections() {
     sessionsRef.current = safeSessions;
   }, [safeSessions]);
 
-  // Fechar a modal de pareamento automaticamente quando a sessão ativa conectar
+  // Keep the onboarding visible while history is imported after QR pairing.
   useEffect(() => {
     if (!activeModalSessionId || !isActivationDialogOpen) return;
     const session = safeSessions.find((s) => s.id === activeModalSessionId);
     if (session && session.status === "connected") {
-      notify.success(`WhatsApp pareado com sucesso na sessão "${session.name}"!`);
-      const timer = window.setTimeout(() => {
-        setIsActivationDialogOpen(false);
-        setShowQRModal(false);
-        setActiveModalSessionId(null);
-      }, 1500);
-      return () => window.clearTimeout(timer);
+      setShowQRModal(false);
     }
   }, [activeModalSessionId, isActivationDialogOpen, safeSessions]);
+
+  useEffect(() => {
+    if (!activeModalSessionId || !isActivationDialogOpen || safeSessions.find((s) => s.id === activeModalSessionId)?.status !== 'connected') return;
+    let active = true;
+    const load = () => requestApiEndpoint<{ total: number; imported: number; pending: number; failed: number }>(`/api/ai/history/${encodeURIComponent(activeModalSessionId)}/status`)
+      .then((status) => { if (active) setOnboardingStatus(status); }).catch(() => undefined);
+    void load();
+    const timer = window.setInterval(load, 8000);
+    return () => { active = false; window.clearInterval(timer); };
+  }, [activeModalSessionId, isActivationDialogOpen, safeSessions]);
+
+  const chooseOnboardingMode = (mode: 'manual' | 'prompt' | 'history' | 'store') => {
+    setOnboardingMode(mode);
+    setIsActivationDialogOpen(false);
+    const targetId = activeModalSessionId || activeSession?.id || safeSessions[0]?.id || null;
+    setActiveModalSessionId(null);
+    setShowQRModal(false);
+    handleOpenHistoryModal(targetId || undefined, mode);
+  };
 
   const loadSessions = useCallback(async (options?: { silent?: boolean }) => {
     if (sessionLoadInFlightRef.current) return;
@@ -302,6 +357,7 @@ export default function Connections() {
     creatingSessionsRef.current.add(sessionName);
 
     setSessionNameError(null);
+    setOnboardingStatus(null);
     setIsActivationDialogOpen(true);
     setIsConnecting(true);
     setIsCreating(true);
@@ -389,6 +445,24 @@ export default function Connections() {
     await handleConnectSession(session.id);
   };
 
+  const handleRenameSession = async () => {
+    if (!editingSession) return;
+    const sessionName = editedSessionName.trim();
+    if (!sessionName || sessionName.length > 100) {
+      notify.error('Informe um nome com até 100 caracteres.');
+      return;
+    }
+    try {
+      await requestApiEndpoint(`/api/sessions/${encodeURIComponent(editingSession.id)}/name`, 'PATCH', { sessionName });
+      useAppStore.getState().upsertSession(backendNormalizeSession({ ...editingSession, name: sessionName }));
+      setEditingSession(null);
+      await loadSessions({ silent: true });
+      notify.success('Nome da sessão atualizado.');
+    } catch (error) {
+      notify.error(error instanceof Error ? error.message : 'Falha ao renomear sessão.');
+    }
+  };
+
   const handleLogoutSession = async (sessionId: string) => {
     try {
       await apiService.logoutSession(sessionId);
@@ -458,10 +532,6 @@ export default function Connections() {
     return "Aguardando geração do QR";
   }, [currentQrImage, currentQrSession?.status]);
 
-  const activeSession = useMemo(() => {
-    return safeSessions.find((s) => s.status === "connected" || s.connected);
-  }, [safeSessions]);
-
   const lovableConnectionsViewModel = createConnectionsLovableViewModel(safeSessions);
 
   return (
@@ -522,10 +592,11 @@ export default function Connections() {
                     <Card 
                       key={session.id} 
                       className={cn(
-                        "glass-card overflow-hidden rounded-2xl border-border/70 bg-card/85 transition-all duration-300",
-                        isConnected && "cursor-pointer hover:border-whatsapp/40 hover:shadow-[0_0_15px_rgba(37,211,102,0.15)] hover:scale-[1.01]"
+                        "glass-card overflow-hidden rounded-2xl border-border/70 bg-card/85 transition-all duration-300 cursor-pointer select-none",
+                        "hover:border-primary/50 hover:shadow-[0_0_20px_rgba(37,211,102,0.15)] hover:scale-[1.01]"
                       )}
-                      onClick={isConnected ? () => navigate("/analytics") : undefined}
+                      onDoubleClick={() => handleOpenHistoryModal(session.id, 'history')}
+                      title="Dê 2 cliques para abrir a Central de IA & Histórico de Mensagens"
                     >
                       <div className={meta.lineClass} />
                       <CardContent className="space-y-3 p-3">
@@ -535,11 +606,31 @@ export default function Connections() {
                               <WhatsappLogo weight="fill" className="h-4 w-4 text-whatsapp" />
                             </div>
                             <div className="min-w-0">
-                              <h3 className="truncate font-display text-sm font-semibold flex items-center gap-1.5">
-                                {session.name}
-                                <span className="text-[10px] text-muted-foreground/80 font-normal">({session.id})</span>
-                              </h3>
-                              <p className="flex items-center gap-1 text-xs text-muted-foreground truncate">
+                              <div className="flex items-center gap-1.5">
+                                <h3 className="truncate font-display text-sm font-semibold flex items-center gap-1.5" title={`Nome da Conexão: ${session.name}`}>
+                                  {session.name}
+                                </h3>
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setEditingSession(session);
+                                    setEditedSessionName(session.name);
+                                  }}
+                                  className="text-muted-foreground hover:text-foreground transition-colors p-0.5 rounded"
+                                  title="Editar nome da conexão"
+                                >
+                                  <PencilSimple className="h-3 w-3" />
+                                </button>
+                                <span className="text-[10px] text-muted-foreground/70 font-mono">({session.id})</span>
+                              </div>
+                              {session.whatsappName && (
+                                <p className="flex items-center gap-1 text-[11px] font-medium text-whatsapp truncate" title={`Perfil no WhatsApp: ${session.whatsappName}`}>
+                                  <Sparkle weight="fill" className="h-2.5 w-2.5 shrink-0" />
+                                  <span>Zap: {session.whatsappName}</span>
+                                </p>
+                              )}
+                              <p className="flex items-center gap-1 text-xs text-muted-foreground truncate" title={`Número: ${session.phone || "Sem número"}`}>
                                 <Phone weight="fill" className="h-3 w-3 shrink-0" />
                                 {session.phone || "Sem número vinculado"}
                               </p>
@@ -567,7 +658,26 @@ export default function Connections() {
                           </div>
                         </div>
 
-                        <div className="flex gap-1.5 pt-1">
+                        <div className="flex flex-wrap gap-1.5 pt-1">
+                          <Button 
+                            variant="default" 
+                            size="sm" 
+                            className="h-8 rounded-xl px-2.5 gap-1.5 text-[11px] shadow-glow font-medium bg-primary hover:bg-primary/90 text-primary-foreground" 
+                            onClick={(e) => { 
+                              e.stopPropagation(); 
+                              handleOpenHistoryModal(session.id, 'history'); 
+                            }} 
+                            title="Abrir Central de IA, Criação de Agente & Leitura de Mensagens"
+                          >
+                            <Sparkle className="h-3.5 w-3.5" weight="fill" />
+                            <span>IA & Agente</span>
+                          </Button>
+                          <Button variant="outline" size="sm" className="h-8 rounded-xl px-2 gap-1 text-[11px]" onClick={(e) => { e.stopPropagation(); setEditingSession(session); setEditedSessionName(session.name); }} title="Editar nome da sessão">
+                            <PencilSimple className="h-3.5 w-3.5" /> Editar
+                          </Button>
+                          <Button variant="outline" size="sm" className="h-8 rounded-xl px-2 gap-1 text-[11px]" onClick={(e) => { e.stopPropagation(); navigate(`/dashboard?sessionId=${encodeURIComponent(session.id)}`); }} title="Ver métricas da sessão">
+                            <ChartBar className="h-3.5 w-3.5" /> Métricas
+                          </Button>
                           <Button 
                             variant="outline" 
                             size="sm" 
@@ -654,6 +764,15 @@ export default function Connections() {
         </SafeRender>
       </motion.div>
 
+      <Dialog open={Boolean(editingSession)} onOpenChange={(open) => { if (!open) setEditingSession(null); }}>
+        <DialogContent className="sm:max-w-md border-border/80 bg-card/95">
+          <DialogHeader><DialogTitle>Editar sessão</DialogTitle><DialogDescription>O nome exibido pode mudar. O histórico e o identificador da conexão permanecem vinculados.</DialogDescription></DialogHeader>
+          <Label htmlFor="edited-session-name">Nome exibido</Label>
+          <Input id="edited-session-name" value={editedSessionName} maxLength={100} onChange={(event) => setEditedSessionName(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter') void handleRenameSession(); }} />
+          <Button disabled={!editedSessionName.trim()} onClick={() => void handleRenameSession()}>Salvar nome</Button>
+        </DialogContent>
+      </Dialog>
+
       {/* ============ NEW CONNECTION MODAL ============ */}
       <Dialog
         open={isActivationDialogOpen}
@@ -667,7 +786,7 @@ export default function Connections() {
           }
         }}
       >
-        <DialogContent className="sm:max-w-md border-border/80 bg-card/95 backdrop-blur-xl">
+        <DialogContent className="sm:max-w-lg border-border/80 bg-card/95 backdrop-blur-xl">
           <DialogHeader>
             <DialogTitle className="font-display">Conectar WhatsApp oficial</DialogTitle>
             <DialogDescription>
@@ -729,6 +848,18 @@ export default function Connections() {
                 </div>
               )
             )}
+            {activeModalSessionId && currentQrSession?.status === 'connected' && <div className="space-y-3 rounded-2xl border border-primary/30 bg-primary/5 p-4">
+              <p className="font-semibold text-primary">WhatsApp conectado. Preparando histórico e memória.</p>
+              <p className="text-sm text-muted-foreground">{onboardingStatus ? `${onboardingStatus.imported.toLocaleString('pt-BR')} de ${onboardingStatus.total.toLocaleString('pt-BR')} mensagens importadas` : 'Aguardando o primeiro lote do WhatsApp...'}</p>
+              <div className="h-2 rounded-full bg-muted overflow-hidden"><div className="h-full bg-primary transition-all" style={{ width: `${onboardingStatus?.total ? Math.min(100, onboardingStatus.imported / onboardingStatus.total * 100) : 0}%` }} /></div>
+              <p className="text-xs text-muted-foreground">{onboardingStatus?.pending || 0} mensagens aguardando. Você pode acompanhar o progresso ou abrir o painel completo.</p>
+              <div className="grid grid-cols-3 gap-2">
+                <Button variant="outline" className="h-auto min-h-16 flex-col gap-1 text-xs" onClick={() => chooseOnboardingMode('manual')}><PencilSimple className="h-6 w-6" />Manual</Button>
+                <Button variant="outline" className="h-auto min-h-16 flex-col gap-1 text-xs" onClick={() => chooseOnboardingMode('prompt')}><Sparkle className="h-6 w-6" />Com IA</Button>
+                <Button variant="outline" className="h-auto min-h-16 flex-col gap-1 text-xs" onClick={() => chooseOnboardingMode('history')}><Chats className="h-6 w-6" />Conversas</Button>
+              </div>
+              <Button variant="default" className="w-full shadow-glow" onClick={() => chooseOnboardingMode('history')}>Abrir Central de IA & Histórico</Button>
+            </div>}
           </div>
         </DialogContent>
       </Dialog>
@@ -891,6 +1022,24 @@ export default function Connections() {
               </Button>
             </div>
           </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* ============ MODAL: CENTRAL DE IA, HISTÓRICO & CRIAÇÃO DE AGENTE ============ */}
+      <Dialog open={isHistoryModalOpen} onOpenChange={setIsHistoryModalOpen}>
+        <DialogContent className="max-w-4xl max-h-[92vh] overflow-y-auto p-0 border-border/80 bg-card/95 backdrop-blur-xl rounded-2xl shadow-2xl">
+          <DialogHeader className="sr-only">
+            <DialogTitle>Central de IA, Histórico & Criação de Agente</DialogTitle>
+            <DialogDescription>
+              Sincronize mensagens, analise mídias e crie ou treine seu atendente de inteligência artificial.
+            </DialogDescription>
+          </DialogHeader>
+          <HistoryBootstrapPanel
+            isModal={true}
+            initialSessionId={historyModalSessionId || undefined}
+            requestedMode={historyModalMode}
+            onClose={() => setIsHistoryModalOpen(false)}
+          />
         </DialogContent>
       </Dialog>
     </div>

@@ -69,74 +69,40 @@ router.post('/ai/agent-learning/:id/ignore', aiController.ignoreLearningEvent);
 // Conversation analysis endpoint used by frontend lead panel
 router.post('/ai/analyze-conversation', async (req, res) => {
   try {
-    const { conversationId, messages } = req.body;
+    const { conversationId } = req.body;
     if (!conversationId) return res.status(400).json({ error: 'conversationId required' });
+    const companyId = req.authTenantId;
+    if (!companyId) return res.status(401).json({ error: 'Authentication required' });
     
-    const pool = req.app.get('pool');
-    let conversation = null;
-    let phone = null;
-    let name = null;
-    const companyId = req.companyId || process.env.DEFAULT_COMPANY_ID || 'default';
+    const { query } = require('../../infrastructure/config/database');
+    const result = await query(
+      `SELECT c.id, c.session_id, c.summary, c.lead_temperature, c.lead_intent, c.lead_confidence,
+              c.funnel_stage, c.next_action, c.tags, l.phone
+       FROM conversations c
+       LEFT JOIN leads l ON c.lead_id = l.id AND l.company_id = c.company_id
+       WHERE c.id = $1 AND c.company_id = $2`,
+      [conversationId, companyId]
+    );
+    const conversation = result.rows[0];
+    if (!conversation) return res.status(404).json({ error: 'Conversation not found' });
 
-    if (pool) {
-      const result = await pool.query(
-        `SELECT c.id, c.summary, c.lead_temperature, c.lead_intent, c.lead_confidence, c.funnel_stage, c.next_action, c.tags, l.phone, l.name 
-         FROM conversations c
-         LEFT JOIN leads l ON c.lead_id = l.id
-         WHERE c.id = $1`,
-        [conversationId]
-      );
-      conversation = result.rows[0] || null;
-      if (conversation) {
-        phone = conversation.phone;
-        name = conversation.name;
-      }
-    }
-
-    // Feed the messages into AI Memory Engine to evolve the agent and global context
-    if (messages && messages.length > 0) {
+    // Project only messages already persisted by the canonical inbound/outbound paths.
+    if (conversation.session_id) {
       const aiMemoryEngine = require('../../../services/aiMemoryEngine');
-      const store = req.app.locals.store || { conversationMemory: [] };
-      
-      for (const msg of messages) {
-        if (!msg.text) continue;
-        aiMemoryEngine.updateConversationMemory(store, {
-          contactId: phone || conversationId,
-          conversationId: conversationId,
-          phone: phone,
-          name: name || 'Contato',
-          direction: msg.fromMe ? 'outgoing' : 'incoming',
-          text: msg.text,
-          timestamp: new Date().toISOString()
-        });
-      }
-      
-      // Flush immediately to save the new intelligence
-      await aiMemoryEngine.flushMemoryToPostgres(store, companyId);
+      await aiMemoryEngine.projectPending(companyId, conversation.session_id, 100, conversation.phone);
     }
 
     res.json({
       success: true,
-      data: conversation
-        ? {
+      data: {
             conversationId,
-            summary: conversation.summary || 'Análise atualizada na memória global',
+            summary: conversation.summary || '',
             temperature: conversation.lead_temperature || 'cold',
             intent: conversation.lead_intent || 'unknown',
             confidence: conversation.lead_confidence || 0,
             funnelStage: conversation.funnel_stage || 'new_lead',
             nextAction: conversation.next_action || 'follow_up',
             tags: conversation.tags || [],
-          }
-        : {
-            conversationId,
-            summary: 'Conversa atualizada na memória global',
-            temperature: 'cold',
-            intent: 'unknown',
-            confidence: 0,
-            funnelStage: 'new_lead',
-            nextAction: 'follow_up',
-            tags: [],
           },
     });
   } catch (err) {
@@ -186,16 +152,17 @@ router.post('/ai/generate-response', async (req, res) => {
 router.get('/ai/conversation-memory/:contactId', async (req, res) => {
   try {
     const { contactId } = req.params;
-    if (!contactId) return res.status(400).json({ error: 'contactId required' });
+    if (!contactId || !req.authTenantId || !req.query.sessionId) return res.status(400).json({ error: 'contactId e sessionId são obrigatórios.' });
+    await require('../../../services/aiMemoryEngine').assertSession(req.authTenantId,req.query.sessionId);
 
-    const pool = req.app.get('pool');
     let entry = null;
-    if (pool) {
-      const result = await pool.query(
+    {
+      const { query } = require('../../infrastructure/config/database');
+      const result = await query(
         `SELECT contact_id, phone, name, intent, sentiment, tags, summary, metrics, messages, last_updated
          FROM ai_conversation_memory
-         WHERE contact_id = $1`,
-        [contactId]
+         WHERE contact_id = $1 AND company_id=$2 AND session_id=$3`,
+        [contactId,req.authTenantId,req.query.sessionId]
       );
       if (result.rows.length > 0) {
         const row = result.rows[0];
@@ -212,12 +179,6 @@ router.get('/ai/conversation-memory/:contactId', async (req, res) => {
           last_updated: row.last_updated ? new Date(row.last_updated).toISOString() : null,
         };
       }
-    }
-
-    if (!entry) {
-      const aiConversationMemoryService = require('../../../services/aiConversationMemoryService');
-      const store = req.app.locals.store || { conversationMemory: [] };
-      entry = aiConversationMemoryService.findMemoryByContact(store, contactId);
     }
 
     if (!entry) {
@@ -296,20 +257,22 @@ router.get('/ai/lead-knowledge-graph/:leadId', async (req, res) => {
   try {
     const { leadId } = req.params;
     const { query } = require('../../infrastructure/config/database');
-    const companyId = req.companyId || process.env.DEFAULT_COMPANY_ID || 'default';
+    const companyId = req.authTenantId;
+    if(!companyId) return res.status(401).json({error:'Autenticação obrigatória.'});
 
     // 1. Lead — real. name/phone live on `leads`; funnel/temperature on `conversations`.
     const leadRes = await query(
       `SELECT c.id, c.lead_temperature, c.lead_intent, c.funnel_stage, c.summary,
-              c.tags, c.agent_name, c.company_id, l.name, l.phone
+              c.tags, c.agent_name, c.company_id, c.session_id, l.name, l.phone
        FROM conversations c
        LEFT JOIN leads l ON l.id = c.lead_id
-       WHERE c.id::text = $1 OR l.phone = $1
+       WHERE c.company_id=$2 AND (c.id::text=$1 OR (l.phone=$1 AND c.session_id=$3))
        LIMIT 1`,
-      [String(leadId)]
+      [String(leadId),companyId,req.query.sessionId || null]
     ).catch(() => ({ rows: [] }));
 
     const lead = leadRes.rows[0] || null;
+    if(!lead) return res.status(404).json({error:'Conversa não encontrada.'});
     const name = lead?.name || 'Cliente';
     const phone = lead?.phone || String(leadId);
     const company = lead?.company_id || companyId;
@@ -330,33 +293,12 @@ router.get('/ai/lead-knowledge-graph/:leadId', async (req, res) => {
       edges.push({ source: 'node-agent', target: 'node-lead', label: 'Atendeu Cliente' });
     }
 
-    // 3. Campaigns that reached this lead — real JSONB scan by phone
-    if (phone) {
-      const campRes = await query(
-        `SELECT id, name, status FROM campaigns
-         WHERE company_id = $2
-           AND EXISTS (
-             SELECT 1 FROM jsonb_array_elements(COALESCE(selected_contacts, '[]'::jsonb)) sc
-             WHERE sc->>'phone' = $1 OR sc->>'number' = $1 OR REPLACE(sc->>'phone','+','') LIKE '%' || RIGHT($1, 8) || '%'
-           )
-         ORDER BY created_at DESC LIMIT 8`,
-        [phone.replace(/\D/g, ''), company]
-      ).catch(() => ({ rows: [] }));
-
-      campRes.rows.forEach((camp, idx) => {
-        const nid = `node-campaign-${idx}`;
-        nodes.push({ id: nid, label: camp.name, category: 'Campanha', type: 'campaign', details: `Status: ${camp.status || 'n/d'}`, icon: 'megaphone' });
-        edges.push({ source: 'node-lead', target: nid, label: 'Capturado via' });
-      });
-    }
-
     // 4. Memory nodes — real, agent_memory_nodes filtered by contact phone
     try {
       const memRes = await query(
-        `SELECT node_key, node_type, label, content FROM agent_memory_nodes
-         WHERE company_id = $1 AND (properties->>'contactPhone') = $2
-         ORDER BY weight DESC NULLS LAST, last_seen_at DESC NULLS LAST LIMIT 12`,
-        [company, phone.replace(/\D/g, '')]
+        `SELECT contact_id AS node_key, 'episode' AS node_type, name AS label, summary AS content FROM ai_conversation_memory
+         WHERE company_id=$1 AND phone=$2 AND session_id=$3 ORDER BY last_updated DESC LIMIT 12`,
+        [company, phone, lead.session_id]
       );
       memRes.rows.forEach((mem, idx) => {
         const isProduct = mem.node_type === 'product_media' || mem.node_type === 'concept';
@@ -379,8 +321,8 @@ router.get('/ai/lead-knowledge-graph/:leadId', async (req, res) => {
     try {
       const factRes = await query(
         `SELECT category, content FROM ai_memory_long
-         WHERE chat_id = $1 ORDER BY updated_at DESC NULLS LAST LIMIT 8`,
-        [phone.replace(/\D/g, '')]
+         WHERE chat_id = $1 AND company_id=$2 AND session_id=$3 ORDER BY updated_at DESC NULLS LAST LIMIT 8`,
+        [phone.replace(/\D/g, ''),company,lead.session_id]
       );
       if (factRes.rows.length > 0) {
         nodes.push({ id: 'node-memory-facts', label: 'Memória Permanente', category: 'IA Memory', type: 'memory', details: `${factRes.rows.length} fato(s)/objeção(ões) registrados`, icon: 'brain' });
@@ -435,5 +377,3 @@ router.get('/ai/queue-stats', async (req, res) => {
 });
 
 module.exports = router;
-
-

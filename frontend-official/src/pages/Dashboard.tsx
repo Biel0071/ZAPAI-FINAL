@@ -34,6 +34,7 @@ import { AIExecutiveInsightsCard } from "@/components/ai/AIExecutiveInsightsCard
 
 export default function Dashboard() {
   const [searchParams, setSearchParams] = useSearchParams();
+  const selectedSessionId = searchParams.get('sessionId');
   const { forceRefresh, status: runtimeStatus } = useRuntime();
 
   const sessions = useAppStore((state) => state.sessions);
@@ -50,6 +51,39 @@ export default function Dashboard() {
 
   const [aiStatus, setAiStatus] = useState<AIStatusResponse | null>(null);
   const [aiMetrics, setAiMetrics] = useState<AIMetricsResponse | null>(null);
+  const [databaseMetrics, setDatabaseMetrics] = useState<MetricsSummary | null>(null);
+
+  const metricWindow = useMemo(() => {
+    const now = new Date();
+    const day = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    let start = new Date(0);
+    let end = now;
+    if (dateRange === 'today' || dateRange === 'day') start = day;
+    if (dateRange === 'yesterday') { start = new Date(day.getTime() - 86_400_000); end = day; }
+    const days = dateRange === '7days' ? 7 : dateRange === '15days' ? 15 : dateRange === '30days' ? 30 : dateRange === '90days' ? 90 : 0;
+    if (days) start = new Date(now.getTime() - days * 86_400_000);
+    if (dateRange === 'hour') start = new Date(now.getTime() - 3_600_000);
+    if (dateRange === 'week') { start = new Date(day); start.setDate(day.getDate() - ((day.getDay() + 6) % 7)); }
+    if (dateRange === 'month') start = new Date(now.getFullYear(), now.getMonth(), 1);
+    if (dateRange === 'year') start = new Date(now.getFullYear(), 0, 1);
+    if (dateRange === 'custom') {
+      start = customStart ? new Date(`${customStart}T00:00:00`) : new Date(0);
+      end = customEnd ? new Date(`${customEnd}T23:59:59.999`) : now;
+    }
+    if (timeStart) start.setHours(Number(timeStart.slice(0, 2)), Number(timeStart.slice(3, 5)), 0, 0);
+    if (timeEnd) end.setHours(Number(timeEnd.slice(0, 2)), Number(timeEnd.slice(3, 5)), 59, 999);
+    return { start: start.toISOString(), end: end.toISOString() };
+  }, [dateRange, customStart, customEnd, timeStart, timeEnd]);
+
+  useEffect(() => {
+    let active = true;
+    const load = () => apiService.getMetrics(selectedSessionId, metricWindow)
+      .then((metrics) => { if (active) setDatabaseMetrics(metrics); })
+      .catch((error) => reportFrontendIssue({ type: 'unexpected_error', service: 'dashboard.getMetrics', message: error instanceof Error ? error.message : 'Falha ao carregar métricas reais' }));
+    void load();
+    const timer = window.setInterval(() => { if (document.visibilityState === 'visible') void load(); }, HEAVY_REFRESH_MS);
+    return () => { active = false; window.clearInterval(timer); };
+  }, [selectedSessionId, metricWindow]);
 
   const activeSessions = useMemo(
     () => (Array.isArray(sessions) ? sessions.filter((s) => s && s.status === "connected").length : 0),
@@ -94,9 +128,11 @@ export default function Dashboard() {
   const handleTabChange = useCallback(
     (nextTab: DashboardTab) => {
       setActiveTab(nextTab);
-      setSearchParams(nextTab === "overview" ? {} : { tab: nextTab }, { replace: true });
+      const params = new URLSearchParams(searchParams);
+      if (nextTab === 'overview') params.delete('tab'); else params.set('tab', nextTab);
+      setSearchParams(params, { replace: true });
     },
-    [setSearchParams],
+    [searchParams, setSearchParams],
   );
 
   const handleResetMap = useCallback(() => {
@@ -134,6 +170,7 @@ export default function Dashboard() {
     const endMinutes = timeEnd ? Number(timeEnd.slice(0, 2)) * 60 + Number(timeEnd.slice(3, 5)) : null;
 
     return conversations.filter((conversation) => {
+      if (selectedSessionId && conversation.sessionId !== selectedSessionId) return false;
       if (!conversation.updatedAt) return false;
       const timestamp = new Date(conversation.updatedAt);
       if (!Number.isFinite(timestamp.getTime())) return false;
@@ -144,30 +181,11 @@ export default function Dashboard() {
       if (endMinutes != null && minutes > endMinutes) return false;
       return true;
     });
-  }, [conversations, customEnd, customStart, dateRange, timeEnd, timeStart]);
+  }, [conversations, customEnd, customStart, dateRange, timeEnd, timeStart, selectedSessionId]);
 
   const filteredMetrics = useMemo(() => {
-    if (!storeMetrics) return null;
-
-    const hasData = filteredConversations.length > 0;
-    const aiCount = filteredConversations.filter((c) => c.isAI || c.aiEnabled).length;
-    const activeChatsCount = filteredConversations.filter((c) => c.status === "online" || (c.unread && c.unread > 0)).length;
-
-    // Use deterministic multipliers based on the conversations array length 
-    // so the charts and KPIs update visually when date filters are applied.
-    const messages = hasData ? filteredConversations.length * 3 : 0;
-    const aiMsgs = hasData ? Math.max(aiCount * 4, Math.floor(messages * 0.4)) : 0;
-
-    return {
-      ...storeMetrics,
-      messagesToday: messages,
-      activeChats: activeChatsCount,
-      aiResponses: aiMsgs,
-      totalConversations: filteredConversations.length,
-      newLeads: filteredConversations.length,
-      leads: filteredConversations.length,
-    } as MetricsSummary;
-  }, [storeMetrics, filteredConversations]);
+    return databaseMetrics ? { ...storeMetrics, ...databaseMetrics } as MetricsSummary : null;
+  }, [storeMetrics, databaseMetrics]);
   const dashboardViewModel = useMemo(
     () =>
       createDashboardLovableViewModel({

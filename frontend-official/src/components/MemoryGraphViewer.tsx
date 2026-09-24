@@ -44,16 +44,31 @@ export const MemoryGraphViewer: React.FC<MemoryGraphViewerProps> = ({ graphData,
       case 'lead':
         return '#3b82f6'; // blue
       case 'conversation':
+        return '#06b6d4'; // cyan
       case 'episode':
         return '#10b981'; // green
       case 'concept':
       case 'field':
         return '#8b5cf6'; // purple
+      case 'topic':
+        return '#ec4899'; // pink
       case 'product_media':
       case 'product':
         return '#f59e0b'; // amber
-      case 'memory':
-        return '#ef4444'; // red
+      case 'city':
+        return '#14b8a6'; // teal
+      case 'intent':
+        return '#38bdf8'; // sky
+      case 'objection':
+        return '#f43f5e'; // rose
+      case 'preference':
+        return '#84cc16'; // lime
+      case 'habit':
+        return '#eab308'; // yellow
+      case 'insight':
+        return '#059669'; // dark emerald
+      case 'lesson':
+        return '#a855f7'; // purple-500
       case 'agent':
         return '#6366f1'; // indigo
       default:
@@ -70,7 +85,7 @@ export const MemoryGraphViewer: React.FC<MemoryGraphViewerProps> = ({ graphData,
         ref={fgRef}
         width={dimensions.width}
         height={dimensions.height}
-        graphData={{ nodes: graphData?.nodes || [], links: graphData?.edges || [] }}
+        graphData={{ nodes: graphData?.nodes || [], links: (graphData as any)?.links || graphData?.edges || [] }}
         nodeLabel="label"
         nodeColor={(node: any) => getNodeColor(node.type)}
         nodeRelSize={6}
@@ -170,13 +185,13 @@ export const MemoryGraphViewer: React.FC<MemoryGraphViewerProps> = ({ graphData,
           if (onNodeClick) onNodeClick(node);
         }}
       />
-      <div className="absolute bottom-4 left-4 flex flex-col gap-2 p-3 bg-background/80 backdrop-blur-md border border-border rounded-lg text-xs shadow-lg pointer-events-none">
-        <h4 className="font-semibold mb-1">Legenda</h4>
-        <div className="flex items-center gap-2"><div className="w-3 h-3 rounded-full bg-[#6366f1]"></div> Cérebro da IA</div>
-        <div className="flex items-center gap-2"><div className="w-3 h-3 rounded-full bg-[#3b82f6]"></div> Clientes</div>
-        <div className="flex items-center gap-2"><div className="w-3 h-3 rounded-full bg-[#10b981]"></div> Interações</div>
-        <div className="flex items-center gap-2"><div className="w-3 h-3 rounded-full bg-[#8b5cf6]"></div> Conceitos</div>
-        <div className="flex items-center gap-2"><div className="w-3 h-3 rounded-full bg-[#f59e0b]"></div> Produtos/Mídia</div>
+      <div className="hidden sm:flex absolute bottom-4 left-4 flex-col gap-1.5 p-3 bg-card/85 backdrop-blur-md border border-border/70 rounded-xl text-xs shadow-lg pointer-events-none select-none">
+        <h4 className="font-semibold text-foreground text-[11px] mb-0.5">Legenda</h4>
+        <div className="flex items-center gap-2 text-muted-foreground"><div className="w-2.5 h-2.5 rounded-full bg-[#6366f1]"></div> Cérebro da IA</div>
+        <div className="flex items-center gap-2 text-muted-foreground"><div className="w-2.5 h-2.5 rounded-full bg-[#3b82f6]"></div> Clientes</div>
+        <div className="flex items-center gap-2 text-muted-foreground"><div className="w-2.5 h-2.5 rounded-full bg-[#10b981]"></div> Interações</div>
+        <div className="flex items-center gap-2 text-muted-foreground"><div className="w-2.5 h-2.5 rounded-full bg-[#8b5cf6]"></div> Conceitos</div>
+        <div className="flex items-center gap-2 text-muted-foreground"><div className="w-2.5 h-2.5 rounded-full bg-[#f59e0b]"></div> Produtos/Mídia</div>
       </div>
     </div>
   );

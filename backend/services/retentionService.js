@@ -122,6 +122,8 @@ async function cleanIndividualMessages(store) {
       `SELECT id, chat_id, content, from_me, created_at, company_id
        FROM messages
        WHERE chat_id NOT LIKE '%@g.us'
+         AND history_item_id IS NULL
+         AND NOT EXISTS (SELECT 1 FROM whatsapp_history_items h WHERE h.message_id=messages.id AND h.company_id=messages.company_id AND h.session_id=messages.session_id)
          AND created_at < $1
        ORDER BY chat_id, created_at ASC
        LIMIT $2`,

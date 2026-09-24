@@ -209,13 +209,17 @@ else
     log "Frontend node_modules up-to-date — skipping npm install"
   fi
 
-  # TypeScript check with cache
+  # TypeScript is a release gate; report errors before changing the running service.
   echo "  → TypeScript check..."
-  if ./node_modules/.bin/tsc --noEmit --incremental 2>&1 | tee /tmp/tsc_output.txt | head -20; then
+  TSC_OUTPUT="$(mktemp)"
+  if ./node_modules/.bin/tsc --noEmit --incremental false >"$TSC_OUTPUT" 2>&1; then
+    rm -f "$TSC_OUTPUT"
     log "TypeScript: no errors"
   else
-    TS_ERRORS=$(wc -l < /tmp/tsc_output.txt)
-    warn "TypeScript warning ($TS_ERRORS line(s)) — continuing build"
+    head -n 40 "$TSC_OUTPUT"
+    rm -f "$TSC_OUTPUT"
+    err "TypeScript check failed; deploy stopped"
+    rollback
   fi
 
   # Build with Vite

@@ -108,4 +108,6 @@ releases/
 *.webm
 
 # Scripts de diagnóstico SSH ad-hoc — contêm credenciais da VPS, nunca versionar
-tmp_ssh/
+tmp_ssh/
+outros/
+reports/

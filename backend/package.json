@@ -18,7 +18,7 @@
     "db:maintain": "node scripts/db-performance-maintenance.js"
   },
   "dependencies": {
-    "@whiskeysockets/baileys": "6.7.21",
+    "@whiskeysockets/baileys": "6.7.23",
     "axios": "1.13.6",
     "bcryptjs": "^3.0.3",
     "compression": "^1.8.1",

@@ -2,7 +2,26 @@
 
 Este documento serve como blueprint técnico oficial do ecossistema do **Zapflow CRM** (ZAPAI). Ele foi gerado a partir do mapeamento dinâmico de código e auditoria E2E em tempo de execução.
 
+## Histórico e criação supervisionada de atendentes
+
+O listener canônico `stableSession` encaminha histórico para `services/whatsapp/historySync`.
+O `workerSupervisor` executa a fila PostgreSQL de `historyRepository`, separada do
+pipeline de mensagens novas para preservar não lidas e não disparar automações.
+`src/ai/evolutionary/historyLearning` produz versões por empresa/sessão; a publicação
+revisada é transacional no `aiAgentService`. O painel compartilhado aparece em Conexões
+e no Evolution Center. Não é um segundo motor de atendimento: o agente publicado
+continua usando o runtime existente. [Contratos, limites e rollout](runtime/whatsapp-history-bootstrap.md).
+
+## Memória por conexão WhatsApp e evolução de atendentes (22/09/2026)
+
+A arquitetura isola o histórico e memória no PostgreSQL pela tripla `(company_id, session_id, contact_id)`.
+- **Persistência desacoplada:** A tabela de mensagens é a fila durável (`aiMemoryEngine.projectPending()`), garantindo deduplicação atômica com recibos (`ai_memory_receipts`) e integridade mesmo em falhas transitórias do banco.
+- **Vínculos com lojas:** Uma conexão pode vincular-se opcionalmente a uma loja cadastrada na mesma conta (`session_ai_profiles.store_id`), herdando conhecimentos oficiais atuais (`ai_stores.knowledge`) sem misturar histórico de mensagens. Ao desvincular, o acesso é revogado imediatamente mantendo a memória própria do número.
+- **Criação de atendentes:** Disponível nas telas de Conexões e Atendentes via 3 modalidades: manual, por prompt e por histórico de conversas. Em todas, o usuário define segmento, tipo de atendimento e conexões atendidas, com prévia editável e ativação obrigatória e explícita.
+- **Evolução supervisionada e segura:** Ajustes automáticos são restritos exclusivamente ao estilo estruturado (tom e tamanho da resposta). Alterações comerciais geram propostas para revisão. Versões são armazenadas em `ai_agent_versions` com suporte à reversão imediata e pausa da evolução.
+
 ---
+
 
 ## 🛠️ 1. Stack de Tecnologias
 

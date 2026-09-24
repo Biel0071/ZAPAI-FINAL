@@ -315,6 +315,7 @@ async function downloadFromWhatsApp({
   tenantId,
   downloadMediaMessage,
   downloadContentFromMessage,
+  maxBytes,
 }) {
   if (!mediaMessage || !mediaType) {
     return null;
@@ -322,29 +323,44 @@ async function downloadFromWhatsApp({
 
   let buffer = null;
 
-  try {
-    buffer = await downloadMediaMessage(
-      { message: { [`${mediaType}Message`]: mediaMessage } },
-      'buffer',
-      {},
-      {}
-    );
-    console.log(`[MEDIA-SVC] downloadMediaMessage OK for ${mediaType}, size=${buffer?.length || 0}`);
-  } catch (primaryErr) {
-    console.warn(`[MEDIA-SVC] downloadMediaMessage failed for ${mediaType}:`, primaryErr?.message || primaryErr);
+  if (maxBytes) {
+    const stream = await downloadContentFromMessage(mediaMessage, mediaType, { options: { timeout: 60000 } });
+    const chunks = [];
+    let size = 0;
+    const deadline = setTimeout(() => stream.destroy(new Error('History media download timed out')), 60000);
     try {
-      const stream = await downloadContentFromMessage(mediaMessage, mediaType);
-      const chunks = [];
-
       for await (const chunk of stream) {
+        size += chunk.length;
+        if (size > maxBytes) { stream.destroy(); throw new Error('History media exceeds download limit'); }
         chunks.push(chunk);
       }
-
       buffer = Buffer.concat(chunks);
-      console.log(`[MEDIA-SVC] downloadContentFromMessage OK for ${mediaType}, size=${buffer?.length || 0}`);
-    } catch (fallbackErr) {
-      console.error(`[MEDIA-SVC] Both download methods failed for ${mediaType}:`, fallbackErr?.message || fallbackErr);
-      return null;
+    } finally { clearTimeout(deadline); }
+  } else {
+    try {
+      buffer = await downloadMediaMessage(
+        { message: { [`${mediaType}Message`]: mediaMessage } },
+        'buffer',
+        {},
+        {}
+      );
+      console.log(`[MEDIA-SVC] downloadMediaMessage OK for ${mediaType}, size=${buffer?.length || 0}`);
+    } catch (primaryErr) {
+      console.warn(`[MEDIA-SVC] downloadMediaMessage failed for ${mediaType}:`, primaryErr?.message || primaryErr);
+      try {
+        const stream = await downloadContentFromMessage(mediaMessage, mediaType);
+        const chunks = [];
+
+        for await (const chunk of stream) {
+          chunks.push(chunk);
+        }
+
+        buffer = Buffer.concat(chunks);
+        console.log(`[MEDIA-SVC] downloadContentFromMessage OK for ${mediaType}, size=${buffer?.length || 0}`);
+      } catch (fallbackErr) {
+        console.error(`[MEDIA-SVC] Both download methods failed for ${mediaType}:`, fallbackErr?.message || fallbackErr);
+        return null;
+      }
     }
   }
 
