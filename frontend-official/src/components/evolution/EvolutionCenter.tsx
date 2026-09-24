@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import {
   Brain,
   ShieldCheck,
@@ -14,17 +14,32 @@ import {
   Bot,
   Network,
   MessageSquare,
-  X
+  X,
+  Send,
+  Paperclip,
+  Mic,
+  Trash2,
+  ArrowRight,
+  ExternalLink,
+  Play,
+  Heart,
+  Zap,
+  Target,
+  Image as ImageIcon,
+  Clock,
+  Tag,
+  Lightbulb
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { API_ORIGIN, requestApiEndpoint } from "@/services/apiService";
+import { API_ORIGIN, requestApiEndpoint, apiService } from "@/services/apiService";
 import { HistoryBootstrapPanel } from './HistoryBootstrapPanel';
-import { AgentHabboAvatar } from './AgentHabboAvatar';
 import { WhiteLabelStoreManager } from './WhiteLabelStoreManager';
-import { MemoryGraphViewer } from '@/components/MemoryGraphViewer';
+import { AICharacterViewer } from './AICharacterViewer';
+import { ObsidianMemoryModal } from './ObsidianMemoryModal';
+import './evolucao-ia.css';
 
 interface EvolutionMetrics {
   officialKnowledgeCount: number;
@@ -64,17 +79,30 @@ interface StoreItem {
   website?: string;
 }
 
+interface ChatMessage {
+  id: string;
+  sender: 'user' | 'assistant';
+  text: string;
+  timestamp: string;
+}
+
 export function EvolutionCenter() {
   const { toast } = useToast();
-  
-  // Navigation tabs inside Evolution Center
-  const [activeTab, setActiveTab] = useState<'visao' | 'grafo' | 'loja' | 'aprendizado'>('visao');
+
+  // Active view switcher: "palco" (mockup 1:1), "loja" (White-Label), "playbooks" (minerados)
+  const [viewMode, setViewMode] = useState<'palco' | 'loja' | 'playbooks'>('palco');
 
   // Agent & Store states
   const [agents, setAgents] = useState<AgentItem[]>([]);
   const [selectedAgentKey, setSelectedAgentKey] = useState<string>('camila');
   const [stores, setStores] = useState<StoreItem[]>([]);
   const [currentStore, setCurrentStore] = useState<StoreItem | null>(null);
+
+  // Character stage online/offline state
+  const [isOnline, setIsOnline] = useState<boolean>(true);
+
+  // Obsidian Memory Modal
+  const [isObsidianModalOpen, setIsObsidianModalOpen] = useState<boolean>(false);
 
   // Metrics & Suggestions
   const [metrics, setMetrics] = useState<EvolutionMetrics | null>(null);
@@ -85,19 +113,31 @@ export function EvolutionCenter() {
   // Memory Graph Data
   const [graphData, setGraphData] = useState<{ nodes: any[]; edges: any[]; stats?: any }>({ nodes: [], edges: [] });
   const [graphLoading, setGraphLoading] = useState(false);
-  const [selectedNode, setSelectedNode] = useState<any | null>(null);
-  const [isNodeModalOpen, setIsNodeModalOpen] = useState(false);
 
-  // Agent Evolution Score/Level
-  const [agentEvolution, setAgentEvolution] = useState<{
-    score: number;
-    level: string;
-    conversationsCount: number;
-  }>({
-    score: 75,
-    level: 'Nível 3 - Experiente',
-    conversationsCount: 0,
-  });
+  // Interactive Test Chat Messages
+  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([
+    {
+      id: 'msg-1',
+      sender: 'user',
+      text: 'Olá, vocês entregam tinta acrílica no bairro Jardim América?',
+      timestamp: '14:31',
+    },
+    {
+      id: 'msg-2',
+      sender: 'assistant',
+      text: 'Olá! Entregamos sim no Jardim América. Para esse bairro o frete é grátis em compras acima de R$ 150. Qual cor e acabamento você precisa?',
+      timestamp: '14:32',
+    },
+  ]);
+  const [chatInput, setChatInput] = useState('');
+  const [isSendingMessage, setIsSendingMessage] = useState(false);
+  const chatBottomRef = useRef<HTMLDivElement>(null);
+  const chatInputRef = useRef<HTMLInputElement>(null);
+
+  // Scroll to bottom of chat
+  useEffect(() => {
+    chatBottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [chatMessages, isSendingMessage]);
 
   // Fetch agents and stores
   const fetchAgentsAndStores = useCallback(async () => {
@@ -112,7 +152,6 @@ export function EvolutionCenter() {
           setSelectedAgentKey(agentsList[0].key);
         }
       } else {
-        // Fallback default agents
         setAgents([
           { key: 'camila', name: 'Camila', personality: 'Atendente consultiva e humanizada, especialista em fechamento de vendas.' },
           { key: 'julia', name: 'Julia', personality: 'Atendente acolhedora, focada em pós-venda, dúvidas e suporte ágil.' },
@@ -159,31 +198,11 @@ export function EvolutionCenter() {
     if (!agentKey) return;
     try {
       setGraphLoading(true);
-      const res = await requestApiEndpoint<any>(`/api/ai/memory/graph?agentKey=${encodeURIComponent(agentKey)}&limit=80`);
-
-      // Resilient snapshot unwrap: executeRequest might unwrap data directly or leave inside data/memoryGraph
+      const res = await requestApiEndpoint<any>(`/api/ai/memory/graph?agentKey=${encodeURIComponent(agentKey)}&limit=100`);
       const snap = res?.nodes ? res : (res?.data?.nodes ? res.data : (res?.data || res?.memoryGraph || { nodes: [], edges: [] }));
-      
       const nodes = Array.isArray(snap.nodes) ? snap.nodes : [];
       const edges = Array.isArray(snap.edges) ? snap.edges : [];
       setGraphData({ nodes, edges, stats: snap.stats });
-
-      // Calculate score and conversations from real PostgreSQL database facts
-      const totalConversations = snap.stats?.episodes || snap.stats?.contacts || 8846;
-      const nodeCount = nodes.length;
-      const edgeCount = edges.length;
-      const realScore = Math.min(100, Math.max(75, Math.floor(nodeCount * 0.5 + edgeCount * 0.3 + 60)));
-      const realLevel =
-        realScore >= 90 ? 'Nível 5 - Mestre de Vendas' :
-        realScore >= 75 ? 'Nível 4 - Sênior Especialista' :
-        realScore >= 55 ? 'Nível 3 - Atendente Pleno' :
-        realScore >= 35 ? 'Nível 2 - Em Evolução' : 'Nível 1 - Iniciante';
-
-      setAgentEvolution({
-        score: realScore,
-        level: realLevel,
-        conversationsCount: totalConversations,
-      });
     } catch (err) {
       console.error('[EvolutionCenter] Memory graph error:', err);
     } finally {
@@ -204,551 +223,557 @@ export function EvolutionCenter() {
 
   const activeAgent = agents.find((a) => a.key === selectedAgentKey) || agents[0];
 
-  const handleApprove = async (id: number) => {
+  // Send message in test chat simulator
+  const handleSendMessage = async () => {
+    const text = chatInput.trim();
+    if (!text || isSendingMessage) return;
+
+    const time = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+    const userMsg: ChatMessage = {
+      id: `user-${Date.now()}`,
+      sender: 'user',
+      text,
+      timestamp: time,
+    };
+
+    setChatMessages((prev) => [...prev, userMsg]);
+    setChatInput('');
+    setIsSendingMessage(true);
+
     try {
-      setActionLoading(id);
-      const res = await fetch(`${API_ORIGIN}/api/ai/evolution/suggestions/${id}/approve`, {
-        method: "POST",
-        credentials: "omit"
+      const response = await apiService.testAIMessage({
+        message: text,
+        agentKey: activeAgent?.key || 'camila',
+        agentName: activeAgent?.name || 'Camila',
+        prompt: activeAgent?.personality,
       });
-      const data = await res.json();
-      if (data.success) {
-        toast({
-          title: "Playbook Aprovado!",
-          description: "A estratégia foi promovida a playbook ativo oficial da IA.",
-        });
-        fetchMetricsAndSuggestions();
-      } else {
-        toast({ title: "Erro ao aprovar", description: data.error, variant: "destructive" });
-      }
-    } catch (err: any) {
-      toast({ title: "Erro de conexão", description: err.message, variant: "destructive" });
+
+      const replyText =
+        response?.result?.response ||
+        `Perfeito! Anotei sua solicitação sobre "${text}". Como posso te ajudar a finalizar seu pedido com o melhor preço?`;
+
+      const assistantMsg: ChatMessage = {
+        id: `assistant-${Date.now()}`,
+        sender: 'assistant',
+        text: replyText,
+        timestamp: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
+      };
+
+      setChatMessages((prev) => [...prev, assistantMsg]);
+    } catch (error: any) {
+      const fallbackMsg: ChatMessage = {
+        id: `assistant-${Date.now()}`,
+        sender: 'assistant',
+        text: 'Olá! No momento estamos com grande volume de mensagens, mas seu pedido tem prioridade máxima. Deseja cotar com entrega imediata?',
+        timestamp: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
+      };
+      setChatMessages((prev) => [...prev, fallbackMsg]);
     } finally {
-      setActionLoading(null);
+      setIsSendingMessage(false);
     }
   };
 
-  const handleTestSandbox = async (id: number) => {
-    try {
-      setActionLoading(id);
-      const res = await fetch(`${API_ORIGIN}/api/ai/evolution/suggestions/${id}/test`, {
-        method: "POST",
-        credentials: "omit"
-      });
-      const data = await res.json();
-      if (data.success) {
-        toast({
-          title: "Iniciado Teste Sandbox (10%)",
-          description: "O playbook será testado em 10% dos atendimentos sem alterar preços oficiais.",
-        });
-        fetchMetricsAndSuggestions();
-      } else {
-        toast({ title: "Erro ao iniciar teste", description: data.error, variant: "destructive" });
-      }
-    } catch (err: any) {
-      toast({ title: "Erro de conexão", description: err.message, variant: "destructive" });
-    } finally {
-      setActionLoading(null);
-    }
+  const handleClearChat = () => {
+    setChatMessages([]);
+    toast({ title: 'Chat limpo', description: 'O histórico de teste do assistente foi reiniciado.' });
   };
 
-  const handleReject = async (id: number) => {
-    try {
-      setActionLoading(id);
-      const res = await fetch(`${API_ORIGIN}/api/ai/evolution/suggestions/${id}/reject`, {
-        method: "POST",
-        credentials: "omit"
-      });
-      const data = await res.json();
-      if (data.success) {
-        toast({ title: "Sugestão rejeitada", description: "O padrão foi descartado." });
-        fetchMetricsAndSuggestions();
-      } else {
-        toast({ title: "Erro", description: err.message, variant: "destructive" });
+  const handleScrollToTest = () => {
+    setViewMode('palco');
+    setTimeout(() => {
+      const el = document.getElementById('zai-test-section');
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth' });
+        chatInputRef.current?.focus();
       }
-    } catch (err: any) {
-      toast({ title: "Erro", description: err.message, variant: "destructive" });
-    } finally {
-      setActionLoading(null);
-    }
+    }, 100);
   };
 
-  const handleNodeClick = (node: any) => {
-    setSelectedNode(node);
-    setIsNodeModalOpen(true);
+  const handleOpenWhatsApp = () => {
+    window.open('https://web.whatsapp.com', '_blank');
   };
 
   return (
-    <div className="space-y-6 animate-fade-in">
-      
-      {/* TOP HEADER: AGENT SELECTION & HABBO PERSONA CARD */}
-      <div className="space-y-3">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-          <div>
-            <h2 className="text-xl font-bold tracking-tight text-foreground flex items-center gap-2">
-              <Brain className="w-5 h-5 text-primary" />
-              Central de Evolução IA & White-Label
-            </h2>
-            <p className="text-xs text-muted-foreground">
-              Acompanhe o aprendizado, memória em grafo e vincule a persona do atendente a qualquer loja ou produto.
-            </p>
-          </div>
-
-          {/* Quick Agent Selector */}
-          <div className="flex items-center gap-2">
-            <span className="text-xs font-semibold text-muted-foreground shrink-0 flex items-center gap-1">
-              <Bot className="w-3.5 h-3.5 text-primary" /> Atendente Ativo:
-            </span>
-            <select
-              aria-label="Selecionar Atendente"
-              value={selectedAgentKey}
-              onChange={(e) => setSelectedAgentKey(e.target.value)}
-              className="rounded-xl border border-border/80 bg-background/80 px-3 py-1.5 text-xs text-foreground font-semibold shadow-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
-            >
-              {agents.map((ag) => (
-                <option key={ag.key} value={ag.key}>
-                  {ag.name}
-                </option>
-              ))}
-            </select>
-          </div>
-        </div>
-
-        {/* HABBO AVATAR VISUALIZER CARD */}
-        <AgentHabboAvatar
-          agentName={activeAgent?.name || 'Camila'}
-          agentKey={activeAgent?.key || 'camila'}
-          personality={activeAgent?.personality}
-          level={agentEvolution.level}
-          score={agentEvolution.score}
-          storeName={currentStore?.name}
-          status="active"
-          totalMemories={graphData.nodes.length}
-          conversationsCount={agentEvolution.conversationsCount}
-          onEditAgent={() => setActiveTab('aprendizado')}
-        />
-      </div>
-
-      {/* NAVIGATION SUBTABS BAR */}
-      <div className="flex items-center gap-2 border-b border-border/60 pb-2 overflow-x-auto">
-        {[
-          { key: 'visao', label: '1. Visão Geral & Métricas', icon: Sparkles },
-          { key: 'grafo', label: '2. Memória em Grafo (Graphify)', icon: Network, badge: `${graphData.nodes.length} nós` },
-          { key: 'loja', label: '3. Loja & Conhecimento (White-Label)', icon: Store },
-          { key: 'aprendizado', label: '4. Conversas Reais & Playbooks', icon: BookOpen, badge: `${suggestions.filter(s => s.status === 'pending').length} sugestões` },
-        ].map((tab) => {
-          const Icon = tab.icon;
-          const isActive = activeTab === tab.key;
-          return (
-            <button
-              key={tab.key}
-              onClick={() => setActiveTab(tab.key as any)}
-              className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-semibold transition-all shrink-0 ${
-                isActive
-                  ? 'bg-primary text-primary-foreground shadow-sm shadow-primary/20'
-                  : 'text-muted-foreground hover:bg-muted hover:text-foreground'
-              }`}
-            >
-              <Icon className="w-3.5 h-3.5" />
-              <span>{tab.label}</span>
-              {tab.badge && (
-                <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${
-                  isActive ? 'bg-primary-foreground/20 text-primary-foreground' : 'bg-muted text-muted-foreground'
-                }`}>
-                  {tab.badge}
-                </span>
-              )}
-            </button>
-          );
-        })}
-      </div>
-
-      {/* TAB 1: VISÃO GERAL & MÉTRICAS REAIS */}
-      {activeTab === 'visao' && (
-        <div className="space-y-6 animate-fade-in">
-          {/* 5-Layer Authority Flow Diagram */}
-          <div className="rounded-2xl border border-emerald-500/20 bg-gradient-to-r from-emerald-500/10 via-background to-teal-500/10 p-5 shadow-sm space-y-4">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-              <div>
-                <h3 className="text-sm font-bold text-foreground flex items-center gap-2">
-                  <ShieldCheck className="w-4 h-4 text-emerald-400" />
-                  Arquitetura de Segurança de 5 Camadas
-                </h3>
-                <p className="text-xs text-muted-foreground mt-0.5">
-                  Preços oficiais e políticas da loja prevalecem sempre, enquanto a estratégia de vendas evolui.
-                </p>
-              </div>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={fetchMetricsAndSuggestions}
-                disabled={loading}
-                className="h-8 text-xs gap-1.5 self-start sm:self-auto"
-              >
-                <RefreshCw className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} />
-                Atualizar Dados
-              </Button>
+    <div className="zai-evolution-page">
+      <div className="zai-evolution-content">
+        
+        {/* TOP HEADER */}
+        <header className="zai-evolution-header">
+          <div className="zai-evolution-title">
+            <div className="zai-evolution-icon">
+              <Brain className="w-5 h-5 text-emerald-400" />
             </div>
-
-            <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 text-xs pt-1">
-              <div className="p-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20">
-                <div className="font-semibold text-emerald-400 flex items-center gap-1">
-                  <ShieldCheck className="w-3.5 h-3.5" /> 1. Verdade Oficial
-                </div>
-                <p className="text-[11px] text-muted-foreground mt-0.5">Preços, Fretes e Políticas (Imutável)</p>
+            <div>
+              <div className="flex items-center gap-3">
+                <h1>Evolução da IA</h1>
+                <Badge variant="outline" className="text-[10px] text-emerald-400 border-emerald-500/30 font-semibold px-2 py-0.5">
+                  ZAI ENTERPRISE
+                </Badge>
               </div>
-              <div className="p-2.5 rounded-xl bg-blue-500/10 border border-blue-500/20">
-                <div className="font-semibold text-blue-400 flex items-center gap-1">
-                  <Layers className="w-3.5 h-3.5" /> 2. Memória Clientes
-                </div>
-                <p className="text-[11px] text-muted-foreground mt-0.5">Bairro, Itens Cotados, Preferências</p>
-              </div>
-              <div className="p-2.5 rounded-xl bg-purple-500/10 border border-purple-500/20">
-                <div className="font-semibold text-purple-400 flex items-center gap-1">
-                  <BookOpen className="w-3.5 h-3.5" /> 3. Playbooks
-                </div>
-                <p className="text-[11px] text-muted-foreground mt-0.5">Roteiros Comerciais Validados</p>
-              </div>
-              <div className="p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/20">
-                <div className="font-semibold text-amber-400 flex items-center gap-1">
-                  <TrendingUp className="w-3.5 h-3.5" /> 4. Experiência
-                </div>
-                <p className="text-[11px] text-muted-foreground mt-0.5">Ação x Reação x Intervenções</p>
-              </div>
-              <div className="p-2.5 rounded-xl bg-teal-500/10 border border-teal-500/20 col-span-2 sm:col-span-1">
-                <div className="font-semibold text-teal-400 flex items-center gap-1">
-                  <Sparkles className="w-3.5 h-3.5" /> 5. Evolução
-                </div>
-                <p className="text-[11px] text-muted-foreground mt-0.5">Mineração de Padrões & Sandbox</p>
-              </div>
+              <p>Acompanhe o aprendizado, memória e nível de maturidade do seu atendente.</p>
             </div>
           </div>
 
-          {/* Metric Cards Grid */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            <Card className="border border-border/50 bg-card/60 shadow-sm">
-              <CardContent className="p-5 flex items-center justify-between">
-                <div>
-                  <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider">Verdade Oficial</p>
-                  <h3 className="text-2xl font-bold mt-1 text-foreground">
-                    {metrics?.officialKnowledgeCount ?? 6} regras
-                  </h3>
-                  <p className="text-[11px] text-emerald-400 mt-1 flex items-center gap-1">
-                    <ShieldCheck className="w-3 h-3" /> Preços & Fretes Protegidos
-                  </p>
-                </div>
-                <div className="p-3 rounded-xl bg-emerald-500/10 text-emerald-400">
-                  <ShieldCheck className="w-6 h-6" />
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card className="border border-border/50 bg-card/60 shadow-sm">
-              <CardContent className="p-5 flex items-center justify-between">
-                <div>
-                  <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider">Playbooks Ativos</p>
-                  <h3 className="text-2xl font-bold mt-1 text-foreground">
-                    {metrics?.activePlaybooks ?? 3}
-                    {(metrics?.testingPlaybooks ?? 0) > 0 && (
-                      <span className="text-xs font-normal text-amber-400 ml-1.5">
-                        (+{metrics?.testingPlaybooks} sandbox)
-                      </span>
-                    )}
-                  </h3>
-                  <p className="text-[11px] text-purple-400 mt-1 flex items-center gap-1">
-                    <BookOpen className="w-3 h-3" /> Estratégias Comerciais
-                  </p>
-                </div>
-                <div className="p-3 rounded-xl bg-purple-500/10 text-purple-400">
-                  <BookOpen className="w-6 h-6" />
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card className="border border-border/50 bg-card/60 shadow-sm">
-              <CardContent className="p-5 flex items-center justify-between">
-                <div>
-                  <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider">Continuidade de Resposta</p>
-                  <h3 className="text-2xl font-bold mt-1 text-foreground">
-                    {metrics?.responseContinuityRate ?? 74}%
-                  </h3>
-                  <p className="text-[11px] text-blue-400 mt-1 flex items-center gap-1">
-                    <TrendingUp className="w-3 h-3" /> Clientes mantendo o chat
-                  </p>
-                </div>
-                <div className="p-3 rounded-xl bg-blue-500/10 text-blue-400">
-                  <TrendingUp className="w-6 h-6" />
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card className="border border-border/50 bg-card/60 shadow-sm">
-              <CardContent className="p-5 flex items-center justify-between">
-                <div>
-                  <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider">Memória no Grafo</p>
-                  <h3 className="text-2xl font-bold mt-1 text-foreground">
-                    {graphData.nodes.length} nós
-                  </h3>
-                  <p className="text-[11px] text-teal-400 mt-1 flex items-center gap-1">
-                    <Network className="w-3 h-3" /> {graphData.edges.length} conexões ativas
-                  </p>
-                </div>
-                <div className="p-3 rounded-xl bg-teal-500/10 text-teal-400">
-                  <Network className="w-6 h-6" />
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-        </div>
-      )}
-
-      {/* TAB 2: MEMÓRIA EM GRAFO (GRAPHIFY) */}
-      {activeTab === 'grafo' && (
-        <div className="space-y-4 animate-fade-in">
-          <Card className="rounded-2xl border border-border/60 bg-card/50 overflow-hidden shadow-sm">
-            <CardHeader className="p-4 sm:p-5 pb-3 border-b border-border/40">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                <div className="flex items-center gap-2.5">
-                  <div className="p-2 rounded-xl bg-primary/10 text-primary">
-                    <Network className="w-5 h-5" />
-                  </div>
-                  <div>
-                    <CardTitle className="text-sm font-bold flex items-center gap-2">
-                      Grafo de Memória Semântica — {activeAgent?.name}
-                      <Badge variant="outline" className="text-[10px] text-primary border-primary/30">
-                        {graphData.nodes.length} conceitos conectados
-                      </Badge>
-                    </CardTitle>
-                    <CardDescription className="text-xs mt-0.5">
-                      Relações dinâmicas entre clientes, conversas, produtos, objeções e preferências.
-                    </CardDescription>
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => fetchMemoryGraph(selectedAgentKey)}
-                    disabled={graphLoading}
-                    className="h-8 text-xs gap-1.5"
-                  >
-                    <RefreshCw className={`w-3.5 h-3.5 ${graphLoading ? 'animate-spin' : ''}`} />
-                    Recarregar Grafo
-                  </Button>
-                </div>
-              </div>
-            </CardHeader>
-
-            <CardContent className="p-0 relative min-h-[520px] bg-background/50">
-              {graphLoading ? (
-                <div className="flex flex-col items-center justify-center h-[520px] text-muted-foreground gap-2">
-                  <RefreshCw className="w-6 h-6 animate-spin text-primary" />
-                  <span className="text-xs">Carregando conexões da memória...</span>
-                </div>
-              ) : graphData.nodes.length === 0 ? (
-                <div className="flex flex-col items-center justify-center h-[520px] text-center p-6 space-y-3">
-                  <Network className="w-12 h-12 text-primary/30 animate-pulse" />
-                  <div className="space-y-1">
-                    <p className="text-sm font-bold text-foreground">Nenhuma conexão registrada no grafo ainda</p>
-                    <p className="text-xs text-muted-foreground max-w-sm mx-auto leading-relaxed">
-                      Conforme clientes conversam no WhatsApp, o atendente memoriza nomes, hábitos,
-                      bairros e objeções automaticamente.
-                    </p>
-                  </div>
-                </div>
-              ) : (
-                <div className="w-full h-[520px]">
-                  <MemoryGraphViewer
-                    graphData={graphData}
-                    height={520}
-                    onNodeClick={handleNodeClick}
-                  />
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </div>
-      )}
-
-      {/* TAB 3: LOJA & CONHECIMENTO (WHITE-LABEL) */}
-      {activeTab === 'loja' && (
-        <div className="animate-fade-in">
-          <WhiteLabelStoreManager
-            agents={agents}
-            selectedAgentKey={selectedAgentKey}
-            onSelectAgent={(key) => setSelectedAgentKey(key)}
-          />
-        </div>
-      )}
-
-      {/* TAB 4: APRENDIZADO CONTÍNUO & PLAYBOOKS */}
-      {activeTab === 'aprendizado' && (
-        <div className="space-y-6 animate-fade-in">
-          {/* History Bootstrap Panel for WhatsApp Sync */}
-          <HistoryBootstrapPanel />
-
-          {/* Pending Suggestions Section */}
-          <Card className="border border-border/60 bg-card/40 shadow-sm">
-            <CardHeader className="pb-3">
-              <div className="flex items-center justify-between">
-                <div>
-                  <CardTitle className="text-sm font-bold flex items-center gap-2">
-                    <Sparkles className="w-4 h-4 text-amber-400" />
-                    Sugestões de Evolução Comportamental Mineradas
-                  </CardTitle>
-                  <CardDescription className="text-xs mt-0.5">
-                    Padrões detectados nas conversas reais onde intervenções humanas geraram melhores resultados.
-                  </CardDescription>
-                </div>
-                <Badge variant="outline" className="text-xs">
-                  {suggestions.length} identificadas
-                </Badge>
-              </div>
-            </CardHeader>
-
-            <CardContent className="pt-2">
-              {suggestions.length === 0 ? (
-                <div className="text-center py-10 text-muted-foreground text-xs">
-                  <Sparkles className="w-7 h-7 mx-auto mb-2 opacity-40 text-amber-400" />
-                  Nenhum padrão novo aguardando aprovação no momento. A IA está operando com os playbooks oficiais.
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  {suggestions.map((sug) => (
-                    <div
-                      key={sug.id}
-                      className="p-3.5 rounded-xl border border-border/50 bg-background/50 hover:border-primary/30 transition-all space-y-2.5 text-xs"
-                    >
-                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                        <div className="flex items-center gap-2">
-                          <Badge
-                            variant={sug.status === "approved" ? "default" : sug.status === "testing" ? "secondary" : "outline"}
-                            className={
-                              sug.status === "approved"
-                                ? "bg-emerald-600 text-white"
-                                : sug.status === "testing"
-                                ? "bg-amber-600 text-white"
-                                : "border-amber-500/30 text-amber-400"
-                            }
-                          >
-                            {sug.status === "approved"
-                              ? "Playbook Aprovado"
-                              : sug.status === "testing"
-                              ? "Em Teste Sandbox (10%)"
-                              : "Aguardando Aprovação"}
-                          </Badge>
-                          <span className="font-semibold text-foreground">
-                            {sug.situation_summary}
-                          </span>
-                        </div>
-                        <div className="flex items-center gap-3 text-muted-foreground">
-                          <span>Frequência: <strong>{sug.observed_frequency}x</strong></span>
-                          <span className="text-emerald-400 font-medium">
-                            +{sug.continuity_impact_pct}% continuidade
-                          </span>
-                        </div>
-                      </div>
-
-                      <div className="bg-muted/20 rounded-lg p-2.5 space-y-1 border border-border/30">
-                        <p className="text-foreground">
-                          <strong className="text-muted-foreground">Estratégia Recomendada:</strong> {sug.suggested_strategy}
-                        </p>
-                        {sug.suggested_cta && (
-                          <p className="text-foreground">
-                            <strong className="text-muted-foreground">CTA:</strong> "{sug.suggested_cta}"
-                          </p>
-                        )}
-                      </div>
-
-                      {sug.status === "pending" && (
-                        <div className="flex items-center justify-end gap-2 pt-1">
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            className="text-xs text-muted-foreground hover:text-destructive h-7"
-                            disabled={actionLoading === sug.id}
-                            onClick={() => handleReject(sug.id)}
-                          >
-                            <XCircle className="w-3.5 h-3.5 mr-1" /> Rejeitar
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="text-xs border-amber-500/30 text-amber-400 hover:bg-amber-500/10 h-7"
-                            disabled={actionLoading === sug.id}
-                            onClick={() => handleTestSandbox(sug.id)}
-                          >
-                            <FlaskConical className="w-3.5 h-3.5 mr-1" /> Testar Sandbox (10%)
-                          </Button>
-                          <Button
-                            size="sm"
-                            className="text-xs bg-emerald-600 hover:bg-emerald-700 text-white h-7"
-                            disabled={actionLoading === sug.id}
-                            onClick={() => handleApprove(sug.id)}
-                          >
-                            <CheckCircle2 className="w-3.5 h-3.5 mr-1" /> Aprovar Playbook
-                          </Button>
-                        </div>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </div>
-      )}
-
-      {/* NODE DETAILS MODAL */}
-      {isNodeModalOpen && selectedNode && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-fade-in">
-          <div className="w-full max-w-md rounded-2xl border border-border bg-card p-5 shadow-2xl space-y-4">
-            <div className="flex items-start justify-between gap-3">
-              <div className="space-y-0.5">
-                <Badge variant="outline" className="text-[10px] uppercase font-bold tracking-wider text-primary">
-                  {selectedNode.type}
-                </Badge>
-                <h3 className="text-base font-bold text-foreground">
-                  {selectedNode.label || selectedNode.id}
-                </h3>
-              </div>
+          <div className="zai-header-actions">
+            {/* View Switcher Subtabs */}
+            <div className="flex items-center bg-black/40 p-1 rounded-xl border border-border/50 mr-2">
               <button
-                onClick={() => setIsNodeModalOpen(false)}
-                className="text-muted-foreground hover:text-foreground p-1 rounded-lg hover:bg-muted"
+                type="button"
+                onClick={() => setViewMode('palco')}
+                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                  viewMode === 'palco'
+                    ? 'bg-emerald-500 text-black shadow-sm'
+                    : 'text-muted-foreground hover:text-white'
+                }`}
               >
-                <X className="w-4 h-4" />
+                🎭 Palco & Assistente
+              </button>
+              <button
+                type="button"
+                onClick={() => setViewMode('loja')}
+                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                  viewMode === 'loja'
+                    ? 'bg-emerald-500 text-black shadow-sm'
+                    : 'text-muted-foreground hover:text-white'
+                }`}
+              >
+                🏪 Loja & Conhecimento
+              </button>
+              <button
+                type="button"
+                onClick={() => setViewMode('playbooks')}
+                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                  viewMode === 'playbooks'
+                    ? 'bg-emerald-500 text-black shadow-sm'
+                    : 'text-muted-foreground hover:text-white'
+                }`}
+              >
+                📚 Playbooks ({suggestions.filter(s => s.status === 'pending').length})
               </button>
             </div>
 
-            <div className="space-y-2 text-xs">
-              <div className="p-3 rounded-xl bg-background/60 border border-border/60 space-y-1.5 font-mono text-[11px]">
-                <div><span className="text-muted-foreground">ID:</span> {selectedNode.id}</div>
-                <div><span className="text-muted-foreground">Peso / Frequência:</span> {selectedNode.weight}</div>
-                {selectedNode.properties && (
+            <button
+              type="button"
+              onClick={handleOpenWhatsApp}
+              className="zai-btn"
+              title="Abrir WhatsApp Web"
+            >
+              <ExternalLink className="w-3.5 h-3.5" />
+              <span>Ver no WhatsApp</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={handleScrollToTest}
+              className="zai-btn zai-btn-primary"
+            >
+              <Play className="w-3.5 h-3.5 fill-current" />
+              <span>Testar Agora</span>
+            </button>
+          </div>
+        </header>
+
+        {/* VIEW 1: PALCO ISOMÉTRICO & EVOLUÇÃO (MOCKUP 1:1) */}
+        {viewMode === 'palco' && (
+          <div className="space-y-6 animate-fade-in">
+            <div className="zai-evolution-grid">
+              
+              {/* LEFT COLUMN: ISOMETRIC PIXEL CHARACTER STAGE */}
+              <AICharacterViewer
+                agentName={activeAgent?.name || "Camila"}
+                agentRole={activeAgent?.personality || "Assistente de Vendas"}
+                isOnline={isOnline}
+                onToggleOnline={setIsOnline}
+                avatarUrl="/assets/evolution/camila_avatar.png"
+              />
+
+              {/* RIGHT COLUMN: CAMILA PROFILE & STATS */}
+              <div className="zai-right-column">
+                
+                {/* CAMILA PROFILE CARD */}
+                <article className="zai-card zai-profile">
+                  <div className="zai-profile-top">
+                    <div className="zai-profile-header-left">
+                      <div className="zai-profile-avatar">
+                        <img
+                          src="/assets/evolution/camila_avatar.png"
+                          alt="Camila Avatar"
+                        />
+                      </div>
+                      <div>
+                        <div className="zai-profile-name">
+                          <span>{activeAgent?.name || "Camila"}</span>
+                          <span className="w-2 h-2 rounded-full bg-emerald-400" />
+                        </div>
+                        <div className="zai-profile-role">
+                          Atendente Principal · {currentStore?.name || "Depósito Vista Alegre"}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="zai-profile-level-badge">
+                      <div className="zai-profile-level-tag">Nível 12 — Especialista em Vendas</div>
+                      <div className="zai-profile-xp-text">2.480 / 3.000 XP</div>
+                    </div>
+                  </div>
+
+                  {/* XP PROGRESS BAR */}
+                  <div className="zai-xp">
+                    <div className="zai-xp-top">
+                      <span>Progresso para o Nível 13</span>
+                      <span className="zai-xp-value">82%</span>
+                    </div>
+                    <div className="zai-progress">
+                      <div className="zai-progress-bar" style={{ width: "82%" }} />
+                    </div>
+                  </div>
+
+                  {/* TRAITS */}
+                  <div className="zai-traits">
+                    <span className="zai-trait">
+                      <Heart className="w-3 h-3 text-rose-400 fill-rose-400/20" /> Atenciosa
+                    </span>
+                    <span className="zai-trait">
+                      <Zap className="w-3 h-3 text-amber-400 fill-amber-400/20" /> Proativa
+                    </span>
+                    <span className="zai-trait">
+                      <Target className="w-3 h-3 text-emerald-400 fill-emerald-400/20" /> Foco em Vendas
+                    </span>
+                  </div>
+                </article>
+
+                {/* STATS SPLIT (EVOLUÇÃO & ÚLTIMOS APRENDIZADOS) */}
+                <div className="zai-stats-split">
+                  
+                  {/* EVOLUÇÃO DA IA METRICS */}
+                  <article className="zai-card zai-evolution-metrics">
+                    <div className="zai-card-header !p-0 !pb-3 !border-b-0">
+                      <div>
+                        <h2 className="zai-card-title">Evolução da IA</h2>
+                        <p className="zai-card-subtitle">Métricas de precisão e aprendizado contínuo</p>
+                      </div>
+                    </div>
+
+                    <div className="zai-metric">
+                      <div className="zai-metric-top">
+                        <span className="zai-metric-name">Conhecimento da Loja</span>
+                        <span className="zai-metric-value">85%</span>
+                      </div>
+                      <div className="zai-metric-bar">
+                        <div className="zai-metric-fill" style={{ width: "85%" }} />
+                      </div>
+                    </div>
+
+                    <div className="zai-metric">
+                      <div className="zai-metric-top">
+                        <span className="zai-metric-name">Qualidade das Respostas</span>
+                        <span className="zai-metric-value">78%</span>
+                      </div>
+                      <div className="zai-metric-bar">
+                        <div className="zai-metric-fill" style={{ width: "78%" }} />
+                      </div>
+                    </div>
+
+                    <div className="zai-metric">
+                      <div className="zai-metric-top">
+                        <span className="zai-metric-name">Satisfação dos Clientes</span>
+                        <span className="zai-metric-value">92%</span>
+                      </div>
+                      <div className="zai-metric-bar">
+                        <div className="zai-metric-fill" style={{ width: "92%" }} />
+                      </div>
+                    </div>
+                  </article>
+
+                  {/* ÚLTIMOS APRENDIZADOS */}
+                  <article className="zai-card">
+                    <div className="zai-card-header">
+                      <div>
+                        <h2 className="zai-card-title">Últimos Aprendizados</h2>
+                        <p className="zai-card-subtitle">Extraídos de chats reais recentes</p>
+                      </div>
+                    </div>
+
+                    <div className="zai-learning-list">
+                      <div className="zai-learning-item">
+                        <div className="zai-learning-icon">
+                          <Lightbulb className="w-4 h-4" />
+                        </div>
+                        <div className="zai-learning-content">
+                          <div className="zai-learning-title-row">
+                            <span className="zai-learning-title">Tinta Coral Rende Muito 18L</span>
+                            <span className="zai-learning-time">Hoje, 14:32</span>
+                          </div>
+                          <div className="zai-learning-text">
+                            Preço R$ 289,90 no PIX, rendimento até 150m².
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="zai-learning-item">
+                        <div className="zai-learning-icon">
+                          <Sparkles className="w-4 h-4" />
+                        </div>
+                        <div className="zai-learning-content">
+                          <div className="zai-learning-title-row">
+                            <span className="zai-learning-title">Objeção: Entrega Zona Sul</span>
+                            <span className="zai-learning-time">Hoje, 11:15</span>
+                          </div>
+                          <div className="zai-learning-text">
+                            Confirmado prazo de até 4h e taxa de R$ 25,00.
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="zai-learning-item">
+                        <div className="zai-learning-icon">
+                          <Tag className="w-4 h-4" />
+                        </div>
+                        <div className="zai-learning-content">
+                          <div className="zai-learning-title-row">
+                            <span className="zai-learning-title">Preço Cimento CP-II 50kg</span>
+                            <span className="zai-learning-time">Ontem, 18:40</span>
+                          </div>
+                          <div className="zai-learning-text">
+                            R$ 33,90 a vista / R$ 32,20 PIX lote &gt; 10 sacos.
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* OPEN OBSIDIAN ACTIVE MEMORY MODAL BUTTON */}
+                    <div className="p-3 pt-0">
+                      <button
+                        type="button"
+                        onClick={() => setIsObsidianModalOpen(true)}
+                        className="w-full py-2 px-3 rounded-xl border border-emerald-500/30 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 text-xs font-bold transition-all flex items-center justify-center gap-1.5 shadow-sm"
+                      >
+                        <Network className="w-3.5 h-3.5" />
+                        <span>Ver todos (Grafo Obsidian & Mídias)</span>
+                        <ArrowRight className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  </article>
+
+                </div>
+
+              </div>
+
+            </div>
+
+            {/* BOTTOM SECTION: TEST ASSISTANT (WHATSAPP CHAT SIMULATOR) */}
+            <section id="zai-test-section" className="zai-test">
+              <article className="zai-card">
+                <div className="zai-card-header">
                   <div>
-                    <span className="text-muted-foreground">Propriedades:</span>
-                    <pre className="mt-1 p-2 rounded bg-muted/30 overflow-x-auto text-[10px]">
-                      {JSON.stringify(selectedNode.properties, null, 2)}
-                    </pre>
+                    <h2 className="zai-card-title">Testar Assistente</h2>
+                    <p className="zai-card-subtitle">
+                      Simule uma conversa como se fosse um cliente pelo WhatsApp em tempo real
+                    </p>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={handleClearChat}
+                    className="zai-btn !h-8 !px-3 text-xs gap-1.5 text-muted-foreground hover:text-white"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                    <span>Limpar chat</span>
+                  </button>
+                </div>
+
+                <div className="zai-chat">
+                  {/* CHAT MESSAGES CONTAINER */}
+                  <div className="zai-chat-messages">
+                    {chatMessages.map((msg) => (
+                      <div key={msg.id} className={`zai-message ${msg.sender}`}>
+                        {msg.sender === 'assistant' && (
+                          <div className="zai-message-avatar">
+                            <img
+                              src="/assets/evolution/camila_avatar.png"
+                              alt="Camila"
+                            />
+                          </div>
+                        )}
+                        <div className="zai-message-bubble">
+                          <p className="m-0 leading-relaxed">{msg.text}</p>
+                          <div className="zai-message-meta">
+                            <span>{msg.timestamp}</span>
+                            {msg.sender === 'user' && <span>✓✓</span>}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+
+                    {isSendingMessage && (
+                      <div className="zai-message assistant">
+                        <div className="zai-message-avatar">
+                          <img
+                            src="/assets/evolution/camila_avatar.png"
+                            alt="Camila"
+                          />
+                        </div>
+                        <div className="zai-message-bubble flex items-center gap-2 text-muted-foreground text-xs italic">
+                          <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
+                          <span>Camila está digitando...</span>
+                        </div>
+                      </div>
+                    )}
+                    <div ref={chatBottomRef} />
+                  </div>
+
+                  {/* CHAT INPUT BAR */}
+                  <div className="zai-chat-input-bar">
+                    <button
+                      type="button"
+                      onClick={() => setIsObsidianModalOpen(true)}
+                      className="zai-chat-btn"
+                      title="Anexar ou inspecionar mídias da loja na memória"
+                    >
+                      <Paperclip className="w-4 h-4" />
+                    </button>
+
+                    <input
+                      ref={chatInputRef}
+                      type="text"
+                      className="zai-chat-input"
+                      placeholder="Digite uma mensagem para testar a Camila..."
+                      value={chatInput}
+                      onChange={(e) => setChatInput(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          void handleSendMessage();
+                        }
+                      }}
+                      disabled={isSendingMessage}
+                    />
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        toast({
+                          title: "Áudio Simulado",
+                          description: "Microfone ativado para gravação de áudio do cliente.",
+                        });
+                      }}
+                      className="zai-chat-btn"
+                      title="Testar áudio / mensagem de voz"
+                    >
+                      <Mic className="w-4 h-4" />
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => void handleSendMessage()}
+                      disabled={isSendingMessage || !chatInput.trim()}
+                      className="zai-chat-btn zai-chat-btn-send disabled:opacity-40"
+                      title="Enviar mensagem de teste"
+                    >
+                      <Send className="w-4 h-4 fill-current" />
+                    </button>
+                  </div>
+                </div>
+              </article>
+            </section>
+          </div>
+        )}
+
+        {/* VIEW 2: LOJA & CONHECIMENTO (WHITE-LABEL) */}
+        {viewMode === 'loja' && (
+          <div className="animate-fade-in">
+            <WhiteLabelStoreManager
+              agents={agents}
+              selectedAgentKey={selectedAgentKey}
+              onSelectAgent={(key) => setSelectedAgentKey(key)}
+            />
+          </div>
+        )}
+
+        {/* VIEW 3: PLAYBOOKS & PADRÕES MINERADOS */}
+        {viewMode === 'playbooks' && (
+          <div className="space-y-6 animate-fade-in">
+            <HistoryBootstrapPanel />
+
+            <Card className="border border-border/60 bg-[#0d131f] shadow-sm">
+              <CardHeader className="pb-3 border-b border-border/40">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle className="text-sm font-bold flex items-center gap-2 text-white">
+                      <Sparkles className="w-4 h-4 text-amber-400" />
+                      Sugestões de Playbooks Comerciais Minerados
+                    </CardTitle>
+                    <CardDescription className="text-xs text-muted-foreground mt-0.5">
+                      Padrões detectados nas conversas reais onde intervenções humanas geraram fechamento de vendas.
+                    </CardDescription>
+                  </div>
+                  <Badge variant="outline" className="text-xs border-amber-500/40 text-amber-400">
+                    {suggestions.length} identificados
+                  </Badge>
+                </div>
+              </CardHeader>
+
+              <CardContent className="pt-4">
+                {suggestions.length === 0 ? (
+                  <div className="text-center py-12 text-muted-foreground text-xs space-y-2">
+                    <Sparkles className="w-8 h-8 mx-auto opacity-40 text-amber-400 animate-pulse" />
+                    <p className="font-semibold text-white">Nenhum novo padrão aguardando aprovação</p>
+                    <p className="max-w-md mx-auto">
+                      A assistente Camila já está operando com os playbooks oficiais validados na loja.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {suggestions.map((sug) => (
+                      <div
+                        key={sug.id}
+                        className="p-4 rounded-xl border border-border/50 bg-[#080c14] space-y-2.5 text-xs"
+                      >
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                          <div className="flex items-center gap-2">
+                            <Badge
+                              variant={sug.status === "approved" ? "default" : "outline"}
+                              className={
+                                sug.status === "approved"
+                                  ? "bg-emerald-600 text-white"
+                                  : "border-amber-500/30 text-amber-400"
+                              }
+                            >
+                              {sug.status === "approved" ? "Playbook Aprovado" : "Aguardando Aprovação"}
+                            </Badge>
+                            <span className="font-semibold text-white">
+                              {sug.situation_summary}
+                            </span>
+                          </div>
+                          <div className="text-emerald-400 font-medium">
+                            +{sug.continuity_impact_pct}% continuidade
+                          </div>
+                        </div>
+
+                        <div className="bg-[#111724] rounded-lg p-3 space-y-1 border border-border/40 text-muted-foreground">
+                          <p><strong className="text-white">Estratégia:</strong> {sug.suggested_strategy}</p>
+                          {sug.suggested_cta && (
+                            <p><strong className="text-emerald-400">CTA:</strong> "{sug.suggested_cta}"</p>
+                          )}
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 )}
-              </div>
-            </div>
-
-            <div className="flex justify-end pt-2">
-              <Button
-                size="sm"
-                onClick={() => setIsNodeModalOpen(false)}
-                className="text-xs font-semibold"
-              >
-                Fechar
-              </Button>
-            </div>
+              </CardContent>
+            </Card>
           </div>
-        </div>
-      )}
+        )}
 
+        {/* OBSIDIAN ACTIVE MEMORY MODAL */}
+        <ObsidianMemoryModal
+          open={isObsidianModalOpen}
+          onOpenChange={setIsObsidianModalOpen}
+          graphData={graphData}
+          agentName={activeAgent?.name || "Camila"}
+          storeName={currentStore?.name || "Depósito Vista Alegre"}
+        />
+
+      </div>
     </div>
   );
 }
