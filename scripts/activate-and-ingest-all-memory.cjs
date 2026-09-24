@@ -98,23 +98,14 @@ async function activateAndIngestAll() {
 
     await pool.query(`
       INSERT INTO ai_conversation_memory (
-        contact_id, company_id, phone, name, intent, sentiment,
+        contact_id, company_id, session_id, phone, name, intent, sentiment,
         tags, summary, metrics, messages, last_updated, created_at, updated_at
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9::jsonb, $10::jsonb, NOW(), NOW(), NOW())
-      ON CONFLICT (contact_id, company_id) DO UPDATE SET
-        phone = EXCLUDED.phone,
-        name = EXCLUDED.name,
-        intent = EXCLUDED.intent,
-        sentiment = EXCLUDED.sentiment,
-        tags = EXCLUDED.tags,
-        summary = EXCLUDED.summary,
-        metrics = EXCLUDED.metrics,
-        messages = EXCLUDED.messages,
-        last_updated = NOW(),
-        updated_at = NOW()
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10::jsonb, $11::jsonb, NOW(), NOW(), NOW())
+      ON CONFLICT DO NOTHING
     `, [
       contactId,
       companyId,
+      conv.session_id || 'main',
       phone,
       name,
       intent,
