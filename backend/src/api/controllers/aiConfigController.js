@@ -187,13 +187,19 @@ async function getAIEvolution(req, res) {
         COUNT(DISTINCT lead_id) AS clients_served,
         SUM(CASE WHEN funnel_stage IN ('closed', 'fechado') THEN 1 ELSE 0 END) AS conversions,
         SUM(CASE WHEN lead_intent IN ('objection', 'objeção') THEN 1 ELSE 0 END) AS objections,
-        SUM(CASE WHEN human_override = TRUE THEN 1 ELSE 0 END) AS human_interventions
+        SUM(CASE WHEN ai_enabled = FALSE THEN 1 ELSE 0 END) AS human_interventions
       FROM conversations
       WHERE company_id = $1
         AND agent_name IS NOT NULL AND agent_name <> ''
       GROUP BY agent_name
     `;
-    const { rows: agentRows } = await query(agentsSql, [companyId]);
+    let agentRows = [];
+    try {
+      const res = await query(agentsSql, [companyId]);
+      agentRows = res.rows || [];
+    } catch (err) {
+      console.warn('[getAIEvolution] Failed to query agent stats from conversations:', err.message);
+    }
 
     // Se nenhuma conversa com agent_name foi encontrada, buscar agentes cadastrados
     let targetAgents = agentRows;
@@ -238,7 +244,7 @@ async function getAIEvolution(req, res) {
       query(`
         SELECT 
           COUNT(*)::int AS total_outbound,
-          SUM(CASE WHEN media_type IS NOT NULL AND media_type <> '' THEN 1 ELSE 0 END)::int AS media_used
+          SUM(CASE WHEN (media_url IS NOT NULL AND media_url <> '') OR (type IS NOT NULL AND type NOT IN ('text', 'chat')) THEN 1 ELSE 0 END)::int AS media_used
         FROM messages m
         JOIN conversations c ON m.conversation_id = c.id
         WHERE c.company_id = $1 AND m.from_me = TRUE
@@ -384,7 +390,19 @@ async function getAIEvolution(req, res) {
       store: currentStore,
     };
 
-    return res.status(200).json({ success: true, evolution, stats: aggregatedStats, store: currentStore });
+    return res.status(200).json({
+      success: true,
+      data: {
+        evolution,
+        stats: aggregatedStats,
+        store: currentStore,
+        recent_learnings: recentLearnings,
+      },
+      evolution,
+      stats: aggregatedStats,
+      store: currentStore,
+      recent_learnings: recentLearnings,
+    });
   } catch (error) {
     console.error('[aiConfigController] getAIEvolution failed:', error);
     return res.status(500).json({ error: error.message || 'Failed to fetch AI evolution stats.' });
@@ -912,6 +930,7 @@ async function getMemoryMedia(req, res) {
     return res.status(200).json({
       success: true,
       items: filtered,
+      data: filtered,
       total: items.length,
       filtered: filtered.length
     });
