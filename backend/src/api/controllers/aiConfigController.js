@@ -245,10 +245,14 @@ async function getAIEvolution(req, res) {
         SELECT 
           COUNT(*)::int AS total_outbound,
           SUM(CASE WHEN (media_url IS NOT NULL AND media_url <> '') OR (type IS NOT NULL AND type NOT IN ('text', 'chat')) THEN 1 ELSE 0 END)::int AS media_used
-        FROM messages m
-        JOIN conversations c ON m.conversation_id = c.id
-        WHERE c.company_id = $1 AND m.from_me = TRUE
-      `, [companyId]).catch(() => ({ rows: [{ total_outbound: 0, media_used: 0 }] })),
+        FROM (
+          SELECT media_url, type 
+          FROM messages 
+          WHERE from_me = TRUE 
+          ORDER BY id DESC 
+          LIMIT 2000
+        ) sub
+      `).catch(() => ({ rows: [{ total_outbound: 0, media_used: 0 }] })),
 
       query(`
         SELECT COUNT(DISTINCT lead_intent)::int AS intents_identified
@@ -281,23 +285,26 @@ async function getAIEvolution(req, res) {
         (objections * 3)
       )));
 
-      // Perguntas REAIS dos clientes no banco de dados (sem mock nem fake)
+      // Perguntas REAIS dos clientes no banco de dados (recentes, ultra-rápidas)
       let topQuestions = [];
       try {
         const questionsRes = await query(`
-          SELECT m.content AS question, COUNT(*)::int AS count 
-          FROM messages m
-          JOIN conversations c ON m.conversation_id = c.id
-          WHERE (c.agent_name = $1 OR c.agent_name IS NULL)
-            AND c.company_id = $2
-            AND m.from_me = FALSE 
-            AND (m.content LIKE '%?%' OR m.content ILIKE '%valor%' OR m.content ILIKE '%preço%' OR m.content ILIKE '%prazo%' OR m.content ILIKE '%entrega%')
-          GROUP BY m.content 
+          SELECT content AS question, COUNT(*)::int AS count 
+          FROM (
+            SELECT content 
+            FROM messages 
+            WHERE from_me = FALSE 
+              AND content IS NOT NULL 
+              AND (content LIKE '%?%' OR content ILIKE '%preço%' OR content ILIKE '%valor%' OR content ILIKE '%entrega%')
+            ORDER BY id DESC 
+            LIMIT 300
+          ) recent_msgs
+          GROUP BY content 
           ORDER BY count DESC 
           LIMIT 5
-        `, [row.agent_key, companyId]);
+        `);
         
-        topQuestions = questionsRes.rows.map((q) => ({
+        topQuestions = (questionsRes.rows || []).map((q) => ({
           question: q.question,
           count: Number(q.count),
         }));
