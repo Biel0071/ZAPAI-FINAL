@@ -686,9 +686,49 @@ async function getGraphSnapshot(agentKey, companyId = 'default', limit = 50, ses
     `, [cleanCompany, normalizedAgent]),
   ]);
 
-  const rawNodes = nodesResult.rows || [];
-  const rawEdges = edgesResult.rows || [];
-  const stats = statsResult.rows[0] || {};
+  let rawNodes = nodesResult.rows || [];
+  let rawEdges = edgesResult.rows || [];
+  let stats = statsResult.rows[0] || {};
+
+  // Se o atendente é recém-criado ou novo preset e ainda não possui nós exclusivos, herdar nós semânticos da loja/empresa
+  if (rawNodes.length === 0) {
+    const [fallbackNodes, fallbackEdges, fallbackStats] = await Promise.all([
+      query(`
+        SELECT node_key, node_type, label, weight, properties
+        FROM agent_memory_nodes
+        WHERE company_id = $1
+        ORDER BY weight DESC, last_seen_at DESC
+        LIMIT $2
+      `, [cleanCompany, limit]),
+      query(`
+        SELECT source_key, target_key, relation, weight
+        FROM agent_memory_edges
+        WHERE company_id = $1
+        ORDER BY weight DESC, last_seen_at DESC
+        LIMIT $2
+      `, [cleanCompany, limit * 3]),
+      query(`
+        SELECT 
+          COUNT(*) FILTER (WHERE node_type = 'episode')::int AS episodes,
+          COUNT(*) FILTER (WHERE node_type = 'concept')::int AS concepts,
+          COUNT(*) FILTER (WHERE node_type = 'contact')::int AS contacts,
+          COUNT(*) FILTER (WHERE node_type = 'topic')::int AS topics,
+          COUNT(*) FILTER (WHERE node_type = 'product')::int AS products,
+          COUNT(*) FILTER (WHERE node_type = 'objection')::int AS objections,
+          COUNT(*) FILTER (WHERE node_type = 'preference')::int AS preferences,
+          COUNT(*) FILTER (WHERE node_type = 'habit')::int AS habits,
+          COUNT(*) FILTER (WHERE node_type = 'insight')::int AS insights,
+          COUNT(*)::int AS total
+        FROM agent_memory_nodes
+        WHERE company_id = $1
+      `, [cleanCompany]),
+    ]);
+    if (fallbackNodes.rows?.length > 0) {
+      rawNodes = fallbackNodes.rows;
+      rawEdges = fallbackEdges.rows || [];
+      stats = fallbackStats.rows?.[0] || stats;
+    }
+  }
 
   const nodes = rawNodes.map((node) => ({
     id: node.node_key,
