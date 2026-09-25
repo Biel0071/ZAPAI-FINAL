@@ -83,7 +83,13 @@ export const ObsidianMemoryModal: React.FC<ObsidianMemoryModalProps> = ({
     try {
       setLoadingMedia(true);
       const res = await requestApiEndpoint<any>(`/api/ai/memory/media?limit=50`);
-      const items = Array.isArray(res?.items) ? res.items : (Array.isArray(res?.data) ? res.data : []);
+      const items = Array.isArray(res)
+        ? res
+        : (Array.isArray(res?.items)
+          ? res.items
+          : (Array.isArray(res?.data)
+            ? res.data
+            : []));
       setMediaItems(items);
     } catch (err: any) {
       console.error("[ObsidianMemoryModal] Failed to fetch real media:", err);
@@ -106,6 +112,7 @@ export const ObsidianMemoryModal: React.FC<ObsidianMemoryModalProps> = ({
   const resolveMediaUrl = (url: string) => {
     if (!url) return "";
     if (url.startsWith("http://") || url.startsWith("https://")) return url;
+    if (url.startsWith("/http://") || url.startsWith("/https://")) return url.slice(1);
     const clean = url.startsWith("/") ? url : `/${url}`;
     return `${API_ORIGIN}${clean}`;
   };

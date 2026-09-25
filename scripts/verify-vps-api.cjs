@@ -56,8 +56,11 @@ async function run() {
     recentLearningsCount: dataOverview.data?.recent_learnings?.length
   });
 
+  const storeId = dataOverview.data?.store?.id || dataOverview.store?.id;
+  console.log('[TARGET STORE ID]', storeId);
+
   // Test store update
-  const resUpdateStore = await fetch('http://127.0.0.1:4025/api/ai/history/stores/default_store', {
+  const resUpdateStore = await fetch('http://127.0.0.1:4025/api/ai/history/stores/' + encodeURIComponent(storeId), {
     method: 'PUT',
     headers: { 
       'Content-Agent': 'camila',

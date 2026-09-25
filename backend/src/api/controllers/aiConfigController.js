@@ -849,9 +849,17 @@ async function getMemoryMedia(req, res) {
       return `${date.toLocaleDateString('pt-BR')} ${timeStr}`;
     }
 
+    function normalizeMediaUrl(u) {
+      if (!u) return '';
+      const str = String(u).trim();
+      if (str.startsWith('http://') || str.startsWith('https://')) return str;
+      if (str.startsWith('/http://') || str.startsWith('/https://')) return str.slice(1);
+      return str.startsWith('/') ? str : `/${str}`;
+    }
+
     // Processar itens de histórico
     for (const row of historyRows) {
-      const url = row.media_path;
+      const url = normalizeMediaUrl(row.media_path);
       if (!url || seenUrls.has(url)) continue;
       seenUrls.add(url);
 
@@ -865,7 +873,7 @@ async function getMemoryMedia(req, res) {
         id: `whi-${row.id}`,
         title: title || 'Mídia WhatsApp',
         category: cat,
-        url: url.startsWith('/') ? url : `/${url}`,
+        url,
         mediaType: row.media_type || 'image',
         originChat: row.chat_jid || 'WhatsApp',
         customerName: row.chat_name || row.chat_jid?.split('@')[0] || 'Cliente',
@@ -881,7 +889,7 @@ async function getMemoryMedia(req, res) {
 
     // Processar mensagens
     for (const row of messageRows) {
-      const url = row.media_url;
+      const url = normalizeMediaUrl(row.media_url);
       if (!url || seenUrls.has(url)) continue;
       seenUrls.add(url);
 
@@ -905,7 +913,7 @@ async function getMemoryMedia(req, res) {
         id: `msg-${row.id}`,
         title: title || 'Imagem de Atendimento',
         category: cat,
-        url: url.startsWith('/') ? url : `/${url}`,
+        url,
         mediaType: row.media_type || row.msg_type || 'image',
         originChat: row.remote_jid || row.phone || 'WhatsApp',
         customerName: row.customer_name || row.phone || 'Cliente',
@@ -919,7 +927,7 @@ async function getMemoryMedia(req, res) {
 
     // Processar nós de memória
     for (const node of nodeRows) {
-      const url = node.properties?.mediaUrl;
+      const url = normalizeMediaUrl(node.properties?.mediaUrl);
       if (!url || seenUrls.has(url)) continue;
       seenUrls.add(url);
 
@@ -927,7 +935,7 @@ async function getMemoryMedia(req, res) {
         id: `node-${node.node_key}`,
         title: node.label || 'Mídia de Catálogo',
         category: 'produto',
-        url: url.startsWith('/') ? url : `/${url}`,
+        url,
         mediaType: node.properties?.mediaType || 'image',
         originChat: 'Catálogo Oficial',
         customerName: 'Loja',
