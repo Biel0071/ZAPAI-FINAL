@@ -364,24 +364,33 @@ export const ObsidianMemoryModal: React.FC<ObsidianMemoryModalProps> = ({
                       className="rounded-2xl border border-border/60 bg-[#0d131f] overflow-hidden flex flex-col sm:flex-row gap-3 p-3.5 hover:border-emerald-500/40 transition-all shadow-sm group"
                     >
                       <div
-                        className="w-full sm:w-36 h-36 rounded-xl overflow-hidden bg-black/40 shrink-0 relative cursor-pointer group-hover:opacity-95 transition-opacity"
+                        className="w-full sm:w-36 h-36 rounded-xl overflow-hidden bg-black/40 shrink-0 relative cursor-pointer group-hover:opacity-95 transition-opacity flex items-center justify-center border border-border/40"
                         onClick={() => setSelectedPreviewItem(item)}
                       >
+                        <div className="absolute inset-0 flex flex-col items-center justify-center p-2 text-center text-muted-foreground/60 select-none pointer-events-none">
+                          {item.category === "comprovante" ? (
+                            <FileText className="w-8 h-8 mb-1 text-emerald-400/40" />
+                          ) : (
+                            <ImageIcon className="w-8 h-8 mb-1 text-emerald-400/40" />
+                          )}
+                          <span className="text-[9px] line-clamp-1 text-slate-400 font-mono">
+                            {item.title.slice(0, 20)}
+                          </span>
+                        </div>
                         <img
                           src={resolveMediaUrl(item.url)}
                           alt={item.title}
-                          className="w-full h-full object-cover"
+                          className="w-full h-full object-cover relative z-0"
                           onError={(e) => {
                             // Fallback to icon preview if file missing
                             const target = e.target as HTMLElement;
                             target.style.display = "none";
-                            target.parentElement?.classList.add("flex", "items-center", "justify-center", "text-muted-foreground");
                           }}
                         />
-                        <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
+                        <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity z-10">
                           <Maximize2 className="w-5 h-5 text-white" />
                         </div>
-                        <Badge className="absolute top-2 left-2 text-[9px] bg-black/75 backdrop-blur-sm capitalize">
+                        <Badge className="absolute top-2 left-2 text-[9px] bg-black/75 backdrop-blur-sm capitalize z-10">
                           {item.category}
                         </Badge>
                       </div>
@@ -509,11 +518,25 @@ export const ObsidianMemoryModal: React.FC<ObsidianMemoryModalProps> = ({
               </div>
 
               <div className="p-4 space-y-4 max-h-[75vh] overflow-y-auto">
-                <div className="w-full max-h-96 rounded-xl overflow-hidden bg-black/60 flex items-center justify-center border border-border/50">
+                <div className="w-full min-h-60 max-h-96 rounded-xl overflow-hidden bg-black/60 flex items-center justify-center border border-border/50 relative">
+                  <div className="absolute inset-0 flex flex-col items-center justify-center p-6 text-center text-muted-foreground select-none pointer-events-none">
+                    {selectedPreviewItem.category === "comprovante" ? (
+                      <FileText className="w-12 h-12 mb-2 text-emerald-400/30" />
+                    ) : (
+                      <ImageIcon className="w-12 h-12 mb-2 text-emerald-400/30" />
+                    )}
+                    <p className="text-xs font-semibold text-white">{selectedPreviewItem.title}</p>
+                    <p className="text-[11px] text-muted-foreground mt-1 max-w-sm">
+                      Arquivo indexado no banco WhatsApp ({selectedPreviewItem.originChat}).
+                    </p>
+                  </div>
                   <img
                     src={resolveMediaUrl(selectedPreviewItem.url)}
                     alt={selectedPreviewItem.title}
-                    className="max-h-96 max-w-full object-contain"
+                    className="max-h-96 max-w-full object-contain relative z-10"
+                    onError={(e) => {
+                      (e.target as HTMLElement).style.display = "none";
+                    }}
                   />
                 </div>
 

@@ -40,6 +40,7 @@ import { API_ORIGIN, requestApiEndpoint, apiService } from "@/services/apiServic
 import { HistoryBootstrapPanel } from './HistoryBootstrapPanel';
 import { WhiteLabelStoreManager, StoreData } from './WhiteLabelStoreManager';
 import { AICharacterViewer, AttendantConfig } from './AICharacterViewer';
+import { AttendantAvatar } from './AttendantAvatar';
 import { ObsidianMemoryModal } from './ObsidianMemoryModal';
 import './evolucao-ia.css';
 
@@ -373,8 +374,15 @@ export function EvolutionCenter() {
   };
 
   const handleClearChat = () => {
-    setChatMessages([]);
-    toast({ title: 'Chat limpo', description: 'O histórico de teste do assistente foi reiniciado.' });
+    setChatMessages([
+      {
+        id: `greeting-${Date.now()}`,
+        sender: 'assistant',
+        text: `Olá! Sou ${attendantName}, ${attendantRole} da ${storeName}. Como posso te ajudar hoje?`,
+        timestamp: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
+      },
+    ]);
+    toast({ title: 'Chat reiniciado', description: `Histórico limpo. Atendente ${attendantName} pronto para novo teste.` });
   };
 
   const handleScrollToTest = () => {
@@ -403,7 +411,7 @@ export function EvolutionCenter() {
               <Brain className="w-5 h-5 text-emerald-400" />
             </div>
             <div>
-              <div className="flex items-center gap-3">
+              <div className="flex flex-wrap items-center gap-3">
                 <h1>Evolução da IA — {storeName}</h1>
                 <Badge
                   variant="outline"
@@ -412,6 +420,32 @@ export function EvolutionCenter() {
                 >
                   {attendantName} · {attendantRole}
                 </Badge>
+                {stores.length > 1 && (
+                  <div className="flex items-center gap-1.5 bg-[#080c14] px-2 py-1 rounded-lg border border-border/60">
+                    <Store className="w-3.5 h-3.5 text-muted-foreground" />
+                    <span className="text-[10px] text-muted-foreground">Loja:</span>
+                    <select
+                      value={currentStore?.id || ''}
+                      onChange={(e) => {
+                        const selected = stores.find((s) => s.id === e.target.value);
+                        if (selected) {
+                          setCurrentStore(selected);
+                          toast({
+                            title: 'Loja Selecionada',
+                            description: `Exibindo atendente e evolução de ${selected.name}`,
+                          });
+                        }
+                      }}
+                      className="bg-transparent text-white text-xs font-semibold focus:outline-none cursor-pointer"
+                    >
+                      {stores.map((s) => (
+                        <option key={s.id} value={s.id} className="bg-[#0d131f] text-white">
+                          {s.name} ({s.attendant_name || 'Atendente'})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
               </div>
               <p>Atendente criado por loja com identidade, cores e aprendizado contínuo extraído do WhatsApp.</p>
             </div>
@@ -489,7 +523,7 @@ export function EvolutionCenter() {
                 themeColor={themeColor}
                 isOnline={isOnline}
                 onToggleOnline={setIsOnline}
-                avatarUrl="/assets/evolution/camila_avatar.png"
+                avatarUrl={currentStore?.attendant_config?.avatarUrl}
                 config={attendantConfig}
                 onSaveConfig={handleSaveAttendantConfig}
               />
@@ -504,15 +538,13 @@ export function EvolutionCenter() {
                 >
                   <div className="zai-profile-top">
                     <div className="zai-profile-header-left">
-                      <div
-                        className="zai-profile-avatar"
-                        style={{ borderColor: themeColor }}
-                      >
-                        <img
-                          src="/assets/evolution/camila_avatar.png"
-                          alt={attendantName}
-                        />
-                      </div>
+                      <AttendantAvatar
+                        name={attendantName}
+                        themeColor={themeColor}
+                        config={attendantConfig}
+                        avatarUrl={currentStore?.attendant_config?.avatarUrl}
+                        size="lg"
+                      />
                       <div>
                         <div className="zai-profile-name">
                           <span>{attendantName}</span>
@@ -705,15 +737,13 @@ export function EvolutionCenter() {
                     {chatMessages.map((msg) => (
                       <div key={msg.id} className={`zai-message ${msg.sender}`}>
                         {msg.sender === 'assistant' && (
-                          <div
-                            className="zai-message-avatar"
-                            style={{ borderColor: themeColor }}
-                          >
-                            <img
-                              src="/assets/evolution/camila_avatar.png"
-                              alt={attendantName}
-                            />
-                          </div>
+                          <AttendantAvatar
+                            name={attendantName}
+                            themeColor={themeColor}
+                            config={attendantConfig}
+                            avatarUrl={currentStore?.attendant_config?.avatarUrl}
+                            size="sm"
+                          />
                         )}
                         <div className="zai-message-bubble">
                           <p className="m-0 leading-relaxed">{msg.text}</p>
@@ -727,15 +757,13 @@ export function EvolutionCenter() {
 
                     {isSendingMessage && (
                       <div className="zai-message assistant">
-                        <div
-                          className="zai-message-avatar"
-                          style={{ borderColor: themeColor }}
-                        >
-                          <img
-                            src="/assets/evolution/camila_avatar.png"
-                            alt={attendantName}
-                          />
-                        </div>
+                        <AttendantAvatar
+                          name={attendantName}
+                          themeColor={themeColor}
+                          config={attendantConfig}
+                          avatarUrl={currentStore?.attendant_config?.avatarUrl}
+                          size="sm"
+                        />
                         <div className="zai-message-bubble flex items-center gap-2 text-muted-foreground text-xs italic">
                           <span className="w-2 h-2 rounded-full animate-ping" style={{ backgroundColor: themeColor }} />
                           <span>{attendantName} está digitando...</span>

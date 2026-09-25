@@ -765,7 +765,7 @@ async function getMemoryMedia(req, res) {
           occurred_at
         FROM whatsapp_history_items
         WHERE company_id = $1
-          AND (media_path IS NOT NULL OR (media_type IS NOT NULL AND media_type NOT IN ('text', 'none')))
+          AND media_path IS NOT NULL AND length(media_path) > 0
         ORDER BY occurred_at DESC
         LIMIT $2
       `, [companyId, limit]);
@@ -774,15 +774,15 @@ async function getMemoryMedia(req, res) {
       console.warn('[getMemoryMedia] Failed to query whatsapp_history_items:', err.message);
     }
 
-    // 2. Consultar mensagens com mídia da tabela messages
+    // 2. Consultar mensagens com mídia da tabela messages (COALESCE media_path/media_url)
     let messageRows = [];
     try {
       const res = await query(`
         SELECT 
           m.id,
           m.phone,
-          m.media_url,
-          m.type AS msg_type,
+          COALESCE(NULLIF(m.media_path, ''), m.media_url) AS media_url,
+          COALESCE(m.media_type, m.type, 'image') AS media_type,
           m.text,
           m.content,
           m.from_me,
@@ -792,10 +792,13 @@ async function getMemoryMedia(req, res) {
           c.remote_jid,
           COALESCE(NULLIF(l.name, ''), m.phone, 'Cliente WhatsApp') AS customer_name
         FROM messages m
-        INNER JOIN conversations c ON m.conversation_id = c.id
+        LEFT JOIN conversations c ON m.conversation_id = c.id
         LEFT JOIN leads l ON l.id = c.lead_id
-        WHERE c.company_id = $1
-          AND m.media_url IS NOT NULL AND m.media_url <> ''
+        WHERE (c.company_id = $1 OR m.company_id = $1)
+          AND (
+            (m.media_path IS NOT NULL AND length(m.media_path) > 0)
+            OR (m.media_url IS NOT NULL AND length(m.media_url) > 0)
+          )
         ORDER BY m.timestamp DESC
         LIMIT $2
       `, [companyId, limit]);
@@ -824,13 +827,13 @@ async function getMemoryMedia(req, res) {
 
     function categorize(text, type) {
       const lower = (text || '').toLowerCase();
-      if (lower.includes('comprovante') || lower.includes('pix') || lower.includes('pagamento') || lower.includes('transferência') || lower.includes('pago') || lower.includes('fatura')) {
+      if (lower.includes('comprovante') || lower.includes('pix') || lower.includes('pagamento') || lower.includes('transferência') || lower.includes('pago') || lower.includes('fatura') || lower.includes('recibo')) {
         return 'comprovante';
       }
-      if (lower.includes('catálogo') || lower.includes('catalogo') || lower.includes('tabela') || lower.includes('preços') || lower.includes('ficha') || lower.includes('pdf')) {
+      if (lower.includes('catálogo') || lower.includes('catalogo') || lower.includes('tabela') || lower.includes('preços') || lower.includes('ficha') || lower.includes('pdf') || lower.includes('valores') || lower.includes('lista')) {
         return 'catalogo';
       }
-      if (lower.includes('obra') || lower.includes('reforma') || lower.includes('construção') || lower.includes('parede') || lower.includes('tijolo') || lower.includes('chão') || lower.includes('piso') || lower.includes('alvenaria')) {
+      if (lower.includes('obra') || lower.includes('reforma') || lower.includes('construção') || lower.includes('parede') || lower.includes('tijolo') || lower.includes('chão') || lower.includes('piso') || lower.includes('alvenaria') || lower.includes('telhado')) {
         return 'obra';
       }
       return 'produto';
@@ -851,9 +854,12 @@ async function getMemoryMedia(req, res) {
 
     function normalizeMediaUrl(u) {
       if (!u) return '';
-      const str = String(u).trim();
+      let str = String(u).trim().replace(/\\/g, '/');
       if (str.startsWith('http://') || str.startsWith('https://')) return str;
       if (str.startsWith('/http://') || str.startsWith('/https://')) return str.slice(1);
+      if (str.includes('/uploads/')) return '/uploads/' + str.split('/uploads/').pop();
+      if (str.includes('/media/')) return '/media/' + str.split('/media/').pop();
+      if (str.includes('/upload/')) return '/upload/' + str.split('/upload/').pop();
       return str.startsWith('/') ? str : `/${str}`;
     }
 
@@ -863,11 +869,12 @@ async function getMemoryMedia(req, res) {
       if (!url || seenUrls.has(url)) continue;
       seenUrls.add(url);
 
-      const ocr = row.media_text || (row.text && row.text !== '[image]' && row.text !== '[media]' && row.text !== '[video]' ? row.text : 'Mídia recebida no WhatsApp sem texto adicional.');
-      const cat = categorize(`${row.text || ''} ${row.media_text || ''}`, row.media_type);
+      const rawText = (row.text || '').split('[META]')[0].trim();
+      const ocr = row.media_text || (rawText && rawText !== '[image]' && rawText !== '[media]' && rawText !== '[video]' && rawText !== '[document]' ? rawText : 'Mídia recebida no WhatsApp sem texto adicional.');
+      const cat = categorize(`${rawText} ${row.media_text || ''}`, row.media_type);
       const title = row.media_text
         ? row.media_text.split('.')[0].replace(/^a imagem mostra\s+/i, '').slice(0, 75)
-        : (row.text && row.text !== '[image]' ? row.text.slice(0, 60) : `Mídia de ${row.chat_name || 'Cliente'}`);
+        : (rawText && rawText !== '[image]' && rawText !== '[document]' ? rawText.split('\n')[0].replace(/^[*_~#]+|[*_~#]+$/g, '').trim().slice(0, 60) : `Mídia de ${row.chat_name || 'Cliente'}`);
 
       items.push({
         id: `whi-${row.id}`,
@@ -882,18 +889,19 @@ async function getMemoryMedia(req, res) {
           ? `Análise visual indexada à memória semântica do atendente. ${row.from_me ? 'Enviada pela loja' : 'Recebida do cliente'}.`
           : `Registro de mídia para validação de catálogo e atendimento de ${row.chat_name || 'cliente'}.`,
         detectedAt: formatTime(row.occurred_at),
+        rawDate: row.occurred_at ? new Date(row.occurred_at).getTime() : 0,
         confidence: row.media_text ? 0.98 : 0.92,
         fromMe: Boolean(row.from_me)
       });
     }
 
-    // Processar mensagens
+    // Processar mensagens da tabela messages
     for (const row of messageRows) {
       const url = normalizeMediaUrl(row.media_url);
       if (!url || seenUrls.has(url)) continue;
       seenUrls.add(url);
 
-      const rawText = row.content || row.text || '';
+      const rawText = row.text || row.content || '';
       let cleanOcr = rawText;
       if (cleanOcr.includes('[Imagem Analisada]:')) {
         cleanOcr = cleanOcr.split('[Imagem Analisada]:')[1]?.replace(/^[\s"]+|[\s"]+$/g, '') || cleanOcr;
@@ -901,12 +909,12 @@ async function getMemoryMedia(req, res) {
         cleanOcr = cleanOcr.split('[META]')[0].trim() || 'Mídia compartilhada no chat WhatsApp.';
       }
       if (!cleanOcr || cleanOcr === '[image]' || cleanOcr === '[media]') {
-        cleanOcr = 'Foto do produto/serviço enviada na conversa.';
+        cleanOcr = 'Foto ou mídia compartilhada na conversa do WhatsApp.';
       }
 
-      const cat = categorize(`${cleanOcr} ${rawText}`, row.msg_type || row.media_type);
-      const title = cleanOcr.length > 5 && cleanOcr !== 'Mídia compartilhada no chat WhatsApp.' && cleanOcr !== 'Foto do produto/serviço enviada na conversa.'
-        ? cleanOcr.split('.')[0].slice(0, 75)
+      const cat = categorize(`${cleanOcr} ${rawText}`, row.media_type);
+      const title = cleanOcr.length > 5 && cleanOcr !== 'Mídia compartilhada no chat WhatsApp.' && cleanOcr !== 'Foto ou mídia compartilhada na conversa do WhatsApp.'
+        ? cleanOcr.split('\n')[0].replace(/^[*_~#]+|[*_~#]+$/g, '').trim().slice(0, 75)
         : `Mídia de ${row.customer_name || 'Cliente'}`;
 
       items.push({
@@ -914,12 +922,13 @@ async function getMemoryMedia(req, res) {
         title: title || 'Imagem de Atendimento',
         category: cat,
         url,
-        mediaType: row.media_type || row.msg_type || 'image',
+        mediaType: row.media_type || 'image',
         originChat: row.remote_jid || row.phone || 'WhatsApp',
         customerName: row.customer_name || row.phone || 'Cliente',
         ocrAnalysis: cleanOcr,
         learnedKnowledge: `Contexto do atendimento: ${row.from_me ? 'Enviado pelo assistente' : 'Solicitado pelo cliente'}. Gravado na memória operacional.`,
         detectedAt: formatTime(row.timestamp),
+        rawDate: row.timestamp ? new Date(row.timestamp).getTime() : 0,
         confidence: cleanOcr.length > 40 ? 0.97 : 0.91,
         fromMe: Boolean(row.from_me)
       });
@@ -942,10 +951,14 @@ async function getMemoryMedia(req, res) {
         ocrAnalysis: node.content || node.label,
         learnedKnowledge: 'Item oficial associado ao nó de memória semântica do catálogo.',
         detectedAt: formatTime(node.last_seen_at),
+        rawDate: node.last_seen_at ? new Date(node.last_seen_at).getTime() : 0,
         confidence: 0.99,
         fromMe: true
       });
     }
+
+    // Ordenar itens por data mais recente
+    items.sort((a, b) => (b.rawDate || 0) - (a.rawDate || 0));
 
     let filtered = items;
     if (categoryFilter && categoryFilter !== 'todos') {

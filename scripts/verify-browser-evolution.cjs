@@ -87,21 +87,21 @@ async function main() {
     const dialog = page.locator('[role="dialog"]');
     if (await dialog.isVisible()) {
       console.log('[PLAYWRIGHT] Dialog is open, clicking Mídias & Imagens subtab...');
+      
+      const mediaResponsePromise = page.waitForResponse(resp => resp.url().includes('/api/ai/memory/media') && resp.status() === 200, { timeout: 20000 }).catch(() => null);
+      
       const mediaTabButton = dialog.locator('button:has-text("Mídias & Imagens")').first();
       await mediaTabButton.click({ force: true });
       
-      // Wait for loading to finish
-      try {
-        await dialog.locator('text=Carregando mídias').waitFor({ state: 'detached', timeout: 15000 });
-      } catch (_) {}
-      await page.waitForTimeout(2000);
+      await mediaResponsePromise;
+      await page.waitForTimeout(3000);
 
       const screen2Path = path.join(artifactsDir, 'obsidian_memory_media.png');
       await page.screenshot({ path: screen2Path, fullPage: false });
       console.log('[PLAYWRIGHT] Screenshot saved:', screen2Path);
 
       // Check if real media items loaded
-      const mediaCards = dialog.locator('.group.relative.rounded-2xl');
+      const mediaCards = dialog.locator('.rounded-2xl.border');
       const count = await mediaCards.count();
       console.log('[PLAYWRIGHT] Media cards visible in modal:', count);
 

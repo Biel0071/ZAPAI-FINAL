@@ -18,6 +18,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
+import { AttendantAvatar } from "./AttendantAvatar";
 
 export interface AttendantConfig {
   hairColor?: string;
@@ -220,18 +221,13 @@ export const AICharacterViewer: React.FC<AICharacterViewerProps> = ({
       >
         {/* CHARACTER STATUS OVERLAY */}
         <div className="zai-character-status">
-          <div
-            className="zai-character-status-avatar"
-            style={{ borderColor: clothingColor }}
-          >
-            <img
-              src={avatarUrl}
-              alt={customName}
-              onError={(e) => {
-                (e.target as HTMLElement).style.display = "none";
-              }}
-            />
-          </div>
+          <AttendantAvatar
+            name={customName}
+            themeColor={clothingColor}
+            config={{ hairColor, clothingColor, accessories, scene, gender, skinTone }}
+            avatarUrl={avatarUrl}
+            size="md"
+          />
           <div>
             <div className="zai-character-status-name flex items-center gap-1.5">
               <span>{customName}</span>

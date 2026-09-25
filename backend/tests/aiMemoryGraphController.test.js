@@ -118,5 +118,33 @@ test('aiConfigController memory endpoints handle queries gracefully with and wit
     }
   }
 
+  // Test 5: getMemoryMedia with category filter
+  {
+    let statusCode = 200;
+    let jsonResult = null;
+    const req = {
+      authTenantId: 'default',
+      query: { category: 'produto', limit: 10 },
+      app: { locals: { store: {} } },
+    };
+    const res = {
+      status(code) {
+        statusCode = code;
+        return this;
+      },
+      json(data) {
+        jsonResult = data;
+        return this;
+      },
+    };
+
+    await controller.getMemoryMedia(req, res);
+    assert.equal(statusCode, 200, 'getMemoryMedia with category must return 200');
+    assert.equal(jsonResult.success, true);
+    for (const item of jsonResult.items) {
+      assert.equal(item.category, 'produto', 'Filtered items must match category');
+    }
+  }
+
   process.exit(0);
 });
