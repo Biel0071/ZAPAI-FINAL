@@ -131,7 +131,7 @@ export const AICharacterViewer: React.FC<AICharacterViewerProps> = ({
   themeColor = "#10b981",
   isOnline,
   onToggleOnline,
-  avatarUrl = "/assets/evolution/camila_avatar.png",
+  avatarUrl,
   config,
   onSaveConfig
 }) => {
@@ -393,19 +393,8 @@ export const AICharacterViewer: React.FC<AICharacterViewerProps> = ({
                   }}
                 />
 
-                {/* If default Camila and default office scene, render the classic pixel art */}
-                {customName.toLowerCase().includes("camila") && scene === "escritorio_zai" && hairColor === "#4a2c11" && gender === "female" ? (
-                  <div className="relative flex items-center justify-center w-full h-full p-2 select-none">
-                    <img
-                      src="/assets/evolution/camila_office_active.png"
-                      alt={`${customName} Atendendo no Escritório ZAI`}
-                      className="zai-character-art h-[92%] object-contain"
-                      draggable={false}
-                    />
-                  </div>
-                ) : (
-                  /* High-res Modular Pixel Art Stage for any Custom Store Attendant */
-                  <div className="relative w-64 h-72 sm:w-72 sm:h-80 flex items-center justify-center animate-fade-in">
+                {/* High-res Modular Pixel Art Stage for any Custom Store Attendant */}
+                <div className="relative w-64 h-72 sm:w-72 sm:h-80 flex items-center justify-center animate-fade-in">
                     <svg
                       viewBox="0 0 100 110"
                       className="w-full h-full drop-shadow-[0_16px_24px_rgba(0,0,0,0.6)]"
@@ -559,7 +548,6 @@ export const AICharacterViewer: React.FC<AICharacterViewerProps> = ({
                       )}
                     </svg>
                   </div>
-                )}
 
                 <div className="text-[11px] font-bold text-white mt-1 flex items-center gap-1.5">
                   <span className="w-2 h-2 rounded-full animate-ping" style={{ backgroundColor: clothingColor }} />

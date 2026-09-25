@@ -17,7 +17,13 @@ function requireHistoryAuth(req, res, next) {
 function createHistoryRouter({ repository = historySync.repository, db = pool, agentService = agents, analyze = ai.analyzeHistoryText } = {}) {
   const router = express.Router();
   router.use(requireHistoryAuth);
-  router.use(rateLimit({ windowMs: 60000, limit: 60, standardHeaders: true, legacyHeaders: false }));
+  router.use(rateLimit({
+    windowMs: 60000,
+    limit: 120,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: { error: 'Muitas requisições. Tente novamente em instantes.' }
+  }));
   const handle = fn => async (req, res) => {
     try { await fn(req, res); }
     catch (error) {

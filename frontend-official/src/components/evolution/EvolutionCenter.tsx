@@ -176,9 +176,12 @@ export function EvolutionCenter() {
 
       if (agentsList.length > 0) {
         setAgents(agentsList);
-        if (!selectedAgentKey || !agentsList.some((a: any) => a.key === selectedAgentKey)) {
-          setSelectedAgentKey(agentsList[0].key);
-        }
+        setSelectedAgentKey((prevKey) => {
+          if (prevKey && agentsList.some((a: any) => a.key === prevKey)) {
+            return prevKey;
+          }
+          return agentsList[0]?.key || prevKey;
+        });
       } else {
         setAgents([
           { key: 'camila', name: 'Camila', personality: 'Atendente consultiva e humanizada, especialista em fechamento de vendas.' },
@@ -198,7 +201,7 @@ export function EvolutionCenter() {
     } catch (err) {
       console.error('[EvolutionCenter] Error loading agents/stores:', err);
     }
-  }, [selectedAgentKey]);
+  }, []);
 
   // Fetch metrics, overview & suggestions
   const fetchMetricsAndSuggestions = useCallback(async () => {
@@ -223,8 +226,8 @@ export function EvolutionCenter() {
       if (overRes) {
         const stats = overRes?.stats || overRes?.data?.stats;
         if (stats) setEvolutionOverview(stats);
-        if (overRes?.store && !currentStore) {
-          setCurrentStore(overRes.store);
+        if (overRes?.store) {
+          setCurrentStore((prev) => prev || overRes.store);
         }
       }
     } catch (err: any) {
@@ -232,7 +235,7 @@ export function EvolutionCenter() {
     } finally {
       setLoading(false);
     }
-  }, [currentStore]);
+  }, []);
 
   // Fetch Memory Graph for Selected Agent
   const fetchMemoryGraph = useCallback(async (agentKey: string) => {
@@ -420,7 +423,7 @@ export function EvolutionCenter() {
                 >
                   {attendantName} · {attendantRole}
                 </Badge>
-                {stores.length > 1 && (
+                {stores.length > 0 && (
                   <div className="flex items-center gap-1.5 bg-[#080c14] px-2 py-1 rounded-lg border border-border/60">
                     <Store className="w-3.5 h-3.5 text-muted-foreground" />
                     <span className="text-[10px] text-muted-foreground">Loja:</span>
