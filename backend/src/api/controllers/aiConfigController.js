@@ -750,57 +750,74 @@ async function getMemoryMedia(req, res) {
     const searchFilter = (req.query.q || req.query.search || '').trim().toLowerCase();
 
     // 1. Consultar mídias históricas do WhatsApp com análise OCR/visão
-    const historyRows = (await query(`
-      SELECT 
-        id,
-        chat_name,
-        chat_jid,
-        media_type,
-        media_path,
-        media_text,
-        text,
-        from_me,
-        occurred_at
-      FROM whatsapp_history_items
-      WHERE company_id = $1
-        AND (media_path IS NOT NULL OR (media_type IS NOT NULL AND media_type NOT IN ('text', 'none')))
-      ORDER BY occurred_at DESC
-      LIMIT $2
-    `, [companyId, limit])).rows;
+    let historyRows = [];
+    try {
+      const res = await query(`
+        SELECT 
+          id,
+          chat_name,
+          chat_jid,
+          media_type,
+          media_path,
+          media_text,
+          text,
+          from_me,
+          occurred_at
+        FROM whatsapp_history_items
+        WHERE company_id = $1
+          AND (media_path IS NOT NULL OR (media_type IS NOT NULL AND media_type NOT IN ('text', 'none')))
+        ORDER BY occurred_at DESC
+        LIMIT $2
+      `, [companyId, limit]);
+      historyRows = res.rows || [];
+    } catch (err) {
+      console.warn('[getMemoryMedia] Failed to query whatsapp_history_items:', err.message);
+    }
 
     // 2. Consultar mensagens com mídia da tabela messages
-    const messageRows = (await query(`
-      SELECT 
-        m.id,
-        m.phone,
-        m.media_url,
-        m.type AS msg_type,
-        m.media_type,
-        m.text,
-        m.content,
-        m.from_me,
-        m.timestamp,
-        c.id AS conversation_id,
-        c.agent_name,
-        c.remote_jid,
-        COALESCE(NULLIF(l.name, ''), m.phone, 'Cliente WhatsApp') AS customer_name
-      FROM messages m
-      LEFT JOIN conversations c ON m.conversation_id = c.id
-      LEFT JOIN leads l ON l.id = c.lead_id
-      WHERE (c.company_id = $1 OR m.company_id = $1)
-        AND (m.media_url IS NOT NULL OR m.type != 'text' OR m.media_type IS NOT NULL)
-      ORDER BY m.timestamp DESC
-      LIMIT $2
-    `, [companyId, limit])).rows;
+    let messageRows = [];
+    try {
+      const res = await query(`
+        SELECT 
+          m.id,
+          m.phone,
+          m.media_url,
+          m.type AS msg_type,
+          m.text,
+          m.content,
+          m.from_me,
+          m.timestamp,
+          c.id AS conversation_id,
+          c.agent_name,
+          c.remote_jid,
+          COALESCE(NULLIF(l.name, ''), m.phone, 'Cliente WhatsApp') AS customer_name
+        FROM messages m
+        INNER JOIN conversations c ON m.conversation_id = c.id
+        LEFT JOIN leads l ON l.id = c.lead_id
+        WHERE c.company_id = $1
+          AND m.media_url IS NOT NULL AND m.media_url <> ''
+        ORDER BY m.timestamp DESC
+        LIMIT $2
+      `, [companyId, limit]);
+      messageRows = res.rows || [];
+    } catch (err) {
+      console.warn('[getMemoryMedia] Failed to query messages with media:', err.message);
+    }
 
     // 3. Consultar nós de mídia de produtos no grafo de memória
-    const nodeRows = (await query(`
-      SELECT node_key, label, content, properties, weight, last_seen_at
-      FROM agent_memory_nodes
-      WHERE company_id = $1 AND (node_type = 'product_media' OR properties ? 'mediaUrl')
-      ORDER BY weight DESC, last_seen_at DESC
-      LIMIT 30
-    `, [companyId])).rows;
+    let nodeRows = [];
+    try {
+      const res = await query(`
+        SELECT node_key, label, content, properties, weight, last_seen_at
+        FROM agent_memory_nodes
+        WHERE company_id = $1 AND (node_type = 'product_media' OR properties ? 'mediaUrl')
+        ORDER BY weight DESC, last_seen_at DESC
+        LIMIT 30
+      `, [companyId]);
+      nodeRows = res.rows || [];
+    } catch (err) {
+      console.warn('[getMemoryMedia] Failed to query agent_memory_nodes:', err.message);
+    }
 
     const items = [];
     const seenUrls = new Set();
