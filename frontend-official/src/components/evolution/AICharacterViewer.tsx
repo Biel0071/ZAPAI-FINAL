@@ -1,11 +1,10 @@
-import React, { useState, useRef, useEffect, useCallback } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import {
   Eye,
   Shirt,
   Headphones,
   Image as ImageIcon,
   Sparkles,
-  RotateCcw,
   Check,
   Save,
   Palette,
@@ -13,7 +12,8 @@ import {
   Sliders,
   Store,
   Layers,
-  X
+  X,
+  RotateCcw
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -29,6 +29,7 @@ export interface AttendantConfig {
   scene?: string;
   gender?: "female" | "male";
   skinTone?: string;
+  avatarUrl?: string;
 }
 
 export interface AICharacterViewerProps {
@@ -182,61 +183,9 @@ export const AICharacterViewer: React.FC<AICharacterViewerProps> = ({
     setAccessories(preset.accessories);
     setScene(preset.scene);
     toast({
-      title: `Preset: ${preset.name}`,
-      description: `Estilo ${preset.badge} aplicado! Clique em Salvar para vincular à loja.`,
+      title: `Preset Selecionado: ${preset.name}`,
+      description: `Estilo ${preset.badge} configurado. Clique em Salvar para vincular.`,
     });
-  };
-
-  // 3D Isometric Transform States
-  const [rotation, setRotation] = useState({ x: 0, y: 0 });
-  const [zoom, setZoom] = useState(1);
-  const [isDragging, setIsDragging] = useState(false);
-  const dragStart = useRef({ x: 0, y: 0 });
-  const containerRef = useRef<HTMLDivElement>(null);
-
-  // Mouse Handlers for 3D Drag & Rotate
-  const handleMouseDown = (e: React.MouseEvent) => {
-    if ((e.target as HTMLElement).closest(".zai-character-controls, .zai-config-drawer")) return;
-    setIsDragging(true);
-    dragStart.current = { x: e.clientX, y: e.clientY };
-  };
-
-  const handleMouseMove = useCallback((e: MouseEvent) => {
-    if (!isDragging) return;
-    const dx = e.clientX - dragStart.current.x;
-    const dy = e.clientY - dragStart.current.y;
-    dragStart.current = { x: e.clientX, y: e.clientY };
-
-    setRotation((prev) => ({
-      x: Math.max(-25, Math.min(25, prev.x - dy * 0.3)),
-      y: Math.max(-45, Math.min(45, prev.y + dx * 0.4)),
-    }));
-  }, [isDragging]);
-
-  const handleMouseUp = useCallback(() => {
-    setIsDragging(false);
-  }, []);
-
-  useEffect(() => {
-    window.addEventListener("mousemove", handleMouseMove);
-    window.addEventListener("mouseup", handleMouseUp);
-    return () => {
-      window.removeEventListener("mousemove", handleMouseMove);
-      window.removeEventListener("mouseup", handleMouseUp);
-    };
-  }, [handleMouseMove, handleMouseUp]);
-
-  // Wheel Zoom Handler
-  const handleWheel = (e: React.WheelEvent) => {
-    e.preventDefault();
-    const delta = e.deltaY > 0 ? -0.05 : 0.05;
-    setZoom((prev) => Math.max(0.8, Math.min(1.35, prev + delta)));
-  };
-
-  // Reset Camera on Double Click
-  const handleDoubleClick = () => {
-    setRotation({ x: 0, y: 0 });
-    setZoom(1);
   };
 
   const handleTabClick = (tab: "visual" | "roupas" | "acessorios" | "cenario" | "animacoes") => {
@@ -269,7 +218,7 @@ export const AICharacterViewer: React.FC<AICharacterViewerProps> = ({
       }
       toast({
         title: "Atendente Salvo",
-        description: `Visual do atendente ${customName} atualizado para a loja ${storeName}!`,
+        description: `Visual do atendente ${customName} atualizado para ${storeName}!`,
       });
       setShowConfigPanel(false);
     } catch (err: any) {
@@ -301,15 +250,6 @@ export const AICharacterViewer: React.FC<AICharacterViewerProps> = ({
     { name: "Azul Cyber", hex: "#06b6d4" },
   ];
 
-  const hairStylesList = [
-    { id: "ponytail", name: "Rabo de Cavalo" },
-    { id: "short_fade", name: "Curto Degradê" },
-    { id: "wavy_long", name: "Longo Ondulado" },
-    { id: "buzz_cut", name: "Raspado Militar" },
-    { id: "afro_puff", name: "Afro Volumoso" },
-    { id: "undercut", name: "Topete Moderno" },
-  ];
-
   const uniformColors = [
     { name: "Cor da Loja", hex: themeColor || "#10b981" },
     { name: "Verde Esmeralda", hex: "#10b981" },
@@ -320,412 +260,256 @@ export const AICharacterViewer: React.FC<AICharacterViewerProps> = ({
     { name: "Preto Executivo", hex: "#0f172a" },
   ];
 
-  const scenes = [
-    { id: "escritorio_zai", name: "Escritório Dark ZAI" },
-    { id: "balcao_loja", name: "Balcão de Vendas da Loja" },
-    { id: "showroom", name: "Showroom Moderno" },
-    { id: "corporate", name: "Sala Corporativa VIP" },
-  ];
-
   return (
-    <article className={`zai-card zai-character-card ${!isOnline ? "is-offline" : ""}`}>
-      <div
-        className="zai-character-stage relative"
-        ref={containerRef}
-        onWheel={handleWheel}
-        onDoubleClick={handleDoubleClick}
-      >
-        {/* CHARACTER STATUS OVERLAY */}
-        <div className="zai-character-status">
-          <AttendantAvatar
-            name={customName}
-            themeColor={clothingColor}
-            config={{ hairColor, clothingColor, accessories, scene, gender, skinTone }}
-            avatarUrl={avatarUrl}
-            size="md"
+    <article className="relative w-full h-[310px] bg-[#0c121d] rounded-2xl border border-white/10 shadow-2xl overflow-hidden select-none">
+      
+      {/* 1:1 AUTHENTIC 16-BIT HABBO STAGE BASE IMAGE */}
+      <div className="relative w-full h-full flex">
+        
+        {/* LEFT AREA: WORKING OFFICE SCENE (Online: Vibrant / Offline: Dimmed) */}
+        <div className="relative flex-1 h-full overflow-hidden transition-all duration-500">
+          <img
+            src="/assets/evolution/habbo_office_working.png"
+            alt="Habbo Office Working"
+            className={`w-full h-full object-cover transition-all duration-500 ${
+              isOnline ? "filter-none brightness-100" : "brightness-[0.38] saturate-[0.4]"
+            }`}
+            style={{ imageRendering: "pixelated" }}
           />
-          <div>
-            <div className="zai-character-status-name flex items-center gap-1.5">
-              <span>{customName}</span>
-              <span
-                className="w-2 h-2 rounded-full inline-block"
-                style={{ backgroundColor: isOnline ? clothingColor : "#596574" }}
+
+          {/* DYNAMIC STORE OVERLAY TINT */}
+          <div
+            className="absolute inset-0 pointer-events-none opacity-15 mix-blend-color transition-colors duration-500"
+            style={{ backgroundColor: clothingColor }}
+          />
+
+          {/* CUSTOM ATTENDANT BADGE OVERLAY (When customized) */}
+          <div className="absolute top-2.5 left-2.5 z-10 flex items-center gap-2 bg-[#090e17]/90 backdrop-blur-md border border-white/10 px-2.5 py-1.5 rounded-xl shadow-lg">
+            <div className="w-8 h-8 rounded-lg overflow-hidden border border-emerald-500/50 flex-shrink-0 bg-black">
+              <img
+                src={avatarUrl || "/assets/evolution/habbo_avatar.png"}
+                alt={customName}
+                className="w-full h-full object-cover"
+                style={{ imageRendering: "pixelated" }}
               />
             </div>
-            <div className="zai-character-status-role">{customRole} · {storeName}</div>
-            <div className={isOnline ? "text-emerald-400 font-bold text-[10px]" : "zai-status-offline"}>
-              {isOnline ? "● Atendendo Clientes" : "Desativada"}
+            <div>
+              <div className="text-[11px] font-bold text-white flex items-center gap-1 leading-tight">
+                {customName}
+              </div>
+              <div className="text-[9px] text-slate-400 font-medium leading-tight">
+                {customRole}
+              </div>
+              <div className="text-[9px] font-semibold flex items-center gap-1 mt-0.5 leading-tight">
+                <span
+                  className={`w-1.5 h-1.5 rounded-full ${
+                    isOnline ? "bg-emerald-400 animate-pulse shadow-[0_0_8px_#10b981]" : "bg-slate-400"
+                  }`}
+                />
+                <span className={isOnline ? "text-emerald-400 font-bold" : "text-slate-400 font-medium"}>
+                  {isOnline ? "Ativa • Atendendo" : "Offline • Em espera"}
+                </span>
+              </div>
             </div>
           </div>
+
+          {/* INTERACTIVE CLICKABLE HOTSPOTS OVER TOOLBAR BUTTONS */}
+          <div className="absolute left-2.5 top-[68px] z-10 flex flex-col gap-1">
+            <button
+              type="button"
+              onClick={() => handleTabClick("visual")}
+              title="Personalizar Visual (Cabelo, Pele)"
+              className={`w-11 h-9 rounded-lg transition-all cursor-pointer flex items-center justify-center ${
+                activeTab === "visual" && showConfigPanel
+                  ? "bg-emerald-500/30 border border-emerald-400 shadow-[0_0_10px_rgba(16,185,129,0.3)]"
+                  : "hover:bg-emerald-500/15 border border-transparent hover:border-emerald-500/30"
+              }`}
+            />
+            <button
+              type="button"
+              onClick={() => handleTabClick("roupas")}
+              title="Personalizar Roupas & Uniforme da Loja"
+              className={`w-11 h-9 rounded-lg transition-all cursor-pointer flex items-center justify-center ${
+                activeTab === "roupas" && showConfigPanel
+                  ? "bg-emerald-500/30 border border-emerald-400 shadow-[0_0_10px_rgba(16,185,129,0.3)]"
+                  : "hover:bg-emerald-500/15 border border-transparent hover:border-emerald-500/30"
+              }`}
+            />
+            <button
+              type="button"
+              onClick={() => handleTabClick("acessorios")}
+              title="Personalizar Acessórios (Headset, Óculos)"
+              className={`w-11 h-9 rounded-lg transition-all cursor-pointer flex items-center justify-center ${
+                activeTab === "acessorios" && showConfigPanel
+                  ? "bg-emerald-500/30 border border-emerald-400 shadow-[0_0_10px_rgba(16,185,129,0.3)]"
+                  : "hover:bg-emerald-500/15 border border-transparent hover:border-emerald-500/30"
+              }`}
+            />
+            <button
+              type="button"
+              onClick={() => handleTabClick("cenario")}
+              title="Personalizar Cenário do Atendente"
+              className={`w-11 h-9 rounded-lg transition-all cursor-pointer flex items-center justify-center ${
+                activeTab === "cenario" && showConfigPanel
+                  ? "bg-emerald-500/30 border border-emerald-400 shadow-[0_0_10px_rgba(16,185,129,0.3)]"
+                  : "hover:bg-emerald-500/15 border border-transparent hover:border-emerald-500/30"
+              }`}
+            />
+            <button
+              type="button"
+              onClick={() => handleTabClick("animacoes")}
+              title="Modelos Prontos & Presets de Atendente"
+              className={`w-11 h-9 rounded-lg transition-all cursor-pointer flex items-center justify-center ${
+                activeTab === "animacoes" && showConfigPanel
+                  ? "bg-emerald-500/30 border border-emerald-400 shadow-[0_0_10px_rgba(16,185,129,0.3)]"
+                  : "hover:bg-emerald-500/15 border border-transparent hover:border-emerald-500/30"
+              }`}
+            />
+          </div>
+
+          {/* BOTTOM CENTER STATUS PILL */}
+          <div className="absolute bottom-2.5 left-1/2 -translate-x-1/2 z-10 flex items-center gap-1.5 bg-[#090e17]/85 backdrop-blur-md border border-emerald-500/30 px-3 py-1 rounded-full text-[10px] font-semibold text-emerald-300 shadow-[0_0_15px_rgba(16,185,129,0.25)]">
+            <span
+              className={`w-1.5 h-1.5 rounded-full ${
+                isOnline ? "bg-emerald-400 animate-pulse" : "bg-slate-400"
+              }`}
+            />
+            <span>{isOnline ? "Atendendo agora..." : "Em espera (desativada)"}</span>
+          </div>
         </div>
 
-        {/* OFFLINE / ONLINE TOGGLE */}
-        <button
-          type="button"
-          onClick={() => onToggleOnline?.(!isOnline)}
-          className={`zai-offline-toggle ${!isOnline ? "active" : ""}`}
-          title="Alternar estado de atendimento da assistente"
+        {/* RIGHT AREA: STANDING CHARACTER / OFFLINE STANCE BOX */}
+        <div
+          className={`w-[100px] h-full border-l border-white/10 relative transition-all duration-500 ${
+            !isOnline
+              ? "bg-[#0b121e] ring-1 ring-emerald-500/40 shadow-[inset_0_0_20px_rgba(16,185,129,0.15)]"
+              : "bg-[#080d16]"
+          }`}
         >
-          <span
-            className="w-2 h-2 rounded-full"
-            style={{ backgroundColor: isOnline ? clothingColor : "#596574" }}
+          <img
+            src="/assets/evolution/habbo_standing_box.png"
+            alt="Habbo Standing Stance"
+            className="w-full h-full object-cover transition-all duration-500"
+            style={{ imageRendering: "pixelated" }}
           />
-          <span>{isOnline ? "Online" : "Offline"}</span>
-        </button>
 
-        {/* 3D CHARACTER VIEWER STAGE */}
-        <div className="zai-character-viewer" onMouseDown={handleMouseDown}>
-          <div
-            className="zai-character-3d"
-            style={{
-              transform: `scale(${zoom}) rotateX(${rotation.x}deg) rotateY(${rotation.y}deg)`,
-              transformStyle: "preserve-3d",
-            }}
-          >
-            {isOnline ? (
-              /* ESTADO ATIVO: Atendente no escritório com as cores e adereços da loja */
-              <div className="relative flex flex-col items-center justify-center w-full h-full pt-12 pb-14 select-none">
-                {/* Background ambient lighting in store theme color */}
-                <div
-                  className="absolute inset-0 rounded-2xl opacity-20 pointer-events-none transition-all duration-500"
-                  style={{
-                    background: `radial-gradient(circle at center, ${clothingColor} 0%, transparent 65%)`
-                  }}
-                />
-
-                {/* High-res Modular Pixel Art Stage for any Custom Store Attendant */}
-                <div className="relative w-64 h-64 sm:w-72 sm:h-72 flex items-center justify-center animate-fade-in my-auto">
-                    <svg
-                      viewBox="0 0 100 110"
-                      className="w-full h-full drop-shadow-[0_16px_24px_rgba(0,0,0,0.6)]"
-                      style={{ shapeRendering: "crispEdges" }}
-                    >
-                      {/* Shadow on floor */}
-                      <ellipse cx="50" cy="98" rx="38" ry="9" fill="rgba(0,0,0,0.45)" />
-
-                      {/* Desk base */}
-                      <polygon points="12,83 88,83 95,94 5,94" fill="#1e293b" />
-                      <rect x="15" y="85" width="8" height="16" fill="#0f172a" />
-                      <rect x="77" y="85" width="8" height="16" fill="#0f172a" />
-
-                      {/* Monitors on desk */}
-                      <rect x="22" y="58" width="24" height="18" fill="#0f172a" rx="1.5" />
-                      <rect x="24" y="60" width="20" height="14" fill="#020617" />
-                      <rect x="26" y="63" width="16" height="2" fill={clothingColor} />
-                      <rect x="26" y="67" width="11" height="2" fill="#38bdf8" />
-                      <rect x="33" y="76" width="2.5" height="8" fill="#334155" />
-
-                      <rect x="54" y="58" width="24" height="18" fill="#0f172a" rx="1.5" />
-                      <rect x="56" y="60" width="20" height="14" fill="#020617" />
-                      <rect x="58" y="63" width="16" height="2" fill="#22c55e" />
-                      <rect x="58" y="67" width="9" height="2" fill={clothingColor} />
-                      <rect x="65" y="76" width="2.5" height="8" fill="#334155" />
-
-                      {/* Keyboard & Mousepad */}
-                      <rect x="41" y="85" width="18" height="5" fill="#334155" rx="1" />
-
-                      {/* Mascote Gatinho ZAI na mesa */}
-                      {accessories.includes("gato") && (
-                        <g>
-                          <ellipse cx="20" cy="84" rx="4" ry="3" fill="#f59e0b" />
-                          <circle cx="20" cy="79" r="2.8" fill="#f59e0b" />
-                          <polygon points="18,78 19,75 20,78" fill="#d97706" />
-                          <polygon points="20,78 21,75 22,78" fill="#d97706" />
-                          <circle cx="19" cy="79" r="0.6" fill="#0f172a" />
-                          <circle cx="21" cy="79" r="0.6" fill="#0f172a" />
-                          <path d="M 24 84 Q 26 81 25 79" stroke="#d97706" strokeWidth="1" fill="none" />
-                        </g>
-                      )}
-
-                      {/* Chair Backrest */}
-                      <rect x="39" y="30" width="22" height="30" fill="#090d16" rx="4" />
-                      <rect x="41" y="32" width="18" height="26" fill="#1e293b" rx="2" />
-
-                      {/* Torso / Uniform with Custom Store Color */}
-                      <rect x="37" y="44" width="26" height="24" fill={clothingColor} rx="3" />
-                      
-                      {/* Collar / Tie / Style */}
-                      {clothingStyle === "social_executivo" ? (
-                        <>
-                          <polygon points="45,44 50,53 55,44" fill="#ffffff" />
-                          <rect x="49" y="48" width="2" height="12" fill={clothingColor} />
-                        </>
-                      ) : clothingStyle === "polo_comercial" ? (
-                        <>
-                          <polygon points="46,44 50,49 54,44" fill="#ffffff" />
-                          <circle cx="50" cy="51" r="0.8" fill="#ffffff" />
-                        </>
-                      ) : (
-                        <>
-                          <polygon points="44,44 50,51 56,44" fill="#ffffff" />
-                          <rect x="46" y="48" width="8" height="3.5" fill={clothingColor} />
-                        </>
-                      )}
-
-                      {/* Store Crachá / Badge */}
-                      {accessories.includes("cracha") && (
-                        <g>
-                          <rect x="54" y="52" width="6.5" height="5.5" fill="#ffffff" rx="1" />
-                          <rect x="55" y="53" width="4.5" height="1.8" fill={clothingColor} />
-                          <rect x="55" y="55.5" width="4.5" height="1" fill="#475569" />
-                        </g>
-                      )}
-
-                      {/* Arms & Hands typing on keyboard */}
-                      <rect x="32" y="46" width="6.5" height="16" fill={clothingColor} rx="2" />
-                      <rect x="61.5" y="46" width="6.5" height="16" fill={clothingColor} rx="2" />
-                      <rect x="36" y="60" width="8.5" height="5.5" fill={skinTone} rx="1" />
-                      <rect x="55.5" y="60" width="8.5" height="5.5" fill={skinTone} rx="1" />
-
-                      {/* Head / Face */}
-                      <rect x="40.5" y="24" width="19" height="18" fill={skinTone} rx="3" />
-
-                      {/* Eyes */}
-                      <rect x="43.5" y="31" width="3" height="4" fill="#0f172a" />
-                      <rect x="44.5" y="31" width="1" height="2" fill="#ffffff" />
-                      <rect x="53.5" y="31" width="3" height="4" fill="#0f172a" />
-                      <rect x="54.5" y="31" width="1" height="2" fill="#ffffff" />
-
-                      {/* Glasses */}
-                      {accessories.includes("oculos") && (
-                        <g>
-                          <rect x="42.5" y="30" width="5.5" height="5.5" fill="none" stroke="#e2e8f0" strokeWidth="0.8" />
-                          <rect x="52.5" y="30" width="5.5" height="5.5" fill="none" stroke="#e2e8f0" strokeWidth="0.8" />
-                          <line x1="48" y1="32" x2="52.5" y2="32" stroke="#e2e8f0" strokeWidth="0.8" />
-                        </g>
-                      )}
-
-                      {/* Smile */}
-                      <rect x="47" y="37" width="6" height="2" fill="#991b1b" rx="1" />
-
-                      {/* Hair Style */}
-                      {hairStyle === "ponytail" ? (
-                        <>
-                          <rect x="38.5" y="19" width="23" height="8" fill={hairColor} rx="3" />
-                          <rect x="36.5" y="23" width="5" height="18" fill={hairColor} rx="2" />
-                          <rect x="58.5" y="23" width="5" height="18" fill={hairColor} rx="2" />
-                          <circle cx="59" cy="18" r="4" fill={hairColor} />
-                        </>
-                      ) : hairStyle === "short_fade" ? (
-                        <>
-                          <rect x="39" y="19" width="22" height="8" fill={hairColor} rx="3" />
-                          <rect x="38" y="23" width="3.5" height="7" fill={hairColor} />
-                          <rect x="58.5" y="23" width="3.5" height="7" fill={hairColor} />
-                        </>
-                      ) : hairStyle === "wavy_long" ? (
-                        <>
-                          <rect x="38.5" y="18" width="23" height="9" fill={hairColor} rx="3" />
-                          <rect x="36" y="22" width="6" height="22" fill={hairColor} rx="3" />
-                          <rect x="58" y="22" width="6" height="22" fill={hairColor} rx="3" />
-                        </>
-                      ) : hairStyle === "buzz_cut" ? (
-                        <>
-                          <rect x="39.5" y="21" width="21" height="5" fill={hairColor} rx="2" />
-                        </>
-                      ) : hairStyle === "afro_puff" ? (
-                        <>
-                          <circle cx="50" cy="22" r="13" fill={hairColor} />
-                          <rect x="40.5" y="24" width="19" height="18" fill={skinTone} rx="3" />
-                        </>
-                      ) : (
-                        <>
-                          <rect x="39" y="18" width="22" height="9" fill={hairColor} rx="3" />
-                          <polygon points="46,18 50,13 54,18" fill={hairColor} />
-                          <rect x="38" y="23" width="3.5" height="8" fill={hairColor} />
-                          <rect x="58.5" y="23" width="3.5" height="8" fill={hairColor} />
-                        </>
-                      )}
-
-                      {/* Headset de Vendas */}
-                      {accessories.includes("headset") && (
-                        <g>
-                          <path d="M 36.5 28 A 14 14 0 0 1 63.5 28" fill="none" stroke="#0f172a" strokeWidth="2.2" />
-                          <rect x="35" y="26" width="3.5" height="6.5" fill={clothingColor} rx="1" />
-                          <rect x="61.5" y="26" width="3.5" height="6.5" fill={clothingColor} rx="1" />
-                          <path d="M 36.5 32 Q 39 40 45.5 39" fill="none" stroke="#0f172a" strokeWidth="1.3" />
-                          <circle cx="46.5" cy="39" r="1.6" fill={clothingColor} />
-                        </g>
-                      )}
-                    </svg>
-                  </div>
-
-                <div className="text-[11px] font-bold text-white mt-1 flex items-center gap-1.5">
-                  <span className="w-2 h-2 rounded-full animate-ping" style={{ backgroundColor: clothingColor }} />
-                  <span>{customName} atendendo pela {storeName}</span>
-                </div>
-              </div>
-            ) : (
-              /* ESTADO DESATIVADO: Em pé na plataforma */
-              <div className="relative flex flex-col items-center justify-center w-full h-full p-4 select-none">
-                <div className="relative w-44 h-48 flex items-center justify-center">
-                  <svg
-                    viewBox="0 0 80 90"
-                    className="w-full h-full drop-shadow-[0_12px_20px_rgba(0,0,0,0.5)]"
-                    style={{ shapeRendering: "crispEdges" }}
-                  >
-                    <ellipse cx="40" cy="84" rx="28" ry="7" fill="rgba(0,0,0,0.4)" />
-                    <rect x="30" y="74" width="8" height="7" fill="#0f172a" rx="1.5" />
-                    <rect x="42" y="74" width="8" height="7" fill="#0f172a" rx="1.5" />
-                    <rect x="31" y="54" width="7" height="22" fill="#1e293b" />
-                    <rect x="42" y="54" width="7" height="22" fill="#1e293b" />
-                    <rect x="28" y="34" width="24" height="22" fill={clothingColor} rx="3" />
-                    <rect x="23" y="36" width="5.5" height="16" fill={clothingColor} rx="1.5" />
-                    <rect x="51.5" y="36" width="5.5" height="16" fill={clothingColor} rx="1.5" />
-                    <rect x="31" y="18" width="18" height="17" fill={skinTone} rx="3" />
-                    <rect x="34" y="23" width="2.5" height="3.5" fill="#0f172a" />
-                    <rect x="43.5" y="23" width="2.5" height="3.5" fill="#0f172a" />
-                    
-                    {/* Hair */}
-                    <rect x="30" y="14" width="20" height="7" fill={hairColor} rx="2.5" />
-                  </svg>
-                </div>
-                <div
-                  className="zai-character-platform"
-                  style={{ borderColor: clothingColor, boxShadow: `0 0 35px ${clothingColor}44` }}
-                />
-                <p className="text-[11px] text-muted-foreground/80 mt-2 font-medium">
-                  {customName} em espera. Ative o botão acima para entrar no escritório.
-                </p>
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* STATUS PILL (BOTTOM CENTER) - Only when offline */}
-        {!isOnline && (
-          <div className="zai-status-pill-bottom">
-            <span className="w-2 h-2 rounded-full bg-slate-400" />
-            <span>Em espera</span>
-          </div>
-        )}
-
-        {/* CHARACTER CONTROLS (VERTICAL LEFT) */}
-        <div className="zai-character-controls">
+          {/* INTERACTIVE TOGGLE BUTTON OVER "Offline / Ativa" PILL */}
           <button
             type="button"
-            onClick={() => handleTabClick("visual")}
-            className={`zai-character-control ${activeTab === "visual" && showConfigPanel ? "active" : ""}`}
-            title="Visual do Atendente (Gênero, Cabelo, Pele)"
+            onClick={() => onToggleOnline?.(!isOnline)}
+            title={isOnline ? "Desativar assistente (ficar em pé)" : "Ativar assistente (sentar à mesa)"}
+            className={`absolute top-2.5 right-2 w-[76px] h-6 rounded-full transition-all cursor-pointer flex items-center justify-center gap-1 text-[9px] font-bold border backdrop-blur-md ${
+              isOnline
+                ? "bg-emerald-500/20 text-emerald-300 border-emerald-500/40 shadow-[0_0_10px_rgba(16,185,129,0.2)]"
+                : "bg-black/60 text-slate-300 border-white/20 hover:bg-black/80"
+            }`}
           >
-            <Eye className="w-4 h-4" />
-            <span>Visual</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => handleTabClick("roupas")}
-            className={`zai-character-control ${activeTab === "roupas" && showConfigPanel ? "active" : ""}`}
-            title="Cores da Loja e Uniforme"
-          >
-            <Shirt className="w-4 h-4" />
-            <span>Roupas</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => handleTabClick("acessorios")}
-            className={`zai-character-control ${activeTab === "acessorios" && showConfigPanel ? "active" : ""}`}
-            title="Headset, Crachá e Óculos"
-          >
-            <Headphones className="w-4 h-4" />
-            <span>Acessórios</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => handleTabClick("cenario")}
-            className={`zai-character-control ${activeTab === "cenario" && showConfigPanel ? "active" : ""}`}
-            title="Cenário do Escritório da Loja"
-          >
-            <ImageIcon className="w-4 h-4" />
-            <span>Cenário</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => handleTabClick("animacoes")}
-            className={`zai-character-control ${activeTab === "animacoes" && showConfigPanel ? "active" : ""}`}
-            title="Modelos Prontos e Presets"
-          >
-            <Sparkles className="w-4 h-4" />
-            <span>Presets</span>
+            <span
+              className={`w-1.5 h-1.5 rounded-full ${
+                isOnline ? "bg-emerald-400" : "bg-slate-400"
+              }`}
+            />
+            <span>{isOnline ? "Ativa" : "Offline"}</span>
           </button>
         </div>
 
-        {/* INTERACTIVE CUSTOMIZATION PANEL / DRAWER */}
-        {showConfigPanel && (
-          <div className="zai-config-drawer absolute top-12 left-16 z-30 w-72 bg-[#0d131f]/95 border border-border/80 rounded-2xl p-4 shadow-2xl backdrop-blur-md animate-fade-in text-xs space-y-3">
-            <div className="flex items-center justify-between pb-2 border-b border-border/60">
-              <span className="font-bold text-white flex items-center gap-1.5 capitalize">
-                <Palette className="w-3.5 h-3.5 text-emerald-400" />
-                Personalizar: {activeTab}
-              </span>
+      </div>
+
+      {/* SLIDE-OVER CUSTOMIZATION DRAWER */}
+      {showConfigPanel && (
+        <aside className="absolute inset-y-0 right-0 w-80 bg-[#0d131f]/95 backdrop-blur-xl border-l border-white/10 p-4 z-30 shadow-2xl flex flex-col justify-between animate-in slide-in-from-right duration-200">
+          <div className="overflow-y-auto space-y-4 pr-1">
+            <div className="flex items-center justify-between border-b border-white/10 pb-3">
+              <div className="flex items-center gap-2">
+                <Sliders className="w-4 h-4 text-emerald-400" />
+                <h3 className="text-xs font-bold text-white uppercase tracking-wider">
+                  Personalizar Atendente
+                </h3>
+              </div>
               <button
                 type="button"
                 onClick={() => setShowConfigPanel(false)}
-                className="text-muted-foreground hover:text-white text-xs"
+                className="w-6 h-6 rounded-md hover:bg-white/10 flex items-center justify-center text-slate-400 hover:text-white"
               >
                 <X className="w-3.5 h-3.5" />
               </button>
             </div>
 
-            {/* TAB: VISUAL */}
+            {/* TAB SELECTOR */}
+            <div className="grid grid-cols-4 gap-1 bg-black/40 p-1 rounded-xl border border-white/5 text-[10px] font-semibold">
+              <button
+                type="button"
+                onClick={() => setActiveTab("visual")}
+                className={`py-1 rounded-lg transition-all ${
+                  activeTab === "visual" ? "bg-emerald-500 text-black font-bold" : "text-slate-400"
+                }`}
+              >
+                Visual
+              </button>
+              <button
+                type="button"
+                onClick={() => setActiveTab("roupas")}
+                className={`py-1 rounded-lg transition-all ${
+                  activeTab === "roupas" ? "bg-emerald-500 text-black font-bold" : "text-slate-400"
+                }`}
+              >
+                Roupas
+              </button>
+              <button
+                type="button"
+                onClick={() => setActiveTab("acessorios")}
+                className={`py-1 rounded-lg transition-all ${
+                  activeTab === "acessorios" ? "bg-emerald-500 text-black font-bold" : "text-slate-400"
+                }`}
+              >
+                Acessórios
+              </button>
+              <button
+                type="button"
+                onClick={() => setActiveTab("animacoes")}
+                className={`py-1 rounded-lg transition-all ${
+                  activeTab === "animacoes" ? "bg-emerald-500 text-black font-bold" : "text-slate-400"
+                }`}
+              >
+                Presets
+              </button>
+            </div>
+
+            {/* TAB 1: VISUAL (Nome, Função, Pele, Cabelo) */}
             {activeTab === "visual" && (
-              <div className="space-y-2.5">
-                <div className="space-y-1">
-                  <label className="text-[11px] text-muted-foreground font-semibold">Nome do Atendente</label>
+              <div className="space-y-3 animate-fade-in text-xs">
+                <div>
+                  <label className="text-[10px] text-slate-400 font-semibold block mb-1">
+                    Nome do Atendente
+                  </label>
                   <Input
                     value={customName}
                     onChange={(e) => setCustomName(e.target.value)}
-                    placeholder="Ex: Camila, Vitória, Lucas..."
-                    className="h-8 text-xs bg-[#080c14] border-border/60 text-white"
+                    className="h-8 text-xs bg-black/40 border-white/10 text-white"
                   />
                 </div>
-
-                <div className="space-y-1">
-                  <label className="text-[11px] text-muted-foreground font-semibold">Função / Papel</label>
+                <div>
+                  <label className="text-[10px] text-slate-400 font-semibold block mb-1">
+                    Cargo / Especialidade
+                  </label>
                   <Input
                     value={customRole}
                     onChange={(e) => setCustomRole(e.target.value)}
-                    placeholder="Ex: Especialista em Vendas..."
-                    className="h-8 text-xs bg-[#080c14] border-border/60 text-white"
+                    className="h-8 text-xs bg-black/40 border-white/10 text-white"
                   />
                 </div>
-
-                <div className="space-y-1">
-                  <label className="text-[11px] text-muted-foreground font-semibold">Gênero / Estilo</label>
-                  <div className="grid grid-cols-2 gap-1.5">
-                    <button
-                      type="button"
-                      onClick={() => setGender("female")}
-                      className={`p-1.5 rounded-lg border text-center transition-all ${
-                        gender === "female" ? "bg-emerald-500/20 border-emerald-500 text-white font-bold" : "border-border/50 text-muted-foreground"
-                      }`}
-                    >
-                      Feminino
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setGender("male")}
-                      className={`p-1.5 rounded-lg border text-center transition-all ${
-                        gender === "male" ? "bg-emerald-500/20 border-emerald-500 text-white font-bold" : "border-border/50 text-muted-foreground"
-                      }`}
-                    >
-                      Masculino
-                    </button>
-                  </div>
-                </div>
-
-                <div className="space-y-1">
-                  <label className="text-[11px] text-muted-foreground font-semibold">Tom de Pele</label>
-                  <div className="flex items-center gap-1.5 flex-wrap">
+                <div>
+                  <label className="text-[10px] text-slate-400 font-semibold block mb-1.5">
+                    Tom de Pele
+                  </label>
+                  <div className="flex items-center gap-2">
                     {skinTones.map((st) => (
                       <button
                         key={st.hex}
                         type="button"
                         onClick={() => setSkinTone(st.hex)}
-                        className={`w-6 h-6 rounded-full border-2 transition-transform ${
-                          skinTone === st.hex ? "scale-110 border-white shadow-md" : "border-transparent opacity-80 hover:opacity-100"
+                        className={`w-6 h-6 rounded-full border-2 transition-all ${
+                          skinTone === st.hex ? "border-emerald-400 scale-110" : "border-transparent"
                         }`}
                         style={{ backgroundColor: st.hex }}
                         title={st.name}
@@ -733,38 +517,21 @@ export const AICharacterViewer: React.FC<AICharacterViewerProps> = ({
                     ))}
                   </div>
                 </div>
-
-                <div className="space-y-1">
-                  <label className="text-[11px] text-muted-foreground font-semibold">Estilo de Cabelo</label>
-                  <div className="grid grid-cols-2 gap-1 max-h-24 overflow-y-auto pr-1">
-                    {hairStylesList.map((hs) => (
+                <div>
+                  <label className="text-[10px] text-slate-400 font-semibold block mb-1.5">
+                    Cor do Cabelo
+                  </label>
+                  <div className="flex items-center gap-2">
+                    {hairColors.map((hc) => (
                       <button
-                        key={hs.id}
+                        key={hc.hex}
                         type="button"
-                        onClick={() => setHairStyle(hs.id)}
-                        className={`p-1.5 rounded-lg border text-left text-[10px] truncate transition-all ${
-                          hairStyle === hs.id ? "bg-emerald-500/20 border-emerald-500 text-white font-bold" : "border-border/40 text-muted-foreground hover:bg-muted/10"
+                        onClick={() => setHairColor(hc.hex)}
+                        className={`w-6 h-6 rounded-full border-2 transition-all ${
+                          hairColor === hc.hex ? "border-emerald-400 scale-110" : "border-transparent"
                         }`}
-                      >
-                        {hs.name}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="space-y-1">
-                  <label className="text-[11px] text-muted-foreground font-semibold">Cor do Cabelo</label>
-                  <div className="flex items-center gap-1.5 flex-wrap">
-                    {hairColors.map((c) => (
-                      <button
-                        key={c.hex}
-                        type="button"
-                        onClick={() => setHairColor(c.hex)}
-                        className={`w-6 h-6 rounded-full border-2 transition-transform ${
-                          hairColor === c.hex ? "scale-110 border-white shadow-md" : "border-transparent opacity-80 hover:opacity-100"
-                        }`}
-                        style={{ backgroundColor: c.hex }}
-                        title={c.name}
+                        style={{ backgroundColor: hc.hex }}
+                        title={hc.name}
                       />
                     ))}
                   </div>
@@ -772,166 +539,124 @@ export const AICharacterViewer: React.FC<AICharacterViewerProps> = ({
               </div>
             )}
 
-            {/* TAB: ROUPAS */}
+            {/* TAB 2: ROUPAS (Cores da Loja / Uniforme) */}
             {activeTab === "roupas" && (
-              <div className="space-y-2.5">
-                <div className="space-y-1">
-                  <label className="text-[11px] text-muted-foreground font-semibold">Cor do Uniforme (Identidade da Loja)</label>
-                  <div className="flex items-center gap-1.5 flex-wrap">
-                    {uniformColors.map((c) => (
+              <div className="space-y-3 animate-fade-in text-xs">
+                <div>
+                  <label className="text-[10px] text-slate-400 font-semibold block mb-1.5">
+                    Cor Principal do Uniforme (Cor da Loja)
+                  </label>
+                  <div className="grid grid-cols-4 gap-2">
+                    {uniformColors.map((uc) => (
                       <button
-                        key={c.hex}
+                        key={uc.hex}
                         type="button"
-                        onClick={() => setClothingColor(c.hex)}
-                        className={`w-6 h-6 rounded-full border-2 transition-transform ${
-                          clothingColor === c.hex ? "scale-110 border-white shadow-md" : "border-transparent opacity-80 hover:opacity-100"
+                        onClick={() => setClothingColor(uc.hex)}
+                        className={`h-7 rounded-lg border flex items-center justify-center transition-all ${
+                          clothingColor === uc.hex
+                            ? "border-white scale-105 shadow-md"
+                            : "border-white/10 hover:border-white/30"
                         }`}
-                        style={{ backgroundColor: c.hex }}
-                        title={c.name}
-                      />
-                    ))}
-                  </div>
-                </div>
-
-                <div className="space-y-1">
-                  <label className="text-[11px] text-muted-foreground font-semibold">Estilo de Vestimenta</label>
-                  <div className="space-y-1">
-                    {[
-                      { id: "uniforme_loja", label: "Uniforme Oficial com Crachá" },
-                      { id: "social_executivo", label: "Social Executivo com Blazer" },
-                      { id: "polo_comercial", label: "Camisa Polo de Vendas" },
-                      { id: "avental_balcao", label: "Avental de Atendimento / Balcão" },
-                    ].map((st) => (
-                      <button
-                        key={st.id}
-                        type="button"
-                        onClick={() => setClothingStyle(st.id)}
-                        className={`w-full text-left p-2 rounded-lg border transition-all text-[11px] ${
-                          clothingStyle === st.id ? "bg-emerald-500/20 border-emerald-500 text-white font-bold" : "border-border/40 text-muted-foreground hover:bg-muted/10"
-                        }`}
+                        style={{ backgroundColor: uc.hex }}
+                        title={uc.name}
                       >
-                        {st.label}
+                        {clothingColor === uc.hex && <Check className="w-3.5 h-3.5 text-white drop-shadow" />}
                       </button>
                     ))}
                   </div>
                 </div>
+                <div>
+                  <label className="text-[10px] text-slate-400 font-semibold block mb-1">
+                    Estilo de Vestimenta
+                  </label>
+                  <select
+                    value={clothingStyle}
+                    onChange={(e) => setClothingStyle(e.target.value)}
+                    className="w-full h-8 rounded-lg bg-black/40 border border-white/10 px-2 text-xs text-white"
+                  >
+                    <option value="uniforme_loja">Moletom ZAI & Uniforme Comercial</option>
+                    <option value="polo_comercial">Camisa Polo Atendimento</option>
+                    <option value="social_executivo">Social Corporativo</option>
+                    <option value="avental_balcao">Avental Balcão & Depósito</option>
+                  </select>
+                </div>
               </div>
             )}
 
-            {/* TAB: ACESSÓRIOS */}
+            {/* TAB 3: ACESSÓRIOS */}
             {activeTab === "acessorios" && (
-              <div className="space-y-2">
-                <label className="text-[11px] text-muted-foreground font-semibold">Acessórios de Trabalho</label>
-                <div className="space-y-1.5">
-                  {[
-                    { id: "headset", label: "Headset Profissional de Atendimento" },
-                    { id: "cracha", label: `Crachá Oficial da Loja (${storeName})` },
-                    { id: "oculos", label: "Óculos de Grau" },
-                    { id: "gato", label: "Mascote / Pet da Loja (Gatinho ZAI)" },
-                  ].map((acc) => (
-                    <button
-                      key={acc.id}
-                      type="button"
-                      onClick={() => toggleAccessory(acc.id)}
-                      className={`w-full flex items-center justify-between p-2 rounded-lg border transition-all text-[11px] ${
-                        accessories.includes(acc.id)
-                          ? "bg-emerald-500/20 border-emerald-500 text-white font-bold"
-                          : "border-border/40 text-muted-foreground hover:bg-muted/10"
-                      }`}
-                    >
-                      <span>{acc.label}</span>
-                      {accessories.includes(acc.id) && <Check className="w-3.5 h-3.5 text-emerald-400" />}
-                    </button>
-                  ))}
-                </div>
+              <div className="space-y-2 animate-fade-in text-xs">
+                <label className="text-[10px] text-slate-400 font-semibold block mb-1">
+                  Adereços do Atendente
+                </label>
+                {[
+                  { id: "headset", label: "Headset Profissional de Vendas" },
+                  { id: "cracha", label: "Crachá com Identidade da Loja" },
+                  { id: "oculos", label: "Óculos de Grau / Comercial" },
+                  { id: "gato", label: "Mascote Gatinho ZAI na Mesa" },
+                ].map((item) => (
+                  <button
+                    key={item.id}
+                    type="button"
+                    onClick={() => toggleAccessory(item.id)}
+                    className={`w-full p-2.5 rounded-xl border flex items-center justify-between text-left transition-all ${
+                      accessories.includes(item.id)
+                        ? "bg-emerald-500/15 border-emerald-500/40 text-emerald-300"
+                        : "bg-black/30 border-white/5 text-slate-400 hover:text-white"
+                    }`}
+                  >
+                    <span>{item.label}</span>
+                    {accessories.includes(item.id) && <Check className="w-3.5 h-3.5 text-emerald-400" />}
+                  </button>
+                ))}
               </div>
             )}
 
-            {/* TAB: CENÁRIO */}
-            {activeTab === "cenario" && (
-              <div className="space-y-2">
-                <label className="text-[11px] text-muted-foreground font-semibold">Ambiente do Palco de Vendas</label>
-                <div className="space-y-1.5">
-                  {scenes.map((sc) => (
-                    <button
-                      key={sc.id}
-                      type="button"
-                      onClick={() => setScene(sc.id)}
-                      className={`w-full text-left p-2 rounded-lg border transition-all text-[11px] ${
-                        scene === sc.id
-                          ? "bg-emerald-500/20 border-emerald-500 text-white font-bold"
-                          : "border-border/40 text-muted-foreground hover:bg-muted/10"
-                      }`}
-                    >
-                      {sc.name}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* TAB: PRESETS & ANIMAÇÕES */}
+            {/* TAB 4: PRESETS DE ATENDENTES PRONTOS */}
             {activeTab === "animacoes" && (
-              <div className="space-y-2">
-                <label className="text-[11px] text-muted-foreground font-semibold">Modelos & Presets de Atendentes</label>
-                <div className="space-y-1.5 max-h-56 overflow-y-auto pr-1">
-                  {ATTENDANT_PRESETS.map((p) => (
-                    <button
-                      key={p.id}
-                      type="button"
-                      onClick={() => applyPreset(p)}
-                      className={`w-full text-left p-2 rounded-lg border transition-all text-[11px] flex items-center justify-between ${
-                        customName.toLowerCase() === p.name.toLowerCase()
-                          ? "bg-emerald-500/20 border-emerald-500 text-white font-bold"
-                          : "border-border/40 text-muted-foreground hover:bg-muted/10 hover:text-white"
-                      }`}
-                    >
-                      <div>
-                        <div className="font-semibold text-white flex items-center gap-1.5">
-                          <span>{p.name}</span>
-                          <span className="text-[9px] px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-300 font-normal">
-                            {p.badge}
-                          </span>
-                        </div>
-                        <div className="text-[10px] text-muted-foreground">{p.role}</div>
-                      </div>
-                      <span className="text-[10px] text-emerald-400 font-medium">Aplicar</span>
-                    </button>
-                  ))}
-                </div>
+              <div className="space-y-2 animate-fade-in text-xs">
+                <label className="text-[10px] text-slate-400 font-semibold block mb-1">
+                  Modelos Prontos por Especialidade
+                </label>
+                {ATTENDANT_PRESETS.map((p) => (
+                  <button
+                    key={p.id}
+                    type="button"
+                    onClick={() => applyPreset(p)}
+                    className={`w-full p-2 rounded-xl border flex items-center justify-between transition-all ${
+                      customName.toLowerCase() === p.name.toLowerCase()
+                        ? "bg-emerald-500/20 border-emerald-400 text-white font-bold"
+                        : "bg-black/30 border-white/5 text-slate-300 hover:bg-white/5"
+                    }`}
+                  >
+                    <div className="text-left">
+                      <div className="text-xs font-semibold">{p.name}</div>
+                      <div className="text-[10px] text-slate-400">{p.badge}</div>
+                    </div>
+                    <Badge variant="outline" className="text-[9px] border-emerald-500/30 text-emerald-400">
+                      Aplicar
+                    </Badge>
+                  </button>
+                ))}
               </div>
             )}
-
-            {/* SAVE BUTTON */}
-            <div className="pt-2 border-t border-border/50">
-              <button
-                type="button"
-                onClick={handleSave}
-                disabled={saving}
-                className="w-full py-2 px-3 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-black font-bold text-xs flex items-center justify-center gap-1.5 shadow-md transition-all disabled:opacity-50"
-              >
-                <Save className="w-3.5 h-3.5" />
-                <span>{saving ? "Salvando..." : "Salvar no Perfil da Loja"}</span>
-              </button>
-            </div>
           </div>
-        )}
 
-        {/* RESET CAMERA & DRAG HINT PILL */}
-        <div className="zai-character-hint flex items-center gap-2">
-          <span>🖱 Arraste para girar · Scroll para zoom</span>
-          {(rotation.x !== 0 || rotation.y !== 0 || zoom !== 1) && (
+          {/* SAVE BUTTON */}
+          <div className="pt-3 border-t border-white/10 mt-3">
             <button
               type="button"
-              onClick={handleDoubleClick}
-              className="ml-1 p-0.5 hover:text-emerald-400 transition-colors"
-              title="Resetar Câmera"
+              onClick={handleSave}
+              disabled={saving}
+              className="w-full py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-black font-bold text-xs transition-all shadow-[0_4px_12px_rgba(16,185,129,0.3)] flex items-center justify-center gap-1.5"
             >
-              <RotateCcw className="w-3 h-3" />
+              <Save className="w-3.5 h-3.5" />
+              <span>{saving ? "Salvando..." : "Salvar Atendente na Loja"}</span>
             </button>
-          )}
-        </div>
-      </div>
+          </div>
+        </aside>
+      )}
+
     </article>
   );
 };

@@ -2527,7 +2527,8 @@ export function AIView(props: AIViewProps) {
       <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="page-container section-stack">
         <div className="rounded-2xl border border-border/60 bg-card/70 p-3 backdrop-blur-xl md:p-6 space-y-6">
           
-          {/* Summary Dashboard Cards */}
+          {/* Summary Dashboard Cards — hidden on evolution tab */}
+          {activeInternalTab !== 'evolution' && (
           <div className="grid gap-3 sm:grid-cols-3">
             <Card className="glass-card metric-card rounded-2xl border-border/70 hover-lift shadow-sm">
               <CardContent className="space-y-1.5 p-3.5 sm:p-4">
@@ -2568,6 +2569,7 @@ export function AIView(props: AIViewProps) {
               </CardContent>
             </Card>
           </div>
+          )}
 
           {/* Internal Navigation Menu & Content Panel Split */}
           <div className="flex flex-col lg:flex-row gap-6 items-start w-full min-h-[600px]">

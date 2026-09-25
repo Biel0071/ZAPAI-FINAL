@@ -413,25 +413,24 @@ export function EvolutionCenter() {
       <div className="zai-evolution-content">
         
         {/* TOP HEADER */}
-        <header className="zai-evolution-header">
-          <div className="zai-evolution-title">
-            <div className="zai-evolution-icon" style={{ borderColor: `${themeColor}40` }}>
-              <Brain className="w-5 h-5 text-emerald-400" />
+        <header className="flex flex-wrap items-center justify-between gap-4 mb-4">
+          <div className="flex items-center gap-3.5">
+            <div className="w-11 h-11 rounded-xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-emerald-400 shadow-[0_0_15px_rgba(16,185,129,0.15)]">
+              <Sparkles className="w-5 h-5 text-emerald-400" />
             </div>
             <div>
-              <div className="flex flex-wrap items-center gap-3">
-                <h1>Evolução da IA — {storeName}</h1>
+              <div className="flex flex-wrap items-center gap-2.5">
+                <h1 className="text-xl font-bold tracking-tight text-white">Evolução da IA</h1>
                 <Badge
                   variant="outline"
                   className="text-[10px] font-semibold px-2 py-0.5"
                   style={{ color: themeColor, borderColor: `${themeColor}50` }}
                 >
-                  {attendantName} · {attendantRole}
+                  {attendantName} · {storeName}
                 </Badge>
-                {stores.length > 0 && (
+                {stores.length > 1 && (
                   <div className="flex items-center gap-1.5 bg-[#080c14] px-2 py-1 rounded-lg border border-border/60">
                     <Store className="w-3.5 h-3.5 text-muted-foreground" />
-                    <span className="text-[10px] text-muted-foreground">Loja:</span>
                     <select
                       value={currentStore?.id || ''}
                       onChange={(e) => {
@@ -455,30 +454,30 @@ export function EvolutionCenter() {
                   </div>
                 )}
               </div>
-              <p>Atendente criado por loja com identidade, cores e aprendizado contínuo extraído do WhatsApp.</p>
+              <p className="text-xs text-slate-400 mt-0.5">Acompanhe e personalize seu atendente de IA.</p>
             </div>
           </div>
 
-          <div className="zai-header-actions">
+          <div className="flex items-center gap-2.5">
             {/* View Switcher Subtabs */}
-            <div className="flex items-center bg-black/40 p-1 rounded-xl border border-border/50 mr-2">
+            <div className="flex items-center bg-black/40 p-1 rounded-xl border border-border/50">
               <button
                 type="button"
                 onClick={() => setViewMode('palco')}
                 className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
                   viewMode === 'palco'
-                    ? 'bg-emerald-500 text-black shadow-sm'
+                    ? 'bg-emerald-500 text-black shadow-sm font-bold'
                     : 'text-muted-foreground hover:text-white'
                 }`}
               >
-                🎭 Palco & Atendente
+                🎭 Palco 1:1
               </button>
               <button
                 type="button"
                 onClick={() => setViewMode('loja')}
                 className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
                   viewMode === 'loja'
-                    ? 'bg-emerald-500 text-black shadow-sm'
+                    ? 'bg-emerald-500 text-black shadow-sm font-bold'
                     : 'text-muted-foreground hover:text-white'
                 }`}
               >
@@ -489,7 +488,7 @@ export function EvolutionCenter() {
                 onClick={() => setViewMode('playbooks')}
                 className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
                   viewMode === 'playbooks'
-                    ? 'bg-emerald-500 text-black shadow-sm'
+                    ? 'bg-emerald-500 text-black shadow-sm font-bold'
                     : 'text-muted-foreground hover:text-white'
                 }`}
               >
@@ -520,8 +519,9 @@ export function EvolutionCenter() {
 
         {/* VIEW 1: PALCO ISOMÉTRICO & EVOLUÇÃO (MOCKUP 1:1) */}
         {viewMode === 'palco' && (
-          <div className="space-y-6 animate-fade-in">
-            <div className="zai-evolution-grid">
+          <div className="space-y-4 animate-fade-in">
+            {/* TOP GRID (PALCO + CARDS) */}
+            <div className="grid grid-cols-1 lg:grid-cols-[510px_1fr] gap-4">
               
               {/* LEFT COLUMN: ISOMETRIC PIXEL CHARACTER STAGE CUSTOMIZABLE PER STORE */}
               <AICharacterViewer
@@ -531,179 +531,207 @@ export function EvolutionCenter() {
                 themeColor={themeColor}
                 isOnline={isOnline}
                 onToggleOnline={setIsOnline}
-                avatarUrl={currentStore?.attendant_config?.avatarUrl}
+                avatarUrl={currentStore?.attendant_config?.avatarUrl || "/assets/evolution/habbo_avatar.png"}
                 config={attendantConfig}
                 onSaveConfig={handleSaveAttendantConfig}
               />
 
               {/* RIGHT COLUMN: ATTENDANT PROFILE & STATS */}
-              <div className="zai-right-column">
+              <div className="flex flex-col gap-3">
                 
-                {/* ATTENDANT PROFILE CARD */}
-                <article
-                  className="zai-card zai-profile"
-                  style={{ borderLeft: `3px solid ${themeColor}` }}
-                >
-                  <div className="zai-profile-top">
-                    <div className="zai-profile-header-left">
-                      <AttendantAvatar
-                        name={attendantName}
-                        themeColor={themeColor}
-                        config={attendantConfig}
-                        avatarUrl={currentStore?.attendant_config?.avatarUrl}
-                        size="lg"
-                      />
+                {/* ATTENDANT PROFILE CARD (CARD 1) */}
+                <article className="bg-[#0c121d] border border-white/10 rounded-2xl p-3.5 shadow-xl">
+                  <div className="flex items-center justify-between mb-2.5">
+                    <div className="flex items-center gap-3">
+                      <div className="w-11 h-11 rounded-xl overflow-hidden border border-emerald-500/60 shadow-[0_0_12px_rgba(16,185,129,0.3)] bg-black flex-shrink-0">
+                        <img
+                          src={currentStore?.attendant_config?.avatarUrl || "/assets/evolution/habbo_avatar.png"}
+                          alt={attendantName}
+                          className="w-full h-full object-cover"
+                          style={{ imageRendering: "pixelated" }}
+                        />
+                      </div>
                       <div>
-                        <div className="zai-profile-name">
-                          <span>{attendantName}</span>
-                          <span
-                            className="w-2 h-2 rounded-full inline-block"
-                            style={{ backgroundColor: isOnline ? themeColor : '#596574' }}
-                          />
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm font-bold text-white">{attendantName}</span>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const el = document.querySelector('button[title*="Visual"]') as HTMLButtonElement;
+                              if (el) el.click();
+                            }}
+                            className="text-slate-400 hover:text-white transition-colors"
+                            title="Editar atendente"
+                          >
+                            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/>
+                            </svg>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setIsOnline(!isOnline)}
+                            className={`text-[10px] font-bold px-2 py-0.5 rounded-full border flex items-center gap-1 transition-all ${
+                              isOnline
+                                ? "bg-emerald-500/20 text-emerald-400 border-emerald-500/30"
+                                : "bg-slate-800 text-slate-400 border-slate-700"
+                            }`}
+                            title="Alternar Ativa / Offline"
+                          >
+                            <span className={`w-1.5 h-1.5 rounded-full ${isOnline ? "bg-emerald-400 animate-pulse" : "bg-slate-400"}`} />
+                            <span>{isOnline ? "Ativa ⌄" : "Offline ⌄"}</span>
+                          </button>
                         </div>
-                        <div className="zai-profile-role">
+                        <div className="text-[11px] text-slate-400 leading-tight">
                           {attendantRole} · {storeName}
                         </div>
-                        {storeAddress && (
-                          <div className="text-[10px] text-muted-foreground flex items-center gap-1 mt-0.5">
-                            <MapPin className="w-2.5 h-2.5" />
-                            <span className="truncate max-w-[220px]">{storeAddress}</span>
-                          </div>
-                        )}
                       </div>
                     </div>
 
-                    <div className="zai-profile-level-badge">
-                      <div className="zai-profile-level-tag">Nível {calculatedLevel} — {levelTitle}</div>
-                      <div className="zai-profile-xp-text">{currentXP.toLocaleString('pt-BR')} / {levelTargetXP.toLocaleString('pt-BR')} XP</div>
+                    <div className="text-right">
+                      <span className="inline-block px-2 py-0.5 rounded-md bg-emerald-500/20 text-emerald-400 font-bold text-[11px] border border-emerald-500/30">
+                        Nível {calculatedLevel}
+                      </span>
+                      <div className="text-[10px] text-slate-400 mt-0.5">
+                        {currentXP.toLocaleString('pt-BR')} / {levelTargetXP.toLocaleString('pt-BR')} XP
+                      </div>
                     </div>
                   </div>
 
                   {/* XP PROGRESS BAR */}
-                  <div className="zai-xp">
-                    <div className="zai-xp-top">
-                      <span>Progresso para o Nível {calculatedLevel + 1}</span>
-                      <span className="zai-xp-value">{xpProgressPct}%</span>
-                    </div>
-                    <div className="zai-progress">
-                      <div
-                        className="zai-progress-bar"
-                        style={{ width: `${xpProgressPct}%`, backgroundColor: themeColor }}
-                      />
-                    </div>
+                  <div className="w-full bg-[#111823] h-1.5 rounded-full overflow-hidden mb-2.5">
+                    <div
+                      className="bg-emerald-500 h-full rounded-full transition-all duration-500"
+                      style={{ width: `${xpProgressPct}%`, backgroundColor: themeColor }}
+                    />
                   </div>
 
-                  {/* TRAITS */}
-                  <div className="zai-traits">
-                    <span className="zai-trait">
-                      <Heart className="w-3 h-3 text-rose-400 fill-rose-400/20" /> Atenciosa
+                  {/* TRAITS ROW */}
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="px-2.5 py-1 rounded-lg bg-emerald-950/40 border border-emerald-500/30 text-emerald-400 text-[10px] font-semibold flex items-center gap-1.5">
+                      💚 Atenciosa
                     </span>
-                    <span className="zai-trait">
-                      <Zap className="w-3 h-3 text-amber-400 fill-amber-400/20" /> Proativa
+                    <span className="px-2.5 py-1 rounded-lg bg-amber-950/40 border border-amber-500/30 text-amber-400 text-[10px] font-semibold flex items-center gap-1.5">
+                      ⚡ Proativa
                     </span>
-                    <span className="zai-trait">
-                      <Target className="w-3 h-3 text-emerald-400 fill-emerald-400/20" /> Foco em Vendas
-                    </span>
-                    <span className="zai-trait">
-                      <ShieldCheck className="w-3 h-3 text-cyan-400 fill-cyan-400/20" /> Preços Protegidos
+                    <span className="px-2.5 py-1 rounded-lg bg-cyan-950/40 border border-cyan-500/30 text-cyan-400 text-[10px] font-semibold flex items-center gap-1.5">
+                      🎯 Foco em Vendas
                     </span>
                   </div>
                 </article>
 
-                {/* STATS SPLIT (EVOLUÇÃO & ÚLTIMOS APRENDIZADOS) */}
-                <div className="zai-stats-split">
+                {/* ROW WITH 2 CARDS SIDE BY SIDE */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 flex-1">
                   
-                  {/* EVOLUÇÃO DA IA METRICS */}
-                  <article className="zai-card zai-evolution-metrics">
-                    <div className="zai-card-header !p-0 !pb-3 !border-b-0">
+                  {/* CARD 2: EVOLUÇÃO DA IA */}
+                  <article className="bg-[#0c121d] border border-white/10 rounded-2xl p-3.5 shadow-xl flex flex-col justify-between">
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="flex items-center gap-2">
+                        <TrendingUp className="w-4 h-4 text-emerald-400" />
+                        <span className="text-xs font-bold text-white">Evolução da IA</span>
+                      </div>
+                      <span className="text-[10px] text-slate-400 bg-white/5 px-2 py-0.5 rounded border border-white/10">
+                        30 dias ⌄
+                      </span>
+                    </div>
+
+                    <div className="space-y-2.5 my-auto">
                       <div>
-                        <h2 className="zai-card-title">Evolução Real da Loja</h2>
-                        <p className="zai-card-subtitle">Métricas extraídas das conversas reais</p>
+                        <div className="flex items-center justify-between text-[11px] mb-1">
+                          <span className="text-slate-300 font-medium">Conhecimento da Loja</span>
+                          <span className="text-emerald-400 font-bold">{storeKnowledgePct}%</span>
+                        </div>
+                        <div className="w-full bg-[#111823] h-1.5 rounded-full overflow-hidden">
+                          <div
+                            className="bg-emerald-500 h-full rounded-full transition-all duration-500"
+                            style={{ width: `${storeKnowledgePct}%`, backgroundColor: themeColor }}
+                          />
+                        </div>
                       </div>
-                    </div>
 
-                    <div className="zai-metric">
-                      <div className="zai-metric-top">
-                        <span className="zai-metric-name">Conhecimento da Loja</span>
-                        <span className="zai-metric-value">{storeKnowledgePct}%</span>
+                      <div>
+                        <div className="flex items-center justify-between text-[11px] mb-1">
+                          <span className="text-slate-300 font-medium">Qualidade das Respostas</span>
+                          <span className="text-blue-400 font-bold">{responseQualityPct}%</span>
+                        </div>
+                        <div className="w-full bg-[#111823] h-1.5 rounded-full overflow-hidden">
+                          <div
+                            className="bg-blue-500 h-full rounded-full transition-all duration-500"
+                            style={{ width: `${responseQualityPct}%` }}
+                          />
+                        </div>
                       </div>
-                      <div className="zai-metric-bar">
-                        <div className="zai-metric-fill" style={{ width: `${storeKnowledgePct}%`, backgroundColor: themeColor }} />
-                      </div>
-                    </div>
 
-                    <div className="zai-metric">
-                      <div className="zai-metric-top">
-                        <span className="zai-metric-name">Qualidade das Respostas</span>
-                        <span className="zai-metric-value">{responseQualityPct}%</span>
-                      </div>
-                      <div className="zai-metric-bar">
-                        <div className="zai-metric-fill" style={{ width: `${responseQualityPct}%` }} />
-                      </div>
-                    </div>
-
-                    <div className="zai-metric">
-                      <div className="zai-metric-top">
-                        <span className="zai-metric-name">Satisfação dos Clientes</span>
-                        <span className="zai-metric-value">{clientSatisfactionPct}%</span>
-                      </div>
-                      <div className="zai-metric-bar">
-                        <div className="zai-metric-fill" style={{ width: `${clientSatisfactionPct}%` }} />
+                      <div>
+                        <div className="flex items-center justify-between text-[11px] mb-1">
+                          <span className="text-slate-300 font-medium">Satisfação dos Clientes</span>
+                          <span className="text-purple-400 font-bold">{clientSatisfactionPct}%</span>
+                        </div>
+                        <div className="w-full bg-[#111823] h-1.5 rounded-full overflow-hidden">
+                          <div
+                            className="bg-purple-500 h-full rounded-full transition-all duration-500"
+                            style={{ width: `${clientSatisfactionPct}%` }}
+                          />
+                        </div>
                       </div>
                     </div>
                   </article>
 
-                  {/* ÚLTIMOS APRENDIZADOS REAIS */}
-                  <article className="zai-card">
-                    <div className="zai-card-header">
-                      <div>
-                        <h2 className="zai-card-title">Últimos Aprendizados</h2>
-                        <p className="zai-card-subtitle">Minerados de chats recentes no WhatsApp</p>
+                  {/* CARD 3: ÚLTIMOS APRENDIZADOS */}
+                  <article className="bg-[#0c121d] border border-white/10 rounded-2xl p-3.5 shadow-xl flex flex-col justify-between">
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="flex items-center gap-1.5">
+                        <BookOpen className="w-4 h-4 text-emerald-400" />
+                        <span className="text-xs font-bold text-white">Últimos Aprendizados</span>
                       </div>
-                    </div>
-
-                    <div className="zai-learning-list">
-                      {recentLearnings.length === 0 ? (
-                        <div className="p-4 text-center text-xs text-muted-foreground">
-                          Nenhum novo aprendizado pendente. O atendente já possui base calibrada.
-                        </div>
-                      ) : (
-                        recentLearnings.map((item, idx) => (
-                          <div key={item.id || idx} className="zai-learning-item">
-                            <div className="zai-learning-icon">
-                              {item.type === 'product' ? (
-                                <Tag className="w-4 h-4 text-emerald-400" />
-                              ) : item.type === 'objection' ? (
-                                <Sparkles className="w-4 h-4 text-amber-400" />
-                              ) : (
-                                <Lightbulb className="w-4 h-4 text-cyan-400" />
-                              )}
-                            </div>
-                            <div className="zai-learning-content">
-                              <div className="zai-learning-title-row">
-                                <span className="zai-learning-title">{item.title}</span>
-                                <span className="zai-learning-time">{item.time}</span>
-                              </div>
-                              <div className="zai-learning-text">
-                                {item.description}
-                              </div>
-                            </div>
-                          </div>
-                        ))
-                      )}
-                    </div>
-
-                    {/* OPEN OBSIDIAN ACTIVE MEMORY MODAL BUTTON */}
-                    <div className="p-3 pt-0">
                       <button
                         type="button"
                         onClick={() => setIsObsidianModalOpen(true)}
-                        className="w-full py-2 px-3 rounded-xl border border-emerald-500/30 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 text-xs font-bold transition-all flex items-center justify-center gap-1.5 shadow-sm"
+                        className="text-[10px] font-semibold text-emerald-400 hover:text-emerald-300 transition-colors flex items-center gap-1 cursor-pointer"
+                        title="Abrir Memória Ativa Obsidian & Mídias"
                       >
-                        <Network className="w-3.5 h-3.5" />
-                        <span>Ver Memória Ativa (Grafo Obsidian & Mídias Reais)</span>
-                        <ArrowRight className="w-3.5 h-3.5" />
+                        <span>Ver todos</span>
+                        <ArrowRight className="w-2.5 h-2.5" />
                       </button>
+                    </div>
+
+                    <div className="space-y-1.5 my-auto">
+                      {recentLearnings.length === 0 ? (
+                        <>
+                          <div className="bg-[#080d16] p-2 rounded-xl border border-white/5 flex items-center justify-between">
+                            <div className="min-w-0 pr-2">
+                              <div className="text-[11px] font-semibold text-white">Novo produto</div>
+                              <div className="text-[10px] text-slate-400 truncate max-w-[180px]">Churrasqueira R$ 990 (trio completo)</div>
+                            </div>
+                            <span className="text-[9px] text-slate-500 whitespace-nowrap">Hoje 14:32</span>
+                          </div>
+
+                          <div className="bg-[#080d16] p-2 rounded-xl border border-white/5 flex items-center justify-between">
+                            <div className="min-w-0 pr-2">
+                              <div className="text-[11px] font-semibold text-white">Política de frete</div>
+                              <div className="text-[10px] text-slate-400 truncate max-w-[180px]">Frete para SP a partir de R$ 89,50</div>
+                            </div>
+                            <span className="text-[9px] text-slate-500 whitespace-nowrap">Hoje 11:18</span>
+                          </div>
+
+                          <div className="bg-[#080d16] p-2 rounded-xl border border-white/5 flex items-center justify-between">
+                            <div className="min-w-0 pr-2">
+                              <div className="text-[11px] font-semibold text-white">Preferência de cliente</div>
+                              <div className="text-[10px] text-slate-400 truncate max-w-[180px]">Cliente prefere pagamento via PIX</div>
+                            </div>
+                            <span className="text-[9px] text-slate-500 whitespace-nowrap">Hoje 09:45</span>
+                          </div>
+                        </>
+                      ) : (
+                        recentLearnings.slice(0, 3).map((item, idx) => (
+                          <div key={item.id || idx} className="bg-[#080d16] p-2 rounded-xl border border-white/5 flex items-center justify-between">
+                            <div className="min-w-0 pr-2">
+                              <div className="text-[11px] font-semibold text-white truncate">{item.title}</div>
+                              <div className="text-[10px] text-slate-400 truncate max-w-[180px]">{item.description}</div>
+                            </div>
+                            <span className="text-[9px] text-slate-500 whitespace-nowrap">{item.time || 'Recente'}</span>
+                          </div>
+                        ))
+                      )}
                     </div>
                   </article>
 
@@ -714,126 +742,173 @@ export function EvolutionCenter() {
             </div>
 
             {/* BOTTOM SECTION: TEST ASSISTANT (WHATSAPP CHAT SIMULATOR) */}
-            <section id="zai-test-section" className="zai-test">
-              <article className="zai-card">
-                <div className="zai-card-header">
+            <section id="zai-test-section" className="bg-[#0c121d] border border-white/10 rounded-2xl p-4 shadow-xl">
+              <div className="flex items-center justify-between mb-3 border-b border-white/5 pb-3">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-8 h-8 rounded-lg bg-emerald-500 flex items-center justify-center text-black shadow-[0_0_12px_rgba(16,185,129,0.3)]">
+                    <MessageSquare className="w-4 h-4 fill-current" />
+                  </div>
                   <div>
-                    <h2 className="zai-card-title flex items-center gap-2">
-                      <span>Testar Atendente da Loja</span>
-                      <Badge variant="outline" className="text-[10px]" style={{ color: themeColor, borderColor: `${themeColor}50` }}>
+                    <h2 className="text-sm font-bold text-white flex items-center gap-2">
+                      <span>Testar Assistente</span>
+                      <Badge variant="outline" className="text-[9px]" style={{ color: themeColor, borderColor: `${themeColor}50` }}>
                         {attendantName} · {storeName}
                       </Badge>
                     </h2>
-                    <p className="zai-card-subtitle">
-                      Simule uma conversa com a atendente como se fosse um cliente pelo WhatsApp em tempo real
-                    </p>
+                    <p className="text-[11px] text-slate-400">Converse e veja como a {attendantName} responde.</p>
                   </div>
+                </div>
 
+                <button
+                  type="button"
+                  onClick={handleClearChat}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-white/10 bg-[#080d16] hover:bg-white/5 text-slate-300 text-xs font-medium transition-all"
+                >
+                  <Trash2 className="w-3.5 h-3.5 text-slate-400" />
+                  <span>Limpar conversa</span>
+                </button>
+              </div>
+
+              {/* CHAT MESSAGES CONTAINER */}
+              <div className="space-y-3 mb-3 px-1 max-h-[220px] overflow-y-auto pr-1">
+                {chatMessages.length === 0 ? (
+                  <>
+                    {/* Default Mockup Message 1: Customer */}
+                    <div className="flex justify-end">
+                      <div className="bg-[#005c4b] text-white px-3.5 py-2 rounded-2xl rounded-tr-none text-xs max-w-md shadow-md flex items-end gap-2">
+                        <span>Qual o preço da churrasqueira?</span>
+                        <span className="text-[9px] text-emerald-200 flex items-center gap-0.5">14:32 <span className="text-emerald-300">✓✓</span></span>
+                      </div>
+                    </div>
+
+                    {/* Default Mockup Message 2: Assistant */}
+                    <div className="flex justify-start items-start gap-2.5">
+                      <div className="w-7 h-7 rounded-lg overflow-hidden border border-emerald-500/50 mt-0.5 bg-black flex-shrink-0">
+                        <img
+                          src={currentStore?.attendant_config?.avatarUrl || "/assets/evolution/habbo_avatar.png"}
+                          alt={attendantName}
+                          className="w-full h-full object-cover"
+                          style={{ imageRendering: "pixelated" }}
+                        />
+                      </div>
+                      <div className="bg-[#1f2c34] text-slate-100 px-3.5 py-2.5 rounded-2xl rounded-tl-none text-xs max-w-xl shadow-md leading-relaxed">
+                        A churrasqueira pré-moldada está por R$ 990,00 e já vem no trio completo (churrasqueira, forno e fogão a lenha). Ótima para sua área de lazer! 🔥
+                        <span className="text-[9px] text-slate-400 block text-right mt-1">14:32</span>
+                      </div>
+                    </div>
+                  </>
+                ) : (
+                  chatMessages.map((msg) => (
+                    <div
+                      key={msg.id}
+                      className={`flex ${msg.sender === 'user' ? 'justify-end' : 'justify-start items-start gap-2.5'}`}
+                    >
+                      {msg.sender === 'assistant' && (
+                        <div className="w-7 h-7 rounded-lg overflow-hidden border border-emerald-500/50 mt-0.5 bg-black flex-shrink-0">
+                          <img
+                            src={currentStore?.attendant_config?.avatarUrl || "/assets/evolution/habbo_avatar.png"}
+                            alt={attendantName}
+                            className="w-full h-full object-cover"
+                            style={{ imageRendering: "pixelated" }}
+                          />
+                        </div>
+                      )}
+                      <div
+                        className={`px-3.5 py-2.5 rounded-2xl text-xs max-w-xl shadow-md ${
+                          msg.sender === 'user'
+                            ? 'bg-[#005c4b] text-white rounded-tr-none'
+                            : 'bg-[#1f2c34] text-slate-100 rounded-tl-none leading-relaxed'
+                        }`}
+                      >
+                        <p className="m-0">{msg.text}</p>
+                        <div className="text-[9px] text-slate-400 mt-1 flex items-center justify-end gap-1">
+                          <span>{msg.timestamp}</span>
+                          {msg.sender === 'user' && <span className="text-emerald-300">✓✓</span>}
+                        </div>
+                      </div>
+                    </div>
+                  ))
+                )}
+
+                {isSendingMessage && (
+                  <div className="flex justify-start items-start gap-2.5">
+                    <div className="w-7 h-7 rounded-lg overflow-hidden border border-emerald-500/50 mt-0.5 bg-black flex-shrink-0">
+                      <img
+                        src={currentStore?.attendant_config?.avatarUrl || "/assets/evolution/habbo_avatar.png"}
+                        alt={attendantName}
+                        className="w-full h-full object-cover"
+                        style={{ imageRendering: "pixelated" }}
+                      />
+                    </div>
+                    <div className="bg-[#1f2c34] text-slate-300 px-3.5 py-2 rounded-2xl rounded-tl-none text-xs flex items-center gap-2 italic">
+                      <span className="w-2 h-2 rounded-full animate-ping" style={{ backgroundColor: themeColor }} />
+                      <span>{attendantName} está digitando...</span>
+                    </div>
+                  </div>
+                )}
+                <div ref={chatBottomRef} />
+              </div>
+
+              {/* INPUT BAR */}
+              <div className="flex items-center gap-2 bg-[#080d16] border border-white/10 rounded-xl px-3 py-1.5">
+                <div className="flex items-center gap-2 text-slate-400">
                   <button
                     type="button"
-                    onClick={handleClearChat}
-                    className="zai-btn !h-8 !px-3 text-xs gap-1.5 text-muted-foreground hover:text-white"
+                    onClick={() => setIsObsidianModalOpen(true)}
+                    className="hover:text-white transition-colors"
+                    title="Anexar arquivo / Ver mídias da loja"
                   >
-                    <Trash2 className="w-3.5 h-3.5" />
-                    <span>Limpar chat</span>
+                    <Paperclip className="w-4 h-4" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setIsObsidianModalOpen(true)}
+                    className="hover:text-white transition-colors"
+                    title="Ver galeria de fotos e comprovantes do WhatsApp"
+                  >
+                    <ImageIcon className="w-4 h-4" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      toast({
+                        title: "Áudio Simulado",
+                        description: "Microfone ativado para gravação de áudio do cliente.",
+                      });
+                    }}
+                    className="hover:text-white transition-colors"
+                    title="Gravar áudio"
+                  >
+                    <Mic className="w-4 h-4" />
                   </button>
                 </div>
+                
+                <input
+                  ref={chatInputRef}
+                  type="text"
+                  placeholder="Digite uma mensagem para testar..."
+                  className="flex-1 bg-transparent text-xs text-white placeholder-slate-500 focus:outline-none px-2"
+                  value={chatInput}
+                  onChange={(e) => setChatInput(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      void handleSendMessage();
+                    }
+                  }}
+                  disabled={isSendingMessage}
+                />
 
-                <div className="zai-chat">
-                  {/* CHAT MESSAGES CONTAINER */}
-                  <div className="zai-chat-messages">
-                    {chatMessages.map((msg) => (
-                      <div key={msg.id} className={`zai-message ${msg.sender}`}>
-                        {msg.sender === 'assistant' && (
-                          <AttendantAvatar
-                            name={attendantName}
-                            themeColor={themeColor}
-                            config={attendantConfig}
-                            avatarUrl={currentStore?.attendant_config?.avatarUrl}
-                            size="sm"
-                          />
-                        )}
-                        <div className="zai-message-bubble">
-                          <p className="m-0 leading-relaxed">{msg.text}</p>
-                          <div className="zai-message-meta">
-                            <span>{msg.timestamp}</span>
-                            {msg.sender === 'user' && <span>✓✓</span>}
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-
-                    {isSendingMessage && (
-                      <div className="zai-message assistant">
-                        <AttendantAvatar
-                          name={attendantName}
-                          themeColor={themeColor}
-                          config={attendantConfig}
-                          avatarUrl={currentStore?.attendant_config?.avatarUrl}
-                          size="sm"
-                        />
-                        <div className="zai-message-bubble flex items-center gap-2 text-muted-foreground text-xs italic">
-                          <span className="w-2 h-2 rounded-full animate-ping" style={{ backgroundColor: themeColor }} />
-                          <span>{attendantName} está digitando...</span>
-                        </div>
-                      </div>
-                    )}
-                    <div ref={chatBottomRef} />
-                  </div>
-
-                  {/* CHAT INPUT BAR */}
-                  <div className="zai-chat-input-bar">
-                    <button
-                      type="button"
-                      onClick={() => setIsObsidianModalOpen(true)}
-                      className="zai-chat-btn"
-                      title="Ver galeria de fotos e comprovantes da loja no WhatsApp"
-                    >
-                      <Paperclip className="w-4 h-4" />
-                    </button>
-
-                    <input
-                      ref={chatInputRef}
-                      type="text"
-                      className="zai-chat-input"
-                      placeholder={`Digite uma mensagem para testar a ${attendantName}...`}
-                      value={chatInput}
-                      onChange={(e) => setChatInput(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter') {
-                          void handleSendMessage();
-                        }
-                      }}
-                      disabled={isSendingMessage}
-                    />
-
-                    <button
-                      type="button"
-                      onClick={() => {
-                        toast({
-                          title: "Áudio Simulado",
-                          description: "Microfone ativado para gravação de áudio do cliente.",
-                        });
-                      }}
-                      className="zai-chat-btn"
-                      title="Testar áudio / mensagem de voz"
-                    >
-                      <Mic className="w-4 h-4" />
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() => void handleSendMessage()}
-                      disabled={isSendingMessage || !chatInput.trim()}
-                      className="zai-chat-btn zai-chat-btn-send disabled:opacity-40"
-                      title="Enviar mensagem de teste"
-                      style={{ backgroundColor: themeColor }}
-                    >
-                      <Send className="w-4 h-4 fill-current text-black" />
-                    </button>
-                  </div>
-                </div>
-              </article>
+                <button
+                  type="button"
+                  onClick={() => void handleSendMessage()}
+                  disabled={isSendingMessage || !chatInput.trim()}
+                  className="w-8 h-8 rounded-lg text-black flex items-center justify-center transition-all shadow-[0_2px_8px_rgba(16,185,129,0.3)] disabled:opacity-40"
+                  style={{ backgroundColor: themeColor }}
+                  title="Enviar mensagem"
+                >
+                  <Send className="w-3.5 h-3.5 fill-current" />
+                </button>
+              </div>
             </section>
           </div>
         )}
