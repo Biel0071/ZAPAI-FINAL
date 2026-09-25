@@ -95,7 +95,7 @@ function createHistoryRouter({ repository = historySync.repository, db = pool, a
   router.put('/stores/:storeId',handle(async(req,res)=>{
     const {
       name,
-      knowledge,
+      knowledge='',
       segment='',
       phone='',
       website='',
@@ -109,7 +109,8 @@ function createHistoryRouter({ repository = historySync.repository, db = pool, a
       attendant_config={},
       settings={}
     }=req.body || {};
-    if(typeof name!=='string' || !name.trim() || name.length>200 || typeof knowledge!=='string' || knowledge.length>30000) return res.status(400).json({error:'Dados da loja inválidos.'});
+    const safeKnowledge = typeof knowledge === 'string' ? knowledge : '';
+    if(typeof name!=='string' || !name.trim() || name.length>200 || safeKnowledge.length>30000) return res.status(400).json({error:'Dados da loja inválidos.'});
     let result;
     try {
       result=await db.query(`UPDATE ai_stores SET
@@ -117,7 +118,7 @@ function createHistoryRouter({ repository = historySync.repository, db = pool, a
         theme_color=$11, address=$12, attendant_name=$13, attendant_role=$14, attendant_config=$15::jsonb, settings=$16::jsonb
         WHERE company_id=$1 AND id=$2 RETURNING id`,
       [
-        req.authTenantId, req.params.storeId, name, knowledge, String(segment).slice(0,200),
+        req.authTenantId, req.params.storeId, name, safeKnowledge, String(segment).slice(0,200),
         String(phone).slice(0,50), String(website).slice(0,200), String(business_hours).slice(0,200),
         String(policies).slice(0,5000), String(catalog_summary).slice(0,10000),
         String(theme_color || '#10b981').slice(0,50), String(address).slice(0,300),
