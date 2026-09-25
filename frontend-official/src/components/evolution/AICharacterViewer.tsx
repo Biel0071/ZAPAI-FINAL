@@ -384,7 +384,7 @@ export const AICharacterViewer: React.FC<AICharacterViewerProps> = ({
           >
             {isOnline ? (
               /* ESTADO ATIVO: Atendente no escritório com as cores e adereços da loja */
-              <div className="relative flex flex-col items-center justify-center w-full h-full p-2 select-none">
+              <div className="relative flex flex-col items-center justify-center w-full h-full pt-12 pb-14 select-none">
                 {/* Background ambient lighting in store theme color */}
                 <div
                   className="absolute inset-0 rounded-2xl opacity-20 pointer-events-none transition-all duration-500"
@@ -394,7 +394,7 @@ export const AICharacterViewer: React.FC<AICharacterViewerProps> = ({
                 />
 
                 {/* High-res Modular Pixel Art Stage for any Custom Store Attendant */}
-                <div className="relative w-64 h-72 sm:w-72 sm:h-80 flex items-center justify-center animate-fade-in">
+                <div className="relative w-64 h-64 sm:w-72 sm:h-72 flex items-center justify-center animate-fade-in my-auto">
                     <svg
                       viewBox="0 0 100 110"
                       className="w-full h-full drop-shadow-[0_16px_24px_rgba(0,0,0,0.6)]"

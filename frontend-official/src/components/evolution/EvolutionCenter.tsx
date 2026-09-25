@@ -162,9 +162,14 @@ export function EvolutionCenter() {
   const chatBottomRef = useRef<HTMLDivElement>(null);
   const chatInputRef = useRef<HTMLInputElement>(null);
 
-  // Scroll to bottom of chat
+  // Scroll to bottom of chat only when user or assistant sends a message (skip on initial mount)
+  const hasMountedChat = useRef(false);
   useEffect(() => {
-    chatBottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+    if (!hasMountedChat.current) {
+      hasMountedChat.current = true;
+      return;
+    }
+    chatBottomRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
   }, [chatMessages, isSendingMessage]);
 
   // Fetch agents and stores
