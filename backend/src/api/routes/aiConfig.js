@@ -9,6 +9,8 @@ router.get('/ai/memory/analytics', aiConfigController.getMemoryAnalytics);
 router.get('/ai/analytics', aiConfigController.getMemoryAnalytics); // alias used by Memory.tsx
 router.get('/ai/memory/search', aiConfigController.searchMemory);
 router.get('/ai/memory/graph', aiConfigController.getMemoryGraph);
+router.get('/ai/memory/media', aiConfigController.getMemoryMedia);
+router.get('/ai/evolution/media', aiConfigController.getMemoryMedia);
 router.post('/ai/memory/flush', aiConfigController.flushMemory);
 
 /**
@@ -261,6 +263,7 @@ router.patch('/config/ai-agents/:key/active', aiConfigController.toggleAIAgent);
 router.delete('/config/ai-agents/:key', aiConfigController.deleteAIAgent);
 router.post('/config/ai-agents/:key/clone', aiConfigController.cloneAIAgent);
 router.get('/config/ai/evolution', aiConfigController.getAIEvolution);
+router.get('/ai/evolution/overview', aiConfigController.getAIEvolution);
 router.get('/config/ai/pipeline-logs', aiConfigController.getPipelineLogs);
 
 router.get('/config/user-providers', aiConfigController.getUserProviders);

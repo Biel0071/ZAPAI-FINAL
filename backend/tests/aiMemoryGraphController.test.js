@@ -83,5 +83,40 @@ test('aiConfigController memory endpoints handle queries gracefully with and wit
     assert.ok(Array.isArray(jsonResult.data.nodes));
     assert.ok(Array.isArray(jsonResult.data.edges));
   }
+
+  // Test 4: getMemoryMedia returns real structured media items with OCR and categories
+  {
+    let statusCode = 200;
+    let jsonResult = null;
+    const req = {
+      authTenantId: 'default',
+      query: { limit: 10 },
+      app: { locals: { store: {} } },
+    };
+    const res = {
+      status(code) {
+        statusCode = code;
+        return this;
+      },
+      json(data) {
+        jsonResult = data;
+        return this;
+      },
+    };
+
+    await controller.getMemoryMedia(req, res);
+    assert.equal(statusCode, 200, 'getMemoryMedia must return 200');
+    assert.equal(jsonResult.success, true);
+    assert.ok(Array.isArray(jsonResult.items), 'items must be an array');
+    assert.ok(typeof jsonResult.total === 'number', 'total must be a number');
+    if (jsonResult.items.length > 0) {
+      const item = jsonResult.items[0];
+      assert.ok(item.id, 'item must have an id');
+      assert.ok(item.url, 'item must have a media url');
+      assert.ok(item.category, 'item must have a category');
+      assert.ok(typeof item.confidence === 'number', 'confidence must be numeric');
+    }
+  }
+
   process.exit(0);
 });

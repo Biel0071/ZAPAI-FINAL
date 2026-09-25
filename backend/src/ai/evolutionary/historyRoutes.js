@@ -40,28 +40,109 @@ function createHistoryRouter({ repository = historySync.repository, db = pool, a
     } catch (_) { res.status(404).json({ error: 'Sessão não encontrada.' }); }
   });
   router.post('/stores', handle(async(req,res)=>{
-    const {name,segment='',knowledge='',phone='',website='',business_hours='',policies='',catalog_summary=''}=req.body || {};
+    const {
+      name,
+      segment='',
+      knowledge='',
+      phone='',
+      website='',
+      business_hours='',
+      policies='',
+      catalog_summary='',
+      theme_color='#10b981',
+      address='',
+      attendant_name='',
+      attendant_role='Assistente de Vendas',
+      attendant_config={},
+      settings={}
+    }=req.body || {};
     if(typeof name!=='string' || !name.trim() || name.length>200 || typeof knowledge!=='string' || knowledge.length>30000) return res.status(400).json({error:'Informe nome e conhecimento válidos.'});
     const id=require('crypto').randomUUID();
     try {
-      await db.query(`INSERT INTO ai_stores(company_id,id,name,segment,knowledge,phone,website,business_hours,policies,catalog_summary)
-        VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`,
-        [req.authTenantId,id,name.trim(),String(segment).slice(0,200),knowledge,String(phone).slice(0,50),String(website).slice(0,200),String(business_hours).slice(0,200),String(policies).slice(0,5000),String(catalog_summary).slice(0,10000)]);
+      await db.query(`INSERT INTO ai_stores(
+        company_id, id, name, segment, knowledge, phone, website, business_hours, policies, catalog_summary,
+        theme_color, address, attendant_name, attendant_role, attendant_config, settings
+      ) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15::jsonb,$16::jsonb)`,
+      [
+        req.authTenantId, id, name.trim(), String(segment).slice(0,200), knowledge,
+        String(phone).slice(0,50), String(website).slice(0,200), String(business_hours).slice(0,200),
+        String(policies).slice(0,5000), String(catalog_summary).slice(0,10000),
+        String(theme_color || '#10b981').slice(0,50), String(address).slice(0,300),
+        String(attendant_name).slice(0,100), String(attendant_role).slice(0,100),
+        JSON.stringify(attendant_config || {}), JSON.stringify(settings || {})
+      ]);
     } catch (_) {
       await db.query('INSERT INTO ai_stores(company_id,id,name,segment,knowledge) VALUES($1,$2,$3,$4,$5)',[req.authTenantId,id,name.trim(),String(segment).slice(0,200),knowledge]);
     }
+
+    // Se informou nome do atendente para a loja, sincronizar/criar agente persona
+    if (attendant_name && attendant_name.trim()) {
+      try {
+        const existingAgents = await agentService.listAgents(req.authTenantId);
+        const match = existingAgents.find(a => a.name?.toLowerCase() === attendant_name.trim().toLowerCase());
+        if (!match) {
+          await agentService.createAgent({
+            name: attendant_name.trim(),
+            personality: `Você é ${attendant_name.trim()}, ${attendant_role || 'assistente oficial'} da loja ${name.trim()}. Atendimento prestativo, consultivo e focado em apresentar os melhores produtos e condições.`,
+            active: true,
+          }, req.authTenantId);
+        }
+      } catch (_) {}
+    }
+
     res.status(201).json({id});
   }));
   router.put('/stores/:storeId',handle(async(req,res)=>{
-    const {name,knowledge,segment='',phone='',website='',business_hours='',policies='',catalog_summary=''}=req.body || {};
+    const {
+      name,
+      knowledge,
+      segment='',
+      phone='',
+      website='',
+      business_hours='',
+      policies='',
+      catalog_summary='',
+      theme_color='#10b981',
+      address='',
+      attendant_name='',
+      attendant_role='Assistente de Vendas',
+      attendant_config={},
+      settings={}
+    }=req.body || {};
     if(typeof name!=='string' || !name.trim() || name.length>200 || typeof knowledge!=='string' || knowledge.length>30000) return res.status(400).json({error:'Dados da loja inválidos.'});
     let result;
     try {
-      result=await db.query(`UPDATE ai_stores SET name=$3,knowledge=$4,segment=$5,phone=$6,website=$7,business_hours=$8,policies=$9,catalog_summary=$10 WHERE company_id=$1 AND id=$2 RETURNING id`,
-        [req.authTenantId,req.params.storeId,name,knowledge,String(segment).slice(0,200),String(phone).slice(0,50),String(website).slice(0,200),String(business_hours).slice(0,200),String(policies).slice(0,5000),String(catalog_summary).slice(0,10000)]);
+      result=await db.query(`UPDATE ai_stores SET
+        name=$3, knowledge=$4, segment=$5, phone=$6, website=$7, business_hours=$8, policies=$9, catalog_summary=$10,
+        theme_color=$11, address=$12, attendant_name=$13, attendant_role=$14, attendant_config=$15::jsonb, settings=$16::jsonb
+        WHERE company_id=$1 AND id=$2 RETURNING id`,
+      [
+        req.authTenantId, req.params.storeId, name, knowledge, String(segment).slice(0,200),
+        String(phone).slice(0,50), String(website).slice(0,200), String(business_hours).slice(0,200),
+        String(policies).slice(0,5000), String(catalog_summary).slice(0,10000),
+        String(theme_color || '#10b981').slice(0,50), String(address).slice(0,300),
+        String(attendant_name).slice(0,100), String(attendant_role).slice(0,100),
+        JSON.stringify(attendant_config || {}), JSON.stringify(settings || {})
+      ]);
     } catch (_) {
       result=await db.query('UPDATE ai_stores SET name=$3,knowledge=$4,segment=$5 WHERE company_id=$1 AND id=$2 RETURNING id',[req.authTenantId,req.params.storeId,name,knowledge,String(segment).slice(0,200)]);
     }
+
+    // Se informou nome do atendente para a loja, sincronizar/criar agente persona
+    if (attendant_name && attendant_name.trim()) {
+      try {
+        const existingAgents = await agentService.listAgents(req.authTenantId);
+        const match = existingAgents.find(a => a.name?.toLowerCase() === attendant_name.trim().toLowerCase());
+        if (!match) {
+          await agentService.createAgent({
+            name: attendant_name.trim(),
+            personality: `Você é ${attendant_name.trim()}, ${attendant_role || 'assistente oficial'} da loja ${name.trim()}. Atendimento prestativo, consultivo e focado em apresentar os melhores produtos e condições.`,
+            active: true,
+          }, req.authTenantId);
+        }
+      } catch (_) {}
+    }
+
     res.status(result.rows.length?200:404).json({success:Boolean(result.rows.length)});
   }));
   router.get('/:sessionId/profile',handle(async(req,res)=>{
