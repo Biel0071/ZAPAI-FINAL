@@ -1,5 +1,5 @@
 import { Skeleton } from "@/components/ui/skeleton";
-import { cn } from "@/lib/utils";
+import { cn } from "@/core/lib/utils";
 
 /**
  * Conjunto de skeletons reutilizáveis para estados de loading premium.

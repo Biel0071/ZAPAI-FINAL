@@ -24,8 +24,8 @@ import {
   Pulse,
 } from "@phosphor-icons/react";
 import { Header } from "@/components/layout/Header";
-import SettingsView from "@/lovable/pages/SettingsPageView";
-import { createSettingsLovableViewModel } from "@/adapters/lovable/settingsAdapter";
+import SettingsView from "@/pages/lovable/pages/SettingsPageView";
+import { createSettingsLovableViewModel } from "@/core/adapters/lovable/settingsAdapter";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -33,13 +33,13 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
-import { apiService, type AIStatusResponse } from "@/services/apiService";
-import { useAdminAuth } from "@/hooks/useAdminAuth";
-import { notify } from "@/services/notifyService";
+import { apiService, type AIStatusResponse } from "@/core/services/apiService";
+import { useAdminAuth } from "@/state/hooks/useAdminAuth";
+import { notify } from "@/core/services/notifyService";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { UnderConstruction } from "@/components/layout/UnderConstruction";
 import { useTheme } from "next-themes";
-import { cn } from "@/lib/utils";
+import { cn } from "@/core/lib/utils";
 
 // Lazy load admin pages
 const QueuePage = React.lazy(() => import("./Queue"));
@@ -49,7 +49,7 @@ const MasterDeploymentsPage = React.lazy(() => import("./MasterDeployments"));
 const MasterVersionsPage = React.lazy(() => import("./MasterVersions"));
 const MasterLogsPage = React.lazy(() => import("./MasterLogs"));
 const TestsPage = React.lazy(() => import("./Tests"));
-const DiagnosticsPage = React.lazy(() => import("@/runtime/diagnostics/Diagnostics"));
+const DiagnosticsPage = React.lazy(() => import("@/core/runtime/diagnostics/Diagnostics"));
 
 const LANGUAGE_STORAGE_KEY = "zapai_language";
 const LANGUAGE_OPTIONS = [

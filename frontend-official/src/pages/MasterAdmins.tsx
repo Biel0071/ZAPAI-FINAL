@@ -3,7 +3,7 @@ import { Header } from "@/components/layout/Header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { loadMasterAdmins, type MasterAdminRow } from "@/services/adminMasterService";
+import { loadMasterAdmins, type MasterAdminRow } from "@/core/services/adminMasterService";
 
 function fallback(value: string | number | null | undefined) {
   return value === null || value === undefined || value === "" ? "—" : String(value);

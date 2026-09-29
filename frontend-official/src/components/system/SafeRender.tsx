@@ -1,6 +1,6 @@
 import { Component, type ErrorInfo, type ReactNode } from "react";
 import { AlertTriangle } from "lucide-react";
-import { reportFrontendIssue } from "@/runtime/services/frontendHealthService";
+import { reportFrontendIssue } from "@/core/runtime/services/frontendHealthService";
 
 type SafeRenderProps = {
   children: ReactNode;

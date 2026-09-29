@@ -18,18 +18,18 @@ import {
   Archive,
 } from "@phosphor-icons/react";
 import { Header } from "@/components/layout/Header";
-import InboxView from "@/lovable/pages/InboxPageView";
-import { createInboxLovableViewModel } from "@/adapters/lovable/inboxAdapter";
-import { getInboxUnreadTotal, publishInboxUnreadTotal } from "@/lib/inboxUnread";
+import InboxView from "@/pages/lovable/pages/InboxPageView";
+import { createInboxLovableViewModel } from "@/core/adapters/lovable/inboxAdapter";
+import { getInboxUnreadTotal, publishInboxUnreadTotal } from "@/core/lib/inboxUnread";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
-import { useToast } from "@/hooks/use-toast";
+import { useToast } from "@/state/hooks/use-toast";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { apiService, type ChatMessage } from "@/services/apiService";
-import { useAppStore } from "@/stores/appStore";
+import { apiService, type ChatMessage } from "@/core/services/apiService";
+import { useAppStore } from "@/state/stores/appStore";
 
 // Modularized components and hook
 import { useInboxState } from "./Inbox/hooks/useInboxState";

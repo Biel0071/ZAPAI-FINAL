@@ -1,8 +1,8 @@
 import { useNavigate } from "react-router-dom";
-import { useAdminAuth } from "@/hooks/useAdminAuth";
-import { useApiRuntimeStatus } from "@/hooks/useApiRuntimeStatus";
-import { useRuntime } from "@/providers/RuntimeProvider";
-import { HeaderShell } from "@/lovable/layout/HeaderShell";
+import { useAdminAuth } from "@/state/hooks/useAdminAuth";
+import { useApiRuntimeStatus } from "@/state/hooks/useApiRuntimeStatus";
+import { useRuntime } from "@/state/providers/RuntimeProvider";
+import { HeaderShell } from "@/pages/lovable/layout/HeaderShell";
 
 interface HeaderProps {
   title: string;

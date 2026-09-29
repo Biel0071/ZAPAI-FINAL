@@ -19,9 +19,9 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { cn } from "@/lib/utils";
-import { useIsMobile } from "@/hooks/use-mobile";
-import { useAppStore } from "@/stores/appStore";
+import { cn } from "@/core/lib/utils";
+import { useIsMobile } from "@/state/hooks/use-mobile";
+import { useAppStore } from "@/state/stores/appStore";
 
 const CONTEXTUAL_TIPS: Record<string, { title: string; tip: string; shortcut?: string; actionLabel?: string; actionPath?: string }> = {
   "/inbox": {

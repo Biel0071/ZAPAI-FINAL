@@ -9,9 +9,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { useNodeDetailsControlPlane } from "@/hooks/useNodeDetailsControlPlane";
-import { useMasterNodesControlPlane } from "@/hooks/useMasterNodesControlPlane";
-import type { DeployAction } from "@/services/masterNodeService";
+import { useNodeDetailsControlPlane } from "@/state/hooks/useNodeDetailsControlPlane";
+import { useMasterNodesControlPlane } from "@/state/hooks/useMasterNodesControlPlane";
+import type { DeployAction } from "@/core/services/masterNodeService";
 
 const DEPLOY_ACTIONS: Array<{ key: DeployAction; label: string }> = [
   { key: "deployLatest", label: "Deploy latest" },

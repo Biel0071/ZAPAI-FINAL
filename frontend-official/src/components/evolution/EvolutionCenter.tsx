@@ -30,13 +30,14 @@ import {
   Tag,
   Lightbulb,
   MapPin,
-  Check
+  Check,
+  CheckCheck
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { useToast } from "@/hooks/use-toast";
-import { API_ORIGIN, requestApiEndpoint, apiService } from "@/services/apiService";
+import { useToast } from "@/state/hooks/use-toast";
+import { API_ORIGIN, requestApiEndpoint, apiService } from "@/core/services/apiService";
 import { HistoryBootstrapPanel } from './HistoryBootstrapPanel';
 import { WhiteLabelStoreManager, StoreData } from './WhiteLabelStoreManager';
 import { AICharacterViewer, AttendantConfig } from './AICharacterViewer';
@@ -356,9 +357,12 @@ export function EvolutionCenter() {
         prompt: `Você é ${attendantName}, ${attendantRole} da loja ${storeName}. ${currentStore?.knowledge || ''} ${currentStore?.policies || ''}`,
       });
 
-      const replyText =
-        response?.result?.response ||
-        `Perfeito! Aqui na ${storeName}, oferecemos as melhores condições para "${text}". Deseja consultar disponibilidade para pronta entrega ou cotação no PIX?`;
+      let replyText = `Perfeito! Aqui na ${storeName}, oferecemos as melhores condições para "${text}". Deseja consultar disponibilidade para pronta entrega ou cotação no PIX?`;
+      if (response && response.success === false && response.error) {
+        replyText = `[Erro AI: ${response.error}] - Resposta padrão: ${replyText}`;
+      } else if (response?.result?.response) {
+        replyText = response.result.response;
+      }
 
       const assistantMsg: ChatMessage = {
         id: `assistant-${Date.now()}`,
@@ -372,7 +376,7 @@ export function EvolutionCenter() {
       const fallbackMsg: ChatMessage = {
         id: `assistant-${Date.now()}`,
         sender: 'assistant',
-        text: `Olá! Sou a ${attendantName}, da ${storeName}. Recebemos sua mensagem com sucesso! Como posso te ajudar a garantir o melhor preço hoje?`,
+        text: error?.message || `Erro de conexão. O servidor da IA não está respondendo. Verifique se sua provedora está configurada.`,
         timestamp: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
       };
       setChatMessages((prev) => [...prev, fallbackMsg]);
@@ -470,7 +474,7 @@ export function EvolutionCenter() {
                     : 'text-muted-foreground hover:text-white'
                 }`}
               >
-                🎭 Palco 1:1
+                <MessageSquare className="inline w-3.5 h-3.5 mr-1.5 -mt-0.5" /> Palco 1:1
               </button>
               <button
                 type="button"
@@ -481,7 +485,7 @@ export function EvolutionCenter() {
                     : 'text-muted-foreground hover:text-white'
                 }`}
               >
-                🏪 Loja & Cores ({stores.length})
+                <Store className="inline w-3.5 h-3.5 mr-1.5 -mt-0.5" /> Loja & Cores ({stores.length})
               </button>
               <button
                 type="button"
@@ -492,7 +496,7 @@ export function EvolutionCenter() {
                     : 'text-muted-foreground hover:text-white'
                 }`}
               >
-                📚 Playbooks ({suggestions.filter(s => s.status === 'pending').length})
+                <BookOpen className="inline w-3.5 h-3.5 mr-1.5 -mt-0.5" /> Playbooks ({suggestions.filter(s => s.status === 'pending').length})
               </button>
             </div>
 
@@ -521,7 +525,7 @@ export function EvolutionCenter() {
         {viewMode === 'palco' && (
           <div className="space-y-4 animate-fade-in">
             {/* TOP GRID (PALCO + CARDS) */}
-            <div className="grid grid-cols-1 lg:grid-cols-[510px_1fr] gap-4">
+            <div className="grid grid-cols-1 xl:grid-cols-[450px_1fr] gap-4">
               
               {/* LEFT COLUMN: ISOMETRIC PIXEL CHARACTER STAGE CUSTOMIZABLE PER STORE */}
               <AICharacterViewer
@@ -608,13 +612,13 @@ export function EvolutionCenter() {
                   {/* TRAITS ROW */}
                   <div className="flex flex-wrap items-center gap-2">
                     <span className="px-2.5 py-1 rounded-lg bg-emerald-950/40 border border-emerald-500/30 text-emerald-400 text-[10px] font-semibold flex items-center gap-1.5">
-                      💚 Atenciosa
+                      <Heart className="w-3 h-3 text-emerald-400" /> Atenciosa
                     </span>
                     <span className="px-2.5 py-1 rounded-lg bg-amber-950/40 border border-amber-500/30 text-amber-400 text-[10px] font-semibold flex items-center gap-1.5">
-                      ⚡ Proativa
+                      <Zap className="w-3 h-3 text-amber-400" /> Proativa
                     </span>
                     <span className="px-2.5 py-1 rounded-lg bg-cyan-950/40 border border-cyan-500/30 text-cyan-400 text-[10px] font-semibold flex items-center gap-1.5">
-                      🎯 Foco em Vendas
+                      <Target className="w-3 h-3 text-cyan-400" /> Foco em Vendas
                     </span>
                   </div>
                 </article>
@@ -770,14 +774,14 @@ export function EvolutionCenter() {
               </div>
 
               {/* CHAT MESSAGES CONTAINER */}
-              <div className="space-y-3 mb-3 px-1 max-h-[220px] overflow-y-auto pr-1">
+              <div className="space-y-3 mb-3 px-1 min-h-[160px] max-h-[300px] overflow-y-auto pr-1">
                 {chatMessages.length === 0 ? (
                   <>
                     {/* Default Mockup Message 1: Customer */}
                     <div className="flex justify-end">
                       <div className="bg-[#005c4b] text-white px-3.5 py-2 rounded-2xl rounded-tr-none text-xs max-w-md shadow-md flex items-end gap-2">
                         <span>Qual o preço da churrasqueira?</span>
-                        <span className="text-[9px] text-emerald-200 flex items-center gap-0.5">14:32 <span className="text-emerald-300">✓✓</span></span>
+                        <span className="text-[9px] text-emerald-200 flex items-center gap-0.5">14:32 <CheckCheck className="w-3 h-3 text-emerald-300" /></span>
                       </div>
                     </div>
 
@@ -792,7 +796,7 @@ export function EvolutionCenter() {
                         />
                       </div>
                       <div className="bg-[#1f2c34] text-slate-100 px-3.5 py-2.5 rounded-2xl rounded-tl-none text-xs max-w-xl shadow-md leading-relaxed">
-                        A churrasqueira pré-moldada está por R$ 990,00 e já vem no trio completo (churrasqueira, forno e fogão a lenha). Ótima para sua área de lazer! 🔥
+                        A churrasqueira pré-moldada está por R$ 990,00 e já vem no trio completo (churrasqueira, forno e fogão a lenha). Ótima para sua área de lazer!
                         <span className="text-[9px] text-slate-400 block text-right mt-1">14:32</span>
                       </div>
                     </div>
@@ -823,7 +827,7 @@ export function EvolutionCenter() {
                         <p className="m-0">{msg.text}</p>
                         <div className="text-[9px] text-slate-400 mt-1 flex items-center justify-end gap-1">
                           <span>{msg.timestamp}</span>
-                          {msg.sender === 'user' && <span className="text-emerald-300">✓✓</span>}
+                          {msg.sender === 'user' && <CheckCheck className="w-3 h-3 text-emerald-400" />}
                         </div>
                       </div>
                     </div>

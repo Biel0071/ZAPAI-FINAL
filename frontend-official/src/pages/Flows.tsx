@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Header } from "@/components/layout/Header";
-import FlowsView from "@/lovable/pages/FlowsPageView";
-import { createFlowsLovableViewModel, type FlowItem } from "@/adapters/lovable/flowsAdapter";
-import { requestApiEndpoint } from "@/services/apiService";
-import { useToast } from "@/hooks/use-toast";
+import FlowsView from "@/pages/lovable/pages/FlowsPageView";
+import { createFlowsLovableViewModel, type FlowItem } from "@/core/adapters/lovable/flowsAdapter";
+import { requestApiEndpoint } from "@/core/services/apiService";
+import { useToast } from "@/state/hooks/use-toast";
 
 export default function Flows() {
   const { toast } = useToast();

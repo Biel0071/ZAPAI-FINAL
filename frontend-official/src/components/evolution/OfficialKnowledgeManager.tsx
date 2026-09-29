@@ -34,8 +34,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { useToast } from "@/hooks/use-toast";
-import { API_ORIGIN } from "@/services/apiService";
+import { useToast } from "@/state/hooks/use-toast";
+import { API_ORIGIN } from "@/core/services/apiService";
 
 interface OfficialKnowledgeItem {
   id: number;

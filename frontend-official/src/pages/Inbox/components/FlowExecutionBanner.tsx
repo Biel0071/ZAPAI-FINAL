@@ -2,8 +2,8 @@ import React, { useState, useEffect } from "react";
 import { Clock, StopCircle, Sparkles, AlertTriangle, Zap } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
-import { apiService } from "@/services/apiService";
-import { useToast } from "@/hooks/use-toast";
+import { apiService } from "@/core/services/apiService";
+import { useToast } from "@/state/hooks/use-toast";
 
 export interface FlowExecutionData {
   chatId: string;

@@ -1,6 +1,6 @@
-import type { ChatMessage } from "@/services/apiService";
-import type { LeadIntentResult } from "@/services/leadAnalyzer";
-import type { ConversationControl } from "@/services/conversationControlStore";
+import type { ChatMessage } from "@/core/services/apiService";
+import type { LeadIntentResult } from "@/core/services/leadAnalyzer";
+import type { ConversationControl } from "@/core/services/conversationControlStore";
 
 export type { LeadIntentResult, ConversationControl };
 

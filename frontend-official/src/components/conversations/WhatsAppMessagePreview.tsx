@@ -1,5 +1,5 @@
 import React from "react";
-import { cn } from "@/lib/utils";
+import { cn } from "@/core/lib/utils";
 import { Checks, FileText, Image, VideoCamera, MusicNotes, Sticker, Sparkle } from "@phosphor-icons/react";
 import { AIAssistantAvatar } from "@/components/brand/AIAssistantAvatar";
 

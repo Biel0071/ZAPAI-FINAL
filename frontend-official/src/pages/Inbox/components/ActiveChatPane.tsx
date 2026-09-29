@@ -42,12 +42,12 @@ import { MessageRow } from "./MessageRow";
 import { QuickResponseModal, type QuickResponseItem } from "./QuickResponseModal";
 import { FlowExecutionBanner, type FlowExecutionData } from "./FlowExecutionBanner";
 import { ZaiAssistantComposer } from "./ZaiAssistantComposer";
-import { useAiCountdown } from "@/hooks/useAiCountdown";
-import { getSharedSocket } from "../../../runtime/socket/socketManager";
-import { cn } from "@/lib/utils";
-import { apiService } from "@/services/apiService";
-import type { ChatMessage, Conversation } from "@/services/apiService";
-import type { AIResponseProgress } from "@/stores/appStore";
+import { useAiCountdown } from "@/state/hooks/useAiCountdown";
+import { getSharedSocket } from "@/core/runtime/socket/socketManager";
+import { cn } from "@/core/lib/utils";
+import { apiService } from "@/core/services/apiService";
+import type { ChatMessage, Conversation } from "@/core/services/apiService";
+import type { AIResponseProgress } from "@/state/stores/appStore";
 import type { ComposerAttachment, PreviewMediaState } from "../types";
 import {
   toConversationDateLabel,

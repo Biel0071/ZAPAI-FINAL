@@ -1,12 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { Header } from "@/components/layout/Header";
-import AIView from "@/lovable/pages/AIPageView";
-import { createAILovableViewModel } from "@/adapters/lovable/aiAdapter";
-import { useToast } from "@/hooks/use-toast";
-import { apiService, type AIConnectionTestResult, type AIStatusResponse } from "@/services/apiService";
-import type { AIProviderConfig } from "@/lovable/pages/AIView";
-import { useAppStore } from "@/stores/appStore";
+import AIView from "@/pages/lovable/pages/AIPageView";
+import { createAILovableViewModel } from "@/core/adapters/lovable/aiAdapter";
+import { useToast } from "@/state/hooks/use-toast";
+import { apiService, type AIConnectionTestResult, type AIStatusResponse } from "@/core/services/apiService";
+import type { AIProviderConfig } from "@/pages/lovable/pages/AIView";
+import { useAppStore } from "@/state/stores/appStore";
 import { VoiceStudioDrawer } from "@/components/ai/VoiceStudioDrawer";
 import { AIExecutiveInsightsCard } from "@/components/ai/AIExecutiveInsightsCard";
 

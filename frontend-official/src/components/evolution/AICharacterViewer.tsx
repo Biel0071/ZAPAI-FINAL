@@ -17,7 +17,8 @@ import {
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { useToast } from "@/hooks/use-toast";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { useToast } from "@/state/hooks/use-toast";
 import { AttendantAvatar } from "./AttendantAvatar";
 
 export interface AttendantConfig {
@@ -415,26 +416,16 @@ export const AICharacterViewer: React.FC<AICharacterViewerProps> = ({
 
       </div>
 
-      {/* SLIDE-OVER CUSTOMIZATION DRAWER */}
-      {showConfigPanel && (
-        <aside className="absolute inset-y-0 right-0 w-80 bg-[#0d131f]/95 backdrop-blur-xl border-l border-white/10 p-4 z-30 shadow-2xl flex flex-col justify-between animate-in slide-in-from-right duration-200">
-          <div className="overflow-y-auto space-y-4 pr-1">
-            <div className="flex items-center justify-between border-b border-white/10 pb-3">
-              <div className="flex items-center gap-2">
-                <Sliders className="w-4 h-4 text-emerald-400" />
-                <h3 className="text-xs font-bold text-white uppercase tracking-wider">
-                  Personalizar Atendente
-                </h3>
-              </div>
-              <button
-                type="button"
-                onClick={() => setShowConfigPanel(false)}
-                className="w-6 h-6 rounded-md hover:bg-white/10 flex items-center justify-center text-slate-400 hover:text-white"
-              >
-                <X className="w-3.5 h-3.5" />
-              </button>
-            </div>
-
+      {/* MODAL (DIALOG) CUSTOMIZATION DRAWER */}
+      <Dialog open={showConfigPanel} onOpenChange={setShowConfigPanel}>
+        <DialogContent className="sm:max-w-[425px] bg-[#0d131f]/95 backdrop-blur-xl border border-white/10 text-white shadow-2xl p-4 z-50">
+          <DialogHeader className="border-b border-white/10 pb-3 mb-4">
+            <DialogTitle className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-emerald-400">
+              <Sliders className="w-4 h-4" /> Personalizar Atendente
+            </DialogTitle>
+          </DialogHeader>
+          <div className="overflow-y-auto space-y-4 pr-1 max-h-[70vh]">
+            
             {/* TAB SELECTOR */}
             <div className="grid grid-cols-4 gap-1 bg-black/40 p-1 rounded-xl border border-white/5 text-[10px] font-semibold">
               <button
@@ -654,8 +645,8 @@ export const AICharacterViewer: React.FC<AICharacterViewerProps> = ({
               <span>{saving ? "Salvando..." : "Salvar Atendente na Loja"}</span>
             </button>
           </div>
-        </aside>
-      )}
+        </DialogContent>
+      </Dialog>
 
     </article>
   );

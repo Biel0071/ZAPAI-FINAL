@@ -1,5 +1,5 @@
 import React from "react";
-import { cn } from "@/lib/utils";
+import { cn } from "@/core/lib/utils";
 
 export interface PageContainerProps extends React.HTMLAttributes<HTMLDivElement> {
   fluid?: boolean;

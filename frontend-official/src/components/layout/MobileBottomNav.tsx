@@ -8,9 +8,9 @@ import {
   Sparkle,
   List,
 } from "@phosphor-icons/react";
-import { useAppStore } from "@/stores/appStore";
-import { useIsMobile } from "@/hooks/use-mobile";
-import { cn } from "@/lib/utils";
+import { useAppStore } from "@/state/stores/appStore";
+import { useIsMobile } from "@/state/hooks/use-mobile";
+import { cn } from "@/core/lib/utils";
 
 interface MobileTabItem {
   id: string;

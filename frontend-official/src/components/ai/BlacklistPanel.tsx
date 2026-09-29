@@ -4,8 +4,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { apiService } from "@/services/apiService";
-import { notify } from "@/services/notifyService";
+import { apiService } from "@/core/services/apiService";
+import { notify } from "@/core/services/notifyService";
 
 interface BlockedContact {
   id: number;

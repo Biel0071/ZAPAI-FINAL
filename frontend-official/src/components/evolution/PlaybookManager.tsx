@@ -25,8 +25,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { useToast } from "@/hooks/use-toast";
-import { API_ORIGIN } from "@/services/apiService";
+import { useToast } from "@/state/hooks/use-toast";
+import { API_ORIGIN } from "@/core/services/apiService";
 
 interface Playbook {
   id: number;

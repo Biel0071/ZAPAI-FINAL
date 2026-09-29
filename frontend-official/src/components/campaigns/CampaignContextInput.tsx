@@ -1,5 +1,5 @@
 import React, { useState, useRef, useMemo } from "react";
-import { cn } from "@/lib/utils";
+import { cn } from "@/core/lib/utils";
 import {
   Sparkle,
   Paperclip,
@@ -20,7 +20,7 @@ import {
 } from "@phosphor-icons/react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { apiService } from "@/services/apiService";
+import { apiService } from "@/core/services/apiService";
 
 export interface ContextAnalysisSummary {
   hasContent: boolean;

@@ -6,9 +6,9 @@ import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { useToast } from "@/hooks/use-toast";
-import { aiLearningService, type LearningDashboardData, type LearningSuggestion } from "@/services/aiLearningService";
-import { apiService } from "@/services/apiService";
+import { useToast } from "@/state/hooks/use-toast";
+import { aiLearningService, type LearningDashboardData, type LearningSuggestion } from "@/core/services/aiLearningService";
+import { apiService } from "@/core/services/apiService";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 
 function InfoTitle({ label, hint }: { label: string; hint: string }) {

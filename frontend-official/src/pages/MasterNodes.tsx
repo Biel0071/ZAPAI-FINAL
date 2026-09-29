@@ -6,8 +6,8 @@ import { Header } from "@/components/layout/Header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { useMasterNodesControlPlane } from "@/hooks/useMasterNodesControlPlane";
-import type { NodeControlPlane, RuntimeServiceState } from "@/types/masterNode";
+import { useMasterNodesControlPlane } from "@/state/hooks/useMasterNodesControlPlane";
+import type { NodeControlPlane, RuntimeServiceState } from "@/core/types/masterNode";
 
 function statusClasses(status: NodeControlPlane["status"]) {
   if (status === "ONLINE") return "status-online";

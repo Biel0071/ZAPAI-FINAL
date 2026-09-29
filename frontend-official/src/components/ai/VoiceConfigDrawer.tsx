@@ -5,8 +5,8 @@ import { Slider } from "@/components/ui/slider";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { SpeakerHigh, Play, Check, ArrowCounterClockwise, Copy } from "@phosphor-icons/react";
-import { useToast } from "@/hooks/use-toast";
-import { apiService } from "@/services/apiService";
+import { useToast } from "@/state/hooks/use-toast";
+import { apiService } from "@/core/services/apiService";
 
 export interface VoiceProfile {
   id: string;

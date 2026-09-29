@@ -1,5 +1,5 @@
 import { useCallback } from "react";
-import { emitInboxSocketEvent, forceReconnectInboxSocket } from "@/runtime/socket/socketManager";
+import { emitInboxSocketEvent, forceReconnectInboxSocket } from "@/core/runtime/socket/socketManager";
 
 export function useInboxSocket() {
   const emitArchiveChat = useCallback((chatId: string) => {

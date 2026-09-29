@@ -1,13 +1,13 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Header } from "@/components/layout/Header";
-import ContactsView from "@/lovable/pages/ContactsPageView";
-import { createContactsLovableViewModel } from "@/adapters/lovable/contactsAdapter";
+import ContactsView from "@/pages/lovable/pages/ContactsPageView";
+import { createContactsLovableViewModel } from "@/core/adapters/lovable/contactsAdapter";
 import { type ContactGridItem } from "@/components/contacts/ContactGrid";
 import { type ContactSegment } from "@/components/contacts/ContactSidebar";
 import { LeadDrawer } from "@/components/contacts/LeadDrawer";
-import { apiService } from "@/services/apiService";
-import { useToast } from "@/hooks/use-toast";
+import { apiService } from "@/core/services/apiService";
+import { useToast } from "@/state/hooks/use-toast";
 import {
   Dialog,
   DialogContent,

@@ -4,8 +4,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
-import { useToast } from '@/hooks/use-toast';
-import { requestApiEndpoint } from '@/services/apiService';
+import { useToast } from '@/state/hooks/use-toast';
+import { requestApiEndpoint } from '@/core/services/apiService';
 import {
   Store,
   Plus,

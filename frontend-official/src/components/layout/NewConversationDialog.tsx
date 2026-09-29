@@ -4,9 +4,9 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { useAppStore } from "@/stores/appStore";
-import { apiService, type Contact } from "@/services/apiService";
-import { useToast } from "@/hooks/use-toast";
+import { useAppStore } from "@/state/stores/appStore";
+import { apiService, type Contact } from "@/core/services/apiService";
+import { useToast } from "@/state/hooks/use-toast";
 import { useNavigate, useLocation } from "react-router-dom";
 import { MagnifyingGlass, User, CaretDown, Check, Warning, Spinner } from "@phosphor-icons/react";
 

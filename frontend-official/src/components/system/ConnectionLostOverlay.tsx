@@ -1,7 +1,7 @@
 import { useState } from "react";
-import { useAppStore } from "@/stores/appStore";
-import { API_ORIGIN, IS_API_URL_CONFIGURED } from "@/lib/backendConfig";
-import { getCurrentTenantId } from "@/lib/apiGuard";
+import { useAppStore } from "@/state/stores/appStore";
+import { API_ORIGIN, IS_API_URL_CONFIGURED } from "@/core/lib/backendConfig";
+import { getCurrentTenantId } from "@/core/lib/apiGuard";
 import { BrandLogo } from "@/components/brand/BrandLogo";
 import { WifiSlash, ArrowsClockwise } from "@phosphor-icons/react";
 

@@ -13,7 +13,7 @@ import {
 } from "@phosphor-icons/react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { apiService } from "@/services/apiService";
+import { apiService } from "@/core/services/apiService";
 
 interface GraphNode {
   id: string;

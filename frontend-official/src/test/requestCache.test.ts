@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { getCache, invalidateCache, setCache } from "@/lib/requestCache";
+import { getCache, invalidateCache, setCache } from "@/core/lib/requestCache";
 
 describe("requestCache", () => {
   it("invalidates a cache key and all of its parameterized variants", () => {

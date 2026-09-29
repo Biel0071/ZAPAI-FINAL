@@ -5,7 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { GitCommit, Calendar, User, Clock, ArrowClockwise, CheckCircle } from "@phosphor-icons/react";
-import { loadGitVersions, type GitCommitRow } from "@/services/adminMasterService";
+import { loadGitVersions, type GitCommitRow } from "@/core/services/adminMasterService";
 
 export default function MasterVersions() {
   const [commits, setCommits] = useState<GitCommitRow[]>([]);

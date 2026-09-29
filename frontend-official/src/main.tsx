@@ -1,7 +1,7 @@
 // ── MUST be first import — patches globals before any other module loads ──
 import {
   injectRuntimeHardening,
-} from "@/lib/runtimeHardening";
+} from "@/core/lib/runtimeHardening";
 
 import { createRoot } from "react-dom/client";
 import App from "./App.tsx";
@@ -12,9 +12,9 @@ import {
   OFFICIAL_FRONTEND_PORT,
   zapaiBuildInfo,
   ZAPAI_RUNTIME_MANIFEST_STORAGE_KEY,
-} from "@/config/buildInfo";
-import { initRuntimeIdentity } from "@/lib/runtimeIdentity";
-import { API_ORIGIN } from "@/lib/backendConfig";
+} from "@/core/config/buildInfo";
+import { initRuntimeIdentity } from "@/core/lib/runtimeIdentity";
+import { API_ORIGIN } from "@/core/lib/backendConfig";
 
 injectRuntimeHardening(zapaiBuildInfo.hash);
 

@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { cn } from "@/lib/utils";
+import { cn } from "@/core/lib/utils";
 import { WhatsAppMessagePreview } from "@/components/conversations/WhatsAppMessagePreview";
 import { CompactCard, Card, CardContent } from "@/components/ui/card-variants";
 import {
@@ -21,7 +21,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
-import { notify } from "@/services/notifyService";
+import { notify } from "@/core/services/notifyService";
 
 export interface CampaignStepItem {
   step?: number;

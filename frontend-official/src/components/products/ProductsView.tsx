@@ -4,8 +4,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { ShoppingBag, MagnifyingGlass, FilePdf, Tag, Truck, Plus, CheckCircle } from "@phosphor-icons/react";
-import { apiService } from "@/services/apiService";
-import { useToast } from "@/hooks/use-toast";
+import { apiService } from "@/core/services/apiService";
+import { useToast } from "@/state/hooks/use-toast";
 
 interface Product {
   id: string;

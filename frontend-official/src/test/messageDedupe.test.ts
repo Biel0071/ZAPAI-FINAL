@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { isSameOrDuplicateMessage, useAppStore } from "@/stores/appStore";
+import { isSameOrDuplicateMessage, useAppStore } from "@/state/stores/appStore";
 import type { ChatMessage } from "@/types";
 
 describe("Message Deduplication & Regression Scenarios (A to E)", () => {

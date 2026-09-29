@@ -3,7 +3,7 @@ import { Header } from "@/components/layout/Header";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { apiService } from "@/services/apiService";
+import { apiService } from "@/core/services/apiService";
 import {
   Users,
   Clock,

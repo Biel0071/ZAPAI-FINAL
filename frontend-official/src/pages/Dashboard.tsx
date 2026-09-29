@@ -1,23 +1,23 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { Header } from "@/components/layout/Header";
-import { DashboardView } from "@/lovable/pages/DashboardView";
+import { DashboardView } from "@/pages/lovable/pages/DashboardView";
 import {
   createDashboardLovableViewModel,
   getDashboardMapRows,
   type DashboardMapScope,
-} from "@/adapters/lovable/dashboardAdapter";
-import { createAnalyticsLovableViewModel } from "@/adapters/lovable/analyticsAdapter";
+} from "@/core/adapters/lovable/dashboardAdapter";
+import { createAnalyticsLovableViewModel } from "@/core/adapters/lovable/analyticsAdapter";
 import {
   apiService,
   type MetricsSummary,
   type RuntimeHealthState,
   type AIStatusResponse,
   type AIMetricsResponse,
-} from "@/services/apiService";
-import { reportFrontendIssue } from "@/runtime/services/frontendHealthService";
-import { useAppStore } from "@/stores/appStore";
-import { useRuntime } from "@/providers/RuntimeProvider";
+} from "@/core/services/apiService";
+import { reportFrontendIssue } from "@/core/runtime/services/frontendHealthService";
+import { useAppStore } from "@/state/stores/appStore";
+import { useRuntime } from "@/state/providers/RuntimeProvider";
 
 const STATUS_POLL_MS = 15_000;
 const HEAVY_REFRESH_MS = 30_000;

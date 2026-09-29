@@ -1,4 +1,4 @@
-import { cn } from "@/lib/utils";
+import { cn } from "@/core/lib/utils";
 
 export interface BrandLogoProps {
   /** Rendered pixel size (width & height). Default 44. */

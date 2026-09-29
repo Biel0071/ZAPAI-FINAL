@@ -21,10 +21,10 @@ import {
 } from "@phosphor-icons/react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { cn } from "@/lib/utils";
-import type { ChatMessage } from "@/services/apiService";
-import { apiService } from "@/services/apiService";
-import { useToast } from "@/hooks/use-toast";
+import { cn } from "@/core/lib/utils";
+import type { ChatMessage } from "@/core/services/apiService";
+import { apiService } from "@/core/services/apiService";
+import { useToast } from "@/state/hooks/use-toast";
 import { AIMessageFeedback } from "@/components/inbox/AIMessageFeedback";
 import type { PreviewMediaState } from "../types";
 import {

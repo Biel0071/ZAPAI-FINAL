@@ -42,8 +42,8 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Tooltip, TooltipProvider, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import { InboxSectionBoundary } from "@/components/system/InboxSectionBoundary";
-import type { ChatMessage, Conversation } from "@/services/apiService";
-import { apiService } from "@/services/apiService";
+import type { ChatMessage, Conversation } from "@/core/services/apiService";
+import { apiService } from "@/core/services/apiService";
 import type { AiMemoryRecord, InboxAiRuntime, PreviewMediaState, QuickReplyItem } from "../types";
 import {
   sortMessagesAsc,
@@ -63,8 +63,8 @@ import {
   toConversationDateLabel,
   resolveMediaUrl,
 } from "../utils";
-import { cn } from "@/lib/utils";
-import { useToast } from "@/hooks/use-toast";
+import { cn } from "@/core/lib/utils";
+import { useToast } from "@/state/hooks/use-toast";
 
 function getProviderIcon(provider?: string): LucideIcon {
   const norm = String(provider ?? "").toLowerCase();

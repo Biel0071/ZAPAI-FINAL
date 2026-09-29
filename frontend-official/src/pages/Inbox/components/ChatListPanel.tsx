@@ -12,8 +12,8 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
 } from "@/components/ui/dropdown-menu";
-import { cn } from "@/lib/utils";
-import type { Conversation, SessionInfo } from "@/services/apiService";
+import { cn } from "@/core/lib/utils";
+import type { Conversation, SessionInfo } from "@/core/services/apiService";
 import { ConversationRow } from "./ConversationRow";
 import { isSessionActive } from "../utils";
 

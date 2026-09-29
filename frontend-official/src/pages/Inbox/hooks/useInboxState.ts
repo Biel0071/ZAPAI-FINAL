@@ -1,12 +1,12 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { useToast } from "@/hooks/use-toast";
-import { useIsMobile } from "@/hooks/use-mobile";
-import { useRuntime } from "@/providers/RuntimeProvider";
-import { useAppStore, resolveStoreConversationId } from "@/stores/appStore";
-import { apiService, requestApiEndpoint, type ChatMessage, type Conversation, type SessionInfo, type MessageSendResponse } from "@/services/apiService";
-import { notify } from "@/services/notifyService";
-import { listConversationControls, upsertConversationControl } from "@/services/conversationControlStore";
+import { useToast } from "@/state/hooks/use-toast";
+import { useIsMobile } from "@/state/hooks/use-mobile";
+import { useRuntime } from "@/state/providers/RuntimeProvider";
+import { useAppStore, resolveStoreConversationId } from "@/state/stores/appStore";
+import { apiService, requestApiEndpoint, type ChatMessage, type Conversation, type SessionInfo, type MessageSendResponse } from "@/core/services/apiService";
+import { notify } from "@/core/services/notifyService";
+import { listConversationControls, upsertConversationControl } from "@/core/services/conversationControlStore";
 import { useInboxSocket } from "./useInboxSocket";
 import {
   isSessionActive,
@@ -1741,8 +1741,8 @@ export function useInboxState() {
     }));
 
     const [{ analyzeLeadIntent }, { saveLeadTemperature }] = await Promise.all([
-      import("@/services/leadAnalyzer"),
-      import("@/services/leadIntelligenceStore"),
+      import("@/core/services/leadAnalyzer"),
+      import("@/core/services/leadIntelligenceStore"),
     ]);
     const lastCustomerMessage = [...messages].reverse().find((message) => !message.fromMe)?.content ?? "";
     const lead = analyzeLeadIntent(lastCustomerMessage, history.map((item) => item.content));
@@ -1770,7 +1770,7 @@ export function useInboxState() {
 
     const run = async () => {
       try {
-        const { analyzeConversation } = await import("@/services/conversationAnalyzer");
+        const { analyzeConversation } = await import("@/core/services/conversationAnalyzer");
         const history = messages.slice(-30).map((message) => ({
           text: message.content || (message.mediaType ? `[${message.mediaType}]` : ""),
           fromMe: message.fromMe,
@@ -2567,8 +2567,8 @@ export function useInboxState() {
 
     try {
       const [{ analyzeLeadIntent }, { generateResponse }] = await Promise.all([
-        import("@/services/leadAnalyzer"),
-        import("@/services/responseEngine"),
+        import("@/core/services/leadAnalyzer"),
+        import("@/core/services/responseEngine"),
       ]);
       const history = messages.slice(-20).map((message) => ({
         role: message.fromMe ? ("assistant" as const) : ("user" as const),

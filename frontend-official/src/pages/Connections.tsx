@@ -17,11 +17,11 @@ import {
   Chats,
 } from "@phosphor-icons/react";
 import { Header } from "@/components/layout/Header";
-import ConnectionsView from "@/lovable/pages/ConnectionsPageView";
-import { createConnectionsLovableViewModel } from "@/adapters/lovable/connectionsAdapter";
+import ConnectionsView from "@/pages/lovable/pages/ConnectionsPageView";
+import { createConnectionsLovableViewModel } from "@/core/adapters/lovable/connectionsAdapter";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
+import { cn } from "@/core/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/ui/empty-state";
 import { StatGridSkeleton } from "@/components/ui/loading-skeleton";
@@ -36,11 +36,11 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { apiService, requestApiEndpoint, type SessionInfo } from "@/services/apiService";
-import { notify } from "@/services/notifyService";
-import { reportFrontendIssue } from "@/runtime/services/frontendHealthService";
-import { useAppStore } from "@/stores/appStore";
-import { normalizeSession as backendNormalizeSession } from "@/services/normalizeSession";
+import { apiService, requestApiEndpoint, type SessionInfo } from "@/core/services/apiService";
+import { notify } from "@/core/services/notifyService";
+import { reportFrontendIssue } from "@/core/runtime/services/frontendHealthService";
+import { useAppStore } from "@/state/stores/appStore";
+import { normalizeSession as backendNormalizeSession } from "@/core/services/normalizeSession";
 import { SafeRender } from "@/components/system/SafeRender";
 import { HistoryBootstrapPanel } from '@/components/evolution/HistoryBootstrapPanel';
 

@@ -40,16 +40,16 @@ import { Badge } from "@/components/ui/badge";
 import { Drawer, DrawerContent, DrawerTrigger } from "@/components/ui/drawer";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { cn } from "@/lib/utils";
-import { useIsMobile, useViewMode, setViewMode } from "@/hooks/use-mobile";
-import { usePwaInstall } from "@/hooks/usePwaInstall";
-import { useToast } from "@/hooks/use-toast";
+import { cn } from "@/core/lib/utils";
+import { useIsMobile, useViewMode, setViewMode } from "@/state/hooks/use-mobile";
+import { usePwaInstall } from "@/state/hooks/usePwaInstall";
+import { useToast } from "@/state/hooks/use-toast";
 import { useTheme } from "next-themes";
-import { useAdminAuth } from "@/hooks/useAdminAuth";
-import { type AppUserRole, useUserRole } from "@/hooks/useUserRole";
+import { useAdminAuth } from "@/state/hooks/useAdminAuth";
+import { type AppUserRole, useUserRole } from "@/state/hooks/useUserRole";
 import { OperationalStatusBadge } from "@/components/enterprise/OperationalStatusBadge";
-import { useAppStore } from "@/stores/appStore";
-import { useSystemHealthStore } from "@/stores/systemHealthStore";
+import { useAppStore } from "@/state/stores/appStore";
+import { useSystemHealthStore } from "@/state/stores/systemHealthStore";
 
 const SIDEBAR_COLLAPSE_EVENT = "sidebar:collapsed";
 

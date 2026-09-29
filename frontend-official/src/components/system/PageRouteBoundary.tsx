@@ -1,6 +1,6 @@
 import { Component, type ErrorInfo, type ReactNode } from "react";
 import { AlertTriangle } from "lucide-react";
-import { sendErrorLog } from "@/runtime/logs/errorLogService";
+import { sendErrorLog } from "@/core/runtime/logs/errorLogService";
 
 type State = {
   hasError: boolean;

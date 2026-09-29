@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { apiService, OutboundQueueItem } from "@/services/apiService";
+import { apiService, OutboundQueueItem } from "@/core/services/apiService";
 import { ListFilter, RefreshCw, Send, AlertTriangle, CheckCircle2, Clock, Activity, MessageSquare } from "lucide-react";
 
 export default function Queue() {

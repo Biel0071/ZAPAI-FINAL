@@ -9,9 +9,9 @@ import {
   getViewMode,
   VIEW_MODE_STORAGE_KEY,
   VIEW_MODE_CHANGE_EVENT,
-} from "@/hooks/use-mobile";
+} from "@/state/hooks/use-mobile";
 import { MobileBottomNav } from "@/components/layout/MobileBottomNav";
-import { useAppStore } from "@/stores/appStore";
+import { useAppStore } from "@/state/stores/appStore";
 
 // Mock in-memory localStorage for Node test runner
 const storageMap = new Map<string, string>();
@@ -267,7 +267,7 @@ describe("Mobile App Interface & Mode Switcher", () => {
 
   describe("usePwaInstall Hook", () => {
     it("handles beforeinstallprompt event and triggers installation", async () => {
-      const { usePwaInstall } = await import("@/hooks/usePwaInstall");
+      const { usePwaInstall } = await import("@/state/hooks/usePwaInstall");
 
       let hookResult: any;
       function PwaTester() {

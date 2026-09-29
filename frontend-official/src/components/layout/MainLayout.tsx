@@ -2,9 +2,9 @@ import { useEffect, useState } from "react";
 import { Outlet, useLocation } from "react-router-dom";
 import { Sidebar } from "./Sidebar";
 import { MobileBottomNav } from "./MobileBottomNav";
-import { useIsMobile } from "@/hooks/use-mobile";
-import { useAppStore } from "@/stores/appStore";
-import { cn } from "@/lib/utils";
+import { useIsMobile } from "@/state/hooks/use-mobile";
+import { useAppStore } from "@/state/stores/appStore";
+import { cn } from "@/core/lib/utils";
 import { NewConversationDialog } from "./NewConversationDialog";
 
 const SIDEBAR_COLLAPSE_EVENT = "sidebar:collapsed";

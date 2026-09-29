@@ -1,5 +1,5 @@
 import { MainLayout } from "@/components/layout/MainLayout";
-import { RuntimeProvider } from "@/providers/RuntimeProvider";
+import { RuntimeProvider } from "@/state/providers/RuntimeProvider";
 import { ConnectionLostOverlay } from "@/components/system/ConnectionLostOverlay";
 import { FloatingMascotAssistant } from "@/components/ai/FloatingMascotAssistant";
 

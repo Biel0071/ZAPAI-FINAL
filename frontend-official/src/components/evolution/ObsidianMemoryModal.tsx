@@ -29,8 +29,8 @@ import {
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { API_ORIGIN, requestApiEndpoint } from "@/services/apiService";
-import { useToast } from "@/hooks/use-toast";
+import { API_ORIGIN, requestApiEndpoint } from "@/core/services/apiService";
+import { useToast } from "@/state/hooks/use-toast";
 
 interface ObsidianMemoryModalProps {
   open: boolean;

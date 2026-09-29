@@ -1,5 +1,5 @@
 import { Flame, Snowflake, Thermometer } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { cn } from "@/core/lib/utils";
 
 type TemperatureValue = "quente" | "morno" | "frio";
 

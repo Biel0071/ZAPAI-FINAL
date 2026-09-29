@@ -4,17 +4,16 @@ import {
   ShieldCheck,
   BookOpen,
   MapPin,
-  Tag,
-  CheckCircle,
   History,
   Sparkles,
   RefreshCw,
-  Plus
+  ArrowRight
 } from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { API_ORIGIN } from "@/services/apiService";
+import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from "@/components/ui/accordion";
+import { useNavigate } from "react-router-dom";
+import { API_ORIGIN } from "@/core/services/apiService";
 
 interface AILearningSidebarProps {
   conversationId: string | number;
@@ -25,6 +24,7 @@ interface AILearningSidebarProps {
 export function AILearningSidebar({ conversationId, phone, onOpenTeachModal }: AILearningSidebarProps) {
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(false);
+  const navigate = useNavigate();
 
   const fetchContext = async () => {
     if (!conversationId) return;
@@ -52,119 +52,121 @@ export function AILearningSidebar({ conversationId, phone, onOpenTeachModal }: A
   const recent = data?.recentExperiences || [];
 
   return (
-    <div className="w-80 h-full border-l border-border/50 bg-card/40 flex flex-col overflow-y-auto p-4 space-y-4 text-xs">
+    <div className="w-80 h-full border-l border-border/50 bg-card/40 flex flex-col overflow-y-auto p-4 space-y-5 text-xs">
       {/* Top Header */}
       <div className="flex items-center justify-between border-b border-border/40 pb-3">
         <div className="flex items-center gap-2">
           <Brain className="w-4 h-4 text-emerald-400" />
-          <h3 className="font-semibold text-foreground text-sm">AI Learning</h3>
+          <h3 className="font-semibold text-foreground text-sm flex items-center gap-2">
+            AI Learning
+            <ShieldCheck className="w-4 h-4 text-emerald-500" title="Verdade Oficial Ativa" />
+          </h3>
         </div>
         <Button size="icon" variant="ghost" className="h-6 w-6" onClick={fetchContext} disabled={loading}>
           <RefreshCw className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} />
         </Button>
       </div>
 
-      {/* Layer 1: Official Rules Guard */}
-      <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/5 p-3 space-y-1.5">
-        <div className="flex items-center gap-1.5 font-medium text-emerald-400">
-          <ShieldCheck className="w-4 h-4" />
-          <span>Verdade Oficial Ativa</span>
-        </div>
-        <p className="text-[11px] text-muted-foreground">
-          Preços de catálogo, política de frete e prazos protegidos contra alucinações.
-        </p>
-      </div>
-
-      {/* Layer 2: Customer Structured Memory */}
-      <Card className="border border-border/50 bg-background/50 shadow-none">
-        <CardHeader className="p-3 pb-1.5">
-          <CardTitle className="text-xs font-semibold flex items-center gap-1.5">
-            <MapPin className="w-3.5 h-3.5 text-blue-400" />
-            Memória do Cliente
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="p-3 pt-0 space-y-2">
+      {/* Memória do Cliente */}
+      <div className="space-y-3">
+        <h4 className="font-semibold flex items-center gap-1.5 text-blue-400">
+          <MapPin className="w-3.5 h-3.5" />
+          Memória do Cliente
+        </h4>
+        <div className="space-y-2 text-[11px]">
           <div>
-            <span className="text-muted-foreground text-[11px]">Bairro / Local:</span>
-            <p className="font-medium text-foreground">
+            <span className="text-muted-foreground">Bairro / Local: </span>
+            <span className="font-medium text-foreground">
               {ctx.neighborhood ? ctx.neighborhood : <span className="text-muted-foreground italic">Ainda não informado</span>}
-            </p>
+            </span>
           </div>
+          
           <div>
-            <span className="text-muted-foreground text-[11px]">Itens de Interesse / Cotados:</span>
+            <span className="text-muted-foreground block mb-1">Itens de Interesse / Cotados:</span>
             {ctx.quotedProducts && ctx.quotedProducts.length > 0 ? (
-              <div className="flex flex-wrap gap-1 mt-1">
+              <div className="flex flex-wrap gap-1">
                 {ctx.quotedProducts.map((p: string, idx: number) => (
-                  <Badge key={idx} variant="secondary" className="text-[10px] px-1.5 py-0">
+                  <Badge key={idx} variant="secondary" className="text-[10px] px-1.5 py-0 bg-blue-500/10 text-blue-400 hover:bg-blue-500/20 border-none">
                     {p}
                   </Badge>
                 ))}
               </div>
             ) : (
-              <p className="text-muted-foreground italic">Nenhum produto fixado</p>
+              <span className="text-muted-foreground italic">Nenhum produto fixado</span>
             )}
           </div>
+
           {ctx.paymentPreference && (
             <div>
-              <span className="text-muted-foreground text-[11px]">Pagamento Preferido:</span>
-              <p className="font-medium text-emerald-400">{ctx.paymentPreference}</p>
+              <span className="text-muted-foreground">Pagamento Preferido: </span>
+              <span className="font-medium text-emerald-400">{ctx.paymentPreference}</span>
             </div>
           )}
-        </CardContent>
-      </Card>
-
-      {/* Layer 3: Active Playbook */}
-      <Card className="border border-border/50 bg-background/50 shadow-none">
-        <CardHeader className="p-3 pb-1.5">
-          <CardTitle className="text-xs font-semibold flex items-center gap-1.5">
-            <BookOpen className="w-3.5 h-3.5 text-purple-400" />
-            Playbook em Execução
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="p-3 pt-0 space-y-1.5">
-          {pb ? (
-            <>
-              <Badge className="bg-purple-600 text-white text-[10px]">
-                {pb.name}
-              </Badge>
-              <p className="text-[11px] text-muted-foreground mt-1">
-                {pb.goal}
-              </p>
-              {pb.recommended_cta && (
-                <div className="p-2 rounded bg-purple-500/10 text-[11px] text-purple-300 italic mt-1 border border-purple-500/20">
-                  CTA: "{pb.recommended_cta}"
-                </div>
-              )}
-            </>
-          ) : (
-            <p className="text-muted-foreground italic text-[11px]">Atendimento padrão de qualificação</p>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* Layer 4: Recent Experiences in this chat */}
-      <div className="space-y-2">
-        <div className="flex items-center gap-1.5 text-muted-foreground font-medium text-[11px]">
-          <History className="w-3.5 h-3.5 text-amber-400" />
-          <span>Experiências Registradas</span>
         </div>
-        {recent.length === 0 ? (
-          <p className="text-muted-foreground italic text-[11px]">Nenhum evento registrado ainda neste chat.</p>
-        ) : (
-          <div className="space-y-1.5">
-            {recent.slice(0, 3).map((exp: any) => (
-              <div key={exp.id} className="p-2 rounded bg-muted/20 border border-border/30 text-[11px] space-y-1">
-                <p className="text-muted-foreground truncate">
-                  <strong>Cli:</strong> "{exp.customer_utterance}"
+        
+        <Button 
+          variant="link" 
+          className="text-[11px] h-auto p-0 text-blue-400 hover:text-blue-300 font-medium group" 
+          onClick={() => navigate(`/contacts?phone=${phone}`)}
+        >
+          Ver ficha completa no CRM
+          <ArrowRight className="w-3 h-3 ml-1 group-hover:translate-x-0.5 transition-transform" />
+        </Button>
+      </div>
+
+      {/* Accordion para Playbook */}
+      <Accordion type="single" collapsible className="w-full">
+        <AccordionItem value="playbook" className="border-border/30">
+          <AccordionTrigger className="text-xs font-semibold text-purple-400 py-2 hover:no-underline hover:text-purple-300">
+            <div className="flex items-center gap-1.5">
+              <BookOpen className="w-3.5 h-3.5" />
+              Playbook em Execução
+            </div>
+          </AccordionTrigger>
+          <AccordionContent className="pt-2 pb-1 space-y-2">
+            {pb ? (
+              <>
+                <Badge className="bg-purple-600/20 text-purple-300 text-[10px] hover:bg-purple-600/30 border-none">
+                  {pb.name}
+                </Badge>
+                <p className="text-[11px] text-muted-foreground">
+                  {pb.goal}
                 </p>
-                <div className="flex items-center justify-between text-[10px]">
-                  <span className="text-emerald-400">
-                    {exp.customer_replied ? "✓ Cliente respondeu" : "Aguardando réplica"}
+                {pb.recommended_cta && (
+                  <div className="p-2 rounded bg-purple-500/10 text-[11px] text-purple-300 italic mt-1 border border-purple-500/20">
+                    CTA: "{pb.recommended_cta}"
+                  </div>
+                )}
+              </>
+            ) : (
+              <p className="text-muted-foreground italic text-[11px]">Atendimento padrão de qualificação</p>
+            )}
+          </AccordionContent>
+        </AccordionItem>
+      </Accordion>
+
+      {/* Experiências Registradas */}
+      <div className="space-y-3">
+        <h4 className="font-semibold flex items-center gap-1.5 text-amber-400">
+          <History className="w-3.5 h-3.5" />
+          Experiências
+        </h4>
+        {recent.length === 0 ? (
+          <p className="text-muted-foreground italic text-[11px]">Nenhum evento registrado ainda.</p>
+        ) : (
+          <div className="space-y-3 border-l-2 border-border/50 ml-1.5 pl-3">
+            {recent.slice(0, 3).map((exp: any) => (
+              <div key={exp.id} className="text-[11px] space-y-1">
+                <p className="text-foreground truncate" title={exp.customer_utterance}>
+                  <span className="text-muted-foreground mr-1">Cli:</span>
+                  "{exp.customer_utterance}"
+                </p>
+                <div className="flex items-center gap-2 text-[10px]">
+                  <span className="text-emerald-400/80">
+                    {exp.customer_replied ? "✓ Respondeu" : "Aguardando"}
                   </span>
                   {exp.human_intervened && (
-                    <Badge variant="outline" className="text-[9px] border-amber-500/30 text-amber-400 px-1 py-0">
-                      Intervenção humana
-                    </Badge>
+                    <span className="text-amber-500/80">• Intervenção</span>
                   )}
                 </div>
               </div>
@@ -174,7 +176,7 @@ export function AILearningSidebar({ conversationId, phone, onOpenTeachModal }: A
       </div>
 
       {/* Bottom CTA to Teach AI */}
-      <div className="pt-2">
+      <div className="pt-4 mt-auto">
         <Button
           variant="outline"
           size="sm"
@@ -187,4 +189,5 @@ export function AILearningSidebar({ conversationId, phone, onOpenTeachModal }: A
     </div>
   );
 }
+
 export default AILearningSidebar;

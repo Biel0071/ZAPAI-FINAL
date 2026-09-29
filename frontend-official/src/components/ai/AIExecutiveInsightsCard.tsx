@@ -3,8 +3,8 @@ import { Brain, Sparkles, TrendingUp, RefreshCw, Clock, ArrowRight, ShieldCheck 
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { apiService } from "@/services/apiService";
-import { cn } from "@/lib/utils";
+import { apiService } from "@/core/services/apiService";
+import { cn } from "@/core/lib/utils";
 
 export interface AIExecutiveInsightData {
   companyId: string;

@@ -32,7 +32,7 @@ import {
   Warning,
 } from "@phosphor-icons/react";
 import { Header } from "@/components/layout/Header";
-import { CampaignsView, type CampaignsTab } from "@/lovable/pages/CampaignsView";
+import { CampaignsView, type CampaignsTab } from "@/pages/lovable/pages/CampaignsView";
 import { CampaignContextInput } from '@/components/campaigns/CampaignContextInput';
 import { CampaignPreview, type StructuredCampaignPayload } from '@/components/campaigns/CampaignPreview';
 import { AIAssistantAvatar } from '@/components/brand/AIAssistantAvatar';
@@ -48,7 +48,7 @@ import {
   PaginationPrevious,
 } from "@/components/ui/pagination";
 import { AICampaignModal } from "@/components/campaigns/AICampaignModal";
-import { createCampaignsLovableViewModel } from "@/adapters/lovable/campaignsAdapter";
+import { createCampaignsLovableViewModel } from "@/core/adapters/lovable/campaignsAdapter";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -73,9 +73,9 @@ import {
   type CampaignRecord,
   type Conversation,
   type Contact,
-} from "@/services/apiService";
-import { notify } from "@/services/notifyService";
-import { cn } from "@/lib/utils";
+} from "@/core/services/apiService";
+import { notify } from "@/core/services/notifyService";
+import { cn } from "@/core/lib/utils";
 import type { QuickReplyItem } from "./Inbox/types";
 
 type ComposerMode = "create" | "edit" | "duplicate";

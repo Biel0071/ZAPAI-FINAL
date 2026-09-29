@@ -9,8 +9,8 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Progress } from "@/components/ui/progress";
 import { MemoryGraphViewer } from "@/components/MemoryGraphViewer";
-import { apiService, requestApiEndpoint, MemoryEntry, MemoryAnalytics } from "@/services/apiService";
-import { useToast } from "@/hooks/use-toast";
+import { apiService, requestApiEndpoint, MemoryEntry, MemoryAnalytics } from "@/core/services/apiService";
+import { useToast } from "@/state/hooks/use-toast";
 import { motion, AnimatePresence } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import {

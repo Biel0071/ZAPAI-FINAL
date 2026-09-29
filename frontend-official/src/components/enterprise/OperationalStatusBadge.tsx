@@ -1,5 +1,5 @@
 import { Badge } from "@/components/ui/badge";
-import { cn } from "@/lib/utils";
+import { cn } from "@/core/lib/utils";
 
 type OperationalTone = "online" | "offline" | "syncing" | "warning" | "degraded";
 

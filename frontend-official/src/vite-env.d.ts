@@ -1,6 +1,6 @@
 /// <reference types="vite/client" />
 
-import type { ZapAIBuildInfo, ZapAIRuntimeManifest } from "@/config/buildInfo";
+import type { ZapAIBuildInfo, ZapAIRuntimeManifest } from "@/core/config/buildInfo";
 
 interface ImportMetaEnv {
   readonly VITE_APP_VERSION?: string;

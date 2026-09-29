@@ -3,7 +3,7 @@ import { Activity, Database, Server, Cpu, HardDrive, Wifi, ShieldCheck, Zap, Ref
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { apiService } from "@/services/apiService";
+import { apiService } from "@/core/services/apiService";
 
 export interface SystemHealthData {
   services: Record<string, { name: string; status: string; lastSync: string; error: string | null; attempts: number }>;

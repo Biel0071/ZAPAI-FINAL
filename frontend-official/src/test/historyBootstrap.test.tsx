@@ -4,7 +4,7 @@ import { createRoot, type Root } from 'react-dom/client';
 import { HistoryBootstrapPanel } from '@/components/evolution/HistoryBootstrapPanel';
 
 const request = vi.hoisted(() => vi.fn());
-vi.mock('@/services/apiService', () => ({ requestApiEndpoint: request }));
+vi.mock('@/core/services/apiService', () => ({ requestApiEndpoint: request }));
 let root: Root | undefined;
 afterEach(async () => { if (root) await act(async () => root?.unmount()); document.body.innerHTML = ''; request.mockReset(); });
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });

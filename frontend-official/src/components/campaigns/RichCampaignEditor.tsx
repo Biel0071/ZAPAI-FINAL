@@ -19,7 +19,7 @@ import {
   CheckCircle,
   PaperPlaneTilt,
 } from "@phosphor-icons/react";
-import { useToast } from "@/hooks/use-toast";
+import { useToast } from "@/state/hooks/use-toast";
 
 interface RichCampaignEditorProps {
   initialValue?: string;

@@ -19,8 +19,8 @@ import { Slider } from "@/components/ui/slider";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { Card } from "@/components/ui/card";
-import { apiService } from "@/services/apiService";
-import { notify } from "@/services/notifyService";
+import { apiService } from "@/core/services/apiService";
+import { notify } from "@/core/services/notifyService";
 
 export interface VoiceProfile {
   id: string;

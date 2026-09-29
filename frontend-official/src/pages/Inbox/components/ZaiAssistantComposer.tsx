@@ -1,9 +1,9 @@
 import { useState, useRef, useEffect } from "react";
 import { Sparkle, X, PaperPlaneTilt, Check, ArrowsClockwise, Lightning, Tag, ChatTeardropDots } from "@phosphor-icons/react";
 import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
-import { apiService } from "@/services/apiService";
-import type { ChatMessage, Conversation } from "@/services/apiService";
+import { cn } from "@/core/lib/utils";
+import { apiService } from "@/core/services/apiService";
+import type { ChatMessage, Conversation } from "@/core/services/apiService";
 
 interface ZaiAssistantComposerProps {
   selectedConversation: Conversation;

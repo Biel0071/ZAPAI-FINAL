@@ -5,8 +5,8 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { useMasterNodesControlPlane } from "@/hooks/useMasterNodesControlPlane";
-import { useMasterNodeStore } from "@/stores/masterNodeStore";
+import { useMasterNodesControlPlane } from "@/state/hooks/useMasterNodesControlPlane";
+import { useMasterNodeStore } from "@/state/stores/masterNodeStore";
 
 function fallback(value: string | number | null | undefined) {
   return value === null || value === undefined || value === "" ? "—" : String(value);

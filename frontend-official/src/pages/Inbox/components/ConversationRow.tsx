@@ -27,10 +27,10 @@ import {
   DropdownMenuSubContent,
   DropdownMenuCheckboxItem,
 } from "@/components/ui/dropdown-menu";
-import { cn } from "@/lib/utils";
-import type { Conversation } from "@/services/apiService";
+import { cn } from "@/core/lib/utils";
+import type { Conversation } from "@/core/services/apiService";
 import type { ConversationControl } from "../types";
-import { useAiCountdown } from "@/hooks/useAiCountdown";
+import { useAiCountdown } from "@/state/hooks/useAiCountdown";
 import {
   getInitials,
   formatTime,

@@ -1,5 +1,5 @@
 import { Minus, Plus } from "@phosphor-icons/react";
-import { cn } from "@/lib/utils";
+import { cn } from "@/core/lib/utils";
 
 export interface StepperProps {
   label?: string;

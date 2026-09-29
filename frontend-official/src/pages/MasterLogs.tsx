@@ -3,7 +3,7 @@ import { Header } from "@/components/layout/Header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Skeleton } from "@/components/ui/skeleton";
-import { loadMasterLogs, type MasterLogRow } from "@/services/adminMasterService";
+import { loadMasterLogs, type MasterLogRow } from "@/core/services/adminMasterService";
 
 export default function MasterLogs() {
   const [rows, setRows] = useState<MasterLogRow[]>([]);

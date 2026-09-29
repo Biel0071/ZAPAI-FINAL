@@ -30,8 +30,8 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { LeadKnowledgeGraph } from "@/components/contacts/LeadKnowledgeGraph";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { apiService } from "@/services/apiService";
-import { notify } from "@/services/notifyService";
+import { apiService } from "@/core/services/apiService";
+import { notify } from "@/core/services/notifyService";
 
 export interface LeadDrawerLead {
   id: string;

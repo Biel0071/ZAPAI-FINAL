@@ -1,7 +1,7 @@
 import { memo } from "react";
-import { loadAdminAuthSession } from "@/lib/adminAuthSession";
-import { cn } from "@/lib/utils";
-import { API_ORIGIN, type ChatMessage, type Conversation, type SessionInfo } from "@/services/apiService";
+import { loadAdminAuthSession } from "@/core/lib/adminAuthSession";
+import { cn } from "@/core/lib/utils";
+import { API_ORIGIN, type ChatMessage, type Conversation, type SessionInfo } from "@/core/services/apiService";
 import type {
   ComposerAttachment,
   PreviewMediaState,

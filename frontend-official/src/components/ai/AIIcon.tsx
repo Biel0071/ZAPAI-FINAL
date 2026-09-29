@@ -1,5 +1,5 @@
 import { Bot } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { cn } from "@/core/lib/utils";
 
 interface AIIconProps extends React.ComponentPropsWithoutRef<typeof Bot> {
   weight?: string;
