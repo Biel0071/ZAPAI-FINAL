@@ -3581,8 +3581,8 @@ export function AIView(props: AIViewProps) {
                                 <Pause className="h-3 w-3" /> Pausada
                               </Badge>
                             )}
-                            <span className="text-[10px] text-muted-foreground font-mono">
-                              {isQueueRunning ? `⏱️ Próximo disparo em ${queueTimerSeconds}s` : `Aguardando acionamento`}
+                            <span className="text-[10px] text-muted-foreground font-mono flex items-center gap-1">
+                              {isQueueRunning ? <><Timer className="h-3 w-3" /> Próximo disparo em {queueTimerSeconds}s</> : `Aguardando acionamento`}
                             </span>
                           </div>
                           <div className="flex items-center gap-1.5">
@@ -4825,7 +4825,9 @@ export function AIView(props: AIViewProps) {
 
               {previewSuggestions && previewSuggestions.length > 0 && (
                 <div className="bg-background/25 p-2.5 rounded-lg border border-border/20 text-[10px] space-y-1">
-                  <span className="block font-bold text-foreground">💡 Sugestões adicionais:</span>
+                  <span className="flex items-center gap-1.5 font-bold text-foreground">
+                    <Lightbulb className="h-3 w-3 text-amber-500" /> Sugestões adicionais:
+                  </span>
                   <ul className="list-disc list-inside text-muted-foreground space-y-0.5">
                     {previewSuggestions.map((s, idx) => <li key={idx}>{s}</li>)}
                   </ul>

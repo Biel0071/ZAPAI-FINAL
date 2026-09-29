@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Chats, PencilSimple, Sparkle, Storefront, X, FileText, Headphones, Image as ImageIcon } from '@phosphor-icons/react';
-
+import { Timer, AlertTriangle } from 'lucide-react';
 type Agent = { key: string; name: string; personality: string; active: boolean; sessionIds?: string[] };
 type Candidate = { name: string; personality: string; partial?: boolean; summaryNote?: string; observedStyle?: string[]; patterns?: string[]; products?: string[]; pendingCommercial?: string[]; conflicts?: string[]; gaps?: string[]; examples?: string[]; evidenceIds?: (string | number)[] };
 type Draft = { id: string; revision: string; status: string; candidate: Candidate; cursor_id: string; watermark: string; target_agent_key?: string; last_error?: string };
@@ -374,7 +374,7 @@ export function HistoryBootstrapPanel({
               {url && item.media_type === 'image' && <img src={url} alt={`Imagem da mensagem ${item.id}`} className="max-h-40 w-full rounded-lg object-contain bg-background/50 border border-border/40" />}
               {url && item.media_type === 'audio' && <audio controls preload="none" src={url} className="w-full h-8" />}
               {url && !['image', 'audio'].includes(item.media_type || '') && <a href={url} target="_blank" rel="noreferrer" className="text-primary underline flex items-center gap-1"><FileText className="h-3.5 w-3.5" /> Abrir anexo / catálogo</a>}
-              {!url && <p className="text-muted-foreground text-[11px]">{item.media_state === 'pending' ? '⏳ Aguardando download' : '⚠️ Arquivo indisponível no WhatsApp'}</p>}
+              {!url && <p className="text-muted-foreground text-[11px] flex items-center gap-1.5">{item.media_state === 'pending' ? <><Timer className="h-3 w-3" /> Aguardando download</> : <><AlertTriangle className="h-3 w-3 text-amber-500" /> Arquivo indisponível no WhatsApp</>}</p>}
               {item.media_text && (
                 <div className="rounded-lg bg-background/60 p-2 border border-border/30 mt-1">
                   <p className="text-[10px] font-semibold text-emerald-500 mb-0.5">Transcrição / Conteúdo acoplado ao Agente:</p>
