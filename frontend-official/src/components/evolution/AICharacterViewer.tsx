@@ -264,16 +264,16 @@ export const AICharacterViewer: React.FC<AICharacterViewerProps> = ({
   return (
     <article className="relative w-full h-[310px] bg-[#0c121d] rounded-2xl border border-white/10 shadow-2xl overflow-hidden select-none">
       
-      {/* 1:1 AUTHENTIC 16-BIT HABBO STAGE BASE IMAGE */}
-      <div className="relative w-full h-full flex">
+            {/* 1:1 AUTHENTIC 16-BIT HABBO STAGE BASE IMAGE */}
+      <div className="relative w-full h-full">
         
-        {/* LEFT AREA: WORKING OFFICE SCENE (Online: Vibrant / Offline: Dimmed) */}
-        <div className="relative flex-1 h-full overflow-hidden transition-all duration-500">
+        {/* MAIN AREA: DYNAMIC SCENE (Sitting vs Standing) */}
+        <div className="relative w-full h-full overflow-hidden transition-all duration-500">
           <img
-            src="/assets/evolution/habbo_office_working.png"
-            alt="Habbo Office Working"
+            src={isOnline ? "/assets/evolution/habbo_office_working.png" : "/assets/evolution/habbo_standing_box.png"}
+            alt={isOnline ? "Habbo Atendente Sentada" : "Habbo Atendente em Pé"}
             className={`w-full h-full object-cover transition-all duration-500 ${
-              isOnline ? "filter-none brightness-100" : "brightness-[0.38] saturate-[0.4]"
+              isOnline ? "filter-none brightness-100" : "brightness-[0.8] saturate-[0.7]"
             }`}
             style={{ imageRendering: "pixelated" }}
           />
@@ -284,8 +284,27 @@ export const AICharacterViewer: React.FC<AICharacterViewerProps> = ({
             style={{ backgroundColor: clothingColor }}
           />
 
+          {/* INTERACTIVE TOGGLE BUTTON */}
+          <button
+            type="button"
+            onClick={() => onToggleOnline?.(!isOnline)}
+            title={isOnline ? "Desativar assistente (ficar em pé)" : "Ativar assistente (sentar à mesa)"}
+            className={`absolute top-2.5 right-2.5 z-20 w-[76px] h-6 rounded-full transition-all cursor-pointer flex items-center justify-center gap-1 text-[9px] font-bold border backdrop-blur-md ${
+              isOnline
+                ? "bg-emerald-500/20 text-emerald-300 border-emerald-500/40 shadow-[0_0_10px_rgba(16,185,129,0.2)]"
+                : "bg-black/60 text-slate-300 border-white/20 hover:bg-black/80"
+            }`}
+          >
+            <span
+              className={`w-1.5 h-1.5 rounded-full ${
+                isOnline ? "bg-emerald-400" : "bg-slate-400"
+              }`}
+            />
+            <span>{isOnline ? "Ativa" : "Offline"}</span>
+          </button>
+
           {/* CUSTOM ATTENDANT BADGE OVERLAY (When customized) */}
-          <div className="absolute top-2.5 left-2.5 z-10 flex items-center gap-2 bg-[#090e17]/90 backdrop-blur-md border border-white/10 px-2.5 py-1.5 rounded-xl shadow-lg">
+          <div className="absolute top-2.5 left-2.5 z-10 flex items-center gap-2 bg-[#090e17]/90 backdrop-blur-md border border-white/10 px-2.5 py-1.5 rounded-xl shadow-lg max-w-[65%]">
             <div className="w-8 h-8 rounded-lg overflow-hidden border border-emerald-500/50 flex-shrink-0 bg-black">
               <img
                 src={avatarUrl || "/assets/evolution/habbo_avatar.png"}
@@ -294,16 +313,16 @@ export const AICharacterViewer: React.FC<AICharacterViewerProps> = ({
                 style={{ imageRendering: "pixelated" }}
               />
             </div>
-            <div>
-              <div className="text-[11px] font-bold text-white flex items-center gap-1 leading-tight">
+            <div className="min-w-0">
+              <div className="text-[11px] font-bold text-white flex items-center gap-1 leading-tight truncate">
                 {customName}
               </div>
-              <div className="text-[9px] text-slate-400 font-medium leading-tight">
+              <div className="text-[9px] text-slate-400 font-medium leading-tight truncate">
                 {customRole}
               </div>
-              <div className="text-[9px] font-semibold flex items-center gap-1 mt-0.5 leading-tight">
+              <div className="text-[9px] font-semibold flex items-center gap-1 mt-0.5 leading-tight truncate">
                 <span
-                  className={`w-1.5 h-1.5 rounded-full ${
+                  className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${
                     isOnline ? "bg-emerald-400 animate-pulse shadow-[0_0_8px_#10b981]" : "bg-slate-400"
                   }`}
                 />
@@ -378,42 +397,6 @@ export const AICharacterViewer: React.FC<AICharacterViewerProps> = ({
             <span>{isOnline ? "Atendendo agora..." : "Em espera (desativada)"}</span>
           </div>
         </div>
-
-        {/* RIGHT AREA: STANDING CHARACTER / OFFLINE STANCE BOX */}
-        <div
-          className={`w-[100px] h-full border-l border-white/10 relative transition-all duration-500 ${
-            !isOnline
-              ? "bg-[#0b121e] ring-1 ring-emerald-500/40 shadow-[inset_0_0_20px_rgba(16,185,129,0.15)]"
-              : "bg-[#080d16]"
-          }`}
-        >
-          <img
-            src="/assets/evolution/habbo_standing_box.png"
-            alt="Habbo Standing Stance"
-            className="w-full h-full object-cover transition-all duration-500"
-            style={{ imageRendering: "pixelated" }}
-          />
-
-          {/* INTERACTIVE TOGGLE BUTTON OVER "Offline / Ativa" PILL */}
-          <button
-            type="button"
-            onClick={() => onToggleOnline?.(!isOnline)}
-            title={isOnline ? "Desativar assistente (ficar em pé)" : "Ativar assistente (sentar à mesa)"}
-            className={`absolute top-2.5 right-2 w-[76px] h-6 rounded-full transition-all cursor-pointer flex items-center justify-center gap-1 text-[9px] font-bold border backdrop-blur-md ${
-              isOnline
-                ? "bg-emerald-500/20 text-emerald-300 border-emerald-500/40 shadow-[0_0_10px_rgba(16,185,129,0.2)]"
-                : "bg-black/60 text-slate-300 border-white/20 hover:bg-black/80"
-            }`}
-          >
-            <span
-              className={`w-1.5 h-1.5 rounded-full ${
-                isOnline ? "bg-emerald-400" : "bg-slate-400"
-              }`}
-            />
-            <span>{isOnline ? "Ativa" : "Offline"}</span>
-          </button>
-        </div>
-
       </div>
 
       {/* MODAL (DIALOG) CUSTOMIZATION DRAWER */}
