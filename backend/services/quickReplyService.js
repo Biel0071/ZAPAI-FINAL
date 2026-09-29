@@ -2,7 +2,7 @@ const fs = require('fs/promises');
 const path = require('path');
 const crypto = require('crypto');
 
-const DATA_FILE = path.join(__dirname, '..', 'data', 'quick_replies.json');
+const DATA_FILE = path.join(__dirname, '..', '..', 'data', 'json_db', 'quick_replies.json');
 
 async function ensureDataFile() {
   await fs.mkdir(path.dirname(DATA_FILE), { recursive: true });

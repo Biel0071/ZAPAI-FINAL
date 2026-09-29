@@ -160,11 +160,11 @@ services:
       redis:
         condition: service_healthy
     volumes:
-      - zapai_sessions:/app/sessions
+      - zapai_sessions:/data/sessions
       - zapai_uploads:/app/uploads
-      - zapai_whatsapp:/app/data
+      - zapai_whatsapp:/data/json_db
       - zapai_logs:/app/logs
-      - ./backups:/app/backups
+      - ./data/backups:/app/backups
       - /var/run/docker.sock:/var/run/docker.sock
     healthcheck:
       test: ["CMD-SHELL", "wget --spider -q http://127.0.0.1:4025/api/health || wget --spider -q http://127.0.0.1:4025/health || exit 1"]

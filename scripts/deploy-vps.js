@@ -75,7 +75,7 @@ async function run() {
   console.log(`       CONECTANDO A VPS (${VPS_IP}) E INICIANDO DEPLOY`);
   console.log('============================================================\n');
 
-  const sshCommand = `cd ${VPS_DIR} && bash deploy/auto-deploy.sh`;
+  const sshCommand = `cd ${VPS_DIR} && bash ops/deploy/auto-deploy.sh`;
   const ssh = spawn('ssh', ['-o', 'StrictHostKeyChecking=no', `${VPS_USER}@${VPS_IP}`, sshCommand], {
     stdio: 'inherit',
     shell: true,

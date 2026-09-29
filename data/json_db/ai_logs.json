@@ -1,0 +1,30 @@
+[
+  {
+    "id": "1790110071011yw5x6",
+    "timestamp": "2026-09-22T20:47:51.011Z",
+    "conversationId": 999,
+    "contactName": "João",
+    "messageSent": "Olá, qual é o horário de atendimento de vocês?",
+    "messageReceived": "Olá, João! Nosso horário de atendimento é de segunda a sexta-feira, das 07:00 às 18:00, e aos sábados, das 08:00 ao meio-dia. Se precisar de ajuda com materiais ou preços, estou à disposição! 😊",
+    "provider": "openai",
+    "model": "gpt-4o-mini",
+    "promptTokens": 2649,
+    "completionTokens": 104,
+    "totalTokens": 2753,
+    "sessionId": null
+  },
+  {
+    "id": "1789739478238may51",
+    "timestamp": "2026-09-18T13:51:18.238Z",
+    "conversationId": 999,
+    "contactName": "João",
+    "messageSent": "Olá, qual é o horário de atendimento de vocês?",
+    "messageReceived": "Olá, João! Nosso horário de atendimento é de segunda a sexta-feira, das 07:00 às 18:00, e aos sábados das 08:00 ao meio-dia. Estou à disposição para ajudar com qualquer dúvida ou necessidade relacionada a materiais de construção! 😊",
+    "provider": "openai",
+    "model": "gpt-4o-mini",
+    "promptTokens": 4519,
+    "completionTokens": 56,
+    "totalTokens": 4575,
+    "sessionId": null
+  }
+]

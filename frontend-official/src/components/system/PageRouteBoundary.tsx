@@ -1,4 +1,5 @@
 import { Component, type ErrorInfo, type ReactNode } from "react";
+import { AlertTriangle } from "lucide-react";
 import { sendErrorLog } from "@/runtime/logs/errorLogService";
 
 type State = {
@@ -52,8 +53,8 @@ export class PageRouteBoundary extends Component<Props, State> {
     return (
       <div className="flex min-h-[80vh] w-full flex-col items-center justify-center p-6 text-center">
         <div className="mx-auto max-w-md rounded-xl border border-destructive/20 bg-destructive/5 p-8 shadow-lg backdrop-blur-sm">
-          <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-destructive/10 text-destructive text-2xl">
-            ⚠️
+          <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-destructive/10 text-destructive">
+            <AlertTriangle className="h-5 w-5" />
           </div>
           <h2 className="mb-2 text-xl font-bold tracking-tight text-foreground">
             Ocorreu um erro no módulo: {this.props.pageName}

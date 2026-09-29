@@ -1,0 +1,79 @@
+{
+  "items": [
+    {
+      "attemptCount": 0,
+      "correlationId": "test_corr_1789732812433",
+      "companyId": "test_company",
+      "createdAt": "2026-09-18T12:00:12.434Z",
+      "deadLetterAt": null,
+      "failureHistory": [],
+      "id": "oq_1789732812442_3sijft60",
+      "lastFailure": null,
+      "maxAttempts": 3,
+      "nextAttemptAt": "2026-09-18T12:00:12.434Z",
+      "phone": "5511999990001",
+      "processingStartedAt": "2026-09-18T12:00:12.469Z",
+      "sentAt": "2026-09-18T12:00:12.481Z",
+      "sessionId": "default",
+      "state": "sent",
+      "text": "Test Message 1",
+      "mediaType": null,
+      "mediaPath": null,
+      "fileName": null,
+      "actions": null,
+      "updatedAt": "2026-09-18T12:00:12.481Z",
+      "metadata": {},
+      "testing": {
+        "forceResult": "sent"
+      }
+    },
+    {
+      "attemptCount": 3,
+      "correlationId": "absence_cooldown_test_comp_5511999990003_2026-09-18",
+      "companyId": "cooldown_test_comp",
+      "createdAt": "2026-09-18T12:00:12.708Z",
+      "deadLetterAt": "2026-09-21T21:12:43.919Z",
+      "failureHistory": [
+        {
+          "code": "OUTBOUND_SEND_FAILED",
+          "message": "WhatsApp socket offline",
+          "timestamp": "2026-09-18T12:00:12.715Z"
+        },
+        {
+          "code": "SESSION_UNAVAILABLE",
+          "message": "No active WhatsApp session is available.",
+          "timestamp": "2026-09-21T21:12:38.912Z"
+        },
+        {
+          "code": "SESSION_UNAVAILABLE",
+          "message": "No active WhatsApp session is available.",
+          "timestamp": "2026-09-21T21:12:43.919Z"
+        }
+      ],
+      "id": "oq_1789732812708_yfc6bleh",
+      "lastFailure": {
+        "code": "SESSION_UNAVAILABLE",
+        "message": "No active WhatsApp session is available.",
+        "timestamp": "2026-09-21T21:12:43.919Z"
+      },
+      "maxAttempts": 3,
+      "nextAttemptAt": null,
+      "phone": "5511999990003",
+      "processingStartedAt": "2026-09-21T21:12:43.915Z",
+      "sentAt": null,
+      "sessionId": "default",
+      "state": "dead_letter",
+      "text": "No momento estamos fechados. Retornaremos em breve!",
+      "mediaType": null,
+      "mediaPath": null,
+      "fileName": null,
+      "actions": null,
+      "updatedAt": "2026-09-21T21:12:43.919Z",
+      "metadata": {
+        "systemTag": "absence"
+      },
+      "testing": {}
+    }
+  ],
+  "version": 1
+}

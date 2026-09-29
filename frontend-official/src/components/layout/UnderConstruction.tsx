@@ -23,7 +23,7 @@ export function UnderConstruction({
         </span>
       </div>
       <h3 className="font-display text-xl font-bold tracking-tight text-foreground sm:text-2xl">
-        🚧 {title}
+        {title}
       </h3>
       <p className="mt-3 max-w-md text-sm text-muted-foreground leading-relaxed">
         {description}

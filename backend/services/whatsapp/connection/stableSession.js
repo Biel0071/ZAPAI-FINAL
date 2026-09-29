@@ -95,7 +95,7 @@ const messageRepository = require('../../../src/data/repositories/messageReposit
 const conversationRepository = require('../../../src/data/repositories/conversationRepository');
 const { getAIEnabled } = require('../../../src/infrastructure/config/aiToggle');
 
-const SESSIONS_DIRECTORY = path.join(__dirname, '..', '..', '..', 'sessions');
+const SESSIONS_DIRECTORY = path.join(__dirname, '..', '..', '..', '..', 'data', 'sessions');
 const DEFAULT_RECONNECT_DELAY_MS = 3000;
 const RECONNECT_BACKOFF_BASE_MS = Math.max(
   500,

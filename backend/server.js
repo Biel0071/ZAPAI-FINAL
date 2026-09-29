@@ -591,12 +591,12 @@ const staticCacheOptions = {
   },
 };
 
-app.use('/media', corsForStatic, express.static(path.join(__dirname, '..', 'storage', 'media'), staticCacheOptions));
+app.use('/media', corsForStatic, express.static(path.join(__dirname, '..', 'data', 'storage', 'media'), staticCacheOptions));
 app.use('/media', corsForStatic, express.static(path.join(__dirname, 'media'), staticCacheOptions));
 app.use('/upload', corsForStatic, express.static(path.join(__dirname, 'upload'), staticCacheOptions));
 app.use('/uploads', corsForStatic, express.static(path.join(__dirname, 'uploads'), staticCacheOptions));
-app.use('/uploads', corsForStatic, express.static(path.join(process.cwd(), 'uploads'), staticCacheOptions));
-app.use('/uploads', corsForStatic, express.static(path.join(__dirname, '..', 'uploads'), staticCacheOptions));
+app.use('/uploads', corsForStatic, express.static(path.join(process.cwd(), '..', 'data', 'uploads'), staticCacheOptions));
+app.use('/uploads', corsForStatic, express.static(path.join(__dirname, '..', 'data', 'uploads'), staticCacheOptions));
 app.use('/diagnostics', devOnlyRoute);
 app.use('/receive-message', devOnlyRoute);
 app.use('/api/receive-message', devOnlyRoute);

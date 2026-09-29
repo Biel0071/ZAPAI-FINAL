@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { Clock, StopCircle, Sparkles, AlertTriangle } from "lucide-react";
+import { Clock, StopCircle, Sparkles, AlertTriangle, Zap } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { apiService } from "@/services/apiService";

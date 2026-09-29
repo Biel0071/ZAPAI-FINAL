@@ -12,7 +12,7 @@ const messageAckPipeline = require('./messageAckPipeline');
 const { query: dbQuery } = require('../src/infrastructure/config/database');
 const { emitToTenantWithAliases } = require('./realtime/tenantRooms');
 
-const QUEUE_FILE_PATH = path.join(__dirname, '..', 'data', 'outbound_queue.json');
+const QUEUE_FILE_PATH = path.join(__dirname, '..', '..', 'data', 'json_db', 'outbound_queue.json');
 
 const STATES = {
   CANCELLED: 'cancelled',

@@ -2,7 +2,7 @@ const fs = require('fs/promises');
 const path = require('path');
 const { query } = require('../src/infrastructure/config/database');
 
-const logsFilePath = path.join(__dirname, '..', 'data', 'ai_logs.json');
+const logsFilePath = path.join(__dirname, '..', '..', 'data', 'json_db', 'ai_logs.json');
 
 async function ensureLogsFile() {
   try {

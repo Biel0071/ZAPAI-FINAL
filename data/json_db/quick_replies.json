@@ -1,0 +1,280 @@
+[
+  {
+    "id": "test_qr_multimodal_caixa",
+    "title": "Fotos da Caixa d'água 5000L",
+    "content": "Acompanha flange e adaptador de saída.",
+    "items": [
+      {
+        "type": "image",
+        "value": "https://storage.zapai.app/media/caixa5000.jpg",
+        "delayMs": 0,
+        "typingMs": 1500
+      },
+      {
+        "type": "text",
+        "value": "Acompanha flange e adaptador de saída.",
+        "delayMs": 0,
+        "typingMs": 1500
+      }
+    ],
+    "category": "fotos",
+    "tags": [
+      "foto",
+      "imagem",
+      "caixa",
+      "5000l"
+    ],
+    "favorite": false,
+    "isFlow": false,
+    "mediaUrl": "https://storage.zapai.app/media/caixa5000.jpg",
+    "mediaType": "image",
+    "companyId": "test-tenant-ctx-a",
+    "steps": [],
+    "updatedAt": "2026-09-23T11:51:54.407Z",
+    "createdAt": "2026-09-23T11:51:54.407Z"
+  },
+  {
+    "id": "test_qr_caixa_5000",
+    "title": "Caixa d'água 5000L Fortlev",
+    "content": "Caixa d'água de 5.000L em polietileno por R$ 2.490 à vista com tampa roscável.",
+    "items": [
+      {
+        "type": "text",
+        "value": "Caixa d'água de 5.000L em polietileno por R$ 2.490 à vista com tampa roscável.",
+        "delayMs": 0,
+        "typingMs": 1500
+      }
+    ],
+    "category": "caixa dagua",
+    "tags": [
+      "caixa",
+      "dagua",
+      "5000l",
+      "5000 litros"
+    ],
+    "favorite": false,
+    "isFlow": false,
+    "companyId": "test-tenant-ctx-a",
+    "steps": [],
+    "updatedAt": "2026-09-23T08:51:54.347Z",
+    "createdAt": "2026-09-23T08:51:54.307Z",
+    "mediaUrl": null,
+    "mediaType": null,
+    "aiMemory": null,
+    "filename": null
+  },
+  {
+    "id": "test_qr_churrasqueira",
+    "title": "Churrasqueira Pré-Moldada Completa",
+    "content": "Churrasqueira pré-moldada modelo Tijolinho por R$ 1.250 à vista com grelha inclusa.",
+    "items": [
+      {
+        "type": "text",
+        "value": "Churrasqueira pré-moldada modelo Tijolinho por R$ 1.250 à vista com grelha inclusa.",
+        "delayMs": 0,
+        "typingMs": 1500
+      }
+    ],
+    "category": "churrasqueira",
+    "tags": [
+      "churrasqueira",
+      "carvao",
+      "grelha"
+    ],
+    "favorite": false,
+    "isFlow": false,
+    "companyId": "test-tenant-ctx-a",
+    "steps": [],
+    "updatedAt": "2026-09-23T08:51:54.345Z",
+    "createdAt": "2026-09-23T08:51:54.301Z",
+    "mediaUrl": null,
+    "mediaType": null,
+    "aiMemory": null,
+    "filename": null
+  },
+  {
+    "id": "test_qr_multimodal_caixa",
+    "title": "Fotos da Caixa d'água 5000L",
+    "content": "Acompanha flange e adaptador de saída.",
+    "items": [
+      {
+        "type": "image",
+        "value": "https://storage.zapai.app/media/caixa5000.jpg",
+        "delayMs": 0,
+        "typingMs": 1500
+      },
+      {
+        "type": "text",
+        "value": "Acompanha flange e adaptador de saída.",
+        "delayMs": 0,
+        "typingMs": 1500
+      }
+    ],
+    "category": "fotos",
+    "tags": [
+      "foto",
+      "imagem",
+      "caixa",
+      "5000l"
+    ],
+    "favorite": false,
+    "isFlow": false,
+    "mediaUrl": "https://storage.zapai.app/media/caixa5000.jpg",
+    "mediaType": "image",
+    "companyId": "test-tenant-ctx-a",
+    "steps": [],
+    "updatedAt": "2026-09-23T08:51:54.346Z",
+    "createdAt": "2026-09-23T08:51:54.305Z",
+    "aiMemory": null,
+    "filename": null
+  },
+  {
+    "id": "qr_beta_exclusiva",
+    "title": "Oferta Exclusiva Loja Beta",
+    "content": "Apenas para clientes Beta: Brinde especial.",
+    "items": [
+      {
+        "type": "text",
+        "value": "Apenas para clientes Beta: Brinde especial.",
+        "delayMs": 0,
+        "typingMs": 1500
+      }
+    ],
+    "category": "ofertas",
+    "tags": [],
+    "favorite": false,
+    "isFlow": false,
+    "companyId": "tenant-test-beta",
+    "steps": [],
+    "updatedAt": "2026-09-23T08:51:54.349Z",
+    "createdAt": "2026-09-17T11:16:47.887Z",
+    "mediaUrl": null,
+    "mediaType": null,
+    "aiMemory": null,
+    "filename": null
+  },
+  {
+    "id": "qr_alpha_exclusiva",
+    "title": "Oferta Exclusiva Loja Alpha",
+    "content": "Apenas para clientes Alpha: 15% OFF.",
+    "items": [
+      {
+        "type": "text",
+        "value": "Apenas para clientes Alpha: 15% OFF.",
+        "delayMs": 0,
+        "typingMs": 1500
+      }
+    ],
+    "category": "ofertas",
+    "tags": [],
+    "favorite": false,
+    "isFlow": false,
+    "companyId": "tenant-test-alpha",
+    "steps": [],
+    "updatedAt": "2026-09-23T08:51:54.351Z",
+    "createdAt": "2026-09-17T11:16:47.891Z",
+    "mediaUrl": null,
+    "mediaType": null,
+    "aiMemory": null,
+    "filename": null
+  },
+  {
+    "id": "qr_caixa_dagua_5000l",
+    "title": "caixa dagua 5000L",
+    "content": "A Caixa d Água de 5.000 Litros sai por R$ 2.490,00 à vista ou em até 10x no cartão. Entregamos com frete sob consulta para sua região!",
+    "items": [
+      {
+        "type": "image",
+        "value": "https://images.tcdn.com.br/img/img_prod/756855/caixa_d_agua_5000_litros_polietileno_fortlev_1821_1_20201111162446.jpg",
+        "filename": "caixa_dagua_5000l.jpg",
+        "delayMs": 0,
+        "typingMs": 1500
+      },
+      {
+        "type": "text",
+        "value": "A Caixa d Água de 5.000 Litros sai por R$ 2.490,00 à vista ou em até 10x no cartão. Entregamos com frete sob consulta para sua região!",
+        "delayMs": 0,
+        "typingMs": 1500
+      }
+    ],
+    "category": "produtos",
+    "tags": [
+      "caixa dagua",
+      "caixa d água",
+      "5000l",
+      "5 mil litros",
+      "foto",
+      "preco"
+    ],
+    "favorite": false,
+    "isFlow": false,
+    "steps": [],
+    "updatedAt": "2026-09-23T08:51:54.352Z",
+    "createdAt": "2026-09-15T12:19:39.179Z",
+    "companyId": "default",
+    "mediaUrl": "https://images.tcdn.com.br/img/img_prod/756855/caixa_d_agua_5000_litros_polietileno_fortlev_1821_1_20201111162446.jpg",
+    "mediaType": "image",
+    "aiMemory": null,
+    "filename": "caixa_dagua_5000l.jpg"
+  },
+  {
+    "id": "qr_churrasqueira_1787274285319",
+    "companyId": "default",
+    "title": "churrasqueira",
+    "content": "Aqui está a foto da churrasqueira que você pediu! É um modelo premium 5 espetos. Gosta desse estilo?",
+    "items": [
+      {
+        "type": "image",
+        "value": "https://t2.tudocdn.net/159496?w=1200&h=1200",
+        "fileName": "churrasqueira_premium.jpg"
+      },
+      {
+        "type": "text",
+        "value": "Aqui está a foto da churrasqueira que você pediu! É um modelo premium 5 espetos. Gosta desse estilo?"
+      }
+    ],
+    "category": "produtos",
+    "tags": [
+      "churrasqueira",
+      "foto"
+    ],
+    "mediaUrl": "https://t2.tudocdn.net/159496?w=1200&h=1200",
+    "mediaType": "image",
+    "aiMemory": "Imagem de uma churrasqueira pré-moldada de tijolos à vista vermelhos (cerâmica), com laterais arredondadas e grelha em inox. Contém suporte para 5 espetos e chapéu cônico no topo. Parece rústica e de ótima qualidade para áreas de lazer.",
+    "filename": "churrasqueira_premium.jpg",
+    "updatedAt": "2026-09-23T08:51:54.353Z",
+    "createdAt": "2026-08-20T22:04:45.446Z"
+  },
+  {
+    "id": "qr_audio_explicacao_caixa",
+    "companyId": "default",
+    "title": "explicacao audio caixa 5000l",
+    "content": "Gravei um áudio rápido explicando todos os detalhes da Caixa d'água de 5.000L para você:",
+    "items": [
+      {
+        "type": "audio",
+        "value": "/upload/quick-replies/audio_explicacao_caixa_5000l.mp3",
+        "filename": "audio_explicacao_caixa_5000l.mp3"
+      },
+      {
+        "type": "text",
+        "value": "Gravei um áudio rápido explicando os detalhes da Caixa d'água 5.000L!"
+      }
+    ],
+    "category": "audio",
+    "tags": [
+      "explicar",
+      "explicacao",
+      "audio",
+      "voz",
+      "caixa",
+      "5000l"
+    ],
+    "mediaUrl": "/upload/quick-replies/audio_explicacao_caixa_5000l.mp3",
+    "mediaType": "audio",
+    "aiMemory": "Áudio explicativo da caixa d água 5000 litros falando sobre polietileno virgem e proteção UV",
+    "filename": "audio_explicacao_caixa_5000l.mp3",
+    "updatedAt": "2026-09-23T08:51:54.354Z",
+    "createdAt": "2026-09-15T14:01:34.204Z"
+  }
+]
