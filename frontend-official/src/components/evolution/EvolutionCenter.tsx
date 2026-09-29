@@ -525,7 +525,7 @@ export function EvolutionCenter() {
         {viewMode === 'palco' && (
           <div className="space-y-4 animate-fade-in">
             {/* TOP GRID (PALCO + CARDS) */}
-            <div className="grid grid-cols-1 xl:grid-cols-[450px_1fr] gap-4">
+            <div className="grid grid-cols-1 xl:grid-cols-[400px_1fr] 2xl:grid-cols-[450px_1fr] gap-4 xl:gap-6">
               
               {/* LEFT COLUMN: ISOMETRIC PIXEL CHARACTER STAGE CUSTOMIZABLE PER STORE */}
               <AICharacterViewer
