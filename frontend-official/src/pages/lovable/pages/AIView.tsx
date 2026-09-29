@@ -2576,7 +2576,7 @@ export function AIView(props: AIViewProps) {
             
             {/* Sidebar Menu */}
             <aside className="w-full lg:w-[240px] shrink-0 bg-card/50 border border-border/60 rounded-2xl p-4 space-y-1">
-              <div className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground px-3 mb-2">IA & Automação</div>
+              <div className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground px-3 mb-2">Visão Geral</div>
               
               <button
                 onClick={() => onSectionChange("dashboard")}
@@ -2590,42 +2590,9 @@ export function AIView(props: AIViewProps) {
               </button>
 
               <button
-                onClick={() => onSectionChange("atendentes")}
-                className={cn(
-                  "w-full flex items-center gap-2.5 px-3 py-2 text-xs font-semibold rounded-xl transition-all text-left",
-                  activeInternalTab === "atendentes" ? "bg-primary text-primary-foreground shadow-sm shadow-primary/20" : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                )}
-              >
-                <Users className="h-4 w-4" />
-                <span>Atendentes</span>
-              </button>
-
-              <button
-                onClick={() => onSectionChange("provedores")}
-                className={cn(
-                  "w-full flex items-center gap-2.5 px-3 py-2 text-xs font-semibold rounded-xl transition-all text-left",
-                  activeInternalTab === "provedores" ? "bg-primary text-primary-foreground shadow-sm shadow-primary/20" : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                )}
-              >
-                <Cpu className="h-4 w-4" />
-                <span>Provedores</span>
-              </button>
-
-              <button
-                onClick={() => onSectionChange("operacao")}
-                className={cn(
-                  "w-full flex items-center gap-2.5 px-3 py-2 text-xs font-semibold rounded-xl transition-all text-left",
-                  activeInternalTab === "operacao" ? "bg-primary text-primary-foreground shadow-sm shadow-primary/20" : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                )}
-              >
-                <Sliders className="h-4 w-4" />
-                <span>Operação</span>
-              </button>
-
-              <button
                 onClick={() => onSectionChange("evolution")}
                 className={cn(
-                  "w-full flex items-center gap-2.5 px-3 py-2 text-xs font-semibold rounded-xl transition-all text-left",
+                  "w-full flex items-center gap-2.5 px-3 py-2 text-xs font-semibold rounded-xl transition-all text-left mt-1",
                   activeInternalTab === "evolution" ? "bg-primary text-primary-foreground shadow-sm shadow-primary/20" : "text-muted-foreground hover:bg-muted hover:text-foreground"
                 )}
               >
@@ -2635,6 +2602,8 @@ export function AIView(props: AIViewProps) {
                   <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
                 </span>
               </button>
+
+              <div className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground px-3 mt-4 mb-2">Inteligência</div>
 
               <button
                 onClick={() => onSectionChange("conhecimento")}
@@ -2650,7 +2619,7 @@ export function AIView(props: AIViewProps) {
               <button
                 onClick={() => onSectionChange("playbooks")}
                 className={cn(
-                  "w-full flex items-center gap-2.5 px-3 py-2 text-xs font-semibold rounded-xl transition-all text-left",
+                  "w-full flex items-center gap-2.5 px-3 py-2 text-xs font-semibold rounded-xl transition-all text-left mt-1",
                   activeInternalTab === "playbooks" ? "bg-primary text-primary-foreground shadow-sm shadow-primary/20" : "text-muted-foreground hover:bg-muted hover:text-foreground"
                 )}
               >
@@ -2658,15 +2627,17 @@ export function AIView(props: AIViewProps) {
                 <span>Playbooks</span>
               </button>
 
+              <div className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground px-3 mt-4 mb-2">Sistema</div>
+
               <button
-                onClick={() => onSectionChange("analise")}
+                onClick={() => onSectionChange("configuracoes")}
                 className={cn(
                   "w-full flex items-center gap-2.5 px-3 py-2 text-xs font-semibold rounded-xl transition-all text-left",
-                  activeInternalTab === "analise" ? "bg-primary text-primary-foreground shadow-sm shadow-primary/20" : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                  (activeInternalTab === "configuracoes" || ["atendentes", "provedores", "operacao", "analise"].includes(activeInternalTab)) ? "bg-primary text-primary-foreground shadow-sm shadow-primary/20" : "text-muted-foreground hover:bg-muted hover:text-foreground"
                 )}
               >
-                <BarChart3 className="h-4 w-4" />
-                <span>Auditoria & Logs</span>
+                <Sliders className="h-4 w-4" />
+                <span>Configurações</span>
               </button>
             </aside>
 
@@ -2905,44 +2876,50 @@ export function AIView(props: AIViewProps) {
                 </div>
               )}
 
-              {/* TAB 2: ATENDENTES */}
-              {activeInternalTab === "atendentes" && (
+              {/* TAB 2: CONFIGURAÇÕES */}
+              {(activeInternalTab === "configuracoes" || ["atendentes", "provedores", "operacao", "analise"].includes(activeInternalTab)) && (
                 <div className="space-y-6">
                   {/* Subtabs Menu */}
-                  <div className="flex gap-2 border-b border-border/60 pb-2">
+                  <div className="flex flex-wrap gap-2 border-b border-border/60 pb-2 mb-4">
                     <button
-                      onClick={() => setActiveAtendentesSubTab("lista")}
+                      onClick={() => onSectionChange?.("atendentes")}
                       className={cn(
                         "px-3 py-1.5 text-xs font-semibold rounded-lg transition-all",
-                        activeAtendentesSubTab === "lista" ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                        (activeInternalTab === "atendentes" || activeInternalTab === "configuracoes") ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-muted hover:text-foreground"
                       )}
                     >
                       Meus Atendentes
                     </button>
                     <button
-                      onClick={() => setActiveAtendentesSubTab("simulador")}
+                      onClick={() => onSectionChange?.("provedores")}
                       className={cn(
                         "px-3 py-1.5 text-xs font-semibold rounded-lg transition-all",
-                        activeAtendentesSubTab === "simulador" ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                        activeInternalTab === "provedores" ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-muted hover:text-foreground"
                       )}
                     >
-                      Simulador de Conversa
+                      Provedores LLM
                     </button>
                     <button
-                      onClick={() => {
-                        setActiveAnaliseSubTab("evolucao");
-                        onSectionChange?.("analise");
-                      }}
+                      onClick={() => onSectionChange?.("operacao")}
                       className={cn(
                         "px-3 py-1.5 text-xs font-semibold rounded-lg transition-all",
-                        activeInternalTab === "analise" && activeAnaliseSubTab === "evolucao" ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                        activeInternalTab === "operacao" ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-muted hover:text-foreground"
                       )}
                     >
-                      Evolução IA
+                      Regras de Operação
+                    </button>
+                    <button
+                      onClick={() => onSectionChange?.("analise")}
+                      className={cn(
+                        "px-3 py-1.5 text-xs font-semibold rounded-lg transition-all",
+                        activeInternalTab === "analise" ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                      )}
+                    >
+                      Auditoria & Logs
                     </button>
                   </div>
 
-                  {activeAtendentesSubTab === "lista" && (
+                  {(activeInternalTab === "configuracoes" || activeInternalTab === "atendentes") && activeAtendentesSubTab === "lista" && (
                     <div className="space-y-6">
                       <div className="flex items-center justify-between">
                         <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Atendentes Ativos</h3>
@@ -3072,7 +3049,7 @@ export function AIView(props: AIViewProps) {
                     </div>
                   )}
 
-                  {activeAtendentesSubTab === "simulador" && (
+                  {(activeInternalTab === "configuracoes" || activeInternalTab === "atendentes") && activeAtendentesSubTab === "simulador" && (
                     <div className="space-y-6">
                       <div className="grid gap-6 md:grid-cols-3">
                         {/* Chat Box */}
