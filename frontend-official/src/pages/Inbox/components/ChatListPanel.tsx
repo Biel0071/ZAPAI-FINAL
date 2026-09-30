@@ -202,7 +202,7 @@ export function ChatListPanel({
               }
               tone={
                 activeSession?.isBanned || activeSession?.raw?.status === "banned" || activeSession?.status === "error"
-                  ? "destructive"
+                  ? "offline"
                   : activeSession && isSessionActive(activeSession)
                   ? "online"
                   : "warning"

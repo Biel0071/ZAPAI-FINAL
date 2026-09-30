@@ -7,12 +7,19 @@ import { useToast } from "@/state/hooks/use-toast";
 
 export interface FlowExecutionData {
   chatId: string;
+  conversationId?: string;
+  sessionId?: string;
   flowName: string;
   currentStep: number;
   totalSteps: number;
   stepDescription?: string;
   startedAt?: number;
   status?: "preparing" | "running" | "sent" | "delivered" | "cancelled" | "completed";
+}
+
+export function matchesConversationFlow(flow: Partial<FlowExecutionData> | null | undefined, context: { conversationId: string; sessionId?: string }): boolean {
+  if (!flow || String(flow.conversationId ?? "") !== context.conversationId) return false;
+  return !context.sessionId || String(flow.sessionId ?? "") === context.sessionId;
 }
 
 interface FlowExecutionBannerProps {
@@ -61,7 +68,8 @@ export function FlowExecutionBanner({ flowData, onCancelFlow }: FlowExecutionBan
   const confirmCancel = async () => {
     setCancelling(true);
     try {
-      await apiService.cancelQuickReplyFlow(flowData.chatId);
+      if (!flowData.conversationId) throw new Error("Atualize a conversa para identificar o fluxo antes de cancelar.");
+      await apiService.cancelQuickReplyFlow(flowData.chatId, { conversationId: flowData.conversationId, sessionId: flowData.sessionId });
       toast({
         title: "Fluxo Cancelado com Sucesso",
         description: `A execução do fluxo "${flowData.flowName}" foi interrompida.`,

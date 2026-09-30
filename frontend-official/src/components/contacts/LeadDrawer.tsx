@@ -74,7 +74,7 @@ export function LeadDrawer({ lead, onClose, onUpdateLead }: LeadDrawerProps) {
       setLoadingAi(true);
       try {
         if (lead.conversationId) {
-          const res = await apiService.getAIConversationAnalysis(lead.conversationId).catch(() => null);
+          const res = await apiService.getConversationInsights(lead.conversationId).catch(() => null);
           if (res?.data) {
             setAiData(res.data);
           }

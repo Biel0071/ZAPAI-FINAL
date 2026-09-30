@@ -105,6 +105,10 @@ function clearNamespace(namespace) {
   }
 }
 
+function forget(namespace, id) {
+  return entries.delete(buildKey(namespace, id));
+}
+
 function stats() {
   return {
     size: entries.size,
@@ -116,6 +120,7 @@ function stats() {
 module.exports = {
   clearNamespace,
   hasSeen,
+  forget,
   markSeen,
   stats,
 };

@@ -14,7 +14,7 @@ import {
   Receipt,
   Headset,
   Sparkle,
-  ClockHistory,
+  ClockCounterClockwise,
   Tag,
   CheckCircle,
 } from "@phosphor-icons/react";
@@ -244,7 +244,7 @@ export function LeadMemoryGraphModal({ isOpen, onClose, lead }: LeadMemoryGraphM
           {activeTab === "commercial" && (
             <div className="space-y-4">
               <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
-                <ClockHistory size={16} /> Timeline de Interações Comerciais
+                <ClockCounterClockwise size={16} /> Timeline de Interações Comerciais
               </h4>
 
               <div className="space-y-3 pl-4 border-l-2 border-primary/40">

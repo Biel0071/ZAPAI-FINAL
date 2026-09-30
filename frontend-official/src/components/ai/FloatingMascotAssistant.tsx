@@ -1,319 +1,53 @@
-import React, { useState, useEffect, useMemo } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { motion, AnimatePresence } from "framer-motion";
-import {
-  Sparkles,
-  Bot,
-  X,
-  Minus,
-  Maximize2,
-  Minimize2,
-  ChevronRight,
-  Lightbulb,
-  Keyboard,
-  ShieldCheck,
-  ArrowRight,
-  Send,
-} from "lucide-react";
+import { ArrowRight, Search, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/core/lib/utils";
-import { useIsMobile } from "@/state/hooks/use-mobile";
-import { useAppStore } from "@/state/stores/appStore";
 
-const CONTEXTUAL_TIPS: Record<string, { title: string; tip: string; shortcut?: string; actionLabel?: string; actionPath?: string }> = {
-  "/inbox": {
-    title: "Inbox Pro",
-    tip: "Pressione '/' no campo de mensagem para abrir o catálogo de Respostas Rápidas instantaneamente.",
-    shortcut: "Atalho: /",
-  },
-  "/dashboard": {
-    title: "Métricas em Tempo Real",
-    tip: "A taxa de resolução automática da IA é calculada a partir das mensagens respondidas pelos agentes.",
-    shortcut: "Atualização: 15s",
-    actionLabel: "Ver Operações",
-    actionPath: "/operations",
-  },
-  "/contacts": {
-    title: "CRM de Contatos",
-    tip: "Classifique leads por temperatura (Quente, Morno, Frio) para priorizar transferências e campanhas.",
-    shortcut: "Filtros rápidos",
-    actionLabel: "Disparar Campanha",
-    actionPath: "/campaigns",
-  },
-  "/campaigns": {
-    title: "Envios em Massa Seguros",
-    tip: "Utilize intervalos aleatórios entre 15s e 45s por mensagem para manter a saúde do número conectada.",
-    shortcut: "Anti-Ban Ativo",
-  },
-  "/ai": {
-    title: "Estúdio Cognitivo",
-    tip: "Ajuste a temperatura da IA entre 0.3 e 0.7 para respostas mais assertivas e comerciais.",
-    shortcut: "RAG Ativo",
-  },
-  "/settings": {
-    title: "Central de Configurações",
-    tip: "Consulte a telemetria do cluster e integridade dos nós na aba Diagnóstico & Saúde.",
-    shortcut: "Admin Hub",
-  },
-  "/operations": {
-    title: "Gestão Operacional",
-    tip: "Monitore o cumprimento do SLA alvo (< 2 min) e balanceie a carga entre operadores humanos e IA.",
-    shortcut: "SLA Alvo: < 2 min",
-  },
-  "/memory": {
-    title: "Memória Neural",
-    tip: "A IA acumula contexto histórico de preferências de compra e histórico de pedidos dos leads.",
-    shortcut: "PostgreSQL Vector",
-  },
-  "/connections": {
-    title: "Conexões WhatsApp",
-    tip: "Mantenha a sessão primária ativa com QR Code validado para tráfego contínuo.",
-    shortcut: "Baileys Multi-Device",
-  },
-};
+const HELP = [
+  { title: "Criar meu agente", words: "agente atendente criar personalidade prompt loja ia", text: "Abra Agente e use Criar agente. Informe a loja e revise as instruções antes de salvar. Teste uma conversa antes de ativar a automação.", path: "/ai?tab=evolution", action: "Abrir meu agente" },
+  { title: "Conectar o WhatsApp", words: "conexao conexão whatsapp qr offline desconectado sessao sessão", text: "Em Conexões, selecione seu número e conecte pelo QR Code. Confira o estado Conectado antes de enviar mensagens.", path: "/connections", action: "Ver conexões" },
+  { title: "Responder no Inbox", words: "inbox chat conversa responder enviar mensagem atendimento manual", text: "Selecione uma conversa, escreva e envie pelo compositor. Confira o estado de envio da mensagem. O painel Atendimento permite controlar a IA dessa conversa.", path: "/inbox", action: "Abrir Inbox" },
+  { title: "Usar respostas rápidas", words: "resposta rapida rápida atalho fluxo midia mídia arquivo", text: "Abra Respostas rápidas no compositor. Uma resposta de texto entra no rascunho para revisão. Arquivos e fluxos têm prévia e precisam de confirmação para enviar.", path: "/inbox", action: "Ir ao Inbox" },
+  { title: "Ativar ou pausar a IA", words: "ativar pausar desligar ligar automacao automação sugestao sugestão provedor", text: "Operação controla a automação geral. No Inbox, Atendimento controla cada conversa e seu agente. Uma sugestão para o atendente entra no rascunho; revise antes de enviar.", path: "/ai?tab=dashboard", action: "Ver operação" },
+  { title: "Ensinar produtos e regras", words: "conhecimento produto preco preço frete horario horário politica política aprender dados", text: "Em Conhecimento, cadastre produtos, preços e políticas oficiais. Use Estratégias para orientar o atendimento. Revise as informações comerciais antes de publicá-las.", path: "/ai?tab=conhecimento", action: "Organizar conhecimento" },
+];
+const normalize = (value: string) => value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
 
 export function FloatingMascotAssistant() {
   const location = useLocation();
   const navigate = useNavigate();
   const [isOpen, setIsOpen] = useState(false);
-  const [isMinimized, setIsMinimized] = useState(() => {
-    try {
-      return localStorage.getItem("zapflow_mascot_minimized") !== "false";
-    } catch {
-      return true;
-    }
-  });
-  const [userQuery, setUserQuery] = useState("");
-  const [queryFeedback, setQueryFeedback] = useState<string | null>(null);
-
-  const isMobileChatOpen = useAppStore((state) => state.isMobileChatOpen);
-  const sessions = useAppStore((state) => state.sessions);
-  const isWhatsappConnected = useMemo(() => {
-    return Array.isArray(sessions) && sessions.some((s) => s?.status === "connected");
-  }, [sessions]);
-
-  const isMobile = useIsMobile();
+  const [query, setQuery] = useState("");
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
   const isInbox = location.pathname.startsWith("/inbox");
-  const isInboxMobileChat = isMobile && isInbox && isMobileChatOpen;
-
-  const currentTip = useMemo(() => {
-    const matchedPath = Object.keys(CONTEXTUAL_TIPS).find((p) => location.pathname.startsWith(p));
-    return matchedPath
-      ? CONTEXTUAL_TIPS[matchedPath]
-      : {
-          title: "ZAPFLOW Assistant",
-          tip: "Plataforma de inteligência WhatsApp pronta para acelerar suas vendas e atendimento.",
-          shortcut: "ZAI Engine",
-        };
-  }, [location.pathname]);
-
-  const handleToggleMinimize = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    const nextVal = !isMinimized;
-    setIsMinimized(nextVal);
-    try {
-      localStorage.setItem("zapflow_mascot_minimized", String(nextVal));
-    } catch {}
-  };
-
-  const handleAsk = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!userQuery.trim()) return;
-    const q = userQuery.toLowerCase();
-    if (q.includes("inbox") || q.includes("chat") || q.includes("conversa")) {
-      setQueryFeedback("O Inbox centraliza chats, transcrições de áudio e notas do lead no painel lateral.");
-    } else if (q.includes("campanha") || q.includes("disparo") || q.includes("envio")) {
-      setQueryFeedback("Disparos podem ser segmentados por tags ou leads em Campanhas > Novo Disparo.");
-    } else if (q.includes("ia") || q.includes("agente") || q.includes("prompt")) {
-      setQueryFeedback("Configurações de agentes e tom de voz estão disponíveis na aba IA & Automação.");
-    } else if (q.includes("conexão") || q.includes("whatsapp") || q.includes("qr")) {
-      setQueryFeedback(isWhatsappConnected ? "WhatsApp está 100% conectado e operacional!" : "Sua conexão precisa ser escaneada em Conexões.");
-    } else {
-      setQueryFeedback(`Dica inteligente: Experimente navegar pelo módulo ${currentTip.title} para automatizar tarefas.`);
-    }
-    setUserQuery("");
-  };
-
-  if (isInbox) {
-    return null;
-  }
-
-  return (
-    <aside
-      aria-label="Assistente Inteligente ZAI"
-      className={cn(
-        "fixed z-40 select-none transition-all duration-200",
-        isMobile
-          ? "bottom-[calc(4.5rem+env(safe-area-inset-bottom,0px)+8px)] right-3"
-          : "bottom-4 right-4 sm:bottom-5 sm:right-5"
-      )}
-    >
-      {/* EXPANDED ASSISTANT CARD */}
-      <AnimatePresence>
-        {isOpen && (
-          <motion.div
-            initial={{ opacity: 0, scale: 0.9, y: 15 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.9, y: 15 }}
-            transition={{ duration: 0.18 }}
-            className="mb-3 w-[300px] sm:w-[340px] rounded-2xl border border-border/80 bg-card/95 shadow-2xl backdrop-blur-xl overflow-hidden"
-          >
-            {/* Header */}
-            <div className="flex items-center justify-between px-3.5 py-2.5 border-b border-border/60 bg-muted/40">
-              <div className="flex items-center gap-2">
-                <div className="h-6 w-6 rounded-lg bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center text-emerald-400">
-                  <Bot className="h-3.5 w-3.5" />
-                </div>
-                <div>
-                  <h4 className="text-xs font-bold text-foreground leading-tight flex items-center gap-1.5">
-                    Assistente ZAI
-                    <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                  </h4>
-                  <span className="text-[10px] text-muted-foreground">Copiloto Inteligente</span>
-                </div>
-              </div>
-
-              <div className="flex items-center gap-1">
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-6 w-6 text-muted-foreground hover:text-foreground rounded-lg"
-                  onClick={() => setIsOpen(false)}
-                  title="Recolher assistente"
-                >
-                  <Minus className="h-3.5 w-3.5" />
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-6 w-6 text-muted-foreground hover:text-foreground rounded-lg"
-                  onClick={() => {
-                    setIsOpen(false);
-                    setIsMinimized(true);
-                  }}
-                  title="Minimizar para ícone discreto"
-                >
-                  <X className="h-3.5 w-3.5" />
-                </Button>
-              </div>
-            </div>
-
-            {/* Content & Contextual Tip */}
-            <div className="p-3.5 space-y-3 text-xs">
-              <div className="rounded-xl border border-primary/20 bg-primary/5 p-2.5 space-y-1">
-                <div className="flex items-center justify-between">
-                  <span className="font-semibold text-primary flex items-center gap-1 text-[11px]">
-                    <Lightbulb className="h-3 w-3" />
-                    {currentTip.title}
-                  </span>
-                  {currentTip.shortcut && (
-                    <Badge variant="outline" className="text-[9px] py-0 px-1.5 border-primary/30 text-primary bg-primary/10">
-                      {currentTip.shortcut}
-                    </Badge>
-                  )}
-                </div>
-                <p className="text-[11px] text-muted-foreground leading-relaxed">
-                  {currentTip.tip}
-                </p>
-                {currentTip.actionPath && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      navigate(currentTip.actionPath!);
-                      setIsOpen(false);
-                    }}
-                    className="inline-flex items-center gap-1 text-[10px] font-bold text-primary hover:underline mt-1 pt-1"
-                  >
-                    {currentTip.actionLabel}
-                    <ArrowRight className="h-2.5 w-2.5" />
-                  </button>
-                )}
-              </div>
-
-              {/* Dynamic Q&A / Search feedback */}
-              {queryFeedback && (
-                <div className="rounded-xl border border-border/70 bg-background/80 p-2.5 text-[11px] text-foreground/90 animate-fade-in">
-                  <p className="font-medium">{queryFeedback}</p>
-                </div>
-              )}
-
-              {/* Quick Prompt Input */}
-              <form onSubmit={handleAsk} className="relative flex items-center">
-                <Input
-                  value={userQuery}
-                  onChange={(e) => setUserQuery(e.target.value)}
-                  placeholder="Dúvida rápida sobre o Zapflow..."
-                  className="h-8 pr-8 text-xs rounded-xl bg-background/70 border-border/70"
-                />
-                <button
-                  type="submit"
-                  aria-label="Enviar pergunta ao assistente"
-                  className="absolute right-1.5 h-6 w-6 rounded-lg bg-primary/10 hover:bg-primary/20 text-primary flex items-center justify-center transition-colors cursor-pointer"
-                >
-                  <Send className="h-3 w-3" />
-                </button>
-              </form>
-
-              {/* Status footer */}
-              <div className="flex items-center justify-between text-[10px] text-muted-foreground/70 pt-1 border-t border-border/40">
-                <span className="flex items-center gap-1">
-                  <ShieldCheck className="h-3 w-3 text-emerald-500" />
-                  Conexão {isWhatsappConnected ? "Ativa" : "Pendente"}
-                </span>
-                <span>v4.0 Premium</span>
-              </div>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      {/* FLOATING TRIGGER BUBBLE (DISCREET & COMPACT) */}
-      {!isOpen && (
-        <TooltipProvider delayDuration={200}>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <button
-                type="button"
-                onClick={() => {
-                  if (isMinimized) {
-                    setIsMinimized(false);
-                  } else {
-                    setIsOpen(true);
-                  }
-                }}
-                className={cn(
-                  "relative flex items-center justify-center transition-all duration-200 shadow-xl border cursor-pointer select-none",
-                  isMinimized
-                    ? "h-7 w-7 rounded-full bg-card/85 border-border/70 hover:border-primary/60 hover:scale-105"
-                    : "h-10 w-10 sm:h-11 sm:w-11 rounded-2xl bg-card/90 border-emerald-500/40 hover:border-emerald-500 hover:scale-105 shadow-[0_4px_20px_rgba(16,185,129,0.25)] backdrop-blur-md text-emerald-400"
-                )}
-                aria-label="Abrir Assistente ZAI"
-              >
-                {isMinimized ? (
-                  <span className="relative flex h-2.5 w-2.5">
-                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
-                    <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500" />
-                  </span>
-                ) : (
-                  <>
-                    <Sparkles className="h-5 w-5" />
-                    <span className="absolute -top-0.5 -right-0.5 flex h-2.5 w-2.5">
-                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
-                      <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500" />
-                    </span>
-                  </>
-                )}
-              </button>
-            </TooltipTrigger>
-            <TooltipContent side="left" className="text-xs font-semibold bg-popover text-foreground border-border shadow-lg">
-              {isMinimized ? "Assistente ZAI (Clique para expandir)" : "Assistente ZAI — Dicas & Atalhos"}
-            </TooltipContent>
-          </Tooltip>
-        </TooltipProvider>
-      )}
-    </aside>
-  );
+  useEffect(() => { setIsOpen(false); setQuery(""); }, [location.pathname]);
+  useEffect(() => {
+    if (!isOpen) return;
+    inputRef.current?.focus();
+    const close = (event: KeyboardEvent) => { if (event.key === "Escape") { setIsOpen(false); triggerRef.current?.focus(); } };
+    window.addEventListener("keydown", close);
+    return () => window.removeEventListener("keydown", close);
+  }, [isOpen]);
+  const items = useMemo(() => {
+    const terms = normalize(query).split(/\s+/).filter(word => word.length > 2);
+    if (!terms.length) return HELP.filter(item => isInbox ? item.path === "/inbox" || item.title.includes("IA") : location.pathname === "/ai" ? item.path.startsWith("/ai") : true);
+    return HELP.map(item => ({ item, score: terms.filter(term => normalize(item.title + " " + item.words + " " + item.text).includes(term)).length })).filter(result => result.score > 0).sort((a, b) => b.score - a.score).map(result => result.item);
+  }, [query, isInbox, location.pathname]);
+  return <aside aria-label="Ajuda ZAI" className={cn("fixed right-3 z-40 sm:right-5", isInbox ? "top-16" : "bottom-20 sm:bottom-5")}>
+    {isOpen && <section role="dialog" aria-label="Guia ZAI" className="mb-2 w-[min(340px,calc(100vw-24px))] overflow-hidden rounded-2xl border border-border bg-card shadow-xl">
+      <header className="flex items-center gap-3 border-b border-border px-4 py-3">
+        <img src="/assets/evolution/habbo_avatar.png" alt="" className="h-10 w-10 rounded-xl bg-primary/10 object-contain [image-rendering:pixelated]" />
+        <div className="flex-1"><h2 className="text-sm font-semibold">ZAI · Guia do sistema</h2><p className="text-xs text-muted-foreground">Passo a passo para o atendimento</p></div>
+        <Button size="icon" variant="ghost" className="h-8 w-8" aria-label="Fechar ajuda ZAI" onClick={() => { setIsOpen(false); triggerRef.current?.focus(); }}><X className="h-4 w-4" /></Button>
+      </header>
+      <div className="p-3"><label htmlFor="zai-help-query" className="sr-only">Sua dúvida sobre o sistema</label><div className="relative"><Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" /><Input ref={inputRef} id="zai-help-query" placeholder="Como criar agente? Como enviar?" value={query} onChange={event => setQuery(event.target.value)} className="pl-9" /></div></div>
+      <div className="max-h-[min(60vh,460px)] space-y-2 overflow-y-auto px-3 pb-3" aria-live="polite">
+        {items.length ? items.map(item => <details key={item.title} className="rounded-xl border border-border p-3" open={items.length === 1 || undefined}><summary className="cursor-pointer text-sm font-medium">{item.title}</summary><p className="mt-2 text-sm leading-relaxed text-muted-foreground">{item.text}</p><button type="button" onClick={() => { navigate(item.path); setIsOpen(false); }} className="mt-3 flex items-center gap-1 text-xs font-semibold text-primary">{item.action}<ArrowRight className="h-3 w-3" /></button></details>) : <p className="p-3 text-sm text-muted-foreground">Ainda não tenho um guia para essa dúvida. Tente agente, WhatsApp, envio, respostas rápidas ou conhecimento.</p>}
+      </div>
+    </section>}
+    <button ref={triggerRef} type="button" aria-label="Abrir ajuda ZAI" aria-expanded={isOpen} onClick={() => setIsOpen(open => !open)} className={cn("ml-auto flex items-center gap-2 rounded-full border border-border bg-card px-3 py-2 shadow-sm hover:border-primary/50", isInbox && "opacity-90")}><img src="/assets/evolution/habbo_avatar.png" alt="" className="h-6 w-6 object-contain [image-rendering:pixelated]" /><span className="text-xs font-semibold">Ajuda ZAI</span></button>
+  </aside>;
 }

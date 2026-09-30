@@ -170,7 +170,7 @@ async function dispatchSingleMessage(state, contact, io) {
   if (state.flowId) {
     try {
       const quickReplyService = require('./quickReplyService');
-      const allReplies = await quickReplyService.listQuickReplies();
+      const allReplies = await quickReplyService.listQuickReplies({ companyId: state.companyId });
       const flow = allReplies.find((item) => item.id === state.flowId);
 
       if (!flow) {

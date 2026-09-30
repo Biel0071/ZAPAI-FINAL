@@ -7,6 +7,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Chats, PencilSimple, Sparkle, Storefront, X, FileText, Headphones, Image as ImageIcon } from '@phosphor-icons/react';
 import { Timer, AlertTriangle } from 'lucide-react';
+import { useProtectedMedia } from '@/core/runtime/hooks/useProtectedMediaUrl';
 type Agent = { key: string; name: string; personality: string; active: boolean; sessionIds?: string[] };
 type Candidate = { name: string; personality: string; partial?: boolean; summaryNote?: string; observedStyle?: string[]; patterns?: string[]; products?: string[]; pendingCommercial?: string[]; conflicts?: string[]; gaps?: string[]; examples?: string[]; evidenceIds?: (string | number)[] };
 type Draft = { id: string; revision: string; status: string; candidate: Candidate; cursor_id: string; watermark: string; target_agent_key?: string; last_error?: string };
@@ -15,22 +16,40 @@ type Evidence = { id: string; text: string; media_text: string; media_state: str
 type Simulation = { question: string; before: string; after: string; note: string; evidenceId: string };
 const labels: Record<string, string> = { analyzing: 'Analisando', draft: 'Aguardando revisão', published: 'Publicado', discarded: 'Descartado' };
 const date = (value?: string) => value ? new Date(value).toLocaleDateString('pt-BR') : '—';
-const mediaUrl = (value?: string) => {
-  if (!value) return null;
-  try {
-    const url = new URL(value, window.location.origin);
-    return url.origin === window.location.origin ? url.href : null;
-  } catch { return null; }
-};
+
+function HistoryMediaEvidence({ item }: { item: Evidence }) {
+  const { url, loading } = useProtectedMedia(item.media_path);
+  return <div className="rounded-xl border border-border/60 bg-muted/10 p-3 text-xs space-y-2">
+    <div className="flex items-center justify-between">
+      <span className="font-semibold text-foreground flex items-center gap-1.5">
+        {item.media_type === 'audio' ? <Headphones className="h-4 w-4 text-emerald-500" /> : item.media_type === 'image' ? <ImageIcon className="h-4 w-4 text-blue-500" /> : <FileText className="h-4 w-4 text-purple-500" />}
+        {item.media_type === 'audio' ? 'Áudio' : item.media_type === 'image' ? 'Imagem' : 'Documento / Catálogo'}
+      </span>
+      <span className="text-[10px] text-muted-foreground">{date(item.occurred_at)}</span>
+    </div>
+    {url && item.media_type === 'image' && <img src={url} alt={`Imagem da mensagem ${item.id}`} className="max-h-40 w-full rounded-lg object-contain bg-background/50 border border-border/40" />}
+    {url && item.media_type === 'audio' && <audio controls preload="none" src={url} className="w-full h-8" />}
+    {url && !['image', 'audio'].includes(item.media_type || '') && <a href={url} target="_blank" rel="noreferrer" className="text-primary underline flex items-center gap-1"><FileText className="h-3.5 w-3.5" /> Abrir anexo / catálogo</a>}
+    {!url && <p className="text-muted-foreground text-[11px] flex items-center gap-1.5">{loading ? 'Carregando arquivo...' : item.media_state === 'pending' ? <><Timer className="h-3 w-3" /> Aguardando download</> : <><AlertTriangle className="h-3 w-3 text-amber-500" /> Arquivo indisponível no WhatsApp</>}</p>}
+    {item.media_text && <div className="rounded-lg bg-background/60 p-2 border border-border/30 mt-1">
+      <p className="text-[10px] font-semibold text-emerald-500 mb-0.5">Transcrição / Conteúdo acoplado ao Agente:</p>
+      <p className="whitespace-pre-wrap text-[11px] text-muted-foreground">{item.media_text}</p>
+    </div>}
+  </div>;
+}
 
 export function HistoryBootstrapPanel({ 
-  compact = false, 
+  compact = false,
+  guided = false,
+  onAgentCreated,
   requestedMode,
   initialSessionId,
   onClose,
   isModal = false,
 }: { 
-  compact?: boolean; 
+  compact?: boolean;
+  guided?: boolean;
+  onAgentCreated?: () => void;
   requestedMode?: 'manual' | 'prompt' | 'history' | 'store' | null;
   initialSessionId?: string;
   onClose?: () => void;
@@ -172,8 +191,8 @@ export function HistoryBootstrapPanel({
     <CardHeader className="pb-3 border-b border-border/40 bg-muted/10">
       <div className="flex items-center justify-between">
         <div>
-          <CardTitle className="text-base font-display">Histórico do WhatsApp → atendente da loja</CardTitle>
-          <CardDescription className="text-xs">Recupere conversas antigas e transforme atendimentos em uma proposta revisável. O atendente ativo só muda após publicação.</CardDescription>
+          <CardTitle className="text-base font-display">{guided ? "Configure seu agente" : "Histórico do WhatsApp → atendente da loja"}</CardTitle>
+          <CardDescription className="text-xs">{guided ? "Comece pela loja e revise as instruções. Você controla a ativação do atendimento automático." : "Recupere conversas antigas e transforme atendimentos em uma proposta revisável. O atendente ativo só muda após publicação."}</CardDescription>
         </div>
         {onClose && (
           <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full text-muted-foreground hover:text-foreground" onClick={onClose} title="Fechar">
@@ -188,7 +207,7 @@ export function HistoryBootstrapPanel({
     {panelHeader}
     <div className="space-y-4 p-4 sm:p-6">
       {/* 4 Tabs de Gestão da Central */}
-      <div className="grid gap-2 grid-cols-2 sm:grid-cols-4" aria-label="Formas de criar atendente">
+      {!guided && <div className="grid gap-2 grid-cols-2 sm:grid-cols-4" aria-label="Formas de criar atendente">
         {([
           { key: 'history', title: 'Ler conversas & Mídias', icon: Chats, desc: 'Sync de mensagens e mídias' },
           { key: 'prompt', title: 'Criar com IA', icon: Sparkle, desc: 'Gerar atendente com base no perfil' },
@@ -202,7 +221,7 @@ export function HistoryBootstrapPanel({
           </div>
           <span className="text-[10px] font-normal text-muted-foreground leading-tight">{option.desc}</span>
         </button>)}
-      </div>
+      </div>}
 
       {!syncReady && mode === 'history' && <p className="text-xs text-muted-foreground">{sessionId ? 'Sincronizando conversas e preparando a memória. As opções de criação ficam disponíveis após a importação.' : 'Conecte um WhatsApp para iniciar a sincronização e escolher como criar o atendente.'}</p>}
       {error && <p role="alert" className="text-xs text-destructive font-medium p-2 rounded-lg bg-destructive/10 border border-destructive/20">{error}</p>}
@@ -228,7 +247,7 @@ export function HistoryBootstrapPanel({
           <Input aria-label="Tipo de atendimento" placeholder="Tipo de atendimento: vendas, suporte…" className="rounded-xl text-xs h-9 bg-background/60" value={serviceType} onChange={e=>setServiceType(e.target.value)}/>
           <label className="block text-sm font-medium">Evolução<select className="mt-1.5 w-full rounded-xl border border-border/80 bg-background/60 px-3 py-2 text-sm text-foreground shadow-sm transition-colors hover:bg-muted/30 focus:outline-none focus:ring-2 focus:ring-primary/20" value={evolutionMode} onChange={e=>setEvolutionMode(e.target.value)}><option value="limited">Automática: somente estilo</option><option value="paused">Pausada</option></select></label>
           <Button className="rounded-xl text-xs h-9 font-semibold shadow-sm" disabled={busy || !sessionId} onClick={()=>void action(saveProfile,'Vínculo e preferências salvos.')}>Salvar vínculo e preferências</Button>
-          <details className="rounded-xl border border-border/50 bg-background/40 p-3"><summary className="cursor-pointer font-medium text-xs text-foreground hover:text-primary transition-colors select-none">Cadastrar ou editar conhecimento de uma loja</summary><div className="mt-3 space-y-2">
+          <details open={guided || undefined} className="rounded-xl border border-border/50 bg-background/40 p-3"><summary className="cursor-pointer font-medium text-xs text-foreground hover:text-primary transition-colors select-none">Cadastrar ou editar conhecimento de uma loja</summary><div className="mt-3 space-y-2">
             <Input aria-label="Nome da loja" placeholder="Nome da loja" className="rounded-xl text-xs h-9 bg-background/60" value={storeName} onChange={e=>setStoreName(e.target.value)}/>
             <Textarea aria-label="Conhecimento oficial" placeholder="Produtos, preços e regras oficiais atuais" className="rounded-xl text-xs bg-background/60 min-h-20" value={knowledge} onChange={e=>setKnowledge(e.target.value)}/>
             <div className="flex flex-wrap gap-2 pt-1">
@@ -243,8 +262,8 @@ export function HistoryBootstrapPanel({
               },'Conhecimento oficial atualizado.')}>Atualizar loja selecionada</Button>
             </div>
           </div></details>
-          <p role="status" className="text-xs text-muted-foreground">{memoryStatus ? memoryStatus.last_error || (memoryStatus.pending ? 'Memória: '+memoryStatus.pending+' mensagens aguardam processamento.' : 'Memória persistida: '+memoryStatus.total+' mensagens processadas.') : 'Consultando persistência…'}</p>
-          <Button variant="outline" className="rounded-xl text-xs h-8.5 font-medium" disabled={busy || !sessionId} onClick={()=>void action(async()=>{const data=await requestApiEndpoint<{memory:typeof memoryStatus}>(base+'/profile');setMemoryStatus(data.memory);},'Estado da memória atualizado.')}>Atualizar estado</Button>
+          {!guided && <><p role="status" className="text-xs text-muted-foreground">{memoryStatus ? memoryStatus.last_error || (memoryStatus.pending ? 'Memória: '+memoryStatus.pending+' mensagens aguardam processamento.' : 'Memória persistida: '+memoryStatus.total+' mensagens processadas.') : 'Consultando persistência…'}</p>
+          <Button variant="outline" className="rounded-xl text-xs h-8.5 font-medium" disabled={busy || !sessionId} onClick={()=>void action(async()=>{const data=await requestApiEndpoint<{memory:typeof memoryStatus}>(base+'/profile');setMemoryStatus(data.memory);},'Estado da memória atualizado.')}>Atualizar estado</Button></>}
         </div>
 
         <details className="rounded-xl border border-border/50 bg-background/40 p-3"><summary className="cursor-pointer font-medium text-xs text-foreground hover:text-primary transition-colors select-none">Versões do estilo e restauração</summary>
@@ -281,6 +300,7 @@ export function HistoryBootstrapPanel({
             return <div key={v.id} className="my-2 flex flex-wrap items-center gap-2 text-sm"><span>{date(v.created_at)} — {desc}</span><Button variant="outline" className="rounded-xl text-xs h-7 font-medium" disabled={busy} onClick={()=>void action(async()=>{await requestApiEndpoint(base+'/versions/'+encodeURIComponent(target)+'/'+v.id+'/restore','POST');setEvolutionMode('paused');},'Versão restaurada. Evolução pausada.')}>Restaurar</Button></div>;
           })}
         </details>
+        {guided && <Button disabled={busy || !storeId || !sessionId} onClick={() => { const store = stores.find(item => item.id === storeId); setMode('manual'); setPreview({ name: '', personality: 'Você é o assistente de ' + (store?.name || storeName) + '. Atenda em português, com clareza e simpatia.\nObjetivo: ' + (serviceType || 'orientar e atender os clientes') + '.\nSegmento: ' + (store?.segment || segment || 'não informado') + '.\nUse apenas o conhecimento oficial da loja. Não invente preços, descontos, estoque ou prazos. Quando faltar informação, peça confirmação ao atendente humano.\nConhecimento informado:\n' + (store?.knowledge || knowledge || 'Cadastre o conhecimento oficial antes de responder sobre produtos.') }); }}>Continuar · Revisar agente</Button>}
       </div>}
 
       {/* ABA: CRIAR COM IA OU MANUAL */}
@@ -300,8 +320,8 @@ export function HistoryBootstrapPanel({
           <Button className="rounded-xl text-xs h-9 font-semibold shadow-sm" disabled={busy || !sessionId || !preview?.name?.trim() || !preview?.personality?.trim()} onClick={()=>void action(async()=>{
             await saveProfile();
             const data=await requestApiEndpoint<{agent:Agent}>(base+'/agents','POST',{...(preview || {}),segment,serviceType,sessionIds:[sessionId,...extraSessions],reviewed:true});
-            setAgents(prev=>[...prev,data.agent]);setPreview(mode==='manual'?{name:'',personality:''}:null);
-          },'Atendente revisado e ativado.')}>Revisar e ativar atendente</Button>
+            setAgents(prev=>[...prev,data.agent]);setPreview(mode==='manual'?{name:'',personality:''}:null);onAgentCreated?.();
+          },'Agente salvo. A ativação global da automação permanece sob seu controle.')}>{guided ? 'Salvar agente revisado' : 'Revisar e ativar atendente'}</Button>
         </>}
       </div>}
       <details className="rounded-xl border border-border/50 bg-background/40 p-3"><summary className="cursor-pointer font-medium text-xs text-foreground hover:text-primary transition-colors select-none">Versões do estilo e restauração</summary>
@@ -361,28 +381,7 @@ export function HistoryBootstrapPanel({
           <Button variant="outline" className="rounded-xl text-xs h-8.5 font-medium" disabled={busy} onClick={() => void loadMediaEvidence()}>Ver mídias do histórico</Button>
         </div>
         {showMedia && <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3" aria-label="Mídias do histórico">
-          {mediaEvidence.map(item => {
-            const url = mediaUrl(item.media_path);
-            return <div key={item.id} className="rounded-xl border border-border/60 bg-muted/10 p-3 text-xs space-y-2">
-              <div className="flex items-center justify-between">
-                <span className="font-semibold text-foreground flex items-center gap-1.5">
-                  {item.media_type === 'audio' ? <Headphones className="h-4 w-4 text-emerald-500" /> : item.media_type === 'image' ? <ImageIcon className="h-4 w-4 text-blue-500" /> : <FileText className="h-4 w-4 text-purple-500" />}
-                  {item.media_type === 'audio' ? 'Áudio' : item.media_type === 'image' ? 'Imagem' : 'Documento / Catálogo'}
-                </span>
-                <span className="text-[10px] text-muted-foreground">{date(item.occurred_at)}</span>
-              </div>
-              {url && item.media_type === 'image' && <img src={url} alt={`Imagem da mensagem ${item.id}`} className="max-h-40 w-full rounded-lg object-contain bg-background/50 border border-border/40" />}
-              {url && item.media_type === 'audio' && <audio controls preload="none" src={url} className="w-full h-8" />}
-              {url && !['image', 'audio'].includes(item.media_type || '') && <a href={url} target="_blank" rel="noreferrer" className="text-primary underline flex items-center gap-1"><FileText className="h-3.5 w-3.5" /> Abrir anexo / catálogo</a>}
-              {!url && <p className="text-muted-foreground text-[11px] flex items-center gap-1.5">{item.media_state === 'pending' ? <><Timer className="h-3 w-3" /> Aguardando download</> : <><AlertTriangle className="h-3 w-3 text-amber-500" /> Arquivo indisponível no WhatsApp</>}</p>}
-              {item.media_text && (
-                <div className="rounded-lg bg-background/60 p-2 border border-border/30 mt-1">
-                  <p className="text-[10px] font-semibold text-emerald-500 mb-0.5">Transcrição / Conteúdo acoplado ao Agente:</p>
-                  <p className="whitespace-pre-wrap text-[11px] text-muted-foreground">{item.media_text}</p>
-                </div>
-              )}
-            </div>;
-          })}
+          {mediaEvidence.map(item => <HistoryMediaEvidence key={item.id} item={item} />)}
           {mediaEvidence.length === 0 && <p className="text-sm text-muted-foreground">Nenhuma mídia identificada neste histórico.</p>}
           {mediaCursor && <Button variant="outline" className="rounded-xl text-xs h-8" onClick={() => void loadMediaEvidence(mediaCursor)}>Carregar mais mídias</Button>}
         </div>}

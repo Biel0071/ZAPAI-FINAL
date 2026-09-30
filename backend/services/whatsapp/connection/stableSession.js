@@ -485,7 +485,7 @@ async function runAIForChat({ chatId, incomingFormattedMessage, session, sock })
 
   let aiResult;
   try {
-    const quickReplies = await quickReplyService.listQuickReplies().catch(() => []);
+    const quickReplies = await quickReplyService.listQuickReplies({ companyId: session.companyId }).catch(() => []);
     aiResult = await enterpriseAiService.evaluateInboundAi({
       agent,
       chatId,
@@ -543,7 +543,7 @@ async function runAIForChat({ chatId, incomingFormattedMessage, session, sock })
   const triggerQrId = aiResult?.analysis?.trigger_quick_reply;
   if (triggerQrId) {
     try {
-      const quickReplies = await quickReplyService.listQuickReplies().catch(() => []);
+      const quickReplies = await quickReplyService.listQuickReplies({ companyId: session.companyId }).catch(() => []);
       const matchedQr = quickReplies.find(qr => String(qr.id) === String(triggerQrId) || String(qr.title) === String(triggerQrId));
       
       if (matchedQr) {
@@ -897,7 +897,7 @@ async function runAIForChat({ chatId, incomingFormattedMessage, session, sock })
       const outboundQueueService = require('../../outboundQueueService');
       const flowTrackerService = require('../../flowTrackerService');
 
-      const allReplies = await quickReplyService.listQuickReplies();
+      const allReplies = await quickReplyService.listQuickReplies({ companyId: session.companyId });
       const flow = allReplies.find((item) => 
         String(item.id) === String(qrId) || 
         String(item.title || item.label || item.cmd || item.text || '').toLowerCase() === String(qrId).toLowerCase()
@@ -929,6 +929,7 @@ async function runAIForChat({ chatId, incomingFormattedMessage, session, sock })
           const totalSteps = validSteps.length;
           flowTrackerService.startFlow({
             chatId: normalizePhone(chatId),
+            sessionId: session.sessionId,
             flowName: flow.title || flow.label || flow.cmd || 'Resposta Rápida Automática',
             totalSteps,
             companyId: companyId || 'default',

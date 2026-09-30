@@ -162,6 +162,8 @@ services:
     volumes:
       - zapai_sessions:/data/sessions
       - zapai_uploads:/app/uploads
+      - zapai_legacy_upload:/app/upload
+      - zapai_media:/storage/media
       - zapai_whatsapp:/data/json_db
       - zapai_logs:/app/logs
       - ./data/backups:/app/backups
@@ -189,5 +191,7 @@ volumes:
   redis_data:
   zapai_sessions:
   zapai_uploads:
+  zapai_legacy_upload:
+  zapai_media:
   zapai_whatsapp:
   zapai_logs:

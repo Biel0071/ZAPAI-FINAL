@@ -29,6 +29,7 @@ export function InboxView({
   const layoutRef = useRef<HTMLDivElement>(null);
   const contextPanelRef = useRef<ImperativePanelHandle>(null);
   const [railSize, setRailSize] = useState(5);
+  const [contextMinSize, setContextMinSize] = useState(25);
   const hasRightPanel = Boolean(rightPanel);
 
   useEffect(() => {
@@ -37,6 +38,7 @@ export function InboxView({
     const observer = new ResizeObserver(([entry]) => {
       if (entry.contentRect.width > 0) {
         setRailSize(Math.min(19, (64 / entry.contentRect.width) * 100));
+        setContextMinSize(Math.min(34, (300 / entry.contentRect.width) * 100));
       }
     });
     observer.observe(container);
@@ -56,7 +58,7 @@ export function InboxView({
         <div 
           className={cn(
             "w-full flex overflow-hidden border-t border-border/60 bg-card/30",
-            mobileScreen === "chat" ? "h-screen border-t-0" : "flex-1 min-h-0"
+            mobileScreen === "chat" ? "h-[100dvh] border-t-0" : "flex-1 min-h-0"
           )}
         >
           <div 
@@ -87,13 +89,13 @@ export function InboxView({
       <div ref={layoutRef} className="w-full flex-1 min-h-0 flex overflow-hidden border-t border-border/60 bg-card/30">
         <ResizablePanelGroup
           direction="horizontal"
-          autoSaveId="zapflow-inbox-panels-layout-v1"
+          autoSaveId="zapflow-inbox-panels-layout-v2"
           className="h-full w-full"
         >
           <ResizablePanel
-            defaultSize={28}
-            minSize={22}
-            maxSize={38}
+            defaultSize={25}
+            minSize={20}
+            maxSize={34}
             id="inbox-conversations-panel"
             order={1}
             className="flex flex-col h-full overflow-hidden"
@@ -109,8 +111,8 @@ export function InboxView({
           </ResizableHandle>
 
           <ResizablePanel
-            defaultSize={rightPanel ? 46 : 72}
-            minSize={30}
+            defaultSize={rightPanel ? 47 : 75}
+            minSize={34}
             id="inbox-chat-pane"
             order={2}
             className="flex flex-col h-full overflow-hidden min-w-0 relative"
@@ -128,9 +130,9 @@ export function InboxView({
               </ResizableHandle>
               <ResizablePanel
                 ref={contextPanelRef}
-                defaultSize={26}
-                minSize={20}
-                maxSize={42}
+                defaultSize={28}
+                minSize={contextMinSize}
+                maxSize={36}
                 collapsible
                 collapsedSize={railSize}
                 onCollapse={() => onRightPanelCollapsedChange?.(true)}

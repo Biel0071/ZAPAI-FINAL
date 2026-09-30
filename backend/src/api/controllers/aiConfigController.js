@@ -59,8 +59,16 @@ async function saveMemory(req, res) {
   }
 }
 
-function getAdvancedAI(req, res) {
-  return res.status(200).json(aiConfigService.getAdvancedAISettings(getStore(req)));
+async function getAdvancedAI(req, res) {
+  try {
+    if (!req.authTenantId) return res.status(401).json({ error: 'Authentication required.' });
+    const settings = aiConfigService.getAdvancedAISettings(getStore(req));
+    const { rows } = await query('SELECT provider, model, enabled, api_key FROM provider_keys WHERE tenant_id=$1 ORDER BY id DESC', [req.authTenantId]);
+    const providers = rows.map(row => ({ id: row.provider, name: row.provider, model: row.model, active: row.enabled, configured: Boolean(row.api_key), hasApiKey: Boolean(row.api_key), apiKey: maskApiKey(decrypt(row.api_key)), apiKeyMasked: maskApiKey(decrypt(row.api_key)) }));
+    return res.status(200).json({ ...settings, providers });
+  } catch (error) {
+    return res.status(503).json({ error: 'Não foi possível consultar os provedores de IA.' });
+  }
 }
 
 async function saveAdvancedAI(req, res) {
@@ -174,7 +182,7 @@ async function cloneAIAgent(req, res) {
 
 async function getAIEvolution(req, res) {
   try {
-    const companyId = getCompanyId(req);
+    const companyId = req.authTenantId || getCompanyId(req);
     const dbEnabled = req.app.locals.store?.databaseEnabled;
     if (!dbEnabled) {
       return res.status(200).json({ success: true, evolution: [] });
@@ -248,11 +256,12 @@ async function getAIEvolution(req, res) {
         FROM (
           SELECT media_url, type 
           FROM messages 
-          WHERE from_me = TRUE 
+          WHERE company_id = $1
+            AND from_me = TRUE
           ORDER BY id DESC 
           LIMIT 2000
         ) sub
-      `).catch(() => ({ rows: [{ total_outbound: 0, media_used: 0 }] })),
+      `, [companyId]).catch(() => ({ rows: [{ total_outbound: 0, media_used: 0 }] })),
 
       query(`
         SELECT COUNT(DISTINCT lead_intent)::int AS intents_identified
@@ -275,7 +284,7 @@ async function getAIEvolution(req, res) {
 
       const successRate = conv > 0 ? Number(((conversions / conv) * 100).toFixed(1)) : 0;
       const humanInterventionRate = conv > 0 ? Number(((interventions / conv) * 100).toFixed(1)) : 0;
-      const accuracyRate = conv > 0 ? Number(Math.max(0, 100 - humanInterventionRate - (objections / conv) * 10).toFixed(1)) : 100;
+      const accuracyRate = conv > 0 ? Number(Math.max(0, 100 - humanInterventionRate - (objections / conv) * 10).toFixed(1)) : null;
 
       let evolutionScore = Math.min(100, Math.max(0, Math.round(
         (conv > 0 ? 30 : 0) +
@@ -293,7 +302,8 @@ async function getAIEvolution(req, res) {
           FROM (
             SELECT content 
             FROM messages 
-            WHERE from_me = FALSE 
+            WHERE company_id = $1
+              AND from_me = FALSE
               AND content IS NOT NULL 
               AND (content LIKE '%?%' OR content ILIKE '%preço%' OR content ILIKE '%valor%' OR content ILIKE '%entrega%')
             ORDER BY id DESC 
@@ -302,7 +312,7 @@ async function getAIEvolution(req, res) {
           GROUP BY content 
           ORDER BY count DESC 
           LIMIT 5
-        `);
+        `, [companyId]);
         
         topQuestions = (questionsRes.rows || []).map((q) => ({
           question: q.question,
@@ -379,20 +389,21 @@ async function getAIEvolution(req, res) {
       currentStore = storeRes.rows[0] || null;
     } catch (_) {}
 
+    const measuredAgent = evolution.find((agent) => agent.conversations_analyzed > 0);
     const aggregatedStats = {
       totalQuestionsAnswered: evolution.reduce((acc, a) => acc + (a.conversations_analyzed || 0), 0),
       totalLearnings: evolution.reduce((acc, a) => acc + (a.responses_learned || 0), 0) + recentLearnings.length,
       totalImprovedResponses: evolution.reduce((acc, a) => acc + (a.suggestions_accepted || 0), 0),
       totalInterventions: evolution.reduce((acc, a) => acc + (a.conversions || 0), 0),
-      estimatedSatisfaction: evolution.length > 0 ? evolution[0].accuracy_rate : 95,
-      resolutionRate: evolution.length > 0 ? evolution[0].success_rate : 90,
-      responseTimeReduction: '65%',
-      efficiencyRate: evolution.length > 0 ? `${evolution[0].accuracy_rate}%` : '92%',
-      averageResponseTimeSec: 4.2,
+      estimatedSatisfaction: measuredAgent?.accuracy_rate ?? null,
+      resolutionRate: measuredAgent?.success_rate ?? null,
+      responseTimeReduction: null,
+      efficiencyRate: measuredAgent?.accuracy_rate != null ? `${measuredAgent.accuracy_rate}%` : null,
+      averageResponseTimeSec: null,
       totalMemorizedFacts: evolution.reduce((acc, a) => acc + (a.memories_created || 0), 0),
       objectionsOvercome: evolution.reduce((acc, a) => acc + (a.objections || 0), 0),
       assistedConversions: evolution.reduce((acc, a) => acc + (a.conversions || 0), 0),
-      agentMaturityScore: evolution.length > 0 ? evolution[0].evolution_score : 85,
+      agentMaturityScore: measuredAgent?.evolution_score ?? null,
       recent_learnings: recentLearnings,
       store: currentStore,
     };
@@ -516,48 +527,17 @@ async function getUserProviders(req, res) {
       return res.status(200).json({ success: true, providers: [] });
     }
 
-    const role = req.auth?.role || 'admin';
-    
-    let currentUserId;
-    const authUsername = req.auth?.username;
-    if (authUsername) {
-      const uRes = await query('SELECT id FROM users WHERE username = $1 LIMIT 1', [authUsername]);
-      if (uRes.rows.length > 0) {
-        currentUserId = uRes.rows[0].id;
-      }
-    }
-    
-    if (!currentUserId) {
-      const firstU = await query('SELECT id FROM users ORDER BY id ASC LIMIT 1');
-      if (firstU.rows.length > 0) {
-        currentUserId = firstU.rows[0].id;
-      }
-    }
-
-    let sql;
-    let params = [];
-    if (role === 'admin' || role === 'master' || role === 'master_admin') {
-      sql = `
-        SELECT p.*, u.username 
-        FROM provider_keys p 
-        LEFT JOIN users u ON p.user_id = u.id 
-        ORDER BY p.id DESC
-      `;
-    } else {
-      sql = `
-        SELECT p.*, u.username 
-        FROM provider_keys p 
-        LEFT JOIN users u ON p.user_id = u.id 
-        WHERE p.user_id = $1 
-        ORDER BY p.id DESC
-      `;
-      params = [currentUserId];
-    }
+    const tenantId = req.authTenantId;
+    if (!tenantId) return res.status(401).json({ error: 'Authentication required.' });
+    const sql = 'SELECT p.*, u.username FROM provider_keys p LEFT JOIN users u ON p.user_id=u.id WHERE p.tenant_id=$1 ORDER BY p.id DESC';
+    const params = [tenantId];
 
     const { rows } = await query(sql, params);
     const mapped = rows.map(r => ({
       ...r,
-      api_key: maskApiKey(decrypt(r.api_key))
+      api_key: maskApiKey(decrypt(r.api_key)),
+      configured: Boolean(r.api_key),
+      hasApiKey: Boolean(r.api_key)
     }));
     return res.status(200).json({ success: true, providers: mapped });
   } catch (error) {
@@ -578,30 +558,15 @@ async function saveUserProvider(req, res) {
       return res.status(400).json({ error: 'provider and api_key are required.' });
     }
 
-    let currentUserId;
+    const userTenant = req.authTenantId;
+    if (!userTenant) return res.status(401).json({ error: 'Authentication required.' });
     const authUsername = req.auth?.username;
-    if (authUsername) {
-      const uRes = await query('SELECT id FROM users WHERE username = $1 LIMIT 1', [authUsername]);
-      if (uRes.rows.length > 0) {
-        currentUserId = uRes.rows[0].id;
-      }
-    }
-    
-    if (!currentUserId) {
-      const firstU = await query('SELECT id FROM users ORDER BY id ASC LIMIT 1');
-      if (firstU.rows.length > 0) {
-        currentUserId = firstU.rows[0].id;
-      }
-    }
-
-    if (!currentUserId) {
-      return res.status(400).json({ error: 'No valid user found.' });
-    }
-
-    const existing = await query(
-      'SELECT api_key, tenant_id FROM provider_keys WHERE user_id = $1 AND provider = $2 LIMIT 1',
-      [currentUserId, provider]
-    );
+    if (!authUsername) return res.status(401).json({ error: 'Authenticated user required.' });
+    const user = (await query('SELECT id FROM users WHERE username=$1 LIMIT 1', [authUsername])).rows[0];
+    if (!user) return res.status(401).json({ error: 'Authenticated user not found.' });
+    const currentUserId = user.id;
+    const existing = await query('SELECT api_key, tenant_id FROM provider_keys WHERE user_id=$1 AND provider=$2 LIMIT 1', [currentUserId, provider]);
+    if (existing.rows[0] && String(existing.rows[0].tenant_id) !== String(userTenant)) return res.status(403).json({ error: 'Provider does not belong to this tenant.' });
 
     let finalKey = api_key;
     if (api_key.includes('*****')) {
@@ -614,7 +579,6 @@ async function saveUserProvider(req, res) {
       finalKey = encrypt(api_key);
     }
 
-    const userTenant = tenant_id || existing.rows[0]?.tenant_id || req.auth?.tenantId || 'default';
     const workspace = workspace_id || 'default';
 
     let finalSettings = settings || {};

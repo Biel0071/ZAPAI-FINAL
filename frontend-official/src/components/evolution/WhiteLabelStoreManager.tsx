@@ -43,16 +43,14 @@ export interface StoreData {
 }
 
 export interface WhiteLabelStoreManagerProps {
-  agents: Array<{ key: string; name: string; personality: string }>;
-  selectedAgentKey?: string;
-  onSelectAgent?: (key: string) => void;
+  initialStoreId?: string;
+  onStoreSelected?: (store: StoreData) => void;
   onStoreUpdated?: (store: StoreData) => void;
 }
 
 export const WhiteLabelStoreManager: React.FC<WhiteLabelStoreManagerProps> = ({
-  agents,
-  selectedAgentKey,
-  onSelectAgent,
+  initialStoreId,
+  onStoreSelected,
   onStoreUpdated
 }) => {
   const { toast } = useToast();
@@ -73,8 +71,8 @@ export const WhiteLabelStoreManager: React.FC<WhiteLabelStoreManagerProps> = ({
   const [catalogSummary, setCatalogSummary] = useState('');
   const [knowledge, setKnowledge] = useState('');
   const [themeColor, setThemeColor] = useState('#10b981');
-  const [attendantName, setAttendantName] = useState('Camila');
-  const [attendantRole, setAttendantRole] = useState('Especialista em Vendas');
+  const [attendantName, setAttendantName] = useState('');
+  const [attendantRole, setAttendantRole] = useState('');
 
   const colorPalettes = [
     { name: 'Verde Esmeralda', hex: '#10b981' },
@@ -87,14 +85,15 @@ export const WhiteLabelStoreManager: React.FC<WhiteLabelStoreManagerProps> = ({
     { name: 'Grafite Escuro', hex: '#334155' },
   ];
 
-  const fetchStores = async () => {
+  const fetchStores = async (preferredStoreId?: string) => {
     try {
       setLoading(true);
       const res = await requestApiEndpoint<{ stores: StoreData[] }>('/api/ai/history');
       if (res?.stores) {
         setStores(res.stores);
-        if (res.stores.length > 0 && !selectedStoreId) {
-          loadStoreToForm(res.stores[0]);
+        if (res.stores.length > 0) {
+          const storeId = preferredStoreId || selectedStoreId || initialStoreId;
+          loadStoreToForm(res.stores.find((store) => store.id === storeId) || res.stores[0]);
         }
       }
     } catch (err: any) {
@@ -120,29 +119,32 @@ export const WhiteLabelStoreManager: React.FC<WhiteLabelStoreManagerProps> = ({
     setCatalogSummary(store.catalog_summary || '');
     setKnowledge(store.knowledge || '');
     setThemeColor(store.theme_color || '#10b981');
-    setAttendantName(store.attendant_name || 'Camila');
-    setAttendantRole(store.attendant_role || 'Especialista em Vendas');
+    setAttendantName(store.attendant_name || '');
+    setAttendantRole(store.attendant_role || '');
   };
 
   const handleSelectStore = (id: string) => {
     const s = stores.find((st) => st.id === id);
-    if (s) loadStoreToForm(s);
+    if (s) {
+      loadStoreToForm(s);
+      onStoreSelected?.(s);
+    }
   };
 
   const handleNewStore = () => {
     setSelectedStoreId('');
-    setName('Nova Loja');
-    setSegment('Varejo & Serviços');
-    setAddress('Av. Principal, 100 - Centro');
+    setName('');
+    setSegment('');
+    setAddress('');
     setPhone('');
     setWebsite('');
-    setBusinessHours('Segunda a Sexta: 08h às 18h | Sábado: 08h às 13h');
-    setPolicies('Garantia legal de 90 dias. Desconto no PIX. Frete sob consulta.');
+    setBusinessHours('');
+    setPolicies('');
     setCatalogSummary('');
     setKnowledge('');
     setThemeColor('#10b981');
-    setAttendantName('Camila');
-    setAttendantRole('Assistente de Vendas');
+    setAttendantName('');
+    setAttendantRole('');
   };
 
   const handleSaveStore = async () => {
@@ -167,8 +169,8 @@ export const WhiteLabelStoreManager: React.FC<WhiteLabelStoreManagerProps> = ({
         catalog_summary: catalogSummary.trim(),
         knowledge: knowledge.trim(),
         theme_color: themeColor,
-        attendant_name: attendantName.trim() || 'Camila',
-        attendant_role: attendantRole.trim() || 'Assistente de Vendas',
+        attendant_name: attendantName.trim(),
+        attendant_role: attendantRole.trim(),
         attendant_config: {
           ...currentConfig,
           clothingColor: themeColor,
@@ -189,7 +191,7 @@ export const WhiteLabelStoreManager: React.FC<WhiteLabelStoreManagerProps> = ({
       }
 
       onStoreUpdated?.({ id: storeId, ...payload });
-      await fetchStores();
+      await fetchStores(storeId);
     } catch (err: any) {
       toast({ title: 'Erro ao salvar loja', description: err.message, variant: 'destructive' });
     } finally {
@@ -202,10 +204,10 @@ export const WhiteLabelStoreManager: React.FC<WhiteLabelStoreManagerProps> = ({
 Nome da Loja: ${name || '[Nome da Loja]'}
 Segmento: ${segment || '[Segmento]'}
 ${address ? `Endereço / Unidade: ${address}\n` : ''}${phone ? `Telefone / WhatsApp Oficial: ${phone}\n` : ''}${website ? `Site Oficial: ${website}\n` : ''}${businessHours ? `Horário de Atendimento: ${businessHours}\n` : ''}${policies ? `Políticas (Garantia/Trocas/Frete/Pagamento):\n${policies}\n` : ''}${catalogSummary ? `Catálogo & Produtos Principais:\n${catalogSummary}\n` : ''}${knowledge ? `Instruções & Base de Conhecimento Específica:\n${knowledge}\n` : ''}
-=== PERFIL DO ATENDENTE EXCLUSIVO DA LOJA ===
-Você é ${attendantName || 'Camila'}, ${attendantRole || 'assistente oficial'} da ${name || '[Nome da Loja]'}.
+=== IDENTIDADE DO ATENDENTE NA PRÉVIA ===
+Você é ${attendantName || '[Nome do atendente]'}, ${attendantRole || 'assistente'} da ${name || '[Nome da Loja]'}.
 Instruções de Personalidade & Estilo:
-Atendimento comercial ágil, consultivo e humanizado via WhatsApp. Você conhece profundamente os preços, prazos e políticas da loja.`;
+Atenda de forma clara e consultiva via WhatsApp. Use apenas preços, prazos e políticas informados pela loja; quando faltarem dados, peça confirmação.`;
 
   const copyPromptPreview = () => {
     navigator.clipboard.writeText(livePromptPreview);
@@ -221,17 +223,14 @@ Atendimento comercial ágil, consultivo e humanizado via WhatsApp. Você conhece
         <div className="space-y-1">
           <div className="flex items-center gap-2">
             <Badge className="bg-primary text-primary-foreground font-semibold flex items-center gap-1">
-              <Sparkles className="w-3.5 h-3.5" /> Atendente White-Label Por Loja
-            </Badge>
-            <Badge variant="outline" className="text-primary border-primary/30">
-              Personalização Visual & Comercial
+              <Sparkles className="w-3.5 h-3.5" /> Configuração da loja
             </Badge>
           </div>
           <h3 className="text-base font-bold text-foreground">
-            Cada Loja com Sua Identidade, Cores e Atendente Exclusivo
+            Identidade e informações da loja
           </h3>
           <p className="text-xs text-muted-foreground max-w-2xl leading-relaxed">
-            Configure o nome do atendente, as cores da marca, o endereço físico, o catálogo e as políticas de entrega da sua loja. O atendente se adapta automaticamente à identidade de cada unidade.
+            Defina os dados que o atendente pode usar nas respostas e personalize sua aparência.
           </p>
         </div>
 
@@ -246,8 +245,8 @@ Atendimento comercial ágil, consultivo e humanizado via WhatsApp. Você conhece
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
         
-        {/* Left Column: Store Selector & Form (7 Cols) */}
-        <div className="lg:col-span-7 space-y-4">
+        {/* Store selector and form */}
+        <div className="lg:col-span-12 space-y-4">
           
           {/* Store Selector Bar */}
           <div className="flex items-center gap-2 overflow-x-auto pb-1">
@@ -286,7 +285,7 @@ Atendimento comercial ágil, consultivo e humanizado via WhatsApp. Você conhece
                     {selectedStoreId ? `Configurar Loja: ${name}` : 'Cadastrar Nova Loja'}
                   </CardTitle>
                   <CardDescription className="text-xs mt-0.5">
-                    Identidade comercial, cores e regras injetadas diretamente na inteligência do assistente.
+                    Identidade, horários, catálogo e regras comerciais da loja.
                   </CardDescription>
                 </div>
                 <Button
@@ -401,11 +400,8 @@ Atendimento comercial ágil, consultivo e humanizado via WhatsApp. Você conhece
                 <div className="flex items-center justify-between">
                   <span className="font-bold text-foreground flex items-center gap-1.5 text-xs">
                     <UserCheck className="w-3.5 h-3.5 text-primary" />
-                    Atendente Oficial Desta Loja
+                    Nome e papel do atendente na prévia
                   </span>
-                  <Badge variant="outline" className="text-[10px] text-primary border-primary/30">
-                    Criado por Loja
-                  </Badge>
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -485,56 +481,18 @@ Atendimento comercial ágil, consultivo e humanizado via WhatsApp. Você conhece
           </Card>
         </div>
 
-        {/* Right Column: Live Prompt Preview & Store Overview (5 Cols) */}
-        <div className="lg:col-span-5 space-y-4">
-          
-          {/* Store Summary Card */}
-          <Card className="border border-border/60 bg-card/60 shadow-sm">
-            <CardHeader className="pb-2">
-              <div className="flex items-center justify-between">
-                <CardTitle className="text-sm font-bold flex items-center gap-2">
-                  <span
-                    className="w-3.5 h-3.5 rounded-full inline-block"
-                    style={{ backgroundColor: themeColor }}
-                  />
-                  <span>Identidade Visual da Loja</span>
-                </CardTitle>
-                <Badge variant="outline" className="text-[10px]" style={{ borderColor: themeColor, color: themeColor }}>
-                  Ativa
-                </Badge>
-              </div>
-            </CardHeader>
-            <CardContent className="space-y-2.5 pt-0 text-xs">
-              <div className="p-3 rounded-xl bg-background/50 border border-border/50 space-y-1.5">
-                <div className="flex items-center justify-between text-[11px]">
-                  <span className="text-muted-foreground">Atendente Designada:</span>
-                  <strong className="text-foreground">{attendantName}</strong>
-                </div>
-                <div className="flex items-center justify-between text-[11px]">
-                  <span className="text-muted-foreground">Papel Comercial:</span>
-                  <span className="text-foreground">{attendantRole}</span>
-                </div>
-                {address && (
-                  <div className="flex items-center justify-between text-[11px]">
-                    <span className="text-muted-foreground">Unidade:</span>
-                    <span className="text-foreground truncate max-w-[200px]">{address}</span>
-                  </div>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Live Prompt Preview Card */}
-          <Card className="border border-border/60 bg-muted/20 shadow-sm">
+        <details className="lg:col-span-12 rounded-2xl border border-border/60 bg-card/40 p-4">
+          <summary className="cursor-pointer text-sm font-semibold text-foreground">Ver prévia das instruções da loja</summary>
+          <Card className="mt-4 border border-border/60 bg-muted/20 shadow-sm">
             <CardHeader className="pb-2">
               <div className="flex items-center justify-between">
                 <div>
                   <CardTitle className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
                     <Sparkles className="w-3.5 h-3.5 text-primary" />
-                    Prévia do Prompt White-Label
+                    Instruções geradas com os dados da loja
                   </CardTitle>
                   <CardDescription className="text-[11px] mt-0.5">
-                    Como a IA integra os dados desta loja com a persona do atendente:
+                    Confira o texto antes de copiar ou compartilhar.
                   </CardDescription>
                 </div>
                 <Button
@@ -556,7 +514,7 @@ Atendimento comercial ágil, consultivo e humanizado via WhatsApp. Você conhece
             </CardContent>
           </Card>
 
-        </div>
+        </details>
 
       </div>
     </div>

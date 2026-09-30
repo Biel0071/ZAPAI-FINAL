@@ -36,6 +36,8 @@ let storeRef = null;
 let workerTimer = null;
 let processingTick = false;
 let persistLock = Promise.resolve();
+let enqueueLock = Promise.resolve();
+const uncommittedItems = new Set();
 let queueState = {
   items: [],
   version: 1,
@@ -143,25 +145,17 @@ async function saveQueueState() {
   await persistLock;
 }
 
-function getSessionSocket(sessionId) {
+async function getSessionSocket(sessionId, companyId) {
   const normalizedSessionId = sessionManager.normalizeSessionName(sessionId || sessionManager.DEFAULT_SESSION);
   const session = sessionManager.getSession(normalizedSessionId);
-
-  if (session?.sock) {
+  const owner = await dbQuery('SELECT session_id FROM sessions WHERE company_id = $1 AND session_id = $2 LIMIT 1', [companyId, normalizedSessionId]);
+  if (!owner.rows.length || (session?.companyId && String(session.companyId) !== String(companyId))) {
+    throw Object.assign(new Error('WhatsApp session does not belong to this company.'), { code: 'SESSION_FORBIDDEN', nonRetryable: true });
+  }
+  if (session?.sock && session.status === 'connected' && session.systemConnected !== false) {
     return {
       session,
       sock: session.sock,
-    };
-  }
-
-  const fallbackSock = storeRef?.sock || null;
-  if (fallbackSock) {
-    return {
-      session: {
-        phone: null,
-        sessionId: normalizedSessionId,
-      },
-      sock: fallbackSock,
     };
   }
 
@@ -181,12 +175,13 @@ function buildQueuedItem(payload = {}) {
     });
   }
 
+  if (!String(payload.companyId || '').trim() || !String(payload.sessionId || '').trim()) throw Object.assign(new Error('Company and connection are required.'), { code: 'INVALID_QUEUE_CONTEXT', status: 400 });
   const timestamp = nowIso();
 
   return {
     attemptCount: 0,
     correlationId: String(payload.correlationId || correlationTracker.generateMessageTraceId()),
-    companyId: String(payload.companyId || process.env.DEFAULT_COMPANY_ID || 'default').trim(),
+    companyId: String(payload.companyId).trim(),
     createdAt: timestamp,
     deadLetterAt: null,
     failureHistory: [],
@@ -215,9 +210,14 @@ async function persistSuccessfulSend(item) {
 
   if (item.metadata?.persistedMessageId && storeRef?.databaseEnabled) {
     const persisted = await dbQuery(
-      'UPDATE messages SET whatsapp_message_id = $1, status = $2 WHERE id = $3 RETURNING *',
-      [item.whatsappMessageId || null, item.status || 'sent', item.metadata.persistedMessageId]
+      'UPDATE messages SET whatsapp_message_id = $1, status = $2 WHERE id = $3 AND company_id = $4 RETURNING *',
+      [item.whatsappMessageId || null, item.status || 'sent', item.metadata.persistedMessageId, item.companyId]
     );
+    if (!persisted.rows?.length) throw Object.assign(new Error('Persisted message not found in this company.'), { code: 'MESSAGE_FORBIDDEN', nonRetryable: true });
+    try {
+      await require('./webhookService').dispatchEvent({ tenantId: item.companyId, event: 'message_sent', payload: { conversationId: item.metadata.conversationId, messageId: item.metadata.persistedMessageId, phone: item.phone, text: item.text } });
+      require('./sync').syncEngine.dispatch('message.sent', { tenantId: item.companyId, conversationId: item.metadata.conversationId, messageId: item.metadata.persistedMessageId, phone: item.phone, text: item.text });
+    } catch (error) { console.error('[OUTBOUND_QUEUE] Delivery notification failed:', error.message); }
     return { message: persisted.rows?.[0] || { id: item.metadata.persistedMessageId }, mode: 'database' };
   }
 
@@ -242,6 +242,8 @@ async function persistSuccessfulSend(item) {
   const session = sessionManager.getSession(item.sessionId) || {};
   const persisted = await registerOutgoingMessage(storeRef, {
     companyId: item.companyId,
+    conversationId: item.metadata?.conversationId || null,
+    contactId: item.metadata?.contactId || null,
     name: session?.phone || 'Unknown',
     phone: normalizedPhone,
     sessionId: item.sessionId,
@@ -261,6 +263,7 @@ async function persistSuccessfulSend(item) {
 }
 
 async function executeOutbound(item) {
+  if (item.cancelRequested) return { cancelled: true, reason: 'user_cancelled' };
   const forceResult = String(item.testing?.forceResult || '').toLowerCase();
 
   if (canUseTestHooks() && forceResult === 'failed') {
@@ -279,7 +282,7 @@ async function executeOutbound(item) {
     });
   }
 
-  const { session, sock } = getSessionSocket(item.sessionId);
+  const { session, sock } = await getSessionSocket(item.sessionId, item.companyId);
 
   // Handle delay/typing simulator for any item in outbound queue (AI, flows, quick replies, campaigns)
   const responseDelayMs = Math.max(0, Number(item.metadata?.responseDelayMs || item.metadata?.delayMs) || 0);
@@ -329,6 +332,7 @@ async function executeOutbound(item) {
   }
 
   const aiPermission = await getAutomatedReplyPermission(item);
+  if (item.cancelRequested) return { cancelled: true, reason: 'user_cancelled' };
   if (!aiPermission.allowed) {
     publishProgress('cancelled', { message: 'Resposta cancelada porque a IA foi desativada antes do envio.' });
     console.log(`[OUTBOUND_QUEUE] AI response cancelled before send for ${item.phone}: ${aiPermission.reason}`);
@@ -431,8 +435,9 @@ function pickNextProcessableItem() {
   const now = Date.now();
   const candidates = queueState.items
     .filter((item) => {
+      if (uncommittedItems.has(item.id)) return false;
       if (item.state === STATES.QUEUED) {
-        return true;
+        return new Date(item.nextAttemptAt || item.createdAt).getTime() <= now;
       }
 
       if (item.state === STATES.FAILED) {
@@ -446,46 +451,104 @@ function pickNextProcessableItem() {
   return candidates[0] || null;
 }
 
-function listPending(limit = 100) {
+function listPending(limit = 100, companyId) {
   const normalizedLimit = Math.max(1, Math.min(500, Number(limit) || 100));
   return queueState.items
+    .filter(item => !companyId || item.companyId === companyId)
     .filter((item) => item.state === STATES.QUEUED || item.state === STATES.PROCESSING || item.state === STATES.FAILED)
     .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
     .slice(0, normalizedLimit)
     .map(cloneItem);
 }
 
-function listDeadLetter(limit = 100) {
+function listDeadLetter(limit = 100, companyId) {
   const normalizedLimit = Math.max(1, Math.min(500, Number(limit) || 100));
   return queueState.items
+    .filter(item => !companyId || item.companyId === companyId)
     .filter((item) => item.state === STATES.DEAD_LETTER)
     .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
     .slice(0, normalizedLimit)
     .map(cloneItem);
 }
 
-async function enqueue(payload = {}) {
-  const correlationId = String(payload.correlationId || '').trim();
-  if (correlationId) {
-    const existing = queueState.items.find((item) => item.correlationId === correlationId && item.state !== STATES.DEAD_LETTER && item.state !== STATES.CANCELLED);
-    if (existing) {
-      console.warn(`[OUTBOUND_QUEUE] duplicate enqueue suppressed correlationId=${correlationId} queueId=${existing.id}`);
-      return cloneItem(existing);
-    }
+function findByCorrelation(correlationId, companyId, context = {}) {
+  const found = queueState.items.find(item => item.correlationId === correlationId && String(item.companyId) === String(companyId)
+    && (!context.sessionId || item.sessionId === context.sessionId)
+    && (context.conversationId ? String(item.metadata?.conversationId) === String(context.conversationId) : !context.phone || normalizePhone(item.phone) === normalizePhone(context.phone))
+    && item.state !== STATES.CANCELLED && !uncommittedItems.has(item.id));
+  return found ? cloneItem(found) : null;
+}
+
+async function enqueueBatch(payloads) {
+  if (!Array.isArray(payloads) || !payloads.length) throw new Error('Queue batch must contain at least one item.');
+  const prepared = payloads.map(buildQueuedItem);
+  for (const item of prepared) {
+    if (!item.mediaPath) continue;
+    const media = require('./enterprise/media-service');
+    const reference = media.normalizeMediaReference(item.mediaPath);
+    if (!await media.canAccessMedia(reference, item.companyId)) throw Object.assign(new Error('Arquivo não pertence à empresa da mensagem.'), { code: 'MEDIA_FORBIDDEN', status: 403 });
+    const file = await media.findMediaFile(reference);
+    if (!file) throw Object.assign(new Error('Arquivo de mídia não encontrado.'), { code: 'MEDIA_UNAVAILABLE', status: 404 });
+    item.mediaPath = file;
   }
-  const item = buildQueuedItem(payload);
-  queueState.items.push(item);
-  await saveQueueState();
-  queueMicrotask(() => {
-    processOneItem().catch((error) => {
-      console.error('[OUTBOUND_QUEUE] Immediate worker cycle failed:', error?.message || error);
+  const work = async () => {
+    const added = [];
+    const accepted = prepared.map(item => {
+      const existing = findByCorrelation(item.correlationId, item.companyId, { sessionId: item.sessionId, conversationId: item.metadata?.conversationId, phone: item.phone });
+      if (existing) return existing;
+      added.push(item);
+      uncommittedItems.add(item.id);
+      queueState.items.push(item);
+      return item;
     });
-  });
-  return cloneItem(item);
+    try {
+      if (added.length) await saveQueueState();
+    } catch (error) {
+      const ids = new Set(added.map(item => item.id));
+      queueState.items = queueState.items.filter(item => !ids.has(item.id));
+      throw error;
+    } finally {
+      for (const item of added) uncommittedItems.delete(item.id);
+    }
+    if (added.length) queueMicrotask(() => processOneItem().catch(error => console.error('[OUTBOUND_QUEUE] Immediate worker cycle failed:', error.message)));
+    return accepted.map(cloneItem);
+  };
+  const result = enqueueLock.then(work, work);
+  enqueueLock = result.catch(() => {});
+  return result;
+}
+
+async function enqueue(payload = {}) {
+  return (await enqueueBatch([payload]))[0];
+}
+
+async function cancelFlowItems({ companyId, sessionId, conversationId, phone }) {
+  if (!companyId || !sessionId) throw new Error('Company and session are required to cancel a flow.');
+  let cancelled = 0;
+  for (const item of queueState.items) {
+    if (item.companyId !== companyId || item.sessionId !== sessionId || !item.metadata?.isFlowStep) continue;
+    if (conversationId ? String(item.metadata?.conversationId) !== String(conversationId) : normalizePhone(item.phone) !== normalizePhone(phone)) continue;
+    if (![STATES.QUEUED, STATES.FAILED, STATES.PROCESSING].includes(item.state)) continue;
+    item.cancelRequested = true;
+    if (item.state !== STATES.PROCESSING) item.state = STATES.CANCELLED;
+    item.cancelledAt = nowIso();
+    item.updatedAt = nowIso();
+    cancelled++;
+  }
+  if (cancelled) await saveQueueState();
+  return cancelled;
+}
+
+function getActiveFlow({ companyId, sessionId, conversationId, phone }) {
+  const item = queueState.items.filter(item => item.companyId === companyId && item.sessionId === sessionId && item.metadata?.isFlowStep
+    && (conversationId ? String(item.metadata.conversationId) === String(conversationId) : normalizePhone(item.phone) === normalizePhone(phone))
+    && [STATES.QUEUED, STATES.PROCESSING, STATES.FAILED].includes(item.state) && !item.cancelRequested)
+    .sort((left, right) => new Date(right.createdAt) - new Date(left.createdAt))[0];
+  return item ? { chatId: item.phone, companyId, sessionId, conversationId: item.metadata.conversationId, flowName: item.metadata.flowName || 'Resposta rápida', flowRunId: item.metadata.flowRunId, currentStep: item.metadata.currentStep, totalSteps: item.metadata.totalSteps, startedAt: new Date(item.createdAt).getTime(), status: item.state } : null;
 }
 
 async function reprocessDeadLetterItem(id, options = {}) {
-  const item = queueState.items.find((entry) => entry.id === id);
+  const item = queueState.items.find((entry) => entry.id === id && (!options.companyId || entry.companyId === options.companyId));
 
   if (!item || item.state !== STATES.DEAD_LETTER) {
     throw Object.assign(new Error('Dead letter item not found.'), {
@@ -547,7 +610,7 @@ async function processOneItem() {
       if (item.actions) {
         try {
           const conversationRepository = require('../src/data/repositories/conversationRepository');
-          const conv = await conversationRepository.getConversationByPhone(item.phone, item.companyId);
+          const conv = await conversationRepository.getConversationByPhone(item.phone, item.companyId, item.sessionId);
           if (conv) {
             const fields = {};
             if (Array.isArray(item.actions.addTags) && item.actions.addTags.length > 0) {
@@ -558,13 +621,11 @@ async function processOneItem() {
               fields.status = 'archived';
             }
             if (Object.keys(fields).length > 0) {
-              await conversationRepository.updateConversationState(conv.id, fields);
+              await conversationRepository.updateConversationState(conv.id, fields, item.companyId);
               const io = storeRef?.io || global.io;
               if (io) {
                 const decorated = { ...conv, ...fields };
-                io.emit('conversation:update', decorated);
-                io.emit('conversation_updated', decorated);
-                io.emit('conversation-update', decorated);
+                emitToTenantWithAliases(io, item.companyId, 'conversation:update', decorated, ['conversation_updated', 'conversation-update']);
               }
             }
           }
@@ -576,7 +637,7 @@ async function processOneItem() {
       if (item.metadata?.ai_response && executionResult?.message) {
         const message = executionResult.message;
         const io = storeRef?.io || global.io;
-        io?.emit('ai_response', {
+        emitToTenantWithAliases(io, item.companyId, 'ai_response', {
           id: message.id,
           conversationId: message.conversationId,
           chatId: item.phone,
@@ -618,12 +679,16 @@ async function processOneItem() {
           const flowTrackerService = require('./flowTrackerService');
           flowTrackerService.updateFlowStep({
             chatId: item.phone,
+            companyId: item.companyId,
+            sessionId: item.sessionId,
+            conversationId: item.metadata.conversationId,
+            flowRunId: item.metadata.flowRunId,
             currentStep: item.metadata.currentStep,
             stepDescription: `Etapa ${item.metadata.currentStep} enviada.`,
             status: 'delivered',
           });
           if (Number(item.metadata.currentStep) >= Number(item.metadata.totalSteps)) {
-            flowTrackerService.finishFlow(item.phone);
+            flowTrackerService.finishFlow(item.phone, { companyId: item.companyId, sessionId: item.sessionId, conversationId: item.metadata.conversationId, flowRunId: item.metadata.flowRunId });
           }
         } catch (trackerErr) {
           console.error('[OUTBOUND_QUEUE] Failed to update flow tracker:', trackerErr.message);
@@ -648,7 +713,7 @@ async function processOneItem() {
       item.lastFailure = failure;
       if (item.metadata?.persistedMessageId && storeRef?.databaseEnabled) {
         try {
-          await dbQuery('UPDATE messages SET status = $1 WHERE id = $2', ['error', item.metadata.persistedMessageId]);
+          await dbQuery('UPDATE messages SET status = $1 WHERE id = $2 AND company_id = $3', ['error', item.metadata.persistedMessageId, item.companyId]);
         } catch (persistError) {
           console.error('[OUTBOUND_QUEUE] Failed to persist manual error status:', persistError.message);
         }
@@ -688,7 +753,7 @@ async function processOneItem() {
           try {
             const flowTrackerService = require('./flowTrackerService');
             if (Number(item.metadata.currentStep) >= Number(item.metadata.totalSteps)) {
-              flowTrackerService.finishFlow(item.phone);
+              flowTrackerService.finishFlow(item.phone, { companyId: item.companyId, sessionId: item.sessionId, conversationId: item.metadata.conversationId, flowRunId: item.metadata.flowRunId });
             }
           } catch (e) {}
         }
@@ -745,6 +810,11 @@ async function shutdownOutboundQueue() {
 module.exports = {
   STATES,
   enqueue,
+  enqueueBatch,
+  findByCorrelation,
+  cancelFlowItems,
+  getActiveFlow,
+  findById: (id, companyId) => { const item = queueState.items.find(entry => entry.id === id && entry.companyId === companyId); return item ? cloneItem(item) : null; },
   initializeOutboundQueue,
   listDeadLetter,
   listPending,

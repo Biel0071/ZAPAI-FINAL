@@ -12,7 +12,7 @@ async function getAutomatedReplyPermission(item, dependencies = {}) {
   let conversation = null;
   try {
     if (item.metadata?.conversationId) {
-      conversation = await repository.getConversationById(item.metadata.conversationId);
+      conversation = await repository.getConversationById(item.metadata.conversationId, item.companyId);
     }
     if (!conversation) {
       conversation = await repository.getConversationByPhone(item.phone, item.companyId, item.sessionId);
@@ -22,6 +22,11 @@ async function getAutomatedReplyPermission(item, dependencies = {}) {
     return { allowed: false, reason: 'ai_toggle_verification_failed' };
   }
 
+  if (conversation && (String(conversation.companyId || conversation.company_id || '') !== String(item.companyId)
+    || String(conversation.sessionId || conversation.session_id || '') !== String(item.sessionId))) {
+    return { allowed: false, reason: 'conversation_context_mismatch' };
+  }
+
   // Per-contact override: If explicitly disabled for this contact, deny it.
   if (conversation && (conversation.aiEnabled === false || conversation.ai_enabled === false)) {
     return { allowed: false, reason: 'conversation_ai_off' };
@@ -29,6 +34,9 @@ async function getAutomatedReplyPermission(item, dependencies = {}) {
 
   const sessionManager = dependencies.sessionManager || require('./sessionManager');
   const session = sessionManager.getSession(item.sessionId);
+  if (session?.companyId && String(session.companyId) !== String(item.companyId)) {
+    return { allowed: false, reason: 'session_context_mismatch' };
+  }
   if (session?.systemConnected === false) {
     return { allowed: false, reason: 'session_ai_disabled' };
   }

@@ -37,7 +37,8 @@ async function loadMessagesForChat({ chatId, companyId, sessionId, store }) {
   if (!Array.isArray(sourceMessages) || sourceMessages.length === 0) {
     sourceMessages = (Array.isArray(store?.messages) ? store.messages : []).filter((item) => {
       const itemPhone = whatsappService.normalizePhone(item?.phone || '');
-      return itemPhone && itemPhone === normalizedPhone;
+      return itemPhone && itemPhone === normalizedPhone && String(item.companyId || item.company_id || '') === String(companyId)
+        && (!sessionId || String(item.sessionId || item.session_id || '') === String(sessionId));
     });
   }
 

@@ -281,7 +281,7 @@ function compileSystemPrompt(agent, store, contact = null) {
 
   // 8. MEMÓRIA
   compiled += `[MEMÓRIA DO ATENDENTE E CONTEXTO]\n`;
-  const conversationSummary = store?.conversationSummary || null;
+  const conversationSummary = contact?.memoryContext?.summary || null;
   if (conversationSummary) {
     compiled += `- Resumo Geral da Conversa (Contexto Histórico): ${conversationSummary}\n`;
   }
@@ -330,16 +330,16 @@ function compileSystemPrompt(agent, store, contact = null) {
   }
   // 10. CAPACIDADES DE MÍDIA, ENVIOS E RESPOSTAS RÁPIDAS DA LOJA
   compiled += `[CAPACIDADES DE MÍDIA, ENVIOS E RESPOSTAS RÁPIDAS DA LOJA]\n`;
-  compiled += `- CAPACIDADE DE ENVIO DE MÍDIAS: Você POSSUI suporte total e ativo para enviar fotos, imagens de produtos, catálogos em PDF, vídeos e áudios de voz aos clientes!\n`;
-  compiled += `- REGRA CRÍTICA DE MÍDIA: JAMAIS diga ao cliente que "não consegue enviar fotos", "não pode mandar imagens" ou que "é apenas texto". Essa afirmação é estritamente PROIBIDA e considerada um erro grave.\n`;
-  compiled += `- Quando o cliente solicitar foto, imagem, demonstração ou tabela de preços em PDF (ex: 'Me manda a foto', 'Tem foto da churrasqueira?', 'Manda foto da caixa d água'), você DEVE responder confirmando com entusiasmo que está enviando a foto/mídia do produto e solicitar se ele deseja ver mais detalhes ou realizar o pedido!\n`;
+  compiled += `- Sugira anexos somente quando uma mídia cadastrada e autorizada estiver disponível.\n`;
+  compiled += `- Nunca afirme que enviou um arquivo antes de confirmar o envio. Se não houver mídia disponível, peça ajuda ao atendente.\n`;
+  compiled += `- Quando o cliente solicitar mídia, use somente o recurso cadastrado identificado no contexto; não invente recursos ou links.\n`;
   
   if (contact?.matchedCapability) {
     compiled += `- RECURSO MULTIMODAL COMBINADO DETECTADO: Para a demanda atual do cliente, o recurso "${contact.matchedCapability.title}" (ID: "${contact.matchedCapability.id}") é a melhor opção. Se o cliente pediu foto/imagem/áudio ou informações desse produto, declare no trigger_quick_reply o ID "${contact.matchedCapability.id}"!\n`;
   }
 
   compiled += `- Respostas Rápidas e Mídias Mapeadas da Loja:\n`;
-  const quickRepliesList = agent?.quickReplies || store?.quickReplies || [];
+  const quickRepliesList = contact?.verifiedQuickReplies || [];
   if (Array.isArray(quickRepliesList) && quickRepliesList.length > 0) {
     for (const qr of quickRepliesList) {
       const label = typeof qr === 'string' ? qr : (qr.title || qr.label || qr.cmd || qr.text);
@@ -354,7 +354,7 @@ function compileSystemPrompt(agent, store, contact = null) {
       compiled += `  * Resposta Rápida/Mídia (ID: "${qrId}") -> Título: "${label}" | Resumo: "${text.substring(0,150).replace(/\n/g, ' ')}..." ${media}${memoryStr}\n`;
     }
   } else {
-    compiled += `  * Mídias cadastradas para envio automático: Fotos de Churrasqueiras pré-moldadas, Caixa d'Água 5.000L, Cimento Liz/Campeão, Tijolos e Tabela de Preços da Loja.\n`;
+    compiled += `Nenhuma mídia autorizada foi informada neste contexto.\n`;
   }
   compiled += `\n`;
 
@@ -362,8 +362,8 @@ function compileSystemPrompt(agent, store, contact = null) {
   compiled += `[DIRETRIZES GLOBAIS DE ATENDIMENTO]\n`;
   compiled += `- ATENDIMENTO CONTEXTUAL OBRIGATÓRIO: Você é um AGENTE DE ATENDIMENTO CONTEXTUAL, não um chatbot de respostas genéricas prontas. Cada conversa deve ter personalidade e contexto próprio!\n`;
   compiled += `- A mesma pergunta pode e deve receber respostas completamente diferentes dependendo do contexto da conversa:\n`;
-  compiled += `  * Cliente A pergunta "Quanto fica?" após falar de churrasqueira -> responda sobre churrasqueira.\n`;
-  compiled += `  * Cliente B pergunta "Quanto fica?" após falar de caixa d'água 5.000L -> responda sobre caixa d'água de 5.000L (R$ 2.490,00 à vista ou 10x).\n`;
+
+
   compiled += `  * JAMAIS responda com uma frase universal ou pergunte novamente o que já está na memória ativa!\n`;
   compiled += `- ADAPTAÇÃO PERSONALIZADA: Se o cliente for objetivo, seja direto e objetivo; se fizer uma pergunta detalhada, elabore; se pedir foto, mande a foto; se pedir áudio, utilize recurso de áudio quando disponível.\n`;
   compiled += `- Sempre responda em português brasileiro de forma natural, calorosa, empática, simpática e profissional.\n`;
@@ -372,10 +372,10 @@ function compileSystemPrompt(agent, store, contact = null) {
   compiled += `- TRANSCRIÇÃO DE ÁUDIOS DE VOZ: Se o cliente enviar uma mensagem de áudio, ela será automaticamente convertida em texto e entregue como '[Áudio Transcrito]: "..."'. Trate essa transcrição exatamente como se o cliente tivesse digitado o texto. Extraia produtos, quantidades, dúvidas ou dados de entrega fornecidos no áudio e DÊ SEGUIMENTO NORMAL ao atendimento, avançando no funil sem repetir perguntas sobre o que já foi dito no áudio!\n`;
   compiled += `- SISTEMA DE ETAPAS DE ATENDIMENTO: Siga rigorosamente o atendimento por etapas. Não avance etapas sem que a anterior esteja concluída. Nunca pergunte novamente por informações que o cliente já forneceu (consulte o histórico recente e a memória). As etapas são:\n`;
   compiled += `  1. Levantamento de Necessidades (Estágio: new_lead / interested): Pergunte quais produtos e quantidades o cliente precisa. Se o cliente já informou produtos e quantidades na mensagem inicial ou em áudio (ex: 'queria 150 cimentos' ou 'caixa de 5 mil litros'), CONFIRME e avance direto para a Etapa 2. Não pergunte o que ele quer novamente!\n`;
-  compiled += `  2. Cotação de Preços (Estágio: price_sent): Apresente os preços dos produtos desejados conforme a tabela de produtos cadastrada. Se houver mais de uma opção (ex: Campeão vs Liz), dê as opções e pergunte qual prefere.\n`;
+  compiled += `  2. Cotação: informe somente preços do conhecimento oficial. Se não houver valor confirmado, encaminhe ao atendente humano.\n`;
   compiled += `  3. Entrega ou Retirada (Estágio: negotiation): Pergunte se o cliente prefere receber no endereço ou se deseja retirar na loja. Se for entrega, solicite o CEP ou endereço completo para cálculo do frete. Não passe para a próxima etapa sem o endereço de entrega ou confirmação de retirada.\n`;
-  compiled += `  4. Forma de Pagamento e Fechamento (Estágio: ready_to_buy): Com os produtos, quantidades e frete definidos, apresente as opções de pagamento (PIX com 5% desc, Crédito em até 10x sem juros, ou Boleto faturado sob consulta). Solicite a confirmação final do pedido.\n`;
-  compiled += `  5. Conclusão (Estágio: closed): Agradeça e confirme que o pedido foi finalizado com sucesso. Informe que a equipe de faturamento entrará em contato em breve.\n`;
+  compiled += `  4. Pagamento: apresente somente formas de pagamento, descontos e parcelamento explicitamente cadastrados e confirmados.\n`;
+  compiled += `  5. Conclusão: confirme o pedido somente após registro e confirmação do atendente ou sistema. Não prometa faturamento sem evidência.\n`;
   compiled += `- Sinta-se livre para conversar sobre assuntos gerais ou saudações do dia a dia, mantendo um diálogo agradável e prestativo, mesmo que as respostas exatas não estejam descritas no prompt.\n`;
   compiled += `- Nunca mencione que você é um robô ou inteligência artificial, a menos que seja estritamente necessário para realizar o transbordo humano.\n`;
   compiled += `- Se o cliente solicitar atendimento humano ou se a IA não souber responder sobre preços ou condições críticas que você não tem acesso, acione o transbordo imediatamente.\n`;
@@ -449,10 +449,8 @@ function decrypt(text) {
   }
 }
 
-let lastConnectionStatus = {
-  timestamp: 0,
-  ok: false
-};
+const providerConnectionStatus = new Map();
+const PROVIDER_STATUS_TTL_MS = 5 * 60 * 1000;
 
 async function getAIIntegrationStatus(store, companyId = 'default') {
   let providerConfigured = false;
@@ -470,52 +468,41 @@ async function getAIIntegrationStatus(store, companyId = 'default') {
     );
     if (rows.length > 0) {
       const dbProvider = rows[0];
-      providerConfigured = true;
-      providerEnabled = dbProvider.enabled;
-      
       let mappedProviderId = dbProvider.provider.toLowerCase();
       if (mappedProviderId === 'anthropic') mappedProviderId = 'claude';
       if (mappedProviderId === 'google') mappedProviderId = 'gemini';
 
-      const decryptedKey = decrypt(dbProvider.api_key);
-      apiKeyValid = !!(decryptedKey && decryptedKey.trim() !== '' && !decryptedKey.includes('*****'));
-      modelConfigured = !!(dbProvider.model && dbProvider.model.trim() !== '');
-
-      if (apiKeyValid && modelConfigured && providerEnabled) {
-        if (Date.now() - lastConnectionStatus.timestamp < 300000) {
-          providerOnline = lastConnectionStatus.ok;
-        } else {
-          const testRes = await testProviderConnection({
-            id: mappedProviderId,
-            apiKey: decryptedKey,
-            model: dbProvider.model
-          }, { model: dbProvider.model, message: 'ping' });
-          providerOnline = !!testRes.ok;
-          lastConnectionStatus = { timestamp: Date.now(), ok: providerOnline };
-        }
-      }
+      activeProvider = { id: mappedProviderId, apiKey: decrypt(dbProvider.api_key), model: dbProvider.model, active: dbProvider.enabled === true };
     }
   } catch (err) {
     console.error('[AI SERVICE] getAIIntegrationStatus failed:', err.message);
   }
 
-  if (!providerConfigured) {
+  if (!activeProvider && store?.databaseEnabled === false && String(store?.activeCompanyId) === String(companyId)) {
     const providers = store?.aiConfig?.advancedAISettings?.providers || [];
-    const globalActive = providers.find((p) => p.active);
-    if (globalActive) {
-      providerConfigured = true;
-      providerEnabled = !!globalActive.active;
-      apiKeyValid = !!(globalActive.apiKey && globalActive.apiKey.trim() !== '');
-      modelConfigured = !!(globalActive.model && globalActive.model.trim() !== '');
+    activeProvider = providers.find((p) => p.active) || null;
+  }
 
-      if (apiKeyValid && modelConfigured && providerEnabled) {
-        if (Date.now() - lastConnectionStatus.timestamp < 300000) {
-          providerOnline = lastConnectionStatus.ok;
-        } else {
-          const testRes = await testProviderConnection(globalActive, { model: globalActive.model, message: 'ping' });
-          providerOnline = !!testRes.ok;
-          lastConnectionStatus = { timestamp: Date.now(), ok: providerOnline };
-        }
+  if (activeProvider) {
+    providerConfigured = true;
+    providerEnabled = activeProvider.active === true;
+    const apiKey = String(activeProvider.apiKey || '').trim();
+    apiKeyValid = activeProvider.id === 'ollama' || !!(apiKey && !apiKey.includes('*****'));
+    modelConfigured = !!String(activeProvider.model || '').trim();
+    if (apiKeyValid && modelConfigured && providerEnabled) {
+      const now = Date.now();
+      for (const [key, cached] of providerConnectionStatus) {
+        if (now - cached.timestamp >= PROVIDER_STATUS_TTL_MS) providerConnectionStatus.delete(key);
+      }
+      // Credential rotation invalidates this tenant/provider status without storing the secret.
+      const credentialHash = crypto.createHash('sha256').update(apiKey).digest('hex');
+      const cacheKey = JSON.stringify([String(companyId), activeProvider.id, activeProvider.model, credentialHash]);
+      const cached = providerConnectionStatus.get(cacheKey);
+      if (cached) providerOnline = cached.ok;
+      else {
+        const result = await testProviderConnection(activeProvider, { model: activeProvider.model, message: 'ping' });
+        providerOnline = !!result.ok;
+        providerConnectionStatus.set(cacheKey, { timestamp: now, ok: providerOnline });
       }
     }
   }
@@ -532,48 +519,31 @@ async function getAIIntegrationStatus(store, companyId = 'default') {
   };
 }
 
-async function testAIConnection({ store, providerId, model, message, prompt, agentKey, agentName, companyId, temperature, responseStyle, history, maxWords }) {
+async function testAIConnection({ store, providerId, model, message, prompt, agentKey, agentName, companyId, temperature, responseStyle, history, maxWords, sessionId }) {
   const resolvedCompanyId = companyId || store?.activeCompanyId || 'default';
   
   // Try to resolve user-scoped key first
   let resolvedProvider = null;
-  if (providerId) {
-    try {
-      const { query } = require('../src/infrastructure/config/database');
-      const { rows } = await query(
-        `SELECT * FROM provider_keys WHERE tenant_id = $1 AND provider = $2 LIMIT 1`,
-        [resolvedCompanyId, providerId.toLowerCase()]
-      );
-      if (rows.length > 0) {
-        let mappedProviderId = rows[0].provider.toLowerCase();
-        if (mappedProviderId === 'anthropic') mappedProviderId = 'claude';
-        if (mappedProviderId === 'google') mappedProviderId = 'gemini';
-
-        resolvedProvider = {
-          id: mappedProviderId,
-          apiKey: decrypt(rows[0].api_key),
-          model: model || rows[0].model,
-          active: true
-        };
-      }
-    } catch {}
-  }
-
-  if (!resolvedProvider) {
-    const providers = store?.aiConfig?.advancedAISettings?.providers || [];
-    const providerObj =
-      providers.find((item) => String(item.id).toLowerCase() === String(providerId || '').toLowerCase()) ||
-      providers.find((item) => item.active) ||
-      providers[0];
-
-    if (providerObj) {
-      resolvedProvider = {
-        id: providerObj.id,
-        apiKey: providerObj.apiKey,
-        model: model || providerObj.model,
-        active: providerObj.active
-      };
+  try {
+    const { query } = require('../src/infrastructure/config/database');
+    const { rows } = await query(
+      providerId
+        ? 'SELECT * FROM provider_keys WHERE tenant_id=$1 AND provider=$2 AND enabled=TRUE LIMIT 1'
+        : 'SELECT * FROM provider_keys WHERE tenant_id=$1 AND enabled=TRUE ORDER BY id DESC LIMIT 1',
+      providerId ? [resolvedCompanyId, String(providerId).toLowerCase()] : [resolvedCompanyId]
+    );
+    if (rows[0]) {
+      const row = rows[0];
+      const id = ({ anthropic: 'claude', google: 'gemini' })[row.provider.toLowerCase()] || row.provider.toLowerCase();
+      resolvedProvider = { id, apiKey: decrypt(row.api_key), model: model || row.model, active: true };
     }
+  } catch (error) {
+    if (store?.databaseEnabled) return { ok: false, error: 'Não foi possível consultar o provedor de IA.' };
+  }
+  if (!resolvedProvider && store?.databaseEnabled === false && String(store?.activeCompanyId) === String(resolvedCompanyId)) {
+    const providers = store?.aiConfig?.advancedAISettings?.providers || [];
+    const item = providers.find(p => p.active && (!providerId || String(p.id).toLowerCase() === String(providerId).toLowerCase()));
+    if (item) resolvedProvider = { ...item, model: model || item.model };
   }
 
   const aiAgentService = require('../src/ai/agents/services/aiAgentService');
@@ -619,9 +589,11 @@ async function testAIConnection({ store, providerId, model, message, prompt, age
     finalAgent.maxWords = Number(maxWords);
   }
 
-  const fullPrompt = compileSystemPrompt(finalAgent, store);
-  const memoriesUsed = matchedAgent?.memory || 'Padrão global (último pedido, preferências)';
-  const rulesTriggered = matchedAgent?.rules || 'Padrão global (reativação automática)';
+  if (sessionId) await require('./aiMemoryEngine').assertSession(resolvedCompanyId, sessionId);
+  const knowledge = sessionId ? await aiAgentService.sessionKnowledge(resolvedCompanyId, sessionId) : '';
+  const fullPrompt = compileSystemPrompt(finalAgent, { aiConfig: { memorySettings: { enabled: false } } }) + knowledge + '\n' + require('../src/ai/evolutionary/historyLearning').GUARDRAILS;
+  const memoriesUsed = matchedAgent?.memory || 'Nenhuma memória consultada neste teste';
+  const rulesTriggered = matchedAgent?.rules || 'Regras oficiais da loja';
 
   if (!resolvedProvider) {
     return {
@@ -678,12 +650,12 @@ async function testAIConnection({ store, providerId, model, message, prompt, age
 
   try {
     const { syncEngine } = require('./sync');
-    syncEngine.dispatch('ai.response', {
-      provider: resolvedProvider,
-      model: model || 'default',
+    await syncEngine.dispatch('ai.response', {
+      provider: resolvedProvider.id,
+      model: model || resolvedProvider.model,
       agentName: finalAgent.name,
       replyLength: result.response?.length || 0,
-      tenantId: 'default',
+      tenantId: resolvedCompanyId,
     });
   } catch (_) {}
 
@@ -730,7 +702,7 @@ async function processAI({ contact, history, message, store, agentName, companyI
     console.error('[AI SERVICE] failed to load active provider key from db:', err.message);
   }
 
-  if (!activeProvider) {
+  if (!activeProvider && store.databaseEnabled === false && String(store.activeCompanyId) === String(resolvedCompanyId)) {
     const providers = store.aiConfig?.advancedAISettings?.providers || [];
     const globalActive = providers.find((p) => p.active);
     if (globalActive) {
@@ -866,7 +838,8 @@ async function processAI({ contact, history, message, store, agentName, companyI
   }
 
   const graphPromptToAdd = (evoPrompt.includes('MEMÓRIA EVOLUTIVA EM GRAFO') || evoPrompt.includes('PERFIL DO CLIENTE EM GRAFO')) ? '' : graphMemory.prompt;
-  const systemPrompt = `${compileSystemPrompt(resolvedAgent, {aiConfig:{memorySettings:{enabled:true}}}, {...contact,memoryContext:null})}${graphPromptToAdd}${evoPrompt}\n${require("../src/ai/evolutionary/historyLearning").GUARDRAILS}`;
+  const officialKnowledge = memorySessionId ? await aiAgentService.sessionKnowledge(resolvedCompanyId, memorySessionId) : '';
+  const systemPrompt = `${officialKnowledge}${compileSystemPrompt(resolvedAgent, {aiConfig:{memorySettings:{enabled:true}}}, {...contact,memoryContext:null})}${graphPromptToAdd}${evoPrompt}\n${require("../src/ai/evolutionary/historyLearning").GUARDRAILS}`;
 
   const slicedHistory = Array.isArray(history) ? history.slice(-8) : [];
 
@@ -918,15 +891,12 @@ async function processAI({ contact, history, message, store, agentName, companyI
       const userAndAssistantMessages = messages.filter(
         (m) => m.role === 'user' || m.role === 'assistant'
       );
-      console.log('[AI PAYLOAD] Request sent to Claude:', JSON.stringify({
-        url: 'https://api.anthropic.com/v1/messages',
+      console.log('[AI SERVICE] Request sent to provider:', {
+        provider: providerId,
         model: model || 'claude-3-5-sonnet-20241022',
-        system: systemPrompt,
-        messages: userAndAssistantMessages,
         temperature,
         max_tokens: maxTokens,
-        apiKeySnippet: apiKey ? apiKey.substring(0, 10) + '...' : null
-      }, null, 2));
+      });
 
       const response = await axios.post(
         'https://api.anthropic.com/v1/messages',
@@ -966,14 +936,12 @@ async function processAI({ contact, history, message, store, agentName, companyI
         baseURL = 'http://localhost:11434/v1';
       }
 
-      console.log('[AI PAYLOAD] Request sent to provider:', JSON.stringify({
-        url: `${baseURL}/chat/completions`,
+      console.log('[AI SERVICE] Request sent to provider:', {
+        provider: providerId,
         model: model || 'gpt-4o-mini',
-        messages,
         temperature,
         max_tokens: maxTokens,
-        apiKeySnippet: apiKey ? apiKey.substring(0, 10) + '...' : null
-      }, null, 2));
+      });
 
       const response = await axios.post(
         `${baseURL}/chat/completions`,
@@ -1042,6 +1010,7 @@ async function processAI({ contact, history, message, store, agentName, companyI
 
     await aiLogService.saveLogEntry(
       {
+        companyId: resolvedCompanyId,
         conversationId: contact.conversationId || contact.phone,
         contactName: contact.name,
         messageSent: message,
@@ -1132,6 +1101,7 @@ async function processAI({ contact, history, message, store, agentName, companyI
     await aiLogService
       .saveLogEntry(
         {
+          companyId: resolvedCompanyId,
           conversationId: contact.phone,
           contactName: contact.name,
           messageSent: message,
@@ -1180,9 +1150,9 @@ async function refineAgentPrompt({ store, currentPrompt, instruction, companyId 
     }
   } catch {}
 
-  if (!resolvedProvider) {
+  if (!resolvedProvider && store?.databaseEnabled === false && String(store?.activeCompanyId) === String(resolvedCompanyId)) {
     const providers = store?.aiConfig?.advancedAISettings?.providers || [];
-    const providerObj = providers.find((item) => item.active) || providers[0];
+    const providerObj = providers.find((item) => item.active);
     if (providerObj) {
       resolvedProvider = {
         id: providerObj.id,

@@ -26,10 +26,9 @@ import type { ChatMessage } from "@/core/services/apiService";
 import { apiService } from "@/core/services/apiService";
 import { useToast } from "@/state/hooks/use-toast";
 import { AIMessageFeedback } from "@/components/inbox/AIMessageFeedback";
+import { useProtectedMedia } from "@/core/runtime/hooks/useProtectedMediaUrl";
 import type { PreviewMediaState } from "../types";
 import {
-  resolveMediaUrl,
-  resolveCachedMediaUrl,
   getMessageStatusMeta,
   getMediaTypeLabel,
   getMessageDisplayContent,
@@ -90,35 +89,8 @@ export const MessageRow = memo(function MessageRow({
 }) {
   const explicitMessageType = (message as any).messageType;
   
-  const [cachedUrl, setCachedUrl] = useState<string | null>(null);
-
-  useEffect(() => {
-    let active = true;
-    const rawUrl = extractMessageAssetUrl(message);
-    if (!rawUrl) {
-      setCachedUrl(null);
-      return;
-    }
-
-    const loadCached = async () => {
-      const result = await resolveCachedMediaUrl(rawUrl);
-      if (active) {
-        setCachedUrl(result);
-      }
-    };
-
-    void loadCached();
-
-    return () => {
-      active = false;
-      if (cachedUrl && cachedUrl.startsWith("blob:")) {
-        URL.revokeObjectURL(cachedUrl);
-      }
-    };
-  }, [message.id]);
-
-  const fallbackMediaUrl = resolveMediaUrl(extractMessageAssetUrl(message));
-  const mediaUrl = cachedUrl || fallbackMediaUrl;
+  const mediaAccess = useProtectedMedia(extractMessageAssetUrl(message));
+  const mediaUrl = mediaAccess.url;
   const resolvedMediaType =
     message.mediaType ??
     explicitMessageType ??
@@ -167,7 +139,7 @@ export const MessageRow = memo(function MessageRow({
     }
   };
   const statusMeta = getMessageStatusMeta(message.status);
-  const showFallbackCard = hasRenderableMedia && (mediaError || !mediaUrl);
+  const showFallbackCard = hasRenderableMedia && (mediaError || (!mediaUrl && !mediaAccess.loading));
   const mediaResolveLoggedRef = useRef(false);
   const mediaErrorLoggedRef = useRef(false);
 
@@ -185,21 +157,21 @@ export const MessageRow = memo(function MessageRow({
   }, [mediaUrl, message.id, shouldTrackMediaLoading]);
 
   useEffect(() => {
-    if (!hasRenderableMedia || mediaUrl) return;
+    if (!hasRenderableMedia || mediaUrl || mediaAccess.loading) return;
     if (mediaResolveLoggedRef.current) return;
     mediaResolveLoggedRef.current = true;
     logInboxDebug("media:missing-url", {
       messageId: message.id,
       conversationId: message.conversationId ?? null,
       mediaType: resolvedMediaType ?? null,
-      messageUrl: message.url ?? null,
-      messageMediaUrl: message.mediaUrl ?? null,
+      hasMessageUrl: Boolean(message.url),
+      hasMessageMediaUrl: Boolean(message.mediaUrl),
       messageMediaPath: message.mediaPath ?? null,
       content: message.content ?? null,
       caption: message.caption ?? null,
       backendOnline,
     });
-  }, [hasRenderableMedia, mediaUrl, message, resolvedMediaType, backendOnline]);
+  }, [hasRenderableMedia, mediaUrl, mediaAccess.loading, message, resolvedMediaType, backendOnline]);
 
   useEffect(() => {
     if (!mediaError || mediaErrorLoggedRef.current) return;
@@ -208,9 +180,9 @@ export const MessageRow = memo(function MessageRow({
       messageId: message.id,
       conversationId: message.conversationId ?? null,
       mediaType: resolvedMediaType ?? null,
-      mediaUrl,
-      messageUrl: message.url ?? null,
-      messageMediaUrl: message.mediaUrl ?? null,
+      hasAuthorizedMediaUrl: Boolean(mediaUrl),
+      hasMessageUrl: Boolean(message.url),
+      hasMessageMediaUrl: Boolean(message.mediaUrl),
       messageMediaPath: message.mediaPath ?? null,
       backendOnline,
     });
@@ -222,7 +194,7 @@ export const MessageRow = memo(function MessageRow({
   const EMOJI_OPTIONS = ["\u{1F600}", "\u{1F602}", "\u{1F60D}", "\u{1F44D}", "\u{1F525}", "\u{1F44F}", "\u{1F64F}", "\u{2705}", "\u{1F4E6}", "\u{1F69A}"];
 
   const isAiMessage = Boolean(
-    message.isAi ||
+    message.isAI ||
     message.isAI ||
     (message as any).is_ai ||
     (message as any).isAiGenerated ||
@@ -502,9 +474,9 @@ export const MessageRow = memo(function MessageRow({
                        <img src={mediaUrl} alt="Produto" className="w-full h-full object-cover" />
                     </div>
                   )}
-                  {displayContent && (
+                  {displayText && (
                     <p className="text-[#e9edef] text-sm whitespace-pre-wrap mt-1 opacity-90 line-clamp-3">
-                      {displayContent}
+                      {displayText}
                     </p>
                   )}
                 </div>
@@ -529,11 +501,11 @@ export const MessageRow = memo(function MessageRow({
                 {statusMeta.icon === "clock" ? (
                   <Clock className={cn("h-3.5 w-3.5 shrink-0", statusMeta.className)} />
                 ) : statusMeta.icon === "failed" ? (
-                  <Check className={cn("h-3.5 w-3.5 shrink-0 text-destructive font-bold", statusMeta.className)} weight="bold" title="1V Vermelho: Não entregue / Bloqueado" />
+                  <Check className={cn("h-3.5 w-3.5 shrink-0 text-destructive font-bold", statusMeta.className)} weight="bold" aria-label="1V Vermelho: Não entregue / Bloqueado" />
                 ) : statusMeta.icon === "read" || statusMeta.icon === "delivered" ? (
-                  <Checks className={cn("h-3.5 w-3.5 shrink-0 text-emerald-500 font-bold", statusMeta.className)} weight="bold" title="2V Verde: Entregue / Lido" />
+                  <Checks className={cn("h-3.5 w-3.5 shrink-0 text-emerald-500 font-bold", statusMeta.className)} weight="bold" aria-label="2V Verde: Entregue / Lido" />
                 ) : (
-                  <Check className={cn("h-3.5 w-3.5 shrink-0 text-muted-foreground/70", statusMeta.className)} title="1V Cinza: Enviado ao servidor" />
+                  <Check className={cn("h-3.5 w-3.5 shrink-0 text-muted-foreground/70", statusMeta.className)} aria-label="1V Cinza: Enviado ao servidor" />
                 )}
               </span>
             )}
@@ -655,9 +627,9 @@ export const MessageRow = memo(function MessageRow({
       {message.fromMe && (
         <div className="flex-shrink-0 self-end mb-3 flex items-center justify-center h-7 w-7 rounded-full bg-background border border-border shadow-sm">
           {isAiMessage ? (
-            <Robot className="h-4 w-4 text-emerald-400" weight="fill" title="Enviado pela IA" />
+            <Robot className="h-4 w-4 text-emerald-400" weight="fill" aria-label="Enviado pela IA" />
           ) : (
-            <User className="h-4 w-4 text-blue-400" weight="fill" title="Enviado pelo Atendente" />
+            <User className="h-4 w-4 text-blue-400" weight="fill" aria-label="Enviado pelo Atendente" />
           )}
         </div>
       )}

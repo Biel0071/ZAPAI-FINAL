@@ -25,6 +25,7 @@ const { formatApiMessage, toExactMessageText } = require('../shared');
 const { shouldPersistExternalMessageId } = require('./dedupe');
 const { persistOutgoingMessageRecord } = require('../send/persistOutgoing');
 const { emitInboxRealtimeEventFromStore } = require('../realtime/inboxEvents');
+const { emitToTenantWithAliases } = require('../../../../../services/realtime/tenantRooms');
 
 async function registerIncomingMessage(store, payload) {
   const exactText = toExactMessageText(payload.text);
@@ -135,12 +136,13 @@ async function registerOutgoingMessage(store, payload) {
   console.log(`[TEMP_LOG] message.sent - CONVERSATION_ID: "${result?.message?.conversationId || result?.conversation?.id || ''}", PHONE: "${payload.phone}", REMOTE_JID: "${payload.phone || ''}", SESSION_ID: "${result?.message?.sessionId || payload.sessionId || ''}", MESSAGE_ID: "${result?.message?.id || ''}", SOURCE: "${payload.source || 'human_agent'}"`);
 
   if (result?.message) {
+    if (payload.deferDeliveryEffects) return result;
     if (payload.source === 'human' && result?.conversation?.id) {
       const runtime = conversationRuntimeService.registerHumanReply(store, result.conversation.id);
       const updatedConversation = await conversationRepository.updateConversationState(result.conversation.id, {
         aiEnabled: false,
         ai_reactivate_at: runtime.aiPausedUntil,
-      });
+      }, payload.companyId);
       const payloadUpdate = {
         ...(updatedConversation || result.conversation),
         aiEnabled: false,
@@ -152,12 +154,10 @@ async function registerOutgoingMessage(store, payload) {
         humanActive: true,
       };
       const io = store?.io || global.io;
-      io?.emit('conversation:update', payloadUpdate);
-      io?.emit('conversation_updated', payloadUpdate);
-      io?.emit('conversation-update', payloadUpdate);
+      emitToTenantWithAliases(io, payload.companyId, 'conversation:update', payloadUpdate, ['conversation_updated', 'conversation-update']);
     }
 
-    emitInboxRealtimeEventFromStore(store, formatApiMessage(result.message));
+    emitInboxRealtimeEventFromStore(store, { ...formatApiMessage(result.message), companyId: payload.companyId });
     // eslint-disable-next-line no-console
     console.log('[OUTGOING] realtime inbox event emitted');
 

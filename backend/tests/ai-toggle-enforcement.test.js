@@ -20,7 +20,7 @@ test('blocks a queued AI reply when the backend conversation toggle is off', asy
     isAIEnabled: () => true,
     sessionManager: { getSession: () => null },
     conversationRepository: {
-      getConversationById: async () => ({ aiEnabled: false }),
+      getConversationById: async () => ({ aiEnabled: false, companyId: 'default', sessionId: 'main' }),
       getConversationByPhone: async () => null,
     },
   });
@@ -33,7 +33,7 @@ test('allows a queued AI reply only after the backend confirms it is enabled', a
     isAIEnabled: () => true,
     sessionManager: { getSession: () => null },
     conversationRepository: {
-      getConversationById: async () => ({ aiEnabled: true }),
+      getConversationById: async () => ({ aiEnabled: true, companyId: 'default', sessionId: 'main' }),
       getConversationByPhone: async () => null,
     },
   });
@@ -50,7 +50,7 @@ test('checks the queued AI toggle for the item tenant', async () => {
     },
     sessionManager: { getSession: () => null },
     conversationRepository: {
-      getConversationById: async () => ({ aiEnabled: true }),
+      getConversationById: async () => ({ aiEnabled: true, companyId: 'store-42', sessionId: 'main' }),
       getConversationByPhone: async () => null,
     },
   });
@@ -112,4 +112,11 @@ test('uses a 24 hour human takeover pause and releases it after expiry', () => {
   assert.equal(refreshed.expired, true);
   assert.equal(refreshed.runtime.controlMode, 'ai_active');
   assert.equal(refreshed.runtime.aiPausedUntil, null);
+});
+
+test('denies an AI reply if saved conversation belongs to another company or connection', async () => {
+  for (const conversation of [{companyId:'other',sessionId:'main'}, {companyId:'default',sessionId:'other'}]) {
+    const result=await getAutomatedReplyPermission(aiItem,{isAIEnabled:()=>true,sessionManager:{getSession:()=>null},conversationRepository:{getConversationById:async (id,companyId)=>{assert.equal(companyId,'default');return {...conversation,aiEnabled:true}},getConversationByPhone:async()=>null}});
+    assert.equal(result.allowed,false);assert.equal(result.reason,'conversation_context_mismatch');
+  }
 });

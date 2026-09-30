@@ -4,6 +4,26 @@ const { query } = require('../src/infrastructure/config/database');
 
 const logsFilePath = path.join(__dirname, '..', '..', 'data', 'json_db', 'ai_logs.json');
 
+function requireCompany(companyId) {
+  const company = String(companyId || '').trim();
+  if (!company) throw Object.assign(new Error('Verified company is required for AI logs.'), { status: 401 });
+  return company;
+}
+
+function scopedLogs(logs, companyId, sessionId) {
+  return (Array.isArray(logs) ? logs : []).filter(log =>
+    String(log.companyId || '') === companyId &&
+    (!sessionId || sessionId === 'all' || String(log.sessionId || '') === String(sessionId))
+  );
+}
+
+function logScope(companyId, sessionId) {
+  const params = [companyId];
+  let sql = 'FROM ai_logs a JOIN conversations c ON c.id::text = a.conversation_id AND c.session_id = a.session_id WHERE c.company_id = $1';
+  if (sessionId && sessionId !== 'all') { sql += ' AND a.session_id = $2'; params.push(sessionId); }
+  return { sql, params };
+}
+
 async function ensureLogsFile() {
   try {
     await fs.access(logsFilePath);
@@ -14,10 +34,26 @@ async function ensureLogsFile() {
 }
 
 async function saveLogEntry(entry, store) {
+  const companyId = requireCompany(entry.companyId);
+  let canonicalConversation = null;
+  if (store?.databaseEnabled !== false && entry.sessionId) {
+    try {
+      canonicalConversation = (await query(`
+        SELECT c.id, c.session_id FROM conversations c
+        LEFT JOIN leads l ON l.id = c.lead_id AND l.company_id = c.company_id
+        WHERE c.company_id = $1 AND c.session_id = $3
+          AND (c.id::text = $2 OR l.phone = $2 OR c.remote_jid = $2)
+        ORDER BY c.updated_at DESC LIMIT 1
+      `, [companyId, String(entry.conversationId || ''), entry.sessionId])).rows[0] || null;
+    } catch (error) {
+      console.warn('[aiLogService] Conversation ownership could not be confirmed:', error.message);
+    }
+  }
   const logEntry = {
     id: entry.id || Date.now() + Math.random().toString(36).substr(2, 5),
+    companyId,
     timestamp: entry.timestamp || new Date().toISOString(),
-    conversationId: entry.conversationId || '',
+    conversationId: canonicalConversation ? String(canonicalConversation.id) : String(entry.conversationId || ''),
     contactName: entry.contactName || '',
     messageSent: entry.messageSent || '',
     messageReceived: entry.messageReceived || '',
@@ -61,7 +97,9 @@ async function saveLogEntry(entry, store) {
   }
 
   // 3. Save to database if enabled
-  if (store?.databaseEnabled !== false) {
+  // Schema has no company column: only canonical conversation ids are persisted
+  // to SQL. Unowned historical phone-only records are excluded by the read JOIN.
+  if (canonicalConversation) {
     try {
       await query(
         `INSERT INTO ai_logs (conversation_id, contact_name, message_sent, message_received, provider, model, prompt_tokens, completion_tokens, total_tokens, timestamp, session_id)
@@ -86,23 +124,16 @@ async function saveLogEntry(entry, store) {
   }
 }
 
-async function getLogs(store, sessionId) {
+async function getLogs(store, sessionId, verifiedCompanyId) {
+  const companyId = requireCompany(verifiedCompanyId);
   // If DB is enabled, load from DB
   if (store?.databaseEnabled !== false) {
     try {
-      let q = `SELECT id, timestamp, conversation_id as "conversationId", contact_name as "contactName",
-                message_sent as "messageSent", message_received as "messageReceived",
-                provider, model, prompt_tokens as "promptTokens", completion_tokens as "completionTokens",
-                total_tokens as "totalTokens"
-         FROM ai_logs`;
-      const params = [];
-      if (sessionId && sessionId !== 'all') {
-        q += ` WHERE session_id = $1`;
-        params.push(sessionId);
-      }
-      q += ` ORDER BY timestamp DESC LIMIT 100`;
-
-      const res = await query(q, params);
+      const scope = logScope(companyId, sessionId);
+      const res = await query(`SELECT a.id, a.timestamp, a.conversation_id AS "conversationId", a.contact_name AS "contactName",
+        a.message_sent AS "messageSent", a.message_received AS "messageReceived", a.provider, a.model,
+        a.prompt_tokens AS "promptTokens", a.completion_tokens AS "completionTokens", a.total_tokens AS "totalTokens"
+        ${scope.sql} ORDER BY a.timestamp DESC LIMIT 100`, scope.params);
       return res.rows;
     } catch (err) {
       console.warn('[aiLogService] Failed to query database logs, falling back to JSON:', err.message);
@@ -114,13 +145,13 @@ async function getLogs(store, sessionId) {
     await ensureLogsFile();
     const content = await fs.readFile(logsFilePath, 'utf8');
     const parsed = JSON.parse(content || '[]');
-    let logs = Array.isArray(parsed) ? parsed : [];
+    let logs = scopedLogs(parsed, companyId, sessionId);
     if (sessionId && sessionId !== 'all') {
       logs = logs.filter(log => log.sessionId === sessionId);
     }
     return logs.slice(0, 100);
   } catch {
-    let logs = store?.aiLogs || [];
+    let logs = scopedLogs(store?.aiLogs, companyId, sessionId);
     if (sessionId && sessionId !== 'all') {
       logs = logs.filter(log => log.sessionId === sessionId);
     }
@@ -128,7 +159,8 @@ async function getLogs(store, sessionId) {
   }
 }
 
-async function getMetrics(store, sessionId) {
+async function getMetrics(store, sessionId, verifiedCompanyId) {
+  const companyId = requireCompany(verifiedCompanyId);
   let tokensToday = 0;
   let promptTokensToday = 0;
   let completionTokensToday = 0;
@@ -138,19 +170,10 @@ async function getMetrics(store, sessionId) {
   if (store?.databaseEnabled !== false) {
     try {
       // 1. Get tokens consumed today
-      let todayQuery = `SELECT COALESCE(SUM(total_tokens), 0) as total,
-                COALESCE(SUM(prompt_tokens), 0) as prompt,
-                COALESCE(SUM(completion_tokens), 0) as completion,
-                COUNT(*) as count
-         FROM ai_logs
-         WHERE timestamp >= CURRENT_DATE`;
-      const todayParams = [];
-      if (sessionId && sessionId !== 'all') {
-        todayQuery += ` AND session_id = $1`;
-        todayParams.push(sessionId);
-      }
-
-      const todayRes = await query(todayQuery, todayParams);
+      const scope = logScope(companyId, sessionId);
+      const todayRes = await query(`SELECT COALESCE(SUM(a.total_tokens), 0) AS total,
+        COALESCE(SUM(a.prompt_tokens), 0) AS prompt, COALESCE(SUM(a.completion_tokens), 0) AS completion,
+        COUNT(*) AS count ${scope.sql} AND a.timestamp >= CURRENT_DATE`, scope.params);
       if (todayRes.rows.length > 0) {
         const row = todayRes.rows[0];
         tokensToday = Number(row.total);
@@ -160,24 +183,11 @@ async function getMetrics(store, sessionId) {
       }
 
       // 2. Get tokens per conversation (last 30 days)
-      let convQuery = `SELECT conversation_id, COALESCE(SUM(total_tokens), 0) as total
-         FROM ai_logs
-         WHERE timestamp >= NOW() - INTERVAL '30 days'`;
-      const convParams = [];
-      if (sessionId && sessionId !== 'all') {
-        convQuery += ` AND session_id = $1`;
-        convParams.push(sessionId);
-      }
-      convQuery += ` GROUP BY conversation_id`;
-
-      const convRes = await query(convQuery, convParams);
+      const convRes = await query(`SELECT a.conversation_id, COALESCE(SUM(a.total_tokens), 0) AS total
+        ${scope.sql} AND a.timestamp >= NOW() - INTERVAL '30 days' GROUP BY a.conversation_id`, scope.params);
       convRes.rows.forEach((row) => {
         tokensPerConversation[row.conversation_id] = Number(row.total);
       });
-
-      let memoryFacts = 0;
-
-      const estimatedCostToday = (promptTokensToday / 1000000 * 0.15) + (completionTokensToday / 1000000 * 0.60);
 
       return {
         tokensToday,
@@ -185,16 +195,21 @@ async function getMetrics(store, sessionId) {
         completionTokensToday,
         messagesToday,
         aiResponsesToday: messagesToday,
-        estimatedCostToday,
-        memoryFacts,
-        avgLatencyMs: 420,
-        socketLatencyMs: 26,
-        model: "gpt-4o-mini",
-        provider: "openai",
+        estimatedCostToday: null,
+        memoryFacts: null,
+        avgLatencyMs: null,
+        socketLatencyMs: null,
+        model: null,
+        provider: null,
         tokensPerConversation,
       };
     } catch (err) {
       console.warn('[aiLogService] Failed to query database metrics, falling back to JSON:', err.message);
+      tokensToday = 0;
+      promptTokensToday = 0;
+      completionTokensToday = 0;
+      messagesToday = 0;
+      tokensPerConversation = {};
     }
   }
 
@@ -202,7 +217,7 @@ async function getMetrics(store, sessionId) {
   try {
     await ensureLogsFile();
     const content = await fs.readFile(logsFilePath, 'utf8');
-    const logs = JSON.parse(content || '[]');
+    const logs = scopedLogs(JSON.parse(content || '[]'), companyId, sessionId);
     const todayStr = new Date().toISOString().split('T')[0];
 
     logs.forEach((log) => {
@@ -216,7 +231,7 @@ async function getMetrics(store, sessionId) {
         completionTokensToday += Number(log.completionTokens) || 0;
         messagesToday += 1;
       }
-      if (log.conversationId) {
+      if (log.conversationId && new Date(log.timestamp).getTime() >= Date.now() - 30 * 24 * 60 * 60 * 1000) {
         tokensPerConversation[log.conversationId] = (tokensPerConversation[log.conversationId] || 0) + (Number(log.totalTokens) || 0);
       }
     });
@@ -230,6 +245,13 @@ async function getMetrics(store, sessionId) {
     completionTokensToday,
     messagesToday,
     tokensPerConversation,
+    aiResponsesToday: messagesToday,
+    estimatedCostToday: null,
+    memoryFacts: null,
+    avgLatencyMs: null,
+    socketLatencyMs: null,
+    model: null,
+    provider: null,
   };
 }
 

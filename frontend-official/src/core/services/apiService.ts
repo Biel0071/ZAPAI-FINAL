@@ -74,6 +74,9 @@ function resolveAxiosEndpoint(endpoint: string): string {
 }
 
 export interface Conversation {
+  name?: string;
+  contactPhone?: string;
+  unreadCount?: number;
   id: string;
   chatId?: string;
   companyId?: string;
@@ -86,7 +89,7 @@ export interface Conversation {
   updatedAt: string;
   phone: string;
   unread?: number;
-  status?: "online" | "offline" | "typing";
+  status?: "online" | "offline" | "typing" | "open" | "archived";
   tags?: string[];
   isAI?: boolean;
   lastMessageType?: "text" | "image" | "video" | "audio" | "file" | "sticker";
@@ -116,7 +119,7 @@ export interface ChatMessage {
   fromMe: boolean;
   createdAt: string;
   timestamp?: string;
-  status?: "pending" | "sending" | "sent" | "server_ack" | "device_ack" | "delivered" | "read" | "played" | "failed" | "retry";
+  status?: "pending" | "sending" | "sent" | "server_ack" | "device_ack" | "delivered" | "read" | "played" | "failed" | "retry" | "error" | "blocked";
   isAI?: boolean;
   aiProvider?: string;
   aiModel?: string;
@@ -138,6 +141,11 @@ export interface ChatMessage {
 }
 
 export interface Contact {
+  profilePicUrl?: string;
+  avatarUrl?: string;
+  profilePictureUrl?: string;
+  profile_picture_url?: string;
+  avatar?: string;
   id: string;
   name: string;
   phone: string;
@@ -164,6 +172,8 @@ export interface AnalyticsSummary {
 }
 
 export interface MetricsSummary {
+  activeSessionsCount?: number;
+  messagesCount?: number;
   messagesToday?: number;
   todayMessages?: number;
   totalMessages?: number;
@@ -179,6 +189,8 @@ export interface MetricsSummary {
 }
 
 export interface AIStatusResponse {
+  aiOn?: boolean;
+  data?: AIStatusResponse;
   enabled?: boolean;
   active?: boolean;
   status?: string;
@@ -200,6 +212,7 @@ export interface AILogEntry {
 }
 
 export interface AIMetricsResponse {
+  data?: AIMetricsResponse;
   tokensToday?: number;
   promptTokensToday?: number;
   completionTokensToday?: number;
@@ -208,6 +221,7 @@ export interface AIMetricsResponse {
 }
 
 export interface AIConnectionTestResult {
+  analysis?: { funnel_stage?: string; tags_to_add?: string[]; address?: string; phone?: string; coordinates?: { lat: number; lng: number }; [key: string]: unknown };
   ok: boolean;
   provider?: string;
   model?: string;
@@ -225,6 +239,8 @@ export interface AIConnectionTestResult {
 }
 
 export interface SessionInfo {
+  isBanned?: boolean;
+  raw?: { isBanned?: boolean; status?: string };
   id: string;
   name?: string;
   sessionName?: string;
@@ -276,6 +292,7 @@ export interface CampaignSettings {
 }
 
 export interface CampaignQueue {
+  items?: CampaignContact[];
   total: number;
   processed: number;
   sent: number;
@@ -366,6 +383,7 @@ export interface MemorySettings {
 }
 
 export interface MemoryEntry {
+  id?: string;
   contact_id: string;
   phone?: string;
   name: string;
@@ -387,6 +405,7 @@ export interface MemoryEntry {
 }
 
 export interface MemoryAnalytics {
+  totalTokens?: number;
   totalContacts: number;
   totalMessages: number;
   totalAudioRequests: number;
@@ -426,7 +445,7 @@ export interface PersistedMessagePayload {
   status?: "sent" | "delivered" | "read";
   caption?: string;
   mediaType?: "image" | "video" | "audio" | "file" | "sticker";
-  type?: "text" | "image" | "video" | "audio" | "file";
+  type?: "text" | "image" | "video" | "audio" | "file" | "sticker" | "document" | "media";
   mediaPath?: string | null;
   mediaUrl?: string | null;
   url?: string | null;
@@ -1982,9 +2001,9 @@ export const apiService = {
   },
   createCampaign: (payload: Partial<CampaignRecord> & Record<string, unknown>) =>
     request<CampaignRecord>({ endpoint: "/api/campaigns", method: "POST", body: payload }),
-  parseContext: (formData: FormData) => axios.post(`${API_BASE_URL}/api/campaigns/parse-context`, formData, {
+  parseContext: async (formData: FormData) => axios.post(`${API_BASE_URL}/api/campaigns/parse-context`, formData, {
     headers: {
-      ...buildApiHeaders(),
+      ...await buildApiHeaders(),
       "Content-Type": "multipart/form-data",
     }
   }).then(res => res.data as { success: boolean; text: string; error?: string }),
@@ -2019,7 +2038,7 @@ export const apiService = {
   testVoiceSynthesis: (voiceId: string, text?: string, params?: Record<string, unknown>) =>
     request<Record<string, unknown>>({ endpoint: "/api/ai/voices/test-synthesis", method: "POST", body: { voiceId, text, params } }),
   getLeadKnowledgeGraph: (leadId: string) =>
-    request<Record<string, unknown>>({ endpoint: `/api/ai/lead-knowledge-graph/${encodeURIComponent(leadId)}`, method: "GET" }),
+    request<{ data?: { nodes: Array<{id: string; label: string; category: string; type: "lead" | "product" | "campaign" | "order" | "agent" | "memory"; details: string}>; edges: Array<{source: string; target: string; label: string}> } }>({ endpoint: `/api/ai/lead-knowledge-graph/${encodeURIComponent(leadId)}`, method: "GET" }),
   getLeadReactivationAnalysis: () =>
     request<Record<string, unknown>>({ endpoint: "/api/ai/lead-reactivation-analysis", method: "GET" }),
   reactivateLeads: (actions: Array<{ conversationId: string | number; action: string; message?: string }>) =>
@@ -2077,23 +2096,23 @@ export const apiService = {
   async deleteQuickReply(id: string) {
     return request<any>({ endpoint: `/api/quick-replies/${encodeURIComponent(id)}`, method: "DELETE" });
   },
-  async executeQuickReplyFlow(id: string, payload: { phone: string; sessionId?: string; companyId?: string; overrideDelayMs?: number; sendId?: string }) {
+  async executeQuickReplyFlow(id: string, payload: { phone: string; sessionId?: string; conversationId?: string; overrideDelayMs?: number; sendId?: string }) {
     return request<{ success: boolean; stepsCount: number }>({
       endpoint: `/api/quick-replies/${encodeURIComponent(id)}/execute`,
       method: "POST",
       body: payload,
     });
   },
-  async cancelQuickReplyFlow(phone: string) {
+  async cancelQuickReplyFlow(phone: string, context: { conversationId: string; sessionId?: string }) {
     return request<{ success: boolean; cancelled: boolean }>({
       endpoint: "/api/quick-replies/cancel-flow",
       method: "POST",
-      body: { phone },
+      body: { phone, ...context },
     });
   },
-  async getActiveQuickReplyFlow(phone: string) {
+  async getActiveQuickReplyFlow(phone: string, context: { conversationId: string; sessionId?: string }) {
     return request<any>({
-      endpoint: `/api/quick-replies/active-flow/${encodeURIComponent(phone)}`,
+      endpoint: withQuery(`/api/quick-replies/active-flow/${encodeURIComponent(phone)}`, context),
       method: "GET",
     });
   },
@@ -2105,7 +2124,7 @@ export const apiService = {
     });
   },
   async generateFollowUpPrompt(payload: { agentName?: string; sector?: string; objective?: string; company?: string; products?: string }) {
-    return request<{ success: boolean; prompt: string }>({
+    return request<{ success: boolean; prompt: string; error?: string }>({
       endpoint: "/api/ai/generate-followup-prompt",
       method: "POST",
       body: payload,
@@ -2114,7 +2133,7 @@ export const apiService = {
   async getUserProviders() {
     return request<{ success: boolean; providers: any[] }>({ endpoint: "/config/user-providers", method: "GET" });
   },
-  async saveUserProvider(payload: { provider: string; api_key: string; model?: string; enabled?: boolean }) {
+  async saveUserProvider(payload: { provider: string; api_key: string; model?: string; enabled?: boolean; settings?: Record<string, unknown> }) {
     return request<{ success: boolean; provider: any }>({ endpoint: "/config/user-providers", method: "POST", body: payload });
   },
   async testVoice(text: string, voiceId: string) {

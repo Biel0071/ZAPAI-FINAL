@@ -59,7 +59,7 @@ export function AILearningSidebar({ conversationId, phone, onOpenTeachModal }: A
           <Brain className="w-4 h-4 text-emerald-400" />
           <h3 className="font-semibold text-foreground text-sm flex items-center gap-2">
             AI Learning
-            <ShieldCheck className="w-4 h-4 text-emerald-500" title="Verdade Oficial Ativa" />
+            <ShieldCheck className="w-4 h-4 text-emerald-500" aria-label="Verdade Oficial Ativa" />
           </h3>
         </div>
         <Button size="icon" variant="ghost" className="h-6 w-6" onClick={fetchContext} disabled={loading}>

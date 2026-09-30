@@ -1,224 +1,130 @@
+const { randomUUID } = require('crypto');
 const quickReplyService = require('../../../services/quickReplyService');
+const outboundQueueService = require('../../../services/outboundQueueService');
+const flowTrackerService = require('../../../services/flowTrackerService');
+const messageDedupeService = require('../../../services/messageDedupeService');
+const { resolveOutboundContext } = require('./messages/shared');
+
+function company(req, res) {
+  const companyId = String(req.authTenantId || '').trim();
+  if (!companyId) res.status(401).json({ success: false, error: 'Autenticação da empresa obrigatória.' });
+  return companyId;
+}
+
+function fail(res, error, message) {
+  console.error('[QUICK_REPLY]', error.code || error.message);
+  return res.status(error.status || 503).json({ success: false, code: error.code, error: error.status ? error.message : message });
+}
 
 async function listQuickReplies(req, res) {
+  const companyId = company(req, res);
+  if (!companyId) return;
   try {
-    const items = await quickReplyService.listQuickReplies({
-      category: req.query?.category,
-      search: req.query?.search,
-    });
-
-    return res.status(200).json(items);
-  } catch (error) {
-    return res.status(500).json({ error: error.message || 'Failed to list quick replies.' });
-  }
+    return res.status(200).json(await quickReplyService.listQuickReplies({ companyId, category: req.query?.category, search: req.query?.search }));
+  } catch (error) { return fail(res, error, 'Não foi possível carregar as respostas rápidas.'); }
 }
 
 async function createQuickReply(req, res) {
+  const companyId = company(req, res);
+  if (!companyId) return;
   try {
-    const created = await quickReplyService.createQuickReply(req.body || {});
-    return res.status(201).json(created);
-  } catch (error) {
-    return res.status(400).json({ error: error.message || 'Failed to create quick reply.' });
-  }
+    const { id, ...payload } = req.body || {};
+    return res.status(201).json(await quickReplyService.createQuickReply({ ...payload, companyId }));
+  } catch (error) { return res.status(400).json({ success: false, error: error.message || 'Dados da resposta rápida inválidos.' }); }
 }
 
 async function updateQuickReply(req, res) {
+  const companyId = company(req, res);
+  if (!companyId) return;
   try {
-    const updated = await quickReplyService.updateQuickReply(String(req.params.id || ''), req.body || {});
-
-    if (!updated) {
-      return res.status(404).json({ error: 'Quick reply not found.' });
-    }
-
-    return res.status(200).json(updated);
-  } catch (error) {
-    return res.status(400).json({ error: error.message || 'Failed to update quick reply.' });
-  }
+    const updated = await quickReplyService.updateQuickReply(String(req.params.id || ''), req.body || {}, companyId);
+    return updated ? res.status(200).json(updated) : res.status(404).json({ error: 'Resposta rápida não encontrada.' });
+  } catch (error) { return res.status(400).json({ success: false, error: error.message || 'Dados da resposta rápida inválidos.' }); }
 }
 
 async function deleteQuickReply(req, res) {
+  const companyId = company(req, res);
+  if (!companyId) return;
   try {
-    const removed = await quickReplyService.removeQuickReply(String(req.params.id || ''));
-
-    if (!removed) {
-      return res.status(404).json({ error: 'Quick reply not found.' });
-    }
-
-    return res.status(200).json({ success: true });
-  } catch (error) {
-    return res.status(500).json({ error: error.message || 'Failed to delete quick reply.' });
-  }
+    const removed = await quickReplyService.removeQuickReply(String(req.params.id || ''), companyId);
+    return removed ? res.status(200).json({ success: true }) : res.status(404).json({ error: 'Resposta rápida não encontrada.' });
+  } catch (error) { return fail(res, error, 'Não foi possível excluir a resposta rápida.'); }
 }
 
 async function executeQuickReplyFlow(req, res) {
+  let intentKey;
   try {
-    const { id } = req.params;
-    const { phone, sessionId, companyId, item: requestItem } = req.body;
-
-    if (!phone) {
-      return res.status(400).json({ error: 'phone is required.' });
+    const context = await resolveOutboundContext(req);
+    const flow = (await quickReplyService.listQuickReplies({ companyId: context.companyId })).find(item => String(item.id) === String(req.params.id));
+    if (!flow) return res.status(404).json({ success: false, error: 'Resposta rápida não encontrada nesta empresa.' });
+    const rawSteps = Array.isArray(flow.steps) && flow.steps.length ? flow.steps
+      : Array.isArray(flow.items) && flow.items.length ? flow.items
+        : [{ type: flow.mediaType || (flow.mediaUrl ? 'image' : 'text'), value: flow.mediaUrl || flow.content || flow.text || '', caption: flow.content || flow.text || '', filename: flow.filename }];
+    if (!rawSteps.length || rawSteps.length > 100) return res.status(400).json({ success: false, error: 'O fluxo deve conter entre 1 e 100 etapas.' });
+    const sendId = String(req.body?.sendId || '').trim() || randomUUID();
+    const scope = { companyId: context.companyId, sessionId: context.targetSessionName, conversationId: context.conversationId, phone: context.normalizedPhone };
+    const overrideDelay = req.body?.overrideDelayMs;
+    if (overrideDelay !== undefined && (!Number.isFinite(Number(overrideDelay)) || Number(overrideDelay) < 0 || Number(overrideDelay) > 60000)) {
+      return res.status(400).json({ success: false, error: 'Intervalo inválido. Use de 0 a 60.000 ms.' });
     }
-
-    const sendId = req.body.sendId;
-    if (sendId) {
-      const messageDedupeService = require('../../../services/messageDedupeService');
-      const isNew = messageDedupeService.markSeen('quick_reply_intent', sendId, 5 * 60000); // 5 minutes TTL
-      if (!isNew) {
-        // Idempotent success - already processing this exact intent
-        return res.status(200).json({ success: true, stepsCount: 0, duplicate: true });
-      }
-    }
-
-    const allReplies = await quickReplyService.listQuickReplies();
-    let flow = allReplies.find((item) => String(item.id) === String(id));
-
-    if (!flow && requestItem) {
-      flow = requestItem;
-    }
-
-    if (!flow) {
-      flow = allReplies.find((item) => String(item.label || item.cmd || item.title || '').toLowerCase() === String(id).toLowerCase()) || {
-        id: id || 'custom',
-        label: requestItem?.label || requestItem?.cmd || 'Resposta Rápida',
-        text: requestItem?.text || id,
-        mediaUrl: requestItem?.mediaUrl || requestItem?.fileUrl,
-        mediaType: requestItem?.mediaType,
-      };
-    } else if (requestItem && requestItem.text) {
-      // User edited the quick reply text in the frontend modal
-      flow.text = requestItem.text;
-    }
-
-    const outboundQueueService = require('../../../services/outboundQueueService');
-    const flowTrackerService = require('../../../services/flowTrackerService');
-
-    let rawSteps = [];
-    if (Array.isArray(flow.steps) && flow.steps.length > 0) {
-      rawSteps = flow.steps;
-    } else if (Array.isArray(flow.items) && flow.items.length > 0) {
-      rawSteps = flow.items;
-    } else {
-      rawSteps = [
-        {
-          type: flow.mediaType || (flow.mediaUrl ? 'image' : 'text'),
-          value: flow.mediaUrl || flow.fileUrl || flow.text || '',
-          caption: flow.text || '',
-          filename: flow.filename || flow.fileName,
-          delayMs: 1000,
-        },
-      ];
-    }
-
-    let validSteps = rawSteps.filter((step) => {
-      const isText = step.type === 'text' || (!step.type && !step.mediaUrl && !step.fileUrl);
-      const mediaPath = !isText ? (step.value || step.mediaUrl || step.fileUrl) : undefined;
-      return isText || Boolean(mediaPath);
-    });
-
-    if (validSteps.length === 0) {
-      return res.status(400).json({ error: 'Fluxo não contém etapas válidas para envio.' });
-    }
-
-    const totalSteps = validSteps.length;
-    const flowName = flow.title || flow.label || flow.cmd || 'Resposta Rápida';
-
-    flowTrackerService.startFlow({
-      chatId: phone,
-      flowName,
-      totalSteps,
-      companyId: companyId || 'default',
-    });
-
-    let cumulativeDelayMs = 0;
+    let cumulativeDelay = 0;
     const now = Date.now();
-    const enqueuedSteps = [];
-    const overrideDelayMs = req.body.overrideDelayMs;
-
-    for (let index = 0; index < validSteps.length; index++) {
-      const step = validSteps[index];
-      const stepDelay = overrideDelayMs !== undefined 
-        ? Number(overrideDelayMs) 
-        : Number(step.delayMs || step.delay || 1500);
-        
-      cumulativeDelayMs += stepDelay;
-      const scheduledTime = new Date(now + cumulativeDelayMs).toISOString();
-
-      const isText = step.type === 'text' || (!step.type && !step.mediaUrl && !step.fileUrl);
-      const mediaPath = !isText ? (step.value || step.mediaUrl || step.fileUrl) : undefined;
-      let textContent = isText ? (step.value || step.text || '') : (step.caption || step.text || '');
-      
-      // Override text for the first step if edited in frontend
-      if (index === 0 && req.body.item && req.body.item.text) {
-        textContent = req.body.item.text;
+    const payloads = rawSteps.map((step, index) => {
+      const type = String(step.type || 'text').toLowerCase();
+      const isText = type === 'text';
+      const value = String(step.value || (isText ? step.text : step.mediaUrl || step.fileUrl) || '').trim();
+      if (!value || !['text', 'image', 'audio', 'video', 'document', 'file', 'sticker'].includes(type)) {
+        throw Object.assign(new Error('Etapa ' + (index + 1) + ' inválida. Revise a resposta rápida salva.'), { status: 400 });
       }
-
-      const itemPayload = {
-        phone,
-        sessionId: sessionId || 'main',
-        companyId: companyId || 'default',
-        text: textContent,
-        correlationId: sendId,
-        mediaType: !isText ? (step.type || 'image') : undefined,
-        mediaPath: mediaPath,
+      const stepDelay = overrideDelay !== undefined ? Number(overrideDelay) : Number(step.delayMs ?? step.delay ?? 1500);
+      if (!Number.isFinite(stepDelay) || stepDelay < 0 || stepDelay > 60000) throw Object.assign(new Error('Intervalo da etapa ' + (index + 1) + ' inválido.'), { status: 400 });
+      cumulativeDelay += stepDelay;
+      return {
+        phone: context.targetJidOrPhone,
+        sessionId: context.targetSessionName,
+        companyId: context.companyId,
+        text: isText ? value : String(step.caption || step.text || ''),
+        correlationId: sendId + ':' + (index + 1),
+        mediaType: isText ? undefined : type === 'file' ? 'document' : type,
+        mediaPath: isText ? undefined : value,
         fileName: step.filename || step.fileName,
-        nextAttemptAt: scheduledTime,
-        metadata: {
-          flowId: flow.id || 'custom',
-          stepId: step.id || `step_${index + 1}`,
-          currentStep: index + 1,
-          totalSteps,
-          isFlowStep: true,
-          source: 'flow_automation',
-          typingMs: Math.min(stepDelay, 2000),
-        },
+        nextAttemptAt: new Date(now + cumulativeDelay).toISOString(),
+        metadata: { flowId: flow.id, flowRunId: sendId, flowName: flow.title || 'Resposta rápida', stepId: step.id || 'step_' + (index + 1), currentStep: index + 1, totalSteps: rawSteps.length, isFlowStep: true, source: 'flow_automation', conversationId: context.conversationId, contactId: context.contactId, typingMs: Math.min(stepDelay, 2000) },
         actions: step.actions,
       };
-
-      const enqueued = await outboundQueueService.enqueue(itemPayload);
-      enqueuedSteps.push(enqueued);
+    });
+    intentKey = JSON.stringify([scope.companyId, scope.sessionId, scope.conversationId || scope.phone, sendId]);
+    if (!messageDedupeService.markSeen('quick_reply_intent', intentKey, 5 * 60000)) {
+      const existing = outboundQueueService.findByCorrelation(sendId + ':1', scope.companyId, scope);
+      if (existing) return res.status(200).json({ success: true, stepsCount: 0, duplicate: true, flowRunId: sendId });
+      return res.status(409).json({ success: false, error: 'Este fluxo ainda está sendo preparado.' });
     }
-
-    return res.status(200).json({ success: true, stepsCount: enqueuedSteps.length });
+    const enqueued = await outboundQueueService.enqueueBatch(payloads);
+    flowTrackerService.startFlow({ chatId: context.normalizedPhone, ...scope, flowRunId: sendId, flowName: flow.title || 'Resposta rápida', totalSteps: enqueued.length });
+    return res.status(200).json({ success: true, stepsCount: enqueued.length, flowRunId: sendId });
   } catch (error) {
-    console.error('[EXECUTE_QUICK_REPLY_FLOW_ERROR]', error);
-    return res.status(500).json({ error: error.message || 'Failed to execute flow.' });
+    if (intentKey) messageDedupeService.forget('quick_reply_intent', intentKey);
+    return fail(res, error, 'Não foi possível colocar o fluxo na fila. Tente novamente.');
   }
 }
 
 async function cancelQuickReplyFlow(req, res) {
   try {
-    const { phone } = req.body;
-    if (!phone) {
-      return res.status(400).json({ error: 'phone is required.' });
-    }
-    const flowTrackerService = require('../../../services/flowTrackerService');
-    const cancelled = flowTrackerService.cancelFlow(phone);
+    const context = await resolveOutboundContext(req, { requireConnected: false });
+    const scope = { companyId: context.companyId, sessionId: context.targetSessionName, conversationId: context.conversationId, phone: context.normalizedPhone };
+    const cancelled = await outboundQueueService.cancelFlowItems(scope);
+    flowTrackerService.cancelFlow(context.normalizedPhone, scope);
     return res.status(200).json({ success: true, cancelled });
-  } catch (error) {
-    return res.status(500).json({ error: error.message || 'Failed to cancel flow.' });
-  }
+  } catch (error) { return fail(res, error, 'Não foi possível cancelar o fluxo.'); }
 }
 
 async function getActiveQuickReplyFlow(req, res) {
   try {
-    const { phone } = req.params;
-    if (!phone) {
-      return res.status(400).json({ error: 'phone is required.' });
-    }
-    const flowTrackerService = require('../../../services/flowTrackerService');
-    const flow = flowTrackerService.getRunningFlow(phone);
+    const context = await resolveOutboundContext(req, { requireConnected: false });
+    const scope = { companyId: context.companyId, sessionId: context.targetSessionName, conversationId: context.conversationId, phone: context.normalizedPhone };
+    const flow = flowTrackerService.getRunningFlow(context.normalizedPhone, scope) || outboundQueueService.getActiveFlow?.(scope);
     return res.status(200).json({ flow: flow || null });
-  } catch (error) {
-    return res.status(500).json({ error: error.message || 'Failed to get active flow.' });
-  }
+  } catch (error) { return fail(res, error, 'Não foi possível carregar o fluxo ativo.'); }
 }
 
-module.exports = {
-  createQuickReply,
-  deleteQuickReply,
-  listQuickReplies,
-  updateQuickReply,
-  executeQuickReplyFlow,
-  cancelQuickReplyFlow,
-  getActiveQuickReplyFlow,
-};
+module.exports = { createQuickReply, deleteQuickReply, listQuickReplies, updateQuickReply, executeQuickReplyFlow, cancelQuickReplyFlow, getActiveQuickReplyFlow };

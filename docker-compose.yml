@@ -64,6 +64,7 @@ services:
       - ./backend:/app
       - /app/node_modules
       - dev_sessions:/app/sessions
+      - dev_media:/storage/media
     command: ["node", "server.js"]
     healthcheck:
       test: ["CMD-SHELL", "wget --spider -q http://127.0.0.1:4025/api/health || exit 1"]
@@ -76,3 +77,4 @@ volumes:
   dev_postgres_data:
   dev_redis_data:
   dev_sessions:
+  dev_media:

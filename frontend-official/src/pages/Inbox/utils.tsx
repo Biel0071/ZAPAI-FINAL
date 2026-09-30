@@ -1,7 +1,7 @@
 import { memo } from "react";
-import { loadAdminAuthSession } from "@/core/lib/adminAuthSession";
+import { resolveMediaUrl as normalizeMediaUrl, resolveProtectedMediaUrl } from "@/core/runtime/utils/inboxNormalization";
 import { cn } from "@/core/lib/utils";
-import { API_ORIGIN, type ChatMessage, type Conversation, type SessionInfo } from "@/core/services/apiService";
+import { type ChatMessage, type Conversation, type SessionInfo } from "@/core/services/apiService";
 import type {
   ComposerAttachment,
   PreviewMediaState,
@@ -11,8 +11,6 @@ import type {
   QuickReplyItem,
   QuickReplyMediaItem,
 } from "./types";
-
-const BACKEND_BASE_URL = API_ORIGIN;
 
 export const LEGACY_MEDIA_PLACEHOLDERS = new Set([
   "[image]",
@@ -237,78 +235,11 @@ export function getTagColor(tag: string): string {
 }
 
 export function resolveMediaUrl(url?: string | null): string | null {
-  let normalized = String(url ?? "").trim().replace(/\\/g, "/");
-  if (!normalized || normalized === "null" || normalized === "undefined" || (normalized.startsWith("[") && normalized.endsWith("]"))) return null;
-
-  if (normalized.startsWith("data:") || normalized.startsWith("blob:")) return normalized;
-
-  // Extract relative static routes (/uploads/, /media/, /upload/) from absolute filesystem paths or filenames
-  if (normalized.toLowerCase().includes("/uploads/")) {
-    normalized = `/uploads/${normalized.split(/\/uploads\//i).pop()}`;
-  } else if (normalized.toLowerCase().includes("/media/")) {
-    normalized = `/media/${normalized.split(/\/media\//i).pop()}`;
-  } else if (normalized.toLowerCase().includes("/upload/")) {
-    normalized = `/upload/${normalized.split(/\/upload\//i).pop()}`;
-  } else if (normalized.toLowerCase().includes("/public/")) {
-    normalized = `/${normalized.split(/\/public\//i).pop()}`;
-  }
-
-  if (/^https?:\/\/(localhost|127\.0\.0\.1):4025/i.test(normalized)) {
-    normalized = normalized.replace(/^https?:\/\/(localhost|127\.0\.0\.1):4025/i, BACKEND_BASE_URL);
-  }
-
-  let finalUrl = normalized;
-  if (!/^https?:\/\//i.test(normalized)) {
-    if (/^[a-zA-Z]:/i.test(normalized)) {
-      normalized = normalized.replace(/^[a-zA-Z]:/i, "");
-    }
-    let cleanPath = normalized.replace(/^\/+/, "");
-    if (!/^(uploads|media|upload|public|api)\//i.test(cleanPath)) {
-      cleanPath = `uploads/${cleanPath}`;
-    }
-    finalUrl = `${BACKEND_BASE_URL}/${cleanPath}`;
-  }
-
-  const isBackendMedia =
-    finalUrl.startsWith(BACKEND_BASE_URL) ||
-    /^(https?:\/\/[^\/]+)?\/(media|upload|uploads)\//i.test(finalUrl);
-
-  if (isBackendMedia) {
-    const session = loadAdminAuthSession();
-    if (session && session.token && !finalUrl.includes("token=")) {
-      const separator = finalUrl.includes("?") ? "&" : "?";
-      finalUrl = `${finalUrl}${separator}token=${encodeURIComponent(session.token)}`;
-    }
-  }
-
-  return finalUrl;
+  return normalizeMediaUrl(url);
 }
 
 export async function resolveCachedMediaUrl(url?: string | null): Promise<string | null> {
-  const resolved = resolveMediaUrl(url);
-  if (!resolved) return null;
-
-  try {
-    const cache = await caches.open("zapai-media-cache");
-    const cachedResponse = await cache.match(resolved);
-    if (cachedResponse) {
-      const blob = await cachedResponse.blob();
-      return URL.createObjectURL(blob);
-    }
-
-    // Try fetching and caching
-    const response = await fetch(resolved);
-    if (response.ok) {
-      const responseClone = response.clone();
-      await cache.put(resolved, responseClone);
-      const blob = await response.blob();
-      return URL.createObjectURL(blob);
-    }
-  } catch (err) {
-    console.warn("Failed caching media URL:", resolved, err);
-  }
-
-  return resolved;
+  return resolveProtectedMediaUrl(url);
 }
 
 export function logInboxDebug(event: string, payload?: Record<string, unknown>) {
@@ -824,8 +755,10 @@ export function inferMediaTypeFromSource(source?: string): "image" | "video" | "
 }
 
 export async function downloadMediaFile(url: string, fallbackFileName = "arquivo") {
+  const authorizedUrl = await resolveProtectedMediaUrl(url);
+  if (!authorizedUrl) throw new Error("Não foi possível autorizar o arquivo. Atualize a conversa e tente novamente.");
   try {
-    const response = await fetch(url);
+    const response = await fetch(authorizedUrl);
     if (!response.ok) throw new Error("download_failed");
     const blob = await response.blob();
     const blobUrl = URL.createObjectURL(blob);
@@ -837,7 +770,7 @@ export async function downloadMediaFile(url: string, fallbackFileName = "arquivo
     document.body.removeChild(anchor);
     URL.revokeObjectURL(blobUrl);
   } catch {
-    window.open(url, "_blank", "noopener,noreferrer");
+    window.open(authorizedUrl, "_blank", "noopener,noreferrer");
   }
 }
 
@@ -1152,7 +1085,7 @@ export function getMessageStatusMeta(status?: ChatMessage["status"]) {
     return {
       symbol: "1V",
       className: "text-amber-500 animate-pulse",
-      label: "Enviando para o WhatsApp...",
+      label: normStatus === "pending" ? "Na fila de envio" : normStatus === "retry" ? "Nova tentativa na fila" : "Preparando envio",
       icon: "clock",
     };
   }
@@ -1160,7 +1093,7 @@ export function getMessageStatusMeta(status?: ChatMessage["status"]) {
     return {
       symbol: "1V",
       className: "text-destructive font-bold",
-      label: "Bloqueado ou não entregue (Falha)",
+      label: "Falha no envio",
       icon: "failed",
     };
   }
@@ -1184,7 +1117,7 @@ export function getMessageStatusMeta(status?: ChatMessage["status"]) {
     return {
       symbol: "1V",
       className: "text-muted-foreground/70",
-      label: "Enviada (Servidor)",
+      label: "Enviada ao WhatsApp",
       icon: "sent",
     };
   }
@@ -1192,8 +1125,8 @@ export function getMessageStatusMeta(status?: ChatMessage["status"]) {
   return {
     symbol: "1V",
     className: "text-muted-foreground/70",
-    label: "Enviada",
-    icon: "sent",
+    label: "Status não informado",
+    icon: "clock",
   };
 }
 
@@ -1263,7 +1196,7 @@ export function interpolateTemplateVariables(
   return String(template || "")
     .replace(/\{\{\s*nome\s*\}\}/gi, context.contactName?.trim() || "cliente")
     .replace(/\{\{\s*telefone\s*\}\}/gi, normalizedPhone || context.phone?.trim() || "")
-    .replace(/\{\{\s*empresa\s*\}\}/gi, context.company?.trim() || "ZapAI");
+    .replace(/\{\{\s*empresa\s*\}\}/gi, context.company?.trim() || "{{empresa}}");
 }
 
 export function getQuickReplyPreviewText(

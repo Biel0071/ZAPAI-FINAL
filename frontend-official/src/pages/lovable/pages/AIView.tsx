@@ -50,7 +50,10 @@ import {
   Palette,
   Copy,
   RefreshCw,
+  Timer,
+  Lightbulb,
 } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import { useState, useMemo, useEffect } from "react";
 import {
   Card,
@@ -133,6 +136,7 @@ export type AIProviderConfig = {
 };
 
 export type AIConnectionTestResult = {
+  analysis?: { funnel_stage?: string; tags_to_add?: string[]; address?: string; phone?: string; coordinates?: { lat: number; lng: number } };
   ok: boolean;
   provider?: string;
   model?: string;
@@ -467,9 +471,10 @@ export function AIView(props: AIViewProps) {
   } = props;
 
   const { toast } = useToast();
+  const navigate = useNavigate();
 
   // Internal Navigation Tab
-  const [activeInternalTab, setActiveInternalTab] = useState<string>("dashboard");
+  const [activeInternalTab, setActiveInternalTab] = useState<string>("evolution");
   const [activeAtendentesSubTab, setActiveAtendentesSubTab] = useState<"lista" | "simulador" | "evolucao">("lista");
   const [activeConhecimentoSubTab, setActiveConhecimentoSubTab] = useState<"templates" | "treinamento">("templates");
   const [activeAnaliseSubTab, setActiveAnaliseSubTab] = useState<"evolucao" | "learning" | "logs" | "templates" | "treinamento">("logs");
@@ -664,9 +669,7 @@ export function AIView(props: AIViewProps) {
         setPreviewChanges(null);
         setEvolveInstruction("");
         void loadEvolutionData(selectedAgentKey);
-        if (viewModel && typeof viewModel.loadAgents === "function") {
-          viewModel.loadAgents();
-        }
+
       } else {
         toast({
           title: "Erro ao Aplicar",
@@ -715,9 +718,7 @@ export function AIView(props: AIViewProps) {
           return next;
         });
         void loadEvolutionData(selectedAgentKey);
-        if (viewModel && typeof viewModel.loadAgents === "function") {
-          viewModel.loadAgents();
-        }
+
       } else {
         toast({
           title: "Erro ao Integrar",
@@ -808,35 +809,6 @@ export function AIView(props: AIViewProps) {
       setRestartingAI(false);
     }
   };
-  const [deployingVPS, setDeployingVPS] = useState(false);
-
-  const handleDeployVPS = async () => {
-    setDeployingVPS(true);
-    try {
-      const res = await apiService.deployVPS();
-      if (res?.success) {
-        toast({
-          title: "Deploy Iniciado",
-          description: "O script de deploy automático foi disparado na VPS. O sistema será reiniciado em instantes.",
-        });
-      } else {
-        toast({
-          title: "Erro no deploy",
-          description: res?.message || "Não foi possível disparar o deploy na VPS.",
-          variant: "destructive",
-        });
-      }
-    } catch (err: any) {
-      toast({
-        title: "Erro de conexão",
-        description: err.message || "Erro ao conectar com o servidor.",
-        variant: "destructive",
-      });
-    } finally {
-      setDeployingVPS(false);
-    }
-  };
-
   // States for the Testar IA simulation
   const [isTestModalOpen, setIsTestModalOpen] = useState(false);
   const [localTestAttendant, setLocalTestAttendant] = useState("");
@@ -1438,9 +1410,9 @@ export function AIView(props: AIViewProps) {
     const delaySec = (finalDelayMs / 1000).toFixed(1);
     setSimStatus(`Digitando... (atraso humanizado de ${delaySec}s)`);
 
+    const agentModel = testModel || "gpt-4o-mini";
+    const agentProvider = testProviderId || "openai";
     try {
-      const agentModel = testModel || "gpt-4o-mini";
-      const agentProvider = testProviderId || "openai";
 
       // Execute API call and delay concurrently
       const apiPromise = apiService.testAIMessage({
@@ -2525,10 +2497,38 @@ export function AIView(props: AIViewProps) {
   return (
     <div className="min-h-screen bg-background pb-12">
       <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="page-container section-stack">
-        <div className="rounded-2xl border border-border/60 bg-card/70 p-3 backdrop-blur-xl md:p-6 space-y-6">
-          
+        <div className="space-y-5">
+          <header className="flex flex-wrap items-end justify-between gap-4">
+            <div>
+              <p className="text-xs font-medium text-primary mb-1">Central de inteligência</p>
+              <h1 className="text-2xl font-display font-bold tracking-tight">Sua equipe de IA</h1>
+              <p className="mt-1 text-sm text-muted-foreground">Crie seu agente, organize o conhecimento e acompanhe o atendimento.</p>
+            </div>
+            <div className="inline-flex rounded-full border border-border bg-card px-3 py-1.5 text-xs text-muted-foreground">
+              <span className={cn("mr-2 h-2 w-2 self-center rounded-full", aiEnabled ? "bg-emerald-500" : "bg-amber-500")} />
+              Automação {aiEnabled ? "ativada" : "pausada"}
+            </div>
+          </header>
+          <nav aria-label="Central de IA" className="grid grid-cols-3 gap-1 rounded-xl border border-border/70 bg-muted/30 p-1">
+            {[
+              { label: "Agente", section: "evolution", icon: Bot, active: ["evolution", "atendentes", "configuracoes"].includes(activeInternalTab) },
+              { label: "Conhecimento", section: "conhecimento", icon: BookOpen, active: ["conhecimento", "playbooks"].includes(activeInternalTab) },
+              { label: "Operação", section: "dashboard", icon: Sliders, active: ["dashboard", "provedores", "operacao", "analise"].includes(activeInternalTab) },
+            ].map(item => <button key={item.section} type="button" aria-current={item.active ? "page" : undefined} onClick={() => onSectionChange(item.section)} className={cn("flex items-center justify-center gap-2 rounded-lg px-2 py-2.5 text-sm font-semibold transition-colors", item.active ? "bg-card text-foreground shadow-sm ring-1 ring-border" : "text-muted-foreground hover:text-foreground hover:bg-card/50")}><item.icon className="h-4 w-4" />{item.label}</button>)}
+          </nav>
+          <nav aria-label="Opções da seção" className="flex flex-wrap gap-2">
+            {([
+              ["evolution", "Meu agente"], ["atendentes", "Gerenciar equipe"],
+              ["conhecimento", "Dados oficiais"], ["playbooks", "Estratégias"],
+              ["dashboard", "Visão geral"], ["provedores", "Provedores"], ["operacao", "Regras de atendimento"], ["analise", "Histórico e logs"],
+            ] as const).filter(([section]) =>
+              ["evolution", "atendentes", "configuracoes"].includes(activeInternalTab) ? ["evolution", "atendentes"].includes(section) :
+              ["conhecimento", "playbooks"].includes(activeInternalTab) ? ["conhecimento", "playbooks"].includes(section) :
+              ["dashboard", "provedores", "operacao", "analise"].includes(section)
+            ).map(([section, label]) => <button key={section} type="button" onClick={() => onSectionChange(section)} aria-current={activeInternalTab === section ? "page" : undefined} className={cn("rounded-lg px-3 py-2 text-xs font-medium transition-colors", activeInternalTab === section ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-muted hover:text-foreground")}>{label}</button>)}
+          </nav>
           {/* Summary Dashboard Cards — hidden on evolution tab */}
-          {activeInternalTab !== 'evolution' && (
+          {activeInternalTab === 'dashboard' && (
           <div className="grid gap-3 sm:grid-cols-3">
             <Card className="glass-card metric-card rounded-2xl border-border/70 hover-lift shadow-sm">
               <CardContent className="space-y-1.5 p-3.5 sm:p-4">
@@ -2552,7 +2552,7 @@ export function AIView(props: AIViewProps) {
                   </div>
                 </div>
                 <p className="font-display text-2xl font-black text-foreground">{aiMetrics?.messagesToday ?? 0} hoje</p>
-                <OperationalStatusBadge label="Tráfego ativo" tone="online" />
+                <p className="text-xs text-muted-foreground">Respostas registradas hoje</p>
               </CardContent>
             </Card>
 
@@ -2565,7 +2565,7 @@ export function AIView(props: AIViewProps) {
                   </div>
                 </div>
                 <p className="font-display text-2xl font-black text-foreground">{queueWaiting} leads</p>
-                <OperationalStatusBadge label="Reativação monitorada" tone="syncing" />
+                <p className="text-xs text-muted-foreground">Aguardando na fila</p>
               </CardContent>
             </Card>
           </div>
@@ -2574,79 +2574,17 @@ export function AIView(props: AIViewProps) {
           {/* Internal Navigation Menu & Content Panel Split */}
           <div className="flex flex-col lg:flex-row gap-6 items-start w-full min-h-[600px]">
             
-            {/* Sidebar Menu */}
-            <aside className="w-full lg:w-[240px] shrink-0 bg-card/50 border border-border/60 rounded-2xl p-4 space-y-1">
-              <div className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground px-3 mb-2">Visão Geral</div>
-              
-              <button
-                onClick={() => onSectionChange("dashboard")}
-                className={cn(
-                  "w-full flex items-center gap-2.5 px-3 py-2 text-xs font-semibold rounded-xl transition-all text-left",
-                  activeInternalTab === "dashboard" ? "bg-primary text-primary-foreground shadow-sm shadow-primary/20" : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                )}
-              >
-                <LayoutDashboard className="h-4 w-4" />
-                <span>Dashboard IA</span>
-              </button>
-
-              <button
-                onClick={() => onSectionChange("evolution")}
-                className={cn(
-                  "w-full flex items-center gap-2.5 px-3 py-2 text-xs font-semibold rounded-xl transition-all text-left mt-1",
-                  activeInternalTab === "evolution" ? "bg-primary text-primary-foreground shadow-sm shadow-primary/20" : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                )}
-              >
-                <BrainCircuit className="h-4 w-4 text-emerald-400" />
-                <span className="flex items-center gap-1.5">
-                  Evolução IA
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                </span>
-              </button>
-
-              <div className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground px-3 mt-4 mb-2">Inteligência</div>
-
-              <button
-                onClick={() => onSectionChange("conhecimento")}
-                className={cn(
-                  "w-full flex items-center gap-2.5 px-3 py-2 text-xs font-semibold rounded-xl transition-all text-left",
-                  activeInternalTab === "conhecimento" ? "bg-primary text-primary-foreground shadow-sm shadow-primary/20" : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                )}
-              >
-                <ShieldCheck className="h-4 w-4 text-emerald-400" />
-                <span>Verdade Oficial</span>
-              </button>
-
-              <button
-                onClick={() => onSectionChange("playbooks")}
-                className={cn(
-                  "w-full flex items-center gap-2.5 px-3 py-2 text-xs font-semibold rounded-xl transition-all text-left mt-1",
-                  activeInternalTab === "playbooks" ? "bg-primary text-primary-foreground shadow-sm shadow-primary/20" : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                )}
-              >
-                <Target className="h-4 w-4 text-purple-400" />
-                <span>Playbooks</span>
-              </button>
-
-              <div className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground px-3 mt-4 mb-2">Sistema</div>
-
-              <button
-                onClick={() => onSectionChange("configuracoes")}
-                className={cn(
-                  "w-full flex items-center gap-2.5 px-3 py-2 text-xs font-semibold rounded-xl transition-all text-left",
-                  (activeInternalTab === "configuracoes" || ["atendentes", "provedores", "operacao", "analise"].includes(activeInternalTab)) ? "bg-primary text-primary-foreground shadow-sm shadow-primary/20" : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                )}
-              >
-                <Sliders className="h-4 w-4" />
-                <span>Configurações</span>
-              </button>
-            </aside>
-
             {/* Content Display */}
-            <main className="flex-1 w-full min-w-0 bg-card/20 border border-border/50 rounded-2xl p-4 md:p-6 shadow-sm min-h-[500px]">
+            <main className={cn(
+              "flex-1 w-full min-w-0 min-h-[500px]",
+              activeInternalTab === "evolution"
+                ? "rounded-2xl"
+                : "bg-card/20 border border-border/50 rounded-2xl p-4 md:p-6 shadow-sm"
+            )}>
               
               {/* TAB: EVOLUTION CENTER */}
               {activeInternalTab === "evolution" && (
-                <EvolutionCenter />
+                <EvolutionCenter onManageAgents={() => onSectionChange("atendentes")} onOperation={() => onSectionChange("dashboard")} />
               )}
 
               {/* TAB: CONHECIMENTO OFICIAL */}
@@ -2693,20 +2631,7 @@ export function AIView(props: AIViewProps) {
                             <CardDescription className="text-[11px] mt-0.5">Diagnósticos das integrações e serviços críticos.</CardDescription>
                           </div>
                           <div className="flex flex-wrap items-center gap-1.5 w-full sm:w-auto">
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              className="h-8 text-xs px-2.5 rounded-lg flex items-center gap-1 hover:text-primary shrink-0"
-                              onClick={handleDeployVPS}
-                              disabled={deployingVPS}
-                            >
-                              {deployingVPS ? (
-                                <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                              ) : (
-                                <Sparkles className="h-3.5 w-3.5" />
-                              )}
-                              <span>Deploy VPS</span>
-                            </Button>
+
 
                             <Button
                               size="sm"
@@ -2879,46 +2804,6 @@ export function AIView(props: AIViewProps) {
               {/* TAB 2: CONFIGURAÇÕES */}
               {(activeInternalTab === "configuracoes" || ["atendentes", "provedores", "operacao", "analise"].includes(activeInternalTab)) && (
                 <div className="space-y-6">
-                  {/* Subtabs Menu */}
-                  <div className="flex flex-wrap gap-2 border-b border-border/60 pb-2 mb-4">
-                    <button
-                      onClick={() => onSectionChange?.("atendentes")}
-                      className={cn(
-                        "px-3 py-1.5 text-xs font-semibold rounded-lg transition-all",
-                        (activeInternalTab === "atendentes" || activeInternalTab === "configuracoes") ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                      )}
-                    >
-                      Meus Atendentes
-                    </button>
-                    <button
-                      onClick={() => onSectionChange?.("provedores")}
-                      className={cn(
-                        "px-3 py-1.5 text-xs font-semibold rounded-lg transition-all",
-                        activeInternalTab === "provedores" ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                      )}
-                    >
-                      Provedores LLM
-                    </button>
-                    <button
-                      onClick={() => onSectionChange?.("operacao")}
-                      className={cn(
-                        "px-3 py-1.5 text-xs font-semibold rounded-lg transition-all",
-                        activeInternalTab === "operacao" ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                      )}
-                    >
-                      Regras de Operação
-                    </button>
-                    <button
-                      onClick={() => onSectionChange?.("analise")}
-                      className={cn(
-                        "px-3 py-1.5 text-xs font-semibold rounded-lg transition-all",
-                        activeInternalTab === "analise" ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                      )}
-                    >
-                      Auditoria & Logs
-                    </button>
-                  </div>
-
                   {(activeInternalTab === "configuracoes" || activeInternalTab === "atendentes") && activeAtendentesSubTab === "lista" && (
                     <div className="space-y-6">
                       <div className="flex items-center justify-between">
@@ -4176,7 +4061,7 @@ export function AIView(props: AIViewProps) {
                                       </div>
                                       <div className="rounded border border-border/40 p-1.5 bg-background/20">
                                         <span className="block text-muted-foreground text-[9px]">Taxa de Acerto</span>
-                                        <span className="font-bold text-foreground text-emerald-400">{agent.accuracy_rate || 100}%</span>
+                                        <span className="font-bold text-foreground text-emerald-400">{agent.conversations_analyzed > 0 && agent.accuracy_rate != null ? `${agent.accuracy_rate}%` : '—'}</span>
                                       </div>
                                       <div className="rounded border border-border/40 p-1.5 bg-background/20">
                                         <span className="block text-muted-foreground text-[9px]">Memórias Criadas</span>

@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { Sparkle, X, PaperPlaneTilt, Check, ArrowsClockwise, Lightning, Tag, ChatTeardropDots } from "@phosphor-icons/react";
+import { Sparkle, X, Check, ArrowsClockwise, Lightning, Tag, ChatTeardropDots } from "@phosphor-icons/react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/core/lib/utils";
 import { apiService } from "@/core/services/apiService";
@@ -22,27 +22,17 @@ interface DetectedContext {
   summary?: string;
 }
 
-const DEFAULT_SUGGESTIONS = [
-  "Enviar foto do produto",
-  "Informar preço e condições",
-  "Explicar prazo e entrega",
-  "Responder sobre formas de pagamento",
-];
-
 const ACTION_PILLS = [
   { id: "improve", label: "Melhorar", icon: Sparkle },
   { id: "shorten", label: "Encurtar", icon: Lightning },
   { id: "expand", label: "Expandir", icon: ChatTeardropDots },
   { id: "commercial", label: "Mais comercial", icon: Tag },
   { id: "friendly", label: "Mais amigável", icon: Sparkle },
-  { id: "add_delivery", label: "+ Entrega", icon: Lightning },
-  { id: "add_price", label: "+ Preço", icon: Tag },
 ];
 
 export function ZaiAssistantComposer({
   selectedConversation,
   messages,
-  handleSendMessage,
   setMessageInput,
   messageInputRef,
   disabled = false,
@@ -51,11 +41,13 @@ export function ZaiAssistantComposer({
   const [instruction, setInstruction] = useState("");
   const [generated, setGenerated] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const [sendingMessage, setSendingMessage] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [detectedContext, setDetectedContext] = useState<DetectedContext | null>(null);
-  const [suggestions, setSuggestions] = useState<string[]>(DEFAULT_SUGGESTIONS);
+  const [suggestions, setSuggestions] = useState<string[]>([]);
   const instructionRef = useRef<HTMLTextAreaElement | null>(null);
+  const contextVersionRef = useRef(0);
+  const generatingRef = useRef(false);
+  useEffect(() => () => { contextVersionRef.current += 1; }, []);
 
   const recentMessages = messages
     .slice(-10)
@@ -97,6 +89,9 @@ export function ZaiAssistantComposer({
   }, [open, selectedConversation.id]);
 
   const handleGenerateWithAction = async (actionId?: string, explicitInstruction?: string) => {
+    if (generatingRef.current || disabled) return;
+    const contextVersion = contextVersionRef.current;
+    generatingRef.current = true;
     setLoading(true);
     setError(null);
 
@@ -115,6 +110,7 @@ export function ZaiAssistantComposer({
         sessionId: selectedConversation.sessionId || undefined,
       });
 
+      if (contextVersionRef.current !== contextVersion) return;
       if (res?.message) {
         setGenerated(res.message);
         if (res.detectedContext) setDetectedContext(res.detectedContext);
@@ -123,10 +119,12 @@ export function ZaiAssistantComposer({
         setError("A IA não gerou uma resposta. Tente novamente.");
       }
     } catch (err) {
+      if (contextVersionRef.current !== contextVersion) return;
       const message = err instanceof Error ? err.message : "Erro ao gerar resposta.";
       setError(message);
     } finally {
-      setLoading(false);
+      generatingRef.current = false;
+      if (contextVersionRef.current === contextVersion) setLoading(false);
     }
   };
 
@@ -140,26 +138,13 @@ export function ZaiAssistantComposer({
     handleClose();
   };
 
-  const handleDirectSend = async () => {
-    if (!generated || sendingMessage) return;
-    try {
-      setSendingMessage(true);
-      await handleSendMessage(generated);
-      handleClose();
-    } catch (_) {
-      setError("Erro ao enviar mensagem via WhatsApp.");
-    } finally {
-      setSendingMessage(false);
-    }
-  };
-
   const handleClose = () => {
+    contextVersionRef.current += 1;
     setOpen(false);
     setInstruction("");
     setGenerated(null);
     setError(null);
     setLoading(false);
-    setSendingMessage(false);
   };
 
   return (
@@ -174,11 +159,8 @@ export function ZaiAssistantComposer({
                 <Sparkle className="h-3.5 w-3.5" weight="fill" />
               </div>
               <div>
-                <h4 className="text-xs font-bold text-foreground leading-tight flex items-center gap-1.5">
-                  Assistente de Atendimento Contextual
-                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                </h4>
-                <span className="text-[10px] text-muted-foreground">Copiloto em tempo real com memória viva</span>
+                <h4 className="text-sm font-semibold text-foreground leading-tight">Assistente de resposta</h4>
+                <span className="text-xs text-muted-foreground">Prepare um rascunho com o contexto desta conversa</span>
               </div>
             </div>
             <button
@@ -193,12 +175,12 @@ export function ZaiAssistantComposer({
 
           <div className="p-3.5 space-y-3">
             {/* Banner de Contexto Detectado */}
-            <div className="rounded-lg border border-emerald-500/20 bg-emerald-950/20 px-3 py-2 flex items-center justify-between gap-3 text-xs">
+            {detectedContext?.product && <div className="rounded-lg border border-emerald-500/20 bg-emerald-950/20 px-3 py-2 flex items-center justify-between gap-3 text-xs">
               <div className="flex items-center gap-2 overflow-hidden">
                 <span className="h-2 w-2 shrink-0 rounded-full bg-emerald-400" />
                 <span className="font-semibold text-emerald-300 shrink-0">Contexto detectado:</span>
                 <span className="truncate text-emerald-100/90">
-                  {detectedContext?.product || "Identificando produto..."}
+                  {detectedContext.product}
                   {detectedContext?.capacity ? ` (${detectedContext.capacity})` : ""}
                   {detectedContext?.deliveryCity ? ` • ${detectedContext.deliveryCity}` : ""}
                 </span>
@@ -206,10 +188,10 @@ export function ZaiAssistantComposer({
               <span className="text-[10px] font-mono uppercase tracking-wider text-emerald-400/80 bg-emerald-500/10 px-2 py-0.5 rounded shrink-0">
                 {detectedContext?.intent || "Atendimento"}
               </span>
-            </div>
+            </div>}
 
             {/* Sugestões Rápidas de Resposta */}
-            <div className="space-y-1.5">
+            {suggestions.length > 0 && <div className="space-y-1.5">
               <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
                 Sugestões Rápidas:
               </span>
@@ -226,7 +208,7 @@ export function ZaiAssistantComposer({
                   </button>
                 ))}
               </div>
-            </div>
+            </div>}
 
             {/* Ações Rápidas para transformar texto já digitado */}
             <div className="space-y-1.5">
@@ -261,7 +243,8 @@ export function ZaiAssistantComposer({
               <textarea
                 ref={instructionRef}
                 rows={2}
-                placeholder="Ex: responda de forma mais curta / adicione o prazo de entrega / informe o pix com 5% de desconto"
+                placeholder="Ex.: resuma a resposta e mantenha um tom cordial"
+                aria-label="Instrução para o assistente de resposta"
                 value={instruction}
                 onChange={(e) => setInstruction(e.target.value)}
                 onKeyDown={(e) => {
@@ -307,16 +290,6 @@ export function ZaiAssistantComposer({
                   >
                     <Check className="h-3.5 w-3.5" weight="bold" />
                     USAR RESPOSTA
-                  </Button>
-                  <Button
-                    type="button"
-                    size="sm"
-                    className="h-7 px-3 text-[11px] gap-1.5 bg-primary hover:bg-primary/90 text-primary-foreground font-semibold shadow-sm"
-                    onClick={() => void handleDirectSend()}
-                    disabled={sendingMessage}
-                  >
-                    <PaperPlaneTilt className="h-3.5 w-3.5" weight="fill" />
-                    {sendingMessage ? "Enviando..." : "Enviar Direto"}
                   </Button>
                 </div>
               </div>

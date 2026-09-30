@@ -17,6 +17,8 @@ const messageDedupeService = require('../../../services/messageDedupeService');
 const messageAckPipeline = require('../../../services/messageAckPipeline');
 const correlationTracker = require('../../../services/correlationTracker');
 const outboundQueueService = require('../../../services/outboundQueueService');
+const { resolveOutboundContext } = require('./messages/shared');
+const { emitToTenantWithAliases } = require('../../../services/realtime/tenantRooms');
 
 // Phase 2a: pure helpers live under ./messages/*. Names are destructured here
 // so all internal callers and module.exports stay byte-compatible.
@@ -157,6 +159,12 @@ function waitForWhatsappServerAck(messageId, timeoutMs = OUTBOUND_ACK_TIMEOUT_MS
   });
 }
 async function sendMessage(req, res) {
+  let context;
+  try {
+    context = await resolveOutboundContext(req);
+  } catch (error) {
+    return res.status(error.status || 503).json({ success: false, code: error.code || 'SEND_VALIDATION_FAILED', error: error.status ? error.message : 'Não foi possível validar o envio. Tente novamente.' });
+  }
   const {
     _transportMediaPath,
     chatId,
@@ -175,56 +183,34 @@ async function sendMessage(req, res) {
   } = req.body;
   const store = getStore(req);
   const correlationId = String(req.correlationId || req.body?.requestId || '').trim() || correlationTracker.generateMessageTraceId();
-  const companyId = String(req.body?.companyId || req.companyId || req.tenantId || process.env.DEFAULT_COMPANY_ID || 'default');
+  const { companyId, normalizedPhone, targetJidOrPhone, targetSessionName, session } = context;
   correlationTracker.traceLog(correlationId, 'api.received', 'Outbound message request received.', {
     companyId,
     conversationId,
     hasMedia: Boolean(mediaPath || _transportMediaPath),
   });
-  let conversationTarget = null;
-  if (conversationId) {
-    try {
-      conversationTarget = await conversationRepository.getConversationById(conversationId);
-    } catch (lookupError) {
-      console.warn('[SEND_MESSAGE] Failed to resolve conversation target:', lookupError.message);
+  let mediaTransportPath;
+  let ownedMediaReference;
+  try {
+    if (mediaPath || _transportMediaPath) {
+      const mediaService = require('../../../services/enterprise/media-service');
+      const reference = mediaService.normalizeMediaReference(mediaPath || messageService.toPublicMediaPath(_transportMediaPath));
+      if (!await mediaService.canAccessMedia(reference, companyId)) return res.status(403).json({ success: false, error: 'Arquivo não pertence à empresa autenticada.' });
+      ownedMediaReference = reference;
+      mediaTransportPath = await mediaService.findMediaFile(reference);
+      if (!mediaTransportPath) return res.status(404).json({ success: false, error: 'Arquivo de mídia indisponível.' });
+      await messageService.assertLocalMediaPathExists(mediaTransportPath);
     }
+  } catch (error) {
+    return res.status(error.code === 'MEDIA_PATH_FORBIDDEN' ? 403 : 400).json({ success: false, error: 'Falha ao processar arquivo de mídia.' });
   }
-  // The Inbox normally sends the explicit JID/phone. If a stale conversation
-  // selection sends only a short numeric database id (e.g. "16"), never send
-  // to that id as a WhatsApp destination; resolve the conversation's real JID.
-  const explicitTarget = chatId || phone;
-  const looksLikeConversationId = /^\d{1,6}$/.test(String(explicitTarget || '').trim());
-  const targetJidOrPhone = looksLikeConversationId && conversationTarget
-    ? (conversationTarget.remote_jid || conversationTarget.remoteJid || explicitTarget)
-    : (explicitTarget || conversationTarget?.remote_jid || conversationTarget?.remoteJid);
-  const normalizedPhone = whatsappService.normalizePhone(targetJidOrPhone);
-  const mediaTransportPath = await messageService.resolveOutboundMediaPath(_transportMediaPath || mediaPath);
   const resolvedMediaType =
     String(mediaType || '').toLowerCase() === 'file'
       ? 'document'
       : (mediaType || inferMediaType(mediaTransportPath || mediaPath));
   const resolvedText = toExactMessageText(message || text || null) || null;
-  const persistedMediaPath = messageService.toPublicMediaPath(mediaPath || mediaTransportPath);
-  const requestedSessionId = getRequestedSessionId(req);
-  const targetSessionName = sessionManager.normalizeSessionName(
-    sessionName || sessionId || requestedSessionId || sessionManager.DEFAULT_SESSION
-  );
-  const existingSession = sessionManager.getSession(targetSessionName);
-  let session = existingSession;
-  
-  if (!session) {
-    session = await sessionManager.getDefaultSession();
-  }
-
-  const isSessionConnected = (s) => s && String(s.status || '').toLowerCase() === 'connected';
+  const persistedMediaPath = ownedMediaReference || null;
   const sock = session?.sock;
-
-  if (!session || !isSessionConnected(session) || !sock) {
-    return res.status(409).json({
-      error: `Sessão do WhatsApp (${targetSessionName}) está offline ou desconectada. Aguarde a reconexão.`,
-      success: false
-    });
-  }
 
   // Auto-activate runtime if inactive so message sending is never blocked
   if (!sessionManager.isRuntimeActive()) {
@@ -261,7 +247,7 @@ async function sendMessage(req, res) {
   addOwnPhone(session?.phone);
   addOwnPhone(session?.sock?.user?.id);
   for (const activeSession of sessionManager.listSessions()) {
-    addOwnPhone(activeSession?.phone);
+    if (String(activeSession.companyId || '') === companyId) addOwnPhone(activeSession?.phone);
   }
 
   if (ownSessionPhones.has(normalizedPhone)) {
@@ -284,17 +270,18 @@ async function sendMessage(req, res) {
 
   // Claim the idempotency key only after destination/session validation. A
   // rejected offline/invalid request must remain retryable with the same key.
-  const idempotencyKey = `${companyId}:${correlationId}`;
+  const idempotencyKey = JSON.stringify([companyId, targetSessionName, context.conversationId || normalizedPhone, correlationId]);
   if (!messageDedupeService.markSeen('outbound_request', idempotencyKey, 5 * 60 * 1000)) {
-    console.warn('[SEND_MESSAGE] duplicate request suppressed', { companyId, correlationId });
-    return res.status(200).json({ success: true, duplicate: true, correlationId });
+    const existing = outboundQueueService.findByCorrelation(correlationId, companyId, { sessionId: targetSessionName, conversationId: context.conversationId, phone: normalizedPhone });
+    if (existing) return res.status(200).json({ success: true, duplicate: true, correlationId, queueId: existing.id, status: existing.state });
+    return res.status(409).json({ success: false, code: 'SEND_IN_PROGRESS', error: 'Este envio ainda está sendo preparado. Aguarde e tente novamente.' });
   }
 
+  let apiMessage;
   try {
     const deliveryStatus = 'pending';
     let memEntry;
     let persistedResult;
-    let apiMessage;
 
     // 1. Immediately persist to database as pending
     if (!store.databaseEnabled) {
@@ -305,7 +292,8 @@ async function sendMessage(req, res) {
         mediaPath: persistedMediaPath || mediaTransportPath || mediaPath || null,
         mediaType: resolvedMediaType || null,
         sessionId: session?.sessionId || targetSessionName,
-        conversationId: conversationId || `chat-${normalizedPhone}`,
+        conversationId: context.conversationId || `chat-${normalizedPhone}`,
+        companyId,
         status: deliveryStatus,
       });
 
@@ -328,14 +316,15 @@ async function sendMessage(req, res) {
     } else {
       persistedResult = await registerOutgoingMessage(store, {
         companyId,
-        contactId,
-        conversationId,
+        contactId: context.contactId,
+        conversationId: context.conversationId,
         mediaPath: persistedMediaPath || mediaPath,
         mediaType: resolvedMediaType,
         name: session?.phone || 'Unknown',
         phone: normalizedPhone,
         sessionId: session?.sessionId || targetSessionName,
         source: 'human',
+        deferDeliveryEffects: true,
         text: resolvedText,
         status: deliveryStatus,
         whatsappMessageId: null, // Will be updated asynchronously
@@ -350,61 +339,33 @@ async function sendMessage(req, res) {
           text: resolvedText,
         });
 
-        return res.status(500).json({
-          error: 'Message persistence failed',
-          success: false,
-        });
+        throw new Error('Message persistence failed');
       }
       
       apiMessage = formatApiMessage(persistedResult.message);
     }
 
     if (!apiMessage?.id) {
-      return res.status(500).json({
-        error: 'Message persistence failed: missing id.',
-        success: false,
-      });
+      throw new Error('Message persistence failed: missing id.');
     }
+    context.conversationId = context.conversationId || apiMessage.conversationId;
 
-    let checkedMediaTransportPath = null;
-    if (mediaTransportPath || mediaPath) {
-      try {
-        checkedMediaTransportPath = await messageService.assertLocalMediaPathExists(
-          mediaTransportPath || mediaPath
-        );
-        await messageService.ensureUploadDirectories();
-      } catch (err) {
-        return res.status(400).json({
-          error: 'Falha ao processar arquivo de mídia.',
-          details: err.message,
-          success: false
-        });
-      }
-    }
-
-    // 2. Return 200 OK immediately so frontend is responsive
-    res.status(200).json({
-      chatId: normalizeChatId(normalizedPhone),
-      message: apiMessage,
-      success: true,
-    });
-
-    // 3. Enqueue transport delivery. The queue serializes Baileys calls and
-    // updates the already-persisted pending record; do not send directly here.
+    // Success means that the durable queue accepted this pending message.
     const queueItem = await outboundQueueService.enqueue({
       phone: targetJidOrPhone,
       text: resolvedText || '',
       mediaType: resolvedMediaType,
-      mediaPath: checkedMediaTransportPath || mediaPath || null,
+      mediaPath: mediaTransportPath || mediaPath || null,
       fileName,
       sessionId: session?.sessionId || targetSessionName,
       companyId,
       correlationId,
       metadata: {
         source: 'human',
-        conversationId,
-        contactId,
+        conversationId: context.conversationId || apiMessage.conversationId,
+        contactId: context.contactId,
         persistedMessageId: apiMessage.id,
+        publicMediaPath: persistedMediaPath,
         mimetype,
         ptt,
         ...(store.databaseEnabled ? {} : { memoryMessageId: apiMessage.id }),
@@ -416,29 +377,45 @@ async function sendMessage(req, res) {
       messageId: apiMessage.id,
     });
 
-    // 4. Handle AI deactivation
-    if (store.databaseEnabled && conversationId && String(req.body.source) !== 'ai' && String(req.body.source) !== 'bot') {
+    emitInboxRealtimeEvent(req, { ...apiMessage, companyId });
+    let conversationControl = null;
+    // 4. Handle AI deactivation after durable queue acceptance.
+    if (store.databaseEnabled && context.conversationId) {
       try {
         await dbQuery(
           `UPDATE conversations 
            SET ai_enabled = false, ai_reactivate_at = NOW() + INTERVAL '24 hours' 
-           WHERE id = $1`,
-          [conversationId]
+           WHERE id = $1 AND company_id = $2`,
+          [context.conversationId, companyId]
         );
+        const runtime = require('../../messaging/inbox/inbox/services/ConversationRuntimeService').registerHumanReply(store, context.conversationId);
+        conversationControl = { id: context.conversationId, aiEnabled: false, aiReactivateAt: runtime.aiPausedUntil, controlMode: 'human_active', humanActive: true };
         const io = store?.io || global.io || req.app?.get?.('io') || req.app?.locals?.io;
         if (io) {
-          io.emit('conversation_updated', {
-            id: conversationId,
+          emitToTenantWithAliases(io, companyId, 'conversation_updated', {
+            id: context.conversationId,
             ai_enabled: false,
-            ai_reactivate_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString()
-          });
+            ...conversationControl,
+            ai_reactivate_at: conversationControl.aiReactivateAt
+          }, ['conversation:update', 'conversation-update']);
         }
         console.log(`[AI-DEACTIVATE] IA desligada por 24h para conv ${conversationId} devido a msg manual.`);
       } catch (err) {
         console.error('[AI-DEACTIVATE] Error updating DB:', err.message);
       }
     }
+    return res.status(200).json({ chatId: normalizeChatId(normalizedPhone), message: apiMessage, queueId: queueItem.id, status: 'pending', conversationControl, success: true });
   } catch (error) {
+    messageDedupeService.forget('outbound_request', idempotencyKey);
+    if (apiMessage?.id) {
+      apiMessage.status = 'error';
+      try {
+        if (store.databaseEnabled) await dbQuery('UPDATE messages SET status = $1 WHERE id = $2 AND company_id = $3', ['error', apiMessage.id, companyId]);
+        else messageStore.updateMessageStatus?.(apiMessage.id, 'error');
+        emitToTenantWithAliases(store.io || global.io, companyId, 'message_status', { messageId: apiMessage.id, conversationId: apiMessage.conversationId, status: 'error' }, ['message:status']);
+      } catch (persistError) { console.error('[SEND_MESSAGE] Failed to persist queue failure:', persistError.message); }
+      return res.status(503).json({ success: false, code: 'QUEUE_ACCEPT_FAILED', error: 'Não foi possível colocar a mensagem na fila. Seu rascunho pode ser reenviado.', message: apiMessage });
+    }
     const message = String(error?.message || '');
 
     const errMsg = message.toLowerCase();
@@ -517,6 +494,7 @@ async function sendMessage(req, res) {
 }
 
 async function sendMedia(req, res) {
+  if (!req.authTenantId) return res.status(401).json({ success: false, error: 'Autenticação da empresa obrigatória.' });
   const {
     caption = '',
     chatId,
@@ -548,15 +526,23 @@ async function sendMedia(req, res) {
       });
     }
 
-    const tempFile = await saveBase64MediaToTempFile(base64Data || resolvedMediaPath, {
-      mediaType: resolvedMediaType,
-      mimetype,
-    });
+    const mediaService = require('../../../services/enterprise/media-service');
+    let uploaded = null;
+    if (base64Data) {
+      const [header, rawPayload] = String(base64Data).startsWith('data:') ? String(base64Data).split(',', 2) : ['', base64Data];
+      const buffer = Buffer.from(String(rawPayload || '').replace(/\s+/g, ''), 'base64');
+      if (!buffer.length || buffer.length > 50 * 1024 * 1024) return res.status(400).json({ success: false, error: 'Arquivo vazio ou maior que 50 MB.' });
+      uploaded = await mediaService.saveBuffer({ tenantId: req.authTenantId, type: resolvedMediaType, mimeType: mimetype || header.match(/^data:([^;]+)/)?.[1], sourceFileName: fileName, buffer });
+    }
+    const ownedReference = mediaService.normalizeMediaReference(uploaded?.url || resolvedMediaPath);
+    if (!await mediaService.canAccessMedia(ownedReference, req.authTenantId)) return res.status(403).json({ success: false, error: 'Arquivo não pertence à empresa autenticada.' });
+    const ownedFile = await mediaService.findMediaFile(ownedReference);
+    if (!ownedFile) return res.status(404).json({ success: false, error: 'Arquivo de mídia indisponível.' });
     const resolvedTransportPath = await messageService.resolveOutboundMediaPath(
-      tempFile?.absolutePath || resolvedMediaPath
+      ownedFile
     );
     const persistedMediaPath =
-      tempFile?.publicPath || messageService.toPublicMediaPath(resolvedTransportPath || resolvedMediaPath);
+      ownedReference;
     const transportMediaPath = resolvedTransportPath || resolvedMediaPath;
 
     req.body = {
@@ -604,6 +590,8 @@ async function sendMedia(req, res) {
 }
 
 async function receiveMessage(req, res) {
+  if (!req.authTenantId) return res.status(401).json({ error: 'Autenticação da empresa obrigatória.' });
+  const companyId = req.authTenantId;
   const {
     mediaPath = null,
     mediaType = null,
@@ -728,6 +716,7 @@ async function receiveMessage(req, res) {
 }
 
 async function getMessagesByPhone(req, res) {
+  if (!req.authTenantId) return res.status(401).json({ error: 'Autenticação da empresa obrigatória.' });
   const { phone } = req.params;
   const requestedSessionRaw = String(
     req?.headers?.['x-session-id'] || req?.query?.sessionId || req?.body?.sessionId || ''
@@ -735,7 +724,7 @@ async function getMessagesByPhone(req, res) {
   const requestedSessionId = requestedSessionRaw
     ? sessionManager.normalizeSessionName(requestedSessionRaw)
     : null;
-  const companyId = req.tenantId || req.companyId || req.query?.companyId || process.env.DEFAULT_COMPANY_ID || 'default';
+  const companyId = req.authTenantId;
 
   try {
     const filteredMessages = await messageRepository.getMessagesByPhone(
@@ -753,6 +742,7 @@ async function getMessagesByPhone(req, res) {
 }
 
 async function listMessages(req, res) {
+  if (!req.authTenantId) return res.status(401).json({ error: 'Autenticação da empresa obrigatória.' });
   const store = getStore(req);
   const requestedSessionRaw = String(
     req?.headers?.['x-session-id'] || req?.query?.sessionId || req?.body?.sessionId || ''
@@ -760,7 +750,7 @@ async function listMessages(req, res) {
   const requestedSessionId = requestedSessionRaw
     ? sessionManager.normalizeSessionName(requestedSessionRaw)
     : null;
-  const companyId = req.tenantId || req.companyId || req.query?.companyId || process.env.DEFAULT_COMPANY_ID || 'default';
+  const companyId = req.authTenantId;
   const chatId = String(req.query?.chatId || '').trim();
   const cursor = req.query?.cursor || null;
   const limit = Math.min(Math.max(Number(req.query?.limit) || 20, 1), 2000);
@@ -782,6 +772,7 @@ async function listMessages(req, res) {
 
     if (!Array.isArray(sourceMessages) || sourceMessages.length === 0) {
       sourceMessages = (Array.isArray(store?.messages) ? store.messages : [])
+        .filter(item => String(item.companyId || item.company_id || '') === companyId)
         .filter((item) => {
           const phone = whatsappService.normalizePhone(item?.phone || '');
           const target = whatsappService.normalizePhone(chatId || '');
@@ -833,6 +824,7 @@ async function listMessages(req, res) {
 
   const fallbackMessages = Array.isArray(store?.messages)
     ? store.messages
+        .filter(item => String(item.companyId || item.company_id || '') === companyId)
         .filter((item) => (
           requestedSessionId
             ? String(item.sessionId || sessionManager.DEFAULT_SESSION) === requestedSessionId
@@ -864,6 +856,7 @@ async function getMessagesByConversationId(req, res) {
 
     const memoryList = Array.isArray(store?.messages)
       ? store.messages
+          .filter(item => String(item.companyId || item.company_id || '') === req.authTenantId)
           .filter((entry) => String(entry?.conversationId || '') === String(conversationId || ''))
           .filter((entry) => {
             if (!before) return true;
@@ -881,6 +874,7 @@ async function getMessagesByConversationId(req, res) {
   } catch (error) {
     const safeFallback = Array.isArray(store?.messages)
       ? store.messages
+          .filter(item => String(item.companyId || item.company_id || '') === req.authTenantId)
           .filter((entry) => String(entry?.conversationId || '') === String(conversationId || ''))
           .map((entry) => formatApiMessage(entry))
           .filter(Boolean)
@@ -891,9 +885,18 @@ async function getMessagesByConversationId(req, res) {
 }
 
 async function createMessage(req, res) {
+  if (!req.authTenantId) return res.status(401).json({ error: 'Autenticação da empresa obrigatória.' });
+  let context;
+  try { context = await resolveOutboundContext(req, { requireConnected: false }); }
+  catch (error) { return res.status(error.status || 503).json({ success: false, error: error.status ? error.message : 'Não foi possível validar a mensagem.' }); }
+  if (req.body?.mediaPath) {
+    try {
+      const mediaService = require('../../../services/enterprise/media-service');
+      if (!await mediaService.canAccessMedia(req.body.mediaPath, req.authTenantId)) return res.status(403).json({ error: 'Arquivo não pertence à empresa autenticada.' });
+    } catch { return res.status(403).json({ error: 'Arquivo de mídia inválido.' }); }
+  }
   const {
     body,
-    companyId,
     conversationId,
     direction,
     from,
@@ -919,6 +922,7 @@ async function createMessage(req, res) {
     const fallbackConversationId = String(conversationId || `chat-${normalizedPhone}`);
     const fallbackMessage = {
       id: randomUUID(),
+      companyId: req.authTenantId,
       conversationId: fallbackConversationId,
       content: String(resolvedText || ''),
       createdAt: Date.now(),
@@ -950,27 +954,27 @@ async function createMessage(req, res) {
 
     if (direction === 'outbound') {
       result = await registerOutgoingMessage(store, {
-        companyId,
+        companyId: req.authTenantId,
         contactId: req.body?.contactId,
         conversationId,
         mediaPath,
         mediaType,
         name: name || normalizedPhone,
         phone: normalizedPhone,
-        sessionId: sessionId || requestedSessionId || sessionManager.DEFAULT_SESSION,
-        source: req.body?.source || 'human',
+        sessionId: context.targetSessionName,
+        source: 'human',
         text: resolvedText,
       });
     } else {
       result = await registerIncomingMessage(store, {
-        companyId,
+        companyId: req.authTenantId,
         conversationId,
         externalMessageId: req.body?.id || null,
         mediaPath,
         mediaType,
         name: name || normalizedPhone,
         phone: normalizedPhone,
-        sessionId: sessionId || requestedSessionId || sessionManager.DEFAULT_SESSION,
+        sessionId: context.targetSessionName,
         text: resolvedText,
         timestamp: timestamp ? new Date(timestamp).toISOString() : new Date().toISOString(),
       });
@@ -1003,6 +1007,7 @@ async function createMessage(req, res) {
  * Returns the list of recent chat contacts from the in-memory store (falls back to conversations DB).
  */
 async function getChats(req, res) {
+  if (!req.authTenantId) return res.status(401).json({ error: 'Autenticação da empresa obrigatória.' });
   const store = getStore(req);
   const requestedSessionId = getRequestedSessionId(req);
 
@@ -1010,16 +1015,14 @@ async function getChats(req, res) {
   if (store?.databaseEnabled) {
     try {
       const dbConversations = await conversationRepository.listConversations(
-        req.query?.companyId || process.env.DEFAULT_COMPANY_ID || 'default',
+        req.authTenantId,
         Number(req.query?.limit) || 50,
         {
           sessionId: requestedSessionId,
         }
       );
 
-      if (Array.isArray(dbConversations) && dbConversations.length > 0) {
-        return res.status(200).json(dbConversations);
-      }
+      return res.status(200).json(Array.isArray(dbConversations) ? dbConversations : []);
     } catch (_err) {
       // fall through to memory store
     }
@@ -1028,6 +1031,7 @@ async function getChats(req, res) {
   // Return from in-memory store
   const memChats = messageStore
     .getChats()
+    .filter(chat => String(chat.companyId || chat.company_id || '') === req.authTenantId)
     .filter((chat) => String(chat.sessionId || sessionManager.DEFAULT_SESSION) === requestedSessionId);
   const normalized = memChats.map((chat) => ({
     id: chat.id,
@@ -1050,10 +1054,11 @@ async function getChats(req, res) {
  * Returns messages for a chatId (phone) from in-memory store (with DB fallback).
  */
 async function getMessagesByChatId(req, res) {
+  if (!req.authTenantId) return res.status(401).json({ error: 'Autenticação da empresa obrigatória.' });
   const { chatId } = req.params;
   const store = getStore(req);
   const requestedSessionId = getRequestedSessionId(req);
-  const companyId = req.tenantId || req.companyId || req.query?.companyId || process.env.DEFAULT_COMPANY_ID || 'default';
+  const companyId = req.authTenantId;
 
   try {
     const messages = await loadMessagesForChat({
@@ -1072,15 +1077,16 @@ async function getMessagesByChatId(req, res) {
 }
 
 async function deleteMessage(req, res) {
+  if (!req.authTenantId) return res.status(401).json({ error: 'Autenticação da empresa obrigatória.' });
   const { messageId } = req.params;
   const deleteScope = req.body?.scope === 'everyone' ? 'everyone' : 'local';
   const store = getStore(req);
 
   try {
     const existing = store?.databaseEnabled
-      ? await messageRepository.findById(messageId)
+      ? await messageRepository.findById(messageId, req.authTenantId)
       : Array.isArray(store?.messages)
-        ? store.messages.find((entry) => String(entry?.id) === String(messageId))
+        ? store.messages.find((entry) => String(entry?.id) === String(messageId) && String(entry.companyId || entry.company_id || '') === req.authTenantId)
         : null;
 
     if (!existing) {
@@ -1097,9 +1103,8 @@ async function deleteMessage(req, res) {
     }
 
     if (deleteScope === 'everyone') {
-      const sessionName = sessionManager.normalizeSessionName(existing.sessionId || getRequestedSessionId(req));
-      const session = sessionManager.getSession(sessionName) || await sessionManager.getDefaultSession();
-      const sock = session?.sock || store?.sock;
+      const context = await resolveOutboundContext({ ...req, body: { conversationId: existing.conversationId, sessionId: existing.sessionId, phone: existing.phone } });
+      const sock = context.session?.sock;
       if (!sock) {
         return res.status(409).json({
           code: 'WHATSAPP_SESSION_OFFLINE',
@@ -1130,7 +1135,7 @@ async function deleteMessage(req, res) {
     }
 
     if (store?.databaseEnabled) {
-      await messageRepository.deleteById(messageId);
+      await messageRepository.deleteById(messageId, req.authTenantId);
     } else if (Array.isArray(store?.messages)) {
       store.messages = store.messages.filter((entry) => String(entry?.id) !== String(messageId));
     }
@@ -1152,6 +1157,7 @@ async function deleteMessage(req, res) {
 }
 
 async function forwardMessage(req, res) {
+  if (!req.authTenantId) return res.status(401).json({ error: 'Autenticação da empresa obrigatória.' });
   const { messageId } = req.params;
   const { phone, conversationId, sessionId } = req.body || {};
   const store = getStore(req);
@@ -1162,9 +1168,9 @@ async function forwardMessage(req, res) {
 
   try {
     const existing = store?.databaseEnabled
-      ? await messageRepository.findById(messageId)
+      ? await messageRepository.findById(messageId, req.authTenantId)
       : Array.isArray(store?.messages)
-        ? store.messages.find((entry) => String(entry?.id) === String(messageId))
+        ? store.messages.find((entry) => String(entry?.id) === String(messageId) && String(entry.companyId || entry.company_id || '') === req.authTenantId)
         : null;
 
     if (!existing) {
@@ -1177,6 +1183,9 @@ async function forwardMessage(req, res) {
       text: existing.content || existing.text || '',
       mediaPath: existing.mediaPath || null,
       mediaType: existing.mediaType || null,
+      type: existing.mediaType || null,
+      caption: existing.content || existing.text || '',
+      requestId: req.body?.requestId,
       conversationId: conversationId || undefined,
       sessionId: sessionId || existing.sessionId || undefined,
       message: existing.content || existing.text || '',
@@ -1189,14 +1198,14 @@ async function forwardMessage(req, res) {
 }
 
 async function listStickers(req, res) {
+  if (!req.authTenantId) return res.status(401).json({ success: false, error: 'Autenticação da empresa obrigatória.' });
   const store = getStore(req);
   try {
     const enterpriseMediaService = require('../../../services/enterprise/media-service');
-    const tenantId = enterpriseMediaService.normalizeTenantId(req.query.tenantId || req.companyId || 'default');
+    const tenantId = enterpriseMediaService.normalizeTenantId(req.authTenantId);
     
     // Path: storage/media/<tenantId>/stickers
-    const PROJECT_ROOT = path.join(__dirname, '..');
-    const MEDIA_ROOT = path.resolve(PROJECT_ROOT, '..', 'storage', 'media');
+    const MEDIA_ROOT = path.resolve(__dirname, '../../../../storage/media');
     const stickersDir = path.join(MEDIA_ROOT, tenantId, 'stickers');
     
     const urls = new Set();

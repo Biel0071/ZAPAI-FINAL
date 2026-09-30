@@ -3,6 +3,13 @@ const path = require('path');
 const crypto = require('crypto');
 
 const DATA_FILE = path.join(__dirname, '..', '..', 'data', 'json_db', 'quick_replies.json');
+let writeLock = Promise.resolve();
+
+function requireCompanyId(value) {
+  const companyId = String(value || '').trim();
+  if (!companyId || companyId === 'all') throw new Error('companyId da empresa é obrigatório.');
+  return companyId;
+}
 
 async function ensureDataFile() {
   await fs.mkdir(path.dirname(DATA_FILE), { recursive: true });
@@ -15,6 +22,7 @@ async function ensureDataFile() {
 }
 
 async function readQuickReplies(companyId = null) {
+  companyId = requireCompanyId(companyId);
   await ensureDataFile();
   let fileItems = [];
   try {
@@ -28,15 +36,16 @@ async function readQuickReplies(companyId = null) {
   let dbItems = [];
   try {
     const { query } = require('../src/infrastructure/config/database');
-    const sql = companyId 
-      ? 'SELECT * FROM quick_replies WHERE company_id = $1 OR company_id = \'default\'' 
-      : 'SELECT * FROM quick_replies';
-    const params = companyId ? [companyId] : [];
+    const sql = 'SELECT * FROM quick_replies WHERE company_id = $1';
+    const params = [companyId];
     const res = await query(sql, params);
     
     dbItems = (res.rows || []).map((row) => {
       let parsedContent = row.content;
       let items = [];
+      let steps = [];
+      let favorite = false;
+      let isFlow = false;
       let mediaUrl = null;
       let mediaType = null;
       let aiMemory = null;
@@ -47,6 +56,9 @@ async function readQuickReplies(companyId = null) {
           const obj = JSON.parse(row.content);
           parsedContent = obj.text || obj.content || row.content;
           items = obj.items || [];
+          steps = obj.steps || [];
+          favorite = Boolean(obj.favorite);
+          isFlow = Boolean(obj.isFlow);
           mediaUrl = obj.mediaUrl || null;
           mediaType = obj.mediaType || null;
           aiMemory = obj.aiMemory || null;
@@ -70,6 +82,9 @@ async function readQuickReplies(companyId = null) {
         title: row.title,
         content: parsedContent,
         items: items.length > 0 ? items : [{ type: 'text', value: parsedContent }],
+        steps,
+        favorite,
+        isFlow,
         category: row.category,
         tags: Array.isArray(row.tags) ? row.tags : [],
         mediaUrl,
@@ -81,13 +96,13 @@ async function readQuickReplies(companyId = null) {
       };
     });
   } catch (err) {
-    // Database query failed, fallback to file items
+    if (process.env.NODE_ENV === 'production') throw err;
   }
 
   // Merge items by id
   const map = new Map();
   for (const item of fileItems) {
-    if (item && item.id) map.set(item.id, item);
+    if (item && item.id && String(item.companyId || 'default') === companyId) map.set(item.id, item);
   }
   for (const item of dbItems) {
     if (item && item.id) {
@@ -97,24 +112,17 @@ async function readQuickReplies(companyId = null) {
   }
 
   const allMerged = Array.from(map.values());
-  if (companyId && companyId !== 'all') {
-    return allMerged.filter((item) => {
-      const itemCompany = item.companyId || 'default';
-      return itemCompany === companyId || itemCompany === 'default';
-    });
-  }
-
-  return allMerged;
+  return allMerged.filter(item => String(item.companyId || 'default') === companyId);
 }
 
-async function writeQuickReplies(items) {
+async function writeQuickReplies(items, companyId, removedId = null) {
+  companyId = requireCompanyId(companyId);
   await ensureDataFile();
-  await fs.writeFile(DATA_FILE, JSON.stringify(items, null, 2), 'utf8');
 
   try {
     const { query } = require('../src/infrastructure/config/database');
     for (const item of items) {
-      if (!item?.id) continue;
+      if (!item?.id || item.companyId !== companyId) continue;
       const contentPayload = JSON.stringify({
         text: item.content || '',
         items: item.items || [],
@@ -123,9 +131,11 @@ async function writeQuickReplies(items) {
         mediaType: item.mediaType || null,
         aiMemory: item.aiMemory || null,
         filename: item.filename || null,
+        favorite: Boolean(item.favorite),
+        isFlow: Boolean(item.isFlow),
       });
 
-      await query(
+      const saved = await query(
         `INSERT INTO quick_replies (id, company_id, title, content, category, tags, updated_at)
          VALUES ($1, $2, $3, $4, $5, $6, NOW())
          ON CONFLICT (id) DO UPDATE SET
@@ -133,7 +143,9 @@ async function writeQuickReplies(items) {
            content = EXCLUDED.content,
            category = EXCLUDED.category,
            tags = EXCLUDED.tags,
-           updated_at = NOW()`,
+           updated_at = NOW()
+         WHERE quick_replies.company_id = EXCLUDED.company_id
+         RETURNING id`,
         [
           item.id,
           item.companyId || 'default',
@@ -143,10 +155,25 @@ async function writeQuickReplies(items) {
           item.tags || [],
         ]
       );
+      if (!saved.rows?.length) throw new Error('Resposta rápida pertence a outra empresa.');
     }
+    if (removedId) await query('DELETE FROM quick_replies WHERE id = $1 AND company_id = $2', [removedId, companyId]);
   } catch (dbErr) {
-    console.warn('[QuickReplyService] Sync to DB warning:', dbErr.message);
+    if (process.env.NODE_ENV === 'production' || /outra empresa/.test(dbErr.message)) throw dbErr;
+    console.warn('[QuickReplyService] Database unavailable; preserving tenant file storage.');
   }
+  const existing = JSON.parse(await fs.readFile(DATA_FILE, 'utf8') || '[]');
+  const others = Array.isArray(existing) ? existing.filter(item => String(item?.companyId || 'default') !== companyId) : [];
+  const next = [...others, ...items.filter(item => String(item.companyId || 'default') === companyId)];
+  const temporary = `${DATA_FILE}.${process.pid}.tmp`;
+  await fs.writeFile(temporary, JSON.stringify(next, null, 2), 'utf8');
+  await fs.rename(temporary, DATA_FILE);
+}
+
+function serializeWrite(work) {
+  const next = writeLock.then(work, work);
+  writeLock = next.catch(() => {});
+  return next;
 }
 
 function normalizeCategory(value) {
@@ -155,11 +182,12 @@ function normalizeCategory(value) {
 
 const { analyzeImageWithVision } = require('../src/infrastructure/config/ai');
 
-async function processBase64Items(items, visionMemories = []) {
+async function processBase64Items(items, visionMemories = [], companyId) {
   if (!Array.isArray(items)) return [];
 
   const processed = [];
-  const uploadDir = path.join(__dirname, '..', 'upload', 'quick-replies');
+  const companyFolder = crypto.createHash('sha256').update(requireCompanyId(companyId)).digest('hex').slice(0, 24);
+  const uploadDir = path.join(__dirname, '..', 'upload', 'quick-replies', companyFolder);
   await fs.mkdir(uploadDir, { recursive: true });
 
   for (const item of items) {
@@ -206,25 +234,27 @@ async function processBase64Items(items, visionMemories = []) {
         await fs.writeFile(filePath, buffer);
 
         processed.push({
+          ...item,
           type,
-          value: `/upload/quick-replies/${savedFileName}`,
+          value: `/upload/quick-replies/${companyFolder}/${savedFileName}`,
           filename: filename || savedFileName,
         });
         continue;
       }
     }
 
-    processed.push({ type, value, filename });
+    processed.push(item);
   }
 
   return processed;
 }
 
-async function processBase64Steps(steps, visionMemories = []) {
+async function processBase64Steps(steps, visionMemories = [], companyId) {
   if (!Array.isArray(steps)) return [];
 
   const processed = [];
-  const uploadDir = path.join(__dirname, '..', 'upload', 'quick-replies');
+  const companyFolder = crypto.createHash('sha256').update(requireCompanyId(companyId)).digest('hex').slice(0, 24);
+  const uploadDir = path.join(__dirname, '..', 'upload', 'quick-replies', companyFolder);
   await fs.mkdir(uploadDir, { recursive: true });
 
   for (const step of steps) {
@@ -270,7 +300,7 @@ async function processBase64Steps(steps, visionMemories = []) {
 
         processed.push({
           ...step,
-          value: `/upload/quick-replies/${savedFileName}`,
+          value: `/upload/quick-replies/${companyFolder}/${savedFileName}`,
           filename: filename || savedFileName,
         });
         continue;
@@ -316,7 +346,7 @@ function normalizeQuickReply(payload = {}) {
     mediaUrl: payload.mediaUrl ? String(payload.mediaUrl).trim() : undefined,
     mediaType: payload.mediaType ? String(payload.mediaType).trim().toLowerCase() : undefined,
     filename: payload.filename ? String(payload.filename).trim() : undefined,
-    companyId: payload.companyId || 'default',
+    companyId: requireCompanyId(payload.companyId),
     steps: Array.isArray(payload.steps) ? payload.steps.map((step) => ({
       id: step.id || `step-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
       type: String(step.type || 'text').trim().toLowerCase(),
@@ -370,27 +400,46 @@ async function listQuickReplies(filters = {}) {
     });
 }
 
+async function assertOwnedMedia(payload, companyId) {
+  const media = require('./enterprise/media-service');
+  const tenantFolder = crypto.createHash('sha256').update(companyId).digest('hex').slice(0, 24);
+  const refs = [payload.mediaUrl, payload.fileUrl, ...(payload.items || []).filter(item => item.type !== 'text').map(item => item.value), ...(payload.steps || []).filter(item => item.type !== 'text').map(item => item.value)].filter(Boolean);
+  for (const reference of refs) {
+    const normalized = media.normalizeMediaReference(reference);
+    const ownUpload = normalized.startsWith('/upload/quick-replies/' + tenantFolder + '/');
+    if (!ownUpload && !await media.canAccessMedia(normalized, companyId, { ignoreQuickReplies: true })) throw Object.assign(new Error('Arquivo não pertence à empresa autenticada.'), { status: 403 });
+    if (!await media.findMediaFile(normalized)) throw Object.assign(new Error('Arquivo não encontrado. Envie o arquivo antes de salvar a resposta.'), { status: 404 });
+  }
+}
+
 async function createQuickReply(payload = {}) {
+  const companyId = requireCompanyId(payload.companyId);
+  return serializeWrite(async () => {
   const visionMemories = [];
   if (payload.items) {
-    payload.items = await processBase64Items(payload.items, visionMemories);
+    payload.items = await processBase64Items(payload.items, visionMemories, companyId);
   }
   if (payload.steps) {
-    payload.steps = await processBase64Steps(payload.steps, visionMemories);
+    payload.steps = await processBase64Steps(payload.steps, visionMemories, companyId);
   }
   if (visionMemories.length > 0) {
     payload.aiMemory = visionMemories.join('\n\n');
   }
   assertPayload(payload);
-  const all = await readQuickReplies();
+  await assertOwnedMedia(payload, companyId);
+  const all = await readQuickReplies(companyId);
   const next = normalizeQuickReply(payload);
+  if (all.some(item => item.id === next.id)) throw new Error('Resposta rápida já cadastrada.');
   all.unshift(next);
-  await writeQuickReplies(all);
+  await writeQuickReplies(all, companyId);
   return next;
+  });
 }
 
-async function updateQuickReply(id, payload = {}) {
-  const all = await readQuickReplies();
+async function updateQuickReply(id, payload = {}, companyId) {
+  companyId = requireCompanyId(companyId);
+  return serializeWrite(async () => {
+  const all = await readQuickReplies(companyId);
   const index = all.findIndex((item) => item.id === id);
 
   if (index < 0) {
@@ -399,10 +448,10 @@ async function updateQuickReply(id, payload = {}) {
 
   const visionMemories = [];
   if (payload.items) {
-    payload.items = await processBase64Items(payload.items, visionMemories);
+    payload.items = await processBase64Items(payload.items, visionMemories, companyId);
   }
   if (payload.steps) {
-    payload.steps = await processBase64Steps(payload.steps, visionMemories);
+    payload.steps = await processBase64Steps(payload.steps, visionMemories, companyId);
   }
   if (visionMemories.length > 0) {
     payload.aiMemory = visionMemories.join('\n\n');
@@ -412,25 +461,31 @@ async function updateQuickReply(id, payload = {}) {
     ...all[index],
     ...payload,
     id,
+    companyId,
     createdAt: all[index].createdAt,
   };
 
   assertPayload(merged);
+  await assertOwnedMedia(merged, companyId);
   all[index] = normalizeQuickReply(merged);
-  await writeQuickReplies(all);
+  await writeQuickReplies(all, companyId);
   return all[index];
+  });
 }
 
-async function removeQuickReply(id) {
-  const all = await readQuickReplies();
+async function removeQuickReply(id, companyId) {
+  companyId = requireCompanyId(companyId);
+  return serializeWrite(async () => {
+  const all = await readQuickReplies(companyId);
   const next = all.filter((item) => item.id !== id);
 
   if (next.length === all.length) {
     return false;
   }
 
-  await writeQuickReplies(next);
+  await writeQuickReplies(next, companyId, id);
   return true;
+  });
 }
 
 module.exports = {

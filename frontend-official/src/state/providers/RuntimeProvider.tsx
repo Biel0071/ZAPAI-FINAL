@@ -76,7 +76,7 @@ function isSessionMatch(convSessionId?: string, incomingSessionId?: string): boo
 }
 
 function resolveConversationIdForRealtimeMessage(
-  incoming: Partial<ChatMessage> & {
+  incoming: Partial<Omit<ChatMessage, "status">> & {
     contactId?: string;
     phone?: string;
     remoteJid?: string;

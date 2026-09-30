@@ -21,6 +21,7 @@ const {
   normalizeChatId,
 } = require('../shared');
 const { loadMessagesForChat } = require('../sync/loadMessagesForChat');
+const { emitToTenant, emitToTenantWithAliases } = require('../../../../../services/realtime/tenantRooms');
 
 function scheduleConversationRevalidation({
   chatId,
@@ -30,7 +31,7 @@ function scheduleConversationRevalidation({
   sessionId,
   store,
 }) {
-  if (!io || !chatId) {
+  if (!io || !chatId || !companyId) {
     return;
   }
 
@@ -44,22 +45,22 @@ function scheduleConversationRevalidation({
       .then((messages) => {
         const safeMessages = Array.isArray(messages) ? messages : [];
 
-        io.emit('messages:revalidated', {
+        emitToTenant(io, companyId, 'messages:revalidated', {
           chatId: normalizeChatId(chatId),
           conversationId,
           messages: safeMessages,
         });
-        io.emit('messages_snapshot', {
+        emitToTenant(io, companyId, 'messages_snapshot', {
           chatId: normalizeChatId(chatId),
           conversationId,
           messages: safeMessages,
         });
-        io.emit('conversation:revalidated', {
+        emitToTenant(io, companyId, 'conversation:revalidated', {
           chatId: normalizeChatId(chatId),
           conversationId,
           messages: safeMessages,
         });
-        io.emit('conversation_snapshot', {
+        emitToTenant(io, companyId, 'conversation_snapshot', {
           chatId: normalizeChatId(chatId),
           conversationId,
           lastMessage: safeMessages[safeMessages.length - 1] || null,
@@ -83,7 +84,7 @@ function emitConversationSnapshotImmediate({
   store,
   fallbackMessage = null,
 }) {
-  if (!io || !chatId) {
+  if (!io || !chatId || !companyId) {
     return;
   }
 
@@ -101,12 +102,12 @@ function emitConversationSnapshotImmediate({
           ? [normalizedFallback]
           : [];
 
-      io.emit('messages_snapshot', {
+      emitToTenant(io, companyId, 'messages_snapshot', {
         chatId: normalizeChatId(chatId),
         conversationId,
         messages: safeMessages,
       });
-      io.emit('conversation_snapshot', {
+      emitToTenant(io, companyId, 'conversation_snapshot', {
         chatId: normalizeChatId(chatId),
         conversationId,
         lastMessage: safeMessages[safeMessages.length - 1] || null,
@@ -121,12 +122,12 @@ function emitConversationSnapshotImmediate({
       // eslint-disable-next-line no-console
       console.error('[API] immediate snapshot failed:', error?.message || error);
 
-      io.emit('messages_snapshot', {
+      emitToTenant(io, companyId, 'messages_snapshot', {
         chatId: normalizeChatId(chatId),
         conversationId,
         messages: fallbackMessages,
       });
-      io.emit('conversation_snapshot', {
+      emitToTenant(io, companyId, 'conversation_snapshot', {
         chatId: normalizeChatId(chatId),
         conversationId,
         lastMessage: fallbackMessages[fallbackMessages.length - 1] || null,
@@ -138,8 +139,9 @@ function emitConversationSnapshotImmediate({
 
 function emitInboxRealtimeEvent(req, savedMessage) {
   const io = req.app.get('io') || getStore(req)?.io;
+  const companyId = req.authTenantId;
 
-  if (!io || !savedMessage) {
+  if (!io || !savedMessage || !companyId) {
     return;
   }
 
@@ -148,9 +150,9 @@ function emitInboxRealtimeEvent(req, savedMessage) {
     message: savedMessage,
   };
 
-  messageService.safeSocketEmit(io, 'message:new', payload, []);
-  messageService.safeSocketEmit(
-    io,
+  emitToTenantWithAliases(io, companyId, 'message:new', payload, []);
+  emitToTenantWithAliases(
+    io, companyId,
     'conversation:update',
     {
       conversationId: savedMessage.conversationId,
@@ -161,10 +163,10 @@ function emitInboxRealtimeEvent(req, savedMessage) {
     },
     ['conversation_updated', 'conversation-update']
   );
-  messageService.safeSocketEmit(io, 'new_message', buildStandardNewMessageEnvelope(savedMessage));
+  emitToTenantWithAliases(io, companyId, 'new_message', buildStandardNewMessageEnvelope(savedMessage));
   emitConversationSnapshotImmediate({
     chatId: savedMessage.phone || '',
-    companyId: req.body?.companyId || req.query?.companyId || req.companyId || req.tenantId,
+    companyId,
     conversationId: savedMessage.conversationId || null,
     io,
     sessionId: savedMessage.sessionId || getRequestedSessionId(req),
@@ -182,7 +184,7 @@ function emitInboxRealtimeEvent(req, savedMessage) {
 
   scheduleConversationRevalidation({
     chatId: savedMessage.phone,
-    companyId: req.body?.companyId || req.query?.companyId || req.companyId || req.tenantId,
+    companyId,
     conversationId: savedMessage.conversationId || null,
     io,
     sessionId: savedMessage.sessionId || getRequestedSessionId(req),
@@ -195,8 +197,9 @@ function emitInboxRealtimeEvent(req, savedMessage) {
 
 function emitInboxRealtimeEventFromStore(store, savedMessage) {
   const io = store?.io || global.io;
+  const companyId = savedMessage?.companyId || savedMessage?.company_id;
 
-  if (!io || !savedMessage) {
+  if (!io || !savedMessage || !companyId) {
     return;
   }
 
@@ -205,9 +208,9 @@ function emitInboxRealtimeEventFromStore(store, savedMessage) {
     message: savedMessage,
   };
 
-  messageService.safeSocketEmit(io, 'message:new', payload, []);
-  messageService.safeSocketEmit(
-    io,
+  emitToTenantWithAliases(io, companyId, 'message:new', payload, []);
+  emitToTenantWithAliases(
+    io, companyId,
     'conversation:update',
     {
       conversationId: savedMessage.conversationId,
@@ -218,10 +221,10 @@ function emitInboxRealtimeEventFromStore(store, savedMessage) {
     },
     ['conversation_updated', 'conversation-update']
   );
-  messageService.safeSocketEmit(io, 'new_message', buildStandardNewMessageEnvelope(savedMessage));
+  emitToTenantWithAliases(io, companyId, 'new_message', buildStandardNewMessageEnvelope(savedMessage));
   emitConversationSnapshotImmediate({
     chatId: savedMessage.phone || '',
-    companyId: process.env.DEFAULT_COMPANY_ID || 'default',
+    companyId,
     conversationId: savedMessage.conversationId || null,
     io,
     sessionId: savedMessage.sessionId || sessionManager.DEFAULT_SESSION,
@@ -239,7 +242,7 @@ function emitInboxRealtimeEventFromStore(store, savedMessage) {
 
   scheduleConversationRevalidation({
     chatId: savedMessage.phone,
-    companyId: process.env.DEFAULT_COMPANY_ID || 'default',
+    companyId,
     conversationId: savedMessage.conversationId || null,
     io,
     sessionId: savedMessage.sessionId || sessionManager.DEFAULT_SESSION,

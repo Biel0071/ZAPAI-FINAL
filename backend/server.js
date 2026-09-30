@@ -548,9 +548,6 @@ const requireJwtAuth = createJwtAuthMiddleware({
     '/api/system/',
     '/api/cluster/metrics/',
     '/system/',
-    '/uploads/',
-    '/media/',
-    '/upload/'
   ],
   protectedPrefixes: ['/api/admin/', '/admin/'],
 });
@@ -580,23 +577,8 @@ function corsForStatic(req, res, next) {
   next();
 }
 
-const staticCacheOptions = {
-  maxAge: '1d',
-  etag: true,
-  lastModified: true,
-  setHeaders: (res, filePath) => {
-    if (/\.(png|jpe?g|webp|gif|svg|mp3|ogg|wav|mp4|webm|pdf)$/i.test(filePath)) {
-      res.setHeader('Cache-Control', 'public, max-age=86400, stale-while-revalidate=604800');
-    }
-  },
-};
-
-app.use('/media', corsForStatic, express.static(path.join(__dirname, '..', 'data', 'storage', 'media'), staticCacheOptions));
-app.use('/media', corsForStatic, express.static(path.join(__dirname, 'media'), staticCacheOptions));
-app.use('/upload', corsForStatic, express.static(path.join(__dirname, 'upload'), staticCacheOptions));
-app.use('/uploads', corsForStatic, express.static(path.join(__dirname, 'uploads'), staticCacheOptions));
-app.use('/uploads', corsForStatic, express.static(path.join(process.cwd(), '..', 'data', 'uploads'), staticCacheOptions));
-app.use('/uploads', corsForStatic, express.static(path.join(__dirname, '..', 'data', 'uploads'), staticCacheOptions));
+const { deliverProtectedMedia } = require('./services/enterprise/media-service');
+app.use(['/media', '/upload', '/uploads', '/api/upload', '/api/uploads'], corsForStatic, deliverProtectedMedia);
 app.use('/diagnostics', devOnlyRoute);
 app.use('/receive-message', devOnlyRoute);
 app.use('/api/receive-message', devOnlyRoute);

@@ -1,3 +1,26 @@
+# Publicação revisada na VPS existente (PM2 / OpenResty)
+
+O ambiente atual usa `zapflow-api` em PM2 e o frontend em `/etc/icontainer/apps/openresty/openresty/www/zapai`. Use `ops/deploy/auto-deploy.sh` com o SHA completo revisado e um artefato do frontend que passou pela verificação de tipos, testes e build.
+
+O script exige árvore Git limpa, preserva ambiente, sessões WhatsApp, uploads e mídias; cria snapshot do PostgreSQL e do frontend antes de trocar a versão. Recarrega somente o processo da aplicação e verifica banco, API, Socket.IO e o HTML servido. Esta versão não executa seeds nem migrações. A autorização de publicação continua obrigatória.
+
+```bash
+ZAPAI_ROOT=/opt/zapai bash ops/deploy/auto-deploy.sh --ref=<SHA40> --artifact=/opt/zapai/releases/frontend.tar.gz --dry-run
+ZAPAI_ROOT=/opt/zapai bash ops/deploy/auto-deploy.sh --ref=<SHA40> --artifact=/opt/zapai/releases/frontend.tar.gz
+```
+
+O rollback automático restaura código e frontend quando um gate falha. O rollback manual usa `ops/deploy/rollback.sh <snapshot>`. Banco e autenticação viva são preservados; restaurar um dump exige procedimento específico. Testes reais devem usar apenas o contato de homologação autorizado. HTTP por IP não confirma o gate público de HTTPS.
+
+## Interface e mídia desta versão
+
+IA abre no agente, com Agente, Conhecimento e Operação dentro da tela. Links antigos por `?tab=` continuam aceitos. Inbox concentra Atendimento, Cliente e Arquivos no painel direito. Texto de resposta rápida entra no rascunho; mídia e fluxo exigem prévia e envio explícito. Aceitação na fila, entrega e erro são estados distintos.
+
+Arquivos usam `POST /api/media/access` autenticado para emitir acesso temporário de 15 minutos, vinculado a empresa e caminho. JWT em query não é aceito. Os prefixos de mídia passam pelo backend; os volumes de `storage/media` e `backend/upload` devem persistir.
+
+---
+
+## Referência para instalação nova com Docker
+
 # ===========================================================================
 # README_DEPLOY.md — ZAPFLOW AI — Guia de Deploy em VPS
 # ===========================================================================

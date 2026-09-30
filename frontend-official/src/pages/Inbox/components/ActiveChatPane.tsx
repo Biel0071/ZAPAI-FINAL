@@ -40,7 +40,7 @@ import { ChatHeaderBar } from "@/components/inbox/ChatHeaderBar";
 import { NewMessagesBanner } from "@/components/inbox/NewMessagesBanner";
 import { MessageRow } from "./MessageRow";
 import { QuickResponseModal, type QuickResponseItem } from "./QuickResponseModal";
-import { FlowExecutionBanner, type FlowExecutionData } from "./FlowExecutionBanner";
+import { FlowExecutionBanner, matchesConversationFlow, type FlowExecutionData } from "./FlowExecutionBanner";
 import { ZaiAssistantComposer } from "./ZaiAssistantComposer";
 import { useAiCountdown } from "@/state/hooks/useAiCountdown";
 import { getSharedSocket } from "@/core/runtime/socket/socketManager";
@@ -48,13 +48,14 @@ import { cn } from "@/core/lib/utils";
 import { apiService } from "@/core/services/apiService";
 import type { ChatMessage, Conversation } from "@/core/services/apiService";
 import type { AIResponseProgress } from "@/state/stores/appStore";
-import type { ComposerAttachment, PreviewMediaState } from "../types";
+import type { ComposerAttachment, PreviewMediaState, QuickReplyItem } from "../types";
 import {
   toConversationDateLabel,
   formatPlaybackTime,
   extractMessageAssetUrl,
   getMediaFileName,
   getMediaTypeLabel,
+  getQuickReplyPreviewText,
 } from "../utils";
 
 interface ActiveChatPaneProps {
@@ -140,8 +141,8 @@ interface ActiveChatPaneProps {
   playingAudioMessageId: string | null;
   audioProgress: number;
   audioDuration: number;
-  quickReplies: any[];
-  sendQuickReply: (item: any) => Promise<void>;
+  quickReplies: QuickReplyItem[];
+  sendQuickReply: (item: QuickReplyItem, delayMs?: number) => Promise<void>;
   applyPendingBackgroundUpdates: () => Promise<void>;
   pendingBackgroundUpdates: number;
   error: string | null;
@@ -254,73 +255,29 @@ export function ActiveChatPane({
   const quickReplyDispatchRef = useRef(false);
   const { resolvedTheme } = useTheme();
 
-  const SEND_STAGES = [
-    "Preparando",
-    "Processando",
-    "Enviando",
-    "Confirmando",
-    "Concluído",
-  ] as const;
-
-  const [dispatchStageIndex, setDispatchStageIndex] = useState<number>(0);
-  const [showDispatchBanner, setShowDispatchBanner] = useState<boolean>(false);
-  const sendingPrevRef = useRef(false);
-
   useEffect(() => {
-    let timer1: ReturnType<typeof setTimeout> | undefined;
-    let timer2: ReturnType<typeof setTimeout> | undefined;
-    let timer3: ReturnType<typeof setTimeout> | undefined;
-    let timerFinish: ReturnType<typeof setTimeout> | undefined;
-
-    if (sending) {
-      setShowDispatchBanner(true);
-      setDispatchStageIndex(0);
-
-      timer1 = setTimeout(() => {
-        setDispatchStageIndex(1);
-      }, 250);
-
-      timer2 = setTimeout(() => {
-        setDispatchStageIndex(2);
-      }, 650);
-
-      timer3 = setTimeout(() => {
-        setDispatchStageIndex(3);
-      }, 1200);
-    } else if (sendingPrevRef.current && !sending) {
-      setDispatchStageIndex(4);
-      timerFinish = setTimeout(() => {
-        setShowDispatchBanner(false);
-        setDispatchStageIndex(0);
-      }, 1400);
-    }
-
-    sendingPrevRef.current = sending;
-
-    return () => {
-      clearTimeout(timer1);
-      clearTimeout(timer2);
-      clearTimeout(timer3);
-      clearTimeout(timerFinish);
-    };
-  }, [sending]);
+    setSelectedQuickReplyModal(null);
+    setIsQuickReplyModalOpen(false);
+  }, [selectedConversation?.id]);
 
   useEffect(() => {
     let active = true;
     const phone = selectedConversation?.phone;
-    if (!phone) { setActiveFlowData(null); return () => { active = false; }; }
-    apiService.getActiveQuickReplyFlow(phone).then((res) => {
-      if (active) setActiveFlowData(res?.flow ?? null);
+    setActiveFlowData(null);
+    if (!phone || !selectedConversation?.id) return () => { active = false; };
+    const context = { conversationId: selectedConversation.id, sessionId: selectedConversation.sessionId };
+    const matches = (data: Partial<FlowExecutionData> | null | undefined) => matchesConversationFlow(data, context);
+    apiService.getActiveQuickReplyFlow(phone, context).then((res) => {
+      if (active) setActiveFlowData(matches(res?.flow) ? res.flow : null);
     }).catch((error) => console.warn("[FLOW_TIMELINE] active flow load failed", error));
     const socket = getSharedSocket();
     if (!socket) return () => { active = false; };
-    const matches = (data: any) => data?.chatId === phone || String(data?.chatId) === String(selectedConversation?.id);
     const started = (data: FlowExecutionData) => { if (matches(data)) { console.info("[FLOW_TIMELINE] started", data); setActiveFlowData(data); } };
     const updated = (data: FlowExecutionData) => { if (matches(data)) { console.info("[FLOW_TIMELINE] updated", data); setActiveFlowData((prev) => ({ ...(prev || {}), ...data })); } };
     const ended = (data: any) => { if (matches(data)) { console.info("[FLOW_TIMELINE] completed", data); setActiveFlowData(null); } };
     socket.on("flow:started", started); socket.on("flow:step_updated", updated); socket.on("flow:cancelled", ended); socket.on("flow:finished", ended);
     return () => { active = false; socket.off("flow:started", started); socket.off("flow:step_updated", updated); socket.off("flow:cancelled", ended); socket.off("flow:finished", ended); };
-  }, [selectedConversation?.id, selectedConversation?.phone]);
+  }, [selectedConversation?.id, selectedConversation?.phone, selectedConversation?.sessionId]);
 
   const targetReactivateAt = selectedConversation?.ai_reactivate_at || selectedConversation?.aiReactivateAt || selectedConversation?.aiPausedUntil;
   const { timeLeft, isWaiting: isAiCountdownActive } = useAiCountdown(targetReactivateAt);
@@ -328,22 +285,11 @@ export function ActiveChatPane({
 
 
   const handleDispatchQuickReply = async (item: QuickResponseItem, customDelayMs: number) => {
-    if (!selectedConversation?.phone) return;
-    if (quickReplyDispatchRef.current) return;
+    if (!selectedConversation?.phone || !isWhatsappConnected) throw new Error("Conecte o WhatsApp antes de enviar.");
+    if (quickReplyDispatchRef.current) throw new Error("Aguarde o envio atual.");
     quickReplyDispatchRef.current = true;
     try {
-      if (customDelayMs) {
-        await apiService.executeQuickReplyFlow(item.id || "custom", {
-          phone: selectedConversation.phone,
-          sessionId: selectedConversation.sessionId || undefined,
-          companyId: selectedConversation.tenantId || "default",
-          overrideDelayMs: customDelayMs,
-          item,
-          sendId: crypto.randomUUID(),
-        });
-        return;
-      }
-      await sendQuickReply(item as any);
+      await sendQuickReply(item, customDelayMs);
     } finally {
       quickReplyDispatchRef.current = false;
     }
@@ -617,7 +563,7 @@ export function ActiveChatPane({
                       title="Controle da IA"
                     >
                       <Robot className="h-4 w-4" weight={aiEnabledForConversation ? "fill" : "regular"} />
-                      {aiEnabledForConversation ? "Ativado" : isAiCountdownActive ? `Desativado (${timeLeft})` : "Desativado"}
+                      {aiEnabledForConversation ? "IA ativa" : isAiCountdownActive ? `IA pausada (${timeLeft})` : aiRuntime?.globalEnabled === false ? "IA global pausada" : "Humano"}
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end" className="w-48 bg-popover/95 border-border/80 text-popover-foreground">
@@ -626,7 +572,7 @@ export function ActiveChatPane({
                       className="gap-2 cursor-pointer focus:bg-emerald-500/10 focus:text-emerald-500"
                     >
                       <Robot className="h-4 w-4 text-emerald-500" weight="fill" />
-                      <span>Ativar IA</span>
+                      <span>Permitir IA nesta conversa</span>
                     </DropdownMenuItem>
                     <DropdownMenuItem 
                       onClick={() => void handleSetConversationAiEnabled(false, new Date(Date.now() + 86400000).toISOString())}
@@ -645,17 +591,18 @@ export function ActiveChatPane({
                   </DropdownMenuContent>
                 </DropdownMenu>
 
-                {aiEnabledForConversation && aiAgents && aiAgents.length > 0 && handleSetConversationAgent && (
+                {aiAgents && aiAgents.length > 0 && handleSetConversationAgent && (
                   <div className="flex min-w-0 items-center gap-1 bg-muted/50 border border-border/40 rounded-md px-2 py-0.5 text-[10px]">
                     <span className="hidden text-[10px] text-muted-foreground uppercase font-semibold xl:inline">Agente:</span>
                     <Select
-                      value={selectedConversation?.agent_name || (selectedConversation as any)?.assignedAgentName || "Não atribuído"}
-                      onValueChange={(val) => void handleSetConversationAgent(val)}
+                      value={selectedConversation?.agent_name || selectedConversation?.assigned_to || selectedConversation?.assignedAgentName || "default"}
+                      onValueChange={(val) => void handleSetConversationAgent(val === "default" ? "" : val)}
                     >
                       <SelectTrigger className="h-6 min-w-[62px] max-w-[96px] bg-transparent border-none text-[11px] font-semibold text-primary focus:ring-0 p-0 gap-1 hover:text-primary-foreground justify-between">
                         <SelectValue placeholder="Selecione..." />
                       </SelectTrigger>
                       <SelectContent className="bg-popover border-border/80 text-popover-foreground">
+                        <SelectItem value="default" className="text-xs">Padrão da conexão</SelectItem>
                         {aiAgents.map((agent) => (
                           <SelectItem
                             key={agent.id || agent.name}
@@ -1165,13 +1112,8 @@ export function ActiveChatPane({
                 </div>
               )}
               {!selectedConversation?.isBlocked && canSendMessages && !isRecording && (() => {
-                const list = (quickReplies && quickReplies.length > 0)
-                  ? quickReplies.map(qr => typeof qr === "string" ? { id: "custom", label: qr, text: qr } : { ...qr, label: qr.cmd || qr.label || qr.title || qr.text, text: qr.text || qr.value || "" })
-                  : [
-                      { id: "def_1", label: "Olá, como posso ajudar?", text: "Olá, como posso ajudar?" },
-                      { id: "def_2", label: "Aguarde um momento por favor.", text: "Aguarde um momento por favor." },
-                      { id: "def_3", label: "Obrigado pelo contato!", text: "Obrigado pelo contato!" }
-                    ];
+                const list = quickReplies.slice(0, 5);
+                if (list.length === 0) return null;
 
                 return (
                   <div className="flex flex-wrap items-center gap-1.5 px-1 py-1 mb-0.5 select-none w-full max-w-full overflow-x-auto no-scrollbar scroll-smooth">
@@ -1179,66 +1121,27 @@ export function ActiveChatPane({
                       <button
                         key={idx}
                         type="button"
-                        title="Clique para abrir detalhes/mídia. Shift+Clique envia fluxo completo direto."
-                        onClick={(e) => {
-                          if (e.shiftKey) {
-                            void handleDispatchQuickReply(item as any, 0);
-                          } else {
-                            setSelectedQuickReplyModal(item as any);
+                        title={item.isFlow || item.items?.some(entry => entry.type !== "text") ? "Abrir prévia antes de enviar" : "Inserir no rascunho para revisar"}
+                        onClick={() => {
+                          if (item.isFlow || item.items?.some(entry => entry.type !== "text")) {
+                            setSelectedQuickReplyModal(item);
                             setIsQuickReplyModalOpen(true);
+                          } else {
+                            setMessageInput(getQuickReplyPreviewText(item, { contactName: selectedConversation.contactName, phone: selectedConversation.phone }));
+                            messageInputRef.current?.focus();
                           }
                         }}
                         className="px-2.5 py-1 text-[11px] font-medium text-muted-foreground hover:text-foreground bg-muted/30 hover:bg-muted/70 border border-border/40 rounded-full transition-all duration-150 active:scale-95 shrink-0"
                       >
-                        {item.label}
+                        {item.title || item.text}
                       </button>
                     ))}
-                    <span className="text-[9px] text-muted-foreground/40 italic ml-auto shrink-0 select-none hidden md:inline">
-                      Shift+Clique envia direto
-                    </span>
+                    {quickReplies.length > 5 && <button type="button" className="px-2 py-1 text-xs font-medium text-primary" onClick={() => { setRightPanelTab("ai"); setRightPanelCollapsed(false); if (isTabletLayout) setShowLeadPanel(true); }}>Todas as respostas</button>}
                   </div>
                 );
               })()}
 
-              {showDispatchBanner && (
-                <div className="flex flex-wrap items-center justify-between gap-2 px-3 py-1.5 bg-primary/10 border border-primary/20 rounded-xl text-xs animate-fade-in mb-2 shadow-xs">
-                  <div className="flex items-center gap-2">
-                    {dispatchStageIndex < 4 ? (
-                      <span className="relative flex h-2 w-2">
-                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75" />
-                        <span className="relative inline-flex rounded-full h-2 w-2 bg-primary" />
-                      </span>
-                    ) : (
-                      <Check className="h-3.5 w-3.5 text-emerald-500 font-bold" />
-                    )}
-                    <span className="font-semibold text-primary">
-                      {SEND_STAGES[dispatchStageIndex]}
-                      {dispatchStageIndex < 4 ? "..." : "!"}
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-1 text-[10px] overflow-x-auto">
-                    {SEND_STAGES.map((stg, idx) => {
-                      const isCurrent = idx === dispatchStageIndex;
-                      const isPast = idx < dispatchStageIndex;
-                      return (
-                        <span
-                          key={stg}
-                          className={cn(
-                            "px-1.5 py-0.5 rounded transition-all",
-                            isCurrent
-                              ? "bg-primary text-primary-foreground font-semibold shadow-xs"
-                              : isPast
-                              ? "text-primary font-medium"
-                              : "text-muted-foreground/50"
-                          )}
-                        >
-                          {stg}
-                        </span>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
+              {sending && <p role="status" className="mb-2 flex items-center gap-2 rounded-lg border border-primary/20 bg-primary/5 px-3 py-2 text-xs text-primary"><span className="h-2 w-2 animate-pulse rounded-full bg-primary" />Colocando mensagem na fila de envio…</p>}
 
               <div className="relative flex items-center gap-2 w-full">
                 {isRecording ? (
@@ -1291,10 +1194,6 @@ export function ActiveChatPane({
                             onClick={() => {
                               setMessageInput(item.text);
                               messageInputRef.current?.focus();
-                            }}
-                            onDoubleClick={() => {
-                              setMessageInput(item.text);
-                              void handleSendMessage(item.text);
                             }}
                             className={cn(
                               "flex w-full items-center justify-between rounded px-2.5 py-1.5 text-left text-xs transition-colors",
@@ -1363,6 +1262,7 @@ export function ActiveChatPane({
 
                     {selectedConversation && (
                       <ZaiAssistantComposer
+                        key={selectedConversation.id}
                         selectedConversation={selectedConversation}
                         messages={messages}
                         handleSendMessage={handleSendMessage}
@@ -1582,6 +1482,8 @@ export function ActiveChatPane({
           isOpen={isQuickReplyModalOpen}
           onClose={() => setIsQuickReplyModalOpen(false)}
           quickReply={selectedQuickReplyModal}
+          recipientName={selectedConversation.contactName}
+          disabled={!isWhatsappConnected || sending}
           onDispatch={handleDispatchQuickReply}
         />
       )}

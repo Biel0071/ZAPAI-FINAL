@@ -121,9 +121,10 @@ async function status(req, res) {
 
 async function getAiLogs(req, res) {
   try {
+    if (!req.authTenantId) return res.status(401).json({ error: 'Autenticação da empresa obrigatória.' });
     const store = getStore(req);
     const sessionId = req.query.sessionId || req.query.session_id || null;
-    const logs = await aiLogService.getLogs(store, sessionId);
+    const logs = await aiLogService.getLogs(store, sessionId, req.authTenantId);
     return res.status(200).json({ logs });
   } catch (error) {
     return res.status(500).json({ error: error.message || 'Failed to fetch AI logs.' });
@@ -132,9 +133,10 @@ async function getAiLogs(req, res) {
 
 async function getAiMetrics(req, res) {
   try {
+    if (!req.authTenantId) return res.status(401).json({ error: 'Autenticação da empresa obrigatória.' });
     const store = getStore(req);
     const sessionId = req.query.sessionId || req.query.session_id || null;
-    const metrics = await aiLogService.getMetrics(store, sessionId);
+    const metrics = await aiLogService.getMetrics(store, sessionId, req.authTenantId);
     return res.status(200).json(metrics);
   } catch (error) {
     return res.status(500).json({ error: error.message || 'Failed to fetch AI metrics.' });
@@ -142,10 +144,14 @@ async function getAiMetrics(req, res) {
 }
 
 async function testReply(req, res) {
+  if (!req.authTenantId) return res.status(401).json({ success: false, error: "Autenticação obrigatória." });
   try {
+    if (req.body?.sessionId) await require("../../../services/aiMemoryEngine").assertSession(req.authTenantId, req.body.sessionId);
     const store = getStore(req);
     const result = await testAIConnection({
       store,
+      companyId: req.authTenantId,
+      sessionId: req.body?.sessionId,
       providerId: req.body?.providerId,
       model: req.body?.model,
       message: req.body?.message,
@@ -182,7 +188,7 @@ async function refinePrompt(req, res) {
       store,
       currentPrompt,
       instruction,
-      companyId: store?.activeCompanyId || 'default',
+      companyId: req.authTenantId,
     });
 
     return res.status(200).json({
@@ -196,29 +202,15 @@ async function refinePrompt(req, res) {
 }
 
 async function testProviders(req, res) {
+  if (!req.authTenantId) return res.status(401).json({ success: false, error: 'Autenticação obrigatória.' });
   try {
-    const store = getStore(req);
-    const configuredProviders = store?.aiConfig?.advancedAISettings?.providers || [];
-    const providerIds = ['openai', 'gemini', 'claude', 'groq'];
-    const results = await Promise.all(providerIds.map(async (providerId) => {
-      const provider = configuredProviders.find((item) => String(item.id).toLowerCase() === providerId);
-      if (!provider) {
-        return {
-          ok: false,
-          provider: providerId,
-          status: 'error',
-          error: 'Provider nao configurado.',
-        };
-      }
-      return testProviderConnection(provider, {
-        message: 'Responda apenas OK.',
-        prompt: 'Teste tecnico de conectividade.',
-      });
-    }));
-
+    const results = await Promise.all(['openai', 'gemini', 'claude', 'groq'].map(providerId => testAIConnection({
+      store: getStore(req), companyId: req.authTenantId, providerId,
+      message: 'Responda apenas OK.', prompt: 'Teste técnico de conectividade.',
+    })));
     return res.status(200).json({ success: true, results });
-  } catch (error) {
-    return res.status(500).json({ success: false, error: error.message || 'Provider test failed.' });
+  } catch {
+    return res.status(503).json({ success: false, error: 'Não foi possível verificar os provedores da empresa.' });
   }
 }
 

@@ -127,7 +127,7 @@ export default function Connections() {
   const [sessionNameError, setSessionNameError] = useState<string | null>(null);
   const [editingSession, setEditingSession] = useState<Session | null>(null);
   const [editedSessionName, setEditedSessionName] = useState('');
-  const [onboardingMode, setOnboardingMode] = useState<'manual' | 'prompt' | 'history' | null>(null);
+  const [onboardingMode, setOnboardingMode] = useState<'manual' | 'prompt' | 'history' | 'store' | null>(null);
   const [onboardingStatus, setOnboardingStatus] = useState<{ total: number; imported: number; pending: number; failed: number } | null>(null);
   const [isConnecting, setIsConnecting] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
@@ -150,6 +150,7 @@ export default function Connections() {
       id: s.id,
       name: s.name,
       phone: s.phone ?? undefined,
+      whatsappName: s.pushName ?? undefined,
       connected: s.status === "connected",
       status: s.status === "error" || s.status === "unknown" ? "disconnected" as const : s.status as Session["status"],
     }));

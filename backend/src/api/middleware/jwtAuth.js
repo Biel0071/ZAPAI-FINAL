@@ -82,10 +82,6 @@ function getAuthToken(req) {
     }
   }
 
-  if (req.query?.token) {
-    return String(req.query.token).trim();
-  }
-
   return '';
 }
 

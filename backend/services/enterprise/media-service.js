@@ -1,5 +1,4 @@
 const crypto = require('crypto');
-const fs = require('fs');
 const fsp = require('fs/promises');
 const path = require('path');
 const { spawn } = require('child_process');
@@ -27,7 +26,14 @@ if (useS3) {
 }
 
 const PROJECT_ROOT = path.join(__dirname, '..', '..');
-const MEDIA_ROOT = path.resolve(PROJECT_ROOT, '..', 'storage', 'media');
+const MEDIA_ROOT = path.resolve(process.env.MEDIA_STORAGE_ROOT || path.resolve(PROJECT_ROOT, '..', 'storage', 'media'));
+const METADATA_ROOT = path.join(MEDIA_ROOT, '.metadata');
+const MEDIA_ACCESS_TTL_SECONDS = 15 * 60;
+const MEDIA_ROOTS = {
+  media: [MEDIA_ROOT, path.join(PROJECT_ROOT, '..', 'data', 'storage', 'media'), path.join(PROJECT_ROOT, 'media'), path.join(PROJECT_ROOT, 'src', 'api', 'upload')],
+  upload: [path.join(PROJECT_ROOT, 'upload'), path.join(PROJECT_ROOT, 'src', 'api', 'upload')],
+  uploads: [path.join(PROJECT_ROOT, 'uploads'), path.join(PROJECT_ROOT, '..', 'data', 'uploads'), path.join(PROJECT_ROOT, 'src', 'api', 'uploads')],
+};
 const MEDIA_TYPE_DIRECTORY = {
   audio: 'audios',
   document: 'documents',
@@ -151,6 +157,7 @@ function buildMediaMetadata({
   mimeType,
   size,
   tenantId,
+  companyId,
   relativePath,
   thumbnail,
   hash,
@@ -163,6 +170,7 @@ function buildMediaMetadata({
     relativePath,
     size: Number(size || 0),
     tenantId: normalizeTenantId(tenantId),
+    companyId: String(companyId || tenantId),
     thumbnail: thumbnail || null,
     type: mediaType,
     url: relativePath,
@@ -176,6 +184,12 @@ async function cacheMetadata(metadata) {
     return;
   }
 
+  // The cache is optional; upload ownership must survive a worker restart.
+  await ensureDirectory(METADATA_ROOT);
+  const metadataPath = path.join(METADATA_ROOT, `${metadata.id}.json`);
+  const temporaryPath = `${metadataPath}.${crypto.randomUUID()}.tmp`;
+  await fsp.writeFile(temporaryPath, JSON.stringify(metadata), { mode: 0o600 });
+  await fsp.rename(temporaryPath, metadataPath);
   mediaMetadataIndex.set(metadata.id, metadata);
   await setJson(`media:${metadata.id}`, metadata);
 }
@@ -183,7 +197,7 @@ async function cacheMetadata(metadata) {
 async function getMetadata(mediaId = '') {
   const key = String(mediaId || '').trim();
 
-  if (!key) {
+  if (!/^[a-zA-Z0-9_-]{1,100}$/.test(key)) {
     return null;
   }
 
@@ -198,7 +212,14 @@ async function getMetadata(mediaId = '') {
     return cached;
   }
 
-  return null;
+  try {
+    const metadata = JSON.parse(await fsp.readFile(path.join(METADATA_ROOT, `${key}.json`), 'utf8'));
+    if (metadata?.id !== key || !metadata.tenantId) return null;
+    mediaMetadataIndex.set(key, metadata);
+    return metadata;
+  } catch {
+    return null;
+  }
 }
 
 async function saveBuffer({ buffer, tenantId, type, mimeType, sourceFileName }) {
@@ -265,15 +286,15 @@ async function saveBuffer({ buffer, tenantId, type, mimeType, sourceFileName }) 
           
           finalThumbnail = `${baseS3Url}/${thumbS3Key}`;
           
-          // Clean up local thumbnail
-          await fsp.unlink(thumbnailAbsolutePath).catch(() => {});
+          // Keep a durable local copy: delivery is authorized by this server.
         } catch (thumbErr) {
           console.warn('[MEDIA] S3 thumbnail upload failed:', thumbErr.message);
         }
       }
       
-      // Clean up local main file
-      await fsp.unlink(absolutePath).catch(() => {});
+      // S3 is a private replica; never return a public bucket URL to the browser.
+      finalUrl = relativePath;
+      finalThumbnail = thumbnail;
       
     } catch (s3Err) {
       console.error('[MEDIA] S3 upload failed, keeping local file as fallback:', s3Err.message);
@@ -283,12 +304,13 @@ async function saveBuffer({ buffer, tenantId, type, mimeType, sourceFileName }) 
   }
 
   const metadata = buildMediaMetadata({
-    absolutePath: s3Client ? '' : absolutePath,
+    absolutePath,
     mediaId,
     mediaType,
     mimeType,
     size: buffer.length,
     tenantId: normalizedTenantId,
+    companyId: tenantId,
     relativePath: finalUrl,
     thumbnail: finalThumbnail,
     hash,
@@ -392,73 +414,183 @@ async function downloadFromWhatsApp({
   };
 }
 
-function parseRangeHeader(rangeHeader, fileSize) {
-  if (!rangeHeader || !rangeHeader.startsWith('bytes=')) {
-    return null;
-  }
-
-  const [startRaw, endRaw] = rangeHeader.replace('bytes=', '').split('-');
-  let start = Number(startRaw || 0);
-  let end = Number(endRaw || fileSize - 1);
-
-  if (!Number.isFinite(start) || start < 0) {
-    start = 0;
-  }
-
-  if (!Number.isFinite(end) || end >= fileSize) {
-    end = fileSize - 1;
-  }
-
-  if (start > end) {
-    return null;
-  }
-
-  return { end, start };
-}
-
 async function streamMediaById({ mediaId, req, res }) {
   const metadata = await getMetadata(mediaId);
-
-  if (!metadata?.absolutePath) {
+  if (!metadata || String(metadata.companyId || metadata.tenantId) !== String(req.authTenantId || '')) {
     res.status(404).json({ error: 'Media not found.' });
     return;
   }
 
-  let stat = null;
+  await sendProtectedFile(normalizeMediaReference(metadata.relativePath || metadata.url), req, res);
+}
 
+function mediaAccessError(message, status = 400) {
+  return Object.assign(new Error(message), { status });
+}
+
+function normalizeMediaReference(input) {
+  let value = String(input || '').trim().replace(/\\/g, '/');
+  if (!value || value.length > 4096 || /[\u0000-\u001f]/.test(value) || /^(?:data|file|javascript|blob):/i.test(value)) {
+    throw mediaAccessError('Invalid media reference.');
+  }
+  // Validate before URL parsing: URL() silently collapses literal dot segments.
+  for (let attempt = 0; attempt < 4; attempt++) {
+    const clean = value.split(/[?#]/, 1)[0];
+    if (clean.split('/').some(segment => segment === '..' || segment === '.' || segment.startsWith('.'))) {
+      throw mediaAccessError('Invalid media path.');
+    }
+    let decoded;
+    try { decoded = decodeURIComponent(value); } catch { throw mediaAccessError('Invalid media encoding.'); }
+    if (decoded === value) break;
+    value = decoded.replace(/\\/g, '/');
+  }
+  if (/%(?:2e|2f|5c|25)/i.test(value)) throw mediaAccessError('Invalid media encoding.');
+  value = value.split(/[?#]/, 1)[0];
+  const match = value.match(/\/(?:api\/)?(media|upload|uploads)\/(.+)$/i) || value.match(/^(media|upload|uploads)\/(.+)$/i);
+  if (!match) throw mediaAccessError('Unsupported media path.');
+  const segments = match[2].split('/');
+  if (segments.some(segment => !segment || segment.startsWith('.') || segment.includes(':'))) {
+    throw mediaAccessError('Invalid media path.');
+  }
+  return `/${match[1].toLowerCase()}/${segments.join('/')}`;
+}
+
+function mediaSigningSecret() {
+  const secret = process.env.MEDIA_URL_SECRET || process.env.JWT_SECRET || process.env.AUTH_JWT_SECRET;
+  if (!secret) throw mediaAccessError('Media signing is not configured.', 503);
+  return secret;
+}
+
+function createMediaAccess(reference, tenantId, { now = Math.floor(Date.now() / 1000), ttlSeconds = MEDIA_ACCESS_TTL_SECONDS } = {}) {
+  const mediaPath = normalizeMediaReference(reference);
+  if (!tenantId) throw mediaAccessError('Authentication is required.', 401);
+  const expires = now + Math.min(MEDIA_ACCESS_TTL_SECONDS, Math.max(1, ttlSeconds));
+  const payload = Buffer.from(JSON.stringify({ v: 1, p: mediaPath, t: String(tenantId), e: expires })).toString('base64url');
+  const signature = crypto.createHmac('sha256', mediaSigningSecret()).update(`media-access:${payload}`).digest('base64url');
+  return { url: `${mediaPath.split('/').map(encodeURIComponent).join('/')}?access=${payload}.${signature}`, expiresAt: expires * 1000 };
+}
+
+function verifyMediaAccess(access, reference, { now = Math.floor(Date.now() / 1000) } = {}) {
+  const [payload, signature, extra] = String(access || '').split('.');
+  if (!payload || !signature || extra || payload.length > 8192) throw mediaAccessError('Media access is required.', 401);
+  const expected = crypto.createHmac('sha256', mediaSigningSecret()).update(`media-access:${payload}`).digest('base64url');
+  if (expected.length !== signature.length || !crypto.timingSafeEqual(Buffer.from(expected), Buffer.from(signature))) {
+    throw mediaAccessError('Invalid media access.', 401);
+  }
+  let claims;
+  try { claims = JSON.parse(Buffer.from(payload, 'base64url').toString('utf8')); } catch { throw mediaAccessError('Invalid media access.', 401); }
+  if (claims.v !== 1 || !claims.t || !Number.isInteger(claims.e) || claims.e <= now || claims.e > now + MEDIA_ACCESS_TTL_SECONDS || claims.p !== normalizeMediaReference(reference)) {
+    throw mediaAccessError('Media access expired or does not match the file.', 401);
+  }
+  return { tenantId: claims.t, expiresAt: claims.e * 1000 };
+}
+
+function matchesMediaReference(reference, value) {
+  try { return normalizeMediaReference(value) === reference; } catch { return false; }
+}
+
+async function canAccessMedia(reference, tenantId, dependencies = {}) {
+  if (!tenantId) return false;
+  const mediaPath = normalizeMediaReference(reference);
+  const parts = mediaPath.split('/');
+  if (parts[1] === 'upload' && parts[2] === 'quick-replies' && parts.length >= 5) {
+    const companyFolder = crypto.createHash('sha256').update(String(tenantId)).digest('hex').slice(0, 24);
+    return parts[3] === companyFolder;
+  }
+  const legacyFolders = ['temp', 'images', 'videos', 'audios', 'documents', 'stickers', 'thumbnails'];
+  if (parts[1] === 'media' && parts.length >= 5 && !legacyFolders.includes(parts[2])) {
+    // Files saved by the canonical service are partitioned by verified company.
+    return parts[2] === String(tenantId) && String(tenantId) === normalizeTenantId(tenantId);
+  }
+  const query = dependencies.query || require('../../src/infrastructure/config/database').query;
+  const fileName = path.posix.basename(mediaPath).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const pattern = `(^|[/\\\\])${fileName}([?#].*)?$`;
+  for (const [table, columns] of [['messages', ['media_path', 'media_url']], ['whatsapp_history_items', ['media_path']]]) {
+    try {
+      const result = await query(`SELECT ${columns.join(', ')} FROM ${table} WHERE company_id = $1 AND (${columns.map(column => `${column} ~ $2`).join(' OR ')}) LIMIT 200`, [String(tenantId), pattern]);
+      if (result.rows.some(row => columns.some(column => matchesMediaReference(mediaPath, row[column])))) return true;
+    } catch (error) {
+      // Older installations may predate the history table. Other failures fail closed.
+      if (!['42P01', '42703'].includes(error.code)) throw error;
+    }
+  }
+  if (dependencies.ignoreQuickReplies) return false;
+  const quickReplies = dependencies.quickReplies || (companyId => require('../quickReplyService').listQuickReplies({ companyId }));
+  const replies = await quickReplies(String(tenantId));
+  return replies.some(reply => String(reply.companyId || reply.company_id || '') === String(tenantId) && [reply.mediaUrl, reply.fileUrl, ...(reply.items || []).flatMap(item => [item.value, item.mediaUrl, item.fileUrl]), ...(reply.steps || []).flatMap(step => [step.value, step.mediaUrl, step.fileUrl])].some(value => matchesMediaReference(mediaPath, value)));
+}
+
+async function findMediaFile(reference) {
+  const mediaPath = normalizeMediaReference(reference);
+  const [, prefix, ...parts] = mediaPath.split('/');
+  for (const root of MEDIA_ROOTS[prefix] || []) {
+    const candidate = path.resolve(root, ...parts);
+    const relative = path.relative(root, candidate);
+    if (!relative || relative.startsWith('..') || path.isAbsolute(relative)) continue;
+    try {
+      const realRoot = await fsp.realpath(root);
+      const realFile = await fsp.realpath(candidate);
+      const realRelative = path.relative(realRoot, realFile);
+      if (realRelative.startsWith('..') || path.isAbsolute(realRelative)) continue;
+      if ((await fsp.stat(realFile)).isFile()) return realFile;
+    } catch { /* Continue through the legacy roots. */ }
+  }
+  if (s3Client && prefix === 'media' && parts.length >= 3 && !['temp', 'images', 'videos', 'audios', 'documents'].includes(parts[0])) {
+    // Restore historical private S3 files to durable local storage after authorization.
+    try {
+      const { GetObjectCommand } = require('@aws-sdk/client-s3');
+      const object = await s3Client.send(new GetObjectCommand({ Bucket: process.env.S3_BUCKET, Key: mediaPath.slice(1) }));
+      const maximum = 100 * 1024 * 1024;
+      if (Number(object.ContentLength || 0) > maximum) throw new Error('Media exceeds storage limit');
+      const chunks = [];
+      let bytes = 0;
+      for await (const chunk of object.Body) { bytes += chunk.length; if (bytes > maximum) throw new Error('Media exceeds storage limit'); chunks.push(chunk); }
+      const target = path.join(MEDIA_ROOT, ...parts);
+      await ensureDirectory(path.dirname(target));
+      await fsp.writeFile(target, Buffer.concat(chunks), { flag: 'wx' });
+      return target;
+    } catch { /* Missing files remain unavailable; no public fallback. */ }
+  }
+  return null;
+}
+
+async function sendProtectedFile(reference, req, res) {
+  const absolutePath = await findMediaFile(reference);
+  if (!absolutePath) return res.status(404).json({ error: 'Media file is unavailable.' });
+  res.setHeader('Cache-Control', 'private, no-store');
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('Referrer-Policy', 'no-referrer');
+  if (/\.(html?|svg|xml|js)$/i.test(absolutePath)) res.setHeader('Content-Disposition', 'attachment');
+  return res.sendFile(absolutePath, { cacheControl: false, dotfiles: 'deny' }, error => {
+    if (error && !res.headersSent) res.status(error.status || 500).json({ error: 'Media delivery failed.' });
+  });
+}
+
+async function deliverProtectedMedia(req, res, next) {
+  // The metadata/upload API is handled by the authenticated media router.
+  if (/^\/(?:api\/)?media\/(?:upload|access|[^/]+\/(?:metadata|stream))\/?$/.test(req.originalUrl.split('?', 1)[0])) return next();
+  if (req.method === 'OPTIONS') return res.sendStatus(204);
+  if (!['GET', 'HEAD'].includes(req.method)) return res.sendStatus(405);
   try {
-    stat = await fsp.stat(metadata.absolutePath);
-  } catch {
-    res.status(404).json({ error: 'Media file is unavailable.' });
-    return;
+    const reference = normalizeMediaReference(req.originalUrl);
+    verifyMediaAccess(req.query?.access, reference);
+    return await sendProtectedFile(reference, req, res);
+  } catch (error) {
+    return res.status(error.status || 500).json({ error: error.status ? error.message : 'Media delivery failed.' });
   }
-
-  const fileSize = stat.size;
-  const range = parseRangeHeader(req.headers?.range, fileSize);
-  const mimeType = metadata.mimeType || 'application/octet-stream';
-
-  if (range) {
-    res.status(206);
-    res.setHeader('Accept-Ranges', 'bytes');
-    res.setHeader('Content-Length', range.end - range.start + 1);
-    res.setHeader('Content-Range', `bytes ${range.start}-${range.end}/${fileSize}`);
-    res.setHeader('Content-Type', mimeType);
-    fs.createReadStream(metadata.absolutePath, { end: range.end, start: range.start }).pipe(res);
-    return;
-  }
-
-  res.status(200);
-  res.setHeader('Accept-Ranges', 'bytes');
-  res.setHeader('Content-Length', fileSize);
-  res.setHeader('Content-Type', mimeType);
-  fs.createReadStream(metadata.absolutePath).pipe(res);
 }
 
 module.exports = {
   downloadFromWhatsApp,
+  canAccessMedia,
+  createMediaAccess,
+  deliverProtectedMedia,
+  findMediaFile,
   getMetadata,
+  normalizeMediaReference,
   normalizeMediaType,
   normalizeTenantId,
   saveBuffer,
   streamMediaById,
+  verifyMediaAccess,
 };

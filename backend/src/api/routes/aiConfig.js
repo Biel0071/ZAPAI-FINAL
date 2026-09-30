@@ -35,7 +35,7 @@ router.post('/ai/compose', async (req, res) => {
     if (!companyId) return res.status(401).json({ success: false, error: 'Authentication required' });
     if (!conversationId) return res.status(400).json({ success: false, error: 'conversationId required' });
     const { query } = require('../../infrastructure/config/database');
-    const conversation = (await query(`SELECT c.session_id, c.remote_jid, l.phone
+    const conversation = (await query(`SELECT c.session_id, c.remote_jid, c.agent_name, l.phone
       FROM conversations c LEFT JOIN leads l ON l.id=c.lead_id AND l.company_id=c.company_id
       WHERE c.id=$1 AND c.company_id=$2`, [conversationId, companyId])).rows[0];
     if (!conversation) return res.status(404).json({ success: false, error: 'Conversation not found' });
@@ -106,9 +106,9 @@ router.post('/ai/compose', async (req, res) => {
     } else if (action === 'add_delivery') {
       actionInstruction = `Adicione informações ou pergunta sobre o prazo de entrega e cálculo do frete ${memory?.commercial?.deliveryCity ? `para ${memory.commercial.deliveryCity}` : 'solicitando o endereço ou CEP'}.`;
     } else if (action === 'add_price') {
-      actionInstruction = `Adicione o valor e condições de pagamento do produto em foco (${detectedContext.product}), informando PIX com desconto e parcelamento em até 10x sem juros.`;
+      actionInstruction = 'Informe preços e condições somente se estiverem no conhecimento oficial. Caso contrário, peça confirmação ao atendente.';
     } else if (action === 'add_payment') {
-      actionInstruction = 'Apresente as opções de pagamento da loja: PIX à vista com 5% de desconto, Cartão de crédito em até 10x sem juros, ou faturamento sob consulta.';
+      actionInstruction = 'Apresente somente as formas de pagamento cadastradas no conhecimento oficial. Não invente descontos ou parcelamento.';
     } else if (action === 'improve') {
       actionInstruction = 'Melhore a clareza, pontuação, simpatia e impacto da mensagem.';
     } else if (!action && !instruction && !currentDraft && hasHistory) {
@@ -142,60 +142,13 @@ Nunca invente preços ou prazos que contradigam o contexto.`;
 
 Gere a versão final da mensagem para o atendente enviar ao cliente:`;
 
-    const { testProviderConnection } = require('../../../services/ai.service');
-    const crypto = require('crypto');
-    const rawEncKey = process.env.ENCRYPTION_KEY || '';
-    const encKey = crypto.createHash('sha256').update(rawEncKey).digest();
-
-    function localDecrypt(text) {
-      if (!text || !text.includes(':')) return text;
-      try {
-        const parts = text.split(':');
-        const iv = Buffer.from(parts.shift(), 'hex');
-        const enc = Buffer.from(parts.join(':'), 'hex');
-        const decipher = crypto.createDecipheriv('aes-256-cbc', encKey, iv);
-        let dec = decipher.update(enc);
-        dec = Buffer.concat([dec, decipher.final()]);
-        return dec.toString();
-      } catch { return text; }
-    }
-
-    let activeProvider = null;
-    try {
-      const { rows } = await query(
-        `SELECT * FROM provider_keys WHERE tenant_id = $1 AND enabled = TRUE LIMIT 1`,
-        [companyId]
-      );
-      if (rows.length > 0) {
-        let pid = rows[0].provider.toLowerCase();
-        if (pid === 'anthropic') pid = 'claude';
-        if (pid === 'google') pid = 'gemini';
-        activeProvider = { id: pid, apiKey: localDecrypt(rows[0].api_key), model: rows[0].model };
-      }
-    } catch (_) {}
-
-    if (!activeProvider) {
-      const providers = store?.aiConfig?.advancedAISettings?.providers || [];
-      const found = providers.find((p) => p.active) || providers[0];
-      if (found) activeProvider = { id: found.id, apiKey: found.apiKey, model: found.model };
-    }
-
-    if (!activeProvider) {
-      return res.status(503).json({ success: false, error: 'Nenhum provedor de IA configurado.' });
-    }
-
-    const result = await testProviderConnection(activeProvider, {
-      model: activeProvider.model,
-      message: userMessage,
-      prompt: COMPOSE_SYSTEM_PROMPT,
-      history: Array.isArray(recentMessages) ? recentMessages.map((m) => ({
-        role: m.role === 'assistant' ? 'assistant' : 'user',
-        content: m.content || '',
-      })) : [],
-      maxTokens: 600,
-      temperature: 0.6,
-      timeoutMs: 40000,
-    });
+    const { testAIConnection } = require('../../../services/ai.service');
+    const agentService = require('../../ai/agents/services/aiAgentService');
+    const agents = await agentService.listAgents(companyId);
+    const agent = agents.find(item => item.key === conversation.agent_name || item.name === conversation.agent_name)
+      || (!conversation.agent_name ? agents.find(item => item.active !== false && item.sessionIds?.includes(conversation.session_id)) : null);
+    if (!agent) return res.status(409).json({ success: false, error: 'Selecione um agente para esta conversa.' });
+    const result = await testAIConnection({ store: req.app.locals.store, companyId, sessionId: conversation.session_id, agentKey: agent.key, message: userMessage, prompt: (agent.personality || '') + '\n\n' + COMPOSE_SYSTEM_PROMPT, history: Array.isArray(recentMessages) ? recentMessages.map(item => ({ role: item.role === 'assistant' ? 'assistant' : 'user', content: item.content || '' })) : [] });
 
     const generatedMessage = result?.response || '';
 
@@ -220,10 +173,33 @@ Gere a versão final da mensagem para o atendente enviar ao cliente:`;
  */
 router.post('/ai/learning/feedback', async (req, res) => {
   try {
-    const { agentKey, customerQuestion, aiResponse, humanAnswer, contactPhone, contactName, conversationId } = req.body || {};
+    const companyId = req.authTenantId;
+    if (!companyId) return res.status(401).json({ success: false, error: 'Autenticação da empresa obrigatória.' });
+    const { agentKey, customerQuestion, aiResponse, humanAnswer, conversationId } = req.body || {};
+    if (!conversationId || typeof humanAnswer !== 'string' || !humanAnswer.trim()) {
+      return res.status(400).json({ success: false, error: 'Conversa e resposta revisada são obrigatórias.' });
+    }
+    if ([customerQuestion, aiResponse, humanAnswer].some(value => value != null && (typeof value !== 'string' || value.length > 10000))) {
+      return res.status(400).json({ success: false, error: 'Feedback inválido ou maior que 10.000 caracteres.' });
+    }
     const { query } = require('../../../src/infrastructure/config/database');
-    const store = req.app.locals.store;
-    const companyId = store?.activeCompanyId || 'default';
+    const conversation = (await query(`
+      SELECT c.id, c.session_id, c.agent_name, l.phone, l.name
+      FROM conversations c
+      LEFT JOIN leads l ON l.id = c.lead_id AND l.company_id = c.company_id
+      WHERE c.id = $1 AND c.company_id = $2
+      LIMIT 1
+    `, [conversationId, companyId])).rows[0];
+    if (!conversation) return res.status(404).json({ success: false, error: 'Conversa não encontrada nesta empresa.' });
+    const agentService = require('../../ai/agents/services/aiAgentService');
+    const agents = await agentService.listAgents(companyId);
+    const normalize = value => String(value || '').trim().toLowerCase();
+    const matchesAgent = (agent, value) => normalize(agent.key) === normalize(value) || normalize(agent.name) === normalize(value);
+    const agent = agents.find(item => matchesAgent(item, agentKey || conversation.agent_name));
+    if (!agent) return res.status(404).json({ success: false, error: 'Agente não encontrado nesta empresa.' });
+    if (conversation.agent_name && !matchesAgent(agent, conversation.agent_name)) {
+      return res.status(409).json({ success: false, error: 'O agente não corresponde à conversa selecionada.' });
+    }
 
     const insertRes = await query(`
       INSERT INTO agent_learning_events (
@@ -232,21 +208,21 @@ router.post('/ai/learning/feedback', async (req, res) => {
       ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'pending', NOW())
       RETURNING id, status
     `, [
-      agentKey || 'agent',
+      agent.key,
       companyId,
       'human_edit_feedback',
       customerQuestion || 'Interação no atendimento',
       aiResponse || '',
-      humanAnswer || '',
-      contactPhone || null,
-      contactName || null,
-      conversationId || null,
+      humanAnswer.trim(),
+      conversation.phone || null,
+      conversation.name || null,
+      conversation.id,
     ]);
 
     return res.status(200).json({ success: true, eventId: insertRes.rows[0]?.id, status: 'pending' });
   } catch (err) {
     console.error('[AI FEEDBACK] Error:', err.message);
-    return res.status(500).json({ success: false, error: err.message });
+    return res.status(503).json({ success: false, error: 'Não foi possível registrar o feedback. Tente novamente.' });
   }
 });
 
@@ -289,29 +265,7 @@ router.post('/config/ai/restart', async (req, res) => {
 });
 
 router.post('/config/ai/deploy-vps', async (req, res) => {
-  try {
-    const { exec } = require('child_process');
-    const path = require('path');
-    const rootDir = path.join(__dirname, '..', '..');
-
-    console.log('[AI DEPLOY] Triggered self-deployment on server.');
-    
-    // Execute auto-deploy.sh locally on the server
-    const deployScript = path.join(rootDir, 'deploy', 'auto-deploy.sh');
-    
-    // Run asynchronously to allow connection to return status first (PM2 restart kills the connection)
-    exec(`bash "${deployScript}"`, (error, stdout, stderr) => {
-      if (error) {
-        console.error(`[AI DEPLOY] Failed: ${error.message}`);
-        return;
-      }
-      console.log('[AI DEPLOY] Completed successfully.');
-    });
-
-    return res.status(200).json({ success: true, message: 'Deployment triggered successfully on VPS.' });
-  } catch (error) {
-    return res.status(500).json({ success: false, error: error.message });
-  }
+  return res.status(409).json({ success: false, error: 'A publicação exige uma versão e um artefato revisados pelo procedimento operacional de deploy.' });
 });
 
 router.get('/queue', aiConfigController.getQueue);

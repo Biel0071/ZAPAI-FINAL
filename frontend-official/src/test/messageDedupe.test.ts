@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { isSameOrDuplicateMessage, useAppStore } from "@/state/stores/appStore";
-import type { ChatMessage } from "@/types";
+import type { ChatMessage } from "@/core/services/apiService";
 
 describe("Message Deduplication & Regression Scenarios (A to E)", () => {
   it("Cenário A: Uma operação -> uma mensagem (exatamente o mesmo ID)", () => {
@@ -8,7 +8,6 @@ describe("Message Deduplication & Regression Scenarios (A to E)", () => {
       id: "101",
       conversationId: "conv-1",
       content: "Mensagem A",
-      sender: "me",
       fromMe: true,
       createdAt: new Date().toISOString(),
       status: "sent",
@@ -23,7 +22,6 @@ describe("Message Deduplication & Regression Scenarios (A to E)", () => {
       id: "temp-12345",
       conversationId: "conv-1",
       content: "Mensagem rápida",
-      sender: "me",
       fromMe: true,
       createdAt: new Date().toISOString(),
       status: "pending",
@@ -32,7 +30,6 @@ describe("Message Deduplication & Regression Scenarios (A to E)", () => {
       id: "102",
       conversationId: "conv-1",
       content: "Mensagem rápida",
-      sender: "me",
       fromMe: true,
       createdAt: new Date().toISOString(),
       status: "sent",
@@ -47,7 +44,6 @@ describe("Message Deduplication & Regression Scenarios (A to E)", () => {
       id: "103",
       conversationId: "conv-1",
       content: "Olá tudo bem?",
-      sender: "me",
       fromMe: true,
       createdAt: new Date().toISOString(),
       status: "sent",
@@ -57,7 +53,6 @@ describe("Message Deduplication & Regression Scenarios (A to E)", () => {
       id: "104",
       conversationId: "conv-1",
       content: "Olá tudo bem?",
-      sender: "me",
       fromMe: true,
       createdAt: new Date().toISOString(),
       status: "sent",
@@ -73,7 +68,6 @@ describe("Message Deduplication & Regression Scenarios (A to E)", () => {
       id: "117732",
       conversationId: "conv-4",
       content: "duas operacoes intencionais iguais",
-      sender: "me",
       fromMe: true,
       createdAt: now.toISOString(),
       status: "sent",
@@ -83,7 +77,6 @@ describe("Message Deduplication & Regression Scenarios (A to E)", () => {
       id: "117733",
       conversationId: "conv-4",
       content: "duas operacoes intencionais iguais",
-      sender: "me",
       fromMe: true,
       createdAt: new Date(now.getTime() + 1000).toISOString(),
       status: "sent",

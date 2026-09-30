@@ -25,7 +25,7 @@ export default function AdminHub() {
 
   return (
     <div className="flex h-screen flex-col bg-background">
-      <Header />
+      <Header title="Administração" />
       <div className="flex-1 overflow-auto p-4 md:p-6 lg:p-8 animate-fade-in">
         <div className="mx-auto max-w-7xl space-y-6">
           <div className="flex flex-col gap-2">

@@ -24,7 +24,7 @@ const HEAVY_REFRESH_MS = 30_000;
 const VALID_TABS = ["overview", "conversations", "ai", "commercial", "map"] as const;
 
 type DashboardTab = (typeof VALID_TABS)[number];
-type DashboardDateRange = "today" | "yesterday" | "7days" | "15days" | "30days" | "90days" | "week" | "month" | "year" | "hour" | "custom" | "all";
+type DashboardDateRange = "today" | "yesterday" | "7days" | "15days" | "30days" | "90days" | "week" | "month" | "year" | "hour" | "custom" | "all" | "day";
 
 function normalizeTab(candidate: string | null): DashboardTab {
   return VALID_TABS.includes(candidate as DashboardTab) ? (candidate as DashboardTab) : "overview";

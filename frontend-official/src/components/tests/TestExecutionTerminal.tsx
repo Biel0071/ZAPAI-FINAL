@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Terminal, CheckCircle, XCircle, Trash, Filter } from "@phosphor-icons/react";
+import { Terminal, CheckCircle, XCircle, Trash, Funnel } from "@phosphor-icons/react";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";

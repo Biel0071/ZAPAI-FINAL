@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 
 export interface TestNode {
+  parentSuite?: string;
   id: string;
   label: string;
   type: "root" | "suite" | "assertion";

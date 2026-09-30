@@ -1,5 +1,14 @@
 # Mapa canônico consultado para polimento visual
 
+## Simplificação da IA e operação real do Inbox (30/09/2026)
+
+- Navegação IA: entrada única em `components/layout/Sidebar.tsx`, página `pages/AI.tsx` e apresentação em `pages/lovable/pages/AIView.tsx`. Abas internas: Agente, Conhecimento, Operação; valores antigos de `?tab=` permanecem compatíveis.
+- Agente inicial e capacidades: `components/evolution/EvolutionCenter.tsx`; criação guiada reutiliza `HistoryBootstrapPanel.tsx`, sem ativar atendimento global.
+- Painel contextual Inbox: `pages/Inbox/components/SidebarPanel.tsx`, com Atendimento, Cliente, Arquivos. Rascunhos e identidade da conversa permanecem em `hooks/useInboxState.ts`.
+- Envio aceito após persistência da fila: `backend/services/outboundQueueService.js`; entrada autenticada valida contexto em `backend/src/api/controllers/messages/shared.js` e `messagesController.js`. Respostas rápidas são resolvidas por empresa em `backend/services/quickReplyService.js`.
+- Mídia protegida: `backend/services/enterprise/media-service.js`, emissão em `mediaController.js`, renderização através de `frontend-official/src/core/runtime/hooks/useProtectedMediaUrl.ts`. Acesso temporário por caminho e empresa, sem JWT em URL.
+- Publicação na VPS existente: `ops/deploy/auto-deploy.sh`, com snapshot e rollback em `ops/deploy/rollback.sh`. Ambiente, banco, sessões e armazenamento persistente são preservados.
+
 Verificado em 15/09/2026 por Graphify query e leitura dos imports. Este mapa descreve o recorte de UI; não substitui o grafo completo.
 
 - Shell autenticado: `frontend-official/src/components/layout/MainLayout.tsx`; navegação: `Sidebar.tsx` no mesmo diretório.

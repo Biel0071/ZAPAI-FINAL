@@ -8,7 +8,6 @@ import { apiService, type AIConnectionTestResult, type AIStatusResponse } from "
 import type { AIProviderConfig } from "@/pages/lovable/pages/AIView";
 import { useAppStore } from "@/state/stores/appStore";
 import { VoiceStudioDrawer } from "@/components/ai/VoiceStudioDrawer";
-import { AIExecutiveInsightsCard } from "@/components/ai/AIExecutiveInsightsCard";
 
 type SectionId =
   | "dashboard"
@@ -52,26 +51,7 @@ type AIHealthItem = {
 
 const DEFAULT_PROMPT = "Você é o atendente virtual desta loja. Responda conforme as informações e regras configuradas pela empresa.";
 
-const defaultTrainingRows: TrainingRow[] = [
-  {
-    id: "1",
-    customerQuestion: "Quero saber se vocês entregam hoje no centro.",
-    aiResponse: "Posso verificar para você. Qual o seu CEP?",
-    status: "lost",
-  },
-  {
-    id: "2",
-    customerQuestion: "Tem desconto no pix para 20 unidades?",
-    aiResponse: "Temos condições especiais para atacado, posso te enviar uma proposta.",
-    status: "lost",
-  },
-  {
-    id: "3",
-    customerQuestion: "Qual o prazo para faturamento?",
-    aiResponse: "Em média até 24h úteis após confirmação dos dados.",
-    status: "closed",
-  },
-];
+const defaultTrainingRows: TrainingRow[] = [];
 
 function resolveAIEnabled(status: AIStatusResponse | null): boolean {
   if (!status) return false;
@@ -89,7 +69,7 @@ export default function AI() {
   const { toast } = useToast();
   const [searchParams, setSearchParams] = useSearchParams();
   const tabParam = searchParams.get("tab") as SectionId | null;
-  const [activeSection, setActiveSection] = useState<SectionId>("dashboard");
+  const [activeSection, setActiveSection] = useState<SectionId>("evolution");
   const activeSessionId = useAppStore((state) => state.activeSessionId);
   const [isVoiceStudioOpen, setIsVoiceStudioOpen] = useState(false);
 
@@ -97,7 +77,7 @@ export default function AI() {
     if (tabParam && ["dashboard", "atendentes", "provedores", "conhecimento", "operacao", "analise", "evolution", "playbooks"].includes(tabParam)) {
       setActiveSection(tabParam);
     } else if (!tabParam) {
-      setSearchParams({ tab: "dashboard" });
+      setSearchParams({ tab: "evolution" }, { replace: true });
     }
   }, [tabParam, setSearchParams]);
 
@@ -684,9 +664,6 @@ export default function AI() {
   return (
     <div className="flex flex-col min-h-full bg-background">
       <Header title={aiViewModel.title} subtitle={aiViewModel.subtitle} />
-      <div className="max-w-[var(--content-max-width)] mx-auto w-full px-3.5 sm:px-5 lg:px-6 pt-3.5 pb-0">
-        <AIExecutiveInsightsCard />
-      </div>
       <AIView
         viewModel={aiViewModel}
         activeSection={activeSection}

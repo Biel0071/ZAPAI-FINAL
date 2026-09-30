@@ -288,7 +288,8 @@ export const AICharacterViewer: React.FC<AICharacterViewerProps> = ({
           <button
             type="button"
             onClick={() => onToggleOnline?.(!isOnline)}
-            title={isOnline ? "Desativar assistente (ficar em pé)" : "Ativar assistente (sentar à mesa)"}
+            title={isOnline ? "Prévia visual: mostrar em pé" : "Prévia visual: mostrar sentado"}
+            aria-label={isOnline ? "Mostrar personagem em pé na prévia" : "Mostrar personagem sentado na prévia"}
             className={`absolute top-2.5 right-2.5 z-20 w-[76px] h-6 rounded-full transition-all cursor-pointer flex items-center justify-center gap-1 text-[9px] font-bold border backdrop-blur-md ${
               isOnline
                 ? "bg-emerald-500/20 text-emerald-300 border-emerald-500/40 shadow-[0_0_10px_rgba(16,185,129,0.2)]"
@@ -300,7 +301,7 @@ export const AICharacterViewer: React.FC<AICharacterViewerProps> = ({
                 isOnline ? "bg-emerald-400" : "bg-slate-400"
               }`}
             />
-            <span>{isOnline ? "Ativa" : "Offline"}</span>
+            <span>{isOnline ? "Sentada" : "Em pé"}</span>
           </button>
 
           {/* CUSTOM ATTENDANT BADGE OVERLAY (When customized) */}
@@ -327,7 +328,7 @@ export const AICharacterViewer: React.FC<AICharacterViewerProps> = ({
                   }`}
                 />
                 <span className={isOnline ? "text-emerald-400 font-bold" : "text-slate-400 font-medium"}>
-                  {isOnline ? "Ativa • Atendendo" : "Offline • Em espera"}
+                  {isOnline ? "Prévia · Sentada" : "Prévia · Em pé"}
                 </span>
               </div>
             </div>
@@ -394,7 +395,7 @@ export const AICharacterViewer: React.FC<AICharacterViewerProps> = ({
                 isOnline ? "bg-emerald-400 animate-pulse" : "bg-slate-400"
               }`}
             />
-            <span>{isOnline ? "Atendendo agora..." : "Em espera (desativada)"}</span>
+            <span>{isOnline ? "Prévia visual · Sentada" : "Prévia visual · Em pé"}</span>
           </div>
         </div>
       </div>

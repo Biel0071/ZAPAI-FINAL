@@ -1,5 +1,11 @@
 const mediaService = require('../../../services/enterprise/media-service');
 
+function verifiedTenant(req) {
+  if (req.authTenantId) return String(req.authTenantId);
+  const allowDevBypass = process.env.NODE_ENV !== 'production' && process.env.ALLOW_DEV_AUTH_BYPASS === 'true';
+  return allowDevBypass ? String(req.tenantId || req.companyId || '') : '';
+}
+
 function decodeBase64Payload(value = '') {
   const raw = String(value || '').trim();
 
@@ -19,7 +25,8 @@ function decodeBase64Payload(value = '') {
 
 async function upload(req, res) {
   try {
-    const tenantId = req.tenantId || req.companyId || req.headers?.['x-tenant-id'] || 'default';
+    const tenantId = verifiedTenant(req);
+    if (!tenantId) return res.status(401).json({ error: 'Authentication is required.' });
     const type = String(req.body?.type || 'document').trim();
     const sourceFileName = String(req.body?.fileName || '').trim() || null;
     const decoded = decodeBase64Payload(req.body?.base64 || req.body?.data || '');
@@ -48,10 +55,12 @@ async function upload(req, res) {
 
 async function getMetadata(req, res) {
   try {
+    const tenantId = verifiedTenant(req);
+    if (!tenantId) return res.status(401).json({ error: 'Authentication is required.' });
     const mediaId = String(req.params?.mediaId || '').trim();
     const metadata = await mediaService.getMetadata(mediaId);
 
-    if (!metadata) {
+    if (!metadata || String(metadata.companyId || metadata.tenantId) !== tenantId) {
       return res.status(404).json({ error: 'Media not found.' });
     }
 
@@ -70,6 +79,9 @@ async function getMetadata(req, res) {
 
 async function stream(req, res) {
   try {
+    const tenantId = verifiedTenant(req);
+    if (!tenantId) return res.status(401).json({ error: 'Authentication is required.' });
+    req.authTenantId = tenantId;
     const mediaId = String(req.params?.mediaId || '').trim();
     await mediaService.streamMediaById({ mediaId, req, res });
   } catch (error) {
@@ -77,8 +89,23 @@ async function stream(req, res) {
   }
 }
 
+async function issueAccess(req, res) {
+  try {
+    const tenantId = verifiedTenant(req);
+    if (!tenantId) return res.status(401).json({ error: 'Authentication is required.' });
+    const reference = mediaService.normalizeMediaReference(req.body?.path);
+    if (!await mediaService.canAccessMedia(reference, tenantId)) return res.status(404).json({ error: 'Media not found.' });
+    if (!await mediaService.findMediaFile(reference)) return res.status(404).json({ error: 'Media file is unavailable.' });
+    res.setHeader('Cache-Control', 'no-store');
+    return res.json(mediaService.createMediaAccess(reference, tenantId));
+  } catch (error) {
+    return res.status(error.status || 500).json({ error: error.status ? error.message : 'Unable to authorize media.' });
+  }
+}
+
 module.exports = {
   getMetadata,
+  issueAccess,
   stream,
   upload,
 };

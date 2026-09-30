@@ -1,4 +1,9 @@
 const runningFlows = new Map();
+const { emitToTenant } = require('./realtime/tenantRooms');
+
+function scopeKey(chatId, { companyId = 'default', sessionId = 'main', conversationId } = {}) {
+  return JSON.stringify([companyId, sessionId, conversationId || chatId]);
+}
 
 function snapshot(flowData) {
   return flowData ? { ...flowData } : flowData;
@@ -7,7 +12,7 @@ function snapshot(flowData) {
 /**
  * Starts tracking a flow execution for a chat
  */
-function startFlow({ chatId, flowName, totalSteps = 1, companyId = 'default' }) {
+function startFlow({ chatId, flowName, totalSteps = 1, companyId = 'default', sessionId = 'main', conversationId = null, flowRunId = null }) {
   if (!chatId) return null;
 
   const flowData = {
@@ -18,14 +23,17 @@ function startFlow({ chatId, flowName, totalSteps = 1, companyId = 'default' }) 
     stepDescription: 'Iniciando envio...',
     startedAt: Date.now(),
     companyId,
+    sessionId,
+    conversationId,
+    flowRunId,
     status: 'preparing',
   };
 
-  runningFlows.set(chatId, flowData);
+  runningFlows.set(scopeKey(chatId, flowData), flowData);
 
   const io = global.io;
   if (io) {
-    io.emit('flow:started', snapshot(flowData));
+    emitToTenant(io, companyId, 'flow:started', snapshot(flowData));
   }
 
   return flowData;
@@ -34,10 +42,11 @@ function startFlow({ chatId, flowName, totalSteps = 1, companyId = 'default' }) 
 /**
  * Updates the current step of a running flow
  */
-function updateFlowStep({ chatId, currentStep, stepDescription, status }) {
+function updateFlowStep({ chatId, currentStep, stepDescription, status, ...scope }) {
   if (!chatId) return null;
-  const flowData = runningFlows.get(chatId);
+  const flowData = runningFlows.get(scopeKey(chatId, scope));
   if (!flowData) return null;
+  if (scope.flowRunId && flowData.flowRunId !== scope.flowRunId) return null;
 
   flowData.currentStep = currentStep || flowData.currentStep;
   if (stepDescription) flowData.stepDescription = stepDescription;
@@ -46,7 +55,7 @@ function updateFlowStep({ chatId, currentStep, stepDescription, status }) {
 
   const io = global.io;
   if (io) {
-    io.emit('flow:step_updated', snapshot(flowData));
+    emitToTenant(io, flowData.companyId, 'flow:step_updated', snapshot(flowData));
   }
 
   return flowData;
@@ -55,16 +64,17 @@ function updateFlowStep({ chatId, currentStep, stepDescription, status }) {
 /**
  * Cancels a running flow for a chat
  */
-function cancelFlow(chatId) {
+function cancelFlow(chatId, scope = {}) {
   if (!chatId) return false;
-  const flowData = runningFlows.get(chatId);
+  const key = scopeKey(chatId, scope);
+  const flowData = runningFlows.get(key);
   if (flowData) {
     flowData.status = 'cancelled';
-    runningFlows.delete(chatId);
+    runningFlows.delete(key);
 
     const io = global.io;
     if (io) {
-      io.emit('flow:cancelled', { chatId, flowName: flowData.flowName, status: 'cancelled' });
+      emitToTenant(io, flowData.companyId, 'flow:cancelled', { ...snapshot(flowData), status: 'cancelled' });
     }
     return true;
   }
@@ -74,16 +84,18 @@ function cancelFlow(chatId) {
 /**
  * Marks a flow as completed
  */
-function finishFlow(chatId) {
+function finishFlow(chatId, scope = {}) {
   if (!chatId) return false;
-  const flowData = runningFlows.get(chatId);
+  const key = scopeKey(chatId, scope);
+  const flowData = runningFlows.get(key);
+  if (scope.flowRunId && flowData?.flowRunId !== scope.flowRunId) return false;
   if (flowData) {
     flowData.status = 'completed';
-    runningFlows.delete(chatId);
+    runningFlows.delete(key);
 
     const io = global.io;
     if (io) {
-      io.emit('flow:finished', { chatId, flowName: flowData.flowName, status: 'completed' });
+      emitToTenant(io, flowData.companyId, 'flow:finished', { ...snapshot(flowData), status: 'completed' });
     }
     return true;
   }
@@ -93,9 +105,9 @@ function finishFlow(chatId) {
 /**
  * Gets the current running flow for a chat
  */
-function getRunningFlow(chatId) {
+function getRunningFlow(chatId, scope = {}) {
   if (!chatId) return null;
-  return runningFlows.get(chatId) || null;
+  return snapshot(runningFlows.get(scopeKey(chatId, scope))) || null;
 }
 
 module.exports = {

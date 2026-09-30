@@ -25,8 +25,18 @@ const experienceEngine = require('./experienceEngine');
 const learningEngine = require('./learningEngine');
 
 function getCompanyId(req) {
-  return req.headers['x-company-id'] || req.query.company_id || req.user?.companyId || 'default';
+  if (req.authTenantId) return req.authTenantId;
+  const devBypass = String(process.env.NODE_ENV || 'development').toLowerCase() !== 'production'
+    && String(process.env.ALLOW_DEV_AUTH_BYPASS || '').toLowerCase() === 'true';
+  return devBypass ? req.tenantId || 'default' : null;
 }
+
+router.use((req, res, next) => {
+  if (!getCompanyId(req)) {
+    return res.status(401).json({ success: false, error: 'Authenticated tenant required.' });
+  }
+  return next();
+});
 
 // 1. GET /api/ai/evolution/metrics
 router.get('/metrics', async (req, res) => {
@@ -35,7 +45,8 @@ router.get('/metrics', async (req, res) => {
     const metrics = await learningEngine.getEvolutionMetrics({ companyId });
     res.json({ success: true, data: metrics });
   } catch (err) {
-    res.status(500).json({ success: false, error: err.message });
+    console.error('[EvolutionaryRoutes] Failed to load metrics:', err);
+    res.status(500).json({ success: false, error: 'Falha ao carregar métricas de evolução.' });
   }
 });
 
@@ -230,7 +241,8 @@ router.get('/suggestions', async (req, res) => {
     const suggestions = await learningEngine.listSuggestions({ companyId, status });
     res.json({ success: true, data: suggestions });
   } catch (err) {
-    res.status(500).json({ success: false, error: err.message });
+    console.error('[EvolutionaryRoutes] Failed to load suggestions:', err);
+    res.status(500).json({ success: false, error: 'Falha ao carregar sugestões de evolução.' });
   }
 });
 

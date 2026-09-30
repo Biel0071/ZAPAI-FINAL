@@ -10,7 +10,7 @@ export type DashboardLovableMetricCard = {
 };
 
 export type DashboardLovableTab = {
-  id: "overview" | "conversations" | "ai" | "commercial" | "map";
+  id: "overview" | "conversations" | "ai" | "commercial" | "map" | "executive" | "operations" | "schedule" | "infrastructure" | "diagnostics" | "analytics" | "reports";
   label: string;
 };
 

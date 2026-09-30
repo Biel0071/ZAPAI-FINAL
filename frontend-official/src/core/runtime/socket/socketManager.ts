@@ -224,6 +224,7 @@ type RawRealtimeConversation = {
 };
 
 type RealtimeMessage = ChatMessage & {
+  remoteJid?: string;
   conversationId?: string;
   chatId?: string;
   contactId?: string;
@@ -268,7 +269,7 @@ type SocketSubscriber = {
   onSessionDeleted?: (payload: { sessionId?: string; status?: string }) => void;
   onSessionStatus?: (payload: { sessionId?: string; status?: string }) => void;
   onMessageDeleted?: (payload: { messageId: string; conversationId?: string }) => void;
-  onMessageStatus?: (payload: { messageId: string; status: string; conversationId?: string }) => void;
+  onMessageStatus?: (payload: { messageId: string; status: string; conversationId?: string; chatId?: string; phone?: string }) => void;
   onTypingStatus?: (payload: { conversationId?: string; phone?: string; isTyping: boolean | "composing" | "recording" }) => void;
   onMetricsUpdated?: (metrics: any) => void;
   onSocketConnected?: () => void;
@@ -1058,7 +1059,7 @@ export function connectInboxSocket(params: {
   onSessionDeleted?: (payload: { sessionId?: string; status?: string }) => void;
   onSessionStatus?: (payload: { sessionId?: string; status?: string }) => void;
   onMessageDeleted?: (payload: { messageId: string; conversationId?: string }) => void;
-  onMessageStatus?: (payload: { messageId: string; status: string; conversationId?: string }) => void;
+  onMessageStatus?: (payload: { messageId: string; status: string; conversationId?: string; chatId?: string; phone?: string }) => void;
   onTypingStatus?: (payload: { conversationId?: string; phone?: string; isTyping: boolean | "composing" | "recording" }) => void;
   onMetricsUpdated?: (metrics: any) => void;
   onSocketConnected?: () => void;

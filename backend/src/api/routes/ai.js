@@ -110,41 +110,31 @@ router.post('/ai/analyze-conversation', async (req, res) => {
   }
 });
 
-// AI response generation endpoint used by frontend responseEngine
+// Manual suggestions use the saved conversation and agent; never dispatch messages.
 router.post('/ai/generate-response', async (req, res) => {
   try {
-    const { conversationId, messages, prompt } = req.body;
-    if (!conversationId) return res.status(400).json({ error: 'conversationId required' });
-
-    // Try to use the existing AI reply service
-    let responseText = '';
-    try {
-      const chatAssistant = require('../../ai/core/chatAssistant');
-      if (chatAssistant && typeof chatAssistant.generateReply === 'function') {
-        responseText = await chatAssistant.generateReply({
-          conversationId,
-          messages: messages || [],
-          prompt: prompt || 'Sugira uma resposta profissional e amigável.',
-        });
-      }
-    } catch {
-      // AI service not available — return a helpful placeholder
-      responseText = '';
-    }
-
-    if (!responseText) {
-      // Fallback: generate a contextual response based on the last message
-      const lastMsg = Array.isArray(messages) && messages.length > 0
-        ? messages[messages.length - 1]?.text || ''
-        : '';
-      responseText = lastMsg
-        ? `Obrigado pela sua mensagem! Vou verificar e retorno em breve.`
-        : `Olá! Como posso ajudá-lo hoje?`;
-    }
-
-    res.json({ success: true, data: { response: responseText } });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
+    const companyId = req.authTenantId;
+    if (!companyId) return res.status(401).json({ success: false, error: 'Authentication required' });
+    const conversationId = req.body?.conversationId;
+    if (!conversationId) return res.status(400).json({ success: false, error: 'conversationId required' });
+    const { query } = require('../../infrastructure/config/database');
+    const conversation = (await query('SELECT id, session_id, agent_name FROM conversations WHERE id=$1 AND company_id=$2', [conversationId, companyId])).rows[0];
+    if (!conversation) return res.status(404).json({ success: false, error: 'Conversa não encontrada.' });
+    await require('../../../services/aiMemoryEngine').assertSession(companyId, conversation.session_id);
+    const agentsService = require('../../ai/agents/services/aiAgentService');
+    const agents = await agentsService.listAgents(companyId);
+    const selected = agents.find(a => a.key === conversation.agent_name || a.name === conversation.agent_name)
+      || (!conversation.agent_name ? agents.find(a => a.active !== false && a.sessionIds?.includes(conversation.session_id)) : null);
+    if (!selected) return res.status(409).json({ success: false, error: 'Selecione um agente para esta conversa.' });
+    const rows = (await query("SELECT COALESCE(content, text, '') AS content, from_me FROM messages WHERE conversation_id=$1 AND company_id=$2 ORDER BY timestamp DESC, id DESC LIMIT 20", [conversationId, companyId])).rows.reverse();
+    const latest = [...rows].reverse().find(item => !item.from_me && item.content?.trim());
+    if (!latest) return res.status(409).json({ success: false, error: 'Esta conversa ainda não tem mensagem do cliente para responder.' });
+    const { testAIConnection } = require('../../../services/ai.service');
+    const result = await testAIConnection({ store: req.app.locals.store, companyId, sessionId: conversation.session_id, agentKey: selected.key, message: latest.content, history: rows.filter(item => item !== latest).map(item => ({ role: item.from_me ? 'assistant' : 'user', content: item.content || '' })) });
+    if (!result?.ok || !result.response?.trim()) return res.status(503).json({ success: false, error: result?.error || 'A IA não retornou uma sugestão.' });
+    return res.json({ success: true, data: { response: result.response.trim(), agentKey: selected.key } });
+  } catch (error) {
+    return res.status(503).json({ success: false, error: error.message || 'Não foi possível gerar a sugestão.' });
   }
 });
 

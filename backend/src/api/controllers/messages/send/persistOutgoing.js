@@ -34,10 +34,12 @@ async function ensureConversationForMessage({ companyId, contactId, conversation
   console.log(`[CONVERSATION-UPSERT-KEY] OUTBOUND Message - Raw JID: "${rawJid}", Raw LID: "${rawLid}", Normalized Canonical Phone Key: "${normalizedPhone}"`);
 
   if (conversationId) {
-    const existingConversation = await conversationRepository.getConversationById(conversationId);
+    const existingConversation = await conversationRepository.getConversationById(conversationId, companyId);
     if (existingConversation) {
+      if (String(existingConversation.company_id || existingConversation.companyId) !== String(companyId)) throw new Error('Conversation belongs to another company.');
       return existingConversation;
     }
+    throw new Error('Conversation not found in this company.');
   }
 
   if (contactId) {
@@ -100,7 +102,8 @@ async function persistOutgoingMessageRecord(store, payload) {
       status: 'open',
       unreadCount: 0,
       updatedAt: new Date().toISOString(),
-    }
+    },
+    payload.companyId
   );
 
   if (store?.messages) {
@@ -121,7 +124,7 @@ async function persistOutgoingMessageRecord(store, payload) {
 
   try {
     const { syncEngine } = require('../../../../../services/sync');
-    syncEngine.dispatch('message.sent', {
+    if (!payload.deferDeliveryEffects) syncEngine.dispatch('message.sent', {
       messageId: savedMessage.id,
       conversationId: conversation.id,
       phone: payload.phone,

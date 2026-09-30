@@ -239,10 +239,10 @@ async function createConversation({
   return getConversationById(convId);
 }
 
-async function getConversationById(id) {
+async function getConversationById(id, companyId) {
   const result = await query(
-    `${getBaseSelect()} WHERE conv.id = $1 LIMIT 1`,
-    [id]
+    `${getBaseSelect()} WHERE conv.id = $1${companyId ? ' AND conv.company_id = $2' : ''} LIMIT 1`,
+    companyId ? [id, companyId] : [id]
   );
 
   return mapConversation(result.rows[0]);
@@ -388,18 +388,18 @@ async function updateLeadTemperature(conversationId, leadTemperature) {
   return updatedConversation;
 }
 
-async function updateConversationState(conversationId, fields = {}) {
+async function updateConversationState(conversationId, fields = {}, companyId) {
   let targetId = conversationId;
   if (typeof conversationId === 'string' && (conversationId.includes('@') || conversationId.length >= 10)) {
     const cleanPhone = conversationId.replace(/@.*$/, '').replace(/\D/g, '');
     if (cleanPhone.length >= 7) {
-      const conv = await getConversationByPhone(cleanPhone);
+      const conv = await getConversationByPhone(cleanPhone, companyId);
       if (conv?.id) {
         targetId = conv.id;
       } else {
         const jidResult = await query(
-          'SELECT id FROM conversations WHERE remote_jid = $1 LIMIT 1',
-          [conversationId]
+          `SELECT id FROM conversations WHERE remote_jid = $1${companyId ? ' AND company_id = $2' : ''} LIMIT 1`,
+          companyId ? [conversationId, companyId] : [conversationId]
         );
         if (jidResult.rows[0]?.id) {
           targetId = jidResult.rows[0].id;
@@ -416,6 +416,7 @@ async function updateConversationState(conversationId, fields = {}) {
 
   const mapping = {
     aiEnabled: 'ai_enabled',
+    ai_reactivate_at: 'ai_reactivate_at',
     agent_name: 'agent_name',
     funnel_stage: 'funnel_stage',
     lastMessage: 'last_message',
@@ -450,16 +451,18 @@ async function updateConversationState(conversationId, fields = {}) {
   }
 
   if (!updates.length) {
-    return getConversationById(targetId);
+    return getConversationById(targetId, companyId);
   }
 
   values.push(targetId);
+  const idPlaceholder = values.length;
+  if (companyId) values.push(companyId);
 
   const result = await query(
     `
       UPDATE conversations
       SET ${updates.join(', ')}
-      WHERE id = $${values.length}
+      WHERE id = $${idPlaceholder}${companyId ? ` AND company_id = $${values.length}` : ''}
       RETURNING id
     `,
     values
@@ -469,7 +472,7 @@ async function updateConversationState(conversationId, fields = {}) {
     return null;
   }
 
-  const updatedConversation = await getConversationById(result.rows[0].id);
+  const updatedConversation = await getConversationById(result.rows[0].id, companyId);
   invalidateConversationCache(updatedConversation.company_id);
 
   console.log(`[TEMP_LOG] conversation.updated - CONVERSATION_ID: "${updatedConversation.id}", PHONE: "${updatedConversation.phone || ''}", REMOTE_JID: "${updatedConversation.remoteJid || updatedConversation.remote_jid || ''}", SESSION_ID: "${updatedConversation.sessionId || updatedConversation.session_id || ''}", MESSAGE_ID: "N/A", SOURCE: "conversationRepository.updateConversationState"`);

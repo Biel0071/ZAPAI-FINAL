@@ -13,7 +13,7 @@ async function renderPanel(compact = false) {
   root = createRoot(container);
   await act(async () => { root!.render(<HistoryBootstrapPanel compact={compact} />); });
 }
-const button = (text: string) => [...document.querySelectorAll('button')].find(b => b.textContent === text)!;
+const button = (text: string) => [...document.querySelectorAll('button')].find(b => b.textContent === text || b.querySelector('span')?.textContent === text)!;
 const checkbox = () => document.querySelector<HTMLInputElement>('input[type=checkbox]')!;
 
 const candidate = { name: 'Camila', personality: 'Seja natural e consulte o catálogo oficial.', partial: true, pendingCommercial: ['Preço antigo: confirmar'], gaps: ['Autoria incerta'] };
@@ -87,7 +87,7 @@ it('provider failure never activates an agent or reports a successful preview',a
   request.mockImplementation(async(...args)=>{if(String(args[0]).endsWith('/preview'))throw new Error('IA indisponível');return previous(...args);});
   await renderPanel();await act(async()=>button('Criar com IA').click());
   await fill('Descrição do atendente','Atenda uma floricultura');
-  await act(async()=>button('Gerar prévia').click());
+  await act(async()=>button('Gerar prévia com IA').click());
   expect(document.body.textContent).toContain('IA indisponível');
   expect(button('Revisar e ativar atendente')).toBeUndefined();
   expect(request.mock.calls.some(c=>String(c[0]).endsWith('/agents'))).toBe(false);

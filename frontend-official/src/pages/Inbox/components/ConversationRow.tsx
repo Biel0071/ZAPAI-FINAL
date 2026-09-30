@@ -46,7 +46,7 @@ export interface ConversationRowData {
   selectedId: string | null;
   onSelect: (id: string) => void;
   leadByConversationId: Record<string, any>;
-  typingByConversationId?: Record<string, boolean>;
+  typingByConversationId?: Record<string, boolean | "composing" | "recording">;
   draftsByConversationId?: Record<string, { draft: string; timestamp: number }>;
   pinnedChatIds: string[];
   onTogglePin: (id: string) => void;

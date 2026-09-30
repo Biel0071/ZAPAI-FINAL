@@ -358,6 +358,7 @@ export type AIResponseProgress = {
 };
 
 export type SessionItem = {
+  isBanned?: boolean;
   id: string;
   name: string;
   phone?: string | null;

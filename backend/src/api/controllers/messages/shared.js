@@ -11,6 +11,65 @@ const whatsappService = require('../../../../services/whatsappService');
 const { buildMediaUrl } = require('../../../../services/whatsapp/media/url');
 const { ensureWhatsAppJid } = require('../../../../services/whatsapp/shared/identifiers');
 
+async function resolveOutboundContext(req, { requireConnected = true } = {}) {
+  const companyId = String(req.authTenantId || '').trim();
+  const reject = (status, code, message) => { throw Object.assign(new Error(message), { status, code }); };
+  if (!companyId) reject(401, 'AUTH_REQUIRED', 'Autenticação da empresa obrigatória.');
+  const payload = req.body || {};
+  const conversationId = payload.conversationId || req.query?.conversationId || null;
+  const { query } = require('../../../infrastructure/config/database');
+  const repository = require('../../../data/repositories/conversationRepository');
+  const { getPhoneAliases } = require('../../../../services/whatsapp/shared/identifiers');
+  const sameRecipient = (left, right) => {
+    if (String(left || '') === String(right || '')) return true;
+    if (String(left || '').includes('@g.us') || String(right || '').includes('@g.us')) return false;
+    const aliases = new Set(getPhoneAliases(left));
+    return getPhoneAliases(right).some(alias => aliases.has(alias));
+  };
+  const conversation = conversationId ? await repository.getConversationById(conversationId, companyId) : null;
+  if (conversationId && (!conversation || String(conversation.company_id || conversation.companyId) !== companyId)) {
+    reject(404, 'CONVERSATION_NOT_FOUND', 'Conversa não encontrada nesta empresa.');
+  }
+  const explicitTarget = payload.chatId || payload.phone || payload.from || req.params?.phone;
+  const shortId = /^\d{1,6}$/.test(String(explicitTarget || '').trim());
+  const conversationTarget = conversation?.remote_jid || conversation?.remoteJid || conversation?.phone;
+  if (explicitTarget && conversation && !shortId && !sameRecipient(explicitTarget, conversationTarget) && !sameRecipient(explicitTarget, conversation.phone)) {
+    reject(409, 'DESTINATION_MISMATCH', 'O destino não corresponde à conversa selecionada.');
+  }
+  const targetJidOrPhone = conversationTarget || explicitTarget;
+  const normalizedPhone = whatsappService.normalizePhone(targetJidOrPhone);
+  if (!normalizedPhone || (shortId && !conversation)) reject(400, 'INVALID_RECIPIENT', 'Selecione um destino válido para enviar.');
+  const requestedSession = String(payload.sessionName || payload.sessionId || req.headers?.['x-session-id'] || req.query?.sessionId || '').trim();
+  const conversationSession = conversation?.session_id || conversation?.sessionId;
+  if (requestedSession && conversationSession && sessionManager.normalizeSessionName(requestedSession) !== sessionManager.normalizeSessionName(conversationSession)) {
+    reject(409, 'SESSION_MISMATCH', 'A conexão não corresponde à conversa selecionada.');
+  }
+  const requestedName = sessionManager.normalizeSessionName(requestedSession || conversationSession || sessionManager.DEFAULT_SESSION);
+  const ownedSession = (await query(
+    'SELECT session_id, session_name FROM sessions WHERE company_id = $1 AND (session_id = $2 OR session_name = $2) LIMIT 1',
+    [companyId, requestedName]
+  )).rows[0];
+  if (!ownedSession) reject(403, 'SESSION_FORBIDDEN', 'A conexão não pertence à empresa autenticada.');
+  const targetSessionName = sessionManager.normalizeSessionName(ownedSession.session_id || requestedName);
+  const session = sessionManager.getSession(targetSessionName);
+  if (session?.companyId && String(session.companyId) !== companyId) reject(403, 'SESSION_FORBIDDEN', 'A conexão não pertence à empresa autenticada.');
+  const contactId = payload.contactId || conversation?.contact_id || conversation?.lead_id || null;
+  if (payload.contactId && conversation && String(contactId) !== String(conversation.contact_id || conversation.lead_id)) {
+    reject(409, 'CONTACT_MISMATCH', 'O contato não corresponde à conversa selecionada.');
+  }
+  if (contactId) {
+    const contact = (await query('SELECT id, phone FROM leads WHERE id = $1 AND company_id = $2 LIMIT 1', [contactId, companyId])).rows[0];
+    if (!contact) reject(404, 'CONTACT_NOT_FOUND', 'Contato não encontrado nesta empresa.');
+    if (!String(targetJidOrPhone).includes('@lid') && !String(targetJidOrPhone).includes('@g.us') && !sameRecipient(contact.phone, normalizedPhone)) {
+      reject(409, 'CONTACT_MISMATCH', 'O destino não corresponde ao contato selecionado.');
+    }
+  }
+  if (requireConnected && (!session?.sock || String(session.status || '').toLowerCase() !== 'connected' || session.systemConnected === false)) {
+    reject(409, 'WHATSAPP_SESSION_OFFLINE', 'A conexão WhatsApp está desconectada. Reconecte para enviar.');
+  }
+  return { companyId, conversation, conversationId: conversation?.id || null, contactId, normalizedPhone, targetJidOrPhone, targetSessionName, session };
+}
+
 function getStore(req) {
   return req?.app?.locals?.store;
 }
@@ -208,7 +267,12 @@ function emitSocketEvent(reqOrStore, eventName, payload) {
     'session:status': ['session_status'],
   };
 
-  messageService.safeSocketEmit(io, eventName, payload, aliasesByEvent[eventName] || []);
+  const companyId = reqOrStore?.authTenantId || payload?.companyId || payload?.company_id;
+  if (companyId) {
+    require('../../../../services/realtime/tenantRooms').emitToTenantWithAliases(io, companyId, eventName, payload, aliasesByEvent[eventName] || []);
+  } else if (!reqOrStore?.app) {
+    messageService.safeSocketEmit(io, eventName, payload, aliasesByEvent[eventName] || []);
+  }
 }
 
 module.exports = {
@@ -219,6 +283,7 @@ module.exports = {
   getRequestedSessionId,
   getStore,
   normalizeChatId,
+  resolveOutboundContext,
   toExactMessageText,
   toIsoTimestamp,
 };

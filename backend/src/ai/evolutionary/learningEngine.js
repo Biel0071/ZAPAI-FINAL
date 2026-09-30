@@ -162,7 +162,7 @@ class LearningEngine {
       const repliedExp = parseInt(expStats.rows[0]?.replied || '0', 10);
       const correctionsExp = parseInt(expStats.rows[0]?.corrections || '0', 10);
 
-      const responseContinuityRate = totalExp > 0 ? Math.round((repliedExp / totalExp) * 100) : 74;
+      const responseContinuityRate = totalExp > 0 ? Math.round((repliedExp / totalExp) * 100) : null;
 
       return {
         officialKnowledgeCount: parseInt(knowCount.rows[0]?.count || '0', 10),
@@ -172,20 +172,11 @@ class LearningEngine {
         humanCorrections: correctionsExp,
         pendingSuggestions: parseInt(suggCount.rows[0]?.count || '0', 10),
         responseContinuityRate,
-        learningRateStatus: 'Ativo e Aprendendo'
+        learningRateStatus: totalExp > 0 ? 'Ativo e Aprendendo' : 'Sem dados'
       };
     } catch (err) {
       console.error('[LearningEngine] getEvolutionMetrics error:', err.message);
-      return {
-        officialKnowledgeCount: 6,
-        activePlaybooks: 3,
-        testingPlaybooks: 0,
-        totalExperiences: 0,
-        humanCorrections: 0,
-        pendingSuggestions: 2,
-        responseContinuityRate: 74,
-        learningRateStatus: 'Ativo e Aprendendo'
-      };
+      throw err;
     }
   }
 
@@ -206,7 +197,7 @@ class LearningEngine {
       return res.rows;
     } catch (err) {
       console.error('[LearningEngine] listSuggestions error:', err.message);
-      return [];
+      throw err;
     }
   }
 

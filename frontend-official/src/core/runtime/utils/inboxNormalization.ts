@@ -1,5 +1,5 @@
 import { API_ORIGIN } from "@/core/lib/backendConfig";
-import { loadAdminAuthSession } from "@/core/lib/adminAuthSession";
+import { loadAdminAuthSession, ADMIN_AUTH_CHANGED_EVENT } from "@/core/lib/adminAuthSession";
 import type { Conversation, ChatMessage } from "@/core/services/apiService";
 
 const BACKEND_BASE_URL = API_ORIGIN;
@@ -51,7 +51,10 @@ export function getMessageConversationKey(message: Partial<ChatMessage> & { sess
 
 export function resolveMediaUrl(url?: string | null): string | null {
   let normalized = String(url ?? "").trim().replace(/\\/g, "/");
-  if (!normalized || (normalized.startsWith("[") && normalized.endsWith("]"))) return null;
+  if (!normalized || normalized === "null" || normalized === "undefined" || (normalized.startsWith("[") && normalized.endsWith("]"))) return null;
+  if (normalized.startsWith("data:") || normalized.startsWith("blob:")) return normalized;
+  const staticPath = normalized.match(/\/(?:api\/)?(media|uploads|upload)\/(.+)$/i);
+  if (staticPath) normalized = `/${staticPath[1]}/${staticPath[2]}`;
   if (/^https?:\/\/(localhost|127\.0\.0\.1):4025/i.test(normalized)) {
     normalized = normalized.replace(/^https?:\/\/(localhost|127\.0\.0\.1):4025/i, BACKEND_BASE_URL);
   }
@@ -60,22 +63,77 @@ export function resolveMediaUrl(url?: string | null): string | null {
     if (/^[a-zA-Z]:/i.test(normalized)) {
       normalized = normalized.replace(/^[a-zA-Z]:/i, "");
     }
-    finalUrl = `${BACKEND_BASE_URL}/${normalized.replace(/^\/+/, "")}`;
+    let cleanPath = normalized.replace(/^\/+/, "");
+    if (!/^(uploads|media|upload|public|api)\//i.test(cleanPath)) cleanPath = `uploads/${cleanPath}`;
+    finalUrl = `${BACKEND_BASE_URL}/${cleanPath}`;
   }
 
-  const isBackendMedia =
-    finalUrl.startsWith(BACKEND_BASE_URL) ||
-    /^(https?:\/\/[^\/]+)?\/(media|upload|uploads)\//i.test(finalUrl);
+  // Older records sometimes persisted the login token. Never send it in a URL.
+  try {
+    const parsed = new URL(finalUrl, typeof window === "undefined" ? "http://localhost" : window.location.origin);
+    parsed.searchParams.delete("token");
+    return parsed.toString();
+  } catch { return null; }
+}
 
-  if (isBackendMedia) {
-    const session = loadAdminAuthSession();
-    if (session && session.token && !finalUrl.includes("token=")) {
-      const separator = finalUrl.includes("?") ? "&" : "?";
-      finalUrl = `${finalUrl}${separator}token=${encodeURIComponent(session.token)}`;
-    }
-  }
+export type ProtectedMediaAccess = { url: string; expiresAt: number };
+const mediaAccessCache = new Map<string, ProtectedMediaAccess>();
+const mediaAccessPending = new Map<string, Promise<ProtectedMediaAccess | null>>();
+let mediaAuthorizationVersion = 0;
 
-  return finalUrl;
+export function clearMediaAccessCache() {
+  mediaAuthorizationVersion++;
+  mediaAccessCache.clear();
+  mediaAccessPending.clear();
+  // Remove the former persistent cache, which stored URLs containing login JWTs.
+  if (typeof caches !== "undefined") void caches.delete("zapai-media-cache").catch(() => {});
+}
+
+if (typeof window !== "undefined") {
+  clearMediaAccessCache();
+  window.addEventListener(ADMIN_AUTH_CHANGED_EVENT, clearMediaAccessCache);
+}
+
+export async function authorizeMediaUrl(rawUrl?: string | null, force = false): Promise<ProtectedMediaAccess | null> {
+  const resolved = resolveMediaUrl(rawUrl);
+  if (!resolved) return null;
+  if (/^(data:|blob:)/.test(resolved)) return { url: resolved, expiresAt: 0 };
+  const media = new URL(resolved);
+  if (!/^\/(?:api\/)?(?:media|upload|uploads)\//i.test(media.pathname)) return { url: resolved, expiresAt: 0 };
+  const session = loadAdminAuthSession();
+  if (!session?.token) return null;
+  const tenant = session.tenantId || session.companyId || "";
+  const mediaPath = media.pathname.replace(/^\/api\//, "/");
+  const key = `${tenant}:${session.token}:${mediaPath}`;
+  const cached = mediaAccessCache.get(key);
+  if (!force && cached && cached.expiresAt > Date.now() + 60_000) return cached;
+  if (mediaAccessPending.has(key)) return mediaAccessPending.get(key)!;
+  const authorizationVersion = mediaAuthorizationVersion;
+  const request = (async () => {
+    try {
+      const response = await fetch(`${BACKEND_BASE_URL}/api/media/access`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.token}`, ...(tenant ? { "x-tenant-id": tenant } : {}) },
+        body: JSON.stringify({ path: mediaPath }),
+      });
+      if (!response.ok) return null;
+      const payload = await response.json();
+      const access = payload?.data || payload;
+      if (authorizationVersion !== mediaAuthorizationVersion) return null;
+      if (typeof access.url !== "string" || !Number.isFinite(access.expiresAt) || access.expiresAt <= Date.now()) return null;
+      const result = { url: new URL(access.url, `${BACKEND_BASE_URL}/`).toString(), expiresAt: access.expiresAt };
+      if (mediaAccessCache.size >= 300) mediaAccessCache.delete(mediaAccessCache.keys().next().value!);
+      mediaAccessCache.set(key, result);
+      return result;
+    } catch { return null; }
+    finally { mediaAccessPending.delete(key); }
+  })();
+  mediaAccessPending.set(key, request);
+  return request;
+}
+
+export async function resolveProtectedMediaUrl(url?: string | null, force = false): Promise<string | null> {
+  return (await authorizeMediaUrl(url, force))?.url || null;
 }
 
 export function inferMediaTypeFromSource(source?: string): "image" | "video" | "audio" | "file" | undefined {

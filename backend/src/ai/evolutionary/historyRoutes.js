@@ -82,7 +82,7 @@ function createHistoryRouter({ repository = historySync.repository, db = pool, a
     }
 
     // Se informou nome do atendente para a loja, sincronizar/criar agente persona
-    if (attendant_name && attendant_name.trim()) {
+    if (result.rows.length && attendant_name && attendant_name.trim()) {
       try {
         const existingAgents = await agentService.listAgents(req.authTenantId);
         const match = existingAgents.find(a => a.name?.toLowerCase() === attendant_name.trim().toLowerCase());
@@ -135,21 +135,16 @@ function createHistoryRouter({ repository = historySync.repository, db = pool, a
       result=await db.query('UPDATE ai_stores SET name=$3,knowledge=$4,segment=$5 WHERE company_id=$1 AND id=$2 RETURNING id',[req.authTenantId,req.params.storeId,name,knowledge,String(segment).slice(0,200)]);
     }
 
-    // Se informou nome do atendente para a loja, sincronizar/criar ou atualizar agente persona
-    if (attendant_name && attendant_name.trim()) {
+    // A edição da loja não deve substituir as instruções de um atendente existente.
+    if (result.rows.length && attendant_name && attendant_name.trim()) {
       try {
         const existingAgents = await agentService.listAgents(req.authTenantId);
         const match = existingAgents.find(a => a.name?.toLowerCase() === attendant_name.trim().toLowerCase());
-        const personality = `Você é ${attendant_name.trim()}, ${attendant_role || 'assistente oficial'} da loja ${name.trim()}. Atendimento prestativo, consultivo e focado em apresentar os melhores produtos e condições.`;
         if (!match) {
           await agentService.createAgent({
             name: attendant_name.trim(),
-            personality,
+            personality: `Você é ${attendant_name.trim()}, ${attendant_role || 'assistente oficial'} da loja ${name.trim()}. Atendimento prestativo, consultivo e focado em apresentar os melhores produtos e condições.`,
             active: true,
-          }, req.authTenantId);
-        } else {
-          await agentService.updateAgent(match.id || match.key, {
-            personality,
           }, req.authTenantId);
         }
       } catch (_) {}

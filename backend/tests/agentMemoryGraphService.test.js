@@ -173,3 +173,43 @@ test('getGraphSnapshot ensures root agent hub is connected to all semantic node 
     else delete require.cache[databasePath];
   }
 });
+
+test('getGraphSnapshot never fills an empty agent graph with another agent\'s nodes', async () => {
+  const databasePath = require.resolve('../src/infrastructure/config/database');
+  const servicePath = require.resolve('../services/agentMemoryGraphService');
+  const originalDatabase = require.cache[databasePath];
+  const originalService = require.cache[servicePath];
+  const calls = [];
+
+  require.cache[databasePath] = {
+    exports: {
+      query: async (sql, params) => {
+        calls.push({ sql, params });
+        if (sql.includes('SELECT node_key, node_type, label, weight, properties')) {
+          return { rows: sql.includes('agent_key = $2') ? [] : [
+            { node_key: 'topic:other-agent', node_type: 'topic', label: 'Dados de outro agente', weight: 1 },
+          ] };
+        }
+        if (sql.includes('SELECT source_key, target_key, relation, weight')) return { rows: [] };
+        if (sql.includes('COUNT(*) FILTER')) return { rows: [{ total: 0 }] };
+        return { rows: [] };
+      },
+    },
+  };
+  delete require.cache[servicePath];
+
+  try {
+    const service = require('../services/agentMemoryGraphService');
+    const snapshot = await service.getGraphSnapshot('new-agent', 'tenant-a', 50);
+    assert.deepEqual(snapshot.nodes.map((node) => node.id), ['agent:new-agent']);
+    assert.equal(snapshot.stats.totalNodes, 1);
+    const nodeReads = calls.filter((call) => call.sql.includes('SELECT node_key, node_type, label, weight, properties'));
+    assert.equal(nodeReads.length, 1);
+    assert.match(nodeReads[0].sql, /company_id = \$1 AND agent_key = \$2/);
+  } finally {
+    delete require.cache[servicePath];
+    if (originalService) require.cache[servicePath] = originalService;
+    if (originalDatabase) require.cache[databasePath] = originalDatabase;
+    else delete require.cache[databasePath];
+  }
+});

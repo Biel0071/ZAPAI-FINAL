@@ -3,7 +3,7 @@ import type { Conversation, MetricsSummary } from "@/core/services/apiService";
 export type AnalyticsKpiCard = {
   label: string;
   value: string;
-  tone: "primary" | "default" | "info" | "success";
+  tone: "primary" | "default" | "info" | "success" | "warning";
   hint?: string;
 };
 

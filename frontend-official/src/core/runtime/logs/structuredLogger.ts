@@ -7,6 +7,7 @@ export interface StructuredLogEntry {
   scope: LogScope;
   route?: string;
   requestId?: string;
+  correlationId?: string;
   sessionId?: string;
   statusCode?: number;
   message: string;

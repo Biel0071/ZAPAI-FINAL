@@ -4,6 +4,7 @@ const mediaController = require('../controllers/mediaController');
 const router = express.Router();
 
 router.post('/media/upload', mediaController.upload);
+router.post('/media/access', mediaController.issueAccess);
 router.get('/media/:mediaId/metadata', mediaController.getMetadata);
 router.get('/media/:mediaId/stream', mediaController.stream);
 

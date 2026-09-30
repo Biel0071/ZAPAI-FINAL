@@ -31,7 +31,7 @@ function createRequestLogger() {
       const payload = {
         durationMs,
         method: req.method,
-        path: req.originalUrl,
+        path: pathToLog.split('?', 1)[0],
         requestId: req.requestId || '-',
         scope: 'api_request',
         statusCode: res.statusCode,

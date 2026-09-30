@@ -29,8 +29,14 @@ import {
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { API_ORIGIN, requestApiEndpoint } from "@/core/services/apiService";
+import { requestApiEndpoint } from "@/core/services/apiService";
 import { useToast } from "@/state/hooks/use-toast";
+import { useProtectedMediaUrl } from "@/core/runtime/hooks/useProtectedMediaUrl";
+
+function ProtectedMemoryImage({ src, ...props }: React.ComponentProps<'img'>) {
+  const url = useProtectedMediaUrl(src);
+  return url ? <img {...props} src={url} /> : null;
+}
 
 interface ObsidianMemoryModalProps {
   open: boolean;
@@ -108,14 +114,6 @@ export const ObsidianMemoryModal: React.FC<ObsidianMemoryModalProps> = ({
       void fetchRealMedia();
     }
   }, [open, fetchRealMedia]);
-
-  const resolveMediaUrl = (url: string) => {
-    if (!url) return "";
-    if (url.startsWith("http://") || url.startsWith("https://")) return url;
-    if (url.startsWith("/http://") || url.startsWith("/https://")) return url.slice(1);
-    const clean = url.startsWith("/") ? url : `/${url}`;
-    return `${API_ORIGIN}${clean}`;
-  };
 
   const handleCopyOcr = (text: string) => {
     navigator.clipboard.writeText(text);
@@ -377,8 +375,8 @@ export const ObsidianMemoryModal: React.FC<ObsidianMemoryModalProps> = ({
                             {item.title.slice(0, 20)}
                           </span>
                         </div>
-                        <img
-                          src={resolveMediaUrl(item.url)}
+                        <ProtectedMemoryImage
+                          src={item.url}
                           alt={item.title}
                           className="w-full h-full object-cover relative z-0"
                           onError={(e) => {
@@ -530,8 +528,8 @@ export const ObsidianMemoryModal: React.FC<ObsidianMemoryModalProps> = ({
                       Arquivo indexado no banco WhatsApp ({selectedPreviewItem.originChat}).
                     </p>
                   </div>
-                  <img
-                    src={resolveMediaUrl(selectedPreviewItem.url)}
+                  <ProtectedMemoryImage
+                    src={selectedPreviewItem.url}
                     alt={selectedPreviewItem.title}
                     className="max-h-96 max-w-full object-contain relative z-10"
                     onError={(e) => {

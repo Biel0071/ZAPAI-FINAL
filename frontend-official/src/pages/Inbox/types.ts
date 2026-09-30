@@ -54,9 +54,11 @@ export type InboxAiRuntime = {
   completionTokens: number;
   loading: boolean;
   aiOn?: boolean;
+  providerReady?: boolean;
 };
 
 export interface QuickReplyMediaItem {
+  actions?: { addTags?: string[]; archiveContact?: boolean };
   id?: string;
   type: "text" | "image" | "video" | "audio" | "file" | "pdf" | "document" | "sticker";
   value: string;

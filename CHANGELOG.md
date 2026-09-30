@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
+## Unreleased — 2026-09-30: IA e Inbox para atendimento real
+
+- Entrada única da IA no menu, agente como tela inicial e navegação interna em Agente, Conhecimento e Operação. Criação guiada reutiliza o painel existente com revisão antes de salvar.
+- Inbox com painel Atendimento, Cliente e Arquivos, estado real do WhatsApp/provedor e seleção do agente persistido. Respostas de texto entram no rascunho; mídias e fluxos têm prévia e confirmação.
+- Correções de rascunhos, sugestões e banners ao trocar de conversa. Consulta e cancelamento de fluxo usam empresa, sessão e conversa.
+- Aceitação HTTP somente após persistência da fila, deduplicação por intenção e etapa, erro recuperável e validação do destino e dos recursos da empresa autenticada.
+- Acesso temporário a arquivos por caminho e empresa, sem JWT em URL; armazenamento durável e compatibilidade com arquivos antigos que tenham propriedade comprovada.
+- Provedores, conhecimento, métricas e evolução sem dados comerciais de exemplo ou fallback para outra empresa. Logs legados sem propriedade comprovável não são expostos.
+- Publicação da VPS por versão e artefato revisados, com snapshot de banco, autenticação e arquivos, gates de saúde e rollback. Nenhuma migração ou seed nesta atualização.
+- O comando de TypeScript agora verifica os arquivos reais da aplicação.
+
 ## Unreleased — 2026-09-22: Memória por WhatsApp e criação de atendentes
 
 - Memória persistente própria e isolada por WhatsApp: recuperação pós-reconexão no PostgreSQL vinculada por empresa proprietária, conexão e cliente.

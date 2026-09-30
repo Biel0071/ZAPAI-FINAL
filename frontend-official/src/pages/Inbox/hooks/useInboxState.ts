@@ -78,13 +78,6 @@ const OFFLINE_MESSAGE_POLL_INTERVAL_MS = 45_000;
 const OFFLINE_FALLBACK_SYNC_INTERVAL_MS = 60_000;
 const SOCKET_FORCE_RECONNECT_DEBOUNCE_MS = 15_000;
 
-const DEFAULT_QUICK_REPLIES: QuickReplyItem[] = [
-  { id: "qr-1", category: "saudação", title: "Saudação", text: "Olá! Como posso ajudar?", items: [{ type: "text", value: "Olá! Como posso ajudar?" }] },
-  { id: "qr-2", category: "vendas", title: "Interesse", text: "Qual produto você procura hoje?", items: [{ type: "text", value: "Qual produto você procura hoje?" }] },
-  { id: "qr-3", category: "vendas", title: "Valores", text: "Posso te enviar os valores agora mesmo.", items: [{ type: "text", value: "Posso te enviar os valores agora mesmo." }] },
-  { id: "qr-4", category: "suporte", title: "Suporte", text: "Já vou verificar isso para você e te retorno em instantes.", items: [{ type: "text", value: "Já vou verificar isso para você e te retorno em instantes." }] },
-];
-
 const EMPTY_MESSAGES_ARRAY: ChatMessage[] = [];
 
 export function useInboxState() {
@@ -148,6 +141,8 @@ export function useInboxState() {
   const [sending, setSending] = useState(false);
   const sendingRef = useRef(false);
   const sendingQuickReplyRef = useRef(false);
+  const retryQuickReplyIdsRef = useRef<Map<string, string>>(new Map());
+  const retrySendRequestIdsRef = useRef<Map<string, string>>(new Map());
   const lastSentTextRef = useRef("");
   const [error, setError] = useState<string | null>(null);
   const [backendOnline, setBackendOnline] = useState(true);
@@ -160,8 +155,12 @@ export function useInboxState() {
   const [conversationListHeight, setConversationListHeight] = useState(520);
   const [leadInsight, setLeadInsight] = useState<LeadIntentResult | null>(null);
   const [suggestingResponse, setSuggestingResponse] = useState(false);
+  const suggestingResponseRef = useRef(false);
+  const suggestionContextRef = useRef(0);
   const [responseSearchQuery, setResponseSearchQuery] = useState("");
-  const [quickReplies, setQuickReplies] = useState<QuickReplyItem[]>(DEFAULT_QUICK_REPLIES);
+  const [quickReplies, setQuickReplies] = useState<QuickReplyItem[]>([]);
+  const [quickRepliesLoading, setQuickRepliesLoading] = useState(true);
+  const [quickRepliesError, setQuickRepliesError] = useState(false);
   const [quickReplyCategory, setQuickReplyCategory] = useState<string>("all");
   const [isQuickReplyDialogOpen, setIsQuickReplyDialogOpen] = useState(false);
 
@@ -178,7 +177,7 @@ export function useInboxState() {
   // AI & Memory states
   const [aiMemory, setAiMemory] = useState<AiMemoryRecord | null>(null);
   const [aiRuntime, setAiRuntime] = useState<InboxAiRuntime>({
-    globalEnabled: true,
+    globalEnabled: false,
     memoryEnabled: true,
     provider: "Não configurado",
     model: "Não configurado",
@@ -188,6 +187,7 @@ export function useInboxState() {
     completionTokens: 0,
     loading: true,
     aiOn: false,
+    providerReady: false,
   });
 
   // Composer attachments, dragging, recording
@@ -426,7 +426,7 @@ export function useInboxState() {
     const nextDraft: ConversationDraftState = {
       draftMessage: draftOverride?.draftMessage ?? messageInputStateRef.current,
       draftMedia: draftOverride?.draftMedia ?? attachmentsStateRef.current,
-      draftReply: draftOverride?.draftReply ?? replyingToStateRef.current,
+      draftReply: draftOverride?.draftReply !== undefined ? draftOverride.draftReply : replyingToStateRef.current,
       draftMentions: draftOverride?.draftMentions ?? [],
     };
     composerDraftsRef.current.set(conversationId, nextDraft);
@@ -635,17 +635,11 @@ export function useInboxState() {
 
   const activeSession = useMemo(() => {
     if (!Array.isArray(sessions)) return null;
-
-    const active = pickActiveSession(sessions, selectedConversation?.sessionId);
-    if (active) return active;
-
     if (selectedConversation?.sessionId) {
-      const found = sessions.find((s) => s && s.id === selectedConversation.sessionId);
-      if (found) return found;
+      return sessions.find((s) => s && s.id === selectedConversation.sessionId) ?? null;
     }
-
-    return sessions[0] || null;
-  }, [sessions, selectedConversation?.sessionId]);
+    return pickActiveSession(sessions, preferredSessionId) ?? sessions[0] ?? null;
+  }, [sessions, selectedConversation?.sessionId, preferredSessionId]);
 
   const isWhatsappConnected = useMemo(() => {
     return Boolean(activeSession && isSessionActive(activeSession));
@@ -669,6 +663,10 @@ export function useInboxState() {
     selectedConversationRef.current = selectedConversation;
   }, [selectedConversation]);
 
+  useEffect(() => {
+    suggestionContextRef.current += 1;
+  }, [selectedConversation?.id]);
+
 
   useEffect(() => {
     setLeadNotes(
@@ -676,7 +674,7 @@ export function useInboxState() {
       conversationControls[selectedConversation?.id ?? ""]?.notes ??
       "",
     );
-  }, [conversationControls, selectedConversation?.id, selectedConversation?.notes]);
+  }, [conversationControls[selectedConversation?.id ?? ""]?.notes, selectedConversation?.id, selectedConversation?.notes]);
 
   useEffect(
     () => () => {
@@ -761,28 +759,17 @@ export function useInboxState() {
     localStorage.setItem("zapai_inbox_active_session", activeSession.id);
   }, [activeSession?.id]);
 
-  const fetchAiMemory = useCallback(async (contactId: string) => {
-    if (!contactId) return;
-    try {
-      const response = await apiService.getMemoryByContact(contactId);
-      if (response && response.success && response.data) {
-        setAiMemory(response.data);
-      } else {
-        setAiMemory(null);
-      }
-    } catch (err) {
-      setAiMemory(null);
-    }
-  }, []);
-
   useEffect(() => {
     const memoryContactId = String(selectedConversation?.contactId ?? selectedConversation?.phone ?? "").trim();
-    if (!memoryContactId) {
-      setAiMemory(null);
-      return;
+    let active = true;
+    setAiMemory(null);
+    if (memoryContactId) {
+      void apiService.getMemoryByContact(memoryContactId, selectedConversation?.sessionId)
+        .then(response => { if (active) setAiMemory(response?.success ? response.data ?? null : null); })
+        .catch(() => { if (active) setAiMemory(null); });
     }
-    void fetchAiMemory(memoryContactId);
-  }, [selectedConversation?.contactId, selectedConversation?.phone, fetchAiMemory]);
+    return () => { active = false; };
+  }, [selectedConversation?.id, selectedConversation?.contactId, selectedConversation?.phone, selectedConversation?.sessionId]);
 
   useEffect(() => {
     if (!selectedConversation?.id) return;
@@ -824,7 +811,6 @@ export function useInboxState() {
         const latestLog = conversationLogs[0] ?? null;
         const activeProvider =
           advancedSettings.providers?.find((provider: any) => provider.active) ??
-          advancedSettings.providers?.[0] ??
           null;
 
         setAiRuntime({
@@ -838,10 +824,11 @@ export function useInboxState() {
           completionTokens: conversationLogs.reduce((total, entry) => total + Number(entry.completionTokens || 0), 0),
           loading: false,
           aiOn: Boolean(status.aiOn),
+          providerReady: Boolean(activeProvider && ((activeProvider as any).configured || (activeProvider as any).hasApiKey)),
         });
       } catch (error) {
         if (cancelled) return;
-        setAiRuntime((current) => ({ ...current, loading: false }));
+        setAiRuntime((current) => ({ ...current, loading: false, providerReady: false }));
       }
     };
 
@@ -1870,9 +1857,8 @@ export function useInboxState() {
   // Message sending implementation
   const handleSendMessage = useCallback(async (overrideText?: string) => {
     // Always use refs for volatile state to avoid stale closures on rapid re-renders
-    const text = (overrideText ?? messageInputStateRef.current).trim();
     const replyingToSnapshot = replyingToStateRef.current;
-    const replyExcerpt = (replyingToSnapshot?.caption ?? replyingToSnapshot?.content ?? "").trim();
+    const draftTextSnapshot = messageInputStateRef.current;
     const textToSend = (overrideText ?? messageInputStateRef.current).trim();
     const currentAttachments = [...attachmentsStateRef.current];
     // Always read the latest conversation from ref — avoids stale closure after re-renders
@@ -1887,8 +1873,6 @@ export function useInboxState() {
       console.log("[SEND] No current conversation id. Aborting.");
       return;
     }
-
-    console.log(`[SEND] Initializing send. Text: "${textToSend}", Attachments: ${currentAttachments.length}`);
 
     if (!canUseBackend) {
       console.log("[SEND] canUseBackend is false. Aborting.");
@@ -1908,18 +1892,12 @@ export function useInboxState() {
 
     setError(null);
 
-    // Clear refs immediately to prevent concurrent rapid-fire duplicate sends.
-    if (overrideText === undefined) {
-      messageInputStateRef.current = "";
-    }
-    attachmentsStateRef.current = [];
-
     const startTime = Date.now();
-    const requestIdBase = `inbox-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
     console.log(`[SEND] State updated to sending=true at ${startTime}`);
 
     const now = new Date().toISOString();
     const pendingTempIds = new Set<string>();
+    let acceptedCount = 0;
 
     try {
       // Always read latest sessions directly from the Zustand store to avoid stale closure
@@ -1927,43 +1905,40 @@ export function useInboxState() {
       const safeSessions = Array.isArray(storeSessions) ? storeSessions : [];
       const latestSessions = safeSessions.length > 0 ? safeSessions : await refreshSessions();
 
-      const resolvedActiveSession = pickActiveSession(
-        latestSessions,
-        currentConversation.sessionId ?? preferredSessionId,
-      );
-      if (!resolvedActiveSession?.id) {
-        const unavailableMessage = "Nenhuma sessão do WhatsApp está conectada. Reconecte uma sessão e tente novamente.";
-        setError(unavailableMessage);
-        showErrorToast(unavailableMessage);
-        // Restore refs so the user can retry
-        if (overrideText === undefined) messageInputStateRef.current = textToSend;
-        attachmentsStateRef.current = currentAttachments;
-        return;
-      }
-
       const conversationSession = currentConversation.sessionId
         ? latestSessions.find((session) => session.id === currentConversation.sessionId)
         : null;
-      const sessionIdToSend = conversationSession && isSessionActive(conversationSession)
-        ? conversationSession.id
-        : resolvedActiveSession.id;
+      const resolvedActiveSession = currentConversation.sessionId
+        ? conversationSession && isSessionActive(conversationSession) ? conversationSession : null
+        : pickActiveSession(latestSessions, preferredSessionId);
+      if (!resolvedActiveSession?.id) {
+        const unavailableMessage = "Nenhuma sessão do WhatsApp está conectada. Reconecte uma sessão e tente novamente.";
+        if (useAppStore.getState().activeConversationId === currentConversation.id) setError(unavailableMessage);
+        showErrorToast(unavailableMessage);
+        return;
+      }
+
+      const sessionIdToSend = resolvedActiveSession.id;
 
       // Only clear the composer after a connected session has been resolved.
-      setMessageInput("");
-      setAttachments([]);
-      setReplyingTo(null);
-      clearDraftFromStorage(currentConversation.id);
-      setDraftsByConversationId((prev) => {
-        if (!prev[currentConversation.id]) return prev;
-        const { [currentConversation.id]: _removed, ...rest } = prev;
-        return rest;
-      });
-      persistDraftSnapshot(currentConversation.id, {
-        draftMessage: "",
-        draftMedia: [],
-        draftReply: null,
-        draftMentions: [],
-      });
+      // Preserve edits and the next conversation's composer made during the await.
+      const isOriginSelected = useAppStore.getState().activeConversationId === currentConversation.id;
+      const currentDraft = isOriginSelected
+        ? { draftMessage: messageInputStateRef.current, draftMedia: attachmentsStateRef.current, draftReply: replyingToStateRef.current }
+        : composerDraftsRef.current.get(currentConversation.id);
+      const retainedText = currentDraft?.draftMessage === draftTextSnapshot ? "" : currentDraft?.draftMessage ?? "";
+      const retainedMedia = (currentDraft?.draftMedia ?? []).filter(attachment => !currentAttachments.some(sent => sent.id === attachment.id));
+      const retainedReply = currentDraft?.draftReply?.id === replyingToSnapshot?.id ? null : currentDraft?.draftReply ?? null;
+      persistDraftSnapshot(currentConversation.id, { draftMessage: retainedText, draftMedia: retainedMedia, draftReply: retainedReply, draftMentions: [] });
+      saveDraftToStorage(currentConversation.id, retainedText);
+      if (isOriginSelected) {
+        messageInputStateRef.current = retainedText;
+        attachmentsStateRef.current = retainedMedia;
+        replyingToStateRef.current = retainedReply;
+        setMessageInput(retainedText);
+        setAttachments(retainedMedia);
+        setReplyingTo(retainedReply);
+      }
 
       setPreferredSessionId(sessionIdToSend);
       localStorage.setItem("zapai_inbox_active_session", sessionIdToSend);
@@ -2025,20 +2000,14 @@ export function useInboxState() {
       );
 
       const optimisticLast = optimisticMessages[optimisticMessages.length - 1];
-      const reactivateAt24h = new Date(Date.now() + 86400000).toISOString();
       setConversations((prev) => {
         const current = prev.find((item) => item.id === currentConversation.id);
         if (!current) return prev;
 
         const updated: Conversation = {
           ...current,
-          aiEnabled: false,
-          ai_enabled: false,
-          aiPausedUntil: reactivateAt24h,
-          ai_reactivate_at: reactivateAt24h,
-          aiReactivateAt: reactivateAt24h,
           lastMessage: optimisticLast?.content || textToSend || (currentAttachments[0]?.mediaType ? getMediaTypeLabel(currentAttachments[0].mediaType) : current.lastMessage || ""),
-          lastMessageType: optimisticLast?.mediaType ?? currentAttachments[0]?.mediaType ?? "text",
+          lastMessageType: optimisticLast?.mediaType === "document" || optimisticLast?.mediaType === "media" ? "file" : optimisticLast?.mediaType ?? currentAttachments[0]?.mediaType ?? "text",
           updatedAt: optimisticLast?.createdAt ?? now,
         };
 
@@ -2061,7 +2030,11 @@ export function useInboxState() {
         }
 
         console.log(`[SEND] Calling API for message ${i + 1}...`);
-        const requestId = `${requestIdBase}-${i}`;
+        // A timeout may hide an accepted enqueue. Retrying the same draft uses
+        // the same request ID so the server can return that result once.
+        const retryKey = JSON.stringify([currentConversation.id, attachment?.id ?? "text", optimistic.content]);
+        const requestId = retrySendRequestIdsRef.current.get(retryKey) ?? `inbox-${crypto.randomUUID()}`;
+        retrySendRequestIdsRef.current.set(retryKey, requestId);
         const response: MessageSendResponse = attachment
           ? await apiService.sendMediaMessage({
               phone: currentConversation.phone,
@@ -2085,15 +2058,21 @@ export function useInboxState() {
               sessionId: sessionIdToSend,
               requestId,
             });
-        console.log(`[SEND] API response received for message ${i + 1}:`, response);
 
         if (!response.success) {
           throw new Error(String(response.error ?? "Falha ao enviar mensagem"));
         }
+        acceptedCount += 1;
+        retrySendRequestIdsRef.current.delete(retryKey);
+        const confirmedControl = response.conversationControl as { aiEnabled?: boolean; aiReactivateAt?: string | null } | undefined;
+        if (confirmedControl?.aiEnabled != null) {
+          setConversationControls(prev => ({ ...prev, [currentConversation.id]: { ...prev[currentConversation.id], conversation_id: currentConversation.id, conversationId: currentConversation.id, ai_enabled: confirmedControl.aiEnabled!, aiEnabled: confirmedControl.aiEnabled!, aiReactivateAt: confirmedControl.aiReactivateAt ?? null, ai_reactivate_at: confirmedControl.aiReactivateAt ?? null } }));
+          setConversations(prev => prev.map(conversation => conversation.id === currentConversation.id ? { ...conversation, aiEnabled: confirmedControl.aiEnabled, ai_enabled: confirmedControl.aiEnabled, aiReactivateAt: confirmedControl.aiReactivateAt ?? null, ai_reactivate_at: confirmedControl.aiReactivateAt ?? null } : conversation));
+        }
 
         const returnedMsg = response.message;
         const realId = returnedMsg?.id || returnedMsg?.key?.id;
-        const realStatus = (returnedMsg?.status ?? "server_ack") as ChatMessage["status"];
+        const realStatus = (returnedMsg?.status ?? "pending") as ChatMessage["status"];
         const returnedUrl =
           returnedMsg?.url ??
           returnedMsg?.mediaUrl ??
@@ -2151,12 +2130,11 @@ export function useInboxState() {
         const fallbackTimerId = window.setTimeout(() => {
           console.log(`[SEND] Fallback timer fired for tempId ${tempId}`);
           pendingSendFallbackTimersRef.current.delete(fallbackTimerKey);
-          const conversationId = selectedConversationRef.current?.id;
-          if (!conversationId) return;
+          const conversationId = currentConversation.id;
 
           const pendingQueue = pendingOutgoingTempIdsRef.current.get(String(conversationId)) ?? [];
           const isPending = pendingQueue.includes(tempId);
-          const tempStillVisible = messagesRef.current.some((message) => message.id === tempId);
+          const tempStillVisible = (useAppStore.getState().messagesByConversationId[conversationId] ?? []).some((message) => message.id === tempId);
           if (!isPending && !tempStillVisible) return;
 
           void loadConversationMessages(String(conversationId), { force: true });
@@ -2167,11 +2145,10 @@ export function useInboxState() {
       revokeAttachmentPreviewUrls(currentAttachments);
     } catch (err) {
       const message = err instanceof Error ? err.message : "Erro ao enviar mensagem";
-      setError(message);
+      if (useAppStore.getState().activeConversationId === currentConversation.id) setError(message);
       showErrorToast(message);
 
-      // Re-read conversation from ref in catch to avoid stale closure
-      const failedConversation = selectedConversationRef.current;
+      const failedConversation = currentConversation;
       const errMsg = message.toLowerCase();
       const isBlockedError = errMsg.includes("blocked") || errMsg.includes("forbidden") || errMsg.includes("recipient unavailable");
       if (isBlockedError && failedConversation) {
@@ -2198,6 +2175,24 @@ export function useInboxState() {
           );
           return next;
         });
+      }
+
+      // Restore only content that did not reach the queue, scoped to its origin.
+      const unsentAttachments = currentAttachments.slice(acceptedCount);
+      const existingDraft = useAppStore.getState().activeConversationId === currentConversation.id
+        ? { draftMessage: messageInputStateRef.current, draftMedia: attachmentsStateRef.current, draftReply: replyingToStateRef.current }
+        : composerDraftsRef.current.get(currentConversation.id);
+      const restoredText = existingDraft?.draftMessage || (acceptedCount === 0 ? draftTextSnapshot || textToSend : "");
+      const restoredMedia = [...(existingDraft?.draftMedia ?? []), ...unsentAttachments.filter(attachment => !existingDraft?.draftMedia?.some(existing => existing.id === attachment.id))];
+      const restoredReply = existingDraft?.draftReply ?? (acceptedCount === 0 ? replyingToSnapshot : null);
+      persistDraftSnapshot(currentConversation.id, { draftMessage: restoredText, draftMedia: restoredMedia, draftReply: restoredReply });
+      saveDraftToStorage(currentConversation.id, restoredText);
+      if (useAppStore.getState().activeConversationId === currentConversation.id) {
+        messageInputStateRef.current = restoredText;
+        attachmentsStateRef.current = restoredMedia;
+        setMessageInput(restoredText);
+        setAttachments(restoredMedia);
+        setReplyingTo(restoredReply);
       }
     } finally {
       setSending(false);
@@ -2262,7 +2257,7 @@ export function useInboxState() {
       const updated = await upsertConversationControl({
         conversationId: selectedConversation.id,
         assigned_to: agentName,
-        aiEnabled: selectedConversation.aiEnabled,
+        aiEnabled: conversationControls[selectedConversation.id]?.aiEnabled ?? selectedConversation.aiEnabled ?? true,
         summary: conversationControls[selectedConversation.id]?.summary,
         summarizedMessageCount: conversationControls[selectedConversation.id]?.summarizedMessageCount,
       });
@@ -2282,11 +2277,14 @@ export function useInboxState() {
                   ...conversation,
                   assignedAgentName: agentName,
                   agent_name: agentName,
+                  assigned_to: agentName,
                 }
               : conversation,
           ),
         );
-        toast({ title: `Atendente alterado para ${agentName}.` });
+        toast({ title: agentName ? `Atendente alterado para ${agentName}.` : "Agente padrão da conexão selecionado." });
+      } else {
+        throw new Error("O servidor não confirmou a alteração do agente.");
       }
     } catch {
       showErrorToast("Não foi possível alterar o atendente da conversa.");
@@ -2361,7 +2359,9 @@ export function useInboxState() {
       return;
     }
 
-    void downloadMediaFile(mediaUrl, getMediaFileName(message));
+    void downloadMediaFile(mediaUrl, getMediaFileName(message)).catch(() => {
+      toast({ title: "Arquivo indisponível", description: "Atualize a conversa e tente novamente.", variant: "destructive" });
+    });
     setActiveMessageMenuId(null);
     setActiveReactionPickerMessageId(null);
   }, [toast]);
@@ -2558,44 +2558,38 @@ export function useInboxState() {
   }, [addFilesToComposer, isRecording, showErrorToast]);
 
   const handleSuggestResponse = useCallback(async () => {
-    if (!selectedConversation || suggestingResponse || !aiEnabledForConversation) return;
+    const targetConversation = selectedConversationRef.current;
+    if (!targetConversation || suggestingResponseRef.current || !aiRuntime.providerReady) return;
 
     const lastCustomerMessage = [...messages].reverse().find((message) => !message.fromMe)?.content;
     if (!lastCustomerMessage) return;
 
+    const contextVersion = suggestionContextRef.current;
+    const draftSnapshot = messageInputStateRef.current;
+    suggestingResponseRef.current = true;
     setSuggestingResponse(true);
 
     try {
-      const [{ analyzeLeadIntent }, { generateResponse }] = await Promise.all([
-        import("@/core/services/leadAnalyzer"),
-        import("@/core/services/responseEngine"),
-      ]);
-      const history = messages.slice(-20).map((message) => ({
-        role: message.fromMe ? ("assistant" as const) : ("user" as const),
-        content: message.content,
-      }));
-
-      const lead = leadInsight ?? analyzeLeadIntent(lastCustomerMessage, history.map((item) => item.content));
-      const promptData = await apiService.getAIPrompt();
-
-      const optimized = await generateResponse(selectedConversation.id, {
-        prompt: promptData.prompt ?? "Você é uma assistente comercial focada em fechar vendas com clareza e simpatia.",
-        messages: history.map((item) => ({
-          text: item.content,
-          fromMe: item.role === "assistant",
-        })),
-      });
+      const { generateResponse } = await import("@/core/services/responseEngine");
+      const optimized = await generateResponse(targetConversation.id, {});
 
       if (!optimized) throw new Error("A IA nao retornou uma sugestao.");
+      if (suggestionContextRef.current !== contextVersion || useAppStore.getState().activeConversationId !== targetConversation.id) return;
+      if (messageInputStateRef.current !== draftSnapshot) {
+        toast({ title: "Sugestão descartada", description: "Você editou o rascunho enquanto a IA preparava a resposta. Seu texto foi preservado." });
+        return;
+      }
       setMessageInput(optimized);
       toast({ title: "Sugestão pronta para envio." });
     } catch (err) {
+      if (suggestionContextRef.current !== contextVersion || useAppStore.getState().activeConversationId !== targetConversation.id) return;
       const message = err instanceof Error && err.message ? err.message : "AI response unavailable.";
       showErrorToast(message);
     } finally {
+      suggestingResponseRef.current = false;
       setSuggestingResponse(false);
     }
-  }, [aiEnabledForConversation, selectedConversation, suggestingResponse, messages, leadInsight, toast, showErrorToast]);
+  }, [aiRuntime.providerReady, messages, toast, showErrorToast]);
 
   const handleSetConversationAiEnabled = useCallback(async (enabled: boolean, reactivateAt?: string | null) => {
     if (!selectedConversation) return;
@@ -2688,16 +2682,18 @@ export function useInboxState() {
   const persistConversationMetadata = useCallback(async (conversationId: string, payload: { tags?: string[]; funnel_stage?: string; notes?: string }) => {
     try {
       await apiService.patchConversation(conversationId, payload);
+      return true;
     } catch (error) {
       console.error("Falha ao persistir dados da conversa", error);
       notify.error("Não foi possível salvar os dados da conversa.");
+      return false;
     }
   }, []);
 
   const handleSaveLeadNotes = useCallback(async () => {
     if (!selectedConversation) return;
     const normalizedNotes = leadNotes.trim();
-    await persistConversationMetadata(selectedConversation.id, { notes: normalizedNotes });
+    if (!await persistConversationMetadata(selectedConversation.id, { notes: normalizedNotes })) return;
     setConversations((prev) =>
       prev.map((conversation) =>
         conversation.id === selectedConversation.id ? { ...conversation, notes: normalizedNotes } : conversation,
@@ -2706,12 +2702,13 @@ export function useInboxState() {
     toast({ title: "Observações salvas." });
   }, [leadNotes, persistConversationMetadata, selectedConversation, setConversations, toast]);
 
-  const handleAddTagToSelectedConversation = useCallback(() => {
+  const handleAddTagToSelectedConversation = useCallback(async () => {
     if (!selectedConversation) return;
     const normalizedTag = newTagInput.trim();
     if (!normalizedTag) return;
 
     const nextTags = Array.from(new Set([...(selectedConversation.tags ?? []), normalizedTag]));
+    if (!await persistConversationMetadata(selectedConversation.id, { tags: nextTags })) return;
     setConversations((prev) =>
       prev.map((conversation) =>
         conversation.id === selectedConversation.id
@@ -2720,14 +2717,13 @@ export function useInboxState() {
       ),
     );
 
-    socketActions.emitAddTag(selectedConversation.id, normalizedTag);
-    void persistConversationMetadata(selectedConversation.id, { tags: nextTags });
-    setNewTagInput("");
+    if (useAppStore.getState().activeConversationId === selectedConversation.id) setNewTagInput("");
   }, [newTagInput, selectedConversation, socketActions, persistConversationMetadata, setConversations]);
 
-  const handleRemoveTagFromSelectedConversation = useCallback((tag: string) => {
+  const handleRemoveTagFromSelectedConversation = useCallback(async (tag: string) => {
     if (!selectedConversation) return;
     const nextTags = (selectedConversation.tags ?? []).filter((currentTag) => currentTag !== tag);
+    if (!await persistConversationMetadata(selectedConversation.id, { tags: nextTags })) return;
 
     setConversations((prev) =>
       prev.map((conversation) =>
@@ -2737,8 +2733,6 @@ export function useInboxState() {
       ),
     );
 
-    socketActions.emitRemoveTag(selectedConversation.id, tag);
-    void persistConversationMetadata(selectedConversation.id, { tags: nextTags });
   }, [selectedConversation, socketActions, persistConversationMetadata, setConversations]);
 
   // Bulk operations implementations
@@ -2929,6 +2923,8 @@ export function useInboxState() {
   // Quick Replies loading & execution
   useEffect(() => {
     const loadQuickReplies = async () => {
+      setQuickRepliesLoading(true);
+      setQuickRepliesError(false);
       try {
         const list = await apiService.getQuickReplies();
         if (list && Array.isArray(list)) {
@@ -2946,7 +2942,10 @@ export function useInboxState() {
           setQuickReplies(mapped);
         }
       } catch (err) {
+        setQuickRepliesError(true);
         console.error("Failed to load quick replies:", err);
+      } finally {
+        setQuickRepliesLoading(false);
       }
     };
     void loadQuickReplies();
@@ -2956,46 +2955,45 @@ export function useInboxState() {
     () => ({
       contactName: selectedConversation?.contactName || "",
       phone: selectedConversation?.phone || "",
-      company: typeof aiMemory?.company === "string" ? aiMemory.company : "ZapAI",
+      company: typeof aiMemory?.company === "string" ? aiMemory.company : "",
     }),
     [aiMemory?.company, selectedConversation?.contactName, selectedConversation?.phone],
   );
 
-  const sendQuickReply = useCallback(async (arg: string | QuickReplyItem) => {
-    if (!selectedConversation) return;
-    if (sendingQuickReplyRef.current) return;
+  const sendQuickReply = useCallback(async (arg: string | QuickReplyItem, overrideDelayMs?: number) => {
+    const targetConversation = selectedConversationRef.current;
+    if (!targetConversation) throw new Error("Selecione uma conversa antes de enviar.");
+    if (sendingQuickReplyRef.current || sendingRef.current) throw new Error("Aguarde o envio atual.");
 
     if (typeof arg === "string") {
-      sendingQuickReplyRef.current = true;
-      try {
-        await handleSendMessage(interpolateTemplateVariables(arg, conversationVariableContext));
-      } finally {
-        sendingQuickReplyRef.current = false;
-      }
+      setMessageInput(interpolateTemplateVariables(arg, conversationVariableContext));
       return;
     }
 
     sendingQuickReplyRef.current = true;
+    sendingRef.current = true;
     setSending(true);
     try {
-      const currentSendId = crypto.randomUUID ? crypto.randomUUID() : `sqr_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
-      await apiService.executeQuickReplyFlow(arg.id || "custom", {
-        phone: selectedConversation.phone,
-        sessionId: selectedConversation.sessionId || preferredSessionId || undefined,
-        item: arg,
+      if (!arg.id) throw new Error("Salve a resposta rápida antes de enviar.");
+      const retryKey = JSON.stringify([targetConversation.id, arg.id, overrideDelayMs]);
+      const currentSendId = retryQuickReplyIdsRef.current.get(retryKey) ?? crypto.randomUUID();
+      retryQuickReplyIdsRef.current.set(retryKey, currentSendId);
+      const response = await apiService.executeQuickReplyFlow(arg.id, {
+        phone: targetConversation.phone,
+        conversationId: targetConversation.id,
+        sessionId: targetConversation.sessionId || preferredSessionId || undefined,
+        overrideDelayMs,
         sendId: currentSendId
       });
-      notify.success("Fluxo / Resposta Rápida iniciada.");
-    } catch (err: any) {
-      console.error("[SEND_QUICK_REPLY_ERROR]", err);
-      // Do not fall back to a second send after an ambiguous flow response.
-      // The backend may already have accepted/enqueued the request.
-      notify.error("Falha ao disparar resposta rápida. Verifique o status antes de tentar novamente.");
+      if (!response?.success) throw new Error("O servidor não confirmou o envio da resposta rápida.");
+      retryQuickReplyIdsRef.current.delete(retryKey);
+      notify.success(`Resposta rápida na fila para ${targetConversation.contactName}.`);
     } finally {
       setSending(false);
+      sendingRef.current = false;
       sendingQuickReplyRef.current = false;
     }
-  }, [selectedConversation, preferredSessionId, handleSendMessage, conversationVariableContext]);
+  }, [preferredSessionId, conversationVariableContext]);
 
   const deleteQuickReply = useCallback(async (quickReplyId: string) => {
     try {
@@ -3030,6 +3028,8 @@ export function useInboxState() {
         favorite: false,
         tags: item.tags || [],
         items: item.items || [{ type: "text", value: item.text }],
+        isFlow: item.isFlow,
+        steps: item.steps,
       };
       const created = await apiService.createQuickReply(newPayload);
       setQuickReplies((prev) => [
@@ -3041,6 +3041,8 @@ export function useInboxState() {
           text: created.content || created.items?.[0]?.value || created.title || "",
           favorite: created.favorite,
           items: created.items,
+          isFlow: created.isFlow,
+          steps: created.steps,
           tags: created.tags || [],
         },
       ]);
@@ -3300,6 +3302,7 @@ export function useInboxState() {
     suggestingResponse,
     responseSearchQuery, setResponseSearchQuery,
     quickReplies, setQuickReplies,
+    quickRepliesLoading, quickRepliesError,
     quickReplyCategory, setQuickReplyCategory,
     isQuickReplyDialogOpen, setIsQuickReplyDialogOpen,
     qrDialogId,

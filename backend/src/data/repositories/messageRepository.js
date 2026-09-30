@@ -340,7 +340,7 @@ async function listRecentMessages(limit = 2000, companyId) {
   return result.rows.reverse().map(mapMessage);
 }
 
-async function findById(messageId) {
+async function findById(messageId, companyId) {
   const result = await db.query(
     `
       SELECT m.id,
@@ -364,10 +364,10 @@ async function findById(messageId) {
       FROM messages m
       INNER JOIN conversations conv ON conv.id = m.conversation_id
       INNER JOIN leads l ON l.id = conv.lead_id
-      WHERE m.id = $1
+      WHERE m.id = $1${companyId ? ' AND m.company_id = $2 AND conv.company_id = $2' : ''}
       LIMIT 1
     `,
-    [messageId]
+    companyId ? [messageId, companyId] : [messageId]
   );
 
   return mapMessage(result.rows[0]);
@@ -382,14 +382,14 @@ async function findByWhatsappMessageId(whatsappMessageId) {
   return mapMessage(result.rows[0]);
 }
 
-async function deleteById(messageId) {
+async function deleteById(messageId, companyId) {
   const result = await db.query(
     `
       DELETE FROM messages
-      WHERE id = $1
+      WHERE id = $1${companyId ? ' AND company_id = $2' : ''}
       RETURNING id
     `,
-    [messageId]
+    companyId ? [messageId, companyId] : [messageId]
   );
 
   return Boolean(result.rows[0]);

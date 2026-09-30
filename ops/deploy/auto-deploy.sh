@@ -1,417 +1,118 @@
-#!/bin/bash
-# ==============================================================================
-# ZAPAI-FINAL — Auto Deploy Script
-# Zero-downtime deploy com rollback automático.
-#
-# Uso:
-#   bash deploy/auto-deploy.sh
-#   bash deploy/auto-deploy.sh --skip-build     (skip frontend build)
-#   bash deploy/auto-deploy.sh --skip-migrate   (skip migrations)
-#   bash deploy/auto-deploy.sh --dry-run        (valida sem aplicar)
-#
-# Fluxo:
-#   1. Git pull
-#   2. Backend deps
-#   3. Migrations
-#   4. Frontend build
-#   5. TypeScript check
-#   6. PM2 restart
-#   7. Nginx reload
-#   8. Health validation
-#   9. Rollback automático se falhar
-# ==============================================================================
-
-set -euo pipefail
-
-# ─── Config ───────────────────────────────────────────────────────────────────
+#!/usr/bin/env bash
+# Deploy only a reviewed commit and its locally verified frontend artifact.
+# Usage: bash ops/deploy/auto-deploy.sh --ref=<sha> --artifact=/path/dist.tar.gz
+set -Eeuo pipefail
+umask 077
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-ROOT_DIR="$(cd "$SCRIPT_DIR/../.." && pwd)"
-BACKEND_DIR="$ROOT_DIR/backend"
-FRONTEND_DIR="$ROOT_DIR/frontend-official"
-LOGS_DIR="$ROOT_DIR/logs/deploy"
-TIMESTAMP="$(date +%Y%m%d_%H%M%S)"
-LOG_FILE="$LOGS_DIR/deploy_${TIMESTAMP}.log"
-BACKEND_PORT="${PORT:-4025}"
-HEALTH_URL="http://127.0.0.1:${BACKEND_PORT}/api/health"
-NGINX_URL="http://127.0.0.1"   # via Nginx (porta 80 local ou 3000 Docker)
-MAX_HEALTH_RETRIES=12
-HEALTH_WAIT_SECONDS=5
-
-# ─── Flags ────────────────────────────────────────────────────────────────────
-SKIP_BUILD=false
-SKIP_MIGRATE=false
+ROOT_DIR="${ZAPAI_ROOT:-$(cd "$SCRIPT_DIR/../.." && pwd)}"
+WEB_ROOT="${WEB_ROOT:-/etc/icontainer/apps/openresty/openresty/www/zapai}"
+TARGET_REF=""
+ARTIFACT=""
 DRY_RUN=false
 for arg in "$@"; do
-  case $arg in
-    --skip-build)   SKIP_BUILD=true ;;
-    --skip-migrate) SKIP_MIGRATE=true ;;
-    --dry-run)      DRY_RUN=true ;;
+  case "$arg" in
+    --ref=*) TARGET_REF="${arg#*=}" ;;
+    --artifact=*) ARTIFACT="${arg#*=}" ;;
+    --dry-run) DRY_RUN=true ;;
+    *) echo "Unknown option: $arg" >&2; exit 2 ;;
   esac
 done
-
-# ─── Colors ───────────────────────────────────────────────────────────────────
-RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'; CYAN='\033[0;36m'; NC='\033[0m'
-
-log()  { echo -e "${GREEN}[✔ $(date +%H:%M:%S)] $*${NC}" | tee -a "$LOG_FILE"; }
-warn() { echo -e "${YELLOW}[⚠ $(date +%H:%M:%S)] $*${NC}" | tee -a "$LOG_FILE"; }
-err()  { echo -e "${RED}[✖ $(date +%H:%M:%S)] $*${NC}" | tee -a "$LOG_FILE"; }
-step() { echo -e "\n${CYAN}━━━ $(date +%H:%M:%S) ▶ $* ━━━${NC}" | tee -a "$LOG_FILE"; }
-
-# ─── Setup ────────────────────────────────────────────────────────────────────
-mkdir -p "$LOGS_DIR"
-exec > >(tee -a "$LOG_FILE") 2>&1
-
-echo ""
-echo "============================================================"
-echo -e "${CYAN}  ZAPAI AUTO-DEPLOY — $TIMESTAMP${NC}"
-echo "  Root: $ROOT_DIR"
-echo "  Skip build: $SKIP_BUILD | Skip migrate: $SKIP_MIGRATE | Dry run: $DRY_RUN"
-echo "============================================================"
-
-# ─── Pre-flight checks ────────────────────────────────────────────────────────
-step "PRE-FLIGHT"
-command -v node   >/dev/null || { err "node not found"; exit 1; }
-command -v npm    >/dev/null || { err "npm not found"; exit 1; }
-command -v pm2    >/dev/null 2>&1 || warn "pm2 not found — will skip pm2 steps"
-command -v nginx  >/dev/null 2>&1 || warn "nginx not found — will skip nginx reload"
-command -v git    >/dev/null || { err "git not found"; exit 1; }
-log "Node: $(node --version) | npm: $(npm --version)"
-
-if $DRY_RUN; then
-  warn "DRY-RUN mode — no changes will be applied"
-fi
-
-# ─── Save rollback point ──────────────────────────────────────────────────────
-step "1. ROLLBACK POINT"
+[[ "$TARGET_REF" =~ ^[0-9a-f]{40}$ ]] || { echo 'A full reviewed commit SHA is required.' >&2; exit 2; }
+for bin in git node npm pm2 pg_dump tar curl flock; do command -v "$bin" >/dev/null; done
 cd "$ROOT_DIR"
-CURRENT_COMMIT="$(git rev-parse HEAD 2>/dev/null || echo 'unknown')"
-CURRENT_SHORT="$(git rev-parse --short HEAD 2>/dev/null || echo 'unknown')"
-log "Current commit: $CURRENT_SHORT ($CURRENT_COMMIT)"
-
-# Snapshot backend dist if it exists
-DIST_BACKUP=""
-if [ -d "$FRONTEND_DIR/dist" ]; then
-  DIST_BACKUP="$FRONTEND_DIR/dist.rollback"
-  rm -rf "$DIST_BACKUP"
-  cp -r "$FRONTEND_DIR/dist" "$DIST_BACKUP"
-  log "Frontend dist snapshot: $DIST_BACKUP"
+[[ "$(git rev-parse --show-toplevel)" == "$ROOT_DIR" ]]
+git cat-file -e "$TARGET_REF^{commit}"
+git diff --quiet && git diff --cached --quiet || { echo 'Tracked server changes must be preserved before deploying.' >&2; exit 2; }
+[[ -f "$ARTIFACT" ]] || { echo 'Verified frontend artifact missing.' >&2; exit 2; }
+[[ -d "$WEB_ROOT" && ! -L "$WEB_ROOT" ]] || { echo 'Expected OpenResty document root missing or symlinked.' >&2; exit 2; }
+[[ -f backend/.env || -f .env.production ]] || { echo 'Existing production environment missing.' >&2; exit 2; }
+AVAILABLE_KB="$(df -Pk "$ROOT_DIR" | awk 'NR==2 {print $4}')"
+(( AVAILABLE_KB > 1048576 )) || { echo 'Less than 1 GiB free; deploy stopped.' >&2; exit 2; }
+if $DRY_RUN; then echo 'Preflight passed; no state changed.'; exit 0; fi
+exec 9>"$ROOT_DIR/.deploy.lock"
+flock -n 9 || { echo 'Another deployment is active.' >&2; exit 2; }
+STAMP="$(date -u +%Y%m%dT%H%M%SZ)"
+SNAPSHOT="$ROOT_DIR/releases/safe-$STAMP"
+mkdir -p "$SNAPSHOT/state" "$SNAPSHOT/frontend"
+chmod 700 "$SNAPSHOT"
+git rev-parse HEAD > "$SNAPSHOT/previous-commit"
+printf '%s\n' "$TARGET_REF" > "$SNAPSHOT/target-commit"
+printf '%s\n' "$WEB_ROOT" > "$SNAPSHOT/web-root"
+git status --porcelain > "$SNAPSHOT/server-status"
+pm2 jlist > "$SNAPSHOT/pm2.json"
+for path in .env.production backend/.env backend/sessions data/sessions data/json_db backend/data backend/upload backend/uploads data/uploads; do
+  if [[ -e "$ROOT_DIR/$path" ]]; then mkdir -p "$SNAPSHOT/state/$(dirname "$path")"; cp -a "$ROOT_DIR/$path" "$SNAPSHOT/state/$path"; fi
+done
+# Immutable media files stay in persistent storage. Hard links protect them from
+# deletion without duplicating 6+ GiB; mutable metadata receives a separate copy.
+if [[ -d storage/media ]]; then
+  mkdir -p "$SNAPSHOT/state/storage"
+  cp -al storage/media "$SNAPSHOT/state/storage/media"
+  if [[ -d storage/media/.metadata ]]; then cp -a storage/media/.metadata "$SNAPSHOT/media-metadata"; fi
 fi
-
+cp -a "$WEB_ROOT/." "$SNAPSHOT/frontend/"
+BACKUP_DIR="$SNAPSHOT" node <<'NODE'
+const fs = require('fs');
+const path = require('path');
+const { spawnSync } = require('child_process');
+const dotenv = require('./backend/node_modules/dotenv');
+const saved = JSON.parse(fs.readFileSync(path.join(process.env.BACKUP_DIR, 'pm2.json'), 'utf8')).find(p => p.name === 'zapflow-api');
+if (!saved) throw Error('Production PM2 process missing');
+const environment = { ...dotenv.parse(fs.existsSync('.env.production') ? fs.readFileSync('.env.production') : ''), ...dotenv.parse(fs.existsSync('backend/.env') ? fs.readFileSync('backend/.env') : ''), ...saved.pm2_env };
+if (!environment.DATABASE_URL || !environment.JWT_SECRET || !environment.ENCRYPTION_KEY) throw Error('Production credentials are incomplete; no secrets generated');
+const url = new URL(environment.DATABASE_URL);
+const result = spawnSync('pg_dump', ['--format=custom', '--no-owner', '--no-acl', '--host', url.hostname, '--port', url.port || '5432', '--username', decodeURIComponent(url.username), '--dbname', decodeURIComponent(url.pathname.slice(1)), '--file', path.join(process.env.BACKUP_DIR, 'database.dump')], { env: { ...process.env, PGPASSWORD: decodeURIComponent(url.password), PGSSLMODE: url.searchParams.get('sslmode') || 'prefer' }, encoding: 'utf8' });
+if (result.status !== 0) throw Error('Database snapshot failed');
+NODE
+[[ -s "$SNAPSHOT/database.dump" ]]
+(( $(df -Pk "$ROOT_DIR" | awk 'NR==2 {print $4}') > 1048576 )) || { echo 'Insufficient free space after backup.' >&2; exit 2; }
+NEXT_WEB="${WEB_ROOT}.next-$STAMP"
+mkdir "$NEXT_WEB"
+tar -xzf "$ARTIFACT" -C "$NEXT_WEB" --no-same-owner
+[[ -s "$NEXT_WEB/index.html" ]]
+chmod -R a+rX "$NEXT_WEB"
+CHANGED=false
+SWAPPED=false
+DEPENDENCIES_CHANGED=false
 rollback() {
-  err "Deploy failed. Logs do PM2 antes do rollback:"
-  if [ -f "$BACKEND_DIR/logs/pm2-error.log" ]; then
-    echo "=== PM2 ERROR LOGS ($BACKEND_DIR/logs/pm2-error.log) ==="
-    tail -n 40 "$BACKEND_DIR/logs/pm2-error.log" || true
+  local result=$?
+  trap - ERR
+  set +e
+  if $CHANGED; then
+    git switch --detach "$(cat "$SNAPSHOT/previous-commit")"
+    if $SWAPPED; then
+      if [[ -e "$WEB_ROOT" ]]; then mv "$WEB_ROOT" "${WEB_ROOT}.failed-$STAMP"; fi
+      mv "${WEB_ROOT}.previous-$STAMP" "$WEB_ROOT"
+    fi
+    if $DEPENDENCIES_CHANGED; then (cd backend && npm ci --omit=dev --legacy-peer-deps --no-audit --no-fund); fi
+    pm2 reload zapflow-api || true
   fi
-  if [ -f "$BACKEND_DIR/logs/pm2-out.log" ]; then
-    echo "=== PM2 OUT LOGS ($BACKEND_DIR/logs/pm2-out.log) ==="
-    tail -n 40 "$BACKEND_DIR/logs/pm2-out.log" || true
-  fi
-
-  err "Deploy failed. Rolling back..."
-  cd "$ROOT_DIR"
-  git reset --hard "$CURRENT_COMMIT" 2>/dev/null || true
-  if [ -n "$DIST_BACKUP" ] && [ -d "$DIST_BACKUP" ]; then
-    rm -rf "$FRONTEND_DIR/dist"
-    mv "$DIST_BACKUP" "$FRONTEND_DIR/dist"
-    warn "Frontend dist restored from snapshot"
-  fi
-  if command -v pm2 >/dev/null 2>&1 && pm2 pid zapflow-api >/dev/null 2>&1; then
-    pm2 restart zapflow-api 2>/dev/null || true
-    warn "PM2 restarted with previous code"
-  fi
-  err "Rollback complete. Review $LOG_FILE"
-  exit 1
+  echo "Deployment failed; previous release restored. Snapshot: $SNAPSHOT" >&2
+  exit "$result"
 }
 trap rollback ERR
-
-# ─── 1. Git pull ──────────────────────────────────────────────────────────────
-step "2. GIT PULL"
-if $DRY_RUN; then
-  warn "[DRY-RUN] Skipping git pull"
-else
-  git fetch origin main --quiet
-  git reset --hard origin/main
-  if [ -f "$ROOT_DIR/.env.production" ]; then
-    cp -f "$ROOT_DIR/.env.production" "$BACKEND_DIR/.env"
-  fi
-  NEW_SHORT="$(git rev-parse --short HEAD)"
-  if [ "$NEW_SHORT" = "$CURRENT_SHORT" ]; then
-    log "No changes — already at $NEW_SHORT"
-  else
-    log "Updated: $CURRENT_SHORT → $NEW_SHORT"
-  fi
+CHANGED=true
+git switch --detach "$TARGET_REF"
+if ! git diff --quiet "$(cat "$SNAPSHOT/previous-commit")" "$TARGET_REF" -- backend/package.json backend/package-lock.json; then
+  DEPENDENCIES_CHANGED=true
+  (cd backend && npm ci --omit=dev --legacy-peer-deps --no-audit --no-fund)
 fi
-
-# ─── 2. Backend dependencies ─────────────────────────────────────────────────
-step "3. BACKEND DEPS"
-cd "$BACKEND_DIR"
-if $DRY_RUN; then
-  warn "[DRY-RUN] Skipping npm install"
-else
-  npm install \
-    --production \
-    --legacy-peer-deps \
-    --prefer-offline \
-    --no-audit \
-    --no-fund \
-    2>&1 | tail -5
-  log "Backend deps installed"
-fi
-
-# ─── 3. Migrations ────────────────────────────────────────────────────────────
-step "4. MIGRATIONS"
-if $SKIP_MIGRATE; then
-  warn "Migrations skipped (--skip-migrate)"
-elif $DRY_RUN; then
-  warn "[DRY-RUN] Skipping migrations"
-else
-  cd "$BACKEND_DIR"
-  if [ -f "$ROOT_DIR/.env.production" ]; then
-    set -a
-    source "$ROOT_DIR/.env.production" 2>/dev/null
-    set +a
-    
-    # Auto-repair: generate and append ENCRYPTION_KEY if it is missing
-    if [ -z "${ENCRYPTION_KEY:-}" ] || [ ${#ENCRYPTION_KEY} -lt 32 ]; then
-      ENCRYPTION_KEY="$(openssl rand -hex 32)"
-      echo "" >> "$ROOT_DIR/.env.production"
-      echo "# Auto-healed: added missing ENCRYPTION_KEY on deploy" >> "$ROOT_DIR/.env.production"
-      echo "ENCRYPTION_KEY=${ENCRYPTION_KEY}" >> "$ROOT_DIR/.env.production"
-      log "Auto-healed: added missing/invalid ENCRYPTION_KEY to .env.production"
-      export ENCRYPTION_KEY
-    fi
-  fi
-  node scripts/run-migrations.js
-  log "Migrations complete"
-fi
-
-# ─── 4. Frontend build ────────────────────────────────────────────────────────
-step "5. FRONTEND BUILD"
-if $SKIP_BUILD; then
-  warn "Frontend build skipped (--skip-build)"
-elif $DRY_RUN; then
-  warn "[DRY-RUN] Skipping frontend build"
-else
-  cd "$FRONTEND_DIR"
-
-  # Fast dep check: only run npm install if node_modules is missing or package.json changed
-  if [ ! -d "node_modules" ] || [ "package.json" -nt "node_modules/.package-lock.json" 2>/dev/null ]; then
-    log "Installing frontend dependencies..."
-    NODE_ENV=development npm install \
-      --legacy-peer-deps \
-      --prefer-offline \
-      --no-audit \
-      --no-fund \
-      2>&1 | tail -5
-    touch node_modules/.package-lock.json 2>/dev/null || true
-  else
-    log "Frontend node_modules up-to-date — skipping npm install"
-  fi
-
-  # TypeScript is a release gate; report errors before changing the running service.
-  echo "  → TypeScript check..."
-  TSC_OUTPUT="$(mktemp)"
-  if ./node_modules/.bin/tsc --noEmit --incremental false >"$TSC_OUTPUT" 2>&1; then
-    rm -f "$TSC_OUTPUT"
-    log "TypeScript: no errors"
-  else
-    head -n 40 "$TSC_OUTPUT"
-    rm -f "$TSC_OUTPUT"
-    err "TypeScript check failed; deploy stopped"
-    rollback
-  fi
-
-  # Build with Vite
-  echo "  → Building frontend bundle..."
-  NODE_OPTIONS="--max-old-space-size=4096" NODE_ENV=production VITE_API_URL="${VITE_API_URL:-/}" ./node_modules/.bin/vite build --emptyOutDir 2>&1 | tail -15
-  log "Frontend built: $(find dist/assets -name '*.js' 2>/dev/null | wc -l) JS chunks"
-
-  # Validate build artifact
-  [ -f "$FRONTEND_DIR/dist/index.html" ] || { err "dist/index.html missing"; exit 1; }
-fi
-
-# ─── 5. PM2 reload ──────────────────────────────────────────────────────────
-step "6. PM2 RESTART"
-if $DRY_RUN; then
-  warn "[DRY-RUN] Skipping PM2 restart"
-elif command -v pm2 >/dev/null 2>&1; then
-  cd "$BACKEND_DIR"
-  
-  if pm2 describe zapflow-api >/dev/null 2>&1; then
-    pm2 reload zapflow-api --update-env >/dev/null 2>&1 || pm2 restart zapflow-api >/dev/null 2>&1
-    log "PM2: zapflow-api reloaded smoothly"
-  else
-    pm2 start ecosystem.config.js --env production >/dev/null 2>&1
-    log "PM2: zapflow-api started fresh"
-  fi
-  pm2 save --force >/dev/null 2>&1 || true
-else
-  warn "PM2 not available — skipping restart"
-fi
-
-# ─── 6. Nginx reload ─────────────────────────────────────────────────────────
-step "7. NGINX RELOAD"
-if $DRY_RUN; then
-  warn "[DRY-RUN] Skipping nginx reload"
-else
-  # Importa o módulo do Nginx para executar o motor de auto-cura e auto-detecção
-  # shellcheck disable=SC1090
-  if [ -f "$ROOT_DIR/deploy/lib/nginx.sh" ]; then
-    # Garante que as funções auxiliares de log existam no escopo antes do source
-    type log >/dev/null 2>&1 || log() { echo "  [✔] $*"; }
-    type warn >/dev/null 2>&1 || warn() { echo "  [⚠] $*"; }
-    type err >/dev/null 2>&1 || err() { echo "  [✖] $*"; }
-    
-    source "$ROOT_DIR/deploy/lib/nginx.sh"
-    deploy_nginx_auto_heal
-    log "Nginx/OpenResty auto-detectado e ativo"
-  else
-    warn "nginx.sh library não encontrada — pulando auto-cura"
-  fi
-fi
-
-# ─── 7. Health validation ─────────────────────────────────────────────────────
-step "8. HEALTH CHECK"
-if $DRY_RUN; then
-  warn "[DRY-RUN] Skipping health check"
-else
-  echo "  → Waiting for backend to accept connections..."
-  sleep 5
-
-  HEALTH_OK=false
-  for i in $(seq 1 $MAX_HEALTH_RETRIES); do
-    HTTP=$(curl -s -o /dev/null -w "%{http_code}" --max-time 5 "$HEALTH_URL" 2>/dev/null || echo "000")
-    if [ "$HTTP" = "200" ]; then
-      HEALTH_OK=true
-      log "Backend /health: 200 OK (attempt $i)"
-      break
-    fi
-    echo "  → Attempt $i/$MAX_HEALTH_RETRIES — HTTP $HTTP, waiting ${HEALTH_WAIT_SECONDS}s..."
-    sleep $HEALTH_WAIT_SECONDS
-  done
-
-  if [ "$HEALTH_OK" != "true" ]; then
-    err "Backend health check failed after $MAX_HEALTH_RETRIES attempts"
-    rollback
-  fi
-
-  # Validate API health envelope
-  HEALTH_JSON=$(curl -s --max-time 5 "$HEALTH_URL" 2>/dev/null || echo "{}")
-  if echo "$HEALTH_JSON" | grep -q '"success":true'; then
-    log "Health envelope: success=true ✓"
-  else
-    warn "Health envelope may be non-standard: $(echo "$HEALTH_JSON" | head -c 200)"
-  fi
-
-  # WebSocket endpoint reachable (HTTP upgrade check via curl)
-  WS_HTTP=$(curl -s -o /dev/null -w "%{http_code}" \
-    --max-time 5 -H "Upgrade: websocket" -H "Connection: Upgrade" \
-    "http://127.0.0.1:${BACKEND_PORT:-4025}/socket.io/" 2>/dev/null || echo "000")
-  if [ "$WS_HTTP" != "000" ]; then
-    log "WebSocket endpoint: HTTP $WS_HTTP (reachable) ✓"
-  else
-    warn "WebSocket endpoint unreachable — check nginx /socket.io/ proxy"
-  fi
-
-  # PostgreSQL connectivity
-  if command -v psql >/dev/null 2>&1; then
-    if PGPASSWORD="${POSTGRES_PASSWORD:-}" psql \
-        -h "${POSTGRES_HOST:-localhost}" \
-        -U "${POSTGRES_USER:-zapai}" \
-        -d "${POSTGRES_DB:-zapai_crm}" \
-        -c 'SELECT 1' >/dev/null 2>&1; then
-      log "PostgreSQL: connection OK ✓"
-    else
-      warn "PostgreSQL: connection failed — check .env.production credentials"
-    fi
-  fi
-
-  # Redis ping
-  if command -v redis-cli >/dev/null 2>&1; then
-    if redis-cli ping 2>/dev/null | grep -q PONG; then
-      log "Redis: PONG ✓"
-    else
-      warn "Redis: not responding"
-    fi
-  fi
-
-  # Nginx config validity
-  if nginx -t 2>/dev/null; then
-    log "Nginx: config valid ✓"
-  else
-    warn "Nginx: config test failed — run: nginx -t"
-  fi
-
-  # Frontend dist exists
-  DIST_INDEX="$FRONTEND_DIR/dist/index.html"
-  if [ -f "$DIST_INDEX" ]; then
-    DIST_SIZE=$(du -sh "$FRONTEND_DIR/dist" 2>/dev/null | cut -f1)
-    log "Frontend dist: present ($DIST_SIZE) ✓"
-  else
-    warn "Frontend dist/index.html missing — build may have failed"
-  fi
-fi
-
-# ─── 8. Save release snapshot (for rollback) ─────────────────────────────────
-step "9. SAVE RELEASE SNAPSHOT"
-RELEASES_DIR="$ROOT_DIR/releases"
-RELEASES_CURRENT="$RELEASES_DIR/current"
-RELEASES_PREVIOUS="$RELEASES_DIR/previous"
-RELEASES_TIMESTAMPS="$RELEASES_DIR/timestamps"
-mkdir -p "$RELEASES_CURRENT" "$RELEASES_PREVIOUS" "$RELEASES_TIMESTAMPS"
-
-NEW_COMMIT="$(git rev-parse HEAD 2>/dev/null || echo 'unknown')"
-NEW_TS="$(date +%Y%m%d_%H%M%S)"
-
-if ! $DRY_RUN; then
-  # Rotate: current → previous
-  if [ -f "$RELEASES_CURRENT/commit" ]; then
-    PREV_COMMIT="$(cat "$RELEASES_CURRENT/commit")"
-    PREV_TS="$(cat "$RELEASES_CURRENT/timestamp" 2>/dev/null || echo 'unknown')"
-    mkdir -p "$RELEASES_TIMESTAMPS/$PREV_TS"
-    cp "$RELEASES_CURRENT/commit"    "$RELEASES_TIMESTAMPS/$PREV_TS/" 2>/dev/null || true
-    cp "$RELEASES_CURRENT/timestamp" "$RELEASES_TIMESTAMPS/$PREV_TS/" 2>/dev/null || true
-    [ -d "$RELEASES_CURRENT/dist" ] && cp -r "$RELEASES_CURRENT/dist" "$RELEASES_TIMESTAMPS/$PREV_TS/" 2>/dev/null || true
-    rm -rf "$RELEASES_PREVIOUS"
-    cp -r "$RELEASES_CURRENT" "$RELEASES_PREVIOUS" 2>/dev/null || true
-    log "Previous release archived: $PREV_COMMIT"
-  fi
-
-  # Save new current
-  echo "$NEW_COMMIT" > "$RELEASES_CURRENT/commit"
-  echo "$NEW_TS"     > "$RELEASES_CURRENT/timestamp"
-  if [ -d "$FRONTEND_DIR/dist" ]; then
-    DIST_SIZE=$(du -sm "$FRONTEND_DIR/dist" 2>/dev/null | cut -f1 || echo "999")
-    if [ "$DIST_SIZE" -lt 100 ]; then
-      rm -rf "$RELEASES_CURRENT/dist"
-      cp -r "$FRONTEND_DIR/dist" "$RELEASES_CURRENT/dist"
-    fi
-  fi
-  log "Release snapshot: $NEW_COMMIT at $NEW_TS"
-
-  # Keep only last 5 timestamp archives
-  ls -1t "$RELEASES_TIMESTAMPS"/ 2>/dev/null | tail -n +6 | xargs -I{} rm -rf "$RELEASES_TIMESTAMPS/{}" 2>/dev/null || true
-fi
-
-# ─── 9. Cleanup ──────────────────────────────────────────────────────────────
-step "10. CLEANUP"
-# Remove dist.rollback snapshot (releases/ now owns rollback artifacts)
-rm -rf "$FRONTEND_DIR/dist.rollback" 2>/dev/null || true
-
-# Rotate old deploy logs (keep last 30)
-if [ -d "$LOGS_DIR" ]; then
-  ls -1t "$LOGS_DIR"/deploy_*.log 2>/dev/null | tail -n +31 | xargs rm -f 2>/dev/null || true
-fi
-
-
-echo ""
-echo "============================================================"
-echo -e "${GREEN}  ✨ DEPLOY CONCLUÍDO — $(date +%H:%M:%S) ✨${NC}"
-echo "  Commit: $(git rev-parse --short HEAD 2>/dev/null)"
-echo "  Log: $LOG_FILE"
-echo "  Health: $HEALTH_URL"
-echo "============================================================"
-
+# This release has no schema migrations. Schema changes require their own reviewed gate.
+mv "$WEB_ROOT" "${WEB_ROOT}.previous-$STAMP"
+SWAPPED=true
+mv "$NEXT_WEB" "$WEB_ROOT"
+pm2 reload zapflow-api
+for attempt in $(seq 1 12); do
+  if curl -fsS "http://127.0.0.1:${PORT:-4025}/api/health" > "$SNAPSHOT/health.json" && node -e "const h=require(process.argv[1]);if(h.backend!==true||h.database?.status!=='online'||h.system?.socket!=='connected')process.exit(1)" "$SNAPSHOT/health.json"; then break; fi
+  if [[ "$attempt" == 12 ]]; then false; fi
+  sleep 3
+done
+curl -fsS --header 'Host: 209.50.241.22' http://127.0.0.1/ > "$SNAPSHOT/served-index.html"
+cmp -s "$WEB_ROOT/index.html" "$SNAPSHOT/served-index.html"
+SOCKET_HANDSHAKE="$(curl -fsS "http://127.0.0.1:${PORT:-4025}/socket.io/?EIO=4&transport=polling")"
+[[ "${SOCKET_HANDSHAKE:0:1}" == 0 ]]
+printf '%s\n' "$SNAPSHOT" > "$ROOT_DIR/releases/last-safe-deploy"
 trap - ERR
-exit 0
+pm2 save >/dev/null
+echo "Published commit $TARGET_REF. Snapshot: $SNAPSHOT"
+echo 'WhatsApp, real delivery and AI must be confirmed in authenticated acceptance testing.'

@@ -30,6 +30,7 @@ import { useToast } from "@/state/hooks/use-toast";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { apiService, type ChatMessage } from "@/core/services/apiService";
 import { useAppStore } from "@/state/stores/appStore";
+import { authorizeMediaUrl } from "@/core/runtime/utils/inboxNormalization";
 
 // Modularized components and hook
 import { useInboxState } from "./Inbox/hooks/useInboxState";
@@ -57,6 +58,7 @@ const removeEmojis = (str: string) => {
 };
 
 export default function Inbox() {
+  const { toast } = useToast();
   const navigate = useNavigate();
   const state = useInboxState();
   const [showGroups, setShowGroups] = useState(false);
@@ -429,6 +431,8 @@ export default function Inbox() {
     responseSearchQuery: state.responseSearchQuery,
     setResponseSearchQuery: state.setResponseSearchQuery,
     quickReplies: state.quickReplies,
+    quickRepliesLoading: state.quickRepliesLoading,
+    quickRepliesError: state.quickRepliesError,
     sending: state.sending,
     openCreateQuickReplyDialog: state.openCreateQuickReplyDialog,
     quickReplyCategory: state.quickReplyCategory,
@@ -444,12 +448,10 @@ export default function Inbox() {
       state.setPreviewMedia(media);
     },
     handleDownloadMedia: state.handleDownloadMedia,
-    persistConversationMetadata: async (id: string, meta: any) => {
-      // Mock persistence for module
-    },
     handleArchiveSelectedConversation: state.handleArchiveSelectedConversation,
     aiAgents: state.aiAgents,
     loadingAgents: state.loadingAgents,
+    isWhatsappConnected: state.isWhatsappConnected,
     handleSetConversationAgent: state.handleSetConversationAgent,
     onSaveTimelineToMemory: async (evt: any) => {
       if (!state.selectedConversation) return;
@@ -465,6 +467,7 @@ export default function Inbox() {
       toast({ title: "Salvo na Memória", description: "Evento adicionado às notas do contato!" });
     },
     onAttachMedia: async (message: ChatMessage) => {
+      const originConversationId = state.selectedConversation?.id;
       const mediaUrl = resolveMediaUrl(extractMessageAssetUrl(message));
       if (!mediaUrl) return;
       const fileName = getMediaFileName(message);
@@ -472,9 +475,13 @@ export default function Inbox() {
       
       try {
         toast({ title: "Anexando...", description: "Baixando mídia para o composer..." });
-        const response = await fetch(mediaUrl);
+        const access = await authorizeMediaUrl(mediaUrl);
+        if (!access?.url) throw new Error("Arquivo indisponível.");
+        const response = await fetch(access.url);
+        if (!response.ok) throw new Error("Não foi possível baixar o arquivo.");
         const blob = await response.blob();
         const file = new File([blob], fileName, { type: blob.type });
+        if (useAppStore.getState().activeConversationId !== originConversationId) return;
         
         state.setAttachments((prev) => [
           ...prev,
