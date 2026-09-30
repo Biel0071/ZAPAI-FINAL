@@ -439,6 +439,35 @@ export default function Connections() {
     }
   };
 
+  const handleRestoreSession = async (sessionId: string) => {
+    const normalizedId = normalizeSessionName(sessionId);
+    if (restartingSessionId === normalizedId) return;
+
+    setRestartingSessionId(normalizedId);
+    setIsConnecting(true);
+
+    try {
+      // createSession points to /session/start, bypassing the forceNew: true destruction of /reconnect
+      const response = await apiService.createSession(sessionId);
+      const qr = extractQrPayload(response as SessionEventPayload);
+      if (qr) {
+        useAppStore.getState().setLastQr(sessionId, qr);
+        setShowQRModal(true);
+      }
+      useAppStore.getState().upsertSession(
+        backendNormalizeSession({ id: sessionId, status: qr ? "qr" : "connecting" })
+      );
+      notify.success(qr ? "Necessário novo QR Code." : "Reconexão solicitada.");
+      await loadSessions({ silent: true });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Falha ao reconectar sessão";
+      notify.error(message);
+    } finally {
+      setRestartingSessionId(null);
+      setIsConnecting(false);
+    }
+  };
+
   const handleGenerateQr = async (session: Session) => {
     const normalizedId = normalizeSessionName(session.id);
     if (restartingSessionId === normalizedId || deletingSessionId === normalizedId) return;
@@ -715,13 +744,13 @@ export default function Connections() {
                               className="flex-1 h-8 text-[11px] rounded-xl px-2 gap-1 shadow-glow"
                               onClick={(e) => {
                                 e.stopPropagation();
-                                void handleConnectSession(session.id);
+                                void handleRestoreSession(session.id);
                               }}
                               disabled={isRestarting || isDeleting}
-                              title="Conectar sessão"
+                              title="Tentar recuperar sessão ativa sem resetar credenciais"
                             >
                               {isRestarting ? <Spinner className="h-3 w-3 animate-spin" /> : <ArrowClockwise className="h-3.5 w-3.5" />}
-                              <span>Reiniciar</span>
+                              <span>Reconectar</span>
                             </Button>
                           ) : (
                             <Button 
