@@ -1569,6 +1569,10 @@ export function useInboxState() {
       });
 
       setHasMoreMessages(nextHasMore);
+
+      if (!nextHasMore && selectedConversation?.id) {
+        void apiService.syncConversationHistory(selectedConversation.id).catch(() => {});
+      }
     } catch (err) {
       markBackendOffline(err);
       const message = err instanceof Error ? err.message : "Erro ao carregar mensagens antigas";

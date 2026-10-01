@@ -94,9 +94,14 @@ async function listConversations({ companyId, limit = 50, sessionId, search = ''
   }));
 }
 
-async function getConversationMessages({ conversationId, store, limit = 50, before = null }) {
+async function getConversationMessages({ conversationId, store, limit = 50, before = null, beforeId = null, companyId = null }) {
   if (store?.databaseEnabled) {
-    const messages = await messageRepository.findByConversationId(conversationId);
+    const messages = await messageRepository.getMessagesByConversation(conversationId, {
+      companyId: getCompanyId(companyId),
+      limit,
+      before,
+      beforeId,
+    });
     return [...messages].sort((a, b) => new Date(a.createdAt || a.timestamp || 0) - new Date(b.createdAt || b.timestamp || 0));
   }
 

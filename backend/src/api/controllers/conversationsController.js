@@ -333,6 +333,10 @@ async function getPublicUrl(req, res) {
 async function getConversationMessages(req, res) {
   const { conversationId } = req.params;
   const store = getStore(req);
+  const companyId = String(req.authTenantId || req.auth?.tenantId || req.auth?.companyId || req.query?.companyId || '').trim();
+  const limit = Math.max(1, Math.min(Number(req.query?.limit) || 50, 200));
+  const before = typeof req.query?.before === 'string' ? req.query.before : null;
+  const beforeId = typeof req.query?.beforeId === 'string' ? req.query.beforeId : null;
 
   async function markConversationAsRead() {
     try {
@@ -355,6 +359,10 @@ async function getConversationMessages(req, res) {
       const sortedMessages = await inboxConversationService.getConversationMessages({
         conversationId,
         store,
+        limit,
+        before,
+        beforeId,
+        companyId,
       });
       await markConversationAsRead();
       if (sortedMessages.length > 0) {
@@ -371,6 +379,32 @@ async function getConversationMessages(req, res) {
     : [];
   await markConversationAsRead();
   return res.status(200).json(Array.isArray(memMessages) ? memMessages : []);
+}
+
+async function syncConversationHistory(req, res) {
+  const { conversationId } = req.params;
+  const companyId = String(req.authTenantId || req.auth?.tenantId || req.auth?.companyId || '').trim();
+  if (!companyId) return res.status(401).json({ error: 'Autenticação da empresa obrigatória.' });
+
+  try {
+    const conversation = await conversationRepository.getConversationById(conversationId);
+    if (!conversation) {
+      return res.status(404).json({ error: 'Conversa não encontrada.' });
+    }
+
+    const { historySync } = require('../../../services/whatsapp/historySync');
+    const sessionId = sessionManager.normalizeSessionName(conversation.session_id || 'main');
+    const chatJid = conversation.remote_jid || conversation.chatId || (conversation.phone ? `${conversation.phone}@s.whatsapp.net` : null);
+
+    if (!chatJid) {
+      return res.status(400).json({ error: 'Identificador WhatsApp da conversa não disponível.' });
+    }
+
+    const result = await historySync.requestOlderForChat(companyId, sessionId, chatJid);
+    return res.status(result.success ? 200 : 400).json(result);
+  } catch (error) {
+    return res.status(500).json({ error: error?.message || 'Falha ao sincronizar histórico.' });
+  }
 }
 
 async function getConversationDraft(req, res) {
@@ -971,4 +1005,5 @@ module.exports = {
   upsertConversationControl,
   getConversationControl,
   updateConversationMeta,
+  syncConversationHistory,
 };

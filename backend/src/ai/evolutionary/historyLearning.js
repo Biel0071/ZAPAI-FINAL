@@ -108,7 +108,7 @@ class HistoryLearning {
     const draft = (await this.pool.query(`SELECT * FROM ai_history_drafts WHERE company_id=$1 AND session_id=$2 AND status='analyzing' ORDER BY id LIMIT 1`, [companyId, sessionId])).rows[0];
     if (!draft || draft.last_error) return;
     try {
-      const items = (await this.pool.query(`SELECT * FROM whatsapp_history_items WHERE company_id=$1 AND session_id=$2 AND id>$3 AND id<=$4 ORDER BY id LIMIT 40`, [companyId, sessionId, draft.cursor_id, draft.watermark])).rows;
+      const items = (await this.pool.query(`SELECT * FROM whatsapp_history_items WHERE company_id=$1 AND session_id=$2 AND chat_jid NOT LIKE '%@g.us' AND id>$3 AND id<=$4 ORDER BY id LIMIT 40`, [companyId, sessionId, draft.cursor_id, draft.watermark])).rows;
       if (!items.length) return await this.finish(draft);
       const window = analysisWindow(items, draft.cursor_id, draft.cursor_offset);
       const eligible = window.selected.sort((a, b) => new Date(a.occurred_at || 0) - new Date(b.occurred_at || 0));
@@ -146,7 +146,7 @@ class HistoryLearning {
   async finish(draft) {
     const reports = (await this.pool.query(`SELECT report FROM ai_history_analyses WHERE company_id=$1 AND session_id=$2 AND draft_id=$3 ORDER BY id`, [draft.company_id, draft.session_id, draft.id])).rows.map(r => r.report).sort((a, b) => (b.recentAt || 0) - (a.recentAt || 0));
     const groups = (await this.pool.query(`SELECT chat_jid,COUNT(*) FILTER(WHERE from_me AND origin='human')::int AS "humanCount", COUNT(*) FILTER(WHERE from_me)::int AS "storeCount"
-      FROM whatsapp_history_items WHERE company_id=$1 AND session_id=$2 AND id<=$3 AND import_state='done' GROUP BY chat_jid`, [draft.company_id, draft.session_id, draft.watermark])).rows;
+      FROM whatsapp_history_items WHERE company_id=$1 AND session_id=$2 AND chat_jid NOT LIKE '%@g.us' AND id<=$3 AND import_state='done' GROUP BY chat_jid`, [draft.company_id, draft.session_id, draft.watermark])).rows;
     const counts = groups.filter(g => !isHeldOut(g.chat_jid)).reduce((sum, g) => ({ humanCount: sum.humanCount + g.humanCount, storeCount: sum.storeCount + g.storeCount }), { humanCount: 0, storeCount: 0 });
     const candidate = buildCandidate(reports, counts);
     const gaps = (await this.pool.query(`SELECT COUNT(*) FILTER(WHERE import_state='failed')::int AS messages,

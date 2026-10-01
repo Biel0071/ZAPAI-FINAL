@@ -205,13 +205,18 @@ if (!testUrl) {
     assert.equal(saved.message_id, original.id); assert.equal(saved.message_key, `stored:${original.id}`); assert.equal(saved.origin, 'ai');
   });
 
-  test('real Baileys encoding preserves media encryption keys and excludes groups/protocol events', async () => {
+  test('real Baileys encoding preserves media encryption keys and encodes chats while excluding protocol events', async () => {
     const { proto } = await import('@whiskeysockets/baileys');
     const original = { key: { id: 'binary', remoteJid: '55219999@s.whatsapp.net', fromMe: false }, messageTimestamp: 1735689600,
       message: { imageMessage: { mediaKey: Buffer.from([1, 2, 3]), mimetype: 'image/jpeg' } } };
-    const rows = encodeItems([original, { ...original, key: { id: 'group', remoteJid: '123@g.us' } }], [], proto);
-    assert.equal(rows.length, 1);
+    const protocolMsg = { key: { id: 'proto', remoteJid: '55219999@s.whatsapp.net', fromMe: false }, messageTimestamp: 1735689600,
+      message: { protocolMessage: { type: 0 } } };
+    const rows = encodeItems([original, { ...original, key: { id: 'group', remoteJid: '123@g.us' } }, protocolMsg], [], proto);
+    assert.equal(rows.length, 2);
     const restored = proto.WebMessageInfo.decode(Buffer.from(rows[0].raw, 'base64'));
     assert.deepEqual(Buffer.from(restored.message.imageMessage.mediaKey), Buffer.from([1, 2, 3]));
+    // Can also explicitly exclude groups if requested
+    const individualOnly = encodeItems([original, { ...original, key: { id: 'group', remoteJid: '123@g.us' } }], [], proto, 'unknown', { includeGroups: false });
+    assert.equal(individualOnly.length, 1);
   });
 }

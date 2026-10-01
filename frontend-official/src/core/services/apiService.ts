@@ -1387,6 +1387,14 @@ export const apiService = {
     return response;
   },
 
+  async syncConversationHistory(conversationId: string) {
+    const endpoint = `/api/conversations/${encodeURIComponent(conversationId)}/sync-history`;
+    return request<{ success: boolean; chatJid?: string; requestedKey?: string; message?: string }>({
+      endpoint,
+      method: "POST",
+    });
+  },
+
   async getMessages(conversationId: string, options?: { limit?: number; before?: string; beforeId?: string }) {
     const primaryEndpoint = withQuery(`/api/conversations/${encodeURIComponent(conversationId)}/messages`, {
       limit: options?.limit,

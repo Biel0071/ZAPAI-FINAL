@@ -42,13 +42,19 @@ class HistoryRepository {
     // Keep unresolved LIDs distinct from phone numbers instead of inventing a phone mapping.
     const phone = item.chat_jid.endsWith('@lid') ? item.chat_jid : item.chat_jid.split('@')[0];
     const lead = await client.query(`INSERT INTO leads(company_id,phone,name) VALUES($1,$2,$3)
-      ON CONFLICT(company_id,phone) DO UPDATE SET name=COALESCE(leads.name,EXCLUDED.name) RETURNING id`, [item.company_id, phone, item.chat_name || item.name || phone]);
+      ON CONFLICT(company_id,phone) DO UPDATE SET name=CASE
+        WHEN leads.name IS NULL OR leads.name=leads.phone OR leads.name='' OR leads.name='Contato'
+        THEN COALESCE(EXCLUDED.name, leads.name)
+        ELSE COALESCE(leads.name, EXCLUDED.name)
+      END RETURNING id`, [item.company_id, phone, item.chat_name || item.name || phone]);
     let conversation = (await client.query(`SELECT id FROM conversations WHERE company_id=$1 AND session_id=$2 AND remote_jid=$3 LIMIT 1`, [item.company_id, item.session_id, item.chat_jid])).rows[0];
     if (!conversation) {
       conversation = (await client.query(`INSERT INTO conversations(company_id,session_id,lead_id,remote_jid,ai_enabled,unread_count,status,created_at,updated_at)
         VALUES($1,$2,$3,$4,FALSE,0,$5,$6,$6)
-        ON CONFLICT(company_id,session_id,remote_jid) DO UPDATE SET remote_jid=EXCLUDED.remote_jid RETURNING id`,
+        ON CONFLICT(company_id,session_id,remote_jid) DO UPDATE SET lead_id=COALESCE(conversations.lead_id,EXCLUDED.lead_id), remote_jid=EXCLUDED.remote_jid RETURNING id`,
       [item.company_id, item.session_id, lead.rows[0].id, item.chat_jid, item.archived ? 'archived' : 'open', item.occurred_at || new Date(0)])).rows[0];
+    } else {
+      await client.query(`UPDATE conversations SET lead_id=COALESCE(lead_id,$1) WHERE id=$2`, [lead.rows[0].id, conversation.id]);
     }
     return { conversation, phone };
   }

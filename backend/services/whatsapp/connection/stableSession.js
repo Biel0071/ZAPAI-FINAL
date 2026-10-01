@@ -1374,6 +1374,14 @@ async function createStableSession({
 
       await onSessionConnected(session);
 
+      // When reconnected or already logged in previously, trigger background batch request for older history
+      setTimeout(() => {
+        try {
+          const { historySync } = require('../historySync');
+          historySync.requestOlderBatch(session.companyId || 'default', normalizedSessionName, 5).catch(() => {});
+        } catch (_) {}
+      }, 5000);
+
       // Sync Blocklist on Connected (BUG 1 & 10)
       try {
         if (typeof sock.fetchBlocklist === 'function') {

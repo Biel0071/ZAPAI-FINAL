@@ -142,11 +142,11 @@ function getBaseSelect() {
       conv.unread_count,
       conv.created_at,
       conv.updated_at,
-      l.phone,
-      COALESCE(NULLIF(l.name, ''), 'Contato') as name,
+      COALESCE(l.phone, conv.remote_jid) as phone,
+      COALESCE(NULLIF(l.name, ''), conv.remote_jid, 'Contato') as name,
       l.is_blocked
     FROM conversations conv
-    INNER JOIN leads l ON l.id = conv.lead_id
+    LEFT JOIN leads l ON l.id = conv.lead_id
   `;
 }
 
@@ -580,7 +580,7 @@ async function listConversations(companyId, limit = 50, options = {}) {
     `
       SELECT *
       FROM (
-        SELECT DISTINCT ON (conv.company_id, conv.lead_id, COALESCE(NULLIF(conv.session_id, ''), 'main'))
+        SELECT DISTINCT ON (conv.company_id, COALESCE(conv.remote_jid, l.phone, conv.id::text), COALESCE(NULLIF(conv.session_id, ''), 'main'))
           conv.id,
           conv.company_id,
           conv.lead_id,
@@ -602,15 +602,15 @@ async function listConversations(companyId, limit = 50, options = {}) {
           conv.unread_count,
           conv.created_at,
           conv.updated_at,
-          l.phone,
-          COALESCE(NULLIF(l.name, ''), 'Contato') as name,
+          COALESCE(l.phone, conv.remote_jid) as phone,
+          COALESCE(NULLIF(l.name, ''), conv.remote_jid, 'Contato') as name,
           l.is_blocked
         FROM conversations conv
-        INNER JOIN leads l ON l.id = conv.lead_id
+        LEFT JOIN leads l ON l.id = conv.lead_id
         ${whereClause}
         ORDER BY
           conv.company_id,
-          conv.lead_id,
+          COALESCE(conv.remote_jid, l.phone, conv.id::text),
           COALESCE(NULLIF(conv.session_id, ''), 'main'),
           conv.updated_at DESC,
           conv.id DESC

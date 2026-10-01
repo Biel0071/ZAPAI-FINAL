@@ -7,11 +7,13 @@ const ai = require('../ai.service');
 const agents = require('../../src/ai/agents/services/aiAgentService');
 const { activeSessions } = require('./state/registry');
 
+function isSyncableJid(jid) { return /@(s\.whatsapp\.net|lid|g\.us)$/.test(String(jid)); }
 function individual(jid) { return /@(s\.whatsapp\.net|lid)$/.test(String(jid)); }
 
-function encodeItems(messages, chats, proto, origin = 'unknown') {
+function encodeItems(messages, chats, proto, origin = 'unknown', { includeGroups = true } = {}) {
   const chatMap = new Map(chats.map(c => [c.id, c]));
-  return messages.filter(m => m?.key?.id && individual(m.key.remoteJid) && m.message && !unwrapMessageContent(m.message).protocolMessage).map(m => {
+  const filterFn = includeGroups ? isSyncableJid : individual;
+  return messages.filter(m => m?.key?.id && filterFn(m.key.remoteJid) && m.message && !unwrapMessageContent(m.message).protocolMessage).map(m => {
     const seconds = Number(m.messageTimestamp || 0);
     const date = new Date(seconds * 1000);
     const chat = chatMap.get(m.key.remoteJid);
@@ -32,8 +34,8 @@ class HistorySync {
   async receive(sessionId, messages = [], chats = [], origin = 'unknown') {
     const companyId = await this.repository.owner(sessionId);
     const { proto } = await import('@whiskeysockets/baileys');
-    await this.repository.enqueueChats(companyId, sessionId, chats.filter(c => individual(c?.id)).map(c => ({ id: c.id, name: c.name || c.subject || null, archived: Boolean(c.archived || c.archive) })));
-    await this.repository.enqueue(companyId, sessionId, encodeItems(messages, chats, proto, origin));
+    await this.repository.enqueueChats(companyId, sessionId, chats.filter(c => isSyncableJid(c?.id)).map(c => ({ id: c.id, name: c.name || c.subject || null, archived: Boolean(c.archived || c.archive) })));
+    await this.repository.enqueue(companyId, sessionId, encodeItems(messages, chats, proto, origin, { includeGroups: true }));
   }
 
   async decodeItem(item) {
@@ -51,7 +53,7 @@ class HistorySync {
       LEFT JOIN conversations c ON c.id=m.conversation_id AND c.company_id=m.company_id AND c.session_id=m.session_id
       LEFT JOIN leads l ON l.id=c.lead_id AND l.company_id=m.company_id
       WHERE m.company_id=$1 AND m.session_id=$2 AND m.history_item_id IS NULL
-        AND (m.remote_jid ~ '@(s\\.whatsapp\\.net|lid)$' OR (m.remote_jid IS NULL AND m.phone ~ '^[0-9]{7,20}(@(s\\.whatsapp\\.net|lid))?$'))
+        AND (m.remote_jid ~ '@(s\\.whatsapp\\.net|lid|g\\.us)$' OR (m.remote_jid IS NULL AND m.phone ~ '^[0-9]{7,20}(@(s\\.whatsapp\\.net|lid|g\\.us))?$'))
       ORDER BY m.id LIMIT 100`, [companyId, sessionId])).rows;
     if (!rows.length) return 0;
     const { proto } = await import('@whiskeysockets/baileys');
@@ -82,18 +84,30 @@ class HistorySync {
 
   async process(companyId, sessionId) {
     await this.repository.importChats(companyId, sessionId);
-    if (await this.seedStoredMessages(companyId, sessionId)) return;
-    const config = (await this.repository.pool.query(`SELECT learning_enabled,last_received_at,created_at FROM whatsapp_history_sync WHERE company_id=$1 AND session_id=$2`, [companyId, sessionId])).rows[0];
-    const items = await this.repository.pending(companyId, sessionId);
-    for (const item of items) {
-      try {
-        const payload = await this.extract(await this.decodeItem(item), { skipMediaDownload: true, companyId });
-        if (!payload) throw new Error('Formato indisponível');
-        await this.repository.persist(item, payload);
-      } catch (error) { await this.repository.fail(item, false, `import_failed: ${String(error?.message || error).slice(0, 400)}`); }
+
+    // Process pending history items first (in batches of 50, up to 10 batches = 500 items per call)
+    let processedAny = false;
+    let batchCount = 0;
+    while (batchCount < 10) {
+      const items = await this.repository.pending(companyId, sessionId);
+      if (!items.length) break;
+      for (const item of items) {
+        try {
+          const payload = await this.extract(await this.decodeItem(item), { skipMediaDownload: true, companyId });
+          if (!payload) throw new Error('Formato indisponível');
+          await this.repository.persist(item, payload);
+          processedAny = true;
+        } catch (error) { await this.repository.fail(item, false, `import_failed: ${String(error?.message || error).slice(0, 400)}`); }
+      }
+      batchCount++;
+      if (items.length < 50) break;
     }
-    // Prioritize importing text and preserving history before slow external media calls.
-    if (items.length === 50 && (await this.repository.pending(companyId, sessionId)).length) return;
+
+    if (!processedAny) {
+      if (await this.seedStoredMessages(companyId, sessionId)) return;
+    }
+
+    const config = (await this.repository.pool.query(`SELECT learning_enabled,last_received_at,created_at FROM whatsapp_history_sync WHERE company_id=$1 AND session_id=$2`, [companyId, sessionId])).rows[0];
     const mediaItems = await this.repository.pending(companyId, sessionId, true);
     if (mediaItems.length) {
       const item = mediaItems[0];
@@ -140,24 +154,152 @@ class HistorySync {
     const session = activeSessions[sessionId];
     if (session?.status !== 'connected' || !session.sock?.fetchMessageHistory) return;
     const client = this.repository.pool;
-    const row = (await client.query(`SELECT h.* FROM whatsapp_history_items h
+    let row = (await client.query(`SELECT h.* FROM whatsapp_history_items h
       LEFT JOIN whatsapp_history_requests r ON r.company_id=h.company_id AND r.session_id=h.session_id AND r.chat_jid=h.chat_jid
       JOIN whatsapp_history_sync s ON s.company_id=h.company_id AND s.session_id=h.session_id
       WHERE h.company_id=$1 AND h.session_id=$2 AND h.occurred_at IS NOT NULL
       AND h.message_key NOT LIKE 'stored:%'
-      AND (s.last_request_at IS NULL OR s.last_request_at < NOW()-INTERVAL '60 seconds')
+      AND (s.last_request_at IS NULL OR s.last_request_at < NOW()-INTERVAL '30 seconds')
       AND (r.oldest_key IS NULL OR r.oldest_key<>h.message_key)
       AND NOT EXISTS(SELECT 1 FROM whatsapp_history_items earlier WHERE earlier.company_id=h.company_id AND earlier.session_id=h.session_id AND earlier.chat_jid=h.chat_jid
         AND earlier.message_key NOT LIKE 'stored:%' AND (earlier.occurred_at,earlier.id)<(h.occurred_at,h.id))
       ORDER BY h.occurred_at LIMIT 1`, [companyId, sessionId])).rows[0];
+
+    // Fallback: If no candidate in whatsapp_history_items, check messages table
+    if (!row) {
+      row = (await client.query(`SELECT m.whatsapp_message_id AS message_key,
+          COALESCE(m.remote_jid, c.remote_jid, m.phone) AS chat_jid,
+          m.from_me,
+          COALESCE(m.timestamp, m.created_at) AS occurred_at
+        FROM messages m
+        LEFT JOIN conversations c ON c.id = m.conversation_id
+        LEFT JOIN whatsapp_history_requests r ON r.company_id = m.company_id AND r.session_id = m.session_id AND r.chat_jid = COALESCE(m.remote_jid, c.remote_jid, m.phone)
+        JOIN whatsapp_history_sync s ON s.company_id = m.company_id AND s.session_id = m.session_id
+        WHERE m.company_id = $1 AND m.session_id = $2
+          AND m.whatsapp_message_id IS NOT NULL
+          AND m.whatsapp_message_id NOT LIKE 'stored:%'
+          AND (s.last_request_at IS NULL OR s.last_request_at < NOW() - INTERVAL '30 seconds')
+          AND (r.oldest_key IS NULL OR r.oldest_key <> m.whatsapp_message_id)
+        ORDER BY COALESCE(m.timestamp, m.created_at) ASC
+        LIMIT 1`, [companyId, sessionId])).rows[0];
+    }
+
     if (!row) return;
     await client.query(`INSERT INTO whatsapp_history_requests(company_id,session_id,chat_jid,oldest_key) VALUES($1,$2,$3,$4)
       ON CONFLICT(company_id,session_id,chat_jid) DO UPDATE SET oldest_key=EXCLUDED.oldest_key,requested_at=NOW(),status='waiting'`, [companyId, sessionId, row.chat_jid, row.message_key]);
     await client.query(`UPDATE whatsapp_history_sync SET last_request_at=NOW() WHERE company_id=$1 AND session_id=$2`, [companyId, sessionId]);
     try {
-      await session.sock.fetchMessageHistory(100, { remoteJid: row.chat_jid, id: row.message_key, fromMe: row.from_me }, Math.floor(new Date(row.occurred_at).getTime() / 1000));
+      await session.sock.fetchMessageHistory(50, { remoteJid: row.chat_jid, id: row.message_key, fromMe: Boolean(row.from_me) }, Math.floor(new Date(row.occurred_at).getTime() / 1000));
     } catch (_) {
       await client.query(`UPDATE whatsapp_history_requests SET status='unavailable' WHERE company_id=$1 AND session_id=$2 AND chat_jid=$3`, [companyId, sessionId, row.chat_jid]);
+    }
+  }
+
+  async requestOlderForChat(companyId, sessionId, chatJid) {
+    const session = activeSessions[sessionId];
+    if (session?.status !== 'connected' || !session.sock?.fetchMessageHistory) {
+      return { success: false, reason: 'Sessão WhatsApp desconectada ou indisponível.' };
+    }
+    const client = this.repository.pool;
+
+    let row = (await client.query(`
+      SELECT chat_jid, message_key, from_me, occurred_at
+      FROM whatsapp_history_items
+      WHERE company_id = $1 AND session_id = $2 AND chat_jid = $3
+        AND message_key NOT LIKE 'stored:%'
+        AND occurred_at IS NOT NULL
+      ORDER BY occurred_at ASC
+      LIMIT 1
+    `, [companyId, sessionId, chatJid])).rows[0];
+
+    if (!row) {
+      const msgRow = (await client.query(`
+        SELECT COALESCE(m.remote_jid, c.remote_jid, m.phone) AS chat_jid,
+               m.whatsapp_message_id AS message_key,
+               m.from_me,
+               COALESCE(m.timestamp, m.created_at) AS occurred_at
+        FROM messages m
+        LEFT JOIN conversations c ON c.id = m.conversation_id
+        WHERE m.company_id = $1 AND m.session_id = $2
+          AND (m.remote_jid = $3 OR c.remote_jid = $3 OR m.phone = $3)
+          AND m.whatsapp_message_id IS NOT NULL
+          AND m.whatsapp_message_id NOT LIKE 'stored:%'
+        ORDER BY COALESCE(m.timestamp, m.created_at) ASC
+        LIMIT 1
+      `, [companyId, sessionId, chatJid])).rows[0];
+      if (msgRow) row = msgRow;
+    }
+
+    if (!row) {
+      return { success: false, reason: 'Nenhuma mensagem WhatsApp com chave válida encontrada para buscar histórico anterior.' };
+    }
+
+    const timestampSec = Math.floor(new Date(row.occurred_at).getTime() / 1000);
+    const key = { remoteJid: row.chat_jid, id: row.message_key, fromMe: Boolean(row.from_me) };
+
+    await client.query(`
+      INSERT INTO whatsapp_history_requests(company_id, session_id, chat_jid, oldest_key)
+      VALUES($1, $2, $3, $4)
+      ON CONFLICT(company_id, session_id, chat_jid)
+      DO UPDATE SET oldest_key = EXCLUDED.oldest_key, requested_at = NOW(), status = 'waiting'
+    `, [companyId, sessionId, row.chat_jid, row.message_key]);
+
+    await client.query(`
+      UPDATE whatsapp_history_sync SET last_request_at = NOW() WHERE company_id = $1 AND session_id = $2
+    `, [companyId, sessionId]);
+
+    try {
+      await session.sock.fetchMessageHistory(50, key, timestampSec);
+      return { success: true, chatJid: row.chat_jid, requestedKey: row.message_key };
+    } catch (err) {
+      await client.query(`
+        UPDATE whatsapp_history_requests SET status = 'unavailable' WHERE company_id = $1 AND session_id = $2 AND chat_jid = $3
+      `, [companyId, sessionId, row.chat_jid]);
+      return { success: false, reason: err?.message || 'Falha ao buscar histórico no WhatsApp.' };
+    }
+  }
+
+  async requestOlderBatch(companyId, sessionId, count = 5) {
+    const session = activeSessions[sessionId];
+    if (session?.status !== 'connected' || !session.sock?.fetchMessageHistory) return;
+    const client = this.repository.pool;
+
+    const rows = (await client.query(`
+      SELECT DISTINCT ON (chat_jid) chat_jid, message_key, from_me, occurred_at
+      FROM (
+        SELECT h.chat_jid, h.message_key, h.from_me, h.occurred_at
+        FROM whatsapp_history_items h
+        LEFT JOIN whatsapp_history_requests r ON r.company_id=h.company_id AND r.session_id=h.session_id AND r.chat_jid=h.chat_jid
+        WHERE h.company_id=$1 AND h.session_id=$2 AND h.occurred_at IS NOT NULL
+          AND h.message_key NOT LIKE 'stored:%'
+          AND (r.oldest_key IS NULL OR r.oldest_key<>h.message_key)
+        UNION ALL
+        SELECT COALESCE(m.remote_jid, c.remote_jid, m.phone) AS chat_jid,
+               m.whatsapp_message_id AS message_key,
+               m.from_me,
+               COALESCE(m.timestamp, m.created_at) AS occurred_at
+        FROM messages m
+        LEFT JOIN conversations c ON c.id = m.conversation_id
+        LEFT JOIN whatsapp_history_requests r ON r.company_id = m.company_id AND r.session_id = m.session_id AND r.chat_jid = COALESCE(m.remote_jid, c.remote_jid, m.phone)
+        WHERE m.company_id = $1 AND m.session_id = $2
+          AND m.whatsapp_message_id IS NOT NULL
+          AND m.whatsapp_message_id NOT LIKE 'stored:%'
+          AND (r.oldest_key IS NULL OR r.oldest_key <> m.whatsapp_message_id)
+      ) candidates
+      ORDER BY chat_jid, occurred_at ASC
+      LIMIT $3
+    `, [companyId, sessionId, count])).rows;
+
+    for (const row of rows) {
+      try {
+        await client.query(`
+          INSERT INTO whatsapp_history_requests(company_id, session_id, chat_jid, oldest_key)
+          VALUES($1, $2, $3, $4)
+          ON CONFLICT(company_id, session_id, chat_jid)
+          DO UPDATE SET oldest_key=EXCLUDED.oldest_key, requested_at=NOW(), status='waiting'
+        `, [companyId, sessionId, row.chat_jid, row.message_key]);
+        await session.sock.fetchMessageHistory(50, { remoteJid: row.chat_jid, id: row.message_key, fromMe: Boolean(row.from_me) }, Math.floor(new Date(row.occurred_at).getTime() / 1000));
+      } catch (_) {}
     }
   }
 
@@ -192,4 +334,4 @@ class HistorySync {
   }
 }
 const historySync = new HistorySync();
-module.exports = { historySync, HistorySync, encodeItems, individual };
+module.exports = { historySync, HistorySync, encodeItems, individual, isSyncableJid };

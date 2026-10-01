@@ -26,8 +26,8 @@ const { query } = require('../src/infrastructure/config/database');
 const aiCompressionService = require('./aiCompressionService');
 
 // ─── Config ───────────────────────────────────────────────────────────────────
-const GROUP_MESSAGE_RETENTION_HOURS  = Number(process.env.GROUP_MSG_RETENTION_HOURS  || 24);
-const INDIVIDUAL_MESSAGE_RETENTION_DAYS = Number(process.env.INDIVIDUAL_MSG_RETENTION_DAYS || 60);
+const GROUP_MESSAGE_RETENTION_HOURS  = Number(process.env.GROUP_MSG_RETENTION_HOURS  || 168); // 7 days (1 week)
+const INDIVIDUAL_MESSAGE_RETENTION_DAYS = Number(process.env.INDIVIDUAL_MSG_RETENTION_DAYS || 60); // 60 days
 const RETENTION_BATCH_SIZE = Number(process.env.RETENTION_BATCH_SIZE || 500);
 
 let lastRunAt = null;
@@ -61,11 +61,13 @@ async function cleanGroupMessages() {
     return { skipped: true, reason: 'messages table does not exist' };
   }
 
-  const hasChatId = await columnExists('messages', 'chat_id');
+  const hasRemoteJid = await columnExists('messages', 'remote_jid');
+  const hasPhone = await columnExists('messages', 'phone');
   const hasCreatedAt = await columnExists('messages', 'created_at');
+  const hasTimestamp = await columnExists('messages', 'timestamp');
 
-  if (!hasChatId || !hasCreatedAt) {
-    return { skipped: true, reason: 'messages table missing chat_id or created_at column' };
+  if ((!hasRemoteJid && !hasPhone) || (!hasCreatedAt && !hasTimestamp)) {
+    return { skipped: true, reason: 'messages table missing identifier or date column' };
   }
 
   const cutoff = new Date(Date.now() - GROUP_MESSAGE_RETENTION_HOURS * 60 * 60 * 1000).toISOString();
@@ -78,9 +80,10 @@ async function cleanGroupMessages() {
     const result = await query(
       `DELETE FROM messages
        WHERE id IN (
-         SELECT id FROM messages
-         WHERE chat_id LIKE '%@g.us'
-           AND created_at < $1
+         SELECT m.id FROM messages m
+         LEFT JOIN conversations c ON c.id = m.conversation_id
+         WHERE (m.remote_jid LIKE '%@g.us' OR m.phone LIKE '%@g.us' OR (c.remote_jid IS NOT NULL AND c.remote_jid LIKE '%@g.us'))
+           AND COALESCE(m.created_at, m.timestamp) < $1
          LIMIT $2
        )`,
       [cutoff, RETENTION_BATCH_SIZE]
@@ -89,10 +92,31 @@ async function cleanGroupMessages() {
     totalDeleted += batch;
   } while (batch >= RETENTION_BATCH_SIZE);
 
+  // Also purge whatsapp_history_items for groups older than cutoff
+  let historyDeleted = 0;
+  if (await tableExists('whatsapp_history_items')) {
+    let historyBatch;
+    do {
+      const historyRes = await query(
+        `DELETE FROM whatsapp_history_items
+         WHERE id IN (
+           SELECT id FROM whatsapp_history_items
+           WHERE chat_jid LIKE '%@g.us'
+             AND COALESCE(occurred_at, created_at) < $1
+           LIMIT $2
+         )`,
+        [cutoff, RETENTION_BATCH_SIZE]
+      );
+      historyBatch = historyRes.rowCount || 0;
+      historyDeleted += historyBatch;
+    } while (historyBatch >= RETENTION_BATCH_SIZE);
+  }
+
   return {
     deleted: totalDeleted,
+    historyDeleted,
     cutoff,
-    policy: `groups > ${GROUP_MESSAGE_RETENTION_HOURS}h`,
+    policy: `groups > ${GROUP_MESSAGE_RETENTION_HOURS}h (1 week)`,
   };
 }
 
@@ -104,10 +128,12 @@ async function cleanIndividualMessages(store) {
     return { skipped: true, reason: 'messages table does not exist' };
   }
 
-  const hasChatId = await columnExists('messages', 'chat_id');
+  const hasRemoteJid = await columnExists('messages', 'remote_jid');
+  const hasPhone = await columnExists('messages', 'phone');
   const hasCreatedAt = await columnExists('messages', 'created_at');
+  const hasTimestamp = await columnExists('messages', 'timestamp');
 
-  if (!hasChatId || !hasCreatedAt) {
+  if ((!hasRemoteJid && !hasPhone) || (!hasCreatedAt && !hasTimestamp)) {
     return { skipped: true, reason: 'messages table missing required columns' };
   }
 
@@ -119,12 +145,12 @@ async function cleanIndividualMessages(store) {
   do {
     // 1. Antes de deletar, buscamos os chats que estão nesse lote para compressão
     const toDeleteRes = await query(
-      `SELECT id, chat_id, content, from_me, created_at, company_id
-       FROM messages
-       WHERE chat_id NOT LIKE '%@g.us'
-         AND history_item_id IS NULL
-         AND NOT EXISTS (SELECT 1 FROM whatsapp_history_items h WHERE h.message_id=messages.id AND h.company_id=messages.company_id AND h.session_id=messages.session_id)
-         AND created_at < $1
+      `SELECT m.id, COALESCE(m.remote_jid, c.remote_jid, m.phone) AS chat_id, m.content, m.from_me,
+              COALESCE(m.created_at, m.timestamp) AS created_at, m.company_id
+       FROM messages m
+       LEFT JOIN conversations c ON c.id = m.conversation_id
+       WHERE NOT (m.remote_jid LIKE '%@g.us' OR m.phone LIKE '%@g.us' OR (c.remote_jid IS NOT NULL AND c.remote_jid LIKE '%@g.us'))
+         AND COALESCE(m.created_at, m.timestamp) < $1
        ORDER BY chat_id, created_at ASC
        LIMIT $2`,
       [cutoff, RETENTION_BATCH_SIZE]
@@ -133,9 +159,10 @@ async function cleanIndividualMessages(store) {
     const msgsToDelete = toDeleteRes.rows || [];
     if (msgsToDelete.length === 0) break;
 
-    // Agrupa mensagens por chat_id para compressão
+    // Agrupa mensagens por chat_id para compressão de aprendizado IA
     const grouped = {};
     for (const msg of msgsToDelete) {
+      if (!msg.chat_id) continue;
       if (!grouped[msg.chat_id]) grouped[msg.chat_id] = { companyId: msg.company_id, messages: [] };
       grouped[msg.chat_id].messages.push(msg);
     }
@@ -159,10 +186,31 @@ async function cleanIndividualMessages(store) {
     totalDeleted += batch;
   } while (batch >= RETENTION_BATCH_SIZE);
 
+  // Also purge whatsapp_history_items for individual chats older than cutoff
+  let historyDeleted = 0;
+  if (await tableExists('whatsapp_history_items')) {
+    let historyBatch;
+    do {
+      const historyRes = await query(
+        `DELETE FROM whatsapp_history_items
+         WHERE id IN (
+           SELECT id FROM whatsapp_history_items
+           WHERE chat_jid NOT LIKE '%@g.us'
+             AND COALESCE(occurred_at, created_at) < $1
+           LIMIT $2
+         )`,
+        [cutoff, RETENTION_BATCH_SIZE]
+      );
+      historyBatch = historyRes.rowCount || 0;
+      historyDeleted += historyBatch;
+    } while (historyBatch >= RETENTION_BATCH_SIZE);
+  }
+
   return {
     deleted: totalDeleted,
+    historyDeleted,
     cutoff,
-    policy: `individual > ${INDIVIDUAL_MESSAGE_RETENTION_DAYS}d`,
+    policy: `individual > ${INDIVIDUAL_MESSAGE_RETENTION_DAYS}d (60 days)`,
   };
 }
 
