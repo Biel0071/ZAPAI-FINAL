@@ -42,6 +42,7 @@ import {
 } from "../utils";
 import { useResolvedAvatar } from "@/hooks/useResolvedAvatar";
 import { TagIconBadge } from "@/components/inbox/TagIconBadge";
+import { getTagEmoji, cleanTagName } from "@/core/utils/tagEmojis";
 
 export interface ConversationRowData {
   conversations: Conversation[];
@@ -110,6 +111,34 @@ export function ConversationRow(props: RowComponentProps<ConversationRowData>) {
     }
     return name || "Contato";
   }, [conversation.contactName, conversation.phone]);
+
+  const [tagVersion, setTagVersion] = useState(0);
+
+  useEffect(() => {
+    const handleUpdate = () => setTagVersion((v) => v + 1);
+    if (typeof window !== "undefined") {
+      window.addEventListener("zapflow:tag-icons-updated", handleUpdate);
+      return () => window.removeEventListener("zapflow:tag-icons-updated", handleUpdate);
+    }
+  }, []);
+
+  const tagEmojis = useMemo(() => {
+    if (!conversation.tags || !Array.isArray(conversation.tags) || conversation.tags.length === 0) {
+      return [];
+    }
+    const results: { tag: string; emoji: string; name: string }[] = [];
+    for (const t of conversation.tags) {
+      const emoji = getTagEmoji(t);
+      if (emoji) {
+        results.push({
+          tag: t,
+          emoji,
+          name: cleanTagName(t) || t,
+        });
+      }
+    }
+    return results;
+  }, [conversation.tags, tagVersion]);
   
   const getTypingState = () => {
     if (!typingByConversationId) return null;
@@ -222,21 +251,20 @@ export function ConversationRow(props: RowComponentProps<ConversationRowData>) {
           <div className="flex items-center justify-between gap-1">
             <h4 className="truncate text-xs md:text-sm font-semibold text-foreground/95 leading-none flex items-center gap-1.5 min-w-0">
               <span className="truncate">{cleanDisplayName}</span>
-              {conversation.tags && conversation.tags.length > 0 && (
-                <span className="inline-flex items-center gap-0.5 shrink-0 ml-1">
-                  {conversation.tags.slice(0, 3).map((t) => (
-                    <TagIconBadge
-                      key={t}
-                      tag={t}
-                      colorClass={getTagColor(t)}
-                      size="xs"
-                      showName={false}
-                      interactive={false}
-                    />
+              {tagEmojis.length > 0 && (
+                <span className="inline-flex items-center gap-1 shrink-0 ml-1">
+                  {tagEmojis.slice(0, 3).map((item, idx) => (
+                    <span
+                      key={idx}
+                      title={item.name}
+                      className="text-xs md:text-sm leading-none select-none inline-block hover:scale-110 transition-transform cursor-default"
+                    >
+                      {item.emoji}
+                    </span>
                   ))}
-                  {conversation.tags.length > 3 && (
-                    <span className="text-[9px] text-muted-foreground/70 font-mono">
-                      +{conversation.tags.length - 3}
+                  {tagEmojis.length > 3 && (
+                    <span className="text-[10px] text-muted-foreground/70 font-mono font-normal">
+                      +{tagEmojis.length - 3}
                     </span>
                   )}
                 </span>

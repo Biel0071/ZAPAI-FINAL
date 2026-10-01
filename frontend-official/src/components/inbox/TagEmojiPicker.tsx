@@ -31,9 +31,9 @@ export function TagEmojiPicker({
   onOpenChange,
   onSelect,
 }: TagEmojiPickerProps) {
-  const [activeTab, setActiveTab] = useState<"icons" | "emojis">("icons");
+  const [activeTab, setActiveTab] = useState<"icons" | "emojis">("emojis");
   const [search, setSearch] = useState("");
-  const [monochromeEmoji, setMonochromeEmoji] = useState(true);
+  const [monochromeEmoji, setMonochromeEmoji] = useState(false);
 
   const displayName = cleanTagName(tag) || tag;
 

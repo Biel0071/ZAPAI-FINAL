@@ -26,19 +26,18 @@ const rawRealData = JSON.parse(fs.readFileSync(realDataPath, "utf8"));
 // Clean & normalize real conversations
 const REAL_CONVERSATIONS = rawRealData.conversations.map((c, index) => {
   const contactName = c.name || c.contactName || (c.phone ? c.phone.replace(/@.*/, "") : "Contato");
-  const avatarPool = [
-    "https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=150&auto=format&fit=crop&q=80", // Sueli Silva
-    "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80",
-    "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150&auto=format&fit=crop&q=80",
-    "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150&auto=format&fit=crop&q=80",
-    "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80",
-  ];
-  const assignedAvatar = c.avatar || c.profilePictureUrl || (index < 5 ? avatarPool[index % avatarPool.length] : null);
+  // Only real avatars from WhatsApp, never fake stock images
+  const assignedAvatar = (c.avatar && (c.avatar.includes("whatsapp.net") || c.avatar.startsWith("data:") || c.avatar.startsWith("/uploads/")))
+    ? c.avatar
+    : (c.profilePictureUrl && (c.profilePictureUrl.includes("whatsapp.net") || c.profilePictureUrl.startsWith("data:") || c.profilePictureUrl.startsWith("/uploads/")))
+    ? c.profilePictureUrl
+    : null;
 
-  const defaultTags = index === 0 ? ["VIP", "Cliente", "Entrega"] :
-                     index === 1 ? ["Novo Lead", "Orçamento"] :
-                     index === 2 ? ["Venda", "hot"] :
-                     index === 3 ? ["Suporte", "Financeiro"] : ["Cliente"];
+  // Use real tags or explicit business tags if present
+  const tags = (Array.isArray(c.tags) && c.tags.length > 0)
+    ? c.tags
+    : (index === 0 ? ["VIP", "Cliente"] : index === 1 ? ["Novo Lead"] : []);
+
   return {
     id: String(c.id),
     contactName: contactName.replace(/@lid.*/, "").replace(/@s\.whatsapp\.net.*/, "").trim() || "Contato",
@@ -52,7 +51,7 @@ const REAL_CONVERSATIONS = rawRealData.conversations.map((c, index) => {
     status: c.status || "delivered",
     avatar: assignedAvatar,
     profilePictureUrl: assignedAvatar,
-    tags: Array.isArray(c.tags) && c.tags.length > 0 ? c.tags : defaultTags,
+    tags,
     funnel_stage: c.funnel_stage || "Lead Ativo",
     summary: c.summary && c.summary !== "Conversa iniciada sem resumo disponível." 
       ? c.summary 

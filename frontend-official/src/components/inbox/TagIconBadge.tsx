@@ -137,6 +137,10 @@ export function TagIconBadge({
 
   // Render the visual element (Phosphor Icon or Emoji)
   const renderVisual = () => {
+    if (!descriptor || !descriptor.value || descriptor.type === "none") {
+      return null;
+    }
+
     if (descriptor.type === "icon") {
       const IconComponent = TAG_PHOSPHOR_ICONS[descriptor.value] || Tag;
       const iconSize = size === "xs" ? "h-3 w-3" : size === "sm" ? "h-3.5 w-3.5" : "h-4 w-4";
@@ -167,7 +171,7 @@ export function TagIconBadge({
     );
   };
 
-  if (!showName && (!descriptor || !descriptor.value)) {
+  if (!showName && (!descriptor || !descriptor.value || descriptor.type === "none")) {
     return null;
   }
 
@@ -205,11 +209,11 @@ export function TagIconBadge({
               setPickerOpen(!pickerOpen);
             }}
           >
-            {renderVisual()}
+            {renderVisual() || <Tag className="h-2.5 w-2.5 opacity-50 hover:opacity-100" />}
           </button>
         </TagEmojiPicker>
       ) : (
-        <span className="inline-flex items-center justify-center">{renderVisual()}</span>
+        renderVisual() ? <span className="inline-flex items-center justify-center">{renderVisual()}</span> : null
       )}
 
       {showName && <span className="truncate leading-none">{displayName}</span>}

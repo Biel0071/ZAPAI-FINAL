@@ -3,6 +3,7 @@ import {
   normalizeTagName,
   extractLeadingEmoji,
   getTagDescriptor,
+  getTagEmoji,
   getDeterministicIconForTag,
   setCustomTagDescriptor,
   resetTagDescriptor,
@@ -27,52 +28,52 @@ describe("tagEmojis utility", () => {
     expect(extractLeadingEmoji("Sem Emoji")).toEqual({ emoji: null, cleanText: "Sem Emoji" });
   });
 
-  it("semantically matches known business tags to appropriate monochromatic icons", () => {
-    expect(getTagDescriptor("Novo Lead").value).toBe("Target");
-    expect(getTagDescriptor("VIP").value).toBe("Star");
-    expect(getTagDescriptor("Venda").value).toBe("CurrencyDollar");
-    expect(getTagDescriptor("Urgente").value).toBe("Warning");
-    expect(getTagDescriptor("hot").value).toBe("Flame");
-    expect(getTagDescriptor("cold").value).toBe("Snowflake");
-    expect(getTagDescriptor("Cliente").value).toBe("Briefcase");
-    expect(getTagDescriptor("Suporte").value).toBe("Wrench");
-    expect(getTagDescriptor("Financeiro").value).toBe("CreditCard");
-    expect(getTagDescriptor("Entrega").value).toBe("Package");
+  it("semantically matches known business tags to appropriate emojis", () => {
+    expect(getTagDescriptor("Novo Lead").value).toBe("🎯");
+    expect(getTagDescriptor("VIP").value).toBe("⭐");
+    expect(getTagDescriptor("Venda").value).toBe("💰");
+    expect(getTagDescriptor("Urgente").value).toBe("🚨");
+    expect(getTagDescriptor("hot").value).toBe("🔥");
+    expect(getTagDescriptor("Cliente").value).toBe("💼");
+    expect(getTagDescriptor("Suporte").value).toBe("🛠️");
+    expect(getTagDescriptor("Financeiro").value).toBe("💳");
+    expect(getTagDescriptor("Entrega").value).toBe("📦");
   });
 
-  it("generates deterministic and consistent icons for custom tags", () => {
-    const desc1 = getTagDescriptor("Fornecedor A");
-    const desc2 = getTagDescriptor("Fornecedor A");
-    const desc3 = getTagDescriptor("Transportadora X");
+  it("does not generate fake icons or emojis for tags without an emoji to prevent visual clutter", () => {
+    expect(getTagDescriptor("cold").type).toBe("none");
+    expect(getTagDescriptor("information").type).toBe("none");
+    expect(getTagDescriptor("educate").type).toBe("none");
+    expect(getTagEmoji("cold")).toBeNull();
+    expect(getTagEmoji("information")).toBeNull();
+    expect(getTagEmoji("educate")).toBeNull();
+  });
 
-    expect(desc1.value).toBe(desc2.value); // Consistent
-    expect(desc1.type).toBe("icon");
-    expect(desc1.isMonochrome).toBe(true);
-
-    const iconA = getDeterministicIconForTag("Tag Alpha");
-    const iconB = getDeterministicIconForTag("Tag Beta");
-    // Ensure determinism works and palette has diversity
-    expect(typeof iconA.name).toBe("string");
-    expect(typeof iconB.name).toBe("string");
+  it("extracts emojis properly with getTagEmoji", () => {
+    expect(getTagEmoji("⭐ VIP")).toBe("⭐");
+    expect(getTagEmoji("Novo Lead")).toBe("🎯");
+    expect(getTagEmoji("Cliente")).toBe("💼");
+    expect(getTagEmoji("Tag Sem Emoji")).toBeNull();
   });
 
   it("allows setting custom overrides that persist and can be reset", () => {
-    expect(getTagDescriptor("Fornecedor Especial").value).not.toBe("Trophy");
+    expect(getTagEmoji("Fornecedor Especial")).toBeNull();
 
-    // Override
+    // Override with an emoji
     setCustomTagDescriptor("Fornecedor Especial", {
-      type: "icon",
-      value: "Trophy",
-      isMonochrome: true,
+      type: "emoji",
+      value: "🏆",
+      isMonochrome: false,
       label: "Troféu",
     });
 
-    expect(getTagDescriptor("Fornecedor Especial").value).toBe("Trophy");
+    expect(getTagDescriptor("Fornecedor Especial").value).toBe("🏆");
+    expect(getTagEmoji("Fornecedor Especial")).toBe("🏆");
     expect(getAllCustomTagDescriptors()["fornecedor especial"]).toBeDefined();
 
     // Reset
     resetTagDescriptor("Fornecedor Especial");
-    expect(getTagDescriptor("Fornecedor Especial").value).not.toBe("Trophy");
+    expect(getTagEmoji("Fornecedor Especial")).toBeNull();
   });
 
   it("supports unicode emoji custom override with monochrome toggle", () => {
@@ -89,3 +90,4 @@ describe("tagEmojis utility", () => {
     expect(desc.isMonochrome).toBe(true);
   });
 });
+

@@ -5,7 +5,7 @@
  */
 
 export interface TagVisualDescriptor {
-  type: "icon" | "emoji";
+  type: "icon" | "emoji" | "none";
   value: string; // Icon name from Phosphor or raw emoji
   isMonochrome?: boolean; // whether to force monochrome styling matching tag badge color
   category?: string;
@@ -14,7 +14,7 @@ export interface TagVisualDescriptor {
 
 const STORAGE_KEY = "zapflow_custom_tag_icons_v1";
 
-// 1. Curated palette of Phosphor Icon names for deterministic generation of custom tags
+// 1. Curated palette of Phosphor Icon names for custom icon selection
 export const DETERMINISTIC_ICON_PALETTE: { name: string; label: string }[] = [
   { name: "Target", label: "Alvo" },
   { name: "Star", label: "Estrela" },
@@ -54,63 +54,52 @@ export const DETERMINISTIC_ICON_PALETTE: { name: string; label: string }[] = [
   { name: "UserPlus", label: "Novo Contato" },
 ];
 
-// 2. Semantic dictionary for automatic matching of business tags
-const SEMANTIC_TAG_MAP: Record<string, TagVisualDescriptor> = {
+// 2. Default business emojis mapping
+export const DEFAULT_BUSINESS_EMOJIS: Record<string, string> = {
   // Leads & Aquisição
-  "novo lead": { type: "icon", value: "Target", isMonochrome: true, label: "Novo Lead" },
-  lead: { type: "icon", value: "Target", isMonochrome: true, label: "Lead" },
-  prospect: { type: "icon", value: "Target", isMonochrome: true, label: "Prospect" },
-  inbound: { type: "icon", value: "ArrowDownLeft", isMonochrome: true, label: "Inbound" },
+  "novo lead": "🎯",
+  "novo_lead": "🎯",
+  "lead": "🎯",
+  "prospect": "🎯",
+  "inbound": "📥",
 
   // Clientes & Fidelização
-  cliente: { type: "icon", value: "Briefcase", isMonochrome: true, label: "Cliente" },
-  vip: { type: "icon", value: "Star", isMonochrome: true, label: "VIP" },
-  ativo: { type: "icon", value: "CheckCircle", isMonochrome: true, label: "Ativo" },
-  estrela: { type: "icon", value: "Star", isMonochrome: true, label: "Estrela" },
+  "vip": "⭐",
+  "estrela": "⭐",
+  "premium": "👑",
+  "cliente": "💼",
+  "ativo": "✅",
 
   // Vendas & Fechamento
-  venda: { type: "icon", value: "CurrencyDollar", isMonochrome: true, label: "Venda" },
-  vendas: { type: "icon", value: "CurrencyDollar", isMonochrome: true, label: "Vendas" },
-  orcamento: { type: "icon", value: "FileText", isMonochrome: true, label: "Orçamento" },
-  proposta: { type: "icon", value: "FileText", isMonochrome: true, label: "Proposta" },
-  cotacao: { type: "icon", value: "FileText", isMonochrome: true, label: "Cotação" },
+  "venda": "💰",
+  "vendas": "💰",
+  "compra": "🛒",
+  "orcamento": "📋",
+  "orçamento": "📋",
+  "proposta": "📋",
+  "cotacao": "📋",
+  "cotação": "📋",
 
-  // Status & Temperaturas
-  hot: { type: "icon", value: "Flame", isMonochrome: true, label: "Hot" },
-  quente: { type: "icon", value: "Flame", isMonochrome: true, label: "Quente" },
-  warm: { type: "icon", value: "Sun", isMonochrome: true, label: "Warm" },
-  morno: { type: "icon", value: "Sun", isMonochrome: true, label: "Morno" },
-  cold: { type: "icon", value: "Snowflake", isMonochrome: true, label: "Cold" },
-  frio: { type: "icon", value: "Snowflake", isMonochrome: true, label: "Frio" },
+  // Status & Temperaturas de Negócio
+  "hot": "🔥",
+  "quente": "🔥",
+  "urgente": "🚨",
+  "urgencia": "🚨",
+  "urgência": "🚨",
+  "prioridade": "🚨",
 
-  // Urgência & Suporte
-  urgente: { type: "icon", value: "Warning", isMonochrome: true, label: "Urgente" },
-  urgencia: { type: "icon", value: "Warning", isMonochrome: true, label: "Urgência" },
-  prioridade: { type: "icon", value: "Warning", isMonochrome: true, label: "Prioridade" },
-  suporte: { type: "icon", value: "Wrench", isMonochrome: true, label: "Suporte" },
-  ajuda: { type: "icon", value: "Headset", isMonochrome: true, label: "Ajuda" },
-  duvida: { type: "icon", value: "Question", isMonochrome: true, label: "Dúvida" },
-  question: { type: "icon", value: "Question", isMonochrome: true, label: "Question" },
-  informacao: { type: "icon", value: "Info", isMonochrome: true, label: "Informação" },
-  information: { type: "icon", value: "Info", isMonochrome: true, label: "Information" },
-
-  // Financeiro & Operações
-  financeiro: { type: "icon", value: "CreditCard", isMonochrome: true, label: "Financeiro" },
-  pix: { type: "icon", value: "CreditCard", isMonochrome: true, label: "PIX" },
-  pagamento: { type: "icon", value: "CreditCard", isMonochrome: true, label: "Pagamento" },
-  entrega: { type: "icon", value: "Package", isMonochrome: true, label: "Entrega" },
-  jadlog: { type: "icon", value: "Package", isMonochrome: true, label: "Jadlog" },
-  correios: { type: "icon", value: "Package", isMonochrome: true, label: "Correios" },
-  envio: { type: "icon", value: "Package", isMonochrome: true, label: "Envio" },
-
-  // Outros
-  contrato: { type: "icon", value: "Scroll", isMonochrome: true, label: "Contrato" },
-  agendamento: { type: "icon", value: "Calendar", isMonochrome: true, label: "Agendamento" },
-  reuniao: { type: "icon", value: "Calendar", isMonochrome: true, label: "Reunião" },
-  parceria: { type: "icon", value: "Handshake", isMonochrome: true, label: "Parceria" },
-  feedback: { type: "icon", value: "ChatText", isMonochrome: true, label: "Feedback" },
-  cancelado: { type: "icon", value: "XCircle", isMonochrome: true, label: "Cancelado" },
-  concluido: { type: "icon", value: "CheckCircle", isMonochrome: true, label: "Concluído" },
+  // Suporte & Operações
+  "suporte": "🛠️",
+  "ajuda": "🛠️",
+  "financeiro": "💳",
+  "pix": "💳",
+  "pagamento": "💳",
+  "entrega": "📦",
+  "envio": "📦",
+  "parceria": "🤝",
+  "cancelado": "❌",
+  "concluido": "✅",
+  "concluído": "✅",
 };
 
 // 3. Recommended Emojis with business groupings
@@ -201,6 +190,42 @@ export function getDeterministicIconForTag(tag: string): { name: string; label: 
 }
 
 /**
+ * Returns the emoji associated with a tag, if any.
+ * If the tag does not have an emoji, returns null ("sem isso não colocar e não poluir tão visualmente").
+ */
+export function getTagEmoji(tag: string): string | null {
+  const rawTag = String(tag || "").trim();
+  if (!rawTag) return null;
+
+  // 1. User custom override in localStorage
+  const customMap = getAllCustomTagDescriptors();
+  const normalizedKey = normalizeTagName(rawTag);
+  const custom = customMap[normalizedKey] || customMap[rawTag];
+  if (custom && custom.value) {
+    if (custom.type === "emoji") return custom.value;
+  }
+
+  // 2. Tag string starts with an emoji (e.g. "🎯 Novo Lead", "⭐ VIP", "🔥 Hot")
+  const { emoji } = extractLeadingEmoji(rawTag);
+  if (emoji) return emoji;
+
+  // 3. Default business tags
+  const norm = normalizeTagName(rawTag);
+  if (DEFAULT_BUSINESS_EMOJIS[norm]) {
+    return DEFAULT_BUSINESS_EMOJIS[norm];
+  }
+
+  for (const [key, em] of Object.entries(DEFAULT_BUSINESS_EMOJIS)) {
+    if (norm === key || norm.startsWith(key + " ") || norm.endsWith(" " + key)) {
+      return em;
+    }
+  }
+
+  // 4. "se tiver sem isso não colocar e não poluir tão visualmente"
+  return null;
+}
+
+/**
  * Reads all custom tag descriptors from localStorage.
  */
 export function getAllCustomTagDescriptors(): Record<string, TagVisualDescriptor> {
@@ -218,13 +243,13 @@ export function getAllCustomTagDescriptors(): Record<string, TagVisualDescriptor
  * Priority:
  * 1. User custom override in localStorage
  * 2. Leading emoji in the tag name itself
- * 3. Semantic keyword dictionary
- * 4. Deterministic hash palette (never all the same!)
+ * 3. Default business emoji dictionary
+ * 4. type: "none" if no emoji/icon defined (does not pollute UI with synthetic icons!)
  */
 export function getTagDescriptor(tag: string): TagVisualDescriptor {
   const rawTag = String(tag || "").trim();
   if (!rawTag) {
-    return { type: "icon", value: "Tag", isMonochrome: true, label: "Etiqueta" };
+    return { type: "none", value: "", isMonochrome: false, label: "" };
   }
 
   // 1. Check custom overrides
@@ -244,30 +269,38 @@ export function getTagDescriptor(tag: string): TagVisualDescriptor {
       type: "emoji",
       value: emoji,
       isMonochrome: false,
-      label: cleanText,
+      label: cleanText || rawTag,
     };
   }
 
-  // 3. Check semantic dictionary
+  // 3. Check default business emojis
   const norm = normalizeTagName(cleanText || rawTag);
-  if (SEMANTIC_TAG_MAP[norm]) {
-    return SEMANTIC_TAG_MAP[norm];
+  if (DEFAULT_BUSINESS_EMOJIS[norm]) {
+    return {
+      type: "emoji",
+      value: DEFAULT_BUSINESS_EMOJIS[norm],
+      isMonochrome: false,
+      label: cleanText || rawTag,
+    };
   }
 
-  // Check if tag contains a known semantic keyword
-  for (const [keyword, desc] of Object.entries(SEMANTIC_TAG_MAP)) {
-    if (norm.includes(keyword)) {
-      return desc;
+  for (const [key, em] of Object.entries(DEFAULT_BUSINESS_EMOJIS)) {
+    if (norm === key || norm.startsWith(key + " ") || norm.endsWith(" " + key)) {
+      return {
+        type: "emoji",
+        value: em,
+        isMonochrome: false,
+        label: cleanText || rawTag,
+      };
     }
   }
 
-  // 4. Deterministic generation
-  const deterministic = getDeterministicIconForTag(rawTag);
+  // 4. No synthetic icons! ("se tiver sem isso não colocar e não poluir tão visualmente")
   return {
-    type: "icon",
-    value: deterministic.name,
-    isMonochrome: true,
-    label: deterministic.label,
+    type: "none",
+    value: "",
+    isMonochrome: false,
+    label: cleanText || rawTag,
   };
 }
 

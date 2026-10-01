@@ -1,9 +1,8 @@
-import type { ReactNode } from "react";
+import { type ReactNode, useMemo, useState, useEffect } from "react";
 import { ArrowLeft } from "@phosphor-icons/react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import { TagIconBadge } from "@/components/inbox/TagIconBadge";
-import { getTagColor } from "@/pages/Inbox/utils";
+import { getTagEmoji, cleanTagName } from "@/core/utils/tagEmojis";
 import { cn } from "@/core/lib/utils";
 
 interface ChatHeaderBarProps {
@@ -33,6 +32,31 @@ export function ChatHeaderBar({
   statusBadges,
   tags,
 }: ChatHeaderBarProps) {
+  const [tagVersion, setTagVersion] = useState(0);
+
+  useEffect(() => {
+    const handleUpdate = () => setTagVersion((v) => v + 1);
+    if (typeof window !== "undefined") {
+      window.addEventListener("zapflow:tag-icons-updated", handleUpdate);
+      return () => window.removeEventListener("zapflow:tag-icons-updated", handleUpdate);
+    }
+  }, []);
+
+  const tagEmojis = useMemo(() => {
+    if (!tags || !Array.isArray(tags) || tags.length === 0) return [];
+    const results: { tag: string; emoji: string; name: string }[] = [];
+    for (const t of tags) {
+      const emoji = getTagEmoji(t);
+      if (emoji) {
+        results.push({
+          tag: t,
+          emoji,
+          name: cleanTagName(t) || t,
+        });
+      }
+    }
+    return results;
+  }, [tags, tagVersion]);
   const isOnlineOrTyping = statusLabel === "online" || statusLabel === "digitando..." || statusLabel === "gravando áudio...";
 
   return (
@@ -90,21 +114,20 @@ export function ChatHeaderBar({
               <h3 className="truncate font-semibold text-xs sm:text-sm md:text-base leading-tight text-foreground">
                 {contactName}
               </h3>
-              {tags && tags.length > 0 && (
-                <div className="hidden sm:inline-flex items-center gap-1 shrink-0">
-                  {tags.slice(0, 2).map((t) => (
-                    <TagIconBadge
-                      key={t}
-                      tag={t}
-                      colorClass={getTagColor(t)}
-                      size="xs"
-                      interactive={false}
-                      className="py-0 px-1 text-[10px] h-4"
-                    />
+              {tagEmojis.length > 0 && (
+                <div className="hidden sm:inline-flex items-center gap-1 shrink-0 ml-1">
+                  {tagEmojis.slice(0, 3).map((item, idx) => (
+                    <span
+                      key={idx}
+                      title={item.name}
+                      className="text-xs md:text-sm leading-none select-none inline-block hover:scale-110 transition-transform cursor-default"
+                    >
+                      {item.emoji}
+                    </span>
                   ))}
-                  {tags.length > 2 && (
-                    <span className="text-[9px] text-muted-foreground/70 font-mono">
-                      +{tags.length - 2}
+                  {tagEmojis.length > 3 && (
+                    <span className="text-[10px] text-muted-foreground/70 font-mono font-normal">
+                      +{tagEmojis.length - 3}
                     </span>
                   )}
                 </div>
