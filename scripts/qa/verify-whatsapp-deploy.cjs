@@ -85,7 +85,7 @@ async function run() {
   await dbClient.connect();
 
   const TARGET_PHONE = '31993807167';
-  const TARGET_SESSION = 'material';
+  const TARGET_SESSION = process.env.QA_SESSION_ID || 'main';
   const results = {
     test1_single: null,
     test2_doubleclick: null,
