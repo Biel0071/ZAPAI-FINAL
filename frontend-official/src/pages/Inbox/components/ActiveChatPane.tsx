@@ -20,6 +20,7 @@ import {
   WifiHigh,
   File as FileIcon,
   Warning,
+  Info,
 } from "@phosphor-icons/react";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
@@ -520,6 +521,9 @@ export function ActiveChatPane({
             initials={(selectedConversation.contactName || "C").slice(0, 2).toUpperCase()}
             isMobile={isMobile}
             onBack={onBack ?? (() => setShowLeadPanel(false))}
+            onContactClick={() => {
+              if (isTabletLayout || isMobile) setShowLeadPanel(true);
+            }}
             phoneLabel={
               selectedConversation.phone && !selectedConversation.phone.includes("@lid")
                 ? formatPhoneNumber(selectedConversation.phone)
@@ -625,16 +629,18 @@ export function ActiveChatPane({
                   </div>
                 )}
 
-                {isTabletLayout && (
+                {(isTabletLayout || isMobile) && (
                   <Button
                     type="button"
                     variant="ghost"
                     size="sm"
-                    className="h-8 px-2 text-[11px]"
+                    className="h-8 px-2 sm:px-2.5 rounded-lg text-xs font-medium text-foreground hover:bg-muted flex items-center gap-1.5 transition-colors border border-border/40"
                     onClick={() => setShowLeadPanel(true)}
-                    title="Abrir painel da conversa"
+                    title="Abrir painel de atendimento e ferramentas"
+                    aria-label="Abrir painel da conversa"
                   >
-                    Painel
+                    <Info className="h-4 w-4 text-primary" weight="bold" />
+                    <span className="hidden sm:inline text-xs font-semibold">Painel</span>
                   </Button>
                 )}
 

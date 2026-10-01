@@ -235,7 +235,7 @@ export function ConversationRow(props: RowComponentProps<ConversationRowData>) {
         onKeyDown={handleKeyDown}
         className={cn(
           "inbox-message w-full text-left rounded-lg flex items-center gap-3 px-3 py-2 group/row",
-          "h-11 min-h-11 md:h-full md:min-h-0",
+          "h-full min-h-0",
           !isMultiSelectMode && normalizeId(selectedId) === normalizeId(conversation.id) && "inbox-message-active"
         )}
       >

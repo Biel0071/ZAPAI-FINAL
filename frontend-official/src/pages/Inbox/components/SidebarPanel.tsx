@@ -28,6 +28,7 @@ import {
   UserRound,
   Video,
   Workflow,
+  X,
   Zap,
 } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -105,15 +106,16 @@ interface SidebarPanelProps {
   loadingAgents?: boolean;
   handleSetConversationAgent?: (agentName: string) => Promise<void> | void;
   isDrawer?: boolean;
+  onClose?: () => void;
   onAttachMedia?: (message: ChatMessage) => void;
   isWhatsappConnected?: boolean;
 }
 
 const SECTIONS = [
-  { id: "ai", label: "Atendimento", icon: MessageSquare },
-  { id: "qr", label: "Respostas Rápidas", icon: Zap },
-  { id: "files", label: "Arquivos", icon: Folder },
-  { id: "history", label: "Logs", icon: History },
+  { id: "ai", label: "Atendimento", shortLabel: "Atendimento", icon: MessageSquare },
+  { id: "qr", label: "Respostas Rápidas", shortLabel: "Respostas", icon: Zap },
+  { id: "files", label: "Arquivos", shortLabel: "Arquivos", icon: Folder },
+  { id: "history", label: "Logs", shortLabel: "Logs", icon: History },
 ] as const;
 
 function SharedMediaCard({
@@ -245,6 +247,7 @@ export function SidebarPanel({
   loadingAgents = false,
   handleSetConversationAgent,
   isDrawer = false,
+  onClose,
   onAttachMedia,
   isWhatsappConnected = false,
 }: SidebarPanelProps) {
@@ -393,19 +396,31 @@ export function SidebarPanel({
       onValueChange={(value) => setRightPanelTab(value as "ai" | "lead" | "files" | "qr" | "history")}
       className="flex h-full min-h-0 w-full flex-col"
     >
-      <div className="shrink-0 border-b border-border/60 px-4 pb-3 pt-3">
+      <div className="shrink-0 border-b border-border/60 px-3 sm:px-4 pb-3 pt-3">
         <div className="mb-3 flex items-center justify-between gap-2">
-          <div className="min-w-0">
-            <p className="text-sm font-semibold">Detalhes da conversa</p>
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-semibold text-foreground">Detalhes da conversa</p>
             <p className="truncate text-xs text-muted-foreground">{cleanName}</p>
           </div>
-          {!isDrawer && (
+          {isDrawer ? (
             <Button
               size="icon"
               variant="ghost"
-              className="h-8 w-8 shrink-0"
+              className="h-8 w-8 shrink-0 rounded-full hover:bg-muted text-muted-foreground hover:text-foreground"
+              onClick={onClose}
+              aria-label="Fechar painel de detalhes"
+              title="Fechar painel"
+            >
+              <X className="h-4 w-4" />
+            </Button>
+          ) : (
+            <Button
+              size="icon"
+              variant="ghost"
+              className="h-8 w-8 shrink-0 rounded-full hover:bg-muted text-muted-foreground hover:text-foreground"
               onClick={() => setRightPanelCollapsed(true)}
               aria-label="Recolher painel de detalhes"
+              title="Recolher painel"
             >
               <ChevronRight className="h-4 w-4" />
             </Button>
@@ -416,15 +431,16 @@ export function SidebarPanel({
             <TabsTrigger
               key={section.id}
               value={section.id}
-              className="min-w-0 px-1 text-xs data-[state=active]:bg-background data-[state=active]:shadow-sm truncate"
+              className="min-w-0 px-0.5 py-1 text-[10px] sm:text-xs font-medium tracking-tight data-[state=active]:bg-background data-[state=active]:shadow-sm truncate flex items-center justify-center gap-1"
+              title={section.label}
             >
-              {section.label}
+              <span className="truncate">{section.label}</span>
             </TabsTrigger>
           ))}
         </TabsList>
       </div>
 
-      <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-4 text-sm scrollbar-thin">
+      <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-3 sm:p-4 text-sm scrollbar-thin">
         {/* TAB 1: UNIFIED ATENDIMENTO & CLIENTE */}
         <TabsContent value="ai" className="m-0 space-y-5">
           <InboxSectionBoundary fallbackLabel="Atendimento">
@@ -652,7 +668,7 @@ export function SidebarPanel({
                     setQuickReplyCategory("all");
                   }}
                   className={cn(
-                    "rounded-full px-2.5 py-1 text-[11px] font-medium transition-colors",
+                    "rounded-full px-2 py-0.5 sm:px-2.5 sm:py-1 text-[10px] sm:text-[11px] font-medium transition-colors",
                     qrPillFilter === "all" && qrTypeFilter === "all" && quickReplyCategory === "all"
                       ? "bg-primary text-primary-foreground font-semibold"
                       : "bg-muted/60 text-muted-foreground hover:bg-muted hover:text-foreground"
@@ -665,7 +681,7 @@ export function SidebarPanel({
                     <button
                       type="button"
                       className={cn(
-                        "flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-medium transition-colors",
+                        "flex items-center gap-1 rounded-full px-2 py-0.5 sm:px-2.5 sm:py-1 text-[10px] sm:text-[11px] font-medium transition-colors",
                         qrTypeFilter !== "all"
                           ? "bg-primary text-primary-foreground font-semibold"
                           : "bg-muted/60 text-muted-foreground hover:bg-muted hover:text-foreground"
@@ -688,7 +704,7 @@ export function SidebarPanel({
                   type="button"
                   onClick={() => setQrPillFilter(qrPillFilter === "uncategorized" ? "all" : "uncategorized")}
                   className={cn(
-                    "rounded-full px-2.5 py-1 text-[11px] font-medium transition-colors",
+                    "rounded-full px-2 py-0.5 sm:px-2.5 sm:py-1 text-[10px] sm:text-[11px] font-medium transition-colors",
                     qrPillFilter === "uncategorized"
                       ? "bg-primary text-primary-foreground font-semibold"
                       : "bg-muted/60 text-muted-foreground hover:bg-muted hover:text-foreground"
@@ -703,7 +719,7 @@ export function SidebarPanel({
                       <button
                         type="button"
                         className={cn(
-                          "flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-medium transition-colors",
+                          "flex items-center gap-1 rounded-full px-2 py-0.5 sm:px-2.5 sm:py-1 text-[10px] sm:text-[11px] font-medium transition-colors",
                           quickReplyCategory !== "all"
                             ? "bg-primary text-primary-foreground font-semibold"
                             : "bg-muted/60 text-muted-foreground hover:bg-muted hover:text-foreground"
@@ -729,7 +745,7 @@ export function SidebarPanel({
                   type="button"
                   onClick={() => setQrPillFilter(qrPillFilter === "favorites" ? "all" : "favorites")}
                   className={cn(
-                    "flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-medium transition-colors",
+                    "flex items-center gap-1 rounded-full px-2 py-0.5 sm:px-2.5 sm:py-1 text-[10px] sm:text-[11px] font-medium transition-colors",
                     qrPillFilter === "favorites"
                       ? "bg-primary text-primary-foreground font-semibold"
                       : "bg-muted/60 text-muted-foreground hover:bg-muted hover:text-foreground"
@@ -741,20 +757,20 @@ export function SidebarPanel({
               </div>
 
               {/* Search bar + New button */}
-              <div className="flex items-center gap-2">
-                <div className="relative flex-1">
-                  <Search className="pointer-events-none absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+              <div className="flex items-center gap-1.5 sm:gap-2">
+                <div className="relative flex-1 min-w-0">
+                  <Search className="pointer-events-none absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                   <Input
                     aria-label="Buscar respostas rápidas"
                     value={responseSearchQuery}
                     onChange={(event) => setResponseSearchQuery(event.target.value)}
                     placeholder="Buscar resposta rápida..."
-                    className="h-9 pl-9 text-xs"
+                    className="h-9 pl-8 text-xs"
                   />
                 </div>
                 <Button
                   size="sm"
-                  className="h-9 gap-1.5 px-3 text-xs bg-primary hover:bg-primary/90 text-primary-foreground font-medium"
+                  className="h-9 shrink-0 gap-1 px-2.5 sm:px-3 text-xs bg-primary hover:bg-primary/90 text-primary-foreground font-medium"
                   onClick={openCreateQuickReplyDialog}
                 >
                   <Plus className="h-3.5 w-3.5" />

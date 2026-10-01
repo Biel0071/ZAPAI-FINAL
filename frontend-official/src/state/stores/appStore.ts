@@ -826,3 +826,7 @@ export const useAppStore = create<AppState>((set) => ({
       return { aiProgressByConversationId: next };
     }),
 }));
+
+if (typeof window !== "undefined") {
+  (window as any).useAppStore = useAppStore;
+}

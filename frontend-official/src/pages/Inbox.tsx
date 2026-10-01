@@ -94,6 +94,19 @@ export default function Inbox() {
     publishInboxUnreadTotal(getInboxUnreadTotal(state.conversations));
   }, [state.conversations]);
 
+  // Synchronize mobile view state with selected conversation
+  useEffect(() => {
+    if (state.isMobile) {
+      if (state.selectedConversation?.id) {
+        state.setMobileScreen("chat");
+        useAppStore.getState().setIsMobileChatOpen(true);
+      } else {
+        state.setMobileScreen("conversations");
+        useAppStore.getState().setIsMobileChatOpen(false);
+      }
+    }
+  }, [state.isMobile, state.selectedConversation?.id, state.setMobileScreen]);
+
   const activeSessionId = useAppStore((state) => state.activeSessionId);
 
   const filteredConversations = useMemo(() => {
@@ -505,9 +518,23 @@ export default function Inbox() {
   };
 
   const leadPanelContent = state.selectedConversation ? (
-    <SidebarPanel {...sidebarProps} isDrawer={true} />
+    <SidebarPanel 
+      {...sidebarProps} 
+      isDrawer={true} 
+      onClose={() => state.setShowLeadPanel(false)}
+    />
   ) : (
-    <div className="text-sm text-muted-foreground p-4">Selecione uma conversa para ver detalhes.</div>
+    <div className="flex flex-col items-center justify-center p-8 text-center text-sm text-muted-foreground">
+      <p>Selecione uma conversa para ver os detalhes.</p>
+      <Button
+        variant="outline"
+        size="sm"
+        className="mt-4 text-xs"
+        onClick={() => state.setShowLeadPanel(false)}
+      >
+        Fechar
+      </Button>
+    </div>
   );
 
   return (
@@ -657,11 +684,16 @@ export default function Inbox() {
         tabletLeadSheet={
           state.isTabletLayout ? (
             <Sheet open={state.showLeadPanel} onOpenChange={state.setShowLeadPanel}>
-              <SheetContent side="right" className="w-full p-4 sm:max-w-md bg-card/95 text-foreground border-border/80">
-                <SheetHeader>
-                  <SheetTitle className="text-foreground">Painel do Lead</SheetTitle>
+              <SheetContent 
+                side="right" 
+                className="w-full sm:max-w-md p-0 flex flex-col h-full bg-background border-l border-border/80 shadow-2xl focus:outline-none"
+              >
+                <SheetHeader className="sr-only">
+                  <SheetTitle>Painel de Atendimento e Detalhes</SheetTitle>
                 </SheetHeader>
-                <div className="mt-4 overflow-y-auto pr-1 h-[calc(100vh-80px)]">{leadPanelContent}</div>
+                <div className="flex-1 min-h-0 h-full w-full flex flex-col overflow-hidden">
+                  {leadPanelContent}
+                </div>
               </SheetContent>
             </Sheet>
           ) : undefined
