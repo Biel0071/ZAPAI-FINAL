@@ -81,6 +81,7 @@ async function cleanGroupMessages() {
       `SELECT m.id FROM messages m
        WHERE m.created_at < $1
          AND (m.remote_jid LIKE '%@g.us' OR m.phone LIKE '%@g.us')
+       ORDER BY m.created_at ASC
        LIMIT $2`,
       [cutoff, RETENTION_BATCH_SIZE]
     );
