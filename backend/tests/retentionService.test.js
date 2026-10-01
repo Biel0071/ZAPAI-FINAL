@@ -135,3 +135,8 @@ test('retention isolates group cutoff at 7 days and individual cutoff at 60 days
     client.release();
   }
 });
+
+test.after(async () => {
+  await pool.end();
+});
+

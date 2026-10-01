@@ -55,6 +55,18 @@ async function columnExists(tableName, columnName) {
 
 // ─── Group message cleanup ────────────────────────────────────────────────────
 
+async function ensureRetentionIndexes() {
+  try {
+    await query(`CREATE INDEX IF NOT EXISTS idx_messages_remote_jid ON messages (remote_jid);`);
+    await query(`CREATE INDEX IF NOT EXISTS idx_messages_created_at ON messages (created_at);`);
+    if (await tableExists('whatsapp_history_items')) {
+      await query(`CREATE INDEX IF NOT EXISTS idx_history_items_occurred_at ON whatsapp_history_items (occurred_at);`);
+    }
+  } catch (err) {
+    console.warn('[RETENTION] ensureRetentionIndexes notice:', err.message);
+  }
+}
+
 async function cleanGroupMessages() {
   const hasTable = await tableExists('messages');
   if (!hasTable) {
@@ -81,9 +93,8 @@ async function cleanGroupMessages() {
       `DELETE FROM messages
        WHERE id IN (
          SELECT m.id FROM messages m
-         LEFT JOIN conversations c ON c.id = m.conversation_id
-         WHERE (m.remote_jid LIKE '%@g.us' OR m.phone LIKE '%@g.us' OR (c.remote_jid IS NOT NULL AND c.remote_jid LIKE '%@g.us'))
-           AND COALESCE(m.created_at, m.timestamp) < $1
+         WHERE (m.remote_jid LIKE '%@g.us' OR m.phone LIKE '%@g.us')
+           AND (m.created_at < $1 OR (m.created_at IS NULL AND m.timestamp < $1))
          LIMIT $2
        )`,
       [cutoff, RETENTION_BATCH_SIZE]
@@ -102,7 +113,7 @@ async function cleanGroupMessages() {
          WHERE id IN (
            SELECT id FROM whatsapp_history_items
            WHERE chat_jid LIKE '%@g.us'
-             AND COALESCE(occurred_at, created_at) < $1
+             AND (occurred_at < $1 OR (occurred_at IS NULL AND created_at < $1))
            LIMIT $2
          )`,
         [cutoff, RETENTION_BATCH_SIZE]
@@ -145,13 +156,12 @@ async function cleanIndividualMessages(store) {
   do {
     // 1. Antes de deletar, buscamos os chats que estão nesse lote para compressão
     const toDeleteRes = await query(
-      `SELECT m.id, COALESCE(m.remote_jid, c.remote_jid, m.phone) AS chat_id, m.content, m.from_me,
+      `SELECT m.id, COALESCE(m.remote_jid, m.phone) AS chat_id, m.content, m.from_me,
               COALESCE(m.created_at, m.timestamp) AS created_at, m.company_id
        FROM messages m
-       LEFT JOIN conversations c ON c.id = m.conversation_id
-       WHERE NOT (m.remote_jid LIKE '%@g.us' OR m.phone LIKE '%@g.us' OR (c.remote_jid IS NOT NULL AND c.remote_jid LIKE '%@g.us'))
-         AND COALESCE(m.created_at, m.timestamp) < $1
-       ORDER BY chat_id, created_at ASC
+       WHERE (m.remote_jid NOT LIKE '%@g.us' AND (m.phone IS NULL OR m.phone NOT LIKE '%@g.us'))
+         AND (m.created_at < $1 OR (m.created_at IS NULL AND m.timestamp < $1))
+       ORDER BY m.id ASC
        LIMIT $2`,
       [cutoff, RETENTION_BATCH_SIZE]
     );
@@ -170,6 +180,8 @@ async function cleanIndividualMessages(store) {
     // Chama o serviço de compressão para cada chat (em background/await)
     for (const chatId of Object.keys(grouped)) {
       const { companyId, messages } = grouped[chatId];
+      // Sort within the contact group in memory
+      messages.sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
       if (messages.length > 5) { // Só comprime se houver um contexto relevante a ser deletado
         await aiCompressionService.compressContactHistory(chatId, companyId, messages, store).catch(e => console.error(e));
       }
@@ -196,7 +208,7 @@ async function cleanIndividualMessages(store) {
          WHERE id IN (
            SELECT id FROM whatsapp_history_items
            WHERE chat_jid NOT LIKE '%@g.us'
-             AND COALESCE(occurred_at, created_at) < $1
+             AND (occurred_at < $1 OR (occurred_at IS NULL AND created_at < $1))
            LIMIT $2
          )`,
         [cutoff, RETENTION_BATCH_SIZE]
@@ -237,11 +249,11 @@ async function cleanOrphanConversations() {
     }
 
     const result = await query(
-      `DELETE FROM conversations
-       WHERE id NOT IN (SELECT DISTINCT conversation_id FROM messages WHERE conversation_id IS NOT NULL)
-         AND lead_id IS NULL
-         AND created_at < NOW() - INTERVAL '7 days'
-       RETURNING id`
+      `DELETE FROM conversations c
+       WHERE NOT EXISTS (SELECT 1 FROM messages m WHERE m.conversation_id = c.id)
+         AND c.lead_id IS NULL
+         AND c.created_at < NOW() - INTERVAL '7 days'
+       RETURNING c.id`
     );
     return { deleted: result.rowCount || 0, policy: 'orphan conversations > 7d with no messages' };
   } catch {
@@ -284,6 +296,7 @@ async function runRetention(store) {
   const t0 = Date.now();
 
   try {
+    await ensureRetentionIndexes();
     report.groups     = await cleanGroupMessages();
     report.individual = await cleanIndividualMessages(store);
     report.orphans    = await cleanOrphanConversations();
