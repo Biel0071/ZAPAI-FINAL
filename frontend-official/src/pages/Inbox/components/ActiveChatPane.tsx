@@ -154,7 +154,7 @@ interface ActiveChatPaneProps {
   aiRuntime?: any;
 }
 
-const MOBILE_TOUCH_TARGET_CLASS = "h-11 min-h-11";
+const MOBILE_TOUCH_TARGET_CLASS = "h-10 w-10 min-h-10 min-w-10 rounded-full flex items-center justify-center shrink-0";
 
 export function ActiveChatPane({
   selectedConversation,
@@ -301,6 +301,11 @@ export function ActiveChatPane({
   const [stickers, setStickers] = useState<{ id: string; url: string; name: string }[]>([]);
   const [loadingStickers, setLoadingStickers] = useState(false);
   const [aiRemainingSeconds, setAiRemainingSeconds] = useState(0);
+  const [dismissedBanners, setDismissedBanners] = useState<Record<string, boolean>>({});
+
+  useEffect(() => {
+    setDismissedBanners({});
+  }, [selectedConversation?.id]);
 
   const aiProgressActive = Boolean(aiProgress && ["analyzing", "generating", "queued", "waiting", "typing", "sending"].includes(aiProgress.status));
 
@@ -559,7 +564,7 @@ export function ActiveChatPane({
                       variant="outline"
                       size="sm"
                       className={cn(
-                        "h-8 px-2 text-[11px] font-semibold gap-1",
+                        "h-8 px-1.5 sm:px-2 text-[11px] font-semibold gap-1 shrink-0",
                         aiEnabledForConversation
                           ? "bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500/20 border-emerald-500/30"
                           : isAiCountdownActive
@@ -568,8 +573,13 @@ export function ActiveChatPane({
                       )}
                       title="Controle da IA"
                     >
-                      <Robot className="h-4 w-4" weight={aiEnabledForConversation ? "fill" : "regular"} />
-                      {aiEnabledForConversation ? "IA ativa" : isAiCountdownActive ? `IA pausada (${timeLeft})` : aiRuntime?.globalEnabled === false ? "IA global pausada" : "Humano"}
+                      <Robot className="h-4 w-4 shrink-0" weight={aiEnabledForConversation ? "fill" : "regular"} />
+                      <span className="hidden sm:inline">
+                        {aiEnabledForConversation ? "IA ativa" : isAiCountdownActive ? `IA pausada (${timeLeft})` : aiRuntime?.globalEnabled === false ? "IA global pausada" : "Humano"}
+                      </span>
+                      <span className="inline sm:hidden text-[10px]">
+                        {aiEnabledForConversation ? "IA" : isAiCountdownActive ? timeLeft : aiRuntime?.globalEnabled === false ? "Pausada" : "Humano"}
+                      </span>
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end" className="w-48 bg-popover/95 border-border/80 text-popover-foreground">
@@ -634,12 +644,12 @@ export function ActiveChatPane({
                     type="button"
                     variant="ghost"
                     size="sm"
-                    className="h-8 px-2 sm:px-2.5 rounded-lg text-xs font-medium text-foreground hover:bg-muted flex items-center gap-1.5 transition-colors border border-border/40"
+                    className="h-8 w-8 p-0 sm:w-auto sm:px-2.5 rounded-lg text-xs font-medium text-foreground hover:bg-muted flex items-center justify-center gap-1.5 transition-colors border border-border/40 shrink-0"
                     onClick={() => setShowLeadPanel(true)}
                     title="Abrir painel de atendimento e ferramentas"
                     aria-label="Abrir painel da conversa"
                   >
-                    <Info className="h-4 w-4 text-primary" weight="bold" />
+                    <Info className="h-4 w-4 text-primary shrink-0" weight="bold" />
                     <span className="hidden sm:inline text-xs font-semibold">Painel</span>
                   </Button>
                 )}
@@ -793,66 +803,107 @@ export function ActiveChatPane({
           )}
 
           {/* Connection & Realtime Status Banners */}
-          {inboxRuntimeState === "DEGRADED" && (
-            <div className="border-b border-yellow-500/20 bg-yellow-500/5 px-4 py-2 flex items-center justify-center gap-2 text-xs text-yellow-400 select-none animate-pulse">
-              <span className="relative flex h-1.5 w-1.5">
-                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-yellow-400 opacity-75"></span>
-                <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-yellow-500"></span>
-              </span>
-              Conexão degradada. Mantendo sincronização com recuperação automática.
+          {inboxRuntimeState === "DEGRADED" && !dismissedBanners["degraded"] && (
+            <div className="border-b border-yellow-500/20 bg-yellow-500/10 px-3 py-1 flex items-center justify-between gap-2 text-[11px] text-yellow-400 select-none animate-fade-in shrink-0">
+              <div className="flex items-center gap-1.5 min-w-0 truncate">
+                <span className="relative flex h-1.5 w-1.5 shrink-0">
+                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-yellow-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-yellow-500"></span>
+                </span>
+                <span className="truncate">Conexão degradada. Sincronização automática ativa.</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setDismissedBanners((prev) => ({ ...prev, degraded: true }))}
+                className="text-yellow-400/70 hover:text-yellow-300 p-0.5 rounded shrink-0 transition-colors"
+                aria-label="Dispensar aviso de conexão degradada"
+              >
+                <X className="h-3 w-3" />
+              </button>
             </div>
           )}
 
-          {inboxRuntimeState === "OFFLINE" && (
-            <div className="border-b border-red-500/20 bg-red-500/5 px-4 py-2 flex items-center justify-center gap-2 text-xs text-red-400 select-none">
-              <span className="relative flex h-1.5 w-1.5">
-                <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-red-500"></span>
-              </span>
-              Servidor offline. Exibindo dados salvos localmente.
+          {inboxRuntimeState === "OFFLINE" && !dismissedBanners["offline"] && (
+            <div className="border-b border-red-500/20 bg-red-500/10 px-3 py-1 flex items-center justify-between gap-2 text-[11px] text-red-400 select-none shrink-0 animate-fade-in">
+              <div className="flex items-center gap-1.5 min-w-0 truncate">
+                <span className="relative flex h-1.5 w-1.5 shrink-0">
+                  <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-red-500"></span>
+                </span>
+                <span className="truncate">Servidor offline. Exibindo dados locais.</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setDismissedBanners((prev) => ({ ...prev, offline: true }))}
+                className="text-red-400/70 hover:text-red-300 p-0.5 rounded shrink-0 transition-colors"
+                aria-label="Dispensar aviso de servidor offline"
+              >
+                <X className="h-3 w-3" />
+              </button>
             </div>
           )}
 
-          {inboxRuntimeState === "WHATSAPP_OFFLINE" && (
-            <div className="border-b border-amber-500/25 bg-amber-500/5 px-4 py-2 flex items-center justify-between gap-3 text-xs text-amber-400 select-none">
-              <div className="flex items-center gap-2">
-                <span className="relative flex h-1.5 w-1.5">
+          {inboxRuntimeState === "WHATSAPP_OFFLINE" && !dismissedBanners["wa_offline"] && (
+            <div className="border-b border-amber-500/25 bg-amber-500/10 px-3 py-1 flex items-center justify-between gap-2 text-[11px] text-amber-400 select-none shrink-0 animate-fade-in">
+              <div className="flex items-center gap-1.5 min-w-0 truncate">
+                <span className="relative flex h-1.5 w-1.5 shrink-0">
                   <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-amber-400 opacity-75"></span>
                   <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-amber-500"></span>
                 </span>
-                Sessão WhatsApp desconectada no momento
+                <span className="truncate">WhatsApp desconectado</span>
               </div>
-              <Button
-                type="button"
-                size="sm"
-                variant="outline"
-                className="h-6 rounded-md px-2.5 text-[10px] font-semibold bg-amber-500/10 border-amber-500/20 text-amber-400 hover:bg-amber-500/20 hover:text-amber-300 transition-all"
-                onClick={() => navigate("/connections")}
-              >
-                Conectar WhatsApp
-              </Button>
+              <div className="flex items-center gap-1.5 shrink-0">
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  className="h-5 rounded px-2 text-[10px] font-semibold bg-amber-500/10 border-amber-500/20 text-amber-400 hover:bg-amber-500/20 hover:text-amber-300 transition-all"
+                  onClick={() => navigate("/connections")}
+                >
+                  Conectar
+                </Button>
+                <button
+                  type="button"
+                  onClick={() => setDismissedBanners((prev) => ({ ...prev, wa_offline: true }))}
+                  className="text-amber-400/70 hover:text-amber-300 p-0.5 rounded transition-colors"
+                  aria-label="Dispensar aviso de WhatsApp desconectado"
+                >
+                  <X className="h-3 w-3" />
+                </button>
+              </div>
             </div>
           )}
 
-          {aiRuntime?.globalEnabled === false && selectedConversation && (
-            <div className="border-b border-primary/20 bg-primary/5 px-4 py-2 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs">
-              <div className="flex items-center gap-2 text-foreground">
-                <Robot className="h-4 w-4 text-primary shrink-0" />
-                <span>
-                  A automação está <strong>pausada para a loja</strong>. Você pode responder manualmente ou gerar uma sugestão, revisar e enviar.
+          {aiRuntime?.globalEnabled === false && selectedConversation && !dismissedBanners["ai_paused"] && (
+            <div className="border-b border-primary/20 bg-primary/5 px-3 py-1.5 flex items-center justify-between gap-2 text-[11px] text-foreground select-none shrink-0 animate-fade-in">
+              <div className="flex items-center gap-1.5 min-w-0 truncate">
+                <Robot className="h-3.5 w-3.5 text-primary shrink-0" />
+                <span className="truncate">
+                  Automação pausada na loja. Você pode responder ou usar sugestões.
                 </span>
               </div>
-              <Button
-                type="button"
-                size="sm"
-                className="h-7 text-[10px] shrink-0"
-                onClick={() => {
-                  setRightPanelTab("ai");
-                  setRightPanelCollapsed(false);
-                  if (isTabletLayout) setShowLeadPanel(true);
-                }}
-              >
-                Abrir sugestões
-              </Button>
+              <div className="flex items-center gap-1.5 shrink-0">
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  className="h-6 rounded px-2 text-[10px] font-semibold border-primary/30 text-primary hover:bg-primary/10 transition-all shrink-0"
+                  onClick={() => {
+                    setRightPanelTab("ai");
+                    setRightPanelCollapsed(false);
+                    if (isTabletLayout || isMobile) setShowLeadPanel(true);
+                  }}
+                >
+                  Sugestões
+                </Button>
+                <button
+                  type="button"
+                  onClick={() => setDismissedBanners((prev) => ({ ...prev, ai_paused: true }))}
+                  className="text-muted-foreground hover:text-foreground p-0.5 rounded shrink-0 transition-colors"
+                  aria-label="Dispensar aviso de IA pausada"
+                >
+                  <X className="h-3 w-3" />
+                </button>
+              </div>
             </div>
           )}
 
@@ -1294,21 +1345,21 @@ export function ActiveChatPane({
                       rows={1}
                       placeholder={
                         !canUseBackend
-                          ? "Servidor reconectando..."
+                          ? "Reconectando..."
                           : !isWhatsappConnected
-                            ? "WhatsApp offline. Conecte nas configurações para enviar."
+                            ? "WhatsApp offline"
                             : selectedConversation
                               ? (isMobile ? "Mensagem..." : "Digite sua mensagem...")
-                              : "Selecione uma conversa para enviar mensagens"
+                              : "Selecione uma conversa"
                       }
-                      className="flex min-h-[42px] max-h-[180px] w-full flex-1 resize-none rounded-lg border border-input bg-background px-3 py-2.5 sm:py-3 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 scrollbar-none text-foreground leading-normal"
+                      className="flex min-h-[40px] max-h-[140px] w-full flex-1 resize-none rounded-2xl border border-input bg-background/90 px-3.5 py-2 sm:py-2.5 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary disabled:cursor-not-allowed disabled:opacity-50 scrollbar-none text-foreground leading-snug overflow-y-auto"
                       value={messageInput}
                       disabled={!selectedConversation || !canSendMessages}
                       onChange={(event) => {
                         setMessageInput(event.target.value);
                         const textarea = event.target;
                         textarea.style.height = "auto";
-                        textarea.style.height = `${Math.min(textarea.scrollHeight, 180)}px`;
+                        textarea.style.height = `${Math.min(textarea.scrollHeight, 140)}px`;
                       }}
                       onDragOver={(e) => e.preventDefault()}
                       onDrop={(e) => {

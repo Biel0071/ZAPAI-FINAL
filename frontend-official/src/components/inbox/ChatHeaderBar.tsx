@@ -33,7 +33,7 @@ export function ChatHeaderBar({
 
   return (
     <div className="flex min-h-16 items-center justify-between gap-2 sm:gap-3 border-b border-border/70 bg-card/85 px-2 sm:px-3 py-2 md:px-4 backdrop-blur supports-[backdrop-filter]:bg-card/50 select-none relative z-20">
-      <div className="flex items-center gap-1.5 sm:gap-2.5 md:gap-3 min-w-0">
+      <div className="flex items-center gap-1.5 sm:gap-2.5 md:gap-3 min-w-0 flex-1">
         {isMobile && Boolean(onBack) && (
           <Button
             type="button"
@@ -59,7 +59,7 @@ export function ChatHeaderBar({
             }
           }}
           className={cn(
-            "flex items-center gap-2 sm:gap-3 min-w-0",
+            "flex items-center gap-2 sm:gap-3 min-w-0 flex-1",
             onContactClick && "cursor-pointer rounded-lg p-1 -m-1 hover:bg-muted/50 transition-colors"
           )}
           title={onContactClick ? "Ver detalhes do contato" : undefined}

@@ -47,7 +47,7 @@ interface ChatListPanelProps {
 }
 
 const BUSINESS_TAG_OPTIONS = ["Novo Lead", "Cliente", "Orçamento", "Venda", "Suporte", "VIP", "Urgente"] as const;
-const CONVERSATION_ROW_HEIGHT = 66;
+const CONVERSATION_ROW_HEIGHT = 72;
 
 export function ChatListPanel({
   searchQuery,

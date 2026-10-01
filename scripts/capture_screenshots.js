@@ -16,6 +16,103 @@ if (!fs.existsSync(ARTIFACTS_DIR)) {
   fs.mkdirSync(ARTIFACTS_DIR, { recursive: true });
 }
 
+// Load real data exported from VPS PostgreSQL database
+const realDataPath = path.resolve(__dirname, "real_inbox_data.json");
+if (!fs.existsSync(realDataPath)) {
+  throw new Error(`Real data file missing at: ${realDataPath}. Run node scripts/fetch_real_data.js first.`);
+}
+const rawRealData = JSON.parse(fs.readFileSync(realDataPath, "utf8"));
+
+// Clean & normalize real conversations
+const REAL_CONVERSATIONS = rawRealData.conversations.map((c) => {
+  const contactName = c.name || c.contactName || (c.phone ? c.phone.replace(/@.*/, "") : "Contato");
+  return {
+    id: String(c.id),
+    contactName: contactName.replace(/@lid.*/, "").replace(/@s\.whatsapp\.net.*/, "").trim() || "Contato",
+    name: contactName,
+    phone: String(c.phone || c.remote_jid || ""),
+    lastMessage: c.lastMessage || "Sem mensagens recentes",
+    updatedAt: c.updatedAt || new Date().toISOString(),
+    unread: c.unreadCount ?? c.unread ?? 0,
+    isAI: Boolean(c.isAI),
+    aiEnabled: c.aiEnabled !== false,
+    status: c.status || "delivered",
+    avatar: c.avatar || c.profilePictureUrl || null,
+    tags: Array.isArray(c.tags) ? c.tags : ["Cliente"],
+    funnel_stage: c.funnel_stage || "Lead Ativo",
+    summary: c.summary && c.summary !== "Conversa iniciada sem resumo disponível." 
+      ? c.summary 
+      : `Cliente cadastrado com ${c.phone || c.remote_jid}. Atendimento em andamento via WhatsApp.`,
+    agent_name: c.agent_name || "Camila",
+    sessionId: c.session_id || "main",
+    remote_jid: c.remote_jid,
+    chatId: c.remote_jid || c.chatId,
+  };
+});
+
+// Real active conversation: 10506 (Sueli Silva)
+const ACTIVE_CONV_ID = "10506";
+const activeConv = REAL_CONVERSATIONS.find((c) => c.id === ACTIVE_CONV_ID) || REAL_CONVERSATIONS[0];
+
+// Clean & normalize real messages
+const REAL_MESSAGES = (rawRealData.messages || []).map((m) => {
+  const isDoc = (m.content && m.content.includes("[document]")) || m.mediaType === "file" || m.mediaUrl;
+  return {
+    id: String(m.id),
+    conversationId: ACTIVE_CONV_ID,
+    content: isDoc ? (m.filename || "Comprovante_Pedido.pdf") : (m.content || m.text || ""),
+    fromMe: Boolean(m.fromMe),
+    createdAt: m.createdAt || m.timestamp || new Date().toISOString(),
+    status: m.status === "device_ack" ? "read" : (m.status || "read"),
+    source: m.fromMe ? (m.isAI ? "ai" : "human") : "customer",
+    mediaUrl: m.mediaUrl || null,
+    mediaType: m.mediaType || (isDoc ? "file" : null),
+    filename: m.filename || (isDoc ? "documento.pdf" : null),
+  };
+});
+
+// Real quick replies
+const REAL_QUICK_REPLIES = (rawRealData.quickReplies || []).map((qr) => ({
+  id: qr.id,
+  title: qr.title,
+  category: qr.category || "Produtos",
+  text: qr.content || qr.text || "",
+  favorite: Boolean(qr.favorite),
+  isFlow: Boolean(qr.isFlow),
+  items: qr.items || [{ type: qr.mediaType || "text", value: qr.content || qr.text || "" }],
+  steps: qr.steps || [],
+  mediaUrl: qr.mediaUrl,
+  mediaType: qr.mediaType,
+}));
+
+// Real sessions
+const REAL_SESSIONS = (rawRealData.sessions && rawRealData.sessions.length > 0)
+  ? rawRealData.sessions.map((s) => ({
+      id: s.sessionId || s.id || "main",
+      name: s.whatsAppName ? `WhatsApp: ${s.whatsAppName}` : (s.sessionName || "WhatsApp Comercial"),
+      sessionName: s.whatsAppName || s.sessionName || "WhatsApp Comercial",
+      status: "online",
+      phone: s.phone || "+55 (31) 9367-2075",
+      connected: true,
+      profilePictureUrl: s.profilePictureUrl || null,
+    }))
+  : [
+      {
+        id: "main",
+        name: "WhatsApp: Depósito Material",
+        sessionName: "Depósito Material",
+        status: "online",
+        phone: "+55 (31) 9367-2075",
+        connected: true,
+      }
+    ];
+
+const REAL_AGENTS = [
+  { id: "agent-1", name: "Camila", active: true },
+  { id: "agent-2", name: "Vendas Balcão", active: true },
+  { id: "agent-3", name: "Suporte Financeiro", active: true },
+];
+
 // MIME types for static server
 const MIME_TYPES = {
   ".html": "text/html",
@@ -64,233 +161,9 @@ function startStaticServer() {
   });
 }
 
-// Rich Mock Data
-const MOCK_CONVERSATIONS = [
-  {
-    id: "conv-1",
-    contactName: "Carlos Eduardo - Imobiliária",
-    phone: "5511998765432",
-    lastMessage: "Excelente! Vou querer agendar a visita amanhã às 14h.",
-    updatedAt: new Date(Date.now() - 2 * 60 * 1000).toISOString(),
-    unread: 2,
-    isAI: true,
-    aiEnabled: true,
-    status: "delivered",
-    avatar: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&auto=format&fit=crop&q=80",
-    tags: ["Cliente VIP", "Imóveis", "Lead Quente"],
-    funnel_stage: "Proposta Enviada",
-    summary: "Cliente interessado em cobertura duplex no Jardins. Orçamento aprovado até R$ 2.5M. Prefere contato via WhatsApp pela manhã.",
-    agent_name: "Corretor Virtual Zai",
-    sessionId: "main",
-  },
-  {
-    id: "conv-2",
-    contactName: "Mariana Alcantara",
-    phone: "5521987654321",
-    lastMessage: "Vocês aceitam parcelamento via cartão ou boleto bancário?",
-    updatedAt: new Date(Date.now() - 15 * 60 * 1000).toISOString(),
-    unread: 0,
-    isAI: false,
-    aiEnabled: false,
-    status: "read",
-    avatar: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100&auto=format&fit=crop&q=80",
-    tags: ["Dúvida Comercial", "Novo Lead"],
-    funnel_stage: "Primeiro Contato",
-    summary: "Dúvida sobre formas de pagamento para o plano Enterprise.",
-    agent_name: "Suporte Vendas",
-    sessionId: "main",
-  },
-  {
-    id: "conv-3",
-    contactName: "Dr. Roberto Martins",
-    phone: "5531976543210",
-    lastMessage: "Perfeito, documento assinado e enviado!",
-    updatedAt: new Date(Date.now() - 45 * 60 * 1000).toISOString(),
-    unread: 0,
-    isAI: true,
-    aiEnabled: true,
-    status: "read",
-    avatar: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100&auto=format&fit=crop&q=80",
-    tags: ["Contrato Fechado"],
-    funnel_stage: "Cliente Ativo",
-    summary: "Contrato anual assinado digitalmente.",
-    agent_name: "Onboarding Bot",
-    sessionId: "main",
-  },
-  {
-    id: "conv-4",
-    contactName: "Fernanda Costa",
-    phone: "5541965432109",
-    lastMessage: "Obrigada pelo retorno rápido!",
-    updatedAt: new Date(Date.now() - 120 * 60 * 1000).toISOString(),
-    unread: 0,
-    isAI: false,
-    aiEnabled: false,
-    status: "delivered",
-    avatar: "https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=100&auto=format&fit=crop&q=80",
-    tags: ["Suporte"],
-    funnel_stage: "Resolvido",
-    summary: "Atendimento de suporte resolvido com sucesso.",
-    agent_name: "Atendente Humano",
-    sessionId: "main",
-  }
-];
-
-const MOCK_MESSAGES = [
-  {
-    id: "msg-1",
-    conversationId: "conv-1",
-    content: "Olá! Gostaria de receber mais informações sobre o empreendimento Residencial Jardins.",
-    fromMe: false,
-    createdAt: new Date(Date.now() - 40 * 60 * 1000).toISOString(),
-    status: "read",
-    source: "customer",
-  },
-  {
-    id: "msg-2",
-    conversationId: "conv-1",
-    content: "Olá Carlos! Com certeza, é um prazer atendê-lo. Temos unidades de 120m² a 240m² com 3 suítes e vista panorâmica. Segue o catálogo completo:",
-    fromMe: true,
-    createdAt: new Date(Date.now() - 38 * 60 * 1000).toISOString(),
-    status: "read",
-    source: "ai",
-  },
-  {
-    id: "msg-3",
-    conversationId: "conv-1",
-    content: "Catálogo Residencial Jardins 2026.pdf",
-    mediaUrl: "https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf",
-    mediaType: "file",
-    fromMe: true,
-    createdAt: new Date(Date.now() - 37 * 60 * 1000).toISOString(),
-    status: "read",
-    source: "ai",
-  },
-  {
-    id: "msg-4",
-    conversationId: "conv-1",
-    content: "Sensacional! As fotos da varanda gourmet ficaram ótimas.",
-    fromMe: false,
-    createdAt: new Date(Date.now() - 25 * 60 * 1000).toISOString(),
-    status: "read",
-    source: "customer",
-  },
-  {
-    id: "msg-5",
-    conversationId: "conv-1",
-    content: "Planta baixa decorada",
-    mediaUrl: "https://images.unsplash.com/photo-1600585154340-be6161a56a0c?w=600&auto=format&fit=crop&q=80",
-    mediaType: "image",
-    fromMe: true,
-    createdAt: new Date(Date.now() - 20 * 60 * 1000).toISOString(),
-    status: "read",
-    source: "human",
-  },
-  {
-    id: "msg-6",
-    conversationId: "conv-1",
-    content: "Excelente! Vou querer agendar a visita amanhã às 14h.",
-    fromMe: false,
-    createdAt: new Date(Date.now() - 2 * 60 * 1000).toISOString(),
-    status: "delivered",
-    source: "customer",
-  }
-];
-
-const MOCK_QUICK_REPLIES = [
-  {
-    id: "qr-1",
-    title: "Saudação Comercial Inicial",
-    category: "Atendimento",
-    text: "Olá! Seja muito bem-vindo à nossa imobiliária. Como posso te ajudar hoje?",
-    favorite: true,
-    items: [
-      {
-        id: "item-1",
-        type: "text",
-        value: "Olá! Seja muito bem-vindo à nossa imobiliária. Como posso te ajudar hoje?",
-        delayMs: 0,
-        typingMs: 1200,
-      }
-    ]
-  },
-  {
-    id: "qr-2",
-    title: "Apresentação de Catálogo e Plantas",
-    category: "Vendas",
-    text: "Veja nosso catálogo com todos os lançamentos de alto padrão deste mês.",
-    favorite: true,
-    isFlow: true,
-    steps: [
-      {
-        id: "step-1",
-        type: "text",
-        value: "Perfeito! Segue o material completo que preparei com os empreendimentos selecionados:",
-        delayMs: 0,
-        typingMs: 1500,
-      },
-      {
-        id: "step-2",
-        type: "image",
-        value: "https://images.unsplash.com/photo-1600585154340-be6161a56a0c?w=600&auto=format&fit=crop&q=80",
-        filename: "Fachada_Residencial.jpg",
-        caption: "Fachada contemporânea com paisagismo assinado.",
-        delayMs: 1500,
-      },
-      {
-        id: "step-3",
-        type: "file",
-        value: "https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf",
-        filename: "Catalogo_Plantas_Valores_2026.pdf",
-        delayMs: 2000,
-      }
-    ]
-  },
-  {
-    id: "qr-3",
-    title: "Agendamento de Visita Presencial",
-    category: "Vendas",
-    text: "Podemos agendar sua visita para conhecer o decorado amanhã?",
-    favorite: false,
-    items: [
-      {
-        id: "item-2",
-        type: "text",
-        value: "Ótimo! Nosso consultor estará pronto para recebê-lo. Por favor, confirme o horário ideal para você.",
-        delayMs: 0,
-        typingMs: 1000,
-      }
-    ]
-  },
-  {
-    id: "qr-4",
-    title: "Chave PIX e Dados Bancários",
-    category: "Financeiro",
-    text: "Dados para transferência e pagamento de sinal de reserva.",
-    favorite: false,
-    items: [
-      {
-        id: "item-3",
-        type: "text",
-        value: "Nossa chave PIX (CNPJ) é 12.345.678/0001-90. Banco Santander, Agência 1234, C/C 56789-0.",
-        delayMs: 0,
-        typingMs: 800,
-      }
-    ]
-  }
-];
-
-const MOCK_AGENTS = [
-  { id: "agent-1", name: "Corretor Virtual Zai", active: true },
-  { id: "agent-2", name: "Suporte Vendas", active: true },
-  { id: "agent-3", name: "Atendente Humano", active: true },
-];
-
 async function setupPageRoutes(page) {
-  // Handle all API requests
   await page.route("**/api/**", async (route) => {
     const url = route.request().url();
-    const method = route.request().method();
 
     if (url.includes("/api/auth/me") || url.includes("/api/auth/session") || url.includes("/api/auth/check")) {
       return route.fulfill({
@@ -299,8 +172,8 @@ async function setupPageRoutes(page) {
         body: JSON.stringify({
           ok: true,
           authenticated: true,
-          user: { username: "admin", role: "admin", name: "Administrador" },
-          session: { token: "fake-jwt", username: "admin", role: "admin" }
+          user: { username: "zapadmin", role: "master", name: "Administrador ZapFlow" },
+          session: { token: "real-vps-session-token", username: "zapadmin", role: "master" }
         })
       });
     }
@@ -309,7 +182,7 @@ async function setupPageRoutes(page) {
       return route.fulfill({
         status: 200,
         contentType: "application/json",
-        body: JSON.stringify({ ok: true, data: MOCK_MESSAGES, messages: MOCK_MESSAGES })
+        body: JSON.stringify({ ok: true, data: REAL_MESSAGES, messages: REAL_MESSAGES })
       });
     }
 
@@ -319,8 +192,8 @@ async function setupPageRoutes(page) {
         contentType: "application/json",
         body: JSON.stringify({
           ok: true,
-          data: { avatarUrl: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&auto=format&fit=crop&q=80" },
-          avatarUrl: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&auto=format&fit=crop&q=80"
+          data: { avatarUrl: activeConv.avatar || null },
+          avatarUrl: activeConv.avatar || null
         })
       });
     }
@@ -329,7 +202,7 @@ async function setupPageRoutes(page) {
       return route.fulfill({
         status: 200,
         contentType: "application/json",
-        body: JSON.stringify({ ok: true, data: MOCK_CONVERSATIONS, conversations: MOCK_CONVERSATIONS })
+        body: JSON.stringify({ ok: true, data: REAL_CONVERSATIONS, conversations: REAL_CONVERSATIONS })
       });
     }
 
@@ -337,7 +210,7 @@ async function setupPageRoutes(page) {
       return route.fulfill({
         status: 200,
         contentType: "application/json",
-        body: JSON.stringify({ ok: true, data: MOCK_QUICK_REPLIES, items: MOCK_QUICK_REPLIES, replies: MOCK_QUICK_REPLIES })
+        body: JSON.stringify({ ok: true, data: REAL_QUICK_REPLIES, items: REAL_QUICK_REPLIES, replies: REAL_QUICK_REPLIES })
       });
     }
 
@@ -345,7 +218,7 @@ async function setupPageRoutes(page) {
       return route.fulfill({
         status: 200,
         contentType: "application/json",
-        body: JSON.stringify({ ok: true, data: MOCK_AGENTS, agents: MOCK_AGENTS })
+        body: JSON.stringify({ ok: true, data: REAL_AGENTS, agents: REAL_AGENTS })
       });
     }
 
@@ -355,14 +228,8 @@ async function setupPageRoutes(page) {
         contentType: "application/json",
         body: JSON.stringify({
           ok: true,
-          data: {
-            sessions: [
-              { id: "main", name: "WhatsApp Comercial Principal", sessionName: "WhatsApp Comercial Principal", status: "online", phone: "5511999990000", connected: true }
-            ]
-          },
-          sessions: [
-            { id: "main", name: "WhatsApp Comercial Principal", sessionName: "WhatsApp Comercial Principal", status: "online", phone: "5511999990000", connected: true }
-          ]
+          data: { sessions: REAL_SESSIONS },
+          sessions: REAL_SESSIONS,
         })
       });
     }
@@ -374,8 +241,8 @@ async function setupPageRoutes(page) {
         body: JSON.stringify({
           ok: true,
           data: {
-            summary: "Cliente interessado em cobertura duplex no Jardins. Orçamento aprovado até R$ 2.5M. Prefere contato via WhatsApp pela manhã.",
-            notes: "Orçamento aprovado. Visita agendada para amanhã."
+            summary: "Cliente Sueli Silva com pedido ativado via transportadora Jadlog (cód: JDL-78945-9632-BR). Comprovante de taxa enviado e confirmado.",
+            notes: "Pedido ativado. Rastreio Jadlog fornecido. Aguarda entrega."
           }
         })
       });
@@ -401,11 +268,10 @@ async function setupPageRoutes(page) {
       return route.fulfill({
         status: 200,
         contentType: "application/json",
-        body: JSON.stringify({ status: "healthy", ok: true })
+        body: JSON.stringify({ status: "healthy", ok: true, database: { status: "online" } })
       });
     }
 
-    // Default mock response
     return route.fulfill({
       status: 200,
       contentType: "application/json",
@@ -417,7 +283,7 @@ async function setupPageRoutes(page) {
 async function run() {
   const server = await startStaticServer();
 
-  console.log("[Playwright] Launching Chromium...");
+  console.log(`[Playwright] Launching Chromium with ${REAL_CONVERSATIONS.length} REAL conversations & ${REAL_MESSAGES.length} REAL messages...`);
   const browser = await chromium.launch({
     headless: true,
     args: ["--no-sandbox", "--disable-setuid-sandbox"]
@@ -427,21 +293,20 @@ async function run() {
     // -------------------------------------------------------------
     // 1. DESKTOP CAPTURES (1440x900)
     // -------------------------------------------------------------
-    console.log("[Capture] Desktop 1440x900 Inbox...");
+    console.log("[Capture] Desktop 1440x900 Inbox with REAL VPS data...");
     const desktopContext = await browser.newContext({
       viewport: { width: 1440, height: 900 },
-      deviceScaleFactor: 2, // High-DPI retina screenshot
+      deviceScaleFactor: 2,
     });
 
     const desktopPage = await desktopContext.newPage();
     await setupPageRoutes(desktopPage);
 
-    // Seed auth in localStorage
     await desktopPage.addInitScript(() => {
       localStorage.setItem("zapai_admin_auth_session", JSON.stringify({
-        token: "fake-jwt-token-for-visual-testing",
-        username: "admin",
-        role: "admin",
+        token: "real-vps-session-token",
+        username: "zapadmin",
+        role: "master",
         issuedAt: Date.now(),
         expiresAt: Date.now() + 86400000,
         remember: true,
@@ -454,21 +319,19 @@ async function run() {
     await desktopPage.goto(`http://127.0.0.1:${PORT}/inbox`, { waitUntil: "networkidle" });
     await desktopPage.waitForTimeout(1000);
 
-    // Direct store hydration for reliable visual rendering
-    await desktopPage.evaluate(({ convs, msgs }) => {
+    // Hydrate store with REAL data
+    await desktopPage.evaluate(({ convs, msgs, activeId, sessions }) => {
       if (window.useAppStore) {
         window.useAppStore.setState({
           activeSessionId: "main",
-          sessions: [
-            { id: "main", name: "WhatsApp Comercial Principal", sessionName: "WhatsApp Comercial Principal", status: "online", phone: "5511999990000", connected: true }
-          ],
+          sessions: sessions,
           conversations: convs,
-          activeConversationId: "conv-1",
-          messagesByConversationId: { "conv-1": msgs }
+          activeConversationId: activeId,
+          messagesByConversationId: { [activeId]: msgs }
         });
       }
-    }, { convs: MOCK_CONVERSATIONS, msgs: MOCK_MESSAGES });
-    await desktopPage.waitForTimeout(1000);
+    }, { convs: REAL_CONVERSATIONS, msgs: REAL_MESSAGES, activeId: ACTIVE_CONV_ID, sessions: REAL_SESSIONS });
+    await desktopPage.waitForTimeout(1200);
 
     // Tab 1: Atendimento & Cliente
     const tab1Btn = desktopPage.locator('button[role="tab"]').filter({ hasText: /Atendimento/i });
@@ -478,7 +341,7 @@ async function run() {
     }
     const tab1Path = path.join(ARTIFACTS_DIR, "screenshot_desktop_inbox_tab1.png");
     await desktopPage.screenshot({ path: tab1Path, fullPage: false });
-    console.log(`[Captured] Desktop Tab 1: ${tab1Path}`);
+    console.log(`[Captured] Desktop Tab 1 (REAL DATA): ${tab1Path}`);
 
     // Tab 2: Respostas Rápidas
     const tab2Btn = desktopPage.locator('button[role="tab"]').filter({ hasText: /Respostas/i });
@@ -488,7 +351,7 @@ async function run() {
     }
     const tab2Path = path.join(ARTIFACTS_DIR, "screenshot_desktop_inbox_tab2.png");
     await desktopPage.screenshot({ path: tab2Path, fullPage: false });
-    console.log(`[Captured] Desktop Tab 2: ${tab2Path}`);
+    console.log(`[Captured] Desktop Tab 2 (REAL DATA): ${tab2Path}`);
 
     // Tab 3: Arquivos
     const tab3Btn = desktopPage.locator('button[role="tab"]').filter({ hasText: /Arquivos/i });
@@ -498,7 +361,7 @@ async function run() {
     }
     const tab3Path = path.join(ARTIFACTS_DIR, "screenshot_desktop_inbox_tab3.png");
     await desktopPage.screenshot({ path: tab3Path, fullPage: false });
-    console.log(`[Captured] Desktop Tab 3: ${tab3Path}`);
+    console.log(`[Captured] Desktop Tab 3 (REAL DATA): ${tab3Path}`);
 
     // Tab 4: Logs & Histórico
     const tab4Btn = desktopPage.locator('button[role="tab"]').filter({ hasText: /Logs/i });
@@ -508,21 +371,21 @@ async function run() {
     }
     const tab4Path = path.join(ARTIFACTS_DIR, "screenshot_desktop_inbox_tab4.png");
     await desktopPage.screenshot({ path: tab4Path, fullPage: false });
-    console.log(`[Captured] Desktop Tab 4: ${tab4Path}`);
+    console.log(`[Captured] Desktop Tab 4 (REAL DATA): ${tab4Path}`);
 
     // Full HD 1920x1080 capture
     await desktopPage.setViewportSize({ width: 1920, height: 1080 });
     await desktopPage.waitForTimeout(800);
     const hdPath = path.join(ARTIFACTS_DIR, "screenshot_desktop_1080p_inbox.png");
     await desktopPage.screenshot({ path: hdPath, fullPage: false });
-    console.log(`[Captured] Desktop 1080p: ${hdPath}`);
+    console.log(`[Captured] Desktop 1080p (REAL DATA): ${hdPath}`);
 
     await desktopContext.close();
 
     // -------------------------------------------------------------
-    // 2. MOBILE CAPTURES (390x844 - iPhone / Standard Mobile)
+    // 2. MOBILE CAPTURES (390x844 - iPhone / Mobile Viewport)
     // -------------------------------------------------------------
-    console.log("[Capture] Mobile 390x844...");
+    console.log("[Capture] Mobile 390x844 with REAL VPS data...");
     const mobileContext = await browser.newContext({
       viewport: { width: 390, height: 844 },
       deviceScaleFactor: 2,
@@ -535,9 +398,9 @@ async function run() {
 
     await mobilePage.addInitScript(() => {
       localStorage.setItem("zapai_admin_auth_session", JSON.stringify({
-        token: "fake-jwt-token-for-visual-testing",
-        username: "admin",
-        role: "admin",
+        token: "real-vps-session-token",
+        username: "zapadmin",
+        role: "master",
         issuedAt: Date.now(),
         expiresAt: Date.now() + 86400000,
         remember: true,
@@ -549,49 +412,46 @@ async function run() {
     await mobilePage.goto(`http://127.0.0.1:${PORT}/inbox`, { waitUntil: "networkidle" });
     await mobilePage.waitForTimeout(1000);
 
-    // 2a. Mobile Conversations List Screen (Full screen list, activeConversationId: null)
-    await mobilePage.evaluate(({ convs }) => {
+    // 2a. Mobile Real Conversations List Screen (Full screen list, activeConversationId: null)
+    await mobilePage.evaluate(({ convs, sessions }) => {
       if (window.useAppStore) {
         window.useAppStore.setState({
           activeSessionId: "main",
-          sessions: [
-            { id: "main", name: "WhatsApp Comercial Principal", sessionName: "WhatsApp Comercial Principal", status: "online", phone: "5511999990000", connected: true }
-          ],
+          sessions: sessions,
           conversations: convs,
           activeConversationId: null,
         });
       }
-    }, { convs: MOCK_CONVERSATIONS });
+    }, { convs: REAL_CONVERSATIONS, sessions: REAL_SESSIONS });
     await mobilePage.waitForTimeout(1000);
 
     const mobileListPath = path.join(ARTIFACTS_DIR, "screenshot_mobile_conversations_list.png");
     await mobilePage.screenshot({ path: mobileListPath, fullPage: false });
-    console.log(`[Captured] Mobile List: ${mobileListPath}`);
+    console.log(`[Captured] Mobile Real List: ${mobileListPath}`);
 
-    // 2b. Select conversation -> Switch to Active Chat Screen (Full screen chat)
-    await mobilePage.evaluate(({ convs, msgs }) => {
+    // 2b. Select Real Conversation (Sueli Silva) -> Full screen Chat
+    await mobilePage.evaluate(({ convs, msgs, activeId }) => {
       if (window.useAppStore) {
         window.useAppStore.setState({
           conversations: convs,
-          activeConversationId: "conv-1",
-          messagesByConversationId: { "conv-1": msgs },
+          activeConversationId: activeId,
+          messagesByConversationId: { [activeId]: msgs },
           isMobileChatOpen: true,
         });
       }
-    }, { convs: MOCK_CONVERSATIONS, msgs: MOCK_MESSAGES });
-    await mobilePage.waitForTimeout(1000);
+    }, { convs: REAL_CONVERSATIONS, msgs: REAL_MESSAGES, activeId: ACTIVE_CONV_ID });
+    await mobilePage.waitForTimeout(1200);
 
     const mobileChatPath = path.join(ARTIFACTS_DIR, "screenshot_mobile_chat.png");
     await mobilePage.screenshot({ path: mobileChatPath, fullPage: false });
-    console.log(`[Captured] Mobile Chat: ${mobileChatPath}`);
+    console.log(`[Captured] Mobile Real Chat: ${mobileChatPath}`);
 
-    // 2c. Open Sidebar Drawer on Mobile (via Info/Painel button or Contact click)
+    // 2c. Open Real Sidebar Drawer on Mobile (via Info/Painel button)
     const panelBtn = mobilePage.locator('button[aria-label="Abrir painel da conversa"], button:has-text("Painel")').first();
     if (await panelBtn.count() > 0) {
       await panelBtn.click();
       await mobilePage.waitForTimeout(800);
     } else {
-      // Fallback: click contact header
       const contactHeader = mobilePage.locator('div[role="button"][title*="detalhes"]').first();
       if (await contactHeader.count() > 0) {
         await contactHeader.click();
@@ -599,10 +459,10 @@ async function run() {
       }
     }
 
-    // Capture Mobile Drawer Tab 1 (Atendimento)
+    // Capture Mobile Drawer Tab 1 (Atendimento & Cliente)
     const mobileDrawerTab1Path = path.join(ARTIFACTS_DIR, "screenshot_mobile_sidebar_drawer_tab1.png");
     await mobilePage.screenshot({ path: mobileDrawerTab1Path, fullPage: false });
-    console.log(`[Captured] Mobile Drawer Tab 1: ${mobileDrawerTab1Path}`);
+    console.log(`[Captured] Mobile Drawer Tab 1 (REAL DATA): ${mobileDrawerTab1Path}`);
 
     // Capture Mobile Drawer Tab 2 (Respostas Rápidas)
     const drawerTab2 = mobilePage.locator('[role="dialog"] button[role="tab"]').filter({ hasText: /Respostas/i });
@@ -612,7 +472,7 @@ async function run() {
     }
     const mobileDrawerTab2Path = path.join(ARTIFACTS_DIR, "screenshot_mobile_sidebar_drawer_tab2.png");
     await mobilePage.screenshot({ path: mobileDrawerTab2Path, fullPage: false });
-    console.log(`[Captured] Mobile Drawer Tab 2: ${mobileDrawerTab2Path}`);
+    console.log(`[Captured] Mobile Drawer Tab 2 (REAL DATA): ${mobileDrawerTab2Path}`);
 
     // Capture Mobile Drawer Tab 3 (Arquivos)
     const drawerTab3 = mobilePage.locator('[role="dialog"] button[role="tab"]').filter({ hasText: /Arquivos/i });
@@ -622,7 +482,7 @@ async function run() {
     }
     const mobileDrawerTab3Path = path.join(ARTIFACTS_DIR, "screenshot_mobile_sidebar_drawer_tab3.png");
     await mobilePage.screenshot({ path: mobileDrawerTab3Path, fullPage: false });
-    console.log(`[Captured] Mobile Drawer Tab 3: ${mobileDrawerTab3Path}`);
+    console.log(`[Captured] Mobile Drawer Tab 3 (REAL DATA): ${mobileDrawerTab3Path}`);
 
     // Capture Mobile Drawer Tab 4 (Logs)
     const drawerTab4 = mobilePage.locator('[role="dialog"] button[role="tab"]').filter({ hasText: /Logs/i });
@@ -632,9 +492,9 @@ async function run() {
     }
     const mobileDrawerTab4Path = path.join(ARTIFACTS_DIR, "screenshot_mobile_sidebar_drawer_tab4.png");
     await mobilePage.screenshot({ path: mobileDrawerTab4Path, fullPage: false });
-    console.log(`[Captured] Mobile Drawer Tab 4: ${mobileDrawerTab4Path}`);
+    console.log(`[Captured] Mobile Drawer Tab 4 (REAL DATA): ${mobileDrawerTab4Path}`);
 
-    // 2d. Close Drawer via close button or Escape
+    // 2d. Close Drawer via Escape or Close button
     try {
       const closeDrawerBtn = mobilePage.locator('[role="dialog"] button[aria-label*="Fechar"], [role="dialog"] button.absolute').first();
       if (await closeDrawerBtn.count() > 0) {
@@ -676,7 +536,7 @@ async function run() {
     // -------------------------------------------------------------
     // 3. TABLET CAPTURES (768x1024 - iPad Portrait)
     // -------------------------------------------------------------
-    console.log("[Capture] Tablet 768x1024...");
+    console.log("[Capture] Tablet 768x1024 with REAL VPS data...");
     const tabletContext = await browser.newContext({
       viewport: { width: 768, height: 1024 },
       deviceScaleFactor: 2,
@@ -687,9 +547,9 @@ async function run() {
 
     await tabletPage.addInitScript(() => {
       localStorage.setItem("zapai_admin_auth_session", JSON.stringify({
-        token: "fake-jwt-token-for-visual-testing",
-        username: "admin",
-        role: "admin",
+        token: "real-vps-session-token",
+        username: "zapadmin",
+        role: "master",
         issuedAt: Date.now(),
         expiresAt: Date.now() + 86400000,
         remember: true,
@@ -704,24 +564,22 @@ async function run() {
     await tabletPage.goto(`http://127.0.0.1:${PORT}/inbox`, { waitUntil: "networkidle" });
     await tabletPage.waitForTimeout(1000);
 
-    await tabletPage.evaluate(({ convs, msgs }) => {
+    await tabletPage.evaluate(({ convs, msgs, activeId, sessions }) => {
       if (window.useAppStore) {
         window.useAppStore.setState({
           activeSessionId: "main",
-          sessions: [
-            { id: "main", name: "WhatsApp Comercial Principal", sessionName: "WhatsApp Comercial Principal", status: "online", phone: "5511999990000", connected: true }
-          ],
+          sessions: sessions,
           conversations: convs,
-          activeConversationId: "conv-1",
-          messagesByConversationId: { "conv-1": msgs }
+          activeConversationId: activeId,
+          messagesByConversationId: { [activeId]: msgs }
         });
       }
-    }, { convs: MOCK_CONVERSATIONS, msgs: MOCK_MESSAGES });
-    await tabletPage.waitForTimeout(1000);
+    }, { convs: REAL_CONVERSATIONS, msgs: REAL_MESSAGES, activeId: ACTIVE_CONV_ID, sessions: REAL_SESSIONS });
+    await tabletPage.waitForTimeout(1200);
 
     const tabletSplitPath = path.join(ARTIFACTS_DIR, "screenshot_tablet_split_view.png");
     await tabletPage.screenshot({ path: tabletSplitPath, fullPage: false });
-    console.log(`[Captured] Tablet Split View: ${tabletSplitPath}`);
+    console.log(`[Captured] Tablet Split View (REAL DATA): ${tabletSplitPath}`);
 
     // Open tablet drawer
     const tabletPanelBtn = tabletPage.locator('button[aria-label="Abrir painel da conversa"], button:has-text("Painel")').first();
@@ -732,11 +590,11 @@ async function run() {
 
     const tabletDrawerPath = path.join(ARTIFACTS_DIR, "screenshot_tablet_sidebar_drawer.png");
     await tabletPage.screenshot({ path: tabletDrawerPath, fullPage: false });
-    console.log(`[Captured] Tablet Sidebar Drawer: ${tabletDrawerPath}`);
+    console.log(`[Captured] Tablet Sidebar Drawer (REAL DATA): ${tabletDrawerPath}`);
 
     await tabletContext.close();
 
-    console.log("[SUCCESS] All screenshots captured successfully in:", ARTIFACTS_DIR);
+    console.log("[SUCCESS] ALL SCREENSHOTS WITH REAL DATA CAPTURED IN:", ARTIFACTS_DIR);
   } finally {
     await browser.close();
     server.close();

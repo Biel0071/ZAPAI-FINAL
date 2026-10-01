@@ -249,7 +249,7 @@ export function ConversationRow(props: RowComponentProps<ConversationRowData>) {
         )}
 
         <div className="relative shrink-0 flex items-center">
-          <Avatar className="h-11 w-11 border border-border/40">
+          <Avatar className="h-12 w-12 border border-border/40 shrink-0">
             {resolvedAvatar ? (
               <AvatarImage
                 src={resolvedAvatar}
