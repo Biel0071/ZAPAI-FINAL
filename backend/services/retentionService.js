@@ -77,15 +77,20 @@ async function cleanGroupMessages() {
 
   // Delete in batches to avoid long-running transactions
   do {
-    const result = await query(
-      `DELETE FROM messages
-       WHERE id IN (
-         SELECT m.id FROM messages m
-         WHERE m.created_at < $1
-           AND (m.remote_jid LIKE '%@g.us' OR m.phone LIKE '%@g.us')
-         LIMIT $2
-       )`,
+    const toDeleteRes = await query(
+      `SELECT m.id FROM messages m
+       WHERE m.created_at < $1
+         AND (m.remote_jid LIKE '%@g.us' OR m.phone LIKE '%@g.us')
+       LIMIT $2`,
       [cutoff, RETENTION_BATCH_SIZE]
+    );
+
+    const idsToDelete = (toDeleteRes.rows || []).map(r => r.id);
+    if (idsToDelete.length === 0) break;
+
+    const result = await query(
+      `DELETE FROM messages WHERE id = ANY($1::int[])`,
+      [idsToDelete]
     );
     batch = result.rowCount || 0;
     totalDeleted += batch;
@@ -96,15 +101,19 @@ async function cleanGroupMessages() {
   if (await tableExists('whatsapp_history_items')) {
     let historyBatch;
     do {
-      const historyRes = await query(
-        `DELETE FROM whatsapp_history_items
-         WHERE id IN (
-           SELECT id FROM whatsapp_history_items
-           WHERE chat_jid LIKE '%@g.us'
-             AND (occurred_at < $1 OR (occurred_at IS NULL AND created_at < $1))
-           LIMIT $2
-         )`,
+      const toDeleteHistory = await query(
+        `SELECT id FROM whatsapp_history_items
+         WHERE chat_jid LIKE '%@g.us'
+           AND (occurred_at < $1 OR (occurred_at IS NULL AND created_at < $1))
+         LIMIT $2`,
         [cutoff, RETENTION_BATCH_SIZE]
+      );
+      const historyIds = (toDeleteHistory.rows || []).map(r => r.id);
+      if (historyIds.length === 0) break;
+
+      const historyRes = await query(
+        `DELETE FROM whatsapp_history_items WHERE id = ANY($1::bigint[])`,
+        [historyIds]
       );
       historyBatch = historyRes.rowCount || 0;
       historyDeleted += historyBatch;
@@ -190,15 +199,19 @@ async function cleanIndividualMessages(store) {
   if (await tableExists('whatsapp_history_items')) {
     let historyBatch;
     do {
-      const historyRes = await query(
-        `DELETE FROM whatsapp_history_items
-         WHERE id IN (
-           SELECT id FROM whatsapp_history_items
-           WHERE chat_jid NOT LIKE '%@g.us'
-             AND (occurred_at < $1 OR (occurred_at IS NULL AND created_at < $1))
-           LIMIT $2
-         )`,
+      const toDeleteHistory = await query(
+        `SELECT id FROM whatsapp_history_items
+         WHERE chat_jid NOT LIKE '%@g.us'
+           AND (occurred_at < $1 OR (occurred_at IS NULL AND created_at < $1))
+         LIMIT $2`,
         [cutoff, RETENTION_BATCH_SIZE]
+      );
+      const historyIds = (toDeleteHistory.rows || []).map(r => r.id);
+      if (historyIds.length === 0) break;
+
+      const historyRes = await query(
+        `DELETE FROM whatsapp_history_items WHERE id = ANY($1::bigint[])`,
+        [historyIds]
       );
       historyBatch = historyRes.rowCount || 0;
       historyDeleted += historyBatch;

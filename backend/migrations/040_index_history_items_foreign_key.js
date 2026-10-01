@@ -11,12 +11,17 @@ module.exports = {
 
       CREATE INDEX IF NOT EXISTS idx_messages_company_created_at
       ON messages(company_id, created_at);
+
+      CREATE INDEX IF NOT EXISTS idx_messages_group_retention
+      ON messages(created_at)
+      WHERE remote_jid LIKE '%@g.us' OR phone LIKE '%@g.us';
     `);
   },
   async down(client) {
     await client.query(`
       DROP INDEX IF EXISTS idx_history_items_message_id;
       DROP INDEX IF EXISTS idx_messages_company_created_at;
+      DROP INDEX IF EXISTS idx_messages_group_retention;
     `);
   }
 };
