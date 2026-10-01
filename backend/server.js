@@ -241,7 +241,14 @@ console.log(`[SERVER] Bootstrapping on port ${PORT}`);
 logRuntimeWarnings(runtimeEnv);
 
 function getAllowedOrigins() {
-  return [...BASE_ALLOWED_ORIGINS];
+  const origins = new Set([...BASE_ALLOWED_ORIGINS]);
+  for (const o of BASE_ALLOWED_ORIGINS) {
+    if (typeof o === 'string') {
+      if (o.startsWith('http://')) origins.add(o.replace('http://', 'https://'));
+      if (o.startsWith('https://')) origins.add(o.replace('https://', 'http://'));
+    }
+  }
+  return [...origins];
 }
 
 function isOriginAllowed(origin) {
