@@ -70,7 +70,7 @@ import type {
   QuickReplyMediaItem,
 } from "../types";
 
-const CONVERSATIONS_PAGE_SIZE = 20;
+const CONVERSATIONS_PAGE_SIZE = 100;
 const MESSAGE_PAGE_SIZE = 50;
 const MESSAGE_CACHE_TTL_MS = 60_000;
 const DRAFT_TTL_MS = 5 * 60 * 1000;

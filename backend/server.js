@@ -1896,7 +1896,7 @@ async function bootstrap() {
       workerSupervisor.startWorker('connection_recovery');
 
       // Phase 8: Retention worker — daily message cleanup
-      // Groups: messages > 24h | Individuals: messages > 60 days
+      // Groups: messages > 7 days (1 week) | Individuals: messages > 60 days
       // PRESERVES: AI memory, leads, analytics, tags, conversation metadata
       workerSupervisor.registerWorker('message_retention', async () => {
         try {
@@ -1910,6 +1910,19 @@ async function bootstrap() {
         }
       }, 24 * 60 * 60 * 1000, { runImmediately: false }); // Every 24 hours
       workerSupervisor.startWorker('message_retention');
+
+      // Schedule initial retention run after 60s warmup
+      setTimeout(async () => {
+        try {
+          const retentionService = require('./services/retentionService');
+          const report = await retentionService.runRetention(app.locals.store);
+          if (!report.skipped) {
+            console.log(`[SERVER] Initial retention complete: groups=${report.groups?.deleted ?? 0} individual=${report.individual?.deleted ?? 0}`);
+          }
+        } catch (err) {
+          console.error('[SERVER] Initial retention error:', err?.message || err);
+        }
+      }, 60_000);
 
       workerSupervisor.registerWorker('ai_reactivation', async () => {
         try {

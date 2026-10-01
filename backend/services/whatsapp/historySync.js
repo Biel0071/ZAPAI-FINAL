@@ -270,12 +270,12 @@ class HistorySync {
     }
   }
 
-  async requestOlderBatch(companyId, sessionId, count = 5) {
+  async requestOlderBatch(companyId, sessionId, count = 10) {
     const session = activeSessions[sessionId];
     if (session?.status !== 'connected' || !session.sock?.fetchMessageHistory) return;
     const client = this.repository.pool;
 
-    const rows = (await client.query(`
+    let rows = (await client.query(`
       SELECT DISTINCT ON (h.chat_jid) h.chat_jid, h.message_key, h.from_me, h.occurred_at
       FROM whatsapp_history_items h
       LEFT JOIN whatsapp_history_requests r
@@ -286,6 +286,30 @@ class HistorySync {
       ORDER BY h.chat_jid, h.occurred_at ASC
       LIMIT $3
     `, [companyId, sessionId, count])).rows;
+
+    // Fallback: If whatsapp_history_items has fewer than count candidates, also search messages table
+    if (rows.length < count) {
+      const remaining = count - rows.length;
+      const existingJids = rows.map(r => r.chat_jid);
+      const fallbackRows = (await client.query(`
+        SELECT DISTINCT ON (COALESCE(m.remote_jid, m.phone))
+               COALESCE(m.remote_jid, m.phone) AS chat_jid,
+               m.whatsapp_message_id AS message_key,
+               m.from_me,
+               m.created_at AS occurred_at
+        FROM messages m
+        LEFT JOIN whatsapp_history_requests r
+          ON r.company_id = m.company_id AND r.session_id = m.session_id AND r.chat_jid = COALESCE(m.remote_jid, m.phone)
+        WHERE m.company_id = $1 AND m.session_id = $2
+          AND m.whatsapp_message_id IS NOT NULL
+          AND m.whatsapp_message_id NOT LIKE 'stored:%'
+          ${existingJids.length ? `AND COALESCE(m.remote_jid, m.phone) NOT IN (${existingJids.map((_, i) => `$${i + 4}`).join(',')})` : ''}
+          AND (r.oldest_key IS NULL OR r.oldest_key <> m.whatsapp_message_id)
+        ORDER BY COALESCE(m.remote_jid, m.phone), m.created_at ASC
+        LIMIT $3
+      `, [companyId, sessionId, remaining, ...existingJids])).rows;
+      rows = rows.concat(fallbackRows);
+    }
 
     for (const row of rows) {
       try {

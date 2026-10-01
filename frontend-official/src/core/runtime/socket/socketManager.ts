@@ -735,14 +735,18 @@ function bindSharedSocketEvents() {
     });
   });
 
-  sharedSocket.on("conversation_updated", (payload: RawRealtimeConversation) => {
+  const handleConversationUpdated = (payload: RawRealtimeConversation | any) => {
     const normalized = normalizeRealtimeConversation(payload);
     notifySubscribers((subscriber) => subscriber.onConversationUpdated?.(normalized));
-  });
+  };
+  sharedSocket.on("conversation_updated", handleConversationUpdated);
+  sharedSocket.on("conversation:update", handleConversationUpdated);
 
-  sharedSocket.on("chats_loaded", (payload: unknown) => {
+  const handleChatsLoaded = (payload: unknown) => {
     notifySubscribers((subscriber) => subscriber.onChatsLoaded?.(payload));
-  });
+  };
+  sharedSocket.on("chats_loaded", handleChatsLoaded);
+  sharedSocket.on("chats:loaded", handleChatsLoaded);
 
   sharedSocket.on("conversation_snapshot", (payload: unknown) => {
     notifySubscribers((subscriber) => subscriber.onConversationSnapshot?.(payload));

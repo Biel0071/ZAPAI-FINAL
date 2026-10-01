@@ -1378,7 +1378,7 @@ async function createStableSession({
       setTimeout(() => {
         try {
           const { historySync } = require('../historySync');
-          historySync.requestOlderBatch(session.companyId || 'default', normalizedSessionName, 5).catch(() => {});
+          historySync.requestOlderBatch(session.companyId || 'default', normalizedSessionName, 10).catch(() => {});
         } catch (_) {}
       }, 5000);
 
@@ -1655,7 +1655,20 @@ async function createStableSession({
     }
 
     if (type === 'append') {
-      await require('../historySync').historySync.receive(normalizedSessionName, messages || [])
+      const hSync = require('../historySync').historySync;
+      await hSync.receive(normalizedSessionName, messages || [])
+        .then(async () => {
+          try {
+            await hSync.process(session.companyId || 'default', normalizedSessionName);
+            const activeIo = io || session.io || global.io;
+            if (activeIo) {
+              activeIo.emit('conversation:update', { sessionId: normalizedSessionName });
+              activeIo.emit('conversation_updated', { sessionId: normalizedSessionName });
+              activeIo.emit('chats:loaded', { sessionId: normalizedSessionName });
+              activeIo.emit('chats_loaded', { sessionId: normalizedSessionName });
+            }
+          } catch (_) {}
+        })
         .catch(() => pushConnectionLog(session, 'error', 'history_sync', 'Falha ao guardar histórico recebido.'));
       return;
     }
@@ -2245,7 +2258,20 @@ async function createStableSession({
     // Re-emit chats loaded for any late-connecting frontend clients
     emitChatsLoaded(io || global.io, store);
 
-    require('../historySync').historySync.receive(normalizedSessionName, [], chatList)
+    const hSync = require('../historySync').historySync;
+    hSync.receive(normalizedSessionName, [], chatList)
+      .then(async () => {
+        try {
+          await hSync.process(session.companyId || 'default', normalizedSessionName);
+          const activeIo = io || session.io || global.io;
+          if (activeIo) {
+            activeIo.emit('conversation:update', { sessionId: normalizedSessionName });
+            activeIo.emit('conversation_updated', { sessionId: normalizedSessionName });
+            activeIo.emit('chats:loaded', { sessionId: normalizedSessionName });
+            activeIo.emit('chats_loaded', { sessionId: normalizedSessionName });
+          }
+        } catch (_) {}
+      })
       .catch(() => pushConnectionLog(session, 'error', 'history_sync', 'Falha ao guardar lista de conversas.'));
   });
 
@@ -2262,7 +2288,9 @@ async function createStableSession({
           const activeIo = io || session.io || global.io;
           if (activeIo) {
             activeIo.emit('conversation:update', { sessionId: normalizedSessionName });
+            activeIo.emit('conversation_updated', { sessionId: normalizedSessionName });
             activeIo.emit('chats:loaded', { sessionId: normalizedSessionName });
+            activeIo.emit('chats_loaded', { sessionId: normalizedSessionName });
           }
         } catch (_) {}
       })

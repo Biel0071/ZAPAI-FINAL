@@ -190,7 +190,7 @@ async function getConversations(req, res) {
   }
   const search = String(rawSearch || '').trim();
   const requestedLimit = Number(req.query?.limit);
-  const limit = Number.isFinite(requestedLimit) ? Math.min(100, Math.max(1, Math.floor(requestedLimit))) : 50;
+  const limit = Number.isFinite(requestedLimit) ? Math.min(500, Math.max(1, Math.floor(requestedLimit))) : 50;
   const store = getStore(req);
   const sessionId = getOptionalSessionId(req);
 

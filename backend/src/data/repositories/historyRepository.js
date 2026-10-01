@@ -60,16 +60,22 @@ class HistoryRepository {
   }
 
   async importChats(companyId, sessionId) {
-    const chats = (await this.pool.query(`SELECT * FROM whatsapp_history_chats WHERE company_id=$1 AND session_id=$2 AND NOT imported LIMIT 50`, [companyId, sessionId])).rows;
-    for (const chat of chats) {
-      const client = await this.pool.connect();
-      try {
-        await client.query('BEGIN');
-        await client.query('SELECT pg_advisory_xact_lock(hashtext($1))', [JSON.stringify([companyId, sessionId, chat.chat_jid])]);
-        await this.ensureConversation(client, chat);
-        await client.query(`UPDATE whatsapp_history_chats SET imported=TRUE WHERE company_id=$1 AND session_id=$2 AND chat_jid=$3`, [companyId, sessionId, chat.chat_jid]);
-        await client.query('COMMIT');
-      } catch (error) { await client.query('ROLLBACK'); throw error; } finally { client.release(); }
+    let importedTotal = 0;
+    while (importedTotal < 500) {
+      const chats = (await this.pool.query(`SELECT * FROM whatsapp_history_chats WHERE company_id=$1 AND session_id=$2 AND NOT imported LIMIT 100`, [companyId, sessionId])).rows;
+      if (!chats.length) break;
+      for (const chat of chats) {
+        const client = await this.pool.connect();
+        try {
+          await client.query('BEGIN');
+          await client.query('SELECT pg_advisory_xact_lock(hashtext($1))', [JSON.stringify([companyId, sessionId, chat.chat_jid])]);
+          await this.ensureConversation(client, chat);
+          await client.query(`UPDATE whatsapp_history_chats SET imported=TRUE WHERE company_id=$1 AND session_id=$2 AND chat_jid=$3`, [companyId, sessionId, chat.chat_jid]);
+          await client.query('COMMIT');
+        } catch (error) { await client.query('ROLLBACK'); throw error; } finally { client.release(); }
+      }
+      importedTotal += chats.length;
+      if (chats.length < 100) break;
     }
   }
 
@@ -108,7 +114,7 @@ class HistoryRepository {
       const origin = message.message_origin && message.message_origin !== 'unknown' ? message.message_origin : message.sender === 'ai' || message.sender === 'bot' ? 'ai' : item.origin;
       // Only refresh preview if this really is the newest stored message. Preserve status and unread count.
       await client.query(`UPDATE conversations c SET last_message=$4,last_message_type=$5,updated_at=$6
-        WHERE c.id=$1 AND c.company_id=$2 AND c.session_id=$3 AND c.updated_at <= $6
+        WHERE c.id=$1 AND c.company_id=$2 AND c.session_id=$3 AND (c.last_message IS NULL OR c.updated_at <= $6)
         AND NOT EXISTS(SELECT 1 FROM messages m WHERE m.company_id=$2 AND m.session_id=$3 AND m.conversation_id=c.id AND m.timestamp > $6)`,
       [conversation.id, item.company_id, item.session_id, payload.text || `[${payload.mediaType || 'text'}]`, payload.mediaType || 'text', item.occurred_at || new Date()]);
       await client.query(`UPDATE whatsapp_history_items SET import_state='done',message_id=$4,text=$5,media_type=$6,

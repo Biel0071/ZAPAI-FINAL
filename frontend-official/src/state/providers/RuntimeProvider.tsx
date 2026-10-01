@@ -227,7 +227,7 @@ export function RuntimeProvider({ children }: { children: ReactNode }) {
       const [sessionsResult, conversationsResult, metricsResult] = await Promise.allSettled([
         apiService.listSessions(),
         apiService.getConversations(Boolean(options?.forceConversations), {
-          limit: 30,
+          limit: 100,
           sessionId: conversationSessionId,
         }),
         apiService.getMetrics(activeSessionId),
@@ -406,15 +406,36 @@ export function RuntimeProvider({ children }: { children: ReactNode }) {
 
       // ─── Conversation events → Zustand store ────────────
       onConversationUpdated: (incoming) => {
-        if (!incoming?.id) return;
+        if (!incoming?.id) {
+          const sessionId = (incoming as any)?.sessionId;
+          if (sessionId) {
+            void apiService.getConversations(true, { limit: 100, sessionId })
+              .then((rows) => {
+                if (Array.isArray(rows) && rows.length > 0) {
+                  useAppStore.getState().setConversations(rows);
+                }
+              })
+              .catch(() => {});
+          }
+          return;
+        }
         useAppStore.getState().upsertConversation(incoming);
       },
 
       onChatsLoaded: (payload) => {
         const loadedChats = parseChatsLoadedPayload(payload);
-        if (!loadedChats.length) return;
-        const store = useAppStore.getState();
-        loadedChats.forEach((chat) => store.upsertConversation(chat));
+        if (loadedChats.length > 0) {
+          const store = useAppStore.getState();
+          loadedChats.forEach((chat) => store.upsertConversation(chat));
+        } else if ((payload as any)?.sessionId) {
+          void apiService.getConversations(true, { limit: 100, sessionId: (payload as any).sessionId })
+            .then((rows) => {
+              if (Array.isArray(rows) && rows.length > 0) {
+                useAppStore.getState().setConversations(rows);
+              }
+            })
+            .catch(() => {});
+        }
       },
 
       onConversationSnapshot: (payload) => {
