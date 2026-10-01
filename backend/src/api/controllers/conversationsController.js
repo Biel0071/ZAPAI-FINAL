@@ -209,8 +209,10 @@ async function getConversations(req, res) {
       });
 
       const decorated = (Array.isArray(sortedConversations) ? sortedConversations : []).map((conv) => {
-        const chatJid = conv.remote_jid || conv.remoteJid || conv.chatId || (conv.phone ? `${String(conv.phone).replace(/\D/g, '')}@s.whatsapp.net` : null);
-        const cached = chatJid ? avatarCache.get(`${companyId}:${chatJid}`) : null;
+        const chatJid = conv.remote_jid || conv.remoteJid || conv.chatId;
+        const cleanPhone = conv.phone ? String(conv.phone).replace(/\D/g, '') : '';
+        const phoneJid = cleanPhone ? `${cleanPhone}@s.whatsapp.net` : null;
+        const cached = (phoneJid && avatarCache.get(`${companyId}:${phoneJid}`)) || (chatJid && avatarCache.get(`${companyId}:${chatJid}`));
         if (cached && cached.url && !conv.avatar) {
           conv.avatar = cached.url;
           conv.profilePictureUrl = cached.url;
@@ -999,6 +1001,7 @@ async function deleteConversation(req, res) {
 async function getConversationAvatar(req, res) {
   const { conversationId } = req.params;
   const companyId = String(req.authTenantId || req.auth?.tenantId || req.auth?.companyId || '').trim();
+  const forceRefresh = String(req.query?.force || '').toLowerCase() === 'true';
 
   try {
     const conversation = await conversationRepository.getConversationById(conversationId, companyId);
@@ -1007,19 +1010,30 @@ async function getConversationAvatar(req, res) {
     }
 
     const sessionId = sessionManager.normalizeSessionName(conversation.session_id || conversation.sessionId || 'main');
+    const cleanPhone = conversation.phone ? String(conversation.phone).replace(/\D/g, '') : '';
+    const phoneJid = cleanPhone ? `${cleanPhone}@s.whatsapp.net` : null;
     let chatJid = conversation.remote_jid || conversation.remoteJid || conversation.chatId;
-    if (!chatJid && conversation.phone) {
-      const clean = String(conversation.phone).replace(/\D/g, '');
-      chatJid = `${clean}@s.whatsapp.net`;
+
+    const candidates = [];
+    if (chatJid && String(chatJid).includes('@lid') && phoneJid) {
+      candidates.push(phoneJid);
+      candidates.push(chatJid);
+    } else if (chatJid) {
+      candidates.push(chatJid);
+      if (phoneJid && !candidates.includes(phoneJid)) candidates.push(phoneJid);
+    } else if (phoneJid) {
+      candidates.push(phoneJid);
     }
 
-    if (!chatJid) {
+    if (candidates.length === 0) {
       return res.status(200).json({ avatarUrl: null });
     }
 
-    const cacheKey = `${companyId}:${chatJid}`;
-    const cached = avatarCache.get(cacheKey);
-    if (cached && cached.expiresAt > Date.now()) {
+    const primaryJid = candidates[0];
+    const cacheKey = `${companyId}:${primaryJid}`;
+    const cached = avatarCache.get(cacheKey) || (phoneJid ? avatarCache.get(`${companyId}:${phoneJid}`) : null);
+
+    if (!forceRefresh && cached && cached.expiresAt > Date.now()) {
       if (req.query?.redirect === 'true' && cached.url) {
         return res.redirect(302, cached.url);
       }
@@ -1030,24 +1044,28 @@ async function getConversationAvatar(req, res) {
     const sock = session?.sock;
 
     if (!sock || typeof sock.profilePictureUrl !== 'function') {
-      return res.status(200).json({ avatarUrl: null });
+      return res.status(200).json({ avatarUrl: cached?.url || null });
     }
 
     let url = null;
-    try {
-      url = await sock.profilePictureUrl(chatJid, 'image');
-    } catch (_) {
+    for (const targetJid of candidates) {
       try {
-        url = await sock.profilePictureUrl(chatJid, 'preview');
-      } catch (__) {
-        url = null;
+        url = await sock.profilePictureUrl(targetJid, 'image');
+        if (url) break;
+      } catch (_) {
+        try {
+          url = await sock.profilePictureUrl(targetJid, 'preview');
+          if (url) break;
+        } catch (__) {
+          // continue with next candidate
+        }
       }
     }
 
-    avatarCache.set(cacheKey, {
-      url,
-      expiresAt: Date.now() + (url ? AVATAR_TTL_MS : AVATAR_MISS_TTL_MS),
-    });
+    const expiresAt = Date.now() + (url ? AVATAR_TTL_MS : AVATAR_MISS_TTL_MS);
+    for (const jid of candidates) {
+      avatarCache.set(`${companyId}:${jid}`, { url, expiresAt });
+    }
 
     if (req.query?.redirect === 'true' && url) {
       return res.redirect(302, url);

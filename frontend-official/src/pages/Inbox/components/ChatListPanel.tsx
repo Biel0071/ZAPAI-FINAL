@@ -15,7 +15,8 @@ import {
 import { cn } from "@/core/lib/utils";
 import type { Conversation, SessionInfo } from "@/core/services/apiService";
 import { ConversationRow } from "./ConversationRow";
-import { isSessionActive } from "../utils";
+import { isSessionActive, getTagColor } from "../utils";
+import { TagIconBadge } from "@/components/inbox/TagIconBadge";
 
 interface ChatListPanelProps {
   searchQuery: string;
@@ -319,14 +320,19 @@ export function ChatListPanel({
                   Etiquetar
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="start" className="w-44">
+              <DropdownMenuContent align="start" className="w-48">
                 {BUSINESS_TAG_OPTIONS.map((tag) => (
                   <DropdownMenuItem
                     key={tag}
                     onClick={() => handleBulkAddTag(tag)}
-                    className="text-xs cursor-pointer"
+                    className="text-xs cursor-pointer py-1.5"
                   >
-                    Adicionar {tag}
+                    <TagIconBadge
+                      tag={tag}
+                      colorClass={getTagColor(tag)}
+                      size="xs"
+                      interactive={false}
+                    />
                   </DropdownMenuItem>
                 ))}
               </DropdownMenuContent>

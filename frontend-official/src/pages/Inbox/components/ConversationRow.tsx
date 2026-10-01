@@ -40,57 +40,8 @@ import {
   getTagColor,
   formatPhoneNumber,
 } from "../utils";
-
-const avatarMemoryCache = new Map<string, string | null>();
-const avatarInFlight = new Map<string, Promise<string | null>>();
-
-function useResolvedAvatar(conversationId: string, initialAvatar?: string) {
-  const [avatar, setAvatar] = useState<string | null>(initialAvatar || avatarMemoryCache.get(conversationId) || null);
-
-  useEffect(() => {
-    if (initialAvatar) {
-      avatarMemoryCache.set(conversationId, initialAvatar);
-      setAvatar(initialAvatar);
-      return;
-    }
-
-    if (avatarMemoryCache.has(conversationId)) {
-      setAvatar(avatarMemoryCache.get(conversationId) || null);
-      return;
-    }
-
-    let isMounted = true;
-    let promise = avatarInFlight.get(conversationId);
-    if (!promise) {
-      promise = fetch(`/api/conversations/${encodeURIComponent(conversationId)}/avatar`, { credentials: "include" })
-        .then((res) => (res.ok ? res.json() : null))
-        .then((data) => {
-          const url = (data?.avatarUrl as string) || null;
-          avatarMemoryCache.set(conversationId, url);
-          avatarInFlight.delete(conversationId);
-          return url;
-        })
-        .catch(() => {
-          avatarMemoryCache.set(conversationId, null);
-          avatarInFlight.delete(conversationId);
-          return null;
-        });
-      avatarInFlight.set(conversationId, promise);
-    }
-
-    promise.then((url) => {
-      if (isMounted) {
-        setAvatar(url);
-      }
-    });
-
-    return () => {
-      isMounted = false;
-    };
-  }, [conversationId, initialAvatar]);
-
-  return avatar;
-}
+import { useResolvedAvatar } from "@/hooks/useResolvedAvatar";
+import { TagIconBadge } from "@/components/inbox/TagIconBadge";
 
 export interface ConversationRowData {
   conversations: Conversation[];
@@ -269,8 +220,27 @@ export function ConversationRow(props: RowComponentProps<ConversationRowData>) {
 
         <div className="min-w-0 flex-1 flex flex-col justify-between h-full py-0.5">
           <div className="flex items-center justify-between gap-1">
-            <h4 className="truncate text-xs md:text-sm font-semibold text-foreground/95 leading-none flex items-baseline gap-1.5 min-w-0">
+            <h4 className="truncate text-xs md:text-sm font-semibold text-foreground/95 leading-none flex items-center gap-1.5 min-w-0">
               <span className="truncate">{cleanDisplayName}</span>
+              {conversation.tags && conversation.tags.length > 0 && (
+                <span className="inline-flex items-center gap-1 shrink-0">
+                  {conversation.tags.slice(0, 2).map((t) => (
+                    <TagIconBadge
+                      key={t}
+                      tag={t}
+                      colorClass={getTagColor(t)}
+                      size="xs"
+                      interactive={false}
+                      className="py-0 px-1 text-[9px] h-4 max-w-[90px]"
+                    />
+                  ))}
+                  {conversation.tags.length > 2 && (
+                    <span className="text-[9px] text-muted-foreground/70 font-mono">
+                      +{conversation.tags.length - 2}
+                    </span>
+                  )}
+                </span>
+              )}
             </h4>
             <div className="flex items-center gap-1.5 shrink-0">
               {pinnedChatIds.includes(conversation.id) && (
@@ -385,7 +355,7 @@ export function ConversationRow(props: RowComponentProps<ConversationRowData>) {
                             <Plus className="h-3.5 w-3.5" />
                             Trocar Etiqueta
                           </DropdownMenuSubTrigger>
-                          <DropdownMenuSubContent className="w-40">
+                          <DropdownMenuSubContent className="w-48">
                             {BUSINESS_TAG_OPTIONS.map((tag) => {
                               const hasTag = (conversation.tags ?? []).includes(tag);
                               return (
@@ -399,9 +369,14 @@ export function ConversationRow(props: RowComponentProps<ConversationRowData>) {
                                       : currentTags.filter((t) => t !== tag);
                                     onUpdateTags(conversation.id, nextTags);
                                   }}
-                                  className="text-xs cursor-pointer"
+                                  className="text-xs cursor-pointer py-1.5"
                                 >
-                                  {tag}
+                                  <TagIconBadge
+                                    tag={tag}
+                                    colorClass={getTagColor(tag)}
+                                    size="xs"
+                                    interactive={false}
+                                  />
                                 </DropdownMenuCheckboxItem>
                               );
                             })}

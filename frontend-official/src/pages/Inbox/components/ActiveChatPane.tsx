@@ -36,8 +36,8 @@ import {
   DropdownMenuItem,
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ChatHeaderBar } from "@/components/inbox/ChatHeaderBar";
+import { useResolvedAvatar } from "@/hooks/useResolvedAvatar";
 import { NewMessagesBanner } from "@/components/inbox/NewMessagesBanner";
 import { MessageRow } from "./MessageRow";
 import { QuickResponseModal, type QuickResponseItem } from "./QuickResponseModal";
@@ -258,6 +258,11 @@ export function ActiveChatPane({
   const [activeFlowData, setActiveFlowData] = useState<FlowExecutionData | null>(null);
   const quickReplyDispatchRef = useRef(false);
   const { resolvedTheme } = useTheme();
+
+  const { avatar: activeChatAvatar } = useResolvedAvatar(
+    selectedConversation?.id,
+    selectedConversation?.avatar || (selectedConversation as any)?.profilePictureUrl,
+  );
 
   useEffect(() => {
     setSelectedQuickReplyModal(null);
@@ -524,7 +529,8 @@ export function ActiveChatPane({
               (selectedConversation.contactName || "").replace(/@lid.*/, "").replace(/@s\.whatsapp\.net.*/, "").trim() ||
               (selectedConversation.phone ? formatPhoneNumber(selectedConversation.phone) : "Contato")
             }
-            avatar={selectedConversation.avatar || ""}
+            avatar={activeChatAvatar || ""}
+            tags={selectedConversation.tags ?? []}
             initials={(selectedConversation.contactName || "C").slice(0, 2).toUpperCase()}
             isMobile={isMobile}
             onBack={onBack ?? (() => setShowLeadPanel(false))}

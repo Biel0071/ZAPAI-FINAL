@@ -36,6 +36,10 @@ import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { ArrowClockwise } from "@phosphor-icons/react";
+import { useResolvedAvatar } from "@/hooks/useResolvedAvatar";
+import { TagIconBadge } from "@/components/inbox/TagIconBadge";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -51,6 +55,7 @@ import {
   extractMessageAssetUrl,
   formatPhoneNumber,
   getConversationSourceLabel,
+  getInitials,
   getMediaFileName,
   getMediaTypeLabel,
   getQuickReplyPreviewText,
@@ -259,6 +264,22 @@ export function SidebarPanel({
   const [qrTypeFilter, setQrTypeFilter] = useState<"all" | "text" | "audio" | "video" | "image" | "flow">("all");
   const [qrPillFilter, setQrPillFilter] = useState<"all" | "favorites" | "uncategorized">("all");
   const [collapsedCategories, setCollapsedCategories] = useState<Record<string, boolean>>({});
+
+  const { avatar: leadAvatar, refetch: refetchAvatar } = useResolvedAvatar(
+    selectedConversation?.id,
+    selectedConversation?.avatar || (selectedConversation as any)?.profilePictureUrl,
+  );
+  const [refreshingAvatar, setRefreshingAvatar] = useState(false);
+
+  const handleRefreshAvatar = async () => {
+    if (!selectedConversation?.id || refreshingAvatar) return;
+    setRefreshingAvatar(true);
+    try {
+      await refetchAvatar({ force: true });
+    } finally {
+      setRefreshingAvatar(false);
+    }
+  };
 
   useEffect(() => {
     setPreviewReply(null);
@@ -532,7 +553,7 @@ export function SidebarPanel({
             {/* Box 2: Dados do Cliente */}
             <section className="space-y-3 rounded-xl border border-border/60 bg-card/40 p-3.5">
               <div className="flex items-center justify-between">
-                <h3 className="font-semibold">Dados do Cliente</h3>
+                <h3 className="font-semibold text-sm">Dados do Cliente</h3>
                 {selectedConversation.phone && (
                   <Button
                     size="sm"
@@ -546,12 +567,44 @@ export function SidebarPanel({
                 )}
               </div>
 
-              <p className="break-words text-base font-semibold">{cleanName}</p>
-              {selectedConversation.phone && (
-                <p className="font-mono text-xs text-muted-foreground">
-                  {formatPhoneNumber(selectedConversation.phone)}
-                </p>
-              )}
+              {/* Contact Avatar + Name + Phone */}
+              <div className="flex items-center gap-3">
+                <div className="relative group/avatar shrink-0">
+                  <Avatar className="h-12 w-12 border border-border/60 shadow-xs">
+                    {leadAvatar ? (
+                      <AvatarImage
+                        src={leadAvatar}
+                        alt={cleanName}
+                        className="object-cover"
+                      />
+                    ) : null}
+                    <AvatarFallback className="bg-primary/10 font-bold text-sm text-primary">
+                      {getInitials(cleanName)}
+                    </AvatarFallback>
+                  </Avatar>
+                  <button
+                    type="button"
+                    onClick={() => void handleRefreshAvatar()}
+                    disabled={refreshingAvatar}
+                    className="absolute -bottom-1 -right-1 h-5 w-5 rounded-full bg-background border border-border shadow-xs flex items-center justify-center text-muted-foreground hover:text-primary transition-all opacity-80 group-hover/avatar:opacity-100"
+                    title="Atualizar foto do WhatsApp"
+                    aria-label="Atualizar foto do WhatsApp"
+                  >
+                    <ArrowClockwise className={cn("h-3 w-3", refreshingAvatar && "animate-spin text-primary")} />
+                  </button>
+                </div>
+
+                <div className="min-w-0 flex-1">
+                  <p className="break-words text-sm font-semibold truncate" title={cleanName}>
+                    {cleanName}
+                  </p>
+                  {selectedConversation.phone && (
+                    <p className="font-mono text-xs text-muted-foreground">
+                      {formatPhoneNumber(selectedConversation.phone)}
+                    </p>
+                  )}
+                </div>
+              </div>
 
               <dl className="grid grid-cols-2 gap-2 text-xs">
                 <div className="rounded-lg bg-muted/30 p-2">
@@ -566,20 +619,19 @@ export function SidebarPanel({
 
               {/* Tags */}
               <div className="border-t border-border/40 pt-3">
-                <p className="mb-2 text-xs font-medium text-muted-foreground">Etiquetas</p>
+                <div className="flex items-center justify-between mb-2">
+                  <p className="text-xs font-medium text-muted-foreground">Etiquetas</p>
+                  <span className="text-[10px] text-muted-foreground/70">Clique no ícone para alterar</span>
+                </div>
                 <div className="flex flex-wrap gap-1.5">
                   {(selectedConversation.tags ?? []).map((tag) => (
-                    <Badge key={tag} variant="outline" className={cn("gap-1 py-0.5 text-xs", getTagColor(tag))}>
-                      {tag}
-                      <button
-                        type="button"
-                        onClick={() => handleRemoveTagFromSelectedConversation(tag)}
-                        aria-label={`Remover etiqueta ${tag}`}
-                        className="rounded hover:text-destructive"
-                      >
-                        <Trash2 className="h-3 w-3" />
-                      </button>
-                    </Badge>
+                    <TagIconBadge
+                      key={tag}
+                      tag={tag}
+                      colorClass={getTagColor(tag)}
+                      interactive={true}
+                      onRemove={() => handleRemoveTagFromSelectedConversation(tag)}
+                    />
                   ))}
                   {!selectedConversation.tags?.length && (
                     <span className="text-xs text-muted-foreground">Nenhuma etiqueta.</span>

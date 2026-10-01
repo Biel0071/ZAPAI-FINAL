@@ -23,6 +23,8 @@ import {
   Chat,
   MagicWand,
 } from "@phosphor-icons/react";
+import { TagIconBadge } from "@/components/inbox/TagIconBadge";
+import { getTagColor } from "@/pages/Inbox/utils";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -264,11 +266,18 @@ export function LeadDrawer({ lead, onClose, onUpdateLead }: LeadDrawerProps) {
                     Etiquetas & Tags Inteligentes
                   </span>
                   <div className="flex flex-wrap gap-1.5">
-                    {(lead.tags && lead.tags.length > 0 ? lead.tags : ["Sem tags"]).map((tag) => (
-                      <Badge key={tag} variant="secondary" className="rounded-lg text-[10px] px-2.5 py-1">
-                        {tag}
-                      </Badge>
+                    {(lead.tags && lead.tags.length > 0 ? lead.tags : []).map((tag) => (
+                      <TagIconBadge
+                        key={tag}
+                        tag={tag}
+                        colorClass={getTagColor(tag)}
+                        size="xs"
+                        interactive={false}
+                      />
                     ))}
+                    {(!lead.tags || lead.tags.length === 0) && (
+                      <span className="text-xs text-muted-foreground">Sem etiquetas.</span>
+                    )}
                   </div>
                 </Card>
 

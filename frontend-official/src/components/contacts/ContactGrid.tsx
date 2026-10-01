@@ -14,6 +14,8 @@ import {
   DropdownMenuSubTrigger,
   DropdownMenuSubContent,
 } from "@/components/ui/dropdown-menu";
+import { TagIconBadge } from "@/components/inbox/TagIconBadge";
+import { getTagColor } from "@/pages/Inbox/utils";
 
 export interface ContactGridItem {
   id: string;
@@ -128,10 +130,14 @@ export function ContactGrid({
 
               <div className="mb-4 flex min-h-[22px] flex-wrap gap-1.5">
                 {contact.tags.slice(0, 3).map((tag) => (
-                  <Badge key={tag} variant="outline" className="rounded-full bg-muted/20 px-2 py-0 text-[9px]">
-                    <Tag className="mr-0.5 h-2.5 w-2.5" />
-                    {tag}
-                  </Badge>
+                  <TagIconBadge
+                    key={tag}
+                    tag={tag}
+                    colorClass={getTagColor(tag)}
+                    size="xs"
+                    interactive={false}
+                    className="rounded-full px-2 py-0 text-[9px]"
+                  />
                 ))}
                 {contact.tags.length > 3 && <span className="text-[10px] text-muted-foreground">+{contact.tags.length - 3}</span>}
               </div>

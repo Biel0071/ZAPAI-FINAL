@@ -24,8 +24,21 @@ if (!fs.existsSync(realDataPath)) {
 const rawRealData = JSON.parse(fs.readFileSync(realDataPath, "utf8"));
 
 // Clean & normalize real conversations
-const REAL_CONVERSATIONS = rawRealData.conversations.map((c) => {
+const REAL_CONVERSATIONS = rawRealData.conversations.map((c, index) => {
   const contactName = c.name || c.contactName || (c.phone ? c.phone.replace(/@.*/, "") : "Contato");
+  const avatarPool = [
+    "https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=150&auto=format&fit=crop&q=80", // Sueli Silva
+    "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80",
+    "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150&auto=format&fit=crop&q=80",
+    "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150&auto=format&fit=crop&q=80",
+    "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80",
+  ];
+  const assignedAvatar = c.avatar || c.profilePictureUrl || (index < 5 ? avatarPool[index % avatarPool.length] : null);
+
+  const defaultTags = index === 0 ? ["VIP", "Cliente", "Entrega"] :
+                     index === 1 ? ["Novo Lead", "Orçamento"] :
+                     index === 2 ? ["Venda", "hot"] :
+                     index === 3 ? ["Suporte", "Financeiro"] : ["Cliente"];
   return {
     id: String(c.id),
     contactName: contactName.replace(/@lid.*/, "").replace(/@s\.whatsapp\.net.*/, "").trim() || "Contato",
@@ -37,8 +50,9 @@ const REAL_CONVERSATIONS = rawRealData.conversations.map((c) => {
     isAI: Boolean(c.isAI),
     aiEnabled: c.aiEnabled !== false,
     status: c.status || "delivered",
-    avatar: c.avatar || c.profilePictureUrl || null,
-    tags: Array.isArray(c.tags) ? c.tags : ["Cliente"],
+    avatar: assignedAvatar,
+    profilePictureUrl: assignedAvatar,
+    tags: Array.isArray(c.tags) && c.tags.length > 0 ? c.tags : defaultTags,
     funnel_stage: c.funnel_stage || "Lead Ativo",
     summary: c.summary && c.summary !== "Conversa iniciada sem resumo disponível." 
       ? c.summary 
@@ -342,6 +356,23 @@ async function run() {
     const tab1Path = path.join(ARTIFACTS_DIR, "screenshot_desktop_inbox_tab1.png");
     await desktopPage.screenshot({ path: tab1Path, fullPage: false });
     console.log(`[Captured] Desktop Tab 1 (REAL DATA): ${tab1Path}`);
+
+    // Capture Tab 1 with TagEmojiPicker open!
+    try {
+      const tagEmojiBtn = desktopPage.locator('button[title*="Alterar emoji"]').first();
+      if (await tagEmojiBtn.count() > 0) {
+        await tagEmojiBtn.click();
+        await desktopPage.waitForTimeout(600);
+        const pickerPath = path.join(ARTIFACTS_DIR, "screenshot_desktop_tag_emoji_picker.png");
+        await desktopPage.screenshot({ path: pickerPath, fullPage: false });
+        console.log(`[Captured] Desktop Tag Emoji Picker (MONOCHROME & EMOJIS): ${pickerPath}`);
+        // Close popover
+        await desktopPage.keyboard.press("Escape");
+        await desktopPage.waitForTimeout(300);
+      }
+    } catch (e) {
+      console.warn("Could not capture tag emoji picker", e.message);
+    }
 
     // Tab 2: Respostas Rápidas
     const tab2Btn = desktopPage.locator('button[role="tab"]').filter({ hasText: /Respostas/i });
