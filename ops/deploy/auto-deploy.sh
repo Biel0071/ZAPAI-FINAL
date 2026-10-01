@@ -106,9 +106,9 @@ mv "$WEB_ROOT" "${WEB_ROOT}.previous-$STAMP"
 SWAPPED=true
 mv "$NEXT_WEB" "$WEB_ROOT"
 pm2 reload zapflow-api
-for attempt in $(seq 1 12); do
+for attempt in $(seq 1 30); do
   if curl -fsS "http://127.0.0.1:${PORT:-4025}/api/health" > "$SNAPSHOT/health.json" && node -e "const h=require(process.argv[1]);if(h.backend!==true||h.database?.status!=='online'||h.system?.socket!=='connected')process.exit(1)" "$SNAPSHOT/health.json"; then break; fi
-  if [[ "$attempt" == 12 ]]; then false; fi
+  if [[ "$attempt" == 30 ]]; then false; fi
   sleep 3
 done
 curl -fLsS --max-redirs 3 --max-time 30 --header 'Host: 209.50.241.22' http://127.0.0.1/ > "$SNAPSHOT/served-index.html"
