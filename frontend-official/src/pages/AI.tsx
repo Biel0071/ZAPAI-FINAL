@@ -65,11 +65,11 @@ function resolveAIEnabled(status: AIStatusResponse | null): boolean {
   return false;
 }
 
-export default function AI() {
+export default function AI({ defaultSection }: { defaultSection?: SectionId } = {}) {
   const { toast } = useToast();
   const [searchParams, setSearchParams] = useSearchParams();
   const tabParam = searchParams.get("tab") as SectionId | null;
-  const [activeSection, setActiveSection] = useState<SectionId>("evolution");
+  const [activeSection, setActiveSection] = useState<SectionId>(() => defaultSection || "evolution");
   const activeSessionId = useAppStore((state) => state.activeSessionId);
   const sessions = useAppStore((state) => state.sessions);
   const [automationScope, setAutomationScope] = useState<AIAutomationScope | null>(null);
@@ -80,10 +80,12 @@ export default function AI() {
   useEffect(() => {
     if (tabParam && ["dashboard", "atendentes", "provedores", "conhecimento", "operacao", "analise", "evolution", "playbooks"].includes(tabParam)) {
       setActiveSection(tabParam);
+    } else if (defaultSection) {
+      setActiveSection(defaultSection);
     } else if (!tabParam) {
       setSearchParams({ tab: "evolution" }, { replace: true });
     }
-  }, [tabParam, setSearchParams]);
+  }, [tabParam, defaultSection, setSearchParams]);
 
   const handleSectionChange = (section: SectionId) => {
     setActiveSection(section);
@@ -785,6 +787,7 @@ export default function AI() {
         onRunProviderTests={() => void runProviderTests()}
         aiLogs={aiLogs}
         aiMetrics={aiMetrics}
+        activeSection={activeSection}
       />
 
       {/* ZAPFLOW AI Voices Studio Drawer */}

@@ -175,6 +175,8 @@ const App = () => {
                       <Route path="/contacts" element={<PageRouteBoundary pageName="Contatos"><Contacts /></PageRouteBoundary>} />
                       <Route path="/flows" element={<ProtectedRoute minRole="admin"><PageRouteBoundary pageName="Fluxos"><Flows /></PageRouteBoundary></ProtectedRoute>} />
                       <Route path="/ai" element={<PageRouteBoundary pageName="Inteligência Artificial"><AI /></PageRouteBoundary>} />
+                      <Route path="/evolution" element={<PageRouteBoundary pageName="Evolução IA"><AI defaultSection="evolution" /></PageRouteBoundary>} />
+                      <Route path="/evolucao" element={<Navigate to="/evolution" replace />} />
                       <Route path="/analytics" element={<Navigate to="/dashboard?tab=analytics" replace />} />
                       <Route path="/operations" element={<ProtectedRoute minRole="user"><PageRouteBoundary pageName="Operações"><Operations /></PageRouteBoundary></ProtectedRoute>} />
                       <Route path="/campaigns" element={<PageRouteBoundary pageName="Campanhas"><Campaigns /></PageRouteBoundary>} />

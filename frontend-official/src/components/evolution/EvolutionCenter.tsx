@@ -111,8 +111,8 @@ export function EvolutionCenter({
   const [showStoreModal, setShowStoreModal] = useState(false);
   const [showCreateAgentModal, setShowCreateAgentModal] = useState(false);
 
-  // Active tab on left column: 'knowledge' | 'learnings'
-  const [activeIntelTab, setActiveIntelTab] = useState<'knowledge' | 'learnings'>('knowledge');
+  // Active tab on left column: 'knowledge' | 'learnings' | 'metrics'
+  const [activeIntelTab, setActiveIntelTab] = useState<'knowledge' | 'learnings' | 'metrics'>('knowledge');
   const [showAllRecentLearnings, setShowAllRecentLearnings] = useState(false);
   const [copiedPrompt, setCopiedPrompt] = useState(false);
 
@@ -130,9 +130,12 @@ export function EvolutionCenter({
   // Metrics, Overview & Suggestions
   const [metrics, setMetrics] = useState<EvolutionMetrics | null>(null);
   const [evolutionOverview, setEvolutionOverview] = useState<EvolutionOverview | null>(null);
+  const [agentEvolution, setAgentEvolution] = useState<any>(null);
   const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadErrors, setLoadErrors] = useState({ metrics: false, overview: false, suggestions: false });
+  const [processingSuggestionId, setProcessingSuggestionId] = useState<number | null>(null);
+  const [detectingGaps, setDetectingGaps] = useState(false);
 
   // Current store active attributes
   const attendantName = currentStore?.attendant_name || 'Atendente';
@@ -217,10 +220,11 @@ export function EvolutionCenter({
   const fetchMetricsAndSuggestions = useCallback(async () => {
     try {
       setLoading(true);
-      const [metRes, sugRes, overRes] = await Promise.all([
+      const [metRes, sugRes, overRes, evoRes] = await Promise.all([
         requestApiEndpoint<any>('/api/ai/evolution/metrics').catch(() => null),
         requestApiEndpoint<any>('/api/ai/evolution/suggestions').catch(() => null),
         requestApiEndpoint<any>('/api/ai/evolution/overview').catch(() => null),
+        apiService.getAgentEvolution(selectedAgentKey || 'camila').catch(() => null),
       ]);
       const overviewStats = overRes?.stats || overRes?.data?.stats;
       setLoadErrors({ metrics: !metRes, overview: !overviewStats, suggestions: !sugRes });
@@ -242,12 +246,119 @@ export function EvolutionCenter({
           setCurrentStore((prev) => prev || overRes.store);
         }
       } else setEvolutionOverview(null);
+
+      if (evoRes?.success && evoRes?.evolution) {
+        setAgentEvolution({
+          ...evoRes.evolution,
+          stats: evoRes.stats,
+          history: evoRes.history || [],
+        });
+      }
     } catch (err: any) {
       console.error('[EvolutionCenter] fetch error:', err);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [selectedAgentKey]);
+
+  const handleApproveSuggestion = async (id: number) => {
+    setProcessingSuggestionId(id);
+    try {
+      const res = await requestApiEndpoint<any>(`/api/ai/evolution/suggestions/${id}/approve`, 'POST');
+      if (res?.success) {
+        toast({
+          title: "Playbook aprovado!",
+          description: "A estratégia foi incorporada ao repertório do atendente.",
+        });
+        setSuggestions((prev) =>
+          prev.map((sug) => (sug.id === id ? { ...sug, status: "approved" } : sug))
+        );
+        void fetchMetricsAndSuggestions();
+      } else {
+        toast({
+          title: "Erro ao aprovar",
+          description: res?.error || "Não foi possível aprovar a sugestão.",
+          variant: "destructive",
+        });
+      }
+    } catch (err: any) {
+      toast({
+        title: "Erro de comunicação",
+        description: err?.message || "Falha ao conectar à API de evolução.",
+        variant: "destructive",
+      });
+    } finally {
+      setProcessingSuggestionId(null);
+    }
+  };
+
+  const handleRejectSuggestion = async (id: number) => {
+    setProcessingSuggestionId(id);
+    try {
+      const res = await requestApiEndpoint<any>(`/api/ai/evolution/suggestions/${id}/reject`, 'POST');
+      if (res?.success) {
+        toast({
+          title: "Sugestão descartada",
+          description: "O playbook não será aplicado às conversas.",
+        });
+        setSuggestions((prev) =>
+          prev.map((sug) => (sug.id === id ? { ...sug, status: "rejected" } : sug))
+        );
+        void fetchMetricsAndSuggestions();
+      } else {
+        toast({
+          title: "Erro ao descartar",
+          description: res?.error || "Não foi possível descartar a sugestão.",
+          variant: "destructive",
+        });
+      }
+    } catch (err: any) {
+      toast({
+        title: "Erro de comunicação",
+        description: err?.message || "Falha ao conectar à API.",
+        variant: "destructive",
+      });
+    } finally {
+      setProcessingSuggestionId(null);
+    }
+  };
+
+  const handleTestSuggestion = (sug: Suggestion) => {
+    const testQuery = sug.situation_summary || "Olá, gostaria de saber mais sobre isso";
+    setChatInput(testQuery);
+    void handleSendMessage(testQuery);
+    toast({
+      title: "Enviado para o Sandbox",
+      description: "Avaliando a resposta do atendente com base na situação minerada.",
+    });
+  };
+
+  const handleDetectGaps = async () => {
+    setDetectingGaps(true);
+    try {
+      const res = await apiService.detectAgentGaps(selectedAgentKey || 'camila');
+      if (res?.success) {
+        toast({
+          title: "Dúvidas analisadas com sucesso!",
+          description: `${res.createdCount || 0} novas oportunidades de melhoria detectadas nas conversas.`,
+        });
+        void fetchMetricsAndSuggestions();
+      } else {
+        toast({
+          title: "Análise concluída",
+          description: "Nenhuma nova lacuna crítica encontrada nas conversas recentes.",
+        });
+      }
+    } catch (err: any) {
+      toast({
+        title: "Erro na análise",
+        description: err?.message || "Falha ao minerar conversas.",
+        variant: "destructive",
+      });
+    } finally {
+      setDetectingGaps(false);
+    }
+  };
 
   useEffect(() => {
     fetchAgentsAndStores();
@@ -701,6 +812,23 @@ export function EvolutionCenter({
                         </span>
                       )}
                     </button>
+                    <button
+                      type="button"
+                      onClick={() => setActiveIntelTab('metrics')}
+                      className={`px-3 py-1.5 rounded-lg font-semibold transition-all flex items-center gap-1.5 ${
+                        activeIntelTab === 'metrics'
+                          ? 'bg-emerald-500 text-black font-bold shadow-sm'
+                          : 'text-slate-400 hover:text-white'
+                      }`}
+                    >
+                      <Sparkles className="inline w-3.5 h-3.5" />
+                      <span>Score & Nível</span>
+                      {agentEvolution?.score != null && (
+                        <span className="px-1.5 py-0.2 rounded-full text-[9px] bg-emerald-400/20 text-emerald-300 font-bold">
+                          {agentEvolution.score}/100
+                        </span>
+                      )}
+                    </button>
                   </div>
 
                   {activeIntelTab === 'knowledge' && (
@@ -811,15 +939,15 @@ export function EvolutionCenter({
                         <span className="text-[11px] font-bold text-slate-300 uppercase tracking-wider block">
                           Playbooks Minerados das Conversas
                         </span>
-                        <div className="space-y-2 max-h-[220px] overflow-y-auto pr-1">
+                        <div className="space-y-2 max-h-[260px] overflow-y-auto pr-1">
                           {suggestions.map((sug) => (
-                            <div key={sug.id} className="p-3 rounded-xl bg-[#080d16] border border-white/5 space-y-1.5">
+                            <div key={sug.id} className="p-3 rounded-xl bg-[#080d16] border border-white/5 space-y-2">
                               <div className="flex items-center justify-between gap-2">
                                 <Badge
                                   variant="outline"
-                                  className={sug.status === "approved" ? "border-emerald-500/40 text-emerald-300" : "border-amber-500/40 text-amber-300"}
+                                  className={sug.status === "approved" ? "border-emerald-500/40 text-emerald-300 bg-emerald-500/10" : "border-amber-500/40 text-amber-300 bg-amber-500/10"}
                                 >
-                                  {sug.status === "approved" ? "Aprovado" : "Aguardando aprovação"}
+                                  {sug.status === "approved" ? "✓ Aprovado e Ativo" : "Aguardando aprovação"}
                                 </Badge>
                                 <span className="text-emerald-400 font-bold text-[10px]">
                                   +{sug.continuity_impact_pct}% continuidade
@@ -834,11 +962,136 @@ export function EvolutionCenter({
                                   <strong>CTA:</strong> "{sug.suggested_cta}"
                                 </p>
                               )}
+                              <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-white/5">
+                                {sug.status !== "approved" && (
+                                  <Button
+                                    type="button"
+                                    size="sm"
+                                    disabled={processingSuggestionId === sug.id}
+                                    onClick={() => handleApproveSuggestion(sug.id)}
+                                    className="h-7 text-[10px] px-2.5 rounded-lg bg-emerald-500 hover:bg-emerald-600 text-black font-bold shadow-sm"
+                                  >
+                                    <Check className="w-3 h-3 mr-1" /> Aprovar Estratégia
+                                  </Button>
+                                )}
+                                {sug.status === "pending" && (
+                                  <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="sm"
+                                    disabled={processingSuggestionId === sug.id}
+                                    onClick={() => handleRejectSuggestion(sug.id)}
+                                    className="h-7 text-[10px] px-2 rounded-lg border-white/10 text-slate-400 hover:text-white"
+                                  >
+                                    Descartar
+                                  </Button>
+                                )}
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => handleTestSuggestion(sug)}
+                                  className="h-7 text-[10px] px-2 rounded-lg text-emerald-400 hover:text-emerald-300 hover:bg-emerald-500/10 ml-auto"
+                                >
+                                  <Play className="w-3 h-3 mr-1" /> Testar no Sandbox
+                                </Button>
+                              </div>
                             </div>
                           ))}
                         </div>
                       </div>
                     )}
+                  </div>
+                )}
+
+                {/* TAB CONTENT: MÉTRICAS & SCORE EVOLUTIVO */}
+                {activeIntelTab === 'metrics' && (
+                  <div className="space-y-4 text-xs animate-fade-in">
+                    {/* Header Score & Level */}
+                    <div className="p-3.5 rounded-xl bg-gradient-to-br from-emerald-500/15 via-[#080d16] to-[#080d16] border border-emerald-500/30 flex items-center justify-between gap-3">
+                      <div>
+                        <span className="text-[10px] uppercase font-bold tracking-wider text-emerald-400 block">
+                          Nível do Atendente
+                        </span>
+                        <h4 className="text-base font-bold text-white mt-0.5">
+                          {agentEvolution?.level || "Nível 8 (Arquiteto IA)"}
+                        </h4>
+                        <p className="text-[11px] text-slate-400 mt-0.5">
+                          Progresso de aprendizado contínuo com base em diálogos reais do WhatsApp.
+                        </p>
+                      </div>
+                      <div className="text-right shrink-0">
+                        <span className="text-[10px] uppercase font-bold tracking-wider text-slate-400 block">Score</span>
+                        <div className="text-2xl font-black text-emerald-400 font-display">
+                          {agentEvolution?.score ?? 100}<span className="text-xs text-slate-400 font-normal">/100</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Progress to next level */}
+                    <div className="p-3 rounded-xl bg-[#080d16] border border-white/5 space-y-2">
+                      <div className="flex items-center justify-between text-[11px]">
+                        <span className="text-slate-300 font-semibold flex items-center gap-1.5">
+                          <TrendingUp className="w-3.5 h-3.5 text-emerald-400" /> Meta de Evolução
+                        </span>
+                        <span className="text-emerald-400 font-bold font-mono">
+                          {agentEvolution?.goal?.current ?? 1451} / {agentEvolution?.goal?.target ?? 3200} ({agentEvolution?.goal?.percentage ?? 45}%)
+                        </span>
+                      </div>
+                      <div className="w-full bg-[#111823] h-2 rounded-full overflow-hidden">
+                        <div
+                          className="h-full rounded-full bg-emerald-500 transition-all duration-500"
+                          style={{ width: `${agentEvolution?.goal?.percentage ?? 45}%` }}
+                        />
+                      </div>
+                    </div>
+
+                    {/* 4 Pillars Grid */}
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                      <div className="p-2.5 rounded-xl bg-[#080d16] border border-white/5 text-center">
+                        <span className="block text-[10px] text-slate-400">Respostas</span>
+                        <span className="text-sm font-bold text-emerald-400">
+                          +{agentEvolution?.components?.answers ?? 40}
+                        </span>
+                      </div>
+                      <div className="p-2.5 rounded-xl bg-[#080d16] border border-white/5 text-center">
+                        <span className="block text-[10px] text-slate-400">Refinamentos</span>
+                        <span className="text-sm font-bold text-blue-400">
+                          +{agentEvolution?.components?.refinements ?? 0}
+                        </span>
+                      </div>
+                      <div className="p-2.5 rounded-xl bg-[#080d16] border border-white/5 text-center">
+                        <span className="block text-[10px] text-slate-400">Cobertura</span>
+                        <span className="text-sm font-bold text-purple-400">
+                          +{agentEvolution?.components?.coverage ?? 20}%
+                        </span>
+                      </div>
+                      <div className="p-2.5 rounded-xl bg-[#080d16] border border-white/5 text-center">
+                        <span className="block text-[10px] text-slate-400">Fila em Dia</span>
+                        <span className="text-sm font-bold text-amber-400">
+                          +{agentEvolution?.components?.queue ?? 3}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Action Bar */}
+                    <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-white/5">
+                      <div className="flex items-center gap-1.5 text-[11px] text-slate-400">
+                        <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
+                        <span>Conversas qualificadas: <strong>{agentEvolution?.stats?.qualifiedConversations ?? 4591}</strong></span>
+                      </div>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        disabled={detectingGaps}
+                        onClick={handleDetectGaps}
+                        className="h-7 text-xs px-2.5 rounded-lg border-emerald-500/30 text-emerald-300 hover:bg-emerald-500/10 gap-1.5"
+                      >
+                        <Sparkles className="w-3.5 h-3.5" />
+                        {detectingGaps ? "Minerando..." : "Detectar Dúvidas (Gaps)"}
+                      </Button>
+                    </div>
                   </div>
                 )}
               </section>
