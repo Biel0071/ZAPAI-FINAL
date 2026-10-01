@@ -167,16 +167,22 @@ export function TagIconBadge({
     );
   };
 
+  if (!showName && (!descriptor || !descriptor.value)) {
+    return null;
+  }
+
   const badgeSizeClasses = {
-    xs: "py-0.5 px-1.5 text-[11px] gap-1",
-    sm: "py-1 px-2 text-xs gap-1.5",
-    md: "py-1.5 px-2.5 text-sm gap-2",
+    xs: showName ? "py-0.5 px-1.5 text-[11px] gap-1" : "h-4 w-4 p-0 justify-center rounded-full text-[10px]",
+    sm: showName ? "py-1 px-2 text-xs gap-1.5" : "h-5 w-5 p-0 justify-center rounded-full text-xs",
+    md: showName ? "py-1.5 px-2.5 text-sm gap-2" : "h-6 w-6 p-0 justify-center rounded-full text-sm",
   };
 
   return (
     <span
+      title={displayName}
       className={cn(
-        "inline-flex items-center rounded-md border font-medium transition-all duration-150 select-none",
+        "inline-flex items-center font-medium transition-all duration-150 select-none",
+        showName ? "rounded-md border" : "rounded-full border shrink-0",
         badgeSizeClasses[size],
         colorClass || "bg-muted/40 text-foreground/80 border-border/50",
         className,

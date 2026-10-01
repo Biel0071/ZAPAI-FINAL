@@ -91,7 +91,7 @@ export function ConversationRow(props: RowComponentProps<ConversationRowData>) {
   const conversation = conversations[index];
   if (!conversation) return null;
 
-  const resolvedAvatar = useResolvedAvatar(conversation.id, conversation.avatar);
+  const { avatar: resolvedAvatar } = useResolvedAvatar(conversation.id, conversation.avatar);
 
   const cleanDisplayName = useMemo(() => {
     let name = (conversation.contactName || "").trim();
@@ -223,20 +223,20 @@ export function ConversationRow(props: RowComponentProps<ConversationRowData>) {
             <h4 className="truncate text-xs md:text-sm font-semibold text-foreground/95 leading-none flex items-center gap-1.5 min-w-0">
               <span className="truncate">{cleanDisplayName}</span>
               {conversation.tags && conversation.tags.length > 0 && (
-                <span className="inline-flex items-center gap-1 shrink-0">
-                  {conversation.tags.slice(0, 2).map((t) => (
+                <span className="inline-flex items-center gap-0.5 shrink-0 ml-1">
+                  {conversation.tags.slice(0, 3).map((t) => (
                     <TagIconBadge
                       key={t}
                       tag={t}
                       colorClass={getTagColor(t)}
                       size="xs"
+                      showName={false}
                       interactive={false}
-                      className="py-0 px-1 text-[9px] h-4 max-w-[90px]"
                     />
                   ))}
-                  {conversation.tags.length > 2 && (
+                  {conversation.tags.length > 3 && (
                     <span className="text-[9px] text-muted-foreground/70 font-mono">
-                      +{conversation.tags.length - 2}
+                      +{conversation.tags.length - 3}
                     </span>
                   )}
                 </span>

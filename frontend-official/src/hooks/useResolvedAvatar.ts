@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
+import { buildApiHeaders } from "@/core/lib/apiGuard";
 
 const avatarMemoryCache = new Map<string, string | null>();
 const avatarInFlight = new Map<string, Promise<string | null>>();
@@ -52,13 +53,14 @@ export function useResolvedAvatar(conversationId?: string | null, initialAvatar?
 
       if (!promise) {
         const url = `/api/conversations/${encodeURIComponent(conversationId)}/avatar${force ? "?force=true" : ""}`;
-        promise = fetch(url, { credentials: "include" })
-          .then((res) => (res.ok ? res.json() : null))
-          .then((data) => {
+        promise = (async () => {
+          try {
+            const headers = await buildApiHeaders();
+            const res = await fetch(url, { credentials: "include", headers });
+            if (!res.ok) return null;
+            const data = await res.json();
             const resolvedUrl = (data?.avatarUrl as string) || null;
             avatarMemoryCache.set(conversationId, resolvedUrl);
-            avatarInFlight.delete(flightKey);
-
             if (typeof window !== "undefined") {
               window.dispatchEvent(
                 new CustomEvent<AvatarUpdatedDetail>("zapflow:avatar-updated", {
@@ -66,14 +68,14 @@ export function useResolvedAvatar(conversationId?: string | null, initialAvatar?
                 }),
               );
             }
-
             return resolvedUrl;
-          })
-          .catch(() => {
+          } catch {
             avatarMemoryCache.set(conversationId, null);
-            avatarInFlight.delete(flightKey);
             return null;
-          });
+          } finally {
+            avatarInFlight.delete(flightKey);
+          }
+        })();
 
         avatarInFlight.set(flightKey, promise);
       }

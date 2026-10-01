@@ -1000,11 +1000,19 @@ async function deleteConversation(req, res) {
 
 async function getConversationAvatar(req, res) {
   const { conversationId } = req.params;
-  const companyId = String(req.authTenantId || req.auth?.tenantId || req.auth?.companyId || '').trim();
+  const companyId = String(req.authTenantId || req.auth?.tenantId || req.auth?.companyId || req.headers?.['x-tenant-id'] || '').trim();
   const forceRefresh = String(req.query?.force || '').toLowerCase() === 'true';
 
   try {
-    const conversation = await conversationRepository.getConversationById(conversationId, companyId);
+    let conversation = null;
+    const numericId = parseInt(conversationId, 10);
+    if (!isNaN(numericId) && String(numericId) === String(conversationId).trim()) {
+      conversation = await conversationRepository.getConversationById(numericId, companyId || undefined);
+    }
+    if (!conversation) {
+      conversation = await conversationRepository.getConversationByPhone(conversationId, companyId || undefined)
+        || await conversationRepository.getConversationByContact(conversationId, companyId || undefined);
+    }
     if (!conversation) {
       return res.status(404).json({ error: 'Conversa não encontrada.', avatarUrl: null });
     }
