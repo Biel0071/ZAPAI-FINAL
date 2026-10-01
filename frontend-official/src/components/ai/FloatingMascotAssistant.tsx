@@ -15,7 +15,7 @@ const HELP = [
 ];
 const normalize = (value: string) => value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
 
-export function FloatingMascotAssistant() {
+export function FloatingMascotAssistant({ inline = false }: { inline?: boolean }) {
   const location = useLocation();
   const navigate = useNavigate();
   const [isOpen, setIsOpen] = useState(false);
@@ -36,8 +36,9 @@ export function FloatingMascotAssistant() {
     if (!terms.length) return HELP.filter(item => isInbox ? item.path === "/inbox" || item.title.includes("IA") : location.pathname === "/ai" ? item.path.startsWith("/ai") : true);
     return HELP.map(item => ({ item, score: terms.filter(term => normalize(item.title + " " + item.words + " " + item.text).includes(term)).length })).filter(result => result.score > 0).sort((a, b) => b.score - a.score).map(result => result.item);
   }, [query, isInbox, location.pathname]);
-  return <aside aria-label="Ajuda ZAI" className={cn("fixed right-3 z-40 sm:right-5", isInbox ? "top-16" : "bottom-20 sm:bottom-5")}>
-    {isOpen && <section role="dialog" aria-label="Guia ZAI" className="mb-2 w-[min(340px,calc(100vw-24px))] overflow-hidden rounded-2xl border border-border bg-card shadow-xl">
+  if (isInbox && !inline) return null;
+  return <aside aria-label="Ajuda ZAI" className={cn(inline ? "inline-flex shrink-0" : "fixed bottom-20 right-3 z-40 sm:bottom-5 sm:right-5")}>
+    {isOpen && <section role="dialog" aria-label="Guia ZAI" className={cn("w-[min(340px,calc(100vw-24px))] overflow-hidden rounded-2xl border border-border bg-card shadow-xl", inline ? "fixed right-3 top-16 z-50 sm:right-5" : "mb-2")}>
       <header className="flex items-center gap-3 border-b border-border px-4 py-3">
         <img src="/assets/evolution/habbo_avatar.png" alt="" className="h-10 w-10 rounded-xl bg-primary/10 object-contain [image-rendering:pixelated]" />
         <div className="flex-1"><h2 className="text-sm font-semibold">ZAI · Guia do sistema</h2><p className="text-xs text-muted-foreground">Passo a passo para o atendimento</p></div>
@@ -48,6 +49,6 @@ export function FloatingMascotAssistant() {
         {items.length ? items.map(item => <details key={item.title} className="rounded-xl border border-border p-3" open={items.length === 1 || undefined}><summary className="cursor-pointer text-sm font-medium">{item.title}</summary><p className="mt-2 text-sm leading-relaxed text-muted-foreground">{item.text}</p><button type="button" onClick={() => { navigate(item.path); setIsOpen(false); }} className="mt-3 flex items-center gap-1 text-xs font-semibold text-primary">{item.action}<ArrowRight className="h-3 w-3" /></button></details>) : <p className="p-3 text-sm text-muted-foreground">Ainda não tenho um guia para essa dúvida. Tente agente, WhatsApp, envio, respostas rápidas ou conhecimento.</p>}
       </div>
     </section>}
-    <button ref={triggerRef} type="button" aria-label="Abrir ajuda ZAI" aria-expanded={isOpen} onClick={() => setIsOpen(open => !open)} className={cn("ml-auto flex items-center gap-2 rounded-full border border-border bg-card px-3 py-2 shadow-sm hover:border-primary/50", isInbox && "opacity-90")}><img src="/assets/evolution/habbo_avatar.png" alt="" className="h-6 w-6 object-contain [image-rendering:pixelated]" /><span className="text-xs font-semibold">Ajuda ZAI</span></button>
+    <button ref={triggerRef} type="button" aria-label="Abrir ajuda ZAI" title="Ajuda ZAI" aria-expanded={isOpen} onClick={() => setIsOpen(open => !open)} className={cn("ml-auto flex items-center gap-2 rounded-full border border-border bg-card shadow-sm hover:border-primary/50", inline ? "h-8 w-8 justify-center" : "px-3 py-2")}><img src="/assets/evolution/habbo_avatar.png" alt="" className="h-6 w-6 object-contain [image-rendering:pixelated]" />{!inline && <span className="text-xs font-semibold">Ajuda ZAI</span>}</button>
   </aside>;
 }

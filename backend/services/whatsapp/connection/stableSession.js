@@ -93,7 +93,7 @@ const conversationRuntimeService = require('../../../src/messaging/inbox/inbox/s
 const messageAckPipeline = require('../../messageAckPipeline');
 const messageRepository = require('../../../src/data/repositories/messageRepository');
 const conversationRepository = require('../../../src/data/repositories/conversationRepository');
-const { getAIEnabled } = require('../../../src/infrastructure/config/aiToggle');
+const { getAutomationPermission } = require('../../../src/infrastructure/config/aiToggle');
 
 const SESSIONS_DIRECTORY = path.join(__dirname, '..', '..', '..', '..', 'data', 'sessions');
 const DEFAULT_RECONNECT_DELAY_MS = 3000;
@@ -356,24 +356,26 @@ async function loadRealtimeHistory({ io, session, sock }) {
 // --- AI auto-reply --------------------------------------------------------
 
 async function isAIReplyStillAllowed({ chatId, conversationId, session }) {
-  const tenantId = session?.companyId || process.env.DEFAULT_COMPANY_ID || 'default';
-  if (!(await getAIEnabled(tenantId)) || session?.systemConnected === false) {
+  const tenantId = session?.companyId;
+  if (!(await getAutomationPermission({ companyId: tenantId, sessionId: session?.sessionId, phone: chatId })).allowed || session?.systemConnected === false) {
     return false;
   }
 
   try {
     let conversation = conversationId
-      ? await conversationRepository.getConversationById(conversationId)
+      ? await conversationRepository.getConversationById(conversationId, tenantId)
       : null;
     if (!conversation) {
       conversation = await conversationRepository.getConversationByPhone(
         normalizePhone(chatId),
-        process.env.DEFAULT_COMPANY_ID || 'default',
+        tenantId,
         session?.sessionId || DEFAULT_SESSION
       );
     }
     return Boolean(
       conversation &&
+      String(conversation.companyId || conversation.company_id) === tenantId &&
+      String(conversation.sessionId || conversation.session_id) === session.sessionId &&
       conversation.aiEnabled !== false &&
       conversation.ai_enabled !== false
     );
@@ -391,9 +393,12 @@ async function runAIForChat({ chatId, incomingFormattedMessage, session, sock })
     return null;
   }
 
-  const tenantId = session?.companyId || process.env.DEFAULT_COMPANY_ID || 'default';
-  if (!(await getAIEnabled(tenantId))) {
-    console.log(`[WHATSAPP_AI] Store AI toggle is OFF for tenant ${tenantId}. Short-circuiting response for ${chatId}.`);
+  const tenantId = session?.companyId;
+  const companyId = tenantId;
+  const beforeSend = () => isAIReplyStillAllowed({ chatId, conversationId: incomingFormattedMessage?.conversationId, session });
+  const automationPermission = await getAutomationPermission({ companyId: tenantId, sessionId: session?.sessionId, phone: chatId });
+  if (!automationPermission.allowed) {
+    console.log(`[WHATSAPP_AI] Automatic reply blocked: ${automationPermission.reason}`);
     return null;
   }
 
@@ -412,12 +417,12 @@ async function runAIForChat({ chatId, incomingFormattedMessage, session, sock })
   try {
     const normalizedPhone = normalizePhone(chatId);
     if (incomingFormattedMessage?.conversationId) {
-      fresh = await conversationRepository.getConversationById(incomingFormattedMessage.conversationId).catch(() => null);
+      fresh = await conversationRepository.getConversationById(incomingFormattedMessage.conversationId, tenantId).catch(() => null);
     }
     if (!fresh) {
       fresh = await conversationRepository.getConversationByPhone(
         normalizedPhone,
-        process.env.DEFAULT_COMPANY_ID || 'default',
+        tenantId,
         session?.sessionId || DEFAULT_SESSION
       ).catch(() => null);
     }
@@ -571,7 +576,7 @@ async function runAIForChat({ chatId, incomingFormattedMessage, session, sock })
             let qrSent = null;
             if (itemType === 'text') {
               if (itemValue) {
-                qrSent = await sendMessage(sock, chatId, itemValue);
+                qrSent = await sendMessage(sock, chatId, itemValue, { beforeSend });
               }
             } else {
               // It's media
@@ -581,7 +586,7 @@ async function runAIForChat({ chatId, incomingFormattedMessage, session, sock })
                   const cleanPath = itemValue.replace(/^\//, '');
                   absolutePath = path.join(__dirname, '..', '..', '..', cleanPath);
                 }
-                qrSent = await sendMediaMessage(sock, chatId, itemType, absolutePath, { caption, ptt: itemType === 'audio' });
+                qrSent = await sendMediaMessage(sock, chatId, itemType, absolutePath, { caption, ptt: itemType === 'audio', beforeSend });
               }
             }
 
@@ -651,7 +656,6 @@ async function runAIForChat({ chatId, incomingFormattedMessage, session, sock })
 
   let shouldSendVoice = false;
   let voiceSettings = null;
-  const companyId = process.env.DEFAULT_COMPANY_ID || 'default';
 
   try {
     const audioGenerationService = require('../../audioGenerationService');
@@ -716,7 +720,7 @@ async function runAIForChat({ chatId, incomingFormattedMessage, session, sock })
           console.log(`[WHATSAPP_AI] Reply cancelled before audio send for ${chatId}: AI disabled.`);
           return null;
         }
-        sent = await sendAudio(sock, chatId, voiceResult.filePath, true, 'audio/ogg; codecs=opus');
+        sent = await sendAudio(sock, chatId, voiceResult.filePath, true, 'audio/ogg; codecs=opus', { beforeSend });
         mediaPath = voiceResult.url;
         mediaType = 'audio';
         mimeType = 'audio/ogg; codecs=opus';
@@ -745,7 +749,7 @@ async function runAIForChat({ chatId, incomingFormattedMessage, session, sock })
         console.log(`[WHATSAPP_AI] Reply cancelled after fallback typing for ${chatId}: AI disabled.`);
         return null;
       }
-      sent = await sendMessage(sock, chatId, safeResponse);
+      sent = await sendMessage(sock, chatId, safeResponse, { beforeSend });
     } finally {
       await sock.sendPresenceUpdate('paused', chatId).catch(() => {});
     }
@@ -770,7 +774,7 @@ async function runAIForChat({ chatId, incomingFormattedMessage, session, sock })
       console.log(`[WHATSAPP_AI] Reply cancelled before text send for ${chatId}: AI disabled.`);
       return null;
     }
-    sent = await sendMessage(sock, chatId, safeResponse);
+    sent = await sendMessage(sock, chatId, safeResponse, { beforeSend });
   }
 
   const persisted = await enterpriseMessageService.persistInboundMessage({
@@ -873,7 +877,7 @@ async function runAIForChat({ chatId, incomingFormattedMessage, session, sock })
     try {
       await agentMemoryGraphService.learnFromInteraction({
         agentKey: agent?.key || agent?.name || 'Atendente',
-        companyId: companyId || 'default',
+        companyId,
         contact: {
           phone: normalizePhone(chatId),
           name: chat?.name || contact?.name || '',
@@ -932,7 +936,7 @@ async function runAIForChat({ chatId, incomingFormattedMessage, session, sock })
             sessionId: session.sessionId,
             flowName: flow.title || flow.label || flow.cmd || 'Resposta Rápida Automática',
             totalSteps,
-            companyId: companyId || 'default',
+            companyId,
           });
 
           let cumulativeDelayMs = 0;
@@ -950,13 +954,15 @@ async function runAIForChat({ chatId, incomingFormattedMessage, session, sock })
             const itemPayload = {
               phone: normalizePhone(chatId),
               sessionId: session?.sessionId || 'main',
-              companyId: companyId || 'default',
+              companyId,
               text: textContent,
               mediaType: !isText ? (step.type || 'image') : undefined,
               mediaPath: mediaPath,
               fileName: step.filename || step.fileName,
               nextAttemptAt: scheduledTime,
               metadata: {
+                ai_response: true,
+                conversationId: fresh?.id || incomingFormattedMessage?.conversationId,
                 flowId: flow.id,
                 stepId: step.id || `step_${index + 1}`,
                 currentStep: index + 1,

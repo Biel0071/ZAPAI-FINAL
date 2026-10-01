@@ -3,6 +3,8 @@ const {
   disableAI,
   getAIEnabled,
   setAIEnabled,
+  getAutomationScope,
+  setAutomationScope,
 } = require('../../infrastructure/config/aiToggle');
 const { applyPromptImprovement, updateActivePrompt, getPromptHistory, getActivePrompt } = require('../../infrastructure/config/promptManager');
 const aiLearningEngine = require('../../../services/aiLearningEngine');
@@ -80,30 +82,40 @@ async function disable(req, res) {
 
 async function toggle(req, res) {
   const enabled = req.body?.aiEnabled;
-  const tenantId = getCompanyId(req);
+  const tenantId = req.authTenantId;
+  if (!tenantId) return res.status(401).json({ error: 'Autenticação da empresa obrigatória.' });
+  const hasScope = Object.prototype.hasOwnProperty.call(req.body || {}, 'automationScope');
 
-  if (typeof enabled !== 'boolean') {
-    return res.status(400).json({ error: 'The field aiEnabled must be boolean.' });
+  if ((enabled !== undefined && typeof enabled !== 'boolean') || (enabled === undefined && !hasScope)) {
+    return res.status(400).json({ error: 'Informe aiEnabled booleano e/ou automationScope válido.' });
   }
 
   try {
-    const persisted = await setAIEnabled(enabled, tenantId);
-    return res.status(200).json({ ai: persisted, enabled: persisted, tenantId });
+    // A pause must remain available even if the saved scope cannot be read.
+    if (enabled === false) await setAIEnabled(false, tenantId);
+    const automationScope = hasScope ? await setAutomationScope(req.body.automationScope, tenantId) : await getAutomationScope(tenantId).catch(() => null);
+    const persisted = enabled === undefined ? await getAIEnabled(tenantId) : await setAIEnabled(enabled, tenantId);
+    return res.status(200).json({ ai: persisted, enabled: persisted, tenantId, automationScope });
   } catch (error) {
-    return res.status(500).json({ error: error.message || 'Failed to update AI status.', tenantId });
+    return res.status(400).json({ error: error.message || 'Não foi possível salvar o alcance da IA.', tenantId });
   }
 }
 
 async function status(req, res) {
   try {
     const aiService = require('../../../services/ai.service');
-    const tenantId = getCompanyId(req);
+    const tenantId = req.authTenantId;
+    if (!tenantId) return res.status(401).json({ error: 'Autenticação da empresa obrigatória.' });
     const store = req.app.locals.store;
     const [enabled, integration] = await Promise.all([
       getAIEnabled(tenantId),
       aiService.getAIIntegrationStatus(store, tenantId),
     ]);
-    const active = enabled && integration.aiOn;
+    let automationScope = null;
+    let automationScopeError = null;
+    try { automationScope = await getAutomationScope(tenantId); }
+    catch { automationScopeError = 'Não foi possível verificar o alcance da automação. Respostas automáticas ficam bloqueadas.'; }
+    const active = Boolean(enabled && integration.aiOn && automationScope && (automationScope.mode === 'all' || automationScope.phones.length > 0));
 
     return res.status(200).json({
       ...integration,
@@ -112,6 +124,8 @@ async function status(req, res) {
       active,
       status: enabled ? 'on' : 'off',
       tenantId,
+      automationScope,
+      automationScopeError,
     });
   } catch (error) {
     console.error('[aiController] status failed:', error);

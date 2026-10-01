@@ -568,11 +568,17 @@ export function ActiveChatPane({
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end" className="w-48 bg-popover/95 border-border/80 text-popover-foreground">
                     <DropdownMenuItem 
-                      onClick={() => void handleSetConversationAiEnabled(true, null)}
+                      onClick={() => {
+                        if (aiRuntime?.globalEnabled === false) {
+                          navigate("/ai?tab=dashboard");
+                        } else {
+                          void handleSetConversationAiEnabled(true, null);
+                        }
+                      }}
                       className="gap-2 cursor-pointer focus:bg-emerald-500/10 focus:text-emerald-500"
                     >
                       <Robot className="h-4 w-4 text-emerald-500" weight="fill" />
-                      <span>Permitir IA nesta conversa</span>
+                      <span>{aiRuntime?.globalEnabled === false ? "Configurar automação" : "Permitir IA nesta conversa"}</span>
                     </DropdownMenuItem>
                     <DropdownMenuItem 
                       onClick={() => void handleSetConversationAiEnabled(false, new Date(Date.now() + 86400000).toISOString())}
@@ -819,22 +825,25 @@ export function ActiveChatPane({
             </div>
           )}
 
-          {/* Per-contact AI toggle banner when global is OFF */}
-          {aiRuntime && !aiRuntime.globalEnabled && selectedConversation && selectedConversation.aiEnabled !== true && (
+          {aiRuntime?.globalEnabled === false && selectedConversation && (
             <div className="border-b border-primary/20 bg-primary/5 px-4 py-2 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs">
               <div className="flex items-center gap-2 text-foreground">
                 <Robot className="h-4 w-4 text-primary shrink-0" />
                 <span>
-                  A IA global está <strong>desativada</strong>. Deseja ativar a Inteligência Artificial <strong className="text-primary">apenas para este contato</strong>?
+                  A automação está <strong>pausada para a loja</strong>. Você pode responder manualmente ou gerar uma sugestão, revisar e enviar.
                 </span>
               </div>
               <Button
                 type="button"
                 size="sm"
                 className="h-7 text-[10px] shrink-0"
-                onClick={() => handleSetConversationAiEnabled(true)}
+                onClick={() => {
+                  setRightPanelTab("ai");
+                  setRightPanelCollapsed(false);
+                  if (isTabletLayout) setShowLeadPanel(true);
+                }}
               >
-                Ativar IA neste chat
+                Abrir sugestões
               </Button>
             </div>
           )}

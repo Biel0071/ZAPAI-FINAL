@@ -348,6 +348,11 @@ async function executeOutbound(item) {
     console.log(`[OUTBOUND_QUEUE] transport_send SKIPPED - already dispatched to WhatsApp whatsappMessageId=${whatsappMessageId} correlationId=${item.correlationId || 'n/a'} queueId=${item.id}`);
   } else {
     let sendResult;
+    const beforeSend = async () => {
+      const permission = item.cancelRequested ? { allowed: false, reason: 'user_cancelled' } : await getAutomatedReplyPermission(item);
+      if (!permission.allowed) publishProgress('cancelled', { message: 'Resposta cancelada pelo controle da automação antes do transporte.' });
+      return permission;
+    };
     if (item.mediaType && item.mediaPath) {
       console.log(`[OUTBOUND_QUEUE] transport_send correlationId=${item.correlationId || 'n/a'} queueId=${item.id} kind=media phone=${item.phone}`);
       sendResult = await whatsappService.sendMediaMessage(sock, item.phone, item.mediaType, item.mediaPath, {
@@ -355,10 +360,11 @@ async function executeOutbound(item) {
         fileName: item.fileName,
         mimetype: item.metadata?.mimetype,
         ptt: item.metadata?.ptt,
+        beforeSend,
       });
     } else {
       console.log(`[OUTBOUND_QUEUE] transport_send correlationId=${item.correlationId || 'n/a'} queueId=${item.id} kind=text phone=${item.phone}`);
-      sendResult = await whatsappService.sendMessage(sock, item.phone, item.text);
+      sendResult = await whatsappService.sendMessage(sock, item.phone, item.text, { beforeSend });
     }
 
     if (!sendResult?.key?.id) {
@@ -697,6 +703,14 @@ async function processOneItem() {
 
       await saveQueueState();
     } catch (error) {
+      if (error?.code === 'AUTOMATED_REPLY_CANCELLED') {
+        item.state = STATES.CANCELLED;
+        item.cancelledAt = nowIso();
+        item.updatedAt = nowIso();
+        item.nextAttemptAt = null;
+        await saveQueueState();
+        return;
+      }
       item.attemptCount = Number(item.attemptCount || 0) + 1;
       const failure = sanitizeError(error);
       // A transport timeout is ambiguous: WhatsApp may have accepted the

@@ -40,7 +40,7 @@ printf '%s\n' "$TARGET_REF" > "$SNAPSHOT/target-commit"
 printf '%s\n' "$WEB_ROOT" > "$SNAPSHOT/web-root"
 git status --porcelain > "$SNAPSHOT/server-status"
 pm2 jlist > "$SNAPSHOT/pm2.json"
-for path in .env.production backend/.env backend/sessions data/sessions data/json_db backend/data backend/upload backend/uploads data/uploads; do
+for path in .env .env.production backend/.env.production backend/.env backend/sessions data/sessions data/json_db backend/data backend/upload backend/uploads data/uploads; do
   if [[ -e "$ROOT_DIR/$path" ]]; then mkdir -p "$SNAPSHOT/state/$(dirname "$path")"; cp -a "$ROOT_DIR/$path" "$SNAPSHOT/state/$path"; fi
 done
 # Immutable media files stay in persistent storage. Hard links protect them from
@@ -58,7 +58,11 @@ const { spawnSync } = require('child_process');
 const dotenv = require('./backend/node_modules/dotenv');
 const saved = JSON.parse(fs.readFileSync(path.join(process.env.BACKUP_DIR, 'pm2.json'), 'utf8')).find(p => p.name === 'zapflow-api');
 if (!saved) throw Error('Production PM2 process missing');
-const environment = { ...dotenv.parse(fs.existsSync('.env.production') ? fs.readFileSync('.env.production') : ''), ...dotenv.parse(fs.existsSync('backend/.env') ? fs.readFileSync('backend/.env') : ''), ...saved.pm2_env };
+const environment = { ...saved.pm2_env };
+// Match server.js: each existing dotenv file overrides the process environment.
+for (const file of ['.env', '.env.production', 'backend/.env.production', 'backend/.env']) {
+  if (fs.existsSync(file)) Object.assign(environment, dotenv.parse(fs.readFileSync(file)));
+}
 if (!environment.DATABASE_URL || !environment.JWT_SECRET || !environment.ENCRYPTION_KEY) throw Error('Production credentials are incomplete; no secrets generated');
 const url = new URL(environment.DATABASE_URL);
 const result = spawnSync('pg_dump', ['--format=custom', '--no-owner', '--no-acl', '--host', url.hostname, '--port', url.port || '5432', '--username', decodeURIComponent(url.username), '--dbname', decodeURIComponent(url.pathname.slice(1)), '--file', path.join(process.env.BACKUP_DIR, 'database.dump')], { env: { ...process.env, PGPASSWORD: decodeURIComponent(url.password), PGSSLMODE: url.searchParams.get('sslmode') || 'prefer' }, encoding: 'utf8' });
@@ -97,7 +101,7 @@ if ! git diff --quiet "$(cat "$SNAPSHOT/previous-commit")" "$TARGET_REF" -- back
   DEPENDENCIES_CHANGED=true
   (cd backend && npm ci --omit=dev --legacy-peer-deps --no-audit --no-fund)
 fi
-# This release has no schema migrations. Schema changes require their own reviewed gate.
+# Schema migrations are never automatic here; each change has its own reviewed gate.
 mv "$WEB_ROOT" "${WEB_ROOT}.previous-$STAMP"
 SWAPPED=true
 mv "$NEXT_WEB" "$WEB_ROOT"
@@ -107,7 +111,7 @@ for attempt in $(seq 1 12); do
   if [[ "$attempt" == 12 ]]; then false; fi
   sleep 3
 done
-curl -fsS --header 'Host: 209.50.241.22' http://127.0.0.1/ > "$SNAPSHOT/served-index.html"
+curl -fLsS --max-redirs 3 --max-time 30 --header 'Host: 209.50.241.22' http://127.0.0.1/ > "$SNAPSHOT/served-index.html"
 cmp -s "$WEB_ROOT/index.html" "$SNAPSHOT/served-index.html"
 SOCKET_HANDSHAKE="$(curl -fsS "http://127.0.0.1:${PORT:-4025}/socket.io/?EIO=4&transport=polling")"
 [[ "${SOCKET_HANDSHAKE:0:1}" == 0 ]]

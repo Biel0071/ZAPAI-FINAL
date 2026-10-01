@@ -2,14 +2,22 @@
 
 O ambiente atual usa `zapflow-api` em PM2 e o frontend em `/etc/icontainer/apps/openresty/openresty/www/zapai`. Use `ops/deploy/auto-deploy.sh` com o SHA completo revisado e um artefato do frontend que passou pela verificação de tipos, testes e build.
 
-O script exige árvore Git limpa, preserva ambiente, sessões WhatsApp, uploads e mídias; cria snapshot do PostgreSQL e do frontend antes de trocar a versão. Recarrega somente o processo da aplicação e verifica banco, API, Socket.IO e o HTML servido. Esta versão não executa seeds nem migrações. A autorização de publicação continua obrigatória.
+O script exige árvore Git limpa, preserva os quatro arquivos de ambiente, sessões WhatsApp, uploads e mídias; cria snapshot do PostgreSQL e do frontend antes de trocar a versão. O banco do snapshot segue a mesma precedência de ambiente do `server.js`. Recarrega somente o processo da aplicação e verifica banco, API, Socket.IO e o HTML servido. Não executa seeds nem migrações automaticamente. A autorização de publicação continua obrigatória.
 
 ```bash
 ZAPAI_ROOT=/opt/zapai bash ops/deploy/auto-deploy.sh --ref=<SHA40> --artifact=/opt/zapai/releases/frontend.tar.gz --dry-run
 ZAPAI_ROOT=/opt/zapai bash ops/deploy/auto-deploy.sh --ref=<SHA40> --artifact=/opt/zapai/releases/frontend.tar.gz
 ```
 
-O rollback automático restaura código e frontend quando um gate falha. O rollback manual usa `ops/deploy/rollback.sh <snapshot>`. Banco e autenticação viva são preservados; restaurar um dump exige procedimento específico. Testes reais devem usar apenas o contato de homologação autorizado. HTTP por IP não confirma o gate público de HTTPS.
+O rollback automático restaura código e frontend quando um gate falha. O rollback manual usa `ops/deploy/rollback.sh <snapshot>`. Banco e autenticação viva são preservados; restaurar um dump exige procedimento específico. Testes reais devem usar apenas o contato de homologação autorizado.
+
+## Aceitação de 1 de outubro de 2026
+
+- Endereço público: `https://209.50.241.22`. HTTP redireciona para HTTPS; o certificado contém o IP no SAN e foi validado externamente sem ignorar erros de TLS.
+- O certificado de IP dura aproximadamente 160 horas. O timer `zapai-ip-tls-renew.timer` verifica a renovação a cada seis horas. `zapai-ip-tls-renew.service` e o hook validam o certificado e a configuração antes de recarregar apenas o OpenResty existente. A conta ACME e os outros domínios foram preservados.
+- A migração aditiva `039_create_quick_replies` cria a tabela usada pelo serviço existente. Aplicar somente a versão revisada, em transação, com um snapshot recente do banco ativo; não importar seeds. As respostas legadas continuam sendo lidas por empresa pelo serviço canônico.
+- O alcance da IA fica visível em **IA → Operação → Alcance da automação**. Para homologação, salvar a conexão e os telefones aprovados antes de ativar a IA. A pausa global continua prevalecendo; mensagens fora da seleção são barradas antes da geração e novamente antes do envio, inclusive reativação e escalonamento.
+- Reinício, entrega WhatsApp, entrada de mensagens, mídia e automação exigem evidência no ambiente publicado; uma fila aceita ou um build aprovado não comprovam entrega.
 
 ## Interface e mídia desta versão
 

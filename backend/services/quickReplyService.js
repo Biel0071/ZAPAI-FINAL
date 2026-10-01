@@ -155,7 +155,7 @@ async function writeQuickReplies(items, companyId, removedId = null) {
           item.tags || [],
         ]
       );
-      if (!saved.rows?.length) throw new Error('Resposta rápida pertence a outra empresa.');
+      if (!saved.rows?.length) throw Object.assign(new Error('Resposta rápida pertence a outra empresa.'), { status: 403 });
     }
     if (removedId) await query('DELETE FROM quick_replies WHERE id = $1 AND company_id = $2', [removedId, companyId]);
   } catch (dbErr) {
@@ -367,14 +367,14 @@ function normalizeQuickReply(payload = {}) {
 
 function assertPayload(payload = {}) {
   if (!String(payload.title || '').trim()) {
-    throw new Error('title is required.');
+    throw Object.assign(new Error('Informe o título da resposta rápida.'), { status: 400 });
   }
 
   const hasContent = String(payload.content || '').trim();
   const hasItems = Array.isArray(payload.items) && payload.items.length > 0;
   const hasSteps = Array.isArray(payload.steps) && payload.steps.length > 0;
   if (!hasContent && !hasItems && !hasSteps) {
-    throw new Error('content, items or steps is required.');
+    throw Object.assign(new Error('Inclua um texto, arquivo ou etapa na resposta rápida.'), { status: 400 });
   }
 }
 
@@ -429,7 +429,7 @@ async function createQuickReply(payload = {}) {
   await assertOwnedMedia(payload, companyId);
   const all = await readQuickReplies(companyId);
   const next = normalizeQuickReply(payload);
-  if (all.some(item => item.id === next.id)) throw new Error('Resposta rápida já cadastrada.');
+  if (all.some(item => item.id === next.id)) throw Object.assign(new Error('Resposta rápida já cadastrada.'), { status: 409 });
   all.unshift(next);
   await writeQuickReplies(all, companyId);
   return next;

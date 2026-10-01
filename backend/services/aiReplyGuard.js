@@ -1,5 +1,6 @@
 async function getAutomatedReplyPermission(item, dependencies = {}) {
-  if (item?.metadata?.ai_response !== true) {
+  if (item?.metadata?.ai_response !== true && !['ai', 'ai_auto_trigger'].includes(item?.metadata?.source)
+    && !['absence', 'reactivation_followup'].includes(item?.metadata?.systemTag)) {
     return { allowed: true, reason: 'not_ai_response' };
   }
 
@@ -7,6 +8,12 @@ async function getAutomatedReplyPermission(item, dependencies = {}) {
   if (!readGlobalToggle(item.companyId)) {
     return { allowed: false, reason: 'global_ai_off' };
   }
+
+  const scopePermission = await require('../src/infrastructure/config/aiToggle').getAutomationPermission(item, {
+    getAIEnabled: readGlobalToggle,
+    getAutomationScope: dependencies.getAutomationScope,
+  });
+  if (!scopePermission.allowed) return scopePermission;
 
   const repository = dependencies.conversationRepository || require('../src/data/repositories/conversationRepository');
   let conversation = null;

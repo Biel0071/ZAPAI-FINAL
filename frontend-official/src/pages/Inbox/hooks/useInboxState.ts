@@ -6,6 +6,7 @@ import { useRuntime } from "@/state/providers/RuntimeProvider";
 import { useAppStore, resolveStoreConversationId } from "@/state/stores/appStore";
 import { apiService, requestApiEndpoint, type ChatMessage, type Conversation, type SessionInfo, type MessageSendResponse } from "@/core/services/apiService";
 import { notify } from "@/core/services/notifyService";
+import { generateUuid } from "@/core/lib/utils";
 import { listConversationControls, upsertConversationControl } from "@/core/services/conversationControlStore";
 import { useInboxSocket } from "./useInboxSocket";
 import {
@@ -79,6 +80,32 @@ const OFFLINE_FALLBACK_SYNC_INTERVAL_MS = 60_000;
 const SOCKET_FORCE_RECONNECT_DEBOUNCE_MS = 15_000;
 
 const EMPTY_MESSAGES_ARRAY: ChatMessage[] = [];
+
+export function useConversationSearch(query: string, onResults: (rows: Conversation[]) => void) {
+  const sessionId = useAppStore((state) => state.activeSessionId) || undefined;
+  const [loading, setLoading] = useState(false);
+  const [failed, setFailed] = useState(false);
+  const [retryVersion, setRetryVersion] = useState(0);
+  const retry = useCallback(() => setRetryVersion((version) => version + 1), []);
+
+  useEffect(() => {
+    const search = query.trim();
+    let cancelled = false;
+    setFailed(false);
+    setLoading(Boolean(search));
+    if (!search) return;
+
+    const timer = window.setTimeout(() => {
+      void apiService.getConversations(true, { limit: 50, sessionId, search })
+        .then((rows) => { if (!cancelled) onResults(filterConversationsForSession(rows, sessionId)); })
+        .catch(() => { if (!cancelled) setFailed(true); })
+        .finally(() => { if (!cancelled) setLoading(false); });
+    }, 300);
+    return () => { cancelled = true; window.clearTimeout(timer); };
+  }, [query, sessionId, onResults, retryVersion]);
+
+  return { loading, failed, retry };
+}
 
 export function useInboxState() {
   const { toast } = useToast();
@@ -497,19 +524,24 @@ export function useInboxState() {
     persistContactDirectory(mergedDirectory);
   }, []);
 
-  const mergeConversationsSnapshot = useCallback((incoming: Conversation[]) => {
-    const sessionScopedIncoming = filterConversationsForSession(incoming, preferredSessionIdRef.current);
+  const mergeConversationsSnapshot = useCallback((incoming: Conversation[], sessionId: string | null = preferredSessionIdRef.current) => {
+    const sessionScopedIncoming = filterConversationsForSession(incoming, sessionId);
     const mergedDirectory = mergeContactDirectory(contactDirectoryRef.current, sessionScopedIncoming);
     contactDirectoryRef.current = mergedDirectory;
     persistContactDirectory(mergedDirectory);
 
     setConversations((prev) => {
-      const sessionScopedPrev = filterConversationsForSession(prev, preferredSessionIdRef.current);
-      const visiblePrev = sessionScopedPrev.filter((conversation) => !isOwnSessionConversation(conversation));
+      const visiblePrev = prev.filter((conversation) => !isOwnSessionConversation(conversation));
       const visibleIncoming = sessionScopedIncoming.filter((conversation) => !isOwnSessionConversation(conversation));
       return dedupeConversationsByScope([...visiblePrev, ...visibleIncoming], mergedDirectory);
     });
   }, [isOwnSessionConversation, setConversations]);
+
+  // Search already captured the connection filter; keep its results when a
+  // background snapshot refreshes the connection used by the open chat.
+  const mergeConversationSearchSnapshot = useCallback((incoming: Conversation[]) => {
+    mergeConversationsSnapshot(incoming, null);
+  }, [mergeConversationsSnapshot]);
 
   useEffect(() => {
     if (!conversations.length) return;
@@ -640,6 +672,11 @@ export function useInboxState() {
     }
     return pickActiveSession(sessions, preferredSessionId) ?? sessions[0] ?? null;
   }, [sessions, selectedConversation?.sessionId, preferredSessionId]);
+
+  const conversationSearch = useConversationSearch(
+    searchQuery,
+    mergeConversationSearchSnapshot,
+  );
 
   const isWhatsappConnected = useMemo(() => {
     return Boolean(activeSession && isSessionActive(activeSession));
@@ -1454,6 +1491,10 @@ export function useInboxState() {
   }, [loadConversationMessages, selectedConversation?.id]);
 
   const handleRetryConversations = useCallback(async () => {
+    if (searchQuery.trim()) {
+      conversationSearch.retry();
+      return;
+    }
     setLoadingConversations(true);
     setConversationsLoadFailed(false);
     try {
@@ -1473,7 +1514,7 @@ export function useInboxState() {
     } finally {
       setLoadingConversations(false);
     }
-  }, [activeSession?.id, markBackendOffline, markBackendOnline, mergeConversationsSnapshot, preferredSessionId, showErrorToast]);
+  }, [activeSession?.id, markBackendOffline, markBackendOnline, mergeConversationsSnapshot, preferredSessionId, showErrorToast, searchQuery, conversationSearch.retry]);
 
   const handleRetryMessages = useCallback(async () => {
     if (!selectedConversation?.id) return;
@@ -2033,7 +2074,7 @@ export function useInboxState() {
         // A timeout may hide an accepted enqueue. Retrying the same draft uses
         // the same request ID so the server can return that result once.
         const retryKey = JSON.stringify([currentConversation.id, attachment?.id ?? "text", optimistic.content]);
-        const requestId = retrySendRequestIdsRef.current.get(retryKey) ?? `inbox-${crypto.randomUUID()}`;
+        const requestId = retrySendRequestIdsRef.current.get(retryKey) ?? `inbox-${generateUuid()}`;
         retrySendRequestIdsRef.current.set(retryKey, requestId);
         const response: MessageSendResponse = attachment
           ? await apiService.sendMediaMessage({
@@ -2976,7 +3017,7 @@ export function useInboxState() {
     try {
       if (!arg.id) throw new Error("Salve a resposta rápida antes de enviar.");
       const retryKey = JSON.stringify([targetConversation.id, arg.id, overrideDelayMs]);
-      const currentSendId = retryQuickReplyIdsRef.current.get(retryKey) ?? crypto.randomUUID();
+      const currentSendId = retryQuickReplyIdsRef.current.get(retryKey) ?? generateUuid();
       retryQuickReplyIdsRef.current.set(retryKey, currentSendId);
       const response = await apiService.executeQuickReplyFlow(arg.id, {
         phone: targetConversation.phone,
@@ -3286,10 +3327,10 @@ export function useInboxState() {
     conversationSearchOpen, setConversationSearchOpen,
     conversationSearchQuery, setConversationSearchQuery,
     activeConversationSearchIndex, setActiveConversationSearchIndex,
-    loadingConversations,
+    loadingConversations: loadingConversations || conversationSearch.loading,
     loadingMessages,
     loadingOlderMessages,
-    conversationsLoadFailed,
+    conversationsLoadFailed: conversationsLoadFailed || conversationSearch.failed,
     messagesLoadFailed,
     sending,
     error, setError,

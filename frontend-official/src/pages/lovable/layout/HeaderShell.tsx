@@ -26,6 +26,7 @@ import { usePwaInstall } from "@/state/hooks/usePwaInstall";
 import { useToast } from "@/state/hooks/use-toast";
 import { Smartphone, Monitor, Laptop, Download } from "lucide-react";
 import { cn } from "@/core/lib/utils";
+import { FloatingMascotAssistant } from "@/components/ai/FloatingMascotAssistant";
 
 export interface HeaderShellProps {
   title: string;
@@ -142,6 +143,7 @@ export function HeaderShell({
         </div>
 
         <div className="flex shrink-0 items-center gap-1 md:gap-2">
+          {location.pathname.startsWith("/inbox") && <FloatingMascotAssistant inline />}
           {/* Mobile / Desktop View Mode Switcher */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>

@@ -65,10 +65,12 @@ function filterOwnSessionConversation(conversations, { sessionId, store } = {}) 
   return conversations.filter((conversation) => !ownPhones.has(getConversationPhone(conversation)));
 }
 
-async function listConversations({ companyId, limit = 50, sessionId, store }) {
+async function listConversations({ companyId, limit = 50, sessionId, search = '', store }) {
   if (store?.databaseEnabled) {
     const conversations = await conversationRepository.listConversations(getCompanyId(companyId), limit, {
       sessionId: sessionId || null,
+      search,
+      strictSession: true,
     });
     return filterOwnSessionConversation(conversations, { sessionId, store })
       .map((conversation) => conversationRuntimeService.decorateConversation(store, conversation));

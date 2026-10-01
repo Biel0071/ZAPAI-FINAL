@@ -1,9 +1,15 @@
 const assert = require('node:assert/strict');
 const test = require('node:test');
+const settingsPath = require.resolve('../src/data/repositories/systemSettingsRepository');
+require.cache[settingsPath] = { exports: { getSetting: async () => null } };
 
 const {
-  getAutomatedReplyPermission,
+  getAutomatedReplyPermission: checkAutomatedReplyPermission,
 } = require('../services/aiReplyGuard');
+const getAutomatedReplyPermission = (item, dependencies) => checkAutomatedReplyPermission(item, {
+  getAutomationScope: async () => ({ mode: 'all', sessionId: null, phones: [] }),
+  ...dependencies,
+});
 
 const aiItem = {
   companyId: 'default',
@@ -118,5 +124,18 @@ test('denies an AI reply if saved conversation belongs to another company or con
   for (const conversation of [{companyId:'other',sessionId:'main'}, {companyId:'default',sessionId:'other'}]) {
     const result=await getAutomatedReplyPermission(aiItem,{isAIEnabled:()=>true,sessionManager:{getSession:()=>null},conversationRepository:{getConversationById:async (id,companyId)=>{assert.equal(companyId,'default');return {...conversation,aiEnabled:true}},getConversationByPhone:async()=>null}});
     assert.equal(result.allowed,false);assert.equal(result.reason,'conversation_context_mismatch');
+  }
+});
+
+test('legacy automatic flow and absence/followup queue markers obey selected scope and global pause', async () => {
+  for (const metadata of [{ source: 'ai_auto_trigger' }, { source: 'ai' }, { systemTag: 'absence' }, { systemTag: 'reactivation_followup' }]) {
+    const result = await getAutomatedReplyPermission({ ...aiItem, metadata }, {
+      isAIEnabled: () => true,
+      getAutomationScope: async () => ({ mode: 'selected', sessionId: 'main', phones: ['5531993807167'] }),
+    });
+    assert.equal(result.allowed, false);
+    assert.equal(result.reason, 'automation_phone_outside_scope');
+    const paused = await getAutomatedReplyPermission({ ...aiItem, metadata }, { isAIEnabled: () => false });
+    assert.equal(paused.allowed, false); assert.equal(paused.reason, 'global_ai_off');
   }
 });

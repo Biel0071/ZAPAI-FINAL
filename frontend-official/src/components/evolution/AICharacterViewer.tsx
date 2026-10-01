@@ -334,68 +334,16 @@ export const AICharacterViewer: React.FC<AICharacterViewerProps> = ({
             </div>
           </div>
 
-          {/* INTERACTIVE CLICKABLE HOTSPOTS OVER TOOLBAR BUTTONS */}
-          <div className="absolute left-2.5 top-[68px] z-10 flex flex-col gap-1">
+          {/* VISIBLE CUSTOMIZATION ACTION PILL */}
+          <div className="absolute bottom-3 right-3 z-20 flex items-center gap-1.5">
             <button
               type="button"
               onClick={() => handleTabClick("visual")}
-              title="Personalizar Visual (Cabelo, Pele)"
-              className={`w-11 h-9 rounded-lg transition-all cursor-pointer flex items-center justify-center ${
-                activeTab === "visual" && showConfigPanel
-                  ? "bg-emerald-500/30 border border-emerald-400 shadow-[0_0_10px_rgba(16,185,129,0.3)]"
-                  : "hover:bg-emerald-500/15 border border-transparent hover:border-emerald-500/30"
-              }`}
-            />
-            <button
-              type="button"
-              onClick={() => handleTabClick("roupas")}
-              title="Personalizar Roupas & Uniforme da Loja"
-              className={`w-11 h-9 rounded-lg transition-all cursor-pointer flex items-center justify-center ${
-                activeTab === "roupas" && showConfigPanel
-                  ? "bg-emerald-500/30 border border-emerald-400 shadow-[0_0_10px_rgba(16,185,129,0.3)]"
-                  : "hover:bg-emerald-500/15 border border-transparent hover:border-emerald-500/30"
-              }`}
-            />
-            <button
-              type="button"
-              onClick={() => handleTabClick("acessorios")}
-              title="Personalizar Acessórios (Headset, Óculos)"
-              className={`w-11 h-9 rounded-lg transition-all cursor-pointer flex items-center justify-center ${
-                activeTab === "acessorios" && showConfigPanel
-                  ? "bg-emerald-500/30 border border-emerald-400 shadow-[0_0_10px_rgba(16,185,129,0.3)]"
-                  : "hover:bg-emerald-500/15 border border-transparent hover:border-emerald-500/30"
-              }`}
-            />
-            <button
-              type="button"
-              onClick={() => handleTabClick("cenario")}
-              title="Personalizar Cenário do Atendente"
-              className={`w-11 h-9 rounded-lg transition-all cursor-pointer flex items-center justify-center ${
-                activeTab === "cenario" && showConfigPanel
-                  ? "bg-emerald-500/30 border border-emerald-400 shadow-[0_0_10px_rgba(16,185,129,0.3)]"
-                  : "hover:bg-emerald-500/15 border border-transparent hover:border-emerald-500/30"
-              }`}
-            />
-            <button
-              type="button"
-              onClick={() => handleTabClick("animacoes")}
-              title="Modelos Prontos & Presets de Atendente"
-              className={`w-11 h-9 rounded-lg transition-all cursor-pointer flex items-center justify-center ${
-                activeTab === "animacoes" && showConfigPanel
-                  ? "bg-emerald-500/30 border border-emerald-400 shadow-[0_0_10px_rgba(16,185,129,0.3)]"
-                  : "hover:bg-emerald-500/15 border border-transparent hover:border-emerald-500/30"
-              }`}
-            />
-          </div>
-
-          {/* BOTTOM CENTER STATUS PILL */}
-          <div className="absolute bottom-2.5 left-1/2 -translate-x-1/2 z-10 flex items-center gap-1.5 bg-[#090e17]/85 backdrop-blur-md border border-emerald-500/30 px-3 py-1 rounded-full text-[10px] font-semibold text-emerald-300 shadow-[0_0_15px_rgba(16,185,129,0.25)]">
-            <span
-              className={`w-1.5 h-1.5 rounded-full ${
-                isOnline ? "bg-emerald-400 animate-pulse" : "bg-slate-400"
-              }`}
-            />
-            <span>{isOnline ? "Prévia visual · Sentada" : "Prévia visual · Em pé"}</span>
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#090e17]/90 hover:bg-[#090e17] text-white border border-white/20 hover:border-emerald-400/80 shadow-lg backdrop-blur-md text-[11px] font-semibold transition-all group cursor-pointer"
+            >
+              <Palette className="w-3.5 h-3.5 text-emerald-400 group-hover:rotate-12 transition-transform" />
+              <span>Personalizar Estilo</span>
+            </button>
           </div>
         </div>
       </div>

@@ -182,28 +182,45 @@ async function sendAutomatedConversationMessage({ conversation, store, text }) {
 }
 
 async function getConversations(req, res) {
+  const companyId = String(req.authTenantId || req.auth?.tenantId || req.auth?.companyId || '').trim();
+  if (!companyId) return res.status(401).json({ error: 'Autenticação da empresa obrigatória.' });
+  const rawSearch = req.query?.search;
+  if (rawSearch !== undefined && (typeof rawSearch !== 'string' || rawSearch.length > 100)) {
+    return res.status(400).json({ error: 'A busca deve conter até 100 caracteres.' });
+  }
+  const search = String(rawSearch || '').trim();
+  const requestedLimit = Number(req.query?.limit);
+  const limit = Number.isFinite(requestedLimit) ? Math.min(100, Math.max(1, Math.floor(requestedLimit))) : 50;
   const store = getStore(req);
   const sessionId = getOptionalSessionId(req);
 
   if (store?.databaseEnabled) {
     try {
       const sortedConversations = await inboxConversationService.listConversations({
-        companyId: req.query?.companyId,
-        limit: Number(req.query?.limit) || 50,
+        companyId,
+        limit,
         sessionId: sessionId || undefined,
+        search,
         store,
       });
 
       return res.status(200).json(sortedConversations);
     } catch (_err) {
-      // fall through to memory store
+      return res.status(503).json({ error: 'Não foi possível carregar as conversas. Tente novamente.' });
     }
   }
 
   // Return in-memory chats when DB is unavailable
-  const memChats = messageStore.getChats().filter((chat) =>
-    sessionId ? String(chat.sessionId || 'main') === sessionId : true
-  );
+  const normalizedSearch = search.toLowerCase();
+  const phoneSearch = /^[+\d\s().-]+$/.test(search) ? search.replace(/\D/g, '') : '';
+  const memChats = messageStore.getChats().filter((chat) => {
+    const chatSessionId = String(chat.sessionId || 'main');
+    const session = sessionManager.getSession(chatSessionId);
+    const owner = String(chat.companyId || chat.company_id || session?.companyId || session?.company_id || '');
+    if (owner !== companyId || (sessionId && chatSessionId !== sessionId)) return false;
+    return !normalizedSearch || [chat.name, chat.phone, chat.lastMessage].some(value => String(value || '').toLowerCase().includes(normalizedSearch)) ||
+      Boolean(phoneSearch && String(chat.phone || '').replace(/\D/g, '').includes(phoneSearch));
+  }).sort((a, b) => new Date(b.lastMessageTimestamp || 0) - new Date(a.lastMessageTimestamp || 0)).slice(0, limit);
   const normalized = memChats.map((chat) => ({
     assignedAgent: null,
     contactId: chat.phone,

@@ -99,7 +99,7 @@ import { EvolutionCenter } from "@/components/evolution/EvolutionCenter";
 import { OfficialKnowledgeManager } from "@/components/evolution/OfficialKnowledgeManager";
 import { PlaybookManager } from "@/components/evolution/PlaybookManager";
 import type { AILovableViewModel } from "@/core/adapters/lovable/aiAdapter";
-import { apiService, API_ORIGIN } from "@/core/services/apiService";
+import { apiService, API_ORIGIN, type AIAutomationScope } from "@/core/services/apiService";
 import { useToast } from "@/state/hooks/use-toast";
 import { AIIcon } from "@/components/ai/AIIcon";
 import { cn } from "@/core/lib/utils";
@@ -174,6 +174,11 @@ export type AIMetrics = {
 };
 
 interface AIViewProps {
+  automationScope: AIAutomationScope | null;
+  automationScopeError: string | null;
+  savingAutomationScope: boolean;
+  automationSessions: Array<{ id: string; label: string }>;
+  onSaveAutomationScope: (scope: AIAutomationScope) => Promise<boolean>;
   viewModel: AILovableViewModel;
   activeSection: string;
   loading: boolean;
@@ -384,6 +389,11 @@ export function AIView(props: AIViewProps) {
   const {
     saving,
     aiEnabled,
+    automationScope,
+    automationScopeError,
+    savingAutomationScope,
+    automationSessions,
+    onSaveAutomationScope,
     prompt,
     promptVersions,
     openingHour,
@@ -475,6 +485,19 @@ export function AIView(props: AIViewProps) {
 
   // Internal Navigation Tab
   const [activeInternalTab, setActiveInternalTab] = useState<string>("evolution");
+  const [scopeMode, setScopeMode] = useState<AIAutomationScope["mode"]>("selected");
+  const [scopeSessionId, setScopeSessionId] = useState("");
+  const [scopePhonesText, setScopePhonesText] = useState("");
+  const savedScopeKey = JSON.stringify(automationScope);
+  useEffect(() => {
+    setScopeMode(automationScope?.mode || "selected");
+    setScopeSessionId(automationScope?.sessionId || "");
+    setScopePhonesText(automationScope?.phones.join("\n") || "");
+  }, [savedScopeKey]);
+  const scopeDraft: AIAutomationScope = scopeMode === "all"
+    ? { mode: "all", sessionId: null, phones: [] }
+    : { mode: "selected", sessionId: scopeSessionId || null, phones: scopePhonesText.split(/[\n;,]+/).map(phone => phone.trim()).filter(Boolean) };
+  const scopeDirty = JSON.stringify(scopeDraft) !== savedScopeKey;
   const [activeAtendentesSubTab, setActiveAtendentesSubTab] = useState<"lista" | "simulador" | "evolucao">("lista");
   const [activeConhecimentoSubTab, setActiveConhecimentoSubTab] = useState<"templates" | "treinamento">("templates");
   const [activeAnaliseSubTab, setActiveAnaliseSubTab] = useState<"evolucao" | "learning" | "logs" | "templates" | "treinamento">("logs");
@@ -2617,8 +2640,45 @@ export function AIView(props: AIViewProps) {
                           <CardDescription className="text-[11px]">Controle a resposta automática global do chatbot.</CardDescription>
                         </CardHeader>
                         <CardContent className="p-4 pt-1 flex items-center justify-between">
-                          <span className="text-xs text-muted-foreground">Atendimento ativo pelo motor de IA</span>
-                          <Switch checked={aiEnabled} onCheckedChange={onStatusToggle} />
+                          <span className="text-xs text-muted-foreground">{aiEnabled ? "Atendimento automático ativado" : "Atendimento automático pausado"}</span>
+                          <Switch checked={aiEnabled} onCheckedChange={onStatusToggle} disabled={savingAutomationScope || (!aiEnabled && (!automationScope || scopeDirty))} aria-label="Ativar atendimento automático" />
+                        </CardContent>
+                      </Card>
+
+                      <Card className="glass-card">
+                        <CardHeader className="p-4 pb-2">
+                          <CardTitle className="text-xs font-semibold flex items-center gap-2"><Target className="h-4 w-4 text-primary" /> Alcance da automação</CardTitle>
+                          <CardDescription className="text-[11px]">Ative a IA aos poucos, escolhendo quem pode receber respostas automáticas.</CardDescription>
+                          {automationScope && <Badge variant="outline" className="w-fit text-[10px] mt-2">{automationScope.mode === "all" ? "Salvo: todas as conversas" : `Salvo: ${automationScope.phones.length} contato(s) · ${automationScope.sessionId}`}</Badge>}
+                        </CardHeader>
+                        <CardContent className="p-4 pt-2 space-y-3">
+                          {automationScopeError && <p role="alert" className="text-xs text-destructive">{automationScopeError}</p>}
+                          <div className="space-y-1.5">
+                            <Label htmlFor="ai-automation-scope-mode" className="text-xs">Responder automaticamente para</Label>
+                            <Select value={scopeMode} onValueChange={value => setScopeMode(value as AIAutomationScope["mode"])} disabled={savingAutomationScope}>
+                              <SelectTrigger id="ai-automation-scope-mode" className="h-9 text-xs"><SelectValue /></SelectTrigger>
+                              <SelectContent><SelectItem value="all">Todas as conversas</SelectItem><SelectItem value="selected">Somente contatos selecionados</SelectItem></SelectContent>
+                            </Select>
+                          </div>
+                          {scopeMode === "selected" && <>
+                            <div className="space-y-1.5">
+                              <Label htmlFor="ai-automation-scope-session" className="text-xs">Conexão do WhatsApp</Label>
+                              <Select value={scopeSessionId} onValueChange={setScopeSessionId} disabled={savingAutomationScope}>
+                                <SelectTrigger id="ai-automation-scope-session" className="h-9 text-xs"><SelectValue placeholder="Selecione uma conexão" /></SelectTrigger>
+                                <SelectContent>{automationSessions.map(session => <SelectItem key={session.id} value={session.id}>{session.label}</SelectItem>)}</SelectContent>
+                              </Select>
+                            </div>
+                            <div className="space-y-1.5">
+                              <Label htmlFor="ai-automation-scope-phones" className="text-xs">Telefones autorizados</Label>
+                              <Textarea id="ai-automation-scope-phones" value={scopePhonesText} onChange={event => setScopePhonesText(event.target.value)} maxLength={4000} disabled={savingAutomationScope} placeholder="+55 31 99380-7167" className="min-h-[76px] text-xs resize-y" />
+                              <p className="text-[11px] text-muted-foreground">Um telefone por linha, com código do país e DDD. Máximo de 100 contatos.</p>
+                              {scopeDraft.phones.length === 0 && <p className="text-[11px] text-amber-500">Lista vazia: nenhuma conversa receberá respostas automáticas.</p>}
+                            </div>
+                          </>}
+                          <div className="flex flex-wrap items-center justify-between gap-2">
+                            <p className="text-[11px] text-muted-foreground">{scopeDirty ? "Salve o alcance antes de ativar a IA." : aiEnabled ? "Pausas por conversa continuam valendo." : "IA geral pausada. Salvar não ativa o atendimento."}</p>
+                            <Button size="sm" onClick={() => void onSaveAutomationScope(scopeDraft)} disabled={savingAutomationScope || !scopeDirty || (scopeMode === "selected" && (!scopeSessionId || scopeDraft.phones.length > 100))} className="h-8 text-xs">{savingAutomationScope && <Loader2 className="h-3 w-3 animate-spin mr-1" />}Salvar alcance</Button>
+                          </div>
                         </CardContent>
                       </Card>
 

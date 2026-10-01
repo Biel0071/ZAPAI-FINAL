@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file.
 
+## Unreleased — 2026-10-01: correções da aceitação na VPS
+
+- Busca de conversas no servidor por empresa e conexão, com cancelamento de resultados antigos, pesquisa nas arquivadas e filtro real de todas as conexões.
+- Identificadores de envio compatíveis com navegadores que não expõem `crypto.randomUUID`, preservando a geração segura e os rascunhos em caso de erro.
+- Ajustes de botões em telas pequenas, ajuda do Inbox integrada ao cabeçalho e informações corretas quando a IA global está pausada.
+- Migração aditiva `039_create_quick_replies`, sem seeds, e erros recuperáveis de persistência nas respostas rápidas.
+- Alcance configurável da automação por conexão e telefone, mantendo a pausa global e a validação do destino antes de responder.
+- Publicação preserva todos os arquivos de ambiente e faz backup do banco efetivamente usado pelo processo. O gate do frontend acompanha o redirecionamento para HTTPS com validação do certificado.
+
 ## Unreleased — 2026-09-30: IA e Inbox para atendimento real
 
 - Entrada única da IA no menu, agente como tela inicial e navegação interna em Agente, Conhecimento e Operação. Criação guiada reutiliza o painel existente com revisão antes de salvar.

@@ -532,8 +532,10 @@ async function updateConversationAfterMessage(conversationId, content, type = 't
 
 async function listConversations(companyId, limit = 50, options = {}) {
   const requestedSessionId = options?.sessionId ? String(options.sessionId).trim() : '';
+  const search = String(options?.search || '').trim().slice(0, 100);
+  const strictSession = options?.strictSession === true;
   const requireMessages = options?.requireMessages === true;
-  const cacheKey = `${getCacheKey(companyId, limit, requestedSessionId || null)}:${requireMessages ? 'with-messages' : 'all'}`;
+  const cacheKey = `${getCacheKey(companyId, limit, requestedSessionId || null)}:${requireMessages ? 'with-messages' : 'all'}:${strictSession ? 'strict' : 'fallback'}:${encodeURIComponent(search)}`;
 
   if (options.useCache !== false) {
     const cached = readCache(cacheKey);
@@ -547,12 +549,30 @@ async function listConversations(companyId, limit = 50, options = {}) {
 
   if (requestedSessionId) {
     values.push(requestedSessionId);
-    whereClause += ` AND (conv.session_id = $${values.length} OR NOT EXISTS (SELECT 1 FROM conversations c_active WHERE c_active.company_id = $1 AND c_active.session_id = $${values.length}))`;
+    whereClause += strictSession
+      ? ` AND conv.session_id = $${values.length}`
+      : ` AND (conv.session_id = $${values.length} OR NOT EXISTS (SELECT 1 FROM conversations c_active WHERE c_active.company_id = $1 AND c_active.session_id = $${values.length}))`;
   }
 
 
   if (requireMessages) {
     whereClause += ' AND EXISTS (SELECT 1 FROM messages msg WHERE msg.conversation_id = conv.id)';
+  }
+
+  let searchClause = '';
+  if (search) {
+    const literalPattern = `%${search.replace(/[\\%_]/g, '\\$&')}%`;
+    values.push(literalPattern);
+    const patternIndex = values.length;
+    searchClause = `WHERE (name ILIKE $${patternIndex} OR phone ILIKE $${patternIndex} OR last_message ILIKE $${patternIndex}`;
+    if (/^[+\d\s().-]+$/.test(search)) {
+      const digits = search.replace(/\D/g, '');
+      if (digits) {
+        values.push(`%${digits}%`);
+        searchClause += ` OR regexp_replace(phone, '[^0-9]', '', 'g') LIKE $${values.length}`;
+      }
+    }
+    searchClause += ')';
   }
   values.push(limit);
 
@@ -595,6 +615,7 @@ async function listConversations(companyId, limit = 50, options = {}) {
           conv.updated_at DESC,
           conv.id DESC
       ) deduplicated
+      ${searchClause}
       ORDER BY updated_at DESC
       LIMIT $${values.length}
     `,

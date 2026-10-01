@@ -179,22 +179,101 @@ async function getMessagesByConversation(conversationId, options = {}) {
   const limit = Math.max(1, Math.min(Number(options.limit) || 50, 200));
   const before = options.before ? new Date(String(options.before)) : null;
   const beforeId = /^\d+$/.test(String(options.beforeId || '')) ? Number(options.beforeId) : null;
-  const values = [conversationId, limit, options.companyId || process.env.DEFAULT_COMPANY_ID || 'default'];
-  let beforeClause = '';
+  const companyId = options.companyId || process.env.DEFAULT_COMPANY_ID || 'default';
+  const isNumeric = /^\d+$/.test(String(conversationId || ''));
 
+  // 1. Resolve conversation metadata (lead_id, remote_jid, phone, session_id)
+  let targetConv = null;
+  if (isNumeric) {
+    try {
+      const convRes = await db.query(
+        `SELECT conv.id, conv.lead_id, conv.remote_jid, conv.session_id, l.phone
+         FROM conversations conv
+         INNER JOIN leads l ON l.id = conv.lead_id
+         WHERE conv.id = $1 AND conv.company_id = $2
+         LIMIT 1`,
+        [Number(conversationId), companyId]
+      );
+      targetConv = convRes.rows[0] || null;
+    } catch (_) {}
+  }
+
+  const { getPhoneAliases } = require('../../../services/whatsapp/shared/identifiers');
+
+  if (!targetConv) {
+    try {
+      const cleanId = String(conversationId || '').replace(/^chat-/, '').trim();
+      const lookupAliases = getPhoneAliases(cleanId);
+      const convRes = await db.query(
+        `SELECT conv.id, conv.lead_id, conv.remote_jid, conv.session_id, l.phone
+         FROM conversations conv
+         INNER JOIN leads l ON l.id = conv.lead_id
+         WHERE conv.company_id = $1
+           AND (conv.remote_jid = $2 OR l.phone = ANY($3::text[]) OR conv.remote_jid = ANY($3::text[]))
+         ORDER BY conv.updated_at DESC
+         LIMIT 1`,
+        [companyId, cleanId, lookupAliases]
+      );
+      targetConv = convRes.rows[0] || null;
+    } catch (_) {}
+  }
+
+  const resolvedConvId = targetConv?.id || (isNumeric ? Number(conversationId) : null);
+  const contactPhone = targetConv?.phone || (!isNumeric ? String(conversationId || '').replace(/^chat-/, '').trim() : '');
+  const aliases = contactPhone ? getPhoneAliases(contactPhone) : [];
+  const jidCandidates = new Set();
+  if (targetConv?.remote_jid) jidCandidates.add(targetConv.remote_jid);
+  for (const a of aliases) {
+    jidCandidates.add(a);
+    if (!a.includes('@')) {
+      jidCandidates.add(`${a}@s.whatsapp.net`);
+    }
+  }
+  const jidList = Array.from(jidCandidates);
+
+  const values = [companyId];
+  const conditions = [];
+
+  if (resolvedConvId) {
+    values.push(resolvedConvId);
+    conditions.push(`m.conversation_id = $${values.length}`);
+  }
+  if (targetConv?.lead_id) {
+    values.push(targetConv.lead_id);
+    conditions.push(`conv.lead_id = $${values.length}`);
+  }
+  if (jidList.length > 0) {
+    values.push(jidList);
+    conditions.push(`m.remote_jid = ANY($${values.length}::text[])`);
+  }
+  if (aliases.length > 0) {
+    values.push(aliases);
+    conditions.push(`(m.phone = ANY($${values.length}::text[]) OR l.phone = ANY($${values.length}::text[]))`);
+  }
+
+  const matchClause = conditions.length > 0 ? `(${conditions.join(' OR ')})` : (resolvedConvId ? `m.conversation_id = ${resolvedConvId}` : '1=0');
+
+  let beforeClause = '';
   if (before && !Number.isNaN(before.getTime())) {
     values.push(before.toISOString());
-    beforeClause = beforeId
-      ? ` AND (m.timestamp,m.id) < ($${values.length}::timestamp,$${values.length + 1}::integer)`
-      : ` AND m.timestamp < $${values.length}::timestamp`;
-    if (beforeId) values.push(beforeId);
+    const beforeIdx = values.length;
+    if (beforeId) {
+      values.push(beforeId);
+      const beforeIdIdx = values.length;
+      beforeClause = ` AND (m.timestamp,m.id) < ($${beforeIdx}::timestamp,$${beforeIdIdx}::integer)`;
+    } else {
+      beforeClause = ` AND m.timestamp < ($${beforeIdx}::timestamp)`;
+    }
   }
+
+  values.push(limit);
+  const limitIdx = values.length;
 
   const result = await db.query(
     `
       SELECT * FROM (
         SELECT m.id,
-               m.conversation_id,
+               COALESCE(m.conversation_id, ${resolvedConvId || 'conv.id'}) AS conversation_id,
                COALESCE(m.sender, CASE WHEN m.from_me THEN 'agent' ELSE 'client' END) AS sender,
                COALESCE(m.media_type, m.type, 'text') AS type,
                COALESCE(m.content, m.text, '') AS content,
@@ -202,8 +281,8 @@ async function getMessagesByConversation(conversationId, options = {}) {
                COALESCE(m.timestamp, m.created_at) AS timestamp,
                COALESCE(m.status, CASE WHEN m.from_me THEN 'sent' ELSE 'received' END) AS status,
                m.created_at,
-               COALESCE(m.session_id, conv.session_id) AS session_id,
-               l.phone,
+               COALESCE(m.session_id, conv.session_id, ${targetConv?.session_id ? `'${targetConv.session_id}'` : 'NULL'}) AS session_id,
+               COALESCE(l.phone, m.phone, ${targetConv?.phone ? `'${targetConv.phone}'` : 'NULL'}) AS phone,
                m.text,
                m.media_type,
                m.media_path,
@@ -212,19 +291,30 @@ async function getMessagesByConversation(conversationId, options = {}) {
                m.remote_jid,
                m.participant_jid
         FROM messages m
-        INNER JOIN conversations conv ON conv.id = m.conversation_id
-        INNER JOIN leads l ON l.id = conv.lead_id
-        WHERE m.conversation_id = $1 AND conv.company_id = $3 AND m.company_id = $3
+        LEFT JOIN conversations conv ON conv.id = m.conversation_id
+        LEFT JOIN leads l ON l.id = conv.lead_id
+        WHERE m.company_id = $1
+          AND ${matchClause}
         ${beforeClause}
         ORDER BY m.timestamp DESC, m.id DESC
-        LIMIT $2
+        LIMIT $${limitIdx}
       ) recent
       ORDER BY recent.timestamp ASC, recent.id ASC
     `,
     values
   );
 
-  return result.rows.map(mapMessage);
+  const seen = new Set();
+  const deduplicated = [];
+  for (const row of result.rows) {
+    const key = row.whatsapp_message_id || `id-${row.id}`;
+    if (!seen.has(key)) {
+      seen.add(key);
+      deduplicated.push(row);
+    }
+  }
+
+  return deduplicated.map(mapMessage);
 }
 
 async function findByConversationId(conversationId, companyId) {
@@ -232,12 +322,23 @@ async function findByConversationId(conversationId, companyId) {
 }
 
 async function getMessagesByPhone(phone, companyId, sessionId) {
-  const values = [phone, companyId || process.env.DEFAULT_COMPANY_ID || 'default'];
-  let whereClause = 'WHERE l.phone = $1 AND conv.company_id = $2';
+  const { getPhoneAliases } = require('../../../services/whatsapp/shared/identifiers');
+  const cleanPhone = String(phone || '').replace(/^chat-/, '').trim();
+  const aliases = getPhoneAliases(cleanPhone);
+  const compId = companyId || process.env.DEFAULT_COMPANY_ID || 'default';
+  const jidCandidates = new Set(aliases);
+  for (const a of aliases) {
+    if (!a.includes('@')) {
+      jidCandidates.add(`${a}@s.whatsapp.net`);
+    }
+  }
+  const jidList = Array.from(jidCandidates);
 
+  const values = [compId, aliases, jidList];
+  let sessionClause = '';
   if (sessionId) {
     values.push(sessionId);
-    whereClause += ` AND conv.session_id = $${values.length}`;
+    sessionClause = ` AND (m.session_id = $${values.length} OR conv.session_id = $${values.length} OR m.session_id IS NULL)`;
   }
 
   const result = await db.query(
@@ -252,7 +353,7 @@ async function getMessagesByPhone(phone, companyId, sessionId) {
              COALESCE(m.status, CASE WHEN m.from_me THEN 'sent' ELSE 'received' END) AS status,
              m.created_at,
              COALESCE(m.session_id, conv.session_id) AS session_id,
-             l.phone,
+             COALESCE(l.phone, m.phone) AS phone,
              m.text,
              m.media_type,
              m.media_path,
@@ -261,15 +362,27 @@ async function getMessagesByPhone(phone, companyId, sessionId) {
              m.remote_jid,
              m.participant_jid
       FROM messages m
-      INNER JOIN conversations conv ON conv.id = m.conversation_id
-      INNER JOIN leads l ON l.id = conv.lead_id
-      ${whereClause}
+      LEFT JOIN conversations conv ON conv.id = m.conversation_id
+      LEFT JOIN leads l ON l.id = conv.lead_id
+      WHERE m.company_id = $1
+        AND (l.phone = ANY($2::text[]) OR m.phone = ANY($2::text[]) OR m.remote_jid = ANY($3::text[]))
+        ${sessionClause}
       ORDER BY m.timestamp ASC, m.id ASC
     `,
     values
   );
 
-  return result.rows.map(mapMessage);
+  const seen = new Set();
+  const deduplicated = [];
+  for (const row of result.rows) {
+    const key = row.whatsapp_message_id || `id-${row.id}`;
+    if (!seen.has(key)) {
+      seen.add(key);
+      deduplicated.push(row);
+    }
+  }
+
+  return deduplicated.map(mapMessage);
 }
 
 async function getLastMessage(conversationId) {

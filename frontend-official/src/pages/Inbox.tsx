@@ -98,6 +98,7 @@ export default function Inbox() {
 
   const filteredConversations = useMemo(() => {
     const normalizedSearch = state.searchQuery.trim().toLowerCase();
+    const phoneSearch = /^[+\d\s().-]+$/.test(normalizedSearch) ? normalizedSearch.replace(/\D/g, "") : "";
     const archivedSet = new Set(state.archivedChatIds.map(String));
     const pinnedSet = new Set(state.pinnedChatIds.map(String));
     const targetSessionId = activeSessionId ? String(activeSessionId).trim().toLowerCase() : "";
@@ -126,8 +127,9 @@ export default function Inbox() {
         }
 
         const isArchived = archivedSet.has(conversationId) || String(conversation.status).toLowerCase() === "archived";
-        if (state.filter === "archived") return isArchived;
-        if (isArchived) return false;
+        if (state.filter === "archived") {
+          if (!isArchived) return false;
+        } else if (isArchived) return false;
         if (state.filter === "unread" && (conversation.unread ?? 0) <= 0) return false;
         if (state.filter === "ai" && !(state.conversationControls[conversation.id]?.aiEnabled ?? true)) return false;
         if (!showGroups && conversation.isGroup) return false;
@@ -137,6 +139,7 @@ export default function Inbox() {
         return (
           conversation.contactName.toLowerCase().includes(normalizedSearch) ||
           conversation.phone.toLowerCase().includes(normalizedSearch) ||
+          Boolean(phoneSearch && conversation.phone.replace(/\D/g, "").includes(phoneSearch)) ||
           conversation.lastMessage.toLowerCase().includes(normalizedSearch) ||
           draftText.toLowerCase().includes(normalizedSearch)
         );

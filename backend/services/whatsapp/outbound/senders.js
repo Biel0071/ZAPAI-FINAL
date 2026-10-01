@@ -209,15 +209,27 @@ async function resolveRegisteredJid(sock, jid, options = {}) {
   return jid;
 }
 
+async function checkBeforeSend(beforeSend) {
+  if (typeof beforeSend !== 'function') return;
+  const permission = await beforeSend();
+  if (permission === false || permission?.allowed === false) {
+    throw Object.assign(new Error('Resposta automática cancelada antes do transporte.'), {
+      code: 'AUTOMATED_REPLY_CANCELLED', reason: permission?.reason || 'automation_disabled', nonRetryable: true,
+    });
+  }
+}
+
 async function sendMessage(sock, phone, text, options = {}) {
   ensureSocket(sock);
   let jid = ensureWhatsAppJid(phone);
   jid = await resolveRegisteredJid(sock, jid, { requireRegistered: true });
+  const { beforeSend, ...transportOptions } = options;
+  await checkBeforeSend(beforeSend);
 
   try {
     console.log(`[WHATSAPP-SEND] transport_call kind=text jid=${jid}`);
     return await sendWithRetry(
-      () => sock.sendMessage(jid, { text }, options),
+      () => sock.sendMessage(jid, { text }, transportOptions),
       // A send timeout is ambiguous: WhatsApp may already have accepted the
       // message. Retrying here can create duplicate deliveries. Retries are
       // handled by the outbound queue at item level instead.
@@ -236,10 +248,11 @@ async function sendMessage(sock, phone, text, options = {}) {
   }
 }
 
-async function sendImage(sock, phone, imagePath, caption = '') {
+async function sendImage(sock, phone, imagePath, caption = '', options = {}) {
   ensureSocket(sock);
   let jid = ensureWhatsAppJid(phone);
   jid = await resolveRegisteredJid(sock, jid, { requireRegistered: true });
+  await checkBeforeSend(options.beforeSend);
 
   try {
     return await sendWithRetry(
@@ -264,10 +277,11 @@ async function sendImage(sock, phone, imagePath, caption = '') {
   }
 }
 
-async function sendVideo(sock, phone, videoPath, caption = '') {
+async function sendVideo(sock, phone, videoPath, caption = '', options = {}) {
   ensureSocket(sock);
   let jid = ensureWhatsAppJid(phone);
   jid = await resolveRegisteredJid(sock, jid, { requireRegistered: true });
+  await checkBeforeSend(options.beforeSend);
 
   try {
     return await sendWithRetry(
@@ -292,10 +306,11 @@ async function sendVideo(sock, phone, videoPath, caption = '') {
   }
 }
 
-async function sendAudio(sock, phone, audioPath, ptt = false, mimetype) {
+async function sendAudio(sock, phone, audioPath, ptt = false, mimetype, options = {}) {
   ensureSocket(sock);
   let jid = ensureWhatsAppJid(phone);
   jid = await resolveRegisteredJid(sock, jid, { requireRegistered: true });
+  await checkBeforeSend(options.beforeSend);
 
   try {
     return await sendWithRetry(
@@ -322,10 +337,11 @@ async function sendAudio(sock, phone, audioPath, ptt = false, mimetype) {
   }
 }
 
-async function sendDocument(sock, phone, docPath, fileName, mimetype) {
+async function sendDocument(sock, phone, docPath, fileName, mimetype, options = {}) {
   ensureSocket(sock);
   let jid = ensureWhatsAppJid(phone);
   jid = await resolveRegisteredJid(sock, jid, { requireRegistered: true });
+  await checkBeforeSend(options.beforeSend);
 
   try {
     return await sendWithRetry(
@@ -352,10 +368,11 @@ async function sendDocument(sock, phone, docPath, fileName, mimetype) {
   }
 }
 
-async function sendSticker(sock, phone, stickerPath) {
+async function sendSticker(sock, phone, stickerPath, options = {}) {
   ensureSocket(sock);
   let jid = ensureWhatsAppJid(phone);
   jid = await resolveRegisteredJid(sock, jid, { requireRegistered: true });
+  await checkBeforeSend(options.beforeSend);
 
   try {
     return await sendWithRetry(
@@ -383,23 +400,23 @@ async function sendMediaMessage(
   phone,
   mediaType,
   mediaPath,
-  { caption = '', fileName, mimetype, ptt = false } = {}
+  { caption = '', fileName, mimetype, ptt = false, beforeSend } = {}
 ) {
   switch (mediaType) {
     case 'image':
-      return sendImage(sock, phone, mediaPath, caption);
+      return sendImage(sock, phone, mediaPath, caption, { beforeSend });
     case 'video':
-      return sendVideo(sock, phone, mediaPath, caption);
+      return sendVideo(sock, phone, mediaPath, caption, { beforeSend });
     case 'audio':
-      return sendAudio(sock, phone, mediaPath, ptt, mimetype);
+      return sendAudio(sock, phone, mediaPath, ptt, mimetype, { beforeSend });
     case 'document':
-      return sendDocument(sock, phone, mediaPath, fileName, mimetype);
+      return sendDocument(sock, phone, mediaPath, fileName, mimetype, { beforeSend });
     case 'sticker':
-      return sendSticker(sock, phone, mediaPath);
+      return sendSticker(sock, phone, mediaPath, { beforeSend });
     case 'product':
     case 'catalog':
       // Fallback: If it's a catalog or product, just send the text/URL so it doesn't crash the queue.
-      return sendMessage(sock, phone, caption ? `${caption}\n${mediaPath}` : String(mediaPath || ''));
+      return sendMessage(sock, phone, caption ? `${caption}\n${mediaPath}` : String(mediaPath || ''), { beforeSend });
     default:
       throw new Error('Unsupported mediaType. Use image, video, audio, document, sticker, product, or catalog.');
   }

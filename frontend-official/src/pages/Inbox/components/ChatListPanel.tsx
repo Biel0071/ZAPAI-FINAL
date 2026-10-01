@@ -109,7 +109,7 @@ export function ChatListPanel({
           <div className="flex-1">
             <ChatSearchBar
               value={searchQuery}
-              onChange={setSearchQuery}
+              onChange={(value) => setSearchQuery(value.slice(0, 100))}
               placeholder="Buscar conversas..."
             />
           </div>

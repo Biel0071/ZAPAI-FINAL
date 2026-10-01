@@ -4,7 +4,7 @@ import { Header } from "@/components/layout/Header";
 import AIView from "@/pages/lovable/pages/AIPageView";
 import { createAILovableViewModel } from "@/core/adapters/lovable/aiAdapter";
 import { useToast } from "@/state/hooks/use-toast";
-import { apiService, type AIConnectionTestResult, type AIStatusResponse } from "@/core/services/apiService";
+import { apiService, type AIConnectionTestResult, type AIStatusResponse, type AIAutomationScope } from "@/core/services/apiService";
 import type { AIProviderConfig } from "@/pages/lovable/pages/AIView";
 import { useAppStore } from "@/state/stores/appStore";
 import { VoiceStudioDrawer } from "@/components/ai/VoiceStudioDrawer";
@@ -71,6 +71,10 @@ export default function AI() {
   const tabParam = searchParams.get("tab") as SectionId | null;
   const [activeSection, setActiveSection] = useState<SectionId>("evolution");
   const activeSessionId = useAppStore((state) => state.activeSessionId);
+  const sessions = useAppStore((state) => state.sessions);
+  const [automationScope, setAutomationScope] = useState<AIAutomationScope | null>(null);
+  const [automationScopeError, setAutomationScopeError] = useState<string | null>(null);
+  const [savingAutomationScope, setSavingAutomationScope] = useState(false);
   const [isVoiceStudioOpen, setIsVoiceStudioOpen] = useState(false);
 
   useEffect(() => {
@@ -212,6 +216,8 @@ export default function AI() {
         if (!mounted) return;
 
         setAiEnabled(resolveAIEnabled(status));
+        setAutomationScope((status as AIStatusResponse).automationScope || null);
+        setAutomationScopeError((status as AIStatusResponse).automationScopeError || (!(status as AIStatusResponse).automationScope ? "Não foi possível consultar o alcance da automação." : null));
         setProviderOnline(Boolean((status as any)?.providerConfigured ?? (status as any)?.providerOnline ?? (status as any)?.online));
         setAiLogs(logsData?.logs || []);
         setAiMetrics(metricsData || {});
@@ -312,6 +318,8 @@ export default function AI() {
         ]);
         if (mounted) {
           setAiEnabled(resolveAIEnabled(status));
+          setAutomationScope((status as AIStatusResponse).automationScope || null);
+          setAutomationScopeError((status as AIStatusResponse).automationScopeError || (!(status as AIStatusResponse).automationScope ? "Não foi possível consultar o alcance da automação." : null));
           setProviderOnline(Boolean((status as any)?.providerConfigured ?? (status as any)?.providerOnline ?? (status as any)?.online));
           setAiLogs(logsData?.logs || []);
           setAiMetrics(metricsData || {});
@@ -347,6 +355,23 @@ export default function AI() {
       setAiEnabled(previous);
       toast({ title: "Não foi possível atualizar o status da IA no servidor.", variant: "destructive" });
     }
+  };
+
+  const saveAutomationScope = async (scope: AIAutomationScope) => {
+    setSavingAutomationScope(true);
+    try {
+      const result = await apiService.saveAIAutomationScope(scope);
+      if (!result.automationScope) throw new Error("O servidor não confirmou o alcance salvo.");
+      setAutomationScope(result.automationScope);
+      setAutomationScopeError(null);
+      setAiEnabled(resolveAIEnabled(result));
+      toast({ title: "Alcance da automação salvo.", description: "O controle geral da IA manteve o estado atual." });
+      return true;
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Não foi possível salvar o alcance da automação.";
+      toast({ title: message, variant: "destructive" });
+      return false;
+    } finally { setSavingAutomationScope(false); }
   };
 
   const savePrompt = async () => {
@@ -670,6 +695,11 @@ export default function AI() {
         loading={loading}
         saving={saving}
         aiEnabled={aiEnabled}
+        automationScope={automationScope}
+        automationScopeError={automationScopeError}
+        savingAutomationScope={savingAutomationScope}
+        automationSessions={sessions.map(session => ({ id: session.id, label: session.name || session.id }))}
+        onSaveAutomationScope={saveAutomationScope}
         prompt={prompt}
         promptVersions={promptVersions}
         openingHour={openingHour}

@@ -1,9 +1,11 @@
 const { query } = require('../src/infrastructure/config/database');
 const { isBusinessOpen, businessHours } = require('../src/infrastructure/config/businessHours');
 const outboundQueueService = require('./outboundQueueService');
+const { getAutomationPermission } = require('../src/infrastructure/config/aiToggle');
 
 // In-memory fallback queue if database is temporarily unavailable
 const inMemoryReactivationQueue = new Map();
+const reactivationKey = (companyId, sessionId, phone) => JSON.stringify([companyId, sessionId, phone]);
 
 let tableInitialized = false;
 async function initReactivationTable() {
@@ -35,9 +37,10 @@ initReactivationTable().catch(() => {});
 /**
  * Enqueues a contact who messaged outside business hours with strict deduplication
  */
-async function enqueueOutofHoursContact({ phone, text, companyId = 'default', sessionId = 'default' }) {
-  if (!phone) return;
+async function enqueueOutofHoursContact({ phone, text, companyId, sessionId }) {
+  if (!phone || !companyId || !sessionId) return { success: false, reason: 'reactivation_context_missing' };
   const normalizedPhone = String(phone).replace(/\D/g, '');
+  const key = reactivationKey(companyId, sessionId, normalizedPhone);
 
   console.log(`[REACTIVATION_SERVICE] Enqueueing out-of-hours contact ${normalizedPhone}`);
 
@@ -50,52 +53,47 @@ async function enqueueOutofHoursContact({ phone, text, companyId = 'default', se
     const updateResult = await query(
       `UPDATE business_hours_reactivation_queue
        SET last_message = $1, session_id = $2, updated_at = NOW()
-       WHERE phone = $3 AND company_id = $4 AND status = 'pending_opening'
+       WHERE phone = $3 AND company_id = $4 AND session_id = $2 AND status = 'pending_opening'
        RETURNING id`,
       [text || '', sessionId, normalizedPhone, companyId]
     ).catch(() => null);
 
     if (!updateResult?.rowCount || updateResult.rowCount === 0) {
       // 2. Insert new row only if none is pending
-      await query(
+      const inserted = await query(
         `INSERT INTO business_hours_reactivation_queue (phone, company_id, session_id, last_message, status, updated_at)
          VALUES ($1, $2, $3, $4, 'pending_opening', NOW())
          ON CONFLICT (phone, company_id) WHERE status = 'pending_opening' DO UPDATE
-         SET last_message = EXCLUDED.last_message, session_id = EXCLUDED.session_id, updated_at = NOW()`,
+         SET last_message = EXCLUDED.last_message, updated_at = NOW()
+         WHERE business_hours_reactivation_queue.session_id = EXCLUDED.session_id
+         RETURNING id`,
         [normalizedPhone, companyId, sessionId, text || '']
-      ).catch(async () => {
-        // Fallback for schemas where unique partial index is not yet applied
-        await query(
-          `INSERT INTO business_hours_reactivation_queue (phone, company_id, session_id, last_message, status, updated_at)
-           SELECT $1::varchar, $2::varchar, $3::varchar, $4::text, 'pending_opening', NOW()
-           WHERE NOT EXISTS (
-             SELECT 1 FROM business_hours_reactivation_queue
-             WHERE phone = $1 AND company_id = $2 AND status = 'pending_opening'
-           )`,
-          [normalizedPhone, companyId, sessionId, text || '']
-        ).catch(() => {});
-      });
+      );
+      if (!inserted.rowCount) {
+        console.warn('[REACTIVATION_SERVICE] Pending contact already belongs to another connection; preserving it.');
+        return { success: false, reason: 'reactivation_session_conflict' };
+      }
     }
 
     // Keep memory fallback in sync (Map naturally deduplicates by phone)
-    inMemoryReactivationQueue.set(normalizedPhone, {
+    inMemoryReactivationQueue.set(key, {
       phone: normalizedPhone,
       companyId,
       sessionId,
       lastMessage: text,
       status: 'pending_opening',
-      createdAt: inMemoryReactivationQueue.get(normalizedPhone)?.createdAt || new Date(),
+      createdAt: inMemoryReactivationQueue.get(key)?.createdAt || new Date(),
       updatedAt: new Date(),
     });
   } catch (err) {
     console.error('[REACTIVATION_SERVICE] Failed to enqueue to DB:', err.message);
-    inMemoryReactivationQueue.set(normalizedPhone, {
+    inMemoryReactivationQueue.set(key, {
       phone: normalizedPhone,
       companyId,
       sessionId,
       lastMessage: text,
       status: 'pending_opening',
-      createdAt: inMemoryReactivationQueue.get(normalizedPhone)?.createdAt || new Date(),
+      createdAt: inMemoryReactivationQueue.get(key)?.createdAt || new Date(),
       updatedAt: new Date(),
     });
   }
@@ -115,19 +113,20 @@ async function checkAndDispatchReactivationQueue() {
       `SELECT * FROM business_hours_reactivation_queue WHERE status = 'pending_opening' ORDER BY updated_at DESC LIMIT 50`
     ).catch(() => ({ rows: [] }));
 
-    // Deduplicate contacts by phone so a contact is never processed multiple times in the same cycle
+    // Keep each company and connection separate, including identical phone numbers.
     const uniqueMap = new Map();
     for (const item of rows) {
-      if (!uniqueMap.has(item.phone)) {
-        uniqueMap.set(item.phone, item);
+      const key = reactivationKey(item.company_id, item.session_id, item.phone);
+      if (!uniqueMap.has(key)) {
+        uniqueMap.set(key, item);
       }
     }
 
     // Append in-memory fallback pending contacts (if not already in DB list)
-    for (const [phone, item] of inMemoryReactivationQueue.entries()) {
-      if (item.status === 'pending_opening' && !uniqueMap.has(phone)) {
-        uniqueMap.set(phone, {
-          id: `mem-${phone}`,
+    for (const [key, item] of inMemoryReactivationQueue.entries()) {
+      if (item.status === 'pending_opening' && !uniqueMap.has(key)) {
+        uniqueMap.set(key, {
+          id: `mem-${key}`,
           phone: item.phone,
           company_id: item.companyId,
           session_id: item.sessionId,
@@ -145,11 +144,14 @@ async function checkAndDispatchReactivationQueue() {
 
     for (const contact of pendingList) {
       try {
+        const companyId = contact.company_id;
+        const sessionId = contact.session_id;
+        if (!(await getAutomationPermission({ companyId, sessionId, phone: contact.phone })).allowed) continue;
         // Mark all pending rows for this contact as processing atomically to prevent duplicate loops
         if (!String(contact.id).startsWith('mem-')) {
           await query(
-            `UPDATE business_hours_reactivation_queue SET status = 'processing', updated_at = NOW() WHERE phone = $1 AND company_id = $2 AND status = 'pending_opening'`,
-            [contact.phone, contact.company_id || 'default']
+            `UPDATE business_hours_reactivation_queue SET status = 'processing', updated_at = NOW() WHERE phone = $1 AND company_id = $2 AND session_id = $3 AND status = 'pending_opening'`,
+            [contact.phone, companyId, sessionId]
           ).catch(() => {});
         }
 
@@ -164,7 +166,7 @@ Seja natural, simpático e curto (máximo 2 a 3 frases no WhatsApp). Use emojis 
           history: [],
           message: prompt,
           agentName: 'Atendente',
-          companyId: contact.company_id || 'default',
+          companyId,
         });
 
         const replyMessage = aiRes?.reply || `Oi! Bom dia! 😊 Abrimos a loja agora. Vi que você nos mandou mensagem fora do horário. Como posso te ajudar hoje?`;
@@ -174,25 +176,25 @@ Seja natural, simpático e curto (máximo 2 a 3 frases no WhatsApp). Use emojis 
         const correlationId = `reactivation_${contact.company_id || 'default'}_${contact.phone}_${dateKey}`;
 
         await outboundQueueService.enqueue({
-          companyId: contact.company_id || 'default',
+          companyId,
           phone: contact.phone,
-          sessionId: contact.session_id || 'default',
+          sessionId,
           correlationId,
           text: replyMessage,
-          metadata: { systemTag: 'reactivation_followup' },
+          metadata: { systemTag: 'reactivation_followup', ai_response: true, source: 'ai' },
         });
 
         // Mark all rows for this contact as completed in DB & memory
         if (String(contact.id).startsWith('mem-')) {
-          inMemoryReactivationQueue.delete(contact.phone);
+          inMemoryReactivationQueue.delete(reactivationKey(companyId, sessionId, contact.phone));
         } else {
           await query(
-            `UPDATE business_hours_reactivation_queue SET status = 'completed', updated_at = NOW() WHERE phone = $1 AND company_id = $2 AND status IN ('pending_opening', 'processing')`,
-            [contact.phone, contact.company_id || 'default']
+            `UPDATE business_hours_reactivation_queue SET status = 'completed', updated_at = NOW() WHERE phone = $1 AND company_id = $2 AND session_id = $3 AND status IN ('pending_opening', 'processing')`,
+            [contact.phone, companyId, sessionId]
           ).catch(() => {});
         }
 
-        inMemoryReactivationQueue.delete(contact.phone);
+        inMemoryReactivationQueue.delete(reactivationKey(companyId, sessionId, contact.phone));
         console.log(`[REACTIVATION_SERVICE] Successfully reactivated contact ${contact.phone} (correlationId=${correlationId})`);
       } catch (contactErr) {
         console.error(`[REACTIVATION_SERVICE] Failed to reactivate contact ${contact.phone}:`, contactErr.message);

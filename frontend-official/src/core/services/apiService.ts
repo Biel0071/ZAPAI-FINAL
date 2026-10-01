@@ -1,11 +1,12 @@
 /* apiService — FIX applied 2026-05-25T16:59 — error:null guard */
-import { getCache, invalidateCache, setCache } from "@/core/lib/requestCache";
+import { AuthSessionChangedError, assertRequestAuthScope, getCache, getRequestAuthScope, invalidateCache, setCache } from "@/core/lib/requestCache";
 import { buildApiHeaders } from "@/core/lib/apiGuard";
 import { reportFrontendIssue } from "@/core/runtime/services/frontendHealthService";
 import { slog } from "@/core/runtime/logs/structuredLogger";
 import { notify } from "@/core/services/notifyService";
 import { API_BASE_URL, API_ORIGIN } from "@/core/lib/backendConfig";
-import { clearAdminAuthSession } from "@/core/lib/adminAuthSession";
+import { ADMIN_AUTH_CHANGED_EVENT, clearAdminAuthSession } from "@/core/lib/adminAuthSession";
+import { generateUuid } from "@/core/lib/utils";
 import axios from "axios";
 
 export { API_ORIGIN };
@@ -44,6 +45,7 @@ function resolveApiErrorMessage(error: unknown): string {
 api.interceptors.response.use(
   (response) => response,
   (error) => {
+    if (error?.code === "ERR_CANCELED") return Promise.reject(error);
     const message = resolveApiErrorMessage(error);
     notify.error(message);
 
@@ -188,6 +190,12 @@ export interface MetricsSummary {
   aiMemories?: number;
 }
 
+export interface AIAutomationScope {
+  mode: "all" | "selected";
+  sessionId: string | null;
+  phones: string[];
+}
+
 export interface AIStatusResponse {
   aiOn?: boolean;
   data?: AIStatusResponse;
@@ -198,6 +206,8 @@ export interface AIStatusResponse {
   tenantId?: string;
   provider?: string | null;
   model?: string | null;
+  automationScope?: AIAutomationScope | null;
+  automationScopeError?: string | null;
 }
 
 export interface AILogEntry {
@@ -633,11 +643,26 @@ interface CacheEntry<T> {
 }
 
 const smartResponseCache = new Map<string, CacheEntry<unknown>>();
-const pendingInFlightGetRequests = new Map<string, Promise<unknown>>();
+const activeRequests = new Set<AbortController>();
 const SMART_CACHE_TTL_MS = 3000;
 
 export function clearSmartCache() {
   smartResponseCache.clear();
+}
+
+function resetAuthenticatedTransport() {
+  clearSmartCache();
+  pendingGetRequests.clear();
+  unavailableGetEndpoints.clear();
+  for (const controller of activeRequests) controller.abort();
+  activeRequests.clear();
+}
+
+if (typeof window !== "undefined") {
+  window.addEventListener(ADMIN_AUTH_CHANGED_EVENT, resetAuthenticatedTransport);
+  window.addEventListener("storage", (event) => {
+    if (event.key === null || event.key === "zapai_admin_auth_session") resetAuthenticatedTransport();
+  });
 }
 
 function isCacheableGetEndpoint(endpoint: string): boolean {
@@ -650,7 +675,8 @@ function isCacheableGetEndpoint(endpoint: string): boolean {
   );
 }
 
-async function executeRequest<T>({ endpoint, method, body, timeoutMs = REQUEST_TIMEOUT_MS }: ProxyRequest): Promise<T> {
+async function executeRequest<T>({ endpoint, method, body, timeoutMs = REQUEST_TIMEOUT_MS }: ProxyRequest, authScope: string, signal: AbortSignal): Promise<T> {
+  assertRequestAuthScope(authScope);
   if (!API_BASE_URL) {
     throw new Error("API_ORIGIN_UNAVAILABLE: configure VITE_API_URL para o backend oficial");
   }
@@ -676,12 +702,12 @@ async function executeRequest<T>({ endpoint, method, body, timeoutMs = REQUEST_T
 
   while (attempt <= MAX_GET_RETRIES) {
     try {
+      assertRequestAuthScope(authScope);
       slog.info("api", `${method} ${endpoint}`, { route: endpoint });
 
       const apiHeaders = await buildApiHeaders();
-      const correlationId = typeof crypto?.randomUUID === "function"
-        ? `web_${crypto.randomUUID()}`
-        : `web_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
+      assertRequestAuthScope(authScope);
+      const correlationId = `web_${generateUuid()}`;
 
       const requestHeaders =
         method === "GET"
@@ -699,8 +725,10 @@ async function executeRequest<T>({ endpoint, method, body, timeoutMs = REQUEST_T
         headers: requestHeaders,
         data: method === "GET" ? undefined : body ?? {},
         timeout: timeoutMs,
+        signal,
         validateStatus: () => true,
       });
+      assertRequestAuthScope(authScope);
 
       const raw =
         typeof response.data === "string"
@@ -762,7 +790,11 @@ async function executeRequest<T>({ endpoint, method, body, timeoutMs = REQUEST_T
 
       return parsed as T;
     } catch (error) {
+      if (error instanceof AuthSessionChangedError) throw error;
       const errorMessage = error instanceof Error ? error.message.toLowerCase() : "";
+      // A current 401 signs its own user out. An obsolete response is rejected
+      // before status handling and must never clear a newer user's login.
+      if (!errorMessage.startsWith("http_401:")) assertRequestAuthScope(authScope);
       const isEndpointNotFound = errorMessage.includes("http_404") || errorMessage.includes("not found");
 
       if (!isEndpointNotFound) {
@@ -814,10 +846,18 @@ async function executeRequest<T>({ endpoint, method, body, timeoutMs = REQUEST_T
   throw new Error("Falha de comunicação com o backend");
 }
 
+function executeAuthenticatedRequest<T>(params: ProxyRequest, authScope: string): Promise<T> {
+  const controller = new AbortController();
+  activeRequests.add(controller);
+  return executeRequest<T>(params, authScope, controller.signal)
+    .finally(() => activeRequests.delete(controller));
+}
+
 async function request<T>(params: ProxyRequest): Promise<T> {
+  const authScope = getRequestAuthScope();
   if (params.method !== "GET") {
     clearSmartCache();
-    return executeRequest<T>(params);
+    return executeAuthenticatedRequest<T>(params, authScope);
   }
 
   const normalizedEndpoint = (() => {
@@ -831,22 +871,24 @@ async function request<T>(params: ProxyRequest): Promise<T> {
     }
   })();
 
+  const scopedEndpoint = `${normalizedEndpoint}::auth:${authScope}`;
   if (isCacheableGetEndpoint(normalizedEndpoint)) {
-    const cached = smartResponseCache.get(normalizedEndpoint);
+    const cached = smartResponseCache.get(scopedEndpoint);
     if (cached && Date.now() - cached.timestamp < SMART_CACHE_TTL_MS) {
       return cached.data as T;
     }
   }
 
-  const requestKey = `${normalizedEndpoint}::${params.timeoutMs ?? REQUEST_TIMEOUT_MS}`;
+  const requestKey = `${scopedEndpoint}::${params.timeoutMs ?? REQUEST_TIMEOUT_MS}`;
   const pending = pendingGetRequests.get(requestKey);
 
   if (pending) return pending as Promise<T>;
 
-  const nextRequest = executeRequest<T>(params)
+  const nextRequest = executeAuthenticatedRequest<T>(params, authScope)
     .then((result) => {
+      assertRequestAuthScope(authScope);
       if (isCacheableGetEndpoint(normalizedEndpoint)) {
-        smartResponseCache.set(normalizedEndpoint, { data: result, timestamp: Date.now() });
+        smartResponseCache.set(scopedEndpoint, { data: result, timestamp: Date.now() });
       }
       return result;
     })
@@ -1300,19 +1342,22 @@ export const apiService = {
     return { connected: false, lastUpdate: Date.now() };
   },
 
-  async getConversations(forceRefresh = false, options?: { limit?: number; sessionId?: string }) {
+  async getConversations(forceRefresh = false, options?: { limit?: number; sessionId?: string; search?: string }) {
+    const authScope = getRequestAuthScope();
     const normalizedSessionId = String(options?.sessionId ?? "").trim();
+    const normalizedSearch = String(options?.search ?? "").trim();
     const cacheKey = [
       "conversations",
       options?.limit ? `limit:${options.limit}` : "",
       normalizedSessionId ? `session:${normalizedSessionId}` : "",
+      normalizedSearch ? `search:${encodeURIComponent(normalizedSearch)}` : "",
     ].filter(Boolean).join(":");
     if (!forceRefresh) {
-      const cached = getCache<Conversation[]>(cacheKey);
+      const cached = getCache<Conversation[]>(cacheKey, authScope);
       if (cached) return cached;
     }
 
-    const endpoints = [withQuery("/api/conversations", { limit: options?.limit, sessionId: normalizedSessionId })];
+    const endpoints = [withQuery("/api/conversations", { limit: options?.limit, sessionId: normalizedSessionId, search: normalizedSearch })];
 
     let normalized: Conversation[] = [];
     let lastError: unknown = new Error("Falha ao carregar conversas");
@@ -1331,7 +1376,7 @@ export const apiService = {
       return [];
     }
 
-    setCache(cacheKey, normalized, CACHE_TTL_MS);
+    setCache(cacheKey, normalized, CACHE_TTL_MS, authScope);
     return normalized;
   },
 
@@ -1461,14 +1506,15 @@ export const apiService = {
   },
 
   async getContacts(forceRefresh = false) {
+    const authScope = getRequestAuthScope();
     const cacheKey = "contacts";
     if (!forceRefresh) {
-      const cached = getCache<Contact[]>(cacheKey);
+      const cached = getCache<Contact[]>(cacheKey, authScope);
       if (cached) return cached;
     }
 
     const data = await request<Contact[]>({ endpoint: "/api/contacts", method: "GET" });
-    setCache(cacheKey, data, CACHE_TTL_MS);
+    setCache(cacheKey, data, CACHE_TTL_MS, authScope);
     return data;
   },
 
@@ -1534,14 +1580,15 @@ export const apiService = {
   },
 
   async getAIStatus(forceRefresh = false) {
+    const authScope = getRequestAuthScope();
     const cacheKey = "ai-status";
     if (!forceRefresh) {
-      const cached = getCache<AIStatusResponse>(cacheKey);
+      const cached = getCache<AIStatusResponse>(cacheKey, authScope);
       if (cached) return cached;
     }
 
     const data = await request<AIStatusResponse>({ endpoint: "/ai/status", method: "GET" });
-    setCache(cacheKey, data, CACHE_TTL_MS);
+    setCache(cacheKey, data, CACHE_TTL_MS, authScope);
     return data;
   },
 
@@ -1720,17 +1767,24 @@ export const apiService = {
     return data;
   },
 
+  async saveAIAutomationScope(automationScope: AIAutomationScope) {
+    const data = await request<AIStatusResponse>({ endpoint: "/ai/toggle", method: "POST", body: { automationScope } });
+    invalidateCache("ai-status");
+    return data;
+  },
+
   improveAIResponse: (payload: ImproveRequest) => request<ImproveResponse>({ endpoint: "/ai/improve", method: "POST", body: payload }),
 
   async getAIPrompt(forceRefresh = false) {
+    const authScope = getRequestAuthScope();
     const cacheKey = "ai-prompt";
     if (!forceRefresh) {
-      const cached = getCache<PromptSettings>(cacheKey);
+      const cached = getCache<PromptSettings>(cacheKey, authScope);
       if (cached) return cached;
     }
 
     const data = await request<PromptSettings>({ endpoint: "/ai/prompt", method: "GET" });
-    setCache(cacheKey, data, CACHE_TTL_MS);
+    setCache(cacheKey, data, CACHE_TTL_MS, authScope);
     return data;
   },
 
@@ -1773,14 +1827,15 @@ export const apiService = {
   },
 
   async getBusinessHours(forceRefresh = false) {
+    const authScope = getRequestAuthScope();
     const cacheKey = "business-hours";
     if (!forceRefresh) {
-      const cached = getCache<BusinessHoursSettings>(cacheKey);
+      const cached = getCache<BusinessHoursSettings>(cacheKey, authScope);
       if (cached) return cached;
     }
 
     const data = await request<BusinessHoursSettings>({ endpoint: "/config/business-hours", method: "GET" });
-    setCache(cacheKey, data, CACHE_TTL_MS);
+    setCache(cacheKey, data, CACHE_TTL_MS, authScope);
     return data;
   },
 
@@ -1791,14 +1846,15 @@ export const apiService = {
   },
 
   async getAbsenceMessage(forceRefresh = false) {
+    const authScope = getRequestAuthScope();
     const cacheKey = "absence-message";
     if (!forceRefresh) {
-      const cached = getCache<AbsenceMessageSettings>(cacheKey);
+      const cached = getCache<AbsenceMessageSettings>(cacheKey, authScope);
       if (cached) return cached;
     }
 
     const data = await request<AbsenceMessageSettings>({ endpoint: "/config/absence-message", method: "GET" });
-    setCache(cacheKey, data, CACHE_TTL_MS);
+    setCache(cacheKey, data, CACHE_TTL_MS, authScope);
     return data;
   },
 
@@ -1809,14 +1865,15 @@ export const apiService = {
   },
 
   async getQueueStats(forceRefresh = false) {
+    const authScope = getRequestAuthScope();
     const cacheKey = "queue-stats";
     if (!forceRefresh) {
-      const cached = getCache<QueueSettings>(cacheKey);
+      const cached = getCache<QueueSettings>(cacheKey, authScope);
       if (cached) return cached;
     }
 
     const data = await request<QueueSettings>({ endpoint: "/queue", method: "GET" });
-    setCache(cacheKey, data, CACHE_TTL_MS);
+    setCache(cacheKey, data, CACHE_TTL_MS, authScope);
     return data;
   },
 
@@ -1824,14 +1881,15 @@ export const apiService = {
     request<QueueProcessResponse>({ endpoint: "/queue/process", method: "POST", body: payload }),
 
   async getMemorySettings(forceRefresh = false) {
+    const authScope = getRequestAuthScope();
     const cacheKey = "memory-settings";
     if (!forceRefresh) {
-      const cached = getCache<MemorySettings>(cacheKey);
+      const cached = getCache<MemorySettings>(cacheKey, authScope);
       if (cached) return cached;
     }
 
     const data = await request<MemorySettings>({ endpoint: "/ai/memory", method: "GET" });
-    setCache(cacheKey, data, CACHE_TTL_MS);
+    setCache(cacheKey, data, CACHE_TTL_MS, authScope);
     return data;
   },
 
@@ -1881,14 +1939,15 @@ export const apiService = {
 
 
   async getAdvancedAISettings(forceRefresh = false) {
+    const authScope = getRequestAuthScope();
     const cacheKey = "advanced-ai";
     if (!forceRefresh) {
-      const cached = getCache<AdvancedAISettings>(cacheKey);
+      const cached = getCache<AdvancedAISettings>(cacheKey, authScope);
       if (cached) return cached;
     }
 
     const data = await request<AdvancedAISettings>({ endpoint: "/config/advanced-ai", method: "GET" });
-    setCache(cacheKey, data, CACHE_TTL_MS);
+    setCache(cacheKey, data, CACHE_TTL_MS, authScope);
     return data;
   },
 

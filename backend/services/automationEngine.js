@@ -1,5 +1,5 @@
 const { getAIIntegrationStatus, processAI } = require('./ai.service');
-const { getAIEnabled } = require('../src/infrastructure/config/aiToggle');
+const { getAutomationPermission } = require('../src/infrastructure/config/aiToggle');
 const sessionManager = require('./sessionManager');
 const conversationRepository = require('../src/data/repositories/conversationRepository');
 const messageRepository = require('../src/data/repositories/messageRepository');
@@ -88,7 +88,7 @@ async function processMessage({ payload, conversation, store, sock, sessionId })
   const phone = payload.phone;
   const incomingText = payload.text || '';
   const conversationId = conversation?.id;
-  const companyId = conversation?.company_id || payload?.companyId || 'default';
+  const companyId = conversation?.company_id || conversation?.companyId || payload?.companyId;
   const io = store?.io || global.io;
   const progressStartedAt = new Date().toISOString();
   const publishProgress = (status, details = {}) => emitAIResponseProgress(io, {
@@ -122,15 +122,16 @@ async function processMessage({ payload, conversation, store, sock, sessionId })
   });
 
   // Short-circuit automated replies if the current store disabled AI.
-  if (!(await getAIEnabled(companyId))) {
-    console.log(`[AutomationEngine] Store AI toggle is OFF for tenant ${companyId}. Short-circuiting response for ${phone}.`);
-    publishProgress('disabled', { message: 'IA global desativada para esta loja.' });
-    return { success: false, reason: 'store_ai_off' };
+  const automationPermission = await getAutomationPermission({ companyId, sessionId, phone });
+  if (!automationPermission.allowed) {
+    console.log(`[AutomationEngine] Automatic reply blocked: ${automationPermission.reason}`);
+    publishProgress('disabled', { message: 'Automação pausada ou conversa fora do alcance configurado.' });
+    return { success: false, reason: automationPermission.reason };
   }
 
   // (b) session systemConnection is OFF
   const session = sessionManager.getSession(sessionId);
-  if (!session || session.systemConnected === false) {
+  if (!session || session.companyId !== companyId || session.systemConnected === false) {
     console.log(`[AutomationEngine] Session/Line ${sessionId} is not enabled for AI. Short-circuiting response for ${phone}.`);
     publishProgress('disabled', { message: 'IA desativada nesta conexao do WhatsApp.' });
     return { success: false, reason: 'session_ai_disabled' };
@@ -220,7 +221,7 @@ async function processMessage({ payload, conversation, store, sock, sessionId })
       sessionId,
       correlationId,
       text: businessHours.absenceMessage || bhConfig.absenceMessage,
-      metadata: { systemTag: 'absence' }
+      metadata: { systemTag: 'absence', ai_response: true, conversationId, source: 'ai' }
     });
     return { success: true, action: 'absence_reply_queued' };
   }
@@ -267,13 +268,15 @@ async function processMessage({ payload, conversation, store, sock, sessionId })
     });
 
     const escalationTarget = matchedAgent.escalationWhatsapp || matchedAgent.escalationPhone;
-    if (escalationTarget) {
+    if (escalationTarget && (await getAutomationPermission({ companyId, sessionId, phone: escalationTarget })).allowed) {
       const alertMsg = `⚠️ [ALERTA DE TRANSBORDO] O cliente ${conversation?.name || phone} (${phone}) ativou o gatilho "${matchedTrigger}". Motivo: "${incomingText}". Por favor, assuma o atendimento.`;
       try {
-        await whatsappService.sendMessage(sock, escalationTarget, alertMsg);
+        await whatsappService.sendMessage(sock, escalationTarget, alertMsg, { beforeSend: () => getAutomationPermission({ companyId, sessionId, phone: escalationTarget }) });
       } catch (err) {
         console.error('[AutomationEngine] Failed to send WhatsApp escalation alert:', err);
       }
+    } else if (escalationTarget) {
+      console.log('[AutomationEngine] Escalation alert blocked: destination outside automation scope or AI paused.');
     }
 
     if (matchedAgent.escalationMode === 2 || matchedAgent.escalationMode === 3) {
@@ -358,11 +361,13 @@ async function processMessage({ payload, conversation, store, sock, sessionId })
       });
 
       const escalationTarget = matchedAgent.escalationWhatsapp || matchedAgent.escalationPhone;
-      if (escalationTarget) {
+      if (escalationTarget && (await getAutomationPermission({ companyId, sessionId, phone: escalationTarget })).allowed) {
         const alertMsg = `⚠️ [ALERTA DE TRANSBORDO] O motor de IA falhou ou ficou sem resposta para o cliente ${conversation?.name || phone} (${phone}). Por favor, assuma o atendimento.`;
         try {
-          await whatsappService.sendMessage(sock, escalationTarget, alertMsg);
+          await whatsappService.sendMessage(sock, escalationTarget, alertMsg, { beforeSend: () => getAutomationPermission({ companyId, sessionId, phone: escalationTarget }) });
         } catch {}
+      } else if (escalationTarget) {
+        console.log('[AutomationEngine] Escalation alert blocked: destination outside automation scope or AI paused.');
       }
 
       await conversationRepository.updateConversationAIEnabled(phone, false, companyId);

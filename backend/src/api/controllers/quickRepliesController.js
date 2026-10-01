@@ -30,7 +30,7 @@ async function createQuickReply(req, res) {
   try {
     const { id, ...payload } = req.body || {};
     return res.status(201).json(await quickReplyService.createQuickReply({ ...payload, companyId }));
-  } catch (error) { return res.status(400).json({ success: false, error: error.message || 'Dados da resposta rápida inválidos.' }); }
+  } catch (error) { return fail(res, error, 'Não foi possível salvar a resposta rápida. Tente novamente.'); }
 }
 
 async function updateQuickReply(req, res) {
@@ -39,7 +39,7 @@ async function updateQuickReply(req, res) {
   try {
     const updated = await quickReplyService.updateQuickReply(String(req.params.id || ''), req.body || {}, companyId);
     return updated ? res.status(200).json(updated) : res.status(404).json({ error: 'Resposta rápida não encontrada.' });
-  } catch (error) { return res.status(400).json({ success: false, error: error.message || 'Dados da resposta rápida inválidos.' }); }
+  } catch (error) { return fail(res, error, 'Não foi possível atualizar a resposta rápida. Tente novamente.'); }
 }
 
 async function deleteQuickReply(req, res) {

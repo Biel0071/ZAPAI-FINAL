@@ -8,12 +8,32 @@ import {
   Send,
   Trash2,
   ArrowRight,
-  ArrowLeft,
   Play,
-  CheckCheck
+  CheckCheck,
+  Plus,
+  Settings,
+  HelpCircle,
+  Clock,
+  MapPin,
+  FileText,
+  ShieldCheck,
+  Bot,
+  ChevronRight,
+  Layers,
+  Copy,
+  Check,
+  RotateCcw,
+  Sliders,
+  ExternalLink,
+  MessageCircle,
+  AlertCircle,
+  ShoppingBag,
+  CreditCard
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { useToast } from "@/state/hooks/use-toast";
 import { requestApiEndpoint, apiService } from "@/core/services/apiService";
 import { HistoryBootstrapPanel } from './HistoryBootstrapPanel';
@@ -70,23 +90,31 @@ interface ChatMessage {
   isError?: boolean;
 }
 
-function HistoryBootstrapDisclosure() {
-  const [open, setOpen] = useState(false);
-  return (
-    <details className="rounded-2xl border border-white/10 bg-[#0c121d] p-4" onToggle={(event) => setOpen(event.currentTarget.open)}>
-      <summary className="cursor-pointer text-sm font-semibold text-white">Criar agente a partir do histórico do WhatsApp</summary>
-      {open && <div className="pt-4"><HistoryBootstrapPanel /></div>}
-    </details>
-  );
-}
+const QUICK_TEST_QUESTIONS = [
+  { label: "Horários", icon: Clock, query: "Qual é o horário de atendimento de vocês?" },
+  { label: "Catálogo", icon: ShoppingBag, query: "Quais produtos vocês têm disponíveis?" },
+  { label: "Pagamento", icon: CreditCard, query: "Quais são as formas de pagamento aceitas?" },
+  { label: "Endereço", icon: MapPin, query: "Qual é o endereço e localização da loja?" },
+  { label: "Entrega", icon: MessageSquare, query: "Vocês fazem entrega? Como funciona o frete?" },
+];
 
-export function EvolutionCenter({ onManageAgents, onOperation }: { onManageAgents?: () => void; onOperation?: () => void }) {
+export function EvolutionCenter({
+  onManageAgents,
+  onOperation,
+}: {
+  onManageAgents?: () => void;
+  onOperation?: () => void;
+}) {
   const { toast } = useToast();
 
-  const [viewMode, setViewMode] = useState<'overview' | 'settings'>('overview');
-  const [showCreateAgent, setShowCreateAgent] = useState(false);
-  const [showLearnings, setShowLearnings] = useState(false);
+  // Dialog Modals
+  const [showStoreModal, setShowStoreModal] = useState(false);
+  const [showCreateAgentModal, setShowCreateAgentModal] = useState(false);
+
+  // Active tab on left column: 'knowledge' | 'learnings'
+  const [activeIntelTab, setActiveIntelTab] = useState<'knowledge' | 'learnings'>('knowledge');
   const [showAllRecentLearnings, setShowAllRecentLearnings] = useState(false);
+  const [copiedPrompt, setCopiedPrompt] = useState(false);
 
   // Agent & Store states
   const [agents, setAgents] = useState<AgentItem[]>([]);
@@ -111,7 +139,6 @@ export function EvolutionCenter({ onManageAgents, onOperation }: { onManageAgent
   const attendantRole = currentStore?.attendant_role || 'Assistente';
   const storeName = currentStore?.name || 'Loja não configurada';
   const themeColor = currentStore?.theme_color || '#10b981';
-  const storeAddress = currentStore?.address || '';
   const attendantConfig: AttendantConfig = currentStore?.attendant_config || {
     clothingColor: themeColor,
     hairColor: '#4a2c11',
@@ -136,7 +163,7 @@ export function EvolutionCenter({ onManageAgents, onOperation }: { onManageAgent
     setIsSendingMessage(false);
   };
 
-  // Scroll to bottom of chat only when user or assistant sends a message (skip on initial mount)
+  // Scroll to bottom of chat only when user or assistant sends a message
   const hasMountedChat = useRef(false);
   useEffect(() => {
     if (!hasMountedChat.current) {
@@ -258,8 +285,8 @@ export function EvolutionCenter({ onManageAgents, onOperation }: { onManageAgent
   };
 
   // Send message in test chat simulator
-  const handleSendMessage = async () => {
-    const text = chatInput.trim();
+  const handleSendMessage = async (customText?: string) => {
+    const text = (customText ?? chatInput).trim();
     if (!text || isSendingMessage || !activeAgent || !currentStore) return;
 
     const time = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
@@ -271,7 +298,7 @@ export function EvolutionCenter({ onManageAgents, onOperation }: { onManageAgent
     };
 
     setChatMessages((prev) => [...prev, userMsg]);
-    setChatInput('');
+    if (!customText) setChatInput('');
     setIsSendingMessage(true);
     const contextVersion = chatContextVersionRef.current;
 
@@ -312,7 +339,7 @@ export function EvolutionCenter({ onManageAgents, onOperation }: { onManageAgent
       const fallbackMsg: ChatMessage = {
         id: `assistant-${Date.now()}`,
         sender: 'assistant',
-        text: error?.message || `Erro de conexão. O servidor da IA não está respondendo. Verifique se sua provedora está configurada.`,
+        text: error?.message || `Erro de conexão. O servidor da IA não está respondendo. Verifique se o provedor está configurado em Operação.`,
         isError: true,
         timestamp: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
       };
@@ -329,30 +356,42 @@ export function EvolutionCenter({ onManageAgents, onOperation }: { onManageAgent
     toast({ title: 'Chat reiniciado', description: 'Envie uma nova pergunta para testar o atendente.' });
   };
 
-  const handleScrollToTest = () => {
-    setViewMode('overview');
-    setTimeout(() => {
-      const el = document.getElementById('zai-test-section');
-      if (el) {
-        el.scrollIntoView({ behavior: 'smooth' });
-        chatInputRef.current?.focus();
-      }
-    }, 100);
+  const handleQuickQuestion = (queryText: string) => {
+    if (!canTest || isSendingMessage) return;
+    setChatInput(queryText);
+    void handleSendMessage(queryText);
+  };
+
+  const handleCopyPrompt = () => {
+    if (!activeAgent?.personality) return;
+    navigator.clipboard.writeText(activeAgent.personality);
+    setCopiedPrompt(true);
+    setTimeout(() => setCopiedPrompt(false), 2000);
+    toast({ title: 'Prompt copiado', description: 'Instruções do agente copiadas para a área de transferência.' });
   };
 
   return (
     <div className="zai-evolution-page">
-      <div className="zai-evolution-content">
+      <div className="zai-evolution-content space-y-5">
         
-        {/* TOP HEADER */}
-        <header className="flex flex-wrap items-center justify-between gap-4 mb-4">
+        {/* TOP BAR / AGENT HEADER */}
+        <header className="flex flex-wrap items-center justify-between gap-4 p-4 rounded-2xl border border-white/10 bg-[#0c121d] shadow-xl">
           <div className="flex items-center gap-3.5">
-            <div className="w-11 h-11 rounded-xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-emerald-400 shadow-[0_0_15px_rgba(16,185,129,0.15)]">
-              <Sparkles className="w-5 h-5 text-emerald-400" />
+            <div
+              className="w-11 h-11 rounded-xl flex items-center justify-center shadow-[0_0_15px_rgba(16,185,129,0.15)] shrink-0"
+              style={{
+                backgroundColor: `${themeColor}15`,
+                border: `1px solid ${themeColor}40`,
+                color: themeColor,
+              }}
+            >
+              <Sparkles className="w-5 h-5" />
             </div>
             <div>
-              <div className="flex flex-wrap items-center gap-2.5">
-                <h2 className="text-lg font-bold tracking-tight text-white">{activeAgent?.name || 'Seu primeiro agente'}</h2>
+              <div className="flex flex-wrap items-center gap-2">
+                <h1 className="text-base sm:text-lg font-bold tracking-tight text-white">
+                  {activeAgent?.name || 'Seu Primeiro Agente'}
+                </h1>
                 <Badge
                   variant="outline"
                   className="text-[10px] font-semibold px-2 py-0.5"
@@ -360,6 +399,8 @@ export function EvolutionCenter({ onManageAgents, onOperation }: { onManageAgent
                 >
                   {storeName}
                 </Badge>
+
+                {/* Multi-store selector */}
                 {stores.length > 1 && (
                   <div className="flex items-center gap-1.5 bg-[#080c14] px-2 py-1 rounded-lg border border-border/60">
                     <Store className="w-3.5 h-3.5 text-muted-foreground" />
@@ -386,7 +427,9 @@ export function EvolutionCenter({ onManageAgents, onOperation }: { onManageAgent
                     </select>
                   </div>
                 )}
-                {agents.length > 0 && (
+
+                {/* Multi-agent selector */}
+                {agents.length > 1 && (
                   <label className="flex items-center gap-1.5 bg-[#080c14] px-2 py-1 rounded-lg border border-border/60 text-xs text-slate-400">
                     Agente
                     <select
@@ -395,266 +438,421 @@ export function EvolutionCenter({ onManageAgents, onOperation }: { onManageAgent
                         setSelectedAgentKey(event.target.value);
                         resetChat();
                       }}
-                      className="bg-transparent text-white font-semibold focus:outline-none cursor-pointer max-w-[150px]"
+                      className="bg-transparent text-white font-semibold focus:outline-none cursor-pointer max-w-[140px]"
                       aria-label="Agente usado no teste"
                     >
-                      {agents.map((agent) => <option key={agent.key} value={agent.key} className="bg-[#0d131f] text-white">{agent.name}</option>)}
+                      {agents.map((agent) => (
+                        <option key={agent.key} value={agent.key} className="bg-[#0d131f] text-white">
+                          {agent.name}
+                        </option>
+                      ))}
                     </select>
                   </label>
                 )}
               </div>
-              <p className="text-sm text-slate-400 mt-1">Personalidade, capacidades e teste do atendimento em um só lugar.</p>
+              <p className="text-xs text-slate-400 mt-0.5">
+                Central do agente: personalidade, base de conhecimento e sandbox de teste em tempo real.
+              </p>
             </div>
           </div>
 
-          <div className="flex items-center gap-2.5">
-            <button type="button" className="zai-btn" onClick={() => setShowCreateAgent(open => !open)}>{showCreateAgent ? 'Fechar criação' : 'Criar agente'}</button>
-            {/* View Switcher Subtabs */}
-            <div className="flex items-center bg-black/40 p-1 rounded-xl border border-border/50">
-              <button
-                type="button"
-                onClick={() => setViewMode('overview')}
-                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
-                  viewMode === 'overview'
-                    ? 'bg-emerald-500 text-black shadow-sm font-bold'
-                    : 'text-muted-foreground hover:text-white'
-                }`}
-              >
-                <TrendingUp className="inline w-3.5 h-3.5 mr-1.5 -mt-0.5" /> Visão geral
-              </button>
-              <button
-                type="button"
-                onClick={() => setViewMode('settings')}
-                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
-                  viewMode === 'settings'
-                    ? 'bg-emerald-500 text-black shadow-sm font-bold'
-                    : 'text-muted-foreground hover:text-white'
-                }`}
-              >
-                <Store className="inline w-3.5 h-3.5 mr-1.5 -mt-0.5" /> Configuração
-              </button>
-            </div>
-
-            <button
+          {/* Action buttons */}
+          <div className="flex flex-wrap items-center gap-2">
+            <Button
               type="button"
-              onClick={handleScrollToTest}
-              className="zai-btn zai-btn-primary"
-              disabled={!canTest}
+              variant="outline"
+              size="sm"
+              onClick={() => setShowStoreModal(true)}
+              className="text-xs h-8.5 rounded-xl border-white/10 hover:border-emerald-500/40 text-slate-200 hover:text-white bg-[#080d16]"
             >
-              <Play className="w-3.5 h-3.5 fill-current" />
-              <span>Testar Agora</span>
-            </button>
+              <Store className="w-3.5 h-3.5 mr-1.5 text-emerald-400" />
+              <span>Configurar Loja</span>
+            </Button>
+
+            <Button
+              type="button"
+              size="sm"
+              onClick={() => setShowCreateAgentModal(true)}
+              className="text-xs h-8.5 rounded-xl font-semibold shadow-sm"
+              style={{ backgroundColor: themeColor, color: '#000' }}
+            >
+              <Plus className="w-3.5 h-3.5 mr-1 text-black" />
+              <span>Novo Agente</span>
+            </Button>
           </div>
         </header>
 
-        {!historyLoading && !historyError && (!activeAgent || showCreateAgent) && <section className="mb-5 rounded-2xl border border-emerald-500/20 bg-gradient-to-br from-emerald-500/10 to-transparent p-5 sm:p-6">
-          <div className="flex items-start gap-4">
-            <img src="/assets/evolution/habbo_avatar.png" alt="Mascote ZAI" className="h-16 w-16 shrink-0 rounded-2xl bg-emerald-500/10 object-contain [image-rendering:pixelated]" />
-            <div className="min-w-0"><p className="text-xs font-semibold text-emerald-400">ZAI te ajuda a começar</p><h3 className="mt-1 text-xl font-bold text-white">Um agente com a identidade da sua loja</h3><p className="mt-2 max-w-2xl text-sm leading-relaxed text-slate-400">Informe sua loja e as regras de atendimento. Revise o agente, teste suas respostas e ative quando estiver pronto.</p></div>
-          </div>
-          <ol className="my-5 grid gap-3 sm:grid-cols-3">{['Defina sua loja e seu agente', 'Teste e revise as respostas', 'Conecte o WhatsApp e ative a IA'].map((step, index) => <li key={step} className="flex items-center gap-3 rounded-xl border border-white/10 bg-black/10 px-3 py-3 text-sm text-slate-300"><span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-emerald-500/15 text-xs font-bold text-emerald-400">{index + 1}</span>{step}</li>)}</ol>
-          {showCreateAgent ? <HistoryBootstrapPanel guided requestedMode="store" onAgentCreated={() => { setShowCreateAgent(false); void fetchAgentsAndStores(); }} onClose={() => { setShowCreateAgent(false); void fetchAgentsAndStores(); }} /> : <button type="button" className="zai-btn zai-btn-primary" onClick={() => setShowCreateAgent(true)}>Começar · Criar agente</button>}
-        </section>}
-
-        {activeAgent && viewMode === 'overview' && <section className="mb-5 grid gap-3 rounded-2xl border border-white/10 bg-[#0c121d] p-4 sm:grid-cols-[1fr_auto]">
-          <div><h3 className="text-sm font-semibold text-white">Capacidades do agente</h3><p className="mt-1 text-sm leading-relaxed text-slate-400">Responde com suas instruções, consulta o conhecimento oficial e usa o contexto da conversa. Aprendizados e estratégias podem ser revisados abaixo.</p><details className="mt-3"><summary className="cursor-pointer text-xs font-semibold text-emerald-400">Ver instruções e personalidade</summary><p className="mt-2 whitespace-pre-wrap text-sm leading-relaxed text-slate-300">{activeAgent.personality || 'Este agente ainda não tem instruções cadastradas.'}</p></details></div>
-          <div className="flex flex-wrap items-start gap-2"><button type="button" className="zai-btn" onClick={onManageAgents}>Editar agente</button><button type="button" className="zai-btn" onClick={onOperation}>Ativação e conexões</button></div>
-        </section>}
-
-        {/* Visão geral: desempenho, teste e aprendizados */}
-        {viewMode === 'overview' && (activeAgent || historyLoading || historyError) && (
-          <div className="flex flex-col gap-4 animate-fade-in">
-            {/* TOP GRID (PALCO + CARDS) */}
-            <div className="order-2 xl:order-1 grid grid-cols-1 xl:grid-cols-[minmax(300px,360px)_minmax(0,1fr)] gap-4 xl:gap-6">
-              
-              {/* LEFT COLUMN: ISOMETRIC PIXEL CHARACTER STAGE CUSTOMIZABLE PER STORE */}
-              <div className="order-2 xl:order-1">
-              {historyLoading ? (
-                <div className="h-[310px] rounded-2xl border border-white/10 bg-[#0c121d] flex items-center justify-center text-xs text-slate-400">Carregando loja e agentes...</div>
-              ) : historyError ? (
-                <div className="h-[310px] rounded-2xl border border-amber-500/20 bg-[#0c121d] flex flex-col items-center justify-center gap-3 p-6 text-center">
-                  <p className="text-sm font-semibold text-white">Não foi possível carregar lojas e agentes</p>
-                  <button type="button" className="zai-btn" onClick={() => void fetchAgentsAndStores()}>Tentar novamente</button>
-                </div>
-              ) : currentStore ? <AICharacterViewer
-                agentName={activeAgent?.name || attendantName}
-                agentRole={attendantRole}
-                storeName={storeName}
-                themeColor={themeColor}
-                isOnline={isOnline}
-                onToggleOnline={setIsOnline}
-                avatarUrl={currentStore?.attendant_config?.avatarUrl || "/assets/evolution/habbo_avatar.png"}
-                config={attendantConfig}
-                onSaveConfig={handleSaveAttendantConfig}
-              /> : (
-                <div className="h-[310px] rounded-2xl border border-dashed border-white/15 bg-[#0c121d] flex flex-col items-center justify-center gap-3 p-6 text-center">
-                  <Store className="w-8 h-8 text-emerald-400" />
-                  <p className="text-sm font-semibold text-white">Configure sua loja</p>
-                  <p className="text-xs text-slate-400">Adicione dados e personalize o atendente para ver a prévia.</p>
-                  <button type="button" className="zai-btn zai-btn-primary" onClick={() => setViewMode('settings')}>Abrir configuração</button>
-                </div>
-              )}
+        {/* ONBOARDING HERO BANNER IF NO AGENT CONFIGURED */}
+        {!historyLoading && !historyError && agents.length === 0 && (
+          <section className="rounded-2xl border border-emerald-500/20 bg-gradient-to-br from-emerald-500/10 to-transparent p-5 sm:p-6 shadow-xl">
+            <div className="flex items-start gap-4">
+              <img
+                src="/assets/evolution/habbo_avatar.png"
+                alt="Mascote ZAI"
+                className="h-16 w-16 shrink-0 rounded-2xl bg-emerald-500/10 object-contain [image-rendering:pixelated]"
+              />
+              <div className="min-w-0">
+                <p className="text-xs font-semibold text-emerald-400">Vamos começar</p>
+                <h3 className="mt-1 text-xl font-bold text-white">Crie o primeiro atendente inteligente da sua loja</h3>
+                <p className="mt-1 max-w-2xl text-xs leading-relaxed text-slate-400">
+                  Defina o nome da loja, os horários e o tom de voz do seu assistente. Você poderá testar as respostas antes de ativar o atendimento oficial no WhatsApp.
+                </p>
               </div>
+            </div>
+            <div className="mt-4 flex flex-wrap gap-2">
+              <Button
+                type="button"
+                onClick={() => setShowCreateAgentModal(true)}
+                className="font-semibold"
+                style={{ backgroundColor: themeColor, color: '#000' }}
+              >
+                <Plus className="w-4 h-4 mr-1.5" /> Começar · Criar agente
+              </Button>
+            </div>
+          </section>
+        )}
 
-              {/* RIGHT COLUMN: ATTENDANT PROFILE & STATS */}
-              <div className="order-1 xl:order-2 flex flex-col gap-3">
-                
-                {/* Indicadores e aprendizados */}
-                <div className="grid grid-cols-1 2xl:grid-cols-2 gap-3 flex-1">
-                  
-                  {/* Dados reais da operação */}
-                  <article className="bg-[#0c121d] border border-white/10 rounded-2xl p-3.5 shadow-xl flex flex-col justify-between">
-                    <div className="flex items-center justify-between mb-2">
-                      <div className="flex items-center gap-2">
-                        <TrendingUp className="w-4 h-4 text-emerald-400" />
-                        <span className="text-xs font-bold text-white">Resumo da operação</span>
-                      </div>
-                    </div>
-                    {loadErrors.metrics && !loading && <p className="text-[11px] text-amber-300 mb-2">Não foi possível carregar os indicadores da empresa.</p>}
+        {/* MAIN SPLIT WORKSPACE: LEFT (AGENT PROFILE & INTEL) | RIGHT (WHATSAPP SANDBOX) */}
+        {(!agents.length && historyLoading) ? (
+          <div className="h-[400px] rounded-2xl border border-white/10 bg-[#0c121d] flex items-center justify-center text-sm text-slate-400">
+            Carregando inteligência do agente...
+          </div>
+        ) : historyError ? (
+          <div className="h-[320px] rounded-2xl border border-amber-500/20 bg-[#0c121d] flex flex-col items-center justify-center gap-3 p-6 text-center">
+            <AlertCircle className="w-8 h-8 text-amber-400" />
+            <p className="text-sm font-semibold text-white">Não foi possível carregar lojas e agentes</p>
+            <Button type="button" variant="outline" size="sm" onClick={() => void fetchAgentsAndStores()}>
+              Tentar novamente
+            </Button>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
 
-                    <div className="space-y-2.5 my-auto">
-                      <div>
-                        <div className="flex items-center justify-between text-[11px] mb-1">
-                          <span className="text-slate-300 font-medium">Cadastro da loja</span>
-                          <span className="text-emerald-400 font-bold">{currentStore ? `${storeKnowledgePct}%` : '—'}</span>
-                        </div>
-                        <div className="w-full bg-[#111823] h-1.5 rounded-full overflow-hidden">
-                          <div
-                            className="bg-emerald-500 h-full rounded-full transition-all duration-500"
-                            style={{ width: `${currentStore ? storeKnowledgePct : 0}%`, backgroundColor: themeColor }}
-                          />
-                        </div>
-                      </div>
+            {/* LEFT COLUMN: CHARACTER STAGE, STORE KNOWLEDGE & EVOLUTION TABS */}
+            <div className="lg:col-span-6 xl:col-span-7 space-y-4">
+              
+              {/* 1. CHARACTER STAGE WITH PIXEL ART VIEWER */}
+              <section aria-label="Visual do Atendente">
+                {currentStore ? (
+                  <AICharacterViewer
+                    agentName={activeAgent?.name || attendantName}
+                    agentRole={attendantRole}
+                    storeName={storeName}
+                    themeColor={themeColor}
+                    isOnline={isOnline}
+                    onToggleOnline={setIsOnline}
+                    avatarUrl={currentStore?.attendant_config?.avatarUrl || "/assets/evolution/habbo_avatar.png"}
+                    config={attendantConfig}
+                    onSaveConfig={handleSaveAttendantConfig}
+                  />
+                ) : (
+                  <div className="h-[310px] rounded-2xl border border-dashed border-white/15 bg-[#0c121d] flex flex-col items-center justify-center gap-3 p-6 text-center">
+                    <Store className="w-8 h-8 text-emerald-400" />
+                    <p className="text-sm font-semibold text-white">Configure sua loja</p>
+                    <p className="text-xs text-slate-400">Adicione os dados da empresa para visualizar o avatar da loja.</p>
+                    <Button type="button" size="sm" onClick={() => setShowStoreModal(true)}>
+                      Configurar Loja
+                    </Button>
+                  </div>
+                )}
+              </section>
 
-                      <div className="flex items-center justify-between text-[11px] border-t border-white/5 pt-2">
-                        <span className="text-slate-300 font-medium">Experiências analisadas na empresa</span>
-                        <span className="text-blue-400 font-bold">{metrics?.totalExperiences ?? '—'}</span>
-                      </div>
-                      <div className="flex items-center justify-between text-[11px]">
-                        <span className="text-slate-300 font-medium">Correções humanas</span>
-                        <span className="text-amber-400 font-bold">{metrics?.humanCorrections ?? '—'}</span>
-                      </div>
-                    </div>
-                  </article>
+              {/* 2. STORE KNOWLEDGE STATUS & PILLARS */}
+              <section className="bg-[#0c121d] border border-white/10 rounded-2xl p-4 shadow-xl space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <ShieldCheck className="w-4 h-4 text-emerald-400" />
+                    <h3 className="text-xs font-bold text-white uppercase tracking-wider">
+                      Base de Conhecimento Oficial
+                    </h3>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Badge
+                      variant="outline"
+                      className="text-[10px] font-bold"
+                      style={{ color: themeColor, borderColor: `${themeColor}40` }}
+                    >
+                      {currentStore ? `${storeKnowledgePct}% Completo` : 'Pendente'}
+                    </Badge>
+                    <button
+                      type="button"
+                      onClick={() => setShowStoreModal(true)}
+                      className="text-[11px] font-semibold text-emerald-400 hover:text-emerald-300 transition-colors flex items-center gap-1 cursor-pointer"
+                    >
+                      <span>Editar</span>
+                      <ChevronRight className="w-3 h-3" />
+                    </button>
+                  </div>
+                </div>
 
-                  {/* CARD 3: ÚLTIMOS APRENDIZADOS */}
-                  <article className="bg-[#0c121d] border border-white/10 rounded-2xl p-3.5 shadow-xl flex flex-col justify-between">
-                    <div className="flex items-center justify-between mb-2">
-                      <div className="flex items-center gap-1.5">
-                        <BookOpen className="w-4 h-4 text-emerald-400" />
-                        <span className="text-xs font-bold text-white">Aprendizados da empresa</span>
-                      </div>
-                      {recentLearnings.length > 3 && <button
-                        type="button"
-                        onClick={() => setShowAllRecentLearnings((open) => !open)}
-                        className="text-[10px] font-semibold text-emerald-400 hover:text-emerald-300 transition-colors flex items-center gap-1 cursor-pointer"
-                        aria-expanded={showAllRecentLearnings}
-                      >
-                        <span>{showAllRecentLearnings ? 'Ver menos' : 'Ver todos'}</span>
-                        <ArrowRight className="w-2.5 h-2.5" />
-                      </button>}
-                    </div>
+                {/* Progress bar */}
+                <div className="w-full bg-[#111823] h-1.5 rounded-full overflow-hidden">
+                  <div
+                    className="h-full rounded-full transition-all duration-500"
+                    style={{
+                      width: `${currentStore ? storeKnowledgePct : 0}%`,
+                      backgroundColor: themeColor,
+                    }}
+                  />
+                </div>
 
-                    <div className="space-y-1.5 my-auto">
-                      {loading ? (
-                        <p className="text-xs text-slate-400 py-5">Carregando aprendizados...</p>
-                      ) : loadErrors.overview ? (
-                        <p className="text-xs text-amber-300 py-5">Não foi possível carregar os aprendizados.</p>
-                      ) : recentLearnings.length === 0 ? (
-                        <p className="text-xs text-slate-400 py-5">Nenhum aprendizado registrado ainda.</p>
+                {/* 4 Essential Pillars Breakdown */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1 text-xs">
+                  {/* Pillar: Horários */}
+                  <div className="p-2.5 rounded-xl bg-[#080d16] border border-white/5 space-y-1">
+                    <div className="flex items-center justify-between">
+                      <span className="text-slate-300 font-semibold flex items-center gap-1.5 text-[11px]">
+                        <Clock className="w-3 h-3 text-emerald-400" /> Horário
+                      </span>
+                      {currentStore?.business_hours ? (
+                        <span className="text-[10px] text-emerald-400 font-bold">✓ Ativo</span>
                       ) : (
-                        recentLearnings.slice(0, showAllRecentLearnings ? 10 : 3).map((item, idx) => (
-                          <div key={item.id || idx} className="bg-[#080d16] p-2 rounded-xl border border-white/5 flex items-center justify-between">
+                        <span className="text-[10px] text-amber-400 font-medium">Pendente</span>
+                      )}
+                    </div>
+                    <p className="text-[11px] text-slate-400 line-clamp-1">
+                      {currentStore?.business_hours || 'Sem horários definidos. O agente pode não informar quando está aberto.'}
+                    </p>
+                  </div>
+
+                  {/* Pillar: Catálogo */}
+                  <div className="p-2.5 rounded-xl bg-[#080d16] border border-white/5 space-y-1">
+                    <div className="flex items-center justify-between">
+                      <span className="text-slate-300 font-semibold flex items-center gap-1.5 text-[11px]">
+                        <ShoppingBag className="w-3 h-3 text-emerald-400" /> Catálogo
+                      </span>
+                      {currentStore?.catalog_summary ? (
+                        <span className="text-[10px] text-emerald-400 font-bold">✓ Ativo</span>
+                      ) : (
+                        <span className="text-[10px] text-amber-400 font-medium">Pendente</span>
+                      )}
+                    </div>
+                    <p className="text-[11px] text-slate-400 line-clamp-1">
+                      {currentStore?.catalog_summary || 'Sem resumo de produtos. O agente usará apenas respostas gerais.'}
+                    </p>
+                  </div>
+
+                  {/* Pillar: Políticas */}
+                  <div className="p-2.5 rounded-xl bg-[#080d16] border border-white/5 space-y-1">
+                    <div className="flex items-center justify-between">
+                      <span className="text-slate-300 font-semibold flex items-center gap-1.5 text-[11px]">
+                        <CreditCard className="w-3 h-3 text-emerald-400" /> Políticas & Pagamentos
+                      </span>
+                      {currentStore?.policies ? (
+                        <span className="text-[10px] text-emerald-400 font-bold">✓ Ativo</span>
+                      ) : (
+                        <span className="text-[10px] text-amber-400 font-medium">Pendente</span>
+                      )}
+                    </div>
+                    <p className="text-[11px] text-slate-400 line-clamp-1">
+                      {currentStore?.policies || 'Sem formas de pagamento ou políticas de garantia informadas.'}
+                    </p>
+                  </div>
+
+                  {/* Pillar: Endereço */}
+                  <div className="p-2.5 rounded-xl bg-[#080d16] border border-white/5 space-y-1">
+                    <div className="flex items-center justify-between">
+                      <span className="text-slate-300 font-semibold flex items-center gap-1.5 text-[11px]">
+                        <MapPin className="w-3 h-3 text-emerald-400" /> Endereço & Local
+                      </span>
+                      {currentStore?.address ? (
+                        <span className="text-[10px] text-emerald-400 font-bold">✓ Ativo</span>
+                      ) : (
+                        <span className="text-[10px] text-amber-400 font-medium">Pendente</span>
+                      )}
+                    </div>
+                    <p className="text-[11px] text-slate-400 line-clamp-1">
+                      {currentStore?.address || 'Sem endereço físico cadastrado.'}
+                    </p>
+                  </div>
+                </div>
+              </section>
+
+              {/* 3. SEGMENTED TABS: INSTRUÇÕES DO AGENTE VS APRENDIZADOS E PLAYBOOKS */}
+              <section className="bg-[#0c121d] border border-white/10 rounded-2xl p-4 shadow-xl space-y-3">
+                <div className="flex items-center justify-between border-b border-white/10 pb-2.5">
+                  <div className="flex items-center gap-1 bg-black/40 p-1 rounded-xl border border-white/5 text-xs">
+                    <button
+                      type="button"
+                      onClick={() => setActiveIntelTab('knowledge')}
+                      className={`px-3 py-1.5 rounded-lg font-semibold transition-all ${
+                        activeIntelTab === 'knowledge'
+                          ? 'bg-emerald-500 text-black font-bold shadow-sm'
+                          : 'text-slate-400 hover:text-white'
+                      }`}
+                    >
+                      <Bot className="inline w-3.5 h-3.5 mr-1.5 -mt-0.5" />
+                      Instruções do Agente
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setActiveIntelTab('learnings')}
+                      className={`px-3 py-1.5 rounded-lg font-semibold transition-all flex items-center gap-1.5 ${
+                        activeIntelTab === 'learnings'
+                          ? 'bg-emerald-500 text-black font-bold shadow-sm'
+                          : 'text-slate-400 hover:text-white'
+                      }`}
+                    >
+                      <TrendingUp className="inline w-3.5 h-3.5" />
+                      <span>Evolução & Playbooks</span>
+                      {suggestions.length > 0 && (
+                        <span className="px-1.5 py-0.2 rounded-full text-[9px] bg-amber-500/20 text-amber-300 font-bold">
+                          {suggestions.length}
+                        </span>
+                      )}
+                    </button>
+                  </div>
+
+                  {activeIntelTab === 'knowledge' && (
+                    <button
+                      type="button"
+                      onClick={handleCopyPrompt}
+                      className="text-[11px] text-slate-400 hover:text-white flex items-center gap-1 transition-colors"
+                      title="Copiar prompt do agente"
+                    >
+                      {copiedPrompt ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+                      <span>{copiedPrompt ? 'Copiado' : 'Copiar'}</span>
+                    </button>
+                  )}
+                </div>
+
+                {/* TAB CONTENT: INSTRUÇÕES DO AGENTE */}
+                {activeIntelTab === 'knowledge' && (
+                  <div className="space-y-3 text-xs animate-fade-in">
+                    <div className="p-3 rounded-xl bg-[#080d16] border border-white/5 space-y-1.5">
+                      <span className="text-[11px] font-bold text-slate-300 uppercase tracking-wider block">
+                        Personalidade & Tom de Voz
+                      </span>
+                      <p className="text-slate-300 leading-relaxed whitespace-pre-wrap max-h-[160px] overflow-y-auto pr-1">
+                        {activeAgent?.personality || 'Nenhuma instrução específica informada para este agente. O agente atenderá com o tom padrão da plataforma.'}
+                      </p>
+                    </div>
+
+                    <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
+                      <div className="flex items-center gap-2 text-[11px] text-slate-400">
+                        <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
+                        <span>Respostas blindadas: Não inventa preços ou produtos não cadastrados.</span>
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        <button
+                          type="button"
+                          onClick={onManageAgents}
+                          className="text-xs text-emerald-400 hover:text-emerald-300 font-medium transition-colors"
+                        >
+                          Gerenciar equipe →
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* TAB CONTENT: APRENDIZADOS & PLAYBOOKS */}
+                {activeIntelTab === 'learnings' && (
+                  <div className="space-y-4 text-xs animate-fade-in">
+                    {/* Operational metrics */}
+                    <div className="grid grid-cols-3 gap-2">
+                      <div className="p-2.5 rounded-xl bg-[#080d16] border border-white/5 text-center">
+                        <span className="block text-[10px] text-slate-400">Experiências</span>
+                        <span className="text-base font-bold text-blue-400">
+                          {metrics?.totalExperiences ?? 0}
+                        </span>
+                      </div>
+                      <div className="p-2.5 rounded-xl bg-[#080d16] border border-white/5 text-center">
+                        <span className="block text-[10px] text-slate-400">Correções</span>
+                        <span className="text-base font-bold text-amber-400">
+                          {metrics?.humanCorrections ?? 0}
+                        </span>
+                      </div>
+                      <div className="p-2.5 rounded-xl bg-[#080d16] border border-white/5 text-center">
+                        <span className="block text-[10px] text-slate-400">Playbooks Minerados</span>
+                        <span className="text-base font-bold text-emerald-400">
+                          {suggestions.length}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Recent Learnings List */}
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[11px] font-bold text-slate-300 uppercase tracking-wider">
+                          Últimos Aprendizados
+                        </span>
+                        {recentLearnings.length > 3 && (
+                          <button
+                            type="button"
+                            onClick={() => setShowAllRecentLearnings((open) => !open)}
+                            className="text-[10px] font-semibold text-emerald-400 hover:text-emerald-300 transition-colors"
+                          >
+                            {showAllRecentLearnings ? 'Ver menos' : 'Ver todos'}
+                          </button>
+                        )}
+                      </div>
+
+                      {recentLearnings.length === 0 ? (
+                        <p className="text-slate-400 py-3 text-center text-xs">
+                          Nenhum aprendizado registrado ainda. Conforme a IA responde aos clientes, novos padrões surgirão aqui.
+                        </p>
+                      ) : (
+                        recentLearnings.slice(0, showAllRecentLearnings ? 8 : 3).map((item, idx) => (
+                          <div key={item.id || idx} className="p-2.5 rounded-xl bg-[#080d16] border border-white/5 flex items-center justify-between">
                             <div className="min-w-0 pr-2">
-                              <div className="text-[11px] font-semibold text-white truncate">{item.title}</div>
-                              <div className="text-[10px] text-slate-400 truncate max-w-[180px]">{item.description}</div>
+                              <p className="font-semibold text-white truncate text-[11px]">{item.title}</p>
+                              <p className="text-[10px] text-slate-400 truncate">{item.description}</p>
                             </div>
-                            <span className="text-[9px] text-slate-500 whitespace-nowrap">{item.time || 'Recente'}</span>
+                            <span className="text-[9px] text-slate-500 shrink-0">{item.time || 'Recente'}</span>
                           </div>
                         ))
                       )}
                     </div>
-                  </article>
 
-                </div>
-
-              </div>
+                    {/* Playbook Suggestions */}
+                    {suggestions.length > 0 && (
+                      <div className="space-y-2 pt-2 border-t border-white/5">
+                        <span className="text-[11px] font-bold text-slate-300 uppercase tracking-wider block">
+                          Playbooks Minerados das Conversas
+                        </span>
+                        <div className="space-y-2 max-h-[220px] overflow-y-auto pr-1">
+                          {suggestions.map((sug) => (
+                            <div key={sug.id} className="p-3 rounded-xl bg-[#080d16] border border-white/5 space-y-1.5">
+                              <div className="flex items-center justify-between gap-2">
+                                <Badge
+                                  variant="outline"
+                                  className={sug.status === "approved" ? "border-emerald-500/40 text-emerald-300" : "border-amber-500/40 text-amber-300"}
+                                >
+                                  {sug.status === "approved" ? "Aprovado" : "Aguardando aprovação"}
+                                </Badge>
+                                <span className="text-emerald-400 font-bold text-[10px]">
+                                  +{sug.continuity_impact_pct}% continuidade
+                                </span>
+                              </div>
+                              <p className="font-semibold text-white text-[11px]">{sug.situation_summary}</p>
+                              <p className="text-slate-400 text-[10px] leading-relaxed">
+                                <strong className="text-slate-200">Estratégia:</strong> {sug.suggested_strategy}
+                              </p>
+                              {sug.suggested_cta && (
+                                <p className="text-emerald-300 text-[10px]">
+                                  <strong>CTA:</strong> "{sug.suggested_cta}"
+                                </p>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </section>
 
             </div>
 
-            {/* BOTTOM SECTION: TEST ASSISTANT (WHATSAPP CHAT SIMULATOR) */}
-            <section id="zai-test-section" className="order-1 xl:order-2 bg-[#0c121d] border border-white/10 rounded-2xl p-4 shadow-xl">
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-3 border-b border-white/5 pb-3">
-                <div className="flex items-center gap-2.5">
-                  <div className="w-8 h-8 rounded-lg bg-emerald-500 flex items-center justify-center text-black shadow-[0_0_12px_rgba(16,185,129,0.3)]">
-                    <MessageSquare className="w-4 h-4 fill-current" />
-                  </div>
-                  <div>
-                    <h2 className="text-sm font-bold text-white flex flex-wrap items-center gap-2">
-                      <span>Testar Assistente</span>
-                      <Badge variant="outline" className="text-[9px]" style={{ color: themeColor, borderColor: `${themeColor}50` }}>
-                        {activeAgent?.name || 'Agente'} · {storeName}
-                      </Badge>
-                    </h2>
-                    <p className="text-[11px] text-slate-400">Simule respostas de {activeAgent?.name || 'um agente'} com os dados de {storeName}.</p>
-                  </div>
-                </div>
+            {/* RIGHT COLUMN: WHATSAPP TEST SANDBOX (SIMULATOR IN VIEW AT ALL TIMES) */}
+            <div className="lg:col-span-6 xl:col-span-5">
+              <section className="bg-[#0c121d] border border-white/10 rounded-2xl shadow-xl overflow-hidden flex flex-col min-h-[580px] sticky top-4">
 
-                <button
-                  type="button"
-                  onClick={handleClearChat}
-                  disabled={chatMessages.length === 0}
-                  className="self-end sm:self-auto flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-white/10 bg-[#080d16] hover:bg-white/5 text-slate-300 text-xs font-medium transition-all disabled:opacity-40 disabled:cursor-not-allowed"
-                >
-                  <Trash2 className="w-3.5 h-3.5 text-slate-400" />
-                  <span>Limpar conversa</span>
-                </button>
-              </div>
-
-              {/* CHAT MESSAGES CONTAINER */}
-              <div className="space-y-3 mb-3 px-1 min-h-[160px] max-h-[300px] overflow-y-auto pr-1">
-                {chatMessages.length === 0 ? (
-                  <div className="h-[160px] flex flex-col items-center justify-center text-center text-slate-400">
-                    <MessageSquare className="w-6 h-6 mb-2 text-emerald-400/70" />
-                    <p className="text-xs font-medium text-slate-200">{historyError ? 'Teste indisponível no momento' : canTest ? 'Teste as respostas do atendente' : 'Configure loja e agente para testar'}</p>
-                    <p className="text-[11px] mt-1">{historyError ? 'Recarregue lojas e agentes para continuar.' : canTest ? 'Envie uma pergunta para começar a conversa.' : 'Complete a configuração antes de enviar uma pergunta.'}</p>
-                  </div>
-                ) : (
-                  chatMessages.map((msg) => (
-                    <div
-                      key={msg.id}
-                      className={`flex ${msg.sender === 'user' ? 'justify-end' : 'justify-start items-start gap-2.5'}`}
-                    >
-                      {msg.sender === 'assistant' && (
-                        <div className="w-7 h-7 rounded-lg overflow-hidden border border-emerald-500/50 mt-0.5 bg-black flex-shrink-0">
-                          <img
-                            src={currentStore?.attendant_config?.avatarUrl || "/assets/evolution/habbo_avatar.png"}
-                            alt={attendantName}
-                            className="w-full h-full object-cover"
-                            style={{ imageRendering: "pixelated" }}
-                          />
-                        </div>
-                      )}
-                      <div
-                        className={`px-3.5 py-2.5 rounded-2xl text-xs max-w-xl shadow-md ${
-                          msg.sender === 'user'
-                            ? 'bg-[#005c4b] text-white rounded-tr-none'
-                            : msg.isError ? 'bg-amber-950/40 text-amber-200 rounded-tl-none leading-relaxed' : 'bg-[#1f2c34] text-slate-100 rounded-tl-none leading-relaxed'
-                        }`}
-                      >
-                        <p className="m-0">{msg.text}</p>
-                        <div className="text-[9px] text-slate-400 mt-1 flex items-center justify-end gap-1">
-                          <span>{msg.timestamp}</span>
-                          {msg.sender === 'user' && <CheckCheck className="w-3 h-3 text-emerald-400" />}
-                        </div>
-                      </div>
-                    </div>
-                  ))
-                )}
-
-                {isSendingMessage && (
-                  <div className="flex justify-start items-start gap-2.5">
-                    <div className="w-7 h-7 rounded-lg overflow-hidden border border-emerald-500/50 mt-0.5 bg-black flex-shrink-0">
+                {/* SANDBOX HEADER (WhatsApp Styled) */}
+                <div className="bg-[#1f2c34] p-3.5 border-b border-white/10 flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <div className="w-9 h-9 rounded-xl overflow-hidden border border-emerald-500/50 bg-black shrink-0">
                       <img
                         src={currentStore?.attendant_config?.avatarUrl || "/assets/evolution/habbo_avatar.png"}
                         alt={attendantName}
@@ -662,162 +860,214 @@ export function EvolutionCenter({ onManageAgents, onOperation }: { onManageAgent
                         style={{ imageRendering: "pixelated" }}
                       />
                     </div>
-                    <div className="bg-[#1f2c34] text-slate-300 px-3.5 py-2 rounded-2xl rounded-tl-none text-xs flex items-center gap-2 italic">
-                      <span className="w-2 h-2 rounded-full animate-ping" style={{ backgroundColor: themeColor }} />
-                      <span>{attendantName} está digitando...</span>
+                    <div className="min-w-0">
+                      <h2 className="text-xs font-bold text-white flex items-center gap-1.5 truncate">
+                        <span>{activeAgent?.name || attendantName}</span>
+                        <span className="text-[10px] text-slate-400 font-normal">({storeName})</span>
+                      </h2>
+                      <div className="flex items-center gap-1.5 text-[10px] text-emerald-400">
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                        <span>Online na prévia (Sandbox)</span>
+                      </div>
                     </div>
                   </div>
-                )}
-                <div ref={chatBottomRef} />
-              </div>
 
-              {/* INPUT BAR */}
-              <div className="flex items-center gap-2 bg-[#080d16] border border-white/10 rounded-xl px-3 py-1.5">
-                <input
-                  ref={chatInputRef}
-                  type="text"
-                  placeholder="Digite uma mensagem para testar..."
-                  aria-label="Mensagem para testar o atendente"
-                  className="flex-1 bg-transparent text-xs text-white placeholder-slate-500 focus:outline-none px-2"
-                  value={chatInput}
-                  onChange={(e) => setChatInput(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') {
-                      void handleSendMessage();
-                    }
-                  }}
-                  disabled={isSendingMessage || !canTest}
-                />
-
-                <button
-                  type="button"
-                  onClick={() => void handleSendMessage()}
-                  disabled={isSendingMessage || !chatInput.trim() || !canTest}
-                  className="w-8 h-8 rounded-lg text-black flex items-center justify-center transition-all shadow-[0_2px_8px_rgba(16,185,129,0.3)] disabled:opacity-40"
-                  style={{ backgroundColor: themeColor }}
-                  title="Enviar mensagem"
-                >
-                  <Send className="w-3.5 h-3.5 fill-current" />
-                </button>
-              </div>
-            </section>
-          </div>
-        )}
-
-        {/* Configuração da loja e do atendente */}
-        {viewMode === 'settings' && (
-          <div className="space-y-4 animate-fade-in">
-            <WhiteLabelStoreManager
-              key={currentStore?.id || 'new-store'}
-              initialStoreId={currentStore?.id}
-              onStoreSelected={(selectedStore) => {
-                setCurrentStore(selectedStore);
-                resetChat();
-              }}
-              onStoreUpdated={(updatedStore) => {
-                setCurrentStore(updatedStore);
-                resetChat();
-                void fetchAgentsAndStores();
-              }}
-            />
-            <HistoryBootstrapDisclosure />
-          </div>
-        )}
-
-        {viewMode === 'overview' && (
-          <section className="mt-4 rounded-2xl border border-white/10 bg-[#0c121d] overflow-hidden">
-            <button
-              type="button"
-              aria-expanded={showLearnings}
-              onClick={() => setShowLearnings((open) => !open)}
-              className="w-full flex items-center justify-between gap-4 p-4 text-left hover:bg-white/[0.03] transition-colors"
-            >
-              <span className="flex items-center gap-3 min-w-0">
-                <span className="w-9 h-9 rounded-lg bg-amber-500/10 text-amber-400 flex items-center justify-center shrink-0"><BookOpen className="w-4 h-4" /></span>
-                <span>
-                  <span className="block text-sm font-semibold text-white">Aprendizados e sugestões</span>
-                  <span className="block text-xs text-slate-400">Revise os padrões encontrados nas conversas da empresa.</span>
-                </span>
-              </span>
-              <span className="text-xs font-semibold text-amber-400 whitespace-nowrap">
-                {loadErrors.suggestions ? 'Sugestões indisponíveis' : `${suggestions.filter((item) => item.status === 'pending').length} pendentes`} · {showLearnings ? 'Recolher' : 'Ver detalhes'}
-              </span>
-            </button>
-            {showLearnings && <div className="space-y-4 p-4 pt-0 animate-fade-in">
-            <Card className="border border-border/60 bg-[#0d131f] shadow-sm">
-              <CardHeader className="pb-3 border-b border-border/40">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <CardTitle className="text-sm font-bold flex items-center gap-2 text-white">
-                      <Sparkles className="w-4 h-4 text-amber-400" />
-                      Sugestões de Playbooks Comerciais Minerados
-                    </CardTitle>
-                    <CardDescription className="text-xs text-muted-foreground mt-0.5">
-                      Padrões detectados nas conversas reais onde intervenções humanas geraram fechamento de vendas.
-                    </CardDescription>
-                  </div>
-                  <Badge variant="outline" className="text-xs border-amber-500/40 text-amber-400">
-                    {suggestions.length} identificados
-                  </Badge>
+                  <button
+                    type="button"
+                    onClick={handleClearChat}
+                    disabled={chatMessages.length === 0}
+                    className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-white/5 transition-all disabled:opacity-30 disabled:cursor-not-allowed"
+                    title="Limpar mensagens do teste"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
                 </div>
-              </CardHeader>
 
-              <CardContent className="pt-4">
-                {loadErrors.suggestions ? (
-                  <p className="text-center py-8 text-xs text-amber-300">Não foi possível carregar as sugestões. Atualize a página para tentar novamente.</p>
-                ) : suggestions.length === 0 ? (
-                  <div className="text-center py-12 text-muted-foreground text-xs space-y-2">
-                    <Sparkles className="w-8 h-8 mx-auto opacity-40 text-amber-400 animate-pulse" />
-                    <p className="font-semibold text-white">Nenhum padrão identificado ainda</p>
-                    <p className="max-w-md mx-auto">
-                      Quando houver padrões detectados nas conversas, eles aparecerão aqui para revisão.
-                    </p>
-                  </div>
-                ) : (
-                  <div className="space-y-3">
-                    {suggestions.map((sug) => (
+                {/* QUICK-TEST CHIPS BAR */}
+                <div className="p-2.5 bg-[#111b21] border-b border-white/5 flex items-center gap-1.5 overflow-x-auto select-none no-scrollbar">
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider shrink-0 mr-1 flex items-center gap-1">
+                    <Sparkles className="w-3 h-3 text-emerald-400" /> Teste Rápido:
+                  </span>
+                  {QUICK_TEST_QUESTIONS.map((item) => (
+                    <button
+                      key={item.label}
+                      type="button"
+                      onClick={() => handleQuickQuestion(item.query)}
+                      disabled={isSendingMessage || !canTest}
+                      className="px-2.5 py-1 rounded-full bg-[#1e2a30] hover:bg-emerald-500/20 text-slate-200 hover:text-emerald-300 text-[10px] font-semibold border border-white/5 hover:border-emerald-500/40 transition-all shrink-0 flex items-center gap-1 cursor-pointer disabled:opacity-40"
+                    >
+                      <item.icon className="w-3 h-3 text-emerald-400" />
+                      <span>{item.label}</span>
+                    </button>
+                  ))}
+                </div>
+
+                {/* CHAT MESSAGES BODY */}
+                <div className="flex-1 p-3.5 space-y-3 overflow-y-auto bg-[#0b141a] min-h-[360px] max-h-[460px]">
+                  {chatMessages.length === 0 ? (
+                    <div className="h-full min-h-[280px] flex flex-col items-center justify-center text-center p-4">
+                      <div className="w-12 h-12 rounded-2xl bg-emerald-500/10 text-emerald-400 flex items-center justify-center mb-3">
+                        <MessageSquare className="w-6 h-6" />
+                      </div>
+                      <h4 className="text-sm font-semibold text-white">Simulador WhatsApp do Agente</h4>
+                      <p className="text-xs text-slate-400 max-w-xs mt-1 leading-relaxed">
+                        Envie uma mensagem ou clique em um dos botões de <strong className="text-emerald-400">Teste Rápido</strong> acima para avaliar como {activeAgent?.name || attendantName} responde aos clientes.
+                      </p>
+                    </div>
+                  ) : (
+                    chatMessages.map((msg) => (
                       <div
-                        key={sug.id}
-                        className="p-4 rounded-xl border border-border/50 bg-[#080c14] space-y-2.5 text-xs"
+                        key={msg.id}
+                        className={`flex ${msg.sender === 'user' ? 'justify-end' : 'justify-start items-start gap-2'}`}
                       >
-                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                          <div className="flex items-center gap-2">
-                            <Badge
-                              variant={sug.status === "approved" ? "default" : "outline"}
-                              className={
-                                sug.status === "approved"
-                                  ? "bg-emerald-600 text-white"
-                                  : "border-amber-500/30 text-amber-400"
-                              }
-                            >
-                              {sug.status === "approved" ? "Playbook Aprovado" : "Aguardando Aprovação"}
-                            </Badge>
-                            <span className="font-semibold text-white">
-                              {sug.situation_summary}
-                            </span>
+                        {msg.sender === 'assistant' && (
+                          <div className="w-6 h-6 rounded-lg overflow-hidden border border-emerald-500/40 mt-1 bg-black shrink-0">
+                            <img
+                              src={currentStore?.attendant_config?.avatarUrl || "/assets/evolution/habbo_avatar.png"}
+                              alt={attendantName}
+                              className="w-full h-full object-cover"
+                              style={{ imageRendering: "pixelated" }}
+                            />
                           </div>
-                          <div className="text-emerald-400 font-medium">
-                            +{sug.continuity_impact_pct}% continuidade
+                        )}
+                        <div
+                          className={`px-3 py-2 rounded-2xl text-xs max-w-[85%] shadow-md leading-relaxed ${
+                            msg.sender === 'user'
+                              ? 'bg-[#005c4b] text-white rounded-tr-none'
+                              : msg.isError
+                              ? 'bg-amber-950/60 text-amber-200 border border-amber-500/30 rounded-tl-none'
+                              : 'bg-[#202c33] text-slate-100 rounded-tl-none'
+                          }`}
+                        >
+                          <p className="m-0 whitespace-pre-wrap">{msg.text}</p>
+                          <div className="text-[9px] text-slate-400 mt-1 flex items-center justify-end gap-1">
+                            <span>{msg.timestamp}</span>
+                            {msg.sender === 'user' && <CheckCheck className="w-3 h-3 text-emerald-400" />}
                           </div>
-                        </div>
-
-                        <div className="bg-[#111724] rounded-lg p-3 space-y-1 border border-border/40 text-muted-foreground">
-                          <p><strong className="text-white">Estratégia:</strong> {sug.suggested_strategy}</p>
-                          {sug.suggested_cta && (
-                            <p><strong className="text-emerald-400">CTA:</strong> "{sug.suggested_cta}"</p>
-                          )}
                         </div>
                       </div>
-                    ))}
+                    ))
+                  )}
+
+                  {isSendingMessage && (
+                    <div className="flex justify-start items-start gap-2">
+                      <div className="w-6 h-6 rounded-lg overflow-hidden border border-emerald-500/40 mt-1 bg-black shrink-0">
+                        <img
+                          src={currentStore?.attendant_config?.avatarUrl || "/assets/evolution/habbo_avatar.png"}
+                          alt={attendantName}
+                          className="w-full h-full object-cover"
+                          style={{ imageRendering: "pixelated" }}
+                        />
+                      </div>
+                      <div className="bg-[#202c33] text-slate-300 px-3 py-2 rounded-2xl rounded-tl-none text-xs flex items-center gap-2 italic">
+                        <span className="w-2 h-2 rounded-full animate-ping" style={{ backgroundColor: themeColor }} />
+                        <span>{attendantName} está digitando...</span>
+                      </div>
+                    </div>
+                  )}
+                  <div ref={chatBottomRef} />
+                </div>
+
+                {/* CHAT INPUT BAR */}
+                <div className="p-3 bg-[#202c33] border-t border-white/5 space-y-1.5">
+                  <div className="flex items-center gap-2 bg-[#2a3942] rounded-xl px-3 py-1.5 border border-white/5">
+                    <input
+                      ref={chatInputRef}
+                      type="text"
+                      placeholder={canTest ? `Escreva para testar ${activeAgent?.name || attendantName}...` : "Configure o agente para testar"}
+                      aria-label="Mensagem para testar o atendente"
+                      className="flex-1 bg-transparent text-xs text-white placeholder-slate-400 focus:outline-none px-1"
+                      value={chatInput}
+                      onChange={(e) => setChatInput(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          void handleSendMessage();
+                        }
+                      }}
+                      disabled={isSendingMessage || !canTest}
+                    />
+
+                    <button
+                      type="button"
+                      onClick={() => void handleSendMessage()}
+                      disabled={isSendingMessage || !chatInput.trim() || !canTest}
+                      className="w-8 h-8 rounded-lg text-black flex items-center justify-center transition-all shadow-md disabled:opacity-40 cursor-pointer shrink-0"
+                      style={{ backgroundColor: themeColor }}
+                      title="Enviar mensagem para o simulador"
+                    >
+                      <Send className="w-3.5 h-3.5 fill-current" />
+                    </button>
                   </div>
-                )}
-              </CardContent>
-            </Card>
-            </div>}
-          </section>
+                  <p className="text-[10px] text-slate-400 text-center">
+                    Respostas geradas usando as regras e dados oficiais cadastrados na loja.
+                  </p>
+                </div>
+
+              </section>
+            </div>
+
+          </div>
         )}
 
       </div>
+
+      {/* MODAL 1: STORE CONFIGURATION DIALOG */}
+      <Dialog open={showStoreModal} onOpenChange={setShowStoreModal}>
+        <DialogContent className="max-w-4xl max-h-[88vh] overflow-y-auto bg-[#0d131f] border border-white/10 text-white p-5 sm:p-6 shadow-2xl z-50">
+          <DialogHeader className="border-b border-white/10 pb-3 mb-2">
+            <DialogTitle className="flex items-center gap-2 text-sm font-bold text-white">
+              <Store className="w-4 h-4 text-emerald-400" />
+              <span>Configuração da Loja & Conhecimento Oficial</span>
+            </DialogTitle>
+            <DialogDescription className="text-xs text-slate-400">
+              Altere catálogo, horários, políticas e informações que o atendente utilizará no WhatsApp.
+            </DialogDescription>
+          </DialogHeader>
+
+          <WhiteLabelStoreManager
+            key={currentStore?.id || 'new-store'}
+            initialStoreId={currentStore?.id}
+            onStoreSelected={(selectedStore) => {
+              setCurrentStore(selectedStore);
+              resetChat();
+            }}
+            onStoreUpdated={(updatedStore) => {
+              setCurrentStore(updatedStore);
+              resetChat();
+              void fetchAgentsAndStores();
+            }}
+          />
+        </DialogContent>
+      </Dialog>
+
+      {/* MODAL 2: CREATE AGENT / WHATSAPP IMPORT DIALOG */}
+      <Dialog open={showCreateAgentModal} onOpenChange={setShowCreateAgentModal}>
+        <DialogContent className="max-w-3xl max-h-[88vh] overflow-y-auto bg-[#0d131f] border border-white/10 text-white p-5 sm:p-6 shadow-2xl z-50">
+          <DialogHeader className="border-b border-white/10 pb-3 mb-2">
+            <DialogTitle className="flex items-center gap-2 text-sm font-bold text-white">
+              <Sparkles className="w-4 h-4 text-emerald-400" />
+              <span>Criar ou Treinar Agente de Atendimento</span>
+            </DialogTitle>
+            <DialogDescription className="text-xs text-slate-400">
+              Crie seu agente a partir do histórico de conversas do WhatsApp ou personalize as instruções manualmente.
+            </DialogDescription>
+          </DialogHeader>
+
+          <HistoryBootstrapPanel
+            guided
+            requestedMode="store"
+            onAgentCreated={() => {
+              setShowCreateAgentModal(false);
+              void fetchAgentsAndStores();
+            }}
+            onClose={() => {
+              setShowCreateAgentModal(false);
+              void fetchAgentsAndStores();
+            }}
+          />
+        </DialogContent>
+      </Dialog>
+
     </div>
   );
 }
