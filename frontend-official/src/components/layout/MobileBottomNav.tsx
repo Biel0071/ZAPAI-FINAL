@@ -128,7 +128,14 @@ export function MobileBottomNav() {
           }
 
           const isActive = tab.id === "ai"
-            ? (location.pathname.startsWith("/ai") || location.pathname.startsWith("/evolution"))
+            ? (
+                location.pathname.startsWith("/ai") ||
+                location.pathname.startsWith("/evolution") ||
+                location.pathname.startsWith("/evolucao") ||
+                location.pathname.startsWith("/operations") ||
+                location.pathname.startsWith("/flows") ||
+                location.pathname.startsWith("/automation")
+              )
             : location.pathname.startsWith(tab.path!);
 
           return (

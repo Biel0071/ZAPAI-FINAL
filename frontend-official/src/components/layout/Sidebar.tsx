@@ -9,8 +9,6 @@ import {
   SquaresFour,
   ChatCircleDots,
   AddressBook,
-  TreeStructure,
-  ChartLineUp,
   Megaphone,
   Users,
   Database,
@@ -24,7 +22,6 @@ import {
   FileText,
   CaretDown,
   CaretUp,
-  Sparkle,
   Brain,
   GitCommit,
   Flask,
@@ -69,10 +66,7 @@ const crmItems: SidebarNavItem[] = [
   { icon: Broadcast, label: "Conexões", path: "/connections", minRole: "user" },
   { icon: Users, label: "Contatos", path: "/contacts", minRole: "user" },
   { icon: Megaphone, label: "Campanhas", path: "/campaigns", minRole: "user" },
-  { icon: ChartLineUp, label: "Operações", path: "/operations", minRole: "user" },
-  { icon: Sparkle, label: "Evolução IA", path: "/evolution", minRole: "user", badge: "AI" },
   { icon: AIIcon, label: "IA & Automação", path: "/ai", minRole: "user" },
-  { icon: TreeStructure, label: "Fluxos", path: "/flows", minRole: "admin", dev: true },
 ];
 
 const adminItems: SidebarNavItem[] = [];
@@ -165,11 +159,16 @@ export function Sidebar() {
 
   const renderNavItem = (item: SidebarNavItem, compact: boolean, keyPrefix: string) => {
     const targetPathname = item.path.split("?")[0];
-    const isEvolutionItem = item.path === "/evolution";
-    const isEvolutionActive = isEvolutionItem && (location.pathname === "/evolution" || (location.pathname === "/ai" && location.search.includes("tab=evolution")));
     const isAiItem = item.path === "/ai";
-    const isAiActive = isAiItem && location.pathname === "/ai" && !location.search.includes("tab=evolution");
-    const isActive = isEvolutionItem ? isEvolutionActive : (isAiItem ? isAiActive : location.pathname === targetPathname);
+    const isAiActive = isAiItem && (
+      location.pathname.startsWith("/ai") ||
+      location.pathname.startsWith("/operations") ||
+      location.pathname.startsWith("/flows") ||
+      location.pathname.startsWith("/evolution") ||
+      location.pathname.startsWith("/evolucao") ||
+      location.pathname.startsWith("/automation")
+    );
+    const isActive = isAiItem ? isAiActive : location.pathname === targetPathname;
 
     // Itens em desenvolvimento: cinza, não-clicáveis, badge DEV. Só chegam aqui p/ admin+.
     if (item.dev) {

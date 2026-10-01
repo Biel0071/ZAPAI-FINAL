@@ -173,14 +173,14 @@ const App = () => {
                       <Route path="/inbox" element={<InboxRuntimeBoundary><Inbox /></InboxRuntimeBoundary>} />
                       <Route path="/connections" element={<PageRouteBoundary pageName="Conexões"><Connections /></PageRouteBoundary>} />
                       <Route path="/contacts" element={<PageRouteBoundary pageName="Contatos"><Contacts /></PageRouteBoundary>} />
-                      <Route path="/flows" element={<ProtectedRoute minRole="admin"><PageRouteBoundary pageName="Fluxos"><Flows /></PageRouteBoundary></ProtectedRoute>} />
-                      <Route path="/ai" element={<PageRouteBoundary pageName="Inteligência Artificial"><AI /></PageRouteBoundary>} />
-                      <Route path="/evolution" element={<PageRouteBoundary pageName="Evolução IA"><AI defaultSection="evolution" /></PageRouteBoundary>} />
-                      <Route path="/evolucao" element={<Navigate to="/evolution" replace />} />
+                      <Route path="/ai" element={<PageRouteBoundary pageName="IA & Automação"><AI /></PageRouteBoundary>} />
+                      <Route path="/operations" element={<Navigate to="/ai?tab=operations" replace />} />
+                      <Route path="/flows" element={<Navigate to="/ai?tab=flows" replace />} />
+                      <Route path="/evolution" element={<Navigate to="/ai?tab=evolution" replace />} />
+                      <Route path="/evolucao" element={<Navigate to="/ai?tab=evolution" replace />} />
                       <Route path="/analytics" element={<Navigate to="/dashboard?tab=analytics" replace />} />
-                      <Route path="/operations" element={<ProtectedRoute minRole="user"><PageRouteBoundary pageName="Operações"><Operations /></PageRouteBoundary></ProtectedRoute>} />
                       <Route path="/campaigns" element={<PageRouteBoundary pageName="Campanhas"><Campaigns /></PageRouteBoundary>} />
-                      <Route path="/automation" element={<Navigate to="/flows" replace />} />
+                      <Route path="/automation" element={<Navigate to="/ai?tab=flows" replace />} />
                       <Route path="/integrations" element={<Navigate to="/connections" replace />} />
                       <Route path="/dev-tools" element={<ProtectedRoute minRole="user"><Navigate to="/diagnostics" replace /></ProtectedRoute>} />
                       <Route path="/memory" element={<PageRouteBoundary pageName="Memória de Sistema"><Memory /></PageRouteBoundary>} />
