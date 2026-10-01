@@ -154,34 +154,46 @@ class HistorySync {
     const session = activeSessions[sessionId];
     if (session?.status !== 'connected' || !session.sock?.fetchMessageHistory) return;
     const client = this.repository.pool;
-    let row = (await client.query(`SELECT h.* FROM whatsapp_history_items h
-      LEFT JOIN whatsapp_history_requests r ON r.company_id=h.company_id AND r.session_id=h.session_id AND r.chat_jid=h.chat_jid
-      JOIN whatsapp_history_sync s ON s.company_id=h.company_id AND s.session_id=h.session_id
+
+    // Rate-limit check: at most one request every 30 seconds
+    const syncRow = (await client.query(
+      `SELECT last_request_at FROM whatsapp_history_sync WHERE company_id=$1 AND session_id=$2`,
+      [companyId, sessionId]
+    )).rows[0];
+
+    if (syncRow?.last_request_at && (Date.now() - new Date(syncRow.last_request_at).getTime()) < 30000) {
+      return;
+    }
+
+    let row = (await client.query(`
+      SELECT h.chat_jid, h.message_key, h.from_me, h.occurred_at
+      FROM whatsapp_history_items h
+      LEFT JOIN whatsapp_history_requests r
+        ON r.company_id=h.company_id AND r.session_id=h.session_id AND r.chat_jid=h.chat_jid
       WHERE h.company_id=$1 AND h.session_id=$2 AND h.occurred_at IS NOT NULL
-      AND h.message_key NOT LIKE 'stored:%'
-      AND (s.last_request_at IS NULL OR s.last_request_at < NOW()-INTERVAL '30 seconds')
-      AND (r.oldest_key IS NULL OR r.oldest_key<>h.message_key)
-      AND NOT EXISTS(SELECT 1 FROM whatsapp_history_items earlier WHERE earlier.company_id=h.company_id AND earlier.session_id=h.session_id AND earlier.chat_jid=h.chat_jid
-        AND earlier.message_key NOT LIKE 'stored:%' AND (earlier.occurred_at,earlier.id)<(h.occurred_at,h.id))
-      ORDER BY h.occurred_at LIMIT 1`, [companyId, sessionId])).rows[0];
+        AND h.message_key NOT LIKE 'stored:%'
+        AND (r.oldest_key IS NULL OR r.oldest_key<>h.message_key)
+      ORDER BY h.occurred_at ASC
+      LIMIT 1
+    `, [companyId, sessionId])).rows[0];
 
     // Fallback: If no candidate in whatsapp_history_items, check messages table
     if (!row) {
-      row = (await client.query(`SELECT m.whatsapp_message_id AS message_key,
-          COALESCE(m.remote_jid, c.remote_jid, m.phone) AS chat_jid,
-          m.from_me,
-          COALESCE(m.timestamp, m.created_at) AS occurred_at
+      row = (await client.query(`
+        SELECT m.whatsapp_message_id AS message_key,
+               COALESCE(m.remote_jid, m.phone) AS chat_jid,
+               m.from_me,
+               m.created_at AS occurred_at
         FROM messages m
-        LEFT JOIN conversations c ON c.id = m.conversation_id
-        LEFT JOIN whatsapp_history_requests r ON r.company_id = m.company_id AND r.session_id = m.session_id AND r.chat_jid = COALESCE(m.remote_jid, c.remote_jid, m.phone)
-        JOIN whatsapp_history_sync s ON s.company_id = m.company_id AND s.session_id = m.session_id
+        LEFT JOIN whatsapp_history_requests r
+          ON r.company_id = m.company_id AND r.session_id = m.session_id AND r.chat_jid = COALESCE(m.remote_jid, m.phone)
         WHERE m.company_id = $1 AND m.session_id = $2
           AND m.whatsapp_message_id IS NOT NULL
           AND m.whatsapp_message_id NOT LIKE 'stored:%'
-          AND (s.last_request_at IS NULL OR s.last_request_at < NOW() - INTERVAL '30 seconds')
           AND (r.oldest_key IS NULL OR r.oldest_key <> m.whatsapp_message_id)
-        ORDER BY COALESCE(m.timestamp, m.created_at) ASC
-        LIMIT 1`, [companyId, sessionId])).rows[0];
+        ORDER BY m.created_at ASC
+        LIMIT 1
+      `, [companyId, sessionId])).rows[0];
     }
 
     if (!row) return;
@@ -214,17 +226,16 @@ class HistorySync {
 
     if (!row) {
       const msgRow = (await client.query(`
-        SELECT COALESCE(m.remote_jid, c.remote_jid, m.phone) AS chat_jid,
+        SELECT COALESCE(m.remote_jid, m.phone) AS chat_jid,
                m.whatsapp_message_id AS message_key,
                m.from_me,
-               COALESCE(m.timestamp, m.created_at) AS occurred_at
+               m.created_at AS occurred_at
         FROM messages m
-        LEFT JOIN conversations c ON c.id = m.conversation_id
         WHERE m.company_id = $1 AND m.session_id = $2
-          AND (m.remote_jid = $3 OR c.remote_jid = $3 OR m.phone = $3)
+          AND (m.remote_jid = $3 OR m.phone = $3)
           AND m.whatsapp_message_id IS NOT NULL
           AND m.whatsapp_message_id NOT LIKE 'stored:%'
-        ORDER BY COALESCE(m.timestamp, m.created_at) ASC
+        ORDER BY m.created_at ASC
         LIMIT 1
       `, [companyId, sessionId, chatJid])).rows[0];
       if (msgRow) row = msgRow;
@@ -265,28 +276,14 @@ class HistorySync {
     const client = this.repository.pool;
 
     const rows = (await client.query(`
-      SELECT DISTINCT ON (chat_jid) chat_jid, message_key, from_me, occurred_at
-      FROM (
-        SELECT h.chat_jid, h.message_key, h.from_me, h.occurred_at
-        FROM whatsapp_history_items h
-        LEFT JOIN whatsapp_history_requests r ON r.company_id=h.company_id AND r.session_id=h.session_id AND r.chat_jid=h.chat_jid
-        WHERE h.company_id=$1 AND h.session_id=$2 AND h.occurred_at IS NOT NULL
-          AND h.message_key NOT LIKE 'stored:%'
-          AND (r.oldest_key IS NULL OR r.oldest_key<>h.message_key)
-        UNION ALL
-        SELECT COALESCE(m.remote_jid, c.remote_jid, m.phone) AS chat_jid,
-               m.whatsapp_message_id AS message_key,
-               m.from_me,
-               COALESCE(m.timestamp, m.created_at) AS occurred_at
-        FROM messages m
-        LEFT JOIN conversations c ON c.id = m.conversation_id
-        LEFT JOIN whatsapp_history_requests r ON r.company_id = m.company_id AND r.session_id = m.session_id AND r.chat_jid = COALESCE(m.remote_jid, c.remote_jid, m.phone)
-        WHERE m.company_id = $1 AND m.session_id = $2
-          AND m.whatsapp_message_id IS NOT NULL
-          AND m.whatsapp_message_id NOT LIKE 'stored:%'
-          AND (r.oldest_key IS NULL OR r.oldest_key <> m.whatsapp_message_id)
-      ) candidates
-      ORDER BY chat_jid, occurred_at ASC
+      SELECT DISTINCT ON (h.chat_jid) h.chat_jid, h.message_key, h.from_me, h.occurred_at
+      FROM whatsapp_history_items h
+      LEFT JOIN whatsapp_history_requests r
+        ON r.company_id=h.company_id AND r.session_id=h.session_id AND r.chat_jid=h.chat_jid
+      WHERE h.company_id=$1 AND h.session_id=$2 AND h.occurred_at IS NOT NULL
+        AND h.message_key NOT LIKE 'stored:%'
+        AND (r.oldest_key IS NULL OR r.oldest_key<>h.message_key)
+      ORDER BY h.chat_jid, h.occurred_at ASC
       LIMIT $3
     `, [companyId, sessionId, count])).rows;
 

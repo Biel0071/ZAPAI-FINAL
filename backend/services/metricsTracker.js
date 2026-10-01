@@ -107,9 +107,9 @@ async function recalcMetricsFromDB(store = {}, options = {}) {
     ).length;
 
     let conversationQuery = 'SELECT COUNT(*)::int AS total FROM conversations WHERE company_id = $1';
-    let messageQuery = 'SELECT COUNT(*)::int AS total FROM messages m INNER JOIN conversations c ON c.id = m.conversation_id WHERE c.company_id = $1';
-    let messagesTodayQuery = "SELECT COUNT(*)::int AS total FROM messages m INNER JOIN conversations c ON c.id = m.conversation_id WHERE c.company_id = $1 AND COALESCE(m.created_at, m.timestamp, NOW()) >= CURRENT_DATE";
-    let aiResponsesQuery = "SELECT COUNT(*)::int AS total FROM messages m INNER JOIN conversations c ON c.id = m.conversation_id WHERE c.company_id = $1 AND LOWER(COALESCE(m.sender, '')) IN ('ai', 'bot', 'assistant')";
+    let messageQuery = 'SELECT COUNT(*)::int AS total FROM messages WHERE company_id = $1';
+    let messagesTodayQuery = "SELECT COUNT(*)::int AS total FROM messages WHERE company_id = $1 AND created_at >= CURRENT_DATE";
+    let aiResponsesQuery = "SELECT COUNT(*)::int AS total FROM messages WHERE company_id = $1 AND LOWER(COALESCE(sender, '')) IN ('ai', 'bot', 'assistant')";
     let openConversationQuery = 'SELECT COUNT(*)::int AS total FROM conversations WHERE company_id = $1 AND status <> $2';
 
     const convParams = [companyId];
@@ -122,13 +122,13 @@ async function recalcMetricsFromDB(store = {}, options = {}) {
       conversationQuery += ' AND session_id = $2';
       convParams.push(sessionId);
 
-      messageQuery += ' AND c.session_id = $2';
+      messageQuery += ' AND session_id = $2';
       msgParams.push(sessionId);
 
-      messagesTodayQuery += ' AND c.session_id = $2';
+      messagesTodayQuery += ' AND session_id = $2';
       todayParams.push(sessionId);
 
-      aiResponsesQuery += ' AND c.session_id = $2';
+      aiResponsesQuery += ' AND session_id = $2';
       aiParams.push(sessionId);
 
       openConversationQuery += ' AND session_id = $3';

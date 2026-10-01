@@ -55,18 +55,6 @@ async function columnExists(tableName, columnName) {
 
 // ─── Group message cleanup ────────────────────────────────────────────────────
 
-async function ensureRetentionIndexes() {
-  try {
-    await query(`CREATE INDEX IF NOT EXISTS idx_messages_remote_jid ON messages (remote_jid);`);
-    await query(`CREATE INDEX IF NOT EXISTS idx_messages_created_at ON messages (created_at);`);
-    if (await tableExists('whatsapp_history_items')) {
-      await query(`CREATE INDEX IF NOT EXISTS idx_history_items_occurred_at ON whatsapp_history_items (occurred_at);`);
-    }
-  } catch (err) {
-    console.warn('[RETENTION] ensureRetentionIndexes notice:', err.message);
-  }
-}
-
 async function cleanGroupMessages() {
   const hasTable = await tableExists('messages');
   if (!hasTable) {
@@ -93,8 +81,8 @@ async function cleanGroupMessages() {
       `DELETE FROM messages
        WHERE id IN (
          SELECT m.id FROM messages m
-         WHERE (m.remote_jid LIKE '%@g.us' OR m.phone LIKE '%@g.us')
-           AND (m.created_at < $1 OR (m.created_at IS NULL AND m.timestamp < $1))
+         WHERE m.created_at < $1
+           AND (m.remote_jid LIKE '%@g.us' OR m.phone LIKE '%@g.us')
          LIMIT $2
        )`,
       [cutoff, RETENTION_BATCH_SIZE]
@@ -157,11 +145,10 @@ async function cleanIndividualMessages(store) {
     // 1. Antes de deletar, buscamos os chats que estão nesse lote para compressão
     const toDeleteRes = await query(
       `SELECT m.id, COALESCE(m.remote_jid, m.phone) AS chat_id, m.content, m.from_me,
-              COALESCE(m.created_at, m.timestamp) AS created_at, m.company_id
+              m.created_at, m.company_id
        FROM messages m
-       WHERE (m.remote_jid NOT LIKE '%@g.us' AND (m.phone IS NULL OR m.phone NOT LIKE '%@g.us'))
-         AND (m.created_at < $1 OR (m.created_at IS NULL AND m.timestamp < $1))
-       ORDER BY m.id ASC
+       WHERE m.created_at < $1
+         AND (m.remote_jid NOT LIKE '%@g.us' AND (m.phone IS NULL OR m.phone NOT LIKE '%@g.us'))
        LIMIT $2`,
       [cutoff, RETENTION_BATCH_SIZE]
     );
@@ -296,7 +283,6 @@ async function runRetention(store) {
   const t0 = Date.now();
 
   try {
-    await ensureRetentionIndexes();
     report.groups     = await cleanGroupMessages();
     report.individual = await cleanIndividualMessages(store);
     report.orphans    = await cleanOrphanConversations();
