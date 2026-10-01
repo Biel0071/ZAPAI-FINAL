@@ -634,6 +634,7 @@ export default function Inbox() {
             loadingAgents={state.loadingAgents}
             handleSetConversationAgent={state.handleSetConversationAgent}
             isTabletLayout={state.isTabletLayout}
+            showLeadPanel={state.showLeadPanel}
             setShowLeadPanel={state.setShowLeadPanel}
             onBack={() => {
               state.setMobileScreen("conversations");

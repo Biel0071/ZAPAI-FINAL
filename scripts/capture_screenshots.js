@@ -91,7 +91,7 @@ const REAL_SESSIONS = (rawRealData.sessions && rawRealData.sessions.length > 0)
       id: s.sessionId || s.id || "main",
       name: s.whatsAppName ? `WhatsApp: ${s.whatsAppName}` : (s.sessionName || "WhatsApp Comercial"),
       sessionName: s.whatsAppName || s.sessionName || "WhatsApp Comercial",
-      status: "online",
+      status: "connected",
       phone: s.phone || "+55 (31) 9367-2075",
       connected: true,
       profilePictureUrl: s.profilePictureUrl || null,
@@ -101,7 +101,7 @@ const REAL_SESSIONS = (rawRealData.sessions && rawRealData.sessions.length > 0)
         id: "main",
         name: "WhatsApp: Depósito Material",
         sessionName: "Depósito Material",
-        status: "online",
+        status: "connected",
         phone: "+55 (31) 9367-2075",
         connected: true,
       }

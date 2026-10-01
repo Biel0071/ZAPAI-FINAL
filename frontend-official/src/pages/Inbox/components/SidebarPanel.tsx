@@ -436,7 +436,7 @@ export function SidebarPanel({
             >
               {section.id === "qr" ? (
                 <span className="truncate">
-                  Respostas<span className="hidden sm:inline"> Rápidas</span>
+                  Respostas<span className="hidden 2xl:inline"> Rápidas</span>
                 </span>
               ) : (
                 <span className="truncate">{section.label}</span>

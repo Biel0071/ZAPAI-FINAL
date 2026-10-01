@@ -108,6 +108,7 @@ interface ActiveChatPaneProps {
   conversationAiOverrideEnabled: boolean;
   handleSetConversationAiEnabled: (val: boolean, reactivateAt?: string | null) => Promise<void>;
   isTabletLayout: boolean;
+  showLeadPanel?: boolean;
   setShowLeadPanel: (val: boolean) => void;
   onBack?: () => void;
   handleClearSelectedConversation: () => void;
@@ -204,6 +205,7 @@ export function ActiveChatPane({
   conversationAiOverrideEnabled,
   handleSetConversationAiEnabled,
   isTabletLayout,
+  showLeadPanel = false,
   setShowLeadPanel,
   onBack,
   handleClearSelectedConversation,
@@ -574,11 +576,11 @@ export function ActiveChatPane({
                       title="Controle da IA"
                     >
                       <Robot className="h-4 w-4 shrink-0" weight={aiEnabledForConversation ? "fill" : "regular"} />
-                      <span className="hidden sm:inline">
+                      <span className="hidden lg:inline">
                         {aiEnabledForConversation ? "IA ativa" : isAiCountdownActive ? `IA pausada (${timeLeft})` : aiRuntime?.globalEnabled === false ? "IA global pausada" : "Humano"}
                       </span>
-                      <span className="inline sm:hidden text-[10px]">
-                        {aiEnabledForConversation ? "IA" : isAiCountdownActive ? timeLeft : aiRuntime?.globalEnabled === false ? "Pausada" : "Humano"}
+                      <span className="inline lg:hidden text-[10px]">
+                        {aiEnabledForConversation ? "IA ativa" : isAiCountdownActive ? timeLeft : aiRuntime?.globalEnabled === false ? "Pausada" : "Humano"}
                       </span>
                     </Button>
                   </DropdownMenuTrigger>
@@ -644,13 +646,13 @@ export function ActiveChatPane({
                     type="button"
                     variant="ghost"
                     size="sm"
-                    className="h-8 w-8 p-0 sm:w-auto sm:px-2.5 rounded-lg text-xs font-medium text-foreground hover:bg-muted flex items-center justify-center gap-1.5 transition-colors border border-border/40 shrink-0"
+                    className="h-8 w-8 p-0 xl:w-auto xl:px-2.5 rounded-lg text-xs font-medium text-foreground hover:bg-muted flex items-center justify-center gap-1.5 transition-colors border border-border/40 shrink-0"
                     onClick={() => setShowLeadPanel(true)}
                     title="Abrir painel de atendimento e ferramentas"
                     aria-label="Abrir painel da conversa"
                   >
                     <Info className="h-4 w-4 text-primary shrink-0" weight="bold" />
-                    <span className="hidden sm:inline text-xs font-semibold">Painel</span>
+                    <span className="hidden xl:inline text-xs font-semibold">Painel</span>
                   </Button>
                 )}
 
@@ -1086,6 +1088,7 @@ export function ActiveChatPane({
             className={cn(
               "border-t border-border bg-card/95 p-3 md:relative md:p-4 shrink-0",
               isMobile && "fixed inset-x-0 bottom-0 z-30 pb-[calc(0.75rem+env(safe-area-inset-bottom))]",
+              isMobile && showLeadPanel && "hidden pointer-events-none opacity-0"
             )}
             style={isMobile ? { bottom: `calc(${keyboardOffset}px + env(safe-area-inset-bottom))` } : undefined}
           >
@@ -1349,7 +1352,7 @@ export function ActiveChatPane({
                           : !isWhatsappConnected
                             ? "WhatsApp offline"
                             : selectedConversation
-                              ? (isMobile ? "Mensagem..." : "Digite sua mensagem...")
+                              ? "Mensagem..."
                               : "Selecione uma conversa"
                       }
                       className="flex min-h-[40px] max-h-[140px] w-full flex-1 resize-none rounded-2xl border border-input bg-background/90 px-3.5 py-2 sm:py-2.5 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary disabled:cursor-not-allowed disabled:opacity-50 scrollbar-none text-foreground leading-snug overflow-y-auto"

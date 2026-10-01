@@ -132,33 +132,13 @@ export function ChatListPanel({
         </div>
         <Tabs value={filter} onValueChange={setFilter}>
           <TabsList className="grid w-full grid-cols-4 h-8 p-0.5 bg-muted/60">
-            <TabsTrigger value="all" className="min-w-0 truncate text-[10px] sm:text-[11px] px-0.5 sm:px-1 py-1 data-[state=active]:font-bold">Todas</TabsTrigger>
-            <TabsTrigger value="unread" className="min-w-0 truncate text-[10px] sm:text-[11px] px-0.5 sm:px-1 py-1 data-[state=active]:font-bold">Não lidas</TabsTrigger>
-            <TabsTrigger value="ai" className="min-w-0 truncate text-[10px] sm:text-[11px] px-0.5 sm:px-1 py-1 data-[state=active]:font-bold">IA ativa</TabsTrigger>
-            <TabsTrigger value="archived" className="min-w-0 truncate text-[10px] sm:text-[11px] px-0.5 sm:px-1 py-1 data-[state=active]:font-bold">Arquivadas</TabsTrigger>
+            <TabsTrigger value="all" className="min-w-0 truncate text-[10px] sm:text-xs px-0.5 sm:px-1 py-1 data-[state=active]:font-bold">Todas</TabsTrigger>
+            <TabsTrigger value="unread" className="min-w-0 truncate text-[10px] sm:text-xs px-0.5 sm:px-1 py-1 data-[state=active]:font-bold">Não lidas</TabsTrigger>
+            <TabsTrigger value="ai" className="min-w-0 truncate text-[10px] sm:text-xs px-0.5 sm:px-1 py-1 data-[state=active]:font-bold">IA ativa</TabsTrigger>
+            <TabsTrigger value="archived" className="min-w-0 truncate text-[10px] sm:text-xs px-0.5 sm:px-1 py-1 data-[state=active]:font-bold">Arquivadas</TabsTrigger>
           </TabsList>
         </Tabs>
-        {setShowGroups && (
-          <div className="flex items-center justify-between px-2.5 py-2 bg-muted/10 rounded-xl border border-border/40 text-xs animate-fade-in">
-            <span className="font-medium text-muted-foreground/80">Exibir Grupos</span>
-            <button
-              type="button"
-              onClick={() => setShowGroups(!showGroups)}
-              className={cn(
-                "relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none",
-                showGroups ? "bg-primary" : "bg-muted"
-              )}
-              title={showGroups ? "Ocultar grupos" : "Exibir grupos"}
-            >
-              <span
-                className={cn(
-                  "pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out",
-                  showGroups ? "translate-x-4" : "translate-x-0"
-                )}
-              />
-            </button>
-          </div>
-        )}
+
         {isMultiSelectMode && (
           <div className="flex items-center justify-between px-2 py-1.5 text-xs text-muted-foreground border-b border-border/40 animate-fade-in bg-muted/10 rounded-md">
             <span>{selectedChatIds.length} selecionadas</span>
@@ -185,12 +165,13 @@ export function ChatListPanel({
             </div>
           </div>
         )}
-        <div className="flex items-center justify-between gap-3">
+
+        <div className="flex items-center justify-between gap-2 pt-0.5 pb-0.5">
           <div
             onClick={() => {
               navigate("/connections");
             }}
-            className="cursor-pointer transition-transform hover:scale-[1.03] active:scale-[0.98]"
+            className="cursor-pointer transition-transform hover:scale-[1.02] active:scale-[0.98]"
           >
             <OperationalStatusBadge
               label={
@@ -210,17 +191,42 @@ export function ChatListPanel({
               pulse={Boolean(activeSession && isSessionActive(activeSession))}
             />
           </div>
-          {!(activeSession && isSessionActive(activeSession)) && (
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => {
-                navigate("/connections");
-              }}
-            >
-              Conectar Sessão
-            </Button>
-          )}
+
+          <div className="flex items-center gap-2">
+            {!(activeSession && isSessionActive(activeSession)) && (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="h-6 rounded-md px-2 text-[10px] font-semibold text-warning hover:bg-warning/10"
+                onClick={() => navigate("/connections")}
+              >
+                Conectar
+              </Button>
+            )}
+
+            {setShowGroups && (
+              <div className="flex items-center gap-1.5 px-2 py-1 bg-muted/20 rounded-lg border border-border/40 text-[11px] animate-fade-in">
+                <span className="font-medium text-muted-foreground select-none">Grupos</span>
+                <button
+                  type="button"
+                  onClick={() => setShowGroups(!showGroups)}
+                  className={cn(
+                    "relative inline-flex h-4 w-7 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none",
+                    showGroups ? "bg-primary" : "bg-muted"
+                  )}
+                  title={showGroups ? "Ocultar grupos" : "Exibir grupos"}
+                >
+                  <span
+                    className={cn(
+                      "pointer-events-none inline-block h-3 w-3 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out",
+                      showGroups ? "translate-x-3" : "translate-x-0"
+                    )}
+                  />
+                </button>
+              </div>
+            )}
+          </div>
         </div>
       </div>
 

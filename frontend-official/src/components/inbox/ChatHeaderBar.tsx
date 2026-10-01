@@ -81,7 +81,7 @@ export function ChatHeaderBar({
             </AvatarFallback>
           </Avatar>
 
-          <div className="min-w-0 flex flex-col justify-center">
+          <div className="min-w-0 flex-1 flex flex-col justify-center">
             <h3 className="truncate font-semibold text-xs sm:text-sm md:text-base leading-tight text-foreground">
               {contactName}
             </h3>

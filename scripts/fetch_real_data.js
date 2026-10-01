@@ -10,7 +10,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const VPS_HOST = process.env.VPS_HOST || "https://209.50.241.22";
-const JWT_SECRET = process.env.JWT_SECRET || "";
+const JWT_SECRET = process.env.JWT_SECRET || "73d1ef96dde5afc4938e0b71a5978b2666f1885fb0d2febc4bd52cc7a1cd9e15";
 
 function generateAdminToken() {
   const header = { alg: "HS256", typ: "JWT" };

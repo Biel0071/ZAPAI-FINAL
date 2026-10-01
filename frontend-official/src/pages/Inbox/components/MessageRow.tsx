@@ -624,13 +624,9 @@ export const MessageRow = memo(function MessageRow({
         </AnimatePresence>
       </div>
 
-      {message.fromMe && (
-        <div className="flex-shrink-0 self-end mb-3 flex items-center justify-center h-7 w-7 rounded-full bg-background border border-border shadow-sm">
-          {isAiMessage ? (
-            <Robot className="h-4 w-4 text-emerald-400" weight="fill" aria-label="Enviado pela IA" />
-          ) : (
-            <User className="h-4 w-4 text-blue-400" weight="fill" aria-label="Enviado pelo Atendente" />
-          )}
+      {message.fromMe && isAiMessage && (
+        <div className="flex-shrink-0 self-end mb-3 flex items-center justify-center h-6 w-6 rounded-full bg-background border border-border shadow-sm">
+          <Robot className="h-3.5 w-3.5 text-emerald-400" weight="fill" aria-label="Enviado pela IA" />
         </div>
       )}
     </div>

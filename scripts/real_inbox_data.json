@@ -13,8 +13,8 @@
       "lastError": null,
       "whatsAppName": "Depósito Material",
       "profilePictureUrl": "https://pps.whatsapp.net/v/t61.24694-24/555091300_1175256177834597_4184651252519362607_n.jpg?ccb=11-4&oh=01_Q5Aa5gH2oyUVNuAeDPhxgDPZKLQLAPGsaqZsq2PNmXsSsDDGsQ&oe=6ACBC1F4&_nc_sid=5e03e0&_nc_cat=109",
-      "connectedAt": 1790877287977,
-      "lastPingAt": 1790879086642,
+      "connectedAt": 1790880463288,
+      "lastPingAt": 1790882262668,
       "websocketStatus": "connected",
       "lastDisconnectReason": null,
       "reconnectCount": 0,
@@ -23,7 +23,7 @@
       "webhookUrl": "http://localhost:4025/api/receive-message",
       "queueCount": 0,
       "aiAgentName": "Camila",
-      "lastActivity": 1790879086642
+      "lastActivity": 1790882262668
     }
   ],
   "conversations": [
@@ -4064,5 +4064,5 @@
       "filename": "caixa_dagua_5000l.jpg"
     }
   ],
-  "fetchedAt": "2026-10-01T18:27:58.782Z"
+  "fetchedAt": "2026-10-01T19:18:13.265Z"
 }

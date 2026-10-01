@@ -80,7 +80,7 @@ export function HeaderShell({
         <div className="flex items-center gap-2 sm:gap-3 min-w-0">
           <div className="relative shrink-0 hidden sm:block">
             <MagnifyingGlass className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
-            <Input placeholder="Buscar" className="h-8 w-24 sm:w-36 md:w-52 rounded-xl border-border/60 bg-background/80 pl-9 text-xs sm:text-sm transition-all" />
+            <Input placeholder="Buscar" className="h-8 w-24 sm:w-32 md:w-36 lg:w-52 rounded-xl border-border/60 bg-background/80 pl-9 text-xs sm:text-sm transition-all" />
           </div>
           {runtimeTone === "online" ? (
             <span className="inline-flex items-center gap-1.5 text-xs text-emerald-500/90 font-medium select-none shrink-0">
@@ -130,12 +130,12 @@ export function HeaderShell({
               aria-label="Filtrar por conexão"
               value={activeSessionId || "all"}
               onChange={(e) => setActiveSessionId(e.target.value === "all" ? null : e.target.value)}
-              className="h-8 max-w-[100px] sm:max-w-[150px] md:max-w-xs truncate rounded-xl border border-border/65 bg-background/80 px-2 text-xs font-semibold text-foreground/90 hover:text-foreground focus:outline-none focus:ring-1 focus:ring-primary backdrop-blur-sm shrink-0"
+              className="h-8 max-w-[110px] sm:max-w-[150px] md:max-w-[180px] lg:max-w-xs truncate rounded-xl border border-border/65 bg-background/80 px-2 text-xs font-semibold text-foreground/90 hover:text-foreground focus:outline-none focus:ring-1 focus:ring-primary backdrop-blur-sm shrink-0"
             >
               <option value="all" className="bg-background text-foreground">Todas as Conexões</option>
               {sessions.map((session) => (
                 <option key={session.id} value={session.id} className="bg-background text-foreground">
-                  {session.name || session.id} ({session.status === "connected" ? "Online" : "Offline"})
+                  {session.name || session.id} ({session.status === "connected" || session.status === "online" || session.connected ? "Online" : "Offline"})
                 </option>
               ))}
             </select>
@@ -143,7 +143,11 @@ export function HeaderShell({
         </div>
 
         <div className="flex shrink-0 items-center gap-1 md:gap-2">
-          {location.pathname.startsWith("/inbox") && <FloatingMascotAssistant inline />}
+          {location.pathname.startsWith("/inbox") && (
+            <div className="hidden sm:inline-flex shrink-0">
+              <FloatingMascotAssistant inline />
+            </div>
+          )}
           {/* Mobile / Desktop View Mode Switcher */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
@@ -254,7 +258,7 @@ export function HeaderShell({
           ) : !isAdminPage ? (
             <Button
               size="sm"
-              className="hidden h-8 gap-1.5 rounded-xl text-xs shadow-glow md:inline-flex"
+              className="hidden h-8 gap-1.5 rounded-xl text-xs shadow-glow lg:inline-flex"
               onClick={() => setIsNewChatDialogOpen(true)}
             >
               <Plus weight="bold" className="h-3.5 w-3.5" />
