@@ -12,6 +12,7 @@ router.get('/conversations/controls/:conversationId', conversationsController.ge
 router.get('/conversations/:conversationId/messages', conversationsController.getConversationMessages);
 router.get('/conversations/:conversationId/insights', conversationsController.getConversationInsights);
 router.get('/conversations/:conversationId/runtime', conversationsController.getConversationRuntime);
+router.get('/conversations/:conversationId/avatar', conversationsController.getConversationAvatar);
 router.get('/conversations/:conversationId/draft', conversationsController.getConversationDraft);
 router.post('/conversations/:conversationId/draft', conversationsController.saveConversationDraft);
 router.delete('/conversations/:conversationId/draft', conversationsController.clearConversationDraft);

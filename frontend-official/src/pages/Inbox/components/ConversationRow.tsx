@@ -1,3 +1,4 @@
+import { useState, useEffect, useMemo } from "react";
 import type { RowComponentProps } from "react-window";
 import {
   Star,
@@ -37,7 +38,59 @@ import {
   inferConversationMessageType,
   normalizeId,
   getTagColor,
+  formatPhoneNumber,
 } from "../utils";
+
+const avatarMemoryCache = new Map<string, string | null>();
+const avatarInFlight = new Map<string, Promise<string | null>>();
+
+function useResolvedAvatar(conversationId: string, initialAvatar?: string) {
+  const [avatar, setAvatar] = useState<string | null>(initialAvatar || avatarMemoryCache.get(conversationId) || null);
+
+  useEffect(() => {
+    if (initialAvatar) {
+      avatarMemoryCache.set(conversationId, initialAvatar);
+      setAvatar(initialAvatar);
+      return;
+    }
+
+    if (avatarMemoryCache.has(conversationId)) {
+      setAvatar(avatarMemoryCache.get(conversationId) || null);
+      return;
+    }
+
+    let isMounted = true;
+    let promise = avatarInFlight.get(conversationId);
+    if (!promise) {
+      promise = fetch(`/api/conversations/${encodeURIComponent(conversationId)}/avatar`, { credentials: "include" })
+        .then((res) => (res.ok ? res.json() : null))
+        .then((data) => {
+          const url = (data?.avatarUrl as string) || null;
+          avatarMemoryCache.set(conversationId, url);
+          avatarInFlight.delete(conversationId);
+          return url;
+        })
+        .catch(() => {
+          avatarMemoryCache.set(conversationId, null);
+          avatarInFlight.delete(conversationId);
+          return null;
+        });
+      avatarInFlight.set(conversationId, promise);
+    }
+
+    promise.then((url) => {
+      if (isMounted) {
+        setAvatar(url);
+      }
+    });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [conversationId, initialAvatar]);
+
+  return avatar;
+}
 
 export interface ConversationRowData {
   conversations: Conversation[];
@@ -86,6 +139,26 @@ export function ConversationRow(props: RowComponentProps<ConversationRowData>) {
 
   const conversation = conversations[index];
   if (!conversation) return null;
+
+  const resolvedAvatar = useResolvedAvatar(conversation.id, conversation.avatar);
+
+  const cleanDisplayName = useMemo(() => {
+    let name = (conversation.contactName || "").trim();
+    if (name.includes("@lid")) {
+      name = name.replace(/@lid.*/, "").trim();
+    }
+    if (name.includes("@s.whatsapp.net")) {
+      name = name.replace(/@s\.whatsapp\.net.*/, "").trim();
+    }
+    const digitsOnly = name.replace(/\D/g, "");
+    if (digitsOnly.length >= 10 && (digitsOnly === name || name.startsWith("+") || name.startsWith("55"))) {
+      return formatPhoneNumber(name);
+    }
+    if (!name && conversation.phone) {
+      return formatPhoneNumber(conversation.phone);
+    }
+    return name || "Contato";
+  }, [conversation.contactName, conversation.phone]);
   
   const getTypingState = () => {
     if (!typingByConversationId) return null;
@@ -177,24 +250,27 @@ export function ConversationRow(props: RowComponentProps<ConversationRowData>) {
 
         <div className="relative shrink-0 flex items-center">
           <Avatar className="h-11 w-11 border border-border/40">
-            {conversation.avatar ? <AvatarImage src={conversation.avatar} alt={conversation.contactName} loading="lazy" className="object-cover" onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }} /> : null}
-            <AvatarFallback className="bg-primary/10 font-bold text-xs text-primary">{getInitials(conversation.contactName)}</AvatarFallback>
+            {resolvedAvatar ? (
+              <AvatarImage
+                src={resolvedAvatar}
+                alt={cleanDisplayName}
+                loading="lazy"
+                className="object-cover"
+                onError={(e) => {
+                  (e.currentTarget as HTMLImageElement).style.display = 'none';
+                }}
+              />
+            ) : null}
+            <AvatarFallback className="bg-primary/10 font-bold text-xs text-primary">
+              {getInitials(cleanDisplayName)}
+            </AvatarFallback>
           </Avatar>
         </div>
 
         <div className="min-w-0 flex-1 flex flex-col justify-between h-full py-0.5">
           <div className="flex items-center justify-between gap-1">
             <h4 className="truncate text-xs md:text-sm font-semibold text-foreground/95 leading-none flex items-baseline gap-1.5 min-w-0">
-              <span className="truncate">{conversation.contactName}</span>
-              {conversation.phone && (
-                <span className="text-[10px] font-normal text-muted-foreground/85 font-mono truncate hidden sm:inline">
-                  {conversation.lid && conversation.phone !== conversation.lid ? (
-                    `${conversation.lid}@lid`
-                  ) : (
-                    conversation.phone.includes("@lid") ? conversation.phone : `+${conversation.phone}`
-                  )}
-                </span>
-              )}
+              <span className="truncate">{cleanDisplayName}</span>
             </h4>
             <div className="flex items-center gap-1.5 shrink-0">
               {pinnedChatIds.includes(conversation.id) && (

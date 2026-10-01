@@ -94,7 +94,7 @@ async function listConversations({ companyId, limit = 50, sessionId, search = ''
   }));
 }
 
-async function getConversationMessages({ conversationId, store, limit = 50, before = null, beforeId = null, companyId = null }) {
+async function getConversationMessages({ conversationId, store, limit = 100, before = null, beforeId = null, companyId = null }) {
   if (store?.databaseEnabled) {
     const messages = await messageRepository.getMessagesByConversation(conversationId, {
       companyId: getCompanyId(companyId),

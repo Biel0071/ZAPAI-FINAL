@@ -10,6 +10,10 @@ const inboxRealtimeService = require('../../messaging/inbox/inbox/events/InboxRe
 const conversationRuntimeService = require('../../messaging/inbox/inbox/services/ConversationRuntimeService');
 const { getCompanyId } = require('../../../services/tenantContext');
 
+const avatarCache = new Map();
+const AVATAR_TTL_MS = 24 * 60 * 60 * 1000;
+const AVATAR_MISS_TTL_MS = 2 * 60 * 60 * 1000;
+
 function getStore(req) {
   return req.app?.locals?.store;
 }
@@ -190,7 +194,7 @@ async function getConversations(req, res) {
   }
   const search = String(rawSearch || '').trim();
   const requestedLimit = Number(req.query?.limit);
-  const limit = Number.isFinite(requestedLimit) ? Math.min(500, Math.max(1, Math.floor(requestedLimit))) : 50;
+  const limit = Number.isFinite(requestedLimit) ? Math.min(100, Math.max(1, Math.floor(requestedLimit))) : 50;
   const store = getStore(req);
   const sessionId = getOptionalSessionId(req);
 
@@ -204,7 +208,17 @@ async function getConversations(req, res) {
         store,
       });
 
-      return res.status(200).json(sortedConversations);
+      const decorated = (Array.isArray(sortedConversations) ? sortedConversations : []).map((conv) => {
+        const chatJid = conv.remote_jid || conv.remoteJid || conv.chatId || (conv.phone ? `${String(conv.phone).replace(/\D/g, '')}@s.whatsapp.net` : null);
+        const cached = chatJid ? avatarCache.get(`${companyId}:${chatJid}`) : null;
+        if (cached && cached.url && !conv.avatar) {
+          conv.avatar = cached.url;
+          conv.profilePictureUrl = cached.url;
+        }
+        return conv;
+      });
+
+      return res.status(200).json(decorated);
     } catch (_err) {
       return res.status(503).json({ error: 'Não foi possível carregar as conversas. Tente novamente.' });
     }
@@ -334,7 +348,7 @@ async function getConversationMessages(req, res) {
   const { conversationId } = req.params;
   const store = getStore(req);
   const companyId = String(req.authTenantId || req.auth?.tenantId || req.auth?.companyId || req.query?.companyId || '').trim();
-  const limit = Math.max(1, Math.min(Number(req.query?.limit) || 50, 200));
+  const limit = Math.max(1, Math.min(Number(req.query?.limit) || 100, 200));
   const before = typeof req.query?.before === 'string' ? req.query.before : null;
   const beforeId = typeof req.query?.beforeId === 'string' ? req.query.beforeId : null;
 
@@ -982,6 +996,69 @@ async function deleteConversation(req, res) {
   }
 }
 
+async function getConversationAvatar(req, res) {
+  const { conversationId } = req.params;
+  const companyId = String(req.authTenantId || req.auth?.tenantId || req.auth?.companyId || '').trim();
+
+  try {
+    const conversation = await conversationRepository.getConversationById(conversationId, companyId);
+    if (!conversation) {
+      return res.status(404).json({ error: 'Conversa não encontrada.', avatarUrl: null });
+    }
+
+    const sessionId = sessionManager.normalizeSessionName(conversation.session_id || conversation.sessionId || 'main');
+    let chatJid = conversation.remote_jid || conversation.remoteJid || conversation.chatId;
+    if (!chatJid && conversation.phone) {
+      const clean = String(conversation.phone).replace(/\D/g, '');
+      chatJid = `${clean}@s.whatsapp.net`;
+    }
+
+    if (!chatJid) {
+      return res.status(200).json({ avatarUrl: null });
+    }
+
+    const cacheKey = `${companyId}:${chatJid}`;
+    const cached = avatarCache.get(cacheKey);
+    if (cached && cached.expiresAt > Date.now()) {
+      if (req.query?.redirect === 'true' && cached.url) {
+        return res.redirect(302, cached.url);
+      }
+      return res.status(200).json({ avatarUrl: cached.url });
+    }
+
+    const session = sessionManager.getSession(sessionId);
+    const sock = session?.sock;
+
+    if (!sock || typeof sock.profilePictureUrl !== 'function') {
+      return res.status(200).json({ avatarUrl: null });
+    }
+
+    let url = null;
+    try {
+      url = await sock.profilePictureUrl(chatJid, 'image');
+    } catch (_) {
+      try {
+        url = await sock.profilePictureUrl(chatJid, 'preview');
+      } catch (__) {
+        url = null;
+      }
+    }
+
+    avatarCache.set(cacheKey, {
+      url,
+      expiresAt: Date.now() + (url ? AVATAR_TTL_MS : AVATAR_MISS_TTL_MS),
+    });
+
+    if (req.query?.redirect === 'true' && url) {
+      return res.redirect(302, url);
+    }
+
+    return res.status(200).json({ avatarUrl: url });
+  } catch (error) {
+    return res.status(200).json({ avatarUrl: null });
+  }
+}
+
 module.exports = {
   clearConversationDraft,
   createConversation,
@@ -989,6 +1066,7 @@ module.exports = {
   generateBilling,
   generateProfileCard,
   getBillingDetails,
+  getConversationAvatar,
   getConversationDraft,
   getConversationInsights,
   getConversationMessages,

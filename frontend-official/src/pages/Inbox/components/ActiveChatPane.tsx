@@ -56,6 +56,7 @@ import {
   getMediaFileName,
   getMediaTypeLabel,
   getQuickReplyPreviewText,
+  formatPhoneNumber,
 } from "../utils";
 
 interface ActiveChatPaneProps {
@@ -511,17 +512,18 @@ export function ActiveChatPane({
       {selectedConversation ? (
         <div className="flex flex-1 flex-col h-full min-w-0 overflow-hidden">
           <ChatHeaderBar
-            contactName={selectedConversation.contactName}
+            contactName={
+              (selectedConversation.contactName || "").replace(/@lid.*/, "").replace(/@s\.whatsapp\.net.*/, "").trim() ||
+              (selectedConversation.phone ? formatPhoneNumber(selectedConversation.phone) : "Contato")
+            }
             avatar={selectedConversation.avatar || ""}
-            initials={selectedConversation.contactName.slice(0, 2).toUpperCase()}
+            initials={(selectedConversation.contactName || "C").slice(0, 2).toUpperCase()}
             isMobile={isMobile}
             onBack={onBack ?? (() => setShowLeadPanel(false))}
             phoneLabel={
-              selectedConversation.lid && selectedConversation.phone !== selectedConversation.lid
-                ? `${selectedConversation.lid}@lid (WhatsApp: +${selectedConversation.phone})`
-                : selectedConversation.phone && (selectedConversation.phone.includes("@lid") || selectedConversation.phone.length === 15)
-                  ? selectedConversation.phone.includes("@lid") ? selectedConversation.phone : `${selectedConversation.phone}@lid`
-                  : selectedConversation.phone ? `+${selectedConversation.phone}` : undefined
+              selectedConversation.phone && !selectedConversation.phone.includes("@lid")
+                ? formatPhoneNumber(selectedConversation.phone)
+                : undefined
             }
             statusLabel={
               isTyping === "recording"

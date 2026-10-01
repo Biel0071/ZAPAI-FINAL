@@ -176,7 +176,7 @@ async function create({
 }
 
 async function getMessagesByConversation(conversationId, options = {}) {
-  const limit = Math.max(1, Math.min(Number(options.limit) || 50, 200));
+  const limit = Math.max(1, Math.min(Number(options.limit) || 100, 200));
   const before = options.before ? new Date(String(options.before)) : null;
   const beforeId = /^\d+$/.test(String(options.beforeId || '')) ? Number(options.beforeId) : null;
   const companyId = options.companyId || process.env.DEFAULT_COMPANY_ID || 'default';
@@ -189,7 +189,7 @@ async function getMessagesByConversation(conversationId, options = {}) {
       const convRes = await db.query(
         `SELECT conv.id, conv.lead_id, conv.remote_jid, conv.session_id, l.phone
          FROM conversations conv
-         INNER JOIN leads l ON l.id = conv.lead_id
+         LEFT JOIN leads l ON l.id = conv.lead_id
          WHERE conv.id = $1 AND conv.company_id = $2
          LIMIT 1`,
         [Number(conversationId), companyId]
@@ -207,7 +207,7 @@ async function getMessagesByConversation(conversationId, options = {}) {
       const convRes = await db.query(
         `SELECT conv.id, conv.lead_id, conv.remote_jid, conv.session_id, l.phone
          FROM conversations conv
-         INNER JOIN leads l ON l.id = conv.lead_id
+         LEFT JOIN leads l ON l.id = conv.lead_id
          WHERE conv.company_id = $1
            AND (conv.remote_jid = $2 OR l.phone = ANY($3::text[]) OR conv.remote_jid = ANY($3::text[]))
          ORDER BY conv.updated_at DESC
@@ -227,6 +227,15 @@ async function getMessagesByConversation(conversationId, options = {}) {
     jidCandidates.add(a);
     if (!a.includes('@')) {
       jidCandidates.add(`${a}@s.whatsapp.net`);
+    }
+  }
+  if (!contactPhone && targetConv?.remote_jid) {
+    const digits = targetConv.remote_jid.replace(/\D/g, '');
+    if (digits.length >= 8) {
+      for (const a of getPhoneAliases(digits)) {
+        jidCandidates.add(a);
+        if (!a.includes('@')) jidCandidates.add(`${a}@s.whatsapp.net`);
+      }
     }
   }
   const jidList = Array.from(jidCandidates);

@@ -34,7 +34,7 @@ function createProps(overrides: Partial<ComponentProps<typeof SidebarPanel>> = {
 describe("Painel do Inbox", () => {
   it("distingue ativação global da permissão da conversa e permite sugestão manual", async () => {
     const props = createProps(); await renderPanel(<SidebarPanel {...props} />);
-    expect([...document.querySelectorAll('[role="tab"]')].map(tab => tab.textContent)).toEqual(["Atendimento", "Cliente", "Arquivos"]);
+    expect([...document.querySelectorAll('[role="tab"]')].map(tab => tab.textContent)).toEqual(["Atendimento", "Respostas Rápidas", "Arquivos", "Logs"]);
     expect(document.getElementById("conversation-ai-toggle")).toHaveAttribute("aria-checked", "true");
     expect(document.body.textContent).toContain("IA global pausada");
     expect(button("Sugerir resposta")).not.toBeDisabled(); await click(button("Sugerir resposta"));
@@ -48,25 +48,25 @@ describe("Painel do Inbox", () => {
     expect(props.handleSetConversationAgent).toHaveBeenCalledWith("Outro Agente");
   });
   it("insere resposta textual no rascunho, inclusive com Shift ou clique duplo", async () => {
-    const props = createProps(); await renderPanel(<SidebarPanel {...props} />);
+    const props = createProps({ rightPanelTab: "qr" }); await renderPanel(<SidebarPanel {...props} />);
     await click(button("Saudação salva"), { shiftKey: true });
     await act(async () => button("Saudação salva").dispatchEvent(new MouseEvent("dblclick", { bubbles: true })));
     expect(props.setMessageInput).toHaveBeenCalledWith("Olá Contato A!");
     expect(props.sendQuickReply).not.toHaveBeenCalled(); expect(document.querySelector('[role="dialog"]')).toBeNull();
   });
   it("mostra todas as etapas e envia só após confirmação", async () => {
-    const props = createProps(); await renderPanel(<SidebarPanel {...props} />); await click(button("Catálogo salvo"));
+    const props = createProps({ rightPanelTab: "qr" }); await renderPanel(<SidebarPanel {...props} />); await click(button("Catálogo salvo"));
     expect(document.querySelector('[role="dialog"]')).not.toBeNull(); expect(document.body.textContent).toContain("Veja nosso catálogo."); expect(document.body.textContent).toContain("catalogo.pdf");
     expect(props.sendQuickReply).not.toHaveBeenCalled(); await click(button("Confirmar envio"));
     expect(props.sendQuickReply).toHaveBeenCalledWith(flowReply, 2000);
   });
   it("fecha a prévia ao trocar de conversa", async () => {
-    const props = createProps(); await renderPanel(<SidebarPanel {...props} />); await click(button("Catálogo salvo"));
+    const props = createProps({ rightPanelTab: "qr" }); await renderPanel(<SidebarPanel {...props} />); await click(button("Catálogo salvo"));
     await renderPanel(<SidebarPanel {...props} selectedConversation={{ ...props.selectedConversation!, id: "conversation-b", contactName: "Contato B" }} />);
     expect(document.querySelector('[role="dialog"]')).toBeNull(); expect(props.sendQuickReply).not.toHaveBeenCalled();
   });
   it("mostra erro de carregamento sem inventar respostas", async () => {
-    await renderPanel(<SidebarPanel {...createProps({ quickReplies: [], quickRepliesError: true })} />);
+    await renderPanel(<SidebarPanel {...createProps({ rightPanelTab: "qr", quickReplies: [], quickRepliesError: true })} />);
     expect(document.querySelector('[role="alert"]')).toHaveTextContent("Não foi possível carregar");
     expect(document.body.textContent).not.toContain("Olá, como posso ajudar?");
   });
