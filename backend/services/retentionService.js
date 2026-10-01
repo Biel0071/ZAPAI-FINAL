@@ -28,7 +28,7 @@ const aiCompressionService = require('./aiCompressionService');
 // ─── Config ───────────────────────────────────────────────────────────────────
 const GROUP_MESSAGE_RETENTION_HOURS  = Number(process.env.GROUP_MSG_RETENTION_HOURS  || 168); // 7 days (1 week)
 const INDIVIDUAL_MESSAGE_RETENTION_DAYS = Number(process.env.INDIVIDUAL_MSG_RETENTION_DAYS || 60); // 60 days
-const RETENTION_BATCH_SIZE = Number(process.env.RETENTION_BATCH_SIZE || 500);
+const RETENTION_BATCH_SIZE = Number(process.env.RETENTION_BATCH_SIZE || 100);
 
 let lastRunAt = null;
 let isRunning = false;
