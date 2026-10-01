@@ -686,12 +686,12 @@ export default function Inbox() {
             <Sheet open={state.showLeadPanel} onOpenChange={state.setShowLeadPanel}>
               <SheetContent 
                 side="right" 
-                className="w-full sm:max-w-md p-0 flex flex-col h-full bg-background border-l border-border/80 shadow-2xl focus:outline-none"
+                className="w-full sm:max-w-md p-0 flex flex-col h-screen h-[100dvh] inset-y-0 bg-background border-l border-border/80 shadow-2xl focus:outline-none [&>button]:hidden z-50"
               >
                 <SheetHeader className="sr-only">
                   <SheetTitle>Painel de Atendimento e Detalhes</SheetTitle>
                 </SheetHeader>
-                <div className="flex-1 min-h-0 h-full w-full flex flex-col overflow-hidden">
+                <div className="flex-1 min-h-0 h-full w-full flex flex-col overflow-hidden bg-background">
                   {leadPanelContent}
                 </div>
               </SheetContent>

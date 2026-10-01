@@ -89,13 +89,13 @@ export function InboxView({
       <div ref={layoutRef} className="w-full flex-1 min-h-0 flex overflow-hidden border-t border-border/60 bg-card/30">
         <ResizablePanelGroup
           direction="horizontal"
-          autoSaveId="zapflow-inbox-panels-layout-v2"
+          autoSaveId={hasRightPanel ? "zapflow-inbox-desktop-v3" : "zapflow-inbox-tablet-v3"}
           className="h-full w-full"
         >
           <ResizablePanel
-            defaultSize={25}
-            minSize={20}
-            maxSize={34}
+            defaultSize={hasRightPanel ? 25 : 42}
+            minSize={hasRightPanel ? 20 : 36}
+            maxSize={hasRightPanel ? 34 : 52}
             id="inbox-conversations-panel"
             order={1}
             className="flex flex-col h-full overflow-hidden"
@@ -111,8 +111,8 @@ export function InboxView({
           </ResizableHandle>
 
           <ResizablePanel
-            defaultSize={rightPanel ? 47 : 75}
-            minSize={34}
+            defaultSize={hasRightPanel ? 47 : 58}
+            minSize={hasRightPanel ? 34 : 48}
             id="inbox-chat-pane"
             order={2}
             className="flex flex-col h-full overflow-hidden min-w-0 relative"

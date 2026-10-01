@@ -83,7 +83,9 @@ const bottomItems: SidebarNavItem[] = [
 export function Sidebar() {
   const [collapsed, setCollapsed] = useState(() => {
     try {
-      return localStorage.getItem("zapflow_sidebar_collapsed") === "true";
+      const saved = localStorage.getItem("zapflow_sidebar_collapsed");
+      if (saved !== null) return saved === "true";
+      return typeof window !== "undefined" && window.innerWidth < 1024;
     } catch {
       return false;
     }

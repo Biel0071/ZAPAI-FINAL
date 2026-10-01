@@ -434,7 +434,13 @@ export function SidebarPanel({
               className="min-w-0 px-0.5 py-1 text-[10px] sm:text-xs font-medium tracking-tight data-[state=active]:bg-background data-[state=active]:shadow-sm truncate flex items-center justify-center gap-1"
               title={section.label}
             >
-              <span className="truncate">{section.label}</span>
+              {section.id === "qr" ? (
+                <span className="truncate">
+                  Respostas<span className="hidden sm:inline"> Rápidas</span>
+                </span>
+              ) : (
+                <span className="truncate">{section.label}</span>
+              )}
             </TabsTrigger>
           ))}
         </TabsList>

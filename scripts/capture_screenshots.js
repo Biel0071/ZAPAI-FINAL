@@ -574,7 +574,8 @@ async function run() {
         window.useAppStore.setState({
           conversations: convs,
           activeConversationId: "conv-1",
-          messagesByConversationId: { "conv-1": msgs }
+          messagesByConversationId: { "conv-1": msgs },
+          isMobileChatOpen: true,
         });
       }
     }, { convs: MOCK_CONVERSATIONS, msgs: MOCK_MESSAGES });
@@ -635,7 +636,7 @@ async function run() {
 
     // 2d. Close Drawer via close button or Escape
     try {
-      const closeDrawerBtn = mobilePage.locator('[role="dialog"] button.absolute').first();
+      const closeDrawerBtn = mobilePage.locator('[role="dialog"] button[aria-label*="Fechar"], [role="dialog"] button.absolute').first();
       if (await closeDrawerBtn.count() > 0) {
         await closeDrawerBtn.click({ force: true });
       } else {
@@ -695,6 +696,9 @@ async function run() {
       }));
       localStorage.setItem("zapai_inbox_active_session", "main");
       localStorage.setItem("zapflow_view_mode", "auto");
+      localStorage.removeItem("react-resizable-panels:zapflow-inbox-desktop-v3");
+      localStorage.removeItem("react-resizable-panels:zapflow-inbox-tablet-v3");
+      localStorage.removeItem("react-resizable-panels:zapflow-inbox-panels-layout-v2");
     });
 
     await tabletPage.goto(`http://127.0.0.1:${PORT}/inbox`, { waitUntil: "networkidle" });

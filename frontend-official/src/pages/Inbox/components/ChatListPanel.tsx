@@ -132,10 +132,10 @@ export function ChatListPanel({
         </div>
         <Tabs value={filter} onValueChange={setFilter}>
           <TabsList className="grid w-full grid-cols-4 h-8 p-0.5 bg-muted/60">
-            <TabsTrigger value="all" className="text-[11px] px-1 py-1 data-[state=active]:font-bold">Todas</TabsTrigger>
-            <TabsTrigger value="unread" className="text-[11px] px-1 py-1 data-[state=active]:font-bold">Não lidas</TabsTrigger>
-            <TabsTrigger value="ai" className="text-[11px] px-1 py-1 data-[state=active]:font-bold">IA ativa</TabsTrigger>
-            <TabsTrigger value="archived" className="text-[11px] px-1 py-1 data-[state=active]:font-bold">Arquivadas</TabsTrigger>
+            <TabsTrigger value="all" className="min-w-0 truncate text-[10px] sm:text-[11px] px-0.5 sm:px-1 py-1 data-[state=active]:font-bold">Todas</TabsTrigger>
+            <TabsTrigger value="unread" className="min-w-0 truncate text-[10px] sm:text-[11px] px-0.5 sm:px-1 py-1 data-[state=active]:font-bold">Não lidas</TabsTrigger>
+            <TabsTrigger value="ai" className="min-w-0 truncate text-[10px] sm:text-[11px] px-0.5 sm:px-1 py-1 data-[state=active]:font-bold">IA ativa</TabsTrigger>
+            <TabsTrigger value="archived" className="min-w-0 truncate text-[10px] sm:text-[11px] px-0.5 sm:px-1 py-1 data-[state=active]:font-bold">Arquivadas</TabsTrigger>
           </TabsList>
         </Tabs>
         {setShowGroups && (

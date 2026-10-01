@@ -1133,7 +1133,7 @@ export function ActiveChatPane({
                 if (list.length === 0) return null;
 
                 return (
-                  <div className="flex flex-wrap items-center gap-1.5 px-1 py-1 mb-0.5 select-none w-full max-w-full overflow-x-auto no-scrollbar scroll-smooth">
+                  <div className="flex items-center gap-1.5 px-1 py-1 mb-0.5 select-none w-full max-w-full overflow-x-auto no-scrollbar scroll-smooth flex-nowrap">
                     {list.map((item, idx) => (
                       <button
                         key={idx}
@@ -1298,10 +1298,10 @@ export function ActiveChatPane({
                           : !isWhatsappConnected
                             ? "WhatsApp offline. Conecte nas configurações para enviar."
                             : selectedConversation
-                              ? "Digite sua mensagem..."
+                              ? (isMobile ? "Mensagem..." : "Digite sua mensagem...")
                               : "Selecione uma conversa para enviar mensagens"
                       }
-                      className="flex min-h-[44px] max-h-[180px] w-full flex-1 resize-none rounded-lg border border-input bg-background px-3 py-3 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 scrollbar-none text-foreground"
+                      className="flex min-h-[42px] max-h-[180px] w-full flex-1 resize-none rounded-lg border border-input bg-background px-3 py-2.5 sm:py-3 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 scrollbar-none text-foreground leading-normal"
                       value={messageInput}
                       disabled={!selectedConversation || !canSendMessages}
                       onChange={(event) => {
