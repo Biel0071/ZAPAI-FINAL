@@ -268,11 +268,22 @@ class HumanAttendanceLearner {
     const cleanCompany = String(companyId || 'default');
 
     try {
-      // 1. Total human messages in system
-      const humanMsgsRes = await this.pool.query(
-        `SELECT COUNT(*) AS total FROM messages WHERE from_me = TRUE AND (sender = 'agent' OR sender IS NULL)`
-      ).catch(() => ({ rows: [{ total: 18722 }] }));
-      const totalHumanMessages = parseInt(humanMsgsRes.rows[0]?.total || 18722, 10);
+      // 1. Total human messages in system (cached 10m to avoid repeating heavy scans)
+      let totalHumanMessages = 18722;
+      if (global._cachedHumanMsgsTotal && (Date.now() - global._cachedHumanMsgsTime < 10 * 60 * 1000)) {
+        totalHumanMessages = global._cachedHumanMsgsTotal;
+      } else {
+        try {
+          const humanMsgsRes = await this.pool.query(
+            `SELECT COUNT(*) AS total FROM messages WHERE from_me = TRUE AND (sender = 'agent' OR sender IS NULL)`
+          );
+          totalHumanMessages = parseInt(humanMsgsRes.rows[0]?.total || 18722, 10);
+          global._cachedHumanMsgsTotal = totalHumanMessages;
+          global._cachedHumanMsgsTime = Date.now();
+        } catch (_) {
+          totalHumanMessages = global._cachedHumanMsgsTotal || 18722;
+        }
+      }
 
       // 2. Total golden experience events
       const expRes = await this.pool.query(

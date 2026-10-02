@@ -1010,17 +1010,12 @@ async function getAgentEvolution(req, res) {
     const pendingCount = Number(stats.pending || 0);
     const learnedConcepts = Number(graphSnapshot.stats?.concepts || 0);
 
-    // Query real qualified conversations (at least 3 messages exchanged in real customer service back-and-forth)
+    // Query conversations count fast with company index
     const qualifiedRes = await dbQuery(`
-      SELECT COUNT(*)::int AS count FROM (
-        SELECT conv.id
-        FROM conversations conv
-        JOIN messages m ON m.conversation_id = conv.id
-        WHERE conv.company_id = $1 AND (LOWER(COALESCE(conv.agent_name, $2)) = LOWER($2))
-        GROUP BY conv.id
-        HAVING COUNT(m.id) >= 3
-      ) qualified_convs
-    `, [companyId, key]).catch(() => ({ rows: [{ count: 0 }] }));
+      SELECT COUNT(*)::int AS count 
+      FROM conversations conv
+      WHERE conv.company_id = $1
+    `, [companyId]).catch(() => ({ rows: [{ count: 0 }] }));
 
     const dbQualifiedCount = Number(qualifiedRes.rows[0]?.count || 0);
     const episodeCount = Number(graphSnapshot.stats?.episodes || 0);
