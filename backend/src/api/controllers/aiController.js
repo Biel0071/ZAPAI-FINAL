@@ -977,8 +977,9 @@ async function getAgentEvolution(req, res) {
     const companyId = req.headers['x-company-id'] || req.headers['x-tenant-id'] || req.auth?.tenantId || 'default';
     const agentLearningRepo = require('../../data/repositories/agentLearningRepository');
     const agentMemoryGraphService = require('../../../services/agentMemoryGraphService');
-    
-    await agentMemoryGraphService.bootstrapAgentMemoryGraph({ agentKey: key, agentName: key, companyId }).catch(() => {});
+    setImmediate(() => {
+      agentMemoryGraphService.bootstrapAgentMemoryGraph({ agentKey: key, agentName: key, companyId }).catch(() => {});
+    });
 
     const [history, stats, appliedEvents, graphSnapshot] = await Promise.all([
       agentLearningRepo.getEvolutionHistory(key, companyId, 30),
