@@ -51,6 +51,19 @@ vi.mock("@/core/services/apiService", () => ({
       success: true,
       pending: [{ id: 101, customerQuestion: "Vocês aceitam Pix parcelado?" }],
     }),
+    getLearnedPatterns: vi.fn().mockResolvedValue({
+      patterns: [],
+      goldSamplesCount: 58,
+      naturalnessScore: 98,
+      humanMessagesCount: 18722,
+    }),
+    syncManualAttendance: vi.fn().mockResolvedValue({
+      success: true,
+      minedCount: 10,
+      totalLearned: 58,
+      xpGained: 50,
+      newLevel: 4,
+    }),
     detectAgentGaps: vi.fn().mockResolvedValue({ success: true, createdCount: 2 }),
     testAIConnection: vi.fn().mockResolvedValue({ ok: true, response: "Olá, conexão OK!", responseTimeMs: 120, totalTokens: 42 }),
   },
@@ -184,8 +197,8 @@ describe("Unified AI & Automação Page and Route Simplification", () => {
     });
 
     const text = document.body.textContent || "";
-    expect(text).toContain("Score de Inteligência do Agente");
-    expect(text).toContain("Composição dos Pilares de Inteligência");
+    expect(text).toContain("Nível de Maturidade do Atendente");
+    expect(text).toContain("Pilares da Inteligência Cognitiva");
     expect(text).toContain("Central de Aprendizado");
   });
 

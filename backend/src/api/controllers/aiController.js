@@ -1024,7 +1024,15 @@ async function getAgentEvolution(req, res) {
 
     const dbQualifiedCount = Number(qualifiedRes.rows[0]?.count || 0);
     const episodeCount = Number(graphSnapshot.stats?.episodes || 0);
-    const qualifiedConversations = Math.max(dbQualifiedCount, episodeCount);
+
+    let humanLearnerStats = null;
+    try {
+      const humanAttendanceLearner = require('../../ai/evolutionary/humanAttendanceLearner');
+      humanLearnerStats = await humanAttendanceLearner.calculateAgentLevel({ companyId, agentKey: key });
+    } catch (_) {}
+
+    const humanVolumeQualified = Math.round((humanLearnerStats?.totalHumanMessages || 0) / 25);
+    const qualifiedConversations = Math.max(dbQualifiedCount, episodeCount, humanVolumeQualified);
 
     // Exact Level Tier Rules (Nível 1 a 10) with resetting level goals & doubled progression
     const LEVEL_TIERS = [
@@ -1118,6 +1126,7 @@ async function getAgentEvolution(req, res) {
         components: { answers: answerPoints, refinements: refinementPoints, coverage: coveragePoints, queue: queuePoints },
       },
       memoryGraph: { nodes, edges },
+      humanStats: humanLearnerStats,
     });
   } catch (err) {
     res.status(500).json({ error: err.message });

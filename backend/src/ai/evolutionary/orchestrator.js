@@ -17,6 +17,7 @@ const customerMemoryEngine = require('./customerMemoryEngine');
 const playbookEngine = require('./playbookEngine');
 const experienceEngine = require('./experienceEngine');
 const learningEngine = require('./learningEngine');
+const crossConversationMemory = require('./crossConversationMemory');
 
 class EvolutionaryAgentOrchestrator {
   constructor() {
@@ -126,13 +127,25 @@ class EvolutionaryAgentOrchestrator {
       experiencePrompt = this.experienceEngine.compileExperiencePrompt(pastExperiences);
     } catch (_) {}
 
+    // 4.1 Cross-Conversation Knowledge & Anti-Robotic WhatsApp Tone
+    let crossConvPrompt = '';
+    try {
+      const crossExamples = await crossConversationMemory.recallCrossConversationExamples({
+        companyId: cleanCompany,
+        message: cleanMsg,
+        intent: leadIntent || customerContext.leadIntent,
+        limit: 2,
+      });
+      crossConvPrompt = crossConversationMemory.compileCrossConversationPrompt(crossExamples);
+    } catch (_) {}
+
     // 5. Layer 5: Authority Rules & Directive Synthesis
     const hierarchyPrompt = `
 ### [HIERARQUIA DE AUTORIDADE E CONDUTA DO AGENTE]
 1. VERDADE OFICIAL DA LOJA É SOBERANA: Nunca prometa descontos ou prazos que contradigam o catálogo oficial da Camada 1.
 2. NUNCA REPITA PERGUNTAS: Se a informação já estiver na Memória do Cliente (Camada 2), utilize-a diretamente.
 3. SIGA O ROTEIRO DO PLAYBOOK: Utilize a estratégia e o CTA orientados na Camada 3.
-4. TOM COMERCIAL: Seja direto, acolhedor, rápido e termine sempre incentivando o próximo passo da compra.
+4. TOM 100% NATURAL: Seja direto, acolhedor, rápido e termine sempre incentivando o próximo passo da compra sem parecer robô.
 `;
 
     const fullEvolutionaryPrompt = [
@@ -140,6 +153,7 @@ class EvolutionaryAgentOrchestrator {
       combinedCustomerPrompt,
       playbookPrompt,
       experiencePrompt,
+      crossConvPrompt,
       hierarchyPrompt
     ].filter(Boolean).join('\n---\n');
 

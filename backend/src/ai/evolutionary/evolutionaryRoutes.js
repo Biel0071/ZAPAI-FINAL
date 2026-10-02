@@ -23,6 +23,7 @@ const customerMemoryEngine = require('./customerMemoryEngine');
 const playbookEngine = require('./playbookEngine');
 const experienceEngine = require('./experienceEngine');
 const learningEngine = require('./learningEngine');
+const humanAttendanceLearner = require('./humanAttendanceLearner');
 
 function getCompanyId(req) {
   if (req.authTenantId) return req.authTenantId;
@@ -354,4 +355,40 @@ router.get('/context/:conversationId', async (req, res) => {
   }
 });
 
+// 13. POST /api/ai/evolution/sync-manual (Mine and learn from human operator messages)
+router.post('/sync-manual', async (req, res) => {
+  try {
+    const companyId = getCompanyId(req);
+    const limit = Number(req.body?.limit) || 300;
+    const result = await humanAttendanceLearner.mineAndEvolveFromManualAttendance({ companyId, limit });
+    res.json({ success: result.ok, ...result });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// 14. GET /api/ai/evolution/agent-level (Dynamic Agent Level & XP Progression)
+router.get('/agent-level', async (req, res) => {
+  try {
+    const companyId = getCompanyId(req);
+    const agentKey = req.query.agentKey || 'camila';
+    const levelData = await humanAttendanceLearner.calculateAgentLevel({ companyId, agentKey });
+    res.json({ success: true, data: levelData });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// 15. GET /api/ai/evolution/learned-patterns (Cross-conversation golden patterns)
+router.get('/learned-patterns', async (req, res) => {
+  try {
+    const companyId = getCompanyId(req);
+    const patterns = await humanAttendanceLearner.getLearnedPatterns({ companyId });
+    res.json({ success: true, data: patterns });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 module.exports = router;
+

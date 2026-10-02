@@ -1726,8 +1726,58 @@ export const apiService = {
         components: { answers: number; refinements: number; coverage: number; queue: number };
       };
       memoryGraph: { nodes: Array<{ id: string; type: string; label: string; weight: number }>; edges: Array<{ source: string; target: string; relation: string }> };
+      humanStats?: {
+        level: number;
+        levelTitle: string;
+        totalXp: number;
+        currentLevelMinXp: number;
+        nextLevelXp: number;
+        progressPct: number;
+        evolutionScore: number;
+        totalHumanMessages: number;
+        humanSamplesLearned: number;
+        activePlaybooks: number;
+        naturalnessScore: number;
+        conversionsCount: number;
+        objectionsLearned: number;
+        successRate: number;
+        totalAnalyzed: number;
+      };
     }>({
       endpoint: `/ai/agent-evolution/${encodeURIComponent(agentKey)}`,
+      method: "GET",
+    }),
+
+  syncManualAttendance: (limit: number = 300) =>
+    request<{
+      success: boolean;
+      pairsFound?: number;
+      newSamplesLearned?: number;
+      topicsDiscovered?: Record<string, number>;
+      durationMs?: number;
+      agentLevel?: any;
+      error?: string;
+    }>({
+      endpoint: "/ai/agent-evolve/sync-manual",
+      method: "POST",
+      body: { limit },
+    }),
+
+  getLearnedPatterns: () =>
+    request<{
+      success: boolean;
+      data: Array<{
+        id: number;
+        topic: string;
+        topicLabel: string;
+        customerUtterance: string;
+        goldenReply: string;
+        recommendedCta: string;
+        naturalnessRating: string;
+        learnedAt: string;
+      }>;
+    }>({
+      endpoint: "/ai/agent-evolve/learned-patterns",
       method: "GET",
     }),
 

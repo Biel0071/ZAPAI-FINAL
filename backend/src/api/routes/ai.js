@@ -65,6 +65,26 @@ router.get('/ai/agent-learning/:key', aiController.getAgentLearning);
 router.post('/ai/agent-learning/:id/answer', aiController.answerLearningEvent);
 router.post('/ai/agent-learning/:id/apply', aiController.applyLearningAnswer);
 router.post('/ai/agent-learning/:id/ignore', aiController.ignoreLearningEvent);
+router.post('/ai/agent-evolve/sync-manual', async (req, res) => {
+  try {
+    const companyId = req.headers['x-company-id'] || req.headers['x-tenant-id'] || req.auth?.tenantId || req.authTenantId || 'default';
+    const humanAttendanceLearner = require('../../ai/evolutionary/humanAttendanceLearner');
+    const result = await humanAttendanceLearner.mineAndEvolveFromManualAttendance({ companyId, limit: Number(req.body?.limit) || 300 });
+    res.json({ success: result.ok, ...result });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+router.get('/ai/agent-evolve/learned-patterns', async (req, res) => {
+  try {
+    const companyId = req.headers['x-company-id'] || req.headers['x-tenant-id'] || req.auth?.tenantId || req.authTenantId || 'default';
+    const humanAttendanceLearner = require('../../ai/evolutionary/humanAttendanceLearner');
+    const patterns = await humanAttendanceLearner.getLearnedPatterns({ companyId });
+    res.json({ success: true, data: patterns });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
 
 // Conversation analysis endpoint used by frontend lead panel
 router.post('/ai/analyze-conversation', async (req, res) => {
