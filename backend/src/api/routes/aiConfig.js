@@ -111,6 +111,14 @@ router.post('/ai/compose', async (req, res) => {
       actionInstruction = 'Apresente somente as formas de pagamento cadastradas no conhecimento oficial. Não invente descontos ou parcelamento.';
     } else if (action === 'improve') {
       actionInstruction = 'Melhore a clareza, pontuação, simpatia e impacto da mensagem.';
+    } else if (action === 'boost') {
+      actionInstruction = 'Gere uma resposta de alta conversão turbo: enérgica, persuasiva, com senso de oportunidade exclusivo e chamada para ação imediata para acelerar o fechamento.';
+    } else if (action === 'goal') {
+      actionInstruction = 'Gere uma resposta objetiva focada na meta e no SLA: resolva a dúvida com precisão, avance o status do atendimento e defina os próximos passos com clareza.';
+    } else if (action === 'plan') {
+      actionInstruction = 'Apresente os planos e opções comerciais disponíveis com clareza de proposta de valor, destacando diferenciais e orientando a escolha ideal para a necessidade do cliente.';
+    } else if (action === 'learn') {
+      actionInstruction = 'Gere uma resposta agradecendo o feedback do cliente com empatia, registrando que a observação foi anotada para aprimoramento contínuo dos processos e da IA.';
     } else if (!action && !instruction && !currentDraft && hasHistory) {
       actionInstruction = 'Gere uma sugestão de resposta cordial, direta e comercialmente precisa respondendo à última mensagem do cliente, considerando o produto e memória.';
     }

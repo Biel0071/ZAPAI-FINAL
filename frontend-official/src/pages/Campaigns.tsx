@@ -2713,7 +2713,11 @@ listSection={
                               disabled={actionCampaignId === scheduledCampaign.id}
                               title="Disparo com cadência humana anti-ban (recomendado)"
                             >
-                              <ShieldCheck weight="fill" className="mr-1 h-3.5 w-3.5 text-emerald-200" />
+                              {actionCampaignId === scheduledCampaign.id && actionType === "start" ? (
+                                <Clock className="mr-1 h-3.5 w-3.5 animate-spin" />
+                              ) : (
+                                <ShieldCheck weight="fill" className="mr-1 h-3.5 w-3.5 text-emerald-200" />
+                              )}
                               Iniciar Sem Risco
                             </Button>
                             <Button
@@ -2723,7 +2727,11 @@ listSection={
                               disabled={actionCampaignId === scheduledCampaign.id}
                               title="Disparo turbo acelerado (alto risco de bloqueio)"
                             >
-                              <Lightning weight="fill" className="mr-1 h-3.5 w-3.5 text-amber-500 dark:text-amber-400" />
+                              {actionCampaignId === scheduledCampaign.id && actionType === "start" ? (
+                                <Clock className="mr-1 h-3.5 w-3.5 animate-spin text-amber-500" />
+                              ) : (
+                                <Lightning weight="fill" className="mr-1 h-3.5 w-3.5 text-amber-500 dark:text-amber-400" />
+                              )}
                               Turbo
                             </Button>
                             <Button
@@ -2732,7 +2740,11 @@ listSection={
                               onClick={() => void runCampaignAction(scheduledCampaign.id, "delete")}
                               disabled={actionCampaignId === scheduledCampaign.id}
                             >
-                              <Trash className="mr-1 h-3.5 w-3.5" />
+                              {actionCampaignId === scheduledCampaign.id && actionType === "delete" ? (
+                                <Clock className="mr-1 h-3.5 w-3.5 animate-spin" />
+                              ) : (
+                                <Trash className="mr-1 h-3.5 w-3.5" />
+                              )}
                               Cancelar
                             </Button>
                           </div>

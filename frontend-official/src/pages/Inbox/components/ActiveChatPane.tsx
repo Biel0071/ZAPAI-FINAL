@@ -311,6 +311,20 @@ export function ActiveChatPane({
     }
   };
   const [activeSlashIndex, setActiveSlashIndex] = useState(0);
+  const [slashMenuDismissed, setSlashMenuDismissed] = useState(false);
+
+  const handleSelectSlashSuggestion = useCallback((item: { cmd: string; desc: string; text: string }) => {
+    setMessageInput(item.text);
+    setSlashMenuDismissed(true);
+    setTimeout(() => {
+      if (messageInputRef.current) {
+        messageInputRef.current.focus();
+        messageInputRef.current.setSelectionRange(item.text.length, item.text.length);
+        messageInputRef.current.style.height = "auto";
+        messageInputRef.current.style.height = `${Math.min(messageInputRef.current.scrollHeight, 140)}px`;
+      }
+    }, 0);
+  }, [setMessageInput, messageInputRef]);
   const [activeTab, setActiveTab] = useState<'emoji' | 'sticker'>('emoji');
   const [stickers, setStickers] = useState<{ id: string; url: string; name: string }[]>([]);
   const [loadingStickers, setLoadingStickers] = useState(false);
@@ -469,8 +483,10 @@ export function ActiveChatPane({
   }, [activeConversationSearchMessageId]);
 
   const slashSuggestions = useMemo(() => {
-    if (!messageInput.startsWith("/")) return [] as { cmd: string; desc: string; text: string }[];
-    const needle = messageInput.slice(1).toLowerCase();
+    if (slashMenuDismissed || !messageInput.startsWith("/")) return [] as { cmd: string; desc: string; text: string }[];
+    const rawNeedle = messageInput.slice(1);
+    const needle = rawNeedle.trim().toLowerCase();
+    const commandWord = needle.split(/\s+/)[0] || "";
 
     // Add default slash commands
     const defaultCmds = [
@@ -534,13 +550,17 @@ export function ActiveChatPane({
       text: qr.text,
     }));
 
-    return [...defaultCmds, ...qrCmds].filter(
+    const allOptions = [...defaultCmds, ...qrCmds];
+    if (!needle) return allOptions;
+
+    return allOptions.filter(
       (item) =>
         item.cmd.toLowerCase().includes(needle) ||
+        item.cmd.toLowerCase().replace("/", "").startsWith(commandWord) ||
         item.text.toLowerCase().includes(needle) ||
         item.desc.toLowerCase().includes(needle),
     );
-  }, [messageInput, quickReplies]);
+  }, [messageInput, quickReplies, slashMenuDismissed]);
 
   useEffect(() => {
     setActiveSlashIndex(0);
@@ -1296,10 +1316,7 @@ export function ActiveChatPane({
                           <button
                             key={item.cmd + index}
                             type="button"
-                            onClick={() => {
-                              setMessageInput(item.text);
-                              messageInputRef.current?.focus();
-                            }}
+                            onClick={() => handleSelectSlashSuggestion(item)}
                             className={cn(
                               "flex w-full items-center justify-between rounded-lg px-2.5 py-1.5 text-left text-xs transition-colors",
                               index === activeSlashIndex
@@ -1393,7 +1410,13 @@ export function ActiveChatPane({
                       value={messageInput}
                       disabled={!selectedConversation || !canSendMessages}
                       onChange={(event) => {
-                        setMessageInput(event.target.value);
+                        const val = event.target.value;
+                        if (!val.startsWith("/")) {
+                          setSlashMenuDismissed(false);
+                        } else if (slashMenuDismissed && val.length === 1) {
+                          setSlashMenuDismissed(false);
+                        }
+                        setMessageInput(val);
                         const textarea = event.target;
                         textarea.style.height = "auto";
                         textarea.style.height = `${Math.min(textarea.scrollHeight, 140)}px`;
@@ -1424,13 +1447,13 @@ export function ActiveChatPane({
                             event.preventDefault();
                             const selected = slashSuggestions[activeSlashIndex];
                             if (selected) {
-                              setMessageInput(selected.text);
+                              handleSelectSlashSuggestion(selected);
                             }
                             return;
                           }
                           if (event.key === "Escape") {
                             event.preventDefault();
-                            setMessageInput("");
+                            setSlashMenuDismissed(true);
                             return;
                           }
                         }

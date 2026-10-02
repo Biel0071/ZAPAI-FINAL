@@ -343,13 +343,14 @@ export function ConversationRow(props: RowComponentProps<ConversationRowData>) {
                 )}
 
                 {!isMultiSelectMode && (
-                  <div className="opacity-0 group-hover/row:opacity-100 transition-opacity duration-150 flex items-center" data-dropdown-trigger>
+                  <div className="opacity-100 sm:opacity-0 sm:group-hover/row:opacity-100 focus-within:opacity-100 data-[state=open]:opacity-100 transition-opacity duration-150 flex items-center" data-dropdown-trigger>
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
                         <button
                           type="button"
                           className="h-6 w-6 rounded-full flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
                           onClick={(e) => e.stopPropagation()}
+                          aria-label="Mais opções da conversa"
                         >
                           <DotsThreeVertical className="h-4 w-4" />
                         </button>

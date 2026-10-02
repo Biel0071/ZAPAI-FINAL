@@ -168,7 +168,11 @@ export function Sidebar() {
       location.pathname.startsWith("/evolucao") ||
       location.pathname.startsWith("/automation")
     );
-    const isActive = isAiItem ? isAiActive : location.pathname === targetPathname;
+    const isActive = isAiItem ? isAiActive : (
+      targetPathname === "/"
+        ? location.pathname === "/"
+        : (location.pathname === targetPathname || location.pathname.startsWith(targetPathname + "/"))
+    );
 
     // Itens em desenvolvimento: cinza, não-clicáveis, badge DEV. Só chegam aqui p/ admin+.
     if (item.dev) {

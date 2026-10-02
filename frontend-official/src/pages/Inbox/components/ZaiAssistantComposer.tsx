@@ -24,6 +24,10 @@ interface DetectedContext {
 
 const ACTION_PILLS = [
   { id: "improve", label: "Melhorar", icon: Sparkle },
+  { id: "boost", label: "⚡ Turbo Boost", icon: Lightning },
+  { id: "goal", label: "🎯 Foco na Meta", icon: Sparkle },
+  { id: "plan", label: "📋 Planos & Proposta", icon: Tag },
+  { id: "learn", label: "🧠 Ensinar IA", icon: ChatTeardropDots },
   { id: "shorten", label: "Encurtar", icon: Lightning },
   { id: "expand", label: "Expandir", icon: ChatTeardropDots },
   { id: "commercial", label: "Mais comercial", icon: Tag },
@@ -134,6 +138,9 @@ export function ZaiAssistantComposer({
     if (messageInputRef.current) {
       messageInputRef.current.value = generated;
       messageInputRef.current.focus();
+      messageInputRef.current.setSelectionRange(generated.length, generated.length);
+      messageInputRef.current.style.height = "auto";
+      messageInputRef.current.style.height = `${Math.min(messageInputRef.current.scrollHeight, 140)}px`;
     }
     handleClose();
   };

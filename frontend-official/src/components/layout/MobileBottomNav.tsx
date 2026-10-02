@@ -142,10 +142,10 @@ export function MobileBottomNav() {
             <NavLink
               key={tab.id}
               to={tab.path!}
-              className={({ isActive: active }) =>
+              className={() =>
                 cn(
                   "relative flex flex-col items-center justify-center py-1 px-0.5 min-h-[46px] rounded-xl transition-all active:scale-95 group focus:outline-none",
-                  active
+                  isActive
                     ? "text-primary font-bold"
                     : "text-muted-foreground/80 hover:text-foreground font-medium"
                 )
