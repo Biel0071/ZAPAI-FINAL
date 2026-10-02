@@ -321,14 +321,6 @@ async function detectConversationIntelligence(conversationId, options = {}) {
     // Atualiza estado no banco
     const updatedConv = await conversationRepository.updateConversationState(conversationId, updates);
 
-    // Também atualiza tabela leads se existir lead_id
-    if (conv.lead_id) {
-      await query(
-        `UPDATE leads SET tags = $1, updated_at = NOW() WHERE id = $2`,
-        [newTags, conv.lead_id]
-      ).catch(() => {});
-    }
-
     // Emissão via Socket.io para atualização instantânea na tela
     const io = global.io || options.io;
     if (io && updatedConv) {
