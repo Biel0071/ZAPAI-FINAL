@@ -1,13 +1,13 @@
 import { MainLayout } from "@/components/layout/MainLayout";
 import { RuntimeProvider } from "@/state/providers/RuntimeProvider";
 import { ConnectionLostOverlay } from "@/components/system/ConnectionLostOverlay";
-import { FloatingMascotAssistant } from "@/components/ai/FloatingMascotAssistant";
+import { ZaibotFloatingAssistant } from "@/components/ai/ZaibotFloatingAssistant";
 
 export default function AuthenticatedAppShell() {
   return (
     <RuntimeProvider>
       <MainLayout />
-      <FloatingMascotAssistant />
+      <ZaibotFloatingAssistant />
       <ConnectionLostOverlay />
     </RuntimeProvider>
   );
