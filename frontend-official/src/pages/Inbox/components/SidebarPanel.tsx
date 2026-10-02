@@ -467,7 +467,7 @@ export function SidebarPanel({
         </TabsList>
       </div>
 
-      <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-3 sm:p-4 text-sm scrollbar-thin">
+      <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-contain p-3 sm:p-4 text-sm scrollbar-thin">
         {/* TAB 1: UNIFIED ATENDIMENTO & CLIENTE */}
         <TabsContent value="ai" className="m-0 space-y-5">
           <InboxSectionBoundary fallbackLabel="Atendimento">

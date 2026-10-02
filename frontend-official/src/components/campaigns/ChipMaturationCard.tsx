@@ -173,7 +173,7 @@ export function ChipMaturationCard({
                   <div
                     key={step.stage}
                     className={cn(
-                      "rounded-xl border p-2.5 flex flex-col justify-between transition-all",
+                      "rounded-xl border p-2.5 flex flex-col justify-between h-full transition-all",
                       isCurrent
                         ? "border-primary/80 bg-primary/10 shadow-sm ring-1 ring-primary/40"
                         : isDone

@@ -248,11 +248,11 @@ export function ConversationRow(props: RowComponentProps<ConversationRowData>) {
         </div>
 
         <div className="min-w-0 flex-1 flex flex-col justify-between h-full py-0.5">
-          <div className="flex items-center justify-between gap-1">
-            <h4 className="truncate text-xs md:text-sm font-semibold text-foreground/95 leading-none flex items-center gap-1.5 min-w-0">
-              <span className="truncate">{cleanDisplayName}</span>
+          <div className="flex items-center justify-between gap-1.5">
+            <h4 className="text-xs md:text-sm font-semibold text-foreground/95 leading-none flex items-center gap-1.5 min-w-0 flex-1">
+              <span className="truncate min-w-0">{cleanDisplayName}</span>
               {tagEmojis.length > 0 && (
-                <span className="inline-flex items-center gap-1 shrink-0 ml-1">
+                <span className="inline-flex items-center gap-1 shrink-0 ml-0.5">
                   {tagEmojis.slice(0, 3).map((item, idx) => (
                     <span
                       key={idx}
@@ -270,11 +270,11 @@ export function ConversationRow(props: RowComponentProps<ConversationRowData>) {
                 </span>
               )}
             </h4>
-            <div className="flex items-center gap-1.5 shrink-0">
+            <div className="flex items-center gap-1.5 shrink-0 ml-1">
               {pinnedChatIds.includes(conversation.id) && (
                 <Star weight="fill" className="h-3.5 w-3.5 text-amber-400 shrink-0" />
               )}
-              <span className="text-[10px] text-muted-foreground/70">{formatTime(conversation.updatedAt)}</span>
+              <span className="text-[10px] text-muted-foreground/70 font-medium tabular-nums">{formatTime(conversation.updatedAt)}</span>
             </div>
           </div>
 
@@ -290,21 +290,21 @@ export function ConversationRow(props: RowComponentProps<ConversationRowData>) {
               )}
             </div>
           ) : (
-            <div className="flex items-center justify-between gap-1">
-              <p className="flex items-center gap-1 truncate text-xs text-muted-foreground/80 leading-normal min-w-0">
+            <div className="flex items-center justify-between gap-1.5">
+              <p className="flex items-center gap-1 truncate text-xs text-muted-foreground/80 leading-normal min-w-0 flex-1">
                 {inferConversationMessageType(conversation) === "image" && <ImageSquare className="h-3.5 w-3.5 shrink-0 text-muted-foreground/60" />}
                 {inferConversationMessageType(conversation) === "video" && <VideoCamera className="h-3.5 w-3.5 shrink-0 text-muted-foreground/60" />}
                 {inferConversationMessageType(conversation) === "audio" && <Microphone className="h-3.5 w-3.5 shrink-0 text-muted-foreground/60" />}
                 {inferConversationMessageType(conversation) === "file" && <Paperclip className="h-3 w-3 shrink-0 text-muted-foreground/60" />}
                 {draftPreview ? (
-                  <span className="truncate">
+                  <span className="truncate min-w-0">
                     <span className="font-semibold text-primary">Rascunho:</span> {draftPreview}
                   </span>
                 ) : (
-                  <span className="truncate">{conversation.lastMessage || "Sem mensagens"}</span>
+                  <span className="truncate min-w-0">{conversation.lastMessage || "Sem mensagens"}</span>
                 )}
               </p>
-              <div className="flex items-center gap-1 shrink-0 pr-1">
+              <div className="flex items-center gap-1 shrink-0 pr-0.5">
                 <span className="flex items-center gap-0.5 text-muted-foreground/70">
                   <TooltipProvider delayDuration={120}>
                     <Tooltip>
@@ -343,12 +343,12 @@ export function ConversationRow(props: RowComponentProps<ConversationRowData>) {
                 )}
 
                 {!isMultiSelectMode && (
-                  <div className="hidden group-hover/row:flex items-center transition-opacity duration-200" data-dropdown-trigger>
+                  <div className="opacity-0 group-hover/row:opacity-100 transition-opacity duration-150 flex items-center" data-dropdown-trigger>
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
                         <button
                           type="button"
-                          className="h-6 w-6 rounded-full flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted/50"
+                          className="h-6 w-6 rounded-full flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
                           onClick={(e) => e.stopPropagation()}
                         >
                           <DotsThreeVertical className="h-4 w-4" />

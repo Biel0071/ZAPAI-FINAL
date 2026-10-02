@@ -100,7 +100,7 @@ export function CadencePresetSelector({
           type="button"
           onClick={() => onSelectPreset("safe")}
           className={cn(
-            "relative flex flex-col justify-between rounded-xl border p-3.5 text-left transition-all",
+            "relative flex flex-col justify-between h-full rounded-xl border p-3.5 text-left transition-all",
             selectedPreset === "safe"
               ? "border-emerald-500/80 bg-emerald-500/10 shadow-sm ring-1 ring-emerald-500/40"
               : "border-border/70 bg-card/60 hover:border-emerald-500/40 hover:bg-card/90"
@@ -112,7 +112,7 @@ export function CadencePresetSelector({
                 {CADENCE_PRESETS.safe.icon}
                 <span className="font-semibold text-sm text-foreground">Sem Risco</span>
               </div>
-              <Badge variant="outline" className="border-emerald-500/40 bg-emerald-500/15 text-emerald-400 text-[10px] py-0 px-1.5">
+              <Badge variant="outline" className="border-emerald-500/40 bg-emerald-500/15 text-emerald-400 text-[10px] py-0 px-1.5 font-medium">
                 Recomendado
               </Badge>
             </div>
@@ -142,7 +142,7 @@ export function CadencePresetSelector({
           type="button"
           onClick={() => onSelectPreset("balanced")}
           className={cn(
-            "relative flex flex-col justify-between rounded-xl border p-3.5 text-left transition-all",
+            "relative flex flex-col justify-between h-full rounded-xl border p-3.5 text-left transition-all",
             selectedPreset === "balanced"
               ? "border-amber-500/80 bg-amber-500/10 shadow-sm ring-1 ring-amber-500/40"
               : "border-border/70 bg-card/60 hover:border-amber-500/40 hover:bg-card/90"
@@ -154,7 +154,7 @@ export function CadencePresetSelector({
                 {CADENCE_PRESETS.balanced.icon}
                 <span className="font-semibold text-sm text-foreground">Equilibrado</span>
               </div>
-              <Badge variant="outline" className="border-amber-500/40 bg-amber-500/15 text-amber-400 text-[10px] py-0 px-1.5">
+              <Badge variant="outline" className="border-amber-500/40 bg-amber-500/15 text-amber-400 text-[10px] py-0 px-1.5 font-medium">
                 Comercial
               </Badge>
             </div>
@@ -184,7 +184,7 @@ export function CadencePresetSelector({
           type="button"
           onClick={() => onSelectPreset("fast")}
           className={cn(
-            "relative flex flex-col justify-between rounded-xl border p-3.5 text-left transition-all",
+            "relative flex flex-col justify-between h-full rounded-xl border p-3.5 text-left transition-all",
             selectedPreset === "fast"
               ? "border-rose-500/80 bg-rose-500/10 shadow-sm ring-1 ring-rose-500/40"
               : "border-border/70 bg-card/60 hover:border-rose-500/40 hover:bg-card/90"
@@ -196,7 +196,7 @@ export function CadencePresetSelector({
                 {CADENCE_PRESETS.fast.icon}
                 <span className="font-semibold text-sm text-foreground">Turbo / Rápido</span>
               </div>
-              <Badge variant="outline" className="border-rose-500/40 bg-rose-500/15 text-rose-400 text-[10px] py-0 px-1.5">
+              <Badge variant="outline" className="border-rose-500/40 bg-rose-500/15 text-rose-400 text-[10px] py-0 px-1.5 font-medium">
                 Com Risco
               </Badge>
             </div>
@@ -226,7 +226,7 @@ export function CadencePresetSelector({
           type="button"
           onClick={() => onSelectPreset("custom")}
           className={cn(
-            "relative flex flex-col justify-between rounded-xl border p-3.5 text-left transition-all",
+            "relative flex flex-col justify-between h-full rounded-xl border p-3.5 text-left transition-all",
             selectedPreset === "custom"
               ? "border-primary/80 bg-primary/10 shadow-sm ring-1 ring-primary/40"
               : "border-border/70 bg-card/60 hover:border-primary/40 hover:bg-card/90"

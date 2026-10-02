@@ -330,7 +330,7 @@ export function ZaiAssistantComposer({
         variant="ghost"
         size="icon"
         className={cn(
-          "h-11 min-h-11 shrink-0 transition-colors",
+          "h-10 w-10 min-h-10 min-w-10 rounded-full flex items-center justify-center shrink-0 transition-colors",
           open
             ? "text-emerald-400 bg-emerald-500/10 hover:bg-emerald-500/20"
             : "text-muted-foreground hover:text-emerald-400"

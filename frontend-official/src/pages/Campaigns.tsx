@@ -2693,7 +2693,7 @@ listSection={
                           <div className="flex flex-wrap items-center gap-1.5 shrink-0">
                             <Button
                               variant="outline"
-                              className="h-8 rounded-lg px-3 text-xs"
+                              className="h-8 rounded-lg px-3 text-xs font-medium"
                               onClick={() => hydrateComposer(scheduledCampaign, "edit")}
                             >
                               <PencilSimple className="mr-1 h-3.5 w-3.5" />
@@ -2701,14 +2701,14 @@ listSection={
                             </Button>
                             <Button
                               variant="outline"
-                              className="h-8 rounded-lg px-3 text-xs"
+                              className="h-8 rounded-lg px-3 text-xs font-medium"
                               onClick={() => hydrateComposer(scheduledCampaign, "duplicate")}
                             >
                               <Copy className="mr-1 h-3.5 w-3.5" />
                               Duplicar
                             </Button>
                             <Button
-                              className="h-8 rounded-lg px-2.5 text-xs bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm flex items-center"
+                              className="h-8 rounded-lg px-2.5 text-xs font-medium bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs flex items-center"
                               onClick={() => void runCampaignAction(scheduledCampaign.id, "start", { mode: "safe" })}
                               disabled={actionCampaignId === scheduledCampaign.id}
                               title="Disparo com cadência humana anti-ban (recomendado)"
@@ -2718,17 +2718,17 @@ listSection={
                             </Button>
                             <Button
                               variant="outline"
-                              className="h-8 rounded-lg px-2.5 text-xs border-amber-500/40 text-amber-600 hover:bg-amber-500/10 flex items-center"
+                              className="h-8 rounded-lg px-2.5 text-xs font-medium border-amber-500/40 text-amber-500 dark:text-amber-400 hover:bg-amber-500/10 flex items-center"
                               onClick={() => void runCampaignAction(scheduledCampaign.id, "start", { mode: "fast" })}
                               disabled={actionCampaignId === scheduledCampaign.id}
                               title="Disparo turbo acelerado (alto risco de bloqueio)"
                             >
-                              <Lightning weight="fill" className="mr-1 h-3.5 w-3.5 text-amber-500" />
+                              <Lightning weight="fill" className="mr-1 h-3.5 w-3.5 text-amber-500 dark:text-amber-400" />
                               Turbo
                             </Button>
                             <Button
                               variant="outline"
-                              className="h-8 rounded-lg border-destructive/30 px-3 text-xs text-destructive hover:bg-destructive/10"
+                              className="h-8 rounded-lg border-destructive/30 px-3 text-xs font-medium text-destructive hover:bg-destructive/10"
                               onClick={() => void runCampaignAction(scheduledCampaign.id, "delete")}
                               disabled={actionCampaignId === scheduledCampaign.id}
                             >
@@ -2917,12 +2917,12 @@ listSection={
                               </Button>
                               <Button
                                 variant="outline"
-                                className="h-8 rounded-lg px-2.5 text-xs border-amber-500/40 text-amber-600 hover:bg-amber-500/10 flex items-center"
+                                className="h-8 rounded-lg px-2.5 text-xs font-medium border-amber-500/40 text-amber-500 dark:text-amber-400 hover:bg-amber-500/10 flex items-center"
                                 onClick={(event) => { event.stopPropagation(); void runCampaignAction(campaign.id, "start", { mode: "fast" }); }}
                                 disabled={busy}
                                 title="Disparo turbo acelerado (alto risco de bloqueio)"
                               >
-                                <Lightning weight="fill" className="h-3.5 w-3.5 mr-1 text-amber-500" />
+                                <Lightning weight="fill" className="h-3.5 w-3.5 mr-1 text-amber-500 dark:text-amber-400" />
                                 Turbo
                               </Button>
                             </>
@@ -3233,11 +3233,11 @@ listSection={
                     </Button>
                     <Button
                       variant="outline"
-                      className="rounded-xl border-amber-500/40 text-amber-600 hover:bg-amber-500/10 flex items-center"
+                      className="rounded-xl border-amber-500/40 text-amber-500 dark:text-amber-400 hover:bg-amber-500/10 flex items-center font-medium"
                       onClick={() => void runCampaignAction(selectedCampaignPreview.id, "start", { mode: "fast" })}
                       title="Disparo turbo acelerado (alto risco de bloqueio)"
                     >
-                      <Lightning weight="fill" className="mr-1.5 h-4 w-4 text-amber-500" />
+                      <Lightning weight="fill" className="mr-1.5 h-4 w-4 text-amber-500 dark:text-amber-400" />
                       Turbo
                     </Button>
                   </div>

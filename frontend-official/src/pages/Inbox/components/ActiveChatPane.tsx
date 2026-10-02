@@ -475,6 +475,26 @@ export function ActiveChatPane({
     // Add default slash commands
     const defaultCmds = [
       {
+        cmd: "/learn",
+        desc: "🧠 Registrar insight & ensinar a IA",
+        text: "Obrigado pelo feedback! Registrei sua observação e nossa IA está aprendendo para aprimorar as próximas respostas.",
+      },
+      {
+        cmd: "/boost",
+        desc: "⚡ Atendimento Turbo & Conversão Máxima",
+        text: "⚡ Condição Especial Liberada! Aproveite esta oferta exclusiva hoje com prioridade total de atendimento e ativação imediata.",
+      },
+      {
+        cmd: "/goal",
+        desc: "🎯 Meta de Atendimento & Compromisso SLA",
+        text: "🎯 Nosso objetivo é solucionar sua solicitação em até 5 minutos com 100% de satisfação. Como posso agilizar isso para você agora?",
+      },
+      {
+        cmd: "/plan",
+        desc: "📋 Apresentar planos e propostas comerciais",
+        text: "📋 Temos os planos ideais para acelerar sua operação: Starter, Pro e Enterprise, todos com IA 24/7 e multi-atendentes. Gostaria de ver o comparativo?",
+      },
+      {
         cmd: "/catalogo",
         desc: "Link do catálogo oficial",
         text: "Aqui está o link para o nosso catálogo digital: https://zapflow.ai/catalogo",
@@ -1267,9 +1287,10 @@ export function ActiveChatPane({
                   <>
                     {/* Floating Slash Commands Autocomplete */}
                     {slashSuggestions.length > 0 && (
-                      <div className="absolute bottom-full left-0 right-0 z-40 mb-2 max-h-52 overflow-y-auto rounded-lg border border-border bg-popover/95 text-popover-foreground p-1.5 shadow-2xl backdrop-blur scrollbar-thin">
-                        <div className="px-2 py-1 text-[10px] font-semibold text-muted-foreground/60 uppercase tracking-wider border-b border-border/40 mb-1">
-                          Comandos e Respostas Rápidas
+                      <div className="absolute bottom-full left-0 right-0 z-40 mb-2 max-h-56 overflow-y-auto rounded-xl border border-border/80 bg-popover/95 text-popover-foreground p-1.5 shadow-2xl backdrop-blur-md scrollbar-thin">
+                        <div className="px-2.5 py-1 text-[10px] font-bold text-muted-foreground/70 uppercase tracking-wider border-b border-border/40 mb-1 flex items-center justify-between">
+                          <span>Comandos & Atalhos Rápidos</span>
+                          <span className="text-[9px] font-normal lowercase font-mono">Tab ou Enter para inserir</span>
                         </div>
                         {slashSuggestions.map((item, index) => (
                           <button
@@ -1280,17 +1301,17 @@ export function ActiveChatPane({
                               messageInputRef.current?.focus();
                             }}
                             className={cn(
-                              "flex w-full items-center justify-between rounded px-2.5 py-1.5 text-left text-xs transition-colors",
+                              "flex w-full items-center justify-between rounded-lg px-2.5 py-1.5 text-left text-xs transition-colors",
                               index === activeSlashIndex
-                                ? "bg-primary text-primary-foreground font-semibold"
-                                : "hover:bg-muted text-foreground",
+                                ? "bg-primary text-primary-foreground font-semibold shadow-xs"
+                                : "hover:bg-muted/70 text-foreground",
                             )}
                           >
                             <div className="flex items-center gap-2 truncate">
                               <span
                                 className={cn(
-                                  "font-mono font-bold text-[11px]",
-                                  index === activeSlashIndex ? "text-primary-foreground" : "text-primary",
+                                  "font-mono font-bold text-[11px] px-1 py-0.5 rounded",
+                                  index === activeSlashIndex ? "bg-primary-foreground/20 text-primary-foreground" : "bg-primary/10 text-primary",
                                 )}
                               >
                                 {item.cmd}
@@ -1300,7 +1321,7 @@ export function ActiveChatPane({
                             <span
                               className={cn(
                                 "text-[10px] shrink-0 ml-3",
-                                index === activeSlashIndex ? "text-primary-foreground/75" : "text-muted-foreground/60",
+                                index === activeSlashIndex ? "text-primary-foreground/80 font-medium" : "text-muted-foreground/70",
                               )}
                             >
                               {item.desc}
@@ -1439,7 +1460,7 @@ export function ActiveChatPane({
                     ) : (
                       <Button
                         size="icon"
-                        className={cn("rounded-full bg-primary text-primary-foreground", MOBILE_TOUCH_TARGET_CLASS)}
+                        className={cn("rounded-full bg-primary text-primary-foreground shadow-xs hover:scale-105 active:scale-95 transition-all duration-150", MOBILE_TOUCH_TARGET_CLASS)}
                         onClick={() => void handleSendMessage()}
                         disabled={!selectedConversation || !canSendMessages || sending}
                         aria-label="Enviar mensagem"

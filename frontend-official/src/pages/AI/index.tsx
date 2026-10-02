@@ -254,8 +254,8 @@ export default function UnifiedAIPage({ defaultSection }: AIPageProps) {
                 className={cn(
                   "flex items-center gap-2.5 p-3 rounded-xl text-left transition-all",
                   isSelected
-                    ? "bg-card text-foreground shadow-sm ring-1 ring-border font-bold"
-                    : "text-muted-foreground hover:bg-card/50 hover:text-foreground font-medium"
+                    ? "bg-card text-foreground shadow-sm ring-1 ring-emerald-500/40 border border-emerald-500/20 font-bold"
+                    : "text-muted-foreground hover:bg-card/50 hover:text-foreground font-medium border border-transparent"
                 )}
               >
                 <div
@@ -282,7 +282,7 @@ export default function UnifiedAIPage({ defaultSection }: AIPageProps) {
         </nav>
 
         {/* ACTIVE TAB CONTENT */}
-        <main className="w-full min-h-[500px] animate-fade-in">
+        <main className="w-full min-h-[500px] animate-fade-in transition-all duration-200">
           {activeTab === "agent" && (
             <AgentTab onOpenVoiceStudio={() => setIsVoiceStudioOpen(true)} />
           )}
