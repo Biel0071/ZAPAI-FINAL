@@ -648,8 +648,10 @@ async function getGraphSnapshot(agentKey, companyId = 'default', limit = 50, ses
   const cleanCompany = String(companyId || 'default').trim();
   const normalizedAgent = normalizeKey(agentKey, 'agent');
 
-  // Assegura bootstrapping inicial de mensagens
-  await bootstrapAgentMemoryGraph({ agentKey: normalizedAgent, companyId: cleanCompany }).catch(() => {});
+  // Assegura bootstrapping inicial em background sem travar requisições de snapshot
+  setImmediate(() => {
+    bootstrapAgentMemoryGraph({ agentKey: normalizedAgent, companyId: cleanCompany }).catch(() => {});
+  });
 
   const sessionFilter = sessionId ? "AND (properties->>'sessionId' = $4 OR properties->>'sessionId' IS NULL OR node_type = 'agent')" : "";
   const params = sessionId ? [cleanCompany, normalizedAgent, limit, sessionId] : [cleanCompany, normalizedAgent, limit];
