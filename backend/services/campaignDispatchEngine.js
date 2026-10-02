@@ -397,19 +397,6 @@ async function dispatchSingleMessage(state, contact, io) {
 
     const dynamicTypingMs = getCampaignTypingDelay(state, campaignMessage.content);
     await interruptibleSleep(dynamicTypingMs, state);
-
-    if (isMediaCampaignMessage(campaignMessage)) {
-      const mediaType = normalizeCampaignMediaType(campaignMessage.type);
-      const mediaPath = campaignMessage.mediaPath || campaignMessage.content;
-      if (!mediaPath) {
-        throw new Error('Campaign media message is missing mediaPath/mediaUrl/content.');
-      }
-      await whatsappService.sendMediaMessage(session.sock, phone, mediaType, mediaPath, {
-        caption: campaignMessage.caption || campaignMessage.text || campaignMessage.content || '',
-        fileName: campaignMessage.fileName || campaignMessage.filename,
-        mimetype: campaignMessage.mimetype,
-        ptt: campaignMessage.ptt === true,
-      });
     let sendResult;
     if (isMediaCampaignMessage(campaignMessage)) {
       const mediaType = normalizeCampaignMediaType(campaignMessage.type);
