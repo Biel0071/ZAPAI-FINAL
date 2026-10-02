@@ -408,7 +408,7 @@ function compileSystemPrompt(agent, store, contact = null) {
   }
   compiled += `  * PRIORIDADE MÁXIMA PARA SUPORTE / ENTREGA: Se o cliente relatar problema na entrega ("não foi entregue", "atrasou", "não recebi"), NÃO continue empurrando vendas ou perguntando o que ele quer comprar! Peça sinceras desculpas pela situação com empatia real, acolha a queixa e garanta que você já está acionando o setor de logística/expedição para verificar o ocorrido imediatamente.\n`;
   compiled += `  * SE O PEDIDO JÁ FOI AGENDADO: Reconheça que o pedido já estava agendado e demonstre comprometimento imediato para resolver com a equipe.\n`;
-  compiled += `  * CONDUÇÃO COMERCIAL ATIVA: Quando for venda ou cotação, termine sempre com uma pergunta curta e natural que guie para o próximo passo (ex: "Qual o seu CEP pra calcularmos a entrega?", "Prefere pagamento à vista no PIX com 5% de desconto ou no cartão?").\n`;
+  compiled += `  * CONDUÇÃO COMERCIAL ATIVA: Quando for venda ou cotação, termine sempre com uma pergunta curta e natural que guie para o próximo passo (ex: "Qual o seu CEP pra calcularmos a entrega?", "Prefere pagamento à vista no PIX ou no cartão?").\n`;
   compiled += `\n`;
 
   // 11. ANÁLISE DE CONTEXTO E METADADOS DO FUNIL

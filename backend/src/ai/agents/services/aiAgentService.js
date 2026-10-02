@@ -62,7 +62,7 @@ function normalizeAgent(agent = {}) {
     serviceType: String(agent.serviceType || '').slice(0,200),
     name: String(agent.name || key).trim(),
     role: String(agent.role || agent.function || agent.sector || 'Vendas').trim(),
-    status: String(agent.status || (agent.active !== false ? 'active' : 'paused')).trim(),
+    status: agent.active === false ? 'paused' : String(agent.status || 'active').trim() || 'active',
     personality: String(agent.personality || agent.prompt || 'Atendente da loja.').trim(),
     personalityType: String(agent.personalityType || agent.tone || 'comercial').trim(),
     personalityTraits: typeof agent.personalityTraits === 'object' && agent.personalityTraits !== null
@@ -238,27 +238,29 @@ async function hydrateFromSettings(tenantId = DEFAULT_TENANT_ID) {
 
     const normalizedAgents = Array.isArray(parsed) ? parsed.map((agent) => normalizeAgent(agent)) : [];
     
-    // Ensure native ZAIBOT (System Assistant) and Camila (Sales Store Attendant) are always available
-    const hasZaibot = normalizedAgents.some((a) => (a.key || '').toLowerCase() === 'zaibot');
-    if (!hasZaibot) {
-      try {
-        const zaibotObj = require('../agents/zaibotAgent');
-        if (zaibotObj) {
-          normalizedAgents.unshift(normalizeAgent(zaibotObj));
-          shouldPersist = true;
-        }
-      } catch (_) {}
-    }
+    // Ensure native ZAIBOT (System Assistant) and Camila (Sales Store Attendant) are always available for default tenant
+    if (normalizedTenantId === DEFAULT_TENANT_ID) {
+      const hasZaibot = normalizedAgents.some((a) => (a.key || '').toLowerCase() === 'zaibot');
+      if (!hasZaibot) {
+        try {
+          const zaibotObj = require('../agents/zaibotAgent');
+          if (zaibotObj) {
+            normalizedAgents.unshift(normalizeAgent(zaibotObj));
+            shouldPersist = true;
+          }
+        } catch (_) {}
+      }
 
-    const hasCamila = normalizedAgents.some((a) => (a.key || '').toLowerCase() === 'camila');
-    if (!hasCamila) {
-      try {
-        const camilaObj = require('../agents/camilaAgent');
-        if (camilaObj) {
-          normalizedAgents.push(normalizeAgent(camilaObj));
-          shouldPersist = true;
-        }
-      } catch (_) {}
+      const hasCamila = normalizedAgents.some((a) => (a.key || '').toLowerCase() === 'camila');
+      if (!hasCamila) {
+        try {
+          const camilaObj = require('../agents/camilaAgent');
+          if (camilaObj) {
+            normalizedAgents.push(normalizeAgent(camilaObj));
+            shouldPersist = true;
+          }
+        } catch (_) {}
+      }
     }
 
     agentsByTenant.set(normalizedTenantId, normalizedAgents);
@@ -313,7 +315,10 @@ async function updateAgent(agentKey,payload={},tenantId) {
     all[index]=next;return next;
   },'configuration');
 }
-async function setAgentActive(agentKey,active,tenantId){return updateAgent(agentKey,{active:Boolean(active)},tenantId);}
+async function setAgentActive(agentKey,active,tenantId){
+  const isActive = Boolean(active);
+  return updateAgent(agentKey,{active:isActive, status: isActive ? 'active' : 'paused'},tenantId);
+}
 async function deleteAgent(agentKey,tenantId){return mutateAgents(tenantId,all=>{const i=all.findIndex(a=>a.key===agentKey);if(i<0)throw new Error('Atendente não encontrado.');return all.splice(i,1)[0];},'deleted');}
 async function cloneAgent(agentKey,tenantId){
   return mutateAgents(tenantId,all=>{const original=all.find(a=>a.key===agentKey);if(!original)throw new Error('Atendente não encontrado.');const next=normalizeAgent({...original,key:require('crypto').randomUUID(),name:original.name+' (Cópia)',active:false});all.push(next);return next;},'configuration');
