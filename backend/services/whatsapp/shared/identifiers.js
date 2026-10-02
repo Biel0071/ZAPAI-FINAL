@@ -185,6 +185,15 @@ function normalizeWhatsappJid(phone = '') {
     throw new Error('JID inválido: o número de telefone está vazio ou contém caracteres inválidos');
   }
 
+  // If this is a 14+ digit LID (not a 55 Brazilian country code phone)
+  if (clean.length >= 14 && !clean.startsWith('55')) {
+    if (global.lidToPhoneMap && global.lidToPhoneMap.has(clean)) {
+      const mapped = global.lidToPhoneMap.get(clean);
+      return `${mapped.replace(/\D/g, '')}@s.whatsapp.net`;
+    }
+    return `${clean}@lid`;
+  }
+
   if ((clean.length === 10 || clean.length === 11) && !clean.startsWith('55')) {
     clean = `55${clean}`;
   }

@@ -107,15 +107,23 @@ function createCampaignState(campaign) {
 
   const initialPauseThreshold = Math.floor(Math.random() * (pauseEveryMax - pauseEveryMin + 1)) + pauseEveryMin;
 
+  const queueData = campaign.queue || {};
+  const sentContactIds = Array.isArray(queueData.sentContactIds) ? queueData.sentContactIds : [];
+  const sentSet = new Set(sentContactIds.map(String));
+  const pendingQueue = contacts.filter((c) => {
+    const key = String(c?.id || c?.phone || c?.remoteJid || c);
+    return !sentSet.has(key);
+  });
+
   return {
     id: campaign.id,
     name: campaign.name || 'Unnamed',
     status: 'queued',
-    pendingQueue: [...contacts],
-    sentQueue: [],
+    pendingQueue,
+    sentQueue: sentContactIds.map((id) => ({ contact: { id }, at: new Date().toISOString() })),
     failedQueue: [],
     retryQueue: [],
-    currentIndex: 0,
+    currentIndex: sentContactIds.length,
     dispatchTimer: null,
     processing: false,
     nextPauseThreshold: initialPauseThreshold,
@@ -146,11 +154,11 @@ function createCampaignState(campaign) {
     },
     metrics: {
       total: contacts.length,
-      sent: 0,
-      failed: 0,
+      sent: Number(queueData.sent) || sentContactIds.length,
+      failed: Number(queueData.failed) || 0,
       retried: 0,
-      startedAt: null,
-      completedAt: null,
+      startedAt: campaign.startedAt || null,
+      completedAt: campaign.completedAt || null,
       avgDeliveryMs: 0,
       totalDeliveryMs: 0,
     },
@@ -255,6 +263,54 @@ function normalizeCampaignMediaType(type) {
 
 function isMediaCampaignMessage(message) {
   return Boolean(normalizeCampaignMediaType(message?.type));
+}
+
+async function resolveContactDestination(contact, state) {
+  let phone = contact?.phone || contact?.number || contact?.remoteJid || String(contact || '');
+  if (!phone) return null;
+
+  // 1. If it's already a valid Brazilian phone (e.g. 55319...)
+  const cleanDigits = String(phone).replace(/\D/g, '');
+  if (cleanDigits.startsWith('55') && cleanDigits.length >= 12 && cleanDigits.length <= 13) {
+    return `${cleanDigits}@s.whatsapp.net`;
+  }
+
+  // 2. If it's an LID or raw digits, check if the lead or conversation in DB has real phone
+  if (contact?.conversationId) {
+    try {
+      const { query } = require('../src/infrastructure/config/database');
+      const convRes = await query(
+        `SELECT l.phone, c.remote_jid 
+         FROM conversations c 
+         LEFT JOIN leads l ON l.id = c.lead_id 
+         WHERE c.id = $1 LIMIT 1`,
+        [contact.conversationId]
+      );
+      const leadPhone = String(convRes.rows[0]?.phone || '').replace(/\D/g, '');
+      if (leadPhone.startsWith('55') && leadPhone.length >= 12 && leadPhone.length <= 13) {
+        return `${leadPhone}@s.whatsapp.net`;
+      }
+    } catch (_) {}
+  }
+
+  // 3. Check whatsapp_lid_mappings table via lidMapper
+  try {
+    const lidMapper = require('./whatsapp/shared/lidMapper');
+    const mappedPhone = await lidMapper.getPhoneForLid(cleanDigits);
+    if (mappedPhone) {
+      const cleanMapped = String(mappedPhone).replace(/\D/g, '');
+      if (cleanMapped.startsWith('55')) {
+        return `${cleanMapped}@s.whatsapp.net`;
+      }
+    }
+  } catch (_) {}
+
+  // 4. Fallback to format with ensureWhatsAppJid
+  try {
+    return whatsappService.ensureWhatsAppJid(phone);
+  } catch (_) {
+    return phone;
+  }
 }
 
 async function dispatchSingleMessage(state, contact, io) {
@@ -390,7 +446,9 @@ async function dispatchSingleMessage(state, contact, io) {
       }
     }
 
-    const jid = whatsappService.ensureWhatsAppJid(phone);
+    const resolvedDestination = await resolveContactDestination(contact, state);
+    const jid = resolvedDestination || whatsappService.ensureWhatsAppJid(phone);
+    const targetPhone = jid.endsWith('@s.whatsapp.net') ? jid.split('@')[0] : phone;
 
     await session.sock.presenceSubscribe(jid).catch(() => {});
     await session.sock.sendPresenceUpdate('composing', jid).catch(() => {});
@@ -404,25 +462,31 @@ async function dispatchSingleMessage(state, contact, io) {
       if (!mediaPath) {
         throw new Error('Campaign media message is missing mediaPath/mediaUrl/content.');
       }
-      sendResult = await whatsappService.sendMediaMessage(session.sock, phone, mediaType, mediaPath, {
+      sendResult = await whatsappService.sendMediaMessage(session.sock, jid, mediaType, mediaPath, {
         caption: campaignMessage.caption || campaignMessage.text || campaignMessage.content || '',
         fileName: campaignMessage.fileName || campaignMessage.filename,
         mimetype: campaignMessage.mimetype,
         ptt: campaignMessage.ptt === true,
       });
     } else {
-      sendResult = await whatsappService.sendMessage(session.sock, phone, campaignMessage.content);
+      sendResult = await whatsappService.sendMessage(session.sock, jid, campaignMessage.content);
     }
 
     // Persist outgoing campaign message to database and update conversation
     try {
       const messageRepository = require('../src/data/repositories/messageRepository');
-      let conversation = await conversationRepository.getConversationByPhone(phone, state.companyId);
+      let conversation = null;
+      if (contact?.conversationId) {
+        conversation = await conversationRepository.getConversationById(contact.conversationId, state.companyId).catch(() => null);
+      }
+      if (!conversation) {
+        conversation = await conversationRepository.getConversationByPhone(targetPhone, state.companyId).catch(() => null);
+      }
       if (!conversation) {
         conversation = await conversationRepository.createConversation({
-          phone,
+          phone: targetPhone,
           companyId: state.companyId,
-          sessionId,
+          sessionId: state.sessionId || 'main',
           remoteJid: jid,
           aiEnabled: true,
           funnelStage: 'Lead_Quente',
@@ -437,7 +501,7 @@ async function dispatchSingleMessage(state, contact, io) {
         const msgType = campaignMessage.type || 'text';
         const savedMessage = await messageRepository.createMessage({
           conversationId: conversation.id,
-          phone,
+          phone: targetPhone,
           text: textContent,
           content: textContent,
           direction: 'outgoing',
@@ -447,7 +511,7 @@ async function dispatchSingleMessage(state, contact, io) {
           fromMe: true,
           whatsappMessageId: sendResult?.key?.id,
           remoteJid: jid,
-          sessionId,
+          sessionId: state.sessionId || 'main',
           companyId: state.companyId,
         });
 
@@ -470,22 +534,34 @@ async function dispatchSingleMessage(state, contact, io) {
           tags: currentTags,
         });
 
-        const io = state.io || global.io;
-        if (io) {
-          io.emit('conversation_updated', {
+        const ioInstance = state.io || io || global.io;
+        if (ioInstance) {
+          ioInstance.emit('conversation_updated', {
             ...conversation,
             last_message: textContent,
             ai_enabled: true,
             tags: currentTags,
           });
           if (savedMessage) {
-            io.emit('message:received', savedMessage);
+            ioInstance.emit('message:received', savedMessage);
           }
         }
       }
     } catch (persistErr) {
       console.warn('[CampaignEngine] Failed to persist outbound campaign message:', persistErr.message);
     }
+
+    const deliveryMs = Date.now() - startTime;
+    state.sentQueue.push({
+      contact,
+      phone: targetPhone,
+      resolvedJid: jid,
+      deliveryMs,
+      at: new Date().toISOString(),
+    });
+    state.metrics.sent += 1;
+    state.metrics.totalDeliveryMs += deliveryMs;
+    state.metrics.avgDeliveryMs = Math.round(state.metrics.totalDeliveryMs / state.metrics.sent);
 
     return { success: true, deliveryMs };
   } catch (err) {
@@ -526,6 +602,9 @@ function emitProgress(state, io) {
 
 async function persistProgress(state) {
   try {
+    const sentContactIds = Array.isArray(state.sentQueue)
+      ? state.sentQueue.map(c => String(c.contact?.id || c.contact?.phone || c.contact?.remoteJid || c.phone || ''))
+      : [];
     await campaignRepository.updateCampaign(state.id, {
       status: state.status,
       queue: {
@@ -534,6 +613,7 @@ async function persistProgress(state) {
         sent: state.metrics.sent,
         failed: state.metrics.failed,
         paused: state.status === 'paused',
+        sentContactIds,
       },
       startedAt: state.metrics.startedAt,
       completedAt: state.metrics.completedAt,
@@ -722,7 +802,9 @@ function listActive(companyId) {
 
 function stopAll() {
   for (const [id, state] of activeCampaigns) {
-    state.status = 'cancelled';
+    if (state.status === 'running') {
+      state.status = 'paused';
+    }
     persistProgress(state).catch(() => {});
   }
   activeCampaigns.clear();
