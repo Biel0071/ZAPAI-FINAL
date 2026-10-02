@@ -37,7 +37,7 @@ router.post('/campaigns/:id/start', async (req, res) => {
     const { mode } = req.body || {};
 
     if (mode) {
-      const campaignRepository = require('../../../data/repositories/campaignRepository');
+      const campaignRepository = require('../../data/repositories/campaignRepository');
       const campaign = await campaignRepository.getCampaignById(req.params.id, companyId);
       if (campaign) {
         let updatedSettings = { ...(campaign.settings || {}) };
