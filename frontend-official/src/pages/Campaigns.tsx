@@ -472,11 +472,16 @@ export default function Campaigns() {
       setAiAgents(loadedAgents);
       setSelectedAiAgentKey((current) => current || String(loadedAgents.find((agent) => agent.active !== false)?.key || loadedAgents[0]?.key || ""));
 
+      setMaturationLoading(true);
       apiService.getCampaignMaturationStats()
-        .then((res) => {
-          if (res?.data) setMaturationStats(res.data as CampaignMaturationData);
+        .then((res: any) => {
+          const stats = res?.data || res;
+          if (stats && (stats.sessionId || stats.stage)) {
+            setMaturationStats(stats as CampaignMaturationData);
+          }
         })
-        .catch(() => {});
+        .catch(() => {})
+        .finally(() => setMaturationLoading(false));
 
       const conversationsByPhone = new Map<string, Conversation>();
       (Array.isArray(conversationsData) ? conversationsData : []).forEach((conversation) => {
