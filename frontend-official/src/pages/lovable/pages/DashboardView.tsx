@@ -352,10 +352,10 @@ export function DashboardView({
     <div className="space-y-6">
       {/* Top Filter Bar & Tabs */}
       <div className="flex flex-col gap-4 border-b border-border/30 pb-4 xl:flex-row xl:items-center xl:justify-between">
-        <Tabs value={activeTab} onValueChange={(value) => onTabChange(value as any)}>
-          <TabsList className="w-full justify-start overflow-x-auto rounded-xl border border-border/70 bg-card/70 p-1 xl:w-auto">
+        <Tabs value={activeTab} onValueChange={(value) => onTabChange(value as any)} className="w-full xl:w-auto">
+          <TabsList className="flex w-full flex-nowrap justify-start gap-1 overflow-x-auto rounded-xl border border-border/70 bg-card/70 p-1 scrollbar-none xl:w-auto">
             {viewModel.tabs.map((tab) => (
-              <TabsTrigger key={tab.id} value={tab.id} className="text-xs font-semibold">
+              <TabsTrigger key={tab.id} value={tab.id} className="shrink-0 whitespace-nowrap px-3 py-1.5 text-xs font-semibold">
                 {tab.label}
               </TabsTrigger>
             ))}
