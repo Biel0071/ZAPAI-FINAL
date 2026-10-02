@@ -981,7 +981,9 @@ async function getAgentEvolution(req, res) {
       agentMemoryGraphService.bootstrapAgentMemoryGraph({ agentKey: key, agentName: key, companyId }).catch(() => {});
     });
 
-    const [history, stats, appliedEvents, graphSnapshot] = await Promise.all([
+    const humanAttendanceLearner = require('../../ai/evolutionary/humanAttendanceLearner');
+
+    const [history, stats, appliedEvents, graphSnapshot, qualifiedRes, humanLearnerStats] = await Promise.all([
       agentLearningRepo.getEvolutionHistory(key, companyId, 30),
       agentLearningRepo.getEventStats(key, companyId),
       agentLearningRepo.getRecentAppliedEvents(key, companyId, 12),
@@ -990,6 +992,8 @@ async function getAgentEvolution(req, res) {
         edges: [],
         stats: { episodes: 0, concepts: 0, contacts: 0 },
       })),
+      dbQuery(`SELECT COUNT(*)::int AS count FROM conversations conv WHERE conv.company_id = $1`, [companyId]).catch(() => ({ rows: [{ count: 0 }] })),
+      humanAttendanceLearner.calculateAgentLevel({ companyId, agentKey: key }).catch(() => null),
     ]);
 
     const fieldCounts = new Map();
@@ -1010,22 +1014,8 @@ async function getAgentEvolution(req, res) {
     const appliedCount = Number(stats.applied || 0);
     const pendingCount = Number(stats.pending || 0);
     const learnedConcepts = Number(graphSnapshot.stats?.concepts || 0);
-
-    // Query conversations count fast with company index
-    const qualifiedRes = await dbQuery(`
-      SELECT COUNT(*)::int AS count 
-      FROM conversations conv
-      WHERE conv.company_id = $1
-    `, [companyId]).catch(() => ({ rows: [{ count: 0 }] }));
-
-    const dbQualifiedCount = Number(qualifiedRes.rows[0]?.count || 0);
+    const dbQualifiedCount = Number(qualifiedRes?.rows[0]?.count || 0);
     const episodeCount = Number(graphSnapshot.stats?.episodes || 0);
-
-    let humanLearnerStats = null;
-    try {
-      const humanAttendanceLearner = require('../../ai/evolutionary/humanAttendanceLearner');
-      humanLearnerStats = await humanAttendanceLearner.calculateAgentLevel({ companyId, agentKey: key });
-    } catch (_) {}
 
     const humanVolumeQualified = Math.round((humanLearnerStats?.totalHumanMessages || 0) / 25);
     const qualifiedConversations = Math.max(dbQualifiedCount, episodeCount, humanVolumeQualified);

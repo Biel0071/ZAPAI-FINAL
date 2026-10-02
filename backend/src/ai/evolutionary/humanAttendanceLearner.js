@@ -268,21 +268,18 @@ class HumanAttendanceLearner {
     const cleanCompany = String(companyId || 'default');
 
     try {
-      // 1. Total human messages in system (cached 10m to avoid repeating heavy scans)
-      let totalHumanMessages = 18722;
-      if (global._cachedHumanMsgsTotal && (Date.now() - global._cachedHumanMsgsTime < 10 * 60 * 1000)) {
-        totalHumanMessages = global._cachedHumanMsgsTotal;
-      } else {
-        try {
-          const humanMsgsRes = await this.pool.query(
-            `SELECT COUNT(*) AS total FROM messages WHERE from_me = TRUE AND (sender = 'agent' OR sender IS NULL)`
-          );
-          totalHumanMessages = parseInt(humanMsgsRes.rows[0]?.total || 18722, 10);
-          global._cachedHumanMsgsTotal = totalHumanMessages;
-          global._cachedHumanMsgsTime = Date.now();
-        } catch (_) {
-          totalHumanMessages = global._cachedHumanMsgsTotal || 18722;
-        }
+      // 1. Total human messages in system (non-blocking background refresh, defaults to verified baseline)
+      let totalHumanMessages = global._cachedHumanMsgsTotal || 18722;
+      if (!global._cachedHumanMsgsTime || (Date.now() - global._cachedHumanMsgsTime > 15 * 60 * 1000)) {
+        global._cachedHumanMsgsTime = Date.now();
+        setImmediate(async () => {
+          try {
+            const humanMsgsRes = await this.pool.query(
+              `SELECT COUNT(*) AS total FROM messages WHERE from_me = TRUE AND (sender = 'agent' OR sender IS NULL)`
+            );
+            global._cachedHumanMsgsTotal = parseInt(humanMsgsRes.rows[0]?.total || 18722, 10);
+          } catch (_) {}
+        });
       }
 
       // 2. Total golden experience events
