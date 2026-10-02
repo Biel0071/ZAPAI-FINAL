@@ -636,8 +636,9 @@ async function runDispatchLoop(state, io) {
 
       const result = await dispatchSingleMessage(state, contact, io);
 
-      // Emit progress after each message
+      // Emit and persist progress after each message
       emitProgress(state, io);
+      await persistProgress(state);
 
       // Retry on backpressure
       if (result?.retry) {
@@ -665,11 +666,6 @@ async function runDispatchLoop(state, io) {
       if (state.pendingQueue.length > 0 && state.status === 'running') {
         const delay = getRandomDelay(state);
         await interruptibleSleep(delay, state);
-      }
-
-      // Persist progress every 5 messages or when completed
-      if (state.metrics.sent % 5 === 0 || state.pendingQueue.length === 0) {
-        await persistProgress(state);
       }
     }
 
