@@ -307,7 +307,9 @@ async function updateAgent(agentKey,payload={},tenantId) {
   return mutateAgents(tenantId,async (all,client)=>{
     const index=all.findIndex(a=>a.key===agentKey);if(index<0)throw new Error('Atendente não encontrado.');
     const next=normalizeAgent({...all[index],...payload,key:agentKey});
-    await validateSessions(tenantId,next.sessionIds,client);
+    if (payload.sessionIds !== undefined) {
+      await validateSessions(tenantId,next.sessionIds,client);
+    }
     all[index]=next;return next;
   },'configuration');
 }

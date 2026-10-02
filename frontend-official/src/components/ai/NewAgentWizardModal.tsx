@@ -34,6 +34,7 @@ import {
   Check,
 } from "lucide-react";
 import { useToast } from "@/state/hooks/use-toast";
+import { useAppStore } from "@/state/stores/appStore";
 import { apiService } from "@/core/services/apiService";
 import { cn } from "@/core/lib/utils";
 
@@ -233,11 +234,18 @@ export function NewAgentWizardModal({
       .replace(/-+/g, "-")
       .replace(/^-|-$/g, "");
 
+    const storeSessions = useAppStore.getState().sessions || [];
+    const validSessionIds = storeSessions
+      .map((s: any) => s.id || s.sessionId || s.session_id)
+      .filter(Boolean);
+    const assignedSessions = validSessionIds.length > 0 ? validSessionIds : ["main"];
+
     const newAgentPayload = {
       key: agentKey || `agent-${Date.now()}`,
       name: name.trim(),
       role: selectedRole,
       sector: selectedRole,
+      sessionIds: assignedSessions,
       active: true,
       status: "active",
       personalityType: personality,
