@@ -1940,6 +1940,17 @@ async function bootstrap() {
       }, 60000); // every minute
       workerSupervisor.startWorker('ai_reactivation');
 
+      // Continuous evolutionary learning from human attendance
+      workerSupervisor.registerWorker('human_attendance_learner', async () => {
+        try {
+          const { runHumanAttendanceLearningCycle } = require('./src/infrastructure/workers/humanAttendanceWorker');
+          await runHumanAttendanceLearningCycle();
+        } catch (err) {
+          console.error('[SERVER] Human attendance worker error:', err?.message || err);
+        }
+      }, 15 * 60 * 1000); // every 15 minutes
+      workerSupervisor.startWorker('human_attendance_learner');
+
       // Phase 9: Campaign Scheduler and AI Evolution
       campaignScheduler.startCampaignScheduler(io);
       agentEvolutionCron.startEvolutionScan();
