@@ -88,13 +88,17 @@ class CustomerMemoryEngine {
         }
       }
 
+      const safeConvId = (conversationId && !isNaN(conversationId) && Number(conversationId) <= 2147483647 && Number(conversationId) > 0)
+        ? Number(conversationId)
+        : -1;
+
       // 3. Query conversations table
       const convRes = await this.pool.query(
         `SELECT *
          FROM conversations
          WHERE company_id = $1 AND (session_id = $2 OR remote_jid ILIKE $3 OR id = $4)
          ORDER BY updated_at DESC LIMIT 1`,
-        [cleanCompany, cleanPhone, `%${cleanPhone}%`, Number(conversationId) || -1]
+        [cleanCompany, cleanPhone, `%${cleanPhone}%`, safeConvId]
       );
 
       if (convRes.rows.length > 0) {
