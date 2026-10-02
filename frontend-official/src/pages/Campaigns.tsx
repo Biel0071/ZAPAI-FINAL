@@ -30,6 +30,9 @@ import {
   Timer,
   ShuffleAngular,
   Warning,
+  ShieldCheck,
+  Lightning,
+  Gauge,
 } from "@phosphor-icons/react";
 import { Header } from "@/components/layout/Header";
 import { CampaignsView, type CampaignsTab } from "@/pages/lovable/pages/CampaignsView";
@@ -39,6 +42,8 @@ import { AIAssistantAvatar } from '@/components/brand/AIAssistantAvatar';
 import { ConversionHeatmap } from "@/components/campaigns/ConversionHeatmap";
 import { Stepper } from "@/components/campaigns/Stepper";
 import { LeadKnowledgeGraph } from "@/components/contacts/LeadKnowledgeGraph";
+import { CadencePresetSelector, type CadencePresetType } from "@/components/campaigns/CadencePresetSelector";
+import { ChipMaturationCard, type CampaignMaturationData } from "@/components/campaigns/ChipMaturationCard";
 import {
   Pagination,
   PaginationContent,
@@ -401,6 +406,37 @@ export default function Campaigns() {
   const [analysisLoading, setAnalysisLoading] = useState(false);
   const [graphLead, setGraphLead] = useState<{ id: string; name: string } | null>(null);
 
+  // Cadência humanizada anti-ban e Maturação do Chip
+  const [selectedCadencePreset, setSelectedCadencePreset] = useState<CadencePresetType>("safe");
+  const [maturationStats, setMaturationStats] = useState<CampaignMaturationData | null>(null);
+  const [maturationLoading, setMaturationLoading] = useState(false);
+
+  const handleSelectCadencePreset = useCallback((preset: CadencePresetType) => {
+    setSelectedCadencePreset(preset);
+    if (preset === "safe") {
+      setIntervalSeconds([115]);
+      setTypingDelay([8]);
+      setPauseEvery("7");
+      setPauseSeconds("180");
+      setWarmupMessages("5");
+      setWarmupDelayMultiplier("1.5");
+    } else if (preset === "balanced") {
+      setIntervalSeconds([45]);
+      setTypingDelay([5]);
+      setPauseEvery("15");
+      setPauseSeconds("60");
+      setWarmupMessages("3");
+      setWarmupDelayMultiplier("1.5");
+    } else if (preset === "fast") {
+      setIntervalSeconds([15]);
+      setTypingDelay([2]);
+      setPauseEvery("30");
+      setPauseSeconds("30");
+      setWarmupMessages("0");
+      setWarmupDelayMultiplier("1");
+    }
+  }, []);
+
   // Abas (Novo Disparo | Histórico | Análise IA) + paginação/filtros do histórico
   const [campaignsTab, setCampaignsTab] = useState<CampaignsTab>("compose");
   const [creationMode, setCreationMode] = useState<CreationMode>("ai");
@@ -435,6 +471,12 @@ export default function Campaigns() {
       const loadedAgents = Array.isArray(agentsData?.agents) ? agentsData.agents : [];
       setAiAgents(loadedAgents);
       setSelectedAiAgentKey((current) => current || String(loadedAgents.find((agent) => agent.active !== false)?.key || loadedAgents[0]?.key || ""));
+
+      apiService.getCampaignMaturationStats()
+        .then((res) => {
+          if (res?.data) setMaturationStats(res.data as CampaignMaturationData);
+        })
+        .catch(() => {});
 
       const conversationsByPhone = new Map<string, Conversation>();
       (Array.isArray(conversationsData) ? conversationsData : []).forEach((conversation) => {
@@ -1185,7 +1227,11 @@ export default function Campaigns() {
   );
 
   const runCampaignAction = useCallback(
-    async (campaignId: string, action: Exclude<CampaignAction, "save" | "launch" | "refresh" | null>) => {
+    async (
+      campaignId: string,
+      action: Exclude<CampaignAction, "save" | "launch" | "refresh" | null>,
+      options?: { mode?: 'safe' | 'balanced' | 'fast' }
+    ) => {
       const targetCampaign = campaigns.find((campaign) => campaign.id === campaignId);
       if (!targetCampaign) return;
 
@@ -1194,13 +1240,19 @@ export default function Campaigns() {
       try {
         if (action === "start") {
           try {
-            await apiService.startCampaignDispatch(campaignId);
+            await apiService.startCampaignDispatch(campaignId, options);
           } catch (error) {
             if (!(error instanceof Error) || !error.message.toLowerCase().includes("already running")) throw error;
           }
           setTrackedDispatchIds((current) => Array.from(new Set([...current, campaignId])));
           await refreshCampaignDispatchStatus(campaignId);
-          notify.success("Campanha iniciada. Progresso em atualizacao...");
+          notify.success(
+            options?.mode === 'safe'
+              ? "Campanha iniciada no Modo Seguro (Padrão Humano Anti-Ban)."
+              : options?.mode === 'fast'
+              ? "Campanha iniciada no Modo Turbo."
+              : "Campanha iniciada. Progresso em atualizacao..."
+          );
         }
 
         if (action === "pause") {
@@ -2220,8 +2272,15 @@ export default function Campaigns() {
                   )}
 
                   {campaignStep === 3 && (
-                    <div className="grid items-start gap-6 md:grid-cols-2">
-                      <Card className="rounded-2xl border-border/70 bg-background/30">
+                    <div className="space-y-6">
+                      <CadencePresetSelector
+                        selectedPreset={selectedCadencePreset}
+                        onSelectPreset={handleSelectCadencePreset}
+                        recipientCount={selectedContactIds.length || 60}
+                      />
+
+                      <div className="grid items-start gap-6 md:grid-cols-2">
+                        <Card className="rounded-2xl border-border/70 bg-background/30">
                         <CardContent className="space-y-4 p-4">
                           <div className="flex items-center justify-between">
                             <div>
@@ -2346,6 +2405,7 @@ export default function Campaigns() {
                           </div>
                         </CardContent>
                       </Card>
+                    </div>
                     </div>
                   )}
 
@@ -2587,6 +2647,15 @@ export default function Campaigns() {
           }
 listSection={
               <>
+                {/* ─── Card de Maturação e Metas do Chip ─── */}
+                <div className="mb-6">
+                  <ChipMaturationCard
+                    data={maturationStats}
+                    loading={maturationLoading}
+                    onSelectRecommendedSpeed={(speed) => handleSelectCadencePreset(speed)}
+                  />
+                </div>
+
                 {/* ─── Painel de Agendamentos ─── */}
                 {campaigns.some((c) => c.status === "scheduled") && (
                   <div className="mb-4 rounded-2xl border border-info/30 bg-info/5 p-4">
@@ -2634,12 +2703,23 @@ listSection={
                               Duplicar
                             </Button>
                             <Button
-                              className="h-8 rounded-lg px-3 text-xs bg-info text-white hover:bg-info/80"
-                              onClick={() => void runCampaignAction(scheduledCampaign.id, "start")}
+                              className="h-8 rounded-lg px-2.5 text-xs bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm flex items-center"
+                              onClick={() => void runCampaignAction(scheduledCampaign.id, "start", { mode: "safe" })}
                               disabled={actionCampaignId === scheduledCampaign.id}
+                              title="Disparo com cadência humana anti-ban (recomendado)"
                             >
-                              <Play className="mr-1 h-3.5 w-3.5" />
-                              Ativar Agora
+                              <ShieldCheck weight="fill" className="mr-1 h-3.5 w-3.5 text-emerald-200" />
+                              Iniciar Sem Risco
+                            </Button>
+                            <Button
+                              variant="outline"
+                              className="h-8 rounded-lg px-2.5 text-xs border-amber-500/40 text-amber-600 hover:bg-amber-500/10 flex items-center"
+                              onClick={() => void runCampaignAction(scheduledCampaign.id, "start", { mode: "fast" })}
+                              disabled={actionCampaignId === scheduledCampaign.id}
+                              title="Disparo turbo acelerado (alto risco de bloqueio)"
+                            >
+                              <Lightning weight="fill" className="mr-1 h-3.5 w-3.5 text-amber-500" />
+                              Turbo
                             </Button>
                             <Button
                               variant="outline"
@@ -2820,10 +2900,27 @@ listSection={
                             Editar
                           </Button>
                           {normalizeCampaignStatus(campaign) === "scheduled" ? (
-                            <Button className="h-8 rounded-lg px-3 text-xs shadow-glow bg-info hover:bg-info/90 text-white" onClick={(event) => { event.stopPropagation(); void runCampaignAction(campaign.id, "start"); }} disabled={busy}>
-                              {busy && actionType === "start" ? <Clock className="h-4 w-4 mr-1 animate-spin" /> : <Play className="h-4 w-4 mr-1" />}
-                              Disparar Agora
-                            </Button>
+                            <>
+                              <Button
+                                className="h-8 rounded-lg px-2.5 text-xs bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm flex items-center"
+                                onClick={(event) => { event.stopPropagation(); void runCampaignAction(campaign.id, "start", { mode: "safe" }); }}
+                                disabled={busy}
+                                title="Disparo com cadência humana anti-ban (recomendado)"
+                              >
+                                {busy && actionType === "start" ? <Clock className="h-3.5 w-3.5 mr-1 animate-spin" /> : <ShieldCheck weight="fill" className="h-3.5 w-3.5 mr-1 text-emerald-200" />}
+                                Modo Seguro
+                              </Button>
+                              <Button
+                                variant="outline"
+                                className="h-8 rounded-lg px-2.5 text-xs border-amber-500/40 text-amber-600 hover:bg-amber-500/10 flex items-center"
+                                onClick={(event) => { event.stopPropagation(); void runCampaignAction(campaign.id, "start", { mode: "fast" }); }}
+                                disabled={busy}
+                                title="Disparo turbo acelerado (alto risco de bloqueio)"
+                              >
+                                <Lightning weight="fill" className="h-3.5 w-3.5 mr-1 text-amber-500" />
+                                Turbo
+                              </Button>
+                            </>
                           ) : normalizeCampaignStatus(campaign) === "paused" ? (
                             <Button className="h-8 rounded-lg px-3 text-xs shadow-glow" onClick={(event) => { event.stopPropagation(); void runCampaignAction(campaign.id, "resume"); }} disabled={busy}>
                               {busy && actionType === "resume" ? <Clock className="h-4 w-4 mr-1 animate-spin" /> : <Play className="h-4 w-4 mr-1" />}
@@ -3121,8 +3218,22 @@ listSection={
                     <Button variant="outline" className="rounded-xl" onClick={() => hydrateComposer(selectedCampaignPreview, "duplicate")}>
                       <Copy className="h-4 w-4" /> Duplicar
                     </Button>
-                    <Button className="rounded-xl shadow-glow" onClick={() => void runCampaignAction(selectedCampaignPreview.id, "start")}>
-                      <Play className="h-4 w-4" /> Iniciar Disparo
+                    <Button
+                      className="rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm flex items-center"
+                      onClick={() => void runCampaignAction(selectedCampaignPreview.id, "start", { mode: "safe" })}
+                      title="Disparo com cadência humana anti-ban (recomendado)"
+                    >
+                      <ShieldCheck weight="fill" className="mr-1.5 h-4 w-4 text-emerald-200" />
+                      Iniciar Sem Risco
+                    </Button>
+                    <Button
+                      variant="outline"
+                      className="rounded-xl border-amber-500/40 text-amber-600 hover:bg-amber-500/10 flex items-center"
+                      onClick={() => void runCampaignAction(selectedCampaignPreview.id, "start", { mode: "fast" })}
+                      title="Disparo turbo acelerado (alto risco de bloqueio)"
+                    >
+                      <Lightning weight="fill" className="mr-1.5 h-4 w-4 text-amber-500" />
+                      Turbo
                     </Button>
                   </div>
                 </div>

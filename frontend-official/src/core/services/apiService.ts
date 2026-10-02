@@ -2128,8 +2128,10 @@ export const apiService = {
     request<CampaignRecord>({ endpoint: `/api/campaigns/${encodeURIComponent(campaignId)}`, method: "PUT", body: payload }),
   deleteCampaign: (campaignId: string) =>
     request<{ success?: boolean }>({ endpoint: `/api/campaigns/${encodeURIComponent(campaignId)}`, method: "DELETE" }),
-  startCampaignDispatch: (campaignId: string) =>
-    request<Record<string, unknown>>({ endpoint: `/api/campaigns/${encodeURIComponent(campaignId)}/start`, method: "POST" }),
+  startCampaignDispatch: (campaignId: string, options?: { mode?: 'safe' | 'balanced' | 'fast' }) =>
+    request<Record<string, unknown>>({ endpoint: `/api/campaigns/${encodeURIComponent(campaignId)}/start`, method: "POST", body: options || {} }),
+  getCampaignMaturationStats: () =>
+    request<{ success?: boolean; data?: any }>({ endpoint: "/api/campaigns/maturation", method: "GET" }),
   pauseCampaignDispatch: (campaignId: string) =>
     request<Record<string, unknown>>({ endpoint: `/api/campaigns/${encodeURIComponent(campaignId)}/pause`, method: "POST" }),
   resumeCampaignDispatch: (campaignId: string) =>

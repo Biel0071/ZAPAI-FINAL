@@ -29,11 +29,70 @@ function safeJson(res, data, status = 200) {
   }
 }
 
-// Start campaign dispatch
+// Start campaign dispatch (supports mode: 'safe' | 'balanced' | 'fast')
 router.post('/campaigns/:id/start', async (req, res) => {
   try {
     const companyId = req.authTenantId;
     const io = req.app?.locals?.io || global.io;
+    const { mode } = req.body || {};
+
+    if (mode) {
+      const campaignRepository = require('../../../data/repositories/campaignRepository');
+      const campaign = await campaignRepository.getCampaignById(req.params.id, companyId);
+      if (campaign) {
+        let updatedSettings = { ...(campaign.settings || {}) };
+        if (mode === 'safe') {
+          updatedSettings = {
+            ...updatedSettings,
+            intervalSeconds: 115,
+            randomDelayMin: 85000,
+            randomDelayMax: 140000,
+            typingDelaySeconds: 9,
+            typingDelayMinSeconds: 6,
+            typingDelayMaxSeconds: 12,
+            pauseEvery: 7,
+            pauseEveryMin: 6,
+            pauseEveryMax: 8,
+            pauseSeconds: 180,
+            pauseMinSeconds: 150,
+            pauseMaxSeconds: 240,
+            cadenceMode: 'safe',
+          };
+        } else if (mode === 'balanced') {
+          updatedSettings = {
+            ...updatedSettings,
+            intervalSeconds: 45,
+            randomDelayMin: 35000,
+            randomDelayMax: 60000,
+            typingDelaySeconds: 5,
+            typingDelayMinSeconds: 4,
+            typingDelayMaxSeconds: 8,
+            pauseEvery: 15,
+            pauseSeconds: 60,
+            pauseMinSeconds: 45,
+            pauseMaxSeconds: 90,
+            cadenceMode: 'balanced',
+          };
+        } else if (mode === 'fast') {
+          updatedSettings = {
+            ...updatedSettings,
+            intervalSeconds: 15,
+            randomDelayMin: 10000,
+            randomDelayMax: 20000,
+            typingDelaySeconds: 3,
+            typingDelayMinSeconds: 2,
+            typingDelayMaxSeconds: 4,
+            pauseEvery: 30,
+            pauseSeconds: 30,
+            pauseMinSeconds: 20,
+            pauseMaxSeconds: 40,
+            cadenceMode: 'fast',
+          };
+        }
+        await campaignRepository.updateCampaign(req.params.id, { settings: updatedSettings }, companyId);
+      }
+    }
+
     const result = await campaignDispatchEngine.startCampaign(req.params.id, companyId, io);
     return safeJson(res, { success: true, data: result });
   } catch (error) {
@@ -79,6 +138,18 @@ router.post('/campaigns/:id/cancel', (req, res) => {
     return safeJson(res, { success: true, data: result });
   } catch (error) {
     return safeJson(res, { success: false, error: error?.message || 'Cancel failed' }, 500);
+  }
+});
+
+// Get WhatsApp chip maturation stats & daily progression goal
+router.get('/campaigns/maturation', async (req, res) => {
+  try {
+    const campaignMaturationService = require('../../../services/campaignMaturationService');
+    const companyId = req.authTenantId;
+    const stats = await campaignMaturationService.getChipMaturationStats(companyId);
+    return safeJson(res, { success: true, data: stats });
+  } catch (error) {
+    return safeJson(res, { success: false, error: error?.message || 'Failed to fetch maturation stats' }, 500);
   }
 });
 
