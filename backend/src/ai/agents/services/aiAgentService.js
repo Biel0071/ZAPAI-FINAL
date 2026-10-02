@@ -465,7 +465,7 @@ async function evolveSessionStyles() {
   }
 }
 
-module.exports = {
+const serviceExports = {
   validateSessions, sessionKnowledge, validateStyle, withSessionStyle, restoreSessionStyle, evolveSessionStyles,
   buildPersonalityPrompt,
   cloneAgent,
@@ -484,3 +484,6 @@ module.exports = {
   updateAgent,
   wait,
 };
+serviceExports.aiAgentService = serviceExports;
+
+module.exports = serviceExports;
