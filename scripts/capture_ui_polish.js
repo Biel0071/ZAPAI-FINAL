@@ -10,7 +10,7 @@ const __dirname = path.dirname(__filename);
 
 const PORT = 5188;
 const DIST_DIR = path.resolve(__dirname, "../frontend-official/dist");
-const ARTIFACTS_DIR = "C:/Users/Dell/.gemini/antigravity/brain/c02a7588-1b1e-4aa8-bf4c-0986e36a26bb";
+const ARTIFACTS_DIR = "C:/Users/Dell/.gemini/antigravity/brain/578a7157-8bf3-47e3-82f2-9ed1bb8f9f40";
 
 if (!fs.existsSync(ARTIFACTS_DIR)) {
   fs.mkdirSync(ARTIFACTS_DIR, { recursive: true });
