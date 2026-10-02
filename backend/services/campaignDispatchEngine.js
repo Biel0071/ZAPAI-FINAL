@@ -451,9 +451,15 @@ async function dispatchSingleMessage(state, contact, io) {
     const targetPhone = jid.endsWith('@s.whatsapp.net') ? jid.split('@')[0] : phone;
 
     await session.sock.presenceSubscribe(jid).catch(() => {});
-    await session.sock.sendPresenceUpdate('composing', jid).catch(() => {});
+    const messageVariationEngine = require('./messageVariationEngine');
+    const variedMessage = messageVariationEngine.processCampaignMessage(
+      campaignMessage.content || campaignMessage.caption || campaignMessage.text || '',
+      contact,
+      { autoVariations: true }
+    );
+    const textToSend = variedMessage.text || campaignMessage.content;
 
-    const dynamicTypingMs = getCampaignTypingDelay(state, campaignMessage.content);
+    const dynamicTypingMs = getCampaignTypingDelay(state, textToSend);
     await interruptibleSleep(dynamicTypingMs, state);
     let sendResult;
     if (isMediaCampaignMessage(campaignMessage)) {
@@ -463,13 +469,13 @@ async function dispatchSingleMessage(state, contact, io) {
         throw new Error('Campaign media message is missing mediaPath/mediaUrl/content.');
       }
       sendResult = await whatsappService.sendMediaMessage(session.sock, jid, mediaType, mediaPath, {
-        caption: campaignMessage.caption || campaignMessage.text || campaignMessage.content || '',
+        caption: textToSend || campaignMessage.caption || campaignMessage.text || '',
         fileName: campaignMessage.fileName || campaignMessage.filename,
         mimetype: campaignMessage.mimetype,
         ptt: campaignMessage.ptt === true,
       });
     } else {
-      sendResult = await whatsappService.sendMessage(session.sock, jid, campaignMessage.content);
+      sendResult = await whatsappService.sendMessage(session.sock, jid, textToSend);
     }
 
     // Persist outgoing campaign message to database and update conversation
@@ -492,12 +498,12 @@ async function dispatchSingleMessage(state, contact, io) {
           funnelStage: 'Lead_Quente',
           leadTemperature: 'hot',
           tags: ['robo_ativo', 'recuperacao'],
-          lastMessage: campaignMessage.content,
+          lastMessage: textToSend,
         });
       }
 
       if (conversation?.id) {
-        const textContent = campaignMessage.content || campaignMessage.caption || '[mídia]';
+        const textContent = textToSend || '[mídia]';
         const msgType = campaignMessage.type || 'text';
         const savedMessage = await messageRepository.createMessage({
           conversationId: conversation.id,

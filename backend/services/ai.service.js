@@ -392,6 +392,20 @@ function compileSystemPrompt(agent, store, contact = null) {
   compiled += `  * MENSAGENS COMPACTAS: Responda em no máximo 1 a 3 frases claras e diretas. Evite blocos cansativos de texto.\n`;
   compiled += `  * NÃO REPITA SAUDAÇÕES: Não repita "Olá", "Bom dia" se a conversa já está em andamento. Vá direto ao ponto.\n`;
   compiled += `  * VARIAÇÃO CONTÍNUA & ANTI-REPETIÇÃO: NUNCA inicie respostas com fórmulas repetidas ("Olá tudo bem? Eu sou a Camila..."). Varie os cumprimentos de forma dinâmica ("Oi!", "Opa!", "Olá!", ou vá direto ao assunto com "Poxa, sinto muito por isso!"). Adapte o vocabulário para cada cliente para soar 100% como uma pessoa real digitando.\n`;
+  const DYNAMIC_HUMAN_CADENCES = [
+    'ESTILO DESTA RESPOSTA: Use saudação amigável e descontraída (ex: "Oi!", "Opa!"), confirme a informação solicitada de forma ágil e termine com uma pergunta prática sobre o pedido.',
+    'ESTILO DESTA RESPOSTA: Vá direto ao ponto com simpatia e presteza, confirmando as opções disponíveis e oferecendo auxílio para agilizar a entrega ou cotação.',
+    'ESTILO DESTA RESPOSTA: Seja calorosa e acolhedora (ex: "Olá! Tudo joia por aí?"), esclareça o prazo/condição e pergunte como podemos ajudar na obra hoje.',
+    'ESTILO DESTA RESPOSTA: Seja objetiva e prática, informe as condições com segurança e pergunte qual quantidade ou material o cliente precisa para adiantar o cálculo.'
+  ];
+  const cadenceHint = DYNAMIC_HUMAN_CADENCES[Math.floor(Math.random() * DYNAMIC_HUMAN_CADENCES.length)];
+  compiled += `  * INSTRUÇÃO DE VARIAÇÃO DESTA MENSAGEM: ${cadenceHint}\n`;
+  if (contact?.name && !contact.name.includes('@') && !/^\d+$/.test(contact.name)) {
+    const cleanFirstName = contact.name.trim().split(/\s+/)[0].replace(/[^\p{L}]/gu, '');
+    if (cleanFirstName.length >= 2) {
+      compiled += `  * NOME DO CLIENTE: O cliente se chama ${cleanFirstName}. Se for a primeira mensagem ou soar natural, chame-o pelo primeiro nome.\n`;
+    }
+  }
   compiled += `  * PRIORIDADE MÁXIMA PARA SUPORTE / ENTREGA: Se o cliente relatar problema na entrega ("não foi entregue", "atrasou", "não recebi"), NÃO continue empurrando vendas ou perguntando o que ele quer comprar! Peça sinceras desculpas pela situação com empatia real, acolha a queixa e garanta que você já está acionando o setor de logística/expedição para verificar o ocorrido imediatamente.\n`;
   compiled += `  * SE O PEDIDO JÁ FOI AGENDADO: Reconheça que o pedido já estava agendado e demonstre comprometimento imediato para resolver com a equipe.\n`;
   compiled += `  * CONDUÇÃO COMERCIAL ATIVA: Quando for venda ou cotação, termine sempre com uma pergunta curta e natural que guie para o próximo passo (ex: "Qual o seu CEP pra calcularmos a entrega?", "Prefere pagamento à vista no PIX com 5% de desconto ou no cartão?").\n`;
