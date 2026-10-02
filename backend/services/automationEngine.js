@@ -63,10 +63,12 @@ function mapLeadTemperature(score) {
   return 'cold';
 }
 
-function randomProfileDelay(profile) {
-  if (!profile || typeof profile !== 'object') return 0;
-  const minMs = Math.max(0, Number(profile.minMs) || 0);
-  const maxMs = Math.max(minMs, Number(profile.maxMs) || minMs);
+function randomProfileDelay(profile, fallbackMin = 12000, fallbackMax = 25000) {
+  if (!profile || typeof profile !== 'object') {
+    return Math.floor(Math.random() * (fallbackMax - fallbackMin + 1)) + fallbackMin;
+  }
+  const minMs = Math.max(0, Number(profile.minMs) || fallbackMin);
+  const maxMs = Math.max(minMs, Number(profile.maxMs) || fallbackMax || minMs);
   return maxMs === minMs ? minMs : Math.floor(Math.random() * (maxMs - minMs + 1)) + minMs;
 }
 
@@ -248,8 +250,8 @@ async function processMessage({ payload, conversation, store, sock, sessionId })
     return { success: false, reason: 'no_store_agent' };
   }
 
-  const plannedResponseDelayMs = randomProfileDelay(matchedAgent.delayProfile);
-  const plannedTypingDelayMs = randomProfileDelay(matchedAgent.typingDelayProfile);
+  const plannedResponseDelayMs = randomProfileDelay(matchedAgent.delayProfile, 12000, 25000);
+  const plannedTypingDelayMs = randomProfileDelay(matchedAgent.typingDelayProfile, 6000, 14000);
   const estimatedGenerationMs = 8_000;
   publishProgress('analyzing', {
     agentName: matchedAgent.name,

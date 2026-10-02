@@ -40,9 +40,72 @@ const activeCampaigns = new Map(); // campaignId → CampaignState
  * @property {string} sessionId
  */
 
+function normalizeCampaignDelayMs(val, fallbackMs) {
+  if (val === undefined || val === null || val === '') return fallbackMs;
+  const num = Number(val);
+  if (!Number.isFinite(num) || num <= 0) return fallbackMs;
+  if (num <= 300) return Math.round(num * 1000);
+  return Math.round(num);
+}
+
 function createCampaignState(campaign) {
   const contacts = Array.isArray(campaign.selectedContacts) ? campaign.selectedContacts : [];
   const settings = campaign.settings || {};
+
+  // Human cadence target: ~100-130s average per contact (~115s for 61 leads over 2h)
+  const intervalMs = normalizeCampaignDelayMs(
+    settings.intervalSeconds ?? settings.intervalMs,
+    115000
+  );
+
+  // Random delay between contacts: default 85s to 140s
+  const randomDelayMin = settings.randomDelayMin !== undefined
+    ? normalizeCampaignDelayMs(settings.randomDelayMin, 85000)
+    : Math.max(3000, Math.round(intervalMs * 0.8));
+
+  let randomDelayMax = settings.randomDelayMax !== undefined
+    ? normalizeCampaignDelayMs(settings.randomDelayMax, 140000)
+    : Math.max(randomDelayMin, Math.round(intervalMs * 1.2));
+
+  if (randomDelayMax < randomDelayMin) {
+    randomDelayMax = randomDelayMin;
+  }
+
+  // Typing delay with WhatsApp presence: 6 to 12s
+  const typingDelayMinMs = normalizeCampaignDelayMs(
+    settings.typingDelayMinSeconds ?? settings.typingDelayMin ?? (settings.typingDelaySeconds ? Number(settings.typingDelaySeconds) * 0.75 : null),
+    6000
+  );
+
+  let typingDelayMaxMs = normalizeCampaignDelayMs(
+    settings.typingDelayMaxSeconds ?? settings.typingDelayMax ?? (settings.typingDelaySeconds ? Number(settings.typingDelaySeconds) * 1.35 : null),
+    12000
+  );
+
+  if (typingDelayMaxMs < typingDelayMinMs) {
+    typingDelayMaxMs = typingDelayMinMs;
+  }
+
+  // Human attendant breaks: pause every 6 to 8 messages for 2.5 to 4 minutes (150s - 240s)
+  const pauseEveryMin = Math.max(1, Number(settings.pauseEveryMin) || (settings.pauseEvery ? Math.max(1, Number(settings.pauseEvery) - 1) : 6));
+  const pauseEveryMax = Math.max(pauseEveryMin, Number(settings.pauseEveryMax) || (settings.pauseEvery ? Math.max(pauseEveryMin, Number(settings.pauseEvery) + 1) : 8));
+  const pauseEvery = Number(settings.pauseEvery) || Math.round((pauseEveryMin + pauseEveryMax) / 2);
+
+  const pauseMinMs = normalizeCampaignDelayMs(
+    settings.pauseMinSeconds ?? settings.pauseMin ?? (settings.pauseSeconds ? Number(settings.pauseSeconds) * 0.8 : null),
+    150000
+  );
+
+  let pauseMaxMs = normalizeCampaignDelayMs(
+    settings.pauseMaxSeconds ?? settings.pauseMax ?? (settings.pauseSeconds ? Number(settings.pauseSeconds) * 1.25 : null),
+    240000
+  );
+
+  if (pauseMaxMs < pauseMinMs) {
+    pauseMaxMs = pauseMinMs;
+  }
+
+  const initialPauseThreshold = Math.floor(Math.random() * (pauseEveryMax - pauseEveryMin + 1)) + pauseEveryMin;
 
   return {
     id: campaign.id,
@@ -55,21 +118,31 @@ function createCampaignState(campaign) {
     currentIndex: 0,
     dispatchTimer: null,
     processing: false,
+    nextPauseThreshold: initialPauseThreshold,
     sessionId: settings.sessionId || null,
     messages: Array.isArray(campaign.messages) ? campaign.messages : [],
     flowId: settings.flowId || null,
     settings: {
-      intervalMs: Math.max(3000, (Number(settings.intervalSeconds) || 10) * 1000),
-      pauseEvery: Math.max(1, Number(settings.pauseEvery) || 10),
-      pauseMs: Math.max(5000, (Number(settings.pauseSeconds) || 60) * 1000),
-      typingDelayMs: Math.max(1000, (Number(settings.typingDelaySeconds) || 3) * 1000),
-      randomDelayMin: Math.max(1000, Number(settings.randomDelayMin) || 2000),
-      randomDelayMax: Math.max(5000, Number(settings.randomDelayMax) || 8000),
+      intervalMs,
+      intervalSeconds: Math.round(intervalMs / 1000),
+      randomDelayMin,
+      randomDelayMax,
+      typingDelayMinMs,
+      typingDelayMaxMs,
+      typingDelayMs: Math.round((typingDelayMinMs + typingDelayMaxMs) / 2),
+      pauseEvery,
+      pauseEveryMin,
+      pauseEveryMax,
+      pauseMinMs,
+      pauseMaxMs,
+      pauseMs: Math.round((pauseMinMs + pauseMaxMs) / 2),
       maxRetries: Math.max(1, Number(settings.maxRetries) || 3),
-      warmupMessages: Math.max(0, Number(settings.warmupMessages) || 5),
-      warmupDelayMultiplier: Number(settings.warmupDelayMultiplier) || 3,
+      warmupMessages: settings.warmupMessages !== undefined ? Math.max(0, Number(settings.warmupMessages)) : 0,
+      warmupDelayMultiplier: Number(settings.warmupDelayMultiplier) || 1.5,
       dailyLimit: settings.dailyLimit ? Number(settings.dailyLimit) : null,
       hourlyLimit: settings.hourlyLimit ? Number(settings.hourlyLimit) : null,
+      enableAIPostDispatch: Boolean(settings.enableAIPostDispatch),
+      aiSetup: settings.aiSetup || {},
     },
     metrics: {
       total: contacts.length,
@@ -109,16 +182,35 @@ function resolveCampaignSession(preferredSessionId) {
   return preferred || fallbackDefault || null;
 }
 
-function getRandomDelay(state) {
-  const { randomDelayMin, randomDelayMax } = state.settings;
-  const base = randomDelayMin + Math.random() * (randomDelayMax - randomDelayMin);
+function getCampaignTypingDelay(state, messageContent = '') {
+  const minMs = state.settings.typingDelayMinMs || 6000;
+  const maxMs = state.settings.typingDelayMaxMs || 12000;
 
-  // Warmup: first N messages use longer delays
-  if (state.metrics.sent < state.settings.warmupMessages) {
-    return Math.round(base * state.settings.warmupDelayMultiplier);
+  if (maxMs <= minMs) return minMs;
+
+  const textLen = (messageContent || '').length;
+  if (textLen > 0) {
+    const charDelay = textLen * 40;
+    const clamped = Math.min(maxMs, Math.max(minMs, charDelay));
+    const jitter = Math.floor(Math.random() * 2000) - 1000;
+    return Math.min(maxMs, Math.max(minMs, clamped + jitter));
   }
 
-  return Math.round(base);
+  return Math.floor(Math.random() * (maxMs - minMs + 1)) + minMs;
+}
+
+function getRandomDelay(state) {
+  const { randomDelayMin, randomDelayMax, warmupMessages, warmupDelayMultiplier } = state.settings;
+  const min = Math.max(1000, Number(randomDelayMin) || 1000);
+  const max = Math.max(min, Number(randomDelayMax) || min);
+  const base = Math.floor(Math.random() * (max - min + 1)) + min;
+
+  // Warmup: first N messages use longer delays
+  if (warmupMessages > 0 && state.metrics.sent < warmupMessages) {
+    return Math.round(base * (warmupDelayMultiplier || 1.5));
+  }
+
+  return base;
 }
 
 function normalizeCampaignMessage(rawMessage) {
@@ -286,7 +378,8 @@ async function dispatchSingleMessage(state, contact, io) {
     await session.sock.presenceSubscribe(jid).catch(() => {});
     await session.sock.sendPresenceUpdate('composing', jid).catch(() => {});
 
-    await sleep(state.settings.typingDelayMs);
+    const dynamicTypingMs = getCampaignTypingDelay(state, campaignMessage.content);
+    await sleep(dynamicTypingMs);
 
     if (isMediaCampaignMessage(campaignMessage)) {
       const mediaType = normalizeCampaignMediaType(campaignMessage.type);
@@ -421,18 +514,26 @@ async function runDispatchLoop(state, io) {
         continue;
       }
 
-      // Pause every N messages
-      if (state.metrics.sent > 0 && state.metrics.sent % state.settings.pauseEvery === 0) {
-        console.log(`[CampaignEngine] Pausing ${state.id} for ${state.settings.pauseMs}ms (anti-ban)`);
-        await sleep(state.settings.pauseMs);
+      // Human attendant break pause simulation (every 6 to 8 messages, 150-240s)
+      if (state.metrics.sent > 0 && state.pendingQueue.length > 0 && state.metrics.sent >= state.nextPauseThreshold) {
+        const pauseMin = state.settings.pauseMinMs || 150000;
+        const pauseMax = state.settings.pauseMaxMs || 240000;
+        const pauseDelay = Math.floor(Math.random() * (pauseMax - pauseMin + 1)) + pauseMin;
+        console.log(`[CampaignEngine] Human break pause for ${state.id}: ${Math.round(pauseDelay / 1000)}s (simulating attendant break after ${state.metrics.sent} messages)`);
+        await sleep(pauseDelay);
+
+        const nextGap = Math.floor(Math.random() * (state.settings.pauseEveryMax - state.settings.pauseEveryMin + 1)) + state.settings.pauseEveryMin;
+        state.nextPauseThreshold = state.metrics.sent + nextGap;
       }
 
-      // Random delay between messages
-      const delay = getRandomDelay(state);
-      await sleep(delay);
+      // Random delay between messages (if more contacts remain)
+      if (state.pendingQueue.length > 0) {
+        const delay = getRandomDelay(state);
+        await sleep(delay);
+      }
 
-      // Persist progress every 10 messages
-      if (state.metrics.sent % 10 === 0) {
+      // Persist progress every 5 messages or when completed
+      if (state.metrics.sent % 5 === 0 || state.pendingQueue.length === 0) {
         await persistProgress(state);
       }
     }
@@ -559,9 +660,21 @@ function stopAll() {
   activeCampaigns.clear();
 }
 
+function isRunning(campaignId) {
+  if (campaignId) {
+    const state = activeCampaigns.get(campaignId);
+    return Boolean(state && state.status === 'running');
+  }
+  return Array.from(activeCampaigns.values()).some((s) => s.status === 'running');
+}
+
 module.exports = {
   cancelCampaign,
+  createCampaignState,
+  getCampaignTypingDelay,
+  getRandomDelay,
   getStatus,
+  isRunning,
   listActive,
   pauseCampaign,
   resumeCampaign,

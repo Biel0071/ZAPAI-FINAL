@@ -30,12 +30,12 @@ function cloneAgents(agents = []) {
   return agents.map((agent) => ({
     ...agent,
     delayProfile: {
-      maxMs: Number(agent?.delayProfile?.maxMs) || 5000,
-      minMs: Number(agent?.delayProfile?.minMs) || 1000,
+      maxMs: Number(agent?.delayProfile?.maxMs) || 25000,
+      minMs: Number(agent?.delayProfile?.minMs) || 12000,
     },
     typingDelayProfile: {
-      maxMs: Number(agent?.typingDelayProfile?.maxMs) || 3000,
-      minMs: Number(agent?.typingDelayProfile?.minMs) || 1000,
+      maxMs: Number(agent?.typingDelayProfile?.maxMs) || 14000,
+      minMs: Number(agent?.typingDelayProfile?.minMs) || 6000,
     },
   }));
 }
@@ -49,12 +49,12 @@ function normalizeAgent(agent = {}) {
   return {
     active: agent.active !== false,
     delayProfile: {
-      maxMs: Math.max(Number(agent?.delayProfile?.maxMs) || 5000, Number(agent?.delayProfile?.minMs) || 1000),
-      minMs: Math.max(0, Number(agent?.delayProfile?.minMs) || 1000),
+      maxMs: Math.max(Number(agent?.delayProfile?.maxMs) || 25000, Number(agent?.delayProfile?.minMs) || 12000),
+      minMs: Math.max(0, Number(agent?.delayProfile?.minMs) || 12000),
     },
     typingDelayProfile: {
-      maxMs: Math.max(Number(agent?.typingDelayProfile?.maxMs) || 3000, Number(agent?.typingDelayProfile?.minMs) || 1000),
-      minMs: Math.max(0, Number(agent?.typingDelayProfile?.minMs) || 1000),
+      maxMs: Math.max(Number(agent?.typingDelayProfile?.maxMs) || 14000, Number(agent?.typingDelayProfile?.minMs) || 6000),
+      minMs: Math.max(0, Number(agent?.typingDelayProfile?.minMs) || 6000),
     },
     key,
     sessionIds: Array.isArray(agent.sessionIds) ? [...new Set(agent.sessionIds.map(String))] : [],
@@ -144,7 +144,7 @@ function pickRandomAgentSync(tenantId = DEFAULT_TENANT_ID) {
 
 function getDelayForAgentMs(agent, tenantId = DEFAULT_TENANT_ID) {
   return getDelayMs(agent || pickRandomAgentSync(tenantId) || {
-    delayProfile: { minMs: 1000, maxMs: 3000 },
+    delayProfile: { minMs: 12000, maxMs: 25000 },
   });
 }
 

@@ -638,8 +638,8 @@ async function runAIForChat({ chatId, incomingFormattedMessage, session, sock })
     return null;
   }
 
-  const delayProfile = agent?.delayProfile || { minMs: 1000, maxMs: 3000 };
-  const typingDelayProfile = agent?.typingDelayProfile || { minMs: 1000, maxMs: 2500 };
+  const delayProfile = agent?.delayProfile || { minMs: 12000, maxMs: 25000 };
+  const typingDelayProfile = agent?.typingDelayProfile || { minMs: 6000, maxMs: 14000 };
 
   const responseDelayMs = Math.floor(Math.random() * (delayProfile.maxMs - delayProfile.minMs + 1)) + delayProfile.minMs;
   const msPorCaractere = agent?.msPorCaractere || 40;
