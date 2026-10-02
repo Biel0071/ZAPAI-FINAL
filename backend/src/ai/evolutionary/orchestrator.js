@@ -139,6 +139,15 @@ class EvolutionaryAgentOrchestrator {
       crossConvPrompt = crossConversationMemory.compileCrossConversationPrompt(crossExamples);
     } catch (_) {}
 
+    // 4.2 Quick Reply Skills & Multimodal Powers
+    let quickRepliesPrompt = '';
+    try {
+      const quickReplyService = require('../../../services/quickReplyService');
+      const quickReplyCapability = require('../../../services/quickReplyCapability');
+      const qrs = await quickReplyService.listQuickReplies({ companyId: cleanCompany });
+      quickRepliesPrompt = quickReplyCapability.formatCapabilitiesForPrompt(qrs);
+    } catch (_) {}
+
     // 5. Layer 5: Authority Rules & Directive Synthesis
     const hierarchyPrompt = `
 ### [HIERARQUIA DE AUTORIDADE E CONDUTA DO AGENTE]
@@ -154,6 +163,7 @@ class EvolutionaryAgentOrchestrator {
       playbookPrompt,
       experiencePrompt,
       crossConvPrompt,
+      quickRepliesPrompt,
       hierarchyPrompt
     ].filter(Boolean).join('\n---\n');
 
@@ -208,6 +218,10 @@ class EvolutionaryAgentOrchestrator {
     let tokens = { promptTokens: 0, completionTokens: 0, totalTokens: 0 };
     let responseTimeMs = 0;
 
+    let aiResultData = null;
+    let triggerQuickReply = null;
+    let matchedCapability = null;
+
     try {
       const { processAI } = require('../../../services/ai.service');
       const startedAt = Date.now();
@@ -236,8 +250,9 @@ class EvolutionaryAgentOrchestrator {
 
       responseTimeMs = Date.now() - startedAt;
 
-      if (aiResult && aiResult.reply) {
-        responseText = aiResult.reply;
+      if (aiResult) {
+        aiResultData = aiResult;
+        if (aiResult.reply) responseText = aiResult.reply;
         providerUsed = aiResult.provider || providerUsed;
         modelUsed = aiResult.model || modelUsed;
         tokens = {
@@ -245,9 +260,25 @@ class EvolutionaryAgentOrchestrator {
           completionTokens: aiResult.completionTokens || 0,
           totalTokens: aiResult.totalTokens || 0,
         };
+        triggerQuickReply = aiResult.quickReplyTriggered || aiResult.analysis?.trigger_quick_reply || null;
       }
     } catch (aiErr) {
       console.warn('[Orchestrator] processAI call encountered error:', aiErr.message);
+    }
+
+    // Multimodal Autonomous Matching (Camila's Quick Reply Skills)
+    try {
+      const quickReplyCapability = require('../../../services/quickReplyCapability');
+      matchedCapability = await quickReplyCapability.findBestMatchForContext({
+        message: customerMessage,
+        companyId: cleanCompany,
+      });
+      // If customer explicitly requested photos, videos, audios, or quote and confidence is high
+      if (!triggerQuickReply && matchedCapability && matchedCapability.score >= 50) {
+        triggerQuickReply = matchedCapability.id;
+      }
+    } catch (qrErr) {
+      console.warn('[Orchestrator] quickReplyCapability match error:', qrErr.message);
     }
 
     // Step 4: If LLM produced no text, construct an intelligent Playbook-guided fallback
@@ -316,6 +347,12 @@ class EvolutionaryAgentOrchestrator {
       activePlaybook: evoData.activePlaybook,
       customerContext: evoData.customerContext,
       ruleValidation: validation,
+      analysis: {
+        ...(aiResultData?.analysis || {}),
+        trigger_quick_reply: triggerQuickReply,
+      },
+      quickReplyTriggered: triggerQuickReply,
+      matchedCapability,
     };
   }
 }

@@ -124,21 +124,56 @@ async function searchQuickReplies({ query = '', intent = '', product = '', media
 async function findBestMatchForContext({ message = '', intent = '', product = '', companyId = 'default' }) {
   const normMessage = normalize(message);
   let requestedMediaType = null;
+  let detectedProduct = product || '';
+  let detectedIntent = intent || '';
 
-  if (normMessage.includes('foto') || normMessage.includes('imagem') || normMessage.includes('ver') || normMessage.includes('olhar')) {
+  // Detecção de tipo de mídia solicitado
+  if (normMessage.includes('foto') || normMessage.includes('imagem') || normMessage.includes('ver') || normMessage.includes('olhar') || normMessage.includes('fotos')) {
     requestedMediaType = 'image';
-  } else if (normMessage.includes('audio') || normMessage.includes('áudio') || normMessage.includes('voz')) {
+  } else if (normMessage.includes('audio') || normMessage.includes('áudio') || normMessage.includes('voz') || normMessage.includes('ouvir')) {
     requestedMediaType = 'audio';
-  } else if (normMessage.includes('video') || normMessage.includes('vídeo')) {
+  } else if (normMessage.includes('video') || normMessage.includes('vídeo') || normMessage.includes('resistencia') || normMessage.includes('quebra')) {
     requestedMediaType = 'video';
   } else if (normMessage.includes('catalogo') || normMessage.includes('tabela') || normMessage.includes('pdf')) {
     requestedMediaType = 'document';
   }
 
+  // Detecção de produto pelo contexto da mensagem
+  if (!detectedProduct) {
+    if (normMessage.includes('churras') || normMessage.includes('grelha') || normMessage.includes('trio')) {
+      detectedProduct = 'churrasqueira';
+    } else if (normMessage.includes('betoneir') || normMessage.includes('csm')) {
+      detectedProduct = 'betoneira';
+    } else if (normMessage.includes('chale') || normMessage.includes('container')) {
+      detectedProduct = 'chale container';
+    } else if (normMessage.includes('jadlog') || normMessage.includes('jad') || normMessage.includes('rastre')) {
+      detectedProduct = 'jadlog';
+    } else if (normMessage.includes('tijol') || normMessage.includes('milheiro')) {
+      detectedProduct = 'tijolo';
+    } else if (normMessage.includes('cimento')) {
+      detectedProduct = 'cimento';
+    } else if (normMessage.includes('bloco')) {
+      detectedProduct = 'bloco';
+    } else if (normMessage.includes('caixa') || normMessage.includes('fortlev') || normMessage.includes('10000')) {
+      detectedProduct = 'caixa';
+    } else if (normMessage.includes('telha') || normMessage.includes('black')) {
+      detectedProduct = 'telha';
+    }
+  }
+
+  // Detecção de intenção específica
+  if (!detectedIntent) {
+    if (normMessage.includes('fechar') || normMessage.includes('comprar') || normMessage.includes('dados') || normMessage.includes('cpf')) {
+      detectedIntent = 'fechamento';
+    } else if (normMessage.includes('retirar') || normMessage.includes('retirada') || normMessage.includes('entrega')) {
+      detectedIntent = 'entrega';
+    }
+  }
+
   const results = await searchQuickReplies({
     query: message,
-    intent,
-    product,
+    intent: detectedIntent,
+    product: detectedProduct,
     mediaType: requestedMediaType || '',
     companyId,
   });
@@ -185,19 +220,35 @@ function formatCapabilitiesForPrompt(quickReplies = []) {
     return 'Nenhuma capacidade de resposta rápida registrada.';
   }
 
-  const lines = [];
-  for (const qr of quickReplies.slice(0, 15)) {
-    const id = qr.id;
-    const title = qr.title || qr.label || qr.cmd || 'Recurso';
-    const items = Array.isArray(qr.items) && qr.items.length > 0 ? qr.items : (qr.steps || []);
-    const types = items.map((i) => i.type).filter(Boolean);
-    if (qr.mediaUrl || qr.fileUrl) types.push(qr.mediaType || 'image');
-    const mediaBadge = types.length > 0 ? `[Mídias: ${[...new Set(types)].join(', ')}]` : '[Apenas Texto]';
-    const summary = String(qr.content || qr.text || '').replace(/\s+/g, ' ').slice(0, 100);
-    const mem = qr.aiMemory ? ` (Visão: ${qr.aiMemory.slice(0, 60)})` : '';
+  const lines = [
+    '=== SKILLS & PODERES MULTIMODAIS DA ATENDENTE (RESPOSTAS RÁPIDAS DA LOJA) ===',
+    'Você dispõe das seguintes skills e mídias oficiais para acionar quando o cliente demonstrar interesse ou solicitar fotos, vídeos ou áudios:',
+  ];
 
-    lines.push(`- ID: "${id}" | Título: "${title}" ${mediaBadge}${mem} -> "${summary}..."`);
+  // Group by category
+  const categories = {};
+  for (const qr of quickReplies) {
+    const cat = qr.category || 'GERAL';
+    if (!categories[cat]) categories[cat] = [];
+    categories[cat].push(qr);
   }
+
+  for (const [catName, catItems] of Object.entries(categories)) {
+    lines.push(`\n[CATEGORIA: ${catName}]`);
+    for (const qr of catItems.slice(0, 8)) {
+      const id = qr.id;
+      const title = qr.title || qr.label || 'Recurso';
+      const items = Array.isArray(qr.items) && qr.items.length > 0 ? qr.items : (qr.steps || []);
+      const types = items.map((i) => i.type).filter(Boolean);
+      if (qr.mediaUrl || qr.fileUrl) types.push(qr.mediaType || 'image');
+      const uniqueTypes = [...new Set(types)];
+      const mediaBadge = uniqueTypes.length > 0 ? `[Mídias: ${uniqueTypes.join(', ')}]` : '[Texto]';
+      const mem = qr.aiMemory ? ` - ${qr.aiMemory}` : '';
+      lines.push(`  * "${title}" (ID: ${id}) ${mediaBadge}${mem}`);
+    }
+  }
+
+  lines.push('\nInstrução Multimodal: Se o cliente pedir fotos, vídeos de qualidade, áudios ou se estiver na etapa de fechamento/rastreio correspondente, adicione no JSON de análise: "trigger_quick_reply": "<ID ou Titulo da Skill>". O sistema cuidará de enviar a mídia com o atraso e digitação humana perfeitos.');
 
   return lines.join('\n');
 }

@@ -1079,9 +1079,9 @@ async function getConversationAvatar(req, res) {
       return res.redirect(302, url);
     }
 
-    return res.status(200).json({ avatarUrl: url });
+    return res.status(200).json({ success: true, avatarUrl: url, data: { avatarUrl: url } });
   } catch (error) {
-    return res.status(200).json({ avatarUrl: null });
+    return res.status(200).json({ success: true, avatarUrl: null, data: { avatarUrl: null } });
   }
 }
 

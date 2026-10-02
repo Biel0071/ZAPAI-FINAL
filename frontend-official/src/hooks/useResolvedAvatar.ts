@@ -59,7 +59,7 @@ export function useResolvedAvatar(conversationId?: string | null, initialAvatar?
             const res = await fetch(url, { credentials: "include", headers });
             if (!res.ok) return null;
             const data = await res.json();
-            const resolvedUrl = (data?.avatarUrl as string) || null;
+            const resolvedUrl = ((data?.avatarUrl ?? data?.data?.avatarUrl ?? data?.url ?? null) as string) || null;
             avatarMemoryCache.set(conversationId, resolvedUrl);
             if (typeof window !== "undefined") {
               window.dispatchEvent(

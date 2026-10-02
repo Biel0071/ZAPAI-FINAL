@@ -582,9 +582,21 @@ async function runAIForChat({ chatId, incomingFormattedMessage, session, sock })
               // It's media
               if (itemValue) {
                 let absolutePath = itemValue;
-                if (itemValue.startsWith('/upload/') || itemValue.startsWith('upload/')) {
+                if (/^\/?uploads?\//i.test(itemValue)) {
                   const cleanPath = itemValue.replace(/^\//, '');
-                  absolutePath = path.join(__dirname, '..', '..', '..', cleanPath);
+                  const candidates = [
+                    path.join(__dirname, '..', '..', '..', cleanPath),
+                    path.resolve(process.cwd(), cleanPath),
+                    path.resolve(process.cwd(), 'backend', cleanPath),
+                  ];
+                  for (const cand of candidates) {
+                    try {
+                      if (require('fs').existsSync(cand)) {
+                        absolutePath = cand;
+                        break;
+                      }
+                    } catch (_) {}
+                  }
                 }
                 qrSent = await sendMediaMessage(sock, chatId, itemType, absolutePath, { caption, ptt: itemType === 'audio', beforeSend });
               }
