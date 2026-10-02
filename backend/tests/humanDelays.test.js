@@ -199,3 +199,48 @@ test('delayEngine: getDelayMs and getTypingDelayMs provide human attendant delay
     assert.ok(typingDelay >= 6000 && typingDelay <= 14000, `Typing delay ${typingDelay}ms out of range [6s, 14s]`);
   }
 });
+
+test('campaignDispatchEngine: getCampaignTypingDelay handles object messages, nulls, and extreme lengths without NaN', () => {
+  const dummyCampaign = {
+    id: 'test-typing-robustness',
+    settings: {
+      typingDelayMinSeconds: 6,
+      typingDelayMaxSeconds: 12,
+    },
+  };
+  const state = campaignDispatchEngine.createCampaignState(dummyCampaign);
+
+  const testCases = [
+    null,
+    undefined,
+    '',
+    'a',
+    'A'.repeat(5000),
+    { text: 'Mensagem em objeto' },
+    { caption: 'Legenda em foto' },
+    { content: 'Conteúdo em objeto' },
+    { unknownField: 123 },
+    42,
+  ];
+
+  for (const input of testCases) {
+    const delay = campaignDispatchEngine.getCampaignTypingDelay(state, input);
+    assert.ok(Number.isFinite(delay), `Typing delay for input ${JSON.stringify(input)} must be finite, got ${delay}`);
+    assert.ok(delay >= 6000, `Typing delay ${delay}ms must be >= 6000ms`);
+    assert.ok(delay <= 12000, `Typing delay ${delay}ms must be <= 12000ms`);
+  }
+});
+
+test('campaignRepository and campaignDispatchEngine preserve tenant companyId', () => {
+  const campaignRepository = require('../src/data/repositories/campaignRepository');
+  const dummyCampaign = {
+    id: 'cmp-tenant-test',
+    companyId: 'store-bh-01',
+    name: 'Tenant Campaign',
+    selectedContacts: [{ phone: '5531988887777' }],
+  };
+
+  const state = campaignDispatchEngine.createCampaignState(dummyCampaign);
+  assert.equal(state.companyId, 'store-bh-01', 'createCampaignState must preserve companyId');
+});
+

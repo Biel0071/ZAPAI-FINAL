@@ -188,12 +188,18 @@ function getCampaignTypingDelay(state, messageContent = '') {
 
   if (maxMs <= minMs) return minMs;
 
-  const textLen = (messageContent || '').length;
+  const rawText = typeof messageContent === 'string'
+    ? messageContent
+    : (messageContent?.text || messageContent?.caption || messageContent?.content || '');
+  const textLen = typeof rawText === 'string' ? rawText.length : 0;
   if (textLen > 0) {
     const charDelay = textLen * 40;
     const clamped = Math.min(maxMs, Math.max(minMs, charDelay));
     const jitter = Math.floor(Math.random() * 2000) - 1000;
-    return Math.min(maxMs, Math.max(minMs, clamped + jitter));
+    const candidate = clamped + jitter;
+    if (Number.isFinite(candidate)) {
+      return Math.min(maxMs, Math.max(minMs, candidate));
+    }
   }
 
   return Math.floor(Math.random() * (maxMs - minMs + 1)) + minMs;
@@ -329,8 +335,14 @@ async function dispatchSingleMessage(state, contact, io) {
 
   // Check backpressure
   if (!backpressureController.shouldProcessOutbound()) {
-    state.failedQueue.push({ contact, error: 'backpressure', at: new Date().toISOString() });
-    return { success: false, error: 'backpressure', retry: true };
+    contact._backpressureRetries = (contact._backpressureRetries || 0) + 1;
+    if (contact._backpressureRetries <= 5) {
+      console.warn(`[CampaignEngine] Backpressure active for ${phone}, retrying (attempt ${contact._backpressureRetries}/5)...`);
+      return { success: false, error: 'backpressure', retry: true };
+    }
+    state.failedQueue.push({ contact, phone, error: 'backpressure_exhausted', at: new Date().toISOString() });
+    state.metrics.failed += 1;
+    return { success: false, error: 'backpressure_exhausted' };
   }
 
   const startTime = Date.now();
@@ -340,7 +352,12 @@ async function dispatchSingleMessage(state, contact, io) {
     const session = resolveCampaignSession(state.sessionId);
 
     if (!session?.sock) {
-      state.failedQueue.push({ contact, error: 'no_session', at: new Date().toISOString() });
+      contact._sessionRetries = (contact._sessionRetries || 0) + 1;
+      if (contact._sessionRetries <= (state.settings.maxRetries || 3)) {
+        console.warn(`[CampaignEngine] Session not ready for ${phone}, retrying in 5s (attempt ${contact._sessionRetries}/${state.settings.maxRetries || 3})...`);
+        return { success: false, error: 'no_session', retry: true };
+      }
+      state.failedQueue.push({ contact, phone, error: 'no_session', at: new Date().toISOString() });
       state.metrics.failed += 1;
       return { success: false, error: 'no_session' };
     }
@@ -379,7 +396,7 @@ async function dispatchSingleMessage(state, contact, io) {
     await session.sock.sendPresenceUpdate('composing', jid).catch(() => {});
 
     const dynamicTypingMs = getCampaignTypingDelay(state, campaignMessage.content);
-    await sleep(dynamicTypingMs);
+    await interruptibleSleep(dynamicTypingMs, state);
 
     if (isMediaCampaignMessage(campaignMessage)) {
       const mediaType = normalizeCampaignMediaType(campaignMessage.type);
@@ -466,6 +483,7 @@ function emitProgress(state, io) {
       : 0,
     avgDeliveryMs: state.metrics.avgDeliveryMs,
     startedAt: state.metrics.startedAt,
+    inBreak: Boolean(state.inBreak),
   };
 
   io.emit('campaign:progress', progress);
@@ -510,7 +528,7 @@ async function runDispatchLoop(state, io) {
       // Retry on backpressure
       if (result?.retry) {
         state.pendingQueue.unshift(contact);
-        await sleep(5000);
+        await interruptibleSleep(5000, state);
         continue;
       }
 
@@ -520,16 +538,19 @@ async function runDispatchLoop(state, io) {
         const pauseMax = state.settings.pauseMaxMs || 240000;
         const pauseDelay = Math.floor(Math.random() * (pauseMax - pauseMin + 1)) + pauseMin;
         console.log(`[CampaignEngine] Human break pause for ${state.id}: ${Math.round(pauseDelay / 1000)}s (simulating attendant break after ${state.metrics.sent} messages)`);
-        await sleep(pauseDelay);
+        state.inBreak = true;
+        emitProgress(state, io);
+        await interruptibleSleep(pauseDelay, state);
+        state.inBreak = false;
 
         const nextGap = Math.floor(Math.random() * (state.settings.pauseEveryMax - state.settings.pauseEveryMin + 1)) + state.settings.pauseEveryMin;
         state.nextPauseThreshold = state.metrics.sent + nextGap;
       }
 
-      // Random delay between messages (if more contacts remain)
-      if (state.pendingQueue.length > 0) {
+      // Random delay between messages (if more contacts remain and campaign is running)
+      if (state.pendingQueue.length > 0 && state.status === 'running') {
         const delay = getRandomDelay(state);
-        await sleep(delay);
+        await interruptibleSleep(delay, state);
       }
 
       // Persist progress every 5 messages or when completed
@@ -558,6 +579,19 @@ async function runDispatchLoop(state, io) {
 
 function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, Math.max(0, ms)));
+}
+
+async function interruptibleSleep(ms, state) {
+  const step = 500;
+  let remaining = Math.max(0, ms);
+  while (remaining > 0) {
+    if (state && state.status !== 'running') {
+      break;
+    }
+    const currentWait = Math.min(step, remaining);
+    await sleep(currentWait);
+    remaining -= currentWait;
+  }
 }
 
 // ─── Public API ───

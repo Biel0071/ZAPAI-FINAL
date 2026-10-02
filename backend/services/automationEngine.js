@@ -13,6 +13,7 @@ const { buildLeadTags, getNextFunnelStage } = require('./salesFunnel');
 const { generateSalesStrategy } = require('./salesStrategyEngine');
 const conversationRuntimeService = require('../src/messaging/inbox/inbox/services/ConversationRuntimeService');
 const { emitAIResponseProgress } = require('./aiResponseProgressService');
+const delayEngine = require('../src/ai/agents/engine/delayEngine');
 
 const absenceCooldowns = new Map();
 const ABSENCE_COOLDOWN_MS = Number(process.env.ABSENCE_REPLY_COOLDOWN_MS || 7200000); // 2 hours cooldown
@@ -537,10 +538,10 @@ function splitLongMessage(text) {
       : 1000;
 
     const typingDelayMs = i === 0
-      ? plannedTypingDelayMs
-      : Math.min(5000, Math.max(2000, chunk.length * 50));
+      ? (delayEngine.getTypingDelayMs ? delayEngine.getTypingDelayMs(matchedAgent, chunk) : plannedTypingDelayMs)
+      : Math.min(6000, Math.max(2000, chunk.length * 40));
 
-    console.log(`[AutomationEngine] Enqueueing AI response chunk ${i+1}/${chunks.length} for ${conversationId}: "${chunk.substring(0, 30)}..."`);
+    console.log(`[AutomationEngine] Enqueueing AI response chunk ${i+1}/${chunks.length} for ${conversationId}: "${chunk.substring(0, 30)}..." (responseDelay: ${responseDelayMs}ms, typingDelay: ${typingDelayMs}ms)`);
     
     const inboundMsgId = payload?.externalMessageId || payload?.messageId || '';
     const correlationId = inboundMsgId ? `ai_reply_${inboundMsgId}_chunk_${i}` : undefined;
@@ -555,7 +556,7 @@ function splitLongMessage(text) {
         ai_response: true,
         conversationId,
         source: 'ai',
-        agentName: conversation?.agent_name || null,
+        agentName: matchedAgent?.name || conversation?.agent_name || 'Camila',
         provider: ai.provider,
         model: ai.model,
         responseTimeMs: ai.responseTimeMs,

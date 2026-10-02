@@ -26,6 +26,7 @@ function mapCampaign(row) {
 
   return {
     id: row.id,
+    companyId: row.company_id || 'default',
     name: row.name,
     status: row.status,
     selectedContacts: parseJson(row.selected_contacts, []),
