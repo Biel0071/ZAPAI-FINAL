@@ -1864,55 +1864,51 @@ async function createStableSession({
                 dbId = result.message.id;
                 messageAckPipeline.registerDbMapping(messageId, dbId);
               }
-            } catch (err) {
-              console.warn('[STABLE-SESSION] Error persisting outbound fromMe message:', err.message);
-            }
 
-            // Only trigger human takeover if this message was actually sent manually from phone app
-            if (!isSystemSent) {
-              const normalizedChatId = normalizePhone(remoteJid);
-              const targetConvId = result?.conversation?.id || result?.message?.conversationId || normalizedChatId;
-              const humanTimeoutMs = Number(process.env.HUMAN_TAKEOVER_TIMEOUT_MS || 86400000);
-              conversationRuntimeService.setHumanTakeover(store, targetConvId, humanTimeoutMs);
-              if (result?.conversation?.id) {
-                const aiReactivateAt = new Date(Date.now() + humanTimeoutMs).toISOString();
-                await conversationRepository.updateConversationState(result.conversation.id, {
-                  aiEnabled: false,
-                  ai_reactivate_at: aiReactivateAt,
-                }).catch(() => {});
-                
-                const payloadUpdate = {
-                  ...result.conversation,
-                  aiEnabled: false,
-                  ai_enabled: false,
-                  aiPausedUntil: aiReactivateAt,
-                  ai_reactivate_at: aiReactivateAt,
-                  aiReactivateAt: aiReactivateAt,
-                  humanActive: true,
-                };
-                const sockIo = io || global.io;
-                sockIo?.emit('conversation:update', payloadUpdate);
-                sockIo?.emit('conversation_updated', payloadUpdate);
+              // Only trigger human takeover if this message was actually sent manually from phone app
+              if (!isSystemSent) {
+                const normalizedChatId = normalizePhone(remoteJid);
+                const targetConvId = result?.conversation?.id || result?.message?.conversationId || normalizedChatId;
+                const humanTimeoutMs = Number(process.env.HUMAN_TAKEOVER_TIMEOUT_MS || 86400000);
+                conversationRuntimeService.setHumanTakeover(store, targetConvId, humanTimeoutMs);
+                if (result?.conversation?.id) {
+                  const aiReactivateAt = new Date(Date.now() + humanTimeoutMs).toISOString();
+                  await conversationRepository.updateConversationState(result.conversation.id, {
+                    aiEnabled: false,
+                    ai_reactivate_at: aiReactivateAt,
+                  }).catch(() => {});
+                  
+                  const payloadUpdate = {
+                    ...result.conversation,
+                    aiEnabled: false,
+                    ai_enabled: false,
+                    aiPausedUntil: aiReactivateAt,
+                    ai_reactivate_at: aiReactivateAt,
+                    aiReactivateAt: aiReactivateAt,
+                    humanActive: true,
+                  };
+                  const sockIo = io || global.io;
+                  sockIo?.emit('conversation:update', payloadUpdate);
+                  sockIo?.emit('conversation_updated', payloadUpdate);
+                }
+                try {
+                  const experienceEngine = require('../../../src/ai/evolutionary/experienceEngine');
+                  experienceEngine.registerHumanIntervention({
+                    conversationId: targetConvId,
+                    companyId: process.env.DEFAULT_COMPANY_ID || 'default',
+                    humanText: extractMessageText(incomingMessage),
+                    reason: 'manual_phone_takeover'
+                  }).catch(() => {});
+                } catch (_) {}
+                console.log(`[WHATSAPP] Manual phone message detected for ${normalizedChatId}. Human takeover activated for ${humanTimeoutMs}ms.`);
+              } else {
+                console.log(`[STABLE-SESSION] fromMe message ${messageId} confirmed as system-sent. Preserving AI enabled.`);
               }
-            } else {
-              console.log(`[STABLE-SESSION] fromMe message ${messageId} confirmed as system-sent. Preserving AI enabled.`);
+            } catch (error) {
+              console.error('[WHATSAPP] outbound realtime persistence/takeover failed:', error?.message || error);
             }
-              try {
-                const experienceEngine = require('../../../src/ai/evolutionary/experienceEngine');
-                experienceEngine.registerHumanIntervention({
-                  conversationId: targetConvId,
-                  companyId: process.env.DEFAULT_COMPANY_ID || 'default',
-                  humanText: extractMessageText(incomingMessage),
-                  reason: 'manual_phone_takeover'
-                }).catch(() => {});
-              } catch (_) {}
-            }
-            console.log(`[WHATSAPP] Manual phone message detected for ${normalizedChatId}. Human takeover activated for ${humanTimeoutMs}ms.`);
-          } catch (error) {
-            console.error('[WHATSAPP] outbound realtime persistence/takeover failed:', error?.message || error);
           }
-        }
-      } else {
+        } else {
           isDuplicateOutgoing = true;
           // If it IS in the memory mapping (sent from our API), result is null.
           // BUT we can load the message from the repository so we can populate `result`
