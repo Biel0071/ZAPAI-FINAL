@@ -1873,8 +1873,10 @@ async function bootstrap() {
       // Phase 6: Register AI memory flush worker
       workerSupervisor.registerWorker('ai_session_style', () => require('./src/ai/agents/services/aiAgentService').evolveSessionStyles(), 60000);
       workerSupervisor.registerWorker('ai_memory_flush', async () => {
-        await aiMemoryEngine.flushMemoryToPostgres(app.locals.store);
-      }, Math.max(1000, Number(process.env.AI_MEMORY_FLUSH_MS) || 5000), { runImmediately: true });
+        try {
+          await aiMemoryEngine.flushMemoryToPostgres(app.locals.store);
+        } catch (_) {}
+      }, Math.max(60000, Number(process.env.AI_MEMORY_FLUSH_MS) || 60000));
       workerSupervisor.startWorker('ai_memory_flush');
       workerSupervisor.startWorker('ai_session_style');
 
