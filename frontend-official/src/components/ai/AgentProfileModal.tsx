@@ -37,7 +37,7 @@ import {
 import { useToast } from "@/state/hooks/use-toast";
 import { apiService } from "@/core/services/apiService";
 import { cn } from "@/core/lib/utils";
-import { getAgentStatusBadge } from "./DigitalTeamView";
+import { getAgentStatusBadge, getEmployeeAvatar } from "./DigitalTeamView";
 
 interface AgentProfileModalProps {
   open: boolean;
@@ -174,7 +174,7 @@ export function AgentProfileModal({
         <div className="p-6 border-b border-border/60 bg-muted/15 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div className="flex items-center gap-4">
             <img
-              src={agent.avatar || (agent.key === "camila" ? "/assets/mascot/mascot_laptop_working.png" : "/assets/mascot/zaibot_avatar.png")}
+              src={getEmployeeAvatar(agent)}
               alt={agent.name}
               className="h-16 w-16 rounded-2xl object-cover border border-border/80 bg-black/40 shadow-sm"
             />

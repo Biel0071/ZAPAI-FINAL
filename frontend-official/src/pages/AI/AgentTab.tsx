@@ -146,7 +146,7 @@ interface AgentTabProps {
 
 export function AgentTab({
   onOpenVoiceStudio,
-  selectedAgentKey = "zaibot",
+  selectedAgentKey = "camila",
   onSelectAgent,
   onOpenCustomizer,
   aiEnabled = true,
@@ -154,9 +154,9 @@ export function AgentTab({
   const { toast } = useToast();
   const [searchParams] = useSearchParams();
 
-  // Character viewer mode (sync with selectedAgentKey)
+  // Character viewer mode (sync with selectedAgentKey: ONLY zaibot is robot mascot, all others are human characters)
   const [characterMode, setCharacterMode] = useState<"camila" | "zaibot">(
-    selectedAgentKey === "camila" ? "camila" : "zaibot"
+    selectedAgentKey === "zaibot" ? "zaibot" : "camila"
   );
 
   // Runtime State Machine
@@ -173,8 +173,10 @@ export function AgentTab({
   }, [aiEnabled]);
 
   useEffect(() => {
-    if (selectedAgentKey === "camila" || selectedAgentKey === "zaibot") {
-      setCharacterMode(selectedAgentKey);
+    if (selectedAgentKey === "zaibot") {
+      setCharacterMode("zaibot");
+    } else {
+      setCharacterMode("camila");
     }
   }, [selectedAgentKey]);
 

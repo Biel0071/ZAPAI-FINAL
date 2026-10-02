@@ -116,7 +116,7 @@ export default function UnifiedAIPage({ defaultSection }: AIPageProps) {
   const [isVoiceStudioOpen, setIsVoiceStudioOpen] = useState(false);
 
   // Agents & Selection State
-  const [selectedAgentKey, setSelectedAgentKey] = useState<string>("zaibot");
+  const [selectedAgentKey, setSelectedAgentKey] = useState<string>("camila");
   const [customizerModalOpen, setCustomizerModalOpen] = useState(false);
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
   const [whatsAppModalOpen, setWhatsAppModalOpen] = useState(false);
@@ -156,7 +156,7 @@ export default function UnifiedAIPage({ defaultSection }: AIPageProps) {
         badge: "WhatsApp Loja",
         level: 4,
         levelTitle: "Consultor Comercial",
-        avatar: "/assets/mascot/mascot_laptop_working.png",
+        avatar: "/assets/evolution/camila_avatar.png",
         status: "online",
         description: "Foco total em acolhimento, conversão no WhatsApp e playbooks de negociação.",
         stats: { xp: 1450, accuracy: 96, chats: 3820 },

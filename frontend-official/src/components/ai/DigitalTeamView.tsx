@@ -103,6 +103,30 @@ export function getAgentStatusBadge(agent: any) {
   }
 }
 
+export function getEmployeeAvatar(agent: any): string {
+  if (agent?.key === "zaibot" || agent?.isPlatformAssistant) {
+    return "/assets/mascot/zaibot_avatar.png";
+  }
+  if (agent?.avatar && !agent.avatar.includes("/assets/mascot/")) {
+    return agent.avatar;
+  }
+  const key = String(agent?.key || "").toLowerCase();
+  const name = String(agent?.name || "").toLowerCase();
+
+  if (key === "camila" || name.includes("camila")) return "/assets/evolution/camila_avatar.png";
+  if (key === "joao" || name.includes("joao") || name.includes("joão")) return "/assets/evolution/joao_avatar.png";
+  if (key === "marina" || name.includes("marina")) return "/assets/evolution/marina_avatar.png";
+  if (key === "carlos" || name.includes("carlos")) return "/assets/evolution/carlos_avatar.png";
+  if (key === "ana" || name.includes("ana")) return "/assets/evolution/ana_avatar.png";
+
+  const isFemale =
+    agent?.character?.gender === "female" ||
+    agent?.gender === "female" ||
+    name.endsWith("a");
+
+  return isFemale ? "/assets/evolution/camila_avatar.png" : "/assets/evolution/joao_avatar.png";
+}
+
 interface DigitalTeamViewProps {
   agents: any[];
   onSelectAgent: (agent: any) => void;
@@ -133,7 +157,7 @@ export function DigitalTeamView({
       active: true,
       status: "active",
       channels: ["whatsapp", "inbox"],
-      avatar: "/assets/mascot/mascot_laptop_working.png",
+      avatar: "/assets/evolution/camila_avatar.png",
       personalityType: "comercial",
       character: { gender: "female", outfit: "uniforme_vendas", theme: "emerald" },
       stats: { chatsToday: 127, slaPercent: 94, satisfactionCsat: 98, avgResponseTime: "18s" },
@@ -146,7 +170,7 @@ export function DigitalTeamView({
       active: true,
       status: "active",
       channels: ["whatsapp", "inbox"],
-      avatar: "/assets/mascot/zaibot_avatar.png",
+      avatar: "/assets/evolution/joao_avatar.png",
       personalityType: "tecnico",
       character: { gender: "male", outfit: "uniforme_suporte", theme: "cyan" },
       stats: { chatsToday: 68, slaPercent: 97, satisfactionCsat: 95, avgResponseTime: "22s" },
@@ -159,7 +183,7 @@ export function DigitalTeamView({
       active: false,
       status: "paused",
       channels: ["whatsapp"],
-      avatar: "/assets/mascot/mascot_laptop_working.png",
+      avatar: "/assets/evolution/marina_avatar.png",
       personalityType: "empatica",
       character: { gender: "female", outfit: "uniforme_pos_venda", theme: "purple" },
       stats: { chatsToday: 42, slaPercent: 96, satisfactionCsat: 99, avgResponseTime: "16s" },
@@ -172,7 +196,7 @@ export function DigitalTeamView({
       active: false,
       status: "offline",
       channels: ["inbox"],
-      avatar: "/assets/mascot/zaibot_avatar.png",
+      avatar: "/assets/evolution/carlos_avatar.png",
       personalityType: "formal",
       character: { gender: "male", outfit: "business", theme: "slate" },
       stats: { chatsToday: 15, slaPercent: 92, satisfactionCsat: 94, avgResponseTime: "25s" },
@@ -315,7 +339,7 @@ export function DigitalTeamView({
                 <div className="flex items-start justify-between gap-3">
                   <div className="flex items-center gap-3">
                     <img
-                      src={agent.avatar || (agent.key === "camila" ? "/assets/mascot/mascot_laptop_working.png" : "/assets/mascot/zaibot_avatar.png")}
+                      src={getEmployeeAvatar(agent)}
                       alt={agent.name}
                       className="h-12 w-12 rounded-xl object-cover border border-border/80 bg-black/30 shrink-0"
                     />

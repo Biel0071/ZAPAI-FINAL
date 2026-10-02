@@ -323,6 +323,17 @@ export const AICharacterViewer: React.FC<AICharacterViewerProps> = ({
     onToggleMode?.(newMode);
   };
 
+  const getAvatarForMode = () => {
+    if (currentMode === "zaibot") return "/assets/mascot/zaibot_avatar.png";
+    if (avatarUrl && !avatarUrl.includes("/assets/mascot/")) return avatarUrl;
+    const n = (customName || agentName || "").toLowerCase();
+    if (n.includes("joao") || n.includes("joão")) return "/assets/evolution/joao_avatar.png";
+    if (n.includes("marina")) return "/assets/evolution/marina_avatar.png";
+    if (n.includes("carlos")) return "/assets/evolution/carlos_avatar.png";
+    if (n.includes("ana")) return "/assets/evolution/ana_avatar.png";
+    return "/assets/evolution/camila_avatar.png";
+  };
+
   // State visuals mapping
   const getZaibotImage = () => {
     switch (effectiveState) {
@@ -452,7 +463,7 @@ export const AICharacterViewer: React.FC<AICharacterViewerProps> = ({
   const stateCfg = getStateConfig();
 
   return (
-    <article className="relative w-full h-[340px] bg-[#0c121d] rounded-2xl border border-white/10 shadow-2xl overflow-hidden select-none">
+    <article className="relative w-full h-[370px] bg-[#0c121d] rounded-2xl border border-white/10 shadow-2xl overflow-hidden select-none">
       <div className="relative w-full h-full">
         {/* TOP CENTER AGENT MODE SWITCHER */}
         <div className="absolute top-2.5 left-1/2 -translate-x-1/2 z-30 flex items-center p-0.5 rounded-full bg-black/75 backdrop-blur-md border border-white/20 shadow-lg">
@@ -466,7 +477,7 @@ export const AICharacterViewer: React.FC<AICharacterViewerProps> = ({
                 : "text-slate-300 hover:text-white"
             )}
           >
-            Camila (Loja)
+            {customName || "Camila"} (Humano)
           </button>
           <button
             type="button"
@@ -508,11 +519,7 @@ export const AICharacterViewer: React.FC<AICharacterViewerProps> = ({
         <div className="absolute top-2.5 left-2.5 z-30 flex items-center gap-2 bg-[#090e17]/90 backdrop-blur-md border border-white/10 px-2.5 py-1.5 rounded-xl shadow-lg max-w-[45%]">
           <div className="w-8 h-8 rounded-lg overflow-hidden border border-emerald-500/50 flex-shrink-0 bg-black">
             <img
-              src={
-                currentMode === "zaibot"
-                  ? "/assets/mascot/zaibot_avatar.png"
-                  : avatarUrl || "/assets/evolution/camila_avatar_16bit.png"
-              }
+              src={getAvatarForMode()}
               alt={currentMode === "zaibot" ? "ZAIBOT" : customName}
               className="w-full h-full object-cover"
             />
@@ -558,13 +565,13 @@ export const AICharacterViewer: React.FC<AICharacterViewerProps> = ({
                   description: "Assistente Operacional ZAI monitorando processos e atendimentos.",
                 });
               }}
-              className="relative z-10 flex flex-col items-center justify-center h-full max-h-[290px] pt-4 cursor-pointer group"
+              className="relative z-10 flex flex-col items-center justify-center h-full max-h-[310px] pt-4 cursor-pointer group"
             >
               <img
                 src={getZaibotImage()}
                 alt="ZAIBOT Mascote"
                 className={cn(
-                  "h-full max-h-[265px] object-contain drop-shadow-[0_12px_30px_rgba(0,0,0,0.85)] transition-all duration-300 group-hover:scale-105",
+                  "h-full max-h-[280px] object-contain drop-shadow-[0_12px_30px_rgba(0,0,0,0.85)] transition-all duration-300 group-hover:scale-105",
                   effectiveState === "offline"
                     ? "brightness-[0.55] saturate-[0.3]"
                     : effectiveState === "idle"
@@ -609,62 +616,128 @@ export const AICharacterViewer: React.FC<AICharacterViewerProps> = ({
             </div>
           </div>
         ) : (
-          /* CAMILA 16-BIT RETRO STORE OFFICE ROOM */
-          <div className="relative w-full h-full overflow-hidden transition-all duration-500">
-            <img
-              src={getCamilaImage()}
-              alt={effectiveState === "offline" || effectiveState === "idle" ? "Camila em Pé" : "Camila Sentada Trabalhando"}
-              className={cn(
-                "w-full h-full object-cover transition-all duration-500",
-                effectiveState === "offline"
-                  ? "brightness-[0.6] saturate-[0.4]"
-                  : effectiveState === "idle"
-                  ? "brightness-[0.85] saturate-[0.8]"
-                  : "filter-none brightness-100"
-              )}
-              style={{ imageRendering: "pixelated" }}
-            />
+          /* CAMILA & DIGITAL EMPLOYEES HUMAN CHARACTER STUDIO */
+          <div className="relative w-full h-full flex items-stretch bg-[#080d16] overflow-hidden">
+            {/* 1. LEFT VERTICAL TOOLBAR (Visual, Roupas, Acessórios, Cenário, Animações) */}
+            <div className="z-20 flex flex-col justify-center gap-1.5 p-2 bg-[#060a12]/90 border-r border-white/10 shrink-0">
+              {[
+                { id: "visual" as const, label: "Visual", icon: User },
+                { id: "roupas" as const, label: "Roupas", icon: Shirt },
+                { id: "acessorios" as const, label: "Acessórios", icon: Headphones },
+                { id: "cenario" as const, label: "Cenário", icon: Store },
+                { id: "animacoes" as const, label: "Animações", icon: Sparkles },
+              ].map((btn) => {
+                const Icon = btn.icon;
+                const isActive = activeTab === btn.id;
+                return (
+                  <button
+                    key={btn.id}
+                    type="button"
+                    onClick={() => handleTabClick(btn.id)}
+                    className={cn(
+                      "w-13 sm:w-14 h-11 sm:h-12 rounded-xl flex flex-col items-center justify-center gap-0.5 transition-all cursor-pointer border",
+                      isActive
+                        ? "bg-emerald-500/20 text-emerald-300 border-emerald-500/50 shadow-[0_0_12px_rgba(16,185,129,0.25)]"
+                        : "bg-black/30 border-white/5 text-slate-400 hover:text-white hover:border-white/20"
+                    )}
+                  >
+                    <Icon className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                    <span className="text-[8px] sm:text-[9px] font-semibold">{btn.label}</span>
+                  </button>
+                );
+              })}
+            </div>
 
-            {/* Tint overlay based on store theme */}
-            <div
-              className="absolute inset-0 pointer-events-none opacity-15 mix-blend-color transition-colors duration-500"
-              style={{ backgroundColor: clothingColor }}
-            />
-
-            {/* Floating Speech bubble for RESPONDING */}
-            {effectiveState === "responding" && (
-              <div className="absolute top-14 left-1/2 -translate-x-1/2 z-20 animate-bounce bg-emerald-500 text-black px-3 py-1 rounded-full text-[10px] font-black shadow-lg">
-                💬 Camila respondendo cliente...
-              </div>
-            )}
-
-            {/* Interactive Room Hotspots */}
-            <div
-              title="Terminal ZAI — Atendendo WhatsApp"
-              onClick={() => toast({ title: "Terminal WhatsApp", description: "Conectado à fila de atendimento da loja." })}
-              className="absolute top-[48%] left-[45%] h-8 w-12 rounded cursor-pointer border border-emerald-400/40 bg-emerald-400/10 hover:bg-emerald-400/25 transition-colors"
-            />
-            <div
-              title="Logotipo Oficial ZAI Neon"
-              onClick={() => toast({ title: "ZAI CRM", description: "Módulo de Atendimento Inteligente." })}
-              className="absolute top-[32%] right-[32%] h-12 w-12 rounded cursor-pointer border border-emerald-400/30 bg-emerald-400/10 hover:bg-emerald-400/20 transition-colors"
-            />
-
-            {/* Bottom Left Status Beacon */}
-            <div className="absolute bottom-3 left-3 z-20 flex items-center gap-2 bg-[#090e17]/90 backdrop-blur-md border border-white/10 px-3 py-1.5 rounded-xl shadow-lg">
-              <span
+            {/* 2. CENTER: RETRO 16-BIT ISOMETRIC OFFICE ROOM */}
+            <div className="relative flex-1 h-full overflow-hidden flex items-center justify-center bg-black/60">
+              <img
+                src="/assets/evolution/camila_office_active.png"
+                alt="Escritório Camila Atendente"
                 className={cn(
-                  "w-2 h-2 rounded-full",
-                  stateCfg.color,
-                  stateCfg.pulse && "animate-pulse shadow-[0_0_8px_#10b981]"
+                  "w-full h-full object-cover transition-all duration-500",
+                  effectiveState === "offline"
+                    ? "brightness-[0.45] saturate-[0.3]"
+                    : effectiveState === "idle"
+                    ? "brightness-[0.85] saturate-[0.8]"
+                    : "filter-none brightness-100"
                 )}
+                style={{ imageRendering: "pixelated" }}
               />
-              <span className="text-[10px] font-bold text-foreground">
-                Camila • {stateCfg.desc}
-              </span>
-              <Badge className={cn("text-[9px] font-mono py-0 h-4 border", stateCfg.border, stateCfg.textColor, "bg-black/50")}>
-                {stateCfg.label}
-              </Badge>
+
+              {/* Tint overlay based on store theme */}
+              <div
+                className="absolute inset-0 pointer-events-none opacity-10 mix-blend-color transition-colors duration-500"
+                style={{ backgroundColor: clothingColor }}
+              />
+
+              {/* Speech bubble when responding */}
+              {effectiveState === "responding" && (
+                <div className="absolute top-14 left-1/2 -translate-x-1/2 z-20 animate-bounce bg-emerald-500 text-black px-3.5 py-1 rounded-full text-[10px] font-black shadow-lg">
+                  💬 {customName} respondendo ao cliente...
+                </div>
+              )}
+
+              {/* Interactive Room Hotspots */}
+              <div
+                title="Terminal WhatsApp Ativo"
+                onClick={() => toast({ title: "Terminal WhatsApp", description: "Conectado à fila de atendimento da loja." })}
+                className="absolute top-[48%] left-[45%] h-8 w-12 rounded cursor-pointer border border-emerald-400/40 bg-emerald-400/10 hover:bg-emerald-400/25 transition-colors"
+              />
+              <div
+                title="Logotipo Oficial ZAI Neon"
+                onClick={() => toast({ title: "ZAI CRM", description: "Módulo de Atendimento Inteligente." })}
+                className="absolute top-[32%] right-[32%] h-12 w-12 rounded cursor-pointer border border-emerald-400/30 bg-emerald-400/10 hover:bg-emerald-400/20 transition-colors"
+              />
+
+              {/* Bottom pill: Atendendo agora / Status */}
+              <div className="absolute bottom-3 left-1/2 -translate-x-1/2 z-10">
+                <div className={cn(
+                  "px-3.5 py-1 rounded-full text-[10px] font-bold border backdrop-blur-md flex items-center gap-2 shadow-lg",
+                  isOnline
+                    ? "bg-[#090e17]/90 text-emerald-400 border-emerald-500/40"
+                    : "bg-black/80 text-slate-400 border-white/10"
+                )}>
+                  <span className={cn(
+                    "w-2 h-2 rounded-full",
+                    stateCfg.color,
+                    stateCfg.pulse && "animate-pulse shadow-[0_0_8px_#10b981]"
+                  )} />
+                  <span>{effectiveState === "offline" ? "Pausada / Fora de Expediente" : "Atendendo agora..."}</span>
+                </div>
+              </div>
+            </div>
+
+            {/* 3. RIGHT: STANDING OFFLINE PREVIEW PANEL */}
+            <div className="hidden sm:flex flex-col items-center justify-between w-32 md:w-36 lg:w-44 h-full p-2.5 sm:p-3 bg-[#070b13] border-l border-white/10 shrink-0 z-10">
+              <div className="w-full flex justify-center">
+                <span className={cn(
+                  "px-2.5 py-0.5 rounded-full text-[9px] font-bold border flex items-center gap-1.5",
+                  effectiveState === "offline"
+                    ? "bg-slate-800 text-slate-200 border-slate-600 shadow-sm"
+                    : "bg-black/50 text-slate-400 border-white/10"
+                )}>
+                  <span className={cn("w-1.5 h-1.5 rounded-full", effectiveState === "offline" ? "bg-amber-400 animate-pulse" : "bg-slate-500")} />
+                  Offline
+                </span>
+              </div>
+
+              <div className="relative flex-1 flex items-center justify-center my-1">
+                <img
+                  src="/assets/evolution/camila_standing_offline.png"
+                  alt={`${customName} em pé`}
+                  className={cn(
+                    "max-h-[190px] w-auto object-contain transition-all duration-300 drop-shadow-[0_8px_20px_rgba(0,0,0,0.8)]",
+                    effectiveState === "offline"
+                      ? "scale-105 brightness-110 drop-shadow-[0_0_15px_rgba(16,185,129,0.35)]"
+                      : "opacity-80 saturate-75"
+                  )}
+                  style={{ imageRendering: "pixelated" }}
+                />
+              </div>
+
+              <p className="text-[9px] text-slate-400 text-center font-medium leading-tight px-1">
+                Quando desativada, fica em pé.
+              </p>
             </div>
           </div>
         )}

@@ -38,6 +38,7 @@ import { useToast } from "@/state/hooks/use-toast";
 import { useAppStore } from "@/state/stores/appStore";
 import { apiService } from "@/core/services/apiService";
 import { cn } from "@/core/lib/utils";
+import { getEmployeeAvatar } from "./DigitalTeamView";
 
 interface NewAgentWizardModalProps {
   open: boolean;
@@ -403,18 +404,14 @@ export function NewAgentWizardModal({
       }),
       channels: channels.length > 0 ? channels : ["whatsapp"],
       knowledgeSources,
-      avatar: personality === "amigavel" || selectedRole.includes("Pós-venda")
-        ? "/assets/mascot/mascot_laptop_working.png"
-        : "/assets/mascot/zaibot_avatar.png",
+      avatar: getEmployeeAvatar({ name, role: selectedRole, character: { gender: name.toLowerCase().endsWith("a") ? "female" : "male" } }),
       character: {
         gender: name.toLowerCase().endsWith("a") ? "female" : "male",
         outfit: selectedRole === "Suporte" ? "tech_uniform" : "business",
         theme: "emerald",
       },
       appearance: {
-        avatar: name.toLowerCase().endsWith("a")
-          ? "/assets/mascot/mascot_laptop_working.png"
-          : "/assets/mascot/mascot_mobile.png",
+        avatar: getEmployeeAvatar({ name, role: selectedRole, character: { gender: name.toLowerCase().endsWith("a") ? "female" : "male" } }),
         character: name.toLowerCase().endsWith("a") ? "female_attendant" : "male_attendant",
         outfit: selectedRole === "Suporte" ? "tech_uniform" : "business",
         accessories: [],
@@ -856,9 +853,7 @@ export function NewAgentWizardModal({
                 <div className="flex items-start justify-between gap-4">
                   <div className="flex items-center gap-3.5">
                     <img
-                      src={personality === "amigavel" || role.includes("Pós")
-                        ? "/assets/mascot/mascot_laptop_working.png"
-                        : "/assets/mascot/zaibot_avatar.png"}
+                      src={getEmployeeAvatar({ name, role, character: { gender: name.toLowerCase().endsWith("a") ? "female" : "male" } })}
                       alt={name}
                       className="h-14 w-14 rounded-2xl object-cover border border-emerald-500/40 bg-black/40 shadow"
                     />

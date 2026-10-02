@@ -78,7 +78,11 @@ export function AgentCustomizerModal({
   // Tab 1: Identidade
   const [name, setName] = useState(agent?.name || "Camila");
   const [role, setRole] = useState(agent?.sector || agent?.role || "Especialista em Vendas & Atendimento");
-  const [avatar, setAvatar] = useState(agent?.avatar || "/assets/mascot/mascot_laptop_working.png");
+  const [avatar, setAvatar] = useState(
+    agent?.avatar && !agent.avatar.includes("/assets/mascot/")
+      ? agent.avatar
+      : (agent?.key === "zaibot" ? "/assets/mascot/zaibot_avatar.png" : "/assets/evolution/camila_avatar.png")
+  );
   const [themeColor, setThemeColor] = useState(agent?.themeColor || "#10b981");
 
   // Tab 2: Aparência
@@ -347,14 +351,25 @@ export function AgentCustomizerModal({
                 </div>
 
                 <div className="space-y-1.5">
-                  <Label className="text-xs font-semibold">Avatar do Mascote</Label>
-                  <div className="grid grid-cols-4 gap-2 pt-1">
-                    {[
-                      { label: "Camila 16-bit", src: "/assets/evolution/camila_avatar_16bit.png" },
-                      { label: "ZAIBOT 3D", src: "/assets/mascot/zaibot_avatar.png" },
-                      { label: "Mascote Thumbs", src: "/assets/mascot/mascot_standing_thumbsup.png" },
-                      { label: "Mascote Laptop", src: "/assets/mascot/mascot_laptop_working.png" },
-                    ].map((av) => (
+                  <Label className="text-xs font-semibold">
+                    {agent?.key === "zaibot" ? "Visual do Mascote 3D (ZAIBOT)" : "Avatar do Personagem Humano"}
+                  </Label>
+                  <div className="grid grid-cols-3 sm:grid-cols-5 gap-2 pt-1">
+                    {(agent?.key === "zaibot"
+                      ? [
+                          { label: "ZAIBOT 3D", src: "/assets/mascot/zaibot_avatar.png" },
+                          { label: "Mascote Thumbs", src: "/assets/mascot/mascot_standing_thumbsup.png" },
+                          { label: "Mascote Laptop", src: "/assets/mascot/mascot_laptop_working.png" },
+                          { label: "Mascote Celular", src: "/assets/mascot/mascot_mobile.png" },
+                        ]
+                      : [
+                          { label: "Camila (Vendas)", src: "/assets/evolution/camila_avatar.png" },
+                          { label: "João (Suporte)", src: "/assets/evolution/joao_avatar.png" },
+                          { label: "Marina (Pós)", src: "/assets/evolution/marina_avatar.png" },
+                          { label: "Carlos (Fin)", src: "/assets/evolution/carlos_avatar.png" },
+                          { label: "Ana (Recepção)", src: "/assets/evolution/ana_avatar.png" },
+                        ]
+                    ).map((av) => (
                       <button
                         key={av.src}
                         type="button"
