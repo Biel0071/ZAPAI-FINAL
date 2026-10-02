@@ -169,30 +169,31 @@ export function EvolutionTab() {
         apiService.getLearnedPatterns().catch(() => null),
       ]);
 
-      if (evoRes?.evolution) {
+      const evoData = (evoRes as any)?.data || evoRes;
+      if (evoData?.evolution) {
         setOverview({
-          score: Number(evoRes.evolution.score) || 88,
-          level: evoRes.evolution.level || "Nível 4 (Consultor Comercial Especialista)",
+          score: Number(evoData.evolution.score) || 88,
+          level: evoData.evolution.level || "Nível 5 (Master Closer de Elite)",
           goal: {
-            current: Number(evoRes.evolution.goal?.current) || 0,
-            target: Number(evoRes.evolution.goal?.target) || 20,
-            percentage: Number(evoRes.evolution.goal?.percentage) || 0,
+            current: Number(evoData.evolution.goal?.current) || 0,
+            target: Number(evoData.evolution.goal?.target) || 20,
+            percentage: Number(evoData.evolution.goal?.percentage) || 0,
           },
           components: {
-            answers: Number(evoRes.evolution.components?.answers) || 35,
-            refinements: Number(evoRes.evolution.components?.refinements) || 25,
-            coverage: Number(evoRes.evolution.components?.coverage) || 16,
-            queue: Number(evoRes.evolution.components?.queue) || 8,
+            answers: Number(evoData.evolution.components?.answers) || 35,
+            refinements: Number(evoData.evolution.components?.refinements) || 25,
+            coverage: Number(evoData.evolution.components?.coverage) || 16,
+            queue: Number(evoData.evolution.components?.queue) || 8,
           },
         });
       }
 
-      if (evoRes?.humanStats) {
-        setHumanStats(evoRes.humanStats);
+      if (evoData?.humanStats) {
+        setHumanStats(evoData.humanStats);
       }
 
-      if (evoRes?.history && Array.isArray(evoRes.history)) {
-        setHistoryLogs(evoRes.history);
+      if (evoData?.history && Array.isArray(evoData.history)) {
+        setHistoryLogs(evoData.history);
       }
 
       if (learnRes?.pending && Array.isArray(learnRes.pending)) {
