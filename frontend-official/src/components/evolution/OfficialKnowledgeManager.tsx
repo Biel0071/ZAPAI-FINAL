@@ -73,12 +73,13 @@ export function OfficialKnowledgeManager() {
       setLoading(true);
       const url = `${API_ORIGIN}/api/ai/evolution/official-knowledge${search ? `?q=${encodeURIComponent(search)}` : ""}`;
       const res = await fetch(url, { credentials: "omit" });
-      if (res.ok) {
+      const contentType = res.headers.get("content-type") || "";
+      if (res.ok && contentType.includes("application/json")) {
         const json = await res.json();
-        if (json.success) setItems(json.data);
+        if (json.success && Array.isArray(json.data)) setItems(json.data);
       }
     } catch (err: any) {
-      console.error("[OfficialKnowledgeManager] fetch error:", err);
+      console.warn("[OfficialKnowledgeManager] fetch error:", err?.message || err);
     } finally {
       setLoading(false);
     }

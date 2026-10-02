@@ -63,12 +63,13 @@ export function PlaybookManager() {
     try {
       setLoading(true);
       const res = await fetch(`${API_ORIGIN}/api/ai/evolution/playbooks`, { credentials: "omit" });
-      if (res.ok) {
+      const contentType = res.headers.get("content-type") || "";
+      if (res.ok && contentType.includes("application/json")) {
         const json = await res.json();
-        if (json.success) setPlaybooks(json.data);
+        if (json.success && Array.isArray(json.data)) setPlaybooks(json.data);
       }
     } catch (err: any) {
-      console.error("[PlaybookManager] fetch error:", err);
+      console.warn("[PlaybookManager] fetch error:", err?.message || err);
     } finally {
       setLoading(false);
     }

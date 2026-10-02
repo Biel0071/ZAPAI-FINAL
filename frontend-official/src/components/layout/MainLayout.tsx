@@ -6,6 +6,7 @@ import { useIsMobile } from "@/state/hooks/use-mobile";
 import { useAppStore } from "@/state/stores/appStore";
 import { cn } from "@/core/lib/utils";
 import { NewConversationDialog } from "./NewConversationDialog";
+import { ZaibotFloatingAssistant } from "@/components/ai/ZaibotFloatingAssistant";
 
 const SIDEBAR_COLLAPSE_EVENT = "sidebar:collapsed";
 
@@ -61,6 +62,7 @@ export function MainLayout() {
       </div>
       {isMobile && <MobileBottomNav />}
       <NewConversationDialog />
+      {!isInboxActiveChat && <ZaibotFloatingAssistant />}
     </div>
   );
 }

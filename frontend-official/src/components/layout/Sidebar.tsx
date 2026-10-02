@@ -87,6 +87,7 @@ export function Sidebar() {
   });
   const [mobileOpen, setMobileOpen] = useState(false);
   const [adminOpen, setAdminOpen] = useState(false);
+  const [aiSubmenuOpen, setAiSubmenuOpen] = useState(true);
   const location = useLocation();
   const navigate = useNavigate();
   const isMobile = useIsMobile();
@@ -306,6 +307,20 @@ export function Sidebar() {
                 title={`Status: ${health.status}`}
               />
             )}
+            {isAiItem && (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  setAiSubmenuOpen(!aiSubmenuOpen);
+                }}
+                className="ml-auto p-1 rounded hover:bg-sidebar-accent text-sidebar-muted hover:text-sidebar-foreground transition-colors"
+                aria-label={aiSubmenuOpen ? "Recolher submenu de IA" : "Expandir submenu de IA"}
+              >
+                {aiSubmenuOpen ? <CaretUp className="h-3.5 w-3.5" /> : <CaretDown className="h-3.5 w-3.5" />}
+              </button>
+            )}
           </>
         )}
       </NavLink>
@@ -321,6 +336,50 @@ export function Sidebar() {
             {item.label}
           </TooltipContent>
         </Tooltip>
+      );
+    }
+
+    if (isAiItem && isAiActive && aiSubmenuOpen) {
+      const searchParams = new URLSearchParams(location.search);
+      const currentTab = searchParams.get("tab") || "agent";
+      const currentSub = searchParams.get("sub") || "";
+
+      const aiSubmenuItems = [
+        { label: "Dashboard", tab: "operations", sub: "dashboard", path: "/ai?tab=operations&sub=dashboard" },
+        { label: "Atendentes", tab: "agent", sub: "", path: "/ai?tab=agent" },
+        { label: "Provedores", tab: "agent", sub: "providers", path: "/ai?tab=agent&sub=providers" },
+        { label: "Conhecimento", tab: "flows", sub: "knowledge", path: "/ai?tab=flows&sub=knowledge" },
+        { label: "Operação", tab: "operations", sub: "", path: "/ai?tab=operations" },
+        { label: "Evolução IA", tab: "evolution", sub: "", path: "/ai?tab=evolution" },
+        { label: "Playbooks", tab: "flows", sub: "playbooks", path: "/ai?tab=flows&sub=playbooks" },
+        { label: "Auditoria & Logs", tab: "operations", sub: "logs", path: "/ai?tab=operations&sub=logs" },
+      ];
+
+      return (
+        <div key={`${keyPrefix}:${item.label}:${item.path}-container`} className="space-y-0.5">
+          {navElement}
+          <div className="ml-4 pl-2 border-l border-sidebar-border/50 space-y-0.5 pt-0.5 pb-1">
+            {aiSubmenuItems.map((sub) => {
+              const isSubActive = sub.sub
+                ? currentSub === sub.sub
+                : currentTab === sub.tab && !currentSub;
+              return (
+                <NavLink
+                  key={sub.label}
+                  to={sub.path}
+                  className={cn(
+                    "flex items-center h-7 px-2.5 rounded-lg text-xs transition-colors",
+                    isSubActive
+                      ? "bg-emerald-500/15 text-emerald-400 font-semibold"
+                      : "text-sidebar-muted hover:text-sidebar-foreground hover:bg-sidebar-accent/50"
+                  )}
+                >
+                  <span className="truncate">{sub.label}</span>
+                </NavLink>
+              );
+            })}
+          </div>
+        </div>
       );
     }
 

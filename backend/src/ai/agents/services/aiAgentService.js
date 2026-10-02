@@ -209,6 +209,30 @@ async function hydrateFromSettings(tenantId = DEFAULT_TENANT_ID) {
     }
 
     const normalizedAgents = Array.isArray(parsed) ? parsed.map((agent) => normalizeAgent(agent)) : [];
+    
+    // Ensure native ZAIBOT (System Assistant) and Camila (Sales Store Attendant) are always available
+    const hasZaibot = normalizedAgents.some((a) => (a.key || '').toLowerCase() === 'zaibot');
+    if (!hasZaibot) {
+      try {
+        const zaibotObj = require('../agents/zaibotAgent');
+        if (zaibotObj) {
+          normalizedAgents.unshift(normalizeAgent(zaibotObj));
+          shouldPersist = true;
+        }
+      } catch (_) {}
+    }
+
+    const hasCamila = normalizedAgents.some((a) => (a.key || '').toLowerCase() === 'camila');
+    if (!hasCamila) {
+      try {
+        const camilaObj = require('../agents/camilaAgent');
+        if (camilaObj) {
+          normalizedAgents.push(normalizeAgent(camilaObj));
+          shouldPersist = true;
+        }
+      } catch (_) {}
+    }
+
     agentsByTenant.set(normalizedTenantId, normalizedAgents);
     
     if (shouldPersist && normalizedAgents.length > 0) {

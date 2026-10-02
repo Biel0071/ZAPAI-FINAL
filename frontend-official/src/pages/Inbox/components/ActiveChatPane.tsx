@@ -53,7 +53,8 @@ import { ZaiAssistantComposer } from "./ZaiAssistantComposer";
 import { useAiCountdown } from "@/state/hooks/useAiCountdown";
 import { getSharedSocket } from "@/core/runtime/socket/socketManager";
 import { cn } from "@/core/lib/utils";
-import { apiService } from "@/core/services/apiService";
+import { apiService, requestApiEndpoint } from "@/core/services/apiService";
+import { useToast } from "@/state/hooks/use-toast";
 import type { ChatMessage, Conversation } from "@/core/services/apiService";
 import type { AIResponseProgress } from "@/state/stores/appStore";
 import type { ComposerAttachment, PreviewMediaState, QuickReplyItem } from "../types";
@@ -259,6 +260,34 @@ export function ActiveChatPane({
   aiRuntime,
 }: ActiveChatPaneProps) {
   const navigate = useNavigate();
+  const { toast } = useToast();
+  const [generatingSheet, setGeneratingSheet] = useState(false);
+
+  const handleGenerateSheet = async () => {
+    if (!selectedConversation?.id) return;
+    setGeneratingSheet(true);
+    try {
+      const res = await requestApiEndpoint<any>(`/api/conversations/${selectedConversation.id}/generate-sheet`, {
+        method: "POST",
+      });
+      const text = res?.suggestedText || (res?.profile ? `Ficha do Cliente: ${res.profile.customer?.name || ''}\nResumo: ${res.profile.summary || ''}\nPróxima ação: ${res.profile.nextAction || ''}` : null);
+      if (text) {
+        setMessageInput(text);
+        toast({
+          title: "Ficha Gerada com Sucesso",
+          description: "Os dados e o resumo da conversa foram inseridos no campo de mensagem.",
+        });
+      }
+    } catch (err: any) {
+      toast({
+        title: "Erro ao gerar ficha",
+        description: err?.message || "Não foi possível gerar a ficha do atendimento.",
+        variant: "destructive",
+      });
+    } finally {
+      setGeneratingSheet(false);
+    }
+  };
 
   const [selectedQuickReplyModal, setSelectedQuickReplyModal] = useState<QuickResponseItem | null>(null);
   const [isQuickReplyModalOpen, setIsQuickReplyModalOpen] = useState(false);
@@ -709,6 +738,21 @@ export function ActiveChatPane({
                   </Button>
                 )}
 
+                {/* Gerar Ficha Button */}
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  disabled={generatingSheet}
+                  className="h-8 px-2.5 rounded-lg text-xs font-semibold text-emerald-400 hover:text-emerald-300 hover:bg-emerald-500/10 flex items-center justify-center gap-1.5 transition-colors border border-emerald-500/30 shrink-0"
+                  onClick={handleGenerateSheet}
+                  title="Gerar ficha de atendimento com IA (resumo e próximo passo)"
+                  aria-label="Gerar Ficha"
+                >
+                  <FileIcon className="h-4 w-4 text-emerald-400 shrink-0" weight="bold" />
+                  <span className="hidden sm:inline">{generatingSheet ? "Gerando..." : "Gerar Ficha"}</span>
+                </Button>
+
                 {/* Contact Menu */}
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
@@ -777,6 +821,13 @@ export function ActiveChatPane({
                       </DropdownMenuItem>
                     )}
                     <DropdownMenuSeparator className="border-t border-border/40 my-1" />
+                    <DropdownMenuItem
+                      className="flex items-center gap-2 text-xs cursor-pointer text-emerald-400 hover:bg-emerald-500/10 focus:bg-emerald-500/10"
+                      onClick={handleGenerateSheet}
+                    >
+                      <FileIcon className="h-3.5 w-3.5 text-emerald-400" />
+                      Gerar Ficha com IA
+                    </DropdownMenuItem>
                     <DropdownMenuItem
                       className="flex items-center gap-2 text-xs cursor-pointer text-foreground hover:bg-muted"
                       onClick={() => {

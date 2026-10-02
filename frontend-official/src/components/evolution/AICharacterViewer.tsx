@@ -20,6 +20,7 @@ import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useToast } from "@/state/hooks/use-toast";
 import { AttendantAvatar } from "./AttendantAvatar";
+import { cn } from "@/core/lib/utils";
 
 export interface AttendantConfig {
   hairColor?: string;
@@ -43,6 +44,8 @@ export interface AICharacterViewerProps {
   avatarUrl?: string;
   config?: AttendantConfig;
   onSaveConfig?: (newConfig: AttendantConfig, newName?: string, newRole?: string) => Promise<void> | void;
+  agentMode?: "camila" | "zaibot";
+  onToggleMode?: (mode: "camila" | "zaibot") => void;
 }
 
 export const ATTENDANT_PRESETS = [
@@ -135,7 +138,9 @@ export const AICharacterViewer: React.FC<AICharacterViewerProps> = ({
   onToggleOnline,
   avatarUrl,
   config,
-  onSaveConfig
+  onSaveConfig,
+  agentMode,
+  onToggleMode,
 }) => {
   const { toast } = useToast();
   const [activeTab, setActiveTab] = useState<"visual" | "roupas" | "acessorios" | "cenario" | "animacoes">("visual");
@@ -261,90 +266,192 @@ export const AICharacterViewer: React.FC<AICharacterViewerProps> = ({
     { name: "Preto Executivo", hex: "#0f172a" },
   ];
 
+  const [currentMode, setCurrentMode] = useState<"camila" | "zaibot">(
+    agentMode || (agentName?.toLowerCase().includes("zaibot") ? "zaibot" : "camila")
+  );
+
+  useEffect(() => {
+    if (agentMode) {
+      setCurrentMode(agentMode);
+    } else if (agentName?.toLowerCase().includes("zaibot")) {
+      setCurrentMode("zaibot");
+    } else {
+      setCurrentMode("camila");
+    }
+  }, [agentMode, agentName]);
+
+  const handleModeChange = (newMode: "camila" | "zaibot") => {
+    setCurrentMode(newMode);
+    onToggleMode?.(newMode);
+  };
+
   return (
-    <article className="relative w-full h-[310px] bg-[#0c121d] rounded-2xl border border-white/10 shadow-2xl overflow-hidden select-none">
-      
-            {/* 1:1 AUTHENTIC 16-BIT HABBO STAGE BASE IMAGE */}
+    <article className="relative w-full h-[320px] bg-[#0c121d] rounded-2xl border border-white/10 shadow-2xl overflow-hidden select-none">
       <div className="relative w-full h-full">
-        
-        {/* MAIN AREA: DYNAMIC SCENE (Sitting vs Standing) */}
-        <div className="relative w-full h-full overflow-hidden transition-all duration-500">
-          <img
-            src={isOnline ? "/assets/evolution/habbo_office_working.png" : "/assets/evolution/habbo_standing_box.png"}
-            alt={isOnline ? "Habbo Atendente Sentada" : "Habbo Atendente em Pé"}
-            className={`w-full h-full object-cover transition-all duration-500 ${
-              isOnline ? "filter-none brightness-100" : "brightness-[0.8] saturate-[0.7]"
-            }`}
-            style={{ imageRendering: "pixelated" }}
-          />
-
-          {/* DYNAMIC STORE OVERLAY TINT */}
-          <div
-            className="absolute inset-0 pointer-events-none opacity-15 mix-blend-color transition-colors duration-500"
-            style={{ backgroundColor: clothingColor }}
-          />
-
-          {/* INTERACTIVE TOGGLE BUTTON */}
+        {/* TOP CENTER AGENT MODE SWITCHER */}
+        <div className="absolute top-2.5 left-1/2 -translate-x-1/2 z-30 flex items-center p-0.5 rounded-full bg-black/75 backdrop-blur-md border border-white/20 shadow-lg">
           <button
             type="button"
-            onClick={() => onToggleOnline?.(!isOnline)}
-            title={isOnline ? "Prévia visual: mostrar em pé" : "Prévia visual: mostrar sentado"}
-            aria-label={isOnline ? "Mostrar personagem em pé na prévia" : "Mostrar personagem sentado na prévia"}
-            className={`absolute top-2.5 right-2.5 z-20 w-[76px] h-6 rounded-full transition-all cursor-pointer flex items-center justify-center gap-1 text-[9px] font-bold border backdrop-blur-md ${
-              isOnline
-                ? "bg-emerald-500/20 text-emerald-300 border-emerald-500/40 shadow-[0_0_10px_rgba(16,185,129,0.2)]"
-                : "bg-black/60 text-slate-300 border-white/20 hover:bg-black/80"
-            }`}
+            onClick={() => handleModeChange("camila")}
+            className={cn(
+              "px-3 py-1 rounded-full text-[10px] font-bold transition-all cursor-pointer",
+              currentMode === "camila"
+                ? "bg-emerald-500 text-black shadow-[0_0_10px_rgba(16,185,129,0.4)]"
+                : "text-slate-300 hover:text-white"
+            )}
           >
-            <span
-              className={`w-1.5 h-1.5 rounded-full ${
-                isOnline ? "bg-emerald-400" : "bg-slate-400"
-              }`}
-            />
-            <span>{isOnline ? "Sentada" : "Em pé"}</span>
+            Camila (Loja)
           </button>
+          <button
+            type="button"
+            onClick={() => handleModeChange("zaibot")}
+            className={cn(
+              "px-3 py-1 rounded-full text-[10px] font-bold transition-all cursor-pointer",
+              currentMode === "zaibot"
+                ? "bg-emerald-500 text-black shadow-[0_0_10px_rgba(16,185,129,0.4)]"
+                : "text-slate-300 hover:text-white"
+            )}
+          >
+            ZAIBOT (Mascote 3D)
+          </button>
+        </div>
 
-          {/* CUSTOM ATTENDANT BADGE OVERLAY (When customized) */}
-          <div className="absolute top-2.5 left-2.5 z-10 flex items-center gap-2 bg-[#090e17]/90 backdrop-blur-md border border-white/10 px-2.5 py-1.5 rounded-xl shadow-lg max-w-[65%]">
-            <div className="w-8 h-8 rounded-lg overflow-hidden border border-emerald-500/50 flex-shrink-0 bg-black">
+        {/* INTERACTIVE ONLINE / OFFLINE TOGGLE BUTTON */}
+        <button
+          type="button"
+          onClick={() => onToggleOnline?.(!isOnline)}
+          title={isOnline ? "Prévia visual: mostrar parado / em pé" : "Prévia visual: mostrar trabalhando"}
+          aria-label={isOnline ? "Mostrar em pé" : "Mostrar trabalhando"}
+          className={cn(
+            "absolute top-2.5 right-2.5 z-30 w-[82px] h-6 rounded-full transition-all cursor-pointer flex items-center justify-center gap-1 text-[9px] font-bold border backdrop-blur-md",
+            isOnline
+              ? "bg-emerald-500/20 text-emerald-300 border-emerald-500/40 shadow-[0_0_10px_rgba(16,185,129,0.2)]"
+              : "bg-black/60 text-slate-300 border-white/20 hover:bg-black/80"
+          )}
+        >
+          <span
+            className={cn(
+              "w-1.5 h-1.5 rounded-full",
+              isOnline ? "bg-emerald-400 animate-pulse" : "bg-slate-400"
+            )}
+          />
+          <span>{isOnline ? "Trabalhando" : "Em pé"}</span>
+        </button>
+
+        {/* AGENT BADGE (TOP LEFT) */}
+        <div className="absolute top-2.5 left-2.5 z-30 flex items-center gap-2 bg-[#090e17]/90 backdrop-blur-md border border-white/10 px-2.5 py-1.5 rounded-xl shadow-lg max-w-[45%]">
+          <div className="w-8 h-8 rounded-lg overflow-hidden border border-emerald-500/50 flex-shrink-0 bg-black">
+            <img
+              src={
+                currentMode === "zaibot"
+                  ? "/assets/mascot/zaibot_avatar.png"
+                  : avatarUrl || "/assets/evolution/camila_avatar_16bit.png"
+              }
+              alt={currentMode === "zaibot" ? "ZAIBOT" : customName}
+              className="w-full h-full object-cover"
+            />
+          </div>
+          <div className="min-w-0">
+            <div className="text-[11px] font-bold text-white flex items-center gap-1 leading-tight truncate">
+              {currentMode === "zaibot" ? "ZAIBOT" : customName}
+            </div>
+            <div className="text-[9px] text-slate-400 font-medium leading-tight truncate">
+              {currentMode === "zaibot" ? "Assistente Operacional ZAI" : customRole}
+            </div>
+          </div>
+        </div>
+
+        {/* SCENE DISPLAY */}
+        {currentMode === "zaibot" ? (
+          /* HIGH-TECH 3D ROBOT MASCOT LIVING LAB */
+          <div className="relative w-full h-full overflow-hidden flex items-center justify-center bg-gradient-to-b from-[#050912] via-[#0b1424] to-[#04070d]">
+            {/* Tech grid background */}
+            <div className="absolute inset-0 bg-[linear-gradient(to_right,#10b9810d_1px,transparent_1px),linear-gradient(to_bottom,#10b9810d_1px,transparent_1px)] bg-[size:28px_28px]" />
+            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-80 h-80 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none" />
+
+            {/* Mascot Image based on online/offline state */}
+            <div className="relative z-10 flex flex-col items-center justify-center h-full max-h-[290px] pt-4">
               <img
-                src={avatarUrl || "/assets/evolution/habbo_avatar.png"}
-                alt={customName}
-                className="w-full h-full object-cover"
-                style={{ imageRendering: "pixelated" }}
+                src={
+                  isOnline
+                    ? "/assets/mascot/mascot_laptop_working.png"
+                    : "/assets/mascot/mascot_standing_thumbsup.png"
+                }
+                alt="ZAIBOT Mascote"
+                className={cn(
+                  "h-full max-h-[265px] object-contain drop-shadow-[0_12px_30px_rgba(0,0,0,0.85)] transition-all duration-500",
+                  isOnline ? "filter-none brightness-105" : "brightness-[0.7] saturate-[0.4]"
+                )}
               />
             </div>
-            <div className="min-w-0">
-              <div className="text-[11px] font-bold text-white flex items-center gap-1 leading-tight truncate">
-                {customName}
-              </div>
-              <div className="text-[9px] text-slate-400 font-medium leading-tight truncate">
-                {customRole}
-              </div>
-              <div className="text-[9px] font-semibold flex items-center gap-1 mt-0.5 leading-tight truncate">
-                <span
-                  className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${
-                    isOnline ? "bg-emerald-400 animate-pulse shadow-[0_0_8px_#10b981]" : "bg-slate-400"
-                  }`}
-                />
-                <span className={isOnline ? "text-emerald-400 font-bold" : "text-slate-400 font-medium"}>
-                  {isOnline ? "Prévia · Sentada" : "Prévia · Em pé"}
-                </span>
-              </div>
+
+            {/* Bottom Left Status Beacon */}
+            <div className="absolute bottom-3 left-3 z-20 flex items-center gap-2 bg-[#090e17]/90 backdrop-blur-md border border-emerald-500/30 px-3 py-1.5 rounded-xl shadow-lg">
+              <span
+                className={cn(
+                  "w-2 h-2 rounded-full",
+                  isOnline ? "bg-emerald-400 animate-pulse shadow-[0_0_8px_#10b981]" : "bg-slate-400"
+                )}
+              />
+              <span className="text-[10px] font-bold text-foreground">
+                {isOnline ? "ZAIBOT • Ativo & Monitorando Filas" : "ZAIBOT • Parado (Em pé)"}
+              </span>
             </div>
           </div>
+        ) : (
+          /* CAMILA 16-BIT RETRO STORE OFFICE ROOM */
+          <div className="relative w-full h-full overflow-hidden transition-all duration-500">
+            <img
+              src={isOnline ? "/assets/evolution/habbo_office_working.png" : "/assets/evolution/habbo_standing_box.png"}
+              alt={isOnline ? "Camila Sentada Trabalhando" : "Camila em Pé"}
+              className={cn(
+                "w-full h-full object-cover transition-all duration-500",
+                isOnline ? "filter-none brightness-100" : "brightness-[0.8] saturate-[0.7]"
+              )}
+              style={{ imageRendering: "pixelated" }}
+            />
 
-          {/* VISIBLE CUSTOMIZATION ACTION PILL */}
-          <div className="absolute bottom-3 right-3 z-20 flex items-center gap-1.5">
-            <button
-              type="button"
-              onClick={() => handleTabClick("visual")}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#090e17]/90 hover:bg-[#090e17] text-white border border-white/20 hover:border-emerald-400/80 shadow-lg backdrop-blur-md text-[11px] font-semibold transition-all group cursor-pointer"
-            >
-              <Palette className="w-3.5 h-3.5 text-emerald-400 group-hover:rotate-12 transition-transform" />
-              <span>Personalizar Estilo</span>
-            </button>
+            {/* Tint overlay based on store theme */}
+            <div
+              className="absolute inset-0 pointer-events-none opacity-15 mix-blend-color transition-colors duration-500"
+              style={{ backgroundColor: clothingColor }}
+            />
+
+            {/* Interactive Room Hotspots */}
+            <div
+              title="Terminal ZAI — Atendendo WhatsApp"
+              className="absolute top-[48%] left-[45%] h-8 w-12 rounded cursor-pointer border border-emerald-400/40 bg-emerald-400/10 hover:bg-emerald-400/25 transition-colors"
+            />
+            <div
+              title="Logotipo Oficial ZAI Neon"
+              className="absolute top-[32%] right-[32%] h-12 w-12 rounded cursor-pointer border border-emerald-400/30 bg-emerald-400/10 hover:bg-emerald-400/20 transition-colors"
+            />
+
+            {/* Bottom Left Status Beacon */}
+            <div className="absolute bottom-3 left-3 z-20 flex items-center gap-2 bg-[#090e17]/90 backdrop-blur-md border border-white/10 px-3 py-1.5 rounded-xl shadow-lg">
+              <span
+                className={cn(
+                  "w-2 h-2 rounded-full",
+                  isOnline ? "bg-emerald-400 animate-pulse shadow-[0_0_8px_#10b981]" : "bg-slate-400"
+                )}
+              />
+              <span className="text-[10px] font-bold text-foreground">
+                {isOnline ? "Camila • Atendendo na Loja" : "Camila • Fora de Expediente (Em pé)"}
+              </span>
+            </div>
           </div>
+        )}
+
+        {/* CUSTOMIZE STYLE BUTTON (BOTTOM RIGHT) */}
+        <div className="absolute bottom-3 right-3 z-20 flex items-center gap-1.5">
+          <button
+            type="button"
+            onClick={() => handleTabClick("visual")}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#090e17]/90 hover:bg-[#090e17] text-white border border-white/20 hover:border-emerald-400/80 shadow-lg backdrop-blur-md text-[11px] font-semibold transition-all group cursor-pointer"
+          >
+            <Palette className="w-3.5 h-3.5 text-emerald-400 group-hover:rotate-12 transition-transform" />
+            <span>Personalizar Estilo</span>
+          </button>
         </div>
       </div>
 

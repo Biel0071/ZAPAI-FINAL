@@ -21,6 +21,7 @@ router.post('/conversations/:conversationId/suggest-reply', conversationsControl
 router.post('/conversations/:conversationId/typing', conversationsController.updateTypingState);
 router.post('/conversations/:conversationId/handoff', conversationsController.setConversationHandoff);
 router.post('/conversations/:conversationId/profile-card', conversationsController.generateProfileCard);
+router.post('/conversations/:conversationId/generate-sheet', conversationsController.generateProfileCard);
 router.post('/conversations/:conversationId/billing', conversationsController.generateBilling);
 router.get('/conversations/:conversationId/billing/:billingId', conversationsController.getBillingDetails);
 router.patch('/conversations/:phone/ai', conversationsController.updateConversationAI);

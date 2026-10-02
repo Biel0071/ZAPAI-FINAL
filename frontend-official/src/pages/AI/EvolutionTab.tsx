@@ -33,9 +33,15 @@ import {
   Flame,
   Award,
   Layers,
+  Network,
+  Eye,
+  Check,
+  X,
+  FileCheck,
 } from "lucide-react";
-import { apiService } from "@/core/services/apiService";
+import { apiService, requestApiEndpoint } from "@/core/services/apiService";
 import { useToast } from "@/state/hooks/use-toast";
+import { ObsidianMemoryModal } from "@/components/evolution/ObsidianMemoryModal";
 import { cn } from "@/core/lib/utils";
 
 interface EvolutionOverview {
@@ -95,9 +101,29 @@ export function EvolutionTab() {
   const { toast } = useToast();
 
   const [agents, setAgents] = useState<any[]>([]);
-  const [selectedAgentKey, setSelectedAgentKey] = useState<string>("default");
+  const [selectedAgentKey, setSelectedAgentKey] = useState<string>("zaibot");
   const [isLoading, setIsLoading] = useState(true);
   const [isSyncingManual, setIsSyncingManual] = useState(false);
+  const [isDetectingGaps, setIsDetectingGaps] = useState(false);
+
+  // Obsidian Modal State
+  const [obsidianModalOpen, setObsidianModalOpen] = useState(false);
+  const [memoryGraphData, setMemoryGraphData] = useState<{ nodes: any[]; edges: any[]; stats?: any }>({
+    nodes: [
+      { id: "agent", label: "Atendente IA", type: "agent", size: 30, color: "#10b981" },
+      { id: "leads", label: "Contatos CRM", type: "entity", size: 24, color: "#38bdf8" },
+      { id: "products", label: "Catálogo de Produtos", type: "knowledge", size: 22, color: "#a855f7" },
+      { id: "playbooks", label: "Playbooks de Vendas", type: "action", size: 20, color: "#f59e0b" },
+      { id: "faq", label: "Base de Conhecimento", type: "knowledge", size: 20, color: "#10b981" },
+    ],
+    edges: [
+      { from: "agent", to: "leads", label: "atende" },
+      { from: "agent", to: "products", label: "consulta" },
+      { from: "agent", to: "playbooks", label: "aplica" },
+      { from: "agent", to: "faq", label: "aprende" },
+    ],
+    stats: { totalNodes: 5, totalEdges: 4, clusterCount: 3 },
+  });
 
   // Score & Overview
   const [overview, setOverview] = useState<EvolutionOverview>({
@@ -118,82 +144,47 @@ export function EvolutionTab() {
     evolutionScore: 88,
     totalHumanMessages: 18722,
     humanSamplesLearned: 42,
-    activePlaybooks: 5,
+    activePlaybooks: 4,
     naturalnessScore: 98,
-    conversionsCount: 124,
-    objectionsLearned: 58,
-    successRate: 94.5,
-    totalAnalyzed: 18722,
+    conversionsCount: 128,
+    objectionsLearned: 24,
+    successRate: 94,
+    totalAnalyzed: 850,
   });
-
-  // Cross-conversation learned patterns
-  const [learnedPatterns, setLearnedPatterns] = useState<LearnedPattern[]>([]);
 
   // Learning gaps
   const [learningEvents, setLearningEvents] = useState<LearningEvent[]>([]);
-  const [answeringAnswers, setAnsweringAnswers] = useState<Record<number, string>>({});
   const [teachingId, setTeachingId] = useState<number | null>(null);
-  const [isDetectingGaps, setIsDetectingGaps] = useState(false);
+  const [answeringAnswers, setAnsweringAnswers] = useState<Record<number, string>>({});
 
-  // History timeline
+  // History & Patterns
   const [historyLogs, setHistoryLogs] = useState<EvolutionLog[]>([]);
+  const [learnedPatterns, setLearnedPatterns] = useState<LearnedPattern[]>([]);
 
-  // Load agents
-  useEffect(() => {
-    let mounted = true;
-    const fetchAgents = async () => {
-      try {
-        const res = await apiService.getAIAgents().catch(() => ({ success: false, agents: [] }));
-        if (!mounted) return;
-        if (res?.agents && res.agents.length > 0) {
-          setAgents(res.agents);
-          setSelectedAgentKey(res.agents[0].key || res.agents[0].id || "default");
-        }
-      } catch (err) {
-        console.error("[EvolutionTab] Error loading agents:", err);
-      }
-    };
-    void fetchAgents();
-    return () => {
-      mounted = false;
-    };
-  }, []);
-
-  // Load evolution & learning data for selected agent
+  // Load agent data
   const loadAgentData = useCallback(async (agentKey: string) => {
     setIsLoading(true);
     try {
       const [evoRes, learnRes, patternsRes] = await Promise.all([
         apiService.getAgentEvolution(agentKey).catch(() => null),
         apiService.getAgentLearning(agentKey).catch(() => null),
-        apiService.getLearnedPatterns().catch(() => null),
+        apiService.getLearnedPatterns(agentKey).catch(() => null),
       ]);
 
-      const evoData = (evoRes as any)?.data || evoRes;
-      if (evoData?.evolution) {
-        setOverview({
-          score: Number(evoData.evolution.score) || 88,
-          level: evoData.evolution.level || "Nível 5 (Master Closer de Elite)",
-          goal: {
-            current: Number(evoData.evolution.goal?.current) || 0,
-            target: Number(evoData.evolution.goal?.target) || 20,
-            percentage: Number(evoData.evolution.goal?.percentage) || 0,
-          },
-          components: {
-            answers: Number(evoData.evolution.components?.answers) || 35,
-            refinements: Number(evoData.evolution.components?.refinements) || 25,
-            coverage: Number(evoData.evolution.components?.coverage) || 16,
-            queue: Number(evoData.evolution.components?.queue) || 8,
-          },
-        });
+      if (evoRes?.evolution) {
+        setOverview(evoRes.evolution);
+        if (evoRes.history && Array.isArray(evoRes.history)) {
+          setHistoryLogs(evoRes.history);
+        }
       }
 
-      if (evoData?.humanStats) {
-        setHumanStats(evoData.humanStats);
-      }
-
-      if (evoData?.history && Array.isArray(evoData.history)) {
-        setHistoryLogs(evoData.history);
+      if (patternsRes) {
+        setHumanStats((prev) => ({
+          ...prev,
+          totalHumanMessages: patternsRes.humanMessagesCount || prev.totalHumanMessages,
+          humanSamplesLearned: patternsRes.goldSamplesCount || prev.humanSamplesLearned,
+          naturalnessScore: patternsRes.naturalnessScore || prev.naturalnessScore,
+        }));
       }
 
       if (learnRes?.pending && Array.isArray(learnRes.pending)) {
@@ -211,6 +202,19 @@ export function EvolutionTab() {
       setIsLoading(false);
     }
   }, []);
+
+  // Fetch memory graph data for Obsidian Modal
+  const fetchMemoryGraph = async () => {
+    try {
+      const res = await requestApiEndpoint<any>(`/api/ai/memory/graph?agentKey=${selectedAgentKey}&limit=60`);
+      if (res?.data && res.data.nodes) {
+        setMemoryGraphData(res.data);
+      }
+    } catch (err) {
+      console.warn("[EvolutionTab] Failed to fetch memory graph, using local model:", err);
+    }
+    setObsidianModalOpen(true);
+  };
 
   useEffect(() => {
     if (selectedAgentKey) {
@@ -342,20 +346,17 @@ export function EvolutionTab() {
         </div>
 
         <div className="flex flex-wrap items-center gap-2.5 self-start sm:self-auto">
-          {agents.length > 1 && (
-            <Select value={selectedAgentKey} onValueChange={setSelectedAgentKey}>
-              <SelectTrigger className="h-9 text-xs w-[170px]">
-                <SelectValue placeholder="Selecione o agente" />
-              </SelectTrigger>
-              <SelectContent>
-                {agents.map((ag) => (
-                  <SelectItem key={ag.key || ag.id} value={ag.key || ag.id} className="text-xs">
-                    {ag.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          )}
+          {/* BOTÃO EXPLORAR MEMÓRIA EM GRAFO OBSIDIAN */}
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={fetchMemoryGraph}
+            className="h-9 text-xs gap-1.5 border-purple-500/40 text-purple-300 bg-purple-500/10 hover:bg-purple-500/20 font-semibold"
+          >
+            <Network className="h-3.5 w-3.5 text-purple-400" />
+            <span>Explorar Grafo Obsidian</span>
+          </Button>
 
           <Button
             type="button"
@@ -678,15 +679,17 @@ export function EvolutionTab() {
                       </p>
                     </div>
 
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => handleIgnoreEvent(evt.id)}
-                      className="h-7 text-[11px] text-muted-foreground hover:text-foreground"
-                    >
-                      Ignorar
-                    </Button>
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleIgnoreEvent(evt.id)}
+                        className="h-7 text-[11px] text-muted-foreground hover:text-foreground"
+                      >
+                        <X className="h-3 w-3 mr-1" /> Ignorar
+                      </Button>
+                    </div>
                   </div>
 
                   {/* Input de Ensinamento */}
@@ -757,6 +760,15 @@ export function EvolutionTab() {
           )}
         </CardContent>
       </Card>
+
+      {/* OBSIDIAN MEMORY GRAPH MODAL */}
+      <ObsidianMemoryModal
+        open={obsidianModalOpen}
+        onOpenChange={setObsidianModalOpen}
+        graphData={memoryGraphData}
+        agentName={selectedAgentKey === "zaibot" ? "ZAIBOT" : "Camila"}
+        storeName="Loja Virtual ZAPFLOW"
+      />
     </div>
   );
 }
