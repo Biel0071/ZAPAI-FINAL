@@ -40,9 +40,10 @@ import {
   ChevronUp,
   Zap,
 } from "lucide-react";
-import { apiService, type AIConnectionTestResult } from "@/core/services/apiService";
+import { useSearchParams } from "react-router-dom";
+import { apiService, requestApiEndpoint, type AIConnectionTestResult } from "@/core/services/apiService";
 import { useToast } from "@/state/hooks/use-toast";
-import { AICharacterViewer } from "@/components/evolution/AICharacterViewer";
+import { AICharacterViewer, type AgentRuntimeState } from "@/components/evolution/AICharacterViewer";
 import { cn } from "@/core/lib/utils";
 
 const PROMPT_TEMPLATES = [
@@ -138,6 +139,7 @@ interface AgentTabProps {
   selectedAgentKey?: string;
   onSelectAgent?: (key: string) => void;
   onOpenCustomizer?: () => void;
+  aiEnabled?: boolean;
 }
 
 export function AgentTab({
@@ -145,13 +147,54 @@ export function AgentTab({
   selectedAgentKey = "zaibot",
   onSelectAgent,
   onOpenCustomizer,
+  aiEnabled = true,
 }: AgentTabProps) {
   const { toast } = useToast();
+  const [searchParams] = useSearchParams();
 
   // Character viewer mode (sync with selectedAgentKey)
   const [characterMode, setCharacterMode] = useState<"camila" | "zaibot">(
     selectedAgentKey === "camila" ? "camila" : "zaibot"
   );
+
+  // Runtime State Machine
+  const [runtimeState, setRuntimeState] = useState<AgentRuntimeState>(
+    aiEnabled ? "online" : "offline"
+  );
+
+  useEffect(() => {
+    if (!aiEnabled) {
+      setRuntimeState("offline");
+    } else {
+      setRuntimeState((prev) => (prev === "offline" ? "online" : prev));
+    }
+  }, [aiEnabled]);
+
+  // Real Backend Evolution Level & XP Progression
+  const [levelData, setLevelData] = useState<{
+    level: number;
+    levelTitle: string;
+    totalXp: number;
+    nextLevelXp: number;
+    progressPct: number;
+    evolutionScore: number;
+  } | null>(null);
+
+  useEffect(() => {
+    let mounted = true;
+    const fetchLevel = async () => {
+      try {
+        const res = await requestApiEndpoint<any>(`/api/ai/evolution/agent-level?agentKey=${selectedAgentKey}`);
+        if (mounted && res?.data) {
+          setLevelData(res.data);
+        }
+      } catch (_) {}
+    };
+    void fetchLevel();
+    return () => {
+      mounted = false;
+    };
+  }, [selectedAgentKey]);
 
   useEffect(() => {
     if (selectedAgentKey === "camila" || selectedAgentKey === "zaibot") {
@@ -181,8 +224,16 @@ export function AgentTab({
   const [persuasionScore, setPersuasionScore] = useState(75);
   const [patienceScore, setPatienceScore] = useState(90);
 
-  // Section toggle: Advanced Provider Config
-  const [showAdvancedConfig, setShowAdvancedConfig] = useState(false);
+  // Section toggle: Advanced Provider Config (auto-opens when ?sub=providers)
+  const [showAdvancedConfig, setShowAdvancedConfig] = useState(
+    searchParams.get("sub") === "providers"
+  );
+
+  useEffect(() => {
+    if (searchParams.get("sub") === "providers") {
+      setShowAdvancedConfig(true);
+    }
+  }, [searchParams]);
 
   // Provider configuration
   const [selectedProvider, setSelectedProvider] = useState("openai");
@@ -352,6 +403,7 @@ export function AgentTab({
     setChatMessages((prev) => [...prev, userMsg]);
     setInputMessage("");
     setIsSending(true);
+    setRuntimeState("thinking");
 
     const startTime = Date.now();
     try {
@@ -362,6 +414,7 @@ Empatia: ${empathyScore}/100 | Proatividade: ${proactivityScore}/100 | Persuasã
 Objetivo Atual: ${activeObjDef?.title || "Vendas"} (${activeObjDef?.desc || ""})
 Tom: ${agentTone}. Estilo: ${responseStyle}.`;
 
+      setRuntimeState("working");
       const res = await apiService.testAIConnection({
         message: text,
         prompt: enhancedPrompt,
@@ -400,6 +453,14 @@ Tom: ${agentTone}. Estilo: ${responseStyle}.`;
       };
 
       setChatMessages((prev) => [...prev, assistantMsg]);
+      setRuntimeState("responding");
+
+      setTimeout(() => {
+        setRuntimeState("success");
+        setTimeout(() => {
+          setRuntimeState(aiEnabled ? "online" : "offline");
+        }, 1500);
+      }, 2500);
     } catch (err: any) {
       setChatMessages((prev) => [
         ...prev,
@@ -409,6 +470,10 @@ Tom: ${agentTone}. Estilo: ${responseStyle}.`;
           timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
         },
       ]);
+      setRuntimeState("error");
+      setTimeout(() => {
+        setRuntimeState(aiEnabled ? "online" : "offline");
+      }, 3000);
     } finally {
       setIsSending(false);
     }
@@ -456,7 +521,9 @@ Tom: ${agentTone}. Estilo: ${responseStyle}.`;
           agentName={agentName}
           agentRole={agentRole}
           storeName="Loja Virtual ZAPFLOW"
-          isOnline={true}
+          isOnline={aiEnabled ?? true}
+          runtimeState={runtimeState}
+          onRuntimeStateChange={setRuntimeState}
           agentMode={characterMode}
           onToggleMode={(mode) => {
             setCharacterMode(mode);
@@ -494,7 +561,11 @@ Tom: ${agentTone}. Estilo: ${responseStyle}.`;
                     <div className="flex items-center gap-2">
                       <h2 className="text-base font-bold text-foreground">{agentName}</h2>
                       <Badge className="bg-emerald-500/20 text-emerald-300 border-emerald-500/40 text-[10px] font-bold uppercase tracking-wider">
-                        {characterMode === "zaibot" ? "Nível 5 • Autônomo" : "Nível 4 • Consultor"}
+                        {levelData
+                          ? `Nível ${levelData.level} • ${levelData.levelTitle}`
+                          : characterMode === "zaibot"
+                          ? "Nível 5 • Autônomo"
+                          : "Nível 4 • Consultor"}
                       </Badge>
                     </div>
                     <p className="text-xs text-muted-foreground">{agentRole}</p>
@@ -519,7 +590,11 @@ Tom: ${agentTone}. Estilo: ${responseStyle}.`;
                     </span>
                     <span className="text-sm font-black text-emerald-400 flex items-center gap-1">
                       <Flame className="h-3.5 w-3.5 text-amber-400" />
-                      {characterMode === "zaibot" ? "2.450 / 3.000 XP" : "1.450 / 2.000 XP"}
+                      {levelData
+                        ? `${levelData.totalXp.toLocaleString("pt-BR")} / ${levelData.nextLevelXp.toLocaleString("pt-BR")} XP`
+                        : characterMode === "zaibot"
+                        ? "2.450 / 3.000 XP"
+                        : "1.450 / 2.000 XP"}
                     </span>
                   </div>
 
@@ -543,11 +618,11 @@ Tom: ${agentTone}. Estilo: ${responseStyle}.`;
                 <div className="flex justify-between text-[11px] text-muted-foreground">
                   <span>Progresso para o próximo nível</span>
                   <span className="font-semibold text-foreground">
-                    {characterMode === "zaibot" ? "82%" : "72%"}
+                    {levelData ? `${levelData.progressPct}%` : characterMode === "zaibot" ? "82%" : "72%"}
                   </span>
                 </div>
                 <Progress
-                  value={characterMode === "zaibot" ? 82 : 72}
+                  value={levelData ? levelData.progressPct : characterMode === "zaibot" ? 82 : 72}
                   className="h-2 bg-muted/40"
                 />
               </div>

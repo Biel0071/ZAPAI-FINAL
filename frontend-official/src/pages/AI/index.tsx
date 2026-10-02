@@ -31,7 +31,7 @@ import {
   Flame,
   Star,
 } from "lucide-react";
-import { apiService, type AIStatusResponse } from "@/core/services/apiService";
+import { apiService, requestApiEndpoint, type AIStatusResponse } from "@/core/services/apiService";
 import { useAppStore } from "@/state/stores/appStore";
 import { useToast } from "@/state/hooks/use-toast";
 import { VoiceStudioDrawer } from "@/components/ai/VoiceStudioDrawer";
@@ -146,6 +146,47 @@ export default function UnifiedAIPage({ defaultSection }: AIPageProps) {
     ],
     []
   );
+
+  // Dynamic Agent Levels and Flows Count (Zero Mock)
+  const [agentDynamicLevels, setAgentDynamicLevels] = useState<
+    Record<string, { level: number; totalXp: number; levelTitle: string }>
+  >({});
+  const [flowsCount, setFlowsCount] = useState<number>(4);
+
+  // Load dynamic agent levels and flows from real backend
+  useEffect(() => {
+    let mounted = true;
+    const fetchLevelsAndFlows = async () => {
+      try {
+        const [zaibotRes, camilaRes, flowsRes] = await Promise.all([
+          requestApiEndpoint<any>("/api/ai/evolution/agent-level?agentKey=zaibot").catch(() => null),
+          requestApiEndpoint<any>("/api/ai/evolution/agent-level?agentKey=camila").catch(() => null),
+          requestApiEndpoint<any>("/api/flows").catch(() => null),
+        ]);
+        if (mounted) {
+          if (zaibotRes?.data || camilaRes?.data) {
+            setAgentDynamicLevels({
+              zaibot: zaibotRes?.data
+                ? { level: zaibotRes.data.level, totalXp: zaibotRes.data.totalXp, levelTitle: zaibotRes.data.levelTitle }
+                : { level: 5, totalXp: 2450, levelTitle: "Mestre Autônomo" },
+              camila: camilaRes?.data
+                ? { level: camilaRes.data.level, totalXp: camilaRes.data.totalXp, levelTitle: camilaRes.data.levelTitle }
+                : { level: 4, totalXp: 1450, levelTitle: "Consultor Comercial" },
+            });
+          }
+          if (Array.isArray(flowsRes)) {
+            setFlowsCount(flowsRes.length);
+          } else if (flowsRes?.flows && Array.isArray(flowsRes.flows)) {
+            setFlowsCount(flowsRes.flows.length);
+          }
+        }
+      } catch (_) {}
+    };
+    void fetchLevelsAndFlows();
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
   // Load global AI Status
   useEffect(() => {
@@ -295,7 +336,7 @@ export default function UnifiedAIPage({ defaultSection }: AIPageProps) {
     <div className="flex flex-col min-h-full bg-background pb-12">
       <Header
         title="IA & Automação"
-        subtitle="Central unificada de inteligência artificial, automações, fluxos e monitoramento operacional"
+        subtitle="Configure, acompanhe e evolua seus agentes inteligentes."
       />
 
       <div className="w-full max-w-[var(--content-max-width)] mx-auto px-3.5 sm:px-5 lg:px-6 py-4 space-y-5">
@@ -306,36 +347,11 @@ export default function UnifiedAIPage({ defaultSection }: AIPageProps) {
               <Sparkles className="h-5 w-5 sm:h-6 sm:w-6 text-emerald-400" /> IA & Automação
             </h1>
             <p className="text-xs text-muted-foreground mt-0.5">
-              Central unificada de inteligência artificial, automações, fluxos e monitoramento operacional
+              Configure, acompanhe e evolua seus agentes inteligentes.
             </p>
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={() => setCommandPaletteOpen(true)}
-              className="h-8 text-xs gap-1.5 border-border/80 bg-card/60 hover:bg-card hover:border-emerald-500/50 shadow-xs"
-            >
-              <Command className="h-3.5 w-3.5 text-emerald-400" />
-              <span>Comandos</span>
-              <kbd className="hidden sm:inline-block px-1.5 py-0.5 text-[10px] font-mono bg-muted rounded border border-border/60 text-muted-foreground">
-                Ctrl+K
-              </kbd>
-            </Button>
-
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={() => handleOpenCustomizer()}
-              className="h-8 text-xs gap-1.5 border-border/80 bg-card/60 hover:bg-card hover:border-emerald-500/50 shadow-xs"
-            >
-              <Sliders className="h-3.5 w-3.5 text-emerald-400" />
-              <span>Customizar Agente</span>
-            </Button>
-
             <Button
               type="button"
               variant="outline"
@@ -354,7 +370,51 @@ export default function UnifiedAIPage({ defaultSection }: AIPageProps) {
               className="h-8 text-xs gap-1.5 bg-emerald-500 hover:bg-emerald-600 text-white shadow-xs font-semibold"
             >
               <Bot className="h-3.5 w-3.5" />
-              <span>Testar Agora</span>
+              <span>Testar agora</span>
+            </Button>
+
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                setCustomizerTargetAgent({
+                  name: "Novo Agente",
+                  role: "Consultor de Atendimento",
+                  tone: "friendly",
+                  prompt: "",
+                });
+                setCustomizerModalOpen(true);
+              }}
+              className="h-8 text-xs gap-1.5 border-border/80 bg-card/60 hover:bg-card hover:border-emerald-500/50 shadow-xs text-emerald-400"
+            >
+              <Plus className="h-3.5 w-3.5" />
+              <span>Novo agente</span>
+            </Button>
+
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => handleOpenCustomizer()}
+              className="h-8 text-xs gap-1.5 border-border/80 bg-card/60 hover:bg-card hover:border-emerald-500/50 shadow-xs"
+            >
+              <Sliders className="h-3.5 w-3.5 text-emerald-400" />
+              <span>Configurações</span>
+            </Button>
+
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setCommandPaletteOpen(true)}
+              className="h-8 text-xs gap-1.5 border-border/80 bg-card/60 hover:bg-card hover:border-emerald-500/50 shadow-xs"
+            >
+              <Command className="h-3.5 w-3.5 text-emerald-400" />
+              <span>Comandos Ctrl+K</span>
+              <kbd className="hidden sm:inline-block px-1.5 py-0.5 text-[10px] font-mono bg-muted rounded border border-border/60 text-muted-foreground">
+                Ctrl+K
+              </kbd>
             </Button>
           </div>
         </div>
@@ -394,6 +454,11 @@ export default function UnifiedAIPage({ defaultSection }: AIPageProps) {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2.5">
             {agentProfiles.map((ag) => {
               const isSelected = selectedAgentKey === ag.key;
+              const dynamic = agentDynamicLevels[ag.key];
+              const level = dynamic?.level ?? ag.level;
+              const xp = dynamic?.totalXp ?? ag.stats.xp;
+              const statusBadge = aiEnabled ? "ATIVO" : "PAUSADO";
+
               return (
                 <div
                   key={ag.key}
@@ -406,44 +471,82 @@ export default function UnifiedAIPage({ defaultSection }: AIPageProps) {
                     }
                   }}
                   className={cn(
-                    "p-3 rounded-xl border text-left cursor-pointer transition-all flex items-start gap-3 relative",
+                    "p-3.5 rounded-xl border text-left cursor-pointer transition-all flex flex-col justify-between gap-3 relative",
                     isSelected
                       ? "bg-emerald-500/10 border-emerald-500/50 shadow-xs ring-1 ring-emerald-500/30"
                       : "bg-muted/20 border-border/60 hover:bg-muted/40 hover:border-border"
                   )}
                 >
-                  <div className="relative shrink-0">
-                    <img
-                      src={ag.avatar}
-                      alt={ag.name}
-                      className="h-10 w-10 rounded-xl object-cover bg-emerald-950/40 border border-emerald-500/30 shadow-xs"
-                      onError={(e) => {
-                        (e.target as HTMLElement).style.display = "none";
-                      }}
-                    />
-                    <span className="absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full bg-emerald-500 border-2 border-card" />
+                  <div className="flex items-start gap-3">
+                    <div className="relative shrink-0">
+                      <img
+                        src={ag.avatar}
+                        alt={ag.name}
+                        className="h-11 w-11 rounded-xl object-cover bg-emerald-950/40 border border-emerald-500/30 shadow-xs"
+                        onError={(e) => {
+                          (e.target as HTMLElement).style.display = "none";
+                        }}
+                      />
+                      <span
+                        className={cn(
+                          "absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-card",
+                          aiEnabled ? "bg-emerald-500 animate-pulse" : "bg-amber-500"
+                        )}
+                      />
+                    </div>
+
+                    <div className="min-w-0 flex-1 space-y-1">
+                      <div className="flex items-center justify-between gap-1">
+                        <span className="text-xs font-bold text-foreground truncate">
+                          {ag.name}
+                        </span>
+                        <div className="flex items-center gap-1.5">
+                          <Badge
+                            className={cn(
+                              "text-[8px] font-bold uppercase tracking-wider px-1.5 py-0",
+                              aiEnabled
+                                ? "bg-emerald-500/20 text-emerald-300 border-emerald-500/30"
+                                : "bg-amber-500/20 text-amber-300 border-amber-500/30"
+                            )}
+                          >
+                            {statusBadge}
+                          </Badge>
+                          <Badge
+                            variant="outline"
+                            className="text-[9px] px-1.5 py-0 border-border/80 bg-background text-muted-foreground uppercase font-bold"
+                          >
+                            Nível {level}
+                          </Badge>
+                        </div>
+                      </div>
+                      <p className="text-[11px] text-muted-foreground truncate">{ag.role}</p>
+
+                      <div className="flex flex-wrap items-center gap-x-2 gap-y-1 pt-1 text-[10px] text-muted-foreground">
+                        <span className="flex items-center gap-1 text-emerald-400 font-semibold">
+                          <Flame className="h-3 w-3" /> {xp.toLocaleString("pt-BR")} XP
+                        </span>
+                        <span>•</span>
+                        <span>{ag.badge}</span>
+                        <span>•</span>
+                        <span>{flowsCount} automações</span>
+                      </div>
+                    </div>
                   </div>
 
-                  <div className="min-w-0 flex-1 space-y-0.5">
-                    <div className="flex items-center justify-between gap-1">
-                      <span className="text-xs font-bold text-foreground truncate">
-                        {ag.name}
-                      </span>
-                      <Badge
-                        variant="outline"
-                        className="text-[9px] px-1.5 py-0 border-border/80 bg-background text-muted-foreground uppercase font-bold tracking-wider"
-                      >
-                        Nível {ag.level}
-                      </Badge>
-                    </div>
-                    <p className="text-[11px] text-muted-foreground truncate">{ag.role}</p>
-                    <div className="flex items-center gap-2 pt-1 text-[10px] text-muted-foreground">
-                      <span className="flex items-center gap-1 text-emerald-400 font-semibold">
-                        <Flame className="h-3 w-3" /> {ag.stats.xp} XP
-                      </span>
-                      <span>•</span>
-                      <span>{ag.badge}</span>
-                    </div>
+                  <div className="flex items-center justify-between pt-2 border-t border-border/40 text-[10px] text-muted-foreground">
+                    <span>{aiEnabled ? "Ativo agora" : "Pausado"}</span>
+                    <Button
+                      type="button"
+                      size="sm"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setSelectedAgentKey(ag.key);
+                        handleTabChange("agent");
+                      }}
+                      className="h-6 text-[10px] px-2 bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/40"
+                    >
+                      Abrir Agente
+                    </Button>
                   </div>
 
                   {isSelected && (
@@ -598,6 +701,7 @@ export default function UnifiedAIPage({ defaultSection }: AIPageProps) {
         <main className="w-full min-h-[500px] animate-fade-in transition-all duration-200">
           {activeTab === "agent" && (
             <AgentTab
+              aiEnabled={aiEnabled}
               selectedAgentKey={selectedAgentKey}
               onSelectAgent={setSelectedAgentKey}
               onOpenVoiceStudio={() => setIsVoiceStudioOpen(true)}

@@ -160,15 +160,19 @@ export function EvolutionTab() {
   // History & Patterns
   const [historyLogs, setHistoryLogs] = useState<EvolutionLog[]>([]);
   const [learnedPatterns, setLearnedPatterns] = useState<LearnedPattern[]>([]);
+  const [candidateSuggestions, setCandidateSuggestions] = useState<any[]>([]);
+  const [processingSuggestionId, setProcessingSuggestionId] = useState<number | null>(null);
 
-  // Load agent data
+  // Load agent data with Zero Mock real backend endpoints
   const loadAgentData = useCallback(async (agentKey: string) => {
     setIsLoading(true);
     try {
-      const [evoRes, learnRes, patternsRes] = await Promise.all([
+      const [evoRes, learnRes, patternsRes, levelRes, suggestionsRes] = await Promise.all([
         apiService.getAgentEvolution(agentKey).catch(() => null),
         apiService.getAgentLearning(agentKey).catch(() => null),
-        apiService.getLearnedPatterns(agentKey).catch(() => null),
+        apiService.getLearnedPatterns().catch(() => null),
+        requestApiEndpoint<any>(`/api/ai/evolution/agent-level?agentKey=${encodeURIComponent(agentKey)}`).catch(() => null),
+        requestApiEndpoint<any>("/api/ai/evolution/suggestions").catch(() => null),
       ]);
 
       if (evoRes?.evolution) {
@@ -178,13 +182,27 @@ export function EvolutionTab() {
         }
       }
 
-      if (patternsRes) {
+      if (levelRes?.data) {
+        setHumanStats((prev) => ({
+          ...prev,
+          ...levelRes.data,
+        }));
+      } else if (patternsRes) {
         setHumanStats((prev) => ({
           ...prev,
           totalHumanMessages: patternsRes.humanMessagesCount || prev.totalHumanMessages,
           humanSamplesLearned: patternsRes.goldSamplesCount || prev.humanSamplesLearned,
           naturalnessScore: patternsRes.naturalnessScore || prev.naturalnessScore,
         }));
+      }
+
+      if (suggestionsRes) {
+        const list = Array.isArray(suggestionsRes)
+          ? suggestionsRes
+          : suggestionsRes?.data || suggestionsRes?.suggestions || [];
+        if (Array.isArray(list)) {
+          setCandidateSuggestions(list);
+        }
       }
 
       if (learnRes?.pending && Array.isArray(learnRes.pending)) {
@@ -324,6 +342,78 @@ export function EvolutionTab() {
         description: err?.message || "Não foi possível ignorar.",
         variant: "destructive",
       });
+    }
+  };
+
+  // Candidate Suggestions Handlers (Zero Mock)
+  const handleApproveCandidate = async (id: number) => {
+    setProcessingSuggestionId(id);
+    try {
+      const res = await requestApiEndpoint<any>(`/api/ai/evolution/suggestions/${id}/approve`, "POST");
+      if (res?.success) {
+        toast({
+          title: "Aprendizado Aprovado!",
+          description: "A estratégia foi promovida a conhecimento oficial do agente.",
+        });
+        setCandidateSuggestions((prev) => prev.filter((s) => s.id !== id));
+        void loadAgentData(selectedAgentKey);
+      } else {
+        toast({
+          title: "Erro ao aprovar",
+          description: res?.error || "Não foi possível aprovar a sugestão.",
+          variant: "destructive",
+        });
+      }
+    } catch (err: any) {
+      toast({
+        title: "Erro na aprovação",
+        description: err?.message || "Falha na comunicação com o backend.",
+        variant: "destructive",
+      });
+    } finally {
+      setProcessingSuggestionId(null);
+    }
+  };
+
+  const handleTestCandidate = async (sug: any) => {
+    setProcessingSuggestionId(sug.id);
+    try {
+      const res = await requestApiEndpoint<any>(`/api/ai/evolution/suggestions/${sug.id}/test`, "POST");
+      toast({
+        title: "Sandbox 10% Ativado!",
+        description: "O aprendizado será avaliado em 10% dos atendimentos antes de ir a 100%.",
+      });
+      setCandidateSuggestions((prev) =>
+        prev.map((s) => (s.id === sug.id ? { ...s, status: "testing" } : s))
+      );
+    } catch (err: any) {
+      toast({
+        title: "Erro ao iniciar teste",
+        description: err?.message || "Falha ao enviar para sandbox.",
+        variant: "destructive",
+      });
+    } finally {
+      setProcessingSuggestionId(null);
+    }
+  };
+
+  const handleRejectCandidate = async (id: number) => {
+    setProcessingSuggestionId(id);
+    try {
+      const res = await requestApiEndpoint<any>(`/api/ai/evolution/suggestions/${id}/reject`, "POST");
+      toast({
+        title: "Sugestão Descartada",
+        description: "O aprendizado foi ignorado e não será aplicado.",
+      });
+      setCandidateSuggestions((prev) => prev.filter((s) => s.id !== id));
+    } catch (err: any) {
+      toast({
+        title: "Erro ao descartar",
+        description: err?.message || "Falha ao descartar sugestão.",
+        variant: "destructive",
+      });
+    } finally {
+      setProcessingSuggestionId(null);
     }
   };
 
@@ -521,6 +611,136 @@ export function EvolutionTab() {
           </CardContent>
         </Card>
       </div>
+
+      {/* SECTION 1.5: CANDIDATE LEARNINGS & PLAYBOOKS DETECTED */}
+      <Card className="bg-card border-border/80 shadow-sm">
+        <CardHeader className="pb-3 border-b border-border/40">
+          <div className="flex items-center justify-between">
+            <div className="space-y-0.5">
+              <CardTitle className="text-base font-bold flex items-center gap-2 text-foreground">
+                <BookOpen className="h-5 w-5 text-emerald-400" /> Novos Aprendizados Candidatos Detectados
+              </CardTitle>
+              <CardDescription className="text-xs text-muted-foreground">
+                Estratégias e playbooks minerados de atendimentos reais aguardando validação humana para integração total.
+              </CardDescription>
+            </div>
+
+            <Badge
+              variant="outline"
+              className={cn(
+                "text-xs px-2.5 py-0.5 font-bold",
+                candidateSuggestions.length > 0
+                  ? "border-emerald-500/40 text-emerald-400 bg-emerald-500/10"
+                  : "border-border/60 text-muted-foreground bg-muted/10"
+              )}
+            >
+              {candidateSuggestions.length > 0
+                ? `${candidateSuggestions.length} candidatos pendentes`
+                : "Sem candidatos pendentes"}
+            </Badge>
+          </div>
+        </CardHeader>
+
+        <CardContent className="p-4 sm:p-5">
+          {candidateSuggestions.length === 0 ? (
+            <div className="py-8 text-center space-y-2 border border-dashed border-border/60 rounded-xl bg-muted/10">
+              <CheckCircle2 className="h-8 w-8 mx-auto text-emerald-400" />
+              <p className="text-xs font-semibold text-foreground">
+                Nenhum aprendizado candidato pendente no momento.
+              </p>
+              <p className="text-[11px] text-muted-foreground">
+                Conforme os operadores realizam atendimentos, novas oportunidades serão mineradas e listadas aqui.
+              </p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {candidateSuggestions.map((sug) => {
+                const isProcessing = processingSuggestionId === sug.id;
+                return (
+                  <div
+                    key={sug.id}
+                    className="p-4 rounded-xl border border-border/70 bg-muted/5 hover:border-emerald-500/40 transition-all space-y-3 shadow-xs"
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <Badge className="bg-emerald-500/15 text-emerald-300 border-emerald-500/30 text-[10px] font-bold uppercase tracking-wider">
+                        {sug.topic || "Estratégia de Atendimento"}
+                      </Badge>
+                      <div className="flex items-center gap-2">
+                        {sug.status === "testing" ? (
+                          <Badge variant="outline" className="border-purple-500/40 text-purple-300 bg-purple-500/10 text-[9px] font-bold">
+                            Sandbox 10% Ativo
+                          </Badge>
+                        ) : (
+                          <span className="text-[10px] text-emerald-400 font-semibold">
+                            {sug.confidence_score ? `${Math.round(sug.confidence_score * 100)}% confiança` : "Alta Relevância"}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="space-y-1">
+                      <span className="text-[10px] text-muted-foreground font-bold uppercase">Situação Identificada:</span>
+                      <p className="text-xs text-foreground font-medium italic">
+                        "{sug.situation_summary || sug.pattern || "Situação identificada em conversas"}"
+                      </p>
+                    </div>
+
+                    <div className="space-y-1 bg-emerald-500/10 p-2.5 rounded-lg border border-emerald-500/20">
+                      <span className="text-[10px] text-emerald-300 font-bold uppercase">Estratégia Proposta:</span>
+                      <p className="text-xs text-foreground font-semibold">
+                        {sug.proposed_strategy || sug.golden_response || "Resposta recomendada para fechamento assertivo"}
+                      </p>
+                    </div>
+
+                    {/* ACTIONS: APROVAR, TESTAR SANDBOX 10%, IGNORAR */}
+                    <div className="flex items-center justify-between gap-2 pt-1 border-t border-border/40">
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        disabled={isProcessing}
+                        onClick={() => handleRejectCandidate(sug.id)}
+                        className="h-8 text-xs text-muted-foreground hover:text-rose-400 px-2.5"
+                      >
+                        <X className="h-3.5 w-3.5 mr-1" /> Ignorar
+                      </Button>
+
+                      <div className="flex items-center gap-2">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          disabled={isProcessing || sug.status === "testing"}
+                          onClick={() => handleTestCandidate(sug)}
+                          className="h-8 text-xs border-purple-500/40 text-purple-300 bg-purple-500/10 hover:bg-purple-500/20"
+                        >
+                          <Zap className="h-3.5 w-3.5 mr-1 text-purple-400" />
+                          <span>Testar Sandbox 10%</span>
+                        </Button>
+
+                        <Button
+                          type="button"
+                          size="sm"
+                          disabled={isProcessing}
+                          onClick={() => handleApproveCandidate(sug.id)}
+                          className="h-8 text-xs bg-emerald-500 hover:bg-emerald-600 text-white font-semibold shadow-xs"
+                        >
+                          {isProcessing ? (
+                            <RefreshCw className="h-3.5 w-3.5 animate-spin mr-1" />
+                          ) : (
+                            <Check className="h-3.5 w-3.5 mr-1" />
+                          )}
+                          <span>Aprovar</span>
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       {/* SECTION 2: CROSS-CONVERSATION LEARNED PATTERNS */}
       <Card className="bg-card border-border/80 shadow-sm">

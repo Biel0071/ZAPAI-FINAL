@@ -157,17 +157,7 @@ export function ZaiCommandPalette({
     setSelectedIndex(0);
   }, [search]);
 
-  // Global keyboard shortcut: Ctrl+K / Cmd+K
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") {
-        e.preventDefault();
-        onOpenChange(!open);
-      }
-    };
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [open, onOpenChange]);
+
 
   const handleSelect = (cmd: ZaiCommand) => {
     cmd.action();

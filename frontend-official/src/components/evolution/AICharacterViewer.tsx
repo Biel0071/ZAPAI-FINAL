@@ -13,7 +13,13 @@ import {
   Store,
   Layers,
   X,
-  RotateCcw
+  RotateCcw,
+  Activity,
+  AlertCircle,
+  Brain,
+  Clock,
+  Send,
+  Zap,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -34,6 +40,18 @@ export interface AttendantConfig {
   avatarUrl?: string;
 }
 
+export type AgentRuntimeState =
+  | "offline"
+  | "idle"
+  | "online"
+  | "thinking"
+  | "working"
+  | "responding"
+  | "learning"
+  | "waiting"
+  | "success"
+  | "error";
+
 export interface AICharacterViewerProps {
   agentName?: string;
   agentRole?: string;
@@ -46,6 +64,8 @@ export interface AICharacterViewerProps {
   onSaveConfig?: (newConfig: AttendantConfig, newName?: string, newRole?: string) => Promise<void> | void;
   agentMode?: "camila" | "zaibot";
   onToggleMode?: (mode: "camila" | "zaibot") => void;
+  runtimeState?: AgentRuntimeState;
+  onRuntimeStateChange?: (state: AgentRuntimeState) => void;
 }
 
 export const ATTENDANT_PRESETS = [
@@ -141,11 +161,29 @@ export const AICharacterViewer: React.FC<AICharacterViewerProps> = ({
   onSaveConfig,
   agentMode,
   onToggleMode,
+  runtimeState,
+  onRuntimeStateChange,
 }) => {
   const { toast } = useToast();
   const [activeTab, setActiveTab] = useState<"visual" | "roupas" | "acessorios" | "cenario" | "animacoes">("visual");
   const [showConfigPanel, setShowConfigPanel] = useState<boolean>(false);
   const [saving, setSaving] = useState<boolean>(false);
+
+  // Runtime State Machine
+  const [internalState, setInternalState] = useState<AgentRuntimeState | null>(null);
+
+  useEffect(() => {
+    setInternalState(null);
+  }, [isOnline, runtimeState]);
+
+  const effectiveState: AgentRuntimeState = internalState ?? (
+    runtimeState ?? (isOnline ? "working" : "offline")
+  );
+
+  const handleSetPreviewState = (st: AgentRuntimeState) => {
+    setInternalState(st);
+    onRuntimeStateChange?.(st);
+  };
 
   // Editable customization state
   const [customName, setCustomName] = useState<string>(agentName);
@@ -285,8 +323,136 @@ export const AICharacterViewer: React.FC<AICharacterViewerProps> = ({
     onToggleMode?.(newMode);
   };
 
+  // State visuals mapping
+  const getZaibotImage = () => {
+    switch (effectiveState) {
+      case "working":
+      case "online":
+      case "responding":
+        return "/assets/mascot/mascot_laptop_working.png";
+      case "thinking":
+      case "learning":
+        return "/assets/mascot/mascot_mobile.png";
+      case "success":
+        return "/assets/mascot/mascot_celebrating.png";
+      case "offline":
+      case "idle":
+      case "waiting":
+      case "error":
+      default:
+        return "/assets/mascot/mascot_standing_thumbsup.png";
+    }
+  };
+
+  const getCamilaImage = () => {
+    switch (effectiveState) {
+      case "offline":
+      case "idle":
+      case "waiting":
+        return "/assets/evolution/habbo_standing_box.png";
+      case "working":
+      case "online":
+      case "thinking":
+      case "responding":
+      case "learning":
+      case "success":
+      case "error":
+      default:
+        return "/assets/evolution/habbo_office_working.png";
+    }
+  };
+
+  const getStateConfig = () => {
+    switch (effectiveState) {
+      case "working":
+        return {
+          label: "WORKING",
+          desc: currentMode === "zaibot" ? "Trabalhando no Computador" : "Atendendo no WhatsApp",
+          color: "bg-emerald-500",
+          textColor: "text-emerald-400",
+          border: "border-emerald-500/50",
+          pulse: true,
+        };
+      case "thinking":
+        return {
+          label: "THINKING",
+          desc: "Processando Raciocínio Neural...",
+          color: "bg-cyan-400",
+          textColor: "text-cyan-400",
+          border: "border-cyan-500/50",
+          pulse: true,
+        };
+      case "responding":
+        return {
+          label: "RESPONDING",
+          desc: "Enviando Resposta ao Cliente...",
+          color: "bg-emerald-400",
+          textColor: "text-emerald-300",
+          border: "border-emerald-400/50",
+          pulse: true,
+        };
+      case "learning":
+        return {
+          label: "LEARNING",
+          desc: "Absorvendo Novo Padrão...",
+          color: "bg-purple-400",
+          textColor: "text-purple-300",
+          border: "border-purple-500/50",
+          pulse: true,
+        };
+      case "success":
+        return {
+          label: "SUCCESS",
+          desc: "Tarefa Concluída com Sucesso!",
+          color: "bg-emerald-400",
+          textColor: "text-emerald-300",
+          border: "border-emerald-500/50",
+          pulse: false,
+        };
+      case "waiting":
+        return {
+          label: "WAITING",
+          desc: "Aguardando Retorno do Lead",
+          color: "bg-amber-400",
+          textColor: "text-amber-400",
+          border: "border-amber-500/50",
+          pulse: true,
+        };
+      case "error":
+        return {
+          label: "ERROR",
+          desc: "Atenção: Oscilação ou Erro",
+          color: "bg-red-500",
+          textColor: "text-red-400",
+          border: "border-red-500/50",
+          pulse: true,
+        };
+      case "idle":
+        return {
+          label: "IDLE",
+          desc: "Parado (Pronto para Atender)",
+          color: "bg-emerald-500",
+          textColor: "text-emerald-400",
+          border: "border-emerald-500/30",
+          pulse: false,
+        };
+      case "offline":
+      default:
+        return {
+          label: "OFFLINE",
+          desc: "Desativado / Fora de Expediente",
+          color: "bg-slate-500",
+          textColor: "text-slate-400",
+          border: "border-slate-500/30",
+          pulse: false,
+        };
+    }
+  };
+
+  const stateCfg = getStateConfig();
+
   return (
-    <article className="relative w-full h-[320px] bg-[#0c121d] rounded-2xl border border-white/10 shadow-2xl overflow-hidden select-none">
+    <article className="relative w-full h-[340px] bg-[#0c121d] rounded-2xl border border-white/10 shadow-2xl overflow-hidden select-none">
       <div className="relative w-full h-full">
         {/* TOP CENTER AGENT MODE SWITCHER */}
         <div className="absolute top-2.5 left-1/2 -translate-x-1/2 z-30 flex items-center p-0.5 rounded-full bg-black/75 backdrop-blur-md border border-white/20 shadow-lg">
@@ -320,10 +486,10 @@ export const AICharacterViewer: React.FC<AICharacterViewerProps> = ({
         <button
           type="button"
           onClick={() => onToggleOnline?.(!isOnline)}
-          title={isOnline ? "Prévia visual: mostrar parado / em pé" : "Prévia visual: mostrar trabalhando"}
-          aria-label={isOnline ? "Mostrar em pé" : "Mostrar trabalhando"}
+          title={isOnline ? "Agente ativo: clique para pausar" : "Agente pausado: clique para ativar"}
+          aria-label={isOnline ? "Pausar agente" : "Ativar agente"}
           className={cn(
-            "absolute top-2.5 right-2.5 z-30 w-[82px] h-6 rounded-full transition-all cursor-pointer flex items-center justify-center gap-1 text-[9px] font-bold border backdrop-blur-md",
+            "absolute top-2.5 right-2.5 z-30 h-7 px-3 rounded-full transition-all cursor-pointer flex items-center justify-center gap-1.5 text-[9px] font-bold border backdrop-blur-md",
             isOnline
               ? "bg-emerald-500/20 text-emerald-300 border-emerald-500/40 shadow-[0_0_10px_rgba(16,185,129,0.2)]"
               : "bg-black/60 text-slate-300 border-white/20 hover:bg-black/80"
@@ -331,11 +497,11 @@ export const AICharacterViewer: React.FC<AICharacterViewerProps> = ({
         >
           <span
             className={cn(
-              "w-1.5 h-1.5 rounded-full",
-              isOnline ? "bg-emerald-400 animate-pulse" : "bg-slate-400"
+              "w-2 h-2 rounded-full",
+              isOnline ? "bg-emerald-400 animate-pulse shadow-[0_0_6px_#10b981]" : "bg-slate-400"
             )}
           />
-          <span>{isOnline ? "Trabalhando" : "Em pé"}</span>
+          <span>{isOnline ? "ONLINE" : "OFFLINE"}</span>
         </button>
 
         {/* AGENT BADGE (TOP LEFT) */}
@@ -369,20 +535,60 @@ export const AICharacterViewer: React.FC<AICharacterViewerProps> = ({
             <div className="absolute inset-0 bg-[linear-gradient(to_right,#10b9810d_1px,transparent_1px),linear-gradient(to_bottom,#10b9810d_1px,transparent_1px)] bg-[size:28px_28px]" />
             <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-80 h-80 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none" />
 
-            {/* Mascot Image based on online/offline state */}
-            <div className="relative z-10 flex flex-col items-center justify-center h-full max-h-[290px] pt-4">
+            {/* Holographic rings for THINKING or LEARNING */}
+            {(effectiveState === "thinking" || effectiveState === "learning") && (
+              <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                <div className="w-72 h-72 rounded-full border border-cyan-400/30 animate-spin opacity-40 [animation-duration:8s]" />
+                <div className="w-56 h-56 rounded-full border border-dashed border-emerald-400/40 animate-spin opacity-50 [animation-duration:12s]" />
+              </div>
+            )}
+
+            {/* Floating Speech bubble for RESPONDING */}
+            {effectiveState === "responding" && (
+              <div className="absolute top-14 z-20 animate-bounce bg-emerald-500 text-black px-3 py-1 rounded-full text-[10px] font-black shadow-lg">
+                💬 Respondendo ao cliente no WhatsApp...
+              </div>
+            )}
+
+            {/* Mascot Image based on real runtime state */}
+            <div
+              onClick={() => {
+                toast({
+                  title: "ZAIBOT Online",
+                  description: "Assistente Operacional ZAI monitorando processos e atendimentos.",
+                });
+              }}
+              className="relative z-10 flex flex-col items-center justify-center h-full max-h-[290px] pt-4 cursor-pointer group"
+            >
               <img
-                src={
-                  isOnline
-                    ? "/assets/mascot/mascot_laptop_working.png"
-                    : "/assets/mascot/mascot_standing_thumbsup.png"
-                }
+                src={getZaibotImage()}
                 alt="ZAIBOT Mascote"
                 className={cn(
-                  "h-full max-h-[265px] object-contain drop-shadow-[0_12px_30px_rgba(0,0,0,0.85)] transition-all duration-500",
-                  isOnline ? "filter-none brightness-105" : "brightness-[0.7] saturate-[0.4]"
+                  "h-full max-h-[265px] object-contain drop-shadow-[0_12px_30px_rgba(0,0,0,0.85)] transition-all duration-300 group-hover:scale-105",
+                  effectiveState === "offline"
+                    ? "brightness-[0.55] saturate-[0.3]"
+                    : effectiveState === "idle"
+                    ? "animate-pulse [animation-duration:3s]"
+                    : "filter-none brightness-105"
                 )}
               />
+            </div>
+
+            {/* Interactive Room Hotspots */}
+            <div
+              title="Terminal ZAI Neural — Executando automações"
+              onClick={() => toast({ title: "Terminal ZAI Neural", description: "Processador operacional em tempo real ativo." })}
+              className="absolute top-[35%] left-[18%] h-10 w-10 rounded-full cursor-pointer border border-cyan-400/30 bg-cyan-400/10 hover:bg-cyan-400/30 transition-all flex items-center justify-center"
+            >
+              <Brain className="h-4 w-4 text-cyan-400 animate-pulse" />
+            </div>
+
+            <div
+              title="Monitor de Diagnóstico & Latência"
+              onClick={() => toast({ title: "Diagnóstico ZAI", description: "Latência média de 45ms. Conexões operacionais." })}
+              className="absolute top-[35%] right-[18%] h-10 w-10 rounded-full cursor-pointer border border-emerald-400/30 bg-emerald-400/10 hover:bg-emerald-400/30 transition-all flex items-center justify-center"
+            >
+              <Activity className="h-4 w-4 text-emerald-400 animate-pulse" />
             </div>
 
             {/* Bottom Left Status Beacon */}
@@ -390,23 +596,31 @@ export const AICharacterViewer: React.FC<AICharacterViewerProps> = ({
               <span
                 className={cn(
                   "w-2 h-2 rounded-full",
-                  isOnline ? "bg-emerald-400 animate-pulse shadow-[0_0_8px_#10b981]" : "bg-slate-400"
+                  stateCfg.color,
+                  stateCfg.pulse && "animate-pulse shadow-[0_0_8px_#10b981]"
                 )}
               />
               <span className="text-[10px] font-bold text-foreground">
-                {isOnline ? "ZAIBOT • Ativo & Monitorando Filas" : "ZAIBOT • Parado (Em pé)"}
+                ZAIBOT • {stateCfg.desc}
               </span>
+              <Badge className={cn("text-[9px] font-mono py-0 h-4 border", stateCfg.border, stateCfg.textColor, "bg-black/50")}>
+                {stateCfg.label}
+              </Badge>
             </div>
           </div>
         ) : (
           /* CAMILA 16-BIT RETRO STORE OFFICE ROOM */
           <div className="relative w-full h-full overflow-hidden transition-all duration-500">
             <img
-              src={isOnline ? "/assets/evolution/habbo_office_working.png" : "/assets/evolution/habbo_standing_box.png"}
-              alt={isOnline ? "Camila Sentada Trabalhando" : "Camila em Pé"}
+              src={getCamilaImage()}
+              alt={effectiveState === "offline" || effectiveState === "idle" ? "Camila em Pé" : "Camila Sentada Trabalhando"}
               className={cn(
                 "w-full h-full object-cover transition-all duration-500",
-                isOnline ? "filter-none brightness-100" : "brightness-[0.8] saturate-[0.7]"
+                effectiveState === "offline"
+                  ? "brightness-[0.6] saturate-[0.4]"
+                  : effectiveState === "idle"
+                  ? "brightness-[0.85] saturate-[0.8]"
+                  : "filter-none brightness-100"
               )}
               style={{ imageRendering: "pixelated" }}
             />
@@ -417,13 +631,22 @@ export const AICharacterViewer: React.FC<AICharacterViewerProps> = ({
               style={{ backgroundColor: clothingColor }}
             />
 
+            {/* Floating Speech bubble for RESPONDING */}
+            {effectiveState === "responding" && (
+              <div className="absolute top-14 left-1/2 -translate-x-1/2 z-20 animate-bounce bg-emerald-500 text-black px-3 py-1 rounded-full text-[10px] font-black shadow-lg">
+                💬 Camila respondendo cliente...
+              </div>
+            )}
+
             {/* Interactive Room Hotspots */}
             <div
               title="Terminal ZAI — Atendendo WhatsApp"
+              onClick={() => toast({ title: "Terminal WhatsApp", description: "Conectado à fila de atendimento da loja." })}
               className="absolute top-[48%] left-[45%] h-8 w-12 rounded cursor-pointer border border-emerald-400/40 bg-emerald-400/10 hover:bg-emerald-400/25 transition-colors"
             />
             <div
               title="Logotipo Oficial ZAI Neon"
+              onClick={() => toast({ title: "ZAI CRM", description: "Módulo de Atendimento Inteligente." })}
               className="absolute top-[32%] right-[32%] h-12 w-12 rounded cursor-pointer border border-emerald-400/30 bg-emerald-400/10 hover:bg-emerald-400/20 transition-colors"
             />
 
@@ -432,15 +655,38 @@ export const AICharacterViewer: React.FC<AICharacterViewerProps> = ({
               <span
                 className={cn(
                   "w-2 h-2 rounded-full",
-                  isOnline ? "bg-emerald-400 animate-pulse shadow-[0_0_8px_#10b981]" : "bg-slate-400"
+                  stateCfg.color,
+                  stateCfg.pulse && "animate-pulse shadow-[0_0_8px_#10b981]"
                 )}
               />
               <span className="text-[10px] font-bold text-foreground">
-                {isOnline ? "Camila • Atendendo na Loja" : "Camila • Fora de Expediente (Em pé)"}
+                Camila • {stateCfg.desc}
               </span>
+              <Badge className={cn("text-[9px] font-mono py-0 h-4 border", stateCfg.border, stateCfg.textColor, "bg-black/50")}>
+                {stateCfg.label}
+              </Badge>
             </div>
           </div>
         )}
+
+        {/* STATE MACHINE PREVIEW CONTROLS (BOTTOM CENTER / RIGHT) */}
+        <div className="absolute top-11 right-2.5 z-20 flex items-center gap-1 bg-black/70 backdrop-blur-md p-1 rounded-xl border border-white/10 text-[9px]">
+          {(["offline", "idle", "working", "thinking", "responding", "learning", "success", "error"] as AgentRuntimeState[]).map((st) => (
+            <button
+              key={st}
+              type="button"
+              onClick={() => handleSetPreviewState(st)}
+              className={cn(
+                "px-1.5 py-0.5 rounded uppercase font-mono font-bold transition-all cursor-pointer",
+                effectiveState === st
+                  ? "bg-emerald-500 text-black shadow-xs"
+                  : "text-muted-foreground hover:text-foreground hover:bg-white/10"
+              )}
+            >
+              {st}
+            </button>
+          ))}
+        </div>
 
         {/* CUSTOMIZE STYLE BUTTON (BOTTOM RIGHT) */}
         <div className="absolute bottom-3 right-3 z-20 flex items-center gap-1.5">
