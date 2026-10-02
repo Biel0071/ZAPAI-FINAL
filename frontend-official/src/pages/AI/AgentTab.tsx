@@ -44,6 +44,9 @@ import { useSearchParams } from "react-router-dom";
 import { apiService, requestApiEndpoint, type AIConnectionTestResult } from "@/core/services/apiService";
 import { useToast } from "@/state/hooks/use-toast";
 import { AICharacterViewer, type AgentRuntimeState } from "@/components/evolution/AICharacterViewer";
+import { DigitalTeamView } from "@/components/ai/DigitalTeamView";
+import { AgentProfileModal } from "@/components/ai/AgentProfileModal";
+import { NewAgentWizardModal } from "@/components/ai/NewAgentWizardModal";
 import { cn } from "@/core/lib/utils";
 
 const PROMPT_TEMPLATES = [
@@ -243,6 +246,33 @@ export function AgentTab({
   const [isSaving, setIsSaving] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 
+  // Digital Team & Modals State
+  const [agentsList, setAgentsList] = useState<any[]>([]);
+  const [profileModalAgent, setProfileModalAgent] = useState<any>(null);
+  const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
+  const [isNewAgentWizardOpen, setIsNewAgentWizardOpen] = useState(false);
+  const [wizardDefaultRole, setWizardDefaultRole] = useState<string>("Vendas");
+
+  // Listen to open-wizard event triggered by ZAIBOT or global shortcuts
+  useEffect(() => {
+    const handleOpenWizard = (e: any) => {
+      const role = e.detail?.role || "Vendas";
+      setWizardDefaultRole(role);
+      setIsNewAgentWizardOpen(true);
+    };
+    window.addEventListener("zai:open-wizard", handleOpenWizard);
+    return () => window.removeEventListener("zai:open-wizard", handleOpenWizard);
+  }, []);
+
+  const refreshAgents = async () => {
+    try {
+      const res = await apiService.getAIAgents();
+      if (res?.agents) {
+        setAgentsList(res.agents);
+      }
+    } catch (_) {}
+  };
+
   // Sandbox / Chat state
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([
     {
@@ -272,8 +302,15 @@ export function AgentTab({
       setAgentName("Camila");
       setAgentRole("Especialista em Vendas & Atendimento Loja");
       setCharacterMode("camila");
+    } else {
+      const found = agentsList.find((a) => (a.key || a.id) === selectedAgentKey);
+      if (found) {
+        setAgentName(found.name || "Agente");
+        setAgentRole(found.role || found.sector || "Atendimento");
+        if (found.prompt || found.personality) setPrompt(found.personality || found.prompt);
+      }
     }
-  }, [selectedAgentKey]);
+  }, [selectedAgentKey, agentsList]);
 
   // Load initial configurations
   useEffect(() => {
@@ -290,6 +327,7 @@ export function AgentTab({
         if (!mounted) return;
 
         if (agentsRes?.agents && agentsRes.agents.length > 0) {
+          setAgentsList(agentsRes.agents);
           const match = agentsRes.agents.find(
             (a: any) => (a.key || a.id) === selectedAgentKey
           ) || agentsRes.agents[0];
@@ -297,7 +335,7 @@ export function AgentTab({
           if (match) {
             setAgentName(match.name || "Assistente ZAI");
             setAgentRole(match.role || "Especialista de Atendimento");
-            if (match.prompt) setPrompt(match.prompt);
+            if (match.prompt || match.personality) setPrompt(match.personality || match.prompt);
             if (match.tone) setAgentTone(match.tone);
           }
         } else if (promptRes?.prompt) {
@@ -515,6 +553,23 @@ Tom: ${agentTone}. Estilo: ${responseStyle}.`;
 
   return (
     <div className="space-y-6">
+      {/* SEUS AGENTES / EQUIPE DIGITAL */}
+      <DigitalTeamView
+        agents={agentsList}
+        onSelectAgent={(ag) => {
+          setProfileModalAgent(ag);
+          setIsProfileModalOpen(true);
+        }}
+        onOpenNewAgentWizard={(defRole) => {
+          setWizardDefaultRole(defRole || "Vendas");
+          setIsNewAgentWizardOpen(true);
+        }}
+        onOpenCustomizer={(ag) => {
+          onOpenCustomizer?.();
+        }}
+        onRefresh={refreshAgents}
+      />
+
       {/* LIVING MASCOT & CHARACTER STUDIO (DUAL SCENE) */}
       <Card className="bg-card border-border/80 shadow-sm overflow-hidden">
         <AICharacterViewer
@@ -1222,6 +1277,29 @@ Tom: ${agentTone}. Estilo: ${responseStyle}.`;
           </Card>
         </div>
       </div>
+
+      {/* AGENT PROFILE MODAL */}
+      <AgentProfileModal
+        open={isProfileModalOpen}
+        onOpenChange={setIsProfileModalOpen}
+        agent={profileModalAgent}
+        onUpdated={refreshAgents}
+        onOpenCustomizer={(ag) => {
+          setIsProfileModalOpen(false);
+          onOpenCustomizer?.();
+        }}
+      />
+
+      {/* NEW AGENT WIZARD MODAL */}
+      <NewAgentWizardModal
+        open={isNewAgentWizardOpen}
+        onOpenChange={setIsNewAgentWizardOpen}
+        defaultRole={wizardDefaultRole}
+        onCreated={(newAgent) => {
+          refreshAgents();
+          onSelectAgent?.(newAgent.key);
+        }}
+      />
     </div>
   );
 }

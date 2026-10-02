@@ -30,6 +30,7 @@ import {
   Smartphone,
   Flame,
   Star,
+  Users,
 } from "lucide-react";
 import { apiService, requestApiEndpoint, type AIStatusResponse } from "@/core/services/apiService";
 import { useAppStore } from "@/state/stores/appStore";
@@ -37,6 +38,8 @@ import { useToast } from "@/state/hooks/use-toast";
 import { VoiceStudioDrawer } from "@/components/ai/VoiceStudioDrawer";
 import { ZaiCommandPalette } from "@/components/ai/ZaiCommandPalette";
 import { AgentCustomizerModal } from "@/components/ai/AgentCustomizerModal";
+import { ZaiPlatformAssistantView } from "@/components/ai/ZaiPlatformAssistantView";
+import { NewAgentWizardModal } from "@/components/ai/NewAgentWizardModal";
 import { cn } from "@/core/lib/utils";
 
 import { AgentTab } from "./AgentTab";
@@ -44,7 +47,7 @@ import { FlowsTab } from "./FlowsTab";
 import { OperationsTab } from "./OperationsTab";
 import { EvolutionTab } from "./EvolutionTab";
 
-export type UnifiedAITab = "agent" | "flows" | "operations" | "evolution";
+export type UnifiedAITab = "agent" | "flows" | "operations" | "evolution" | "zaibot";
 
 interface AIPageProps {
   defaultSection?: string;
@@ -65,13 +68,16 @@ function resolveAIEnabled(status: AIStatusResponse | null): boolean {
 function mapQueryParamToTab(param: string | null): UnifiedAITab {
   if (!param) return "agent";
   const p = param.toLowerCase().trim();
-  if (["agent", "agente", "inteligencia", "atendentes", "provedores"].includes(p)) {
+  if (["zaibot", "assistente", "copilot"].includes(p)) {
+    return "zaibot";
+  }
+  if (["agent", "agente", "inteligencia", "atendentes", "provedores", "equipe"].includes(p)) {
     return "agent";
   }
   if (["flows", "fluxos", "automacao", "playbooks", "conhecimento"].includes(p)) {
     return "flows";
   }
-  if (["operations", "operacao", "filas", "dashboard"].includes(p)) {
+  if (["operations", "operacao", "filas", "dashboard", "desempenho"].includes(p)) {
     return "operations";
   }
   if (["evolution", "score", "evolucao"].includes(p)) {
@@ -115,6 +121,18 @@ export default function UnifiedAIPage({ defaultSection }: AIPageProps) {
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
   const [whatsAppModalOpen, setWhatsAppModalOpen] = useState(false);
   const [customizerTargetAgent, setCustomizerTargetAgent] = useState<any>(null);
+  const [isWizardOpen, setIsWizardOpen] = useState(false);
+  const [wizardDefaultRole, setWizardDefaultRole] = useState("Vendas");
+
+  useEffect(() => {
+    const handleOpenWizard = (e: any) => {
+      const r = e.detail?.role || "Vendas";
+      setWizardDefaultRole(r);
+      setIsWizardOpen(true);
+    };
+    window.addEventListener("zai:open-wizard", handleOpenWizard);
+    return () => window.removeEventListener("zai:open-wizard", handleOpenWizard);
+  }, []);
 
   // Available agent profiles
   const agentProfiles = useMemo(
@@ -300,10 +318,10 @@ export default function UnifiedAIPage({ defaultSection }: AIPageProps) {
   const tabsConfig = [
     {
       id: "agent" as UnifiedAITab,
-      label: "Agente & Inteligência",
-      shortLabel: "Agente",
-      icon: Bot,
-      description: "Prompt, tom de voz, personalidade e sandbox",
+      label: "Equipe Digital",
+      shortLabel: "Equipe",
+      icon: Users,
+      description: "Agente & Inteligência • Gestão da equipe digital e funcionários",
     },
     {
       id: "flows" as UnifiedAITab,
@@ -325,6 +343,13 @@ export default function UnifiedAIPage({ defaultSection }: AIPageProps) {
       shortLabel: "Evolução",
       icon: Brain,
       description: "Maturidade, aprendizado e lacunas",
+    },
+    {
+      id: "zaibot" as UnifiedAITab,
+      label: "Assistente ZAI",
+      shortLabel: "ZAIBOT",
+      icon: Bot,
+      description: "Copiloto operacional do administrador",
     },
   ];
 
@@ -378,13 +403,8 @@ export default function UnifiedAIPage({ defaultSection }: AIPageProps) {
               variant="outline"
               size="sm"
               onClick={() => {
-                setCustomizerTargetAgent({
-                  name: "Novo Agente",
-                  role: "Consultor de Atendimento",
-                  tone: "friendly",
-                  prompt: "",
-                });
-                setCustomizerModalOpen(true);
+                setWizardDefaultRole("Vendas");
+                setIsWizardOpen(true);
               }}
               className="h-8 text-xs gap-1.5 border-border/80 bg-card/60 hover:bg-card hover:border-emerald-500/50 shadow-xs text-emerald-400"
             >
@@ -419,183 +439,6 @@ export default function UnifiedAIPage({ defaultSection }: AIPageProps) {
           </div>
         </div>
 
-        {/* AGENT SELECTOR STRIP */}
-        <div className="p-3.5 rounded-2xl border border-border/80 bg-card/70 backdrop-blur-md shadow-xs space-y-2.5">
-          <div className="flex items-center justify-between px-1">
-            <div className="flex items-center gap-2">
-              <Bot className="h-4 w-4 text-emerald-400" />
-              <span className="text-xs font-bold text-foreground">
-                Atendentes Inteligentes do ZAPFLOW
-              </span>
-              <Badge variant="outline" className="text-[10px] px-1.5 py-0 border-emerald-500/40 text-emerald-400">
-                2 Ativos
-              </Badge>
-            </div>
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              onClick={() => {
-                setCustomizerTargetAgent({
-                  name: "Novo Agente",
-                  role: "Consultor de Atendimento",
-                  tone: "friendly",
-                  prompt: "",
-                });
-                setCustomizerModalOpen(true);
-              }}
-              className="h-7 text-[11px] gap-1 text-emerald-400 hover:text-emerald-300 hover:bg-emerald-500/10 px-2"
-            >
-              <Plus className="h-3 w-3" />
-              <span>Novo Agente</span>
-            </Button>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2.5">
-            {agentProfiles.map((ag) => {
-              const isSelected = selectedAgentKey === ag.key;
-              const dynamic = agentDynamicLevels[ag.key];
-              const level = dynamic?.level ?? ag.level;
-              const xp = dynamic?.totalXp ?? ag.stats.xp;
-              const statusBadge = aiEnabled ? "ATIVO" : "PAUSADO";
-
-              return (
-                <div
-                  key={ag.key}
-                  role="button"
-                  tabIndex={0}
-                  onClick={() => setSelectedAgentKey(ag.key)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter" || e.key === " ") {
-                      setSelectedAgentKey(ag.key);
-                    }
-                  }}
-                  className={cn(
-                    "p-3.5 rounded-xl border text-left cursor-pointer transition-all flex flex-col justify-between gap-3 relative",
-                    isSelected
-                      ? "bg-emerald-500/10 border-emerald-500/50 shadow-xs ring-1 ring-emerald-500/30"
-                      : "bg-muted/20 border-border/60 hover:bg-muted/40 hover:border-border"
-                  )}
-                >
-                  <div className="flex items-start gap-3">
-                    <div className="relative shrink-0">
-                      <img
-                        src={ag.avatar}
-                        alt={ag.name}
-                        className="h-11 w-11 rounded-xl object-cover bg-emerald-950/40 border border-emerald-500/30 shadow-xs"
-                        onError={(e) => {
-                          (e.target as HTMLElement).style.display = "none";
-                        }}
-                      />
-                      <span
-                        className={cn(
-                          "absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-card",
-                          aiEnabled ? "bg-emerald-500 animate-pulse" : "bg-amber-500"
-                        )}
-                      />
-                    </div>
-
-                    <div className="min-w-0 flex-1 space-y-1">
-                      <div className="flex items-center justify-between gap-1">
-                        <span className="text-xs font-bold text-foreground truncate">
-                          {ag.name}
-                        </span>
-                        <div className="flex items-center gap-1.5">
-                          <Badge
-                            className={cn(
-                              "text-[8px] font-bold uppercase tracking-wider px-1.5 py-0",
-                              aiEnabled
-                                ? "bg-emerald-500/20 text-emerald-300 border-emerald-500/30"
-                                : "bg-amber-500/20 text-amber-300 border-amber-500/30"
-                            )}
-                          >
-                            {statusBadge}
-                          </Badge>
-                          <Badge
-                            variant="outline"
-                            className="text-[9px] px-1.5 py-0 border-border/80 bg-background text-muted-foreground uppercase font-bold"
-                          >
-                            Nível {level}
-                          </Badge>
-                        </div>
-                      </div>
-                      <p className="text-[11px] text-muted-foreground truncate">{ag.role}</p>
-
-                      <div className="flex flex-wrap items-center gap-x-2 gap-y-1 pt-1 text-[10px] text-muted-foreground">
-                        <span className="flex items-center gap-1 text-emerald-400 font-semibold">
-                          <Flame className="h-3 w-3" /> {xp.toLocaleString("pt-BR")} XP
-                        </span>
-                        <span>•</span>
-                        <span>{ag.badge}</span>
-                        <span>•</span>
-                        <span>{flowsCount} automações</span>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center justify-between pt-2 border-t border-border/40 text-[10px] text-muted-foreground">
-                    <span>{aiEnabled ? "Ativo agora" : "Pausado"}</span>
-                    <Button
-                      type="button"
-                      size="sm"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setSelectedAgentKey(ag.key);
-                        handleTabChange("agent");
-                      }}
-                      className="h-6 text-[10px] px-2 bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/40"
-                    >
-                      Abrir Agente
-                    </Button>
-                  </div>
-
-                  {isSelected && (
-                    <div className="absolute top-2.5 right-2.5">
-                      <CheckCircle2 className="h-4 w-4 text-emerald-400" />
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-
-            {/* CARD CRIAR NOVO AGENTE */}
-            <div
-              role="button"
-              tabIndex={0}
-              onClick={() => {
-                setCustomizerTargetAgent({
-                  name: "Novo Agente",
-                  role: "Consultor de Atendimento",
-                  tone: "friendly",
-                  prompt: "",
-                });
-                setCustomizerModalOpen(true);
-              }}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" || e.key === " ") {
-                  setCustomizerTargetAgent({
-                    name: "Novo Agente",
-                    role: "Consultor de Atendimento",
-                    tone: "friendly",
-                    prompt: "",
-                  });
-                  setCustomizerModalOpen(true);
-                }
-              }}
-              className="p-3 rounded-xl border border-dashed border-border/80 bg-muted/10 hover:bg-muted/30 hover:border-emerald-500/40 text-left cursor-pointer transition-all flex items-center justify-center gap-2.5 min-h-[76px]"
-            >
-              <div className="h-8 w-8 rounded-lg bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400">
-                <Plus className="h-4 w-4" />
-              </div>
-              <div className="space-y-0.5">
-                <span className="text-xs font-bold text-foreground block">Criar Atendente</span>
-                <span className="text-[10px] text-muted-foreground block">
-                  Defina persona, tom de voz e regras
-                </span>
-              </div>
-            </div>
-          </div>
-        </div>
 
         {/* GLOBAL STATUS & CONTROL STRIP */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 rounded-2xl border border-border/80 bg-card shadow-sm">
@@ -654,10 +497,10 @@ export default function UnifiedAIPage({ defaultSection }: AIPageProps) {
           </div>
         </div>
 
-        {/* 4 UNIFIED TABS SELECTOR */}
+        {/* 5 UNIFIED TABS SELECTOR */}
         <nav
           aria-label="Abas de IA e Automação"
-          className="grid grid-cols-2 md:grid-cols-4 gap-2 p-1.5 rounded-2xl border border-border/70 bg-muted/20"
+          className="grid grid-cols-2 md:grid-cols-5 gap-2 p-1.5 rounded-2xl border border-border/70 bg-muted/20"
         >
           {tabsConfig.map((tab) => {
             const Icon = tab.icon;
@@ -687,6 +530,9 @@ export default function UnifiedAIPage({ defaultSection }: AIPageProps) {
                 <div className="min-w-0">
                   <span className="text-xs block truncate leading-tight">
                     {tab.label}
+                    {tab.id === "agent" && (
+                      <span className="sr-only"> (Agente & Inteligência)</span>
+                    )}
                   </span>
                   <span className="text-[10px] text-muted-foreground block truncate font-normal mt-0.5 hidden sm:block">
                     {tab.description}
@@ -714,6 +560,15 @@ export default function UnifiedAIPage({ defaultSection }: AIPageProps) {
           {activeTab === "operations" && <OperationsTab />}
 
           {activeTab === "evolution" && <EvolutionTab />}
+
+          {activeTab === "zaibot" && (
+            <ZaiPlatformAssistantView
+              onOpenNewAgentWizard={(r) => {
+                setWizardDefaultRole(r || "Vendas");
+                setIsWizardOpen(true);
+              }}
+            />
+          )}
         </main>
       </div>
 
@@ -822,6 +677,13 @@ export default function UnifiedAIPage({ defaultSection }: AIPageProps) {
           </div>
         </DialogContent>
       </Dialog>
+
+      <NewAgentWizardModal
+        open={isWizardOpen}
+        onOpenChange={setIsWizardOpen}
+        defaultRole={wizardDefaultRole}
+        onCreated={() => handleTabChange("agent")}
+      />
     </div>
   );
 }

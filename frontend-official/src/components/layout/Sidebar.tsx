@@ -66,7 +66,8 @@ const crmItems: SidebarNavItem[] = [
   { icon: Broadcast, label: "Conexões", path: "/connections", minRole: "user" },
   { icon: Users, label: "Contatos", path: "/contacts", minRole: "user" },
   { icon: Megaphone, label: "Campanhas", path: "/campaigns", minRole: "user" },
-  { icon: AIIcon, label: "IA & Automação", path: "/ai", minRole: "user" },
+  { icon: Users, label: "Equipe Digital", path: "/ai", minRole: "user" },
+  { icon: AIIcon, label: "Assistente ZAI", path: "/ai?tab=zaibot", minRole: "user" },
 ];
 
 const adminItems: SidebarNavItem[] = [];
@@ -254,6 +255,7 @@ export function Sidebar() {
           <>
             <span className={cn("min-w-0 flex-1 truncate text-[13px] font-medium", isActive && "text-sidebar-foreground")}>
               {item.label}
+              {item.path === "/ai" && <span className="sr-only"> (IA & Automação)</span>}
             </span>
             {item.path === "/inbox" ? (
               (() => {
@@ -345,14 +347,12 @@ export function Sidebar() {
       const currentSub = searchParams.get("sub") || "";
 
       const aiSubmenuItems = [
-        { label: "Dashboard", tab: "operations", sub: "dashboard", path: "/ai?tab=operations&sub=dashboard" },
-        { label: "Atendentes", tab: "agent", sub: "", path: "/ai?tab=agent" },
-        { label: "Provedores", tab: "agent", sub: "providers", path: "/ai?tab=agent&sub=providers" },
+        { label: "Agentes", tab: "agent", sub: "", path: "/ai?tab=agent" },
+        { label: "Desempenho", tab: "operations", sub: "dashboard", path: "/ai?tab=operations&sub=dashboard" },
         { label: "Conhecimento", tab: "flows", sub: "knowledge", path: "/ai?tab=flows&sub=knowledge" },
-        { label: "Operação", tab: "operations", sub: "", path: "/ai?tab=operations" },
-        { label: "Evolução IA", tab: "evolution", sub: "", path: "/ai?tab=evolution" },
+        { label: "Automações", tab: "flows", sub: "flows", path: "/ai?tab=flows&sub=flows" },
         { label: "Playbooks", tab: "flows", sub: "playbooks", path: "/ai?tab=flows&sub=playbooks" },
-        { label: "Auditoria & Logs", tab: "operations", sub: "logs", path: "/ai?tab=operations&sub=logs" },
+        { label: "Auditoria", tab: "operations", sub: "logs", path: "/ai?tab=operations&sub=logs" },
       ];
 
       return (

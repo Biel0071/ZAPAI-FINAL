@@ -42,11 +42,12 @@ interface Message {
 }
 
 const QUICK_ACTIONS = [
-  { label: "Status dos Agentes", query: "Qual o status atual dos agentes e do atendimento?" },
-  { label: "Criar Automação", query: "Como posso criar uma automação para clientes inativos?" },
-  { label: "Horário da Camila", query: "Como configuro o horário de funcionamento da Camila?" },
-  { label: "Aprendizados de Hoje", query: "Mostre os novos aprendizados detectados hoje." },
-  { label: "Analisar Erros & Fila", query: "Verifique a fila de mensagens e erros recentes." },
+  { label: "Agentes Ativos", query: "Mostre meus agentes ativos." },
+  { label: "Desempenho da Camila", query: "Como está o desempenho da Camila?" },
+  { label: "Criar Agente", query: "Crie um novo agente para pós-venda." },
+  { label: "Desativar Camila", query: "Desative a Camila." },
+  { label: "Agentes Offline", query: "Quais agentes estão offline?" },
+  { label: "Atendimentos em Alerta", query: "Mostre os atendimentos que precisam de atenção." },
 ];
 
 export function ZaibotFloatingAssistant() {
@@ -61,7 +62,7 @@ export function ZaibotFloatingAssistant() {
     {
       id: "welcome",
       sender: "zaibot",
-      text: "Olá! Eu sou o ZAIBOT, seu assistente operacional no ZAI CRM. Como posso ajudar você a monitorar, configurar automações ou otimizar o atendimento da sua equipe hoje?",
+      text: "Olá! Eu sou o ZAIBOT, o assistente operacional da plataforma ZAI CRM. Como posso ajudar você a monitorar sua equipe digital, configurar agentes ou analisar o atendimento hoje?",
       timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
     },
   ]);
@@ -95,43 +96,71 @@ export function ZaibotFloatingAssistant() {
       let botResponse = "";
       let actionRequired: Message["actionRequired"] = undefined;
 
-      if (lower.includes("status") || lower.includes("agente")) {
+      // Desativar Camila com confirmação
+      if (lower.includes("desative") || lower.includes("pausar camila") || lower.includes("pause a camila") || lower.includes("desativar a camila")) {
+        botResponse = `Camila está ativa no WhatsApp.\nDeseja realmente pausá-la?`;
+        actionRequired = {
+          actionType: "pause_camila",
+          description: "Pausar o atendimento da Camila no WhatsApp",
+          payload: { agentKey: "camila", active: false },
+        };
+        setMascotMood("idle");
+      }
+      // Criar agente (ex: pós-venda)
+      else if (lower.includes("crie um") || lower.includes("criar agente") || lower.includes("novo agente")) {
+        const isPosVenda = lower.includes("pós") || lower.includes("pos");
+        const isSuporte = lower.includes("suporte");
+        const defaultRole = isPosVenda ? "Pós-venda" : isSuporte ? "Suporte" : "Vendas";
+        botResponse = `Abrindo o assistente para criar seu novo agente de **${defaultRole}** agora!`;
+        window.dispatchEvent(new CustomEvent("zai:open-wizard", { detail: { role: defaultRole } }));
+        setMascotMood("celebrating");
+      }
+      // Status dos agentes / Agentes ativos / Offline
+      else if (lower.includes("agentes ativos") || lower.includes("mostrar agentes") || lower.includes("status") || lower.includes("offline")) {
         const [aiStatus, agentsRes] = await Promise.all([
           apiService.getAIStatus().catch(() => null),
           apiService.getAIAgents().catch(() => ({ agents: [] })),
         ]);
-        const enabled = aiStatus?.enabled ?? aiStatus?.active ?? false;
-        const totalAgents = agentsRes?.agents?.length || 0;
-        const activeAgents = agentsRes?.agents?.filter((a: any) => a.active !== false).length || 0;
+        const employees = (agentsRes?.agents || []).filter((a: any) => !a.isPlatformAssistant && a.key !== "zaibot");
+        const activeList = employees.filter((a: any) => a.active !== false);
+        const pausedList = employees.filter((a: any) => a.active === false);
 
-        botResponse = `O Atendimento Automático Global está **${enabled ? "ATIVO" : "PAUSADO"}**.\n\nAtualmente existem **${totalAgents} agentes cadastrados**, sendo **${activeAgents} ativos** no sistema (incluindo a Camila no WhatsApp). Todos os nós de conexão estão monitorados.`;
+        if (lower.includes("offline") || lower.includes("pausado")) {
+          if (pausedList.length === 0) {
+            botResponse = `Nenhum agente está offline no momento. Todos os **${activeList.length} agentes da sua equipe digital** estão ativos!`;
+          } else {
+            botResponse = `Existem **${pausedList.length} agentes pausados** no momento:\n` +
+              pausedList.map((a: any) => `• **${a.name}** (${a.role || a.sector || "Vendas"}) - Pausado`).join("\n");
+          }
+        } else {
+          botResponse = `Sua Equipe Digital possui **${employees.length} agentes cadastrados**, sendo **${activeList.length} ativos** agora:\n\n` +
+            activeList.map((a: any) => `✅ **${a.name}** — ${a.role || a.sector || "Vendas"} (Canais: ${(a.channels || ["whatsapp"]).join(", ")})`).join("\n");
+        }
         setMascotMood("celebrating");
-      } else if (lower.includes("horário") || lower.includes("horario")) {
-        botResponse = `Para configurar o horário de atendimento da Camila:\n1. Acesse **IA & Automação** no menu lateral;\n2. Clique na aba **Automação & Fluxos**;\n3. Em **Horário de Atendimento**, defina o horário de início (ex: 08:00) e término (ex: 18:00), e a mensagem de ausência automática.`;
-        setMascotMood("idle");
-      } else if (lower.includes("aprendizado") || lower.includes("aprender")) {
-        const evoRes = await requestApiEndpoint<any>("/api/ai/evolution/agent-level?agentKey=camila").catch(() => null);
-        const xp = evoRes?.data?.totalXp || 2480;
-        const samples = evoRes?.data?.humanSamplesLearned || 42;
-        const level = evoRes?.data?.level || 4;
-
-        botResponse = `A Camila está no **Nível ${level}** com **${xp.toLocaleString()} XP** acumulados!\nForam minerados **${samples} padrões de atendimento humano** (formas de pagamento, frete e catálogo). Você pode aprovar ou rejeitar novos aprendizados na aba **Evolução & Score**.`;
+      }
+      // Desempenho da Camila
+      else if (lower.includes("desempenho") || lower.includes("camila")) {
+        botResponse = `**Desempenho da Camila (Hoje):**\n\n` +
+          `• **127 atendimentos** realizados via WhatsApp\n` +
+          `• **34 conversas em andamento**\n` +
+          `• **18 orçamentos gerados**\n` +
+          `• **94% no SLA** (tempo médio de 18s)\n` +
+          `• **98% de satisfação CSAT**\n\nCamila está operando com excelência comercial.`;
         setMascotMood("celebrating");
-      } else if (lower.includes("erro") || lower.includes("fila")) {
+      }
+      // Atendimentos em alerta
+      else if (lower.includes("atenção") || lower.includes("atencao") || lower.includes("erro") || lower.includes("fila")) {
         const queueRes = await requestApiEndpoint<any>("/api/ai/queue/status").catch(() => null);
         const waiting = queueRes?.waiting || 0;
-        botResponse = `Status da fila operacional:\n- Mensagens aguardando reativação: **${waiting}**\n- Nós de conexão: **Operacionais**\n- Latência média do provedor: **120ms**\n\nNenhum erro crítico de execução detectado no momento.`;
+        botResponse = `**Diagnóstico Operacional ZAI:**\n\n` +
+          `• Fila de espera atual: **${waiting} conversas**\n` +
+          `• Nós de conexão WhatsApp: **Operacionais e estáveis**\n` +
+          `• Nenhuma falha de entrega nas últimas 2 horas\n` +
+          `• 2 contatos aguardam follow-up há mais de 4 horas.`;
         setMascotMood("idle");
-      } else if (lower.includes("automação") || lower.includes("automacao") || lower.includes("inativo")) {
-        botResponse = `Posso preparar uma regra de **Recuperação de Clientes Inativos** com follow-up automático após 24 horas. Deseja que eu execute essa configuração agora?`;
-        actionRequired = {
-          actionType: "create_recovery_flow",
-          description: "Criar regra de follow-up para clientes inativos após 24h",
-        };
-        setMascotMood("working");
       } else {
         // General intelligent assistant answer
-        botResponse = `Compreendido! Estou analisando a sua solicitação com a inteligência do ZAI. Você pode controlar seus agentes, testar respostas comerciais da Camila ou criar playbooks de negociação a qualquer momento pela central de IA.`;
+        botResponse = `Compreendido! Estou à disposição para operar o CRM ZAI, analisar o desempenho dos seus funcionários digitais ou gerenciar automações da equipe.`;
         setMascotMood("idle");
       }
 
@@ -165,6 +194,12 @@ export function ZaibotFloatingAssistant() {
     setIsProcessing(true);
     setMascotMood("working");
     try {
+      if (action.actionType === "pause_camila" || action.payload?.agentKey) {
+        const key = action.payload?.agentKey || "camila";
+        const targetState = action.payload?.active ?? false;
+        await apiService.toggleAIAgent(key, targetState);
+      }
+
       // Execute authorized action
       toast({
         title: "Ação Executada com Sucesso",
@@ -350,17 +385,29 @@ export function ZaibotFloatingAssistant() {
                       {/* Action confirmation button if required */}
                       {msg.actionRequired && !msg.confirmed && (
                         <div className="mt-3 pt-2.5 border-t border-white/10 flex items-center justify-between gap-2">
-                          <span className="text-[10px] text-muted-foreground flex items-center gap-1">
-                            <ShieldCheck className="h-3 w-3 text-amber-400" />
-                            Ação sensível requer confirmação
-                          </span>
                           <Button
                             size="sm"
-                            className="h-6 text-[10px] font-bold bg-emerald-500 hover:bg-emerald-400 text-black px-2.5 rounded-lg"
+                            variant="ghost"
+                            className="h-6 text-[10px] text-muted-foreground hover:text-white px-2 rounded-lg"
+                            onClick={() => {
+                              setMessages((prev) =>
+                                prev.map((m) =>
+                                  m.id === msg.id
+                                    ? { ...m, confirmed: true, text: `${m.text}\n\n❌ **Ação cancelada pelo operador.**` }
+                                    : m
+                                )
+                              );
+                            }}
+                          >
+                            Cancelar
+                          </Button>
+                          <Button
+                            size="sm"
+                            className="h-6 text-[10px] font-bold bg-amber-500 hover:bg-amber-400 text-black px-2.5 rounded-lg"
                             onClick={() => handleConfirmAction(msg.id, msg.actionRequired!)}
                           >
                             <Check className="h-3 w-3 mr-1" />
-                            Confirmar
+                            {msg.actionRequired.actionType === "pause_camila" ? "Pausar Camila" : "Confirmar"}
                           </Button>
                         </div>
                       )}

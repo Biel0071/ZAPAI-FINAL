@@ -61,14 +61,42 @@ function normalizeAgent(agent = {}) {
     segment: String(agent.segment || '').slice(0,200),
     serviceType: String(agent.serviceType || '').slice(0,200),
     name: String(agent.name || key).trim(),
+    role: String(agent.role || agent.function || agent.sector || 'Vendas').trim(),
+    status: String(agent.status || (agent.active !== false ? 'active' : 'paused')).trim(),
     personality: String(agent.personality || agent.prompt || 'Atendente da loja.').trim(),
+    personalityType: String(agent.personalityType || agent.tone || 'comercial').trim(),
+    personalityTraits: typeof agent.personalityTraits === 'object' && agent.personalityTraits !== null
+      ? agent.personalityTraits
+      : { empathy: 85, proactivity: 80, formality: 50, objectivity: 80 },
+    responsibilities: Array.isArray(agent.responsibilities)
+      ? agent.responsibilities
+      : (agent.responsibilities ? [String(agent.responsibilities)] : ['Atender clientes', 'Vender', 'Tirar dúvidas']),
+    channels: Array.isArray(agent.channels) && agent.channels.length > 0
+      ? agent.channels
+      : ['whatsapp'],
+    knowledgeSources: Array.isArray(agent.knowledgeSources)
+      ? agent.knowledgeSources
+      : ['products', 'policies', 'faq'],
+    permissions: Array.isArray(agent.permissions)
+      ? agent.permissions
+      : ['reply_messages', 'send_quotes', 'view_catalog'],
+    character: typeof agent.character === 'object' && agent.character !== null
+      ? agent.character
+      : { gender: 'female', outfit: 'business', theme: 'emerald' },
+    recentActivity: Array.isArray(agent.recentActivity)
+      ? agent.recentActivity
+      : [],
+    stats: typeof agent.stats === 'object' && agent.stats !== null
+      ? agent.stats
+      : {},
+    isPlatformAssistant: Boolean(agent.isPlatformAssistant || key === 'zaibot'),
     responseStyle: String(agent.responseStyle || 'short_natural').trim(),
     tone: String(agent.tone || 'professional').trim(),
     objective: String(agent.objective || '').trim(),
     temperature: typeof agent.temperature === 'number'
       ? agent.temperature
       : (isNaN(Number(agent.temperature)) ? 0.7 : Number(agent.temperature)),
-    sector: String(agent.sector || '').trim(),
+    sector: String(agent.sector || agent.role || '').trim(),
     avatar: String(agent.avatar || '').trim(),
     hours: String(agent.hours || '').trim(),
     rules: String(agent.rules || '').trim(),

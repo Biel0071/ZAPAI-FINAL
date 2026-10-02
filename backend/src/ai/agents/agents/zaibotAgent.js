@@ -2,6 +2,8 @@ module.exports = {
   key: 'zaibot',
   name: 'ZAIBOT',
   active: true,
+  isPlatformAssistant: true,
+  role: 'Assistente do ZAI',
   sector: 'Sistema & Operações ZAI',
   objective: 'Assistente operacional do ZAI CRM: orientar administradores e operadores, navegar no sistema, analisar métricas, gerenciar automações e monitorar atendentes.',
   tone: 'consultative',
