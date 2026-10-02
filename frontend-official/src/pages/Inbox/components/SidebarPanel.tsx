@@ -455,18 +455,7 @@ export function SidebarPanel({
               className="min-w-0 px-0.5 py-1 text-[10px] sm:text-xs font-medium tracking-tight data-[state=active]:bg-background data-[state=active]:shadow-sm truncate flex items-center justify-center gap-1"
               title={section.label}
             >
-              {section.id === "ai" ? (
-                <span className="truncate">
-                  <span className="hidden 2xl:inline">Atendimento</span>
-                  <span className="2xl:hidden">Cliente</span>
-                </span>
-              ) : section.id === "qr" ? (
-                <span className="truncate">
-                  Respostas<span className="hidden 2xl:inline"> Rápidas</span>
-                </span>
-              ) : (
-                <span className="truncate">{section.label}</span>
-              )}
+              <span className="truncate">{section.label}</span>
             </TabsTrigger>
           ))}
         </TabsList>
