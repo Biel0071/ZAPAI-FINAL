@@ -53,6 +53,22 @@ class CRMIntelligenceEngine {
       // 6. Realtime Stage
       await realtimeStage.execute(context);
 
+      // 7. Contact Intelligence & Order Detection
+      try {
+        const contactIntelligenceDaemon = require('../contactIntelligenceDaemon');
+        const detectionResult = await contactIntelligenceDaemon.detectConversationIntelligence(context.conversationId, { io: context.store?.io });
+        if (detectionResult) {
+          context.orderStatus = detectionResult.signals?.orderStatus;
+          context.currentIssue = detectionResult.signals?.deliveryIssue ? 'atraso_entrega' : null;
+          if (detectionResult.tags) context.tags = detectionResult.tags;
+          if (detectionResult.funnel) context.funnelStage = detectionResult.funnel;
+          if (detectionResult.temp) context.temperature = detectionResult.temp;
+          if (detectionResult.notes) context.notes = detectionResult.notes;
+        }
+      } catch (detErr) {
+        console.warn(`[CRM_DETECTION_WARN] Falha na detecção inteligente para ${context.conversationId}:`, detErr.message);
+      }
+
       metrics.record('total_time', performance.now() - startTime);
       metrics.logSummary(context.conversationId);
       

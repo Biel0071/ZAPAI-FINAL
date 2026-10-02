@@ -16,6 +16,28 @@ const {
   getDocumentFileName,
   toMediaPayload,
 } = require('../media/payload');
+const lidMapper = require('../shared/lidMapper');
+const messageAckPipeline = require('../../messageAckPipeline');
+
+if (!global.systemSentMessageIds) {
+  global.systemSentMessageIds = new Set();
+}
+
+function registerSystemOutbound(sendResult, jid, phone) {
+  if (!sendResult?.key?.id) return;
+  const msgId = sendResult.key.id;
+  global.systemSentMessageIds.add(msgId);
+  if (global.systemSentMessageIds.size > 2000) {
+    const firstItem = global.systemSentMessageIds.values().next().value;
+    global.systemSentMessageIds.delete(firstItem);
+  }
+  try {
+    messageAckPipeline.transitionAck(msgId, messageAckPipeline.ACK_STATES.SENT, {
+      remoteJid: jid,
+      phone: phone || jid.split('@')[0],
+    });
+  } catch (_) {}
+}
 
 function isWhatsAppConnected() {
   // Phase 2c: sessionStateService is the authoritative source. The listener
@@ -131,10 +153,18 @@ async function resolveRegisteredJid(sock, jid, options = {}) {
     return jid;
   }
 
-  // A LID is an address already observed from WhatsApp. Return it directly so
-  // Baileys sends to the active LID conversation without breaking multi-device delivery.
+  // If destination is @lid, check if we have the mapped real phone number.
+  // Sending directly to @lid breaks WhatsApp Web companion synchronization,
+  // showing "Aguardando mensagem. Essa ação pode levar alguns instantes".
   if (jid.endsWith('@lid')) {
-    return jid;
+    const rawLid = jid.split('@')[0].split(':')[0];
+    const mappedPhone = await lidMapper.getPhoneForLid(rawLid);
+    if (mappedPhone) {
+      console.log(`[JID-RESOLVE] Resolved incoming LID ${rawLid} -> phone JID ${mappedPhone}@s.whatsapp.net`);
+      jid = `${mappedPhone}@s.whatsapp.net`;
+    } else {
+      return jid;
+    }
   }
   if (!jid.endsWith('@s.whatsapp.net')) {
     return jid;
@@ -160,11 +190,19 @@ async function resolveRegisteredJid(sock, jid, options = {}) {
     }
     if (Array.isArray(checkResult) && checkResult.length > 0 && checkResult[0].exists) {
       let resolvedJid = checkResult[0].jid || candidateJid;
+      if (resolvedJid.includes(':')) {
+        resolvedJid = `${resolvedJid.split(':')[0]}@s.whatsapp.net`;
+      }
       if (checkResult[0].lid) {
         const lidStr = `${String(checkResult[0].lid).split('@')[0].split(':')[0]}@lid`;
-        global.phoneToLidMap?.set(clean, lidStr.split('@')[0]);
-        global.lidToPhoneMap?.set(lidStr.split('@')[0], clean);
-        resolvedJid = lidStr;
+        const lidClean = lidStr.split('@')[0];
+        global.phoneToLidMap?.set(clean, lidClean);
+        global.lidToPhoneMap?.set(lidClean, clean);
+        lidMapper.saveMapping(lidClean, clean).catch(() => {});
+        // CRITICAL FIX: DO NOT overwrite resolvedJid with lidStr!
+        // Sending directly to @lid breaks WhatsApp Web companion synchronization,
+        // displaying "Aguardando mensagem. Essa ação pode levar alguns instantes".
+        // Always send 1-to-1 messages to @s.whatsapp.net.
       }
       setCachedJid(clean, resolvedJid);
       if (resolvedJid !== jid || reason) {
@@ -228,13 +266,15 @@ async function sendMessage(sock, phone, text, options = {}) {
 
   try {
     console.log(`[WHATSAPP-SEND] transport_call kind=text jid=${jid}`);
-    return await sendWithRetry(
+    const result = await sendWithRetry(
       () => sock.sendMessage(jid, { text }, transportOptions),
       // A send timeout is ambiguous: WhatsApp may already have accepted the
       // message. Retrying here can create duplicate deliveries. Retries are
       // handled by the outbound queue at item level instead.
       1
     );
+    registerSystemOutbound(result, jid, phone);
+    return result;
   } catch (error) {
     console.error(`[WHATSAPP-SEND-ERROR] sendMessage failed JID=${jid}:`, {
       phone,
@@ -255,7 +295,7 @@ async function sendImage(sock, phone, imagePath, caption = '', options = {}) {
   await checkBeforeSend(options.beforeSend);
 
   try {
-    return await sendWithRetry(
+    const result = await sendWithRetry(
       () =>
         sock.sendMessage(jid, {
           image: toMediaPayload(imagePath),
@@ -263,6 +303,8 @@ async function sendImage(sock, phone, imagePath, caption = '', options = {}) {
         }),
       1
     );
+    registerSystemOutbound(result, jid, phone);
+    return result;
   } catch (error) {
     console.error(`[WHATSAPP-SEND-ERROR] sendImage failed JID=${jid}:`, {
       phone,
@@ -284,7 +326,7 @@ async function sendVideo(sock, phone, videoPath, caption = '', options = {}) {
   await checkBeforeSend(options.beforeSend);
 
   try {
-    return await sendWithRetry(
+    const result = await sendWithRetry(
       () =>
         sock.sendMessage(jid, {
           video: toMediaPayload(videoPath),
@@ -292,6 +334,8 @@ async function sendVideo(sock, phone, videoPath, caption = '', options = {}) {
         }),
       1
     );
+    registerSystemOutbound(result, jid, phone);
+    return result;
   } catch (error) {
     console.error(`[WHATSAPP-SEND-ERROR] sendVideo failed JID=${jid}:`, {
       phone,
@@ -313,7 +357,7 @@ async function sendAudio(sock, phone, audioPath, ptt = false, mimetype, options 
   await checkBeforeSend(options.beforeSend);
 
   try {
-    return await sendWithRetry(
+    const result = await sendWithRetry(
       () =>
         sock.sendMessage(jid, {
           audio: toMediaPayload(audioPath),
@@ -322,6 +366,8 @@ async function sendAudio(sock, phone, audioPath, ptt = false, mimetype, options 
         }),
       1
     );
+    registerSystemOutbound(result, jid, phone);
+    return result;
   } catch (error) {
     console.error(`[WHATSAPP-SEND-ERROR] sendAudio failed JID=${jid}:`, {
       phone,
@@ -344,7 +390,7 @@ async function sendDocument(sock, phone, docPath, fileName, mimetype, options = 
   await checkBeforeSend(options.beforeSend);
 
   try {
-    return await sendWithRetry(
+    const result = await sendWithRetry(
       () =>
         sock.sendMessage(jid, {
           document: toMediaPayload(docPath),
@@ -353,6 +399,8 @@ async function sendDocument(sock, phone, docPath, fileName, mimetype, options = 
         }),
       1
     );
+    registerSystemOutbound(result, jid, phone);
+    return result;
   } catch (error) {
     console.error(`[WHATSAPP-SEND-ERROR] sendDocument failed JID=${jid}:`, {
       phone,
@@ -375,13 +423,15 @@ async function sendSticker(sock, phone, stickerPath, options = {}) {
   await checkBeforeSend(options.beforeSend);
 
   try {
-    return await sendWithRetry(
+    const result = await sendWithRetry(
       () =>
         sock.sendMessage(jid, {
           sticker: toMediaPayload(stickerPath),
         }),
       1
     );
+    registerSystemOutbound(result, jid, phone);
+    return result;
   } catch (error) {
     console.error(`[WHATSAPP-SEND-ERROR] sendSticker failed JID=${jid}:`, {
       phone,

@@ -410,47 +410,94 @@ async function dispatchSingleMessage(state, contact, io) {
         mimetype: campaignMessage.mimetype,
         ptt: campaignMessage.ptt === true,
       });
+    let sendResult;
+    if (isMediaCampaignMessage(campaignMessage)) {
+      const mediaType = normalizeCampaignMediaType(campaignMessage.type);
+      const mediaPath = campaignMessage.mediaPath || campaignMessage.content;
+      if (!mediaPath) {
+        throw new Error('Campaign media message is missing mediaPath/mediaUrl/content.');
+      }
+      sendResult = await whatsappService.sendMediaMessage(session.sock, phone, mediaType, mediaPath, {
+        caption: campaignMessage.caption || campaignMessage.text || campaignMessage.content || '',
+        fileName: campaignMessage.fileName || campaignMessage.filename,
+        mimetype: campaignMessage.mimetype,
+        ptt: campaignMessage.ptt === true,
+      });
     } else {
-      await whatsappService.sendMessage(session.sock, phone, campaignMessage.content);
+      sendResult = await whatsappService.sendMessage(session.sock, phone, campaignMessage.content);
     }
 
-    await session.sock.sendPresenceUpdate('paused', jid).catch(() => {});
+    // Persist outgoing campaign message to database and update conversation
+    try {
+      const messageRepository = require('../src/data/repositories/messageRepository');
+      let conversation = await conversationRepository.getConversationByPhone(phone, state.companyId);
+      if (!conversation) {
+        conversation = await conversationRepository.createConversation({
+          phone,
+          companyId: state.companyId,
+          sessionId,
+          remoteJid: jid,
+          aiEnabled: true,
+          funnelStage: 'Lead_Quente',
+          leadTemperature: 'hot',
+          tags: ['robo_ativo', 'recuperacao'],
+          lastMessage: campaignMessage.content,
+        });
+      }
 
-    const deliveryMs = Date.now() - startTime;
-    state.sentQueue.push({
-      contact,
-      phone,
-      deliveryMs,
-      at: new Date().toISOString(),
-    });
-    state.metrics.sent += 1;
-    state.metrics.totalDeliveryMs += deliveryMs;
-    state.metrics.avgDeliveryMs = Math.round(state.metrics.totalDeliveryMs / state.metrics.sent);
+      if (conversation?.id) {
+        const textContent = campaignMessage.content || campaignMessage.caption || '[mídia]';
+        const msgType = campaignMessage.type || 'text';
+        const savedMessage = await messageRepository.createMessage({
+          conversationId: conversation.id,
+          phone,
+          text: textContent,
+          content: textContent,
+          direction: 'outgoing',
+          sender: 'campaign',
+          type: msgType,
+          status: 'sent',
+          fromMe: true,
+          whatsappMessageId: sendResult?.key?.id,
+          remoteJid: jid,
+          sessionId,
+          companyId: state.companyId,
+        });
 
-    // AI POST-DISPATCH ACTIVATION
-    if (state.settings.enableAIPostDispatch) {
-      try {
-        const conversation = await conversationRepository.getConversationByPhone(phone, state.companyId);
-        if (conversation) {
-          // Ativa o bot e atualiza estágios caso definido via aiSetup
-          const updates = { ai_enabled: true };
-          if (state.settings.aiSetup?.autoFunnel) {
-             updates.funnel_stage = 'Lead_Quente';
-             updates.lead_temperature = 'hot';
-          }
-          await conversationRepository.updateConversationState(conversation.id, updates);
-          
-          if (state.settings.aiSetup?.autoTagging) {
-             const currentTags = Array.isArray(conversation.tags) ? conversation.tags : [];
-             if (!currentTags.includes('robo_ativo')) {
-                currentTags.push('robo_ativo');
-                await conversationRepository.updateConversationState(conversation.id, { tags: currentTags });
-             }
+        if (sendResult?.key?.id && savedMessage?.id) {
+          const messageAckPipeline = require('./messageAckPipeline');
+          messageAckPipeline.registerDbMapping(sendResult.key.id, savedMessage.id);
+        }
+
+        const currentTags = Array.isArray(conversation.tags) ? [...conversation.tags] : [];
+        if (!currentTags.includes('robo_ativo')) currentTags.push('robo_ativo');
+        if (!currentTags.includes('recuperacao')) currentTags.push('recuperacao');
+
+        await conversationRepository.updateConversationState(conversation.id, {
+          lastMessage: textContent,
+          lastMessageType: msgType,
+          aiEnabled: true,
+          ai_reactivate_at: null,
+          funnel_stage: 'Lead_Quente',
+          lead_temperature: 'hot',
+          tags: currentTags,
+        });
+
+        const io = state.io || global.io;
+        if (io) {
+          io.emit('conversation_updated', {
+            ...conversation,
+            last_message: textContent,
+            ai_enabled: true,
+            tags: currentTags,
+          });
+          if (savedMessage) {
+            io.emit('message:received', savedMessage);
           }
         }
-      } catch (aiErr) {
-        console.error(`[CampaignEngine] Failed to enable AI for ${phone}:`, aiErr.message);
       }
+    } catch (persistErr) {
+      console.warn('[CampaignEngine] Failed to persist outbound campaign message:', persistErr.message);
     }
 
     return { success: true, deliveryMs };

@@ -8,6 +8,20 @@ const PURCHASE_INTENT_PATTERNS = [
 ];
 const OBJECTION_PATTERNS = ['muito caro', 'vou pensar', 'tem desconto', 'consegue melhorar'];
 const QUESTION_HINTS = ['como', 'qual', 'quais', 'quando', 'onde', 'tem', 'tem?', 'possui'];
+const DELIVERY_ISSUE_PATTERNS = [
+  'nao foi entregue', 'não foi entregue', 'nao recebi', 'não recebi', 'atrasou',
+  'atraso', 'nao chegou', 'não chegou', 'ainda nao chegou', 'ainda não chegou',
+  'cade meu pedido', 'cadê meu pedido', 'nao veio', 'não veio', 'demorando',
+  'demora', 'nao entregaram', 'não entregaram',
+];
+const SCHEDULED_PATTERNS = [
+  'ja estava agendado', 'já estava agendado', 'ja agendado', 'já agendado',
+  'agendado para', 'agendamento', 'marcado para', 'entrega agendada',
+];
+const PAYMENT_CONFIRMED_PATTERNS = [
+  'ja paguei', 'já paguei', 'fiz o pix', 'mandei o pix', 'ta pago', 'tá pago',
+  'segue o comprovante', 'comprovante do pix', 'comprovante anexado',
+];
 
 function normalizeText(value = '') {
   return String(value)
@@ -57,6 +71,33 @@ function analyzeLeadIntent(message, conversationHistory = []) {
 
   const quantityIntent = /\b(quero|preciso|separa|reserve|manda)\s+(?:de\s+)?\d+\b/.test(normalizedMessage);
   const confirmationIntent = /\b(fechado|confirmado|pode mandar|vamos fechar)\b/.test(normalizedMessage);
+
+  if (includesPattern(normalizedMessage, DELIVERY_ISSUE_PATTERNS)) {
+    return {
+      confidence: 0.99,
+      intent: 'delivery_issue',
+      lead_temperature: 'urgent',
+      next_action: 'support_check_delivery',
+    };
+  }
+
+  if (includesPattern(normalizedMessage, PAYMENT_CONFIRMED_PATTERNS)) {
+    return {
+      confidence: 0.98,
+      intent: 'payment_confirmed',
+      lead_temperature: 'ready_to_buy',
+      next_action: 'confirm_payment_and_schedule',
+    };
+  }
+
+  if (includesPattern(normalizedMessage, SCHEDULED_PATTERNS)) {
+    return {
+      confidence: 0.95,
+      intent: 'scheduled_order',
+      lead_temperature: 'warm',
+      next_action: 'confirm_schedule',
+    };
+  }
 
   if (includesPattern(normalizedMessage, PURCHASE_INTENT_PATTERNS) || quantityIntent || confirmationIntent) {
     return {

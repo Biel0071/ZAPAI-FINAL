@@ -222,6 +222,10 @@ function compileSystemPrompt(agent, store, contact = null) {
     compiled += `[DADOS DO CLIENTE]\n`;
     compiled += `- Nome do Cliente: ${contact.name || 'Cliente'}\n`;
     compiled += `- Telefone/WhatsApp do Cliente: ${contact.phone || ''}\n`;
+    if (contact.orderStatus) compiled += `- Estado Atual do Pedido: ${contact.orderStatus}\n`;
+    if (contact.currentIssue) compiled += `- Situação Crítica / Alerta: ${contact.currentIssue}\n`;
+    if (contact.tags?.length) compiled += `- Etiquetas do Cliente: ${Array.isArray(contact.tags) ? contact.tags.join(', ') : contact.tags}\n`;
+    if (contact.notes) compiled += `- Observações e Histórico do CRM: ${contact.notes}\n`;
     if (contact.funnelStage) compiled += `- Estágio atual do funil: ${contact.funnelStage}\n`;
     if (contact.nextAction) compiled += `- Próxima ação recomendada: ${contact.nextAction}\n`;
     if (contact.leadAnalysis?.intent) compiled += `- Intenção atual: ${contact.leadAnalysis.intent}\n`;
@@ -387,7 +391,10 @@ function compileSystemPrompt(agent, store, contact = null) {
   compiled += `  * FALE COMO UM ATENDENTE REAL DE WHATSAPP: Escreva de forma acolhedora, brasileira, simpática, prática e ágil.\n`;
   compiled += `  * MENSAGENS COMPACTAS: Responda em no máximo 1 a 3 frases claras e diretas. Evite blocos cansativos de texto.\n`;
   compiled += `  * NÃO REPITA SAUDAÇÕES: Não repita "Olá", "Bom dia" se a conversa já está em andamento. Vá direto ao ponto.\n`;
-  compiled += `  * CONDUÇÃO COMERCIAL ATIVA: Termine sempre com uma pergunta curta e natural que guie para o próximo passo (ex: "Qual o seu CEP pra calcularmos a entrega?", "Prefere pagamento à vista no PIX com 5% de desconto ou no cartão?").\n`;
+  compiled += `  * VARIAÇÃO CONTÍNUA & ANTI-REPETIÇÃO: NUNCA inicie respostas com fórmulas repetidas ("Olá tudo bem? Eu sou a Camila..."). Varie os cumprimentos de forma dinâmica ("Oi!", "Opa!", "Olá!", ou vá direto ao assunto com "Poxa, sinto muito por isso!"). Adapte o vocabulário para cada cliente para soar 100% como uma pessoa real digitando.\n`;
+  compiled += `  * PRIORIDADE MÁXIMA PARA SUPORTE / ENTREGA: Se o cliente relatar problema na entrega ("não foi entregue", "atrasou", "não recebi"), NÃO continue empurrando vendas ou perguntando o que ele quer comprar! Peça sinceras desculpas pela situação com empatia real, acolha a queixa e garanta que você já está acionando o setor de logística/expedição para verificar o ocorrido imediatamente.\n`;
+  compiled += `  * SE O PEDIDO JÁ FOI AGENDADO: Reconheça que o pedido já estava agendado e demonstre comprometimento imediato para resolver com a equipe.\n`;
+  compiled += `  * CONDUÇÃO COMERCIAL ATIVA: Quando for venda ou cotação, termine sempre com uma pergunta curta e natural que guie para o próximo passo (ex: "Qual o seu CEP pra calcularmos a entrega?", "Prefere pagamento à vista no PIX com 5% de desconto ou no cartão?").\n`;
   compiled += `\n`;
 
   // 11. ANÁLISE DE CONTEXTO E METADADOS DO FUNIL

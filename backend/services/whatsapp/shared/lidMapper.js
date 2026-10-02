@@ -138,10 +138,31 @@ async function processPendingLidMessages(lid, phone) {
   }
 }
 
+async function getPhoneForLid(lid) {
+  if (!lid) return null;
+  const cleanLid = String(lid).split('@')[0];
+  if (global.lidToPhoneMap && global.lidToPhoneMap.has(cleanLid)) {
+    return global.lidToPhoneMap.get(cleanLid);
+  }
+  try {
+    const result = await query(`
+      SELECT phone FROM whatsapp_lid_mappings WHERE lid = $1 LIMIT 1
+    `, [cleanLid]);
+    if (result.rows.length > 0 && result.rows[0].phone) {
+      const phone = result.rows[0].phone;
+      if (global.lidToPhoneMap) global.lidToPhoneMap.set(cleanLid, phone);
+      if (global.phoneToLidMap) global.phoneToLidMap.set(phone, cleanLid);
+      return phone;
+    }
+  } catch (_) {}
+  return null;
+}
+
 module.exports = {
   init,
   saveMapping,
   savePendingMessage,
   processPendingLidMessages,
+  getPhoneForLid,
 };
 

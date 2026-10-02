@@ -1833,6 +1833,7 @@ async function createStableSession({
         // Transition state to SENT
         const existingAck = messageAckPipeline.getAckState(messageId);
         let dbId = existingAck?.dbMessageId;
+        const isSystemSent = Boolean(existingAck) || (global.systemSentMessageIds && global.systemSentMessageIds.has(messageId));
 
         if (!existingAck) {
           // Check if message was already created in DB by our API (e.g. before worker reload or concurrent thread)
@@ -1853,7 +1854,7 @@ async function createStableSession({
               };
             } catch (_) {}
           } else {
-            // If not in memory mapping and not in DB, it was sent manually from phone app: save to DB and pause AI
+            // If not in memory mapping and not in DB, save to DB
             try {
               result = await persistRealtimeMessage({
                 incomingMessage,
@@ -1863,29 +1864,39 @@ async function createStableSession({
                 dbId = result.message.id;
                 messageAckPipeline.registerDbMapping(messageId, dbId);
               }
-            const normalizedChatId = normalizePhone(remoteJid);
-            const targetConvId = result?.conversation?.id || result?.message?.conversationId || normalizedChatId;
-            const humanTimeoutMs = Number(process.env.HUMAN_TAKEOVER_TIMEOUT_MS || 86400000);
-            conversationRuntimeService.setHumanTakeover(store, targetConvId, humanTimeoutMs);
-            if (result?.conversation?.id) {
-              const aiReactivateAt = new Date(Date.now() + humanTimeoutMs).toISOString();
-              await conversationRepository.updateConversationState(result.conversation.id, {
-                aiEnabled: false,
-                ai_reactivate_at: aiReactivateAt,
-              }).catch(() => {});
-              
-              const payloadUpdate = {
-                ...result.conversation,
-                aiEnabled: false,
-                ai_enabled: false,
-                aiPausedUntil: aiReactivateAt,
-                ai_reactivate_at: aiReactivateAt,
-                aiReactivateAt: aiReactivateAt,
-                humanActive: true,
-              };
-              const sockIo = io || global.io;
-              sockIo?.emit('conversation:update', payloadUpdate);
-              sockIo?.emit('conversation_updated', payloadUpdate);
+            } catch (err) {
+              console.warn('[STABLE-SESSION] Error persisting outbound fromMe message:', err.message);
+            }
+
+            // Only trigger human takeover if this message was actually sent manually from phone app
+            if (!isSystemSent) {
+              const normalizedChatId = normalizePhone(remoteJid);
+              const targetConvId = result?.conversation?.id || result?.message?.conversationId || normalizedChatId;
+              const humanTimeoutMs = Number(process.env.HUMAN_TAKEOVER_TIMEOUT_MS || 86400000);
+              conversationRuntimeService.setHumanTakeover(store, targetConvId, humanTimeoutMs);
+              if (result?.conversation?.id) {
+                const aiReactivateAt = new Date(Date.now() + humanTimeoutMs).toISOString();
+                await conversationRepository.updateConversationState(result.conversation.id, {
+                  aiEnabled: false,
+                  ai_reactivate_at: aiReactivateAt,
+                }).catch(() => {});
+                
+                const payloadUpdate = {
+                  ...result.conversation,
+                  aiEnabled: false,
+                  ai_enabled: false,
+                  aiPausedUntil: aiReactivateAt,
+                  ai_reactivate_at: aiReactivateAt,
+                  aiReactivateAt: aiReactivateAt,
+                  humanActive: true,
+                };
+                const sockIo = io || global.io;
+                sockIo?.emit('conversation:update', payloadUpdate);
+                sockIo?.emit('conversation_updated', payloadUpdate);
+              }
+            } else {
+              console.log(`[STABLE-SESSION] fromMe message ${messageId} confirmed as system-sent. Preserving AI enabled.`);
+            }
               try {
                 const experienceEngine = require('../../../src/ai/evolutionary/experienceEngine');
                 experienceEngine.registerHumanIntervention({

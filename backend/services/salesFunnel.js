@@ -13,6 +13,18 @@ function getNextFunnelStage(currentStage = STAGES.NEW_LEAD, leadAnalysis = {}, m
   const temperature = leadAnalysis.lead_temperature || 'cold';
   const normalizedMessage = String(message).toLowerCase();
 
+  if (intent === 'delivery_issue' || temperature === 'urgent') {
+    return 'suporte';
+  }
+
+  if (intent === 'payment_confirmed') {
+    return 'pago';
+  }
+
+  if (intent === 'scheduled_order') {
+    return 'agendado';
+  }
+
   if (/(fechado|pode fechar|vou levar|confirmado)/i.test(normalizedMessage)) {
     return STAGES.CLOSED;
   }

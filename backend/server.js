@@ -1240,6 +1240,19 @@ app.post('/api/ai/memory/flush', async (req, res) => {
   }
 });
 
+app.post('/api/contacts/intelligence-sweep', async (req, res) => {
+  try {
+    const contactIntelligenceDaemon = require('./services/contactIntelligenceDaemon');
+    const companyId = req.companyId || req.authTenantId || req.body?.companyId || 'default';
+    const hoursBack = Number(req.body?.hoursBack) || 48;
+    const limit = Number(req.body?.limit) || 500;
+    const result = await contactIntelligenceDaemon.runDailyContactDetection({ companyId, hoursBack, limit, io });
+    return sendSafeJson(res, result);
+  } catch (error) {
+    return sendSafeJson(res, { success: false, error: error?.message || 'Intelligence sweep failed' }, 500);
+  }
+});
+
 // ─── Evolutionary AI (5-Layer Learning Architecture) ───
 const evolutionaryRoutes = require('./src/ai/evolutionary/evolutionaryRoutes');
 app.use('/api/ai/evolution', evolutionaryRoutes);
@@ -1851,6 +1864,10 @@ async function bootstrap() {
       }, 60_000);
       const { historySync } = require('./services/whatsapp/historySync');
       workerSupervisor.registerWorker('whatsapp_history', () => historySync.tick(), 5000);
+      workerSupervisor.registerWorker('contact_intelligence', () => {
+        const contactIntelligenceDaemon = require('./services/contactIntelligenceDaemon');
+        contactIntelligenceDaemon.runDailyContactDetection({ io });
+      }, 30 * 60_000);
       workerSupervisor.startAll();
 
       // Phase 5: Start SocketSafety periodic audit
