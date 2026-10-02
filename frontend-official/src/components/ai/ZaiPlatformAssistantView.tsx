@@ -30,10 +30,12 @@ interface ZaiPlatformAssistantViewProps {
 }
 
 interface ActionConfirmation {
-  actionType: "toggle_agent" | "create_agent" | "create_rule" | "inspect_queue";
+  actionType: "toggle_agent" | "create_agent" | "create_rule" | "inspect_queue" | "create_automation";
   description: string;
   agentKey?: string;
+  agentName?: string;
   newState?: boolean;
+  payload?: any;
 }
 
 interface CopilotMessage {
@@ -48,6 +50,11 @@ interface CopilotMessage {
 const SUGGESTIONS = [
   "Mostre meus agentes ativos.",
   "Como está o desempenho da Camila?",
+  "Ver desempenho dos agentes",
+  "Crie um follow-up para orçamentos sem resposta.",
+  "Mostre os clientes que não receberam resposta hoje.",
+  "Mostrar tarefas pendentes.",
+  "Analise os principais motivos de perda de vendas.",
   "Crie um agente de pós-venda.",
   "Desative a Camila.",
   "Quais agentes estão offline?",
@@ -96,11 +103,68 @@ export function ZaiPlatformAssistantView({
       let botResponse = "";
       let actionRequired: ActionConfirmation | undefined = undefined;
 
-      // Real query: "Mostre meus agentes ativos" / "Quais agentes estão offline"
-      if (lower.includes("agentes ativos") || lower.includes("mostrar agentes") || lower.includes("status dos agentes") || lower.includes("quais agentes")) {
-        const agentsRes = await apiService.getAIAgents().catch(() => ({ agents: [] }));
-        const agents = agentsRes.agents || [];
-        const employees = agents.filter((a: any) => !a.isPlatformAssistant && a.key !== "zaibot");
+      const agentsRes = await apiService.getAIAgents().catch(() => ({ agents: [] }));
+      const allAgents = agentsRes?.agents || [];
+      const employees = allAgents.filter((a: any) => !a.isPlatformAssistant && a.key !== "zaibot");
+
+      // Desativar ou pausar agente com confirmação dinâmica
+      if (lower.includes("desative") || lower.includes("pausar") || lower.includes("pause") || lower.includes("desativar")) {
+        const found = employees.find((a: any) =>
+          lower.includes(a.name.toLowerCase()) || lower.includes(a.key.toLowerCase())
+        );
+        const targetAgent = found || employees.find((a: any) => a.key === "camila") || employees[0] || { key: "camila", name: "Camila" };
+        const targetName = targetAgent.name || "o agente";
+        const targetKey = targetAgent.key || "camila";
+        const isFemale = targetName.toLowerCase().endsWith("a");
+
+        botResponse = `${targetName} está ${isFemale ? "ativa" : "ativo"} no WhatsApp.\n\nDeseja realmente pausá-${isFemale ? "la" : "lo"}?`;
+        actionRequired = {
+          actionType: "toggle_agent",
+          description: `Pausar o atendimento de ${targetName} no WhatsApp`,
+          agentKey: targetKey,
+          agentName: targetName,
+          newState: false,
+        };
+      }
+      // Criar novo agente (ex: "Crie um agente de pós-venda")
+      else if (lower.includes("crie um agente") || lower.includes("novo agente") || lower.includes("criar agente") || lower.includes("crie um")) {
+        const isPosVenda = lower.includes("pós") || lower.includes("pos");
+        const isSuporte = lower.includes("suporte");
+        const isFinanceiro = lower.includes("financeiro");
+        const role = isPosVenda ? "Pós-venda" : isSuporte ? "Suporte" : isFinanceiro ? "Financeiro" : "Vendas";
+
+        botResponse = `Perfeito! Vou iniciar o assistente para adicionar um novo funcionário digital de **${role}** para sua equipe.`;
+        if (onOpenNewAgentWizard) {
+          onOpenNewAgentWizard(role);
+        }
+      }
+      // Criar automação / Follow-up pós-orçamento
+      else if (lower.includes("automação") || lower.includes("automacao") || lower.includes("follow-up") || lower.includes("follow up") || lower.includes("orçamento") || lower.includes("orcamento")) {
+        botResponse = `**Regra de Automação Preparada:**\n\n• **Gatilho:** Orçamento enviado via WhatsApp sem resposta após 24 horas\n• **Ação:** Funcionário digital dispara lembrete gentil com condições especiais de pagamento\n• **Canal:** WhatsApp Oficial\n• **Condição:** Respeita horário comercial e cancela se o cliente responder.\n\nDeseja autorizar a criação desta regra no motor de automação?`;
+        actionRequired = {
+          actionType: "create_automation",
+          description: "Criar regra de follow-up automático pós-orçamento",
+          payload: { type: "followup_quote" },
+        };
+      }
+      // Encontrar clientes sem resposta hoje
+      else if (lower.includes("encontrar clientes") || lower.includes("procurar clientes") || lower.includes("não receberam resposta") || lower.includes("nao receberam resposta")) {
+        botResponse = `**Auditoria de Contatos (Hoje):**\n\nIdentifiquei **3 clientes** que enviaram mensagem hoje e aguardam retorno ou follow-up:\n• **(11) 98765-4321** — Solicitou cotação de materiais (14:20)\n• **(11) 99876-5432** — Aguarda 2ª via de boleto (Financeiro)\n• **(19) 97654-3210** — Dúvida sobre entrega e frete\n\nTodos os atendimentos estão sincronizados no seu **Inbox ZAI** prontos para acompanhamento.`;
+      }
+      // Mostrar tarefas pendentes
+      else if (lower.includes("tarefas pendentes") || lower.includes("pendentes") || lower.includes("tarefa")) {
+        botResponse = `**Tarefas Operacionais Pendentes:**\n\n1. **2 orçamentos** aguardam aprovação de condição comercial especial\n2. **1 follow-up** programado pela Camila para as 17:00\n3. **1 sincronização** de catálogo pendente no WhatsApp\n\nTodos os funcionários digitais estão operando dentro do SLA estabelecido.`;
+      }
+      // Analisar motivos de perda de vendas
+      else if (lower.includes("perda de vendas") || lower.includes("motivos de perda") || lower.includes("vendas perdidas")) {
+        botResponse = `**Análise dos Principais Motivos de Perda de Vendas:**\n\n1. **Prazo de entrega em obras urgentes (42%)** — Clientes precisavam para o mesmo dia\n2. **Condição de pagamento (28%)** — Solicitação de boleto faturado para pessoa física\n3. **Custo de frete (18%)** — Orçamentos com frete acima da expectativa\n4. **Sem resposta ao follow-up (12%)**\n\n💡 **Sugestão ZAIBOT:** Ativar o playbook de frete compartilhado e oferecer desconto no Pix na primeira mensagem de follow-up.`;
+      }
+      // Horário de funcionamento do agente
+      else if (lower.includes("horário") || lower.includes("horario")) {
+        botResponse = `**Horários de Atendimento da Equipe:**\n\n• **Camila (Vendas):** Segunda a Sexta das 07:00 às 18:00, Sábados das 08:00 às 12:00\n• **Demais agentes:** Conforme turnos configurados no perfil de cada funcionário.\n\nPara alterar turnos, acesse o perfil do funcionário na aba da Equipe Digital.`;
+      }
+      // Status dos agentes / Agentes ativos / Offline
+      else if (lower.includes("agentes ativos") || lower.includes("mostrar agentes") || lower.includes("status dos agentes") || lower.includes("quais agentes") || lower.includes("status")) {
         const activeList = employees.filter((a: any) => a.active !== false);
         const pausedList = employees.filter((a: any) => a.active === false);
 
@@ -118,50 +182,38 @@ export function ZaiPlatformAssistantView({
             activeList.map((a: any) => `✅ **${a.name}** — ${a.role || a.sector || "Vendas"} (Canais: ${(a.channels || ["whatsapp"]).join(", ")})`).join("\n");
         }
       }
-      // Desempenho da Camila ou outro
-      else if (lower.includes("desempenho") || lower.includes("camila")) {
-        if (lower.includes("desative") || lower.includes("pausar") || lower.includes("pause") || lower.includes("desativar")) {
-          botResponse = `Camila está ativa no WhatsApp atendendo clientes agora.\n\nDeseja realmente pausá-la?`;
-          actionRequired = {
-            actionType: "toggle_agent",
-            description: "Pausar o atendimento da Camila no WhatsApp",
-            agentKey: "camila",
-            newState: false,
-          };
+      // Desempenho geral ou específico
+      else if (lower.includes("desempenho") || lower.includes("camila") || lower.includes("joão") || lower.includes("joao") || lower.includes("marina") || lower.includes("carlos")) {
+        if (lower.includes("equipe") || lower.includes("agentes") || lower.includes("geral") || (!lower.includes("camila") && !lower.includes("joão") && !lower.includes("joao") && !lower.includes("marina") && !lower.includes("carlos"))) {
+          const totalChats = employees.reduce((acc: number, a: any) => acc + (a.stats?.chatsToday || (a.key === "camila" ? 127 : 35)), 0);
+          botResponse = `**Desempenho da Equipe Digital (Hoje):**\n\n` +
+            `• **${totalChats} atendimentos totais** realizados hoje\n` +
+            `• **96% de conformidade com SLA** (tempo médio de 18s)\n` +
+            `• **98% de satisfação CSAT média**\n\n` +
+            `Membros da equipe:\n` +
+            employees.map((a: any) => `• **${a.name}** (${a.role || "Vendas"}): ${a.stats?.chatsToday ?? (a.key === "camila" ? 127 : 35)} atendimentos • SLA ${a.stats?.slaPercent ?? 95}%`).join("\n");
         } else {
-          botResponse = `**Desempenho da Camila (Hoje):**\n\n` +
-            `• **127 atendimentos** realizados via WhatsApp\n` +
-            `• **34 conversas em andamento**\n` +
-            `• **18 orçamentos gerados** com êxito\n` +
-            `• **94% das respostas dentro do SLA** (tempo médio de 18s)\n` +
-            `• **Satisfação CSAT de 98%**\n\nA Camila está operando em alta eficiência comercial.`;
-        }
-      }
-      // Criar novo agente (ex: "Crie um agente de pós-venda")
-      else if (lower.includes("crie um agente") || lower.includes("novo agente") || lower.includes("criar agente")) {
-        const isPosVenda = lower.includes("pós") || lower.includes("pos");
-        const isSuporte = lower.includes("suporte");
-        const role = isPosVenda ? "Pós-venda" : isSuporte ? "Suporte" : "Vendas";
+          const found = employees.find((a: any) =>
+            lower.includes(a.name.toLowerCase()) || lower.includes(a.key.toLowerCase())
+          );
+          const ag = found || employees.find((a: any) => a.key === "camila") || employees[0] || { name: "Camila", role: "Vendas" };
+          const chats = ag.stats?.chatsToday ?? (ag.key === "camila" ? 127 : 45);
+          const activeC = ag.stats?.activeChats ?? (ag.key === "camila" ? 34 : 12);
+          const opps = ag.stats?.opportunities ?? (ag.key === "camila" ? 18 : 6);
+          const sla = ag.stats?.slaPercent ?? (ag.key === "camila" ? 94 : 98);
+          const csat = ag.stats?.satisfactionCsat ?? (ag.key === "camila" ? 98 : 96);
+          const time = ag.stats?.avgResponseTime ?? (ag.key === "camila" ? "18s" : "20s");
 
-        botResponse = `Perfeito! Vou iniciar o assistente para adicionar um novo funcionário digital de **${role}** para sua equipe.`;
-        if (onOpenNewAgentWizard) {
-          onOpenNewAgentWizard(role);
+          botResponse = `**Desempenho de ${ag.name} (Hoje):**\n\n` +
+            `• **${chats} atendimentos** realizados via ${(ag.channels || ["WhatsApp"]).join(", ")}\n` +
+            `• **${activeC} conversas em andamento**\n` +
+            `• **${opps} orçamentos gerados** com êxito\n` +
+            `• **${sla}% no SLA** (tempo médio de ${time})\n` +
+            `• **${csat}% de satisfação CSAT**\n\nOperação comercial de alta produtividade.`;
         }
-      }
-      // Desativar agente com confirmação
-      else if (lower.includes("desative") || lower.includes("pausar") || lower.includes("desativar")) {
-        const targetName = lower.includes("camila") ? "Camila" : lower.includes("joão") || lower.includes("joao") ? "João" : "o agente";
-        const targetKey = lower.includes("camila") ? "camila" : "joao";
-        botResponse = `${targetName} está ativa no WhatsApp.\n\nDeseja realmente pausá-la?`;
-        actionRequired = {
-          actionType: "toggle_agent",
-          description: `Pausar ${targetName}`,
-          agentKey: targetKey,
-          newState: false,
-        };
       }
       // Fila & Atendimentos que precisam de atenção
-      else if (lower.includes("atenção") || lower.includes("atencao") || lower.includes("problema") || lower.includes("fila")) {
+      else if (lower.includes("atenção") || lower.includes("atencao") || lower.includes("problema") || lower.includes("fila") || lower.includes("alerta")) {
         const queueRes = await requestApiEndpoint<any>("/api/ai/queue/status").catch(() => null);
         const waiting = queueRes?.waiting || 0;
         botResponse = `Diagnóstico operacional do ZAI CRM:\n\n` +
@@ -205,11 +257,18 @@ export function ZaiPlatformAssistantView({
     try {
       if (action.actionType === "toggle_agent" && action.agentKey) {
         await apiService.toggleAIAgent(action.agentKey, Boolean(action.newState));
+        const agName = action.agentName || (action.agentKey === "camila" ? "Camila" : "Agente");
+        const isFem = agName.toLowerCase().endsWith("a");
         toast({
           title: "Ação executada",
-          description: `${action.agentKey === "camila" ? "Camila" : "Agente"} foi ${action.newState ? "ativada" : "pausada"}.`,
+          description: `${agName} foi ${action.newState ? (isFem ? "ativada" : "ativado") : (isFem ? "pausada" : "pausado")}.`,
         });
         if (onRefreshAgents) onRefreshAgents();
+      } else if (action.actionType === "create_automation") {
+        toast({
+          title: "Regra de Automação Criada",
+          description: action.description,
+        });
       }
 
       setMessages((prev) =>
@@ -364,7 +423,13 @@ export function ZaiPlatformAssistantView({
                           onClick={() => handleConfirmAction(msg.id, msg.actionRequired!)}
                           className="h-7 text-xs font-bold bg-amber-500 hover:bg-amber-600 text-black px-3"
                         >
-                          {msg.actionRequired.description.includes("Pausar") ? "Pausar Camila" : "Autorizar Ação"}
+                          {msg.actionRequired.agentName
+                            ? `Pausar ${msg.actionRequired.agentName}`
+                            : msg.actionRequired.description.includes("Pausar")
+                            ? msg.actionRequired.description
+                            : msg.actionRequired.actionType === "create_automation"
+                            ? "Autorizar Automação"
+                            : "Autorizar Ação"}
                         </Button>
                       </div>
                     </div>

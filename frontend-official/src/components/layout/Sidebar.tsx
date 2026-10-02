@@ -162,19 +162,28 @@ export function Sidebar() {
   const renderNavItem = (item: SidebarNavItem, compact: boolean, keyPrefix: string) => {
     const targetPathname = item.path.split("?")[0];
     const isAiItem = item.path === "/ai";
+    const isZaibotItem = item.path === "/ai?tab=zaibot";
+    const searchParams = new URLSearchParams(location.search);
+    const currentTab = searchParams.get("tab") || "agent";
+    const isCurrentlyOnZaibotTab = location.pathname.startsWith("/ai") && currentTab === "zaibot";
+
     const isAiActive = isAiItem && (
-      location.pathname.startsWith("/ai") ||
+      (location.pathname.startsWith("/ai") && !isCurrentlyOnZaibotTab) ||
       location.pathname.startsWith("/operations") ||
       location.pathname.startsWith("/flows") ||
       location.pathname.startsWith("/evolution") ||
       location.pathname.startsWith("/evolucao") ||
       location.pathname.startsWith("/automation")
     );
-    const isActive = isAiItem ? isAiActive : (
-      targetPathname === "/"
-        ? location.pathname === "/"
-        : (location.pathname === targetPathname || location.pathname.startsWith(targetPathname + "/"))
-    );
+    const isActive = isAiItem
+      ? isAiActive
+      : isZaibotItem
+      ? isCurrentlyOnZaibotTab
+      : (
+        targetPathname === "/"
+          ? location.pathname === "/"
+          : (location.pathname === targetPathname || location.pathname.startsWith(targetPathname + "/"))
+      );
 
     // Itens em desenvolvimento: cinza, não-clicáveis, badge DEV. Só chegam aqui p/ admin+.
     if (item.dev) {

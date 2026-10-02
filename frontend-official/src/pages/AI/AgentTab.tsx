@@ -5,7 +5,6 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Slider } from "@/components/ui/slider";
-import { Progress } from "@/components/ui/progress";
 import {
   Select,
   SelectContent,
@@ -173,32 +172,6 @@ export function AgentTab({
     }
   }, [aiEnabled]);
 
-  // Real Backend Evolution Level & XP Progression
-  const [levelData, setLevelData] = useState<{
-    level: number;
-    levelTitle: string;
-    totalXp: number;
-    nextLevelXp: number;
-    progressPct: number;
-    evolutionScore: number;
-  } | null>(null);
-
-  useEffect(() => {
-    let mounted = true;
-    const fetchLevel = async () => {
-      try {
-        const res = await requestApiEndpoint<any>(`/api/ai/evolution/agent-level?agentKey=${selectedAgentKey}`);
-        if (mounted && res?.data) {
-          setLevelData(res.data);
-        }
-      } catch (_) {}
-    };
-    void fetchLevel();
-    return () => {
-      mounted = false;
-    };
-  }, [selectedAgentKey]);
-
   useEffect(() => {
     if (selectedAgentKey === "camila" || selectedAgentKey === "zaibot") {
       setCharacterMode(selectedAgentKey);
@@ -252,6 +225,7 @@ export function AgentTab({
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
   const [isNewAgentWizardOpen, setIsNewAgentWizardOpen] = useState(false);
   const [wizardDefaultRole, setWizardDefaultRole] = useState<string>("Vendas");
+  const [showCharacterViewer, setShowCharacterViewer] = useState(false);
 
   // Listen to open-wizard event triggered by ZAIBOT or global shortcuts
   useEffect(() => {
@@ -570,119 +544,46 @@ Tom: ${agentTone}. Estilo: ${responseStyle}.`;
         onRefresh={refreshAgents}
       />
 
-      {/* LIVING MASCOT & CHARACTER STUDIO (DUAL SCENE) */}
-      <Card className="bg-card border-border/80 shadow-sm overflow-hidden">
-        <AICharacterViewer
-          agentName={agentName}
-          agentRole={agentRole}
-          storeName="Loja Virtual ZAPFLOW"
-          isOnline={aiEnabled ?? true}
-          runtimeState={runtimeState}
-          onRuntimeStateChange={setRuntimeState}
-          agentMode={characterMode}
-          onToggleMode={(mode) => {
-            setCharacterMode(mode);
-            onSelectAgent?.(mode);
-          }}
-        />
-      </Card>
+      {/* 3D CHARACTER STUDIO TOGGLE (OPTIONAL PREVIEW) */}
+      <div className="flex items-center justify-between p-3.5 rounded-xl border border-border/70 bg-card/40">
+        <div>
+          <span className="text-xs font-bold text-foreground">Aparência & Identidade 3D dos Funcionários</span>
+          <p className="text-[11px] text-muted-foreground mt-0.5">Visualize a sala operacional e os modelos 3D de Camila e do mascote ZAIBOT.</p>
+        </div>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          onClick={() => setShowCharacterViewer((prev) => !prev)}
+          className="h-8 text-xs gap-1.5 border-border/80"
+        >
+          {showCharacterViewer ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+          <span>{showCharacterViewer ? "Ocultar Estúdio 3D" : "Visualizar Estúdio 3D"}</span>
+        </Button>
+      </div>
+
+      {showCharacterViewer && (
+        <Card className="bg-card border-border/80 shadow-sm overflow-hidden animate-in fade-in duration-200">
+          <AICharacterViewer
+            agentName={agentName}
+            agentRole={agentRole}
+            storeName="Loja Virtual ZAPFLOW"
+            isOnline={aiEnabled ?? true}
+            runtimeState={runtimeState}
+            onRuntimeStateChange={setRuntimeState}
+            agentMode={characterMode}
+            onToggleMode={(mode) => {
+              setCharacterMode(mode);
+              onSelectAgent?.(mode);
+            }}
+          />
+        </Card>
+      )}
 
       {/* TWO COLUMN WORKSPACE: CONFIGURATION & SIMULATOR */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
         {/* LEFT COLUMN: AGENT & MODEL CONFIGURATION (7 cols on lg) */}
         <div className="lg:col-span-7 space-y-6">
-          {/* PROFILE & XP SUMMARY CARD */}
-          <Card className="bg-card border-border/80 shadow-sm">
-            <CardContent className="p-4 sm:p-5">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                <div className="flex items-center gap-3.5">
-                  <div className="relative">
-                    <img
-                      src={
-                        characterMode === "zaibot"
-                          ? "/assets/mascot/zaibot_avatar.png"
-                          : "/assets/mascot/mascot_laptop_working.png"
-                      }
-                      alt={agentName}
-                      className="h-14 w-14 rounded-2xl object-cover border border-emerald-500/30 bg-emerald-950/40 shadow-xs"
-                      onError={(e) => {
-                        (e.target as HTMLElement).style.display = "none";
-                      }}
-                    />
-                    <span className="absolute -bottom-1 -right-1 h-3.5 w-3.5 rounded-full bg-emerald-500 border-2 border-card" />
-                  </div>
-
-                  <div className="space-y-1">
-                    <div className="flex items-center gap-2">
-                      <h2 className="text-base font-bold text-foreground">{agentName}</h2>
-                      <Badge className="bg-emerald-500/20 text-emerald-300 border-emerald-500/40 text-[10px] font-bold uppercase tracking-wider">
-                        {levelData
-                          ? `Nível ${levelData.level} • ${levelData.levelTitle}`
-                          : characterMode === "zaibot"
-                          ? "Nível 5 • Autônomo"
-                          : "Nível 4 • Consultor"}
-                      </Badge>
-                    </div>
-                    <p className="text-xs text-muted-foreground">{agentRole}</p>
-                    <div className="flex flex-wrap items-center gap-1.5 pt-1">
-                      <Badge variant="outline" className="text-[10px] py-0 px-1.5 border-border/80 text-muted-foreground">
-                        Vendas Consultivas
-                      </Badge>
-                      <Badge variant="outline" className="text-[10px] py-0 px-1.5 border-border/80 text-muted-foreground">
-                        SLA &lt; 15s
-                      </Badge>
-                      <Badge variant="outline" className="text-[10px] py-0 px-1.5 border-border/80 text-emerald-400">
-                        Anti-Alucinação Ativo
-                      </Badge>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="flex sm:flex-col items-center sm:items-end justify-between sm:justify-center gap-2 shrink-0 border-t sm:border-t-0 pt-3 sm:pt-0 border-border/40">
-                  <div className="text-left sm:text-right">
-                    <span className="text-[11px] text-muted-foreground font-medium block">
-                      XP de Evolução
-                    </span>
-                    <span className="text-sm font-black text-emerald-400 flex items-center gap-1">
-                      <Flame className="h-3.5 w-3.5 text-amber-400" />
-                      {levelData
-                        ? `${levelData.totalXp.toLocaleString("pt-BR")} / ${levelData.nextLevelXp.toLocaleString("pt-BR")} XP`
-                        : characterMode === "zaibot"
-                        ? "2.450 / 3.000 XP"
-                        : "1.450 / 2.000 XP"}
-                    </span>
-                  </div>
-
-                  {onOpenCustomizer && (
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={onOpenCustomizer}
-                      className="h-8 text-xs gap-1.5 border-border/80 hover:border-emerald-500/50"
-                    >
-                      <Sliders className="h-3.5 w-3.5 text-emerald-400" />
-                      <span>Customizar Persona</span>
-                    </Button>
-                  )}
-                </div>
-              </div>
-
-              {/* XP PROGRESS BAR */}
-              <div className="mt-4 pt-3 border-t border-border/40 space-y-1.5">
-                <div className="flex justify-between text-[11px] text-muted-foreground">
-                  <span>Progresso para o próximo nível</span>
-                  <span className="font-semibold text-foreground">
-                    {levelData ? `${levelData.progressPct}%` : characterMode === "zaibot" ? "82%" : "72%"}
-                  </span>
-                </div>
-                <Progress
-                  value={levelData ? levelData.progressPct : characterMode === "zaibot" ? 82 : 72}
-                  className="h-2 bg-muted/40"
-                />
-              </div>
-            </CardContent>
-          </Card>
 
           {/* OBJETIVOS ESTRATÉGICOS (OBJECTIVE CARDS) */}
           <Card className="bg-card border-border/80 shadow-sm">

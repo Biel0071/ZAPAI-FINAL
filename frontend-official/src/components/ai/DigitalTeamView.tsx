@@ -25,6 +25,84 @@ import { cn } from "@/core/lib/utils";
 import { useToast } from "@/state/hooks/use-toast";
 import { apiService } from "@/core/services/apiService";
 
+export function getAgentStatusBadge(agent: any) {
+  const isFemale =
+    agent.character?.gender === "female" ||
+    agent.gender === "female" ||
+    (typeof agent.name === "string" && agent.name.toLowerCase().endsWith("a"));
+
+  const rawStatus = String(agent.status || (agent.active === false ? "paused" : "active")).toLowerCase();
+
+  switch (rawStatus) {
+    case "active":
+    case "online":
+    case "ativo":
+    case "ativa":
+      return {
+        label: isFemale ? "● Ativa" : "● Ativo",
+        className: "bg-emerald-500/15 text-emerald-400 border-emerald-500/30",
+        isOnline: true,
+      };
+    case "paused":
+    case "pausado":
+    case "pausada":
+      return {
+        label: isFemale ? "○ Pausada" : "○ Pausado",
+        className: "bg-amber-500/15 text-amber-400 border-amber-500/30",
+        isOnline: false,
+      };
+    case "offline":
+      return {
+        label: "○ Offline",
+        className: "bg-muted text-muted-foreground border-border/60",
+        isOnline: false,
+      };
+    case "busy":
+    case "ocupado":
+    case "ocupada":
+      return {
+        label: isFemale ? "● Ocupada" : "● Ocupado",
+        className: "bg-orange-500/15 text-orange-400 border-orange-500/30",
+        isOnline: true,
+      };
+    case "processing":
+    case "processando":
+      return {
+        label: "⚡ Processando",
+        className: "bg-blue-500/15 text-blue-400 border-blue-500/30",
+        isOnline: true,
+      };
+    case "in_service":
+    case "em_atendimento":
+    case "em atendimento":
+      return {
+        label: "💬 Em Atendimento",
+        className: "bg-cyan-500/15 text-cyan-400 border-cyan-500/30",
+        isOnline: true,
+      };
+    case "learning":
+    case "aprendendo":
+      return {
+        label: "🧠 Aprendendo",
+        className: "bg-purple-500/15 text-purple-400 border-purple-500/30",
+        isOnline: true,
+      };
+    case "error":
+    case "erro":
+      return {
+        label: "⚠️ Erro",
+        className: "bg-destructive/15 text-destructive border-destructive/30",
+        isOnline: false,
+      };
+    default:
+      return {
+        label: isFemale ? "● Ativa" : "● Ativo",
+        className: "bg-emerald-500/15 text-emerald-400 border-emerald-500/30",
+        isOnline: agent.active !== false,
+      };
+  }
+}
+
 interface DigitalTeamViewProps {
   agents: any[];
   onSelectAgent: (agent: any) => void;
@@ -46,7 +124,7 @@ export function DigitalTeamView({
   // Filter out platform-only assistants (like ZAIBOT) from the human digital employees list
   const companyEmployees = agents.filter((a) => !a.isPlatformAssistant && a.key !== "zaibot");
 
-  // Fallback if none loaded yet
+  // Fallback showing full digital employee team
   const displayEmployees = companyEmployees.length > 0 ? companyEmployees : [
     {
       key: "camila",
@@ -57,9 +135,49 @@ export function DigitalTeamView({
       channels: ["whatsapp", "inbox"],
       avatar: "/assets/mascot/mascot_laptop_working.png",
       personalityType: "comercial",
+      character: { gender: "female", outfit: "uniforme_vendas", theme: "emerald" },
       stats: { chatsToday: 127, slaPercent: 94, satisfactionCsat: 98, avgResponseTime: "18s" },
       recentActivity: [{ time: "10:42", action: "Respondeu cliente sobre cimento e telhas" }],
-    }
+    },
+    {
+      key: "joao",
+      name: "João",
+      role: "Suporte",
+      active: true,
+      status: "active",
+      channels: ["whatsapp", "inbox"],
+      avatar: "/assets/mascot/zaibot_avatar.png",
+      personalityType: "tecnico",
+      character: { gender: "male", outfit: "uniforme_suporte", theme: "cyan" },
+      stats: { chatsToday: 68, slaPercent: 97, satisfactionCsat: 95, avgResponseTime: "22s" },
+      recentActivity: [{ time: "10:35", action: "Solucionou dúvida sobre aplicação de argamassa" }],
+    },
+    {
+      key: "marina",
+      name: "Marina",
+      role: "Pós-venda",
+      active: false,
+      status: "paused",
+      channels: ["whatsapp"],
+      avatar: "/assets/mascot/mascot_laptop_working.png",
+      personalityType: "empatica",
+      character: { gender: "female", outfit: "uniforme_pos_venda", theme: "purple" },
+      stats: { chatsToday: 42, slaPercent: 96, satisfactionCsat: 99, avgResponseTime: "16s" },
+      recentActivity: [{ time: "10:15", action: "Confirmou entrega pontual de pedido faturado" }],
+    },
+    {
+      key: "carlos",
+      name: "Carlos",
+      role: "Financeiro",
+      active: false,
+      status: "offline",
+      channels: ["inbox"],
+      avatar: "/assets/mascot/zaibot_avatar.png",
+      personalityType: "formal",
+      character: { gender: "male", outfit: "business", theme: "slate" },
+      stats: { chatsToday: 15, slaPercent: 92, satisfactionCsat: 94, avgResponseTime: "25s" },
+      recentActivity: [{ time: "09:40", action: "Emitiu 2ª via de boleto bancário faturado" }],
+    },
   ];
 
   const activeCount = displayEmployees.filter((a) => a.active !== false).length;
@@ -177,6 +295,8 @@ export function DigitalTeamView({
             const latestAct = agent.recentActivity?.[0]?.action || "Atendimento comercial ativo";
             const agentKey = agent.key || agent.id || `agent-${index}`;
 
+            const statusInfo = getAgentStatusBadge(agent);
+
             return (
               <div
                 key={agentKey}
@@ -207,12 +327,10 @@ export function DigitalTeamView({
                         <Badge
                           className={cn(
                             "text-[9px] font-bold py-0 h-4 px-1.5",
-                            isOnline
-                              ? "bg-emerald-500/15 text-emerald-400 border-emerald-500/30"
-                              : "bg-muted text-muted-foreground border-border/60"
+                            statusInfo.className
                           )}
                         >
-                          {isOnline ? "● Ativa" : "○ Pausada"}
+                          {statusInfo.label}
                         </Badge>
                       </div>
                       <p className="text-xs font-semibold text-muted-foreground mt-0.5">

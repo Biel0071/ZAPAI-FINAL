@@ -83,6 +83,25 @@ function normalizeAgent(agent = {}) {
     character: typeof agent.character === 'object' && agent.character !== null
       ? agent.character
       : { gender: 'female', outfit: 'business', theme: 'emerald' },
+    appearance: typeof agent.appearance === 'object' && agent.appearance !== null
+      ? {
+          avatar: String(agent.appearance.avatar || agent.avatar || '').trim(),
+          character: String(agent.appearance.character || (agent.character?.gender === 'male' ? 'male_attendant' : 'female_attendant')).trim(),
+          outfit: String(agent.appearance.outfit || agent.character?.outfit || 'business').trim(),
+          accessories: Array.isArray(agent.appearance.accessories) ? agent.appearance.accessories : [],
+          environment: String(agent.appearance.environment || (key === 'zaibot' ? 'platform_hq' : 'office_sales')).trim(),
+          animation: String(agent.appearance.animation || 'idle_friendly').trim(),
+          theme: String(agent.appearance.theme || agent.character?.theme || (key === 'zaibot' ? 'amber' : 'emerald')).trim(),
+        }
+      : {
+          avatar: String(agent.avatar || '').trim(),
+          character: key === 'zaibot' ? 'mascot_robot' : (agent.character?.gender === 'male' || (agent.name && ['joao', 'joão', 'carlos'].includes(String(agent.name).toLowerCase())) ? 'male_attendant' : 'female_attendant'),
+          outfit: agent.character?.outfit || (key === 'zaibot' ? 'pilot_suit' : agent.role === 'Suporte' ? 'tech_uniform' : 'business'),
+          accessories: [],
+          environment: key === 'zaibot' ? 'platform_hq' : 'office_sales',
+          animation: 'idle_friendly',
+          theme: agent.character?.theme || (key === 'zaibot' ? 'amber' : 'emerald'),
+        },
     recentActivity: Array.isArray(agent.recentActivity)
       ? agent.recentActivity
       : [],
@@ -379,7 +398,26 @@ async function publishHistoryCandidate({ companyId, sessionId, draftId, reviewed
 async function validateSessions(companyId,sessionIds,client) {
   if (!Array.isArray(sessionIds) || !sessionIds.length || sessionIds.length > 50) throw new Error('Selecione pelo menos um WhatsApp.');
   const memory = require('../../../../services/aiMemoryEngine');
-  for (const sessionId of sessionIds) await memory.assertSession(companyId,sessionId,client);
+  for (const sessionId of sessionIds) {
+    try {
+      await memory.assertSession(companyId,sessionId,client);
+    } catch (err) {
+      const { pool } = require('../../../infrastructure/config/database');
+      const db = client || pool;
+      const countRes = await db.query('SELECT COUNT(*)::int AS count FROM sessions WHERE company_id = $1', [companyId]).catch(() => ({ rows: [{ count: 0 }] }));
+      if (Number(countRes.rows[0]?.count || 0) === 0) {
+        await db.query(
+          `INSERT INTO sessions (company_id, session_id, session_name, status, connected, created_at, updated_at)
+           VALUES ($1, $2, $2, 'disconnected', false, NOW(), NOW())
+           ON CONFLICT (session_id) DO NOTHING`,
+          [companyId, sessionId]
+        ).catch(() => {});
+        await memory.assertSession(companyId,sessionId,client);
+      } else {
+        throw err;
+      }
+    }
+  }
 }
 async function sessionKnowledge(companyId,sessionId) {
   const {query}=require('../../../infrastructure/config/database');

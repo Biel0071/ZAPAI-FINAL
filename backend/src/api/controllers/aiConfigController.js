@@ -141,10 +141,17 @@ async function createAIAgent(req, res) {
         if (rows.length > 0) {
           payload.sessionIds = rows.map(r => r.session_id);
         } else {
-          payload.sessionIds = ['main'];
+          const placeholder = `main_${companyId}`;
+          await pool.query(
+            `INSERT INTO sessions (company_id, session_id, session_name, status, connected, created_at, updated_at)
+             VALUES ($1, $2, $2, 'disconnected', false, NOW(), NOW())
+             ON CONFLICT (session_id) DO NOTHING`,
+            [companyId, placeholder]
+          ).catch(() => {});
+          payload.sessionIds = [placeholder];
         }
       } catch (_) {
-        payload.sessionIds = ['main'];
+        payload.sessionIds = [`main_${companyId}`];
       }
     }
 

@@ -37,6 +37,7 @@ import {
 import { useToast } from "@/state/hooks/use-toast";
 import { apiService } from "@/core/services/apiService";
 import { cn } from "@/core/lib/utils";
+import { getAgentStatusBadge } from "./DigitalTeamView";
 
 interface AgentProfileModalProps {
   open: boolean;
@@ -180,16 +181,23 @@ export function AgentProfileModal({
             <div>
               <div className="flex items-center gap-2.5">
                 <h2 className="text-xl font-bold tracking-tight text-foreground">{agent.name}</h2>
-                <Badge
-                  className={cn(
-                    "text-[10px] font-semibold py-0.5 px-2",
-                    isActive
-                      ? "bg-emerald-500/15 text-emerald-400 border-emerald-500/30"
-                      : "bg-muted text-muted-foreground border-border/60"
-                  )}
-                >
-                  {isActive ? "● Ativa" : "○ Pausada"}
-                </Badge>
+                {(() => {
+                  const statusInfo = getAgentStatusBadge({
+                    ...agent,
+                    active: isActive,
+                    status: isActive ? (agent.status === "paused" ? "active" : agent.status || "active") : "paused",
+                  });
+                  return (
+                    <Badge
+                      className={cn(
+                        "text-[10px] font-semibold py-0.5 px-2",
+                        statusInfo.className
+                      )}
+                    >
+                      {statusInfo.label}
+                    </Badge>
+                  );
+                })()}
                 {agent.isPlatformAssistant && (
                   <Badge variant="outline" className="text-[10px] border-emerald-500/40 text-emerald-400 font-bold">
                     ASSISTENTE ZAI

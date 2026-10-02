@@ -32,6 +32,7 @@ import {
   HelpCircle,
   Tag,
   Check,
+  Wand2,
 } from "lucide-react";
 import { useToast } from "@/state/hooks/use-toast";
 import { useAppStore } from "@/state/stores/appStore";
@@ -134,6 +135,118 @@ const KNOWLEDGE_SOURCES = [
   { id: "faq", label: "Dúvidas Frequentes (FAQ)", icon: HelpCircle, desc: "Perguntas comuns e respostas oficiais validadas" },
 ];
 
+export interface AgentTemplate {
+  id: string;
+  label: string;
+  nameSuggestion: string;
+  role: string;
+  personality: string;
+  personalityTags: string[];
+  responsibilities: string[];
+  channels: string[];
+  knowledgeSources: string[];
+  description: string;
+}
+
+export const TEMPLATES: AgentTemplate[] = [
+  {
+    id: "vendas",
+    label: "Agente de Vendas",
+    nameSuggestion: "Camila",
+    role: "Vendas",
+    personality: "comercial",
+    personalityTags: ["Comercial", "Empática", "Objetiva"],
+    responsibilities: ["atender_clientes", "vender", "enviar_orcamento", "fazer_followup"],
+    channels: ["whatsapp", "inbox"],
+    knowledgeSources: ["products", "prices", "policies", "faq"],
+    description: "Apresenta produtos, calcula orçamentos e fecha vendas",
+  },
+  {
+    id: "suporte",
+    label: "Agente de Suporte",
+    nameSuggestion: "João",
+    role: "Suporte",
+    personality: "tecnico",
+    personalityTags: ["Técnica", "Objetiva", "Amigável"],
+    responsibilities: ["atender_clientes", "suporte", "tirar_duvidas"],
+    channels: ["whatsapp", "inbox"],
+    knowledgeSources: ["products", "policies", "faq"],
+    description: "Dúvidas técnicas, procedimentos e orientações ao cliente",
+  },
+  {
+    id: "pos_venda",
+    label: "Agente de Pós-venda",
+    nameSuggestion: "Marina",
+    role: "Pós-venda",
+    personality: "amigavel",
+    personalityTags: ["Empática", "Consultiva", "Amigável"],
+    responsibilities: ["atender_clientes", "pos_venda", "fazer_followup"],
+    channels: ["whatsapp", "inbox"],
+    knowledgeSources: ["policies", "faq"],
+    description: "Pesquisa de satisfação, status de entregas e recompra",
+  },
+  {
+    id: "recepcao",
+    label: "Agente de Recepção",
+    nameSuggestion: "Ana",
+    role: "Recepção",
+    personality: "amigavel",
+    personalityTags: ["Amigável", "Empática", "Objetiva"],
+    responsibilities: ["atender_clientes", "tirar_duvidas", "agendamento"],
+    channels: ["whatsapp", "inbox", "web"],
+    knowledgeSources: ["policies", "faq"],
+    description: "Triagem inicial, horários e direcionamento de fila",
+  },
+  {
+    id: "financeiro",
+    label: "Agente Financeiro",
+    nameSuggestion: "Carlos",
+    role: "Financeiro",
+    personality: "profissional",
+    personalityTags: ["Executiva", "Objetiva", "Técnica"],
+    responsibilities: ["atender_clientes", "enviar_orcamento", "outro"],
+    channels: ["whatsapp", "inbox"],
+    knowledgeSources: ["prices", "policies", "faq"],
+    description: "Boletos, 2ª via, comprovantes e faturamento",
+  },
+  {
+    id: "qualificacao",
+    label: "Agente de Qualificação",
+    nameSuggestion: "Lucas",
+    role: "Marketing",
+    personality: "consultivo",
+    personalityTags: ["Consultiva", "Comercial", "Objetiva"],
+    responsibilities: ["atender_clientes", "tirar_duvidas", "fazer_followup"],
+    channels: ["whatsapp", "instagram"],
+    knowledgeSources: ["products", "faq"],
+    description: "Filtra leads de campanhas antes do time comercial",
+  },
+  {
+    id: "personalizado",
+    label: "Agente Personalizado",
+    nameSuggestion: "",
+    role: "Outro",
+    personality: "personalizado",
+    personalityTags: ["Personalizado"],
+    responsibilities: ["atender_clientes"],
+    channels: ["whatsapp"],
+    knowledgeSources: ["faq"],
+    description: "Configuração livre do zero para o seu modelo de negócio",
+  },
+];
+
+export const PERSONALITY_LIBRARY = [
+  "Comercial",
+  "Consultiva",
+  "Executiva",
+  "Amigável",
+  "Técnica",
+  "Empática",
+  "Objetiva",
+  "Premium",
+  "Descontraída",
+];
+
 export function NewAgentWizardModal({
   open,
   onOpenChange,
@@ -145,10 +258,12 @@ export function NewAgentWizardModal({
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Form State
+  const [selectedTemplate, setSelectedTemplate] = useState<string>("vendas");
   const [name, setName] = useState("");
   const [role, setRole] = useState(defaultRole || "Vendas");
   const [customRole, setCustomRole] = useState("");
   const [personality, setPersonality] = useState("comercial");
+  const [selectedTags, setSelectedTags] = useState<string[]>(["Comercial", "Empática", "Objetiva"]);
   const [responsibilities, setResponsibilities] = useState<string[]>([
     "atender_clientes",
     "vender",
@@ -162,6 +277,23 @@ export function NewAgentWizardModal({
     "faq",
   ]);
 
+  const applyTemplate = (tpl: AgentTemplate) => {
+    setSelectedTemplate(tpl.id);
+    setName(tpl.nameSuggestion);
+    setRole(tpl.role);
+    setPersonality(tpl.personality);
+    setSelectedTags(tpl.personalityTags);
+    setResponsibilities(tpl.responsibilities);
+    setChannels(tpl.channels);
+    setKnowledgeSources(tpl.knowledgeSources);
+  };
+
+  const togglePersonalityTag = (tag: string) => {
+    setSelectedTags((prev) =>
+      prev.includes(tag) ? (prev.length > 1 ? prev.filter((t) => t !== tag) : prev) : [...prev, tag]
+    );
+  };
+
   // Reset or preset on open
   React.useEffect(() => {
     if (open) {
@@ -169,18 +301,30 @@ export function NewAgentWizardModal({
       if (defaultRole) {
         setRole(defaultRole);
         if (defaultRole.toLowerCase().includes("pós") || defaultRole.toLowerCase().includes("pos")) {
+          setSelectedTemplate("pos_venda");
           setName("Marina");
           setPersonality("amigavel");
+          setSelectedTags(["Empática", "Consultiva", "Amigável"]);
           setResponsibilities(["atender_clientes", "pos_venda", "fazer_followup"]);
         } else if (defaultRole.toLowerCase().includes("suporte")) {
+          setSelectedTemplate("suporte");
           setName("João");
           setPersonality("tecnico");
+          setSelectedTags(["Técnica", "Objetiva", "Amigável"]);
           setResponsibilities(["atender_clientes", "suporte", "tirar_duvidas"]);
+        } else if (defaultRole.toLowerCase().includes("financeiro")) {
+          setSelectedTemplate("financeiro");
+          setName("Carlos");
+          setPersonality("profissional");
+          setSelectedTags(["Executiva", "Objetiva", "Técnica"]);
+          setResponsibilities(["atender_clientes", "enviar_orcamento", "outro"]);
         }
       } else {
+        setSelectedTemplate("vendas");
         setName("");
         setRole("Vendas");
         setPersonality("comercial");
+        setSelectedTags(["Comercial", "Empática", "Objetiva"]);
       }
     }
   }, [open, defaultRole]);
@@ -249,8 +393,9 @@ export function NewAgentWizardModal({
       active: true,
       status: "active",
       personalityType: personality,
+      personalityTags: selectedTags,
       tone: personality === "tecnico" ? "objective" : personality === "amigavel" ? "warm" : "commercial",
-      personality: `Você é ${name.trim()}, funcionário(a) digital responsável por ${selectedRole}. Sua personalidade é ${selectedPersonalityObj.subtitle}. Seja assertivo, atencioso e responda com clareza representando a empresa.`,
+      personality: `Você é ${name.trim()}, funcionário(a) digital responsável por ${selectedRole}. Sua postura é ${selectedTags.join(" + ")} (${selectedPersonalityObj.subtitle}). Seja assertivo, atencioso e responda com clareza representando a empresa.`,
       objective: `Atuar com excelência em ${selectedRole}, cumprindo responsabilidades de: ${responsibilities.join(", ")}.`,
       responsibilities: responsibilities.map((r) => {
         const match = RESPONSIBILITIES.find((item) => item.id === r);
@@ -263,7 +408,18 @@ export function NewAgentWizardModal({
         : "/assets/mascot/zaibot_avatar.png",
       character: {
         gender: name.toLowerCase().endsWith("a") ? "female" : "male",
-        outfit: "business",
+        outfit: selectedRole === "Suporte" ? "tech_uniform" : "business",
+        theme: "emerald",
+      },
+      appearance: {
+        avatar: name.toLowerCase().endsWith("a")
+          ? "/assets/mascot/mascot_laptop_working.png"
+          : "/assets/mascot/mascot_mobile.png",
+        character: name.toLowerCase().endsWith("a") ? "female_attendant" : "male_attendant",
+        outfit: selectedRole === "Suporte" ? "tech_uniform" : "business",
+        accessories: [],
+        environment: "office_sales",
+        animation: "idle_friendly",
         theme: "emerald",
       },
       personalityTraits: selectedPersonalityObj.traits,
@@ -348,6 +504,43 @@ export function NewAgentWizardModal({
           {/* STEP 1: NOME & FUNÇÃO */}
           {step === 1 && (
             <div className="space-y-5 animate-in fade-in duration-200">
+              {/* COMEÇAR COM MODELO (REQUIREMENT #17) */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-semibold text-foreground uppercase tracking-wider flex items-center gap-1.5">
+                    <Wand2 className="h-3.5 w-3.5 text-emerald-400" />
+                    Começar com modelo (Template)
+                  </label>
+                  <span className="text-[10px] text-muted-foreground">Configura automaticamente a estrutura inicial</span>
+                </div>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                  {TEMPLATES.map((tpl) => {
+                    const isSelected = selectedTemplate === tpl.id;
+                    return (
+                      <button
+                        key={tpl.id}
+                        type="button"
+                        onClick={() => applyTemplate(tpl)}
+                        className={cn(
+                          "p-2.5 rounded-xl border text-left transition-all cursor-pointer flex flex-col justify-between gap-1",
+                          isSelected
+                            ? "bg-emerald-500/15 border-emerald-500/60 ring-1 ring-emerald-500/30 text-emerald-400"
+                            : "bg-muted/20 border-border/60 hover:bg-muted/40 hover:border-border text-foreground"
+                        )}
+                      >
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs font-bold leading-tight truncate">{tpl.label}</span>
+                          {isSelected && <Check className="h-3 w-3 text-emerald-400 shrink-0" />}
+                        </div>
+                        <span className="text-[10px] text-muted-foreground line-clamp-1">
+                          {tpl.nameSuggestion ? `Ex: ${tpl.nameSuggestion}` : "Livre"}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
               <div className="space-y-2">
                 <label className="text-xs font-semibold text-foreground uppercase tracking-wider">
                   Qual será o nome do agente?
@@ -415,16 +608,55 @@ export function NewAgentWizardModal({
             </div>
           )}
 
-          {/* STEP 2: PERSONALIDADE */}
+          {/* STEP 2: PERSONALIDADE & COMBINAÇÃO (REQUIREMENT #18) */}
           {step === 2 && (
-            <div className="space-y-4 animate-in fade-in duration-200">
+            <div className="space-y-5 animate-in fade-in duration-200">
               <div>
                 <h4 className="text-sm font-bold text-foreground">Como {name || "o agente"} deve atender?</h4>
                 <p className="text-xs text-muted-foreground mt-0.5">
-                  Escolha o estilo de comunicação e postura com os clientes
+                  Escolha o estilo de comunicação e combine atributos da biblioteca
                 </p>
               </div>
 
+              {/* BIBLIOTECA DE ATRIBUTOS (REQUIREMENT #18) */}
+              <div className="p-3.5 rounded-xl border border-border/70 bg-card/50 space-y-2.5">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-foreground flex items-center gap-1.5">
+                    <Sparkles className="h-3.5 w-3.5 text-emerald-400" />
+                    Biblioteca de Personalidade (Combine os traços):
+                  </span>
+                  <span className="text-[10px] text-muted-foreground">{selectedTags.length} selecionados</span>
+                </div>
+                <div className="flex flex-wrap gap-1.5">
+                  {PERSONALITY_LIBRARY.map((tag) => {
+                    const isTagActive = selectedTags.includes(tag);
+                    return (
+                      <button
+                        key={tag}
+                        type="button"
+                        onClick={() => togglePersonalityTag(tag)}
+                        className={cn(
+                          "px-2.5 py-1 rounded-lg text-xs font-semibold border transition-all cursor-pointer flex items-center gap-1",
+                          isTagActive
+                            ? "bg-emerald-500/20 text-emerald-300 border-emerald-500/50 shadow-xs ring-1 ring-emerald-500/30"
+                            : "bg-muted/40 text-muted-foreground border-border/60 hover:text-foreground hover:bg-muted/60"
+                        )}
+                      >
+                        {isTagActive && <Check className="h-3 w-3 text-emerald-400" />}
+                        <span>{tag}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+                <div className="p-2.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-xs text-foreground/90">
+                  💡 <strong>Perfil gerado:</strong>{" "}
+                  <span className="text-emerald-300 font-medium">
+                    {name || "O agente"} atuará com postura {selectedTags.map((t) => t.toLowerCase()).join(" + ")} com foco em acolhimento e conversão comercial.
+                  </span>
+                </div>
+              </div>
+
+              {/* CARDS DE TOM BASE */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 {PERSONALITIES.map((p) => {
                   const isSelected = personality === p.id;
@@ -634,14 +866,14 @@ export function NewAgentWizardModal({
                       <div className="flex items-center gap-2">
                         <h3 className="text-base font-bold text-foreground">{name}</h3>
                         <Badge className="bg-emerald-500/20 text-emerald-400 border-emerald-500/30 text-[10px]">
-                          ● Ativo
+                          {name.trim().toLowerCase().endsWith("a") ? "● Ativa" : "● Ativo"}
                         </Badge>
                       </div>
                       <p className="text-xs font-semibold text-emerald-400 mt-0.5">
                         {role === "Outro" && customRole ? customRole : role}
                       </p>
                       <p className="text-[11px] text-muted-foreground">
-                        Personalidade: {PERSONALITIES.find((p) => p.id === personality)?.label}
+                        Personalidade: {selectedTags.join(" + ")}
                       </p>
                     </div>
                   </div>
