@@ -202,6 +202,53 @@ async function cloneAIAgent(req, res) {
   }
 }
 
+async function updateAIAgentAvatar(req, res) {
+  try {
+    const key = req.params?.key;
+    const companyId = getCompanyId(req);
+    const { avatarConfig, personalityVisual } = req.body || {};
+
+    const updated = await aiAgentService.updateAgentAvatar(companyId, key, avatarConfig, personalityVisual);
+    return res.status(200).json({ success: true, agent: updated, message: 'Avatar do agente atualizado com sucesso.' });
+  } catch (error) {
+    return res.status(400).json({ success: false, error: error.message || 'Falha ao atualizar avatar do agente.' });
+  }
+}
+
+async function equipAIAgentItem(req, res) {
+  try {
+    const key = req.params?.key;
+    const companyId = getCompanyId(req);
+    const { slot, item } = req.body || {};
+
+    if (!slot || !item) {
+      return res.status(400).json({ success: false, error: 'slot and item are required.' });
+    }
+
+    const updated = await aiAgentService.equipAgentItem(companyId, key, slot, item);
+    return res.status(200).json({ success: true, agent: updated, message: `Item ${item} equipado no slot ${slot}.` });
+  } catch (error) {
+    return res.status(400).json({ success: false, error: error.message || 'Falha ao equipar item.' });
+  }
+}
+
+async function unequipAIAgentItem(req, res) {
+  try {
+    const key = req.params?.key;
+    const companyId = getCompanyId(req);
+    const { slot } = req.body || {};
+
+    if (!slot) {
+      return res.status(400).json({ success: false, error: 'slot is required.' });
+    }
+
+    const updated = await aiAgentService.unequipAgentItem(companyId, key, slot);
+    return res.status(200).json({ success: true, agent: updated, message: `Item desequipado do slot ${slot}.` });
+  } catch (error) {
+    return res.status(400).json({ success: false, error: error.message || 'Falha ao desequipar item.' });
+  }
+}
+
 async function getAIEvolution(req, res) {
   try {
     const companyId = req.authTenantId || getCompanyId(req);
@@ -1037,6 +1084,9 @@ module.exports = {
   updateAIAgent,
   deleteAIAgent,
   cloneAIAgent,
+  updateAIAgentAvatar,
+  equipAIAgentItem,
+  unequipAIAgentItem,
   getAIEvolution,
   getPipelineLogs,
   getUserProviders,

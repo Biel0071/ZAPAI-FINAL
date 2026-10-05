@@ -31,11 +31,14 @@ import {
   CheckCircle,
   FileText,
   Buildings,
+  TShirt,
 } from "@phosphor-icons/react";
 import { apiService } from "@/core/services/apiService";
 import { notify } from "@/core/services/notifyService";
 import { cn } from "@/core/lib/utils";
 import { useNavigate } from "react-router-dom";
+import { ZaiAvatarRenderer } from "@/components/avatar-engine/ZaiAvatarRenderer";
+import { createAgentAvatar, buildStoreVisualDNA } from "@/components/avatar-engine/CharacterFactory";
 
 interface StoreItem {
   id: string;
@@ -378,18 +381,84 @@ export default function StoresPage() {
                     </div>
                   </div>
 
-                  {/* General Knowledge */}
-                  {activeStore.knowledge && (
-                    <div className="space-y-2">
+                  {/* Store Visual DNA (Padrão Visual dos Atendentes) */}
+                  <div className="space-y-3 pt-2 border-t border-border/40">
+                    <div className="flex items-center justify-between">
                       <div className="flex items-center gap-1.5 text-xs font-semibold text-foreground">
-                        <FileText weight="fill" className="h-4 w-4 text-emerald-400" />
-                        <span>Orientações & Regras Adicionais da Loja</span>
+                        <TShirt weight="fill" className="h-4 w-4 text-emerald-400" />
+                        <span>DNA Visual dos Atendentes (Store Visual DNA)</span>
                       </div>
-                      <div className="p-3.5 rounded-xl border border-border/60 bg-background/60 text-xs text-foreground/90 leading-relaxed whitespace-pre-line font-sans max-h-40 overflow-y-auto">
-                        {activeStore.knowledge}
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => navigate("/attendants")}
+                        className="h-6 text-[11px] px-2 text-emerald-400 hover:text-emerald-300 gap-1"
+                      >
+                        <span>Abrir Avatar Studio</span>
+                        <ArrowRight className="h-3 w-3" />
+                      </Button>
+                    </div>
+
+                    <div className="p-3.5 rounded-xl border border-emerald-500/30 bg-emerald-500/5 flex flex-col sm:flex-row items-center justify-between gap-4">
+                      <div className="space-y-2 text-xs">
+                        <div className="flex items-center gap-2">
+                          <span className="text-[11px] font-semibold text-muted-foreground uppercase">Cores Oficiais:</span>
+                          <div className="flex items-center gap-1">
+                            <span
+                              className="w-4 h-4 rounded-full border border-black/30 shadow-xs"
+                              style={{ backgroundColor: activeStore.theme_color || "#10b981" }}
+                              title="Cor Primária"
+                            />
+                            <span
+                              className="w-4 h-4 rounded-full border border-black/30 shadow-xs bg-[#0f172a]"
+                              title="Cor Secundária"
+                            />
+                            <span
+                              className="w-4 h-4 rounded-full border border-black/30 shadow-xs bg-[#00f090]"
+                              title="Cor Acento Neon"
+                            />
+                          </div>
+                        </div>
+
+                        <div className="text-[11px] text-muted-foreground">
+                          <span className="font-semibold text-foreground">Uniforme Padrão:</span> Camisa Polo ZAI com detalhe verde • Crachá Oficial em cordão • Headset ZAI
+                        </div>
+
+                        <p className="text-[10px] text-muted-foreground italic">
+                          Todos os atendentes criados para {activeStore.name} herdam automaticamente este padrão institucional, mantendo individualidade de rosto e cabelo (sem clones).
+                        </p>
+                      </div>
+
+                      <div className="shrink-0 flex items-center gap-2 p-2 rounded-xl bg-background/80 border border-border/50">
+                        <ZaiAvatarRenderer
+                          avatar={createAgentAvatar({
+                            agentId: "camila",
+                            name: "Camila",
+                            role: "Vendas",
+                            storeId: activeStore.id,
+                            storeDNA: buildStoreVisualDNA(activeStore),
+                            gender: "female",
+                          })}
+                          size="sm"
+                          showAura={false}
+                          showStatusBadge={false}
+                        />
+                        <ZaiAvatarRenderer
+                          avatar={createAgentAvatar({
+                            agentId: "rafael",
+                            name: "Rafael",
+                            role: "Suporte",
+                            storeId: activeStore.id,
+                            storeDNA: buildStoreVisualDNA(activeStore),
+                            gender: "male",
+                          })}
+                          size="sm"
+                          showAura={false}
+                          showStatusBadge={false}
+                        />
                       </div>
                     </div>
-                  )}
+                  </div>
                 </CardContent>
               </Card>
             </div>

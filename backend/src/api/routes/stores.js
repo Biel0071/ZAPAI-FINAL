@@ -102,11 +102,118 @@ router.get('/:id', async (req, res) => {
         ...store,
         numbers,
         attendants,
+        storeVisualDNA: store.settings?.storeVisualDNA || {
+          storeId: store.id,
+          storeName: store.name,
+          primaryColor: store.theme_color || '#10b981',
+          secondaryColor: '#0f172a',
+          accentColor: '#00f090',
+          logo: store.name || 'ZAI',
+          defaultClothing: 'polo_zai_black',
+          defaultAccessories: ['headset_zai_green', 'badge_zai_lanyard'],
+          defaultBadge: true,
+          defaultShoes: 'sneakers_zai_green',
+          visualStyle: 'pixel_isometric',
+        },
       },
       success: true,
     });
   } catch (error) {
     return res.status(500).json({ error: error.message || 'Erro ao carregar loja.' });
+  }
+});
+
+// GET /api/stores/:id/visual-dna - Get Store Visual DNA
+router.get('/:id/visual-dna', async (req, res) => {
+  try {
+    const tenantId = getTenantId(req);
+    const storeResult = await query(
+      `SELECT id, name, theme_color, settings FROM ai_stores WHERE company_id = $1 AND id = $2`,
+      [tenantId, req.params.id]
+    );
+
+    if (!storeResult.rows[0]) {
+      return res.status(404).json({ error: 'Loja não encontrada.' });
+    }
+
+    const store = storeResult.rows[0];
+    const settings = store.settings || {};
+    const defaultDNA = {
+      storeId: store.id,
+      storeName: store.name,
+      primaryColor: store.theme_color || '#10b981',
+      secondaryColor: '#0f172a',
+      accentColor: '#00f090',
+      logo: store.name || 'ZAI',
+      defaultClothing: 'polo_zai_black',
+      defaultAccessories: ['headset_zai_green', 'badge_zai_lanyard'],
+      defaultBadge: true,
+      defaultShoes: 'sneakers_zai_green',
+      visualStyle: 'pixel_isometric',
+    };
+
+    const visualDNA = {
+      ...defaultDNA,
+      ...(settings.storeVisualDNA || {}),
+      storeId: store.id,
+      storeName: store.name,
+    };
+
+    return res.status(200).json({ success: true, visualDNA });
+  } catch (error) {
+    return res.status(500).json({ error: error.message || 'Erro ao obter DNA Visual da loja.' });
+  }
+});
+
+// PUT /api/stores/:id/visual-dna - Update Store Visual DNA
+router.put('/:id/visual-dna', async (req, res) => {
+  try {
+    const tenantId = getTenantId(req);
+    const storeId = req.params.id;
+    const incomingDNA = req.body?.visualDNA || req.body || {};
+
+    const storeResult = await query(
+      `SELECT id, name, theme_color, settings FROM ai_stores WHERE company_id = $1 AND id = $2`,
+      [tenantId, storeId]
+    );
+
+    if (!storeResult.rows[0]) {
+      return res.status(404).json({ error: 'Loja não encontrada.' });
+    }
+
+    const store = storeResult.rows[0];
+    const currentSettings = store.settings || {};
+
+    const updatedDNA = {
+      storeId,
+      storeName: store.name,
+      primaryColor: incomingDNA.primaryColor || store.theme_color || '#10b981',
+      secondaryColor: incomingDNA.secondaryColor || '#0f172a',
+      accentColor: incomingDNA.accentColor || '#00f090',
+      logo: incomingDNA.logo || store.name || 'ZAI',
+      defaultClothing: incomingDNA.defaultClothing || 'polo_zai_black',
+      defaultAccessories: Array.isArray(incomingDNA.defaultAccessories)
+        ? incomingDNA.defaultAccessories
+        : ['headset_zai_green', 'badge_zai_lanyard'],
+      defaultBadge: incomingDNA.defaultBadge !== false,
+      defaultShoes: incomingDNA.defaultShoes || 'sneakers_zai_green',
+      visualStyle: incomingDNA.visualStyle || 'pixel_isometric',
+      updatedAt: new Date().toISOString(),
+    };
+
+    const newSettings = {
+      ...currentSettings,
+      storeVisualDNA: updatedDNA,
+    };
+
+    await query(
+      `UPDATE ai_stores SET settings = $3::jsonb, theme_color = $4 WHERE company_id = $1 AND id = $2`,
+      [tenantId, storeId, JSON.stringify(newSettings), updatedDNA.primaryColor]
+    );
+
+    return res.status(200).json({ success: true, visualDNA: updatedDNA, message: 'DNA visual da loja atualizado com sucesso.' });
+  } catch (error) {
+    return res.status(400).json({ error: error.message || 'Erro ao atualizar DNA Visual da loja.' });
   }
 });
 

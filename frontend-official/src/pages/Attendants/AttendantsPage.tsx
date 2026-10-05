@@ -33,6 +33,7 @@ import {
   ShieldCheck,
   Robot,
   TrendUp,
+  TShirt,
 } from "@phosphor-icons/react";
 import { apiService } from "@/core/services/apiService";
 import { notify } from "@/core/services/notifyService";
@@ -43,6 +44,9 @@ import { AgentCharacter } from "@/components/ai/workspace/AgentCharacter";
 import { AgentCustomizerModal } from "@/components/ai/AgentCustomizerModal";
 import { AgentProfileModal } from "@/components/ai/AgentProfileModal";
 import { NewAgentWizardModal } from "@/components/ai/NewAgentWizardModal";
+import { AvatarEditorModal } from "@/components/avatar-engine/AvatarEditorModal";
+import { ZaiAvatarRenderer } from "@/components/avatar-engine/ZaiAvatarRenderer";
+import { createAgentAvatar, buildStoreVisualDNA } from "@/components/avatar-engine/CharacterFactory";
 import { useAppStore } from "@/state/stores/appStore";
 
 export default function AttendantsPage() {
@@ -54,8 +58,10 @@ export default function AttendantsPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [selectedStoreFilter, setSelectedStoreFilter] = useState<string>("all");
 
-  // Workspace Preview Drawer / Modal
+  // Workspace Preview Drawer / Modal & Avatar Studio
   const [previewAgent, setPreviewAgent] = useState<any | null>(null);
+  const [workspaceViewMode, setWorkspaceViewMode] = useState<"modular" | "photoreal">("modular");
+  const [avatarEditorAgent, setAvatarEditorAgent] = useState<any | null>(null);
 
   // Modals
   const [customizerAgent, setCustomizerAgent] = useState<any | null>(null);
@@ -468,10 +474,24 @@ export default function AttendantsPage() {
                               size="sm"
                               onClick={(e) => {
                                 e.stopPropagation();
+                                setAvatarEditorAgent(agent);
+                              }}
+                              className="h-7 text-[11px] px-2 rounded-lg gap-1 border-emerald-500/40 text-emerald-400 hover:bg-emerald-500/10 font-medium"
+                              title="Abrir ZAI Avatar Studio para personalizar corpo, roupas, cabelo e loja DNA"
+                            >
+                              <TShirt className="h-3.5 w-3.5" />
+                              <span>Avatar Studio</span>
+                            </Button>
+
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={(e) => {
+                                e.stopPropagation();
                                 setCustomizerAgent(agent);
                               }}
                               className="h-7 text-[11px] px-2 rounded-lg gap-1 border-border/60"
-                              title="Configurar personalidade, estilo e avatar"
+                              title="Configurar personalidade, estilo e IA"
                             >
                               <Sliders className="h-3 w-3" />
                               <span>Configurar</span>
@@ -538,7 +558,7 @@ export default function AttendantsPage() {
             {previewAgent ? (
               <Card className="rounded-2xl border-border/70 bg-card/85 backdrop-blur shadow-sm overflow-hidden sticky top-20">
                 <CardHeader className="pb-3 border-b border-border/40">
-                  <div className="flex items-center justify-between">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                     <div>
                       <CardTitle className="text-base font-bold text-foreground font-display flex items-center gap-2">
                         <span>Workspace: {previewAgent.name}</span>
@@ -547,41 +567,127 @@ export default function AttendantsPage() {
                         </Badge>
                       </CardTitle>
                       <CardDescription className="text-xs">
-                        Visual 2.5D executivo e telemetria operacional em tempo real.
+                        {workspaceViewMode === "modular"
+                          ? "Avatar modular por camadas (Pixel Art Isométrico ZAI)."
+                          : "Visual 2.5D executivo e telemetria operacional em tempo real."}
                       </CardDescription>
                     </div>
 
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setCustomizerAgent(previewAgent)}
-                      className="h-7 text-xs rounded-xl px-2 gap-1 border-border/60"
-                    >
-                      <Sliders className="h-3 w-3" />
-                      <span>Customizar</span>
-                    </Button>
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <div className="flex items-center bg-background/80 p-0.5 rounded-lg border border-border/60">
+                        <button
+                          type="button"
+                          onClick={() => setWorkspaceViewMode("modular")}
+                          className={cn(
+                            "px-2 py-0.5 rounded-md text-[10px] font-bold transition-all",
+                            workspaceViewMode === "modular"
+                              ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/40"
+                              : "text-muted-foreground hover:text-foreground"
+                          )}
+                        >
+                          Modular Pixel
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setWorkspaceViewMode("photoreal")}
+                          className={cn(
+                            "px-2 py-0.5 rounded-md text-[10px] font-bold transition-all",
+                            workspaceViewMode === "photoreal"
+                              ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/40"
+                              : "text-muted-foreground hover:text-foreground"
+                          )}
+                        >
+                          Executivo 2.5D
+                        </button>
+                      </div>
+
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setAvatarEditorAgent(previewAgent)}
+                        className="h-7 text-xs rounded-xl px-2 gap-1 border-emerald-500/40 text-emerald-400 hover:bg-emerald-500/10 font-medium"
+                      >
+                        <TShirt className="h-3.5 w-3.5" />
+                        <span>Avatar Studio</span>
+                      </Button>
+
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setCustomizerAgent(previewAgent)}
+                        className="h-7 text-xs rounded-xl px-2 gap-1 border-border/60"
+                      >
+                        <Sliders className="h-3 w-3" />
+                        <span>IA</span>
+                      </Button>
+                    </div>
                   </div>
                 </CardHeader>
 
                 <CardContent className="p-3.5 space-y-4">
-                  {/* Living 2.5D Character Workstation */}
+                  {/* Living Character Workstation (Supports both Modular Pixel & 2.5D Executivo) */}
                   <div className={cn(
-                    "w-full rounded-2xl overflow-hidden border border-border/50 shadow-inner transition-all duration-500",
+                    "w-full rounded-2xl overflow-hidden border border-border/50 shadow-inner transition-all duration-500 relative",
                     previewAgent.active !== false ? "h-72 sm:h-80" : "h-[420px] sm:h-[480px]"
                   )}>
-                    <AgentEnvironment
-                      agent={previewAgent}
-                      isWorking={previewAgent.active !== false}
-                    >
-                      <AgentCharacter
-                        agent={{
-                          ...previewAgent,
-                          presenceState: previewAgent.active !== false ? (isTestingAgent ? "WORKING" : "IDLE") : "OFFLINE",
-                        }}
-                        pose={previewAgent.active !== false ? "seated" : "standing"}
-                        isTyping={isTestingAgent}
-                      />
-                    </AgentEnvironment>
+                    {workspaceViewMode === "modular" ? (
+                      <div className="w-full h-full flex flex-col items-center justify-center p-4 bg-gradient-to-b from-[#091120] to-[#040812] relative overflow-hidden select-none">
+                        {/* Isometric Grid Floor Accent */}
+                        <div
+                          className="absolute inset-0 opacity-15 pointer-events-none"
+                          style={{
+                            backgroundImage: "radial-gradient(circle at 2px 2px, #10b981 1px, transparent 0)",
+                            backgroundSize: "24px 24px",
+                          }}
+                        />
+
+                        {/* Top-right quick hint */}
+                        <button
+                          type="button"
+                          onClick={() => setAvatarEditorAgent(previewAgent)}
+                          className="absolute top-2 right-2 z-20 px-2 py-0.5 rounded-full bg-black/60 border border-emerald-500/30 text-[9px] text-emerald-300 font-mono hover:bg-emerald-500/20 transition-all flex items-center gap-1"
+                        >
+                          <TShirt className="w-3 h-3" />
+                          <span>Editar Camadas</span>
+                        </button>
+
+                        <ZaiAvatarRenderer
+                          avatar={
+                            previewAgent.avatarConfig ||
+                            createAgentAvatar({
+                              agentId: previewAgent.key || previewAgent.name,
+                              name: previewAgent.name,
+                              role: previewAgent.role,
+                              storeId: previewAgent.storeId,
+                              storeDNA: stores.find((s) => s.id === previewAgent.storeId)
+                                ? buildStoreVisualDNA(stores.find((s) => s.id === previewAgent.storeId))
+                                : undefined,
+                              gender: previewAgent.character?.gender || (previewAgent.name?.toLowerCase().includes("carlos") ? "male" : "female"),
+                            })
+                          }
+                          state={previewAgent.active !== false ? (isTestingAgent ? "WORKING" : "IDLE") : "OFFLINE"}
+                          size="workspace"
+                          showAura={true}
+                          showStatusBadge={true}
+                          showBrandingLayer={true}
+                          onClick={() => setAvatarEditorAgent(previewAgent)}
+                        />
+                      </div>
+                    ) : (
+                      <AgentEnvironment
+                        agent={previewAgent}
+                        isWorking={previewAgent.active !== false}
+                      >
+                        <AgentCharacter
+                          agent={{
+                            ...previewAgent,
+                            presenceState: previewAgent.active !== false ? (isTestingAgent ? "WORKING" : "IDLE") : "OFFLINE",
+                          }}
+                          pose={previewAgent.active !== false ? "seated" : "standing"}
+                          isTyping={isTestingAgent}
+                        />
+                      </AgentEnvironment>
+                    )}
                   </div>
 
                   {/* Inheritance Info Banner */}
@@ -773,6 +879,31 @@ export default function AttendantsPage() {
           }}
           onSuccess={() => {
             setIsWizardOpen(false);
+            fetchData();
+          }}
+        />
+      )}
+
+      {/* ================= MODAL: ZAI AVATAR STUDIO MODULAR ================= */}
+      {avatarEditorAgent && (
+        <AvatarEditorModal
+          open={Boolean(avatarEditorAgent)}
+          onOpenChange={(isOpen) => {
+            if (!isOpen) setAvatarEditorAgent(null);
+          }}
+          agent={avatarEditorAgent}
+          store={stores.find((s) => s.id === avatarEditorAgent.storeId)}
+          onSave={(updatedAvatar) => {
+            setAgents((prev) =>
+              prev.map((a) =>
+                a.key === avatarEditorAgent.key
+                  ? { ...a, avatarConfig: updatedAvatar }
+                  : a
+              )
+            );
+            if (previewAgent?.key === avatarEditorAgent.key) {
+              setPreviewAgent((prev: any) => ({ ...prev, avatarConfig: updatedAvatar }));
+            }
             fetchData();
           }}
         />

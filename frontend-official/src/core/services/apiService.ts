@@ -1887,12 +1887,48 @@ export const apiService = {
     return request<{ success: boolean; agent: any }>({ endpoint: `/config/ai-agents/${encodeURIComponent(key)}/clone`, method: "POST" });
   },
 
+  async updateAgentAvatar(key: string, payload: any) {
+    return request<{ success: boolean; agent: any; message?: string }>({
+      endpoint: `/config/ai-agents/${encodeURIComponent(key)}/avatar`,
+      method: "PUT",
+      body: payload,
+    });
+  },
+
+  async equipAgentItem(key: string, slot: string, item: string) {
+    return request<{ success: boolean; agent: any; message?: string }>({
+      endpoint: `/config/ai-agents/${encodeURIComponent(key)}/equip`,
+      method: "POST",
+      body: { slot, item },
+    });
+  },
+
+  async unequipAgentItem(key: string, slot: string) {
+    return request<{ success: boolean; agent: any; message?: string }>({
+      endpoint: `/config/ai-agents/${encodeURIComponent(key)}/unequip`,
+      method: "POST",
+      body: { slot },
+    });
+  },
+
   async getStores() {
     return request<{ success: boolean; stores: any[] }>({ endpoint: "/stores", method: "GET" });
   },
 
   async getStore(storeId: string) {
     return request<{ success: boolean; store: any }>({ endpoint: `/stores/${encodeURIComponent(storeId)}`, method: "GET" });
+  },
+
+  async getStoreVisualDNA(storeId: string) {
+    return request<{ success: boolean; visualDNA: any }>({ endpoint: `/stores/${encodeURIComponent(storeId)}/visual-dna`, method: "GET" });
+  },
+
+  async updateStoreVisualDNA(storeId: string, visualDNA: any) {
+    return request<{ success: boolean; visualDNA: any; message?: string }>({
+      endpoint: `/stores/${encodeURIComponent(storeId)}/visual-dna`,
+      method: "PUT",
+      body: { visualDNA },
+    });
   },
 
   async createStore(payload: any) {

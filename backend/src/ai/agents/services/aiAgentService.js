@@ -105,6 +105,17 @@ function normalizeAgent(agent = {}) {
           animation: 'idle_friendly',
           theme: agent.character?.theme || (key === 'zaibot' ? 'amber' : 'emerald'),
         },
+    avatarConfig: typeof agent.avatarConfig === 'object' && agent.avatarConfig !== null
+      ? agent.avatarConfig
+      : null,
+    personalityVisual: typeof agent.personalityVisual === 'object' && agent.personalityVisual !== null
+      ? agent.personalityVisual
+      : {
+          posture: 'energetic',
+          expression: 'friendly_smile',
+          preferredObject: 'tablet',
+          animationStyle: 'smooth',
+        },
     recentActivity: Array.isArray(agent.recentActivity)
       ? agent.recentActivity
       : [],
@@ -577,6 +588,78 @@ async function evolveSessionStyles() {
   }
 }
 
+async function updateAgentAvatar(tenantId, key, avatarConfig, personalityVisual) {
+  const normalizedTenantId = normalizeTenantId(tenantId);
+  const agents = await listAgents(normalizedTenantId);
+  const normalizedKey = String(key || '').trim().toLowerCase();
+  const existing = agents.find(a => a.key === normalizedKey);
+  if (!existing) {
+    throw new Error(`Agente "${key}" não encontrado.`);
+  }
+
+  const updatedAgent = {
+    ...existing,
+    avatarConfig: {
+      ...(existing.avatarConfig || {}),
+      ...(avatarConfig || {}),
+    },
+    personalityVisual: personalityVisual ? {
+      ...(existing.personalityVisual || {}),
+      ...personalityVisual,
+    } : existing.personalityVisual,
+  };
+
+  return updateAgent(key, updatedAgent, normalizedTenantId);
+}
+
+async function equipAgentItem(tenantId, key, slot, item) {
+  const normalizedTenantId = normalizeTenantId(tenantId);
+  const agents = await listAgents(normalizedTenantId);
+  const normalizedKey = String(key || '').trim().toLowerCase();
+  const existing = agents.find(a => a.key === normalizedKey);
+  if (!existing) {
+    throw new Error(`Agente "${key}" não encontrado.`);
+  }
+
+  const currentAvatar = existing.avatarConfig || {};
+  const currentAccessories = { ...(currentAvatar.accessories || {}) };
+  if (slot) {
+    currentAccessories[slot] = item;
+  }
+
+  const updatedAvatar = {
+    ...currentAvatar,
+    accessories: currentAccessories,
+    [slot]: item,
+  };
+
+  return updateAgentAvatar(normalizedTenantId, key, updatedAvatar);
+}
+
+async function unequipAgentItem(tenantId, key, slot) {
+  const normalizedTenantId = normalizeTenantId(tenantId);
+  const agents = await listAgents(normalizedTenantId);
+  const normalizedKey = String(key || '').trim().toLowerCase();
+  const existing = agents.find(a => a.key === normalizedKey);
+  if (!existing) {
+    throw new Error(`Agente "${key}" não encontrado.`);
+  }
+
+  const currentAvatar = existing.avatarConfig || {};
+  const currentAccessories = { ...(currentAvatar.accessories || {}) };
+  if (slot) {
+    delete currentAccessories[slot];
+  }
+
+  const updatedAvatar = {
+    ...currentAvatar,
+    accessories: currentAccessories,
+    [slot]: 'none',
+  };
+
+  return updateAgentAvatar(normalizedTenantId, key, updatedAvatar);
+}
+
 const serviceExports = {
   validateSessions, sessionKnowledge, getStoreKnowledge, assignAgentToSession, validateStyle, withSessionStyle, restoreSessionStyle, evolveSessionStyles,
   buildPersonalityPrompt,
@@ -592,6 +675,9 @@ const serviceExports = {
   pickRandomAgentSync,
   publishHistoryCandidate,
   resetCache,
+  updateAgentAvatar,
+  equipAgentItem,
+  unequipAgentItem,
   setAgentActive,
   updateAgent,
   wait,
