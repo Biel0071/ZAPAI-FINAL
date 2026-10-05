@@ -588,6 +588,7 @@ export default function UnifiedAIPage({ defaultSection }: AIPageProps) {
           {activeTab === "agent" && (
             <AgentTab
               aiEnabled={aiEnabled}
+              onToggleAI={handleToggleGlobalAI}
               selectedAgentKey={selectedAgentKey}
               onSelectAgent={setSelectedAgentKey}
               onOpenVoiceStudio={() => setIsVoiceStudioOpen(true)}

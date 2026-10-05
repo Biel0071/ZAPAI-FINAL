@@ -142,6 +142,7 @@ interface AgentTabProps {
   onSelectAgent?: (key: string) => void;
   onOpenCustomizer?: () => void;
   aiEnabled?: boolean;
+  onToggleAI?: (enabled: boolean) => void;
 }
 
 export function AgentTab({
@@ -150,6 +151,7 @@ export function AgentTab({
   onSelectAgent,
   onOpenCustomizer,
   aiEnabled = true,
+  onToggleAI,
 }: AgentTabProps) {
   const { toast } = useToast();
   const [searchParams] = useSearchParams();
@@ -573,6 +575,7 @@ Tom: ${agentTone}. Estilo: ${responseStyle}.`;
             agentRole={agentRole}
             storeName="Loja Virtual ZAPFLOW"
             isOnline={aiEnabled ?? true}
+            onToggleOnline={onToggleAI}
             runtimeState={runtimeState}
             onRuntimeStateChange={setRuntimeState}
             agentMode={characterMode}

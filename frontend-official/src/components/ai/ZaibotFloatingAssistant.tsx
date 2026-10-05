@@ -357,14 +357,14 @@ export function ZaibotFloatingAssistant() {
           <img
             src="/assets/mascot/zaibot_avatar.png"
             alt="ZAIBOT"
-            className="h-10 w-10 rounded-full object-cover relative z-10 transition-transform group-hover:scale-110"
+            className="h-10 w-10 rounded-full object-cover relative z-10 transition-transform group-hover:scale-110 pointer-events-none"
           />
 
           {/* Online Status Dot */}
-          <span className="absolute top-0 right-0 z-20 h-3.5 w-3.5 rounded-full bg-emerald-400 border-2 border-[#080d14] shadow-[0_0_8px_#10b981]" />
+          <span className="absolute top-0 right-0 z-20 h-3.5 w-3.5 rounded-full bg-emerald-400 border-2 border-[#080d14] shadow-[0_0_8px_#10b981] pointer-events-none" />
 
           {/* Small Label Pill */}
-          <span className="absolute -bottom-2 px-1.5 py-0.5 rounded-full bg-emerald-500 text-[9px] font-black text-black uppercase tracking-wider shadow">
+          <span className="absolute -bottom-2 px-1.5 py-0.5 rounded-full bg-emerald-500 text-[9px] font-black text-black uppercase tracking-wider shadow pointer-events-none">
             ZAI
           </span>
         </button>
@@ -437,7 +437,7 @@ export function ZaibotFloatingAssistant() {
                 key={action.label}
                 type="button"
                 onClick={() => handleSendMessage(action.query)}
-                className="px-2.5 py-1 rounded-full text-[10px] font-medium bg-muted/40 hover:bg-emerald-500/15 hover:text-emerald-300 text-muted-foreground border border-border/50 hover:border-emerald-500/40 transition-all whitespace-nowrap cursor-pointer"
+                className="px-2.5 py-1 rounded-full text-[10px] font-medium bg-muted/40 hover:bg-emerald-500/15 hover:text-emerald-300 text-muted-foreground border border-border/50 hover:border-emerald-500/40 transition-all whitespace-nowrap cursor-pointer shrink-0"
               >
                 {action.label}
               </button>

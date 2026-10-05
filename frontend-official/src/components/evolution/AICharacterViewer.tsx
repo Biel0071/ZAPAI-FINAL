@@ -496,12 +496,16 @@ export const AICharacterViewer: React.FC<AICharacterViewerProps> = ({
         {/* INTERACTIVE ONLINE / OFFLINE TOGGLE BUTTON */}
         <button
           type="button"
-          onClick={() => onToggleOnline?.(!isOnline)}
-          title={isOnline ? "Agente ativo: clique para pausar" : "Agente pausado: clique para ativar"}
-          aria-label={isOnline ? "Pausar agente" : "Ativar agente"}
+          onClick={() => {
+            const next = effectiveState === "offline";
+            onToggleOnline?.(next);
+            handleSetPreviewState(next ? "working" : "offline");
+          }}
+          title={effectiveState !== "offline" ? "Agente ativo: clique para pausar" : "Agente pausado: clique para ativar"}
+          aria-label={effectiveState !== "offline" ? "Pausar agente" : "Ativar agente"}
           className={cn(
             "absolute top-2.5 right-2.5 z-30 h-7 px-3 rounded-full transition-all cursor-pointer flex items-center justify-center gap-1.5 text-[9px] font-bold border backdrop-blur-md",
-            isOnline
+            effectiveState !== "offline"
               ? "bg-emerald-500/20 text-emerald-300 border-emerald-500/40 shadow-[0_0_10px_rgba(16,185,129,0.2)]"
               : "bg-black/60 text-slate-300 border-white/20 hover:bg-black/80"
           )}
@@ -509,10 +513,10 @@ export const AICharacterViewer: React.FC<AICharacterViewerProps> = ({
           <span
             className={cn(
               "w-2 h-2 rounded-full",
-              isOnline ? "bg-emerald-400 animate-pulse shadow-[0_0_6px_#10b981]" : "bg-slate-400"
+              effectiveState !== "offline" ? "bg-emerald-400 animate-pulse shadow-[0_0_6px_#10b981]" : "bg-slate-400"
             )}
           />
-          <span>{isOnline ? "ONLINE" : "OFFLINE"}</span>
+          <span>{effectiveState !== "offline" ? "ONLINE" : "OFFLINE"}</span>
         </button>
 
         {/* AGENT BADGE (TOP LEFT) */}

@@ -1600,6 +1600,15 @@ export const apiService = {
     return data;
   },
 
+  async updateAIStatus(aiEnabled: boolean, automationScope?: string) {
+    invalidateCache("ai-status");
+    return request<{ ai: boolean; enabled: boolean; tenantId: string; automationScope?: string }>({
+      endpoint: "/ai/toggle",
+      method: "POST",
+      body: { aiEnabled, ...(automationScope ? { automationScope } : {}) },
+    });
+  },
+
   async getAILogs(sessionId?: string | null) {
     const queryParam = sessionId ? `?sessionId=${encodeURIComponent(sessionId)}` : "";
     return request<{ logs?: AILogEntry[] }>({ endpoint: `/ai/logs${queryParam}`, method: "GET" });
