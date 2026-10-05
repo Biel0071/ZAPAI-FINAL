@@ -388,33 +388,33 @@ export function ZaibotFloatingAssistant() {
 
   return (
     <>
-      {/* FLOATING TRIGGER BUTTON (ADAPTIVE MOBILE POSITIONING) */}
-      <div className="fixed bottom-20 right-4 sm:bottom-6 sm:right-6 z-[60] flex items-center gap-2 select-none">
+      {/* FLOATING TRIGGER BUTTON (ADAPTIVE MOBILE POSITIONING & ERGONOMIC SIZING) */}
+      <div className="fixed bottom-20 right-3.5 sm:bottom-6 sm:right-6 z-[60] flex items-center gap-2 select-none">
         <button
           type="button"
           onClick={() => setIsOpen((prev) => !prev)}
           className={cn(
-            "relative group flex items-center justify-center h-14 w-14 rounded-full shadow-2xl transition-all duration-300",
-            "bg-[#080d14] border-2 border-emerald-500/80 hover:border-emerald-400 hover:scale-105 active:scale-95",
-            "shadow-[0_0_20px_rgba(16,185,129,0.35)]"
+            "relative group flex items-center justify-center h-11 w-11 sm:h-13 sm:w-13 rounded-full shadow-xl transition-all duration-300",
+            "bg-[#070c14]/95 border-2 border-emerald-500/70 hover:border-emerald-400 hover:scale-105 active:scale-95",
+            "shadow-[0_0_16px_rgba(16,185,129,0.25)] backdrop-blur-md opacity-95 hover:opacity-100"
           )}
           aria-label={isOpen ? "Fechar Assistente ZAI" : "Abrir Assistente ZAI"}
         >
-          {/* Glowing Aura Ring */}
-          <span className="absolute -inset-1 rounded-full bg-emerald-500/20 animate-pulse pointer-events-none" />
+          {/* Subtle Ambient Pulse Ring */}
+          <span className="absolute -inset-0.5 rounded-full bg-emerald-500/20 animate-pulse pointer-events-none" />
 
           {/* Robot Mascot Head */}
           <img
             src="/assets/mascot/zaibot_avatar.png"
             alt="ZAIBOT"
-            className="h-10 w-10 rounded-full object-cover relative z-10 transition-transform group-hover:scale-110 pointer-events-none"
+            className="h-7 w-7 sm:h-9 sm:w-9 rounded-full object-cover relative z-10 transition-transform group-hover:scale-105 pointer-events-none"
           />
 
           {/* Online Status Dot */}
-          <span className="absolute top-0 right-0 z-20 h-3.5 w-3.5 rounded-full bg-emerald-400 border-2 border-[#080d14] shadow-[0_0_8px_#10b981] pointer-events-none" />
+          <span className="absolute top-0 right-0 z-20 h-2.5 w-2.5 sm:h-3 sm:w-3 rounded-full bg-emerald-400 border-2 border-[#070c14] shadow-[0_0_6px_#10b981] pointer-events-none" />
 
-          {/* Small Label Pill */}
-          <span className="absolute -bottom-2 px-1.5 py-0.5 rounded-full bg-emerald-500 text-[9px] font-black text-black uppercase tracking-wider shadow pointer-events-none">
+          {/* Small Brand Pill */}
+          <span className="absolute -bottom-1.5 px-1 sm:px-1.5 py-0.2 rounded-full bg-emerald-500 text-[8px] sm:text-[8.5px] font-black text-black uppercase tracking-wider shadow pointer-events-none">
             ZAI
           </span>
         </button>

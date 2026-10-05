@@ -10,6 +10,7 @@ import { cn } from "@/core/lib/utils";
 import { useToast } from "@/state/hooks/use-toast";
 import {
   Brain,
+  Bot,
   Activity,
   User,
   Shirt,
@@ -101,79 +102,97 @@ export const AgentWorkspace: React.FC<AgentWorkspaceProps> = ({
   return (
     <article
       className={cn(
-        "relative w-full h-[380px] bg-[#070c16] rounded-2xl border border-white/10 shadow-2xl overflow-hidden select-none",
+        "relative w-full min-h-[520px] h-[520px] sm:h-[540px] bg-[#060a12] rounded-2xl border border-white/10 shadow-2xl overflow-hidden select-none",
         className
       )}
     >
-      {/* 1. TOP CENTER: AGENT MODE TOGGLE (HUMAN EMPLOYEE vs ZAIBOT PLATFORM MASCOT) */}
-      <div className="absolute top-2.5 left-1/2 -translate-x-1/2 z-30 flex items-center p-0.5 rounded-full bg-black/80 backdrop-blur-md border border-white/15 shadow-xl">
-        <button
-          type="button"
-          onClick={() => onToggleMode?.("camila")}
-          className={cn(
-            "px-3 py-1 rounded-full text-[10px] font-bold transition-all cursor-pointer",
-            !isZaibot
-              ? "bg-emerald-500 text-black shadow-[0_0_10px_rgba(16,185,129,0.4)]"
-              : "text-slate-300 hover:text-white"
-          )}
-        >
-          {identity.name} (Funcionário Digital)
-        </button>
-        <button
-          type="button"
-          onClick={() => onToggleMode?.("zaibot")}
-          className={cn(
-            "px-3 py-1 rounded-full text-[10px] font-bold transition-all cursor-pointer",
-            isZaibot
-              ? "bg-emerald-500 text-black shadow-[0_0_10px_rgba(16,185,129,0.4)]"
-              : "text-slate-300 hover:text-white"
-          )}
-        >
-          ZAIBOT (Mascote 3D)
-        </button>
-      </div>
-
-      {/* 2. AGENT BADGE (TOP LEFT) */}
-      <div className="absolute top-2.5 left-2.5 z-30 flex items-center gap-2 bg-[#090e17]/90 backdrop-blur-md border border-white/10 px-2.5 py-1.5 rounded-xl shadow-lg max-w-[45%]">
-        <div className="w-8 h-8 rounded-lg overflow-hidden border border-emerald-500/50 shrink-0 bg-black flex items-center justify-center">
-          {isZaibot ? (
-            <img
-              src="/assets/mascot/zaibot_avatar.png"
-              alt="ZAIBOT"
-              className="w-full h-full object-cover"
-            />
-          ) : identity.appearance.avatarUrl && !identity.appearance.avatarUrl.includes("mascot") ? (
-            <img
-              src={identity.appearance.avatarUrl}
-              alt={identity.name}
-              className="w-full h-full object-cover"
-            />
-          ) : (
-            <div
-              className="w-full h-full flex items-center justify-center text-[11px] font-black text-white"
-              style={{ backgroundColor: identity.appearance.clothingColor }}
-            >
-              {identity.name.charAt(0)}
+      {/* 1. TOP HEADER BAR: BADGE (LEFT) • MODE SELECTOR (CENTER) • PRESENCE & SIMULATION (RIGHT) */}
+      <div className="absolute top-0 inset-x-0 z-30 flex items-center justify-between p-2.5 sm:p-3 pointer-events-none gap-2">
+        {/* AGENT IDENTITY BADGE (LEFT) */}
+        <div className="flex items-center gap-2 bg-[#090e17]/95 backdrop-blur-md border border-white/10 px-2 py-1 sm:px-2.5 sm:py-1.5 rounded-xl shadow-lg pointer-events-auto shrink-0 max-w-[130px] sm:max-w-none">
+          <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg overflow-hidden border border-emerald-500/50 shrink-0 bg-black flex items-center justify-center">
+            {isZaibot ? (
+              <img
+                src="/assets/mascot/zaibot_avatar.png"
+                alt="ZAIBOT"
+                className="w-full h-full object-cover"
+              />
+            ) : identity.appearance.avatarUrl && !identity.appearance.avatarUrl.includes("mascot") ? (
+              <img
+                src={identity.appearance.avatarUrl}
+                alt={identity.name}
+                className="w-full h-full object-cover"
+              />
+            ) : (
+              <div
+                className="w-full h-full flex items-center justify-center text-[11px] font-black text-white"
+                style={{ backgroundColor: identity.appearance.clothingColor }}
+              >
+                {identity.name.charAt(0)}
+              </div>
+            )}
+          </div>
+          <div className="min-w-0">
+            <div className="text-[10px] sm:text-[11px] font-bold text-white flex items-center gap-1 leading-tight truncate">
+              {isZaibot ? "ZAIBOT" : identity.name}
             </div>
-          )}
+            <div className="text-[9px] text-slate-400 font-medium leading-tight truncate hidden sm:block">
+              {isZaibot ? "Assistente Operacional ZAI" : identity.role}
+            </div>
+          </div>
         </div>
-        <div className="min-w-0">
-          <div className="text-[11px] font-bold text-white flex items-center gap-1 leading-tight truncate">
-            {isZaibot ? "ZAIBOT" : identity.name}
+
+        {/* AGENT MODE TOGGLE (CENTER - DESKTOP & TABLET) */}
+        <div className="hidden md:flex items-center p-0.5 rounded-full bg-black/80 backdrop-blur-md border border-white/15 shadow-xl pointer-events-auto">
+          <button
+            type="button"
+            onClick={() => onToggleMode?.("camila")}
+            className={cn(
+              "px-3 py-1 rounded-full text-[10px] font-bold transition-all cursor-pointer",
+              !isZaibot
+                ? "bg-emerald-500 text-black shadow-[0_0_10px_rgba(16,185,129,0.4)]"
+                : "text-slate-300 hover:text-white"
+            )}
+          >
+            {identity.name} (Funcionário Digital)
+          </button>
+          <button
+            type="button"
+            onClick={() => onToggleMode?.("zaibot")}
+            className={cn(
+              "px-3 py-1 rounded-full text-[10px] font-bold transition-all cursor-pointer",
+              isZaibot
+                ? "bg-emerald-500 text-black shadow-[0_0_10px_rgba(16,185,129,0.4)]"
+                : "text-slate-300 hover:text-white"
+            )}
+          >
+            ZAIBOT (Mascote 3D)
+          </button>
+        </div>
+
+        {/* PRESENCE CONTROLLER & SIMULATION CHIPS (RIGHT) */}
+        <div className="pointer-events-auto shrink-0 flex items-center gap-1.5 sm:gap-2">
+          {/* Mobile mode switch icon button */}
+          <div className="md:hidden flex items-center p-0.5 rounded-lg bg-black/70 border border-white/10">
+            <button
+              type="button"
+              onClick={() => onToggleMode?.(isZaibot ? "camila" : "zaibot")}
+              className="px-1.5 py-1 text-[8.5px] font-bold rounded text-slate-200 hover:text-white bg-white/10 flex items-center gap-1 cursor-pointer"
+              title="Alternar entre Funcionário e Mascote"
+            >
+              <Bot className="w-3 h-3 text-emerald-400" />
+              <span>{isZaibot ? "Camila" : "Mascote"}</span>
+            </button>
           </div>
-          <div className="text-[9px] text-slate-400 font-medium leading-tight truncate">
-            {isZaibot ? "Assistente Operacional ZAI" : identity.role}
-          </div>
+
+          <AgentPresence
+            agent={identity}
+            state={effectiveState}
+            onToggleOnline={onToggleOnline}
+            onSelectState={handleStateChange}
+          />
         </div>
       </div>
-
-      {/* 3. PRESENCE CONTROLLER & SIMULATION CHIPS (TOP RIGHT) */}
-      <AgentPresence
-        agent={identity}
-        state={effectiveState}
-        onToggleOnline={onToggleOnline}
-        onSelectState={handleStateChange}
-      />
 
       {/* 4. SCENE RENDERING: ZAIBOT 3D ROBOT LAB OR HUMAN LIVING WORKSPACE */}
       {isZaibot ? (
@@ -200,13 +219,13 @@ export const AgentWorkspace: React.FC<AgentWorkspaceProps> = ({
                 description: "Copiloto operacional do administrador pronto para auxiliar.",
               });
             }}
-            className="relative z-10 flex flex-col items-center justify-center h-full max-h-[310px] pt-4 cursor-pointer group"
+            className="relative z-10 flex flex-col items-center justify-center h-full max-h-[440px] pt-8 cursor-pointer group"
           >
             <img
               src={getZaibotImage()}
               alt="ZAIBOT Mascote 3D"
               className={cn(
-                "h-full max-h-[270px] object-contain drop-shadow-[0_12px_30px_rgba(0,0,0,0.85)] transition-all duration-300 group-hover:scale-105",
+                "h-full max-h-[360px] object-contain drop-shadow-[0_16px_35px_rgba(0,0,0,0.85)] transition-all duration-300 group-hover:scale-105",
                 effectiveState === "OFFLINE"
                   ? "brightness-[0.6] saturate-[0.3]"
                   : effectiveState === "IDLE"

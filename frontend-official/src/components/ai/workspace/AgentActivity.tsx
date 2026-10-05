@@ -73,29 +73,38 @@ export const AgentActivity: React.FC<AgentActivityProps> = ({
       {/* 6. BOTTOM-LEFT LIVE STATUS BEACON */}
       <div
         className={cn(
-          "absolute bottom-3 left-3 z-30 flex items-center gap-2 bg-[#090e17]/95 backdrop-blur-md border border-white/10 px-3 py-1.5 rounded-xl shadow-xl max-w-[85%] sm:max-w-md",
+          "absolute bottom-3 left-3 z-30 flex items-center gap-2 bg-[#080d16]/95 backdrop-blur-md border border-white/10 px-3 py-1.5 rounded-xl shadow-lg",
           className
         )}
       >
         <span
           className={cn(
             "w-2 h-2 rounded-full shrink-0",
-            visual.color,
-            visual.pulse && "animate-pulse shadow-[0_0_8px_#10b981]"
+            state === "OFFLINE" ? "bg-slate-500" : "bg-emerald-400 animate-pulse shadow-[0_0_8px_#10b981]"
           )}
         />
-        <div className="min-w-0 flex items-center gap-1.5">
-          <span className="text-[10px] font-bold text-foreground truncate">
-            {agent.name}
-          </span>
-          <span className="text-slate-500 text-[10px]">•</span>
-          <span className="text-[9.5px] text-slate-300 truncate">
-            {agent.currentActivity || visual.label}
+        <div className="flex items-center gap-1 text-[11px] text-slate-200">
+          <strong className="text-white font-bold">{agent.name}</strong>
+          <span className="text-slate-500">·</span>
+          <span className="font-medium text-slate-300">
+            {state === "WORKING"
+              ? "Atendimento Ativo"
+              : state === "RESPONDING"
+              ? "Respondendo Lead"
+              : state === "THINKING"
+              ? "Processando"
+              : state === "LEARNING"
+              ? "Aprendendo"
+              : state === "SUCCESS"
+              ? "Concluído"
+              : state === "IDLE"
+              ? "Em Espera"
+              : "Aguardando ativação"}
           </span>
         </div>
         <Badge
           className={cn(
-            "text-[8.5px] font-mono py-0 h-4 border shrink-0 bg-black/60",
+            "text-[8px] font-mono uppercase px-1.5 py-0 h-4 border shrink-0 bg-black/50 ml-0.5",
             visual.borderColor,
             visual.textColor
           )}

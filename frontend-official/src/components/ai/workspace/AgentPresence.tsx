@@ -23,14 +23,9 @@ export const AgentPresence: React.FC<AgentPresenceProps> = ({
   const visual = getAgentStateVisual(state);
 
   return (
-    <div
-      className={cn(
-        "absolute top-2.5 right-2.5 z-30 flex items-center gap-1.5",
-        className
-      )}
-    >
+    <div className={cn("flex items-center gap-1.5", className)}>
       {/* QUICK PREVIEW STATE SELECTOR (SIMULATION CHIPS) */}
-      <div className="hidden md:flex items-center gap-1 p-0.5 rounded-full bg-black/70 backdrop-blur-md border border-white/10 shadow-lg">
+      <div className="hidden lg:flex items-center gap-1 p-0.5 rounded-full bg-black/70 backdrop-blur-md border border-white/10 shadow-lg">
         {(["WORKING", "IDLE", "THINKING", "RESPONDING", "OFFLINE"] as AgentPresenceState[]).map(
           (st) => {
             const stVisual = getAgentStateVisual(st);

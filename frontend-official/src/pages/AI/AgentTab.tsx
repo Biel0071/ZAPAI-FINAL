@@ -570,7 +570,24 @@ Tom: ${agentTone}. Estilo: ${responseStyle}.`;
 
   return (
     <div className="space-y-6">
-      {/* SEUS AGENTES / EQUIPE DIGITAL */}
+      {/* 1. HERO: LIVING WORKSPACE (FUNCIONÁRIO DIGITAL VIVO) */}
+      <Card className="bg-card border-border/80 shadow-md overflow-hidden animate-in fade-in duration-200">
+        <AgentWorkspace
+          agent={activeWorkspaceAgent}
+          isOnline={aiEnabled ?? true}
+          onToggleOnline={onToggleAI}
+          runtimeState={runtimeState as any}
+          onRuntimeStateChange={(st) => setRuntimeState(st as AgentRuntimeState)}
+          agentMode={characterMode}
+          onToggleMode={(mode) => {
+            setCharacterMode(mode);
+            onSelectAgent?.(mode);
+          }}
+          onOpenCustomizer={() => onOpenCustomizer?.()}
+        />
+      </Card>
+
+      {/* 2. EQUIPE DIGITAL / GESTÃO DE AGENTES */}
       <DigitalTeamView
         agents={agentsList}
         selectedAgentKey={selectedAgentKey}
@@ -600,44 +617,6 @@ Tom: ${agentTone}. Estilo: ${responseStyle}.`;
         }}
         onRefresh={refreshAgents}
       />
-
-      {/* CHARACTER WORKSPACE & LIVING SCENARIO */}
-      <div className="flex items-center justify-between p-3.5 rounded-xl border border-border/70 bg-card/40">
-        <div>
-          <span className="text-xs font-bold text-foreground">Estúdio Visual do Agente • Funcionário Digital Vivo</span>
-          <p className="text-[11px] text-muted-foreground mt-0.5">
-            Acompanhe o expediente do atendente no escritório virtual (no computador trabalhando ou em pé esperando).
-          </p>
-        </div>
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          onClick={() => setShowCharacterViewer((prev) => !prev)}
-          className="h-8 text-xs gap-1.5 border-border/80"
-        >
-          {showCharacterViewer ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
-          <span>{showCharacterViewer ? "Minimizar Cenário" : "Expandir Cenário"}</span>
-        </Button>
-      </div>
-
-      {showCharacterViewer && (
-        <Card className="bg-card border-border/80 shadow-sm overflow-hidden animate-in fade-in duration-200">
-          <AgentWorkspace
-            agent={activeWorkspaceAgent}
-            isOnline={aiEnabled ?? true}
-            onToggleOnline={onToggleAI}
-            runtimeState={runtimeState as any}
-            onRuntimeStateChange={(st) => setRuntimeState(st as AgentRuntimeState)}
-            agentMode={characterMode}
-            onToggleMode={(mode) => {
-              setCharacterMode(mode);
-              onSelectAgent?.(mode);
-            }}
-            onOpenCustomizer={() => onOpenCustomizer?.()}
-          />
-        </Card>
-      )}
 
       {/* TWO COLUMN WORKSPACE: CONFIGURATION & SIMULATOR */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
