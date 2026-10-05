@@ -95,6 +95,9 @@ const AuthenticatedAppShell = lazyWithRetry(() => import("./components/layout/Au
 const Dashboard = lazyWithRetry(() => import("./pages/Dashboard"), "dashboard");
 const Inbox = lazyWithRetry(() => import("./pages/Inbox"), "inbox");
 const Connections = lazyWithRetry(() => import("./pages/Connections"), "connections");
+const Stores = lazyWithRetry(() => import("./pages/Stores/StoresPage"), "stores");
+const Attendants = lazyWithRetry(() => import("./pages/Attendants/AttendantsPage"), "attendants");
+const Assistant = lazyWithRetry(() => import("./pages/Assistant/AssistantPage"), "assistant");
 const Contacts = lazyWithRetry(() => import("./pages/Contacts"), "contacts");
 const Flows = lazyWithRetry(() => import("./pages/Flows"), "flows");
 const AI = lazyWithRetry(() => import("./pages/AI"), "ai");
@@ -172,12 +175,18 @@ const App = () => {
                       <Route path="/dashboard" element={<PageRouteBoundary pageName="Dashboard"><Dashboard /></PageRouteBoundary>} />
                       <Route path="/inbox" element={<InboxRuntimeBoundary><Inbox /></InboxRuntimeBoundary>} />
                       <Route path="/connections" element={<PageRouteBoundary pageName="Conexões"><Connections /></PageRouteBoundary>} />
+                      <Route path="/stores" element={<PageRouteBoundary pageName="Lojas"><Stores /></PageRouteBoundary>} />
+                      <Route path="/lojas" element={<Navigate to="/stores" replace />} />
+                      <Route path="/attendants" element={<PageRouteBoundary pageName="Atendentes"><Attendants /></PageRouteBoundary>} />
+                      <Route path="/atendentes" element={<Navigate to="/attendants" replace />} />
+                      <Route path="/assistant" element={<PageRouteBoundary pageName="Assistente ZAI"><Assistant /></PageRouteBoundary>} />
+                      <Route path="/assistente-zai" element={<Navigate to="/assistant" replace />} />
                       <Route path="/contacts" element={<PageRouteBoundary pageName="Contatos"><Contacts /></PageRouteBoundary>} />
-                      <Route path="/ai" element={<PageRouteBoundary pageName="IA & Automação"><AI /></PageRouteBoundary>} />
-                      <Route path="/operations" element={<Navigate to="/ai?tab=operations" replace />} />
-                      <Route path="/flows" element={<Navigate to="/ai?tab=flows" replace />} />
-                      <Route path="/evolution" element={<Navigate to="/ai?tab=evolution" replace />} />
-                      <Route path="/evolucao" element={<Navigate to="/ai?tab=evolution" replace />} />
+                      <Route path="/ai" element={<Navigate to="/attendants" replace />} />
+                      <Route path="/operations" element={<Navigate to="/attendants?tab=operations" replace />} />
+                      <Route path="/flows" element={<Navigate to="/attendants?tab=flows" replace />} />
+                      <Route path="/evolution" element={<Navigate to="/attendants?tab=evolution" replace />} />
+                      <Route path="/evolucao" element={<Navigate to="/attendants?tab=evolution" replace />} />
                       <Route path="/analytics" element={<Navigate to="/dashboard?tab=analytics" replace />} />
                       <Route path="/campaigns" element={<PageRouteBoundary pageName="Campanhas"><Campaigns /></PageRouteBoundary>} />
                       <Route path="/automation" element={<Navigate to="/ai?tab=flows" replace />} />

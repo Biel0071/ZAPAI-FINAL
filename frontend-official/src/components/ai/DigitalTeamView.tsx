@@ -252,10 +252,10 @@ export function DigitalTeamView({
           <div>
             <h2 className="text-base font-bold tracking-tight text-foreground flex items-center gap-2">
               <Users className="h-5 w-5 text-emerald-400" />
-              Equipe Digital
+              Atendentes Digitais
             </h2>
             <p className="text-xs text-muted-foreground mt-0.5">
-              Funcionários digitais dedicados ao atendimento, vendas e pós-venda da sua empresa.
+              Atendentes digitais dedicados por loja e conexão WhatsApp oficial da sua empresa.
             </p>
           </div>
 

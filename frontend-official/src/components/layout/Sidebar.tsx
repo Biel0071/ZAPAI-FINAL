@@ -20,6 +20,8 @@ import {
   Cpu,
   Broadcast,
   FileText,
+  Storefront,
+  Headset,
   CaretDown,
   CaretUp,
   Brain,
@@ -64,10 +66,11 @@ const crmItems: SidebarNavItem[] = [
   { icon: SquaresFour, label: "Dashboard", path: "/dashboard", minRole: "user" },
   { icon: ChatCircleDots, label: "Inbox", path: "/inbox", minRole: "user", badge: "LIVE" },
   { icon: Broadcast, label: "Conexões", path: "/connections", minRole: "user" },
-  { icon: Users, label: "Contatos", path: "/contacts", minRole: "user" },
+  { icon: Storefront, label: "Lojas", path: "/stores", minRole: "user" },
+  { icon: Headset, label: "Atendentes", path: "/attendants", minRole: "user" },
   { icon: Megaphone, label: "Campanhas", path: "/campaigns", minRole: "user" },
-  { icon: Users, label: "Equipe Digital", path: "/ai", minRole: "user" },
-  { icon: AIIcon, label: "Assistente ZAI", path: "/ai?tab=zaibot", minRole: "user" },
+  { icon: AIIcon, label: "Assistente ZAI", path: "/assistant", minRole: "user" },
+  { icon: Users, label: "Contatos", path: "/contacts", minRole: "user" },
 ];
 
 const adminItems: SidebarNavItem[] = [];
@@ -88,7 +91,6 @@ export function Sidebar() {
   });
   const [mobileOpen, setMobileOpen] = useState(false);
   const [adminOpen, setAdminOpen] = useState(false);
-  const [aiSubmenuOpen, setAiSubmenuOpen] = useState(true);
   const location = useLocation();
   const navigate = useNavigate();
   const isMobile = useIsMobile();
@@ -161,29 +163,28 @@ export function Sidebar() {
 
   const renderNavItem = (item: SidebarNavItem, compact: boolean, keyPrefix: string) => {
     const targetPathname = item.path.split("?")[0];
-    const isAiItem = item.path === "/ai";
-    const isZaibotItem = item.path === "/ai?tab=zaibot";
-    const searchParams = new URLSearchParams(location.search);
-    const currentTab = searchParams.get("tab") || "agent";
-    const isCurrentlyOnZaibotTab = location.pathname.startsWith("/ai") && currentTab === "zaibot";
+    let isActive = false;
 
-    const isAiActive = isAiItem && (
-      (location.pathname.startsWith("/ai") && !isCurrentlyOnZaibotTab) ||
-      location.pathname.startsWith("/operations") ||
-      location.pathname.startsWith("/flows") ||
-      location.pathname.startsWith("/evolution") ||
-      location.pathname.startsWith("/evolucao") ||
-      location.pathname.startsWith("/automation")
-    );
-    const isActive = isAiItem
-      ? isAiActive
-      : isZaibotItem
-      ? isCurrentlyOnZaibotTab
-      : (
-        targetPathname === "/"
-          ? location.pathname === "/"
-          : (location.pathname === targetPathname || location.pathname.startsWith(targetPathname + "/"))
+    if (targetPathname === "/") {
+      isActive = location.pathname === "/";
+    } else if (targetPathname === "/stores") {
+      isActive = location.pathname.startsWith("/stores") || location.pathname.startsWith("/lojas");
+    } else if (targetPathname === "/attendants") {
+      isActive = (
+        location.pathname.startsWith("/attendants") ||
+        location.pathname.startsWith("/atendentes") ||
+        location.pathname.startsWith("/ai") ||
+        location.pathname.startsWith("/operations") ||
+        location.pathname.startsWith("/flows") ||
+        location.pathname.startsWith("/evolution") ||
+        location.pathname.startsWith("/evolucao") ||
+        location.pathname.startsWith("/automation")
       );
+    } else if (targetPathname === "/assistant") {
+      isActive = location.pathname.startsWith("/assistant") || location.pathname.startsWith("/assistente-zai");
+    } else {
+      isActive = location.pathname === targetPathname || location.pathname.startsWith(targetPathname + "/");
+    }
 
     // Itens em desenvolvimento: cinza, não-clicáveis, badge DEV. Só chegam aqui p/ admin+.
     if (item.dev) {
@@ -318,20 +319,6 @@ export function Sidebar() {
                 title={`Status: ${health.status}`}
               />
             )}
-            {isAiItem && (
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  setAiSubmenuOpen(!aiSubmenuOpen);
-                }}
-                className="ml-auto p-1 rounded hover:bg-sidebar-accent text-sidebar-muted hover:text-sidebar-foreground transition-colors"
-                aria-label={aiSubmenuOpen ? "Recolher submenu de IA" : "Expandir submenu de IA"}
-              >
-                {aiSubmenuOpen ? <CaretUp className="h-3.5 w-3.5" /> : <CaretDown className="h-3.5 w-3.5" />}
-              </button>
-            )}
           </>
         )}
       </NavLink>
@@ -347,48 +334,6 @@ export function Sidebar() {
             {item.label}
           </TooltipContent>
         </Tooltip>
-      );
-    }
-
-    if (isAiItem && isAiActive && aiSubmenuOpen) {
-      const searchParams = new URLSearchParams(location.search);
-      const currentTab = searchParams.get("tab") || "agent";
-      const currentSub = searchParams.get("sub") || "";
-
-      const aiSubmenuItems = [
-        { label: "Agentes", tab: "agent", sub: "", path: "/ai?tab=agent" },
-        { label: "Desempenho", tab: "operations", sub: "dashboard", path: "/ai?tab=operations&sub=dashboard" },
-        { label: "Conhecimento", tab: "flows", sub: "knowledge", path: "/ai?tab=flows&sub=knowledge" },
-        { label: "Automações", tab: "flows", sub: "flows", path: "/ai?tab=flows&sub=flows" },
-        { label: "Playbooks", tab: "flows", sub: "playbooks", path: "/ai?tab=flows&sub=playbooks" },
-        { label: "Auditoria", tab: "operations", sub: "logs", path: "/ai?tab=operations&sub=logs" },
-      ];
-
-      return (
-        <div key={`${keyPrefix}:${item.label}:${item.path}-container`} className="space-y-0.5">
-          {navElement}
-          <div className="ml-4 pl-2 border-l border-sidebar-border/50 space-y-0.5 pt-0.5 pb-1">
-            {aiSubmenuItems.map((sub) => {
-              const isSubActive = sub.sub
-                ? currentSub === sub.sub
-                : currentTab === sub.tab && !currentSub;
-              return (
-                <NavLink
-                  key={sub.label}
-                  to={sub.path}
-                  className={cn(
-                    "flex items-center h-7 px-2.5 rounded-lg text-xs transition-colors",
-                    isSubActive
-                      ? "bg-emerald-500/15 text-emerald-400 font-semibold"
-                      : "text-sidebar-muted hover:text-sidebar-foreground hover:bg-sidebar-accent/50"
-                  )}
-                >
-                  <span className="truncate">{sub.label}</span>
-                </NavLink>
-              );
-            })}
-          </div>
-        </div>
       );
     }
 

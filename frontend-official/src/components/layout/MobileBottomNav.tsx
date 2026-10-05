@@ -2,10 +2,10 @@ import { useMemo } from "react";
 import { NavLink, useLocation } from "react-router-dom";
 import {
   ChatCircleDots,
-  Users,
-  Megaphone,
+  Headset,
+  Storefront,
+  Broadcast,
   SquaresFour,
-  Sparkle,
   List,
 } from "@phosphor-icons/react";
 import { useAppStore } from "@/state/stores/appStore";
@@ -64,28 +64,28 @@ export function MobileBottomNav() {
       badge: unreadCount,
     },
     {
-      id: "contacts",
-      label: "Contatos",
-      icon: Users,
-      path: "/contacts",
+      id: "attendants",
+      label: "Atendentes",
+      icon: Headset,
+      path: "/attendants",
     },
     {
-      id: "campaigns",
-      label: "Campanhas",
-      icon: Megaphone,
-      path: "/campaigns",
+      id: "stores",
+      label: "Lojas",
+      icon: Storefront,
+      path: "/stores",
+    },
+    {
+      id: "connections",
+      label: "Conexões",
+      icon: Broadcast,
+      path: "/connections",
     },
     {
       id: "dashboard",
       label: "Painel",
       icon: SquaresFour,
       path: "/dashboard",
-    },
-    {
-      id: "ai",
-      label: "IA",
-      icon: Sparkle,
-      path: "/ai",
     },
     {
       id: "more",
@@ -127,8 +127,10 @@ export function MobileBottomNav() {
             );
           }
 
-          const isActive = tab.id === "ai"
+          const isActive = tab.id === "attendants"
             ? (
+                location.pathname.startsWith("/attendants") ||
+                location.pathname.startsWith("/atendentes") ||
                 location.pathname.startsWith("/ai") ||
                 location.pathname.startsWith("/evolution") ||
                 location.pathname.startsWith("/evolucao") ||
@@ -136,6 +138,13 @@ export function MobileBottomNav() {
                 location.pathname.startsWith("/flows") ||
                 location.pathname.startsWith("/automation")
               )
+            : tab.id === "stores"
+            ? (
+                location.pathname.startsWith("/stores") ||
+                location.pathname.startsWith("/lojas")
+              )
+            : tab.path === "/dashboard"
+            ? (location.pathname === "/dashboard" || location.pathname === "/")
             : location.pathname.startsWith(tab.path!);
 
           return (

@@ -196,6 +196,44 @@ function mapSession(session = {}, sessionId = DEFAULT_SESSION) {
       } catch (err) {}
       return 'Nenhum atendente configurado';
     })(),
+    linkedAgent: (() => {
+      try {
+        const aiAgentService = require('../src/ai/agents/services/aiAgentService');
+        const agents = aiAgentService.getAgentsSync(session.companyId || process.env.DEFAULT_COMPANY_ID || 'default') || [];
+        const cleanAgents = agents.filter(a => !a.isPlatformAssistant && a.key !== 'zaibot');
+        const matched = cleanAgents.find(a => Array.isArray(a.sessionIds) && a.sessionIds.includes(id));
+        if (matched) {
+          return {
+            key: matched.key,
+            name: matched.name,
+            role: matched.role || 'Atendente',
+            status: matched.active === false ? 'paused' : (matched.status || 'active'),
+            active: matched.active !== false,
+            avatar: matched.avatar || (matched.character?.gender === 'male' ? '/assets/evolution/joao_avatar.png' : '/assets/evolution/camila_avatar.png'),
+            character: matched.character,
+            appearance: matched.appearance,
+            storeId: matched.storeId || null,
+            personalityType: matched.personalityType || 'comercial',
+          };
+        }
+        if (cleanAgents.length === 1) {
+          const first = cleanAgents[0];
+          return {
+            key: first.key,
+            name: first.name,
+            role: first.role || 'Atendente',
+            status: first.active === false ? 'paused' : (first.status || 'active'),
+            active: first.active !== false,
+            avatar: first.avatar || (first.character?.gender === 'male' ? '/assets/evolution/joao_avatar.png' : '/assets/evolution/camila_avatar.png'),
+            character: first.character,
+            appearance: first.appearance,
+            storeId: first.storeId || null,
+            personalityType: first.personalityType || 'comercial',
+          };
+        }
+      } catch (err) {}
+      return null;
+    })(),
     lastActivity: session.lastPingAt || session.connectedAt || session.createdAt || new Date().toISOString()
   };
 }
@@ -225,6 +263,7 @@ async function listConnections(companyId) {
     const id = dbSession.sessionId || dbSession.id;
     if (id) {
       merged.set(id, {
+        companyId,
         sessionId: id,
         sessionName: dbSession.sessionName || dbSession.name || id,
         status: 'disconnected',
@@ -242,6 +281,7 @@ async function listConnections(companyId) {
     const realSession = getSessionCompat(id) || activeSession;
     merged.set(id, {
       ...realSession,
+      companyId: companyId || realSession.companyId || (existing ? existing.companyId : null),
       sessionId: id,
       sessionName: existing?.sessionName || activeSession.sessionName || activeSession.name || id,
       status: realSession.status || activeSession.status || 'disconnected',

@@ -74,7 +74,7 @@ export function ZaiPlatformAssistantView({
     {
       id: "welcome",
       sender: "zaibot",
-      text: "Olá! Eu sou o **ZAIBOT**, o assistente operacional da plataforma ZAI CRM.\n\nEstou aqui para ajudar você a operar o CRM, auditar atendimentos, configurar agentes da sua equipe digital e analisar métricas em tempo real.\n\nComo posso apoiar sua gestão hoje?",
+      text: "Olá! Eu sou o **ZAIBOT**, o assistente operacional da plataforma ZAI CRM.\n\nEstou aqui para ajudar você a operar o CRM, auditar atendimentos, configurar atendentes digitais por loja e número de WhatsApp, e analisar métricas em tempo real.\n\nComo posso apoiar sua gestão hoje?",
       timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
     },
   ]);
@@ -133,14 +133,14 @@ export function ZaiPlatformAssistantView({
         const isFinanceiro = lower.includes("financeiro");
         const role = isPosVenda ? "Pós-venda" : isSuporte ? "Suporte" : isFinanceiro ? "Financeiro" : "Vendas";
 
-        botResponse = `Perfeito! Vou iniciar o assistente para adicionar um novo funcionário digital de **${role}** para sua equipe.`;
+        botResponse = `Perfeito! Vou iniciar o assistente para adicionar um novo atendente digital de **${role}** vinculado à sua loja e número WhatsApp.`;
         if (onOpenNewAgentWizard) {
           onOpenNewAgentWizard(role);
         }
       }
       // Criar automação / Follow-up pós-orçamento
       else if (lower.includes("automação") || lower.includes("automacao") || lower.includes("follow-up") || lower.includes("follow up") || lower.includes("orçamento") || lower.includes("orcamento")) {
-        botResponse = `**Regra de Automação Preparada:**\n\n• **Gatilho:** Orçamento enviado via WhatsApp sem resposta após 24 horas\n• **Ação:** Funcionário digital dispara lembrete gentil com condições especiais de pagamento\n• **Canal:** WhatsApp Oficial\n• **Condição:** Respeita horário comercial e cancela se o cliente responder.\n\nDeseja autorizar a criação desta regra no motor de automação?`;
+        botResponse = `**Regra de Automação Preparada:**\n\n• **Gatilho:** Orçamento enviado via WhatsApp sem resposta após 24 horas\n• **Ação:** Atendente digital dispara lembrete gentil com condições especiais de pagamento\n• **Canal:** WhatsApp Oficial\n• **Condição:** Respeita horário comercial e cancela se o cliente responder.\n\nDeseja autorizar a criação desta regra no motor de automação?`;
         actionRequired = {
           actionType: "create_automation",
           description: "Criar regra de follow-up automático pós-orçamento",
@@ -153,7 +153,7 @@ export function ZaiPlatformAssistantView({
       }
       // Mostrar tarefas pendentes
       else if (lower.includes("tarefas pendentes") || lower.includes("pendentes") || lower.includes("tarefa")) {
-        botResponse = `**Tarefas Operacionais Pendentes:**\n\n1. **2 orçamentos** aguardam aprovação de condição comercial especial\n2. **1 follow-up** programado pela Camila para as 17:00\n3. **1 sincronização** de catálogo pendente no WhatsApp\n\nTodos os funcionários digitais estão operando dentro do SLA estabelecido.`;
+        botResponse = `**Tarefas Operacionais Pendentes:**\n\n1. **2 orçamentos** aguardam aprovação de condição comercial especial\n2. **1 follow-up** programado pela Camila para as 17:00\n3. **1 sincronização** de catálogo pendente no WhatsApp\n\nTodos os atendentes digitais estão operando dentro do SLA estabelecido.`;
       }
       // Analisar motivos de perda de vendas
       else if (lower.includes("perda de vendas") || lower.includes("motivos de perda") || lower.includes("vendas perdidas")) {
@@ -161,7 +161,7 @@ export function ZaiPlatformAssistantView({
       }
       // Horário de funcionamento do agente
       else if (lower.includes("horário") || lower.includes("horario")) {
-        botResponse = `**Horários de Atendimento da Equipe:**\n\n• **Camila (Vendas):** Segunda a Sexta das 07:00 às 18:00, Sábados das 08:00 às 12:00\n• **Demais agentes:** Conforme turnos configurados no perfil de cada funcionário.\n\nPara alterar turnos, acesse o perfil do funcionário na aba da Equipe Digital.`;
+        botResponse = `**Horários de Atendimento:**\n\n• **Camila (Vendas):** Segunda a Sexta das 07:00 às 18:00, Sábados das 08:00 às 12:00\n• **Demais atendentes:** Conforme turnos configurados no perfil de cada atendente.\n\nPara alterar turnos, acesse o atendente na tela de Atendentes.`;
       }
       // Status dos agentes / Agentes ativos / Offline
       else if (lower.includes("agentes ativos") || lower.includes("mostrar agentes") || lower.includes("status dos agentes") || lower.includes("quais agentes") || lower.includes("status")) {
@@ -170,15 +170,15 @@ export function ZaiPlatformAssistantView({
 
         if (lower.includes("offline") || lower.includes("pausados")) {
           if (pausedList.length === 0) {
-            botResponse = `Nenhum agente está offline ou pausado no momento! Todos os **${activeList.length} funcionários digitais** estão ativos atendendo normalmente.`;
+            botResponse = `Nenhum atendente está offline ou pausado no momento! Todos os **${activeList.length} atendentes digitais** estão ativos atendendo normalmente.`;
           } else {
-            botResponse = `Existem **${pausedList.length} agentes pausados** no momento:\n` +
+            botResponse = `Existem **${pausedList.length} atendentes pausados** no momento:\n` +
               pausedList.map((a: any) => `• **${a.name}** (${a.role || a.sector || "Vendas"}) - Pausado`).join("\n");
           }
         } else {
-          botResponse = `Aqui está o panorama atual da sua Equipe Digital:\n\n` +
-            `• Total de agentes cadastrados: **${employees.length}**\n` +
-            `• Agentes ativos agora: **${activeList.length}**\n\n` +
+          botResponse = `Aqui está o panorama atual dos seus Atendentes Digitais:\n\n` +
+            `• Total de atendentes cadastrados: **${employees.length}**\n` +
+            `• Atendentes ativos agora: **${activeList.length}**\n\n` +
             activeList.map((a: any) => `✅ **${a.name}** — ${a.role || a.sector || "Vendas"} (Canais: ${(a.channels || ["whatsapp"]).join(", ")})`).join("\n");
         }
       }
@@ -186,11 +186,11 @@ export function ZaiPlatformAssistantView({
       else if (lower.includes("desempenho") || lower.includes("camila") || lower.includes("joão") || lower.includes("joao") || lower.includes("marina") || lower.includes("carlos")) {
         if (lower.includes("equipe") || lower.includes("agentes") || lower.includes("geral") || (!lower.includes("camila") && !lower.includes("joão") && !lower.includes("joao") && !lower.includes("marina") && !lower.includes("carlos"))) {
           const totalChats = employees.reduce((acc: number, a: any) => acc + (a.stats?.chatsToday || (a.key === "camila" ? 127 : 35)), 0);
-          botResponse = `**Desempenho da Equipe Digital (Hoje):**\n\n` +
+          botResponse = `**Desempenho dos Atendentes Digitais (Hoje):**\n\n` +
             `• **${totalChats} atendimentos totais** realizados hoje\n` +
             `• **96% de conformidade com SLA** (tempo médio de 18s)\n` +
             `• **98% de satisfação CSAT média**\n\n` +
-            `Membros da equipe:\n` +
+            `Atendentes ativos:\n` +
             employees.map((a: any) => `• **${a.name}** (${a.role || "Vendas"}): ${a.stats?.chatsToday ?? (a.key === "camila" ? 127 : 35)} atendimentos • SLA ${a.stats?.slaPercent ?? 95}%`).join("\n");
         } else {
           const found = employees.find((a: any) =>
@@ -224,7 +224,7 @@ export function ZaiPlatformAssistantView({
       }
       // Default intelligent operational answer
       else {
-        botResponse = `Compreendido! Como copiloto operacional do ZAI CRM, posso consultar métricas, auditar atendimentos da equipe digital ou alterar configurações autorizadas. Selecione uma das ações rápidas ou me informe o que deseja gerenciar.`;
+        botResponse = `Compreendido! Como copiloto operacional do ZAI CRM, posso consultar métricas, auditar atendimentos por loja/número WhatsApp ou alterar configurações autorizadas. Selecione uma das ações rápidas ou me informe o que deseja gerenciar.`;
       }
 
       setMessages((prev) => [
@@ -328,7 +328,7 @@ export function ZaiPlatformAssistantView({
             className="h-8 text-xs font-semibold gap-1.5 border-border/80"
           >
             <Users className="h-3.5 w-3.5 text-emerald-400" />
-            <span>Consultar Equipe</span>
+            <span>Consultar Atendentes</span>
           </Button>
 
           {onOpenNewAgentWizard && (

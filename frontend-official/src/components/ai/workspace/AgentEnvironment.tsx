@@ -28,7 +28,21 @@ export const AgentEnvironment: React.FC<AgentEnvironmentProps> = ({
   className,
 }) => {
   const { toast } = useToast();
-  const { appearance, workspace, department, name } = agent;
+  const appearance = agent?.appearance || {
+    clothingColor: agent?.character?.theme === "emerald" ? "#10b981" : "#0ea5e9",
+    avatarUrl: agent?.avatar,
+    style: "executive",
+    hairColor: "#332211",
+    skinTone: "#f5d0b0",
+    clothingStyle: "smart_casual",
+    accessories: [],
+  };
+  const workspace = agent?.workspace || {
+    primaryColor: appearance.clothingColor || "#10b981",
+    decorations: ["plant", "coffee"],
+  };
+  const department = agent?.department || agent?.sector || agent?.role || "Vendas";
+  const name = agent?.name || "Atendente";
   const primaryColor = appearance.clothingColor || workspace.primaryColor || "#10b981";
 
   const handleMonitorClick = (e: React.MouseEvent) => {

@@ -202,7 +202,7 @@ describe("Unified AI & Automação Page and Route Simplification", () => {
     expect(text).toContain("Central de Aprendizado");
   });
 
-  it("sidebar contains ONLY unified 'IA & Automação' and does NOT have separate Operações, Fluxos, or Evolução IA entries", async () => {
+  it("sidebar contains 'Atendentes', 'Lojas', and 'Assistente ZAI' and does NOT have separate Operações, Fluxos, or Evolução IA entries", async () => {
     await act(async () => {
       root!.render(
         <MemoryRouter initialEntries={["/dashboard"]}>
@@ -214,8 +214,10 @@ describe("Unified AI & Automação Page and Route Simplification", () => {
     });
 
     const text = document.body.textContent || "";
-    // MUST contain IA & Automação
-    expect(text).toContain("IA & Automação");
+    // MUST contain Atendentes, Lojas, and Assistente ZAI
+    expect(text).toContain("Atendentes");
+    expect(text).toContain("Lojas");
+    expect(text).toContain("Assistente ZAI");
 
     // MUST NOT contain the old separate navigation entries in CRM menu
     expect(text).not.toContain("Evolução IA");

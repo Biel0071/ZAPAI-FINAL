@@ -145,10 +145,10 @@ describe("Mobile App Interface & Mode Switcher", () => {
       });
 
       expect(document.body.textContent).toContain("Inbox");
-      expect(document.body.textContent).toContain("Contatos");
-      expect(document.body.textContent).toContain("Campanhas");
+      expect(document.body.textContent).toContain("Atendentes");
+      expect(document.body.textContent).toContain("Lojas");
+      expect(document.body.textContent).toContain("Conexões");
       expect(document.body.textContent).toContain("Painel");
-      expect(document.body.textContent).toContain("IA");
       expect(document.body.textContent).toContain("Mais");
     });
 

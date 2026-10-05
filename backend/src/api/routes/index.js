@@ -19,6 +19,7 @@ const nodeRouter = require('./nodeMaster');
 const clusterRouter = require('./cluster');
 const campaignDispatchRouter = require('./campaignDispatch');
 const productsRouter = require('./products');
+const storesRouter = require('./stores');
 
 // ── NEW: Frontend-compatibility routers ──────────────────────────────────────
 const logsRouter = require('./logs');
@@ -69,6 +70,8 @@ function registerRoutes(app, options = {}) {
   app.use('/api', sessionsRouter);
 
   app.use('/', leadsRouter);
+  app.use('/stores', storesRouter);
+  app.use('/api/stores', storesRouter);
   app.use('/', contactsRouter);
   app.use('/api', contactsRouter);         // ← contacts under /api prefix
   app.use('/', analyticsRouter);

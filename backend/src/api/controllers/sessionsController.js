@@ -445,9 +445,25 @@ async function checkNumber(req, res) {
       error: error.message || 'Erro ao verificar número no WhatsApp.'
     });
   }
+async function assignAttendant(req, res) {
+  if (!req.authTenantId) return res.status(401).json({ error: 'Autenticação da empresa obrigatória.' });
+  const sessionId = getTargetSessionId(req);
+  const agentKey = req.body?.agentKey !== undefined ? req.body.agentKey : req.body?.agentId;
+  try {
+    const aiAgentService = require('../../ai/agents/services/aiAgentService');
+    const result = await aiAgentService.assignAgentToSession({
+      companyId: req.authTenantId,
+      agentKey: agentKey ? String(agentKey).trim() : null,
+      sessionId,
+    });
+    return res.status(200).json(result);
+  } catch (error) {
+    return res.status(400).json({ error: error.message || 'Falha ao vincular atendente à conexão.' });
+  }
 }
 
 module.exports = {
+  assignAttendant,
   checkNumber,
   connectSystem,
   create,

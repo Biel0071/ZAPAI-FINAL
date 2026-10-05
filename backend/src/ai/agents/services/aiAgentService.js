@@ -58,6 +58,9 @@ function normalizeAgent(agent = {}) {
     },
     key,
     sessionIds: Array.isArray(agent.sessionIds) ? [...new Set(agent.sessionIds.map(String))] : [],
+    storeId: String(agent.storeId || agent.store_id || '').trim() || null,
+    inheritStoreProfile: agent.inheritStoreProfile !== false,
+    storeOverrides: typeof agent.storeOverrides === 'object' && agent.storeOverrides !== null ? agent.storeOverrides : {},
     segment: String(agent.segment || '').slice(0,200),
     serviceType: String(agent.serviceType || '').slice(0,200),
     name: String(agent.name || key).trim(),
@@ -410,19 +413,92 @@ async function validateSessions(companyId,sessionIds,client) {
     }
   }
 }
-async function sessionKnowledge(companyId,sessionId) {
-  const {query}=require('../../../infrastructure/config/database');
-  const store=(await query(`SELECT s.* FROM ai_stores s JOIN session_ai_profiles p
-    ON p.company_id=s.company_id AND p.store_id=s.id WHERE p.company_id=$1 AND p.session_id=$2`,[companyId,sessionId])).rows[0];
+async function getStoreKnowledge(companyId, storeId) {
+  if (!storeId) return '';
+  const { query } = require('../../../infrastructure/config/database');
+  const store = (await query('SELECT * FROM ai_stores WHERE company_id = $1 AND id = $2', [companyId, storeId])).rows[0];
   if (!store) return '';
   const parts = [`\n=== IDENTIDADE E CONHECIMENTO DA LOJA (${store.name}) ===`];
   if (store.phone) parts.push(`Telefone/WhatsApp Oficial da Loja: ${store.phone}`);
   if (store.website) parts.push(`Site Oficial: ${store.website}`);
   if (store.business_hours) parts.push(`Horário de Atendimento: ${store.business_hours}`);
-  if (store.policies) parts.push(`Políticas Oficiais (Trocas/Garantia/Frete): ${store.policies}`);
+  if (store.policies) parts.push(`Políticas Oficiais (Trocas/Garantia/Frete/Pagamento): ${store.policies}`);
   if (store.catalog_summary) parts.push(`Catálogo & Produtos Principais:\n${store.catalog_summary}`);
   if (store.knowledge) parts.push(`Instruções e Base de Conhecimento Específica:\n${store.knowledge}`);
   return '\n' + parts.join('\n');
+}
+
+async function sessionKnowledge(companyId, sessionId) {
+  const { query } = require('../../../infrastructure/config/database');
+  let store = (await query(`SELECT s.* FROM ai_stores s JOIN session_ai_profiles p
+    ON p.company_id=s.company_id AND p.store_id=s.id WHERE p.company_id=$1 AND p.session_id=$2`, [companyId, sessionId])).rows[0];
+
+  if (!store) {
+    const agents = getAgentsSync(companyId);
+    const assignedAgent = agents.find(a => a.sessionIds?.includes(sessionId) && a.storeId);
+    if (assignedAgent?.storeId) {
+      store = (await query('SELECT * FROM ai_stores WHERE company_id=$1 AND id=$2', [companyId, assignedAgent.storeId])).rows[0];
+    }
+  }
+
+  if (!store) {
+    const stores = (await query('SELECT * FROM ai_stores WHERE company_id=$1 ORDER BY created_at ASC LIMIT 1', [companyId])).rows;
+    if (stores.length > 0) {
+      store = stores[0];
+    }
+  }
+
+  if (!store) return '';
+  const parts = [`\n=== IDENTIDADE E CONHECIMENTO DA LOJA (${store.name}) ===`];
+  if (store.phone) parts.push(`Telefone/WhatsApp Oficial da Loja: ${store.phone}`);
+  if (store.website) parts.push(`Site Oficial: ${store.website}`);
+  if (store.business_hours) parts.push(`Horário de Atendimento: ${store.business_hours}`);
+  if (store.policies) parts.push(`Políticas Oficiais (Trocas/Garantia/Frete/Pagamento): ${store.policies}`);
+  if (store.catalog_summary) parts.push(`Catálogo & Produtos Principais:\n${store.catalog_summary}`);
+  if (store.knowledge) parts.push(`Instruções e Base de Conhecimento Específica:\n${store.knowledge}`);
+  return '\n' + parts.join('\n');
+}
+
+async function assignAgentToSession({ companyId, agentKey, sessionId }) {
+  const normalizedTenantId = normalizeTenantId(companyId);
+  await hydrateFromSettings(normalizedTenantId);
+  const cache = getTenantCache(normalizedTenantId);
+
+  // Regra Principal: 1 Número = 1 Atendente Principal
+  for (const a of cache) {
+    if (Array.isArray(a.sessionIds) && a.sessionIds.includes(sessionId) && a.key !== agentKey) {
+      a.sessionIds = a.sessionIds.filter(id => id !== sessionId);
+    }
+  }
+
+  let assignedAgent = null;
+  if (agentKey) {
+    assignedAgent = cache.find(a => a.key === agentKey);
+    if (assignedAgent) {
+      if (!Array.isArray(assignedAgent.sessionIds)) assignedAgent.sessionIds = [];
+      if (!assignedAgent.sessionIds.includes(sessionId)) {
+        assignedAgent.sessionIds.push(sessionId);
+      }
+    }
+  }
+
+  await persistAgents(normalizedTenantId);
+
+  if (sessionId) {
+    try {
+      const { query } = require('../../../infrastructure/config/database');
+      const storeId = assignedAgent?.storeId || null;
+      if (storeId) {
+        await query(`
+          INSERT INTO session_ai_profiles (company_id, session_id, store_id, segment, service_type, evolution_mode)
+          VALUES ($1, $2, $3, $4, $5, 'limited')
+          ON CONFLICT (company_id, session_id) DO UPDATE SET store_id = EXCLUDED.store_id
+        `, [normalizedTenantId, sessionId, storeId, assignedAgent.segment || '', assignedAgent.role || '']);
+      }
+    } catch (_) {}
+  }
+
+  return { success: true, assignedAgent, sessionId };
 }
 function validateStyle(value) {
   const result={};
@@ -502,7 +578,7 @@ async function evolveSessionStyles() {
 }
 
 const serviceExports = {
-  validateSessions, sessionKnowledge, validateStyle, withSessionStyle, restoreSessionStyle, evolveSessionStyles,
+  validateSessions, sessionKnowledge, getStoreKnowledge, assignAgentToSession, validateStyle, withSessionStyle, restoreSessionStyle, evolveSessionStyles,
   buildPersonalityPrompt,
   cloneAgent,
   createAgent,

@@ -17,7 +17,18 @@ export const AgentCharacter: React.FC<AgentCharacterProps> = ({
   className,
   onClick,
 }) => {
-  const { appearance, presenceState, name, key } = agent;
+  const appearance = agent?.appearance || {
+    gender: agent?.character?.gender || (agent?.key === "rafael" ? "male" : "female"),
+    skinTone: "#f5c6a5",
+    hairStyle: agent?.key === "rafael" ? "short_sidepart" : "ponytail",
+    hairColor: "#4a2c11",
+    clothingStyle: "uniforme_loja",
+    clothingColor: agent?.character?.theme === "emerald" ? "#10b981" : "#0ea5e9",
+    accessories: ["headset", "cracha"],
+  };
+  const presenceState = agent?.presenceState || (agent?.active !== false ? "ONLINE" : "OFFLINE");
+  const name = agent?.name || "Atendente";
+  const key = agent?.key || "agent";
   const {
     gender = "female",
     skinTone = "#f5c6a5",

@@ -318,10 +318,10 @@ export default function UnifiedAIPage({ defaultSection }: AIPageProps) {
   const tabsConfig = [
     {
       id: "agent" as UnifiedAITab,
-      label: "Equipe Digital",
-      shortLabel: "Equipe",
+      label: "Atendentes Digitais",
+      shortLabel: "Atendentes",
       icon: Users,
-      description: "Agente & Inteligência • Gestão da equipe digital e funcionários",
+      description: "Agente & Inteligência • Gestão de atendentes por loja e número WhatsApp",
     },
     {
       id: "flows" as UnifiedAITab,

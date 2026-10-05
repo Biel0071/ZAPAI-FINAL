@@ -1887,6 +1887,46 @@ export const apiService = {
     return request<{ success: boolean; agent: any }>({ endpoint: `/config/ai-agents/${encodeURIComponent(key)}/clone`, method: "POST" });
   },
 
+  async getStores() {
+    return request<{ success: boolean; stores: any[] }>({ endpoint: "/stores", method: "GET" });
+  },
+
+  async getStore(storeId: string) {
+    return request<{ success: boolean; store: any }>({ endpoint: `/stores/${encodeURIComponent(storeId)}`, method: "GET" });
+  },
+
+  async createStore(payload: any) {
+    return request<{ success: boolean; id: string; message?: string }>({ endpoint: "/stores", method: "POST", body: payload });
+  },
+
+  async updateStore(storeId: string, payload: any) {
+    return request<{ success: boolean; store: any }>({ endpoint: `/stores/${encodeURIComponent(storeId)}`, method: "PUT", body: payload });
+  },
+
+  async deleteStore(storeId: string) {
+    return request<{ success: boolean; message?: string }>({ endpoint: `/stores/${encodeURIComponent(storeId)}`, method: "DELETE" });
+  },
+
+  async getConnections(): Promise<any[]> {
+    try {
+      const res = await request<any>({ endpoint: "/connections", method: "GET" });
+      if (Array.isArray(res)) return res;
+      if (res && Array.isArray(res.sessions)) return res.sessions;
+      if (res && Array.isArray((res as any).connections)) return (res as any).connections;
+      return [];
+    } catch {
+      return [];
+    }
+  },
+
+  async assignAttendantToConnection(sessionId: string, agentKey: string | null) {
+    return request<{ success: boolean; assignedAgent?: any; sessionId: string }>({
+      endpoint: `/connections/${encodeURIComponent(sessionId)}/attendant`,
+      method: "POST",
+      body: { agentKey },
+    });
+  },
+
   async getAIEvolution() {
     return request<{ success: boolean; evolution: any[] }>({ endpoint: "/config/ai/evolution", method: "GET" });
   },

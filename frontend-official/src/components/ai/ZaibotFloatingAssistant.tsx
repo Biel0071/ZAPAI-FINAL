@@ -45,8 +45,8 @@ interface Message {
 const GENERAL_QUICK_ACTIONS = [
   { label: "Criar Campanha", query: "Crie uma campanha de recuperação de clientes." },
   { label: "Métricas do Sistema", query: "Como estão as métricas e taxas de conversão hoje?" },
-  { label: "Agentes Ativos", query: "Mostre meus funcionários digitais ativos." },
-  { label: "Criar Novo Agente", query: "Crie um novo agente para a empresa." },
+  { label: "Atendentes Ativos", query: "Mostre meus atendentes digitais ativos." },
+  { label: "Criar Novo Atendente", query: "Crie um novo atendente para a empresa." },
   { label: "Criar Automação", query: "Crie um follow-up para clientes que receberam orçamento." },
   { label: "Encontrar Clientes", query: "Mostre os clientes que não receberam resposta hoje." },
   { label: "Tarefas Pendentes", query: "Mostrar tarefas pendentes da operação." },
@@ -54,13 +54,32 @@ const GENERAL_QUICK_ACTIONS = [
 ];
 
 const ROUTE_CONTEXT_MAP: Record<string, { welcome: string; actions: Array<{ label: string; query: string }> }> = {
-  "/ai": {
-    welcome: "Olá! Você está na Central de IA & Equipe Digital. Como copiloto do sistema, posso criar novos funcionários digitais, calibrar a cadência de atendimento ou auditar logs operacionais.",
+  "/attendants": {
+    welcome: "Olá! Você está na Central de Atendentes Digitais ZAI. Como copiloto administrativo, posso ajudar você a criar novos atendentes, vincular números do WhatsApp, configurar personalidade e calibrar regras da loja.",
     actions: [
-      { label: "Criar Agente Vendas", query: "Crie um novo agente de vendas para a empresa." },
-      { label: "Criar Agente Suporte", query: "Crie um agente de suporte para a equipe." },
+      { label: "Novo Atendente", query: "Crie um novo atendente de vendas para a loja." },
+      { label: "Vincular Número", query: "Como vincular um número do WhatsApp a um atendente?" },
       { label: "Pausar Atendente", query: "Desejo pausar o atendimento automatizado da Camila." },
-      { label: "Agentes Ativos", query: "Mostre meus funcionários digitais ativos." },
+      { label: "Atendentes Ativos", query: "Mostre meus atendentes digitais ativos." },
+      { label: "Criar Automação", query: "Crie um follow-up para clientes que receberam orçamento." },
+      { label: "Auditoria Logs", query: "Mostrar histórico de logs da IA hoje." },
+    ],
+  },
+  "/stores": {
+    welcome: "Central de Gestão de Lojas. Aqui você define o perfil comercial oficial (produtos, catálogo, frete, preços, regras da loja) herdado pelos atendentes digitais.",
+    actions: [
+      { label: "Ver Atendentes", query: "Mostre os atendentes vinculados a cada loja." },
+      { label: "Conexões por Loja", query: "Quais números estão vinculados às lojas?" },
+      { label: "Criar Atendente", query: "Crie um atendente herdando o padrão desta loja." },
+    ],
+  },
+  "/ai": {
+    welcome: "Olá! Você está na Central de Inteligência ZAI. Como copiloto do sistema, posso criar novos atendentes, calibrar a cadência de atendimento ou auditar logs operacionais.",
+    actions: [
+      { label: "Criar Atendente Vendas", query: "Crie um novo atendente de vendas para a empresa." },
+      { label: "Criar Atendente Suporte", query: "Crie um atendente de suporte para a loja." },
+      { label: "Pausar Atendente", query: "Desejo pausar o atendimento automatizado da Camila." },
+      { label: "Atendentes Ativos", query: "Mostre meus atendentes digitais ativos." },
       { label: "Criar Automação", query: "Crie um follow-up para clientes que receberam orçamento." },
       { label: "Auditoria Logs", query: "Mostrar histórico de logs da IA hoje." },
     ],
@@ -81,14 +100,14 @@ const ROUTE_CONTEXT_MAP: Record<string, { welcome: string; actions: Array<{ labe
       { label: "Cadência 2 Horas", query: "Como configurar disparo de campanha distribuído em 2 horas com delay humanizado?" },
       { label: "Criar Campanha", query: "Crie uma campanha de recuperação de clientes." },
       { label: "Verificar Limites", query: "Quais são os limites recomendados de envio para evitar banimento?" },
-      { label: "Agentes Ativos", query: "Mostre meus funcionários digitais ativos." },
+      { label: "Atendentes Ativos", query: "Mostre meus atendentes digitais ativos." },
     ],
   },
   "/dashboard": {
-    welcome: "Painel Executivo ZAI. Posso resumir os principais indicadores de hoje, taxa de conversão e volume de conversas da sua equipe digital.",
+    welcome: "Painel Executivo ZAI. Posso resumir os principais indicadores de hoje, taxa de conversão e volume de conversas dos seus atendentes digitais.",
     actions: [
       { label: "Métricas do Sistema", query: "Como estão as métricas e taxas de conversão hoje?" },
-      { label: "Agentes Ativos", query: "Mostre meus funcionários digitais ativos." },
+      { label: "Atendentes Ativos", query: "Mostre meus atendentes digitais ativos." },
       { label: "Encontrar Clientes", query: "Mostre os clientes que não receberam resposta hoje." },
       { label: "Criar Campanha", query: "Crie uma campanha de recuperação de clientes." },
       { label: "Tarefas Pendentes", query: "Mostrar tarefas pendentes da operação." },
@@ -116,7 +135,7 @@ export function ZaibotFloatingAssistant() {
     {
       id: "welcome",
       sender: "zaibot",
-      text: matchedContext?.welcome || "Olá! Eu sou o ZAIBOT, o assistente operacional da plataforma ZAI CRM. Como posso ajudar você a monitorar sua equipe digital, configurar agentes ou analisar o atendimento hoje?",
+      text: matchedContext?.welcome || "Olá! Eu sou o ZAIBOT, o assistente operacional da plataforma ZAI CRM. Como posso ajudar você a monitorar seus atendentes digitais por loja e número, configurar regras ou analisar o atendimento hoje?",
       timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
     },
   ]);
@@ -224,12 +243,12 @@ export function ZaibotFloatingAssistant() {
       }
       // Suporte do Sistema & Ajuda Geral
       else if (lower.includes("ajuda") || lower.includes("como funciona") || lower.includes("como conectar") || lower.includes("suporte")) {
-        botResponse = `**Suporte & Guia Operacional do ZAI CRM:**\n\nSou seu copiloto operacional. Aqui estão as principais funções do sistema:\n\n1. **Conexões WhatsApp:** Na aba *Conexões*, escaneie o QR Code para parear o número oficial da sua loja.\n2. **Equipe Digital:** Na aba *IA & Automação*, crie atendentes para cada setor da empresa (Vendas, Suporte, Financeiro).\n3. **Campanhas Humanizadas:** Na aba *Campanhas*, configure disparos com cadência inteligente, aquecimento e pausas realistas.\n4. **Inbox Operacional:** No *Inbox*, acompanhe conversas em tempo real, veja o status da IA e acione respostas rápidas.`;
+        botResponse = `**Suporte & Guia Operacional do ZAI CRM:**\n\nSou seu copiloto operacional. Aqui estão as principais funções do sistema:\n\n1. **Lojas & Catálogo:** Na aba *Lojas*, defina as regras oficiais, catálogo, fretes e horários que seus atendentes herdarem.\n2. **Conexões WhatsApp:** Na aba *Conexões*, escaneie o QR Code para parear o número oficial da sua loja e vincule o atendente principal.\n3. **Atendentes Digitais:** Na aba *Atendentes*, gerencie a personalidade, avatar 2.5D e testes em tempo real de cada atendente.\n4. **Campanhas Humanizadas:** Na aba *Campanhas*, configure disparos com cadência inteligente, aquecimento e pausas realistas.\n5. **Inbox Operacional:** No *Inbox*, acompanhe conversas em tempo real, veja o status da IA e acione respostas rápidas.`;
         setMascotMood("idle");
       }
       // Horário de funcionamento do agente
       else if (lower.includes("horário") || lower.includes("horario")) {
-        botResponse = `**Horários de Atendimento da Equipe:**\n\n• **Camila (Vendas):** Segunda a Sexta das 07:00 às 18:00, Sábados das 08:00 às 12:00\n• **Demais agentes:** Conforme turnos configurados no perfil de cada funcionário.\n\nPara alterar turnos, acesse o perfil do agente na aba da Equipe Digital.`;
+        botResponse = `**Horários de Atendimento:**\n\n• **Camila (Vendas):** Segunda a Sexta das 07:00 às 18:00, Sábados das 08:00 às 12:00\n• **Demais atendentes:** Conforme turnos configurados no perfil de cada atendente.\n\nPara alterar turnos, acesse o atendente na tela de Atendentes.`;
         setMascotMood("idle");
       }
       // Status dos agentes / Agentes ativos / Offline
@@ -239,13 +258,13 @@ export function ZaibotFloatingAssistant() {
 
         if (lower.includes("offline") || lower.includes("pausado")) {
           if (pausedList.length === 0) {
-            botResponse = `Nenhum agente está offline no momento. Todos os **${activeList.length} agentes da sua equipe digital** estão ativos!`;
+            botResponse = `Nenhum atendente está offline no momento. Todos os **${activeList.length} atendentes digitais** estão ativos!`;
           } else {
-            botResponse = `Existem **${pausedList.length} agentes pausados** no momento:\n` +
+            botResponse = `Existem **${pausedList.length} atendentes pausados** no momento:\n` +
               pausedList.map((a: any) => `• **${a.name}** (${a.role || a.sector || "Vendas"}) - Pausado`).join("\n");
           }
         } else {
-          botResponse = `Sua Equipe Digital possui **${employees.length} agentes cadastrados**, sendo **${activeList.length} ativos** agora:\n\n` +
+          botResponse = `Você possui **${employees.length} atendentes cadastrados**, sendo **${activeList.length} ativos** agora:\n\n` +
             activeList.map((a: any) => `✅ **${a.name}** — ${a.role || a.sector || "Vendas"} (Canais: ${(a.channels || ["whatsapp"]).join(", ")})`).join("\n");
         }
         setMascotMood("celebrating");
@@ -254,11 +273,11 @@ export function ZaibotFloatingAssistant() {
       else if (lower.includes("desempenho") || lower.includes("camila") || lower.includes("joão") || lower.includes("joao") || lower.includes("marina") || lower.includes("carlos")) {
         if (lower.includes("equipe") || lower.includes("agentes") || lower.includes("geral") || (!lower.includes("camila") && !lower.includes("joão") && !lower.includes("joao") && !lower.includes("marina") && !lower.includes("carlos"))) {
           const totalChats = employees.reduce((acc: number, a: any) => acc + (a.stats?.chatsToday || (a.key === "camila" ? 127 : 35)), 0);
-          botResponse = `**Desempenho da Equipe Digital (Hoje):**\n\n` +
+          botResponse = `**Desempenho dos Atendentes Digitais (Hoje):**\n\n` +
             `• **${totalChats} atendimentos totais** realizados hoje\n` +
             `• **96% de conformidade com SLA** (tempo médio de 18s)\n` +
             `• **98% de satisfação CSAT média**\n\n` +
-            `Membros da equipe:\n` +
+            `Atendentes ativos:\n` +
             employees.map((a: any) => `• **${a.name}** (${a.role || "Vendas"}): ${a.stats?.chatsToday ?? (a.key === "camila" ? 127 : 35)} atendimentos • SLA ${a.stats?.slaPercent ?? 95}%`).join("\n");
         } else {
           const found = employees.find((a: any) =>
@@ -293,7 +312,7 @@ export function ZaibotFloatingAssistant() {
         setMascotMood("idle");
       } else {
         // General intelligent assistant answer
-        botResponse = `Compreendido! Estou à disposição para operar o CRM ZAI, analisar o desempenho dos seus funcionários digitais ou gerenciar automações da equipe.`;
+        botResponse = `Compreendido! Estou à disposição para operar o CRM ZAI, analisar o desempenho dos seus atendentes digitais ou gerenciar automações por loja e conexão.`;
         setMascotMood("idle");
       }
 
