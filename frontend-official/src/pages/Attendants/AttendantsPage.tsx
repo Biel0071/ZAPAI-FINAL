@@ -39,6 +39,7 @@ import { notify } from "@/core/services/notifyService";
 import { cn } from "@/core/lib/utils";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { AgentEnvironment } from "@/components/ai/workspace/AgentEnvironment";
+import { AgentCharacter } from "@/components/ai/workspace/AgentCharacter";
 import { AgentCustomizerModal } from "@/components/ai/AgentCustomizerModal";
 import { AgentProfileModal } from "@/components/ai/AgentProfileModal";
 import { NewAgentWizardModal } from "@/components/ai/NewAgentWizardModal";
@@ -117,6 +118,10 @@ export default function AttendantsPage() {
 
   const handleToggleActive = async (agent: any) => {
     const nextState = agent.active === false;
+    setAgents((prev) => prev.map((a) => (a.key === agent.key ? { ...a, active: nextState } : a)));
+    if (previewAgent?.key === agent.key) {
+      setPreviewAgent((prev: any) => ({ ...prev, active: nextState }));
+    }
     try {
       await apiService.toggleAIAgent(agent.key, nextState);
       notify.success(nextState ? `${agent.name} ativado(a)` : `${agent.name} pausado(a)`);
@@ -560,21 +565,23 @@ export default function AttendantsPage() {
 
                 <CardContent className="p-3.5 space-y-4">
                   {/* Living 2.5D Character Workstation */}
-                  <div className="h-72 w-full rounded-2xl overflow-hidden border border-border/50 shadow-inner">
+                  <div className={cn(
+                    "w-full rounded-2xl overflow-hidden border border-border/50 shadow-inner transition-all duration-500",
+                    previewAgent.active !== false ? "h-72 sm:h-80" : "h-[420px] sm:h-[480px]"
+                  )}>
                     <AgentEnvironment
-                      characterGender={previewAgent.character?.gender || "female"}
-                      characterOutfit={previewAgent.character?.outfit || "business"}
-                      clothingColor={previewAgent.character?.clothingColor || "#10b981"}
-                      hairColor={previewAgent.character?.hairColor || "#3d2314"}
-                      skinTone={previewAgent.character?.skinTone || "#fcd3b0"}
-                      accessories={previewAgent.character?.accessories || ["headset", "badge"]}
-                      presenceState={previewAgent.active !== false ? (isTestingAgent ? "WORKING" : "IDLE") : "OFFLINE"}
-                      currentActivity={isTestingAgent ? "Respondendo cliente no WhatsApp" : "Aguardando novas mensagens"}
-                      agentName={previewAgent.name}
-                      agentRole={previewAgent.role}
-                      themeColor="#10b981"
-                      hideControlOverlay={true}
-                    />
+                      agent={previewAgent}
+                      isWorking={previewAgent.active !== false}
+                    >
+                      <AgentCharacter
+                        agent={{
+                          ...previewAgent,
+                          presenceState: previewAgent.active !== false ? (isTestingAgent ? "WORKING" : "IDLE") : "OFFLINE",
+                        }}
+                        pose={previewAgent.active !== false ? "seated" : "standing"}
+                        isTyping={isTestingAgent}
+                      />
+                    </AgentEnvironment>
                   </div>
 
                   {/* Inheritance Info Banner */}

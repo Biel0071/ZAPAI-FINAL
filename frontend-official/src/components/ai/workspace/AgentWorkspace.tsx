@@ -84,7 +84,7 @@ export const AgentWorkspace: React.FC<AgentWorkspaceProps> = ({
     switch (effectiveState) {
       case "WORKING":
       case "RESPONDING":
-        return "/assets/mascot/mascot_laptop_working.png";
+        return "/assets/characters/zaibot/working.jpg";
       case "THINKING":
       case "LEARNING":
         return "/assets/mascot/mascot_mobile.png";
@@ -95,7 +95,7 @@ export const AgentWorkspace: React.FC<AgentWorkspaceProps> = ({
       case "AWAY":
       case "ERROR":
       default:
-        return "/assets/mascot/mascot_standing_thumbsup.png";
+        return "/assets/characters/zaibot/standing.jpg";
     }
   };
 
@@ -225,11 +225,11 @@ export const AgentWorkspace: React.FC<AgentWorkspaceProps> = ({
               src={getZaibotImage()}
               alt="ZAIBOT Mascote 3D"
               className={cn(
-                "h-full max-h-[360px] object-contain drop-shadow-[0_16px_35px_rgba(0,0,0,0.85)] transition-all duration-300 group-hover:scale-105",
+                "h-full max-h-[380px] rounded-2xl border border-emerald-500/30 object-cover shadow-[0_16px_45px_rgba(0,240,144,0.30)] transition-all duration-300 group-hover:scale-[1.02]",
                 effectiveState === "OFFLINE"
-                  ? "brightness-[0.6] saturate-[0.3]"
+                  ? "brightness-[0.6] saturate-[0.3] border-slate-700/50"
                   : effectiveState === "IDLE"
-                  ? "animate-pulse [animation-duration:3s]"
+                  ? "animate-pulse [animation-duration:4s]"
                   : "filter-none brightness-105"
               )}
             />

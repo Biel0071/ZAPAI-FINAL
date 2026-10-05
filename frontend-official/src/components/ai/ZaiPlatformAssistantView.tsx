@@ -297,24 +297,29 @@ export function ZaiPlatformAssistantView({
     <div className="space-y-5">
       {/* HEADER DO ASSISTENTE ZAI */}
       <div className="p-5 rounded-2xl border border-border/80 bg-card/60 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div className="flex items-center gap-3.5">
-          <div className="relative">
+        <div className="flex items-center gap-4">
+          <div className="relative group cursor-pointer">
             <img
-              src="/assets/mascot/zaibot_avatar.png"
-              alt="ZAIBOT"
-              className="h-14 w-14 rounded-2xl object-cover border border-emerald-500/40 bg-black/40 shadow-sm"
+              src="/assets/characters/zaibot/working.jpg"
+              alt="ZAIBOT 3D Robot"
+              className="h-20 w-20 sm:h-24 sm:w-24 rounded-2xl object-cover border-2 border-emerald-500/50 bg-black/60 shadow-[0_0_25px_rgba(0,240,144,0.35)] transition-all duration-300 group-hover:scale-105"
             />
-            <span className="absolute -top-1 -right-1 h-3.5 w-3.5 rounded-full bg-emerald-400 ring-2 ring-background" />
+            <span className="absolute -top-1 -right-1 flex h-4 w-4">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+              <span className="relative inline-flex rounded-full h-4 w-4 bg-emerald-500 ring-2 ring-background" />
+            </span>
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <h2 className="text-lg font-bold tracking-tight text-foreground">ZAIBOT</h2>
-              <Badge className="bg-emerald-500/15 text-emerald-400 border-emerald-500/30 text-[10px] font-bold">
-                ASSISTENTE DO SISTEMA ZAI
-              </Badge>
+              <h2 className="text-xl font-bold tracking-tight text-foreground font-display flex items-center gap-2">
+                <span>ZAIBOT</span>
+                <span className="text-xs px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 font-mono font-bold">
+                  COPILOTO OPERACIONAL 3D
+                </span>
+              </h2>
             </div>
-            <p className="text-xs text-muted-foreground mt-0.5">
-              Copiloto operacional do administrador para métricas, diagnósticos, configuração de agentes e automações.
+            <p className="text-xs sm:text-sm text-muted-foreground mt-1 max-w-xl">
+              Inteligência operacional em tempo real: audite conversas, configure atendentes por loja, monitore SLA e gerencie automações comerciais.
             </p>
           </div>
         </div>
