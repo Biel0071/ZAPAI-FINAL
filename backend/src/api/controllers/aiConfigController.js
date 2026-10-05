@@ -136,7 +136,7 @@ async function createAIAgent(req, res) {
     const companyId = getCompanyId(req);
     if (!payload.sessionIds || !Array.isArray(payload.sessionIds) || payload.sessionIds.length === 0) {
       try {
-        const { pool } = require('../../../infrastructure/config/database');
+        const { pool } = require('../../infrastructure/config/database');
         const rows = (await pool.query('SELECT session_id FROM sessions WHERE company_id=$1', [companyId])).rows;
         if (rows.length > 0) {
           payload.sessionIds = rows.map(r => r.session_id);

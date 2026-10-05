@@ -43,6 +43,7 @@ import { useSearchParams } from "react-router-dom";
 import { apiService, requestApiEndpoint, type AIConnectionTestResult } from "@/core/services/apiService";
 import { useToast } from "@/state/hooks/use-toast";
 import { AICharacterViewer, type AgentRuntimeState } from "@/components/evolution/AICharacterViewer";
+import { AgentWorkspace } from "@/components/ai/workspace/AgentWorkspace";
 import { DigitalTeamView } from "@/components/ai/DigitalTeamView";
 import { AgentProfileModal } from "@/components/ai/AgentProfileModal";
 import { NewAgentWizardModal } from "@/components/ai/NewAgentWizardModal";
@@ -245,8 +246,9 @@ export function AgentTab({
   const refreshAgents = async () => {
     try {
       const res = await apiService.getAIAgents();
-      if (res?.agents) {
-        setAgentsList(res.agents);
+      const list = (res as any)?.agents || (res as any)?.data?.agents || (Array.isArray(res) ? res : []);
+      if (Array.isArray(list) && list.length > 0) {
+        setAgentsList(list);
       }
     } catch (_) {}
   };
@@ -304,11 +306,14 @@ export function AgentTab({
 
         if (!mounted) return;
 
-        if (agentsRes?.agents && agentsRes.agents.length > 0) {
-          setAgentsList(agentsRes.agents);
-          const match = agentsRes.agents.find(
+        const loadedAgents =
+          (agentsRes as any)?.agents || (agentsRes as any)?.data?.agents || (Array.isArray(agentsRes) ? agentsRes : []);
+
+        if (Array.isArray(loadedAgents) && loadedAgents.length > 0) {
+          setAgentsList(loadedAgents);
+          const match = loadedAgents.find(
             (a: any) => (a.key || a.id) === selectedAgentKey
-          ) || agentsRes.agents[0];
+          ) || loadedAgents[0];
 
           if (match) {
             setAgentName(match.name || "Assistente ZAI");
@@ -529,12 +534,60 @@ Tom: ${agentTone}. Estilo: ${responseStyle}.`;
     }
   };
 
+  // Compute active agent object for the Living Workspace
+  const activeWorkspaceAgent = React.useMemo(() => {
+    if (selectedAgentKey === "zaibot" || characterMode === "zaibot") {
+      return {
+        key: "zaibot",
+        name: "ZAIBOT",
+        role: "Assistente Operacional ZAI",
+        isPlatformAssistant: true,
+        active: aiEnabled ?? true,
+      };
+    }
+    const found = agentsList.find((a) => (a.key || a.id) === selectedAgentKey);
+    if (found) {
+      return {
+        ...found,
+        active: aiEnabled ?? true,
+        name: agentName || found.name,
+        role: agentRole || found.role,
+        prompt: prompt || found.prompt,
+        tone: agentTone || found.tone,
+        objective: selectedObjective || found.objective,
+      };
+    }
+    return {
+      key: "camila",
+      name: agentName || "Camila",
+      role: agentRole || "Especialista em Vendas",
+      active: aiEnabled ?? true,
+      prompt,
+      tone: agentTone,
+      objective: selectedObjective,
+    };
+  }, [selectedAgentKey, characterMode, agentsList, aiEnabled, agentName, agentRole, prompt, agentTone, selectedObjective]);
+
   return (
     <div className="space-y-6">
       {/* SEUS AGENTES / EQUIPE DIGITAL */}
       <DigitalTeamView
         agents={agentsList}
+        selectedAgentKey={selectedAgentKey}
         onSelectAgent={(ag) => {
+          const key = ag.key || ag.id || "camila";
+          onSelectAgent?.(key);
+          setAgentName(ag.name || "Agente");
+          setAgentRole(ag.role || ag.sector || "Atendimento");
+          if (ag.prompt || ag.personality) setPrompt(ag.personality || ag.prompt);
+          if (ag.tone) setAgentTone(ag.tone);
+          if (ag.objective) setSelectedObjective(ag.objective);
+          toast({
+            title: `Agente Conectado: ${ag.name}`,
+            description: `Área de trabalho agora visualizando ${ag.name} (${ag.role || "Atendimento"}).`,
+          });
+        }}
+        onOpenProfile={(ag) => {
           setProfileModalAgent(ag);
           setIsProfileModalOpen(true);
         }}
@@ -551,7 +604,7 @@ Tom: ${agentTone}. Estilo: ${responseStyle}.`;
       {/* CHARACTER WORKSPACE & LIVING SCENARIO */}
       <div className="flex items-center justify-between p-3.5 rounded-xl border border-border/70 bg-card/40">
         <div>
-          <span className="text-xs font-bold text-foreground">Estúdio Visual do Agente • Cenário em Tempo Real</span>
+          <span className="text-xs font-bold text-foreground">Estúdio Visual do Agente • Funcionário Digital Vivo</span>
           <p className="text-[11px] text-muted-foreground mt-0.5">
             Acompanhe o expediente do atendente no escritório virtual (no computador trabalhando ou em pé esperando).
           </p>
@@ -570,19 +623,18 @@ Tom: ${agentTone}. Estilo: ${responseStyle}.`;
 
       {showCharacterViewer && (
         <Card className="bg-card border-border/80 shadow-sm overflow-hidden animate-in fade-in duration-200">
-          <AICharacterViewer
-            agentName={agentName}
-            agentRole={agentRole}
-            storeName="Loja Virtual ZAPFLOW"
+          <AgentWorkspace
+            agent={activeWorkspaceAgent}
             isOnline={aiEnabled ?? true}
             onToggleOnline={onToggleAI}
-            runtimeState={runtimeState}
-            onRuntimeStateChange={setRuntimeState}
+            runtimeState={runtimeState as any}
+            onRuntimeStateChange={(st) => setRuntimeState(st as AgentRuntimeState)}
             agentMode={characterMode}
             onToggleMode={(mode) => {
               setCharacterMode(mode);
               onSelectAgent?.(mode);
             }}
+            onOpenCustomizer={() => onOpenCustomizer?.()}
           />
         </Card>
       )}

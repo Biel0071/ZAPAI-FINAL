@@ -132,17 +132,21 @@ export function getEmployeeAvatar(agent: any): string {
 
 interface DigitalTeamViewProps {
   agents: any[];
+  selectedAgentKey?: string;
   onSelectAgent: (agent: any) => void;
   onOpenNewAgentWizard: (defaultRole?: string) => void;
   onOpenCustomizer?: (agent: any) => void;
+  onOpenProfile?: (agent: any) => void;
   onRefresh?: () => void;
 }
 
 export function DigitalTeamView({
   agents,
+  selectedAgentKey,
   onSelectAgent,
   onOpenNewAgentWizard,
   onOpenCustomizer,
+  onOpenProfile,
   onRefresh,
 }: DigitalTeamViewProps) {
   const { toast } = useToast();
@@ -329,6 +333,9 @@ export function DigitalTeamView({
             const sla = agent.stats?.slaPercent ?? (agent.key === "camila" ? 94 : 98);
             const latestAct = agent.recentActivity?.[0]?.action || "Atendimento comercial ativo";
             const agentKey = agent.key || agent.id || `agent-${index}`;
+            const isSelected = selectedAgentKey
+              ? agent.key === selectedAgentKey || agent.id === selectedAgentKey
+              : agent.key === "camila" || index === 0;
 
             const statusInfo = getAgentStatusBadge(agent);
 
@@ -343,7 +350,9 @@ export function DigitalTeamView({
                 }}
                 className={cn(
                   "p-4 rounded-xl border text-left cursor-pointer transition-all flex flex-col justify-between gap-3.5 relative group",
-                  "bg-card/70 border-border/80 hover:border-emerald-500/50 hover:shadow-sm"
+                  isSelected
+                    ? "bg-emerald-500/10 border-emerald-500/80 shadow-[0_0_15px_rgba(16,185,129,0.15)] ring-1 ring-emerald-500/40"
+                    : "bg-card/70 border-border/80 hover:border-emerald-500/50 hover:shadow-sm"
                 )}
               >
                 {/* TOP INFO */}
@@ -367,6 +376,11 @@ export function DigitalTeamView({
                         >
                           {statusInfo.label}
                         </Badge>
+                        {isSelected && (
+                          <span className="text-[9px] font-bold text-emerald-300 bg-emerald-500/20 px-1.5 py-0.5 rounded-full border border-emerald-500/30">
+                            Ativo
+                          </span>
+                        )}
                       </div>
                       <p className="text-xs font-semibold text-muted-foreground mt-0.5">
                         {agent.role || agent.sector || "Vendas"}
@@ -375,6 +389,19 @@ export function DigitalTeamView({
                   </div>
 
                   <div className="flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
+                    {onOpenProfile && (
+                      <button
+                        type="button"
+                        title="Ver Perfil Operacional & Métricas"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onOpenProfile(agent);
+                        }}
+                        className="h-7 w-7 rounded-lg border border-border/70 hover:border-emerald-500/50 hover:bg-emerald-500/10 text-muted-foreground hover:text-emerald-400 flex items-center justify-center transition-colors shrink-0"
+                      >
+                        <Sliders className="h-3 w-3" />
+                      </button>
+                    )}
                     <button
                       type="button"
                       title="Duplicar / Criar Variação deste Agente"

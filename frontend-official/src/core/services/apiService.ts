@@ -777,13 +777,15 @@ async function executeRequest<T>({ endpoint, method, body, timeoutMs = REQUEST_T
 
       slog.apiRequest(endpoint, response.status);
 
-      // Auto-unwrap backend envelope: { success: true, data: [...] } or { ok: true, data: [...] }
+      // Auto-unwrap backend envelope: { success: true, data: [...] } or { ok: true, data: [...] } or { status: "success", data: [...] }
       if (
         parsed &&
         typeof parsed === "object" &&
         !Array.isArray(parsed) &&
         "data" in (parsed as Record<string, unknown>) &&
-        ("success" in (parsed as Record<string, unknown>) || "ok" in (parsed as Record<string, unknown>))
+        ("success" in (parsed as Record<string, unknown>) ||
+         "ok" in (parsed as Record<string, unknown>) ||
+         (parsed as Record<string, unknown>).status === "success")
       ) {
         return (parsed as Record<string, unknown>).data as T;
       }
@@ -2260,6 +2262,9 @@ export const apiService = {
   },
   async getUserProviders() {
     return request<{ success: boolean; providers: any[] }>({ endpoint: "/config/user-providers", method: "GET" });
+  },
+  async getAIProviders() {
+    return this.getUserProviders();
   },
   async saveUserProvider(payload: { provider: string; api_key: string; model?: string; enabled?: boolean; settings?: Record<string, unknown> }) {
     return request<{ success: boolean; provider: any }>({ endpoint: "/config/user-providers", method: "POST", body: payload });

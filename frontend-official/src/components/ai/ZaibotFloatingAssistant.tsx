@@ -20,7 +20,7 @@ import {
   Minimize2,
   Trash2
 } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -42,7 +42,7 @@ interface Message {
   confirmed?: boolean;
 }
 
-const QUICK_ACTIONS = [
+const GENERAL_QUICK_ACTIONS = [
   { label: "Criar Campanha", query: "Crie uma campanha de recuperação de clientes." },
   { label: "Métricas do Sistema", query: "Como estão as métricas e taxas de conversão hoje?" },
   { label: "Agentes Ativos", query: "Mostre meus funcionários digitais ativos." },
@@ -53,20 +53,70 @@ const QUICK_ACTIONS = [
   { label: "Ajuda & Suporte", query: "Como funciona a plataforma ZAI e como conectar?" },
 ];
 
+const ROUTE_CONTEXT_MAP: Record<string, { welcome: string; actions: Array<{ label: string; query: string }> }> = {
+  "/ai": {
+    welcome: "Olá! Você está na Central de IA & Equipe Digital. Como copiloto do sistema, posso criar novos funcionários digitais, calibrar a cadência de atendimento ou auditar logs operacionais.",
+    actions: [
+      { label: "Criar Agente Vendas", query: "Crie um novo agente de vendas para a empresa." },
+      { label: "Criar Agente Suporte", query: "Crie um agente de suporte para a equipe." },
+      { label: "Pausar Atendente", query: "Desejo pausar o atendimento automatizado da Camila." },
+      { label: "Agentes Ativos", query: "Mostre meus funcionários digitais ativos." },
+      { label: "Criar Automação", query: "Crie um follow-up para clientes que receberam orçamento." },
+      { label: "Auditoria Logs", query: "Mostrar histórico de logs da IA hoje." },
+    ],
+  },
+  "/inbox": {
+    welcome: "Monitorando seu Inbox ZAI em tempo real. Posso auditar conversas que aguardam retorno, verificar SLA de atendimento ou acionar um agente para conversas específicas.",
+    actions: [
+      { label: "Leads Sem Resposta", query: "Mostre os clientes que não receberam resposta hoje." },
+      { label: "Status Atendimentos", query: "Como está o tempo médio de resposta no inbox hoje?" },
+      { label: "Desempenho da Camila", query: "Como está o desempenho da Camila hoje?" },
+      { label: "Métricas do Sistema", query: "Como estão as métricas e taxas de conversão hoje?" },
+      { label: "Criar Campanha", query: "Crie uma campanha de recuperação de clientes." },
+    ],
+  },
+  "/campaigns": {
+    welcome: "Central de Campanhas do ZAI. Posso planejar disparos humanizados, calcular janelas de envio anti-bloqueio ou reativar contatos inativos.",
+    actions: [
+      { label: "Cadência 2 Horas", query: "Como configurar disparo de campanha distribuído em 2 horas com delay humanizado?" },
+      { label: "Criar Campanha", query: "Crie uma campanha de recuperação de clientes." },
+      { label: "Verificar Limites", query: "Quais são os limites recomendados de envio para evitar banimento?" },
+      { label: "Agentes Ativos", query: "Mostre meus funcionários digitais ativos." },
+    ],
+  },
+  "/dashboard": {
+    welcome: "Painel Executivo ZAI. Posso resumir os principais indicadores de hoje, taxa de conversão e volume de conversas da sua equipe digital.",
+    actions: [
+      { label: "Métricas do Sistema", query: "Como estão as métricas e taxas de conversão hoje?" },
+      { label: "Agentes Ativos", query: "Mostre meus funcionários digitais ativos." },
+      { label: "Encontrar Clientes", query: "Mostre os clientes que não receberam resposta hoje." },
+      { label: "Criar Campanha", query: "Crie uma campanha de recuperação de clientes." },
+      { label: "Tarefas Pendentes", query: "Mostrar tarefas pendentes da operação." },
+    ],
+  },
+};
+
 export function ZaibotFloatingAssistant() {
   const { toast } = useToast();
   const navigate = useNavigate();
+  const location = useLocation();
   const [isOpen, setIsOpen] = useState(false);
   const [input, setInput] = useState("");
   const [isProcessing, setIsProcessing] = useState(false);
   const [mascotMood, setMascotMood] = useState<"idle" | "working" | "celebrating" | "mobile">("idle");
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
 
+  const matchedContext = ROUTE_CONTEXT_MAP[location.pathname] || (
+    location.pathname.startsWith("/ai") ? ROUTE_CONTEXT_MAP["/ai"] : null
+  );
+
+  const activeActions = matchedContext?.actions || GENERAL_QUICK_ACTIONS;
+
   const [messages, setMessages] = useState<Message[]>([
     {
       id: "welcome",
       sender: "zaibot",
-      text: "Olá! Eu sou o ZAIBOT, o assistente operacional da plataforma ZAI CRM. Como posso ajudar você a monitorar sua equipe digital, configurar agentes ou analisar o atendimento hoje?",
+      text: matchedContext?.welcome || "Olá! Eu sou o ZAIBOT, o assistente operacional da plataforma ZAI CRM. Como posso ajudar você a monitorar sua equipe digital, configurar agentes ou analisar o atendimento hoje?",
       timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
     },
   ]);
@@ -432,7 +482,7 @@ export function ZaibotFloatingAssistant() {
 
           {/* QUICK PROMPT CHIPS */}
           <div className="px-3 py-2 border-b border-border/40 bg-[#090f18]/60 overflow-x-auto scrollbar-none flex items-center gap-1.5 shrink-0">
-            {QUICK_ACTIONS.map((action) => (
+            {activeActions.map((action) => (
               <button
                 key={action.label}
                 type="button"

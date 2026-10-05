@@ -19,19 +19,18 @@ async function getRealAuthToken() {
   return data.token;
 }
 
-async function injectAuth(page, token, viewMode = 'desktop') {
-  await page.goto(`${BASE_URL}/login`, { waitUntil: 'domcontentloaded' });
-  await page.evaluate(({ token, viewMode }) => {
-    const session = {
-      token,
-      username: 'zapadmin',
-      role: 'master',
-      tenantId: 'default',
-      companyId: 'default',
-      issuedAt: Date.now(),
-      expiresAt: Date.now() + 86400000,
-      remember: true,
-    };
+async function setupContextAuth(context, token, viewMode = 'desktop') {
+  const session = {
+    token,
+    username: 'zapadmin',
+    role: 'master',
+    tenantId: 'default',
+    companyId: 'default',
+    issuedAt: Date.now(),
+    expiresAt: Date.now() + 86400000,
+    remember: true,
+  };
+  await context.addInitScript(({ session, token, viewMode }) => {
     localStorage.setItem('auth-storage', JSON.stringify({
       state: { token, user: { id: 1, role: 'master_admin', username: 'zapadmin' }, isAuthenticated: true, companyId: 'default' },
       version: 0,
@@ -42,7 +41,7 @@ async function injectAuth(page, token, viewMode = 'desktop') {
     localStorage.setItem('company_id', 'default');
     localStorage.setItem('tenant_id', 'default');
     localStorage.setItem('zapflow_view_mode', viewMode);
-  }, { token, viewMode });
+  }, { session, token, viewMode });
 }
 
 async function main() {
@@ -61,32 +60,32 @@ async function main() {
     colorScheme: 'dark',
     ignoreHTTPSErrors: true,
   });
+  await setupContextAuth(desktopContext, token, 'desktop');
+
   const desktopPage = await desktopContext.newPage();
   desktopPage.setDefaultTimeout(30000);
   desktopPage.setDefaultNavigationTimeout(45000);
 
-  await injectAuth(desktopPage, token, 'desktop');
-
   console.log('📸 1. Navigating to AI & Automação page (/ai?tab=agent)...');
   await desktopPage.goto(`${BASE_URL}/ai?tab=agent`, { waitUntil: 'domcontentloaded' });
-  await desktopPage.waitForTimeout(4000);
+  await desktopPage.waitForTimeout(5000);
 
-  // Ensure working state first
-  console.log('📸 Ensuring WORKING state (Camila no PC trabalhando)...');
-  const workingBtn = desktopPage.locator('article button:has-text("working")').first();
+  // Ensure Camila is selected and working
+  console.log('📸 Ensuring Camila WORKING state (no computador trabalhando)...');
+  const workingBtn = desktopPage.locator('article button:has-text("WORKING")').first();
   if (await workingBtn.isVisible()) {
     await workingBtn.click();
     await desktopPage.waitForTimeout(1500);
   }
 
-  // Take screenshot 1: Living workspace working (Camila at PC, single scene, no duplicates, working state)
+  // Screenshot 1: Camila Living Workspace WORKING
   const ss1Path = path.join(ARTIFACTS_DIR, 'screenshot_ai_living_workspace_working.png');
   await desktopPage.screenshot({ path: ss1Path, fullPage: false });
   console.log(`✅ Saved: ${ss1Path}`);
 
-  // Take screenshot 2: Click OFFLINE toggle button in the Character Viewer
-  console.log('📸 2. Switching to OFFLINE / IDLE state (em pé esperando sem fazer nada)...');
-  const offlineBtn = desktopPage.locator('article button:has-text("offline"), article button[aria-label="Pausar agente"]').first();
+  // Screenshot 2: Click OFFLINE toggle button in the Character Workspace
+  console.log('📸 2. Switching Camila to OFFLINE state (em pé esperando sem fazer nada)...');
+  const offlineBtn = desktopPage.locator('article button:has-text("OFFLINE")').first();
   if (await offlineBtn.isVisible()) {
     await offlineBtn.click();
     await desktopPage.waitForTimeout(2000);
@@ -95,8 +94,42 @@ async function main() {
   await desktopPage.screenshot({ path: ss2Path, fullPage: false });
   console.log(`✅ Saved: ${ss2Path}`);
 
-  // Take screenshot 3: Switch to ZAIBOT (Mascote 3D)
-  console.log('📸 3. Switching to ZAIBOT Mascote 3D mode in character viewer...');
+  // Screenshot 3: Click Rafael in DigitalTeamView
+  console.log('📸 3. Selecting Rafael (Suporte Técnico & SAC) from Digital Team...');
+  const rafaelCard = desktopPage.locator('div[role="button"]:has-text("Rafael")').first();
+  if (await rafaelCard.isVisible()) {
+    await rafaelCard.click();
+    await desktopPage.waitForTimeout(2000);
+    // Switch to working to see his support desk
+    const rafaelWorkBtn = desktopPage.locator('article button:has-text("WORKING")').first();
+    if (await rafaelWorkBtn.isVisible()) {
+      await rafaelWorkBtn.click();
+      await desktopPage.waitForTimeout(1500);
+    }
+  }
+  const ssRafaelPath = path.join(ARTIFACTS_DIR, 'screenshot_rafael_suporte_workspace.png');
+  await desktopPage.screenshot({ path: ssRafaelPath, fullPage: false });
+  console.log(`✅ Saved: ${ssRafaelPath}`);
+
+  // Screenshot 4: Click Julia in DigitalTeamView
+  console.log('📸 4. Selecting Julia (Pós-Venda & Fidelização) from Digital Team...');
+  const juliaCard = desktopPage.locator('div[role="button"]:has-text("Julia")').first();
+  if (await juliaCard.isVisible()) {
+    await juliaCard.click();
+    await desktopPage.waitForTimeout(2000);
+    // Switch to working to see her CS workspace
+    const juliaWorkBtn = desktopPage.locator('article button:has-text("WORKING")').first();
+    if (await juliaWorkBtn.isVisible()) {
+      await juliaWorkBtn.click();
+      await desktopPage.waitForTimeout(1500);
+    }
+  }
+  const ssJuliaPath = path.join(ARTIFACTS_DIR, 'screenshot_julia_pos_venda_workspace.png');
+  await desktopPage.screenshot({ path: ssJuliaPath, fullPage: false });
+  console.log(`✅ Saved: ${ssJuliaPath}`);
+
+  // Screenshot 5: Switch to ZAIBOT (Mascote 3D)
+  console.log('📸 5. Switching to ZAIBOT Mascote 3D mode in workspace...');
   const zaibotTabBtn = desktopPage.locator('button:has-text("ZAIBOT (Mascote 3D)")').first();
   if (await zaibotTabBtn.isVisible()) {
     await zaibotTabBtn.click();
@@ -109,7 +142,7 @@ async function main() {
   await desktopContext.close();
 
   // 2. Mobile 390x844 (iPhone 14 / modern smartphone viewport)
-  console.log('📱 4. Launching Mobile Context (390x844) to verify Ergonomic ZAIBOT Positioning...');
+  console.log('📱 6. Launching Mobile Context (390x844) to verify Ergonomic ZAIBOT Positioning...');
   const mobileContext = await browser.newContext({
     viewport: { width: 390, height: 844 },
     userAgent: 'Mozilla/5.0 (iPhone; CPU iPhone OS 16_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.5 Mobile/15E148 Safari/604.1',
@@ -119,22 +152,22 @@ async function main() {
     colorScheme: 'dark',
     ignoreHTTPSErrors: true,
   });
+  await setupContextAuth(mobileContext, token, 'mobile');
+
   const mobilePage = await mobileContext.newPage();
   mobilePage.setDefaultTimeout(30000);
   mobilePage.setDefaultNavigationTimeout(45000);
 
-  // Inject mobile view mode so MobileBottomNav is displayed
-  await injectAuth(mobilePage, token, 'mobile');
   await mobilePage.goto(`${BASE_URL}/ai?tab=agent`, { waitUntil: 'domcontentloaded' });
   await mobilePage.waitForTimeout(4000);
 
-  // Take screenshot 4: Mobile AI Hub showing ZAIBOT floating button at bottom-20 (clearing MobileBottomNav)
+  // Screenshot 6: Mobile AI Hub showing ZAIBOT floating button at bottom-20 (clearing MobileBottomNav)
   const ss4Path = path.join(ARTIFACTS_DIR, 'screenshot_mobile_ai_hub_ergonomic.png');
   await mobilePage.screenshot({ path: ss4Path, fullPage: false });
   console.log(`✅ Saved: ${ss4Path}`);
 
-  // Take screenshot 5: Open ZAIBOT Assistant on mobile
-  console.log('📱 5. Clicking ZAIBOT floating assistant on mobile...');
+  // Screenshot 7: Open ZAIBOT Assistant on mobile
+  console.log('📱 7. Clicking ZAIBOT floating assistant on mobile...');
   await mobilePage.evaluate(() => {
     const btn = document.querySelector('button[aria-label*="Assistente ZAI"]');
     if (btn) btn.click();
@@ -147,7 +180,7 @@ async function main() {
 
   await mobileContext.close();
   await browser.close();
-  console.log('🎉 All 5 screenshots successfully captured with real authentic data!');
+  console.log('🎉 All screenshots successfully captured with real authentic data!');
 }
 
 main().catch((err) => {
