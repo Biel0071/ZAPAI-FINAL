@@ -20,6 +20,7 @@ import {
   Minimize2,
   Trash2
 } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -42,18 +43,19 @@ interface Message {
 }
 
 const QUICK_ACTIONS = [
-  { label: "Agentes Ativos", query: "Mostre meus agentes ativos." },
-  { label: "Desempenho da Equipe", query: "Ver desempenho dos agentes." },
-  { label: "Criar Novo Agente", query: "Crie um novo agente para pós-venda." },
-  { label: "Criar Automação", query: "Crie um follow-up para clientes que receberam orçamento e não responderam." },
+  { label: "Criar Campanha", query: "Crie uma campanha de recuperação de clientes." },
+  { label: "Métricas do Sistema", query: "Como estão as métricas e taxas de conversão hoje?" },
+  { label: "Agentes Ativos", query: "Mostre meus funcionários digitais ativos." },
+  { label: "Criar Novo Agente", query: "Crie um novo agente para a empresa." },
+  { label: "Criar Automação", query: "Crie um follow-up para clientes que receberam orçamento." },
   { label: "Encontrar Clientes", query: "Mostre os clientes que não receberam resposta hoje." },
-  { label: "Tarefas Pendentes", query: "Mostrar tarefas pendentes." },
-  { label: "Desativar Camila", query: "Desative a Camila." },
-  { label: "Motivos de Perda", query: "Analise os principais motivos de perda de vendas." },
+  { label: "Tarefas Pendentes", query: "Mostrar tarefas pendentes da operação." },
+  { label: "Ajuda & Suporte", query: "Como funciona a plataforma ZAI e como conectar?" },
 ];
 
 export function ZaibotFloatingAssistant() {
   const { toast } = useToast();
+  const navigate = useNavigate();
   const [isOpen, setIsOpen] = useState(false);
   const [input, setInput] = useState("");
   const [isProcessing, setIsProcessing] = useState(false);
@@ -155,6 +157,26 @@ export function ZaibotFloatingAssistant() {
         botResponse = `**Análise dos Principais Motivos de Perda de Vendas:**\n\n1. **Prazo de entrega em obras urgentes (42%)** — Clientes precisavam para o mesmo dia\n2. **Condição de pagamento (28%)** — Solicitação de boleto faturado para pessoa física\n3. **Custo de frete (18%)** — Orçamentos com frete acima da expectativa\n4. **Sem resposta ao follow-up (12%)**\n\n💡 **Sugestão ZAIBOT:** Ativar o playbook de frete compartilhado e oferecer desconto no Pix na primeira mensagem de follow-up.`;
         setMascotMood("celebrating");
       }
+      // Criar ou Analisar Campanhas
+      else if (lower.includes("campanha") || lower.includes("disparo") || lower.includes("recupera") || lower.includes("criar campanha")) {
+        botResponse = `**Assistente de Campanhas ZAI:**\n\nPosso preparar uma campanha de alto impacto com cadência humanizada anti-bloqueio:\n\n• **1. Recuperação de Orçamentos:** Disparar para leads que receberam cotação nos últimos 7 dias.\n• **2. Reengajamento de Clientes Inativos:** Enviar novidades e catálogo atualizado.\n• **3. Aviso de Promoção / Condição Especial:** Desconto no Pix ou frete grátis.\n\n💡 Deseja abrir a central de campanhas agora para iniciar um disparo humanizado?`;
+        actionRequired = {
+          actionType: "open_campaigns",
+          description: "Abrir Central de Campanhas ZAI",
+          payload: { route: "/campaigns" },
+        };
+        setMascotMood("celebrating");
+      }
+      // Métricas e KPIs do Sistema
+      else if (lower.includes("métrica") || lower.includes("metrica") || lower.includes("kpi") || lower.includes("conversão") || lower.includes("conversao") || lower.includes("taxa")) {
+        botResponse = `**Métricas & Telemetria em Tempo Real:**\n\n• **Atendimentos Hoje:** 127 conversas processadas pela IA\n• **Tempo Médio de Primeira Resposta:** 18 segundos (SLA 96%)\n• **Taxa de Conversão em Orçamentos:** 18.9%\n• **Satisfação Média (CSAT):** 98% de avaliações positivas\n• **Status da Conexão:** Instância WhatsApp Oficial Online & Estável\n• **Cérebro Neural:** Latência média de 45ms sem gargalos de fila.`;
+        setMascotMood("working");
+      }
+      // Suporte do Sistema & Ajuda Geral
+      else if (lower.includes("ajuda") || lower.includes("como funciona") || lower.includes("como conectar") || lower.includes("suporte")) {
+        botResponse = `**Suporte & Guia Operacional do ZAI CRM:**\n\nSou seu copiloto operacional. Aqui estão as principais funções do sistema:\n\n1. **Conexões WhatsApp:** Na aba *Conexões*, escaneie o QR Code para parear o número oficial da sua loja.\n2. **Equipe Digital:** Na aba *IA & Automação*, crie atendentes para cada setor da empresa (Vendas, Suporte, Financeiro).\n3. **Campanhas Humanizadas:** Na aba *Campanhas*, configure disparos com cadência inteligente, aquecimento e pausas realistas.\n4. **Inbox Operacional:** No *Inbox*, acompanhe conversas em tempo real, veja o status da IA e acione respostas rápidas.`;
+        setMascotMood("idle");
+      }
       // Horário de funcionamento do agente
       else if (lower.includes("horário") || lower.includes("horario")) {
         botResponse = `**Horários de Atendimento da Equipe:**\n\n• **Camila (Vendas):** Segunda a Sexta das 07:00 às 18:00, Sábados das 08:00 às 12:00\n• **Demais agentes:** Conforme turnos configurados no perfil de cada funcionário.\n\nPara alterar turnos, acesse o perfil do agente na aba da Equipe Digital.`;
@@ -255,6 +277,16 @@ export function ZaibotFloatingAssistant() {
     setIsProcessing(true);
     setMascotMood("working");
     try {
+      if (action.actionType === "open_campaigns") {
+        navigate("/campaigns");
+        setIsOpen(false);
+        toast({
+          title: "Central de Campanhas",
+          description: "Abrindo módulo de disparos e recuperação de clientes.",
+        });
+        return;
+      }
+
       if (action.actionType.startsWith("pause") || action.payload?.agentKey) {
         const key = action.payload?.agentKey || "camila";
         const targetState = action.payload?.active ?? false;
@@ -306,8 +338,8 @@ export function ZaibotFloatingAssistant() {
 
   return (
     <>
-      {/* FLOATING TRIGGER BUTTON */}
-      <div className="fixed bottom-6 right-6 z-[60] flex items-center gap-2 select-none">
+      {/* FLOATING TRIGGER BUTTON (ADAPTIVE MOBILE POSITIONING) */}
+      <div className="fixed bottom-20 right-4 sm:bottom-6 sm:right-6 z-[60] flex items-center gap-2 select-none">
         <button
           type="button"
           onClick={() => setIsOpen((prev) => !prev)}

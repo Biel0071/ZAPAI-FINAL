@@ -20,6 +20,9 @@ import {
   ExternalLink,
   Shield,
   Bot,
+  Copy,
+  Trash2,
+  Palette,
 } from "lucide-react";
 import { cn } from "@/core/lib/utils";
 import { useToast } from "@/state/hooks/use-toast";
@@ -148,7 +151,7 @@ export function DigitalTeamView({
   // Filter out platform-only assistants (like ZAIBOT) from the human digital employees list
   const companyEmployees = agents.filter((a) => !a.isPlatformAssistant && a.key !== "zaibot");
 
-  // Fallback showing full digital employee team
+  // Fallback showing only primary store attendant if list is empty
   const displayEmployees = companyEmployees.length > 0 ? companyEmployees : [
     {
       key: "camila",
@@ -161,46 +164,7 @@ export function DigitalTeamView({
       personalityType: "comercial",
       character: { gender: "female", outfit: "uniforme_vendas", theme: "emerald" },
       stats: { chatsToday: 127, slaPercent: 94, satisfactionCsat: 98, avgResponseTime: "18s" },
-      recentActivity: [{ time: "10:42", action: "Respondeu cliente sobre cimento e telhas" }],
-    },
-    {
-      key: "joao",
-      name: "João",
-      role: "Suporte",
-      active: true,
-      status: "active",
-      channels: ["whatsapp", "inbox"],
-      avatar: "/assets/evolution/joao_avatar.png",
-      personalityType: "tecnico",
-      character: { gender: "male", outfit: "uniforme_suporte", theme: "cyan" },
-      stats: { chatsToday: 68, slaPercent: 97, satisfactionCsat: 95, avgResponseTime: "22s" },
-      recentActivity: [{ time: "10:35", action: "Solucionou dúvida sobre aplicação de argamassa" }],
-    },
-    {
-      key: "marina",
-      name: "Marina",
-      role: "Pós-venda",
-      active: false,
-      status: "paused",
-      channels: ["whatsapp"],
-      avatar: "/assets/evolution/marina_avatar.png",
-      personalityType: "empatica",
-      character: { gender: "female", outfit: "uniforme_pos_venda", theme: "purple" },
-      stats: { chatsToday: 42, slaPercent: 96, satisfactionCsat: 99, avgResponseTime: "16s" },
-      recentActivity: [{ time: "10:15", action: "Confirmou entrega pontual de pedido faturado" }],
-    },
-    {
-      key: "carlos",
-      name: "Carlos",
-      role: "Financeiro",
-      active: false,
-      status: "offline",
-      channels: ["inbox"],
-      avatar: "/assets/evolution/carlos_avatar.png",
-      personalityType: "formal",
-      character: { gender: "male", outfit: "business", theme: "slate" },
-      stats: { chatsToday: 15, slaPercent: 92, satisfactionCsat: 94, avgResponseTime: "25s" },
-      recentActivity: [{ time: "09:40", action: "Emitiu 2ª via de boleto bancário faturado" }],
+      recentActivity: [{ time: "10:42", action: "Respondeu cliente sobre produtos e orçamentos" }],
     },
   ];
 
@@ -226,6 +190,53 @@ export function DigitalTeamView({
       });
     } finally {
       setTogglingKey(null);
+    }
+  };
+
+  const handleDuplicate = async (e: React.MouseEvent, agent: any) => {
+    e.stopPropagation();
+    try {
+      await apiService.cloneAIAgent(agent.key);
+      toast({
+        title: "Agente Duplicado",
+        description: `Criada uma nova variação para sua empresa baseada em ${agent.name}. Você pode personalizá-la agora!`,
+      });
+      if (onRefresh) onRefresh();
+    } catch (err: any) {
+      toast({
+        title: "Erro ao duplicar agente",
+        description: err?.message || "Não foi possível duplicar.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleDelete = async (e: React.MouseEvent, agent: any) => {
+    e.stopPropagation();
+    if (displayEmployees.length <= 1) {
+      toast({
+        title: "Operação não permitida",
+        description: "A empresa precisa manter pelo menos 1 atendente digital.",
+        variant: "destructive",
+      });
+      return;
+    }
+    if (!window.confirm(`Tem certeza que deseja remover ${agent.name} da equipe?`)) {
+      return;
+    }
+    try {
+      await apiService.deleteAIAgent(agent.key);
+      toast({
+        title: "Agente Removido",
+        description: `${agent.name} foi removido(a) com sucesso da equipe.`,
+      });
+      if (onRefresh) onRefresh();
+    } catch (err: any) {
+      toast({
+        title: "Erro ao excluir",
+        description: err?.message || "Não foi possível excluir o agente.",
+        variant: "destructive",
+      });
     }
   };
 
@@ -363,20 +374,53 @@ export function DigitalTeamView({
                     </div>
                   </div>
 
-                  <button
-                    type="button"
-                    title={isOnline ? "Pausar agente" : "Ativar agente"}
-                    disabled={togglingKey === agent.key}
-                    onClick={(e) => handleToggle(e, agent)}
-                    className={cn(
-                      "h-7 w-7 rounded-lg border flex items-center justify-center transition-colors shrink-0",
-                      isOnline
-                        ? "border-amber-500/30 text-amber-400 hover:bg-amber-500/10"
-                        : "border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/10"
+                  <div className="flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
+                    <button
+                      type="button"
+                      title="Duplicar / Criar Variação deste Agente"
+                      onClick={(e) => handleDuplicate(e, agent)}
+                      className="h-7 w-7 rounded-lg border border-border/70 hover:border-emerald-500/50 hover:bg-emerald-500/10 text-muted-foreground hover:text-emerald-400 flex items-center justify-center transition-colors shrink-0"
+                    >
+                      <Copy className="h-3 w-3" />
+                    </button>
+                    {onOpenCustomizer && (
+                      <button
+                        type="button"
+                        title="Customizar Visual & Personalidade"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onOpenCustomizer(agent);
+                        }}
+                        className="h-7 w-7 rounded-lg border border-border/70 hover:border-emerald-500/50 hover:bg-emerald-500/10 text-muted-foreground hover:text-emerald-400 flex items-center justify-center transition-colors shrink-0"
+                      >
+                        <Palette className="h-3 w-3" />
+                      </button>
                     )}
-                  >
-                    {isOnline ? <Pause className="h-3.5 w-3.5" /> : <Play className="h-3.5 w-3.5" />}
-                  </button>
+                    {displayEmployees.length > 1 && (
+                      <button
+                        type="button"
+                        title="Remover Agente da Equipe"
+                        onClick={(e) => handleDelete(e, agent)}
+                        className="h-7 w-7 rounded-lg border border-border/70 hover:border-red-500/50 hover:bg-red-500/10 text-muted-foreground hover:text-red-400 flex items-center justify-center transition-colors shrink-0"
+                      >
+                        <Trash2 className="h-3 w-3" />
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      title={isOnline ? "Pausar agente" : "Ativar agente"}
+                      disabled={togglingKey === agent.key}
+                      onClick={(e) => handleToggle(e, agent)}
+                      className={cn(
+                        "h-7 w-7 rounded-lg border flex items-center justify-center transition-colors shrink-0",
+                        isOnline
+                          ? "border-amber-500/30 text-amber-400 hover:bg-amber-500/10"
+                          : "border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/10"
+                      )}
+                    >
+                      {isOnline ? <Pause className="h-3.5 w-3.5" /> : <Play className="h-3.5 w-3.5" />}
+                    </button>
+                  </div>
                 </div>
 
                 {/* ACTIVITY & CHANNELS */}

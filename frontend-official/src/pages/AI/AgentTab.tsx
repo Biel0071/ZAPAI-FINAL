@@ -227,7 +227,7 @@ export function AgentTab({
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
   const [isNewAgentWizardOpen, setIsNewAgentWizardOpen] = useState(false);
   const [wizardDefaultRole, setWizardDefaultRole] = useState<string>("Vendas");
-  const [showCharacterViewer, setShowCharacterViewer] = useState(false);
+  const [showCharacterViewer, setShowCharacterViewer] = useState(true);
 
   // Listen to open-wizard event triggered by ZAIBOT or global shortcuts
   useEffect(() => {
@@ -546,11 +546,13 @@ Tom: ${agentTone}. Estilo: ${responseStyle}.`;
         onRefresh={refreshAgents}
       />
 
-      {/* 3D CHARACTER STUDIO TOGGLE (OPTIONAL PREVIEW) */}
+      {/* CHARACTER WORKSPACE & LIVING SCENARIO */}
       <div className="flex items-center justify-between p-3.5 rounded-xl border border-border/70 bg-card/40">
         <div>
-          <span className="text-xs font-bold text-foreground">Aparência & Identidade 3D dos Funcionários</span>
-          <p className="text-[11px] text-muted-foreground mt-0.5">Visualize a sala operacional e os modelos 3D de Camila e do mascote ZAIBOT.</p>
+          <span className="text-xs font-bold text-foreground">Estúdio Visual do Agente • Cenário em Tempo Real</span>
+          <p className="text-[11px] text-muted-foreground mt-0.5">
+            Acompanhe o expediente do atendente no escritório virtual (no computador trabalhando ou em pé esperando).
+          </p>
         </div>
         <Button
           type="button"
@@ -560,7 +562,7 @@ Tom: ${agentTone}. Estilo: ${responseStyle}.`;
           className="h-8 text-xs gap-1.5 border-border/80"
         >
           {showCharacterViewer ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
-          <span>{showCharacterViewer ? "Ocultar Estúdio 3D" : "Visualizar Estúdio 3D"}</span>
+          <span>{showCharacterViewer ? "Minimizar Cenário" : "Expandir Cenário"}</span>
         </Button>
       </div>
 

@@ -227,25 +227,16 @@ async function hydrateFromSettings(tenantId = DEFAULT_TENANT_ID) {
         parsed = JSON.parse(v1Row.value);
         shouldPersist = true;
       } else if (normalizedTenantId === DEFAULT_TENANT_ID) {
-        // Fallback 2: seed from filesystem agents/ folder if database has no configuration (default tenant only)
-        console.log(`[AI AGENT SERVICE] No database agents config found. Seeding default agents from disk for tenant: ${normalizedTenantId}`);
+        // Fallback 2: seed only primary attendant Camila from disk if database has no configuration (default tenant only)
+        console.log(`[AI AGENT SERVICE] No database agents config found. Seeding primary store attendant for tenant: ${normalizedTenantId}`);
         const defaultAgents = [];
-        const agentsDir = path.join(__dirname, '..', 'agents');
         try {
-          if (fs.existsSync(agentsDir)) {
-            const files = fs.readdirSync(agentsDir).filter(f => f.endsWith('.js'));
-            for (const file of files) {
-              const filePath = path.join(agentsDir, file);
-              // Clean node cache to load fresh file contents
-              delete require.cache[require.resolve(filePath)];
-              const agentObj = require(filePath);
-              if (agentObj && agentObj.name) {
-                defaultAgents.push(agentObj);
-              }
-            }
+          const camilaObj = require('../agents/camilaAgent');
+          if (camilaObj && camilaObj.name) {
+            defaultAgents.push(camilaObj);
           }
         } catch (fsErr) {
-          console.error('[AI AGENT SERVICE] Failed to read default agents from disk:', fsErr.message);
+          console.error('[AI AGENT SERVICE] Failed to load camilaAgent from disk:', fsErr.message);
         }
         
         parsed = defaultAgents;

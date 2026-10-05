@@ -497,6 +497,46 @@ export default function UnifiedAIPage({ defaultSection }: AIPageProps) {
           </div>
         </div>
 
+        {/* NEURAL ENGINE & AI TELEMETRY STRIP */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 p-3 rounded-2xl border border-emerald-500/20 bg-[#070c14]/80 backdrop-blur-md shadow-xs">
+          <div className="flex items-center gap-2.5 px-3 py-1.5 rounded-xl bg-black/40 border border-white/5">
+            <span className="relative flex h-2 w-2">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
+            </span>
+            <div className="min-w-0">
+              <span className="block text-[9px] uppercase tracking-wider text-muted-foreground font-semibold">Motor Neural</span>
+              <span className="text-xs font-bold text-foreground truncate flex items-center gap-1">
+                GPT-4o Mini <span className="text-[10px] text-emerald-400 font-mono">v2.4</span>
+              </span>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2.5 px-3 py-1.5 rounded-xl bg-black/40 border border-white/5">
+            <Activity className="h-3.5 w-3.5 text-cyan-400 shrink-0" />
+            <div className="min-w-0">
+              <span className="block text-[9px] uppercase tracking-wider text-muted-foreground font-semibold">Latência de Raciocínio</span>
+              <span className="text-xs font-bold text-cyan-400 font-mono">42ms <span className="text-[10px] text-muted-foreground font-normal">(Tempo Real)</span></span>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2.5 px-3 py-1.5 rounded-xl bg-black/40 border border-white/5">
+            <Brain className="h-3.5 w-3.5 text-purple-400 shrink-0" />
+            <div className="min-w-0">
+              <span className="block text-[9px] uppercase tracking-wider text-muted-foreground font-semibold">Base de Conhecimento RAG</span>
+              <span className="text-xs font-bold text-purple-300 truncate">Catálogo & Políticas Ativas</span>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2.5 px-3 py-1.5 rounded-xl bg-black/40 border border-white/5">
+            <ShieldCheck className="h-3.5 w-3.5 text-emerald-400 shrink-0" />
+            <div className="min-w-0">
+              <span className="block text-[9px] uppercase tracking-wider text-muted-foreground font-semibold">Cadência Anti-Bloqueio</span>
+              <span className="text-xs font-bold text-emerald-400">Humanizada Ativa</span>
+            </div>
+          </div>
+        </div>
+
         {/* 5 UNIFIED TABS SELECTOR */}
         <nav
           aria-label="Abas de IA e Automação"

@@ -648,96 +648,119 @@ export const AICharacterViewer: React.FC<AICharacterViewerProps> = ({
               })}
             </div>
 
-            {/* 2. CENTER: RETRO 16-BIT ISOMETRIC OFFICE ROOM */}
-            <div className="relative flex-1 h-full overflow-hidden flex items-center justify-center bg-black/60">
-              <img
-                src="/assets/evolution/camila_office_active.png"
-                alt="Escritório Camila Atendente"
-                className={cn(
-                  "w-full h-full object-cover transition-all duration-500",
-                  effectiveState === "offline"
-                    ? "brightness-[0.45] saturate-[0.3]"
-                    : effectiveState === "idle"
-                    ? "brightness-[0.85] saturate-[0.8]"
-                    : "filter-none brightness-100"
-                )}
-                style={{ imageRendering: "pixelated" }}
-              />
+            {/* 2. CENTER: SINGLE LIVING CHARACTER WORKSPACE (STATE-DRIVEN, NO DUPLICATE) */}
+            <div className="relative flex-1 h-full overflow-hidden flex items-center justify-center bg-[#070b13]">
+              {(effectiveState === "working" ||
+                effectiveState === "online" ||
+                effectiveState === "responding" ||
+                effectiveState === "thinking" ||
+                effectiveState === "learning" ||
+                effectiveState === "success") ? (
+                /* ACTIVE STATE: CHARACTER WORKING AT PC ("no pc trabalhando") */
+                <div className="relative w-full h-full flex items-center justify-center overflow-hidden">
+                  <img
+                    src="/assets/evolution/camila_office_active.png"
+                    alt={`${customName} trabalhando no escritório`}
+                    className="w-full h-full object-cover transition-all duration-500 brightness-100"
+                    style={{ imageRendering: "pixelated" }}
+                  />
 
-              {/* Tint overlay based on store theme */}
-              <div
-                className="absolute inset-0 pointer-events-none opacity-10 mix-blend-color transition-colors duration-500"
-                style={{ backgroundColor: clothingColor }}
-              />
+                  {/* Tint overlay based on store theme */}
+                  <div
+                    className="absolute inset-0 pointer-events-none opacity-10 mix-blend-color transition-colors duration-500"
+                    style={{ backgroundColor: clothingColor }}
+                  />
 
-              {/* Speech bubble when responding */}
-              {effectiveState === "responding" && (
-                <div className="absolute top-14 left-1/2 -translate-x-1/2 z-20 animate-bounce bg-emerald-500 text-black px-3.5 py-1 rounded-full text-[10px] font-black shadow-lg">
-                  💬 {customName} respondendo ao cliente...
+                  {/* Speech bubble when responding */}
+                  {effectiveState === "responding" && (
+                    <div className="absolute top-14 left-1/2 -translate-x-1/2 z-20 animate-bounce bg-emerald-500 text-black px-3.5 py-1 rounded-full text-[10px] font-black shadow-lg">
+                      💬 {customName} respondendo ao cliente no WhatsApp...
+                    </div>
+                  )}
+
+                  {/* Interactive Room Hotspots */}
+                  <div
+                    title="Terminal WhatsApp Ativo"
+                    onClick={() =>
+                      toast({
+                        title: "Terminal WhatsApp",
+                        description: `Conectado à fila de atendimento da loja. ${customName} ativa no WhatsApp.`,
+                      })
+                    }
+                    className="absolute top-[48%] left-[45%] h-8 w-12 rounded cursor-pointer border border-emerald-400/40 bg-emerald-400/10 hover:bg-emerald-400/25 transition-colors"
+                  />
+                  <div
+                    title="Logotipo Oficial ZAI Neon"
+                    onClick={() =>
+                      toast({
+                        title: "ZAI CRM",
+                        description: "Módulo de Atendimento Inteligente ZAI.",
+                      })
+                    }
+                    className="absolute top-[32%] right-[32%] h-12 w-12 rounded cursor-pointer border border-emerald-400/30 bg-emerald-400/10 hover:bg-emerald-400/20 transition-colors"
+                  />
+
+                  {/* Bottom pill: Atendendo agora */}
+                  <div className="absolute bottom-3 left-1/2 -translate-x-1/2 z-10">
+                    <div className="px-3.5 py-1 rounded-full text-[10px] font-bold border backdrop-blur-md flex items-center gap-2 shadow-lg bg-[#090e17]/90 text-emerald-400 border-emerald-500/40">
+                      <span
+                        className={cn(
+                          "w-2 h-2 rounded-full",
+                          stateCfg.color,
+                          stateCfg.pulse && "animate-pulse shadow-[0_0_8px_#10b981]"
+                        )}
+                      />
+                      <span>{customName} • Atendendo no computador (Online)</span>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                /* OFFLINE / IDLE STATE: CHARACTER STANDING WAITING ("em pé esperando caso sem fazer nada") */
+                <div
+                  className="relative w-full h-full flex flex-col items-center justify-center overflow-hidden bg-gradient-to-b from-[#060a12] via-[#09101d] to-[#04070e] cursor-pointer group"
+                  onClick={() => onToggleOnline?.(true)}
+                  title="Clique para ativar o expediente de atendimento"
+                >
+                  {/* Tech Grid Background */}
+                  <div className="absolute inset-0 bg-[linear-gradient(to_right,#ffffff07_1px,transparent_1px),linear-gradient(to_bottom,#ffffff07_1px,transparent_1px)] bg-[size:24px_24px]" />
+                  <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-80 h-80 rounded-full bg-emerald-500/10 blur-3xl pointer-events-none" />
+
+                  {/* Floor Pedestal & Ambient Glow */}
+                  <div className="absolute bottom-10 w-44 h-10 rounded-full bg-emerald-500/20 border border-emerald-500/40 blur-xs shadow-[0_0_30px_rgba(16,185,129,0.3)]" />
+
+                  {/* Character Standing Prominently (Boneco Maior - Full Figure) */}
+                  <div className="relative z-10 flex flex-col items-center justify-center h-full max-h-[300px] pt-2">
+                    <img
+                      src="/assets/evolution/camila_standing_offline.png"
+                      alt={`${customName} em pé aguardando`}
+                      className={cn(
+                        "h-full max-h-[250px] w-auto object-contain transition-all duration-300 drop-shadow-[0_14px_28px_rgba(0,0,0,0.9)] group-hover:scale-105",
+                        effectiveState === "idle"
+                          ? "animate-pulse [animation-duration:3s] brightness-105"
+                          : "brightness-95 contrast-105"
+                      )}
+                      style={{ imageRendering: "pixelated" }}
+                    />
+                  </div>
+
+                  {/* Bottom pill: Em pé / Parada esperando sem fazer nada */}
+                  <div className="absolute bottom-3 left-1/2 -translate-x-1/2 z-10">
+                    <div className="px-3.5 py-1 rounded-full text-[10px] font-bold border backdrop-blur-md flex items-center gap-2 shadow-lg bg-black/85 text-slate-300 border-white/15 group-hover:border-emerald-500/50 group-hover:text-emerald-300 transition-colors">
+                      <span
+                        className={cn(
+                          "w-2 h-2 rounded-full",
+                          effectiveState === "idle" ? "bg-amber-400 animate-pulse" : "bg-slate-400"
+                        )}
+                      />
+                      <span>
+                        {effectiveState === "idle"
+                          ? `${customName} • Em pé (Aguardando cliente)`
+                          : `${customName} • Pausada (Em pé sem fazer nada) — Clique para Ativar`}
+                      </span>
+                    </div>
+                  </div>
                 </div>
               )}
-
-              {/* Interactive Room Hotspots */}
-              <div
-                title="Terminal WhatsApp Ativo"
-                onClick={() => toast({ title: "Terminal WhatsApp", description: "Conectado à fila de atendimento da loja." })}
-                className="absolute top-[48%] left-[45%] h-8 w-12 rounded cursor-pointer border border-emerald-400/40 bg-emerald-400/10 hover:bg-emerald-400/25 transition-colors"
-              />
-              <div
-                title="Logotipo Oficial ZAI Neon"
-                onClick={() => toast({ title: "ZAI CRM", description: "Módulo de Atendimento Inteligente." })}
-                className="absolute top-[32%] right-[32%] h-12 w-12 rounded cursor-pointer border border-emerald-400/30 bg-emerald-400/10 hover:bg-emerald-400/20 transition-colors"
-              />
-
-              {/* Bottom pill: Atendendo agora / Status */}
-              <div className="absolute bottom-3 left-1/2 -translate-x-1/2 z-10">
-                <div className={cn(
-                  "px-3.5 py-1 rounded-full text-[10px] font-bold border backdrop-blur-md flex items-center gap-2 shadow-lg",
-                  isOnline
-                    ? "bg-[#090e17]/90 text-emerald-400 border-emerald-500/40"
-                    : "bg-black/80 text-slate-400 border-white/10"
-                )}>
-                  <span className={cn(
-                    "w-2 h-2 rounded-full",
-                    stateCfg.color,
-                    stateCfg.pulse && "animate-pulse shadow-[0_0_8px_#10b981]"
-                  )} />
-                  <span>{effectiveState === "offline" ? "Pausada / Fora de Expediente" : "Atendendo agora..."}</span>
-                </div>
-              </div>
-            </div>
-
-            {/* 3. RIGHT: STANDING OFFLINE PREVIEW PANEL */}
-            <div className="hidden sm:flex flex-col items-center justify-between w-32 md:w-36 lg:w-44 h-full p-2.5 sm:p-3 bg-[#070b13] border-l border-white/10 shrink-0 z-10">
-              <div className="w-full flex justify-center">
-                <span className={cn(
-                  "px-2.5 py-0.5 rounded-full text-[9px] font-bold border flex items-center gap-1.5",
-                  effectiveState === "offline"
-                    ? "bg-slate-800 text-slate-200 border-slate-600 shadow-sm"
-                    : "bg-black/50 text-slate-400 border-white/10"
-                )}>
-                  <span className={cn("w-1.5 h-1.5 rounded-full", effectiveState === "offline" ? "bg-amber-400 animate-pulse" : "bg-slate-500")} />
-                  Offline
-                </span>
-              </div>
-
-              <div className="relative flex-1 flex items-center justify-center my-1">
-                <img
-                  src="/assets/evolution/camila_standing_offline.png"
-                  alt={`${customName} em pé`}
-                  className={cn(
-                    "max-h-[190px] w-auto object-contain transition-all duration-300 drop-shadow-[0_8px_20px_rgba(0,0,0,0.8)]",
-                    effectiveState === "offline"
-                      ? "scale-105 brightness-110 drop-shadow-[0_0_15px_rgba(16,185,129,0.35)]"
-                      : "opacity-80 saturate-75"
-                  )}
-                  style={{ imageRendering: "pixelated" }}
-                />
-              </div>
-
-              <p className="text-[9px] text-slate-400 text-center font-medium leading-tight px-1">
-                Quando desativada, fica em pé.
-              </p>
             </div>
           </div>
         )}
