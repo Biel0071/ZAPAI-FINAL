@@ -1805,7 +1805,7 @@ Tom: ${agentTone}. Estilo: ${responseStyle}.`;
         onSave={async (savedAgent) => {
           toast({
             title: "Avatar atualizado",
-            description: `Configuração visual de ${savedAgent.name || "atendente"} salva com sucesso.`,
+            description: `Configuração visual de ${(savedAgent as any)?.name || activeWorkspaceAgent?.name || "atendente"} salva com sucesso.`,
           });
           await onRefreshAgents?.();
         }}

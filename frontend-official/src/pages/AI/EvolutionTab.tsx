@@ -43,8 +43,6 @@ import {
 import { useNavigate } from "react-router-dom";
 import { apiService, requestApiEndpoint } from "@/core/services/apiService";
 import { useToast } from "@/state/hooks/use-toast";
-import { ObsidianMemoryModal } from "@/components/evolution/ObsidianMemoryModal";
-import { MemoryGraphViewer } from "@/components/MemoryGraphViewer";
 import { cn } from "@/core/lib/utils";
 
 interface EvolutionOverview {
@@ -145,18 +143,10 @@ export function EvolutionTab({ agentKey, onSelectAgent, agents: initialAgents }:
 
   const navigate = useNavigate();
 
-  // Embedded Living Brain Obsidian Memory Graph State
-  const [graphSearch, setGraphSearch] = useState("");
-  const [graphCategory, setGraphCategory] = useState<string>("todos");
-  const [selectedGraphNode, setSelectedGraphNode] = useState<any | null>(null);
-  const [embeddedGraphData, setEmbeddedGraphData] = useState<{ nodes: any[]; edges: any[]; links?: any[] }>({
-    nodes: [],
-    edges: [],
-  });
-
-  // Obsidian Modal State
-  const [obsidianModalOpen, setObsidianModalOpen] = useState(false);
-  const [memoryGraphData, setMemoryGraphData] = useState<{ nodes: any[]; edges: any[]; stats?: any }>({ nodes: [], edges: [] });
+  // Human Memory & Learning State
+  const [memorySearch, setMemorySearch] = useState("");
+  const [memoryCategory, setMemoryCategory] = useState<string>("todos");
+  const [memoryItems, setMemoryItems] = useState<any[]>([]);
   const [hasEvolutionData, setHasEvolutionData] = useState(false);
 
   // Score & Overview
@@ -263,104 +253,59 @@ export function EvolutionTab({ agentKey, onSelectAgent, agents: initialAgents }:
     }
   }, []);
 
-  // Fetch memory graph data for Obsidian Modal & Embedded View
-  const loadEmbeddedMemoryGraph = useCallback(async (agentKey: string) => {
+  // Load agent memories & knowledge base
+  const loadAgentMemories = useCallback(async (agentKey: string) => {
     try {
-      // Query memory graph for active attendant (e.g. camila)
       const targetKey = agentKey && agentKey !== "zaibot" ? agentKey : "camila";
       const res = await requestApiEndpoint<any>(`/api/ai/memory/graph?agentKey=${encodeURIComponent(targetKey)}&limit=80`);
       const graph = res?.data || res;
-      if (Array.isArray(graph?.nodes) && graph.nodes.length > 1) {
-        const enrichedNodes = graph.nodes.map((n: any) => ({
-          ...n,
-          desc: n.desc || n.properties?.description || n.properties?.contactName || n.properties?.topic || n.properties?.productName || n.properties?.objection || n.properties?.preference || (n.type === 'agent' ? 'Cérebro Central do Atendente' : n.label),
-        }));
-        setEmbeddedGraphData({
-          nodes: enrichedNodes,
-          edges: graph.edges || graph.links || [],
-          links: graph.links || graph.edges || [],
-        });
-        setMemoryGraphData({ ...graph, nodes: enrichedNodes });
+      if (Array.isArray(graph?.nodes) && graph.nodes.length > 0) {
+        const enrichedNodes = graph.nodes
+          .filter((n: any) => n.type !== "agent")
+          .map((n: any) => ({
+            id: n.id,
+            type: n.type || "topic",
+            label: n.label || n.properties?.topic || n.id,
+            desc: n.desc || n.properties?.description || n.properties?.contactName || n.properties?.objection || n.properties?.preference || "Conhecimento consolidado",
+            confidence: n.val ? Math.min(100, n.val * 10) : 85,
+            phone: n.properties?.contactPhone || n.properties?.phone,
+          }));
+        setMemoryItems(enrichedNodes);
         return;
       }
-    } catch (err) {
-      console.warn("[EvolutionTab] Real memory graph empty or endpoint unavailable, using live synced graph nodes:", err);
+    } catch {
+      // Graceful fallback: empty state when no memories are loaded
     }
 
-    // Graceful fallback to real system entities if memory endpoint returns empty:
-    const baseNodes = [
-      { id: "agent-brain", label: "Cérebro " + (agentKey === "zaibot" ? "ZAI" : "Atendente"), type: "agent", val: 14 },
-      { id: "cat-vendas", label: "Vendas Consultivas", type: "topic", val: 8 },
-      { id: "cat-suporte", label: "Suporte & Dúvidas", type: "topic", val: 6 },
-      { id: "obj-preco", label: "Objeção: Preço & Desconto", type: "objection", val: 7, desc: "Clientes pedindo desconto à vista no Pix" },
-      { id: "obj-prazo", label: "Objeção: Prazo de Entrega", type: "objection", val: 6, desc: "Confirmação de frete e prazos para obra" },
-      { id: "pref-pix", label: "Preferência: PIX com 5% OFF", type: "preference", val: 9, desc: "Gera chave Pix instantânea e comprovante" },
-      { id: "pref-cartao", label: "Preferência: Cartão 12x", type: "preference", val: 7, desc: "Link de pagamento seguro Stone/Cielo" },
-      { id: "lead-sp", label: "Leads de São Paulo (11)", type: "lead", val: 8, desc: "Base ativa da região metropolitana" },
-      { id: "lead-rj", label: "Leads do Rio de Janeiro (21)", type: "lead", val: 6, desc: "Base ativa da capital" },
-      { id: "lead-mg", label: "Leads de Minas Gerais (31)", type: "lead", val: 5, desc: "Base ativa de Belo Horizonte e região" },
-    ];
-    const baseEdges = [
-      { source: "agent-brain", target: "cat-vendas" },
-      { source: "agent-brain", target: "cat-suporte" },
-      { source: "cat-vendas", target: "obj-preco" },
-      { source: "cat-vendas", target: "obj-prazo" },
-      { source: "cat-vendas", target: "pref-pix" },
-      { source: "cat-vendas", target: "pref-cartao" },
-      { source: "obj-preco", target: "lead-sp" },
-      { source: "pref-pix", target: "lead-rj" },
-      { source: "cat-suporte", target: "lead-mg" },
-    ];
-    const fallbackGraph = { nodes: baseNodes, edges: baseEdges, links: baseEdges };
-    setEmbeddedGraphData(fallbackGraph);
-    setMemoryGraphData(fallbackGraph);
+    setMemoryItems([]);
   }, []);
-
-  const fetchMemoryGraph = async () => {
-    try {
-      const res = await requestApiEndpoint<any>(`/api/ai/memory/graph?agentKey=${encodeURIComponent(selectedAgentKey)}&limit=60`);
-      const graph = res?.data || res;
-      if (!Array.isArray(graph?.nodes) || !Array.isArray(graph?.edges)) throw new Error("Grafo de memória indisponível.");
-      setMemoryGraphData(graph);
-      setObsidianModalOpen(true);
-    } catch (err) {
-      toast({ title: "Não foi possível abrir a memória", description: err instanceof Error ? err.message : "Grafo de memória indisponível.", variant: "destructive" });
-    }
-  };
 
   useEffect(() => {
     if (selectedAgentKey) {
       void loadAgentData(selectedAgentKey);
-      void loadEmbeddedMemoryGraph(selectedAgentKey);
+      void loadAgentMemories(selectedAgentKey);
     }
-  }, [selectedAgentKey, loadAgentData, loadEmbeddedMemoryGraph]);
+  }, [selectedAgentKey, loadAgentData, loadAgentMemories]);
 
-  const filteredGraphData = React.useMemo(() => {
-    let nodes = embeddedGraphData.nodes || [];
-    if (graphCategory !== "todos") {
-      nodes = nodes.filter((n) => n.type === graphCategory || (graphCategory === "lead" && (n.type === "contact" || n.type === "lead")));
+  const filteredMemories = React.useMemo(() => {
+    let items = memoryItems;
+    if (memoryCategory !== "todos") {
+      items = items.filter((n) => n.type === memoryCategory);
     }
-    if (graphSearch.trim()) {
-      const q = graphSearch.toLowerCase().trim();
-      nodes = nodes.filter((n) => (n.label || n.id || "").toLowerCase().includes(q) || (n.desc || "").toLowerCase().includes(q));
+    if (memorySearch.trim()) {
+      const q = memorySearch.toLowerCase().trim();
+      items = items.filter((n) => (n.label || "").toLowerCase().includes(q) || (n.desc || "").toLowerCase().includes(q));
     }
-    const nodeIds = new Set(nodes.map((n) => n.id));
-    const edges = (embeddedGraphData.edges || embeddedGraphData.links || []).filter((e) => {
-      const s = typeof e.source === "object" ? e.source?.id : e.source;
-      const t = typeof e.target === "object" ? e.target?.id : e.target;
-      return nodeIds.has(s) && nodeIds.has(t);
-    });
-    return { nodes, edges, links: edges };
-  }, [embeddedGraphData, graphCategory, graphSearch]);
+    return items;
+  }, [memoryItems, memoryCategory, memorySearch]);
 
   const handleSlashCommand = (cmd: string) => {
     if (cmd === "/goal") {
       toast({ title: "Comando /goal", description: "Meta de conversão e assertividade cognitiva ativas." });
     } else if (cmd === "/browser") {
-      setGraphCategory("todos");
-      setGraphSearch("");
-      setSelectedGraphNode(null);
-      toast({ title: "Comando /browser", description: "Visualização centralizada do Grafo de Memória Vivo." });
+      setMemoryCategory("todos");
+      setMemorySearch("");
+      toast({ title: "Memórias", description: "Exibindo memórias e aprendizados consolidados do atendente." });
     } else if (cmd === "/plan") {
       navigate("/ai?tab=flows");
     } else if (cmd === "/grill-me") {
@@ -368,16 +313,16 @@ export function EvolutionTab({ agentKey, onSelectAgent, agents: initialAgents }:
     } else if (cmd === "/learn") {
       void handleSyncManual();
     } else if (cmd === "/boost") {
-      toast({ title: "Comando /boost", description: "Otimizando sinapses cognitivas e acelerando XP de respostas." });
+      toast({ title: "Comando /boost", description: "Otimizando sinapses cognitivas e acelerando aprendizado de respostas." });
     }
   };
 
   const calculatedXp = React.useMemo(() => {
     if (humanStats.totalXp && humanStats.totalXp > 0) return humanStats.totalXp;
-    const mined = humanStats.humanSamplesLearned || 18;
-    const patternsCount = learnedPatterns.length || 12;
-    const resolvedObjections = humanStats.objectionsLearned || 8;
-    const scoreBase = overview.score || 85;
+    const mined = humanStats.humanSamplesLearned || 0;
+    const patternsCount = learnedPatterns.length || 0;
+    const resolvedObjections = humanStats.objectionsLearned || 0;
+    const scoreBase = overview.score || 0;
     return mined * 30 + patternsCount * 45 + resolvedObjections * 50 + scoreBase * 10;
   }, [humanStats, learnedPatterns, overview]);
 
@@ -387,13 +332,13 @@ export function EvolutionTab({ agentKey, onSelectAgent, agents: initialAgents }:
     if (calculatedXp >= 3500) return 4;
     if (calculatedXp >= 1500) return 3;
     if (calculatedXp >= 500) return 2;
-    return 1;
+    return calculatedXp > 0 ? 1 : 1;
   }, [humanStats.level, calculatedXp]);
 
   const levelTitles = ["Aprendiz", "Atendente Júnior", "Consultor Comercial", "Especialista em Fechamento", "Mestre da Conversão ZAI"];
   const calculatedLevelTitle = humanStats.levelTitle && humanStats.levelTitle !== "Sem dados"
     ? humanStats.levelTitle
-    : levelTitles[calculatedLevel - 1] || "Consultor Comercial";
+    : calculatedXp > 0 ? (levelTitles[calculatedLevel - 1] || "Aprendiz") : "Aprendiz";
 
   // Sync and Learn from Manual Attendances
   const handleSyncManual = async () => {
@@ -582,13 +527,13 @@ export function EvolutionTab({ agentKey, onSelectAgent, agents: initialAgents }:
           </div>
           <div>
             <h3 className="text-sm font-bold text-foreground flex items-center gap-2">
-              Evolução Contínua & Inteligência Cognitiva
+              Evolução & Memória do Atendente
               <Badge variant="outline" className="text-[10px] border-purple-500/40 text-purple-300 bg-purple-500/10 capitalize">
                 {agentsList.find((a) => (a.key || a.id) === selectedAgentKey)?.name || (selectedAgentKey === "camila" ? "Camila" : selectedAgentKey)}
               </Badge>
             </h3>
             <p className="text-xs text-muted-foreground">
-              O atendente aprende com cada atendimento manual e evolui o tom natural a cada conversa.
+              Este atendente está aprendendo com os atendimentos e consultas dos clientes.
             </p>
           </div>
         </div>
@@ -612,18 +557,6 @@ export function EvolutionTab({ agentKey, onSelectAgent, agents: initialAgents }:
               </select>
             </div>
           )}
-
-          {/* BOTÃO EXPLORAR MEMÓRIA EM GRAFO OBSIDIAN */}
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={fetchMemoryGraph}
-            className="h-9 text-xs gap-1.5 border-purple-500/40 text-purple-300 bg-purple-500/10 hover:bg-purple-500/20 font-semibold"
-          >
-            <Network className="h-3.5 w-3.5 text-purple-400" />
-            <span>Explorar Grafo Obsidian</span>
-          </Button>
 
           <Button
             type="button"
@@ -663,7 +596,7 @@ export function EvolutionTab({ agentKey, onSelectAgent, agents: initialAgents }:
         <span className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider mr-1 shrink-0">Comandos:</span>
         {[
           { cmd: "/goal", label: "/goal", icon: Target, desc: "Meta & Assertividade" },
-          { cmd: "/browser", label: "/browser", icon: Compass, desc: "Navegar Grafo de Memórias" },
+          { cmd: "/browser", label: "/browser", icon: Compass, desc: "Consultar Memórias do Atendente" },
           { cmd: "/plan", label: "/plan", icon: BookOpen, desc: "Playbooks de Atendimento" },
           { cmd: "/grill-me", label: "/grill-me", icon: HelpCircle, desc: "Escanear Lacunas da IA" },
           { cmd: "/learn", label: "/learn", icon: Brain, desc: "Aprender com Atendimentos" },
@@ -687,35 +620,34 @@ export function EvolutionTab({ agentKey, onSelectAgent, agents: initialAgents }:
         })}
       </div>
 
-      {/* EMBEDDED OBSIDIAN LIVING BRAIN MEMORY GRAPH */}
+      {/* HUMAN-CENTRIC MEMORY & KNOWLEDGE BASE */}
       <Card className="bg-card border-border/80 shadow-md overflow-hidden">
         <CardHeader className="pb-3 border-b border-border/40">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div className="space-y-0.5">
               <CardTitle className="text-base font-bold flex items-center gap-2 text-foreground">
-                <Brain className="h-5 w-5 text-purple-400" /> Cérebro Vivo & Grafo de Memória (Estilo Obsidian)
+                <Brain className="h-5 w-5 text-purple-400" /> Memórias & Aprendizados Relevantes
               </CardTitle>
               <CardDescription className="text-xs text-muted-foreground">
-                Grafo dinâmico interativo com memória viva de conversas, clientes, intenções e regras aprendidas.
+                Este atendente está aprendendo com os atendimentos. Conceitos, preferências e respostas refinadas.
               </CardDescription>
             </div>
 
             {/* Category Filter Chips */}
             <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-none py-1">
               {[
-                { id: "todos", label: "Todos os Nós" },
-                { id: "lead", label: "Clientes & Contatos" },
-                { id: "topic", label: "Tópicos" },
-                { id: "objection", label: "Objeções" },
-                { id: "preference", label: "Preferências" },
+                { id: "todos", label: "Todas as Memórias" },
+                { id: "topic", label: "Tópicos & Regras" },
+                { id: "objection", label: "Objeções Resolvidas" },
+                { id: "preference", label: "Preferências de Clientes" },
               ].map((cat) => (
                 <button
                   key={cat.id}
                   type="button"
-                  onClick={() => setGraphCategory(cat.id)}
+                  onClick={() => setMemoryCategory(cat.id)}
                   className={cn(
                     "px-2.5 py-1 rounded-lg text-xs font-semibold transition-all shrink-0 select-none",
-                    graphCategory === cat.id
+                    memoryCategory === cat.id
                       ? "bg-purple-500/20 text-purple-300 border border-purple-500/50 shadow-xs"
                       : "bg-muted/20 text-muted-foreground hover:bg-muted/40 hover:text-foreground border border-border/50"
                   )}
@@ -726,22 +658,22 @@ export function EvolutionTab({ agentKey, onSelectAgent, agents: initialAgents }:
             </div>
           </div>
 
-          {/* Search bar inside graph header */}
+          {/* Search bar */}
           <div className="pt-2 flex items-center gap-2">
             <div className="relative flex-1">
               <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
               <Input
-                value={graphSearch}
-                onChange={(e) => setGraphSearch(e.target.value)}
-                placeholder="Filtrar memórias, contatos, dúvidas ou regras aprendidas..."
+                value={memorySearch}
+                onChange={(e) => setMemorySearch(e.target.value)}
+                placeholder="Pesquisar memórias aprendidas, tópicos, objeções ou regras..."
                 className="h-8 pl-8 text-xs bg-muted/20"
               />
             </div>
-            {graphSearch && (
+            {memorySearch && (
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={() => setGraphSearch("")}
+                onClick={() => setMemorySearch("")}
                 className="h-8 text-xs text-muted-foreground"
               >
                 Limpar
@@ -750,58 +682,61 @@ export function EvolutionTab({ agentKey, onSelectAgent, agents: initialAgents }:
           </div>
         </CardHeader>
 
-        <CardContent className="p-3 sm:p-4 space-y-3">
-          <div className="relative w-full h-[420px] rounded-xl overflow-hidden border border-border/50 bg-[#090d16]">
-            <MemoryGraphViewer
-              graphData={filteredGraphData}
-              height={420}
-              onNodeClick={(node) => setSelectedGraphNode(node)}
-            />
-          </div>
+        <CardContent className="p-4">
+          {filteredMemories.length === 0 ? (
+            <div className="text-center py-8 text-xs text-muted-foreground border border-dashed border-border/60 rounded-xl p-4">
+              Nenhuma memória encontrada para este filtro. Conforme novos atendimentos ocorrerem, os aprendizados consolidados serão listados aqui.
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+              {filteredMemories.map((mem) => {
+                const isObjection = mem.type === "objection";
+                const isPref = mem.type === "preference";
+                return (
+                  <div
+                    key={mem.id}
+                    className="p-3.5 rounded-xl border border-border/70 bg-card/60 hover:bg-card hover:border-purple-500/40 transition-all space-y-2 flex flex-col justify-between"
+                  >
+                    <div className="space-y-1.5">
+                      <div className="flex items-center justify-between gap-2">
+                        <Badge
+                          variant="outline"
+                          className={cn(
+                            "text-[10px] font-bold uppercase",
+                            isObjection
+                              ? "border-amber-500/40 text-amber-300 bg-amber-500/10"
+                              : isPref
+                              ? "border-emerald-500/40 text-emerald-300 bg-emerald-500/10"
+                              : "border-purple-500/40 text-purple-300 bg-purple-500/10"
+                          )}
+                        >
+                          {isObjection ? "Objeção" : isPref ? "Preferência" : "Tópico & Regra"}
+                        </Badge>
+                        <span className="text-[10px] font-mono text-muted-foreground font-semibold">
+                          Assertividade {mem.confidence}%
+                        </span>
+                      </div>
+                      <h4 className="text-xs font-bold text-foreground line-clamp-1">{mem.label}</h4>
+                      <p className="text-[11px] text-muted-foreground line-clamp-2 leading-relaxed">{mem.desc}</p>
+                    </div>
 
-          {/* Node Inspector Drawer / Card */}
-          {selectedGraphNode && (
-            <div className="p-3.5 rounded-xl border border-purple-500/40 bg-purple-950/20 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-3 animate-fade-in">
-              <div className="space-y-1">
-                <div className="flex items-center gap-2">
-                  <Badge className="bg-purple-500/20 text-purple-300 border-purple-500/40 text-[10px] font-bold uppercase">
-                    {selectedGraphNode.type || "Conceito"}
-                  </Badge>
-                  <span className="text-sm font-bold text-foreground">
-                    {selectedGraphNode.label || selectedGraphNode.id}
-                  </span>
-                </div>
-                {selectedGraphNode.desc && (
-                  <p className="text-xs text-muted-foreground">{selectedGraphNode.desc}</p>
-                )}
-              </div>
-
-              <div className="flex items-center gap-2 shrink-0">
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setSelectedGraphNode(null)}
-                  className="h-8 text-xs text-muted-foreground hover:text-foreground"
-                >
-                  Fechar
-                </Button>
-                <Button
-                  type="button"
-                  size="sm"
-                  onClick={() => {
-                    const phone = selectedGraphNode.properties?.contactPhone || selectedGraphNode.properties?.phone;
-                    if (phone) {
-                      navigate(`/inbox?chatId=${encodeURIComponent(phone)}`);
-                    } else {
-                      navigate("/inbox");
-                    }
-                  }}
-                  className="h-8 text-xs font-semibold bg-emerald-500 hover:bg-emerald-600 text-white gap-1.5 shadow-sm"
-                >
-                  <MessageCircle className="h-3.5 w-3.5" /> Abrir no Inbox
-                </Button>
-              </div>
+                    <div className="pt-2 border-t border-border/40 flex items-center justify-between text-[10px] text-muted-foreground">
+                      <span className="flex items-center gap-1 text-emerald-400 font-semibold">
+                        <CheckCircle2 className="h-3 w-3" /> Memória ativa
+                      </span>
+                      {mem.phone && (
+                        <button
+                          type="button"
+                          onClick={() => navigate(`/inbox?chatId=${encodeURIComponent(mem.phone)}`)}
+                          className="hover:text-foreground text-purple-400 font-medium hover:underline"
+                        >
+                          Ver no chat
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           )}
         </CardContent>
@@ -1246,14 +1181,6 @@ export function EvolutionTab({ agentKey, onSelectAgent, agents: initialAgents }:
           )}
         </CardContent>
       </Card>
-
-      {/* OBSIDIAN MEMORY GRAPH MODAL */}
-      <ObsidianMemoryModal
-        open={obsidianModalOpen}
-        onOpenChange={setObsidianModalOpen}
-        graphData={memoryGraphData}
-        agentName={selectedAgentKey === "zaibot" ? "Assistente ZAI" : selectedAgentKey}
-      />
     </div>
   );
 }

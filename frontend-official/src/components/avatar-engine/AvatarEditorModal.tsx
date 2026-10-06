@@ -25,6 +25,11 @@ import {
   ACCESSORIES,
   WORK_OBJECTS,
   CLOTHING_STYLES,
+  AVATAR_HAIRS,
+  AVATAR_FACES,
+  AVATAR_OUTFITS,
+  AVATAR_ACCESSORIES,
+  AVATAR_STYLES,
 } from "./AvatarDefinition";
 import {
   createAgentAvatar,
@@ -33,6 +38,7 @@ import {
   randomizeAvatar,
   buildStoreVisualDNA,
   resolveSpriteForAvatar,
+  applyStylePreset,
 } from "./CharacterFactory";
 import { ZaiAvatarRenderer } from "./ZaiAvatarRenderer";
 import { notify } from "@/core/services/notifyService";
@@ -47,6 +53,8 @@ import {
   ArrowsClockwise,
   FloppyDisk,
   ShieldCheck,
+  Smiley,
+  Sparkle,
 } from "@phosphor-icons/react";
 
 export interface AvatarEditorModalProps {
@@ -345,7 +353,7 @@ export const AvatarEditorModal: React.FC<AvatarEditorModalProps> = ({
           <div className="md:col-span-7 flex flex-col overflow-hidden">
             <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col">
               <div className="p-3 border-b border-border/50 bg-card/30">
-                <TabsList className="grid grid-cols-5 w-full bg-background/60 p-1">
+                <TabsList className="grid grid-cols-7 w-full bg-background/60 p-1">
                   <TabsTrigger value="appearance" className="text-xs flex items-center gap-1">
                     <User className="w-3.5 h-3.5" />
                     <span>Corpo</span>
@@ -354,6 +362,10 @@ export const AvatarEditorModal: React.FC<AvatarEditorModalProps> = ({
                     <Scissors className="w-3.5 h-3.5" />
                     <span>Cabelo</span>
                   </TabsTrigger>
+                  <TabsTrigger value="face" className="text-xs flex items-center gap-1">
+                    <Smiley className="w-3.5 h-3.5" />
+                    <span>Rosto</span>
+                  </TabsTrigger>
                   <TabsTrigger value="clothing" className="text-xs flex items-center gap-1">
                     <TShirt className="w-3.5 h-3.5" />
                     <span>Roupas</span>
@@ -361,6 +373,10 @@ export const AvatarEditorModal: React.FC<AvatarEditorModalProps> = ({
                   <TabsTrigger value="accessories" className="text-xs flex items-center gap-1">
                     <Eyeglasses className="w-3.5 h-3.5" />
                     <span>Acessórios</span>
+                  </TabsTrigger>
+                  <TabsTrigger value="style" className="text-xs flex items-center gap-1">
+                    <Sparkle className="w-3.5 h-3.5" />
+                    <span>Estilo</span>
                   </TabsTrigger>
                   <TabsTrigger value="branding" className="text-xs flex items-center gap-1">
                     <Storefront className="w-3.5 h-3.5" />
@@ -463,6 +479,62 @@ export const AvatarEditorModal: React.FC<AvatarEditorModalProps> = ({
                       ))}
                     </div>
                   </div>
+
+                  <div className="pt-3 border-t border-border/50">
+                    <Label className="text-xs font-bold text-foreground mb-2 block">
+                      Cortes Modulares ZAI ({AVATAR_HAIRS.length} opções)
+                    </Label>
+                    <div className="grid grid-cols-2 gap-2">
+                      {AVATAR_HAIRS.map((h) => (
+                        <button
+                          key={h.id}
+                          data-avatar-item={h.id}
+                          type="button"
+                          onClick={() => setAvatar((prev) => ({
+                            ...prev,
+                            hair: h.id,
+                            catalogSpriteId: h.spriteRef || resolveSpriteForAvatar({ ...prev, hair: h.id, catalogSpriteId: undefined }, true),
+                          }))}
+                          className={cn(
+                            "p-2.5 rounded-xl border text-left transition-all",
+                            avatar.hair === h.id
+                              ? "border-emerald-500 bg-emerald-500/10 shadow-sm"
+                              : "border-border hover:border-border/80 text-muted-foreground"
+                          )}
+                        >
+                          <div className="text-xs font-bold text-foreground">{h.name} — {h.title}</div>
+                          <div className="text-[10px] text-muted-foreground">{h.description}</div>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </TabsContent>
+
+                {/* ROSTO (Expressões e Olhares) */}
+                <TabsContent value="face" className="mt-0 space-y-4">
+                  <Label className="text-xs font-bold text-foreground block">
+                    Expressões Faciais ({AVATAR_FACES.length} modelos)
+                  </Label>
+                  <p className="text-xs text-muted-foreground">Escolha a expressão que melhor reflete a postura do atendente.</p>
+                  <div className="grid grid-cols-2 gap-2.5">
+                    {AVATAR_FACES.map((f) => (
+                      <button
+                        key={f.id}
+                        data-avatar-item={f.id}
+                        type="button"
+                        onClick={() => setAvatar((prev) => ({ ...prev, face: f.id }))}
+                        className={cn(
+                          "p-3 rounded-xl border text-left transition-all",
+                          (avatar.face === f.id || (!avatar.face && f.id === "face_01"))
+                            ? "border-emerald-500 bg-emerald-500/10 shadow-sm"
+                            : "border-border hover:border-border/80 text-muted-foreground"
+                        )}
+                      >
+                        <div className="text-xs font-bold text-foreground">{f.title}</div>
+                        <div className="text-[10px] text-muted-foreground">{f.description}</div>
+                      </button>
+                    ))}
+                  </div>
                 </TabsContent>
 
                 {/* 3. ROUPAS (Uniformes & Vestuário) */}
@@ -520,6 +592,39 @@ export const AvatarEditorModal: React.FC<AvatarEditorModalProps> = ({
                         >
                           <div className="text-xs font-bold text-foreground">{c.name}</div>
                           <div className="text-[10px] text-muted-foreground">{c.description}</div>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="pt-3 border-t border-border/50">
+                    <Label className="text-xs font-bold text-foreground block mb-2">
+                      Roupas Modulares ZAI ({AVATAR_OUTFITS.length} opções)
+                    </Label>
+                    <div className="grid grid-cols-2 gap-2">
+                      {AVATAR_OUTFITS.map((o) => (
+                        <button
+                          key={o.id}
+                          data-avatar-item={o.id}
+                          type="button"
+                          onClick={() => {
+                            setAvatar((prev) => {
+                              const updated = { ...prev, outfit: o.id, clothing: o.id };
+                              return {
+                                ...updated,
+                                catalogSpriteId: o.spriteRef || resolveSpriteForAvatar(updated, true),
+                              };
+                            });
+                          }}
+                          className={cn(
+                            "p-2.5 rounded-xl border text-left transition-all",
+                            (avatar.outfit === o.id || avatar.clothing === o.id)
+                              ? "border-emerald-500 bg-emerald-500/10 shadow-sm"
+                              : "border-border hover:border-border/80 text-muted-foreground"
+                          )}
+                        >
+                          <div className="text-xs font-bold text-foreground">{o.name} — {o.title}</div>
+                          <div className="text-[10px] text-muted-foreground">{o.description}</div>
                         </button>
                       ))}
                     </div>
@@ -608,6 +713,95 @@ export const AvatarEditorModal: React.FC<AvatarEditorModalProps> = ({
                         </button>
                       ))}
                     </div>
+                  </div>
+
+                  <div className="pt-3 border-t border-border/50">
+                    <Label className="text-xs font-bold text-foreground mb-2 block">
+                      Acessórios Modulares ZAI ({AVATAR_ACCESSORIES.length} opções)
+                    </Label>
+                    <div className="grid grid-cols-2 gap-2">
+                      {AVATAR_ACCESSORIES.map((a) => {
+                        const isEquipped =
+                          (a.id === "acc_01" && (!avatar.headset || avatar.headset === "none") && (!avatar.glasses || avatar.glasses === "none")) ||
+                          (a.id === "acc_02" && avatar.headset === "headset_zai_green") ||
+                          (a.id === "acc_03" && avatar.accessories?.badge === "badge_zai_lanyard") ||
+                          (a.id === "acc_04" && (avatar.glasses === "glasses_square_exec" || avatar.glasses?.includes("glasses"))) ||
+                          (a.id === "acc_05" && avatar.workObject === "tablet_zai") ||
+                          (a.id === "acc_06" && avatar.accessories?.watch === "watch_zai_smart");
+                        return (
+                          <button
+                            key={a.id}
+                            data-avatar-item={a.id}
+                            type="button"
+                            onClick={() => {
+                              const curAcc = { ...(avatar.accessories || {}) };
+                              let updHeadset = avatar.headset;
+                              let updGlasses = avatar.glasses;
+                              let updWorkObject = avatar.workObject;
+                              if (a.id === "acc_01") {
+                                updHeadset = "none";
+                                updGlasses = "none";
+                              } else if (a.id === "acc_02") {
+                                updHeadset = updHeadset === "headset_zai_green" ? "none" : "headset_zai_green";
+                                curAcc.headset = updHeadset;
+                              } else if (a.id === "acc_03") {
+                                curAcc.badge = curAcc.badge === "badge_zai_lanyard" ? "none" : "badge_zai_lanyard";
+                              } else if (a.id === "acc_04") {
+                                updGlasses = updGlasses === "glasses_square_exec" ? "none" : "glasses_square_exec";
+                                curAcc.glasses = updGlasses;
+                              } else if (a.id === "acc_05") {
+                                updWorkObject = updWorkObject === "tablet_zai" ? "none" : "tablet_zai";
+                              } else if (a.id === "acc_06") {
+                                curAcc.watch = curAcc.watch === "watch_zai_smart" ? "none" : "watch_zai_smart";
+                              }
+                              setAvatar((prev) => ({
+                                ...prev,
+                                accessories: curAcc,
+                                headset: updHeadset,
+                                glasses: updGlasses,
+                                workObject: updWorkObject,
+                              }));
+                            }}
+                            className={cn(
+                              "p-2.5 rounded-xl border text-left transition-all",
+                              isEquipped
+                                ? "border-emerald-500 bg-emerald-500/10 text-foreground"
+                                : "border-border hover:border-border/80 text-muted-foreground"
+                            )}
+                          >
+                            <div className="text-xs font-bold text-foreground">{a.name} — {a.title}</div>
+                            <div className="text-[9px] text-muted-foreground mt-0.5">{isEquipped ? "Equipado ✓" : "Equipar"}</div>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </TabsContent>
+
+                {/* ESTILO (Presets de Identidade) */}
+                <TabsContent value="style" className="mt-0 space-y-4">
+                  <Label className="text-xs font-bold text-foreground block">
+                    Presets de Identidade & Estilo ({AVATAR_STYLES.length} opções)
+                  </Label>
+                  <p className="text-xs text-muted-foreground">Selecione um estilo operacional para configurar o conjunto completo.</p>
+                  <div className="grid grid-cols-2 gap-2.5">
+                    {AVATAR_STYLES.map((s) => (
+                      <button
+                        key={s.id}
+                        data-avatar-item={s.id}
+                        type="button"
+                        onClick={() => setAvatar((prev) => applyStylePreset(prev, s.id))}
+                        className={cn(
+                          "p-3 rounded-xl border text-left transition-all",
+                          avatar.style === s.id
+                            ? "border-emerald-500 bg-emerald-500/10 shadow-sm"
+                            : "border-border hover:border-border/80 text-muted-foreground"
+                        )}
+                      >
+                        <div className="text-xs font-bold text-foreground">{s.title}</div>
+                        <div className="text-[10px] text-muted-foreground">{s.description}</div>
+                      </button>
+                    ))}
                   </div>
                 </TabsContent>
 

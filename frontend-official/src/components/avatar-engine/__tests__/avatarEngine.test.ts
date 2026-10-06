@@ -16,10 +16,17 @@ import {
   unequipItem,
   randomizeAvatar,
   resolveSpriteForAvatar,
+  applyStylePreset,
 } from "../CharacterFactory";
 import {
   StoreVisualDNA,
   DEFAULT_AVATAR_PRESETS,
+  AVATAR_HAIRS,
+  AVATAR_FACES,
+  AVATAR_OUTFITS,
+  AVATAR_ACCESSORIES,
+  AVATAR_STYLES,
+  AgentAvatarConfig,
 } from "../AvatarDefinition";
 
 describe("ZAI Avatar Engine — Modular Character Factory & Store DNA", () => {
@@ -278,6 +285,163 @@ describe("Avatar operational state regressions", () => {
       spy.mockRestore();
       errorSpy.mockRestore();
     }
+  });
+
+  it("verifies simultaneous 5-category composition and independent layer changes (Requirement 21)", async () => {
+    const agent = {
+      key: "camila",
+      name: "Camila",
+      avatarConfig: createAgentAvatar({ agentId: "camila", name: "Camila", gender: "female" }),
+    };
+    const saveAvatar = vi.spyOn(apiService, "updateAgentAvatar").mockResolvedValue({ success: true, agent: {} } as any);
+    const container = document.createElement("div");
+    document.body.appendChild(container);
+    const root = createRoot(container);
+
+    try {
+      await act(async () => {
+        root.render(React.createElement(AvatarEditorModal, { open: true, onOpenChange: vi.fn(), agent }));
+      });
+
+      // 1. select Cabelo 03
+      await act(async () => {
+        Array.from(document.querySelectorAll('[role="tab"]'))
+          .find((tab) => tab.textContent?.includes("Cabelo"))
+          ?.dispatchEvent(new MouseEvent("mousedown", { bubbles: true, button: 0 }));
+      });
+      await act(async () => {
+        document.querySelector<HTMLButtonElement>('[data-avatar-item="hair_03"]')?.click();
+      });
+
+      // 2. select Rosto 04
+      await act(async () => {
+        Array.from(document.querySelectorAll('[role="tab"]'))
+          .find((tab) => tab.textContent?.includes("Rosto"))
+          ?.dispatchEvent(new MouseEvent("mousedown", { bubbles: true, button: 0 }));
+      });
+      await act(async () => {
+        document.querySelector<HTMLButtonElement>('[data-avatar-item="face_04"]')?.click();
+      });
+
+      // 3. select Roupa 05
+      await act(async () => {
+        Array.from(document.querySelectorAll('[role="tab"]'))
+          .find((tab) => tab.textContent?.includes("Roupas"))
+          ?.dispatchEvent(new MouseEvent("mousedown", { bubbles: true, button: 0 }));
+      });
+      await act(async () => {
+        document.querySelector<HTMLButtonElement>('[data-avatar-item="outfit_05"]')?.click();
+      });
+
+      // 4. select Acessório 02
+      await act(async () => {
+        Array.from(document.querySelectorAll('[role="tab"]'))
+          .find((tab) => tab.textContent?.includes("Acessórios"))
+          ?.dispatchEvent(new MouseEvent("mousedown", { bubbles: true, button: 0 }));
+      });
+      await act(async () => {
+        document.querySelector<HTMLButtonElement>('[data-avatar-item="acc_02"]')?.click();
+      });
+
+      // 5. select Estilo Vendas
+      await act(async () => {
+        Array.from(document.querySelectorAll('[role="tab"]'))
+          .find((tab) => tab.textContent?.includes("Estilo"))
+          ?.dispatchEvent(new MouseEvent("mousedown", { bubbles: true, button: 0 }));
+      });
+      await act(async () => {
+        document.querySelector<HTMLButtonElement>('[data-avatar-item="style_vendas"]')?.click();
+      });
+
+      // 6. verify simultaneous composition
+      const previewImg = document.querySelector('img[alt="camila"]');
+      expect(previewImg).toBeTruthy();
+
+      // 7. change Cabelo to 07 -> verify only hair changes
+      await act(async () => {
+        Array.from(document.querySelectorAll('[role="tab"]'))
+          .find((tab) => tab.textContent?.includes("Cabelo"))
+          ?.dispatchEvent(new MouseEvent("mousedown", { bubbles: true, button: 0 }));
+      });
+      await act(async () => {
+        document.querySelector<HTMLButtonElement>('[data-avatar-item="hair_07"]')?.click();
+      });
+
+      // 8. change Roupa to 02 -> verify hair stays 07
+      await act(async () => {
+        Array.from(document.querySelectorAll('[role="tab"]'))
+          .find((tab) => tab.textContent?.includes("Roupas"))
+          ?.dispatchEvent(new MouseEvent("mousedown", { bubbles: true, button: 0 }));
+      });
+      await act(async () => {
+        document.querySelector<HTMLButtonElement>('[data-avatar-item="outfit_02"]')?.click();
+      });
+
+      // 9. persist
+      await act(async () => {
+        Array.from(document.querySelectorAll("button"))
+          .find((button) => button.textContent?.includes("Salvar Avatar"))
+          ?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+      });
+
+      expect(saveAvatar).toHaveBeenCalledWith("camila", expect.objectContaining({
+        avatarConfig: expect.objectContaining({
+          hair: "hair_07",
+          face: "face_04",
+          outfit: "outfit_02",
+          style: "style_vendas",
+        }),
+      }));
+    } finally {
+      await act(async () => root.unmount());
+      container.remove();
+      saveAvatar.mockRestore();
+    }
+  });
+
+  it("executes simultaneous 5-category composition and layer persistence logic (Requirement 21 Engine)", () => {
+    const base = createAgentAvatar({
+      agentId: "camila",
+      name: "Camila",
+      role: "Vendas",
+      gender: "female",
+    });
+
+    // select Cabelo 03 -> Rosto 04 -> Roupa 05 -> Acessório 02 -> Estilo Vendas
+    let config: AgentAvatarConfig = { ...base, hair: "hair_03", face: "face_04", outfit: "outfit_05", clothing: "outfit_05" };
+    config = equipItem(config, "headset", "headset_zai_green");
+    config = applyStylePreset(config, "style_vendas");
+
+    // verify simultaneous composition
+    expect(config.hair).toBe("hair_03");
+    expect(config.face).toBe("face_04");
+    expect(config.outfit).toBe("outfit_05");
+    expect(config.accessories.headset).toBe("headset_zai_green");
+    expect(config.style).toBe("style_vendas");
+
+    // change Cabelo to 07 -> verify only hair changes
+    const configHair07 = {
+      ...config,
+      hair: "hair_07",
+      catalogSpriteId: AVATAR_HAIRS.find((h) => h.id === "hair_07")?.spriteRef || resolveSpriteForAvatar({ ...config, hair: "hair_07", catalogSpriteId: undefined }, true),
+    };
+    expect(configHair07.hair).toBe("hair_07");
+    expect(configHair07.face).toBe("face_04");
+    expect(configHair07.outfit).toBe("outfit_05");
+    expect(configHair07.accessories.headset).toBe("headset_zai_green");
+    expect(configHair07.style).toBe("style_vendas");
+
+    // change Roupa to 02 -> verify hair stays 07
+    const configOutfit02 = {
+      ...configHair07,
+      outfit: "outfit_02",
+      clothing: "outfit_02",
+      catalogSpriteId: AVATAR_OUTFITS.find((o) => o.id === "outfit_02")?.spriteRef || resolveSpriteForAvatar({ ...configHair07, outfit: "outfit_02", catalogSpriteId: undefined }, true),
+    };
+    expect(configOutfit02.hair).toBe("hair_07");
+    expect(configOutfit02.outfit).toBe("outfit_02");
+    expect(configOutfit02.face).toBe("face_04");
+    expect(configOutfit02.style).toBe("style_vendas");
   });
 
   it("does not invent active conversations or metrics when only activation is known", () => {

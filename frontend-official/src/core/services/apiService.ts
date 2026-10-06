@@ -227,6 +227,8 @@ export interface AIMetricsResponse {
   promptTokensToday?: number;
   completionTokensToday?: number;
   messagesToday?: number;
+  conversationsToday?: number;
+  leadsToday?: number;
   tokensPerConversation?: Record<string, number>;
 }
 
@@ -1765,6 +1767,8 @@ export const apiService = {
       success: boolean;
       pairsFound?: number;
       newSamplesLearned?: number;
+      minedCount?: number;
+      xpGained?: number;
       topicsDiscovered?: Record<string, number>;
       durationMs?: number;
       agentLevel?: any;

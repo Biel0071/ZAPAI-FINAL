@@ -73,23 +73,38 @@ export interface PersonalityVisualConfig {
   animationStyle: "smooth" | "snappy" | "subtle";
 }
 
+export interface ModularAvatarConfig {
+  base: "female" | "male";
+  face: string;
+  hair: string;
+  hairColor?: HairColor;
+  outfit: string;
+  accessories: string[];
+  style: string;
+}
+
 export interface AgentAvatarConfig {
   id?: string;
   agentId: string;
   storeId?: string;
   body: BodyType;
+  base?: "female" | "male";
   skin: SkinTone;
   hair: string;
   hairColor: HairColor;
+  face?: string;
   eyes: string;
   eyebrows?: string;
+  mouth?: string;
   facialHair?: string;
   glasses: string;
   headset: string;
   clothing: string;
+  outfit?: string;
   pants: string;
   shoes: string;
-  accessories: Record<string, string>;
+  accessories: Record<string, string> | any;
+  style?: string;
   workObject: string;
   badge: boolean;
   branding: StoreBranding;
@@ -99,7 +114,195 @@ export interface AgentAvatarConfig {
 }
 
 /* ==========================================================================
-   CATALOG ITEMS (>= 10 ITEMS PER CATEGORY AS REQUIRED)
+   OFFICIAL AVATAR STUDIO — 5 CATEGORIES (CABELO, ROSTO, ROUPA, ACESSÓRIOS, ESTILO)
+   ========================================================================== */
+
+export interface AvatarStudioItem {
+  id: string;
+  number: string;
+  name: string;
+  title: string;
+  category: "hair" | "face" | "outfit" | "accessories" | "style";
+  gender?: "male" | "female" | "all";
+  description: string;
+  spriteRef?: string;
+  icon?: string;
+  meta?: Record<string, any>;
+  preset?: {
+    outfit?: string;
+    accessories?: string[];
+    face?: string;
+    hair?: string;
+    posture?: PersonalityVisualConfig["posture"];
+    color?: string;
+  };
+}
+
+// 1. CABELO (Hairs)
+export const AVATAR_HAIRS: AvatarStudioItem[] = [
+  { id: "hair_01", number: "01", name: "Cabelo 01", title: "Rabo de Cavalo Executivo", category: "hair", gender: "female", spriteRef: "sprite_r2_c1", description: "Penteado executivo com elástico profissional" },
+  { id: "hair_02", number: "02", name: "Cabelo 02", title: "Chanel Alinhado", category: "hair", gender: "female", spriteRef: "sprite_r2_c7", description: "Corte médio alinhado na altura dos ombros" },
+  { id: "hair_03", number: "03", name: "Cabelo 03", title: "Ondulado Longo Elegante", category: "hair", gender: "female", spriteRef: "sprite_r2_c3", description: "Ondas soltas volumosas e sofisticadas" },
+  { id: "hair_04", number: "04", name: "Cabelo 04", title: "Coque Alto Profissional", category: "hair", gender: "female", spriteRef: "sprite_r2_c4", description: "Coque clássico no topo da cabeça" },
+  { id: "hair_05", number: "05", name: "Cabelo 05", title: "Curto Fade Moderno", category: "hair", gender: "male", spriteRef: "sprite_r1_c1", description: "Degradê moderno e executivo" },
+  { id: "hair_06", number: "06", name: "Cabelo 06", title: "Black Power Texturizado", category: "hair", gender: "all", spriteRef: "sprite_r1_c7", description: "Afro texturizado com contorno desenhado" },
+  { id: "hair_07", number: "07", name: "Cabelo 07", title: "Longo Liso com Franja", category: "hair", gender: "female", spriteRef: "sprite_r2_c2", description: "Liso impecável com franja geométrica" },
+  { id: "hair_08", number: "08", name: "Cabelo 08", title: "Street Spiky Texturizado", category: "hair", gender: "male", spriteRef: "sprite_r1_c3", description: "Corte texturizado clássico espetado" },
+  { id: "hair_09", number: "09", name: "Cabelo 09", title: "Cachos Volumosos", category: "hair", gender: "all", spriteRef: "sprite_r1_c5", description: "Cachos definidos com estilo despojado" },
+  { id: "hair_10", number: "10", name: "Cabelo 10", title: "Cyber Wave Longo", category: "hair", gender: "female", spriteRef: "sprite_r2_c10", description: "Mechas longas volumosas estilo cyberpunk" },
+];
+
+// 2. ROSTO (Face) — 5ª Categoria oficial
+export const AVATAR_FACES: AvatarStudioItem[] = [
+  { id: "face_01", number: "01", name: "Rosto 01", title: "Cordial & Empático", category: "face", description: "Expressão cordial, sorriso discreto e olhar atento" },
+  { id: "face_02", number: "02", name: "Rosto 02", title: "Confiante & Seguro", category: "face", description: "Leve sorriso de lado com olhar determinado" },
+  { id: "face_03", number: "03", name: "Rosto 03", title: "Carismático & Alegre", category: "face", description: "Sorriso aberto, olhar vibrante e empático" },
+  { id: "face_04", number: "04", name: "Rosto 04", title: "Expressivo Comercial", category: "face", description: "Olhar consultivo e receptivo voltado a vendas" },
+  { id: "face_05", number: "05", name: "Rosto 05", title: "Analítico & Sereno", category: "face", description: "Foco nos detalhes com expressão equilibrada" },
+  { id: "face_06", number: "06", name: "Rosto 06", title: "Foco Operacional", category: "face", description: "Postura atenta e olhar concentrado em agilidade" },
+];
+
+// 3. ROUPA (Outfit)
+export const AVATAR_OUTFITS: AvatarStudioItem[] = [
+  { id: "outfit_01", number: "01", name: "Roupa 01", title: "Polo ZAI Corporativa", category: "outfit", spriteRef: "sprite_r1_c1", description: "Polo clássica preta com gola e detalhe verde ZAI" },
+  { id: "outfit_02", number: "02", name: "Roupa 02", title: "Camisa Social Branca", category: "outfit", spriteRef: "sprite_r1_c8", description: "Camisa social de botão com crachá executivo" },
+  { id: "outfit_03", number: "03", name: "Roupa 03", title: "Moletom Tech Zip", category: "outfit", spriteRef: "sprite_r1_c4", description: "Moletom preto premium com zíper verde neon" },
+  { id: "outfit_04", number: "04", name: "Roupa 04", title: "Uniforme Técnico", category: "outfit", spriteRef: "sprite_r3_c3", description: "Camisa azul-marinho com bolsos utilitários" },
+  { id: "outfit_05", number: "05", name: "Roupa 05", title: "Blazer Alfaiataria Comercial", category: "outfit", spriteRef: "sprite_r2_c8", description: "Blazer alfaiataria com lapela esmeralda e crachá" },
+  { id: "outfit_06", number: "06", name: "Roupa 06", title: "Colete Refletivo Logística", category: "outfit", spriteRef: "sprite_r3_c2", description: "Colete de segurança amarelo fluorescente de expedição" },
+  { id: "outfit_07", number: "07", name: "Roupa 07", title: "Camiseta Básica ZAI", category: "outfit", spriteRef: "sprite_r1_c7", description: "Camiseta casual de algodão com escudo no peito" },
+  { id: "outfit_08", number: "08", name: "Roupa 08", title: "Jaqueta Bomber ZAI", category: "outfit", spriteRef: "sprite_r1_c6", description: "Jaqueta esportiva preta com bordados verdes" },
+];
+
+// 4. ACESSÓRIOS (Accessories)
+export const AVATAR_ACCESSORIES: AvatarStudioItem[] = [
+  { id: "acc_01", number: "01", name: "Acessório 01", title: "Nenhum (Básico)", category: "accessories", description: "Visual limpo sem acessórios adicionais" },
+  { id: "acc_02", number: "02", name: "Acessório 02", title: "Headset Pro Wireless", category: "accessories", spriteRef: "sprite_r1_c1", description: "Headset de atendimento com LED verde integrado" },
+  { id: "acc_03", number: "03", name: "Acessório 03", title: "Crachá Lanyard ZAI", category: "accessories", spriteRef: "sprite_r1_c5", description: "Crachá oficial com cordão verde esmeralda" },
+  { id: "acc_04", number: "04", name: "Acessório 04", title: "Óculos Executivos", category: "accessories", spriteRef: "sprite_r1_c2", description: "Armação fina de titânio moderna e discreta" },
+  { id: "acc_05", number: "05", name: "Acessório 05", title: "Tablet de Vendas", category: "accessories", spriteRef: "sprite_r1_c2", description: "Tablet executivo com CRM e catálogo aberto" },
+  { id: "acc_06", number: "06", name: "Acessório 06", title: "Smartwatch ZAI Sync", category: "accessories", spriteRef: "sprite_r1_c7", description: "Relógio inteligente com tela neon de notificações" },
+];
+
+// 5. ESTILO (Styles — Presets completos de identidade)
+export const AVATAR_STYLES: AvatarStudioItem[] = [
+  {
+    id: "style_vendas",
+    number: "01",
+    name: "Vendas",
+    title: "Estilo Vendas",
+    category: "style",
+    description: "Foco comercial, abordagem ativa, metas e fechamento",
+    preset: {
+      outfit: "outfit_05",
+      accessories: ["acc_02"],
+      face: "face_04",
+      posture: "sales",
+      color: "#10b981",
+    },
+  },
+  {
+    id: "style_corporativo",
+    number: "02",
+    name: "Corporativo",
+    title: "Estilo Corporativo",
+    category: "style",
+    description: "Formalidade executiva, alinhamento institucional",
+    preset: {
+      outfit: "outfit_02",
+      accessories: ["acc_03"],
+      face: "face_02",
+      posture: "executive",
+      color: "#0ea5e9",
+    },
+  },
+  {
+    id: "style_atendimento",
+    number: "03",
+    name: "Atendimento",
+    title: "Estilo Atendimento",
+    category: "style",
+    description: "Acolhimento cordial, empatia e suporte consultivo",
+    preset: {
+      outfit: "outfit_01",
+      accessories: ["acc_02"],
+      face: "face_01",
+      posture: "welcoming",
+      color: "#06b6d4",
+    },
+  },
+  {
+    id: "style_operacional",
+    number: "04",
+    name: "Operacional",
+    title: "Estilo Operacional",
+    category: "style",
+    description: "Agilidade, foco em estoque, logística e entregas",
+    preset: {
+      outfit: "outfit_06",
+      accessories: ["acc_05"],
+      face: "face_06",
+      posture: "dynamic",
+      color: "#f59e0b",
+    },
+  },
+  {
+    id: "style_tech",
+    number: "05",
+    name: "Tech",
+    title: "Estilo Tech",
+    category: "style",
+    description: "Especialista em produtos, suporte técnico digital",
+    preset: {
+      outfit: "outfit_03",
+      accessories: ["acc_04"],
+      face: "face_05",
+      posture: "tech",
+      color: "#8b5cf6",
+    },
+  },
+  {
+    id: "style_casual",
+    number: "06",
+    name: "Casual",
+    title: "Estilo Casual",
+    category: "style",
+    description: "Comunicação fluida, atitude jovem e descontraída",
+    preset: {
+      outfit: "outfit_07",
+      accessories: ["acc_06"],
+      face: "face_03",
+      posture: "relaxed",
+      color: "#14b8a6",
+    },
+  },
+  {
+    id: "style_premium",
+    number: "07",
+    name: "Premium",
+    title: "Estilo Premium",
+    category: "style",
+    description: "Negociações exclusivas, alto padrão e sofisticação",
+    preset: {
+      outfit: "outfit_05",
+      accessories: ["acc_04"],
+      face: "face_02",
+      posture: "executive",
+      color: "#eab308",
+    },
+  },
+];
+
+export const AVATAR_ASSETS = {
+  hairs: AVATAR_HAIRS,
+  faces: AVATAR_FACES,
+  outfits: AVATAR_OUTFITS,
+  accessories: AVATAR_ACCESSORIES,
+  styles: AVATAR_STYLES,
+};
+
+/* ==========================================================================
+   LEGACY CATALOG ITEMS (COMPATIBILITY)
    ========================================================================== */
 
 export interface CatalogItem {

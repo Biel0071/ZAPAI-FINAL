@@ -18,6 +18,7 @@ import {
   ACCESSORIES,
   WORK_OBJECTS,
   POSTURES,
+  AVATAR_STYLES,
 } from "./AvatarDefinition";
 
 /**
@@ -60,15 +61,16 @@ export function resolveSpriteForAvatar(avatar: Partial<AgentAvatarConfig>, force
     return avatar.catalogSpriteId;
   }
 
-  const gender = avatar.body || "female";
+  const gender = avatar.body || avatar.base || "female";
   const hair = avatar.hair || "";
   const object = avatar.workObject || "";
   const glasses = avatar.glasses || "none";
+  const outfit = avatar.outfit || avatar.clothing || "";
 
   // Check work objects first (Row 3)
   if (object === "boxes_delivery") return "sprite_r3_c1";
   if (object === "laptop_zai") return "sprite_r3_c5";
-  if (avatar.clothing === "vest_hivis_safety") return "sprite_r3_c2";
+  if (outfit === "vest_hivis_safety" || outfit === "outfit_06") return "sprite_r3_c2";
   if (avatar.accessories?.headwear === "hardhat_zai_white") return "sprite_r3_c8";
   if (object === "coffee_cup") return "sprite_r2_c5";
   if (object === "peace_sign") return "sprite_r2_c8";
@@ -76,30 +78,76 @@ export function resolveSpriteForAvatar(avatar: Partial<AgentAvatarConfig>, force
 
   // Female matches (Row 2)
   if (gender === "female") {
-    if (hair.includes("ponytail")) return "sprite_r2_c1";
-    if (glasses !== "none" || hair.includes("glasses")) return "sprite_r2_c2";
-    if (hair.includes("blonde")) return "sprite_r2_c3";
-    if (hair.includes("curly")) return "sprite_r2_c4";
+    if (hair === "hair_07" || hair.includes("straight") || (hair.includes("glasses") && glasses !== "none")) return "sprite_r2_c2";
+    if (hair === "hair_03" || hair.includes("wavy") || hair.includes("blonde")) return "sprite_r2_c3";
+    if (hair === "hair_04" || hair.includes("curly") || hair.includes("updo")) return "sprite_r2_c4";
     if (avatar.accessories?.headwear?.includes("cap")) return "sprite_r2_c6";
-    if (hair.includes("short") || hair.includes("business")) return "sprite_r2_c7";
+    if (hair === "hair_02" || hair.includes("short") || hair.includes("business")) return "sprite_r2_c7";
     if (hair.includes("silver")) return "sprite_r2_c9";
-    if (hair.includes("blue")) return "sprite_r2_c10";
+    if (hair === "hair_10" || hair.includes("blue")) return "sprite_r2_c10";
+    if (hair === "hair_01" || hair.includes("ponytail")) return "sprite_r2_c1";
+    if (outfit === "outfit_05" || outfit.includes("blazer")) return "sprite_r2_c8";
     return "sprite_r2_c1";
   }
 
   // Male matches (Row 1)
-  if (hair.includes("fade") || hair.includes("short")) return "sprite_r1_c1";
-  if (glasses !== "none" || hair.includes("glasses")) return "sprite_r1_c2";
-  if (hair.includes("blonde")) return "sprite_r1_c3";
+  if (hair === "hair_05" || hair === "hair_01" || hair.includes("fade") || hair.includes("short")) return "sprite_r1_c1";
+  if (hair === "hair_07" || glasses !== "none" || hair.includes("glasses")) return "sprite_r1_c2";
+  if (hair === "hair_08" || hair === "hair_03" || hair.includes("spiky") || hair.includes("blonde")) return "sprite_r1_c3";
   if (avatar.accessories?.headwear?.includes("cap")) return "sprite_r1_c4";
-  if (hair.includes("curly")) return "sprite_r1_c5";
-  if (hair.includes("silver") || hair.includes("anime")) return "sprite_r1_c6";
-  if (hair.includes("afro")) return "sprite_r1_c7";
-  if (hair.includes("beard") || avatar.facialHair === "full_beard") return "sprite_r1_c8";
+  if (hair === "hair_09" || hair === "hair_04" || hair.includes("curly")) return "sprite_r1_c5";
+  if (hair === "hair_10" || hair.includes("silver") || hair.includes("anime")) return "sprite_r1_c6";
+  if (hair === "hair_06" || hair.includes("afro")) return "sprite_r1_c7";
+  if (hair.includes("beard") || avatar.facialHair === "full_beard" || outfit === "shirt_business_white" || outfit === "outfit_02") return "sprite_r1_c8";
   if (avatar.glasses?.includes("sunglasses")) return "sprite_r1_c9";
   if (hair.includes("red")) return "sprite_r1_c10";
 
-  return gender === "female" ? "sprite_r2_c1" : "sprite_r1_c1";
+  return (gender as string) === "female" ? "sprite_r2_c1" : "sprite_r1_c1";
+}
+
+/**
+ * Applies a complete style preset to an avatar while preserving personal customizations.
+ */
+export function applyStylePreset(
+  current: AgentAvatarConfig,
+  styleId: string
+): AgentAvatarConfig {
+  const style = AVATAR_STYLES.find(
+    (s) => s.id === styleId || s.name.toLowerCase() === styleId.toLowerCase()
+  );
+  if (!style || !style.preset) return current;
+
+  const currentAccessories = typeof current.accessories === "object" ? { ...current.accessories } : {};
+  if (style.preset.accessories?.includes("acc_02")) {
+    currentAccessories.headset = "headset_zai_green";
+  }
+  if (style.preset.accessories?.includes("acc_03")) {
+    currentAccessories.badge = "badge_zai_lanyard";
+  }
+  if (style.preset.accessories?.includes("acc_04")) {
+    currentAccessories.glasses = "glasses_square_exec";
+  }
+
+  const updated: AgentAvatarConfig = {
+    ...current,
+    style: style.id,
+    outfit: style.preset.outfit || current.outfit || current.clothing,
+    clothing: style.preset.outfit || current.clothing,
+    face: style.preset.face || current.face || "face_01",
+    accessories: currentAccessories,
+    headset: style.preset.accessories?.includes("acc_02") ? "headset_zai_green" : current.headset,
+    personalityVisual: {
+      ...current.personalityVisual,
+      posture: style.preset.posture || current.personalityVisual.posture,
+    },
+    branding: {
+      ...current.branding,
+      primaryColor: style.preset.color || current.branding.primaryColor,
+    },
+  };
+
+  updated.catalogSpriteId = resolveSpriteForAvatar(updated, true);
+  return updated;
 }
 
 /**
