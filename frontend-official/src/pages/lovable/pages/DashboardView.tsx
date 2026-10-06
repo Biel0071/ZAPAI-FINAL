@@ -64,13 +64,14 @@ function markerIcon() {
   return L.divIcon({
     className: "vivid-neon-marker",
     html: `
-      <div style="position:relative;width:20px;height:20px;display:flex;align-items:center;justify-content:center;">
+      <div style="position:relative;width:24px;height:24px;display:flex;align-items:center;justify-content:center;">
         <span style="position:absolute;width:100%;height:100%;border-radius:9999px;background:#06b6d4;opacity:0.6;animation:ping 2s cubic-bezier(0,0,0.2,1) infinite;"></span>
-        <div style="position:relative;width:12px;height:12px;border-radius:9999px;background:#06b6d4;box-shadow:0 0 10px #06b6d4, 0 0 18px #06b6d4;border:2px solid #ffffff;"></div>
+        <span style="position:absolute;width:140%;height:140%;border-radius:9999px;border:1.5px solid #06b6d4;opacity:0.4;animation:ping 3s cubic-bezier(0,0,0.2,1) infinite;"></span>
+        <div style="position:relative;width:12px;height:12px;border-radius:9999px;background:#06b6d4;box-shadow:0 0 12px #06b6d4, 0 0 24px #06b6d4;border:2px solid #ffffff;"></div>
       </div>
     `,
-    iconSize: [20, 20],
-    iconAnchor: [10, 10],
+    iconSize: [24, 24],
+    iconAnchor: [12, 12],
   });
 }
 
@@ -82,15 +83,16 @@ function leadMarkerIcon(funnelStage: string) {
   return L.divIcon({
     className: "vivid-lead-marker",
     html: `
-      <div style="position:relative;width:24px;height:24px;display:flex;align-items:center;justify-content:center;cursor:pointer;">
-        <span style="position:absolute;width:100%;height:100%;border-radius:9999px;background:${color};opacity:0.45;animation:ping 2.5s cubic-bezier(0,0,0.2,1) infinite;"></span>
-        <div style="position:relative;width:16px;height:16px;border-radius:9999px;background:${color};box-shadow:0 0 12px ${glow}, 0 0 20px ${glow};border:2px solid #ffffff;display:flex;align-items:center;justify-content:center;color:#000;">
-          <div style="width:5px;height:5px;border-radius:9999px;background:#ffffff;"></div>
+      <div style="position:relative;width:28px;height:28px;display:flex;align-items:center;justify-content:center;cursor:pointer;">
+        <span style="position:absolute;width:150%;height:150%;border-radius:9999px;border:1.5px solid ${color};opacity:0.5;animation:ping 3s cubic-bezier(0,0,0.2,1) infinite;"></span>
+        <span style="position:absolute;width:100%;height:100%;border-radius:9999px;background:${color};opacity:0.5;animation:ping 1.8s cubic-bezier(0,0,0.2,1) infinite;"></span>
+        <div style="position:relative;width:16px;height:16px;border-radius:9999px;background:${color};box-shadow:0 0 10px ${color}, 0 0 22px ${color}, 0 0 35px ${glow};border:2px solid #ffffff;display:flex;align-items:center;justify-content:center;">
+          <div style="width:5px;height:5px;border-radius:9999px;background:#ffffff;box-shadow:0 0 4px #ffffff;"></div>
         </div>
       </div>
     `,
-    iconSize: [24, 24],
-    iconAnchor: [12, 12],
+    iconSize: [28, 28],
+    iconAnchor: [14, 14],
   });
 }
 
@@ -656,7 +658,7 @@ export function DashboardView({
                       <Clock weight="bold" className="h-3.5 w-3.5 text-primary" /> Fluxo de Atividade Comercial
                     </CardTitle>
                   </CardHeader>
-                  <CardContent className="h-[175px] p-2.5">
+                  <CardContent className="h-[185px] p-2.5">
                     {safeAnalyticsViewModel.chartData.length > 0 ? (
                       <ResponsiveContainer width="100%" height="100%">
                         <AreaChart data={safeAnalyticsViewModel.chartData}>
@@ -695,7 +697,7 @@ export function DashboardView({
                       </Badge>
                     )}
                   </CardHeader>
-                  <CardContent className="h-[175px] p-2.5">
+                  <CardContent className="h-[185px] p-2.5">
                     <ResponsiveContainer width="100%" height="100%">
                       <BarChart
                         data={viewModel.commercialMetrics?.hourlyData || []}
@@ -722,7 +724,7 @@ export function DashboardView({
               </div>
 
               {/* Row 2: Esteira Comercial (Fechamentos & Negociações) */}
-              <Card className="glass-card rounded-2xl border-border/70 hover-lift flex flex-col h-[215px] overflow-hidden">
+              <Card className="glass-card rounded-2xl border-border/70 hover-lift flex flex-col h-[205px] overflow-hidden">
                 <CardHeader className="py-2.5 px-3.5 border-b border-border/50 shrink-0 flex flex-row items-center justify-between">
                   <CardTitle className="text-[11px] font-bold uppercase tracking-widest flex items-center gap-2 text-muted-foreground">
                     <CheckCircle weight="bold" className="h-3.5 w-3.5 text-success" /> Esteira Comercial (Fechamentos & Negociações)
@@ -767,17 +769,17 @@ export function DashboardView({
             {/* Right Column (5 cols): Temperature Donut + Real AI Usage */}
             <div className="lg:col-span-5 flex flex-col gap-3.5">
               {/* Temperature Donut */}
-              <Card className="glass-card rounded-2xl border-border/70 hover-lift h-[245px] flex flex-col">
+              <Card className="glass-card rounded-2xl border-border/70 hover-lift h-[205px] flex flex-col">
                 <CardHeader className="py-2.5 px-3.5 border-b border-border/40 shrink-0">
                   <CardTitle className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground flex items-center gap-1.5">
                     <ChartBar weight="bold" className="h-3.5 w-3.5 text-primary" /> Temperatura da Base de Leads
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="flex-1 flex flex-col items-center justify-center relative p-2">
-                  <div className="h-[135px] w-full relative flex items-center justify-center">
+                  <div className="h-[120px] w-full relative flex items-center justify-center">
                     <ResponsiveContainer width="100%" height="100%">
                       <PieChart>
-                        <Pie data={safeAnalyticsViewModel.tempDistribution} innerRadius={45} outerRadius={60} paddingAngle={4} dataKey="value">
+                        <Pie data={safeAnalyticsViewModel.tempDistribution} innerRadius={40} outerRadius={54} paddingAngle={4} dataKey="value">
                           {safeAnalyticsViewModel.tempDistribution.map((entry: any, index: number) => (
                             <Cell key={`cell-${index}`} fill={entry.color} />
                           ))}
@@ -786,7 +788,7 @@ export function DashboardView({
                       </PieChart>
                     </ResponsiveContainer>
                     <div className="absolute flex flex-col items-center justify-center pointer-events-none">
-                      <span className="text-xl font-bold font-display">{safeAnalyticsViewModel.totalLeadsLabel}</span>
+                      <span className="text-lg font-bold font-display">{safeAnalyticsViewModel.totalLeadsLabel}</span>
                       <span className="text-[8px] text-muted-foreground uppercase font-bold">Leads Ativos</span>
                     </div>
                   </div>
@@ -808,7 +810,7 @@ export function DashboardView({
               </Card>
 
               {/* Real AI Usage */}
-              <Card className="glass-card rounded-2xl border-border/70 hover-lift h-[215px] flex flex-col justify-between">
+              <Card className="glass-card rounded-2xl border-border/70 hover-lift h-[185px] flex flex-col justify-between">
                 <CardHeader className="py-2.5 px-3.5 border-b border-border/40 shrink-0 flex flex-row items-center justify-between">
                   <CardTitle className="text-[11px] font-bold uppercase tracking-widest flex items-center gap-1.5 text-muted-foreground">
                     <Brain weight="bold" className="h-3.5 w-3.5 text-primary" /> Uso Real da IA
@@ -817,7 +819,7 @@ export function DashboardView({
                     {activeModelName}
                   </Badge>
                 </CardHeader>
-                <CardContent className="p-3 space-y-2.5 flex-1 flex flex-col justify-between">
+                <CardContent className="p-3 space-y-2 flex-1 flex flex-col justify-between">
                   <div className="grid grid-cols-2 gap-2 text-xs">
                     <div>
                       <p className="text-[9px] font-bold uppercase text-muted-foreground">Tokens Hoje</p>
@@ -839,7 +841,7 @@ export function DashboardView({
                     </div>
                   </div>
 
-                  <div className="flex items-center justify-between gap-2 pt-1.5 border-t border-border/30">
+                  <div className="flex items-center justify-between gap-2 pt-1 border-t border-border/30">
                     <span className="text-[10px] text-muted-foreground truncate">Expediente comercial integrado</span>
                     <Button
                       size="sm"

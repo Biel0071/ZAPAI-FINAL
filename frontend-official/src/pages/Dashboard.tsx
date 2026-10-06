@@ -239,8 +239,8 @@ export default function Dashboard() {
     <div className="flex flex-col min-h-full bg-background">
       <Header title="Hub ZAI" subtitle="Central inteligente de atendimento, IA e inteligência comercial" />
 
-      <div className="w-full max-w-[var(--content-max-width)] mx-auto px-3.5 sm:px-5 lg:px-6 py-3.5 sm:py-4 space-y-4">
-        <AIExecutiveInsightsCard />
+      <div className="w-full max-w-[var(--content-max-width)] mx-auto px-3.5 sm:px-5 lg:px-6 py-2.5 sm:py-3 space-y-3">
+        {activeTab === "overview" && <AIExecutiveInsightsCard />}
         <DashboardView
           viewModel={dashboardViewModel}
           analyticsViewModel={analyticsViewModel}

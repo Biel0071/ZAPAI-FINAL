@@ -37,6 +37,9 @@ export function ZaibotFloatingAssistant() {
     } else if (cmd === "/boost") {
       setOpen(false);
       navigate("/ai?tab=agent&sub=providers");
+    } else if (cmd === "/grill-me") {
+      setOpen(false);
+      navigate("/ai?tab=evolution&action=gaps");
     }
   };
 
@@ -52,6 +55,8 @@ export function ZaibotFloatingAssistant() {
 
         <button
           type="button"
+          title="Assistente ZAI"
+          data-testid="zaibot-floating-button"
           aria-label="Abrir Assistente ZAI"
           onClick={() => setOpen(true)}
           className="relative h-14 w-14 rounded-2xl bg-gradient-to-br from-[#0e271e] via-[#091510] to-[#040a08] border-2 border-emerald-400/70 shadow-[0_0_20px_rgba(16,185,129,0.45)] hover:shadow-[0_0_30px_rgba(16,185,129,0.75)] hover:border-emerald-300 hover:scale-105 active:scale-95 transition-all duration-300 flex items-center justify-center cursor-pointer"

@@ -589,7 +589,11 @@ export default function AttendantsPage() {
         ) : (activeTab === "evolution" || activeTab === "memory") ? (
           <div className="rounded-2xl border border-border/70 bg-card/85 backdrop-blur shadow-sm p-4 md:p-6">
             <React.Suspense fallback={<div className="p-8 text-center text-sm text-muted-foreground">Carregando memória & evolução cognitiva...</div>}>
-              <EvolutionTab />
+              <EvolutionTab
+                agentKey={previewAgent?.key || "camila"}
+                onSelectAgent={(key) => setPreviewAgent(agents.find((a) => a.key === key) || null)}
+                agents={agents}
+              />
             </React.Suspense>
           </div>
         ) : (

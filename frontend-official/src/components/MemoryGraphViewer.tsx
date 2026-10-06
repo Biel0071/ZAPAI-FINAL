@@ -31,25 +31,45 @@ function checkCanvasSupport(): boolean {
 export const MemoryGraphViewer: React.FC<MemoryGraphViewerProps> = ({ graphData, width, height, onNodeClick }) => {
   const fgRef = useRef<any>();
   const { theme } = useTheme();
-  const [dimensions, setDimensions] = useState({ width: width || 800, height: height || 600 });
+  const [dimensions, setDimensions] = useState({ width: width || 800, height: height || 420 });
   const containerRef = useRef<HTMLDivElement>(null);
   const isCanvasSupported = useMemo(() => checkCanvasSupport(), []);
 
   useEffect(() => {
-    if (!width || !height) {
-      const updateDimensions = () => {
-        if (containerRef.current) {
-          setDimensions({
-            width: containerRef.current.offsetWidth,
-            height: containerRef.current.offsetHeight || 500,
-          });
-        }
-      };
-      updateDimensions();
-      window.addEventListener('resize', updateDimensions);
-      return () => window.removeEventListener('resize', updateDimensions);
+    if (width && height) {
+      setDimensions({ width, height });
+      return;
     }
+    const updateDimensions = () => {
+      if (containerRef.current) {
+        const w = containerRef.current.offsetWidth || width || 800;
+        const h = height || containerRef.current.offsetHeight || 420;
+        setDimensions({ width: w, height: h });
+      }
+    };
+    updateDimensions();
+    const ro = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(updateDimensions) : null;
+    if (containerRef.current && ro) ro.observe(containerRef.current);
+    window.addEventListener('resize', updateDimensions);
+    return () => {
+      ro?.disconnect();
+      window.removeEventListener('resize', updateDimensions);
+    };
   }, [width, height]);
+
+  // Center and zoomToFit whenever nodes change or after initial tick
+  useEffect(() => {
+    if (fgRef.current && graphData?.nodes && graphData.nodes.length > 0) {
+      const timer = setTimeout(() => {
+        try {
+          fgRef.current?.zoomToFit(400, 45);
+        } catch {
+          // ignore
+        }
+      }, 400);
+      return () => clearTimeout(timer);
+    }
+  }, [graphData?.nodes?.length, dimensions.width, dimensions.height]);
 
   // Obsidian-like color palette
   const getNodeColor = (type: string) => {
@@ -123,7 +143,55 @@ export const MemoryGraphViewer: React.FC<MemoryGraphViewerProps> = ({ graphData,
   }
 
   return (
-    <div ref={containerRef} className="w-full h-full min-h-[500px] rounded-xl overflow-hidden border border-border/50 bg-background relative shadow-inner">
+    <div
+      ref={containerRef}
+      style={{ height: height ? `${height}px` : undefined }}
+      className="w-full h-full min-h-[380px] rounded-xl overflow-hidden border border-border/50 bg-background relative shadow-inner"
+    >
+      {/* Obsidian-style interactive floating toolbar */}
+      <div className="absolute top-3 right-3 z-10 flex items-center gap-1.5 p-1 rounded-xl bg-card/90 backdrop-blur-md border border-border/70 shadow-md">
+        <button
+          type="button"
+          onClick={() => {
+            try {
+              fgRef.current?.zoom((fgRef.current?.zoom() || 1) * 1.3, 300);
+            } catch {}
+          }}
+          className="h-7 w-7 rounded-lg hover:bg-muted flex items-center justify-center text-xs text-foreground font-bold transition-colors"
+          title="Zoom +"
+        >
+          +
+        </button>
+        <button
+          type="button"
+          onClick={() => {
+            try {
+              fgRef.current?.zoom((fgRef.current?.zoom() || 1) / 1.3, 300);
+            } catch {}
+          }}
+          className="h-7 w-7 rounded-lg hover:bg-muted flex items-center justify-center text-xs text-foreground font-bold transition-colors"
+          title="Zoom -"
+        >
+          -
+        </button>
+        <button
+          type="button"
+          onClick={() => {
+            try {
+              fgRef.current?.zoomToFit(400, 45);
+            } catch {}
+          }}
+          className="h-7 px-2 rounded-lg hover:bg-muted flex items-center justify-center text-[10px] font-semibold text-purple-400 hover:text-purple-300 transition-colors"
+          title="Centralizar e Enquadrar Grafo"
+        >
+          Enquadrar
+        </button>
+        <span className="h-4 w-px bg-border/60 mx-0.5" />
+        <span className="text-[10px] font-mono text-muted-foreground px-1.5">
+          {graphData?.nodes?.length || 0} nós
+        </span>
+      </div>
+
       <ForceGraph2D
         ref={fgRef}
         width={dimensions.width}
@@ -222,9 +290,13 @@ export const MemoryGraphViewer: React.FC<MemoryGraphViewerProps> = ({ graphData,
           ctx.fillText(label, node.x, node.y + yOffset + 2 + fontSize / 2);
         }}
         onNodeClick={(node) => {
-          // Center/zoom on node
-          fgRef.current?.centerAt(node.x, node.y, 1000);
-          fgRef.current?.zoom(5, 2000);
+          // Center/zoom on node with balanced 2.2x magnification
+          if (node && typeof node.x === 'number' && typeof node.y === 'number') {
+            try {
+              fgRef.current?.centerAt(node.x, node.y, 600);
+              fgRef.current?.zoom(2.2, 600);
+            } catch {}
+          }
           if (onNodeClick) onNodeClick(node);
         }}
       />

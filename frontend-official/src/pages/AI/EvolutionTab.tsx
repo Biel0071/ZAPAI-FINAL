@@ -100,16 +100,48 @@ interface HumanStats {
   totalAnalyzed: number;
 }
 
-export function EvolutionTab() {
+export interface EvolutionTabProps {
+  agentKey?: string;
+  onSelectAgent?: (key: string) => void;
+  agents?: any[];
+}
+
+export function EvolutionTab({ agentKey, onSelectAgent, agents: initialAgents }: EvolutionTabProps = {}) {
   const { toast } = useToast();
 
-  const [agents, setAgents] = useState<any[]>([]);
-  const [selectedAgentKey, setSelectedAgentKey] = useState<string>("zaibot");
+  const [agentsList, setAgentsList] = useState<any[]>(initialAgents || []);
+  const [selectedAgentKey, setSelectedAgentKey] = useState<string>(() => agentKey || "camila");
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const loadRequestId = useRef(0);
   const [isSyncingManual, setIsSyncingManual] = useState(false);
   const [isDetectingGaps, setIsDetectingGaps] = useState(false);
+
+  useEffect(() => {
+    if (agentKey && agentKey !== selectedAgentKey) {
+      setSelectedAgentKey(agentKey);
+    }
+  }, [agentKey]);
+
+  useEffect(() => {
+    if (initialAgents && initialAgents.length > 0) {
+      setAgentsList(initialAgents);
+    } else if (typeof apiService?.getAIAgents === "function") {
+      apiService.getAIAgents().then((res) => {
+        const list = res?.agents || [];
+        setAgentsList(list);
+        if (!agentKey && list.length > 0) {
+          const firstAttendant = list.find((a: any) => !a.isPlatformAssistant && a.key !== "zaibot") || list[0];
+          if (firstAttendant) setSelectedAgentKey(firstAttendant.key || firstAttendant.id);
+        }
+      }).catch(() => {});
+    }
+  }, [initialAgents, agentKey]);
+
+  const handleSelectAgent = (key: string) => {
+    setSelectedAgentKey(key);
+    onSelectAgent?.(key);
+  };
 
   const navigate = useNavigate();
 
@@ -234,15 +266,21 @@ export function EvolutionTab() {
   // Fetch memory graph data for Obsidian Modal & Embedded View
   const loadEmbeddedMemoryGraph = useCallback(async (agentKey: string) => {
     try {
-      const res = await requestApiEndpoint<any>(`/api/ai/memory/graph?agentKey=${encodeURIComponent(agentKey)}&limit=80`);
+      // Query memory graph for active attendant (e.g. camila)
+      const targetKey = agentKey && agentKey !== "zaibot" ? agentKey : "camila";
+      const res = await requestApiEndpoint<any>(`/api/ai/memory/graph?agentKey=${encodeURIComponent(targetKey)}&limit=80`);
       const graph = res?.data || res;
-      if (Array.isArray(graph?.nodes) && graph.nodes.length > 0) {
+      if (Array.isArray(graph?.nodes) && graph.nodes.length > 1) {
+        const enrichedNodes = graph.nodes.map((n: any) => ({
+          ...n,
+          desc: n.desc || n.properties?.description || n.properties?.contactName || n.properties?.topic || n.properties?.productName || n.properties?.objection || n.properties?.preference || (n.type === 'agent' ? 'Cérebro Central do Atendente' : n.label),
+        }));
         setEmbeddedGraphData({
-          nodes: graph.nodes,
+          nodes: enrichedNodes,
           edges: graph.edges || graph.links || [],
           links: graph.links || graph.edges || [],
         });
-        setMemoryGraphData(graph);
+        setMemoryGraphData({ ...graph, nodes: enrichedNodes });
         return;
       }
     } catch (err) {
@@ -545,6 +583,9 @@ export function EvolutionTab() {
           <div>
             <h3 className="text-sm font-bold text-foreground flex items-center gap-2">
               Evolução Contínua & Inteligência Cognitiva
+              <Badge variant="outline" className="text-[10px] border-purple-500/40 text-purple-300 bg-purple-500/10 capitalize">
+                {agentsList.find((a) => (a.key || a.id) === selectedAgentKey)?.name || (selectedAgentKey === "camila" ? "Camila" : selectedAgentKey)}
+              </Badge>
             </h3>
             <p className="text-xs text-muted-foreground">
               O atendente aprende com cada atendimento manual e evolui o tom natural a cada conversa.
@@ -553,6 +594,25 @@ export function EvolutionTab() {
         </div>
 
         <div className="flex flex-wrap items-center gap-2.5 self-start sm:self-auto">
+          {agentsList.length > 1 && (
+            <div className="flex items-center gap-1.5 bg-muted/40 border border-border/70 rounded-xl px-2.5 py-1 text-xs">
+              <span className="text-[10px] font-bold text-muted-foreground uppercase">Atendente:</span>
+              <select
+                value={selectedAgentKey}
+                onChange={(e) => handleSelectAgent(e.target.value)}
+                className="bg-transparent border-none text-xs font-semibold text-foreground outline-none cursor-pointer"
+              >
+                {agentsList
+                  .filter((a) => !a.isPlatformAssistant && a.key !== "zaibot")
+                  .map((a) => (
+                    <option key={a.key || a.id} value={a.key || a.id} className="bg-popover text-foreground">
+                      {a.name || a.key}
+                    </option>
+                  ))}
+              </select>
+            </div>
+          )}
+
           {/* BOTÃO EXPLORAR MEMÓRIA EM GRAFO OBSIDIAN */}
           <Button
             type="button"
@@ -729,7 +789,14 @@ export function EvolutionTab() {
                 <Button
                   type="button"
                   size="sm"
-                  onClick={() => navigate("/inbox")}
+                  onClick={() => {
+                    const phone = selectedGraphNode.properties?.contactPhone || selectedGraphNode.properties?.phone;
+                    if (phone) {
+                      navigate(`/inbox?chatId=${encodeURIComponent(phone)}`);
+                    } else {
+                      navigate("/inbox");
+                    }
+                  }}
                   className="h-8 text-xs font-semibold bg-emerald-500 hover:bg-emerald-600 text-white gap-1.5 shadow-sm"
                 >
                   <MessageCircle className="h-3.5 w-3.5" /> Abrir no Inbox

@@ -574,7 +574,13 @@ export default function UnifiedAIPage({ defaultSection }: AIPageProps) {
 
           {activeTab === "operations" && <OperationsTab />}
 
-          {activeTab === "evolution" && <EvolutionTab />}
+          {activeTab === "evolution" && (
+            <EvolutionTab
+              agentKey={selectedAgentKey || "camila"}
+              onSelectAgent={setSelectedAgentKey}
+              agents={agentProfiles}
+            />
+          )}
 
         </main>
       </div>
