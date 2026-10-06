@@ -187,21 +187,20 @@ export function DashboardView({
     };
   }, [analyticsViewModel]);
 
-  // Leads and geography filter state
+  // Leads and geography filter state for Hub 2
   const [selectedLead, setSelectedLead] = useState<LeadPin | null>(null);
   const [mapCenter, setMapCenter] = useState<[number, number]>(BASE_CENTER);
   const [mapZoom, setMapZoom] = useState<number>(4);
   const [leadSearchQuery, setLeadSearchQuery] = useState("");
-  const [rightPanelTab, setRightPanelTab] = useState<"leads" | "geography">("leads");
+  const [rightPanelTab, setRightPanelTab] = useState<"geography" | "leads">("geography");
   const [selectedGeoFilter, setSelectedGeoFilter] = useState<{
     type: "region" | "state" | "ddd" | null;
     value: string | null;
   }>({ type: null, value: null });
 
-  // Filtering lead pins based on search and geo filters
+  // Filtering lead pins (exact coordinates) based on search and geo filters
   const filteredLeadPins = useMemo(() => {
     return viewModel.map.leadPins.filter((pin) => {
-      // 1. Search Query
       const query = leadSearchQuery.toLowerCase().trim();
       if (query) {
         const matchName = pin.name.toLowerCase().includes(query);
@@ -209,8 +208,6 @@ export function DashboardView({
         const matchAddress = pin.address.toLowerCase().includes(query);
         if (!matchName && !matchPhone && !matchAddress) return false;
       }
-
-      // 2. Geo Filter
       if (selectedGeoFilter.type === "region") {
         const ddd = getPhoneDdd(pin.phone);
         const meta = DDD_METADATA[ddd];
@@ -229,18 +226,74 @@ export function DashboardView({
     });
   }, [viewModel.map.leadPins, leadSearchQuery, selectedGeoFilter]);
 
+  // All conversations formatted for geographical intelligence
+  const allLeadsInPeriod = useMemo(() => {
+    return (viewModel.conversations || []).map((c) => {
+      const ddd = getPhoneDdd(c.phone || "");
+      const meta = ddd ? DDD_METADATA[ddd] : null;
+      let lat = 0;
+      let lng = 0;
+      let hasCoords = false;
+      if (c.notes && c.notes.includes("Coordenadas:")) {
+        try {
+          const match = c.notes.match(/Coordenadas:\s*(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)/i);
+          if (match) {
+            lat = parseFloat(match[1]);
+            lng = parseFloat(match[2]);
+            hasCoords = Number.isFinite(lat) && Number.isFinite(lng) && Math.abs(lat) <= 90 && Math.abs(lng) <= 180;
+          }
+        } catch {
+          // ignore
+        }
+      }
+      return {
+        id: c.id,
+        name: c.contactName || c.phone || "Lead",
+        phone: c.phone || "",
+        ddd: ddd || "—",
+        state: meta?.stateCode || "—",
+        stateName: meta?.stateName || "Brasil",
+        region: meta?.region || "—",
+        funnelStage: c.funnel_stage || "new_lead",
+        lat: hasCoords ? lat : meta?.lat,
+        lng: hasCoords ? lng : meta?.lng,
+        hasExactCoords: hasCoords,
+      };
+    });
+  }, [viewModel.conversations]);
+
+  const filteredRegionalLeads = useMemo(() => {
+    return allLeadsInPeriod.filter((lead) => {
+      const query = leadSearchQuery.toLowerCase().trim();
+      if (query) {
+        const matchName = lead.name.toLowerCase().includes(query);
+        const matchPhone = lead.phone.includes(query);
+        const matchState = lead.state.toLowerCase().includes(query) || lead.stateName.toLowerCase().includes(query);
+        if (!matchName && !matchPhone && !matchState) return false;
+      }
+      if (selectedGeoFilter.type === "region") {
+        return lead.region === selectedGeoFilter.value;
+      }
+      if (selectedGeoFilter.type === "state") {
+        return lead.state === selectedGeoFilter.value;
+      }
+      if (selectedGeoFilter.type === "ddd") {
+        return lead.ddd === selectedGeoFilter.value;
+      }
+      return true;
+    });
+  }, [allLeadsInPeriod, leadSearchQuery, selectedGeoFilter]);
+
   // Click handler for geography list items
   const handleGeoRowClick = (row: DashboardMapRow) => {
     if (activeMapScope === "regions") {
       setSelectedGeoFilter({ type: "region", value: row.label });
       setRightPanelTab("leads");
-      // Zoom map to region coordinates if available
       if (row.lat && row.lng) {
         setMapCenter([row.lat, row.lng]);
         setMapZoom(5);
       }
     } else if (activeMapScope === "states") {
-      // row.meta usually contains: "SP • Sudeste • 9 DDDs" -> get code
       const stateCode = row.id.replace("state-", "");
       setSelectedGeoFilter({ type: "state", value: stateCode });
       setRightPanelTab("leads");
@@ -280,13 +333,18 @@ export function DashboardView({
     onResetMap();
   };
 
-  // Charts stay empty when the backend has no time-series. Fabricated values are forbidden.
+  const handleCenterBrazil = () => {
+    setMapCenter(BASE_CENTER);
+    setMapZoom(4);
+  };
+
   const [selectedHourBlock, setSelectedHourBlock] = useState<{ block: string; volume: number; responseTime: string } | null>(null);
   const tokenData = useMemo(() => [{
     name: "Período",
     prompt: Number(aiMetrics?.promptTokensToday) || 0,
     completion: Number(aiMetrics?.completionTokensToday) || 0,
   }], [aiMetrics]);
+
   // Model distribution data
   const aiModelDistribution = useMemo(() => {
     if (!aiStatus || !aiStatus.model) {
@@ -314,10 +372,22 @@ export function DashboardView({
     return tokens > 1000 ? `${(tokens / 1000).toFixed(1)}K` : String(tokens);
   }, [aiMetrics]);
 
-  // The API does not supply billing prices or measured resolution rates.
-  const aiCost = '—';
   const participationLabel = safeAnalyticsViewModel.kpis[2]?.value ?? '—';
-  const automationPercentage = participationLabel === '—' ? 0 : Number.parseFloat(participationLabel);
+
+  const totalConversationsCount = viewModel.commercialMetrics?.conversationsCount || 0;
+  const hotAndClosedCount = (viewModel.commercialMetrics?.hotLeadsCount || 0) + (viewModel.commercialMetrics?.closedLeadsCount || 0);
+  const conversionRateDisplay = totalConversationsCount > 0 && hotAndClosedCount > 0
+    ? `${Math.min(100, Math.round((hotAndClosedCount / totalConversationsCount) * 100))}%`
+    : totalConversationsCount > 0 && (viewModel.commercialMetrics?.contactsCount || 0) > 0
+    ? `${Math.min(100, Math.round(((viewModel.commercialMetrics?.contactsCount || 0) / totalConversationsCount) * 100))}%`
+    : "—";
+
+  const closingLeads = useMemo(() => {
+    return (viewModel.conversations || [])
+      .filter((c) => c.funnel_stage === "closed" || c.funnel_stage === "negotiation" || c.funnel_stage === "hot" || (c.tags || []).some(t => t.toLowerCase().includes("venda") || t.toLowerCase().includes("fechado") || t.toLowerCase().includes("negoc")))
+      .sort((a, b) => (a.funnel_stage === "closed" ? -1 : 1))
+      .slice(0, 10);
+  }, [viewModel.conversations]);
 
   return (
     <div className="space-y-6">
@@ -449,17 +519,14 @@ export function DashboardView({
         </div>
       </div>
 
-      {activeTab === "executive" && (
-        <Card className="rounded-2xl border-border/70 bg-card/85">
-          <CardContent className="p-6 text-sm text-muted-foreground">
-            O painel de IA Executiva é fixo e permanece acima das abas. As análises exibidas nele são carregadas pelo backend.
-          </CardContent>
-        </Card>
-      )}
-      {/* OVERVIEW TAB */}
-      {activeTab === "overview" && (
+      {/* ========================================================================= */}
+      {/* HUB 1: HUB ZAI & PERFORMANCE COMERCIAL                                   */}
+      {/* Unifica Hub ZAI + Performance IA + Comercial em 1 único centro executivo */}
+      {/* ========================================================================= */}
+      {(activeTab === "overview" || activeTab === "ai" || activeTab === "commercial" || activeTab === "operations" || activeTab === "schedule") && (
         <div className="space-y-6 animate-in fade-in-0 duration-300">
-          <div className="grid grid-cols-2 gap-2.5 sm:gap-3 sm:grid-cols-3 md:grid-cols-5 xl:grid-cols-5">
+          {/* Top Executive KPI Row (6 Cards) */}
+          <div className="grid grid-cols-2 gap-2.5 sm:gap-3 sm:grid-cols-3 xl:grid-cols-6">
             <Card
               className="glass-card metric-card rounded-2xl border-border/70 hover:border-primary/50 transition-all duration-200 cursor-pointer hover-lift select-none"
               onClick={() => navigate('/inbox')}
@@ -482,7 +549,7 @@ export function DashboardView({
             >
               <CardContent className="space-y-1 p-3.5 sm:p-4">
                 <div className="flex items-center justify-between">
-                  <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Conversas no período</p>
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Conversas no Período</p>
                   <span className="h-2 w-2 rounded-full bg-primary" />
                 </div>
                 <h3 className="font-display text-2xl sm:text-3xl font-black">{safeAnalyticsViewModel.kpis[3]?.value || "0"}</h3>
@@ -493,54 +560,77 @@ export function DashboardView({
             </Card>
 
             <Card
-              className="glass-card metric-card rounded-2xl border-border/70 hover:border-primary/50 transition-all duration-200 cursor-pointer hover-lift select-none"
-              onClick={() => navigate('/settings?tab=diagnostics')}
+              className="glass-card metric-card rounded-2xl border-border/70 hover:border-emerald-500/50 transition-all duration-200 cursor-pointer hover-lift select-none"
+              onClick={() => navigate('/inbox')}
             >
               <CardContent className="space-y-1 p-3.5 sm:p-4">
                 <div className="flex items-center justify-between">
-                  <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">API Runtime</p>
-                  <Badge variant="secondary" className={`rounded-full border px-1.5 py-0 text-[8px] font-bold uppercase tracking-wider ${toneClasses(viewModel.overviewCards?.[1]?.tone ?? "offline")}`}>
-                    {viewModel.overviewCards?.[1]?.badgeLabel ?? "OFFLINE"}
-                  </Badge>
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Taxa de Conversão</p>
+                  <span className="h-2 w-2 rounded-full bg-emerald-400 shadow-[0_0_8px_rgba(16,185,129,0.5)]" />
                 </div>
-                <h3 className="font-display text-2xl sm:text-3xl font-black">{viewModel.overviewCards?.[1]?.value ?? "Offline"}</h3>
-                <span className="text-[10px] text-muted-foreground truncate block">Status da Infraestrutura</span>
+                <h3 className="font-display text-2xl sm:text-3xl font-black text-emerald-400">
+                  {conversionRateDisplay}
+                </h3>
+                <span className="text-[10px] text-emerald-400 font-semibold truncate block">
+                  Qualificação comercial
+                </span>
               </CardContent>
             </Card>
 
             <Card
-              className="glass-card metric-card rounded-2xl border-border/70 hover:border-primary/50 transition-all duration-200 cursor-pointer hover-lift select-none"
-              onClick={() => navigate('/settings?tab=diagnostics')}
+              className="glass-card metric-card rounded-2xl border-border/70 hover:border-amber-500/50 transition-all duration-200 cursor-pointer hover-lift select-none"
+              onClick={() => navigate('/inbox')}
             >
               <CardContent className="space-y-1 p-3.5 sm:p-4">
                 <div className="flex items-center justify-between">
-                  <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">WebSocket</p>
-                  <Badge variant="secondary" className={`rounded-full border px-1.5 py-0 text-[8px] font-bold uppercase tracking-wider ${toneClasses(viewModel.overviewCards?.[2]?.tone ?? "offline")}`}>
-                    {viewModel.overviewCards?.[2]?.badgeLabel ?? "OFFLINE"}
-                  </Badge>
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Leads em Decisão</p>
+                  <span className="h-2 w-2 rounded-full bg-amber-400" />
                 </div>
-                <h3 className="font-display text-2xl sm:text-3xl font-black">{viewModel.overviewCards?.[2]?.value ?? "0"} canal</h3>
-                <span className="text-[10px] text-muted-foreground truncate block">Sessões Conectadas</span>
+                <h3 className="font-display text-2xl sm:text-3xl font-black text-amber-400">
+                  {hotAndClosedCount}
+                </h3>
+                <span className="text-[10px] text-muted-foreground truncate block">
+                  Negociação & Fechamento
+                </span>
               </CardContent>
             </Card>
 
             <Card
-              className="glass-card metric-card rounded-2xl border-border/70 hover:border-primary/50 transition-all duration-200 cursor-pointer hover-lift select-none"
-              onClick={() => onTabChange('ai')}
+              className="glass-card metric-card rounded-2xl border-border/70 hover:border-emerald-500/50 transition-all duration-200 cursor-pointer hover-lift select-none"
+              onClick={() => navigate('/ai')}
             >
               <CardContent className="space-y-1 p-3.5 sm:p-4">
                 <div className="flex items-center justify-between">
                   <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Automação IA</p>
                   <span className="h-2 w-2 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]" />
                 </div>
-                <h3 className="font-display text-2xl sm:text-3xl font-black">{safeAnalyticsViewModel.kpis[2]?.value || "0"}</h3>
+                <h3 className="font-display text-2xl sm:text-3xl font-black">{safeAnalyticsViewModel.kpis[2]?.value || "—"}</h3>
                 <span className="text-[10px] text-success font-semibold flex items-center gap-0.5 truncate">
-                  Participação da IA
+                  Participação nas mensagens
+                </span>
+              </CardContent>
+            </Card>
+
+            <Card
+              className="glass-card metric-card rounded-2xl border-border/70 hover:border-primary/50 transition-all duration-200 cursor-pointer hover-lift select-none"
+              onClick={() => navigate('/settings?tab=diagnostics')}
+            >
+              <CardContent className="space-y-1 p-3.5 sm:p-4">
+                <div className="flex items-center justify-between">
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Infra & WebSocket</p>
+                  <Badge variant="secondary" className={`rounded-full border px-1.5 py-0 text-[8px] font-bold uppercase tracking-wider ${toneClasses(viewModel.overviewCards?.[1]?.tone ?? "offline")}`}>
+                    {viewModel.overviewCards?.[1]?.badgeLabel ?? "OFFLINE"}
+                  </Badge>
+                </div>
+                <h3 className="font-display text-xl sm:text-2xl font-black truncate">{viewModel.overviewCards?.[1]?.value ?? "Offline"}</h3>
+                <span className="text-[10px] text-muted-foreground truncate block">
+                  {viewModel.overviewCards?.[2]?.value ?? "0"} canais conectados
                 </span>
               </CardContent>
             </Card>
           </div>
 
+          {/* Activity Flow & Temperature Donut */}
           <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
             <Card className="lg:col-span-3 glass-card rounded-2xl border-border/70 hover-lift">
               <CardHeader className="py-4">
@@ -548,31 +638,43 @@ export function DashboardView({
                   <Clock weight="bold" className="h-4 w-4 text-primary" /> Fluxo de Atividade Comercial
                 </CardTitle>
               </CardHeader>
-              <CardContent className="h-[260px] p-4">
-                <ResponsiveContainer width="100%" height="100%">
-                  <AreaChart data={safeAnalyticsViewModel.chartData}>
-                    <defs>
-                      <linearGradient id="colorMsgs" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.3} />
-                        <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0} />
-                      </linearGradient>
-                    </defs>
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" />
-                    <XAxis dataKey="name" stroke="hsl(var(--muted-foreground))" fontSize={10} axisLine={false} tickLine={false} />
-                    <YAxis stroke="hsl(var(--muted-foreground))" fontSize={10} axisLine={false} tickLine={false} />
-                    <RechartsTooltip contentStyle={tooltipStyle} itemStyle={{ fontSize: "12px" }} />
-                    <Area type="monotone" dataKey="msgs" name="Mensagens" stroke="hsl(var(--primary))" fillOpacity={1} fill="url(#colorMsgs)" strokeWidth={2} />
-                    <Area type="monotone" dataKey="ai" name="Respostas IA" stroke="#0ea5e9" fill="transparent" strokeWidth={2} strokeDasharray="5 5" />
-                  </AreaChart>
-                </ResponsiveContainer>
+              <CardContent className="h-[270px] p-4">
+                {safeAnalyticsViewModel.chartData.length > 0 ? (
+                  <ResponsiveContainer width="100%" height="100%">
+                    <AreaChart data={safeAnalyticsViewModel.chartData}>
+                      <defs>
+                        <linearGradient id="colorMsgs" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.3} />
+                          <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0} />
+                        </linearGradient>
+                      </defs>
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" />
+                      <XAxis dataKey="name" stroke="hsl(var(--muted-foreground))" fontSize={10} axisLine={false} tickLine={false} />
+                      <YAxis stroke="hsl(var(--muted-foreground))" fontSize={10} axisLine={false} tickLine={false} />
+                      <RechartsTooltip contentStyle={tooltipStyle} itemStyle={{ fontSize: "12px" }} />
+                      <Area type="monotone" dataKey="msgs" name="Atendimentos" stroke="hsl(var(--primary))" fillOpacity={1} fill="url(#colorMsgs)" strokeWidth={2} />
+                      <Area type="monotone" dataKey="ai" name="Respostas IA" stroke="#0ea5e9" fill="transparent" strokeWidth={2} strokeDasharray="5 5" />
+                    </AreaChart>
+                  </ResponsiveContainer>
+                ) : (
+                  <div className="flex h-full flex-col items-center justify-center text-center p-6">
+                    <Clock className="h-8 w-8 text-muted-foreground/40 mb-2" weight="duotone" />
+                    <p className="text-sm font-semibold text-foreground">Sem atividade no período</p>
+                    <p className="text-xs text-muted-foreground mt-1 max-w-xs">
+                      Altere o filtro de datas acima para visualizar a volumetria de mensagens.
+                    </p>
+                  </div>
+                )}
               </CardContent>
             </Card>
 
             <Card className="lg:col-span-2 glass-card rounded-2xl border-border/70 hover-lift">
               <CardHeader className="py-4">
-                <CardTitle className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Temperatura da Base</CardTitle>
+                <CardTitle className="text-xs font-bold uppercase tracking-widest text-muted-foreground flex items-center gap-2">
+                  <ChartBar weight="bold" className="h-4 w-4 text-primary" /> Temperatura da Base de Leads
+                </CardTitle>
               </CardHeader>
-              <CardContent className="h-[260px] flex flex-col items-center justify-center relative p-4">
+              <CardContent className="h-[270px] flex flex-col items-center justify-center relative p-4">
                 <ResponsiveContainer width="100%" height="100%">
                   <PieChart>
                     <Pie data={safeAnalyticsViewModel.tempDistribution} innerRadius={55} outerRadius={75} paddingAngle={5} dataKey="value">
@@ -583,52 +685,182 @@ export function DashboardView({
                     <RechartsTooltip />
                   </PieChart>
                 </ResponsiveContainer>
-                <div className="absolute flex flex-col items-center justify-center">
+                <div className="absolute flex flex-col items-center justify-center pointer-events-none">
                   <span className="text-2xl font-bold font-display">{safeAnalyticsViewModel.totalLeadsLabel}</span>
-                  <span className="text-[9px] text-muted-foreground uppercase font-bold">Leads</span>
+                  <span className="text-[9px] text-muted-foreground uppercase font-bold">Leads Ativos</span>
+                </div>
+                <div className="flex justify-center gap-4 text-xs mt-1">
+                  <div className="flex items-center gap-1.5">
+                    <span className="h-2 w-2 rounded-full bg-[#ef4444]" />
+                    <span className="text-muted-foreground text-[11px]">Quente ({safeAnalyticsViewModel.tempDistribution[0]?.value || 0})</span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <span className="h-2 w-2 rounded-full bg-[#f59e0b]" />
+                    <span className="text-muted-foreground text-[11px]">Morno ({safeAnalyticsViewModel.tempDistribution[1]?.value || 0})</span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <span className="h-2 w-2 rounded-full bg-[#0ea5e9]" />
+                    <span className="text-muted-foreground text-[11px]">Frio ({safeAnalyticsViewModel.tempDistribution[2]?.value || 0})</span>
+                  </div>
                 </div>
               </CardContent>
             </Card>
           </div>
 
+          {/* Peak Hours Volumetry & Commercial Controls */}
+          <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1.7fr)_390px]">
+            <Card className="glass-card rounded-2xl border-border/70 hover-lift">
+              <CardHeader className="py-4">
+                <CardTitle className="text-xs font-bold uppercase tracking-widest flex items-center gap-2 text-muted-foreground">
+                  <ChartBar className="h-4 w-4 text-primary" /> Volumetria por Bloco de Horários
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="p-4 space-y-4">
+                <div className="h-[280px]">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart
+                      data={viewModel.commercialMetrics?.hourlyData || []}
+                      onClick={(data) => {
+                        if (data && data.activePayload && data.activePayload[0]) {
+                          setSelectedHourBlock(data.activePayload[0].payload);
+                        }
+                      }}
+                    >
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" />
+                      <XAxis dataKey="block" stroke="hsl(var(--muted-foreground))" fontSize={10} axisLine={false} tickLine={false} />
+                      <YAxis stroke="hsl(var(--muted-foreground))" fontSize={10} axisLine={false} tickLine={false} />
+                      <RechartsTooltip cursor={{ fill: "hsl(var(--muted)/0.3)" }} />
+                      <Bar
+                        dataKey="volume"
+                        name="Contatos no Bloco"
+                        fill="hsl(var(--primary))"
+                        radius={[4, 4, 0, 0]}
+                        onClick={(data) => setSelectedHourBlock(data)}
+                      />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+                <p className="text-[10px] text-center text-muted-foreground">
+                  Clique em um bloco de horários para ver a métrica detalhada do intervalo.
+                </p>
+              </CardContent>
+            </Card>
+
+            <div className="space-y-4">
+              {selectedHourBlock ? (
+                <Card className="border-primary/40 bg-primary/5 rounded-2xl shadow-sm animate-in zoom-in-95 duration-200">
+                  <CardHeader className="py-3.5 border-b border-primary/20 flex flex-row items-center justify-between">
+                    <CardTitle className="text-xs font-bold text-primary flex items-center gap-1.5 uppercase">
+                      <Clock className="h-4 w-4" /> Bloco: {selectedHourBlock.block}
+                    </CardTitle>
+                    <button onClick={() => setSelectedHourBlock(null)} className="text-muted-foreground hover:text-foreground">
+                      <X className="h-4 w-4" />
+                    </button>
+                  </CardHeader>
+                  <CardContent className="p-4 space-y-2.5 text-xs text-foreground">
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Volume de Conversas:</span>
+                      <strong className="font-semibold text-foreground">{selectedHourBlock.volume}</strong>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Status do Intervalo:</span>
+                      <strong className="font-semibold text-emerald-400">
+                        {selectedHourBlock.volume > 0 ? "Movimentado" : "Sem movimentação"}
+                      </strong>
+                    </div>
+                  </CardContent>
+                </Card>
+              ) : (
+                <Card className="glass-card rounded-2xl border-border/70 hover-lift p-5 text-center text-xs text-muted-foreground">
+                  Selecione um bloco no gráfico para detalhar o intervalo de atendimento.
+                </Card>
+              )}
+
+              <Card className="glass-card rounded-2xl border-border/70 hover-lift">
+                <CardContent className="p-5 space-y-4">
+                  <div className="flex items-center gap-3">
+                    <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary shrink-0">
+                      <Clock weight="fill" className="h-5 w-5" />
+                    </div>
+                    <div>
+                      <h4 className="font-bold text-xs">Padrão de Atendimento Comercial</h4>
+                      <p className="text-[10px] text-muted-foreground">Atendimento contínuo integrado ao WhatsApp</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <div className="h-10 w-10 rounded-xl bg-emerald-500/10 flex items-center justify-center text-emerald-400 shrink-0">
+                      <PaperPlaneTilt weight="fill" className="h-5 w-5" />
+                    </div>
+                    <div>
+                      <h4 className="font-bold text-xs">Agilidade de Resposta</h4>
+                      <p className="text-[10px] text-muted-foreground">Cadência humanizada e IA configurável</p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card className="glass-card rounded-2xl border-border/70 hover-lift overflow-hidden hover:border-primary/45 transition-all">
+                <CardContent className="p-5 flex flex-col gap-4">
+                  <div className="flex items-start gap-3">
+                    <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary shrink-0 mt-0.5">
+                      <ShieldCheck weight="duotone" className="h-5 w-5" />
+                    </div>
+                    <div className="space-y-0.5">
+                      <h4 className="font-bold text-xs text-foreground">Horário Comercial & Auto-Reply</h4>
+                      <p className="text-[10px] text-muted-foreground leading-relaxed">
+                        Ajuste seu expediente para respostas fora do horário e automação comercial.
+                      </p>
+                    </div>
+                  </div>
+                  <Button
+                    onClick={() => navigate("/ai?tab=operacao")}
+                    className="w-full gap-2 rounded-xl text-xs h-10 shadow-sm"
+                  >
+                    <Clock className="h-4 w-4" />
+                    Configurar Expediente Comercial
+                  </Button>
+                </CardContent>
+              </Card>
+            </div>
+          </div>
+
           {/* Esteira Comercial & Performance IA (Real Data) */}
           <div className="grid grid-cols-1 xl:grid-cols-5 gap-6">
-            <Card className="xl:col-span-3 glass-card rounded-2xl border-border/70 hover-lift flex flex-col h-full max-h-[380px] overflow-hidden">
+            <Card className="xl:col-span-3 glass-card rounded-2xl border-border/70 hover-lift flex flex-col h-full max-h-[420px] overflow-hidden">
               <CardHeader className="py-4 border-b border-border/50 shrink-0">
                 <CardTitle className="text-xs font-bold uppercase tracking-widest flex items-center gap-2 text-muted-foreground">
-                  <CheckCircle weight="bold" className="h-4 w-4 text-success" /> Esteira Comercial (Fechamentos)
+                  <CheckCircle weight="bold" className="h-4 w-4 text-success" /> Esteira Comercial (Fechamentos & Negociações)
                 </CardTitle>
               </CardHeader>
               <CardContent className="p-0 overflow-y-auto flex-1 scrollbar-thin">
-                {viewModel.map.leadPins.filter(l => l.funnelStage === 'closed' || l.funnelStage === 'negotiation').length === 0 ? (
-                  <p className="text-center text-xs text-muted-foreground py-10">Nenhum lead em fase final de funil.</p>
+                {closingLeads.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center p-10 text-center">
+                    <CheckCircle className="h-8 w-8 text-muted-foreground/40 mb-2" weight="duotone" />
+                    <p className="text-xs text-muted-foreground">Nenhum lead em fase final de funil no período selecionado.</p>
+                  </div>
                 ) : (
                   <div className="divide-y divide-border/20">
-                    {viewModel.map.leadPins
-                      .filter(l => l.funnelStage === 'closed' || l.funnelStage === 'negotiation')
-                      .sort((a, b) => (a.funnelStage === 'closed' ? -1 : 1))
-                      .slice(0, 10)
-                      .map((lead) => (
-                        <div key={`com-${lead.id}`} className="p-4 flex items-center justify-between hover:bg-card/50 transition-colors">
-                          <div className="flex items-center gap-3">
-                            <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center text-primary text-xs font-bold shrink-0">
-                              {lead.name.slice(0, 2).toUpperCase()}
-                            </div>
-                            <div>
-                              <p className="text-sm font-bold text-foreground">{lead.name}</p>
-                              <p className="text-[10px] text-muted-foreground font-mono">{lead.phone}</p>
-                            </div>
+                    {closingLeads.map((lead) => (
+                      <div key={`closing-${lead.id}`} className="p-3.5 sm:p-4 flex items-center justify-between hover:bg-card/50 transition-colors">
+                        <div className="flex items-center gap-3 min-w-0">
+                          <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center text-primary text-xs font-bold shrink-0">
+                            {(lead.contactName || lead.phone || "L").slice(0, 2).toUpperCase()}
                           </div>
-                          <div className="flex items-center gap-4">
-                            <Badge variant="outline" className={`text-[9px] rounded-full px-2 py-0.5 capitalize ${lead.funnelStage === 'closed' ? 'bg-success/10 text-success border-success/20' : 'bg-warning/10 text-warning border-warning/20'}`}>
-                              {lead.funnelStage === 'closed' ? 'Venda Fechada' : 'Negociação'}
-                            </Badge>
-                            <Button size="sm" variant="secondary" className="h-7 text-[10px] px-3 rounded-lg" onClick={() => navigate(`/inbox?chatId=${lead.phone}`)}>
-                              Abrir
-                            </Button>
+                          <div className="min-w-0">
+                            <p className="text-sm font-bold text-foreground truncate">{lead.contactName || lead.phone}</p>
+                            <p className="text-[10px] text-muted-foreground font-mono truncate">{lead.phone}</p>
                           </div>
                         </div>
-                      ))}
+                        <div className="flex items-center gap-3 shrink-0">
+                          <Badge variant="outline" className={`text-[9px] rounded-full px-2 py-0.5 capitalize ${lead.funnel_stage === 'closed' ? 'bg-success/10 text-success border-success/20' : 'bg-warning/10 text-warning border-warning/20'}`}>
+                            {lead.funnel_stage === 'closed' ? 'Fechado' : 'Negociação'}
+                          </Badge>
+                          <Button size="sm" variant="secondary" className="h-7 text-[10px] px-3 rounded-lg" onClick={() => navigate(`/inbox?chatId=${lead.phone}`)}>
+                            Abrir
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 )}
               </CardContent>
@@ -662,15 +894,59 @@ export function DashboardView({
                     <span className="text-xs font-bold">{participationLabel}</span>
                   </div>
                 </div>
+                <div>
+                  <p className="text-[10px] font-bold uppercase text-muted-foreground">Memória Operacional da IA</p>
+                  <p className="text-sm font-bold text-foreground mt-0.5">{viewModel.rawMetrics?.aiMemories ?? 0} fatos gravados</p>
+                  <span className="text-[10px] text-muted-foreground">Extraídos das interações no WhatsApp</span>
+                </div>
               </CardContent>
             </Card>
           </div>
         </div>
       )}
 
-      {/* MAPA DE ORIGEM (LEADS MAP & LIST SIDEBAR) */}
-      {activeTab === "map" && (
+      {/* ========================================================================= */}
+      {/* HUB 2: MAPA & INTELIGÊNCIA DE CONVERSAS                                  */}
+      {/* Unifica o Mapa Interativo + Análise Geográfica de Conversas em 1 Hub     */}
+      {/* ========================================================================= */}
+      {(activeTab === "map" || activeTab === "conversations") && (
         <div className="space-y-6 animate-in fade-in-0 duration-300">
+          {/* Top Geo Summary Row (4 Cards) */}
+          <div className="grid grid-cols-2 gap-3 sm:gap-4 sm:grid-cols-4">
+            <Card className="glass-card metric-card rounded-2xl border-border/70 hover-lift">
+              <CardContent className="space-y-1.5 p-4 sm:p-5">
+                <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Total Mapeado</p>
+                <h3 className="font-display text-2xl sm:text-3xl font-black text-foreground">{viewModel.map.summaryCards[0]?.value ?? "0"}</h3>
+                <span className="text-[10px] text-primary font-semibold">Leads identificados por DDD</span>
+              </CardContent>
+            </Card>
+
+            <Card className="glass-card metric-card rounded-2xl border-border/70 hover-lift">
+              <CardContent className="space-y-1.5 p-4 sm:p-5">
+                <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Estados Ativos</p>
+                <h3 className="font-display text-2xl sm:text-3xl font-black text-emerald-400">{viewModel.map.summaryCards[1]?.value ?? "0"}</h3>
+                <span className="text-[10px] text-emerald-400/80 font-semibold">Estados com interações</span>
+              </CardContent>
+            </Card>
+
+            <Card className="glass-card metric-card rounded-2xl border-border/70 hover-lift">
+              <CardContent className="space-y-1.5 p-4 sm:p-5">
+                <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">DDDs Identificados</p>
+                <h3 className="font-display text-2xl sm:text-3xl font-black text-blue-400">{viewModel.map.summaryCards[2]?.value ?? "0"}</h3>
+                <span className="text-[10px] text-muted-foreground">Códigos de área ativos</span>
+              </CardContent>
+            </Card>
+
+            <Card className="glass-card metric-card rounded-2xl border-border/70 hover-lift">
+              <CardContent className="space-y-1.5 p-4 sm:p-5">
+                <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Região Principal</p>
+                <h3 className="font-display text-base sm:text-lg font-black text-primary truncate mt-1">{viewModel.map.topRegionLabel || "—"}</h3>
+                <span className="text-[10px] text-muted-foreground">Maior concentração de leads</span>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Main Interactive Map & Lateral Intelligence Panel */}
           <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1.7fr)_410px]">
             {/* Map Column */}
             <Card className="glass-card overflow-hidden rounded-2xl border-border/70 bg-card/85 flex flex-col">
@@ -687,6 +963,10 @@ export function DashboardView({
                     <ArrowClockwise className="h-3.5 w-3.5" />
                     Resetar Filtros
                   </Button>
+                  <Button variant="outline" size="sm" className="rounded-xl h-9 text-xs" onClick={handleCenterBrazil}>
+                    <MapPin className="h-3.5 w-3.5" />
+                    Centralizar Brasil
+                  </Button>
                   <Button variant="outline" size="sm" className="rounded-xl h-9 text-xs" onClick={onExportMap}>
                     <Export className="h-3.5 w-3.5" />
                     Exportar CSV
@@ -695,7 +975,7 @@ export function DashboardView({
               </CardHeader>
               <CardContent className="p-0 flex-1 relative">
                 {hasMappedRows ? (
-                  <div className="h-[550px] w-full relative">
+                  <div className="h-[560px] w-full relative">
                     <LeafletMapContainer center={mapCenter} zoom={mapZoom} minZoom={3} className="h-full w-full bg-background" worldCopyJump>
                       <LeafletTileLayer
                         url="https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}"
@@ -761,19 +1041,15 @@ export function DashboardView({
 
                         <div className="mt-3 space-y-2 text-xs">
                           <div className="rounded-xl bg-background/55 border border-border/40 p-2">
-                            <span className="font-bold text-muted-foreground uppercase text-[9px] block tracking-wide">Endereço de Entrega:</span>
+                            <span className="font-bold text-muted-foreground uppercase text-[9px] block tracking-wide">Endereço:</span>
                             <span className="text-foreground mt-0.5 block">{selectedLead.address}</span>
                           </div>
                           <div className="rounded-xl bg-background/55 border border-border/40 p-2 space-y-1">
-                            <span className="font-bold text-muted-foreground uppercase text-[9px] block tracking-wide">Resumo de IA do Chat:</span>
+                            <span className="font-bold text-muted-foreground uppercase text-[9px] block tracking-wide">Origem Geográfica:</span>
                             <div className="text-foreground/90 italic flex gap-1.5 items-start">
-                              <Brain className="h-4 w-4 text-primary shrink-0 mt-0.5 animate-pulse" weight="duotone" />
+                              <MapPin className="h-4 w-4 text-primary shrink-0 mt-0.5" weight="duotone" />
                               <span className="text-[10px] leading-relaxed">
-                                {selectedLead.funnelStage === "closed"
-                                  ? "O cliente concluiu a compra. O pedido de materiais foi repassado e faturado. Logística agendada."
-                                  : selectedLead.funnelStage === "negotiation"
-                                  ? "Cliente interessado em condições especiais para grandes volumes. Negociando tabela de fretes."
-                                  : "Lead iniciou contato perguntando sobre disponibilidade de produtos e prazos. Aguardando envio de orçamento."}
+                                {selectedLead.address}
                               </span>
                             </div>
                           </div>
@@ -814,18 +1090,6 @@ export function DashboardView({
                 <div className="grid grid-cols-2 gap-1 rounded-xl bg-background/40 p-1">
                   <button
                     type="button"
-                    onClick={() => setRightPanelTab("leads")}
-                    className={`rounded-lg py-2 text-xs font-semibold transition-colors flex items-center justify-center gap-1.5 ${
-                      rightPanelTab === "leads"
-                        ? "bg-card text-foreground shadow-sm"
-                        : "text-muted-foreground hover:text-foreground"
-                    }`}
-                  >
-                    <User className="h-3.5 w-3.5" />
-                    Leads ({filteredLeadPins.length})
-                  </button>
-                  <button
-                    type="button"
                     onClick={() => setRightPanelTab("geography")}
                     className={`rounded-lg py-2 text-xs font-semibold transition-colors flex items-center justify-center gap-1.5 ${
                       rightPanelTab === "geography"
@@ -834,7 +1098,19 @@ export function DashboardView({
                     }`}
                   >
                     <MapPin className="h-3.5 w-3.5" />
-                    Geografia ({mapRows.length})
+                    Geografia & Conversas ({mapRows.length})
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setRightPanelTab("leads")}
+                    className={`rounded-lg py-2 text-xs font-semibold transition-colors flex items-center justify-center gap-1.5 ${
+                      rightPanelTab === "leads"
+                        ? "bg-card text-foreground shadow-sm"
+                        : "text-muted-foreground hover:text-foreground"
+                    }`}
+                  >
+                    <User className="h-3.5 w-3.5" />
+                    Leads na Região ({filteredRegionalLeads.length})
                   </button>
                 </div>
               </Card>
@@ -852,66 +1128,7 @@ export function DashboardView({
                 </div>
               )}
 
-              {/* Leads Panel */}
-              {rightPanelTab === "leads" && (
-                <Card className="glass-card rounded-2xl border-border/70 hover-lift flex-1 flex flex-col overflow-hidden max-h-[460px]">
-                  <div className="p-3 border-b border-border/50 shrink-0">
-                    <div className="relative">
-                      <Input
-                        value={leadSearchQuery}
-                        onChange={(e) => setLeadSearchQuery(e.target.value)}
-                        placeholder="Buscar leads..."
-                        className="rounded-xl h-9 text-xs pl-8 pr-3 bg-background/50"
-                      />
-                      <MagnifyingGlass className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                    </div>
-                  </div>
-                  <div className="p-3 space-y-2 overflow-y-auto flex-1 scrollbar-thin">
-                    {filteredLeadPins.length === 0 ? (
-                      <p className="text-center text-xs text-muted-foreground py-10">Nenhum lead encontrado.</p>
-                    ) : (
-                      filteredLeadPins.map((lead) => (
-                        <button
-                          key={lead.id}
-                          type="button"
-                          onClick={() => {
-                            setSelectedLead(lead);
-                            setMapCenter([lead.lat, lead.lng]);
-                            setMapZoom(8);
-                          }}
-                          className={`w-full rounded-xl border border-border/60 p-3 text-left transition-all flex items-start gap-2.5 ${
-                            selectedLead?.id === lead.id
-                              ? "bg-primary/5 border-primary/50 shadow-sm"
-                              : "bg-background/20 hover:bg-card/75"
-                          }`}
-                        >
-                          <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center text-primary text-xs font-bold shrink-0 mt-0.5">
-                            {lead.name.slice(0, 2).toUpperCase()}
-                          </div>
-                          <div className="min-w-0 flex-1">
-                            <div className="flex items-center justify-between gap-1">
-                              <h4 className="font-bold text-xs text-foreground truncate">{lead.name}</h4>
-                              <CaretRight className="h-3 w-3 text-muted-foreground" />
-                            </div>
-                            <p className="text-[10px] text-muted-foreground font-mono mt-0.5">{lead.phone}</p>
-                            <p className="text-[10px] text-muted-foreground truncate mt-1">{lead.address}</p>
-                            <div className="flex items-center justify-between gap-2 mt-2 pt-1.5 border-t border-border/10">
-                              <span className="text-[8px] font-bold uppercase tracking-wider text-muted-foreground">
-                                Funil: {lead.funnelStage}
-                              </span>
-                              <Badge variant="outline" className="text-[8px] rounded-full px-1.5 h-4 capitalize">
-                                {getPhoneDdd(lead.phone)}
-                              </Badge>
-                            </div>
-                          </div>
-                        </button>
-                      ))
-                    )}
-                  </div>
-                </Card>
-              )}
-
-              {/* Geography Panel */}
+              {/* Geography & Rankings Panel (Integrates former Conversas tab) */}
               {rightPanelTab === "geography" && (
                 <div className="space-y-3 flex-1 flex flex-col">
                   <Card className="glass-card rounded-2xl border-border/70 hover-lift p-2 shrink-0">
@@ -933,17 +1150,17 @@ export function DashboardView({
                     </div>
                   </Card>
 
-                  <Card className="glass-card rounded-2xl border-border/70 hover-lift flex-1 overflow-y-auto max-h-[380px] scrollbar-thin">
-                    <CardContent className="space-y-3 p-3">
+                  <Card className="glass-card rounded-2xl border-border/70 hover-lift flex-1 overflow-y-auto max-h-[460px] scrollbar-thin">
+                    <CardContent className="space-y-2 p-3">
                       {mapRows.length === 0 ? (
-                        <p className="text-xs text-muted-foreground">Sem dados para o escopo atual.</p>
+                        <p className="text-xs text-muted-foreground py-6 text-center">Sem dados para o escopo atual.</p>
                       ) : (
                         mapRows.map((row) => (
                           <button
                             key={row.id}
                             type="button"
                             onClick={() => handleGeoRowClick(row)}
-                            className="w-full rounded-xl border border-border/70 bg-background/20 px-3.5 py-3 text-left transition-colors hover:bg-card/75"
+                            className="w-full rounded-xl border border-border/70 bg-background/20 px-3.5 py-2.5 text-left transition-colors hover:bg-card/75"
                           >
                             <div className="flex items-center justify-between gap-3 text-xs">
                               <div>
@@ -955,7 +1172,7 @@ export function DashboardView({
                                 <p className="text-[10px] text-muted-foreground">{row.share}%</p>
                               </div>
                             </div>
-                            <div className="mt-2.5 h-1.5 overflow-hidden rounded-full bg-muted/60">
+                            <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-muted/60">
                               <div className="h-full rounded-full bg-primary" style={{ width: `${Math.max(row.share, 4)}%` }} />
                             </div>
                           </button>
@@ -965,498 +1182,63 @@ export function DashboardView({
                   </Card>
                 </div>
               )}
-            </div>
-          </div>
-        </div>
-      )}
-      {/* CONVERSAS TAB */}
-      {activeTab === "conversations" && (
-        <div className="space-y-6 animate-in fade-in-0 duration-300">
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-            <Card className="glass-card metric-card rounded-2xl border-border/70 hover-lift">
-              <CardContent className="space-y-2 p-5">
-                <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Total Mapeado</p>
-                <h3 className="font-display text-2xl font-bold">{viewModel.map.summaryCards[0]?.value ?? "0"}</h3>
-              </CardContent>
-            </Card>
-            <Card className="glass-card metric-card rounded-2xl border-border/70 hover-lift">
-              <CardContent className="space-y-2 p-5">
-                <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Estados Ativos</p>
-                <h3 className="font-display text-2xl font-bold">{viewModel.map.summaryCards[1]?.value ?? "0"}</h3>
-              </CardContent>
-            </Card>
-            <Card className="glass-card metric-card rounded-2xl border-border/70 hover-lift">
-              <CardContent className="space-y-2 p-5">
-                <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">DDDs Identificados</p>
-                <h3 className="font-display text-2xl font-bold">{viewModel.map.summaryCards[2]?.value ?? "0"}</h3>
-              </CardContent>
-            </Card>
-          </div>
-          <Card className="glass-card rounded-2xl border-border/70 hover-lift">
-            <CardContent className="space-y-3 p-5">
-              {viewModel.map.stateRows.length === 0 ? (
-                <p className="text-sm text-muted-foreground">Nenhuma conversa com localização identificada.</p>
-              ) : (
-                viewModel.map.stateRows.slice(0, 10).map((row) => (
-                  <button key={row.id} type="button" onClick={() => handleConversasStateRowClick(row)} className="w-full text-left flex items-center justify-between rounded-xl border border-border/60 bg-background/30 hover:bg-background/50 transition-colors px-4 py-3">
-                    <div>
-                      <p className="text-sm font-semibold">{row.label}</p>
-                      <p className="text-xs text-muted-foreground">{row.meta}</p>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-sm font-semibold">{row.count} leads</p>
-                      <p className="text-xs text-muted-foreground">{row.share}%</p>
-                    </div>
-                  </button>
-                ))
-              )}
-            </CardContent>
-          </Card>
-        </div>
-      )}
 
-      {/* IA & PERFORMANCE METRICS TAB */}
-      {activeTab === "ai" && (
-        <div className="space-y-6 animate-in fade-in-0 duration-300">
-          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-5 xl:grid-cols-5">
-            <Card className="glass-card metric-card rounded-2xl border-border/70 hover-lift">
-              <CardContent className="space-y-2 p-5">
-                <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Tokens do Período</p>
-                <h3 className="font-display text-2xl font-bold">{tokensPeriodFormatted}</h3>
-                <span className="text-[10px] text-muted-foreground">Uso de LLM pelo ZAPFLOW</span>
-              </CardContent>
-            </Card>
-            <Card className="glass-card metric-card rounded-2xl border-border/70 hover-lift">
-              <CardContent className="space-y-2 p-5">
-                <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Custo Diário LLM</p>
-                <h3 className="font-display text-2xl font-bold text-amber-400">{aiCost}</h3>
-                <span className="text-[10px] text-amber-400/80 font-semibold">Custo não informado pelo provedor</span>
-              </CardContent>
-            </Card>
-            <Card className="glass-card metric-card rounded-2xl border-border/70 hover-lift">
-              <CardContent className="space-y-2 p-5">
-                <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Automação IA</p>
-                <h3 className="font-display text-2xl font-bold">{participationLabel}</h3>
-                <span className="text-[10px] text-success font-semibold">Participação nas mensagens do período</span>
-              </CardContent>
-            </Card>
-            <Card className="glass-card metric-card rounded-2xl border-border/70 hover-lift">
-              <CardContent className="space-y-2 p-5">
-                <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Modelo Ativo</p>
-                <h3 className="font-display text-[14px] font-bold truncate mt-1 pt-1 leading-tight" title={activeModelName}>
-                  {activeModelName === "Nenhum ativo" ? "Aguardando uso" : activeModelName}
-                </h3>
-                <span className="text-[10px] text-muted-foreground">LLM Padrão de Automação</span>
-              </CardContent>
-            </Card>
-            <Card className="glass-card metric-card rounded-2xl border-border/70 hover-lift">
-              <CardContent className="space-y-2 p-5">
-                <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Fatos Salvos (Memória)</p>
-                <h3 className="font-display text-2xl font-bold">{viewModel.rawMetrics?.aiMemories ?? 0} fatos</h3>
-                <span className="text-[10px] text-success font-semibold">Extraídos e gravados na base</span>
-              </CardContent>
-            </Card>
-          </div>
-
-          <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
-            <Card className="lg:col-span-3 glass-card rounded-2xl border-border/70 hover-lift">
-              <CardHeader className="py-4">
-                <CardTitle className="text-xs font-bold uppercase tracking-widest text-muted-foreground flex items-center gap-2">
-                  <Cpu className="h-4 w-4 text-primary" /> Uso de Tokens (Prompt vs Completion)
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="h-[280px] p-4">
-                <ResponsiveContainer width="100%" height="100%">
-                  <AreaChart data={tokenData}>
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" />
-                    <XAxis dataKey="name" stroke="hsl(var(--muted-foreground))" fontSize={10} axisLine={false} tickLine={false} />
-                    <YAxis stroke="hsl(var(--muted-foreground))" fontSize={10} axisLine={false} tickLine={false} />
-                    <RechartsTooltip contentStyle={tooltipStyle} />
-                    <Area type="monotone" dataKey="prompt" name="Prompt Tokens" stroke="hsl(var(--primary))" fill="hsl(var(--primary)/0.05)" strokeWidth={2} />
-                    <Area type="monotone" dataKey="completion" name="Completion Tokens" stroke="#10b981" fill="transparent" strokeWidth={2} />
-                  </AreaChart>
-                </ResponsiveContainer>
-              </CardContent>
-            </Card>
-
-            <Card className="lg:col-span-2 glass-card rounded-2xl border-border/70 hover-lift">
-              <CardHeader className="py-4">
-                <CardTitle className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Distribuição de Modelos</CardTitle>
-              </CardHeader>
-              <CardContent className="h-[280px] flex flex-col items-center justify-center relative p-4">
-                <ResponsiveContainer width="100%" height="100%">
-                  <PieChart>
-                    <Pie data={aiModelDistribution} innerRadius={55} outerRadius={75} paddingAngle={5} dataKey="value">
-                      {aiModelDistribution.map((entry: any, index: number) => (
-                        <Cell key={`cell-${index}`} fill={entry.color} />
-                      ))}
-                    </Pie>
-                    <RechartsTooltip />
-                  </PieChart>
-                </ResponsiveContainer>
-                <div className="absolute flex flex-col items-center justify-center text-center px-4 w-full">
-                  <span className="text-sm font-bold font-display truncate max-w-[90px]" title={aiStatus?.provider || "LLMs"}>{aiStatus?.provider?.toUpperCase() || "LLMs"}</span>
-                  <span className="text-[9px] text-muted-foreground uppercase font-bold">Ativa</span>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-
-
-        </div>
-      )}
-
-      {/* COMERCIAL & VENDAS BI TAB */}
-      {(activeTab === "commercial" || activeTab === "schedule") && (
-        <div className="space-y-6 animate-in fade-in-0 duration-300">
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-4">
-            <Card className="glass-card metric-card rounded-2xl border-border/70 hover-lift">
-              <CardContent className="space-y-2 p-5">
-                <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Taxa de Conversão</p>
-                <h3 className="font-display text-2xl font-bold text-emerald-400">
-                  {viewModel.commercialMetrics?.conversationsCount && viewModel.commercialMetrics.conversationsCount > 0
-                    ? `${Math.min(100, Math.round(((viewModel.commercialMetrics.contactsCount || 0) / (viewModel.commercialMetrics.conversationsCount || 1)) * 100))}%`
-                    : "—"}
-                </h3>
-                <span className="text-[10px] text-emerald-400 font-semibold">Leads identificados</span>
-              </CardContent>
-            </Card>
-            <Card className="glass-card metric-card rounded-2xl border-border/70 hover-lift">
-              <CardContent className="space-y-2 p-5">
-                <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Tempo Médio de Resposta</p>
-                <h3 className="font-display text-2xl font-bold">{viewModel.commercialMetrics?.avgResponseTimeSeconds ? `${viewModel.commercialMetrics.avgResponseTimeSeconds} seg` : "—"}</h3>
-                <span className="text-[10px] text-emerald-400 font-semibold">SLA de Atendimento Rápido</span>
-              </CardContent>
-            </Card>
-            <Card className="glass-card metric-card rounded-2xl border-border/70 hover-lift">
-              <CardContent className="space-y-2 p-5">
-                <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Leads Quentes (Hot)</p>
-                <h3 className="font-display text-2xl font-bold text-amber-400">
-                  {viewModel.commercialMetrics?.hotLeadsCount ?? 0}
-                </h3>
-                <span className="text-[10px] text-muted-foreground">Em fase de decisão de compra</span>
-              </CardContent>
-            </Card>
-            <Card className="glass-card metric-card rounded-2xl border-border/70 hover-lift">
-              <CardContent className="space-y-2 p-5">
-                <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Total de Atendimentos</p>
-                <h3 className="font-display text-2xl font-bold">{viewModel.commercialMetrics?.conversationsCount ?? 0}</h3>
-                <span className="text-[10px] text-muted-foreground">Registrados no banco</span>
-              </CardContent>
-            </Card>
-          </div>
-
-          <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1.7fr)_390px]">
-            {/* Peak Hours interactive Chart */}
-            <Card className="glass-card rounded-2xl border-border/70 hover-lift">
-              <CardHeader className="py-4">
-                <CardTitle className="text-xs font-bold uppercase tracking-widest flex items-center gap-2 text-muted-foreground">
-                  <ChartBar className="h-4 w-4 text-primary" /> Volumetria por Bloco de Horários
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="p-4 space-y-4">
-                <div className="h-[300px]">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart
-                      data={viewModel.commercialMetrics?.hourlyData || []}
-                      onClick={(data) => {
-                        if (data && data.activePayload && data.activePayload[0]) {
-                          setSelectedHourBlock(data.activePayload[0].payload);
-                        }
-                      }}
-                    >
-                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" />
-                      <XAxis dataKey="block" stroke="hsl(var(--muted-foreground))" fontSize={10} axisLine={false} tickLine={false} />
-                      <YAxis stroke="hsl(var(--muted-foreground))" fontSize={10} axisLine={false} tickLine={false} />
-                      <RechartsTooltip cursor={{ fill: "hsl(var(--muted)/0.3)" }} />
-                      <Bar
-                        dataKey="volume"
-                        name="Mensagens Recebidas"
-                        fill="hsl(var(--primary))"
-                        radius={[4, 4, 0, 0]}
-                        onClick={(data) => setSelectedHourBlock(data)}
+              {/* Regional Leads Panel */}
+              {rightPanelTab === "leads" && (
+                <Card className="glass-card rounded-2xl border-border/70 hover-lift flex-1 flex flex-col overflow-hidden max-h-[460px]">
+                  <div className="p-3 border-b border-border/50 shrink-0">
+                    <div className="relative">
+                      <Input
+                        value={leadSearchQuery}
+                        onChange={(e) => setLeadSearchQuery(e.target.value)}
+                        placeholder="Buscar leads por nome ou telefone..."
+                        className="rounded-xl h-9 text-xs pl-8 pr-3 bg-background/50"
                       />
-                    </BarChart>
-                  </ResponsiveContainer>
-                </div>
-                <p className="text-[10px] text-center text-muted-foreground">Clique em um bloco de horários para ver a métrica detalhada de tempo de resposta comercial.</p>
-              </CardContent>
-            </Card>
-
-            {/* Sidebar info */}
-            <div className="space-y-4">
-              {selectedHourBlock ? (
-                <Card className="border-primary/40 bg-primary/5 rounded-2xl shadow-sm animate-in zoom-in-95 duration-200">
-                  <CardHeader className="py-3.5 border-b border-primary/20 flex flex-row items-center justify-between">
-                    <CardTitle className="text-xs font-bold text-primary flex items-center gap-1.5 uppercase">
-                      <Clock className="h-4 w-4" /> Bloco: {selectedHourBlock.block}
-                    </CardTitle>
-                    <button onClick={() => setSelectedHourBlock(null)} className="text-muted-foreground hover:text-foreground">
-                      <X className="h-4.5 w-4.5" />
-                    </button>
-                  </CardHeader>
-                  <CardContent className="p-4 space-y-2.5 text-xs text-foreground">
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Volume de Mensagens:</span>
-                      <strong className="font-semibold">{selectedHourBlock.volume}</strong>
+                      <MagnifyingGlass className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                     </div>
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Tempo Médio de Resposta:</span>
-                      <strong className="font-semibold text-emerald-400">{selectedHourBlock.responseTime}</strong>
-                    </div>
-                  </CardContent>
-                </Card>
-              ) : (
-                <Card className="glass-card rounded-2xl border-border/70 hover-lift p-5 text-center text-xs text-muted-foreground">
-                  Selecione um bloco no gráfico para visualizar métricas comerciais detalhadas.
+                  </div>
+                  <div className="p-3 space-y-2 overflow-y-auto flex-1 scrollbar-thin">
+                    {filteredRegionalLeads.length === 0 ? (
+                      <p className="text-center text-xs text-muted-foreground py-10">Nenhum lead encontrado.</p>
+                    ) : (
+                      filteredRegionalLeads.map((lead) => (
+                        <div
+                          key={`lead-row-${lead.id}`}
+                          className="w-full rounded-xl border border-border/60 p-3 bg-background/20 hover:bg-card/75 transition-all flex items-start gap-2.5"
+                        >
+                          <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center text-primary text-xs font-bold shrink-0 mt-0.5">
+                            {lead.name.slice(0, 2).toUpperCase()}
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center justify-between gap-1">
+                              <h4 className="font-bold text-xs text-foreground truncate">{lead.name}</h4>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                className="h-6 text-[10px] px-2 rounded-lg text-primary hover:text-primary hover:bg-primary/10"
+                                onClick={() => navigate(`/inbox?chatId=${lead.phone}`)}
+                              >
+                                Ver no Inbox
+                              </Button>
+                            </div>
+                            <p className="text-[10px] text-muted-foreground font-mono mt-0.5">{lead.phone}</p>
+                            <div className="flex items-center justify-between gap-2 mt-2 pt-1.5 border-t border-border/10">
+                              <span className="text-[8px] font-bold uppercase tracking-wider text-muted-foreground">
+                                Funil: {lead.funnelStage}
+                              </span>
+                              <Badge variant="outline" className="text-[8px] rounded-full px-1.5 h-4 capitalize">
+                                {lead.state} • DDD {lead.ddd}
+                              </Badge>
+                            </div>
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </div>
                 </Card>
               )}
-
-              <Card className="glass-card rounded-2xl border-border/70 hover-lift">
-                <CardContent className="p-5 space-y-4">
-                  <div className="flex items-center gap-3">
-                    <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary shrink-0">
-                      <Clock weight="fill" className="h-5 w-5" />
-                    </div>
-                    <div>
-                      <h4 className="font-bold text-xs">Picos Comerciais</h4>
-                      <p className="text-[10px] text-muted-foreground">Maior volume entre 14:00 e 19:00</p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <div className="h-10 w-10 rounded-xl bg-emerald-500/10 flex items-center justify-center text-emerald-400 shrink-0">
-                      <PaperPlaneTilt weight="fill" className="h-5 w-5" />
-                    </div>
-                    <div>
-                      <h4 className="font-bold text-xs">SLA de Atendimento</h4>
-                      <p className="text-[10px] text-muted-foreground">Respostas em menos de 45s pelo ZAPFLOW</p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card className="glass-card rounded-2xl border-border/70 hover-lift overflow-hidden hover:border-primary/45 transition-all">
-                <CardContent className="p-5 flex flex-col gap-4">
-                  <div className="flex items-start gap-3">
-                    <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary shrink-0 mt-0.5">
-                      <ShieldCheck weight="duotone" className="h-5 w-5" />
-                    </div>
-                    <div className="space-y-0.5">
-                      <h4 className="font-bold text-xs text-foreground">Horário Comercial & Auto-Reply</h4>
-                      <p className="text-[10px] text-muted-foreground leading-relaxed">
-                        Ajuste seu expediente para respostas fora do horário e automação comercial.
-                      </p>
-                    </div>
-                  </div>
-                  <Button
-                    onClick={() => navigate("/ai?tab=operacao")}
-                    className="w-full gap-2 rounded-xl text-xs h-10 shadow-sm"
-                  >
-                    <Clock className="h-4 w-4" />
-                    Configurar Expediente Comercial
-                  </Button>
-                </CardContent>
-              </Card>
             </div>
           </div>
-        </div>
-      )}
-
-      {/* OPERAÇÃO & INFRA BI TAB */}
-      {(["operations", "infrastructure", "diagnostics"] as const).includes(activeTab as any) && (
-        <div className="space-y-6 animate-in fade-in-0 duration-300">
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-4">
-            <Card className="glass-card metric-card rounded-2xl border-border/70 hover-lift">
-              <CardContent className="space-y-2 p-5">
-                <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Status do Servidor Node / PM2</p>
-                <div className="flex items-center gap-2">
-                  <span className="h-2.5 w-2.5 rounded-full bg-emerald-400 animate-pulse" />
-                  <h3 className="font-display text-xl font-bold text-emerald-400">ONLINE (Estável)</h3>
-                </div>
-                <span className="text-[10px] text-muted-foreground">VPS Linux | Node.js Backend</span>
-              </CardContent>
-            </Card>
-            <Card className="glass-card metric-card rounded-2xl border-border/70 hover-lift">
-              <CardContent className="space-y-2 p-5">
-                <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Sessões WhatsApp Baileys</p>
-                <h3 className="font-display text-2xl font-bold text-primary">
-                  {viewModel.rawMetrics?.activeSessionsCount ?? 0} Ativas
-                </h3>
-                <span className="text-[10px] text-emerald-400 font-semibold">Sockets WebSocket sincronizados</span>
-              </CardContent>
-            </Card>
-            <Card className="glass-card metric-card rounded-2xl border-border/70 hover-lift">
-              <CardContent className="space-y-2 p-5">
-                <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">PostgreSQL Storage Pool</p>
-                <h3 className="font-display text-2xl font-bold text-foreground">
-                  {viewModel.rawMetrics?.messagesCount ?? 0} Mgs
-                </h3>
-                <span className="text-[10px] text-emerald-400 font-semibold">Conexões seguras & resilientes</span>
-              </CardContent>
-            </Card>
-            <Card className="glass-card metric-card rounded-2xl border-border/70 hover-lift">
-              <CardContent className="space-y-2 p-5">
-                <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Uptime Global</p>
-                <h3 className="font-display text-2xl font-bold text-emerald-400">—</h3>
-                <span className="text-[10px] text-muted-foreground">Disponível em Status & Saúde</span>
-              </CardContent>
-            </Card>
-          </div>
-
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <Card className="glass-card rounded-2xl border-border/70 hover-lift">
-              <CardHeader className="py-4">
-                <CardTitle className="text-xs font-bold uppercase tracking-widest text-muted-foreground flex items-center gap-2">
-                  <Database className="h-4 w-4 text-primary" /> Telemetria de CPU & Memória VPS
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4 p-5">
-                <div className="space-y-2">
-                  <div className="flex justify-between text-xs">
-                    <span className="text-muted-foreground">Uso de Memória Heap (Node.js):</span>
-                    <span className="font-bold text-foreground">184 MB / 512 MB (36%)</span>
-                  </div>
-                  <div className="h-2 rounded-full bg-muted overflow-hidden">
-                    <div className="h-full bg-emerald-400 rounded-full" style={{ width: "36%" }} />
-                  </div>
-                </div>
-
-                <div className="space-y-2 pt-2">
-                  <div className="flex justify-between text-xs">
-                    <span className="text-muted-foreground">PostgreSQL Query Pool Load:</span>
-                    <span className="font-bold text-foreground">12/20 conexões ativas (15ms avg)</span>
-                  </div>
-                  <div className="h-2 rounded-full bg-muted overflow-hidden">
-                    <div className="h-full bg-primary rounded-full" style={{ width: "25%" }} />
-                  </div>
-                </div>
-
-                <div className="space-y-2 pt-2">
-                  <div className="flex justify-between text-xs">
-                    <span className="text-muted-foreground">Uso da CPU (VCPU):</span>
-                    <span className="font-bold text-foreground">12.4%</span>
-                  </div>
-                  <div className="h-2 rounded-full bg-muted overflow-hidden">
-                    <div className="h-full bg-emerald-400 rounded-full" style={{ width: "12.4%" }} />
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card className="glass-card rounded-2xl border-border/70 hover-lift">
-              <CardHeader className="py-4">
-                <CardTitle className="text-xs font-bold uppercase tracking-widest text-muted-foreground flex items-center gap-2">
-                  <ShieldCheck className="h-4 w-4 text-primary" /> Saúde dos Serviços do Sistema
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3 p-5">
-                {[
-                  { name: "Baileys WhatsApp Socket Core", status: "ONLINE", ping: "14ms", badge: "Ativo" },
-                  { name: "PostgreSQL Production Database", status: "HEALTHY", ping: "8ms", badge: "OK" },
-                  { name: "Redis Memory Cache & Dedupe", status: "HEALTHY", ping: "2ms", badge: "OK" },
-                  { name: "LLM Intelligence Service (OpenAI / Groq / ElevenLabs)", status: "ONLINE", ping: "240ms", badge: "Ativo" },
-                  { name: "Webhooks Realtime Message Ack Pipeline", status: "HEALTHY", ping: "5ms", badge: "OK" },
-                ].map((service, idx) => (
-                  <div key={idx} className="flex items-center justify-between p-3 rounded-xl border border-border/50 bg-background/30 text-xs">
-                    <div className="flex items-center gap-2.5">
-                      <span className="h-2 w-2 rounded-full bg-emerald-400" />
-                      <span className="font-bold text-foreground">{service.name}</span>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <span className="text-[10px] text-muted-foreground font-mono">{service.ping}</span>
-                      <Badge className="bg-emerald-500/10 text-emerald-400 border-emerald-500/20 text-[9px]">
-                        {service.status}
-                      </Badge>
-                    </div>
-                  </div>
-                ))}
-              </CardContent>
-            </Card>
-          </div>
-        </div>
-      )}
-
-      {/* OPERAÇÃO E GESTÃO EM TEMPO REAL TAB */}
-      {activeTab === "operations" && (
-        <div className="space-y-6 animate-in fade-in-0 duration-300">
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
-            <Card className="bg-card border-border/60 p-4">
-              <span className="text-[10px] text-muted-foreground font-bold uppercase tracking-wider block">Fila de Espera</span>
-              <div className="flex items-baseline justify-between mt-2">
-                <span className="text-2xl font-black text-amber-400">{safeAnalyticsViewModel.kpis[1]?.value || "0"}</span>
-                <Badge variant="outline" className="border-amber-500/30 text-amber-400 text-[10px]">Ao Vivo</Badge>
-              </div>
-            </Card>
-            <Card className="bg-card border-border/60 p-4">
-              <span className="text-[10px] text-muted-foreground font-bold uppercase tracking-wider block">Conversas Abertas</span>
-              <div className="flex items-baseline justify-between mt-2">
-                <span className="text-2xl font-black text-emerald-400">{safeAnalyticsViewModel.kpis[0]?.value || "0"}</span>
-                <Badge variant="outline" className="border-emerald-500/30 text-emerald-400 text-[10px]">Ativas</Badge>
-              </div>
-            </Card>
-            <Card className="bg-card border-border/60 p-4">
-              <span className="text-[10px] text-muted-foreground font-bold uppercase tracking-wider block">TMR Médio</span>
-              <div className="flex items-baseline justify-between mt-2">
-                <span className="text-2xl font-black text-primary">1m 12s</span>
-                <span className="text-[9px] text-emerald-400 font-bold">-18%</span>
-              </div>
-            </Card>
-            <Card className="bg-card border-border/60 p-4">
-              <span className="text-[10px] text-muted-foreground font-bold uppercase tracking-wider block">TMA Médio</span>
-              <div className="flex items-baseline justify-between mt-2">
-                <span className="text-2xl font-black text-blue-400">4m 45s</span>
-                <span className="text-[9px] text-primary font-bold">Estável</span>
-              </div>
-            </Card>
-            <Card className="bg-card border-border/60 p-4">
-              <span className="text-[10px] text-muted-foreground font-bold uppercase tracking-wider block">Conformidade SLA</span>
-              <div className="flex items-baseline justify-between mt-2">
-                <span className="text-2xl font-black text-emerald-400">98.4%</span>
-                <Badge className="bg-emerald-500/10 text-emerald-400 text-[9px]">SLA OK</Badge>
-              </div>
-            </Card>
-            <Card className="bg-card border-border/60 p-4">
-              <span className="text-[10px] text-muted-foreground font-bold uppercase tracking-wider block">Índice Produtividade</span>
-              <div className="flex items-baseline justify-between mt-2">
-                <span className="text-2xl font-black text-purple-400">96/100</span>
-                <span className="text-[9px] text-purple-400 font-bold">Excelente</span>
-              </div>
-            </Card>
-          </div>
-
-          <Card className="glass-card rounded-2xl border-border/70 hover-lift p-6 space-y-4">
-            <h3 className="font-bold text-base text-foreground flex items-center gap-2">
-              <ShieldCheck className="h-5 w-5 text-primary" /> Operadores & Atendentes Híbridos em Operação
-            </h3>
-            <div className="space-y-3">
-              {[
-                { name: "Camila", role: "Atendente IA Principal", status: "online", activeChats: 0, totalToday: 0 },
-              ].map((op) => (
-                <div key={op.name} className="flex items-center justify-between p-3.5 rounded-xl border border-border/50 bg-background/40 text-xs">
-                  <div className="flex items-center gap-3">
-                    <div className="h-3 w-3 rounded-full bg-emerald-400 animate-pulse" />
-                    <div>
-                      <p className="font-bold text-foreground">{op.name}</p>
-                      <p className="text-[10px] text-muted-foreground">{op.role}</p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-6">
-                    <div className="text-right">
-                      <span className="font-bold text-foreground">{op.activeChats}</span>
-                      <span className="text-[9px] text-muted-foreground block">em atendimento</span>
-                    </div>
-                    <div className="text-right">
-                      <span className="font-bold text-emerald-400">{op.totalToday}</span>
-                      <span className="text-[9px] text-muted-foreground block">atendidos hoje</span>
-                    </div>
-                    <Badge variant="outline" className="text-[9px] border-emerald-500/40 text-emerald-400">
-                      {op.status.toUpperCase()}
-                    </Badge>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </Card>
         </div>
       )}
 

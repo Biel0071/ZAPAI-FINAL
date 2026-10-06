@@ -21,13 +21,15 @@ import { useRuntime } from "@/state/providers/RuntimeProvider";
 
 const STATUS_POLL_MS = 15_000;
 const HEAVY_REFRESH_MS = 30_000;
-const VALID_TABS = ["overview", "conversations", "ai", "commercial", "map"] as const;
+const VALID_TABS = ["overview", "map", "conversations", "ai", "commercial"] as const;
 
 type DashboardTab = (typeof VALID_TABS)[number];
 type DashboardDateRange = "today" | "yesterday" | "7days" | "15days" | "30days" | "90days" | "week" | "month" | "year" | "hour" | "custom" | "all" | "day";
 
 function normalizeTab(candidate: string | null): DashboardTab {
-  return VALID_TABS.includes(candidate as DashboardTab) ? (candidate as DashboardTab) : "overview";
+  if (candidate === "map" || candidate === "conversations") return "map";
+  if (candidate === "overview" || candidate === "ai" || candidate === "commercial" || candidate === "operations") return "overview";
+  return "overview";
 }
 
 import { AIExecutiveInsightsCard } from "@/components/ai/AIExecutiveInsightsCard";
@@ -126,7 +128,8 @@ export default function Dashboard() {
   }, [searchParams]);
 
   const handleTabChange = useCallback(
-    (nextTab: DashboardTab) => {
+    (candidate: any) => {
+      const nextTab = normalizeTab(candidate);
       setActiveTab(nextTab);
       const params = new URLSearchParams(searchParams);
       if (nextTab === 'overview') params.delete('tab'); else params.set('tab', nextTab);

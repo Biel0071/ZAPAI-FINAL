@@ -51,10 +51,12 @@ export type DashboardLovableViewModel = {
   tabs: DashboardLovableTab[];
   overviewCards: DashboardLovableMetricCard[];
   rawMetrics?: MetricsSummary | null;
+  conversations?: Conversation[];
   commercialMetrics: {
     conversationsCount: number;
     contactsCount: number;
     hotLeadsCount: number;
+    closedLeadsCount: number;
     avgResponseTimeSeconds: number | null;
     hourlyData: Array<{ block: string; volume: number; responseTime: string }>;
   };
@@ -70,17 +72,15 @@ export type DashboardLovableViewModel = {
     points: DashboardMapPoint[];
     leadPins: LeadPin[];
     summaryCards: DashboardMapSummaryCard[];
+    topRegionLabel?: string;
     exportTitle: string;
     exportDescription: string;
   };
 };
 
 const DASHBOARD_TABS: DashboardLovableTab[] = [
-  { id: "overview", label: "Hub ZAI" },
-  { id: "conversations", label: "Conversas" },
-  { id: "ai", label: "Performance IA" },
-  { id: "commercial", label: "Comercial" },
-  { id: "map", label: "Mapa Interativo" },
+  { id: "overview", label: "Hub ZAI & Performance Comercial" },
+  { id: "map", label: "Mapa & Inteligência de Conversas" },
 ];
 
 const MAP_SCOPES: Array<{ id: DashboardMapScope; label: string }> = [
@@ -354,6 +354,9 @@ export function createDashboardLovableViewModel(params: {
   const hotLeadsCount = conversations.filter(
     (c) => c.funnel_stage === "hot" || c.funnel_stage === "negotiation"
   ).length;
+  const closedLeadsCount = conversations.filter(
+    (c) => c.funnel_stage === "closed" || (c.tags || []).some(t => t.toLowerCase().includes("venda") || t.toLowerCase().includes("fechado"))
+  ).length;
 
   const hourCounts = new Array(24).fill(0);
 
@@ -401,9 +404,10 @@ export function createDashboardLovableViewModel(params: {
         tone: sessionState === "online" ? "online" : "offline",
       },
     ],
+    conversations,
     map: {
-      title: "Densidade de Leads por Localização",
-      description: "Regiões estimadas pelo DDD. Localização individual somente com coordenadas cadastradas.",
+      title: "Densidade de Leads & Inteligência Geográfica",
+      description: "Distribuição territorial baseada em DDDs e endereços georreferenciados.",
       emptyTitle: "Nenhum lead com geografia válida",
       emptyDescription: "Assim que conversas com DDD reconhecível entrarem na base, o mapa do dashboard será populado automaticamente.",
       scopes: MAP_SCOPES,
@@ -416,7 +420,9 @@ export function createDashboardLovableViewModel(params: {
         { label: "TOTAL MAPEADO", value: totalMapped.toLocaleString("pt-BR") },
         { label: "ESTADOS ATIVOS", value: String(stateRows.length) },
         { label: "DDDS IDENTIFICADOS", value: String(dddRows.length) },
+        { label: "REGIÕES COBERTAS", value: `${regionRows.length}/5` },
       ],
+      topRegionLabel: regionRows[0] ? `${regionRows[0].label} (${regionRows[0].share}%)` : "—",
       exportTitle: "Exportar Dados",
       exportDescription: "Baixe volumetria em CSV",
     },
@@ -425,6 +431,7 @@ export function createDashboardLovableViewModel(params: {
       conversationsCount,
       contactsCount,
       hotLeadsCount,
+      closedLeadsCount,
       avgResponseTimeSeconds: null,
       hourlyData,
     },

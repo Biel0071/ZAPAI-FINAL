@@ -60,6 +60,70 @@ export function createAnalyticsLovableViewModel(params: {
   }
   const participation = messages !== null && messages > 0 && ai !== null
     ? `${Math.min(100, Math.max(0, Math.round(ai / messages * 100)))}%` : '—';
+
+  // Computação real de volumetria ao longo do tempo baseada nas conversas reais do período
+  const chartData: AnalyticsChartPoint[] = [];
+  if (conversations.length > 0) {
+    const validTimestamps = conversations
+      .map(c => c.updatedAt ? new Date(c.updatedAt).getTime() : 0)
+      .filter(t => t > 0)
+      .sort((a, b) => a - b);
+
+    if (validTimestamps.length > 0) {
+      const minTime = validTimestamps[0];
+      const maxTime = validTimestamps[validTimestamps.length - 1];
+      const spanHours = (maxTime - minTime) / 3_600_000;
+
+      if (spanHours <= 36) {
+        // Agrupamento por blocos de horários dentro de 24h
+        const hourMap = new Map<number, { msgs: number; ai: number }>();
+        for (let h = 0; h < 24; h += 4) {
+          hourMap.set(h, { msgs: 0, ai: 0 });
+        }
+        for (const c of conversations) {
+          if (!c.updatedAt) continue;
+          const h = new Date(c.updatedAt).getHours();
+          const bucket = Math.floor(h / 4) * 4;
+          const current = hourMap.get(bucket) || { msgs: 0, ai: 0 };
+          current.msgs++;
+          if (c.tags?.some(t => t.toLowerCase().includes("ia") || t.toLowerCase().includes("bot"))) {
+            current.ai++;
+          }
+          hourMap.set(bucket, current);
+        }
+        for (let h = 0; h < 24; h += 4) {
+          const entry = hourMap.get(h) || { msgs: 0, ai: 0 };
+          chartData.push({
+            name: `${String(h).padStart(2, "0")}:00`,
+            msgs: entry.msgs,
+            ai: entry.ai,
+          });
+        }
+      } else {
+        // Agrupamento por dia (DD/MM)
+        const dayMap = new Map<string, { msgs: number; ai: number }>();
+        for (const c of conversations) {
+          if (!c.updatedAt) continue;
+          const d = new Date(c.updatedAt);
+          const key = `${String(d.getDate()).padStart(2, "0")}/${String(d.getMonth() + 1).padStart(2, "0")}`;
+          const current = dayMap.get(key) || { msgs: 0, ai: 0 };
+          current.msgs++;
+          if (c.tags?.some(t => t.toLowerCase().includes("ia") || t.toLowerCase().includes("bot"))) {
+            current.ai++;
+          }
+          dayMap.set(key, current);
+        }
+        for (const [day, val] of dayMap.entries()) {
+          chartData.push({
+            name: day,
+            msgs: val.msgs,
+            ai: val.ai,
+          });
+        }
+      }
+    }
+  }
+
   return {
     kpis: [
       { label: 'Mensagens no período', value: format(messages), tone: 'primary', hint: 'Total registrado no período selecionado' },
@@ -67,8 +131,7 @@ export function createAnalyticsLovableViewModel(params: {
       { label: 'Participação da IA nas mensagens', value: participation, tone: 'info' },
       { label: 'Conversas no período', value: format(conversationsTotal), tone: 'success' },
     ],
-    // Aggregate totals cannot establish a time-series.
-    chartData: [],
+    chartData,
     tempDistribution: [
       { name: 'Quente', value: temperatures.hot, color: '#ef4444' },
       { name: 'Morno', value: temperatures.warm, color: '#f59e0b' },
