@@ -2295,7 +2295,7 @@ async function createStableSession({
   });
 
   // ── History sync (fired when the connection retrieves historical messages/chats) ──
-  sock.ev.on('messaging-history.set', ({ chats = [], messages = [] }) => {
+  sock.ev.on('messaging-history.set', ({ chats = [], messages = [], syncType, progress, peerDataRequestSessionId }) => {
     session.lastPingAt = Date.now();
     if (session.isDisposed || session.isClosing) return;
     // Durable history ingestion never enters realtime automation.
@@ -2303,7 +2303,8 @@ async function createStableSession({
     hSync.receive(normalizedSessionName, messages, chats)
       .then(async () => {
         try {
-          await hSync.process(session.companyId || 'default', normalizedSessionName);
+          await hSync.correlateHistoryResponse(session.companyId || 'default', normalizedSessionName, { peerDataRequestSessionId });
+          await hSync.process(session.companyId || 'default', normalizedSessionName, { syncType, progress });
           const activeIo = io || session.io || global.io;
           if (activeIo) {
             activeIo.emit('conversation:update', { sessionId: normalizedSessionName });

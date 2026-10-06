@@ -176,7 +176,7 @@ if (!testUrl) {
     assert.equal((await agents.listAgents('tenant-a'))[0].personality, 'Novo padrão revisado, consulte regras oficiais.');
   });
 
-  test('older-history requests checkpoint the oldest key and stop when WhatsApp makes no progress', async () => {
+  test('older-history requests retry stale cursors safely and correlate Baileys response IDs', async () => {
     await pool.query(`INSERT INTO sessions(company_id,session_id,session_name,status) VALUES('tenant-a','older','Older','connected')`);
     await repository.enqueue('tenant-a', 'older', [item(800)]);
     const { activeSessions } = require('../services/whatsapp/state/registry');
@@ -186,10 +186,66 @@ if (!testUrl) {
       await engine.requestOlder('tenant-a', 'older');
       assert.equal(calls.length, 1); assert.equal(calls[0][1].id, 'message-800');
       await pool.query(`UPDATE whatsapp_history_sync SET last_request_at=NOW()-INTERVAL '2 minutes' WHERE company_id='tenant-a' AND session_id='older'`);
-      await engine.requestOlder('tenant-a', 'older'); assert.equal(calls.length, 1);
+      await pool.query(`UPDATE whatsapp_history_requests SET requested_at=NOW()-INTERVAL '3 minutes' WHERE company_id='tenant-a' AND session_id='older'`);
+      await engine.requestOlder('tenant-a', 'older'); assert.equal(calls.length, 2);
+      assert.equal((await pool.query(`SELECT status FROM whatsapp_history_requests WHERE company_id='tenant-a' AND session_id='older'`)).rows[0].status, 'waiting_retry_1');
+      await engine.correlateHistoryResponse('tenant-a', 'older', { peerDataRequestSessionId: '2' });
+      assert.equal((await pool.query(`SELECT status FROM whatsapp_history_requests WHERE company_id='tenant-a' AND session_id='older'`)).rows[0].status, 'received');
       await repository.enqueue('tenant-a', 'older', [item(700)]);
-      await engine.requestOlder('tenant-a', 'older'); assert.equal(calls.length, 2); assert.equal(calls[1][1].id, 'message-700');
+      await pool.query(`UPDATE whatsapp_history_sync SET last_request_at=NOW()-INTERVAL '2 minutes' WHERE company_id='tenant-a' AND session_id='older'`);
+      await engine.requestOlder('tenant-a', 'older'); assert.equal(calls.length, 3); assert.equal(calls[2][1].id, 'message-700');
     } finally { delete activeSessions.older; }
+  });
+
+  test('history import emits one tenant-scoped refresh notification per processed batch', async () => {
+    await repository.enqueue('tenant-a', 'a', [item(901), item(902)]);
+    const emitted = [];
+    const priorIo = global.io;
+    global.io = {
+      emit() {},
+      to(room) { return { emit(event, payload) { emitted.push({ room, event, payload }); } }; },
+    };
+    try {
+      const conversationIds = await engine.process('tenant-a', 'a', { syncType: 3, progress: 100 });
+      const refreshes = emitted.filter(({ event }) => event === 'whatsapp:history_imported');
+      assert.equal(refreshes.length, 1);
+      assert.equal(refreshes[0].room, 'tenant:tenant-a');
+      assert.deepEqual(refreshes[0].payload.conversationIds, conversationIds);
+      assert.equal(refreshes[0].payload.progress, 100);
+      assert.equal(refreshes[0].payload.syncType, 3);
+      const imported = (await pool.query(`SELECT timestamp,created_at FROM messages WHERE company_id='tenant-a' AND session_id='a' AND whatsapp_message_id='message-901'`)).rows[0];
+      assert.ok(imported.timestamp < imported.created_at, 'source message time stays distinct from local import time');
+    } finally { global.io = priorIo; }
+  });
+
+  test('history refresh reaches the tenant before background learning runs', async () => {
+    await pool.query(`INSERT INTO sessions(company_id,session_id,session_name,status) VALUES('tenant-a','notify-first','Notify','connected')`);
+    await repository.enqueue('tenant-a', 'notify-first', [item(950)]);
+    await pool.query(`UPDATE whatsapp_history_sync SET learning_enabled=TRUE WHERE company_id='tenant-a' AND session_id='notify-first'`);
+    const events = [];
+    const previous = global.io;
+    global.io = { emit() {}, to: room => ({ emit: event => events.push({ room, event }) }) };
+    const notificationEngine = new HistorySync({ repository, decode: raw => JSON.parse(raw), extract: async raw => ({ text: raw.message.conversation }),
+      learning: { start: async () => {}, step: async () => {
+        assert.ok(events.some(event => event.room === 'tenant:tenant-a' && event.event === 'whatsapp:history_imported'));
+      } } });
+    try { await notificationEngine.process('tenant-a', 'notify-first'); }
+    finally { global.io = previous; }
+  });
+
+  test('older history holds the oldest chat cursor instead of cycling through newer rows', async () => {
+    await pool.query(`INSERT INTO sessions(company_id,session_id,session_name,status) VALUES('tenant-a','cursor-stable','Cursor','connected')`);
+    await repository.enqueue('tenant-a', 'cursor-stable', [item(960), item(970)]);
+    const { activeSessions } = require('../services/whatsapp/state/registry');
+    const calls = [];
+    activeSessions['cursor-stable'] = { status: 'connected', sock: { fetchMessageHistory: async (...args) => { calls.push(args); return String(calls.length); } } };
+    try {
+      await engine.requestOlder('tenant-a', 'cursor-stable');
+      await pool.query(`UPDATE whatsapp_history_sync SET last_request_at=NOW()-INTERVAL '2 minutes' WHERE company_id='tenant-a' AND session_id='cursor-stable'`);
+      await engine.requestOlder('tenant-a', 'cursor-stable');
+      assert.equal(calls.length, 1);
+      assert.equal(calls[0][1].id, 'message-960');
+    } finally { delete activeSessions['cursor-stable']; }
   });
 
   test('already stored messages seed history without recreating them or inventing WhatsApp keys', async () => {

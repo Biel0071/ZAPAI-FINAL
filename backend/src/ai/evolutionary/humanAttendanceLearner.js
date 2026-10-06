@@ -99,6 +99,7 @@ class HumanAttendanceLearner {
           AND ag.created_at < cl.created_at + INTERVAL '20 minutes'
         JOIN conversations c ON c.id = cl.conversation_id
         WHERE cl.from_me = FALSE
+          AND c.company_id = $2
           AND cl.text IS NOT NULL
           AND length(cl.text) > 4
           AND ag.text IS NOT NULL
@@ -110,7 +111,7 @@ class HumanAttendanceLearner {
         LIMIT $1;
       `;
 
-      const result = await this.pool.query(query, [Number(limit) || 200]);
+      const result = await this.pool.query(query, [Number(limit) || 200, cleanCompany]);
       const pairs = result.rows || [];
 
       let learnedCount = 0;
@@ -159,7 +160,7 @@ class HumanAttendanceLearner {
                 learnedAt: new Date().toISOString(),
                 topicLabel: classification.label,
                 recommendedCta: classification.defaultCta,
-                naturalnessScore: 98,
+                naturalnessScore: null,
               }),
               pair.agent_time || new Date()
             ]
@@ -268,20 +269,15 @@ class HumanAttendanceLearner {
     const cleanCompany = String(companyId || 'default');
 
     try {
-      // 1. Total human messages in system (non-blocking background refresh, defaults to verified baseline)
-      let totalHumanMessages = global._cachedHumanMsgsTotal || 18722;
-      if (!global._cachedHumanMsgsTime || (Date.now() - global._cachedHumanMsgsTime > 15 * 60 * 1000)) {
-        global._cachedHumanMsgsTime = Date.now();
-        setImmediate(async () => {
-          try {
-            const humanMsgsRes = await this.pool.query(
-              `SELECT COUNT(*) AS total FROM messages WHERE from_me = TRUE AND (sender = 'agent' OR sender IS NULL)`
-            );
-            global._cachedHumanMsgsTotal = parseInt(humanMsgsRes.rows[0]?.total || 18722, 10);
-          } catch (_) {}
-        });
-      }
-
+      // Count only messages belonging to this authenticated company.
+      const humanMsgsRes = await this.pool.query(
+        `SELECT COUNT(*) AS total FROM messages m
+         JOIN conversations c ON c.id = m.conversation_id
+         WHERE c.company_id = $1 AND m.from_me = TRUE
+           AND (m.sender = 'agent' OR m.sender IS NULL)`,
+        [cleanCompany]
+      );
+      const totalHumanMessages = Number(humanMsgsRes.rows[0]?.total ?? 0);
       // 2. Total golden experience events
       const expRes = await this.pool.query(
         `SELECT 
@@ -291,16 +287,15 @@ class HumanAttendanceLearner {
          FROM ai_experience_events
          WHERE company_id = $1`,
         [cleanCompany]
-      ).catch(() => ({ rows: [{ total_exp: 50, human_samples: 40, positive_exp: 45 }] }));
+      );
 
-      const totalExp = parseInt(expRes.rows[0]?.total_exp || 0, 10);
       const humanSamples = parseInt(expRes.rows[0]?.human_samples || 0, 10);
 
       // 3. Playbooks count
       const pbRes = await this.pool.query(
         `SELECT COUNT(*) AS total FROM ai_playbooks WHERE company_id = $1 AND status = 'approved'`,
         [cleanCompany]
-      ).catch(() => ({ rows: [{ total: 4 }] }));
+      );
       const activePlaybooks = parseInt(pbRes.rows[0]?.total || 0, 10);
 
       // 4. Calculate Experience Points (XP)
@@ -330,7 +325,7 @@ class HumanAttendanceLearner {
       const xpNeeded = currentTier.nextXp - currentTier.minXp;
       const progressPct = Math.min(100, Math.round((xpInLevel / Math.max(1, xpNeeded)) * 100));
 
-      const evolutionScore = Math.min(100, Math.max(75, Math.round(75 + (totalXp / 150))));
+      const evolutionScore = Math.min(100, Math.round(totalXp / 40));
 
       return {
         level: currentTier.level,
@@ -343,31 +338,15 @@ class HumanAttendanceLearner {
         totalHumanMessages,
         humanSamplesLearned: humanSamples,
         activePlaybooks,
-        naturalnessScore: 98, // Ultra-high human naturalness rating
-        conversionsCount: Math.round(totalExp * 0.42),
-        objectionsLearned: Math.round(humanSamples * 0.65),
-        successRate: 94.5,
+        naturalnessScore: null,
+        conversionsCount: null,
+        objectionsLearned: null,
+        successRate: null,
         totalAnalyzed: totalHumanMessages,
       };
     } catch (err) {
       console.error('[HumanAttendanceLearner] calculateAgentLevel error:', err.message);
-      return {
-        level: 4,
-        levelTitle: 'Consultor Comercial Especialista',
-        totalXp: 1450,
-        currentLevelMinXp: 1000,
-        nextLevelXp: 2000,
-        progressPct: 45,
-        evolutionScore: 88,
-        totalHumanMessages: 18722,
-        humanSamplesLearned: 85,
-        activePlaybooks: 5,
-        naturalnessScore: 98,
-        conversionsCount: 120,
-        objectionsLearned: 55,
-        successRate: 94.5,
-        totalAnalyzed: 18722,
-      };
+      throw err;
     }
   }
 
@@ -390,7 +369,6 @@ class HumanAttendanceLearner {
       );
 
       const patterns = res.rows.map(row => {
-        const meta = typeof row.metadata === 'object' ? row.metadata : {};
         const classifier = TOPIC_CLASSIFIERS.find(t => t.topic === row.intent_detected) || TOPIC_CLASSIFIERS[4];
         return {
           id: row.id,
@@ -399,7 +377,7 @@ class HumanAttendanceLearner {
           customerUtterance: row.customer_utterance,
           goldenReply: row.ai_reply,
           recommendedCta: classifier.defaultCta,
-          naturalnessRating: '100% Humano (Sem jargões robóticos)',
+          naturalnessRating: null,
           learnedAt: row.created_at,
         };
       });
@@ -407,7 +385,7 @@ class HumanAttendanceLearner {
       return patterns;
     } catch (err) {
       console.error('[HumanAttendanceLearner] getLearnedPatterns error:', err.message);
-      return [];
+      throw err;
     }
   }
 }

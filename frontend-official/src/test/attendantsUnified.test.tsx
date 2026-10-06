@@ -294,7 +294,7 @@ describe("Unified Attendants & Assistente ZAI Integration Tests", () => {
 
     const text = document.body.textContent || "";
     // Top Tabs
-    expect(text).toContain("Atendentes Digitais");
+    expect(text).toContain("Atendente IA");
     expect(text).toContain("Assistente ZAI");
 
     // Attendant Card details
@@ -331,6 +331,34 @@ describe("Unified Attendants & Assistente ZAI Integration Tests", () => {
     const text = document.body.textContent || "";
     expect(text).toContain("Assistente ZAI");
     expect(text).toContain("Copiloto da Plataforma");
+  });
+
+  it("surfaces ambiguous WhatsApp ownership in the all-attendants view and lets the user open that connection", async () => {
+    vi.mocked(apiService.getAIAgents).mockResolvedValueOnce({
+      success: true,
+      agents: [
+        { key: "camila", name: "Camila", sessionIds: ["default"], active: true },
+        { key: "joao", name: "João", sessionIds: ["default"], active: true },
+      ],
+    } as any);
+    await act(async () => {
+      root!.render(
+        <MemoryRouter initialEntries={["/attendants"]}>
+          <TooltipProvider><AttendantsPage /></TooltipProvider>
+        </MemoryRouter>
+      );
+    });
+    await act(async () => { await new Promise(resolve => setTimeout(resolve, 50)); });
+
+    expect(document.body.textContent).toContain("1 WhatsApp(s) têm mais de um atendente vinculado.");
+    const conflictSelect = document.querySelector<HTMLSelectElement>("#resolve-assignment-conflict");
+    expect(conflictSelect?.options[1]?.textContent).toContain("Camila, João");
+
+    await act(async () => {
+      conflictSelect!.value = "default";
+      conflictSelect!.dispatchEvent(new Event("change", { bubbles: true }));
+    });
+    expect(document.querySelector("#whatsapp-attendant")).not.toBeNull();
   });
 
   it("renders AvatarEditorModal without legacy badges, simulator or sprite debug text", async () => {

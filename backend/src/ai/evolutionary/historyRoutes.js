@@ -207,7 +207,7 @@ function createHistoryRouter({ repository = historySync.repository, db = pool, a
   router.get('/:sessionId/status', handle(async (req, res) => {
     const status = await repository.status(req.authTenantId, req.params.sessionId);
     const unavailable = (await db.query(`SELECT COUNT(*)::int AS count FROM whatsapp_history_requests WHERE company_id=$1 AND session_id=$2
-      AND (status='unavailable' OR (status='waiting' AND requested_at<NOW()-INTERVAL '2 minutes'))`, [req.authTenantId, req.params.sessionId])).rows[0].count;
+      AND (status='unavailable' OR (status IN ('waiting','waiting_retry_1','waiting_retry_2','waiting_retry_3') AND requested_at<NOW()-INTERVAL '2 minutes'))`, [req.authTenantId, req.params.sessionId])).rows[0].count;
     res.json({ ...status, history_requests_without_response: unavailable });
   }));
   router.post('/:sessionId/resume', handle(async (req, res) => {

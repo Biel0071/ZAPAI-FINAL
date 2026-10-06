@@ -294,7 +294,7 @@ router.post('/suggestions/:id/test', async (req, res) => {
 router.post('/feedback', async (req, res) => {
   try {
     const companyId = getCompanyId(req);
-    const { eventId, conversationId, rating, category, note } = req.body;
+    const { eventId, conversationId, rating, category, note, aiResponseText } = req.body;
 
     const result = await experienceEngine.recordFeedback({
       eventId,
@@ -302,7 +302,8 @@ router.post('/feedback', async (req, res) => {
       companyId,
       rating: rating || 'positive',
       category: category || 'general',
-      note: note || ''
+      note: note || '',
+      aiResponseText: aiResponseText ?? null
     });
 
     res.json({ success: result.ok, ...result });
@@ -347,7 +348,7 @@ router.get('/context/:conversationId', async (req, res) => {
         customerContext,
         activePlaybook,
         recentExperiences: recentExpRes.rows,
-        learningRate: '92% de precisão de catálogo'
+        learningRate: null
       }
     });
   } catch (err) {

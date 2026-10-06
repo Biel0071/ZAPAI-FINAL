@@ -255,6 +255,7 @@ function toCanonicalMediaType(
 type SocketSubscriber = {
   onNewMessage?: (message: RealtimeMessage) => void;
   onConversationUpdated?: (conversation: Conversation) => void;
+  onHistoryImported?: (payload: { sessionId: string; conversationIds: string[]; syncType?: number; progress?: number | null }) => void;
   onChatsLoaded?: (payload: unknown) => void;
   onConversationSnapshot?: (payload: unknown) => void;
   onContactsLoaded?: (payload: unknown) => void;
@@ -752,6 +753,20 @@ function bindSharedSocketEvents() {
     notifySubscribers((subscriber) => subscriber.onConversationSnapshot?.(payload));
   });
 
+  sharedSocket.on("whatsapp:history_imported", (payload: any) => {
+    const sessionId = String(payload?.sessionId ?? payload?.session_id ?? "").trim();
+    const conversationIds = Array.isArray(payload?.conversationIds)
+      ? payload.conversationIds.map((id: unknown) => String(id ?? "").trim()).filter(Boolean)
+      : [];
+    if (!sessionId || !conversationIds.length) return;
+    notifySubscribers((subscriber) => subscriber.onHistoryImported?.({
+      sessionId,
+      conversationIds,
+      ...(typeof payload.syncType === "number" ? { syncType: payload.syncType } : {}),
+      ...(typeof payload.progress === "number" || payload.progress === null ? { progress: payload.progress } : {}),
+    }));
+  });
+
   sharedSocket.on("contacts_loaded", (payload: unknown) => {
     notifySubscribers((subscriber) => subscriber.onContactsLoaded?.(payload));
   });
@@ -1049,6 +1064,7 @@ export function connectInboxSocket(params: {
   socketUrl: string;
   onNewMessage?: (message: RealtimeMessage) => void;
   onConversationUpdated?: (conversation: Conversation) => void;
+  onHistoryImported?: (payload: { sessionId: string; conversationIds: string[]; syncType?: number; progress?: number | null }) => void;
   onChatsLoaded?: (payload: unknown) => void;
   onConversationSnapshot?: (payload: unknown) => void;
   onContactsLoaded?: (payload: unknown) => void;
@@ -1083,6 +1099,7 @@ export function connectInboxSocket(params: {
   const nextSubscriber: SocketSubscriber = {
     onNewMessage: params.onNewMessage,
     onConversationUpdated: params.onConversationUpdated,
+    onHistoryImported: params.onHistoryImported,
     onChatsLoaded: params.onChatsLoaded,
     onConversationSnapshot: params.onConversationSnapshot,
     onContactsLoaded: params.onContactsLoaded,

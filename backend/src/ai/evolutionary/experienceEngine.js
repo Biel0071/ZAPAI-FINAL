@@ -104,18 +104,24 @@ class ExperienceEngine {
   /**
    * Record operator direct feedback [like, dislike, correct, teach]
    */
-  async recordFeedback({ eventId = null, conversationId = null, companyId = 'default', rating = 'positive', category = 'general', note = '' }) {
+  async recordFeedback({ eventId = null, conversationId = null, companyId, rating = 'positive', category = 'general', note = '', aiResponseText = null }) {
+    if (!companyId || (!eventId && !conversationId) || !['positive', 'negative', 'corrected'].includes(rating)
+      || typeof note !== 'string' || note.length > 5000 || (rating === 'corrected' && !note.trim())
+      || (aiResponseText !== null && (typeof aiResponseText !== 'string' || aiResponseText.length > 30000))) {
+      return { ok: false, error: 'Informe empresa, atendimento e feedback válidos.' };
+    }
     try {
       if (eventId) {
-        await this.pool.query(
+        const res = await this.pool.query(
           `UPDATE ai_experience_events
            SET feedback_rating = $1,
                feedback_category = $2,
-               metadata = COALESCE(metadata, '{}'::jsonb) || $3::jsonb
-           WHERE id = $4 AND company_id = $5`,
-          [rating, category, JSON.stringify({ note, feedbackAt: new Date().toISOString() }), Number(eventId), String(companyId)]
+               metadata = COALESCE(metadata, '{}'::jsonb) || $3::jsonb,
+               human_correction_text = CASE WHEN $1 = 'corrected' THEN $6 ELSE human_correction_text END
+           WHERE id = $4 AND company_id = $5 RETURNING id`,
+          [rating, String(category).slice(0, 200), JSON.stringify({ note, feedbackAt: new Date().toISOString() }), Number(eventId), String(companyId), note]
         );
-        return { ok: true, eventId };
+        return res.rows[0] ? { ok: true, eventId: res.rows[0].id } : { ok: false, error: 'Nenhuma experiência encontrada para este atendimento.' };
       }
 
       if (conversationId) {
@@ -123,16 +129,17 @@ class ExperienceEngine {
           `UPDATE ai_experience_events
            SET feedback_rating = $1,
                feedback_category = $2,
-               metadata = COALESCE(metadata, '{}'::jsonb) || $3::jsonb
+               metadata = COALESCE(metadata, '{}'::jsonb) || $3::jsonb,
+               human_correction_text = CASE WHEN $1 = 'corrected' THEN $6 ELSE human_correction_text END
            WHERE id = (
              SELECT id FROM ai_experience_events
-             WHERE conversation_id = $4 AND company_id = $5
+             WHERE conversation_id = $4 AND company_id = $5 AND ($7::text IS NULL OR ai_reply = $7)
              ORDER BY created_at DESC LIMIT 1
            )
            RETURNING id`,
-          [rating, category, JSON.stringify({ note, feedbackAt: new Date().toISOString() }), String(conversationId), String(companyId)]
+          [rating, String(category).slice(0, 200), JSON.stringify({ note, feedbackAt: new Date().toISOString() }), String(conversationId), String(companyId), note, aiResponseText]
         );
-        return { ok: true, eventId: res.rows[0]?.id };
+        return res.rows[0] ? { ok: true, eventId: res.rows[0].id } : { ok: false, error: 'Nenhuma experiência encontrada para este atendimento.' };
       }
     } catch (err) {
       console.error('[ExperienceEngine] recordFeedback error:', err.message);

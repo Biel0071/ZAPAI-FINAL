@@ -32,6 +32,7 @@ vi.mock("@/core/services/apiService", () => ({
   requestApiEndpoint: vi.fn().mockResolvedValue([]),
   apiService: {
     testAIMessage: vi.fn().mockResolvedValue({ success: true, result: { ok: true, response: "Resposta oficial do provedor.", responseTimeMs: 24 } }),
+    getAIProviders: vi.fn().mockResolvedValue({ success: true, providers: [{ provider: "openai", name: "OpenAI", model: "gpt-4o-mini", enabled: true, configured: true }] }),
     toggleAIAgent: vi.fn().mockResolvedValue({ success: true }),
     getBusinessHours: vi.fn().mockResolvedValue({ openTime: "09:30", closeTime: "17:15", timezone: "America/Sao_Paulo", autoReplyOutsideHours: false }),
     getAbsenceMessage: vi.fn().mockResolvedValue({ enabled: false, message: "Voltamos às 9h30." }),
@@ -208,5 +209,16 @@ describe("Contratos reais da operação de IA", () => {
     expect(document.body.textContent).not.toContain("18.722");
     expect(document.body.textContent).not.toContain("98% Naturalidade");
     expect(document.body.textContent).toContain("Sem dados de evolução");
+  });
+
+  it("distingue falha ao carregar padrões e permite tentar novamente", async () => {
+    vi.mocked(apiService.getLearnedPatterns)
+      .mockRejectedValueOnce(new Error("Padrões indisponíveis"))
+      .mockResolvedValueOnce({ data: [] } as any);
+
+    await render(<EvolutionTab />);
+    expect(document.body.textContent).toContain("Não foi possível carregar métricas e padrões deste atendente");
+    await click("Tentar novamente");
+    expect(document.body.textContent).not.toContain("Não foi possível carregar métricas e padrões deste atendente");
   });
 });

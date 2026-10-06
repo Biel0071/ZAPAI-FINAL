@@ -178,7 +178,10 @@ function ScopedMemory({ sessionId }: { sessionId: string }) {
             setGraphData(evoRes.memoryGraph);
           }
         }
-      } catch (_) {}
+      } catch (error) {
+        setEvolutionData(null);
+        console.warn('[Memory] Evolução indisponível:', error);
+      }
 
       try {
         const graphRes = await apiService.getMemoryGraph(selectedAgentKey, 60, sessionId || undefined);
@@ -193,7 +196,11 @@ function ScopedMemory({ sessionId }: { sessionId: string }) {
             setGraphStats(graphRes.data.stats);
           }
         }
-      } catch (_) {}
+      } catch (error) {
+        setGraphData({ nodes: [], edges: [] });
+        setGraphStats(null);
+        console.warn('[Memory] Grafo indisponível:', error);
+      }
     } catch (err) {
       const message = err instanceof Error ? err.message : "Falha ao carregar configurações de memória.";
       console.error("[Memory] Load error:", message);
@@ -858,7 +865,7 @@ function ScopedMemory({ sessionId }: { sessionId: string }) {
                           </span>
                         </div>
                         <h3 className="text-2xl font-display font-black text-foreground">
-                          {evolutionData?.evolution?.level || "Nível 1 (Iniciante)"}
+                          {evolutionData?.evolution?.level ?? "—"}
                         </h3>
                         <p className="text-xs text-muted-foreground max-w-xl">
                           O atendente evolui dinamicamente conforme atende clientes reais e armazena padrões, preferências e objeções no Grafo Ativo de Memória.
@@ -867,9 +874,9 @@ function ScopedMemory({ sessionId }: { sessionId: string }) {
 
                       <div className="flex items-center gap-4 bg-muted/20 p-4 rounded-2xl border border-border/50">
                         <div className="text-right">
-                          <span className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider">Pontuação Cognitiva</span>
+                          <span className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider">Progresso por registros</span>
                           <div className="text-3xl font-display font-black text-indigo-400">
-                            {evolutionData?.evolution?.score || 10}<span className="text-xs text-muted-foreground font-normal">/100</span>
+                            {evolutionData?.evolution?.score ?? "—"}{evolutionData?.evolution?.score != null && <span className="text-xs text-muted-foreground font-normal">/100</span>}
                           </div>
                         </div>
                         <div className="h-12 w-12 rounded-2xl bg-indigo-500/10 border border-indigo-500/30 flex items-center justify-center text-indigo-400">
@@ -881,9 +888,9 @@ function ScopedMemory({ sessionId }: { sessionId: string }) {
                     {/* Progress to Next Goal */}
                     <div className="mt-6 space-y-2">
                       <div className="flex justify-between text-xs font-semibold">
-                        <span className="text-muted-foreground">Progresso no Nível Atual</span>
+                        <span className="text-muted-foreground">Registros no nível atual</span>
                         <span className="text-foreground">
-                          {evolutionData?.evolution?.goal?.current || 0} / {evolutionData?.evolution?.goal?.target || 10} conversas ({evolutionData?.evolution?.goal?.percentage || 0}%)
+                          {evolutionData?.evolution?.goal ? `${evolutionData.evolution.goal.current ?? "—"} / ${evolutionData.evolution.goal.target ?? "—"} conversas (${evolutionData.evolution.goal.percentage ?? "—"}%)` : "—"}
                         </span>
                       </div>
                       <Progress value={evolutionData?.evolution?.goal?.percentage || 0} className="h-2 rounded-full" />
@@ -899,7 +906,7 @@ function ScopedMemory({ sessionId }: { sessionId: string }) {
                       <Badge variant="outline" className="text-[10px] text-emerald-400 border-emerald-500/30">Máx 40 pts</Badge>
                     </div>
                     <div className="text-2xl font-display font-black text-foreground">
-                      {evolutionData?.evolution?.components?.answers || 0} <span className="text-xs text-muted-foreground font-normal">pts</span>
+                      {evolutionData?.evolution?.components?.answers ?? "—"} <span className="text-xs text-muted-foreground font-normal">pts</span>
                     </div>
                     <Progress value={((evolutionData?.evolution?.components?.answers || 0) / 40) * 100} className="h-1.5" />
                   </Card>
@@ -910,7 +917,7 @@ function ScopedMemory({ sessionId }: { sessionId: string }) {
                       <Badge variant="outline" className="text-[10px] text-blue-400 border-blue-500/30">Máx 30 pts</Badge>
                     </div>
                     <div className="text-2xl font-display font-black text-foreground">
-                      {evolutionData?.evolution?.components?.refinements || 0} <span className="text-xs text-muted-foreground font-normal">pts</span>
+                      {evolutionData?.evolution?.components?.refinements ?? "—"} <span className="text-xs text-muted-foreground font-normal">pts</span>
                     </div>
                     <Progress value={((evolutionData?.evolution?.components?.refinements || 0) / 30) * 100} className="h-1.5" />
                   </Card>
@@ -921,7 +928,7 @@ function ScopedMemory({ sessionId }: { sessionId: string }) {
                       <Badge variant="outline" className="text-[10px] text-pink-400 border-pink-500/30">Máx 20 pts</Badge>
                     </div>
                     <div className="text-2xl font-display font-black text-foreground">
-                      {evolutionData?.evolution?.components?.coverage || 0} <span className="text-xs text-muted-foreground font-normal">pts</span>
+                      {evolutionData?.evolution?.components?.coverage ?? "—"} <span className="text-xs text-muted-foreground font-normal">pts</span>
                     </div>
                     <Progress value={((evolutionData?.evolution?.components?.coverage || 0) / 20) * 100} className="h-1.5" />
                   </Card>
@@ -932,7 +939,7 @@ function ScopedMemory({ sessionId }: { sessionId: string }) {
                       <Badge variant="outline" className="text-[10px] text-amber-400 border-amber-500/30">Máx 10 pts</Badge>
                     </div>
                     <div className="text-2xl font-display font-black text-foreground">
-                      {evolutionData?.evolution?.components?.queue || 0} <span className="text-xs text-muted-foreground font-normal">pts</span>
+                      {evolutionData?.evolution?.components?.queue ?? "—"} <span className="text-xs text-muted-foreground font-normal">pts</span>
                     </div>
                     <Progress value={((evolutionData?.evolution?.components?.queue || 0) / 10) * 100} className="h-1.5" />
                   </Card>

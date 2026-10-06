@@ -447,6 +447,10 @@ export default function Inbox() {
     responseSearchQuery: state.responseSearchQuery,
     setResponseSearchQuery: state.setResponseSearchQuery,
     quickReplies: state.quickReplies,
+    quickReplyCategoryAppearance: state.quickReplyCategoryAppearance,
+    quickReplyCategoryAppearanceError: state.quickReplyCategoryAppearanceError,
+    onRetryQuickReplyCategoryAppearance: state.loadQuickReplyCategoryAppearance,
+    saveQuickReplyCategoryAppearance: state.saveQuickReplyCategoryAppearance,
     quickRepliesLoading: state.quickRepliesLoading,
     quickRepliesError: state.quickRepliesError,
     sending: state.sending,
@@ -651,6 +655,9 @@ export default function Inbox() {
             setRightPanelCollapsed={state.setRightPanelCollapsed}
             messagesLoadFailed={state.messagesLoadFailed}
             loadingMessages={state.loadingMessages}
+            loadingOlderMessages={state.loadingOlderMessages}
+            historySyncStatus={state.historySyncStatus}
+            handleLoadOlderMessages={state.handleLoadOlderMessages}
             handleRetryMessages={state.handleRetryMessages}
             unseenRealtimeCount={state.unseenRealtimeCount}
             scrollToLatestMessage={state.scrollToLatestMessage}

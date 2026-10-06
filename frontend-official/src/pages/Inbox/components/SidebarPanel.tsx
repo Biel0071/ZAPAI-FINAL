@@ -50,7 +50,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { InboxSectionBoundary } from "@/components/system/InboxSectionBoundary";
 import { useProtectedMediaUrl } from "@/core/runtime/hooks/useProtectedMediaUrl";
 import type { ChatMessage, Conversation } from "@/core/services/apiService";
-import type { AiMemoryRecord, InboxAiRuntime, PreviewMediaState, QuickReplyItem } from "../types";
+import type { AiMemoryRecord, InboxAiRuntime, PreviewMediaState, QuickReplyCategoryAppearance, QuickReplyItem } from "../types";
 import {
   extractMessageAssetUrl,
   formatPhoneNumber,
@@ -67,6 +67,7 @@ import {
 } from "../utils";
 import { cn } from "@/core/lib/utils";
 import { QuickResponseModal } from "./QuickResponseModal";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
 interface SidebarPanelProps {
   selectedConversation: Conversation | null;
@@ -94,6 +95,10 @@ interface SidebarPanelProps {
   responseSearchQuery: string;
   setResponseSearchQuery: (val: string) => void;
   quickReplies: QuickReplyItem[];
+  quickReplyCategoryAppearance?: QuickReplyCategoryAppearance;
+  quickReplyCategoryAppearanceError?: boolean;
+  onRetryQuickReplyCategoryAppearance?: () => Promise<void>;
+  saveQuickReplyCategoryAppearance?: (category: string, appearance: { emoji: string; color: string }) => Promise<void>;
   quickRepliesLoading?: boolean;
   quickRepliesError?: boolean;
   sending: boolean;
@@ -118,11 +123,25 @@ interface SidebarPanelProps {
 }
 
 const SECTIONS = [
-  { id: "ai", label: "Atendimento", shortLabel: "Atendimento", icon: MessageSquare },
-  { id: "qr", label: "Respostas Rápidas", shortLabel: "Respostas", icon: Zap },
-  { id: "files", label: "Arquivos", shortLabel: "Arquivos", icon: Folder },
-  { id: "history", label: "Logs", shortLabel: "Logs", icon: History },
+  { id: "ai", label: "Atendimento", shortLabel: "Atendimento", emoji: "💬", icon: MessageSquare },
+  { id: "qr", label: "Respostas Rápidas", shortLabel: "Respostas Rápidas", emoji: "⚡", icon: Zap },
+  { id: "files", label: "Arquivos", shortLabel: "Arquivos", emoji: "📁", icon: Folder },
+  { id: "history", label: "Histórico", shortLabel: "Histórico", emoji: "🕘", icon: History },
 ] as const;
+
+const PRESET_CATEGORY_EMOJIS = ["📁", "⚡", "💬", "🏷️", "🎯", "🚀", "💰", "📦", "⭐", "📌", "💡", "🛡️", "🔔", "📞", "🤝", "🔥"];
+const PRESET_CATEGORY_COLORS = [
+  { name: "Esmeralda", hex: "#10b981" },
+  { name: "Verde", hex: "#16a34a" },
+  { name: "Azul", hex: "#3b82f6" },
+  { name: "Índigo", hex: "#6366f1" },
+  { name: "Roxo", hex: "#a855f7" },
+  { name: "Rosa", hex: "#ec4899" },
+  { name: "Âmbar", hex: "#f59e0b" },
+  { name: "Laranja", hex: "#f97316" },
+  { name: "Vermelho", hex: "#ef4444" },
+  { name: "Ardósia", hex: "#64748b" },
+];
 
 function SharedMediaCard({
   message,
@@ -235,6 +254,10 @@ export function SidebarPanel({
   responseSearchQuery,
   setResponseSearchQuery,
   quickReplies,
+  quickReplyCategoryAppearance = {},
+  quickReplyCategoryAppearanceError = false,
+  onRetryQuickReplyCategoryAppearance,
+  saveQuickReplyCategoryAppearance,
   quickRepliesLoading = false,
   quickRepliesError = false,
   sending,
@@ -265,6 +288,11 @@ export function SidebarPanel({
   const [qrTypeFilter, setQrTypeFilter] = useState<"all" | "text" | "audio" | "video" | "image" | "flow">("all");
   const [qrPillFilter, setQrPillFilter] = useState<"all" | "favorites" | "uncategorized">("all");
   const [collapsedCategories, setCollapsedCategories] = useState<Record<string, boolean>>({});
+  const [editingCategory, setEditingCategory] = useState<string | null>(null);
+  const [categoryEmoji, setCategoryEmoji] = useState("📁");
+  const [categoryColor, setCategoryColor] = useState("#16a34a");
+  const [categorySaveError, setCategorySaveError] = useState("");
+  const [categorySaving, setCategorySaving] = useState(false);
 
   const { avatar: leadAvatar, refetch: refetchAvatar } = useResolvedAvatar(
     selectedConversation?.id,
@@ -394,6 +422,29 @@ export function SidebarPanel({
     setCollapsedCategories((prev) => ({ ...prev, [cat]: !prev[cat] }));
   };
 
+  const openCategoryEditor = (name: string) => {
+    const metadata = quickReplyCategoryAppearance[name.toLocaleLowerCase()];
+    setEditingCategory(name);
+    setCategoryEmoji(metadata?.emoji || "📁");
+    setCategoryColor(metadata?.color || "#16a34a");
+    setCategorySaveError("");
+  };
+
+  const saveCategoryEditor = async () => {
+    if (!editingCategory || !saveQuickReplyCategoryAppearance || categorySaving) return;
+    const key = editingCategory.toLocaleLowerCase();
+    setCategorySaveError("");
+    setCategorySaving(true);
+    try {
+      await saveQuickReplyCategoryAppearance(key, { emoji: categoryEmoji.trim() || "📁", color: categoryColor });
+      setEditingCategory(null);
+    } catch {
+      setCategorySaveError("Não foi possível salvar a aparência da categoria. Tente novamente.");
+    } finally {
+      setCategorySaving(false);
+    }
+  };
+
   // Helper to render type icon for quick reply
   const renderReplyTypeIcon = (reply: QuickReplyItem) => {
     if (reply.isFlow) return <Workflow className="h-4 w-4 shrink-0 text-amber-400" />;
@@ -456,6 +507,7 @@ export function SidebarPanel({
               className="min-w-0 px-0.5 py-1 text-[10px] sm:text-xs font-medium tracking-tight data-[state=active]:bg-background data-[state=active]:shadow-sm truncate flex items-center justify-center gap-1"
               title={section.label}
             >
+              <span aria-hidden="true" className="shrink-0">{section.emoji}</span>
               <span className="truncate">{section.label}</span>
             </TabsTrigger>
           ))}
@@ -710,6 +762,12 @@ export function SidebarPanel({
         {/* TAB 2: INTERMEDIATE-LEVEL RESPOSTAS RÁPIDAS (MATCHING USER REFERENCE) */}
         <TabsContent value="qr" className="m-0 space-y-4">
           <InboxSectionBoundary fallbackLabel="Respostas Rápidas">
+            {quickReplyCategoryAppearanceError && (
+              <div role="alert" className="flex items-center justify-between gap-2 rounded-lg border border-amber-500/30 bg-amber-500/5 p-2.5 text-xs text-amber-600">
+                <span>Não foi possível carregar emoji e cor das categorias. O padrão está sendo exibido.</span>
+                {onRetryQuickReplyCategoryAppearance && <Button size="sm" variant="outline" className="h-7 shrink-0 px-2 text-[11px]" onClick={() => void onRetryQuickReplyCategoryAppearance().catch(() => undefined)}>Tentar novamente</Button>}
+              </div>
+            )}
             {/* Top Filter Pills */}
             <div className="space-y-2">
               <div className="flex flex-wrap gap-1">
@@ -852,23 +910,20 @@ export function SidebarPanel({
               <div className="space-y-3">
                 {Object.entries(groupedReplies).map(([categoryName, items]) => {
                   const isCollapsed = Boolean(collapsedCategories[categoryName]);
+                  const appearance = quickReplyCategoryAppearance[categoryName.toLocaleLowerCase()] || { emoji: "📁", color: "#16a34a" };
                   return (
                     <div key={categoryName} className="rounded-xl border border-border/60 bg-card/30 overflow-hidden">
                       {/* Category Header */}
-                      <button
-                        type="button"
-                        onClick={() => toggleCategoryCollapse(categoryName)}
-                        className="flex w-full items-center justify-between bg-muted/40 px-3 py-2 text-xs font-semibold text-foreground hover:bg-muted/60 transition-colors"
-                      >
-                        <div className="flex items-center gap-2">
-                          <Folder className="h-3.5 w-3.5 text-primary" />
-                          <span>{categoryName}</span>
-                          <span className="rounded-full bg-muted-foreground/15 px-1.5 py-0.2 text-[10px] text-muted-foreground font-normal">
-                            {items.length}
-                          </span>
-                        </div>
-                        {isCollapsed ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronUp className="h-3.5 w-3.5" />}
-                      </button>
+                      <div className="flex items-center justify-between bg-muted/40 px-3 py-2 text-xs font-semibold text-foreground">
+                        <button type="button" onClick={() => toggleCategoryCollapse(categoryName)} className="flex min-w-0 flex-1 items-center gap-2 text-left hover:text-primary transition-colors">
+                          <span aria-hidden="true">{appearance.emoji}</span>
+                          <span aria-hidden="true" className="h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: appearance.color }} />
+                          <span className="truncate">{categoryName}</span>
+                          <span className="rounded-full bg-muted-foreground/15 px-1.5 py-0.5 text-[10px] text-muted-foreground font-normal">{items.length}</span>
+                          {isCollapsed ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronUp className="h-3.5 w-3.5" />}
+                        </button>
+                        <button type="button" className="ml-2 shrink-0 rounded px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground hover:bg-background/70 hover:text-foreground" onClick={() => openCategoryEditor(categoryName)}>Editar</button>
+                      </div>
 
                       {/* Items List */}
                       {!isCollapsed && (
@@ -1059,9 +1114,9 @@ export function SidebarPanel({
 
         {/* TAB 4: AUDIT LOGS & CHAT TIMELINE */}
         <TabsContent value="history" className="m-0 space-y-4">
-          <InboxSectionBoundary fallbackLabel="Logs & Histórico">
+          <InboxSectionBoundary fallbackLabel="Histórico">
             <div>
-              <h3 className="font-semibold">Linha do Tempo & Logs do Chat</h3>
+              <h3 className="font-semibold">Linha do Tempo & Histórico do Chat</h3>
               <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
                 Registro de eventos de atendimento, IA, recebimento de mídia e status das mensagens.
               </p>
@@ -1163,6 +1218,98 @@ export function SidebarPanel({
         </TabsContent>
       </div>
 
+      <Dialog open={editingCategory !== null} onOpenChange={(open) => { if (!open) setEditingCategory(null); }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <span>Editar categoria</span>
+              <span className="font-mono text-xs text-muted-foreground">({editingCategory})</span>
+            </DialogTitle>
+            <DialogDescription>Ajuste o emoji e a cor usados nesta categoria do Inbox.</DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 pt-1">
+            {/* Live Preview */}
+            <div className="flex items-center justify-between rounded-lg border border-border/60 bg-muted/30 p-2.5">
+              <span className="text-xs text-muted-foreground font-medium">Prévia no Inbox:</span>
+              <span
+                className="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold text-white shadow-xs transition-colors"
+                style={{ backgroundColor: categoryColor || "#10b981" }}
+              >
+                <span>{categoryEmoji || "📁"}</span>
+                <span>{editingCategory}</span>
+              </span>
+            </div>
+
+            {/* Emoji Selection */}
+            <div className="space-y-1.5">
+              <label className="block text-xs font-medium text-foreground/90">
+                Emoji da categoria
+              </label>
+              <div className="flex items-center gap-2">
+                <Input
+                  value={categoryEmoji}
+                  maxLength={8}
+                  onChange={(event) => setCategoryEmoji(event.target.value)}
+                  aria-label="Emoji da categoria"
+                  className="w-16 text-center text-base shrink-0"
+                />
+                <div className="flex flex-wrap items-center gap-1 flex-1 p-1 bg-muted/20 border border-border/50 rounded-md">
+                  {PRESET_CATEGORY_EMOJIS.map((emoji) => (
+                    <button
+                      key={emoji}
+                      type="button"
+                      onClick={() => setCategoryEmoji(emoji)}
+                      className={cn(
+                        "h-6 w-6 rounded flex items-center justify-center text-xs transition-transform hover:scale-125 hover:bg-muted",
+                        categoryEmoji === emoji && "bg-primary/20 ring-1 ring-primary"
+                      )}
+                      title={`Usar emoji ${emoji}`}
+                    >
+                      {emoji}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* Color Selection */}
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between text-xs font-medium text-foreground/90">
+                <span>Cor da categoria</span>
+                <span className="font-mono text-[11px] text-muted-foreground">{categoryColor}</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <Input
+                  type="color"
+                  value={categoryColor}
+                  onChange={(event) => setCategoryColor(event.target.value)}
+                  className="h-8 w-14 p-0.5 cursor-pointer rounded border border-border/60 shrink-0"
+                  aria-label="Cor da categoria"
+                />
+                <div className="flex flex-wrap items-center gap-1.5 flex-1 p-1.5 bg-muted/20 border border-border/50 rounded-md">
+                  {PRESET_CATEGORY_COLORS.map((c) => (
+                    <button
+                      key={c.hex}
+                      type="button"
+                      onClick={() => setCategoryColor(c.hex)}
+                      className={cn(
+                        "h-5 w-5 rounded-full transition-transform hover:scale-125",
+                        categoryColor.toLowerCase() === c.hex.toLowerCase() && "ring-2 ring-foreground ring-offset-2 ring-offset-background"
+                      )}
+                      style={{ backgroundColor: c.hex }}
+                      title={c.name}
+                    />
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {categorySaveError && <p role="alert" className="text-xs text-destructive">{categorySaveError}</p>}
+            <Button className="w-full" disabled={categorySaving} onClick={() => void saveCategoryEditor()}>{categorySaving ? "Salvando…" : "Salvar categoria"}</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
       <QuickResponseModal
         isOpen={Boolean(previewReply)}
         onClose={() => setPreviewReply(null)}

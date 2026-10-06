@@ -7,9 +7,21 @@ let fileItems = [
   { id: 'global', title: 'Legado sem empresa', content: 'Privado' },
 ];
 const queries = [];
+const settings = new Map();
+let settingsUnavailable = false;
 stub('fs/promises', { mkdir: async () => {}, access: async () => {}, readFile: async () => JSON.stringify(fileItems), writeFile: async (_path, text) => { fileItems = JSON.parse(text); }, rename: async () => {} });
 stub('../src/infrastructure/config/ai', {});
-stub('../src/infrastructure/config/database', { async query(sql, params) { queries.push({ sql, params }); return { rows: /SELECT/.test(sql) ? [{ id: 'db-a', company_id: 'tenant-a', title: 'DB A', content: JSON.stringify({ text: 'A', steps: [{ type: 'text', value: 'A' }] }) }] : [{ id: params[0] }] }; } });
+stub('../src/infrastructure/config/database', { async query(sql, params) {
+  queries.push({ sql, params });
+  if (settingsUnavailable && /system_settings/.test(sql)) throw new Error('settings unavailable');
+  if (/system_settings/.test(sql) && /^SELECT/.test(sql.trim())) return { rows: settings.has(params[0]) ? [{ value: settings.get(params[0]) }] : [] };
+  if (/system_settings/.test(sql)) {
+    const next = { ...(settings.has(params[0]) ? JSON.parse(settings.get(params[0])) : {}), ...JSON.parse(params[1]) };
+    settings.set(params[0], JSON.stringify(next));
+    return { rows: [{ key: params[0], value: settings.get(params[0]) }] };
+  }
+  return { rows: /SELECT/.test(sql) ? [{ id: 'db-a', company_id: 'tenant-a', title: 'DB A', content: JSON.stringify({ text: 'A', steps: [{ type: 'text', value: 'A' }] }) }] : [{ id: params[0] }] };
+} });
 let mediaAllowed = false;
 let mediaExists = true;
 stub('../services/enterprise/media-service', {
@@ -46,6 +58,25 @@ test('tenant writes preserve another company file records and persist owner in S
   const write = queries.find(call => /INSERT/.test(call.sql));
   assert.match(write.sql, /WHERE quick_replies.company_id = EXCLUDED.company_id/);
   assert.equal(write.params[1], 'tenant-a');
+});
+
+test('quick reply category appearance merges atomically in company-scoped settings', async () => {
+  assert.deepEqual(await service.getQuickReplyCategories('tenant-a'), {});
+  await service.saveQuickReplyCategory('tenant-a', 'vendas', { emoji: '💰', color: '#123abc' });
+  const saved = await service.saveQuickReplyCategory('tenant-a', 'suporte', { emoji: '🛟', color: '#456def' });
+  assert.deepEqual(saved, { vendas: { emoji: '💰', color: '#123abc' }, suporte: { emoji: '🛟', color: '#456def' } });
+  assert.deepEqual(await service.getQuickReplyCategories('tenant-a'), saved);
+  assert.deepEqual(await service.getQuickReplyCategories('tenant-b'), {});
+  const settingWrite = queries.find(call => /INSERT INTO system_settings/.test(call.sql));
+  assert.equal(settingWrite.params[0], 'inbox_quick_reply_categories:tenant-a');
+  assert.match(settingWrite.sql, /EXCLUDED\.value::jsonb/);
+  assert.match(settingWrite.sql, /jsonb_object_keys/);
+  assert.doesNotMatch(settingWrite.sql, /jsonb_object_length/);
+  await assert.rejects(service.saveQuickReplyCategory('tenant-a', 'x'.repeat(201), { emoji: '📁', color: '#16a34a' }), error => error.status === 400);
+  await assert.rejects(service.saveQuickReplyCategory('tenant-a', 'válida', { emoji: '📁', color: 'red' }), error => error.status === 400);
+  settingsUnavailable = true;
+  await assert.rejects(service.saveQuickReplyCategory('tenant-a', 'falha', { emoji: '📁', color: '#16a34a' }), /settings unavailable/);
+  settingsUnavailable = false;
 });
 
 test('media cannot be laundered through a saved quick reply or reference a missing file', async () => {

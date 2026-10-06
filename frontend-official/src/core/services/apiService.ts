@@ -120,7 +120,7 @@ export interface ChatMessage {
   caption?: string;
   fromMe: boolean;
   createdAt: string;
-  timestamp?: string;
+  timestamp?: string | number;
   status?: "pending" | "sending" | "sent" | "server_ack" | "device_ack" | "delivered" | "read" | "played" | "failed" | "retry" | "error" | "blocked";
   isAI?: boolean;
   aiProvider?: string;
@@ -578,6 +578,7 @@ type RawMessage = {
   createdAt?: string;
   created_at?: string;
   time?: string;
+  timestamp?: string | number;
   status?: "pending" | "sending" | "sent" | "server_ack" | "device_ack" | "delivered" | "read" | "played" | "failed" | "retry";
   isAI?: boolean;
   mediaType?: "image" | "video" | "audio" | "file" | "sticker" | "document" | "media";
@@ -1021,8 +1022,8 @@ function normalizeMessage(item: RawMessage, index: number, defaultConversationId
     content: sanitizeLegacyPlaceholder(item.content ?? item.text ?? item.body ?? item.caption ?? "", inferredMediaType),
     caption: item.caption,
     fromMe: item.fromMe ?? item.sent ?? false,
-    createdAt: item.createdAt ?? item.created_at ?? item.time ?? new Date().toISOString(),
-    timestamp: item.createdAt ?? item.created_at ?? item.time,
+    createdAt: item.createdAt ?? item.created_at ?? item.time ?? (item.timestamp == null ? "" : String(item.timestamp)),
+    timestamp: item.timestamp ?? item.time ?? item.createdAt ?? item.created_at,
     status: item.status ?? "sent",
     isAI: item.isAI ?? false,
     mediaType: inferredMediaType,
@@ -1397,7 +1398,7 @@ export const apiService = {
     });
   },
 
-  async getMessages(conversationId: string, options?: { limit?: number; before?: string; beforeId?: string }) {
+  async getMessages(conversationId: string, options?: { limit?: number; before?: string | number; beforeId?: string }) {
     const primaryEndpoint = withQuery(`/api/conversations/${encodeURIComponent(conversationId)}/messages`, {
       limit: options?.limit,
       before: options?.before,
@@ -1784,7 +1785,7 @@ export const apiService = {
         customerUtterance: string;
         goldenReply: string;
         recommendedCta: string;
-        naturalnessRating: string;
+        naturalnessRating: string | null;
         learnedAt: string;
       }>;
     }>({
@@ -2293,6 +2294,12 @@ export const apiService = {
     } catch {
       return [];
     }
+  },
+  async getQuickReplyCategories() {
+    return request<Record<string, { emoji: string; color: string }>>({ endpoint: "/api/quick-replies/categories", method: "GET" });
+  },
+  async saveQuickReplyCategory(category: string, appearance: { emoji: string; color: string }) {
+    return request<Record<string, { emoji: string; color: string }>>({ endpoint: "/api/quick-replies/categories", method: "PUT", body: { category, ...appearance } });
   },
   async createQuickReply(payload: any) {
     return request<any>({ endpoint: "/api/quick-replies", method: "POST", body: payload });

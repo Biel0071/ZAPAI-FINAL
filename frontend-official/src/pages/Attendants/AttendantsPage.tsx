@@ -44,15 +44,28 @@ import { AgentProfileModal } from "@/components/ai/AgentProfileModal";
 import { NewAgentWizardModal } from "@/components/ai/NewAgentWizardModal";
 import { AvatarEditorModal } from "@/components/avatar-engine/AvatarEditorModal";
 import { ZaiAvatarRenderer } from "@/components/avatar-engine/ZaiAvatarRenderer";
-import { createAgentAvatar, buildStoreVisualDNA } from "@/components/avatar-engine/CharacterFactory";
+import { createAgentAvatar, buildStoreVisualDNA, resolveSpriteForAvatar } from "@/components/avatar-engine/CharacterFactory";
 const CommercialPanel = React.lazy(() => import("@/components/evolution/HistoryBootstrapPanel").then(module => ({ default: module.HistoryBootstrapPanel })));
+const AgentTab = React.lazy(() => import("@/pages/AI/AgentTab").then(module => ({ default: module.AgentTab })));
+const EvolutionTab = React.lazy(() => import("@/pages/AI/EvolutionTab").then(module => ({ default: module.EvolutionTab })));
+const MemoryView = React.lazy(() => import("@/pages/Memory").then(module => ({ default: module.default })));
 
 export default function AttendantsPage() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
-  const activeTab = searchParams.get("tab") === "copilot" ? "copilot" : "attendants";
+  const rawTab = searchParams.get("tab");
+  const activeTab: "attendants" | "copilot" | "config" | "memory" | "evolution" =
+    rawTab === "copilot"
+      ? "copilot"
+      : rawTab === "config"
+      ? "config"
+      : rawTab === "memory"
+      ? "memory"
+      : rawTab === "evolution"
+      ? "evolution"
+      : "attendants";
 
-  const handleTabChange = (tab: "attendants" | "copilot") => {
+  const handleTabChange = (tab: "attendants" | "copilot" | "config" | "memory" | "evolution") => {
     setSearchParams((prev) => {
       const next = new URLSearchParams(prev);
       if (tab === "attendants") {
@@ -217,6 +230,11 @@ export default function AttendantsPage() {
     if (selectedStoreFilter === "all") return agents;
     return agents.filter((a) => belongsToStore(a, selectedStoreFilter));
   }, [agents, selectedStoreFilter, belongsToStore, selectedWhatsApp]);
+  const assignmentConflicts = useMemo(() => sessions.flatMap(session => {
+    const sessionId = session.sessionId || session.id;
+    const responsible = agents.filter(agent => agent.sessionIds?.includes(sessionId));
+    return responsible.length > 1 ? [{ sessionId, session, responsible }] : [];
+  }), [sessions, agents]);
   useEffect(() => {
     if (selectedWhatsApp) {
       const responsible = agents.filter(agent => agent.sessionIds?.includes(selectedWhatsApp));
@@ -357,7 +375,7 @@ export default function AttendantsPage() {
 
   return (
     <div className="flex flex-col min-h-screen bg-background">
-      <Header title="Atendentes & Assistente ZAI" />
+      <Header title="Atendente IA" />
 
       <main className="flex-1 p-4 md:p-6 max-w-7xl mx-auto w-full space-y-6">
         {/* Top Header */}
@@ -369,41 +387,103 @@ export default function AttendantsPage() {
                   "flex h-11 w-11 items-center justify-center rounded-2xl border transition-colors",
                   activeTab === "attendants"
                     ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-400"
-                    : "bg-amber-500/10 border-amber-500/30 text-amber-400"
+                    : activeTab === "copilot"
+                    ? "bg-amber-500/10 border-amber-500/30 text-amber-400"
+                    : activeTab === "config"
+                    ? "bg-sky-500/10 border-sky-500/30 text-sky-400"
+                    : activeTab === "memory"
+                    ? "bg-purple-500/10 border-purple-500/30 text-purple-400"
+                    : "bg-emerald-500/10 border-emerald-500/30 text-emerald-400"
                 )}
               >
                 {activeTab === "attendants" ? (
                   <Headset weight="fill" className="h-6 w-6" />
-                ) : (
+                ) : activeTab === "copilot" ? (
                   <Robot weight="fill" className="h-6 w-6" />
+                ) : activeTab === "config" ? (
+                  <Sliders className="h-6 w-6" />
+                ) : activeTab === "memory" ? (
+                  <Sparkle weight="fill" className="h-6 w-6" />
+                ) : (
+                  <TrendUp className="h-6 w-6" />
                 )}
               </div>
               <div>
                 <h1 className="text-xl md:text-2xl font-bold tracking-tight text-foreground font-display flex items-center gap-2">
-                  <span>{activeTab === "attendants" ? "Atendentes" : "Assistente ZAI"}</span>
+                  <span>
+                    {activeTab === "attendants"
+                      ? "Atendente IA"
+                      : activeTab === "copilot"
+                      ? "Assistente ZAI"
+                      : activeTab === "config"
+                      ? "Configuração IA"
+                      : activeTab === "memory"
+                      ? "Memória do Atendente"
+                      : "Evolução IA"}
+                  </span>
                   <Badge
                     variant="outline"
                     className={cn(
                       "text-[10px] uppercase font-bold",
                       activeTab === "attendants"
                         ? "border-emerald-500/30 text-emerald-400 bg-emerald-500/10"
-                        : "border-amber-500/30 text-amber-400 bg-amber-500/10"
+                        : activeTab === "copilot"
+                        ? "border-amber-500/30 text-amber-400 bg-amber-500/10"
+                        : activeTab === "config"
+                        ? "border-sky-500/30 text-sky-400 bg-sky-500/10"
+                        : activeTab === "memory"
+                        ? "border-purple-500/30 text-purple-400 bg-purple-500/10"
+                        : "border-emerald-500/30 text-emerald-400 bg-emerald-500/10"
                     )}
                   >
-                    {activeTab === "attendants" ? "Operação de Atendimento" : "Copiloto da Plataforma"}
+                    {activeTab === "attendants"
+                      ? "Operação de Atendimento"
+                      : activeTab === "copilot"
+                      ? "Copiloto da Plataforma"
+                      : activeTab === "config"
+                      ? "Modelos & Comportamento"
+                      : activeTab === "memory"
+                      ? "Base de Conhecimento"
+                      : "Aprendizado Contínuo"}
                   </Badge>
                 </h1>
                 <p className="text-xs md:text-sm text-muted-foreground">
                   {activeTab === "attendants"
                     ? "Loja, WhatsApp e atendimento em um só lugar."
-                    : "Consulte a operação e gerencie os atendentes com dados do sistema."}
+                    : activeTab === "copilot"
+                    ? "Consulte a operação e gerencie os atendentes com dados do sistema."
+                    : activeTab === "config"
+                    ? "Ajuste prompts, provedores, temperatura e tom de voz dos atendentes."
+                    : activeTab === "memory"
+                    ? "Consulte termos, produtos, grafo de conhecimento e memórias aprendidas."
+                    : "Acompanhe score, nível de aprendizado e lacunas corrigidas em tempo real."}
                 </p>
               </div>
             </div>
           </div>
 
           <div className="flex items-center gap-2 flex-wrap">
-            <Button variant="outline" className="rounded-xl" onClick={() => navigate("/ai")}>Configurações de IA</Button>
+            <Button
+              variant={activeTab === "config" ? "secondary" : "outline"}
+              className="rounded-xl"
+              onClick={() => handleTabChange("config")}
+            >
+              Configuração
+            </Button>
+            <Button
+              variant={activeTab === "memory" ? "secondary" : "outline"}
+              className="rounded-xl"
+              onClick={() => handleTabChange("memory")}
+            >
+              Memória
+            </Button>
+            <Button
+              variant={activeTab === "evolution" ? "secondary" : "outline"}
+              className="rounded-xl"
+              onClick={() => handleTabChange("evolution")}
+            >
+              Evolução
+            </Button>
             <Button
               onClick={() => setIsWizardOpen(true)}
               className="gap-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-medium shadow-glow"
@@ -417,19 +497,19 @@ export default function AttendantsPage() {
         {loadError && <div role="alert" className="flex items-center justify-between gap-3 rounded-xl border border-amber-500/40 bg-amber-500/10 p-3 text-sm"><span>{loadError}</span><Button size="sm" variant="outline" onClick={() => void fetchData()}>Tentar novamente</Button></div>}
 
         {/* Unified View Switcher Tabs */}
-        <div className="flex items-center gap-2 p-1 rounded-2xl bg-card/70 border border-border/70 w-fit">
+        <div className="flex items-center gap-1.5 p-1 rounded-2xl bg-card/70 border border-border/70 w-fit flex-wrap">
           <button
             type="button"
             onClick={() => handleTabChange("attendants")}
             className={cn(
-              "flex items-center gap-2 px-4 py-2 rounded-xl text-xs md:text-sm font-semibold transition-all select-none",
+              "flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs md:text-sm font-semibold transition-all select-none",
               activeTab === "attendants"
                 ? "bg-emerald-500/15 border border-emerald-500/40 text-emerald-400 shadow-sm"
                 : "text-muted-foreground hover:text-foreground hover:bg-card/50"
             )}
           >
             <Headset weight="fill" className="h-4 w-4" />
-            <span>Atendentes Digitais</span>
+            <span>Atendente IA</span>
             <Badge
               variant="outline"
               className={cn(
@@ -445,7 +525,7 @@ export default function AttendantsPage() {
             type="button"
             onClick={() => handleTabChange("copilot")}
             className={cn(
-              "flex items-center gap-2 px-4 py-2 rounded-xl text-xs md:text-sm font-semibold transition-all select-none",
+              "flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs md:text-sm font-semibold transition-all select-none",
               activeTab === "copilot"
                 ? "bg-amber-500/15 border border-amber-500/40 text-amber-400 shadow-sm"
                 : "text-muted-foreground hover:text-foreground hover:bg-card/50"
@@ -455,15 +535,79 @@ export default function AttendantsPage() {
             <span>Assistente ZAI</span>
             <Sparkle weight="fill" className="h-3.5 w-3.5 text-amber-400 animate-pulse" />
           </button>
+
+          <button
+            type="button"
+            onClick={() => handleTabChange("config")}
+            className={cn(
+              "flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs md:text-sm font-semibold transition-all select-none",
+              activeTab === "config"
+                ? "bg-sky-500/15 border border-sky-500/40 text-sky-400 shadow-sm"
+                : "text-muted-foreground hover:text-foreground hover:bg-card/50"
+            )}
+          >
+            <Sliders className="h-4 w-4" />
+            <span>Configuração IA</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => handleTabChange("memory")}
+            className={cn(
+              "flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs md:text-sm font-semibold transition-all select-none",
+              activeTab === "memory"
+                ? "bg-purple-500/15 border border-purple-500/40 text-purple-400 shadow-sm"
+                : "text-muted-foreground hover:text-foreground hover:bg-card/50"
+            )}
+          >
+            <Sparkle weight="fill" className="h-4 w-4" />
+            <span>Memória</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => handleTabChange("evolution")}
+            className={cn(
+              "flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs md:text-sm font-semibold transition-all select-none",
+              activeTab === "evolution"
+                ? "bg-emerald-500/15 border border-emerald-500/40 text-emerald-400 shadow-sm"
+                : "text-muted-foreground hover:text-foreground hover:bg-card/50"
+            )}
+          >
+            <TrendUp className="h-4 w-4" />
+            <span>Evolução</span>
+          </button>
         </div>
 
-        {/* Tab Content: Copilot Platform Assistant View */}
+        {/* Tab Content: Views */}
         {activeTab === "copilot" ? (
           <div className="rounded-2xl border border-border/70 bg-card/85 backdrop-blur shadow-sm p-4 md:p-6">
             <ZaiPlatformAssistantView
               onOpenNewAgentWizard={() => setIsWizardOpen(true)}
               onRefreshAgents={fetchData}
             />
+          </div>
+        ) : activeTab === "config" ? (
+          <div className="rounded-2xl border border-border/70 bg-card/85 backdrop-blur shadow-sm p-4 md:p-6">
+            <React.Suspense fallback={<div className="p-8 text-center text-sm text-muted-foreground">Carregando configurações de IA...</div>}>
+              <AgentTab
+                selectedAgentKey={previewAgent?.key}
+                agents={agents}
+                onRefreshAgents={fetchData}
+              />
+            </React.Suspense>
+          </div>
+        ) : activeTab === "memory" ? (
+          <div className="rounded-2xl border border-border/70 bg-card/85 backdrop-blur shadow-sm p-4 md:p-6">
+            <React.Suspense fallback={<div className="p-8 text-center text-sm text-muted-foreground">Carregando base de memória...</div>}>
+              <MemoryView />
+            </React.Suspense>
+          </div>
+        ) : activeTab === "evolution" ? (
+          <div className="rounded-2xl border border-border/70 bg-card/85 backdrop-blur shadow-sm p-4 md:p-6">
+            <React.Suspense fallback={<div className="p-8 text-center text-sm text-muted-foreground">Carregando evolução e aprendizado...</div>}>
+              <EvolutionTab />
+            </React.Suspense>
           </div>
         ) : (
           <>
@@ -484,6 +628,19 @@ export default function AttendantsPage() {
                 {filteredAttendants.length > 1 && <p role="alert" className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-3 text-sm">Este WhatsApp tem vínculos antigos com mais de um atendente. Escolha acima o único responsável para regularizar o atendimento.</p>}
               </>}
             </section>
+            {!selectedWhatsApp && assignmentConflicts.length > 0 && (
+              <section role="alert" className="rounded-2xl border border-amber-500/40 bg-amber-500/10 p-4 space-y-2">
+                <p className="text-sm font-semibold text-amber-200">{assignmentConflicts.length} WhatsApp(s) têm mais de um atendente vinculado.</p>
+                <p className="text-xs text-muted-foreground">O atendimento pode ficar pausado até cada número ter um único responsável. Escolha um WhatsApp para revisar os vínculos; nada será alterado até você selecionar o responsável.</p>
+                <label className="sr-only" htmlFor="resolve-assignment-conflict">Escolher WhatsApp com conflito</label>
+                <select id="resolve-assignment-conflict" className="w-full rounded-xl border border-amber-500/30 bg-background p-2.5 text-sm" value="" onChange={event => selectWhatsApp(event.target.value)}>
+                  <option value="" disabled>Revisar conflito de um WhatsApp…</option>
+                  {assignmentConflicts.map(({ sessionId, session, responsible }) => (
+                    <option key={sessionId} value={sessionId}>{session.sessionName || session.name || sessionId} · {responsible.map(agent => agent.name).join(", ")}</option>
+                  ))}
+                </select>
+              </section>
+            )}
             {selectedWhatsApp && <details open={commercialOpen} onToggle={event => setCommercialOpen(event.currentTarget.open)} className="rounded-2xl border border-border bg-card p-4">
               <summary className="cursor-pointer text-sm font-semibold">Loja e dados comerciais deste WhatsApp</summary>
               <React.Suspense fallback={<p className="py-4 text-sm text-muted-foreground">Carregando dados comerciais…</p>}>
@@ -581,21 +738,31 @@ export default function AttendantsPage() {
                             <div className="flex items-start justify-between gap-3">
                               <div className="flex items-center gap-3 min-w-0">
                                 <div className="relative shrink-0">
-                                  <img
-                                    src={
-                                      agent.avatar ||
-                                      (agent.character?.gender === "male"
-                                        ? "/assets/evolution/joao_avatar.png"
-                                        : "/assets/evolution/camila_avatar.png")
-                                    }
-                                    alt={agent.name}
-                                    className="h-12 w-12 rounded-2xl border border-emerald-500/30 object-cover bg-background"
-                                    onError={(e) => {
-                                      const target = e.target as HTMLImageElement;
-                                      target.onerror = null;
-                                      target.src = "/assets/evolution/camila_avatar.png";
-                                    }}
-                                  />
+                                  {(() => {
+                                    const cardSpriteId = agent.avatarConfig ? resolveSpriteForAvatar(agent.avatarConfig) : null;
+                                    const cardAvatarSrc = cardSpriteId
+                                      ? `/assets/avatar_factory/catalog/${cardSpriteId}_clean.png`
+                                      : (agent.avatar ||
+                                         (agent.character?.gender === "male"
+                                           ? "/assets/evolution/joao_avatar.png"
+                                           : "/assets/evolution/camila_avatar.png"));
+                                    return (
+                                      <img
+                                        src={cardAvatarSrc}
+                                        alt={agent.name}
+                                        className={cn(
+                                          "h-12 w-12 rounded-2xl border border-emerald-500/30 bg-background",
+                                          cardSpriteId ? "object-contain p-1" : "object-cover"
+                                        )}
+                                        style={cardSpriteId ? { imageRendering: "pixelated" } : undefined}
+                                        onError={(e) => {
+                                          const target = e.target as HTMLImageElement;
+                                          target.onerror = null;
+                                          target.src = "/assets/evolution/camila_avatar.png";
+                                        }}
+                                      />
+                                    );
+                                  })()}
                                   <span
                                     className={cn(
                                       "absolute -bottom-1 -right-1 h-3.5 w-3.5 rounded-full ring-2 ring-card",
@@ -1182,15 +1349,22 @@ export default function AttendantsPage() {
           store={getAssignedStore(avatarEditorAgent)}
           runtimeState={getPresence(avatarEditorAgent).state}
           onSave={(updatedAvatar) => {
+            const spriteId = updatedAvatar.catalogSpriteId || resolveSpriteForAvatar(updatedAvatar, true);
+            const avatarUrl = `/assets/avatar_factory/catalog/${spriteId}_clean.png`;
+            const fullConfig = { ...updatedAvatar, catalogSpriteId: spriteId };
             setAgents((prev) =>
               prev.map((a) =>
                 a.key === avatarEditorAgent.key
-                  ? { ...a, avatarConfig: updatedAvatar }
+                  ? { ...a, avatarConfig: fullConfig, avatar: avatarUrl }
                   : a
               )
             );
             if (previewAgent?.key === avatarEditorAgent.key) {
-              setPreviewAgent((prev: any) => ({ ...prev, avatarConfig: updatedAvatar }));
+              setPreviewAgent((prev: any) => ({
+                ...prev,
+                avatarConfig: fullConfig,
+                avatar: avatarUrl,
+              }));
             }
             fetchData();
           }}

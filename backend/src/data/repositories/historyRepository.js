@@ -1,5 +1,6 @@
 // History bypasses the realtime pipeline deliberately: no unread/AI/campaign side effects.
 const draftRevision = candidate => require('crypto').createHash('sha256').update(JSON.stringify(candidate)).digest('hex');
+const { emitToTenant } = require('../../../services/realtime/tenantRooms');
 
 class HistoryRepository {
   constructor(pool) { this.pool = pool; }
@@ -92,14 +93,14 @@ class HistoryRepository {
       // Serializes only a tenant/session conversation, also across worker restarts.
       await client.query('SELECT pg_advisory_xact_lock(hashtext($1))', [JSON.stringify([item.company_id, item.session_id, item.chat_jid])]);
       const locked = await client.query(`SELECT import_state FROM whatsapp_history_items WHERE id=$1 AND company_id=$2 AND session_id=$3 FOR UPDATE`, [item.id, item.company_id, item.session_id]);
-      if (!locked.rows[0] || locked.rows[0].import_state === 'done') { await client.query('COMMIT'); return; }
+      if (!locked.rows[0] || locked.rows[0].import_state === 'done') { await client.query('COMMIT'); return null; }
       // A live observation must never create a second incoming message while realtime persistence is in flight.
       if (item.origin === 'live_unknown') {
         const live = (await client.query(`SELECT id FROM messages WHERE company_id=$1 AND session_id=$2 AND whatsapp_message_id=$3 AND remote_jid=$4 LIMIT 1`, [item.company_id, item.session_id, item.message_key, item.chat_jid])).rows[0];
         if (!live) {
           await client.query(`UPDATE whatsapp_history_items SET import_state=CASE WHEN created_at<NOW()-INTERVAL '10 minutes' THEN 'failed' ELSE 'pending' END,
             last_error='live_message_not_persisted' WHERE id=$1 AND company_id=$2 AND session_id=$3`, [item.id, item.company_id, item.session_id]);
-          await client.query('COMMIT'); return;
+          await client.query('COMMIT'); return null;
         }
       }
       const { conversation, phone } = await this.ensureConversation(client, item);
@@ -107,7 +108,7 @@ class HistoryRepository {
         AND (remote_jid=$4 OR (remote_jid IS NULL AND conversation_id=$5)) LIMIT 1`, [item.company_id, item.session_id, item.message_key, item.chat_jid, conversation.id])).rows[0];
       if (!message) {
         message = (await client.query(`INSERT INTO messages(company_id,session_id,conversation_id,phone,text,content,media_type,type,from_me,sender,direction,status,timestamp,created_at,whatsapp_message_id,remote_jid,history_item_id)
-          VALUES($1,$2,$3,$4,$5,$5,$6,$6,$7,$8,$9,$10,$11,$11,$12,$13,$14) RETURNING id`,
+          VALUES($1,$2,$3,$4,$5,$5,$6,$6,$7,$8,$9,$10,$11,NOW(),$12,$13,$14) RETURNING id`,
         [item.company_id, item.session_id, conversation.id, phone, payload.text || '', payload.mediaType || 'text', item.from_me,
           item.from_me ? 'agent' : 'client', item.from_me ? 'outgoing' : 'incoming', item.from_me ? 'sent' : 'received', item.occurred_at || new Date(), item.message_key, item.chat_jid, item.id])).rows[0];
       }
@@ -125,6 +126,7 @@ class HistoryRepository {
         global.io.emit('conversation:update', { id: conversation.id, sessionId: item.session_id });
         global.io.emit('conversation_updated', { id: conversation.id, sessionId: item.session_id });
       }
+      return String(conversation.id);
     } catch (error) { await client.query('ROLLBACK'); throw error; }
     finally { client.release(); }
   }
@@ -140,7 +142,13 @@ class HistoryRepository {
   async saveMedia(item, path, text, state = 'done') {
     await this.pool.query(`UPDATE whatsapp_history_items SET media_path=$4,media_text=$5,media_state=$6,last_error=NULL,updated_at=NOW()
       WHERE id=$1 AND company_id=$2 AND session_id=$3`, [item.id, item.company_id, item.session_id, path, text, state]);
-    if (path) await this.pool.query(`UPDATE messages SET media_path=$4,media_url=$4 WHERE id=$1 AND company_id=$2 AND session_id=$3`, [item.message_id, item.company_id, item.session_id, path]);
+    if (path) {
+      const updated = await this.pool.query(`UPDATE messages SET media_path=$4,media_url=$4 WHERE id=$1 AND company_id=$2 AND session_id=$3 RETURNING conversation_id`, [item.message_id, item.company_id, item.session_id, path]);
+      const conversationId = updated.rows[0]?.conversation_id;
+      if (conversationId != null) emitToTenant(global.io, item.company_id, 'whatsapp:history_imported', {
+        sessionId: item.session_id, conversationIds: [String(conversationId)],
+      });
+    }
   }
 
   async status(companyId, sessionId) {

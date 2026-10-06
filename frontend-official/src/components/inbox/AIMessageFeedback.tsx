@@ -19,7 +19,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useToast } from "@/state/hooks/use-toast";
-import { API_ORIGIN } from "@/core/services/apiService";
+import { requestApiEndpoint } from "@/core/services/apiService";
 
 interface AIMessageFeedbackProps {
   conversationId: string | number;
@@ -35,25 +35,26 @@ export function AIMessageFeedback({ conversationId, messageId, aiResponseText }:
   const [correctionNote, setCorrectionNote] = useState("");
   const [sending, setSending] = useState(false);
 
+  const saveFeedback = async (rating: "positive" | "negative" | "corrected", category: string, note: string) => {
+    const result = await requestApiEndpoint<{ success?: boolean; error?: string }>("/api/ai/evolution/feedback", "POST", {
+      conversationId, rating, category, note, aiResponseText: aiResponseText || null,
+    });
+    if (result?.success !== true) throw new Error(result?.error || "Não foi possível registrar o feedback.");
+  };
+
   const handleQuickRating = async (rating: "positive" | "negative") => {
-    setRated(rating);
+    if (sending) return;
+    setSending(true);
     try {
-      await fetch(`${API_ORIGIN}/api/ai/evolution/feedback`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "omit",
-        body: JSON.stringify({
-          conversationId,
-          rating,
-          category: "general",
-          note: rating === "positive" ? "Atendente marcou como eficaz" : "Atendente marcou como insatisfatório"
-        })
-      });
+      await saveFeedback(rating, "general", rating === "positive" ? "Atendente marcou como eficaz" : "Atendente marcou como insatisfatório");
+      setRated(rating);
       toast({
         title: rating === "positive" ? "Experiência positiva registrada!" : "Feedback registrado para evolução.",
       });
     } catch (err) {
-      console.warn("[AIMessageFeedback] error sending feedback:", err);
+      toast({ title: "Feedback não salvo", description: err instanceof Error ? err.message : "Tente novamente.", variant: "destructive" });
+    } finally {
+      setSending(false);
     }
   };
 
@@ -65,17 +66,7 @@ export function AIMessageFeedback({ conversationId, messageId, aiResponseText }:
 
     try {
       setSending(true);
-      await fetch(`${API_ORIGIN}/api/ai/evolution/feedback`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "omit",
-        body: JSON.stringify({
-          conversationId,
-          rating: "corrected",
-          category: feedbackCategory,
-          note: correctionNote
-        })
-      });
+      await saveFeedback("corrected", feedbackCategory, correctionNote.trim());
 
       setRated("corrected");
       setModalOpen(false);
@@ -83,8 +74,8 @@ export function AIMessageFeedback({ conversationId, messageId, aiResponseText }:
         title: "Correção salva na Memória de Experiência!",
         description: "A IA utilizará este exemplo para sugerir um novo padrão no Evolution Center.",
       });
-    } catch (err: any) {
-      toast({ title: "Erro ao salvar", description: err.message, variant: "destructive" });
+    } catch (err) {
+      toast({ title: "Erro ao salvar", description: err instanceof Error ? err.message : "Tente novamente.", variant: "destructive" });
     } finally {
       setSending(false);
     }
@@ -98,6 +89,8 @@ export function AIMessageFeedback({ conversationId, messageId, aiResponseText }:
           variant="ghost"
           className={`h-5 w-5 rounded p-0 text-muted-foreground hover:text-emerald-400 ${rated === "positive" ? "text-emerald-400 font-bold" : ""}`}
           title="Resposta eficaz (Gostei)"
+          disabled={sending}
+          aria-pressed={rated === "positive"}
           onClick={() => handleQuickRating("positive")}
         >
           {rated === "positive" ? <Check className="w-3 h-3" /> : <ThumbsUp className="w-3 h-3" />}
@@ -108,6 +101,8 @@ export function AIMessageFeedback({ conversationId, messageId, aiResponseText }:
           variant="ghost"
           className={`h-5 w-5 rounded p-0 text-muted-foreground hover:text-amber-400 ${rated === "negative" ? "text-amber-400 font-bold" : ""}`}
           title="Pode melhorar"
+          disabled={sending}
+          aria-pressed={rated === "negative"}
           onClick={() => handleQuickRating("negative")}
         >
           <ThumbsDown className="w-3 h-3" />
@@ -118,6 +113,7 @@ export function AIMessageFeedback({ conversationId, messageId, aiResponseText }:
           variant="ghost"
           className={`h-5 w-5 rounded p-0 text-muted-foreground hover:text-blue-400 ${rated === "corrected" ? "text-blue-400 font-bold" : ""}`}
           title="Corrigir / Ensinar resposta ideal"
+          disabled={sending}
           onClick={() => setModalOpen(true)}
         >
           <Edit3 className="w-3 h-3" />
@@ -127,6 +123,7 @@ export function AIMessageFeedback({ conversationId, messageId, aiResponseText }:
           variant="ghost"
           size="sm"
           className="h-5 px-1.5 text-[10px] text-muted-foreground hover:text-purple-400 flex items-center gap-0.5"
+          disabled={sending}
           onClick={() => setModalOpen(true)}
         >
           <Brain className="w-2.5 h-2.5" /> Ensinar IA

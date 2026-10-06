@@ -79,9 +79,11 @@ async function downloadMedia(mediaMessage, mediaType, companyId) {
 async function extractIncomingMessage(messageData = {}, options = {}) {
   const phone = messageData.key?.remoteJid;
   const name = messageData.pushName || 'Unknown';
-  const timestamp = messageData.messageTimestamp
-    ? Number(messageData.messageTimestamp) * 1000
-    : Date.now();
+  const receivedAt = new Date().toISOString();
+  const sourceTimestamp = Number(messageData.messageTimestamp);
+  const timestamp = Number.isFinite(sourceTimestamp) && sourceTimestamp > 0
+    ? new Date(sourceTimestamp * 1000).toISOString()
+    : receivedAt;
   const isGroup = String(phone || '').endsWith('@g.us');
   const participant = isGroup
     ? (messageData.key?.participant || messageData.participant || messageData.pushName || null)
@@ -112,6 +114,7 @@ async function extractIncomingMessage(messageData = {}, options = {}) {
     companyId: options.companyId || process.env.DEFAULT_COMPANY_ID || 'default',
     externalMessageId: messageData.key?.id || null,
     remoteJid: messageData.key?.remoteJid || null,
+    receivedAt,
     fileName: mediaInfo?.fileName || mediaMessage?.fileName || null,
     isGroup,
     mediaPath,
@@ -230,6 +233,7 @@ async function persistRealtimeMessage({ incomingMessage, sessionId }) {
 
   return enterpriseMessageService.persistInboundMessage({
     companyId: payload.companyId,
+    externalMessageId: payload.externalMessageId,
     fileName: payload.fileName,
     fromMe: Boolean(incomingMessage.key?.fromMe),
     mediaPath: payload.mediaPath,
@@ -238,11 +242,13 @@ async function persistRealtimeMessage({ incomingMessage, sessionId }) {
     name: payload.name,
     participant: payload.participant,
     phone: payload.phone,
+    remoteJid: payload.remoteJid,
     sessionId,
     size: payload.size,
     status: incomingMessage.key?.fromMe ? 'sent' : 'received',
     text: payload.text,
-    timestamp: payload.timestamp || new Date().toISOString(),
+    receivedAt: payload.receivedAt,
+    timestamp: payload.timestamp,
     type: payload.type,
     url: payload.mediaUrl || payload.mediaPath,
     hash: payload.hash || null,

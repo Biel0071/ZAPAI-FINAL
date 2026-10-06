@@ -6,6 +6,7 @@ const { pool } = require('../../src/infrastructure/config/database');
 const ai = require('../ai.service');
 const agents = require('../../src/ai/agents/services/aiAgentService');
 const { activeSessions } = require('./state/registry');
+const { emitToTenant } = require('../realtime/tenantRooms');
 
 function isSyncableJid(jid) { return /@(s\.whatsapp\.net|lid|g\.us)$/.test(String(jid)); }
 function individual(jid) { return /@(s\.whatsapp\.net|lid)$/.test(String(jid)); }
@@ -29,6 +30,42 @@ class HistorySync {
     extract = extractIncomingMessage, media = downloadMedia, transcribe = ai.transcribeAudio, describe = ai.describeImage } = {}) {
     this.repository = repository; this.learning = learning; this.decode = decode;
     this.extract = extract; this.media = media; this.transcribe = transcribe; this.describe = describe;
+    this.pendingRequests = new Map();
+  }
+
+  async correlateHistoryResponse(companyId, sessionId, { peerDataRequestSessionId } = {}) {
+    if (!peerDataRequestSessionId) return null;
+    const request = this.pendingRequests.get(`${companyId}:${sessionId}:${peerDataRequestSessionId}`);
+    if (!request) return null;
+    this.pendingRequests.delete(`${companyId}:${sessionId}:${peerDataRequestSessionId}`);
+    await this.repository.pool.query(`UPDATE whatsapp_history_requests SET status='received'
+      WHERE company_id=$1 AND session_id=$2 AND chat_jid=$3 AND oldest_key=$4
+        AND status IN ('waiting','waiting_retry_1','waiting_retry_2','waiting_retry_3')`,
+    [request.companyId, sessionId, request.chatJid, request.oldestKey]);
+    return request;
+  }
+
+  rememberRequest(companyId, sessionId, chatJid, oldestKey, requestId) {
+    if (!requestId) return;
+    const now = Date.now();
+    for (const [key, pending] of this.pendingRequests) {
+      const expired = now - pending.createdAt > 24 * 60 * 60 * 1000;
+      const superseded = pending.companyId === companyId && pending.sessionId === sessionId &&
+        pending.chatJid === chatJid && pending.oldestKey === oldestKey;
+      if (expired || superseded) this.pendingRequests.delete(key);
+    }
+    this.pendingRequests.set(`${companyId}:${sessionId}:${requestId}`, { companyId, sessionId, chatJid, oldestKey, createdAt: now });
+    while (this.pendingRequests.size > 1000) this.pendingRequests.delete(this.pendingRequests.keys().next().value);
+  }
+
+  notifyImported(companyId, sessionId, conversationIds, { syncType, progress } = {}) {
+    if (!conversationIds.size) return;
+    emitToTenant(global.io, companyId, 'whatsapp:history_imported', {
+      sessionId,
+      conversationIds: [...conversationIds],
+      ...(syncType !== undefined ? { syncType } : {}),
+      ...(progress !== undefined ? { progress } : {}),
+    });
   }
 
   async receive(sessionId, messages = [], chats = [], origin = 'unknown') {
@@ -82,12 +119,13 @@ class HistorySync {
     return rows.length;
   }
 
-  async process(companyId, sessionId) {
+  async process(companyId, sessionId, syncMetadata = {}) {
     await this.repository.importChats(companyId, sessionId);
 
     // Process pending history items first (in batches of 50, up to 10 batches = 500 items per call)
     let processedAny = false;
     let batchCount = 0;
+    const importedConversationIds = new Set();
     while (batchCount < 10) {
       const items = await this.repository.pending(companyId, sessionId);
       if (!items.length) break;
@@ -95,13 +133,17 @@ class HistorySync {
         try {
           const payload = await this.extract(await this.decodeItem(item), { skipMediaDownload: true, companyId });
           if (!payload) throw new Error('Formato indisponível');
-          await this.repository.persist(item, payload);
-          processedAny = true;
+          const conversationId = await this.repository.persist(item, payload);
+          if (conversationId) {
+            importedConversationIds.add(String(conversationId));
+            processedAny = true;
+          }
         } catch (error) { await this.repository.fail(item, false, `import_failed: ${String(error?.message || error).slice(0, 400)}`); }
       }
       batchCount++;
       if (items.length < 50) break;
     }
+    this.notifyImported(companyId, sessionId, importedConversationIds, syncMetadata);
 
     if (!processedAny) {
       if (await this.seedStoredMessages(companyId, sessionId)) return;
@@ -148,6 +190,7 @@ class HistorySync {
       if ((!latest && (quiet || initialWaitElapsed)) || (latest && Date.now() - new Date(latest.created_at).getTime() > 600000)) await this.learning.start(companyId, sessionId);
       await this.learning.step(companyId, sessionId);
     }
+    return [...importedConversationIds];
   }
 
   async requestOlder(companyId, sessionId) {
@@ -167,12 +210,20 @@ class HistorySync {
 
     let row = (await client.query(`
       SELECT h.chat_jid, h.message_key, h.from_me, h.occurred_at
-      FROM whatsapp_history_items h
+      FROM (
+        SELECT DISTINCT ON (chat_jid) company_id,session_id,chat_jid,message_key,from_me,occurred_at
+        FROM whatsapp_history_items WHERE company_id=$1 AND session_id=$2
+          AND occurred_at IS NOT NULL AND message_key NOT LIKE 'stored:%'
+        ORDER BY chat_jid,occurred_at ASC,id ASC
+      ) h
       LEFT JOIN whatsapp_history_requests r
         ON r.company_id=h.company_id AND r.session_id=h.session_id AND r.chat_jid=h.chat_jid
       WHERE h.company_id=$1 AND h.session_id=$2 AND h.occurred_at IS NOT NULL
         AND h.message_key NOT LIKE 'stored:%'
-        AND (r.oldest_key IS NULL OR r.oldest_key<>h.message_key)
+        AND (r.oldest_key IS NULL OR r.oldest_key<>h.message_key OR
+          (r.status IN ('waiting','waiting_retry_1','waiting_retry_2','waiting_retry_3') AND r.requested_at < NOW() -
+            CASE r.status WHEN 'waiting' THEN INTERVAL '2 minutes' WHEN 'waiting_retry_1' THEN INTERVAL '10 minutes'
+              WHEN 'waiting_retry_2' THEN INTERVAL '1 hour' ELSE INTERVAL '6 hours' END))
       ORDER BY h.occurred_at ASC
       LIMIT 1
     `, [companyId, sessionId])).rows[0];
@@ -183,25 +234,42 @@ class HistorySync {
         SELECT m.whatsapp_message_id AS message_key,
                COALESCE(m.remote_jid, m.phone) AS chat_jid,
                m.from_me,
-               m.created_at AS occurred_at
-        FROM messages m
+               COALESCE(m.timestamp, m.created_at) AS occurred_at
+        FROM (
+          SELECT DISTINCT ON (COALESCE(remote_jid,phone)) company_id,session_id,remote_jid,phone,whatsapp_message_id,from_me,timestamp,created_at
+          FROM messages WHERE company_id=$1 AND session_id=$2
+            AND whatsapp_message_id IS NOT NULL AND whatsapp_message_id NOT LIKE 'stored:%'
+          ORDER BY COALESCE(remote_jid,phone),COALESCE(timestamp,created_at) ASC,id ASC
+        ) m
         LEFT JOIN whatsapp_history_requests r
           ON r.company_id = m.company_id AND r.session_id = m.session_id AND r.chat_jid = COALESCE(m.remote_jid, m.phone)
         WHERE m.company_id = $1 AND m.session_id = $2
           AND m.whatsapp_message_id IS NOT NULL
           AND m.whatsapp_message_id NOT LIKE 'stored:%'
-          AND (r.oldest_key IS NULL OR r.oldest_key <> m.whatsapp_message_id)
-        ORDER BY m.created_at ASC
+          AND (r.oldest_key IS NULL OR r.oldest_key <> m.whatsapp_message_id OR
+            (r.status IN ('waiting','waiting_retry_1','waiting_retry_2','waiting_retry_3') AND r.requested_at < NOW() -
+              CASE r.status WHEN 'waiting' THEN INTERVAL '2 minutes' WHEN 'waiting_retry_1' THEN INTERVAL '10 minutes'
+                WHEN 'waiting_retry_2' THEN INTERVAL '1 hour' ELSE INTERVAL '6 hours' END))
+        ORDER BY COALESCE(m.timestamp, m.created_at) ASC
         LIMIT 1
       `, [companyId, sessionId])).rows[0];
     }
 
     if (!row) return;
-    await client.query(`INSERT INTO whatsapp_history_requests(company_id,session_id,chat_jid,oldest_key) VALUES($1,$2,$3,$4)
-      ON CONFLICT(company_id,session_id,chat_jid) DO UPDATE SET oldest_key=EXCLUDED.oldest_key,requested_at=NOW(),status='waiting'`, [companyId, sessionId, row.chat_jid, row.message_key]);
+    const prior = (await client.query(`SELECT oldest_key,status FROM whatsapp_history_requests WHERE company_id=$1 AND session_id=$2 AND chat_jid=$3`, [companyId, sessionId, row.chat_jid])).rows[0];
+    const retryNumber = prior?.oldest_key === row.message_key ? Number(String(prior.status).match(/^waiting_retry_(\d)$/)?.[1] || 0) + 1 : 0;
+    if (retryNumber > 3) {
+      await client.query(`UPDATE whatsapp_history_requests SET status='unavailable' WHERE company_id=$1 AND session_id=$2 AND chat_jid=$3`, [companyId, sessionId, row.chat_jid]);
+      return;
+    }
+    const requestStatus = retryNumber ? `waiting_retry_${retryNumber}` : 'waiting';
+    await client.query(`INSERT INTO whatsapp_history_requests(company_id,session_id,chat_jid,oldest_key,status) VALUES($1,$2,$3,$4,$5)
+      ON CONFLICT(company_id,session_id,chat_jid) DO UPDATE SET oldest_key=EXCLUDED.oldest_key,requested_at=NOW(),status=EXCLUDED.status`,
+    [companyId, sessionId, row.chat_jid, row.message_key, requestStatus]);
     await client.query(`UPDATE whatsapp_history_sync SET last_request_at=NOW() WHERE company_id=$1 AND session_id=$2`, [companyId, sessionId]);
     try {
-      await session.sock.fetchMessageHistory(50, { remoteJid: row.chat_jid, id: row.message_key, fromMe: Boolean(row.from_me) }, Math.floor(new Date(row.occurred_at).getTime() / 1000));
+      const requestId = await session.sock.fetchMessageHistory(50, { remoteJid: row.chat_jid, id: row.message_key, fromMe: Boolean(row.from_me) }, Math.floor(new Date(row.occurred_at).getTime() / 1000));
+      this.rememberRequest(companyId, sessionId, row.chat_jid, row.message_key, requestId);
     } catch (_) {
       await client.query(`UPDATE whatsapp_history_requests SET status='unavailable' WHERE company_id=$1 AND session_id=$2 AND chat_jid=$3`, [companyId, sessionId, row.chat_jid]);
     }
@@ -229,13 +297,13 @@ class HistorySync {
         SELECT COALESCE(m.remote_jid, m.phone) AS chat_jid,
                m.whatsapp_message_id AS message_key,
                m.from_me,
-               m.created_at AS occurred_at
+               COALESCE(m.timestamp, m.created_at) AS occurred_at
         FROM messages m
         WHERE m.company_id = $1 AND m.session_id = $2
           AND (m.remote_jid = $3 OR m.phone = $3)
           AND m.whatsapp_message_id IS NOT NULL
           AND m.whatsapp_message_id NOT LIKE 'stored:%'
-        ORDER BY m.created_at ASC
+        ORDER BY COALESCE(m.timestamp, m.created_at) ASC
         LIMIT 1
       `, [companyId, sessionId, chatJid])).rows[0];
       if (msgRow) row = msgRow;
@@ -260,7 +328,8 @@ class HistorySync {
     `, [companyId, sessionId]);
 
     try {
-      await session.sock.fetchMessageHistory(50, key, timestampSec);
+      const requestId = await session.sock.fetchMessageHistory(50, key, timestampSec);
+      this.rememberRequest(companyId, sessionId, row.chat_jid, row.message_key, requestId);
       return { success: true, chatJid: row.chat_jid, requestedKey: row.message_key };
     } catch (err) {
       await client.query(`
@@ -277,7 +346,12 @@ class HistorySync {
 
     let rows = (await client.query(`
       SELECT DISTINCT ON (h.chat_jid) h.chat_jid, h.message_key, h.from_me, h.occurred_at
-      FROM whatsapp_history_items h
+      FROM (
+        SELECT DISTINCT ON (chat_jid) company_id,session_id,chat_jid,message_key,from_me,occurred_at
+        FROM whatsapp_history_items WHERE company_id=$1 AND session_id=$2
+          AND occurred_at IS NOT NULL AND message_key NOT LIKE 'stored:%'
+        ORDER BY chat_jid,occurred_at ASC,id ASC
+      ) h
       LEFT JOIN whatsapp_history_requests r
         ON r.company_id=h.company_id AND r.session_id=h.session_id AND r.chat_jid=h.chat_jid
       WHERE h.company_id=$1 AND h.session_id=$2 AND h.occurred_at IS NOT NULL
@@ -296,8 +370,13 @@ class HistorySync {
                COALESCE(m.remote_jid, m.phone) AS chat_jid,
                m.whatsapp_message_id AS message_key,
                m.from_me,
-               m.created_at AS occurred_at
-        FROM messages m
+               COALESCE(m.timestamp, m.created_at) AS occurred_at
+        FROM (
+          SELECT DISTINCT ON (COALESCE(remote_jid,phone)) company_id,session_id,remote_jid,phone,whatsapp_message_id,from_me,timestamp,created_at
+          FROM messages WHERE company_id=$1 AND session_id=$2
+            AND whatsapp_message_id IS NOT NULL AND whatsapp_message_id NOT LIKE 'stored:%'
+          ORDER BY COALESCE(remote_jid,phone),COALESCE(timestamp,created_at) ASC,id ASC
+        ) m
         LEFT JOIN whatsapp_history_requests r
           ON r.company_id = m.company_id AND r.session_id = m.session_id AND r.chat_jid = COALESCE(m.remote_jid, m.phone)
         WHERE m.company_id = $1 AND m.session_id = $2
@@ -305,7 +384,7 @@ class HistorySync {
           AND m.whatsapp_message_id NOT LIKE 'stored:%'
           ${existingJids.length ? `AND COALESCE(m.remote_jid, m.phone) NOT IN (${existingJids.map((_, i) => `$${i + 4}`).join(',')})` : ''}
           AND (r.oldest_key IS NULL OR r.oldest_key <> m.whatsapp_message_id)
-        ORDER BY COALESCE(m.remote_jid, m.phone), m.created_at ASC
+        ORDER BY COALESCE(m.remote_jid, m.phone), COALESCE(m.timestamp, m.created_at) ASC
         LIMIT $3
       `, [companyId, sessionId, remaining, ...existingJids])).rows;
       rows = rows.concat(fallbackRows);
@@ -319,7 +398,8 @@ class HistorySync {
           ON CONFLICT(company_id, session_id, chat_jid)
           DO UPDATE SET oldest_key=EXCLUDED.oldest_key, requested_at=NOW(), status='waiting'
         `, [companyId, sessionId, row.chat_jid, row.message_key]);
-        await session.sock.fetchMessageHistory(50, { remoteJid: row.chat_jid, id: row.message_key, fromMe: Boolean(row.from_me) }, Math.floor(new Date(row.occurred_at).getTime() / 1000));
+        const requestId = await session.sock.fetchMessageHistory(50, { remoteJid: row.chat_jid, id: row.message_key, fromMe: Boolean(row.from_me) }, Math.floor(new Date(row.occurred_at).getTime() / 1000));
+        this.rememberRequest(companyId, sessionId, row.chat_jid, row.message_key, requestId);
       } catch (_) {}
     }
   }

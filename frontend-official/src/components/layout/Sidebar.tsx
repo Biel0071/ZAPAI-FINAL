@@ -65,7 +65,7 @@ const crmItems: SidebarNavItem[] = [
   { icon: SquaresFour, label: "Dashboard", path: "/dashboard", minRole: "user" },
   { icon: ChatCircleDots, label: "Inbox", path: "/inbox", minRole: "user", badge: "LIVE" },
   { icon: Broadcast, label: "Conexões", path: "/connections", minRole: "user" },
-  { icon: Headset, label: "Atendentes & Assistente ZAI", path: "/attendants", minRole: "user" },
+  { icon: Headset, label: "Atendente IA", path: "/attendants", minRole: "user" },
   { icon: Megaphone, label: "Campanhas", path: "/campaigns", minRole: "user" },
   { icon: Users, label: "Contatos", path: "/contacts", minRole: "user" },
 ];

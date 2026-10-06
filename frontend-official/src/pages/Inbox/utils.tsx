@@ -1,5 +1,5 @@
 import { memo } from "react";
-import { resolveMediaUrl as normalizeMediaUrl, resolveProtectedMediaUrl } from "@/core/runtime/utils/inboxNormalization";
+import { compareMessageTimes, resolveMediaUrl as normalizeMediaUrl, resolveProtectedMediaUrl } from "@/core/runtime/utils/inboxNormalization";
 import { cn } from "@/core/lib/utils";
 import { type ChatMessage, type Conversation, type SessionInfo } from "@/core/services/apiService";
 import type {
@@ -909,13 +909,7 @@ export function sortMessagesAsc(list: ChatMessage[]): ChatMessage[] {
     }
   });
 
-  return result.sort((a, b) => {
-    const aTime = new Date(String((a as { timestamp?: string }).timestamp ?? a.createdAt ?? "")).getTime();
-    const bTime = new Date(String((b as { timestamp?: string }).timestamp ?? b.createdAt ?? "")).getTime();
-    const safeATime = Number.isFinite(aTime) ? aTime : 0;
-    const safeBTime = Number.isFinite(bTime) ? bTime : 0;
-    return safeATime - safeBTime;
-  });
+  return result.sort(compareMessageTimes);
 }
 
 export function mergeMessagesById(base: ChatMessage[], incoming: ChatMessage[]): ChatMessage[] {

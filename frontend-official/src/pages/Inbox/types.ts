@@ -95,3 +95,5 @@ export interface QuickReplyItem {
   createdAt?: string;
   updatedAt?: string;
 }
+
+export type QuickReplyCategoryAppearance = Record<string, { emoji: string; color: string }>;

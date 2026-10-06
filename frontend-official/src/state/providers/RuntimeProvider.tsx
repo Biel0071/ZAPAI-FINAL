@@ -26,7 +26,7 @@ import {
   buildRuntimeCoherenceSnapshot,
   persistRuntimeCoherenceSnapshot,
 } from "@/core/runtime/services/runtimeCoherenceService";
-import { parseChatsLoadedPayload, parseContactsLoadedPayload } from "@/core/runtime/utils/inboxNormalization";
+import { compareMessageTimes, parseChatsLoadedPayload, parseContactsLoadedPayload } from "@/core/runtime/utils/inboxNormalization";
 import type { SessionItem } from "@/state/stores/appStore";
 
 type RuntimeStatus = "online" | "reconnecting" | "offline";
@@ -38,6 +38,39 @@ function runtimeInfo(...args: Parameters<typeof console.info>) {
 
 function runtimeWarn(...args: Parameters<typeof console.warn>) {
   if (RUNTIME_DEBUG_LOGS) console.warn(...args);
+}
+
+export async function refreshHistoryForActiveConversation(
+  conversationId: string,
+  dependencies: {
+    fetchMessages: (id: string) => Promise<ChatMessage[]>;
+    getState: () => {
+      activeConversationId: string | null;
+      conversations: Conversation[];
+      messagesByConversationId: Record<string, ChatMessage[]>;
+      setMessages: (id: string, messages: ChatMessage[]) => void;
+    };
+  },
+): Promise<boolean> {
+  const before = dependencies.getState().messagesByConversationId[conversationId] || [];
+  const fetched = await dependencies.fetchMessages(conversationId);
+  const current = dependencies.getState();
+  if (String(current.activeConversationId ?? "") !== conversationId) return false;
+  const resolvedId = current.conversations.find((conversation) => String(conversation.id) === conversationId)?.id ?? conversationId;
+  const existing = current.messagesByConversationId[String(resolvedId)] || [];
+  const beforeById = new Map(before.map((message) => [String(message.id), message]));
+  const fetchedById = new Map(fetched.map((message) => [String(message.id), message]));
+  const existingById = new Map(existing.map((message) => [String(message.id), message]));
+  const merged = new Map<string, ChatMessage>();
+  for (const id of new Set([...beforeById.keys(), ...fetchedById.keys(), ...existingById.keys()])) {
+    const newest = existingById.get(id);
+    const existedAtStart = beforeById.get(id);
+    const currentChangedDuringFetch = newest && newest !== existedAtStart;
+    const message = currentChangedDuringFetch ? newest : (fetchedById.get(id) || newest);
+    if (message) merged.set(id, message);
+  }
+  current.setMessages(conversationId, [...merged.values()].sort(compareMessageTimes));
+  return true;
 }
 
 type RuntimeContextValue = {
@@ -167,6 +200,7 @@ export function RuntimeProvider({ children }: { children: ReactNode }) {
   const recoveryAttemptedRef = useRef(false);
   const typingTimersRef = useRef<Map<string, any>>(new Map());
   const aiProgressTimersRef = useRef<Map<string, number>>(new Map());
+  const historyRefreshTimersRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
 
   const clearTypingTimeout = useCallback((conversationId: string) => {
     const existingTimer = typingTimersRef.current.get(conversationId);
@@ -420,6 +454,23 @@ export function RuntimeProvider({ children }: { children: ReactNode }) {
           return;
         }
         useAppStore.getState().upsertConversation(incoming);
+      },
+
+      onHistoryImported: ({ conversationIds }) => {
+        window.dispatchEvent(new CustomEvent("whatsapp:history-imported", { detail: { conversationIds } }));
+        const store = useAppStore.getState();
+        const activeId = String(store.activeConversationId ?? "");
+        if (!activeId || !conversationIds.some((id) => String(id) === activeId)) return;
+
+        const existingTimer = historyRefreshTimersRef.current.get(activeId);
+        if (existingTimer) clearTimeout(existingTimer);
+        historyRefreshTimersRef.current.set(activeId, setTimeout(() => {
+          historyRefreshTimersRef.current.delete(activeId);
+          void refreshHistoryForActiveConversation(activeId, {
+            fetchMessages: (id) => apiService.getMessages(id, { limit: 100 }),
+            getState: () => useAppStore.getState(),
+          }).catch(() => {});
+        }, 250));
       },
 
       onChatsLoaded: (payload) => {
@@ -758,6 +809,8 @@ export function RuntimeProvider({ children }: { children: ReactNode }) {
       typingTimersRef.current.clear();
       aiProgressTimersRef.current.forEach((timer) => clearTimeout(timer));
       aiProgressTimersRef.current.clear();
+      historyRefreshTimersRef.current.forEach((timer) => clearTimeout(timer));
+      historyRefreshTimersRef.current.clear();
     };
   }, [socketUrl, loadFromApi, debouncedRefresh]);
 

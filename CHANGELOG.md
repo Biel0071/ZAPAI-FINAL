@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
+## Unreleased — 2026-10-06: Inbox, sincronização e Atendente IA
+
+- Abas do atendimento com nomes e emojis, Histórico no lugar de Logs e aparência editável das categorias de respostas rápidas, isolada por empresa e com salvamento confirmado.
+- Horário original do WhatsApp separado da chegada ao servidor, ordenação compatível com timestamps numéricos e atualização de mensagens alteradas sem trocar o ID. Menu e horário compartilham o rodapé da bolha.
+- Persistência em tempo real preserva identidade WhatsApp e JID. Avaliação e correção da resposta da IA usam autenticação, confirmam o registro e alimentam o campo consumido pelo aprendizado.
+- Atendente IA expõe configuração, memória e evolução existentes. Edição de aparência usa os visuais reais do catálogo; métricas e exemplos de evolução deixam de apresentar resultados fictícios.
+- Contagem e mineração de atendimento humano são limitadas à empresa autenticada; falhas do banco não retornam progresso inventado.
+
 ## Unreleased — 2026-10-06: loja integrada ao atendimento
 
 - Dados comerciais completos dentro de Atendentes & Assistente ZAI, por WhatsApp; loja compartilhada ou cadastro próprio vazio/copiado, com recuperação de vínculo sem duplicar cadastro. Rotas antigas de Lojas redirecionam para essa configuração e a navegação mantém todas as demais áreas.

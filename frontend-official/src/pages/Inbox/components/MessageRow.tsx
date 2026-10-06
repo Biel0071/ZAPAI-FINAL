@@ -18,6 +18,7 @@ import {
   Robot,
   User,
   Storefront,
+  DotsThreeVertical,
 } from "@phosphor-icons/react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -139,6 +140,10 @@ export const MessageRow = memo(function MessageRow({
     }
   };
   const statusMeta = getMessageStatusMeta(message.status);
+  const messageTime = message.timestamp ?? message.createdAt;
+  const timeDescription = messageTime
+    ? `Horário no WhatsApp: ${messageTime}${message.createdAt && message.createdAt !== messageTime ? ` · Recebida no sistema: ${message.createdAt}` : ""}`
+    : "Horário não informado";
   const showFallbackCard = hasRenderableMedia && (mediaError || (!mediaUrl && !mediaAccess.loading));
   const mediaResolveLoggedRef = useRef(false);
   const mediaErrorLoggedRef = useRef(false);
@@ -258,9 +263,8 @@ export const MessageRow = memo(function MessageRow({
           </Button>
         </div>
 
-        <button
-          type="button"
-          onClick={() => onToggleMenu(message.id)}
+        <div
+          onContextMenu={(event) => { event.preventDefault(); onToggleMenu(message.id); }}
           className={cn(
             "chat-bubble text-left transition-all duration-150",
             message.fromMe
@@ -494,8 +498,16 @@ export const MessageRow = memo(function MessageRow({
             </p>
           )}
 
-          <div className={cn("mt-1 flex items-center gap-1.5 text-[10px]", message.fromMe ? "justify-end text-primary-foreground/70" : "text-muted-foreground")}>
-            <span>{formatTime(message.createdAt)}</span>
+          {isAiMessage && message.fromMe && (
+            <AIMessageFeedback
+              conversationId={message.conversationId}
+              messageId={message.id}
+              aiResponseText={displayText}
+            />
+          )}
+
+          <div className={cn("mt-1 flex flex-nowrap items-center justify-end gap-1.5 whitespace-nowrap text-[10px]", message.fromMe ? "text-primary-foreground/70" : "text-muted-foreground")}>
+            <time dateTime={typeof messageTime === "string" ? messageTime || undefined : undefined} title={timeDescription}>{formatTime(messageTime)}</time>
             {message.fromMe && (
               <span className="flex items-center shrink-0 ml-0.5" aria-label={statusMeta.label} title={statusMeta.label}>
                 {statusMeta.icon === "clock" ? (
@@ -509,16 +521,19 @@ export const MessageRow = memo(function MessageRow({
                 )}
               </span>
             )}
+            <button
+              type="button"
+              aria-label="Opções da mensagem"
+              aria-haspopup="menu"
+              aria-expanded={isMenuOpen}
+              title="Opções da mensagem"
+              onClick={() => onToggleMenu(message.id)}
+              className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-current hover:bg-black/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400"
+            >
+              <DotsThreeVertical className="h-3.5 w-3.5" weight="bold" />
+            </button>
           </div>
-
-          {isAiMessage && message.fromMe && (
-            <AIMessageFeedback
-              conversationId={message.conversationId}
-              messageId={message.id}
-              aiResponseText={displayText}
-            />
-          )}
-        </button>
+        </div>
 
         {reaction && (
           <button
@@ -630,20 +645,6 @@ export const MessageRow = memo(function MessageRow({
         </div>
       )}
     </div>
-  );
-}, (prevProps, nextProps) => {
-  return (
-    prevProps.message.id === nextProps.message.id &&
-    prevProps.message.status === nextProps.message.status &&
-    prevProps.reaction === nextProps.reaction &&
-    prevProps.isMenuOpen === nextProps.isMenuOpen &&
-    prevProps.isReactionPickerOpen === nextProps.isReactionPickerOpen &&
-    prevProps.isAudioPlaying === nextProps.isAudioPlaying &&
-    prevProps.isAudioLoading === nextProps.isAudioLoading &&
-    prevProps.audioProgress === nextProps.audioProgress &&
-    prevProps.isActiveSearchMatch === nextProps.isActiveSearchMatch &&
-    prevProps.searchQuery === nextProps.searchQuery &&
-    prevProps.backendOnline === nextProps.backendOnline
   );
 });
 

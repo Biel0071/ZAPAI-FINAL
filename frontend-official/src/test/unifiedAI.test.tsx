@@ -205,7 +205,7 @@ describe("Unified AI & Automação Page and Route Simplification", () => {
     });
 
     const text = document.body.textContent || "";
-    expect(text).toContain("Nível de Maturidade do Atendente");
+      expect(text).toContain("Progresso por registros de atendimento");
     expect(text).toContain("Pilares da Inteligência Cognitiva");
     expect(text).toContain("Central de Aprendizado");
   });
@@ -222,9 +222,9 @@ describe("Unified AI & Automação Page and Route Simplification", () => {
     });
 
     const text = document.body.textContent || "";
-    expect(text).toContain("Atendentes");
+      expect(text).toContain("Atendente IA");
     expect(document.querySelector('a[href="/stores"]')).toBeNull();
-    expect(text).toContain("Atendentes & Assistente ZAI");
+      expect(text).toContain("Atendente IA");
     expect(document.querySelectorAll('a[href="/attendants"]').length).toBe(1);
     for (const [path, label] of [["/dashboard", "Dashboard"], ["/inbox", "Inbox"], ["/contacts", "Contatos"], ["/connections", "Conexões"], ["/campaigns", "Campanhas"], ["/settings", "Configurações"]]) {
       expect(document.querySelector(`a[href="${path}"]`)?.textContent).toContain(label);

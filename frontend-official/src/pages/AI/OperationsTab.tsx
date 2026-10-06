@@ -72,15 +72,6 @@ interface LogEntry {
   meta?: any;
 }
 
-const PROVIDERS_MONITOR: ProviderStatusItem[] = [
-  { id: "openai", name: "OpenAI", defaultModel: "gpt-4o-mini", status: "unknown" },
-  { id: "groq", name: "Groq (Llama 3.3)", defaultModel: "llama-3.3-70b-versatile", status: "unknown" },
-  { id: "deepseek", name: "DeepSeek", defaultModel: "deepseek-chat", status: "unknown" },
-  { id: "claude", name: "Anthropic Claude", defaultModel: "claude-3-5-haiku", status: "unknown" },
-  { id: "gemini", name: "Google Gemini", defaultModel: "gemini-2.0-flash", status: "unknown" },
-  { id: "ollama", name: "Ollama Local", defaultModel: "llama3.1", status: "unknown" },
-];
-
 export function OperationsTab() {
   const { toast } = useToast();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -108,8 +99,10 @@ export function OperationsTab() {
   const [operators, setOperators] = useState<OperatorItem[]>([]);
 
   // Providers Live Test state
-  const [providersState, setProvidersState] = useState<ProviderStatusItem[]>(PROVIDERS_MONITOR);
+  const [providersState, setProvidersState] = useState<ProviderStatusItem[]>([]);
   const [testingProviderId, setTestingProviderId] = useState<string | null>(null);
+  const [providersLoading, setProvidersLoading] = useState(true);
+  const [providersError, setProvidersError] = useState<string | null>(null);
 
   // Audit Logs state
   const [logs, setLogs] = useState<LogEntry[]>([]);
@@ -138,6 +131,34 @@ export function OperationsTab() {
     }
   }, []);
 
+  const fetchConfiguredProviders = useCallback(async () => {
+    setProvidersLoading(true);
+    setProvidersError(null);
+    try {
+      const response = await apiService.getAIProviders();
+      if (response?.success === false) throw new Error("Não foi possível carregar os provedores configurados.");
+      const providers = Array.isArray(response?.providers) ? response.providers : [];
+      setProvidersState(providers
+        .filter((provider: any) => provider.enabled !== false && provider.enabled !== 0 && (provider.configured || provider.hasApiKey))
+        .map((provider: any) => {
+          const id = String(provider.provider || provider.id || "");
+          return {
+            id,
+            name: String(provider.name || id),
+            defaultModel: String(provider.model || provider.defaultModel || "Modelo não informado"),
+            status: "unknown" as const,
+          };
+        })
+        .filter(provider => Boolean(provider.id)));
+    } catch (error) {
+      console.error("[OperationsTab] Error loading configured providers:", error);
+      setProvidersState([]);
+      setProvidersError(error instanceof Error ? error.message : "Não foi possível carregar os provedores configurados.");
+    } finally {
+      setProvidersLoading(false);
+    }
+  }, []);
+
   // Fetch audit logs
   const fetchAuditLogs = useCallback(async () => {
     setLoadingLogs(true);
@@ -159,10 +180,11 @@ export function OperationsTab() {
 
   useEffect(() => {
     void fetchOperationsData();
+    void fetchConfiguredProviders();
     void fetchAuditLogs();
     const interval = setInterval(fetchOperationsData, 20000);
     return () => clearInterval(interval);
-  }, [fetchOperationsData, fetchAuditLogs]);
+  }, [fetchOperationsData, fetchConfiguredProviders, fetchAuditLogs]);
 
   // Ping test individual provider
   const handleTestProvider = async (prov: ProviderStatusItem) => {
@@ -485,7 +507,16 @@ export function OperationsTab() {
           </CardHeader>
 
           <CardContent className="p-4 sm:p-5">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5">
+            {providersError ? (
+              <div role="alert" className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-destructive/30 bg-destructive/5 p-4 text-sm">
+                <span className="text-muted-foreground">{providersError}</span>
+                <Button type="button" variant="outline" size="sm" onClick={() => void fetchConfiguredProviders()}>Tentar novamente</Button>
+              </div>
+            ) : providersLoading ? (
+              <p className="py-8 text-center text-sm text-muted-foreground">Carregando provedores configurados…</p>
+            ) : providersState.length === 0 ? (
+              <p className="py-8 text-center text-sm text-muted-foreground">Nenhum provedor ativo configurado para esta empresa.</p>
+            ) : <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5">
               {providersState.map((prov) => {
                 const isTesting = testingProviderId === prov.id;
                 return (
@@ -537,7 +568,7 @@ export function OperationsTab() {
                   </div>
                 );
               })}
-            </div>
+            </div>}
           </CardContent>
         </Card>
       )}

@@ -129,6 +129,9 @@ interface ActiveChatPaneProps {
   setRightPanelCollapsed: (val: boolean | ((prev: boolean) => boolean)) => void;
   messagesLoadFailed: boolean;
   loadingMessages: boolean;
+  loadingOlderMessages: boolean;
+  historySyncStatus: "idle" | "requesting" | "requested" | "imported" | "error";
+  handleLoadOlderMessages: () => Promise<void>;
   handleRetryMessages: () => Promise<void>;
   unseenRealtimeCount: number;
   scrollToLatestMessage: (behavior?: ScrollBehavior) => void;
@@ -226,6 +229,9 @@ export function ActiveChatPane({
   setRightPanelCollapsed,
   messagesLoadFailed,
   loadingMessages,
+  loadingOlderMessages,
+  historySyncStatus,
+  handleLoadOlderMessages,
   handleRetryMessages,
   unseenRealtimeCount,
   scrollToLatestMessage,
@@ -1066,6 +1072,18 @@ export function ActiveChatPane({
               }}
             >
               <div ref={loadMoreTriggerRef} className="h-1 w-full" aria-hidden />
+              {messages.length > 0 && (
+                <div className="flex flex-col items-center gap-1 py-1">
+                  <Button type="button" variant="ghost" size="sm" disabled={loadingOlderMessages || historySyncStatus === "requesting"} onClick={() => void handleLoadOlderMessages()}>
+                    {loadingOlderMessages || historySyncStatus === "requesting"
+                      ? "Buscando mensagens anteriores…"
+                      : "Carregar mensagens anteriores"}
+                  </Button>
+                  {historySyncStatus === "requested" && <p role="status" className="text-xs text-muted-foreground">Histórico solicitado; aguardando retorno do WhatsApp.</p>}
+                  {historySyncStatus === "imported" && <p role="status" className="text-xs text-muted-foreground">Novas mensagens históricas foram sincronizadas.</p>}
+                  {historySyncStatus === "error" && <p role="alert" className="text-xs text-destructive">Não foi possível solicitar o histórico. Tente novamente.</p>}
+                </div>
+              )}
               {isDraggingFiles && <p className="text-xs text-muted-foreground">Solte arquivos aqui para anexar.</p>}
 
               {messagesLoadFailed && messages.length > 0 && (
@@ -1103,7 +1121,7 @@ export function ActiveChatPane({
                     </div>
                     <div className="text-center">
                       <p className="text-sm font-semibold text-foreground">Nenhuma mensagem nesta conversa</p>
-                      <p className="mt-1 text-xs text-muted-foreground/70">Envie a primeira mensagem abaixo.</p>
+                      <p className="mt-1 text-xs text-muted-foreground/70">O WhatsApp só permite buscar mensagens anteriores a partir de uma mensagem já conhecida nesta conversa.</p>
                     </div>
                   </div>
                 )

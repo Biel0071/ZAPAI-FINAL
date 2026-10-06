@@ -6,7 +6,7 @@
   "scripts": {
     "check:api": "node scripts/check-api-endpoints.mjs",
     "dev": "node -e \"console.error('Use o runtime oficial da raiz: npm run dev:clean ou npm run start:official'); process.exit(1)\"",
-    "build": "vite build",
+    "build": "node --max-old-space-size=4096 ./node_modules/vite/bin/vite.js build",
     "build:dev": "vite build --mode development",
     "tsc": "tsc --noEmit -p tsconfig.app.json",
     "lint": "eslint .",

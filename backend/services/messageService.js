@@ -360,6 +360,7 @@ async function persistIncomingMessage(payload = {}) {
 
 
   const normalizedTimestamp = toIsoTimestamp(payload.timestamp);
+  const receivedAt = toIsoTimestamp(payload.receivedAt || new Date());
   const normalizedMediaPath = toPublicMediaPath(payload.mediaPath || null);
   const messageType = inferIncomingType({
     mediaType: payload.mediaType,
@@ -397,7 +398,7 @@ async function persistIncomingMessage(payload = {}) {
     companyId,
     content: preview,
     conversationId: conversation.id,
-    createdAt: normalizedTimestamp,
+    createdAt: receivedAt,
     direction: 'incoming',
     fileName: payload.fileName || null,
     fromMe: false,
@@ -440,7 +441,7 @@ async function persistIncomingMessage(payload = {}) {
       lastMessageType: messageType,
       session_id: sessionId,
       unreadCount,
-      updatedAt: normalizedTimestamp,
+      updatedAt: receivedAt,
     });
   } else if (typeof conversationRepository.updateConversationAfterMessage === 'function') {
     updatedConversation = await conversationRepository.updateConversationAfterMessage(
@@ -473,7 +474,7 @@ async function persistIncomingMessage(payload = {}) {
       lastMessage: preview,
       lastMessageType: messageType,
       unreadCount,
-      updatedAt: normalizedTimestamp,
+      updatedAt: receivedAt,
     },
     isNewConversation: !conversation.lastMessage,
     message: {

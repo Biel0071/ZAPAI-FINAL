@@ -33,9 +33,10 @@ test('editing a store preserves an existing attendant personality', async t => {
   };
   const db = {
     async query(sql, params) {
-      assert.match(sql, /^UPDATE ai_stores SET/);
       assert.equal(params[0], 'tenant-a');
       assert.equal(params[1], 'store-a');
+      if (sql.startsWith('SELECT * FROM ai_stores')) return { rows: storeExists ? [{ id: 'store-a', name: 'Loja atual', knowledge: '' }] : [] };
+      assert.match(sql, /^UPDATE ai_stores SET/);
       return { rows: storeExists ? [{ id: 'store-a' }] : [] };
     },
   };
@@ -62,7 +63,7 @@ test('editing a store preserves an existing attendant personality', async t => {
   assert.deepEqual(await response.json(), { success: true });
   assert.equal(agentsByTenant['tenant-a'][0].personality, originalPersonality);
   assert.equal(agentsByTenant['tenant-b'][0].personality, 'Instruções privadas de outra empresa.');
-  assert.deepEqual(listedTenants, ['tenant-a']);
+  assert.deepEqual(listedTenants, []);
   assert.deepEqual(updates, []);
   assert.deepEqual(creations, []);
 
@@ -73,12 +74,9 @@ test('editing a store preserves an existing attendant personality', async t => {
   });
 
   assert.equal(creationResponse.status, 200);
-  assert.deepEqual(listedTenants, ['tenant-a', 'tenant-a']);
+  assert.deepEqual(listedTenants, []);
   assert.deepEqual(updates, []);
-  assert.equal(creations.length, 1);
-  assert.equal(creations[0].tenantId, 'tenant-a');
-  assert.equal(creations[0].payload.name, 'João');
-  assert.match(creations[0].payload.personality, /João, Consultor da loja Loja atualizada/);
+  assert.equal(creations.length, 0);
 
   storeExists = false;
   const missingStoreResponse = await fetch(`http://127.0.0.1:${server.address().port}/history/stores/store-a`, {
@@ -88,7 +86,7 @@ test('editing a store preserves an existing attendant personality', async t => {
   });
 
   assert.equal(missingStoreResponse.status, 404);
-  assert.deepEqual(await missingStoreResponse.json(), { success: false });
-  assert.deepEqual(listedTenants, ['tenant-a', 'tenant-a']);
-  assert.equal(creations.length, 1);
+  assert.deepEqual(await missingStoreResponse.json(), { error: 'Loja não encontrada.' });
+  assert.deepEqual(listedTenants, []);
+  assert.equal(creations.length, 0);
 });

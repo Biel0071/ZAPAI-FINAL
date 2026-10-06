@@ -35,7 +35,7 @@ function createProps(): ComponentProps<typeof ActiveChatPane> {
     conversationSearchOpen: false, setConversationSearchOpen: vi.fn(), conversationSearchQuery: "", setConversationSearchQuery: vi.fn(), activeConversationSearchIndex: 0, setActiveConversationSearchIndex: vi.fn(),
     inboxRuntimeState: "ONLINE", canUseBackend: true, canSendMessages: true, aiEnabledForConversation: false, conversationAiOverrideEnabled: false, handleSetConversationAiEnabled: vi.fn().mockResolvedValue(undefined),
     isTabletLayout: false, setShowLeadPanel: vi.fn(), handleClearSelectedConversation: vi.fn(), archivedChatIds: [], handleArchiveSelectedConversation: vi.fn(), handleUnarchiveSelectedConversation: vi.fn(), handleBlockContact: vi.fn(), handleUnblockContact: vi.fn(),
-    setRightPanelTab: vi.fn(), setRightPanelCollapsed: vi.fn(), messagesLoadFailed: false, loadingMessages: false, handleRetryMessages: vi.fn().mockResolvedValue(undefined), unseenRealtimeCount: 0, scrollToLatestMessage: vi.fn(), keyboardOffset: 0, isMobile: false,
+    setRightPanelTab: vi.fn(), setRightPanelCollapsed: vi.fn(), messagesLoadFailed: false, loadingMessages: false, loadingOlderMessages: false, historySyncStatus: "idle", handleLoadOlderMessages: vi.fn().mockResolvedValue(undefined), handleRetryMessages: vi.fn().mockResolvedValue(undefined), unseenRealtimeCount: 0, scrollToLatestMessage: vi.fn(), keyboardOffset: 0, isMobile: false,
     messageReactions: {}, handleReactMessage: vi.fn(), setPreviewMedia: vi.fn(), setPreviewZoom: vi.fn(), activeMessageMenuId: null, setActiveMessageMenuId: vi.fn(), activeReactionPickerMessageId: null, setActiveReactionPickerMessageId: vi.fn(),
     handleCopyMessage: vi.fn(), handleReplyMessage: vi.fn(), handleForwardMessage: vi.fn(), handleDeleteMessage: vi.fn().mockResolvedValue(undefined), handleDownloadMedia: vi.fn(), handleToggleAudioPlayback: vi.fn(), loadingAudioMessageId: null, playingAudioMessageId: null, audioProgress: 0, audioDuration: 0,
     quickReplies: [], sendQuickReply: vi.fn().mockResolvedValue(undefined), applyPendingBackgroundUpdates: vi.fn().mockResolvedValue(undefined), pendingBackgroundUpdates: 0, error: null,
@@ -49,6 +49,24 @@ async function generate() {
 }
 
 describe("Ficha do atendimento", () => {
+  it("explains why an empty conversation cannot request older WhatsApp history", async () => {
+    await render(createProps());
+    expect(document.body.textContent).toContain("O WhatsApp só permite buscar mensagens anteriores a partir de uma mensagem já conhecida nesta conversa.");
+    expect(document.body.textContent).not.toContain("Carregar mensagens anteriores");
+  });
+
+  it("only describes history as synchronized after an import notification", async () => {
+    await render({ ...createProps(), messages: [{ id: "m1", conversationId: "conversation/a", content: "Oi", createdAt: "2026-10-01", timestamp: "2026-10-01" } as any, { id: "m2", conversationId: "conversation/a", content: "Olá", createdAt: "2026-10-02", timestamp: "2026-10-02" } as any], historySyncStatus: "imported" });
+    expect(document.body.textContent).toContain("Novas mensagens históricas foram sincronizadas.");
+  });
+
+  it("lets the user explicitly request older messages from a known cursor", async () => {
+    const props = { ...createProps(), messages: [{ id: "m1", conversationId: "conversation/a", content: "Oi", createdAt: "2026-10-01", timestamp: "2026-10-01" } as any] };
+    await render(props);
+    await act(async () => Array.from(document.querySelectorAll<HTMLButtonElement>("button")).find((button) => button.textContent?.includes("Carregar mensagens anteriores"))!.click());
+    expect(props.handleLoadOlderMessages).toHaveBeenCalledTimes(1);
+  });
+
   it("solicita POST e preenche o rascunho com a resposta recebida", async () => {
     const props = createProps(); await render(props); await generate();
     expect(requestApiEndpoint).toHaveBeenCalledWith("/api/conversations/conversation%2Fa/generate-sheet", "POST");

@@ -102,7 +102,7 @@ async function getConversationMessages({ conversationId, store, limit = 100, bef
       before,
       beforeId,
     });
-    return [...messages].sort((a, b) => new Date(a.createdAt || a.timestamp || 0) - new Date(b.createdAt || b.timestamp || 0));
+    return [...messages].sort((a, b) => new Date(a.timestamp || a.createdAt || 0) - new Date(b.timestamp || b.createdAt || 0));
   }
 
   return messageStore.getMessages(conversationId, limit, before);

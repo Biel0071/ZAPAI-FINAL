@@ -184,7 +184,7 @@ const App = () => {
                       <Route path="/connections" element={<PageRouteBoundary pageName="Conexões"><Connections /></PageRouteBoundary>} />
                       <Route path="/stores" element={<LegacyStoreRoute />} />
                       <Route path="/lojas" element={<LegacyStoreRoute />} />
-                      <Route path="/attendants" element={<PageRouteBoundary pageName="Atendentes & Assistente ZAI"><Attendants /></PageRouteBoundary>} />
+                      <Route path="/attendants" element={<PageRouteBoundary pageName="Atendente IA"><Attendants /></PageRouteBoundary>} />
                       <Route path="/atendentes" element={<Navigate to="/attendants" replace />} />
                       <Route path="/assistant" element={<Navigate to="/attendants?tab=copilot" replace />} />
                       <Route path="/assistente-zai" element={<Navigate to="/attendants?tab=copilot" replace />} />

@@ -64,7 +64,7 @@ export function MobileBottomNav() {
     },
     {
       id: "attendants",
-      label: "Atendentes",
+      label: "Atendente IA",
       icon: Headset,
       path: "/attendants",
     },

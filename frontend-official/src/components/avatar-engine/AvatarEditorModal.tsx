@@ -22,12 +22,9 @@ import {
   AnimationState,
   HAIRSTYLES_MALE,
   HAIRSTYLES_FEMALE,
-  HAIR_COLORS,
-  SKIN_TONES,
-  FACE_TYPES,
-  CLOTHING_STYLES,
   ACCESSORIES,
   WORK_OBJECTS,
+  CLOTHING_STYLES,
 } from "./AvatarDefinition";
 import {
   createAgentAvatar,
@@ -142,13 +139,29 @@ export const AvatarEditorModal: React.FC<AvatarEditorModalProps> = ({
     }));
   };
 
+  const selectCatalogLook = (item: { id: string; spriteRef?: string }) => {
+    setAvatar((prev) => ({
+      ...prev,
+      hair: item.id,
+      catalogSpriteId: item.spriteRef || resolveSpriteForAvatar({ ...prev, hair: item.id, catalogSpriteId: undefined }, true),
+    }));
+  };
+
   const handleEquipToggle = (slot: any, itemId: string) => {
     setAvatar((prev) => {
-      const currentItem = (prev.accessories as any)[slot] || (prev as any)[slot];
+      const currentItem = (prev.accessories as any)?.[slot] || (prev as any)?.[slot];
       if (currentItem === itemId) {
-        return unequipItem(prev, slot);
+        const unequipped = unequipItem(prev, slot);
+        return {
+          ...unequipped,
+          catalogSpriteId: resolveSpriteForAvatar({ ...unequipped, catalogSpriteId: undefined }, true),
+        };
       } else {
-        return equipItem(prev, slot, itemId);
+        const equipped = equipItem(prev, slot, itemId);
+        return {
+          ...equipped,
+          catalogSpriteId: resolveSpriteForAvatar({ ...equipped, catalogSpriteId: undefined }, true),
+        };
       }
     });
   };
@@ -200,7 +213,10 @@ export const AvatarEditorModal: React.FC<AvatarEditorModalProps> = ({
         updatedAt: new Date().toISOString(),
       };
 
-      await (apiService as any).updateStoreVisualDNA(store.id, newDNA);
+      const res = await (apiService as any).updateStoreVisualDNA(store.id, newDNA);
+      if (res?.success === false) {
+        throw new Error(res?.message || "Não salvo");
+      }
       notify.success("Este avatar agora é o padrão oficial de DNA da loja!");
     } catch (err: any) {
       notify.error("Erro ao salvar padrão da loja: " + (err.message || "Falha"));
@@ -211,16 +227,24 @@ export const AvatarEditorModal: React.FC<AvatarEditorModalProps> = ({
     setIsSaving(true);
     try {
       const agentKey = agent.key || agent.name;
+      const spriteId = avatar.catalogSpriteId || resolveSpriteForAvatar(avatar, true);
+      const avatarUrl = `/assets/avatar_factory/catalog/${spriteId}_clean.png`;
+      const fullAvatarConfig: AgentAvatarConfig = {
+        ...avatar,
+        catalogSpriteId: spriteId,
+      };
       const payload = {
-        avatarConfig: avatar,
+        avatarConfig: fullAvatarConfig,
         personalityVisual: avatar.personalityVisual,
+        avatar: avatarUrl,
       };
 
       // Call API
-      await (apiService as any).updateAgentAvatar(agentKey, payload);
+      const result = await (apiService as any).updateAgentAvatar(agentKey, payload);
+      if (result?.success === false) throw new Error(result.message || "Não foi possível salvar o avatar.");
 
       if (onSave) {
-        onSave(avatar);
+        onSave(fullAvatarConfig);
       }
 
       notify.success(`Avatar de ${agent.name} atualizado com sucesso!`);
@@ -390,82 +414,22 @@ export const AvatarEditorModal: React.FC<AvatarEditorModalProps> = ({
                     </div>
                   </div>
 
-                  {/* Tom de Pele */}
+                  {/* Tom de Pele — sprite catalog is a single flattened image, not independently recolorable layers. */}
                   <div>
-                    <Label className="text-xs font-bold text-foreground mb-2 block">Tom de Pele</Label>
-                    <div className="grid grid-cols-6 gap-2">
-                      {SKIN_TONES.map((tone) => (
-                        <button
-                          key={tone.id}
-                          type="button"
-                          onClick={() => setAvatar((prev) => ({ ...prev, skin: tone.id }))}
-                          className={cn(
-                            "flex flex-col items-center gap-1.5 p-2 rounded-xl border transition-all",
-                            avatar.skin === tone.id
-                              ? "border-emerald-400 ring-2 ring-emerald-400/30 scale-105"
-                              : "border-border hover:border-border/80"
-                          )}
-                        >
-                          <div
-                            className="w-6 h-6 rounded-full shadow-inner border border-black/20"
-                            style={{ backgroundColor: tone.hex }}
-                          />
-                          <span className="text-[9px] font-medium truncate w-full text-center">{tone.name.split(" ")[0]}</span>
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Expressão do Rosto */}
-                  <div>
-                    <Label className="text-xs font-bold text-foreground mb-2 block">Expressão & Rosto</Label>
-                    <div className="grid grid-cols-2 gap-2">
-                      {FACE_TYPES.map((face) => (
-                        <button
-                          key={face.id}
-                          type="button"
-                          onClick={() => setAvatar((prev) => ({ ...prev, eyes: face.id }))}
-                          className={cn(
-                            "p-2.5 rounded-xl border text-left transition-all",
-                            avatar.eyes === face.id
-                              ? "border-emerald-500 bg-emerald-500/10 text-foreground"
-                              : "border-border hover:border-border/80 text-muted-foreground"
-                          )}
-                        >
-                          <div className="text-xs font-bold text-foreground">{face.name}</div>
-                          <div className="text-[10px] text-muted-foreground truncate">{face.description}</div>
-                        </button>
-                      ))}
-                    </div>
+                    <Label className="text-xs font-bold text-foreground mb-2 block">Pele e expressão</Label>
+                    <p className="rounded-lg border border-border/60 bg-muted/20 p-3 text-xs text-muted-foreground">
+                      Visual completo · pele e expressão do modelo.
+                    </p>
                   </div>
                 </TabsContent>
 
                 {/* 2. CABELO (Cortes & Cores) */}
                 <TabsContent value="hair" className="mt-0 space-y-5">
-                  {/* Cores de Cabelo */}
+                  {/* Hair color is baked into each full-body catalog sprite. */}
                   <div>
-                    <Label className="text-xs font-bold text-foreground mb-2 block">Cor do Cabelo</Label>
-                    <div className="flex flex-wrap gap-2">
-                      {HAIR_COLORS.map((hc) => (
-                        <button
-                          key={hc.id}
-                          type="button"
-                          onClick={() => setAvatar((prev) => ({ ...prev, hairColor: hc.id }))}
-                          className={cn(
-                            "flex items-center gap-1.5 px-2.5 py-1.5 rounded-full border text-xs transition-all",
-                            avatar.hairColor === hc.id
-                              ? "border-emerald-400 bg-emerald-500/10 font-bold text-foreground"
-                              : "border-border hover:border-border/80 text-muted-foreground"
-                          )}
-                        >
-                          <span
-                            className="w-3 h-3 rounded-full border border-black/30"
-                            style={{ backgroundColor: hc.hex }}
-                          />
-                          <span>{hc.name}</span>
-                        </button>
-                      ))}
-                    </div>
+                    <p className="rounded-lg border border-border/60 bg-muted/20 p-3 text-xs text-muted-foreground">
+                      A cor vem no modelo. Escolha um corte para trocar a prévia.
+                    </p>
                   </div>
 
                   {/* Lista de Cortes */}
@@ -477,11 +441,12 @@ export const AvatarEditorModal: React.FC<AvatarEditorModalProps> = ({
                       {availableHairstyles.map((h) => (
                         <button
                           key={h.id}
+                          data-avatar-item={h.id}
                           type="button"
                           onClick={() => setAvatar((prev) => ({
                             ...prev,
                             hair: h.id,
-                            catalogSpriteId: resolveSpriteForAvatar({ ...prev, hair: h.id }, true),
+                            catalogSpriteId: h.spriteRef || resolveSpriteForAvatar({ ...prev, hair: h.id, catalogSpriteId: undefined }, true),
                           }))}
                           className={cn(
                             "p-3 rounded-xl border text-left transition-all",
@@ -490,8 +455,10 @@ export const AvatarEditorModal: React.FC<AvatarEditorModalProps> = ({
                               : "border-border hover:border-border/80 text-muted-foreground"
                           )}
                         >
-                          <div className="text-xs font-bold text-foreground">{h.name}</div>
-                          <div className="text-[10px] text-muted-foreground">{h.description}</div>
+                          <div className="flex items-center gap-2">
+                            {h.spriteRef && <img src={`/assets/avatar_factory/catalog/${h.spriteRef}_clean.png`} alt="" className="h-12 w-8 object-contain" style={{ imageRendering: "pixelated" }} />}
+                            <div><div className="text-xs font-bold text-foreground">{h.name}</div><div className="text-[10px] text-muted-foreground">{h.description}</div></div>
+                          </div>
                         </button>
                       ))}
                     </div>
@@ -501,25 +468,61 @@ export const AvatarEditorModal: React.FC<AvatarEditorModalProps> = ({
                 {/* 3. ROUPAS (Uniformes & Vestuário) */}
                 <TabsContent value="clothing" className="mt-0 space-y-4">
                   <Label className="text-xs font-bold text-foreground block">
-                    Uniformes & Vestuário Corporativo
+                    Modelos completos e uniformes do catálogo
                   </Label>
+                  <p className="text-xs text-muted-foreground">Escolha um visual completo ou traje corporativo do atendente.</p>
                   <div className="grid grid-cols-2 gap-2.5">
-                    {CLOTHING_STYLES.map((c) => (
+                    {availableHairstyles.map((c) => (
                       <button
                         key={c.id}
+                        data-avatar-item={c.id}
                         type="button"
-                        onClick={() => handleEquipToggle("clothing", c.id)}
+                        onClick={() => selectCatalogLook(c)}
                         className={cn(
                           "p-3 rounded-xl border text-left transition-all",
-                          avatar.clothing === c.id
+                          avatar.hair === c.id
                             ? "border-emerald-500 bg-emerald-500/10 shadow-sm"
                             : "border-border hover:border-border/80 text-muted-foreground"
                         )}
                       >
-                        <div className="text-xs font-bold text-foreground">{c.name}</div>
-                        <div className="text-[10px] text-muted-foreground">{c.description}</div>
+                        <div className="flex items-center gap-2">
+                          {c.spriteRef && <img src={`/assets/avatar_factory/catalog/${c.spriteRef}_clean.png`} alt="" className="h-14 w-9 object-contain" style={{ imageRendering: "pixelated" }} />}
+                          <div><div className="text-xs font-bold text-foreground">{c.name}</div><div className="text-[10px] text-muted-foreground">Visual completo · {c.description}</div></div>
+                        </div>
                       </button>
                     ))}
+                  </div>
+
+                  <div className="pt-3 border-t border-border/50">
+                    <Label className="text-xs font-bold text-foreground block mb-2">
+                      Uniformes & Trajes Corporativos ({CLOTHING_STYLES.length} opções)
+                    </Label>
+                    <div className="grid grid-cols-2 gap-2">
+                      {CLOTHING_STYLES.map((c) => (
+                        <button
+                          key={c.id}
+                          type="button"
+                          onClick={() => {
+                            setAvatar((prev) => {
+                              const updated = { ...prev, clothing: c.id };
+                              return {
+                                ...updated,
+                                catalogSpriteId: c.spriteRef || resolveSpriteForAvatar(updated, true),
+                              };
+                            });
+                          }}
+                          className={cn(
+                            "p-2.5 rounded-xl border text-left transition-all",
+                            avatar.clothing === c.id
+                              ? "border-emerald-500 bg-emerald-500/10 shadow-sm"
+                              : "border-border hover:border-border/80 text-muted-foreground"
+                          )}
+                        >
+                          <div className="text-xs font-bold text-foreground">{c.name}</div>
+                          <div className="text-[10px] text-muted-foreground">{c.description}</div>
+                        </button>
+                      ))}
+                    </div>
                   </div>
                 </TabsContent>
 

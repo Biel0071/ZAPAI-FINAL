@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -74,7 +74,7 @@ interface LearnedPattern {
   customerUtterance: string;
   goldenReply: string;
   recommendedCta: string;
-  naturalnessRating: string;
+  naturalnessRating: string | null;
   learnedAt: string;
 }
 
@@ -86,13 +86,13 @@ interface HumanStats {
   nextLevelXp: number;
   progressPct: number;
   evolutionScore: number;
-  totalHumanMessages: number;
+  totalHumanMessages: number | null;
   humanSamplesLearned: number;
-  activePlaybooks: number;
-  naturalnessScore: number;
-  conversionsCount: number;
-  objectionsLearned: number;
-  successRate: number;
+  activePlaybooks: number | null;
+  naturalnessScore: number | null;
+  conversionsCount: number | null;
+  objectionsLearned: number | null;
+  successRate: number | null;
   totalAnalyzed: number;
 }
 
@@ -102,6 +102,8 @@ export function EvolutionTab() {
   const [agents, setAgents] = useState<any[]>([]);
   const [selectedAgentKey, setSelectedAgentKey] = useState<string>("zaibot");
   const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const loadRequestId = useRef(0);
   const [isSyncingManual, setIsSyncingManual] = useState(false);
   const [isDetectingGaps, setIsDetectingGaps] = useState(false);
 
@@ -127,13 +129,13 @@ export function EvolutionTab() {
     nextLevelXp: 0,
     progressPct: 0,
     evolutionScore: 0,
-    totalHumanMessages: 0,
+    totalHumanMessages: null,
     humanSamplesLearned: 0,
-    activePlaybooks: 0,
-    naturalnessScore: 0,
-    conversionsCount: 0,
-    objectionsLearned: 0,
-    successRate: 0,
+    activePlaybooks: null,
+    naturalnessScore: null,
+    conversionsCount: null,
+    objectionsLearned: null,
+    successRate: null,
     totalAnalyzed: 0,
   });
 
@@ -150,15 +152,26 @@ export function EvolutionTab() {
 
   // Load agent data with Zero Mock real backend endpoints
   const loadAgentData = useCallback(async (agentKey: string) => {
+    const requestId = ++loadRequestId.current;
     setIsLoading(true);
+    setLoadError(null);
+    setHasEvolutionData(false);
+    setOverview({ score: 0, level: "Sem dados", goal: { current: 0, target: 0, percentage: 0 }, components: { answers: 0, refinements: 0, coverage: 0, queue: 0 } });
+    setHumanStats({ level: 0, levelTitle: "Sem dados", totalXp: 0, currentLevelMinXp: 0, nextLevelXp: 0, progressPct: 0, evolutionScore: 0, totalHumanMessages: null, humanSamplesLearned: 0, activePlaybooks: null, naturalnessScore: null, conversionsCount: null, objectionsLearned: null, successRate: null, totalAnalyzed: 0 });
+    setHistoryLogs([]);
+    setLearnedPatterns([]);
+    setCandidateSuggestions([]);
+    setLearningEvents([]);
     try {
       const [evoRes, learnRes, patternsRes, levelRes, suggestionsRes] = await Promise.all([
-        apiService.getAgentEvolution(agentKey).catch(() => null),
-        apiService.getAgentLearning(agentKey).catch(() => null),
-        apiService.getLearnedPatterns().catch(() => null),
-        requestApiEndpoint<any>(`/api/ai/evolution/agent-level?agentKey=${encodeURIComponent(agentKey)}`).catch(() => null),
-        requestApiEndpoint<any>("/api/ai/evolution/suggestions").catch(() => null),
+        apiService.getAgentEvolution(agentKey),
+        apiService.getAgentLearning(agentKey),
+        apiService.getLearnedPatterns(),
+        requestApiEndpoint<any>(`/api/ai/evolution/agent-level?agentKey=${encodeURIComponent(agentKey)}`),
+        requestApiEndpoint<any>("/api/ai/evolution/suggestions"),
       ]);
+      if (requestId !== loadRequestId.current) return;
+      if (patternsRes?.success === false) throw new Error("Padrões aprendidos indisponíveis.");
 
       if (evoRes?.evolution) {
         setOverview(evoRes.evolution);
@@ -173,13 +186,6 @@ export function EvolutionTab() {
         setHumanStats((prev) => ({
           ...prev,
           ...levelData,
-        }));
-      } else if (patternsRes) {
-        setHumanStats((prev) => ({
-          ...prev,
-          totalHumanMessages: patternsRes.humanMessagesCount ?? 0,
-          humanSamplesLearned: patternsRes.goldSamplesCount ?? 0,
-          naturalnessScore: patternsRes.naturalnessScore ?? 0,
         }));
       }
 
@@ -201,9 +207,12 @@ export function EvolutionTab() {
       const patterns = Array.isArray(patternsRes) ? patternsRes : patternsRes?.data;
       setLearnedPatterns(Array.isArray(patterns) ? patterns : []);
     } catch (err) {
+      if (requestId !== loadRequestId.current) return;
       console.error("[EvolutionTab] Error fetching evolution data:", err);
+      setHasEvolutionData(false);
+      setLoadError(err instanceof Error ? err.message : "Não foi possível carregar os dados deste atendente.");
     } finally {
-      setIsLoading(false);
+      if (requestId === loadRequestId.current) setIsLoading(false);
     }
   }, []);
 
@@ -460,6 +469,13 @@ export function EvolutionTab() {
         </div>
       </div>
 
+      {loadError && <Card role="alert" className="border-destructive/40 p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <p className="text-sm text-destructive">Não foi possível carregar métricas e padrões deste atendente: {loadError}</p>
+        <Button type="button" variant="outline" size="sm" onClick={() => void loadAgentData(selectedAgentKey)}>
+          <RefreshCw className="h-4 w-4 mr-2" /> Tentar novamente
+        </Button>
+      </Card>}
+
       {/* HUMANIZATION & ANTI-ROBOTIC BANNER */}
       {hasEvolutionData ? <>
       <div className="p-4 rounded-2xl border border-emerald-500/30 bg-emerald-950/20 shadow-xs flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
@@ -485,11 +501,11 @@ export function EvolutionTab() {
         <div className="flex items-center gap-4 text-xs font-semibold text-emerald-300 shrink-0 self-end md:self-auto">
           <div className="flex items-center gap-1.5 bg-emerald-500/10 px-3 py-1.5 rounded-lg border border-emerald-500/20">
             <Users className="h-4 w-4 text-emerald-400" />
-            <span>{humanStats.totalHumanMessages.toLocaleString("pt-BR")} msgs de operadores</span>
+            <span>{humanStats.totalHumanMessages == null ? "—" : `${humanStats.totalHumanMessages.toLocaleString("pt-BR")} msgs de operadores`}</span>
           </div>
           <div className="flex items-center gap-1.5 bg-emerald-500/10 px-3 py-1.5 rounded-lg border border-emerald-500/20">
             <ShieldCheck className="h-4 w-4 text-emerald-400" />
-            <span>{humanStats.naturalnessScore}% Naturalidade</span>
+            <span>{humanStats.naturalnessScore == null ? "Naturalidade —" : `${humanStats.naturalnessScore}% Naturalidade`}</span>
           </div>
         </div>
       </div>
@@ -500,10 +516,10 @@ export function EvolutionTab() {
         <Card className="lg:col-span-5 bg-card border-border/80 shadow-sm flex flex-col justify-between">
           <CardHeader className="pb-3 border-b border-border/40">
             <CardTitle className="text-sm font-bold flex items-center gap-2 text-foreground">
-              <Award className="h-4 w-4 text-purple-400" /> Nível de Maturidade do Atendente
+              <Award className="h-4 w-4 text-purple-400" /> Progresso por registros de atendimento
             </CardTitle>
             <CardDescription className="text-xs text-muted-foreground">
-              Evolui a cada interação humana e conversa bem-sucedida.
+              O nível acompanha registros reais de atendimento.
             </CardDescription>
           </CardHeader>
 
@@ -514,7 +530,7 @@ export function EvolutionTab() {
                   {humanStats.evolutionScore ?? overview.score}
                 </span>
                 <span className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider">
-                  Score
+                  Registros
                 </span>
               </div>
             </div>
@@ -555,9 +571,9 @@ export function EvolutionTab() {
                   <MessageCircle className="h-3.5 w-3.5 text-purple-400" />
                   Linguagem Humanizada & Anti-Robô
                 </span>
-                <span className="text-muted-foreground font-mono font-bold">{humanStats.naturalnessScore}%</span>
+                <span className="text-muted-foreground font-mono font-bold">{humanStats.naturalnessScore == null ? "—" : `${humanStats.naturalnessScore}%`}</span>
               </div>
-              <Progress value={humanStats.naturalnessScore} className="h-2 bg-muted/40" />
+              <Progress value={humanStats.naturalnessScore ?? 0} className="h-2 bg-muted/40" />
             </div>
 
             {/* Pilar 2: Objeções Aprendidas de Humanos */}
@@ -567,9 +583,8 @@ export function EvolutionTab() {
                   <ShieldCheck className="h-3.5 w-3.5 text-emerald-400" />
                   Objeções Reais Aprendidas (Frete, PIX, Medidas)
                 </span>
-                <span className="text-muted-foreground font-mono font-bold">{humanStats.objectionsLearned} resolvidas</span>
+                <span className="text-muted-foreground font-mono font-bold">{humanStats.objectionsLearned == null ? "—" : `${humanStats.objectionsLearned} resolvidas`}</span>
               </div>
-              <Progress value={Math.min(100, (humanStats.objectionsLearned / 50) * 100)} className="h-2 bg-muted/40" />
             </div>
 
             {/* Pilar 3: Playbooks de Vendas Ativos */}
@@ -579,9 +594,8 @@ export function EvolutionTab() {
                   <Layers className="h-3.5 w-3.5 text-indigo-400" />
                   Estratégias de Fechamento (Playbooks)
                 </span>
-                <span className="text-muted-foreground font-mono font-bold">{humanStats.activePlaybooks} ativas</span>
+                <span className="text-muted-foreground font-mono font-bold">{humanStats.activePlaybooks == null ? "—" : `${humanStats.activePlaybooks} ativas`}</span>
               </div>
-              <Progress value={Math.min(100, (humanStats.activePlaybooks / 6) * 100)} className="h-2 bg-muted/40" />
             </div>
 
             {/* Pilar 4: Taxa de Conversão & Sucesso */}
@@ -591,9 +605,9 @@ export function EvolutionTab() {
                   <Flame className="h-3.5 w-3.5 text-amber-400" />
                   Taxa de Continuidade da Conversa
                 </span>
-                <span className="text-muted-foreground font-mono font-bold">{humanStats.successRate}%</span>
+                <span className="text-muted-foreground font-mono font-bold">{humanStats.successRate == null ? "—" : `${humanStats.successRate}%`}</span>
               </div>
-              <Progress value={humanStats.successRate} className="h-2 bg-muted/40" />
+              <Progress value={humanStats.successRate ?? 0} className="h-2 bg-muted/40" />
             </div>
           </CardContent>
         </Card>
@@ -744,93 +758,26 @@ export function EvolutionTab() {
             </div>
 
             <Badge variant="outline" className="border-indigo-500/40 text-indigo-400 bg-indigo-500/10 text-xs px-2.5 py-0.5 font-bold">
-              Cada atendimento melhor que o anterior
+              Padrões registrados
             </Badge>
           </div>
         </CardHeader>
 
         <CardContent className="p-4 sm:p-5">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {/* Pattern 1: Pagamento & PIX */}
-            <div className="p-4 rounded-xl border border-border/70 bg-muted/5 hover:border-purple-500/40 transition-all space-y-2.5">
-              <div className="flex items-center justify-between">
-                <Badge className="bg-purple-500/20 text-purple-300 border-purple-500/40 text-[10px] uppercase font-bold">
-                  💳 Formas de Pagamento & PIX
-                </Badge>
-                <span className="text-[10px] text-emerald-400 font-semibold">100% Humano</span>
-              </div>
-              <div className="space-y-1">
-                <span className="text-[10px] text-muted-foreground font-bold uppercase">Dúvida / Objeção Comum:</span>
-                <p className="text-xs text-foreground font-medium italic">"Eu pago na entrega? Como funciona o pagamento?"</p>
-              </div>
-              <div className="space-y-1 bg-purple-500/10 p-2.5 rounded-lg border border-purple-500/20">
-                <span className="text-[10px] text-purple-300 font-bold uppercase">Resposta Humana de Sucesso:</span>
-                <p className="text-xs text-foreground font-semibold">
-                  "Você pode pagar no cartão em até 10x sem juros ou à vista no PIX com 5% de desconto. O pedido entra direto na rota de agendamento!"
-                </p>
-              </div>
+          {learnedPatterns.length === 0 ? (
+            <p className="py-8 text-center text-sm text-muted-foreground">Nenhum padrão aprendido está disponível para este atendente.</p>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {learnedPatterns.map(pattern => (
+                <article key={pattern.id} className="space-y-2.5 rounded-xl border border-border/70 bg-muted/5 p-4">
+                  <Badge variant="outline">{pattern.topicLabel || pattern.topic}</Badge>
+                  <div className="space-y-1"><span className="text-[10px] font-bold uppercase text-muted-foreground">Pergunta aprendida</span><p className="text-xs text-foreground">{pattern.customerUtterance}</p></div>
+                  <div className="space-y-1 rounded-lg border border-border/50 bg-muted/20 p-2.5"><span className="text-[10px] font-bold uppercase text-muted-foreground">Resposta registrada</span><p className="text-xs text-foreground">{pattern.goldenReply}</p></div>
+                  {pattern.recommendedCta && <p className="text-[11px] text-muted-foreground">Próximo passo: {pattern.recommendedCta}</p>}
+                </article>
+              ))}
             </div>
-
-            {/* Pattern 2: Frete & Região */}
-            <div className="p-4 rounded-xl border border-border/70 bg-muted/5 hover:border-blue-500/40 transition-all space-y-2.5">
-              <div className="flex items-center justify-between">
-                <Badge className="bg-blue-500/20 text-blue-300 border-blue-500/40 text-[10px] uppercase font-bold">
-                  🚚 Frete & Região de Entrega
-                </Badge>
-                <span className="text-[10px] text-emerald-400 font-semibold">100% Humano</span>
-              </div>
-              <div className="space-y-1">
-                <span className="text-[10px] text-muted-foreground font-bold uppercase">Dúvida / Objeção Comum:</span>
-                <p className="text-xs text-foreground font-medium italic">"Entrega perto de Paraopeba / Araquari? Quanto fica o frete?"</p>
-              </div>
-              <div className="space-y-1 bg-blue-500/10 p-2.5 rounded-lg border border-blue-500/20">
-                <span className="text-[10px] text-blue-300 font-bold uppercase">Resposta Humana de Sucesso:</span>
-                <p className="text-xs text-foreground font-semibold">
-                  "Entregamos sim! Me manda seu CEP ou bairro para eu confirmar a rota exata. O frete fica em média R$ 89 a R$ 140 para sua região."
-                </p>
-              </div>
-            </div>
-
-            {/* Pattern 3: Catálogo & Dimensões */}
-            <div className="p-4 rounded-xl border border-border/70 bg-muted/5 hover:border-amber-500/40 transition-all space-y-2.5">
-              <div className="flex items-center justify-between">
-                <Badge className="bg-amber-500/20 text-amber-300 border-amber-500/40 text-[10px] uppercase font-bold">
-                  📐 Catálogo & Dimensões Técnicas
-                </Badge>
-                <span className="text-[10px] text-emerald-400 font-semibold">100% Humano</span>
-              </div>
-              <div className="space-y-1">
-                <span className="text-[10px] text-muted-foreground font-bold uppercase">Dúvida / Objeção Comum:</span>
-                <p className="text-xs text-foreground font-medium italic">"Qual a metragem dessa churrasqueira que vocês têm aí?"</p>
-              </div>
-              <div className="space-y-1 bg-amber-500/10 p-2.5 rounded-lg border border-amber-500/20">
-                <span className="text-[10px] text-amber-300 font-bold uppercase">Resposta Humana de Sucesso:</span>
-                <p className="text-xs text-foreground font-semibold">
-                  "A medida é 2,20m x 2,20m x 0,80m com estrutura reforçada e fogão a lenha integrado. Deseja que eu reserve esse modelo para sua obra?"
-                </p>
-              </div>
-            </div>
-
-            {/* Pattern 4: Ativação Jadlog & Rastreio */}
-            <div className="p-4 rounded-xl border border-border/70 bg-muted/5 hover:border-emerald-500/40 transition-all space-y-2.5">
-              <div className="flex items-center justify-between">
-                <Badge className="bg-emerald-500/20 text-emerald-300 border-emerald-500/40 text-[10px] uppercase font-bold">
-                  📦 Rastreio & Ativação de Pedido
-                </Badge>
-                <span className="text-[10px] text-emerald-400 font-semibold">100% Humano</span>
-              </div>
-              <div className="space-y-1">
-                <span className="text-[10px] text-muted-foreground font-bold uppercase">Dúvida / Objeção Comum:</span>
-                <p className="text-xs text-foreground font-medium italic">"Pode me enviar o código de rastreamento por gentileza?"</p>
-              </div>
-              <div className="space-y-1 bg-emerald-500/10 p-2.5 rounded-lg border border-emerald-500/20">
-                <span className="text-[10px] text-emerald-300 font-bold uppercase">Resposta Humana de Sucesso:</span>
-                <p className="text-xs text-foreground font-semibold">
-                  "Certinho! Pedido ativado pela Jadlog, o código de rastreio é gerado e atualiza no site oficial em até 12h. Qualquer dúvida estou à disposição!"
-                </p>
-              </div>
-            </div>
-          </div>
+          )}
         </CardContent>
       </Card>
 
@@ -856,7 +803,7 @@ export function EvolutionTab() {
                   : "border-emerald-500/40 text-emerald-400 bg-emerald-500/10"
               )}
             >
-              {learningEvents.length > 0 ? `${learningEvents.length} pendentes` : "100% resolvido"}
+              {learningEvents.length > 0 ? `${learningEvents.length} pendentes` : "Sem pendências"}
             </Badge>
           </div>
         </CardHeader>

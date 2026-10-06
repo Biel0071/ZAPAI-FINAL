@@ -99,7 +99,7 @@ export function resolveSpriteForAvatar(avatar: Partial<AgentAvatarConfig>, force
   if (avatar.glasses?.includes("sunglasses")) return "sprite_r1_c9";
   if (hair.includes("red")) return "sprite_r1_c10";
 
-  return "sprite_r1_c1";
+  return gender === "female" ? "sprite_r2_c1" : "sprite_r1_c1";
 }
 
 /**

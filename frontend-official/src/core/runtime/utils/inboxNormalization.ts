@@ -4,6 +4,18 @@ import type { Conversation, ChatMessage } from "@/core/services/apiService";
 
 const BACKEND_BASE_URL = API_ORIGIN;
 
+export function getMessageTime(message: Pick<ChatMessage, "timestamp" | "createdAt">): number {
+  const value = message.timestamp ?? message.createdAt;
+  const numeric = typeof value === "number" || /^\d+$/.test(String(value ?? ""));
+  const number = Number(value);
+  const time = new Date(numeric ? (number > 1e9 && number < 9e9 ? number * 1000 : number) : String(value ?? "")).getTime();
+  return Number.isFinite(time) ? time : 0;
+}
+
+export function compareMessageTimes(a: Pick<ChatMessage, "timestamp" | "createdAt">, b: Pick<ChatMessage, "timestamp" | "createdAt">): number {
+  return getMessageTime(a) - getMessageTime(b);
+}
+
 export function normalizeId(id: unknown): string {
   return String(id ?? "").trim();
 }

@@ -67,6 +67,7 @@ import type {
   LeadIntentResult,
   ConversationControl,
   QuickReplyItem,
+  QuickReplyCategoryAppearance,
   QuickReplyMediaItem,
 } from "../types";
 
@@ -163,6 +164,8 @@ export function useInboxState() {
   const [loadingConversations, setLoadingConversations] = useState(true);
   const [loadingMessages, setLoadingMessages] = useState(false);
   const [loadingOlderMessages, setLoadingOlderMessages] = useState(false);
+  const [historySyncStatus, setHistorySyncStatus] = useState<"idle" | "requesting" | "requested" | "imported" | "error">("idle");
+  const historySyncRequestedAtRef = useRef<Map<string, number>>(new Map());
   const [conversationsLoadFailed, setConversationsLoadFailed] = useState(false);
   const [messagesLoadFailed, setMessagesLoadFailed] = useState(false);
   const [sending, setSending] = useState(false);
@@ -186,6 +189,8 @@ export function useInboxState() {
   const suggestionContextRef = useRef(0);
   const [responseSearchQuery, setResponseSearchQuery] = useState("");
   const [quickReplies, setQuickReplies] = useState<QuickReplyItem[]>([]);
+  const [quickReplyCategoryAppearance, setQuickReplyCategoryAppearance] = useState<QuickReplyCategoryAppearance>({});
+  const [quickReplyCategoryAppearanceError, setQuickReplyCategoryAppearanceError] = useState(false);
   const [quickRepliesLoading, setQuickRepliesLoading] = useState(true);
   const [quickRepliesError, setQuickRepliesError] = useState(false);
   const [quickReplyCategory, setQuickReplyCategory] = useState<string>("all");
@@ -1287,7 +1292,9 @@ export function useInboxState() {
         );
         // Use server data as the base; only append unconfirmed outgoing temp messages on top.
         const mergedWithCache = sortMessagesAsc(mergeMessagesById(sorted, currentInMemory));
-        const hasMore = normalizedData.length >= MESSAGE_PAGE_SIZE;
+        // A short first page still needs one older-page probe so the user can
+        // explicitly ask WhatsApp for history using a real message cursor.
+        const hasMore = normalizedData.length >= MESSAGE_PAGE_SIZE || (!options?.background && normalizedData.length > 0);
 
         const isSelectedConversation = normalizeId(selectedConversationRef.current?.id) === normalizeId(normalizedConversationId);
         if (options?.background) {
@@ -1335,6 +1342,17 @@ export function useInboxState() {
   useEffect(() => {
     preferredSessionIdRef.current = preferredSessionId;
   }, [preferredSessionId]);
+
+  useEffect(() => {
+    const conversationId = String(selectedConversation?.id ?? "");
+    if (!conversationId) return;
+    const handleHistoryImported = (event: Event) => {
+      const detail = (event as CustomEvent<{ conversationIds?: string[] }>).detail;
+      if (detail?.conversationIds?.some((id) => String(id) === conversationId)) setHistorySyncStatus("imported");
+    };
+    window.addEventListener("whatsapp:history-imported", handleHistoryImported);
+    return () => window.removeEventListener("whatsapp:history-imported", handleHistoryImported);
+  }, [selectedConversation?.id]);
 
   useEffect(() => {
     loadConversationMessagesRef.current = loadConversationMessages;
@@ -1394,6 +1412,7 @@ export function useInboxState() {
 
     const normalizedId = String(selectedConversationIdForEffect);
     const activeConversation = selectedConversation!;
+    setHistorySyncStatus("idle");
 
     const resolvedId = resolveStoreConversationId(useAppStore.getState().conversations, normalizedId);
     const storeMessages = useAppStore.getState().messagesByConversationId[resolvedId] || [];
@@ -1538,7 +1557,7 @@ export function useInboxState() {
 
 
   const handleLoadOlderMessages = useCallback(async () => {
-    if (!selectedConversation?.id || !messages.length || loadingOlderMessages || !hasMoreMessages) return;
+    if (!selectedConversation?.id || !messages.length || loadingOlderMessages) return;
 
     setLoadingOlderMessages(true);
     try {
@@ -1571,7 +1590,18 @@ export function useInboxState() {
       setHasMoreMessages(nextHasMore);
 
       if (!nextHasMore && selectedConversation?.id) {
-        void apiService.syncConversationHistory(selectedConversation.id).catch(() => {});
+        const conversationId = String(selectedConversation.id);
+        const lastRequestedAt = historySyncRequestedAtRef.current.get(conversationId) || 0;
+        if (Date.now() - lastRequestedAt >= 30000) {
+          historySyncRequestedAtRef.current.set(conversationId, Date.now());
+          setHistorySyncStatus("requesting");
+          try {
+            await apiService.syncConversationHistory(conversationId);
+            setHistorySyncStatus("requested");
+          } catch {
+            setHistorySyncStatus("error");
+          }
+        }
       }
     } catch (err) {
       markBackendOffline(err);
@@ -2966,14 +2996,31 @@ export function useInboxState() {
   }, [selectedChatIds, conversations, toast, navigate]);
 
   // Quick Replies loading & execution
+  const loadQuickReplyCategoryAppearance = useCallback(async () => {
+    try {
+      const appearance = await apiService.getQuickReplyCategories();
+      setQuickReplyCategoryAppearance(appearance && typeof appearance === "object" ? appearance : {});
+      setQuickReplyCategoryAppearanceError(false);
+    } catch (error) {
+      setQuickReplyCategoryAppearanceError(true);
+      throw error;
+    }
+  }, []);
+
   useEffect(() => {
     const loadQuickReplies = async () => {
       setQuickRepliesLoading(true);
       setQuickRepliesError(false);
       try {
-        const list = await apiService.getQuickReplies();
-        if (list && Array.isArray(list)) {
-          const mapped = list.map((qr: any) => ({
+        const [listResult, categoryAppearanceResult] = await Promise.allSettled([
+          apiService.getQuickReplies(),
+          loadQuickReplyCategoryAppearance(),
+        ]);
+        if (categoryAppearanceResult.status === "rejected") {
+          console.error("Failed to load quick reply category appearance:", categoryAppearanceResult.reason);
+        }
+        if (listResult.status === "fulfilled" && Array.isArray(listResult.value)) {
+          const mapped = listResult.value.map((qr: any) => ({
             id: qr.id,
             title: qr.title || qr.content || "",
             category: qr.category || "general",
@@ -2985,7 +3032,7 @@ export function useInboxState() {
             tags: qr.tags || [],
           }));
           setQuickReplies(mapped);
-        }
+        } else if (listResult.status === "rejected") throw listResult.reason;
       } catch (err) {
         setQuickRepliesError(true);
         console.error("Failed to load quick replies:", err);
@@ -2994,7 +3041,14 @@ export function useInboxState() {
       }
     };
     void loadQuickReplies();
-  }, []);
+  }, [loadQuickReplyCategoryAppearance]);
+
+  const saveQuickReplyCategoryAppearance = async (category: string, appearance: { emoji: string; color: string }) => {
+    const saved = await apiService.saveQuickReplyCategory(category, appearance);
+    setQuickReplyCategoryAppearance(saved);
+    setQuickReplyCategoryAppearanceError(false);
+    notify.success("Categoria atualizada.");
+  };
 
   const conversationVariableContext = useMemo(
     () => ({
@@ -3334,6 +3388,7 @@ export function useInboxState() {
     loadingConversations: loadingConversations || conversationSearch.loading,
     loadingMessages,
     loadingOlderMessages,
+    historySyncStatus,
     conversationsLoadFailed: conversationsLoadFailed || conversationSearch.failed,
     messagesLoadFailed,
     sending,
@@ -3346,7 +3401,7 @@ export function useInboxState() {
     leadInsight,
     suggestingResponse,
     responseSearchQuery, setResponseSearchQuery,
-    quickReplies, setQuickReplies,
+    quickReplies, setQuickReplies, quickReplyCategoryAppearance, quickReplyCategoryAppearanceError, loadQuickReplyCategoryAppearance, saveQuickReplyCategoryAppearance,
     quickRepliesLoading, quickRepliesError,
     quickReplyCategory, setQuickReplyCategory,
     isQuickReplyDialogOpen, setIsQuickReplyDialogOpen,

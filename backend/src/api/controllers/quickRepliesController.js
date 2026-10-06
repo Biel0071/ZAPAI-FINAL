@@ -24,6 +24,23 @@ async function listQuickReplies(req, res) {
   } catch (error) { return fail(res, error, 'Não foi possível carregar as respostas rápidas.'); }
 }
 
+async function getQuickReplyCategories(req, res) {
+  const companyId = company(req, res);
+  if (!companyId) return;
+  try { return res.status(200).json(await quickReplyService.getQuickReplyCategories(companyId)); }
+  catch (error) { return fail(res, error, 'Não foi possível carregar as categorias.'); }
+}
+
+async function saveQuickReplyCategory(req, res) {
+  const companyId = company(req, res);
+  if (!companyId) return;
+  try {
+    const body = req.body || {};
+    return res.status(200).json(await quickReplyService.saveQuickReplyCategory(companyId, body.category, { emoji: body.emoji, color: body.color }));
+  }
+  catch (error) { return fail(res, error, 'Não foi possível salvar as categorias.'); }
+}
+
 async function createQuickReply(req, res) {
   const companyId = company(req, res);
   if (!companyId) return;
@@ -127,4 +144,4 @@ async function getActiveQuickReplyFlow(req, res) {
   } catch (error) { return fail(res, error, 'Não foi possível carregar o fluxo ativo.'); }
 }
 
-module.exports = { createQuickReply, deleteQuickReply, listQuickReplies, updateQuickReply, executeQuickReplyFlow, cancelQuickReplyFlow, getActiveQuickReplyFlow };
+module.exports = { createQuickReply, deleteQuickReply, listQuickReplies, updateQuickReply, executeQuickReplyFlow, cancelQuickReplyFlow, getActiveQuickReplyFlow, getQuickReplyCategories, saveQuickReplyCategory };

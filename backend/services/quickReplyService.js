@@ -3,6 +3,7 @@ const path = require('path');
 const crypto = require('crypto');
 
 const DATA_FILE = path.join(__dirname, '..', '..', 'data', 'json_db', 'quick_replies.json');
+const CATEGORY_SETTINGS_PREFIX = 'inbox_quick_reply_categories';
 let writeLock = Promise.resolve();
 
 function requireCompanyId(value) {
@@ -178,6 +179,48 @@ function serializeWrite(work) {
 
 function normalizeCategory(value) {
   return String(value || 'general').trim().toLowerCase();
+}
+
+function categorySettingsKey(companyId) {
+  return `${CATEGORY_SETTINGS_PREFIX}:${requireCompanyId(companyId)}`;
+}
+
+async function getQuickReplyCategories(companyId) {
+  const key = categorySettingsKey(companyId);
+  const { query } = require('../src/infrastructure/config/database');
+  const result = await query('SELECT value FROM system_settings WHERE key = $1 LIMIT 1', [key]);
+  const value = result.rows?.[0]?.value;
+  if (!value) return {};
+  try {
+    const parsed = typeof value === 'string' ? JSON.parse(value) : value;
+    return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : {};
+  } catch {
+    return {};
+  }
+}
+
+async function saveQuickReplyCategory(companyId, name, metadata = {}) {
+  const key = categorySettingsKey(companyId);
+  const category = normalizeCategory(name);
+  if (!category || category.length > 200) throw Object.assign(new Error('Nome de categoria inválido.'), { status: 400 });
+  if (!metadata || typeof metadata !== 'object' || Array.isArray(metadata)) throw Object.assign(new Error('A aparência da categoria é inválida.'), { status: 400 });
+  const emoji = String(metadata.emoji || '📁').trim();
+  const color = String(metadata.color || '');
+  if (emoji.length > 8 || !/^#[0-9a-f]{6}$/i.test(color)) throw Object.assign(new Error('A aparência da categoria é inválida.'), { status: 400 });
+  const patch = JSON.stringify({ [category]: { emoji: emoji || '📁', color } });
+  const { query } = require('../src/infrastructure/config/database');
+  const result = await query(`INSERT INTO system_settings (key, value, updated_at)
+    VALUES ($1, $2, NOW()) ON CONFLICT (key) DO UPDATE
+    SET value = (COALESCE(NULLIF(system_settings.value, '')::jsonb, '{}'::jsonb) || EXCLUDED.value::jsonb)::text,
+        updated_at = NOW()
+    WHERE system_settings.value IS NULL
+       OR system_settings.value = ''
+       OR COALESCE(NULLIF(system_settings.value, '')::jsonb, '{}'::jsonb) ? $3
+       OR (SELECT COUNT(*) FROM jsonb_object_keys(COALESCE(NULLIF(system_settings.value, '')::jsonb, '{}'::jsonb))) < 200
+    RETURNING value`, [key, patch, category]);
+  if (!result.rows?.length) throw Object.assign(new Error('Limite de 200 categorias atingido.'), { status: 400 });
+  const value = result.rows[0].value;
+  return typeof value === 'string' ? JSON.parse(value) : value;
 }
 
 const { analyzeImageWithVision } = require('../src/infrastructure/config/ai');
@@ -494,4 +537,6 @@ module.exports = {
   listQuickReplies,
   removeQuickReply,
   updateQuickReply,
+  getQuickReplyCategories,
+  saveQuickReplyCategory,
 };

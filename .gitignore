@@ -110,4 +110,8 @@ releases/
 # Scripts de diagnóstico SSH ad-hoc — contêm credenciais da VPS, nunca versionar
 tmp_ssh/
 outros/
-reports/
+reports/
+all_messages.txt
+waspeed_raw_dump.txt
+.cursor/
+

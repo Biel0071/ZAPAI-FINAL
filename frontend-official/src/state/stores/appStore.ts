@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import type { Conversation, MetricsSummary, ChatMessage } from "@/core/services/apiService";
+import { compareMessageTimes } from "@/core/runtime/utils/inboxNormalization";
 
 function isSessionItemValid(item: any): boolean {
   return item && typeof item === "object" && typeof item.id === "string";
@@ -171,7 +172,7 @@ function mergeMessageLists(base: ChatMessage[] = [], incoming: ChatMessage[] = [
       merged.push({ ...message, conversationId });
     }
   }
-  merged.sort((a, b) => getTime(a.createdAt) - getTime(b.createdAt));
+  merged.sort(compareMessageTimes);
   return merged;
 }
 
@@ -315,7 +316,7 @@ function migrateTemporaryMessageKeys(
             combined.push({ ...msg, conversationId: resolvedId });
           }
         }
-        combined.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+        combined.sort(compareMessageTimes);
         
         nextMessages[resolvedId] = combined;
         delete nextMessages[key];
@@ -641,7 +642,7 @@ export const useAppStore = create<AppState>((set) => ({
         }
       }
 
-      deduped.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+      deduped.sort(compareMessageTimes);
 
       return {
         messagesByConversationId: {
@@ -666,7 +667,7 @@ export const useAppStore = create<AppState>((set) => ({
         const isExistingTemp = String(existing.id).startsWith("temp-") || String(existing.id).startsWith("rt-");
         const isIncomingReal = !String(message.id).startsWith("temp-");
 
-        let next = current.slice();
+        const next = current.slice();
         if (isExistingTemp || isIncomingReal) {
           next[existingIdx] = {
             ...existing,
@@ -689,7 +690,7 @@ export const useAppStore = create<AppState>((set) => ({
         };
       }
 
-      let next = current.slice();
+      const next = current.slice();
 
       if (message.fromMe && !message.id.startsWith("temp-")) {
         const tempIdx = next.findIndex((m) => m.id.startsWith("temp-") && (m.content || "").trim() === (message.content || "").trim());
@@ -705,7 +706,7 @@ export const useAppStore = create<AppState>((set) => ({
       }
 
       next.push({ ...message, conversationId: resolvedId });
-      next.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+      next.sort(compareMessageTimes);
 
       return {
         messagesByConversationId: {
