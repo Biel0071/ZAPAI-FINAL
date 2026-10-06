@@ -113,7 +113,7 @@ async function main() {
       await page1440.screenshot({ path: mascotPath, fullPage: false });
       console.log(`Saved: ${mascotPath}`);
       // Close mascot
-      await mascotTrigger.click();
+      await page1440.keyboard.press('Escape');
       await page1440.waitForTimeout(500);
     }
   } catch (e) {
