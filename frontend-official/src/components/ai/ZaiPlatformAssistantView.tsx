@@ -23,6 +23,7 @@ interface CopilotMessage {
 
 const SUGGESTIONS = [
   "Como estão os atendimentos hoje?",
+  "Quantos leads foram qualificados?",
   "Qual atendente está ativo?",
   "Como está a fila do WhatsApp?",
   "Ver desempenho dos agentes",
@@ -192,7 +193,7 @@ export function ZaiPlatformAssistantView({ onOpenNewAgentWizard, onRefreshAgents
         {/* Suggested Questions Row */}
         <div className="p-2.5 border-b border-border/60 bg-muted/20 shrink-0">
           <div className="flex items-center gap-1.5 mb-1.5 px-1">
-            <span className="text-[11px] font-semibold text-emerald-400">Perguntas Sugeridas:</span>
+            <span className="text-[11px] font-semibold text-emerald-400">Perguntas Padrão & Sugeridas:</span>
           </div>
           <div className="flex gap-1.5 overflow-x-auto scrollbar-none pb-0.5">
             {SUGGESTIONS.map((suggestion) => (

@@ -324,6 +324,14 @@ async function run() {
       console.log(`Saved: ${p6}`);
     }
 
+    // 3. Visit /attendants to verify that boneco 3D and central interativa are right at the start
+    console.log('Navigating to /attendants...');
+    await page.goto(`${BASE_URL}/attendants`, { waitUntil: 'networkidle' });
+    await page.waitForTimeout(2500);
+    const p7 = path.join(ARTIFACTS_DIR, '07_attendants_page_inicio.png');
+    await page.screenshot({ path: p7, fullPage: false });
+    console.log(`Saved: ${p7}`);
+
     console.log('All verification captures completed successfully!');
   } finally {
     await browser.close();

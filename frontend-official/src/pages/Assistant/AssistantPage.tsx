@@ -38,8 +38,12 @@ export default function AssistantPage() {
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-border/60 pb-5">
           <div className="space-y-1">
             <div className="flex items-center gap-2">
-              <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-amber-500/10 border border-amber-500/20 text-amber-400">
-                <Robot weight="fill" className="h-5 w-5" />
+              <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-emerald-500/10 border border-emerald-500/30 overflow-hidden p-0.5">
+                <img
+                  src="/assets/mascot/zaibot_avatar.png"
+                  alt="ZAIBOT"
+                  className="w-full h-full object-cover rounded-xl"
+                />
               </div>
               <div>
                 <h1 className="text-xl md:text-2xl font-bold tracking-tight text-foreground font-display flex items-center gap-2">

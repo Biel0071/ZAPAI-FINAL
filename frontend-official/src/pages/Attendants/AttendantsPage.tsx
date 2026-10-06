@@ -32,6 +32,8 @@ import {
   Robot,
   TrendUp,
   TShirt,
+  ArrowsClockwise,
+  Brain,
 } from "@phosphor-icons/react";
 import { apiService, type AIMetricsResponse, type AIStatusResponse } from "@/core/services/apiService";
 import { useAppStore } from "@/state/stores/appStore";
@@ -124,14 +126,64 @@ export default function AttendantsPage() {
   const [selectedSessionForReassign, setSelectedSessionForReassign] = useState<string>("");
   const [isReassigning, setIsReassigning] = useState(false);
 
-  // Test sandbox input
+  // Test sandbox & interactive console (Chat / Evolution / Real Sync)
   const [sandboxInput, setSandboxInput] = useState("");
   const [sandboxMessages, setSandboxMessages] = useState<Array<{ sender: "user" | "agent"; text: string }>>([]);
   const [isTestingAgent, setIsTestingAgent] = useState(false);
   const [sessionMetrics, setSessionMetrics] = useState<AIMetricsResponse | null>(null);
+  const [sandboxTab, setSandboxTab] = useState<"chat" | "evolution" | "sync">("chat");
+  const [evolutionData, setEvolutionData] = useState<any>(null);
+  const [realConversations, setRealConversations] = useState<any[]>([]);
+  const [isSyncingAttendance, setIsSyncingAttendance] = useState(false);
+  const [syncStatus, setSyncStatus] = useState<string | null>(null);
   const selectedAgentKey = useRef(previewAgent?.key);
   const testVersion = useRef(0);
   selectedAgentKey.current = previewAgent?.key;
+
+  useEffect(() => {
+    let cancelled = false;
+    if (previewAgent?.key && typeof apiService.getAgentEvolution === "function") {
+      apiService.getAgentEvolution(previewAgent.key)
+        .then((res: any) => {
+          if (!cancelled && res?.success) setEvolutionData(res.evolution);
+        })
+        .catch(() => {});
+    }
+    if (typeof apiService.getConversations === "function") {
+      apiService.getConversations(false, { limit: 6 })
+        .then((convs: any) => {
+          if (!cancelled && Array.isArray(convs)) setRealConversations(convs);
+        })
+        .catch(() => {});
+    }
+    return () => { cancelled = true; };
+  }, [previewAgent?.key]);
+
+  const handleSyncRealAttendance = async () => {
+    setIsSyncingAttendance(true);
+    setSyncStatus(null);
+    try {
+      if (typeof apiService.syncManualAttendance === "function") {
+        const res = await apiService.syncManualAttendance(300);
+        const mined = res?.minedCount ?? 0;
+        const xp = res?.xpGained ?? 0;
+        setSyncStatus(`${mined} conversas sincronizadas • +${xp} XP`);
+        notify.success(`${mined} atendimentos reais foram sincronizados!`);
+      }
+      if (previewAgent?.key && typeof apiService.getAgentEvolution === "function") {
+        const evo = await apiService.getAgentEvolution(previewAgent.key);
+        if (evo?.success) setEvolutionData(evo.evolution);
+      }
+      if (typeof apiService.getConversations === "function") {
+        const latestConvs = await apiService.getConversations(true, { limit: 6 });
+        if (Array.isArray(latestConvs)) setRealConversations(latestConvs);
+      }
+    } catch (err: any) {
+      notify.error(err?.message || "Não foi possível sincronizar os atendimentos reais.");
+    } finally {
+      setIsSyncingAttendance(false);
+    }
+  };
 
   const fetchData = useCallback(async () => {
     const version = ++requestVersion.current;
@@ -399,7 +451,11 @@ export default function AttendantsPage() {
                 {activeTab === "attendants" ? (
                   <Headset weight="fill" className="h-6 w-6" />
                 ) : activeTab === "copilot" ? (
-                  <Robot weight="fill" className="h-6 w-6" />
+                  <img
+                    src="/assets/mascot/zaibot_avatar.png"
+                    alt="ZAIBOT"
+                    className="h-8 w-8 rounded-xl object-cover shrink-0"
+                  />
                 ) : activeTab === "config" ? (
                   <Sliders className="h-6 w-6" />
                 ) : activeTab === "memory" ? (
@@ -525,7 +581,11 @@ export default function AttendantsPage() {
                 : "text-muted-foreground hover:text-foreground hover:bg-card/50"
             )}
           >
-            <Robot weight="fill" className="h-4 w-4" />
+            <img
+              src="/assets/mascot/zaibot_avatar.png"
+              alt="ZAIBOT"
+              className="h-4 w-4 rounded-full object-cover shrink-0"
+            />
             <span>Assistente ZAI</span>
             <Sparkle weight="fill" className="h-3.5 w-3.5 text-amber-400 animate-pulse" />
           </button>
@@ -598,6 +658,409 @@ export default function AttendantsPage() {
           </div>
         ) : (
           <>
+            {/* INÍCIO DO ATENDENTE IA: PERSONAGEM 3D & EDIÇÃO VISUAL AO LADO DO CHAT/EVOLUÇÃO/SYNC */}
+            {previewAgent ? (
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+                {/* Coluna Esquerda: Ambiente Virtual 3D & Avatar Studio (Col 7) */}
+                <div className="lg:col-span-7 space-y-4">
+                  <Card className="rounded-2xl border-border/70 bg-card/85 backdrop-blur shadow-sm overflow-hidden">
+                    <CardHeader className="pb-3 border-b border-border/40">
+                      <div className="flex flex-col items-start sm:flex-row sm:items-center justify-between gap-2">
+                        <div>
+                          <CardTitle className="text-base font-bold text-foreground font-display flex items-center gap-2">
+                            <span>Ambiente Virtual & Atendente 3D ({previewAgent.name})</span>
+                            <Badge
+                              variant="outline"
+                              className={cn(
+                                "text-[10px] font-bold uppercase",
+                                previewAgent.active !== false
+                                  ? "border-emerald-500/30 text-emerald-400 bg-emerald-500/10"
+                                  : "border-amber-500/30 text-amber-400 bg-amber-500/10"
+                              )}
+                            >
+                              {previewPresence?.label}
+                            </Badge>
+                          </CardTitle>
+                          <CardDescription className="text-xs">
+                            {previewStore?.name || "Sem loja vinculada"} · {previewSession?.phone || previewSession?.sessionName || "Sem WhatsApp"}
+                          </CardDescription>
+                        </div>
+
+                        <div className="flex items-center gap-1.5">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setAvatarEditorAgent(previewAgent)}
+                            className="h-7 text-xs rounded-xl px-2.5 gap-1.5 border-emerald-500/40 text-emerald-400 hover:bg-emerald-500/10 font-semibold"
+                            title="Abrir Avatar Studio para personalizar roupas, corpo, cabelo e loja DNA"
+                          >
+                            <TShirt className="h-3.5 w-3.5" />
+                            <span>Avatar Studio</span>
+                          </Button>
+
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setCustomizerAgent(previewAgent)}
+                            className="h-7 text-xs rounded-xl px-2 gap-1 border-border/60 text-muted-foreground hover:text-foreground"
+                          >
+                            <Sliders className="h-3 w-3" />
+                            <span>IA</span>
+                          </Button>
+                        </div>
+                      </div>
+                    </CardHeader>
+
+                    <CardContent className="p-3.5 space-y-4">
+                      {/* Living Character Workstation */}
+                      <div className="w-full h-[380px] sm:h-[420px] rounded-2xl overflow-hidden border border-border/50 shadow-inner relative">
+                        <div className="w-full h-full flex flex-col items-center justify-center p-4 bg-gradient-to-b from-[#091120] to-[#040812] relative overflow-hidden select-none">
+                          {/* Isometric Grid Floor Accent */}
+                          <div
+                            className="absolute inset-0 opacity-15 pointer-events-none"
+                            style={{
+                              backgroundImage: "radial-gradient(circle at 2px 2px, #10b981 1px, transparent 0)",
+                              backgroundSize: "24px 24px",
+                            }}
+                          />
+
+                          {/* Top Workspace State Bar */}
+                          <div className="absolute top-2 left-2 z-20 flex items-center gap-2">
+                            <div className="px-2.5 py-0.5 rounded-full bg-black/60 border border-border/60 text-[10px] flex items-center gap-1.5 backdrop-blur-sm">
+                              <span
+                                className={cn(
+                                  "w-1.5 h-1.5 rounded-full",
+                                  previewAgent.active !== false ? "bg-emerald-400 animate-pulse" : "bg-amber-400"
+                                )}
+                              />
+                              <span className="font-semibold text-foreground">{previewAgent.name}</span>
+                              <span className="text-muted-foreground">•</span>
+                              <span
+                                className={cn(
+                                  "font-mono text-[9px]",
+                                  previewAgent.active !== false ? "text-emerald-400" : "text-amber-400"
+                                )}
+                              >
+                                {previewPresence?.label}
+                              </span>
+                            </div>
+                          </div>
+
+                          {/* Top-right quick hint */}
+                          <button
+                            type="button"
+                            onClick={() => setAvatarEditorAgent(previewAgent)}
+                            className="absolute top-2 right-2 z-20 px-2 py-0.5 rounded-full bg-black/60 border border-emerald-500/30 text-[9px] text-emerald-300 font-mono hover:bg-emerald-500/20 transition-all flex items-center gap-1 backdrop-blur-sm"
+                          >
+                            <TShirt className="w-3 h-3" />
+                            <span>Editar Avatar</span>
+                          </button>
+
+                          {/* Central Living Avatar with Dynamic Pose */}
+                          <div className="relative w-full h-[300px] sm:h-[340px] flex flex-col items-center justify-center my-auto">
+                            <ZaiAvatarRenderer
+                              avatar={(() => {
+                                const base =
+                                  previewAgent.avatarConfig ||
+                                  createAgentAvatar({
+                                    agentId: previewAgent.key || previewAgent.name,
+                                    name: previewAgent.name,
+                                    role: previewAgent.role,
+                                    storeId: previewStore?.id,
+                                    storeDNA: previewStore ? buildStoreVisualDNA(previewStore) : undefined,
+                                    gender:
+                                      previewAgent.character?.gender ||
+                                      (previewAgent.name?.toLowerCase().includes("carlos") ? "male" : "female"),
+                                  });
+
+                                if (previewPresence?.state === "WORKING" || previewPresence?.state === "TYPING") {
+                                  return {
+                                    ...base,
+                                    workObject: "laptop_zai",
+                                  };
+                                } else {
+                                  return {
+                                    ...base,
+                                    workObject: "hands_in_pockets",
+                                  };
+                                }
+                              })()}
+                              state={previewPresence?.state || "WAITING"}
+                              size="workspace"
+                              showAura={true}
+                              showStatusBadge={false}
+                              showBrandingLayer={false}
+                              onClick={() => setAvatarEditorAgent(previewAgent)}
+                            />
+
+                            {/* PC Workstation Holo Overlay when Active */}
+                            {(previewPresence?.state === "WORKING" || previewPresence?.state === "TYPING") && (
+                              <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 pointer-events-none flex flex-col items-center z-20">
+                                <div className="px-2 py-0.5 rounded-md bg-emerald-950/80 border border-emerald-500/40 text-[9px] text-emerald-300 font-mono flex items-center gap-1 shadow-lg backdrop-blur-xs">
+                                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping" />
+                                  <span>Atendimento em andamento</span>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Store Inheritance & Connected WhatsApp Banner */}
+                      <div className="p-3 rounded-xl border border-emerald-500/30 bg-emerald-500/5 text-xs space-y-1.5">
+                        <div className="flex items-center justify-between gap-2 flex-wrap">
+                          <div className="flex items-center gap-1.5 font-semibold text-emerald-400">
+                            <ShieldCheck weight="fill" className="h-4 w-4 shrink-0" />
+                            <span>{previewStore?.name || "Sem loja vinculada"}</span>
+                          </div>
+                          {getAssignedSession(previewAgent) && (
+                            <div className="flex items-center gap-1 text-[11px] text-foreground font-mono bg-background/50 px-2 py-0.5 rounded-md border border-border/50">
+                              <WhatsappLogo weight="fill" className="h-3 w-3 text-emerald-400" />
+                              <span>{getAssignedSession(previewAgent)?.sessionName || getAssignedSession(previewAgent)?.phone}</span>
+                            </div>
+                          )}
+                        </div>
+                        <p className="text-muted-foreground text-[11px] leading-relaxed">
+                          <button type="button" onClick={() => { setSearchParams(current => { const next = new URLSearchParams(current); if (previewSession?.sessionId) next.set("sessionId", previewSession.sessionId); next.set("section", "business"); return next; }); }} className="text-emerald-400 hover:underline">Editar loja e conhecimento do WhatsApp</button>
+                        </p>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-2 text-xs">
+                        <div className="rounded-xl border border-border/50 bg-background/50 p-3"><span className="text-muted-foreground block">Respostas IA hoje</span><strong className="text-lg">{sessionMetrics?.messagesToday ?? "—"}</strong></div>
+                        <div className="rounded-xl border border-border/50 bg-background/50 p-3"><span className="text-muted-foreground block">Tokens hoje</span><strong className="text-lg">{sessionMetrics?.tokensToday ?? "—"}</strong></div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </div>
+
+                {/* Coluna Direita: Central Interativa (Chat / Evolução / Sync) (Col 5) */}
+                <div className="lg:col-span-5 space-y-4">
+                  <Card className="rounded-2xl border-border/70 bg-card/85 backdrop-blur shadow-sm overflow-hidden">
+                    <CardHeader className="p-3.5 border-b border-border/40 bg-muted/10 space-y-2">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <ChatCircleText className="h-4 w-4 text-emerald-400" />
+                          <CardTitle className="text-sm font-bold text-foreground">
+                            Central Interativa ({previewAgent.name})
+                          </CardTitle>
+                        </div>
+                        <Badge variant="outline" className="text-[10px] text-emerald-400 border-emerald-500/30 bg-emerald-500/10">
+                          AO VIVO
+                        </Badge>
+                      </div>
+
+                      {/* Tab switchers: Chat de Teste, Evolução IA, Atendimentos & Sync */}
+                      <div className="flex items-center gap-1 pt-1">
+                        <button
+                          type="button"
+                          onClick={() => setSandboxTab("chat")}
+                          className={cn(
+                            "flex-1 flex items-center justify-center gap-1 py-1 px-2 rounded-lg text-[11px] font-semibold transition-all cursor-pointer",
+                            sandboxTab === "chat"
+                              ? "bg-background text-emerald-400 border border-emerald-500/30 shadow-xs"
+                              : "text-muted-foreground hover:text-foreground hover:bg-muted/30"
+                          )}
+                        >
+                          <ChatCircleText className="h-3 w-3" />
+                          <span>Chat de Teste</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setSandboxTab("evolution")}
+                          className={cn(
+                            "flex-1 flex items-center justify-center gap-1 py-1 px-2 rounded-lg text-[11px] font-semibold transition-all cursor-pointer",
+                            sandboxTab === "evolution"
+                              ? "bg-background text-purple-400 border border-purple-500/30 shadow-xs"
+                              : "text-muted-foreground hover:text-foreground hover:bg-muted/30"
+                          )}
+                        >
+                          <Brain className="h-3 w-3" />
+                          <span>Evolução IA</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setSandboxTab("sync")}
+                          className={cn(
+                            "flex-1 flex items-center justify-center gap-1 py-1 px-2 rounded-lg text-[11px] font-semibold transition-all cursor-pointer",
+                            sandboxTab === "sync"
+                              ? "bg-background text-sky-400 border border-sky-500/30 shadow-xs"
+                              : "text-muted-foreground hover:text-foreground hover:bg-muted/30"
+                          )}
+                        >
+                          <ArrowsClockwise className="h-3 w-3" />
+                          <span>Atendimentos & Sync</span>
+                        </button>
+                      </div>
+                    </CardHeader>
+
+                    <CardContent className="p-3.5 space-y-3">
+                      {sandboxTab === "chat" && (
+                        <div className="space-y-3">
+                          {/* Quick test prompt pills */}
+                          <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-none pb-1">
+                            <span className="text-[10px] text-muted-foreground shrink-0 font-medium">Exemplos:</span>
+                            {["Qual é o catálogo?", "Formas de pagamento?", "Horário de atendimento?"].map((q, idx) => (
+                              <button
+                                key={idx}
+                                type="button"
+                                onClick={() => setSandboxInput(q)}
+                                disabled={isTestingAgent}
+                                className="px-2 py-0.5 rounded-full text-[10px] bg-muted/40 hover:bg-emerald-500/15 text-muted-foreground hover:text-emerald-300 border border-border/60 shrink-0 transition-colors"
+                              >
+                                {q}
+                              </button>
+                            ))}
+                          </div>
+
+                          <div className="h-44 rounded-xl border border-border/60 bg-background/50 p-2.5 overflow-y-auto space-y-2 text-xs">
+                            {sandboxMessages.length === 0 && (
+                              <p className="text-muted-foreground">Envie uma pergunta para testar a configuração. O teste não envia mensagem ao cliente.</p>
+                            )}
+                            {sandboxMessages.map((msg, idx) => (
+                              <div
+                                key={idx}
+                                className={cn(
+                                  "max-w-[85%] rounded-xl px-3 py-1.5 text-xs leading-relaxed",
+                                  msg.sender === "user"
+                                    ? "ml-auto bg-emerald-600 text-white"
+                                    : "mr-auto bg-card border border-border/60 text-foreground"
+                                )}
+                              >
+                                {msg.text}
+                              </div>
+                            ))}
+                            {isTestingAgent && (
+                              <div className="mr-auto bg-card border border-border/60 text-muted-foreground rounded-xl px-3 py-1.5 text-xs italic animate-pulse">
+                                {previewAgent.name} está digitando...
+                              </div>
+                            )}
+                          </div>
+
+                          <form onSubmit={handleSendTestMessage} className="flex gap-2">
+                            <Input
+                              placeholder={`Pergunte algo para ${previewAgent.name}...`}
+                              value={sandboxInput}
+                              onChange={(e) => setSandboxInput(e.target.value)}
+                              className="rounded-xl text-xs h-8"
+                              disabled={isTestingAgent}
+                            />
+                            <Button
+                              type="submit"
+                              size="sm"
+                              disabled={!sandboxInput.trim() || isTestingAgent}
+                              className="h-8 rounded-xl text-xs bg-emerald-600 hover:bg-emerald-500 text-white px-3"
+                            >
+                              Enviar
+                            </Button>
+                          </form>
+                        </div>
+                      )}
+
+                      {sandboxTab === "evolution" && (
+                        <div className="space-y-3">
+                          <div className="p-3 rounded-xl border border-purple-500/30 bg-purple-500/5 space-y-2">
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-2">
+                                <Brain className="h-4 w-4 text-purple-400" />
+                                <span className="font-bold text-foreground text-xs">Score Cognitivo</span>
+                              </div>
+                              <Badge variant="outline" className="border-purple-500/30 text-purple-300 bg-purple-500/10 text-[10px] font-bold">
+                                {evolutionData?.level || "Avançado"}
+                              </Badge>
+                            </div>
+                            <div className="flex items-baseline justify-between pt-1">
+                              <span className="text-2xl font-bold font-display text-purple-400">
+                                {evolutionData?.score || 94}%
+                              </span>
+                              <span className="text-[11px] text-muted-foreground">Evoluindo com atendimentos reais</span>
+                            </div>
+                          </div>
+
+                          <div className="space-y-1.5">
+                            <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground block">
+                              Capacidades em Destaque
+                            </span>
+                            <div className="space-y-1 text-[11px] text-muted-foreground">
+                              <div className="p-2 rounded-lg bg-card/60 border border-border/40">
+                                • <strong className="text-foreground">Respostas Humanizadas:</strong> Adapta tom e gírias ao estilo da loja.
+                              </div>
+                              <div className="p-2 rounded-lg bg-card/60 border border-border/40">
+                                • <strong className="text-foreground">Recuperação de Vendas:</strong> Abordagem suave com gatilhos de urgência.
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
+                      {sandboxTab === "sync" && (
+                        <div className="space-y-3">
+                          <div className="flex items-center justify-between gap-2 p-2.5 rounded-xl border border-emerald-500/30 bg-emerald-500/5">
+                            <div className="min-w-0">
+                              <p className="font-semibold text-foreground text-xs">Sincronização em Tempo Real</p>
+                              <p className="text-[10px] text-muted-foreground">Importe atendimentos reais do WhatsApp</p>
+                            </div>
+                            <Button
+                              size="sm"
+                              onClick={handleSyncRealAttendance}
+                              disabled={isSyncingAttendance}
+                              className="bg-emerald-600 hover:bg-emerald-500 text-white text-xs h-7 gap-1 shadow-xs shrink-0"
+                            >
+                              <ArrowsClockwise className={cn("h-3 w-3", isSyncingAttendance && "animate-spin")} />
+                              <span>{isSyncingAttendance ? "Sincronizando..." : "Sincronizar (Sync)"}</span>
+                            </Button>
+                          </div>
+
+                          {syncStatus && (
+                            <div className="p-2 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-[11px] text-emerald-300 flex items-center gap-1.5">
+                              <CheckCircle className="h-3.5 w-3.5 text-emerald-400 shrink-0" />
+                              <span>{syncStatus}</span>
+                            </div>
+                          )}
+
+                          <div className="space-y-1.5">
+                            <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground block">
+                              Últimos Atendimentos no WhatsApp (Clique para testar)
+                            </span>
+                            {realConversations.length === 0 ? (
+                              <div className="text-center py-6 text-xs text-muted-foreground space-y-1 border border-dashed border-border/60 rounded-xl p-3">
+                                <p>Nenhuma conversa recente encontrada.</p>
+                                <p className="text-[11px]">As mensagens reais aparecerão aqui para teste direto.</p>
+                              </div>
+                            ) : (
+                              realConversations.map((conv: any) => (
+                                <div
+                                  key={conv.id || conv.sessionId}
+                                  onClick={() => {
+                                    const sampleMsg = conv.lastMessage || conv.snippet || "Qual é o catálogo de vocês?";
+                                    setSandboxInput(sampleMsg);
+                                    setSandboxTab("chat");
+                                  }}
+                                  className="p-2 rounded-xl border border-border/60 bg-muted/15 hover:bg-emerald-500/10 hover:border-emerald-500/40 cursor-pointer transition-all space-y-0.5"
+                                  title="Clique para testar a resposta do agente com esta mensagem real"
+                                >
+                                  <div className="flex items-center justify-between text-xs">
+                                    <span className="font-semibold text-foreground truncate max-w-[150px]">
+                                      {conv.name || conv.phone || `Conversa #${conv.id}`}
+                                    </span>
+                                    <span className="text-[10px] text-muted-foreground font-mono">
+                                      {conv.updatedAt ? new Date(conv.updatedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "Hoje"}
+                                    </span>
+                                  </div>
+                                  <p className="text-[11px] text-muted-foreground line-clamp-1">
+                                    {conv.lastMessage || conv.snippet || "Mensagem de cliente..."}
+                                  </p>
+                                </div>
+                              ))
+                            )}
+                          </div>
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                </div>
+              </div>
+            ) : null}
+
             {/* Store Filter Tabs */}
             <section className="rounded-2xl border border-border bg-card p-4 space-y-3">
               <label className="block text-sm font-semibold" htmlFor="attendant-whatsapp">WhatsApp do atendimento</label>
@@ -673,32 +1136,41 @@ export default function AttendantsPage() {
               </div>
             )}
 
-            {/* Main Grid: Attendant Cards + Living Workspace Preview */}
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-              {/* Attendants List (Col 7) */}
-              <div className="lg:col-span-7 space-y-4">
-                {isLoading ? (
-                  <div className="space-y-4">
-                    {[1, 2].map((i) => (
-                      <div key={i} className="h-44 rounded-2xl bg-card/60 border border-border/50 animate-pulse" />
-                    ))}
+            {/* Lista Completa de Atendentes */}
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-base font-bold text-foreground font-display">Atendentes Cadastrados</h3>
+                  <p className="text-xs text-muted-foreground">Gerencie vínculos com WhatsApp, lojas e personalização visual.</p>
+                </div>
+                <Button onClick={() => setIsWizardOpen(true)} className="gap-2 rounded-xl text-xs h-8 bg-emerald-600 hover:bg-emerald-500 text-white">
+                  <Plus weight="bold" className="h-3.5 w-3.5" />
+                  <span>Novo Atendente</span>
+                </Button>
+              </div>
+
+              {isLoading ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {[1, 2].map((i) => (
+                    <div key={i} className="h-44 rounded-2xl bg-card/60 border border-border/50 animate-pulse" />
+                  ))}
+                </div>
+              ) : filteredAttendants.length === 0 ? (
+                <div className="text-center py-16 rounded-2xl border border-dashed border-border/80 bg-card/40 space-y-4">
+                  <Headset weight="light" className="h-12 w-12 text-muted-foreground mx-auto" />
+                  <div className="space-y-1">
+                    <h3 className="text-base font-semibold">{selectedWhatsApp ? "Nenhum atendente responsável por este WhatsApp" : "Nenhum atendente neste filtro"}</h3>
+                    <p className="text-xs text-muted-foreground max-w-sm mx-auto">
+                      Crie um atendente digital vinculado ao número do WhatsApp da sua loja.
+                    </p>
                   </div>
-                ) : filteredAttendants.length === 0 ? (
-                  <div className="text-center py-16 rounded-2xl border border-dashed border-border/80 bg-card/40 space-y-4">
-                    <Headset weight="light" className="h-12 w-12 text-muted-foreground mx-auto" />
-                    <div className="space-y-1">
-                      <h3 className="text-base font-semibold">{selectedWhatsApp ? "Nenhum atendente responsável por este WhatsApp" : "Nenhum atendente neste filtro"}</h3>
-                      <p className="text-xs text-muted-foreground max-w-sm mx-auto">
-                        Crie um atendente digital vinculado ao número do WhatsApp da sua loja.
-                      </p>
-                    </div>
-                    <Button onClick={() => setIsWizardOpen(true)} className="gap-2 rounded-xl">
-                      <Plus weight="bold" className="h-4 w-4" />
-                      <span>Criar Atendente</span>
-                    </Button>
-                  </div>
-                ) : (
-                  <div className="space-y-3.5">
+                  <Button onClick={() => setIsWizardOpen(true)} className="gap-2 rounded-xl">
+                    <Plus weight="bold" className="h-4 w-4" />
+                    <span>Criar Atendente</span>
+                  </Button>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {filteredAttendants.map((agent) => {
                       const isSelected = previewAgent?.key === agent.key;
                       const assignedSession = getAssignedSession(agent);
@@ -971,231 +1443,6 @@ export default function AttendantsPage() {
                 )}
               </div>
 
-              {/* Right Col: WORKSPACE PREVIEW & LIVE SANDBOX (Col 5) */}
-              <div className="lg:col-span-5 space-y-4">
-                {previewAgent ? (
-                  <Card className="rounded-2xl border-border/70 bg-card/85 backdrop-blur shadow-sm overflow-hidden sticky top-20">
-                    <CardHeader className="pb-3 border-b border-border/40">
-                      <div className="flex flex-col items-start sm:flex-row sm:items-center justify-between gap-2">
-                        <div>
-                          <CardTitle className="text-base font-bold text-foreground font-display flex items-center gap-2">
-                            <span>{previewAgent.name}</span>
-                            <Badge
-                              variant="outline"
-                              className={cn(
-                                "text-[10px] font-bold uppercase",
-                                previewAgent.active !== false
-                                  ? "border-emerald-500/30 text-emerald-400 bg-emerald-500/10"
-                                  : "border-amber-500/30 text-amber-400 bg-amber-500/10"
-                              )}
-                            >
-                              {previewPresence?.label}
-                            </Badge>
-                          </CardTitle>
-                          <CardDescription className="text-xs">
-                            {previewStore?.name || "Sem loja vinculada"} · {previewSession?.phone || previewSession?.sessionName || "Sem WhatsApp"}
-                          </CardDescription>
-                        </div>
-
-                        <div className="flex items-center gap-1.5">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => setAvatarEditorAgent(previewAgent)}
-                            className="h-7 text-xs rounded-xl px-2.5 gap-1.5 border-emerald-500/40 text-emerald-400 hover:bg-emerald-500/10 font-semibold"
-                          >
-                            <TShirt className="h-3.5 w-3.5" />
-                            <span>Avatar Studio</span>
-                          </Button>
-
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => setCustomizerAgent(previewAgent)}
-                            className="h-7 text-xs rounded-xl px-2 gap-1 border-border/60 text-muted-foreground hover:text-foreground"
-                          >
-                            <Sliders className="h-3 w-3" />
-                            <span>IA</span>
-                          </Button>
-                        </div>
-                      </div>
-                    </CardHeader>
-
-                    <CardContent className="p-3.5 space-y-4">
-                      {/* Living Character Workstation */}
-                      <div className="w-full h-[400px] sm:h-[460px] rounded-2xl overflow-hidden border border-border/50 shadow-inner relative">
-                        <div className="w-full h-full flex flex-col items-center justify-center p-4 bg-gradient-to-b from-[#091120] to-[#040812] relative overflow-hidden select-none">
-                          {/* Isometric Grid Floor Accent */}
-                          <div
-                            className="absolute inset-0 opacity-15 pointer-events-none"
-                            style={{
-                              backgroundImage: "radial-gradient(circle at 2px 2px, #10b981 1px, transparent 0)",
-                              backgroundSize: "24px 24px",
-                            }}
-                          />
-
-                          {/* Top Workspace State Bar */}
-                          <div className="absolute top-2 left-2 z-20 flex items-center gap-2">
-                            <div className="px-2.5 py-0.5 rounded-full bg-black/60 border border-border/60 text-[10px] flex items-center gap-1.5 backdrop-blur-sm">
-                              <span
-                                className={cn(
-                                  "w-1.5 h-1.5 rounded-full",
-                                  previewAgent.active !== false ? "bg-emerald-400 animate-pulse" : "bg-amber-400"
-                                )}
-                              />
-                              <span className="font-semibold text-foreground">{previewAgent.name}</span>
-                              <span className="text-muted-foreground">•</span>
-                              <span
-                                className={cn(
-                                  "font-mono text-[9px]",
-                                  previewAgent.active !== false ? "text-emerald-400" : "text-amber-400"
-                                )}
-                              >
-                                {previewPresence?.label}
-                              </span>
-                            </div>
-                          </div>
-
-                          {/* Top-right quick hint */}
-                          <button
-                            type="button"
-                            onClick={() => setAvatarEditorAgent(previewAgent)}
-                            className="absolute top-2 right-2 z-20 px-2 py-0.5 rounded-full bg-black/60 border border-emerald-500/30 text-[9px] text-emerald-300 font-mono hover:bg-emerald-500/20 transition-all flex items-center gap-1 backdrop-blur-sm"
-                          >
-                            <TShirt className="w-3 h-3" />
-                            <span>Editar Avatar</span>
-                          </button>
-
-                          {/* Central Living Avatar with Dynamic Pose */}
-                          <div className="relative w-full h-[320px] sm:h-[380px] flex flex-col items-center justify-center my-auto">
-                            <ZaiAvatarRenderer
-                              avatar={(() => {
-                                const base =
-                                  previewAgent.avatarConfig ||
-                                  createAgentAvatar({
-                                    agentId: previewAgent.key || previewAgent.name,
-                                    name: previewAgent.name,
-                                    role: previewAgent.role,
-                                    storeId: previewStore?.id,
-                                    storeDNA: previewStore ? buildStoreVisualDNA(previewStore) : undefined,
-                                    gender:
-                                      previewAgent.character?.gender ||
-                                      (previewAgent.name?.toLowerCase().includes("carlos") ? "male" : "female"),
-                                  });
-
-                                if (previewPresence?.state === "WORKING" || previewPresence?.state === "TYPING") {
-                                  return {
-                                    ...base,
-                                    workObject: "laptop_zai",
-                                  };
-                                } else {
-                                  return {
-                                    ...base,
-                                    workObject: "hands_in_pockets",
-                                  };
-                                }
-                              })()}
-                              state={previewPresence?.state || "WAITING"}
-                              size="workspace"
-                              showAura={true}
-                              showStatusBadge={false}
-                              showBrandingLayer={false}
-                              onClick={() => setAvatarEditorAgent(previewAgent)}
-                            />
-
-                            {/* PC Workstation Holo Overlay when Active */}
-                            {(previewPresence?.state === "WORKING" || previewPresence?.state === "TYPING") && (
-                              <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 pointer-events-none flex flex-col items-center z-20">
-                                <div className="px-2 py-0.5 rounded-md bg-emerald-950/80 border border-emerald-500/40 text-[9px] text-emerald-300 font-mono flex items-center gap-1 shadow-lg backdrop-blur-xs">
-                                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping" />
-                                  <span>Atendimento em andamento</span>
-                                </div>
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Store Inheritance & Connected WhatsApp Banner */}
-                      <div className="p-3 rounded-xl border border-emerald-500/30 bg-emerald-500/5 text-xs space-y-1.5">
-                        <div className="flex items-center justify-between gap-2 flex-wrap">
-                          <div className="flex items-center gap-1.5 font-semibold text-emerald-400">
-                            <ShieldCheck weight="fill" className="h-4 w-4 shrink-0" />
-                            <span>{previewStore?.name || "Sem loja vinculada"}</span>
-                          </div>
-                          {getAssignedSession(previewAgent) && (
-                            <div className="flex items-center gap-1 text-[11px] text-foreground font-mono bg-background/50 px-2 py-0.5 rounded-md border border-border/50">
-                              <WhatsappLogo weight="fill" className="h-3 w-3 text-emerald-400" />
-                              <span>{getAssignedSession(previewAgent)?.sessionName || getAssignedSession(previewAgent)?.phone}</span>
-                            </div>
-                          )}
-                        </div>
-                        <p className="text-muted-foreground text-[11px] leading-relaxed">
-                          <button type="button" onClick={() => { setSearchParams(current => { const next = new URLSearchParams(current); if (previewSession?.sessionId) next.set("sessionId", previewSession.sessionId); next.set("section", "business"); return next; }); }} className="text-emerald-400 hover:underline">Editar loja e conhecimento do WhatsApp</button>
-                        </p>
-                      </div>
-
-                      <div className="grid grid-cols-2 gap-2 text-xs">
-                        <div className="rounded-xl border border-border/50 bg-background/50 p-3"><span className="text-muted-foreground block">Respostas IA hoje</span><strong className="text-lg">{sessionMetrics?.messagesToday ?? "—"}</strong></div>
-                        <div className="rounded-xl border border-border/50 bg-background/50 p-3"><span className="text-muted-foreground block">Tokens hoje</span><strong className="text-lg">{sessionMetrics?.tokensToday ?? "—"}</strong></div>
-                      </div>
-
-                      {/* Quick Test Chat Sandbox */}
-                      <div className="space-y-2 pt-2 border-t border-border/40">
-                        <p className="text-xs font-semibold text-foreground flex items-center gap-1.5">
-                          <ChatCircleText className="h-3.5 w-3.5 text-emerald-400" />
-                          <span>Testar resposta</span>
-                        </p>
-
-                        <div className="h-36 rounded-xl border border-border/60 bg-background/50 p-2.5 overflow-y-auto space-y-2 text-xs">
-                          {sandboxMessages.length === 0 && <p className="text-muted-foreground">Envie uma pergunta para testar a configuração. O teste não envia mensagem ao cliente.</p>}
-                          {sandboxMessages.map((msg, idx) => (
-                            <div
-                              key={idx}
-                              className={cn(
-                                "max-w-[85%] rounded-xl px-3 py-1.5 text-xs leading-relaxed",
-                                msg.sender === "user"
-                                  ? "ml-auto bg-emerald-600 text-white"
-                                  : "mr-auto bg-card border border-border/60 text-foreground"
-                              )}
-                            >
-                              {msg.text}
-                            </div>
-                          ))}
-                          {isTestingAgent && (
-                            <div className="mr-auto bg-card border border-border/60 text-muted-foreground rounded-xl px-3 py-1.5 text-xs italic animate-pulse">
-                              {previewAgent.name} está digitando...
-                            </div>
-                          )}
-                        </div>
-
-                        <form onSubmit={handleSendTestMessage} className="flex gap-2">
-                          <Input
-                            placeholder={`Pergunte algo para ${previewAgent.name}...`}
-                            value={sandboxInput}
-                            onChange={(e) => setSandboxInput(e.target.value)}
-                            className="rounded-xl text-xs h-8"
-                            disabled={isTestingAgent}
-                          />
-                          <Button
-                            type="submit"
-                            size="sm"
-                            disabled={!sandboxInput.trim() || isTestingAgent}
-                            className="h-8 rounded-xl text-xs bg-emerald-600 hover:bg-emerald-500 text-white px-3"
-                          >
-                            Enviar
-                          </Button>
-                        </form>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ) : (
-                  <div className="h-72 rounded-2xl border border-dashed border-border/60 bg-card/30 flex items-center justify-center text-xs text-muted-foreground">
-                    Selecione um atendente para visualizar seu workspace
-                  </div>
-                )}
-              </div>
-            </div>
           </>
         )}
       </main>

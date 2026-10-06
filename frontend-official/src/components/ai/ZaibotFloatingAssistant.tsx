@@ -1,6 +1,6 @@
 import { lazy, Suspense, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Loader2, Sparkles } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 
@@ -18,7 +18,11 @@ export function ZaibotFloatingAssistant() {
       <div className="fixed bottom-20 right-4 z-40 md:bottom-6 md:right-6 group select-none">
         {/* Tooltip speech bubble on hover */}
         <div className="absolute right-16 top-1/2 -translate-y-1/2 bg-card/95 border border-emerald-500/40 text-foreground text-[11px] font-semibold py-1 px-2.5 rounded-xl shadow-lg backdrop-blur-md whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none flex items-center gap-1.5">
-          <Sparkles className="h-3 w-3 text-emerald-400" />
+          <img
+            src="/assets/mascot/zaibot_avatar.png"
+            alt="ZAIBOT"
+            className="h-3.5 w-3.5 rounded-full object-cover shrink-0"
+          />
           <span>Assistente ZAI</span>
         </div>
 

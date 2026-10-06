@@ -524,13 +524,21 @@ export default function UnifiedAIPage({ defaultSection }: AIPageProps) {
               >
                 <div
                   className={cn(
-                    "h-8 w-8 rounded-lg flex items-center justify-center shrink-0 transition-colors",
+                    "h-8 w-8 rounded-lg flex items-center justify-center shrink-0 transition-colors overflow-hidden",
                     isSelected
                       ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/30"
                       : "bg-muted/40 text-muted-foreground"
                   )}
                 >
-                  <Icon className="h-4 w-4" />
+                  {tab.id === "zaibot" ? (
+                    <img
+                      src="/assets/mascot/zaibot_avatar.png"
+                      alt="ZAIBOT"
+                      className="h-5 w-5 rounded-md object-cover"
+                    />
+                  ) : (
+                    <Icon className="h-4 w-4" />
+                  )}
                 </div>
                 <div className="min-w-0">
                   <span className="text-xs block truncate leading-tight">
