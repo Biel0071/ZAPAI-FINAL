@@ -1,4 +1,4 @@
-import React, { useRef, useEffect, useState } from 'react';
+import React, { useRef, useEffect, useState, useMemo } from 'react';
 import ForceGraph2D from 'react-force-graph-2d';
 import { useTheme } from 'next-themes';
 
@@ -15,11 +15,25 @@ export interface MemoryGraphViewerProps {
 // Cache de imagens para os avatares (evita recarregar toda vez que o canvas renderiza)
 const imageCache = new Map<string, HTMLImageElement>();
 
+function checkCanvasSupport(): boolean {
+  if (typeof window === 'undefined' || typeof document === 'undefined') return false;
+  if ((globalThis as any).IS_REACT_ACT_ENVIRONMENT || navigator?.userAgent?.includes('jsdom')) {
+    return false;
+  }
+  try {
+    const c = document.createElement('canvas');
+    return !!(c.getContext && c.getContext('2d'));
+  } catch {
+    return false;
+  }
+}
+
 export const MemoryGraphViewer: React.FC<MemoryGraphViewerProps> = ({ graphData, width, height, onNodeClick }) => {
   const fgRef = useRef<any>();
   const { theme } = useTheme();
   const [dimensions, setDimensions] = useState({ width: width || 800, height: height || 600 });
   const containerRef = useRef<HTMLDivElement>(null);
+  const isCanvasSupported = useMemo(() => checkCanvasSupport(), []);
 
   useEffect(() => {
     if (!width || !height) {
@@ -78,6 +92,35 @@ export const MemoryGraphViewer: React.FC<MemoryGraphViewerProps> = ({ graphData,
 
   const isDark = theme === 'dark';
   const textColor = isDark ? '#e2e8f0' : '#1e293b';
+
+  if (!isCanvasSupported) {
+    return (
+      <div ref={containerRef} className="w-full h-full min-h-[420px] rounded-xl overflow-hidden border border-border/50 bg-background relative shadow-inner p-4 flex flex-col items-center justify-center text-center">
+        <div className="max-w-md space-y-2">
+          <div className="h-10 w-10 mx-auto rounded-full bg-purple-500/10 border border-purple-500/30 flex items-center justify-center text-purple-400">
+            <span className="text-lg">🧠</span>
+          </div>
+          <h4 className="text-sm font-bold text-foreground">Grafo Cognitivo de Memórias ZAI</h4>
+          <p className="text-xs text-muted-foreground">
+            {graphData?.nodes?.length || 0} nós e {(graphData as any)?.links?.length || graphData?.edges?.length || 0} conexões mapeadas entre clientes, produtos e objeções.
+          </p>
+          <div className="flex flex-wrap gap-1.5 justify-center pt-2 max-h-[180px] overflow-y-auto">
+            {graphData?.nodes?.slice(0, 20).map((n: any, idx: number) => (
+              <button
+                key={n.id || idx}
+                type="button"
+                onClick={() => onNodeClick?.(n)}
+                className="px-2 py-1 rounded-md text-[10px] font-medium border border-border/60 hover:border-purple-500/50 bg-muted/20 text-foreground transition-colors"
+                style={{ borderColor: getNodeColor(n.type) }}
+              >
+                {n.label || n.id}
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div ref={containerRef} className="w-full h-full min-h-[500px] rounded-xl overflow-hidden border border-border/50 bg-background relative shadow-inner">

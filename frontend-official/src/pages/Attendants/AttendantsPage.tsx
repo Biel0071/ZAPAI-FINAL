@@ -471,18 +471,12 @@ export default function AttendantsPage() {
               Configuração
             </Button>
             <Button
-              variant={activeTab === "memory" ? "secondary" : "outline"}
-              className="rounded-xl"
-              onClick={() => handleTabChange("memory")}
-            >
-              Memória
-            </Button>
-            <Button
-              variant={activeTab === "evolution" ? "secondary" : "outline"}
-              className="rounded-xl"
+              variant={(activeTab === "evolution" || activeTab === "memory") ? "secondary" : "outline"}
+              className="rounded-xl gap-1.5"
               onClick={() => handleTabChange("evolution")}
             >
-              Evolução
+              <Sparkle weight="fill" className="h-4 w-4 text-purple-400" />
+              <span>Memória & Evolução</span>
             </Button>
             <Button
               onClick={() => setIsWizardOpen(true)}
@@ -552,30 +546,25 @@ export default function AttendantsPage() {
 
           <button
             type="button"
-            onClick={() => handleTabChange("memory")}
+            onClick={() => handleTabChange("evolution")}
             className={cn(
               "flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs md:text-sm font-semibold transition-all select-none",
-              activeTab === "memory"
+              (activeTab === "evolution" || activeTab === "memory")
                 ? "bg-purple-500/15 border border-purple-500/40 text-purple-400 shadow-sm"
                 : "text-muted-foreground hover:text-foreground hover:bg-card/50"
             )}
           >
-            <Sparkle weight="fill" className="h-4 w-4" />
-            <span>Memória</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => handleTabChange("evolution")}
-            className={cn(
-              "flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs md:text-sm font-semibold transition-all select-none",
-              activeTab === "evolution"
-                ? "bg-emerald-500/15 border border-emerald-500/40 text-emerald-400 shadow-sm"
-                : "text-muted-foreground hover:text-foreground hover:bg-card/50"
-            )}
-          >
-            <TrendUp className="h-4 w-4" />
-            <span>Evolução</span>
+            <Sparkle weight="fill" className="h-4 w-4 text-purple-400" />
+            <span>Memória & Evolução Cognitiva</span>
+            <Badge
+              variant="outline"
+              className={cn(
+                "ml-1 text-[10px] px-1.5 py-0 border-purple-500/30",
+                (activeTab === "evolution" || activeTab === "memory") ? "bg-purple-500/20 text-purple-300" : "text-muted-foreground"
+              )}
+            >
+              Grafo Vivo
+            </Badge>
           </button>
         </div>
 
@@ -597,15 +586,9 @@ export default function AttendantsPage() {
               />
             </React.Suspense>
           </div>
-        ) : activeTab === "memory" ? (
+        ) : (activeTab === "evolution" || activeTab === "memory") ? (
           <div className="rounded-2xl border border-border/70 bg-card/85 backdrop-blur shadow-sm p-4 md:p-6">
-            <React.Suspense fallback={<div className="p-8 text-center text-sm text-muted-foreground">Carregando base de memória...</div>}>
-              <MemoryView />
-            </React.Suspense>
-          </div>
-        ) : activeTab === "evolution" ? (
-          <div className="rounded-2xl border border-border/70 bg-card/85 backdrop-blur shadow-sm p-4 md:p-6">
-            <React.Suspense fallback={<div className="p-8 text-center text-sm text-muted-foreground">Carregando evolução e aprendizado...</div>}>
+            <React.Suspense fallback={<div className="p-8 text-center text-sm text-muted-foreground">Carregando memória & evolução cognitiva...</div>}>
               <EvolutionTab />
             </React.Suspense>
           </div>
