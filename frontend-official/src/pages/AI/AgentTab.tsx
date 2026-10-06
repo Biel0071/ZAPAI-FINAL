@@ -47,12 +47,16 @@ import {
   ChevronsUpDown,
   Maximize2,
   Minimize2,
+  History,
+  MessageSquare,
+  ArrowUpRight,
 } from "lucide-react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { apiService, requestApiEndpoint, type AIConnectionTestResult } from "@/core/services/apiService";
 import { useToast } from "@/state/hooks/use-toast";
 import { AICharacterViewer, type AgentRuntimeState } from "@/components/evolution/AICharacterViewer";
 import { AgentWorkspace } from "@/components/ai/workspace/AgentWorkspace";
+import { AvatarEditorModal } from "@/components/avatar-engine/AvatarEditorModal";
 import { cn } from "@/core/lib/utils";
 
 const PROMPT_TEMPLATES = [
@@ -225,6 +229,67 @@ export function AgentTab({
       setCharacterMode("camila");
     }
   }, [selectedAgentKey]);
+
+  // Interactive Sandbox Mode: "chat" (Live test) | "evolution" (Ideas & Score) | "real" (Atendimentos reais & Sync)
+  const [sandboxTab, setSandboxTab] = useState<"chat" | "evolution" | "real">("chat");
+  const [avatarEditorOpen, setAvatarEditorOpen] = useState(false);
+  const [evolutionData, setEvolutionData] = useState<any>(null);
+  const [realConversations, setRealConversations] = useState<any[]>([]);
+  const [isSyncingAttendance, setIsSyncingAttendance] = useState(false);
+  const [syncStatus, setSyncStatus] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    if (selectedAgentKey && typeof apiService.getAgentEvolution === "function") {
+      apiService.getAgentEvolution(selectedAgentKey)
+        .then((res: any) => {
+          if (!cancelled && res?.success) setEvolutionData(res.evolution);
+        })
+        .catch(() => {});
+    }
+    if (typeof apiService.getConversations === "function") {
+      apiService.getConversations(false, { limit: 6 })
+        .then((convs: any) => {
+          if (!cancelled && Array.isArray(convs)) setRealConversations(convs);
+        })
+        .catch(() => {});
+    }
+    return () => { cancelled = true; };
+  }, [selectedAgentKey]);
+
+  const handleSyncRealAttendance = async () => {
+    setIsSyncingAttendance(true);
+    setSyncStatus(null);
+    try {
+      if (typeof apiService.syncManualAttendance !== "function") {
+        throw new Error("Sincronização indisponível.");
+      }
+      const res = await apiService.syncManualAttendance(300);
+      const mined = res?.minedCount ?? 0;
+      const xp = res?.xpGained ?? 0;
+      setSyncStatus(`${mined} conversas sincronizadas • +${xp} XP de evolução`);
+      toast({
+        title: "Sincronização Concluída",
+        description: `${mined} atendimentos reais foram minerados e incorporados à inteligência do atendente.`,
+      });
+      if (selectedAgentKey && typeof apiService.getAgentEvolution === "function") {
+        const evo = await apiService.getAgentEvolution(selectedAgentKey);
+        if (evo?.success) setEvolutionData(evo.evolution);
+      }
+      if (typeof apiService.getConversations === "function") {
+        const latestConvs = await apiService.getConversations(true, { limit: 6 });
+        if (Array.isArray(latestConvs)) setRealConversations(latestConvs);
+      }
+    } catch (err: any) {
+      toast({
+        title: "Falha na sincronização",
+        description: err?.message || "Não foi possível sincronizar os atendimentos reais.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSyncingAttendance(false);
+    }
+  };
 
   // Agent configuration
   const [agentName, setAgentName] = useState("Atendente");
@@ -591,25 +656,38 @@ Tom: ${agentTone}. Estilo: ${responseStyle}.`;
   ------------------------------------------------------------- */
   const renderWorkspaceSection = () => (
     <Card className="bg-card border-border/80 shadow-md overflow-hidden animate-in fade-in duration-200">
-      <div className="p-3 border-b border-border/40 flex items-center justify-between bg-muted/10">
-        <div className="flex items-center gap-2">
-          <Bot className="h-4 w-4 text-emerald-400" />
-          <span className="text-xs font-bold text-foreground">Ambiente Virtual & Atendente 3D ({activeWorkspaceAgent.name})</span>
-          <Badge variant="outline" className={cn("text-[10px] py-0", aiEnabled ? "text-emerald-400 border-emerald-500/30" : "text-muted-foreground")}>
+      <div className="p-3 border-b border-border/40 flex items-center justify-between bg-muted/10 gap-2">
+        <div className="flex items-center gap-2 min-w-0">
+          <Bot className="h-4 w-4 text-emerald-400 shrink-0" />
+          <span className="text-xs font-bold text-foreground truncate">Ambiente Virtual & Atendente 3D ({activeWorkspaceAgent.name})</span>
+          <Badge variant="outline" className={cn("text-[10px] py-0 shrink-0", aiEnabled ? "text-emerald-400 border-emerald-500/30" : "text-muted-foreground")}>
             {aiEnabled ? "Online" : "Pausado"}
           </Badge>
         </div>
-        {viewMode === "complete" && (
+        <div className="flex items-center gap-1.5 shrink-0">
           <Button
             type="button"
-            variant="ghost"
+            variant="outline"
             size="sm"
-            onClick={() => toggleCard("workspace")}
-            className="h-7 w-7 p-0 text-muted-foreground hover:text-foreground"
+            onClick={() => setAvatarEditorOpen(true)}
+            className="h-7 text-[11px] px-2.5 rounded-lg gap-1 border-emerald-500/40 text-emerald-400 hover:bg-emerald-500/10 font-semibold"
+            title="Abrir Avatar Studio para personalizar roupas, corpo, cabelo e loja DNA"
           >
-            <ChevronDown className={cn("h-4 w-4 transition-transform", !collapsedCards.workspace && "rotate-180")} />
+            <Sparkles className="h-3.5 w-3.5" />
+            <span>Avatar Studio</span>
           </Button>
-        )}
+          {viewMode === "complete" && (
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={() => toggleCard("workspace")}
+              className="h-7 w-7 p-0 text-muted-foreground hover:text-foreground"
+            >
+              <ChevronDown className={cn("h-4 w-4 transition-transform", !collapsedCards.workspace && "rotate-180")} />
+            </Button>
+          )}
+        </div>
       </div>
 
       {!collapsedCards.workspace && (
@@ -624,7 +702,13 @@ Tom: ${agentTone}. Estilo: ${responseStyle}.`;
             setCharacterMode(mode);
             onSelectAgent?.(mode);
           }}
-          onOpenCustomizer={() => onOpenCustomizer?.(activeWorkspaceAgent)}
+          onOpenCustomizer={(tab) => {
+            if (tab === "visual" || tab === "roupas" || tab === "acessorios" || tab === "cenario") {
+              setAvatarEditorOpen(true);
+            } else {
+              onOpenCustomizer?.(activeWorkspaceAgent);
+            }
+          }}
         />
       )}
     </Card>
@@ -1084,35 +1168,37 @@ Tom: ${agentTone}. Estilo: ${responseStyle}.`;
   );
 
   const renderSandboxSimulator = () => (
-    <Card className="bg-card border-border/80 shadow-md flex flex-col h-[700px] overflow-hidden">
+    <Card className="bg-card border-border/80 shadow-md flex flex-col h-[585px] overflow-hidden">
       {/* Header do Sandbox */}
-      <CardHeader className="p-3.5 border-b border-border/40 bg-muted/10 shrink-0">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <div className="h-8 w-8 rounded-lg bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-emerald-400">
+      <CardHeader className="p-3 border-b border-border/40 bg-muted/10 shrink-0">
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2 min-w-0">
+            <div className="h-8 w-8 rounded-lg bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-emerald-400 shrink-0">
               <Bot className="h-4 w-4" />
             </div>
-            <div>
-              <CardTitle className="text-xs font-bold text-foreground">
-                Sandbox de Atendimento & Testes
+            <div className="min-w-0">
+              <CardTitle className="text-xs font-bold text-foreground truncate">
+                Central Interativa do Atendente
               </CardTitle>
-              <CardDescription className="text-[10px] text-muted-foreground">
+              <CardDescription className="text-[10px] text-muted-foreground truncate">
                 Testando com as regras de {agentName}
               </CardDescription>
             </div>
           </div>
 
-          <div className="flex items-center gap-1">
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              onClick={() => setChatMessages([])}
-              title="Limpar conversa"
-              className="h-7 w-7 p-0 text-muted-foreground hover:text-foreground"
-            >
-              <Trash2 className="h-3.5 w-3.5" />
-            </Button>
+          <div className="flex items-center gap-1 shrink-0">
+            {sandboxTab === "chat" && (
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={() => setChatMessages([])}
+                title="Limpar conversa"
+                className="h-7 w-7 p-0 text-muted-foreground hover:text-foreground"
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+              </Button>
+            )}
             {viewMode === "complete" && (
               <Button
                 type="button"
@@ -1126,6 +1212,49 @@ Tom: ${agentTone}. Estilo: ${responseStyle}.`;
             )}
           </div>
         </div>
+
+        {/* Tab switchers: Chat de Teste, Ideias de Evolução, Atendimentos Reais & Sync */}
+        <div className="flex items-center gap-1 pt-2">
+          <button
+            type="button"
+            onClick={() => setSandboxTab("chat")}
+            className={cn(
+              "flex-1 flex items-center justify-center gap-1 py-1 px-2 rounded-lg text-[11px] font-semibold transition-all cursor-pointer",
+              sandboxTab === "chat"
+                ? "bg-background text-emerald-400 border border-emerald-500/30 shadow-xs"
+                : "text-muted-foreground hover:text-foreground hover:bg-muted/30"
+            )}
+          >
+            <Send className="h-3 w-3" />
+            <span>Chat de Teste</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setSandboxTab("evolution")}
+            className={cn(
+              "flex-1 flex items-center justify-center gap-1 py-1 px-2 rounded-lg text-[11px] font-semibold transition-all cursor-pointer",
+              sandboxTab === "evolution"
+                ? "bg-background text-purple-400 border border-purple-500/30 shadow-xs"
+                : "text-muted-foreground hover:text-foreground hover:bg-muted/30"
+            )}
+          >
+            <Brain className="h-3 w-3" />
+            <span>Evolução IA</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setSandboxTab("real")}
+            className={cn(
+              "flex-1 flex items-center justify-center gap-1 py-1 px-2 rounded-lg text-[11px] font-semibold transition-all cursor-pointer",
+              sandboxTab === "real"
+                ? "bg-background text-sky-400 border border-sky-500/30 shadow-xs"
+                : "text-muted-foreground hover:text-foreground hover:bg-muted/30"
+            )}
+          >
+            <History className="h-3 w-3" />
+            <span>Atendimentos & Sync</span>
+          </button>
+        </div>
       </CardHeader>
 
       {viewMode === "complete" && collapsedCards.sandbox ? (
@@ -1138,112 +1267,264 @@ Tom: ${agentTone}. Estilo: ${responseStyle}.`;
         </div>
       ) : (
         <>
-          {/* Quick Test Chips */}
-          <div className="p-2 border-b border-border/30 bg-muted/5 flex items-center gap-1.5 overflow-x-auto scrollbar-none shrink-0">
-            <span className="text-[10px] text-muted-foreground shrink-0 font-medium pl-1">Exemplos:</span>
-            {QUICK_TEST_PROMPTS.map((q, idx) => (
-              <button
-                key={idx}
-                type="button"
-                onClick={() => handleSendMessage(q)}
-                disabled={isSending || !selectedAgentKey}
-                className="px-2 py-0.5 rounded-full text-[10px] bg-muted/40 hover:bg-emerald-500/15 text-muted-foreground hover:text-emerald-300 border border-border/60 shrink-0 transition-colors"
-              >
-                {q}
-              </button>
-            ))}
-          </div>
-
-          {/* Mensagens do Chat */}
-          <div className="flex-1 p-3.5 overflow-y-auto space-y-3 text-xs scrollbar-thin">
-            {chatMessages.map((msg, index) => {
-              const isUser = msg.role === "user";
-              return (
-                <div key={index} className={cn("flex flex-col", isUser ? "items-end" : "items-start")}>
-                  <div
-                    className={cn(
-                      "max-w-[85%] rounded-2xl px-3 py-2 leading-relaxed shadow-xs",
-                      isUser
-                        ? "bg-emerald-500 text-white rounded-tr-xs"
-                        : "bg-muted/50 text-foreground border border-border/40 rounded-tl-xs"
-                    )}
+          {sandboxTab === "chat" && (
+            <div className="flex-1 flex flex-col min-h-0">
+              {/* Quick Test Chips */}
+              <div className="p-2 border-b border-border/30 bg-muted/5 flex items-center gap-1.5 overflow-x-auto scrollbar-none shrink-0">
+                <span className="text-[10px] text-muted-foreground shrink-0 font-medium pl-1">Exemplos:</span>
+                {QUICK_TEST_PROMPTS.map((q, idx) => (
+                  <button
+                    key={idx}
+                    type="button"
+                    onClick={() => handleSendMessage(q)}
+                    disabled={isSending || !selectedAgentKey}
+                    className="px-2 py-0.5 rounded-full text-[10px] bg-muted/40 hover:bg-emerald-500/15 text-muted-foreground hover:text-emerald-300 border border-border/60 shrink-0 transition-colors"
                   >
-                    <p className="whitespace-pre-wrap">{msg.text}</p>
-                  </div>
-
-                  <div className="flex flex-wrap items-center gap-1.5 mt-1 px-1 text-[10px] text-muted-foreground">
-                    <span>{msg.timestamp}</span>
-
-                    {!isUser && msg.metadata?.ruleApplied && (
-                      <Badge
-                        variant="outline"
-                        className="text-[9px] py-0 px-1 border-emerald-500/30 text-emerald-400 font-normal"
-                      >
-                        {msg.metadata.ruleApplied}
-                      </Badge>
-                    )}
-
-                    {!isUser && msg.metadata?.confidenceScore && (
-                      <Badge
-                        variant="outline"
-                        className="text-[9px] py-0 px-1 border-border/60 text-muted-foreground font-normal"
-                      >
-                        {msg.metadata.confidenceScore}% Confiança
-                      </Badge>
-                    )}
-
-                    {msg.metadata?.responseTimeMs && (
-                      <span className="text-emerald-400 font-medium">
-                        {msg.metadata.responseTimeMs}ms
-                      </span>
-                    )}
-
-                    {msg.metadata?.tokens && (
-                      <span>{msg.metadata.tokens} tok</span>
-                    )}
-                  </div>
-                </div>
-              );
-            })}
-
-            {isSending && (
-              <div className="flex items-center gap-2 p-2 rounded-xl bg-muted/30 text-muted-foreground max-w-[60%]">
-                <RefreshCw className="h-3 w-3 animate-spin text-emerald-400" />
-                <span className="text-[11px] animate-pulse">{agentName} digitando...</span>
+                    {q}
+                  </button>
+                ))}
               </div>
-            )}
-          </div>
 
-          {/* Input do Sandbox */}
-          <form
-            onSubmit={(e) => {
-              e.preventDefault();
-              handleSendMessage();
-            }}
-            className="p-3 border-t border-border/40 bg-muted/10 shrink-0"
-          >
-            <div className="flex items-center gap-2">
-              <Input
-                value={inputMessage}
-                onChange={(e) => setInputMessage(e.target.value)}
-                placeholder="Digite como se fosse um cliente..."
-                disabled={isSending}
-                className="h-9 text-xs bg-background"
-              />
-              <Button
-                type="submit"
-                size="sm"
-                disabled={isSending || !selectedAgentKey || !inputMessage.trim()}
-                className="h-9 w-9 p-0 bg-emerald-500 hover:bg-emerald-600 text-white shrink-0"
+              {/* Mensagens do Chat */}
+              <div className="flex-1 p-3.5 overflow-y-auto space-y-3 text-xs scrollbar-thin">
+                {chatMessages.length === 0 && (
+                  <div className="text-center py-8 text-xs text-muted-foreground space-y-1.5">
+                    <p className="font-semibold text-foreground">Converse com {agentName}</p>
+                    <p className="text-[11px]">Envie uma mensagem abaixo ou use os exemplos rápidos acima para testar.</p>
+                  </div>
+                )}
+                {chatMessages.map((msg, index) => {
+                  const isUser = msg.role === "user";
+                  return (
+                    <div key={index} className={cn("flex flex-col", isUser ? "items-end" : "items-start")}>
+                      <div
+                        className={cn(
+                          "max-w-[85%] rounded-2xl px-3 py-2 leading-relaxed shadow-xs",
+                          isUser
+                            ? "bg-emerald-500 text-white rounded-tr-xs"
+                            : "bg-muted/50 text-foreground border border-border/40 rounded-tl-xs"
+                        )}
+                      >
+                        <p className="whitespace-pre-wrap">{msg.text}</p>
+                      </div>
+
+                      <div className="flex flex-wrap items-center gap-1.5 mt-1 px-1 text-[10px] text-muted-foreground">
+                        <span>{msg.timestamp}</span>
+
+                        {!isUser && msg.metadata?.ruleApplied && (
+                          <Badge
+                            variant="outline"
+                            className="text-[9px] py-0 px-1 border-emerald-500/30 text-emerald-400 font-normal"
+                          >
+                            {msg.metadata.ruleApplied}
+                          </Badge>
+                        )}
+
+                        {!isUser && msg.metadata?.confidenceScore && (
+                          <Badge
+                            variant="outline"
+                            className="text-[9px] py-0 px-1 border-border/60 text-muted-foreground font-normal"
+                          >
+                            {msg.metadata.confidenceScore}% Confiança
+                          </Badge>
+                        )}
+
+                        {msg.metadata?.responseTimeMs && (
+                          <span className="text-emerald-400 font-medium">
+                            {msg.metadata.responseTimeMs}ms
+                          </span>
+                        )}
+
+                        {msg.metadata?.tokens && (
+                          <span>{msg.metadata.tokens} tok</span>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+
+                {isSending && (
+                  <div className="flex items-center gap-2 p-2 rounded-xl bg-muted/30 text-muted-foreground max-w-[60%]">
+                    <RefreshCw className="h-3 w-3 animate-spin text-emerald-400" />
+                    <span className="text-[11px] animate-pulse">{agentName} digitando...</span>
+                  </div>
+                )}
+              </div>
+
+              {/* Input do Sandbox */}
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  handleSendMessage();
+                }}
+                className="p-3 border-t border-border/40 bg-muted/10 shrink-0"
               >
-                <Send className="h-4 w-4" />
+                <div className="flex items-center gap-2">
+                  <Input
+                    value={inputMessage}
+                    onChange={(e) => setInputMessage(e.target.value)}
+                    placeholder="Digite como se fosse um cliente..."
+                    disabled={isSending}
+                    className="h-9 text-xs bg-background"
+                  />
+                  <Button
+                    type="submit"
+                    size="sm"
+                    disabled={isSending || !selectedAgentKey || !inputMessage.trim()}
+                    className="h-9 w-9 p-0 bg-emerald-500 hover:bg-emerald-600 text-white shrink-0"
+                  >
+                    <Send className="h-4 w-4" />
+                  </Button>
+                </div>
+                <div className="mt-1.5 flex items-center justify-between text-[10px] text-muted-foreground px-1">
+                  <span>Modelo: {selectedModel}</span>
+                  <span>Provedor: {selectedProvider}</span>
+                </div>
+              </form>
+            </div>
+          )}
+
+          {sandboxTab === "evolution" && (
+            <div className="flex-1 p-4 overflow-y-auto space-y-4 text-xs scrollbar-thin">
+              <div className="p-3 rounded-xl border border-purple-500/30 bg-purple-500/5 space-y-2">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Brain className="h-4 w-4 text-purple-400" />
+                    <span className="font-bold text-foreground">Score Cognitivo</span>
+                  </div>
+                  <Badge variant="outline" className="border-purple-500/30 text-purple-300 bg-purple-500/10 text-[10px] font-bold">
+                    {evolutionData?.level || "Avançado"}
+                  </Badge>
+                </div>
+                <div className="flex items-baseline justify-between pt-1">
+                  <span className="text-2xl font-bold font-display text-purple-400">
+                    {evolutionData?.score ?? 85}%
+                  </span>
+                  <span className="text-[11px] text-muted-foreground font-mono">
+                    {evolutionData?.goal?.current ?? 17}/{evolutionData?.goal?.target ?? 20} metas atingidas
+                  </span>
+                </div>
+                <div className="w-full bg-muted/40 h-2 rounded-full overflow-hidden">
+                  <div
+                    className="bg-purple-500 h-full rounded-full transition-all"
+                    style={{ width: `${Math.min(100, evolutionData?.score ?? 85)}%` }}
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <h5 className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
+                  Ideias de Evolução Recomendadas
+                </h5>
+                <div className="space-y-2">
+                  {[
+                    {
+                      title: "Refinar objeções de preço",
+                      desc: "Mineração de conversas indica clientes com dúvidas sobre parcelas e desconto.",
+                      action: "Aplicar Playbook",
+                    },
+                    {
+                      title: "Ajustar prazo de entrega do CEP",
+                      desc: "Clientes com dúvidas de envio têm taxa de fechamento 40% maior quando respondidos rápido.",
+                      action: "Treinar Regra",
+                    },
+                    {
+                      title: "Aumentar tom consultivo no WhatsApp",
+                      desc: "Respostas com perguntas de qualificação aumentam o engajamento.",
+                      action: "Ajustar Tom",
+                    },
+                  ].map((idea, idx) => (
+                    <div key={idx} className="p-3 rounded-xl border border-border/60 bg-muted/10 space-y-1.5">
+                      <div className="flex items-center justify-between">
+                        <span className="font-semibold text-foreground text-xs">{idea.title}</span>
+                        <Badge variant="outline" className="text-[9px] border-emerald-500/30 text-emerald-400">
+                          {idea.action}
+                        </Badge>
+                      </div>
+                      <p className="text-[11px] text-muted-foreground leading-relaxed">
+                        {idea.desc}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => navigate("/ai?tab=evolution")}
+                className="w-full text-xs gap-1.5 border-purple-500/40 text-purple-300 hover:bg-purple-500/10"
+              >
+                <span>Ver Painel Completo de Evolução & Score</span>
+                <ArrowUpRight className="h-3.5 w-3.5" />
               </Button>
             </div>
-            <div className="mt-1.5 flex items-center justify-between text-[10px] text-muted-foreground px-1">
-              <span>Modelo: {selectedModel}</span>
-              <span>Provedor: {selectedProvider}</span>
+          )}
+
+          {sandboxTab === "real" && (
+            <div className="flex-1 p-3.5 overflow-y-auto space-y-3 text-xs scrollbar-thin">
+              <div className="flex items-center justify-between gap-2 p-2.5 rounded-xl border border-sky-500/30 bg-sky-500/5">
+                <div>
+                  <span className="font-bold text-foreground text-xs block">Atendimentos Reais</span>
+                  <span className="text-[10px] text-muted-foreground">Sincronize conversas reais do WhatsApp</span>
+                </div>
+                <Button
+                  size="sm"
+                  onClick={handleSyncRealAttendance}
+                  disabled={isSyncingAttendance}
+                  className="bg-emerald-600 hover:bg-emerald-500 text-white text-xs h-7 gap-1 shadow-xs"
+                >
+                  <RefreshCw className={cn("h-3 w-3", isSyncingAttendance && "animate-spin")} />
+                  <span>{isSyncingAttendance ? "Sincronizando..." : "Sincronizar (Sync)"}</span>
+                </Button>
+              </div>
+
+              {syncStatus && (
+                <div className="p-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-[11px] text-emerald-300 flex items-center gap-1.5">
+                  <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400 shrink-0" />
+                  <span>{syncStatus}</span>
+                </div>
+              )}
+
+              <div className="space-y-1.5">
+                <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground block">
+                  Últimos Atendimentos no WhatsApp (Clique para testar)
+                </span>
+                {realConversations.length === 0 ? (
+                  <div className="text-center py-8 text-xs text-muted-foreground space-y-2 border border-dashed border-border/60 rounded-xl p-4">
+                    <MessageSquare className="h-6 w-6 text-muted-foreground/60 mx-auto" />
+                    <p>Nenhuma conversa encontrada no banco.</p>
+                    <p className="text-[11px]">As mensagens do WhatsApp aparecerão aqui para teste direto.</p>
+                  </div>
+                ) : (
+                  realConversations.map((conv: any) => (
+                    <div
+                      key={conv.id}
+                      onClick={() => {
+                        const sampleMsg = conv.lastMessage || conv.snippet || "Qual é o catálogo de vocês?";
+                        setInputMessage(sampleMsg);
+                        setSandboxTab("chat");
+                      }}
+                      className="p-2.5 rounded-xl border border-border/60 bg-muted/15 hover:bg-emerald-500/10 hover:border-emerald-500/40 cursor-pointer transition-all space-y-1"
+                      title="Clique para testar a resposta do agente com esta mensagem real"
+                    >
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="font-semibold text-foreground truncate max-w-[160px]">
+                          {conv.name || conv.phone || `Conversa #${conv.id}`}
+                        </span>
+                        <span className="text-[10px] text-muted-foreground font-mono">
+                          {conv.updatedAt ? new Date(conv.updatedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "Hoje"}
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-muted-foreground line-clamp-1">
+                        {conv.lastMessage || conv.snippet || "Mensagem de cliente..."}
+                      </p>
+                    </div>
+                  ))
+                )}
+              </div>
             </div>
-          </form>
+          )}
         </>
       )}
     </Card>
@@ -1251,39 +1532,18 @@ Tom: ${agentTone}. Estilo: ${responseStyle}.`;
 
   return (
     <div className="space-y-6">
-      {/* TOP ACTION & MODE CONTROL BAR */}
-      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 p-3.5 rounded-2xl border border-border/80 bg-card shadow-sm">
-        {/* Quick Slash Commands Chips */}
-        <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-none py-0.5">
-          <span className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider mr-1 shrink-0">Ações Rápidas:</span>
-          {[
-            { cmd: "/goal", label: "/goal", icon: Target, desc: "Objetivo Central" },
-            { cmd: "/browser", label: "/browser", icon: Compass, desc: "Grafo de Memórias" },
-            { cmd: "/plan", label: "/plan", icon: BookOpen, desc: "Prompt & Templates" },
-            { cmd: "/grill-me", label: "/grill-me", icon: HelpCircle, desc: "Sabatinar IA" },
-            { cmd: "/learn", label: "/learn", icon: Brain, desc: "Aprender do Histórico" },
-            { cmd: "/boost", label: "/boost", icon: Zap, desc: "Turbinar Provedor" },
-          ].map((action) => {
-            const Icon = action.icon;
-            return (
-              <Button
-                key={action.cmd}
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => handleSlashCommand(action.cmd)}
-                className="h-8 px-2.5 text-xs gap-1.5 rounded-xl border-border/70 hover:border-emerald-500/50 hover:bg-emerald-500/10 text-muted-foreground hover:text-emerald-300 shrink-0 font-mono transition-colors"
-                title={action.desc}
-              >
-                <Icon className="h-3.5 w-3.5 text-emerald-400" />
-                <span>{action.label}</span>
-              </Button>
-            );
-          })}
+      {/* TOP VIEW MODE TOGGLE BAR (AÇÕES RÁPIDAS REMOVED) */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 rounded-2xl border border-border/80 bg-card shadow-sm">
+        <div className="flex items-center gap-2">
+          <Bot className="h-4 w-4 text-emerald-400" />
+          <span className="text-xs font-bold text-foreground">Ambiente do Atendente & Central Interativa</span>
+          <Badge variant="outline" className="border-emerald-500/30 text-emerald-400 bg-emerald-500/10 text-[9px] font-bold">
+            AO VIVO
+          </Badge>
         </div>
 
         {/* View Mode & Card Collapsing Toggle */}
-        <div className="flex items-center gap-2 shrink-0 self-end lg:self-auto">
+        <div className="flex items-center gap-2 shrink-0 self-end sm:self-auto">
           {viewMode === "complete" && (
             <Button
               type="button"
@@ -1384,7 +1644,15 @@ Tom: ${agentTone}. Estilo: ${responseStyle}.`;
           <div className="space-y-6">
             {activeStep === 1 && (
               <div className="space-y-6 animate-fade-in">
-                {renderWorkspaceSection()}
+                {/* SIDE-BY-SIDE: CHARACTER 3D WORKSPACE & LIVE INTERACTIVE CONSOLE */}
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+                  <div className="lg:col-span-7 space-y-4">
+                    {renderWorkspaceSection()}
+                  </div>
+                  <div className="lg:col-span-5 space-y-4">
+                    {renderSandboxSimulator()}
+                  </div>
+                </div>
                 {renderAttendantSelector()}
               </div>
             )}
@@ -1488,39 +1756,60 @@ Tom: ${agentTone}. Estilo: ${responseStyle}.`;
             MODO COMPLETO (ALL CARDS COLLAPSIBLE & EDITABLE)
         ========================================================================= */
         <div className="space-y-6">
-          {renderWorkspaceSection()}
-          {renderAttendantSelector()}
-
-          {/* TWO COLUMN WORKSPACE: CONFIGURATION & SIMULATOR */}
+          {/* INICIO DO ATENDENTE IA: PERSONAGEM COM EDIÇÃO VISUAL AO LADO DO CHAT/EVOLUÇÃO/SYNC */}
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-            {/* LEFT COLUMN: AGENT & MODEL CONFIGURATION (7 cols on lg) */}
-            <div className="lg:col-span-7 space-y-6">
-              {renderObjectiveCard()}
-              {renderToneCard()}
-              {renderPromptCard()}
-              {renderProvidersCard()}
-
-              {/* BOTÃO DE SALVAR */}
-              <div className="flex items-center justify-end gap-3 pt-2">
-                <Button
-                  type="button"
-                  onClick={handleSave}
-                  disabled={isSaving || (!selectedAgentKey && !apiKey.trim())}
-                  className="h-10 px-6 font-semibold bg-emerald-500 hover:bg-emerald-600 text-white shadow-md gap-2"
-                >
-                  {isSaving ? <RefreshCw className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
-                  {isSaving ? "Salvando Alterações..." : selectedAgentKey ? "Salvar Configurações do Agente" : "Salvar provedor"}
-                </Button>
-              </div>
+            {/* LEFT COLUMN: 3D LIVING WORKSPACE & VISUAL CUSTOMIZATION (7 cols) */}
+            <div className="lg:col-span-7 space-y-4">
+              {renderWorkspaceSection()}
             </div>
 
-            {/* RIGHT COLUMN: RICH INTERACTIVE SANDBOX SIMULATOR (5 cols on lg) */}
-            <div className="lg:col-span-5 sticky top-4 space-y-4">
+            {/* RIGHT COLUMN: INTERACTIVE CHAT, EVOLUTION & REAL SYNC (5 cols) */}
+            <div className="lg:col-span-5 space-y-4">
               {renderSandboxSimulator()}
+            </div>
+          </div>
+
+          {/* ATTENDANT SELECTOR */}
+          {renderAttendantSelector()}
+
+          {/* DETAILED AGENT & MODEL CONFIGURATION */}
+          <div className="space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {renderObjectiveCard()}
+              {renderToneCard()}
+            </div>
+            {renderPromptCard()}
+            {renderProvidersCard()}
+
+            {/* BOTÃO DE SALVAR */}
+            <div className="flex items-center justify-end gap-3 pt-2">
+              <Button
+                type="button"
+                onClick={handleSave}
+                disabled={isSaving || (!selectedAgentKey && !apiKey.trim())}
+                className="h-10 px-6 font-semibold bg-emerald-500 hover:bg-emerald-600 text-white shadow-md gap-2"
+              >
+                {isSaving ? <RefreshCw className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
+                {isSaving ? "Salvando Alterações..." : selectedAgentKey ? "Salvar Configurações do Agente" : "Salvar provedor"}
+              </Button>
             </div>
           </div>
         </div>
       )}
+
+      {/* Visual Avatar Studio Modal */}
+      <AvatarEditorModal
+        open={avatarEditorOpen}
+        onOpenChange={setAvatarEditorOpen}
+        agent={activeWorkspaceAgent}
+        onSave={async (savedAgent) => {
+          toast({
+            title: "Avatar atualizado",
+            description: `Configuração visual de ${savedAgent.name || "atendente"} salva com sucesso.`,
+          });
+          await onRefreshAgents?.();
+        }}
+      />
     </div>
   );
 }
