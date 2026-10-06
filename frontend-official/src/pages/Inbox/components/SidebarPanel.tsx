@@ -1,29 +1,45 @@
 import { useEffect, useMemo, useState } from "react";
 import {
+  Bell,
   Bot,
+  CheckCircle2,
   ChevronDown,
   ChevronLeft,
   ChevronRight,
   ChevronUp,
   Clock,
   Copy,
+  DollarSign,
   Download,
   Eye,
   FileText,
   Filter,
+  Flame,
   Folder,
+  Handshake,
+  HelpCircle,
   History,
   Image,
+  Layers,
+  Lightbulb,
   MessageSquare,
   Mic,
   MoreHorizontal,
+  Package,
   Paperclip,
   Pencil,
+  Phone,
+  Pin,
   Plus,
+  Rocket,
   Search,
   Send,
+  Shield,
+  ShoppingBag,
   Star,
+  Store,
   Tag,
+  Target,
   Trash2,
   UserRound,
   Video,
@@ -130,6 +146,89 @@ const SECTIONS = [
 ] as const;
 
 const PRESET_CATEGORY_EMOJIS = ["📁", "⚡", "💬", "🏷️", "🎯", "🚀", "💰", "📦", "⭐", "📌", "💡", "🛡️", "🔔", "📞", "🤝", "🔥"];
+
+const PRESET_CATEGORY_ICONS = [
+  { key: "📁", name: "Pasta", icon: Folder },
+  { key: "⚡", name: "Raio", icon: Zap },
+  { key: "💬", name: "Mensagem", icon: MessageSquare },
+  { key: "🏷️", name: "Etiqueta", icon: Tag },
+  { key: "🎯", name: "Alvo", icon: Target },
+  { key: "🚀", name: "Foguete", icon: Rocket },
+  { key: "💰", name: "Vendas", icon: DollarSign },
+  { key: "📦", name: "Produto", icon: Package },
+  { key: "⭐", name: "Destaque", icon: Star },
+  { key: "📌", name: "Fixado", icon: Pin },
+  { key: "💡", name: "Dica", icon: Lightbulb },
+  { key: "🛡️", name: "Garantia", icon: Shield },
+  { key: "🔔", name: "Aviso", icon: Bell },
+  { key: "📞", name: "Contato", icon: Phone },
+  { key: "🤝", name: "Acordo", icon: Handshake },
+  { key: "🔥", name: "Urgente", icon: Flame },
+  { key: "🛍️", name: "Loja", icon: ShoppingBag },
+  { key: "📑", name: "Documento", icon: Layers },
+];
+
+const MONOCHROME_CATEGORY_ICONS_MAP: Record<string, React.ComponentType<{ className?: string; style?: React.CSSProperties }>> = {
+  "📁": Folder,
+  folder: Folder,
+  "⚡": Zap,
+  zap: Zap,
+  "💬": MessageSquare,
+  chat: MessageSquare,
+  "🏷️": Tag,
+  tag: Tag,
+  "🎯": Target,
+  target: Target,
+  "🚀": Rocket,
+  rocket: Rocket,
+  "💰": DollarSign,
+  dollar: DollarSign,
+  "📦": Package,
+  package: Package,
+  "⭐": Star,
+  star: Star,
+  "📌": Pin,
+  pin: Pin,
+  "💡": Lightbulb,
+  bulb: Lightbulb,
+  "🛡️": Shield,
+  shield: Shield,
+  "🔔": Bell,
+  bell: Bell,
+  "📞": Phone,
+  phone: Phone,
+  "🤝": Handshake,
+  handshake: Handshake,
+  "🔥": Flame,
+  fire: Flame,
+  "🛍️": ShoppingBag,
+  shop: ShoppingBag,
+  "🏪": Store,
+  store: Store,
+  "📑": Layers,
+  layers: Layers,
+  "❓": HelpCircle,
+  help: HelpCircle,
+  "✅": CheckCircle2,
+  check: CheckCircle2,
+};
+
+function CategoryMonochromeIcon({
+  iconOrEmoji,
+  className = "h-4 w-4 shrink-0",
+  style,
+}: {
+  iconOrEmoji?: string;
+  className?: string;
+  style?: React.CSSProperties;
+}) {
+  const clean = String(iconOrEmoji || "📁").trim();
+  const IconComponent =
+    MONOCHROME_CATEGORY_ICONS_MAP[clean] ||
+    MONOCHROME_CATEGORY_ICONS_MAP[clean.toLowerCase()] ||
+    Folder;
+  return <IconComponent className={className} style={style} />;
+}
 const PRESET_CATEGORY_COLORS = [
   { name: "Esmeralda", hex: "#10b981" },
   { name: "Verde", hex: "#16a34a" },
@@ -843,11 +942,15 @@ export function SidebarPanel({
                       <DropdownMenuItem onClick={() => setQuickReplyCategory("all")}>
                         Todas as categorias
                       </DropdownMenuItem>
-                      {categories.map((cat) => (
-                        <DropdownMenuItem key={cat} onClick={() => setQuickReplyCategory(cat)}>
-                          {cat}
-                        </DropdownMenuItem>
-                      ))}
+                      {categories.map((cat) => {
+                        const app = quickReplyCategoryAppearance[cat.toLocaleLowerCase()] || { emoji: "📁", color: "#16a34a" };
+                        return (
+                          <DropdownMenuItem key={cat} onClick={() => setQuickReplyCategory(cat)} className="flex items-center gap-2">
+                            <CategoryMonochromeIcon iconOrEmoji={app.emoji} className="h-3.5 w-3.5" style={{ color: app.color }} />
+                            <span>{cat}</span>
+                          </DropdownMenuItem>
+                        );
+                      })}
                     </DropdownMenuContent>
                   </DropdownMenu>
                 )}
@@ -916,8 +1019,13 @@ export function SidebarPanel({
                       {/* Category Header */}
                       <div className="flex items-center justify-between bg-muted/40 px-3 py-2 text-xs font-semibold text-foreground">
                         <button type="button" onClick={() => toggleCategoryCollapse(categoryName)} className="flex min-w-0 flex-1 items-center gap-2 text-left hover:text-primary transition-colors">
-                          <span aria-hidden="true">{appearance.emoji}</span>
-                          <span aria-hidden="true" className="h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: appearance.color }} />
+                          <span
+                            aria-hidden="true"
+                            className="flex h-5 w-5 shrink-0 items-center justify-center rounded"
+                            style={{ color: appearance.color }}
+                          >
+                            <CategoryMonochromeIcon iconOrEmoji={appearance.emoji} className="h-4 w-4" style={{ color: appearance.color }} />
+                          </span>
                           <span className="truncate">{categoryName}</span>
                           <span className="rounded-full bg-muted-foreground/15 px-1.5 py-0.5 text-[10px] text-muted-foreground font-normal">{items.length}</span>
                           {isCollapsed ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronUp className="h-3.5 w-3.5" />}
@@ -1225,50 +1333,92 @@ export function SidebarPanel({
               <span>Editar categoria</span>
               <span className="font-mono text-xs text-muted-foreground">({editingCategory})</span>
             </DialogTitle>
-            <DialogDescription>Ajuste o emoji e a cor usados nesta categoria do Inbox.</DialogDescription>
+            <DialogDescription>Personalize o ícone monocromático e a cor desta categoria do Inbox.</DialogDescription>
           </DialogHeader>
 
           <div className="space-y-4 pt-1">
             {/* Live Preview */}
             <div className="flex items-center justify-between rounded-lg border border-border/60 bg-muted/30 p-2.5">
               <span className="text-xs text-muted-foreground font-medium">Prévia no Inbox:</span>
-              <span
-                className="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold text-white shadow-xs transition-colors"
-                style={{ backgroundColor: categoryColor || "#10b981" }}
-              >
-                <span>{categoryEmoji || "📁"}</span>
-                <span>{editingCategory}</span>
-              </span>
+              <div className="flex items-center gap-2">
+                <span
+                  className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold border shadow-xs transition-colors"
+                  style={{
+                    backgroundColor: `${categoryColor}18`,
+                    borderColor: `${categoryColor}50`,
+                    color: categoryColor,
+                  }}
+                >
+                  <CategoryMonochromeIcon iconOrEmoji={categoryEmoji} className="h-3.5 w-3.5 shrink-0" style={{ color: categoryColor }} />
+                  <span>{editingCategory}</span>
+                </span>
+                <span
+                  className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold text-white shadow-xs transition-colors"
+                  style={{ backgroundColor: categoryColor || "#10b981" }}
+                >
+                  <CategoryMonochromeIcon iconOrEmoji={categoryEmoji} className="h-3.5 w-3.5 shrink-0 text-white" />
+                  <span>{editingCategory}</span>
+                </span>
+              </div>
             </div>
 
-            {/* Emoji Selection */}
+            {/* Monochromatic Icon Selection */}
             <div className="space-y-1.5">
-              <label className="block text-xs font-medium text-foreground/90">
-                Emoji da categoria
-              </label>
+              <div className="flex items-center justify-between text-xs font-medium text-foreground/90">
+                <label htmlFor="category-emoji-input" className="cursor-pointer">
+                  Ícone monocromático da categoria
+                </label>
+                <span className="text-[11px] text-muted-foreground font-normal">Uma cor apenas (assume a cor selecionada)</span>
+              </div>
               <div className="flex items-center gap-2">
+                <div
+                  className="h-9 w-9 rounded-lg flex items-center justify-center border shrink-0 transition-colors"
+                  style={{
+                    borderColor: `${categoryColor}60`,
+                    backgroundColor: `${categoryColor}15`,
+                    color: categoryColor,
+                  }}
+                  title="Prévia do ícone monocromático"
+                >
+                  <CategoryMonochromeIcon iconOrEmoji={categoryEmoji} className="h-5 w-5" style={{ color: categoryColor }} />
+                </div>
                 <Input
+                  id="category-emoji-input"
                   value={categoryEmoji}
                   maxLength={8}
                   onChange={(event) => setCategoryEmoji(event.target.value)}
                   aria-label="Emoji da categoria"
-                  className="w-16 text-center text-base shrink-0"
+                  className="w-16 text-center text-sm font-mono shrink-0"
                 />
-                <div className="flex flex-wrap items-center gap-1 flex-1 p-1 bg-muted/20 border border-border/50 rounded-md">
-                  {PRESET_CATEGORY_EMOJIS.map((emoji) => (
-                    <button
-                      key={emoji}
-                      type="button"
-                      onClick={() => setCategoryEmoji(emoji)}
-                      className={cn(
-                        "h-6 w-6 rounded flex items-center justify-center text-xs transition-transform hover:scale-125 hover:bg-muted",
-                        categoryEmoji === emoji && "bg-primary/20 ring-1 ring-primary"
-                      )}
-                      title={`Usar emoji ${emoji}`}
-                    >
-                      {emoji}
-                    </button>
-                  ))}
+                <div className="flex flex-wrap items-center gap-1 flex-1 p-1 bg-muted/20 border border-border/50 rounded-lg">
+                  {PRESET_CATEGORY_ICONS.map(({ key, name, icon: IconComp }) => {
+                    const isSelected = (categoryEmoji || "").trim() === key;
+                    return (
+                      <button
+                        key={key}
+                        type="button"
+                        onClick={() => setCategoryEmoji(key)}
+                        className={cn(
+                          "h-7 w-7 rounded flex items-center justify-center transition-all hover:scale-110",
+                          isSelected
+                            ? "ring-2 ring-offset-1 ring-offset-background font-bold shadow-xs"
+                            : "bg-muted/30 hover:bg-muted/60"
+                        )}
+                        style={{
+                          color: categoryColor,
+                          ...(isSelected
+                            ? {
+                                backgroundColor: `${categoryColor}25`,
+                                ringColor: categoryColor,
+                              }
+                            : {}),
+                        }}
+                        title={name}
+                      >
+                        <IconComp className="h-3.5 w-3.5" style={{ color: categoryColor }} />
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
             </div>
