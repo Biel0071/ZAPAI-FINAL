@@ -147,11 +147,14 @@ export function NewAgentWizardModal({
 
       // Fetch stores and sessions
       apiService.getStores().then((res) => {
-        if (res.stores && res.stores.length > 0) {
-          setStores(res.stores);
-          setSelectedStoreId(res.stores[0].id);
-        }
-      }).catch(() => {});
+        const list = Array.isArray(res.stores) ? res.stores : [];
+        setStores(list);
+        setSelectedStoreId(list[0]?.id || "");
+      }).catch(() => {
+        setStores([]);
+        setSelectedStoreId("");
+        toast({ title: "Não foi possível carregar as lojas", variant: "destructive" });
+      });
 
       apiService.getConnections().then((res) => {
         const list = Array.isArray(res) ? res : [];
@@ -159,14 +162,19 @@ export function NewAgentWizardModal({
         if (list.length > 0) {
           setSelectedSessionId(list[0].sessionId || list[0].id);
         }
-      }).catch(() => {});
+      }).catch(() => {
+        setSessions([]);
+        setSelectedSessionId("");
+        toast({ title: "Não foi possível carregar os WhatsApps", variant: "destructive" });
+      });
     }
   }, [visible, defaultRole]);
 
-  const selectedStore = stores.find((s) => s.id === selectedStoreId) || stores[0] || null;
-  const selectedSession = sessions.find((s) => (s.sessionId || s.id) === selectedSessionId) || sessions[0] || null;
+  const selectedStore = stores.find((s) => s.id === selectedStoreId) || null;
+  const selectedSession = sessions.find((s) => (s.sessionId || s.id) === selectedSessionId) || null;
 
   const handleSubmit = async () => {
+    if (isSubmitting) return;
     if (!name.trim()) {
       toast({ title: "Informe o nome do atendente", variant: "destructive" });
       return;
@@ -188,8 +196,8 @@ export function NewAgentWizardModal({
       storeId: selectedStore?.id || null,
       inheritStoreProfile: useStoreProfile,
       sessionIds: selectedSession ? [selectedSession.sessionId || selectedSession.id] : [],
-      active: true,
-      status: "active",
+      active: Boolean(selectedSession),
+      status: selectedSession ? "active" : "paused",
       personalityType: personality,
       tone: personality === "tecnico" ? "objective" : personality === "amigavel" ? "warm" : "commercial",
       personality: `Você é ${name.trim()}, atendente digital oficial da loja ${selectedStore?.name || "ZAI"}. Especialidade: ${role}. Atue com tom ${personality}, prestativo e acolhedor, tirando dúvidas com precisão comercial.`,
@@ -216,16 +224,25 @@ export function NewAgentWizardModal({
 
     try {
       const res = await apiService.createAIAgent(newAgentPayload);
+      if (res.success === false) throw new Error("Não foi possível criar o atendente.");
 
       // Vincular à conexão se selecionada
+      let assignmentError = "";
       if (selectedSession) {
         const sessId = selectedSession.sessionId || selectedSession.id;
-        await apiService.assignAttendantToConnection(sessId, newAgentPayload.key).catch(() => {});
+        try {
+          const assignment = await apiService.assignAttendantToConnection(sessId, res.agent?.key || newAgentPayload.key);
+          if (assignment.success === false) throw new Error("Não foi possível vincular o WhatsApp.");
+        } catch (error) {
+          assignmentError = error instanceof Error ? error.message : "Não foi possível vincular o WhatsApp.";
+        }
       }
 
-      toast({
+      if (assignmentError) {
+        toast({ title: "Atendente criado; vínculo pendente", description: assignmentError, variant: "destructive" });
+      } else toast({
         title: "Atendente criado com sucesso!",
-        description: `${name} foi vinculado(a) à loja ${selectedStore?.name || "principal"} e está pronto(a) para atender.`,
+        description: selectedSession ? `${name} foi vinculado(a) ao WhatsApp ${selectedSession.sessionName || selectedSession.name || selectedSession.sessionId}.` : `${name} está pausado(a). Vincule um WhatsApp antes de ativar o atendimento.`,
       });
 
       if (onCreated) onCreated(res.agent || newAgentPayload);

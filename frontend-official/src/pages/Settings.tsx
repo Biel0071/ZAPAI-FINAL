@@ -13,7 +13,6 @@ import {
   Key,
   Database,
   Link,
-  Code,
   Robot,
   Queue,
   HardDrives,
@@ -36,7 +35,6 @@ import { Badge } from "@/components/ui/badge";
 import { apiService, type AIStatusResponse } from "@/core/services/apiService";
 import { useAdminAuth } from "@/state/hooks/useAdminAuth";
 import { notify } from "@/core/services/notifyService";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { UnderConstruction } from "@/components/layout/UnderConstruction";
 import { useTheme } from "next-themes";
 import { cn } from "@/core/lib/utils";
@@ -51,12 +49,6 @@ const MasterLogsPage = React.lazy(() => import("./MasterLogs"));
 const TestsPage = React.lazy(() => import("./Tests"));
 const DiagnosticsPage = React.lazy(() => import("@/core/runtime/diagnostics/Diagnostics"));
 
-const LANGUAGE_STORAGE_KEY = "zapai_language";
-const LANGUAGE_OPTIONS = [
-  { id: "pt-BR", label: "Português (Brasil)" },
-  { id: "en-US", label: "English (US)" },
-  { id: "es-ES", label: "Español" },
-];
 
 
 function resolveAIEnabled(status: AIStatusResponse | null): boolean {
@@ -107,101 +99,35 @@ export default function Settings() {
 
   // Appearance (theme) + language preferences
   const { theme, setTheme } = useTheme();
-  const [language, setLanguage] = useState<string>(() => {
-    if (typeof window === "undefined") return "pt-BR";
-    return window.localStorage.getItem(LANGUAGE_STORAGE_KEY) || "pt-BR";
-  });
-  const handleSelectLanguage = (id: string) => {
-    setLanguage(id);
-    try {
-      window.localStorage.setItem(LANGUAGE_STORAGE_KEY, id);
-    } catch {}
-    notify.success("Idioma atualizado. Algumas áreas aplicam após recarregar.");
-  };
-
   // Profile States
-  const [profileName, setProfileName] = useState("");
+  const [profileError, setProfileError] = useState<string | null>(null);
   const [profileEmail, setProfileEmail] = useState("");
-  const [profilePhone, setProfilePhone] = useState("");
   const [profileRole, setProfileRole] = useState("");
   const [userId, setUserId] = useState<number | null>(null);
   const [isProfileSaving, setIsProfileSaving] = useState(false);
   const [isProfileLoading, setIsProfileLoading] = useState(true);
 
-  // API Keys States
-  const [apiKeys, setApiKeys] = useState<{ name: string; key: string; status: string }[]>([]);
-  const [isNewKeyModalOpen, setIsNewKeyModalOpen] = useState(false);
-  const [newKeyName, setNewKeyName] = useState("");
-
   const { username } = useAdminAuth();
 
-  // Load API Keys from cache
-  useEffect(() => {
-    try {
-      const stored = localStorage.getItem("zapai_api_keys");
-      if (stored) {
-        setApiKeys(JSON.parse(stored));
-      } else {
-        const defaults = [
-          { name: "Production Key", key: "zf_live_prodkeyexample12345", status: "Ativa" },
-          { name: "Test Key", key: "zf_test_testkeyexample12345", status: "Ativa" },
-        ];
-        localStorage.setItem("zapai_api_keys", JSON.stringify(defaults));
-        setApiKeys(defaults);
-      }
-    } catch (err) {
-      console.warn("Failed to load API keys:", err);
-    }
-  }, []);
-
-  // Load profile from API & cache
+  // Only backend-supported account fields can be saved.
   useEffect(() => {
     let isMounted = true;
+    setUserId(null); setProfileEmail(''); setProfileRole(''); setProfileError(null);
     const loadProfile = async () => {
       setIsProfileLoading(true);
-      const cacheKey = `user_profile_${username || "default"}`;
-      let cached: any = null;
-      try {
-        const raw = localStorage.getItem(cacheKey);
-        if (raw) {
-          cached = JSON.parse(raw);
-          if (isMounted) {
-            setProfileName(cached.name || "");
-            setProfileEmail(cached.email || "");
-            setProfilePhone(cached.phone || "");
-            setProfileRole(cached.role || "");
-          }
-        }
-      } catch (err) {
-        console.warn("Failed to load profile from cache:", err);
-      }
-
       try {
         const users = await apiService.getAdminUsers();
-        const curUser = users.find((u) => u.username === username);
-        if (curUser && isMounted) {
-          setUserId(curUser.id);
-          setProfileEmail(curUser.email || "");
-          setProfileRole(curUser.role || "");
-          
-          const updatedCache = {
-            name: cached?.name || "",
-            phone: cached?.phone || "",
-            email: curUser.email || "",
-            role: curUser.role || "",
-          };
-          localStorage.setItem(cacheKey, JSON.stringify(updatedCache));
-        }
-      } catch (err) {
-        console.warn("Failed to load profile from API:", err);
+        const user = users.find(item => item.username === username);
+        if (isMounted && user) { setUserId(user.id); setProfileEmail(user.email || ''); setProfileRole(user.role || ''); }
+        else if (isMounted) setProfileError('O perfil não está disponível para edição nesta conta.');
+      } catch {
+        if (isMounted) setProfileError('Não foi possível carregar o perfil.');
       } finally {
         if (isMounted) setIsProfileLoading(false);
       }
     };
-
-    if (username) {
-      void loadProfile();
-    }
+    if (username) void loadProfile(); else setIsProfileLoading(false);
+    return () => { isMounted = false; };
   }, [username]);
 
   // Load AI Global status
@@ -247,53 +173,16 @@ export default function Settings() {
   const handleSaveProfile = async () => {
     if (isProfileSaving) return;
     setIsProfileSaving(true);
-    const cacheKey = `user_profile_${username || "default"}`;
     try {
-      if (userId !== null) {
-        await apiService.updateAdminUser(userId, {
-          email: profileEmail,
-          role: profileRole,
-        });
-      }
-
-      const updatedProfile = {
-        name: profileName,
-        email: profileEmail,
-        phone: profilePhone,
-        role: profileRole,
-      };
-      localStorage.setItem(cacheKey, JSON.stringify(updatedProfile));
-      notify.success("Configurações do perfil salvas com sucesso.");
+      if (userId === null) throw new Error('Carregue o perfil antes de salvar.');
+      const saved = await apiService.updateAdminUser(userId, { email: profileEmail });
+      if (!saved) throw new Error('O servidor não confirmou a atualização do perfil.');
+      notify.success('E-mail do perfil atualizado.');
     } catch (err) {
       notify.error(err instanceof Error ? err.message : "Erro ao salvar perfil.");
     } finally {
       setIsProfileSaving(false);
     }
-  };
-
-  const handleGenerateKey = () => {
-    const name = newKeyName.trim();
-    if (!name) {
-      notify.error("Por favor, informe um nome para a chave.");
-      return;
-    }
-    const chars = "abcdefghijklmnopqrstuvwxyz0123456789";
-    let randomHash = "";
-    for (let i = 0; i < 20; i++) {
-      randomHash += chars.charAt(Math.floor(Math.random() * chars.length));
-    }
-    const newKey = `zf_live_${randomHash}`;
-    const updatedKeys = [...apiKeys, { name, key: newKey, status: "Ativa" }];
-    setApiKeys(updatedKeys);
-    localStorage.setItem("zapai_api_keys", JSON.stringify(updatedKeys));
-    notify.success(`Chave "${name}" gerada com sucesso.`);
-    setIsNewKeyModalOpen(false);
-    setNewKeyName("");
-  };
-
-  const handleCopyKey = (keyText: string) => {
-    navigator.clipboard.writeText(keyText);
-    notify.success("Chave copiada para a área de transferência.");
   };
 
   const iconMap: Record<number, any> = useMemo(() => ({
@@ -460,29 +349,27 @@ export default function Settings() {
                     <CardContent className="space-y-6">
                       <div className="flex flex-col sm:flex-row items-center sm:items-start gap-4 sm:gap-6 text-center sm:text-left">
                         <Avatar className="w-20 h-20 shrink-0"><AvatarFallback className="bg-primary text-primary-foreground text-2xl font-bold">
-                          {profileName ? profileName.slice(0, 2).toUpperCase() : "AD"}
+                          {username ? username.slice(0, 2).toUpperCase() : "—"}
                         </AvatarFallback></Avatar>
-                        <div><Button variant="outline" size="sm" className="rounded-xl">Alterar foto</Button><p className="mt-2 text-xs text-muted-foreground">JPG, PNG ou GIF. Máx 2MB.</p></div>
+
                       </div>
                       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                         <div className="space-y-2">
-                          <Label htmlFor="name">Nome completo</Label>
-                          <Input id="name" value={profileName} onChange={(e) => setProfileName(e.target.value)} />
+                          <Label htmlFor="name">Usuário</Label>
+                          <Input id="name" value={username || ""} readOnly />
                         </div>
                         <div className="space-y-2">
                           <Label htmlFor="email">E-mail</Label>
                           <Input id="email" type="email" value={profileEmail} onChange={(e) => setProfileEmail(e.target.value)} />
                         </div>
+
                         <div className="space-y-2">
-                          <Label htmlFor="phone">Telefone</Label>
-                          <Input id="phone" value={profilePhone} onChange={(e) => setProfilePhone(e.target.value)} />
-                        </div>
-                        <div className="space-y-2">
-                          <Label htmlFor="role">Cargo</Label>
-                          <Input id="role" value={profileRole} onChange={(e) => setProfileRole(e.target.value)} />
+                          <Label htmlFor="role">Permissão da conta</Label>
+                          <Input id="role" value={profileRole} readOnly />
                         </div>
                       </div>
-                      <Button onClick={handleSaveProfile} disabled={isProfileSaving}>
+                      {profileError && <p role="alert" className="text-sm text-amber-400">{profileError}</p>}
+                      <Button onClick={handleSaveProfile} disabled={isProfileSaving || isProfileLoading || userId === null}>
                         {isProfileSaving ? "Salvando..." : "Salvar Alterações"}
                       </Button>
                     </CardContent>
@@ -533,59 +420,18 @@ export default function Settings() {
                     <CardTitle className="font-display">Idioma</CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-3">
-                    <Label className="mb-1 block">Idioma da interface</Label>
-                    <div className="space-y-2">
-                      {LANGUAGE_OPTIONS.map((opt) => (
-                        <button
-                          key={opt.id}
-                          type="button"
-                          onClick={() => handleSelectLanguage(opt.id)}
-                          className={cn(
-                            "flex w-full items-center justify-between rounded-xl border px-4 py-3 text-sm font-medium transition-colors",
-                            language === opt.id
-                              ? "border-primary bg-primary/10 text-primary"
-                              : "border-border bg-card/60 text-muted-foreground hover:text-foreground",
-                          )}
-                        >
-                          {opt.label}
-                          {language === opt.id && <Badge variant="secondary" className="rounded-full">Ativo</Badge>}
-                        </button>
-                      ))}
-                    </div>
-                    <p className="text-xs text-muted-foreground">
-                      Preferência salva neste dispositivo. A tradução completa da interface será expandida gradualmente.
-                    </p>
+                    <p className="text-sm">Português (Brasil)</p>
+                    <p className="text-xs text-muted-foreground">Este é o idioma disponível na interface.</p>
                   </CardContent>
                 </Card>
               )}
 
               {activeSection === 8 && (
                 <Card className="glass-card">
-                  <CardHeader className="flex flex-row items-center justify-between">
-                    <CardTitle className="font-display">API Keys</CardTitle>
-                    <Button variant="outline" size="sm" className="gap-2" onClick={() => setIsNewKeyModalOpen(true)}>
-                      <Code className="w-4 h-4" />
-                      Gerar Nova Chave
-                    </Button>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-3">
-                      {apiKeys.map((k, idx) => (
-                        <div key={idx} className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-xl bg-muted/40 p-3 border border-border/40">
-                          <div className="min-w-0 flex-1">
-                            <p className="font-medium text-sm text-foreground">{k.name}</p>
-                            <p className="font-mono text-xs text-muted-foreground truncate">{k.key}</p>
-                          </div>
-                          <div className="flex items-center gap-2 shrink-0">
-                            <Badge variant="secondary" className="rounded-full text-xs">{k.status}</Badge>
-                            <Button variant="ghost" size="sm" className="rounded-lg h-8 text-xs" onClick={() => handleCopyKey(k.key)}>Copiar</Button>
-                          </div>
-                        </div>
-                      ))}
-                      {apiKeys.length === 0 && (
-                        <p className="text-sm text-muted-foreground text-center py-4">Nenhuma chave de API gerada.</p>
-                      )}
-                    </div>
+                  <CardHeader><CardTitle className="font-display">Integrações de API</CardTitle></CardHeader>
+                  <CardContent className="space-y-3">
+                    <p className="text-sm text-muted-foreground">A emissão de chaves de acesso para integrações externas não está disponível neste sistema.</p>
+                    <Button variant="outline" onClick={() => navigate('/ai')}>Configurar provedor de IA</Button>
                   </CardContent>
                 </Card>
               )}
@@ -631,33 +477,7 @@ export default function Settings() {
         />
       </motion.div>
 
-      <Dialog open={isNewKeyModalOpen} onOpenChange={setIsNewKeyModalOpen}>
-        <DialogContent className="max-w-md rounded-2xl border-border/70 bg-card/95">
-          <DialogHeader>
-            <DialogTitle className="font-display text-xl font-bold">Gerar Nova Chave de API</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4 py-3">
-            <div className="space-y-2">
-              <Label htmlFor="key-name-input" className="text-sm font-medium">Nome da Chave</Label>
-              <Input
-                id="key-name-input"
-                placeholder="Ex: Production, Test, Integração Externa"
-                value={newKeyName}
-                onChange={(e) => setNewKeyName(e.target.value)}
-                className="rounded-xl"
-              />
-            </div>
-            <div className="flex justify-end gap-2 pt-2">
-              <Button variant="outline" className="rounded-xl" onClick={() => setIsNewKeyModalOpen(false)}>
-                Cancelar
-              </Button>
-              <Button className="rounded-xl shadow-glow" onClick={handleGenerateKey}>
-                Gerar Chave
-              </Button>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
+
     </div>
   );
 }

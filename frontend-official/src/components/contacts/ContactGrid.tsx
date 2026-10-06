@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { TagIconBadge } from "@/components/inbox/TagIconBadge";
 import { getTagColor } from "@/pages/Inbox/utils";
+import { businessLabel } from '@/core/utils/tagEmojis';
 
 export interface ContactGridItem {
   id: string;
@@ -123,7 +124,7 @@ export function ContactGrid({
                 </div>
                 {contact.status && (
                   <Badge variant="outline" className="mt-1 rounded-full text-[10px] capitalize">
-                    {contact.status}
+                    {businessLabel(contact.status)}
                   </Badge>
                 )}
               </div>

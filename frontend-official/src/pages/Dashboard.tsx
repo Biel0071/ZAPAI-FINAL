@@ -39,7 +39,6 @@ export default function Dashboard() {
 
   const sessions = useAppStore((state) => state.sessions);
   const conversations = useAppStore((state) => state.conversations);
-  const storeMetrics = useAppStore((state) => state.metrics);
 
   const [activeTab, setActiveTab] = useState<DashboardTab>(() => normalizeTab(searchParams.get("tab")));
   const [activeMapScope, setActiveMapScope] = useState<DashboardMapScope>("regions");
@@ -77,13 +76,14 @@ export default function Dashboard() {
 
   useEffect(() => {
     let active = true;
-    const load = () => apiService.getMetrics(selectedSessionId, metricWindow)
+    setDatabaseMetrics(null);
+    const load = () => apiService.getMetrics(selectedSessionId, { ...metricWindow, end: !timeEnd && dateRange !== "yesterday" && !(dateRange === "custom" && customEnd) ? new Date().toISOString() : metricWindow.end })
       .then((metrics) => { if (active) setDatabaseMetrics(metrics); })
-      .catch((error) => reportFrontendIssue({ type: 'unexpected_error', service: 'dashboard.getMetrics', message: error instanceof Error ? error.message : 'Falha ao carregar métricas reais' }));
+      .catch((error) => { if (active) setDatabaseMetrics(null); reportFrontendIssue({ type: 'unexpected_error', service: 'dashboard.getMetrics', message: error instanceof Error ? error.message : 'Falha ao carregar métricas reais' }); });
     void load();
     const timer = window.setInterval(() => { if (document.visibilityState === 'visible') void load(); }, HEAVY_REFRESH_MS);
     return () => { active = false; window.clearInterval(timer); };
-  }, [selectedSessionId, metricWindow]);
+  }, [selectedSessionId, metricWindow, timeEnd, dateRange, customEnd]);
 
   const activeSessions = useMemo(
     () => (Array.isArray(sessions) ? sessions.filter((s) => s && s.status === "connected").length : 0),
@@ -183,9 +183,7 @@ export default function Dashboard() {
     });
   }, [conversations, customEnd, customStart, dateRange, timeEnd, timeStart, selectedSessionId]);
 
-  const filteredMetrics = useMemo(() => {
-    return databaseMetrics ? { ...storeMetrics, ...databaseMetrics } as MetricsSummary : null;
-  }, [storeMetrics, databaseMetrics]);
+  const filteredMetrics = databaseMetrics;
   const dashboardViewModel = useMemo(
     () =>
       createDashboardLovableViewModel({

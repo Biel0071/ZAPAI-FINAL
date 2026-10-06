@@ -142,6 +142,7 @@ export default function Connections() {
   const [isConnecting, setIsConnecting] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
   const [isSessionsLoading, setIsSessionsLoading] = useState(true);
+  const [sessionsError, setSessionsError] = useState<string | null>(null);
   const [createStatus, setCreateStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
   const [restartingSessionId, setRestartingSessionId] = useState<string | null>(null);
   const [deletingSessionId, setDeletingSessionId] = useState<string | null>(null);
@@ -151,18 +152,13 @@ export default function Connections() {
   const sessionLoadInFlightRef = useRef(false);
 
   const [allAgents, setAllAgents] = useState<any[]>([]);
-  const [switchAttendantModalOpen, setSwitchAttendantModalOpen] = useState(false);
-  const [targetSwitchSession, setTargetSwitchSession] = useState<Session | null>(null);
-  const [selectedAgentForSwitch, setSelectedAgentForSwitch] = useState<string>("");
-  const [isSwitchingAttendant, setIsSwitchingAttendant] = useState(false);
-
   const fetchAgentsList = useCallback(async () => {
     try {
       const res = await apiService.getAIAgents();
       if (res && Array.isArray(res.agents)) {
         setAllAgents(res.agents.filter((a: any) => !a.isPlatformAssistant && a.key !== "zaibot"));
       }
-    } catch (_) {}
+    } catch (_) { notify.error('Não foi possível carregar a lista de atendentes.'); }
   }, []);
 
   useEffect(() => {
@@ -170,32 +166,7 @@ export default function Connections() {
   }, [fetchAgentsList]);
 
   const handleOpenSwitchAttendant = (session: Session) => {
-    setTargetSwitchSession(session);
-    setSelectedAgentForSwitch(session.linkedAgent?.key || "");
-    setSwitchAttendantModalOpen(true);
-  };
-
-  const handleExecuteSwitchAttendant = async () => {
-    if (!targetSwitchSession) return;
-    setIsSwitchingAttendant(true);
-    try {
-      await apiService.assignAttendantToConnection(
-        targetSwitchSession.id,
-        selectedAgentForSwitch || null
-      );
-      notify.success(
-        selectedAgentForSwitch
-          ? "Atendente vinculado com sucesso!"
-          : "Atendente desvinculado deste número."
-      );
-      setSwitchAttendantModalOpen(false);
-      await loadSessions({ silent: true });
-      await fetchAgentsList();
-    } catch (err: any) {
-      notify.error(err?.message || "Falha ao vincular atendente.");
-    } finally {
-      setIsSwitchingAttendant(false);
-    }
+    navigate(`/attendants?sessionId=${encodeURIComponent(session.id)}`);
   };
 
   const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false);
@@ -205,9 +176,11 @@ export default function Connections() {
 
   const sessions = useMemo(() => {
     return (storeSessions ?? []).map((s) => {
-      const fromAgentList = allAgents.find((a: any) => a.sessionId === s.id);
+      const candidates = allAgents.filter((a: any) => a.sessionId === s.id || a.sessionIds?.includes(s.id));
+      const ambiguousAttendant = candidates.length > 1;
+      const fromAgentList = candidates.length === 1 ? candidates[0] : null;
       const rawAgent = (s as any).linkedAgent || s.raw?.linkedAgent || null;
-      const linkedAgent = rawAgent || fromAgentList || null;
+      const linkedAgent = ambiguousAttendant ? null : (rawAgent || fromAgentList || null);
       return {
         id: s.id,
         name: s.name,
@@ -216,6 +189,7 @@ export default function Connections() {
         connected: s.status === "connected",
         status: s.status === "error" || s.status === "unknown" ? "disconnected" as const : s.status as Session["status"],
         linkedAgent,
+        ambiguousAttendant,
       };
     });
   }, [storeSessions, allAgents]);
@@ -333,6 +307,7 @@ export default function Connections() {
   const loadSessions = useCallback(async (options?: { silent?: boolean }) => {
     if (sessionLoadInFlightRef.current) return;
     sessionLoadInFlightRef.current = true;
+    setSessionsError(null);
     const isSilent = Boolean(options?.silent);
     if (!isSilent) setIsSessionsLoading(true);
     try {
@@ -350,6 +325,7 @@ export default function Connections() {
         }
       });
     } catch (error) {
+      setSessionsError(error instanceof Error ? error.message : 'Não foi possível carregar as conexões.');
       reportFrontendIssue({
         type: "unexpected_error",
         service: "connections.loadSessions",
@@ -644,14 +620,17 @@ export default function Connections() {
       />
 
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
+        {sessionsError && <div role="alert" className="mx-4 mt-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-amber-500/30 bg-amber-500/10 p-4 text-sm">
+          <p>{sessionsError}</p><Button variant="outline" size="sm" onClick={() => void loadSessions()}>Tentar novamente</Button>
+        </div>}
         <SafeRender scope="connections-view">
           <ConnectionsView
             connectedCount={lovableConnectionsViewModel.connected}
             connectingCount={lovableConnectionsViewModel.connecting}
             disconnectedCount={lovableConnectionsViewModel.disconnected}
             activeSessionName={activeSession ? activeSession.name : "Nenhuma ativa"}
-            onRefresh={() => handleOpenLogs(activeSession ? activeSession.id : (safeSessions[0]?.id ?? ''))}
-            onOpenDiagnostics={() => navigate("/diagnostics")}
+            onRefresh={() => void loadSessions()}
+            onOpenDiagnostics={() => navigate("/settings?tab=diagnostics")}
             activationDialog={null}
             isLoading={isSessionsLoading}
             hasSessions={safeSessions.length > 0}
@@ -773,7 +752,7 @@ export default function Connections() {
                               </Badge>
                             ) : (
                               <Badge variant="outline" className="text-[9px] text-muted-foreground border-border/60">
-                                Nenhum
+                                {session.ambiguousAttendant ? "Revisar vínculo" : "Nenhum"}
                               </Badge>
                             )}
                           </div>
@@ -956,109 +935,7 @@ export default function Connections() {
       </Dialog>
 
       {/* ============ SWITCH ATTENDANT MODAL ============ */}
-      <Dialog open={switchAttendantModalOpen} onOpenChange={setSwitchAttendantModalOpen}>
-        <DialogContent className="sm:max-w-md border-border/80 bg-card/95 backdrop-blur-xl">
-          <DialogHeader>
-            <DialogTitle className="font-display text-base flex items-center gap-2">
-              <Headset className="h-5 w-5 text-emerald-400" />
-              <span>Vincular Atendente ao Número WhatsApp</span>
-            </DialogTitle>
-            <DialogDescription className="text-xs">
-              Conexão: <strong>{targetSwitchSession?.name}</strong> ({targetSwitchSession?.phone || targetSwitchSession?.id}). Regra: 1 Conexão = 1 Atendente Principal.
-            </DialogDescription>
-          </DialogHeader>
 
-          <div className="space-y-3 py-2">
-            <Label className="text-xs font-semibold">Selecione o atendente para este número</Label>
-            <div className="space-y-2 max-h-56 overflow-y-auto">
-              <div
-                onClick={() => setSelectedAgentForSwitch("")}
-                className={cn(
-                  "p-3 rounded-xl border text-xs cursor-pointer transition-all flex items-center justify-between",
-                  selectedAgentForSwitch === ""
-                    ? "bg-card border-emerald-500/50 ring-1 ring-emerald-500/30"
-                    : "bg-background/40 border-border/50 text-muted-foreground hover:bg-card"
-                )}
-              >
-                <div>
-                  <p className="font-semibold text-foreground">Nenhum (Desvincular)</p>
-                  <p className="text-[11px] text-muted-foreground">O número não terá atendente automático ativo.</p>
-                </div>
-                {selectedAgentForSwitch === "" && <CheckCircle className="h-4 w-4 text-emerald-400" weight="fill" />}
-              </div>
-
-              {allAgents.map((ag) => {
-                const isSelected = selectedAgentForSwitch === ag.key;
-                return (
-                  <div
-                    key={ag.key}
-                    onClick={() => setSelectedAgentForSwitch(ag.key)}
-                    className={cn(
-                      "p-3 rounded-xl border text-xs cursor-pointer transition-all flex items-center justify-between gap-2.5",
-                      isSelected
-                        ? "bg-card border-emerald-500/50 ring-1 ring-emerald-500/30 shadow-sm"
-                        : "bg-background/40 border-border/50 text-muted-foreground hover:bg-card"
-                    )}
-                  >
-                    <div className="flex items-center gap-2.5 min-w-0">
-                      <img
-                        src={ag.avatar || (ag.character?.gender === "male" ? "/assets/evolution/joao_avatar.png" : "/assets/evolution/camila_avatar.png")}
-                        alt={ag.name}
-                        className="h-8 w-8 rounded-full border border-emerald-500/40 object-cover bg-background shrink-0"
-                      />
-                      <div className="min-w-0">
-                        <p className="font-bold text-foreground truncate">{ag.name}</p>
-                        <p className="text-[11px] text-emerald-400 truncate">{ag.role || "Vendas"}</p>
-                      </div>
-                    </div>
-
-                    <div className="flex items-center gap-2">
-                      <Badge variant="outline" className={cn("text-[9px] uppercase font-bold", ag.active !== false ? "text-emerald-400 border-emerald-500/30" : "text-muted-foreground")}>
-                        {ag.active !== false ? "Ativo" : "Pausado"}
-                      </Badge>
-                      {isSelected && <CheckCircle className="h-4 w-4 text-emerald-400" weight="fill" />}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-
-          <div className="flex items-center justify-between pt-2 border-t border-border/40">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => {
-                setSwitchAttendantModalOpen(false);
-                navigate("/attendants");
-              }}
-              className="rounded-xl text-xs gap-1"
-            >
-              <Plus className="h-3.5 w-3.5" />
-              <span>Criar Novo</span>
-            </Button>
-
-            <div className="flex items-center gap-2">
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setSwitchAttendantModalOpen(false)}
-                className="rounded-xl text-xs"
-              >
-                Cancelar
-              </Button>
-              <Button
-                size="sm"
-                onClick={handleExecuteSwitchAttendant}
-                disabled={isSwitchingAttendant}
-                className="rounded-xl text-xs bg-emerald-600 hover:bg-emerald-500 text-white"
-              >
-                {isSwitchingAttendant ? "Salvando..." : "Confirmar Vínculo"}
-              </Button>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
 
       {/* ============ NEW CONNECTION MODAL ============ */}
       <Dialog

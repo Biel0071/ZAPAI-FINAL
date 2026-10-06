@@ -3,7 +3,7 @@
  * Complete real-time character builder for creating, editing, and equipping modular ZAI digital attendants.
  */
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import {
   Dialog,
   DialogContent,
@@ -13,7 +13,6 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
@@ -29,7 +28,6 @@ import {
   CLOTHING_STYLES,
   ACCESSORIES,
   WORK_OBJECTS,
-  POSTURES,
 } from "./AvatarDefinition";
 import {
   createAgentAvatar,
@@ -37,27 +35,21 @@ import {
   unequipItem,
   randomizeAvatar,
   buildStoreVisualDNA,
+  resolveSpriteForAvatar,
 } from "./CharacterFactory";
 import { ZaiAvatarRenderer } from "./ZaiAvatarRenderer";
 import { notify } from "@/core/services/notifyService";
 import { apiService } from "@/core/services/apiService";
 import { cn } from "@/core/lib/utils";
 import {
-  Sparkle,
   TShirt,
   User,
   Scissors,
   Eyeglasses,
-  Briefcase,
   Storefront,
   ArrowsClockwise,
-  Check,
   FloppyDisk,
-  Play,
-  ChatCircleDots,
   ShieldCheck,
-  Eye,
-  Lightning,
 } from "@phosphor-icons/react";
 
 export interface AvatarEditorModalProps {
@@ -65,6 +57,7 @@ export interface AvatarEditorModalProps {
   onOpenChange: (open: boolean) => void;
   agent: any;
   store?: any;
+  runtimeState?: AnimationState;
   onSave?: (updatedAvatar: AgentAvatarConfig) => void;
 }
 
@@ -113,26 +106,28 @@ export const AvatarEditorModal: React.FC<AvatarEditorModalProps> = ({
   onOpenChange,
   agent,
   store,
+  runtimeState,
   onSave,
 }) => {
-  const storeDNA = store ? buildStoreVisualDNA(store) : undefined;
+  const storeDNA = useMemo(() => store ? buildStoreVisualDNA(store) : undefined, [store]);
 
   // Working state of the avatar being edited
   const [avatar, setAvatar] = useState<AgentAvatarConfig>(() => {
     return normalizeAvatarConfig(agent?.avatarConfig, agent, store, storeDNA);
   });
 
-  // State machine preview switcher
-  const [previewState, setPreviewState] = useState<AnimationState>("WORKING");
+  const previewState: AnimationState = agent?.active === false
+    ? "OFFLINE"
+    : runtimeState || "WAITING";
   const [isSaving, setIsSaving] = useState(false);
   const [activeTab, setActiveTab] = useState<string>("appearance");
 
   // Re-sync when agent changes
   useEffect(() => {
-    if (agent) {
+    if (open && agent) {
       setAvatar(normalizeAvatarConfig(agent.avatarConfig, agent, store, storeDNA));
     }
-  }, [agent, store, storeDNA]);
+  }, [open, agent, store, storeDNA]);
 
   // Gender-based hair catalog
   const availableHairstyles = avatar.body === "male" ? HAIRSTYLES_MALE : HAIRSTYLES_FEMALE;
@@ -143,6 +138,7 @@ export const AvatarEditorModal: React.FC<AvatarEditorModalProps> = ({
       ...prev,
       body: newGender,
       hair: newHair,
+      catalogSpriteId: resolveSpriteForAvatar({ ...prev, body: newGender, hair: newHair }, true),
     }));
   };
 
@@ -216,10 +212,7 @@ export const AvatarEditorModal: React.FC<AvatarEditorModalProps> = ({
     try {
       const agentKey = agent.key || agent.name;
       const payload = {
-        avatarConfig: {
-          ...avatar,
-          animationState: previewState,
-        },
+        avatarConfig: avatar,
         personalityVisual: avatar.personalityVisual,
       };
 
@@ -243,7 +236,7 @@ export const AvatarEditorModal: React.FC<AvatarEditorModalProps> = ({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-4xl p-0 overflow-hidden bg-background border-border/70 shadow-2xl">
         <DialogHeader className="p-5 pb-3 border-b border-border/50 bg-card/60">
-          <div className="flex items-center justify-between">
+          <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-emerald-400">
                 <TShirt className="w-6 h-6" />
@@ -251,9 +244,6 @@ export const AvatarEditorModal: React.FC<AvatarEditorModalProps> = ({
               <div>
                 <DialogTitle className="text-xl font-bold flex items-center gap-2 text-foreground">
                   <span>ZAI Avatar Studio</span>
-                  <Badge variant="outline" className="border-emerald-500/40 text-emerald-400 bg-emerald-500/10 text-xs">
-                    Modular 2.5D Pixel
-                  </Badge>
                 </DialogTitle>
                 <DialogDescription className="text-xs text-muted-foreground">
                   Personalize corpo, vestuário corporativo, acessórios e objetos de <strong>{agent?.name || "Atendente"}</strong>.
@@ -290,7 +280,7 @@ export const AvatarEditorModal: React.FC<AvatarEditorModalProps> = ({
             />
 
             {/* Top State Badge & Info */}
-            <div className="w-full flex items-center justify-between z-10">
+            <div className="w-full flex flex-wrap items-center justify-between gap-2 z-10">
               <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-background/80 border border-border/60 text-xs font-medium">
                 <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
                 <span className="text-foreground font-semibold">{agent?.name || "Camila"}</span>
@@ -312,44 +302,17 @@ export const AvatarEditorModal: React.FC<AvatarEditorModalProps> = ({
               )}
             </div>
 
-            {/* Center: Interactive Real-time Avatar Renderer */}
-            <div className="relative my-auto flex flex-col items-center justify-center">
-              <ZaiAvatarRenderer
-                avatar={avatar}
-                state={previewState}
-                size="xl"
-                showAura={true}
-                showStatusBadge={true}
-                showBrandingLayer={true}
-              />
-            </div>
-
-            {/* Bottom: State Machine Simulator Buttons */}
-            <div className="w-full z-10 mt-4">
-              <Label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-2 block text-center">
-                Simular Estado em Tempo Real
-              </Label>
-              <div className="grid grid-cols-3 gap-1.5 bg-background/70 p-1.5 rounded-xl border border-border/60">
-                {(["WORKING", "TALKING", "THINKING", "SUCCESS", "IDLE", "OFFLINE"] as AnimationState[]).map((st) => (
-                  <button
-                    key={st}
-                    type="button"
-                    onClick={() => setPreviewState(st)}
-                    className={cn(
-                      "px-2 py-1 rounded-lg text-[10px] font-bold transition-all text-center",
-                      previewState === st
-                        ? "bg-primary text-primary-foreground shadow-sm"
-                        : "text-muted-foreground hover:text-foreground hover:bg-muted/40"
-                    )}
-                  >
-                    {st === "WORKING" && "Trabalhando"}
-                    {st === "TALKING" && "Falando"}
-                    {st === "THINKING" && "Pensando"}
-                    {st === "SUCCESS" && "Conversão"}
-                    {st === "IDLE" && "Em Pé"}
-                    {st === "OFFLINE" && "Pausado"}
-                  </button>
-                ))}
+            {/* Center: Interactive Real-time Avatar Renderer (Expanded & Scaled Up) */}
+            <div className="relative my-auto flex-1 flex flex-col items-center justify-center py-6 w-full">
+              <div className="w-full h-[340px] transition-transform duration-300 drop-shadow-2xl">
+                <ZaiAvatarRenderer
+                  avatar={avatar}
+                  state={previewState}
+                  size="workspace"
+                  showAura={true}
+                  showStatusBadge={true}
+                  showBrandingLayer={true}
+                />
               </div>
             </div>
           </div>
@@ -515,7 +478,11 @@ export const AvatarEditorModal: React.FC<AvatarEditorModalProps> = ({
                         <button
                           key={h.id}
                           type="button"
-                          onClick={() => setAvatar((prev) => ({ ...prev, hair: h.id }))}
+                          onClick={() => setAvatar((prev) => ({
+                            ...prev,
+                            hair: h.id,
+                            catalogSpriteId: resolveSpriteForAvatar({ ...prev, hair: h.id }, true),
+                          }))}
                           className={cn(
                             "p-3 rounded-xl border text-left transition-all",
                             avatar.hair === h.id
@@ -726,8 +693,7 @@ export const AvatarEditorModal: React.FC<AvatarEditorModalProps> = ({
         {/* Modal Footer */}
         <DialogFooter className="p-4 border-t border-border/50 bg-card/60 flex items-center justify-between sm:justify-between">
           <div className="text-xs text-muted-foreground flex items-center gap-2">
-            <span className="w-2 h-2 rounded-full bg-emerald-400" />
-            <span>Sprite ativo: <strong>{avatar.catalogSpriteId || "r2_c1"}</strong></span>
+            <span>Prévia do visual</span>
           </div>
 
           <div className="flex items-center gap-2">

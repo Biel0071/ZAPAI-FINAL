@@ -129,21 +129,19 @@ export function FlowsTab() {
     setLoadingFlows(true);
     try {
       const [hoursRes, absenceRes, flowsPayload] = await Promise.all([
-        apiService.getAIBusinessHours().catch(() => null),
-        apiService.getAIAbsenceMessage().catch(() => null),
+        apiService.getBusinessHours(),
+        apiService.getAbsenceMessage(),
         requestApiEndpoint<any>("/api/flows").catch(() => []),
       ]);
 
-      if (hoursRes?.businessHours) {
-        if (hoursRes.businessHours.opening) setOpeningHour(hoursRes.businessHours.opening);
-        if (hoursRes.businessHours.closing) setClosingHour(hoursRes.businessHours.closing);
-        if (hoursRes.businessHours.timezone) setTimezone(hoursRes.businessHours.timezone);
-        if (typeof hoursRes.businessHours.autoReply === "boolean") {
-          setOutsideHoursAutoReply(hoursRes.businessHours.autoReply);
-        }
+      if (hoursRes) {
+        setOpeningHour(hoursRes.openTime);
+        setClosingHour(hoursRes.closeTime);
+        setTimezone(hoursRes.timezone);
+        setOutsideHoursAutoReply(hoursRes.autoReplyOutsideHours);
       }
 
-      if (absenceRes?.message) {
+      if (absenceRes) {
         setAbsenceMessage(absenceRes.message);
       }
 
@@ -181,13 +179,13 @@ export function FlowsTab() {
     setIsSavingHours(true);
     try {
       await Promise.all([
-        apiService.saveAIBusinessHours({
-          opening: openingHour,
-          closing: closingHour,
+        apiService.saveBusinessHours({
+          openTime: openingHour,
+          closeTime: closingHour,
           timezone,
-          autoReply: outsideHoursAutoReply,
+          autoReplyOutsideHours: outsideHoursAutoReply,
         }),
-        apiService.saveAIAbsenceMessage(absenceMessage),
+        apiService.saveAbsenceMessage({ enabled: outsideHoursAutoReply, message: absenceMessage }),
       ]);
 
       toast({

@@ -58,6 +58,7 @@ import {
   getInitials,
   getMediaFileName,
   getMediaTypeLabel,
+  getMessageStatusMeta,
   getQuickReplyPreviewText,
   getTagColor,
   inferMediaTypeFromSource,
@@ -1097,14 +1098,14 @@ export function SidebarPanel({
                         "absolute -left-[23px] top-0.5 flex h-6 w-6 items-center justify-center rounded-full border text-[10px]",
                         isClient
                           ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-500"
-                          : msg.source === "ai"
+                          : msg.isAI
                           ? "bg-purple-500/10 border-purple-500/30 text-purple-500"
                           : "bg-blue-500/10 border-blue-500/30 text-blue-500"
                       )}
                     >
                       {isClient ? (
                         <UserRound className="h-3 w-3" />
-                      ) : msg.source === "ai" ? (
+                      ) : msg.isAI ? (
                         <Bot className="h-3 w-3" />
                       ) : (
                         <Send className="h-2.5 w-2.5" />
@@ -1115,29 +1116,26 @@ export function SidebarPanel({
                         <span className="font-semibold text-foreground">
                           {isClient
                             ? "Cliente Enviou"
-                            : msg.source === "ai"
+                            : msg.isAI
                             ? "IA Respondeu"
                             : "Atendente Enviou"}
                         </span>
                         <span className="text-[10px] text-muted-foreground/80 font-mono">{timeStr}</span>
                       </div>
                       <p className="text-[11px] text-muted-foreground mt-0.5 line-clamp-2">
-                        {mediaType && mediaType !== "text" ? (
+                        {mediaType ? (
                           <span className="flex items-center gap-1 font-medium text-foreground/80">
                             [{getMediaTypeLabel(mediaType)}] {msg.content || ""}
                           </span>
                         ) : (
-                          msg.content || msg.text || "Mensagem de texto"
+                          msg.content || "Mensagem de texto"
                         )}
                       </p>
                       {msg.status && (
                         <div className="mt-1 flex items-center gap-1 text-[10px] text-muted-foreground/70">
                           <span>Status:</span>
-                          <span className={cn(
-                            "font-medium",
-                            msg.status === "read" ? "text-cyan-400" : msg.status === "delivered" ? "text-emerald-400" : "text-muted-foreground"
-                          )}>
-                            {msg.status === "read" ? "Lido (✓✓ azul)" : msg.status === "delivered" ? "Entregue (✓✓)" : "Enviado (✓)"}
+                          <span className={cn("font-medium", getMessageStatusMeta(msg.status).className)}>
+                            {getMessageStatusMeta(msg.status).label}
                           </span>
                         </div>
                       )}
@@ -1146,16 +1144,16 @@ export function SidebarPanel({
                 );
               })}
 
-              {/* Event: Conversation Created */}
-              {selectedConversation.createdAt && (
+              {/* Earliest message available in the loaded history */}
+              {orderedMessages[0]?.createdAt && (
                 <div className="relative">
                   <div className="absolute -left-[23px] top-0 flex h-6 w-6 items-center justify-center rounded-full bg-muted border border-border text-muted-foreground">
                     <Clock className="h-3 w-3" />
                   </div>
                   <div className="text-xs">
-                    <span className="font-semibold text-foreground">Conversa Iniciada</span>
+                    <span className="font-semibold text-foreground">Primeira mensagem carregada</span>
                     <p className="text-[10px] text-muted-foreground mt-0.5">
-                      {new Date(selectedConversation.createdAt).toLocaleString("pt-BR")}
+                      {new Date(orderedMessages[0].createdAt).toLocaleString("pt-BR")}
                     </p>
                   </div>
                 </div>

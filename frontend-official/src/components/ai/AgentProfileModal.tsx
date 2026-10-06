@@ -69,10 +69,12 @@ export function AgentProfileModal({
     },
   ]);
   const [isReplying, setIsReplying] = useState(false);
+  const [testError, setTestError] = useState("");
 
   useEffect(() => {
     if (agent) {
       setIsActive(agent.active !== false);
+      setTestError("");
       setChatMessages([
         {
           role: "agent",
@@ -87,6 +89,10 @@ export function AgentProfileModal({
 
   const handleToggleActive = async () => {
     const nextState = !isActive;
+    if (nextState && !agent.sessionIds?.length) {
+      toast({ title: "Vincule um WhatsApp antes de ativar", variant: "destructive" });
+      return;
+    }
     setIsToggling(true);
     try {
       await apiService.toggleAIAgent(agent.key, nextState);
@@ -116,56 +122,56 @@ export function AgentProfileModal({
       { role: "user", text: userText, time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) },
     ]);
     setIsReplying(true);
+    setTestError("");
 
     try {
-      const res = await apiService.testAIConnection({
-        customPrompt: `${agent.personality || ""}\nCliente: ${userText}\n${agent.name}:`,
-        sampleMessage: userText,
+      const res = await apiService.testAIMessage({
+        prompt: agent.personality || "",
+        message: userText,
+        agentKey: agent.key,
+        agentName: agent.name,
+        sessionId: agent.sessionIds?.[0],
+        history: chatMessages.map(message => ({ role: message.role === "agent" ? "assistant" : "user", content: message.text })),
       });
+      if (!res.result?.ok || !res.result.response) {
+        throw new Error(res.result?.error || res.error || "O provedor não retornou uma resposta.");
+      }
 
       setChatMessages((prev) => [
         ...prev,
         {
           role: "agent",
-          text: res?.response || `Entendido! Estou pronta para atender sua solicitação conforme as políticas da nossa loja.`,
+          text: res.result.response,
           time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
         },
       ]);
-    } catch (_) {
-      setChatMessages((prev) => [
-        ...prev,
-        {
-          role: "agent",
-          text: `Compreendido! Estou à disposição para tirar qualquer dúvida sobre nossos produtos ou condições de pagamento.`,
-          time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
-        },
-      ]);
+    } catch (error) {
+      setTestError(error instanceof Error ? error.message : "Não foi possível testar o agente.");
     } finally {
       setIsReplying(false);
     }
   };
 
   // Metrics
-  const chatsToday = agent.stats?.chatsToday ?? (agent.key === "camila" ? 127 : 45);
-  const activeChats = agent.stats?.activeChats ?? (agent.key === "camila" ? 34 : 12);
-  const opportunities = agent.stats?.opportunities ?? (agent.key === "camila" ? 18 : 6);
-  const slaPercent = agent.stats?.slaPercent ?? (agent.key === "camila" ? 94 : 98);
-  const avgResponseTime = agent.stats?.avgResponseTime ?? (agent.key === "camila" ? "18s" : "22s");
-  const satisfactionCsat = agent.stats?.satisfactionCsat ?? (agent.key === "camila" ? 98 : 96);
+  const chatsToday = agent.stats?.chatsToday ?? "—";
+  const activeChats = agent.stats?.activeChats ?? "—";
+  const opportunities = agent.stats?.opportunities ?? "—";
+  const percentage = (value: unknown) => typeof value === "number" && Number.isFinite(value) ? Math.min(100, Math.max(0, value)) : null;
+  const slaPercent = percentage(agent.stats?.slaPercent);
+  const avgResponseTime = agent.stats?.avgResponseTime ?? "—";
+  const satisfactionCsat = percentage(agent.stats?.satisfactionCsat);
+  const conversionRate = percentage(agent.stats?.conversionRate);
+  const autonomousRate = percentage(agent.stats?.autonomousRate);
+  const formatPercentage = (value: number | null) => value === null ? "—" : `${value}%`;
 
   // Activities
-  const recentActivities = agent.recentActivity && agent.recentActivity.length > 0
+  const recentActivities = Array.isArray(agent.recentActivity)
     ? agent.recentActivity
-    : [
-        { time: "10:42", action: "Respondeu cliente sobre catálogo e condições de frete", type: "message" },
-        { time: "10:39", action: "Enviou orçamento detalhado #1042 via WhatsApp", type: "quote" },
-        { time: "10:31", action: "Iniciou follow-up automático de cliente inativo", type: "followup" },
-        { time: "09:55", action: "Qualificou novo lead proveniente de anúncio", type: "lead" },
-      ];
+    : [];
 
   const channelsList = Array.isArray(agent.channels) && agent.channels.length > 0
     ? agent.channels
-    : ["whatsapp", "inbox"];
+    : agent.sessionIds?.length ? ["whatsapp"] : [];
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -180,7 +186,7 @@ export function AgentProfileModal({
             />
             <div>
               <div className="flex items-center gap-2.5">
-                <h2 className="text-xl font-bold tracking-tight text-foreground">{agent.name}</h2>
+                <DialogTitle className="text-xl font-bold tracking-tight text-foreground">{agent.name}</DialogTitle>
                 {(() => {
                   const statusInfo = getAgentStatusBadge({
                     ...agent,
@@ -204,9 +210,9 @@ export function AgentProfileModal({
                   </Badge>
                 )}
               </div>
-              <p className="text-xs font-medium text-muted-foreground mt-0.5">
+              <DialogDescription className="text-xs font-medium text-muted-foreground mt-0.5">
                 {agent.role || agent.sector || "Assistente de Atendimento"}
-              </p>
+              </DialogDescription>
               <div className="flex items-center gap-2 mt-2">
                 {channelsList.map((ch: string) => (
                   <span
@@ -221,12 +227,13 @@ export function AgentProfileModal({
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 pr-10">
             <Button
               type="button"
               variant="outline"
               size="sm"
-              disabled={isToggling}
+              disabled={isToggling || (!isActive && !agent.sessionIds?.length)}
+              title={!isActive && !agent.sessionIds?.length ? "Vincule um WhatsApp antes de ativar o atendimento." : undefined}
               onClick={handleToggleActive}
               className={cn(
                 "h-9 text-xs font-semibold gap-1.5",
@@ -290,7 +297,6 @@ export function AgentProfileModal({
                 <div className="p-4 rounded-xl border border-border/70 bg-card/60">
                   <span className="text-[11px] text-muted-foreground font-medium">Atendimentos Hoje</span>
                   <div className="text-2xl font-bold text-foreground mt-1">{chatsToday}</div>
-                  <span className="text-[10px] text-emerald-400 font-semibold mt-1 inline-block">100% automatizados</span>
                 </div>
                 <div className="p-4 rounded-xl border border-border/70 bg-card/60">
                   <span className="text-[11px] text-muted-foreground font-medium">Em Andamento</span>
@@ -304,8 +310,8 @@ export function AgentProfileModal({
                 </div>
                 <div className="p-4 rounded-xl border border-border/70 bg-card/60">
                   <span className="text-[11px] text-muted-foreground font-medium">SLA de Resposta</span>
-                  <div className="text-2xl font-bold text-foreground mt-1">{slaPercent}%</div>
-                  <span className="text-[10px] text-emerald-400 font-semibold mt-1 inline-block">dentro da meta</span>
+                  <div className="text-2xl font-bold text-foreground mt-1">{formatPercentage(slaPercent)}</div>
+                  <span className="text-[10px] text-muted-foreground mt-1 inline-block">respostas dentro da meta</span>
                 </div>
               </div>
 
@@ -319,11 +325,11 @@ export function AgentProfileModal({
                   </div>
                   <div>
                     <span className="text-muted-foreground font-medium">Personalidade:</span>
-                    <p className="font-semibold text-foreground mt-0.5 capitalize">{agent.personalityType || agent.tone || "Comercial"}</p>
+                    <p className="font-semibold text-foreground mt-0.5 capitalize">{agent.personalityType || agent.tone || "Não informado"}</p>
                   </div>
                   <div className="sm:col-span-2">
                     <span className="text-muted-foreground font-medium">Objetivo Operacional:</span>
-                    <p className="text-foreground mt-0.5 leading-relaxed">{agent.objective || "Vender e atender clientes com gentileza, esclarecendo dúvidas e fechando pedidos."}</p>
+                    <p className="text-foreground mt-0.5 leading-relaxed">{agent.objective || "Não informado"}</p>
                   </div>
                 </div>
               </div>
@@ -335,10 +341,10 @@ export function AgentProfileModal({
             <div className="space-y-4 animate-in fade-in duration-150">
               <div className="flex items-center justify-between">
                 <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Linha do Tempo de Atividades Recentes</h4>
-                <span className="text-[10px] text-emerald-400 font-semibold">Atualizado em tempo real</span>
               </div>
 
               <div className="space-y-2.5">
+                {!recentActivities.length && <p className="text-xs text-muted-foreground">Nenhuma atividade registrada.</p>}
                 {recentActivities.map((act: any, idx: number) => (
                   <div
                     key={idx}
@@ -365,19 +371,15 @@ export function AgentProfileModal({
                     <span className="text-muted-foreground font-medium">Tempo Médio de Resposta</span>
                     <span className="font-bold text-foreground">{avgResponseTime}</span>
                   </div>
-                  <div className="h-2 rounded-full bg-muted overflow-hidden">
-                    <div className="h-full bg-emerald-500 rounded-full w-[88%]" />
-                  </div>
-                  <span className="text-[10px] text-muted-foreground">Meta empresarial: menos de 30 segundos</span>
                 </div>
 
                 <div className="p-4 rounded-xl border border-border/70 bg-card/60 space-y-2">
                   <div className="flex items-center justify-between text-xs">
                     <span className="text-muted-foreground font-medium">Satisfação do Cliente (CSAT)</span>
-                    <span className="font-bold text-emerald-400">{satisfactionCsat}%</span>
+                    <span className="font-bold text-emerald-400">{formatPercentage(satisfactionCsat)}</span>
                   </div>
                   <div className="h-2 rounded-full bg-muted overflow-hidden">
-                    <div className="h-full bg-emerald-500 rounded-full w-[98%]" />
+                    <div className="h-full bg-emerald-500 rounded-full" style={{ width: `${satisfactionCsat ?? 0}%` }} />
                   </div>
                   <span className="text-[10px] text-muted-foreground">Baseado em avaliações e resoluções automáticas</span>
                 </div>
@@ -385,10 +387,10 @@ export function AgentProfileModal({
                 <div className="p-4 rounded-xl border border-border/70 bg-card/60 space-y-2">
                   <div className="flex items-center justify-between text-xs">
                     <span className="text-muted-foreground font-medium">Taxa de Conversão</span>
-                    <span className="font-bold text-foreground">24.5%</span>
+                    <span className="font-bold text-foreground">{formatPercentage(conversionRate)}</span>
                   </div>
                   <div className="h-2 rounded-full bg-muted overflow-hidden">
-                    <div className="h-full bg-emerald-500 rounded-full w-[65%]" />
+                    <div className="h-full bg-emerald-500 rounded-full" style={{ width: `${conversionRate ?? 0}%` }} />
                   </div>
                   <span className="text-[10px] text-muted-foreground">Clientes que fecharam pedido após atendimento</span>
                 </div>
@@ -396,10 +398,10 @@ export function AgentProfileModal({
                 <div className="p-4 rounded-xl border border-border/70 bg-card/60 space-y-2">
                   <div className="flex items-center justify-between text-xs">
                     <span className="text-muted-foreground font-medium">Atendimentos Sem Intervenção</span>
-                    <span className="font-bold text-emerald-400">92%</span>
+                    <span className="font-bold text-emerald-400">{formatPercentage(autonomousRate)}</span>
                   </div>
                   <div className="h-2 rounded-full bg-muted overflow-hidden">
-                    <div className="h-full bg-emerald-500 rounded-full w-[92%]" />
+                    <div className="h-full bg-emerald-500 rounded-full" style={{ width: `${autonomousRate ?? 0}%` }} />
                   </div>
                   <span className="text-[10px] text-muted-foreground">Resolvidos 100% pelo agente digital</span>
                 </div>
@@ -410,24 +412,9 @@ export function AgentProfileModal({
           {/* TAB 4: CONHECIMENTO */}
           {activeTab === "knowledge" && (
             <div className="space-y-4 animate-in fade-in duration-150">
-              <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Bases de Conhecimento Atribuídas</h4>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                {[
-                  { title: "Produtos & Catálogo", desc: "Tabela completa de itens, estoque e medidas", active: true },
-                  { title: "Preços & Condições", desc: "Formas de pagamento, Pix, cartão e parcelamento", active: true },
-                  { title: "Políticas da Empresa", desc: "Prazos de entrega, frete, trocas e devoluções", active: true },
-                  { title: "Perguntas Frequentes (FAQ)", desc: "Respostas padronizadas para dúvidas recorrentes", active: true },
-                ].map((item, idx) => (
-                  <div key={idx} className="p-3.5 rounded-xl border border-border/60 bg-muted/20 flex items-start justify-between gap-3 text-xs">
-                    <div>
-                      <h5 className="font-bold text-foreground">{item.title}</h5>
-                      <p className="text-[11px] text-muted-foreground mt-0.5">{item.desc}</p>
-                    </div>
-                    <Badge variant="outline" className="text-[9px] border-emerald-500/40 text-emerald-400 font-semibold shrink-0">
-                      Conectado
-                    </Badge>
-                  </div>
-                ))}
+              <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Instruções do agente</h4>
+              <div className="p-4 rounded-xl border border-border/60 bg-muted/20 text-xs leading-relaxed whitespace-pre-wrap">
+                {agent.personality || "Nenhuma instrução cadastrada."}
               </div>
             </div>
           )}
@@ -438,30 +425,13 @@ export function AgentProfileModal({
               <div className="p-4 rounded-xl border border-border/60 bg-muted/15 space-y-3">
                 <h4 className="font-bold text-foreground">Horário de Funcionamento</h4>
                 <p className="text-muted-foreground">
-                  {agent.hours || "Segunda a Sexta das 08:00 às 18:00, Sábados das 08:00 às 12:00."}
+                  {agent.hours || (agent.schedule?.horarioInicio && agent.schedule?.horarioFim ? `${agent.schedule.horarioInicio} às ${agent.schedule.horarioFim}` : "Horário não informado.")}
                 </p>
               </div>
 
               <div className="p-4 rounded-xl border border-border/60 bg-muted/15 space-y-3">
                 <h4 className="font-bold text-foreground">Permissões de Atendimento</h4>
-                <div className="space-y-2">
-                  <label className="flex items-center gap-2">
-                    <input type="checkbox" defaultChecked className="rounded border-border" disabled />
-                    <span>Responder mensagens e tirar dúvidas técnicas</span>
-                  </label>
-                  <label className="flex items-center gap-2">
-                    <input type="checkbox" defaultChecked className="rounded border-border" disabled />
-                    <span>Gerar e enviar orçamentos comerciais</span>
-                  </label>
-                  <label className="flex items-center gap-2">
-                    <input type="checkbox" defaultChecked className="rounded border-border" disabled />
-                    <span>Consultar catálogo e disponibilidade de itens</span>
-                  </label>
-                  <label className="flex items-center gap-2 text-muted-foreground">
-                    <input type="checkbox" className="rounded border-border" disabled />
-                    <span>Alterar registros financeiros da empresa (Desabilitado)</span>
-                  </label>
-                </div>
+                <p className="text-muted-foreground">As ações permitidas seguem as configurações e instruções salvas para este agente.</p>
               </div>
 
               <div className="p-4 rounded-xl border border-border/60 bg-muted/15 space-y-2">
@@ -476,6 +446,7 @@ export function AgentProfileModal({
           {/* TAB 6: CONVERSAR (SANDBOX) */}
           {activeTab === "test" && (
             <div className="space-y-4 animate-in fade-in duration-150">
+              {testError && <p role="alert" className="text-xs text-destructive">{testError}</p>}
               <div className="h-64 rounded-xl border border-border/60 bg-muted/20 p-4 overflow-y-auto space-y-3 text-xs flex flex-col">
                 {chatMessages.map((msg, idx) => (
                   <div

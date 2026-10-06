@@ -1,7 +1,6 @@
 import React from "react";
 import { AgentIdentity, AgentPresenceState } from "./AgentIdentity";
 import { getAgentStateVisual } from "./AgentStateMachine";
-import { Badge } from "@/components/ui/badge";
 import { cn } from "@/core/lib/utils";
 import { Sparkles, Brain, MessageSquare, AlertCircle, CheckCircle } from "lucide-react";
 
@@ -25,7 +24,7 @@ export const AgentActivity: React.FC<AgentActivityProps> = ({
         <div className="absolute top-14 left-1/2 -translate-x-1/2 z-30 animate-bounce [animation-duration:2s] pointer-events-none">
           <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-cyan-950/90 border border-cyan-400/50 text-cyan-200 text-[10px] font-bold shadow-xl backdrop-blur-md">
             <Brain className="w-3.5 h-3.5 text-cyan-400 animate-spin [animation-duration:6s]" />
-            <span>Processando intenção & tabelas de preços...</span>
+            <span>Processando resposta...</span>
           </div>
         </div>
       )}
@@ -35,7 +34,7 @@ export const AgentActivity: React.FC<AgentActivityProps> = ({
         <div className="absolute top-14 left-1/2 -translate-x-1/2 z-30 animate-bounce [animation-duration:1.5s] pointer-events-none">
           <div className="flex items-center gap-1.5 px-3.5 py-1 rounded-full bg-emerald-500 text-black text-[10px] font-black shadow-xl">
             <MessageSquare className="w-3.5 h-3.5 fill-current" />
-            <span>💬 {agent.name} respondendo lead no WhatsApp...</span>
+            <span>{agent.name} respondendo à conversa...</span>
           </div>
         </div>
       )}
@@ -45,7 +44,7 @@ export const AgentActivity: React.FC<AgentActivityProps> = ({
         <div className="absolute top-14 left-1/2 -translate-x-1/2 z-30 pointer-events-none">
           <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-purple-950/90 border border-purple-400/50 text-purple-200 text-[10px] font-bold shadow-xl backdrop-blur-md animate-pulse">
             <Sparkles className="w-3.5 h-3.5 text-purple-400" />
-            <span>Absorvendo novo conhecimento & regras de frete...</span>
+            <span>Atualizando conhecimento...</span>
           </div>
         </div>
       )}
@@ -55,7 +54,7 @@ export const AgentActivity: React.FC<AgentActivityProps> = ({
         <div className="absolute top-14 left-1/2 -translate-x-1/2 z-30 animate-in zoom-in duration-300 pointer-events-none">
           <div className="flex items-center gap-1.5 px-3.5 py-1 rounded-full bg-emerald-500 text-black text-[10px] font-black shadow-xl">
             <CheckCircle className="w-3.5 h-3.5" />
-            <span>🎉 Atendimento concluído & cotação enviada!</span>
+            <span>Operação concluída</span>
           </div>
         </div>
       )}
@@ -65,7 +64,7 @@ export const AgentActivity: React.FC<AgentActivityProps> = ({
         <div className="absolute top-14 left-1/2 -translate-x-1/2 z-30 animate-pulse pointer-events-none">
           <div className="flex items-center gap-1.5 px-3.5 py-1 rounded-full bg-rose-600 text-white text-[10px] font-bold shadow-xl">
             <AlertCircle className="w-3.5 h-3.5" />
-            <span>Atenção: oscilação na sessão do WhatsApp</span>
+            <span>Verifique o registro da operação</span>
           </div>
         </div>
       )}
@@ -80,37 +79,15 @@ export const AgentActivity: React.FC<AgentActivityProps> = ({
         <span
           className={cn(
             "w-2 h-2 rounded-full shrink-0",
-            state === "OFFLINE" ? "bg-slate-500" : "bg-emerald-400 animate-pulse shadow-[0_0_8px_#10b981]"
+            visual.color,
+            visual.pulse && "animate-pulse"
           )}
         />
         <div className="flex items-center gap-1 text-[11px] text-slate-200">
-          <strong className="text-white font-bold">{agent.name}</strong>
-          <span className="text-slate-500">·</span>
           <span className="font-medium text-slate-300">
-            {state === "WORKING"
-              ? "Atendimento Ativo"
-              : state === "RESPONDING"
-              ? "Respondendo Lead"
-              : state === "THINKING"
-              ? "Processando"
-              : state === "LEARNING"
-              ? "Aprendendo"
-              : state === "SUCCESS"
-              ? "Concluído"
-              : state === "IDLE"
-              ? "Em Espera"
-              : "Aguardando ativação"}
+            {visual.label}
           </span>
         </div>
-        <Badge
-          className={cn(
-            "text-[8px] font-mono uppercase px-1.5 py-0 h-4 border shrink-0 bg-black/50 ml-0.5",
-            visual.borderColor,
-            visual.textColor
-          )}
-        >
-          {visual.badge}
-        </Badge>
       </div>
     </>
   );

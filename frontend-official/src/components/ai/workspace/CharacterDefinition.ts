@@ -168,7 +168,7 @@ export const STATE_VISUAL_MAP: Record<AgentPresenceState, StateVisualConfig> = {
     isOperating: true,
   },
   LEARNING: {
-    label: "EVOLUINDO REGRAS",
+    label: "ATUALIZANDO CONHECIMENTO",
     badgeBg: "bg-purple-500/15",
     badgeBorder: "border-purple-500/40",
     badgeText: "text-purple-400",
@@ -178,7 +178,7 @@ export const STATE_VISUAL_MAP: Record<AgentPresenceState, StateVisualConfig> = {
     isOperating: true,
   },
   SUCCESS: {
-    label: "CONVERSÃO REALIZADA",
+    label: "OPERAÇÃO CONCLUÍDA",
     badgeBg: "bg-emerald-600/20",
     badgeBorder: "border-emerald-400/50",
     badgeText: "text-emerald-300",
@@ -208,7 +208,7 @@ export const STATE_VISUAL_MAP: Record<AgentPresenceState, StateVisualConfig> = {
     isOperating: false,
   },
   AWAY: {
-    label: "HORÁRIO DE ALMOÇO",
+    label: "INDISPONÍVEL",
     badgeBg: "bg-blue-500/10",
     badgeBorder: "border-blue-500/30",
     badgeText: "text-blue-400",

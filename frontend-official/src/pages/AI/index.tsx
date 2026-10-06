@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback } from "react";
-import { useSearchParams, useNavigate } from "react-router-dom";
+import { Navigate, useSearchParams, useNavigate } from "react-router-dom";
 import { Header } from "@/components/layout/Header";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
@@ -32,13 +32,12 @@ import {
   Star,
   Users,
 } from "lucide-react";
-import { apiService, requestApiEndpoint, type AIStatusResponse } from "@/core/services/apiService";
+import { apiService, type AIStatusResponse } from "@/core/services/apiService";
 import { useAppStore } from "@/state/stores/appStore";
 import { useToast } from "@/state/hooks/use-toast";
 import { VoiceStudioDrawer } from "@/components/ai/VoiceStudioDrawer";
 import { ZaiCommandPalette } from "@/components/ai/ZaiCommandPalette";
 import { AgentCustomizerModal } from "@/components/ai/AgentCustomizerModal";
-import { ZaiPlatformAssistantView } from "@/components/ai/ZaiPlatformAssistantView";
 import { NewAgentWizardModal } from "@/components/ai/NewAgentWizardModal";
 import { cn } from "@/core/lib/utils";
 
@@ -51,6 +50,16 @@ export type UnifiedAITab = "agent" | "flows" | "operations" | "evolution" | "zai
 
 interface AIPageProps {
   defaultSection?: string;
+}
+
+interface AgentProfile {
+  key: string;
+  name: string;
+  role?: string;
+  active?: boolean;
+  avatar?: string;
+  sessionIds?: string[];
+  [field: string]: unknown;
 }
 
 function resolveAIEnabled(status: AIStatusResponse | null): boolean {
@@ -101,6 +110,10 @@ export default function UnifiedAIPage({ defaultSection }: AIPageProps) {
   }, [searchParams, defaultSection]);
 
   const handleTabChange = (tab: UnifiedAITab) => {
+    if (tab === "zaibot") {
+      navigate("/attendants?tab=copilot");
+      return;
+    }
     const currentSub = searchParams.get("sub");
     if (currentSub) {
       setSearchParams({ tab, sub: currentSub }, { replace: true });
@@ -116,7 +129,9 @@ export default function UnifiedAIPage({ defaultSection }: AIPageProps) {
   const [isVoiceStudioOpen, setIsVoiceStudioOpen] = useState(false);
 
   // Agents & Selection State
-  const [selectedAgentKey, setSelectedAgentKey] = useState<string>("camila");
+  const [selectedAgentKey, setSelectedAgentKey] = useState<string>("");
+  const [agentProfiles, setAgentProfiles] = useState<AgentProfile[]>([]);
+  const [loadingAgents, setLoadingAgents] = useState(true);
   const [customizerModalOpen, setCustomizerModalOpen] = useState(false);
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
   const [whatsAppModalOpen, setWhatsAppModalOpen] = useState(false);
@@ -134,77 +149,27 @@ export default function UnifiedAIPage({ defaultSection }: AIPageProps) {
     return () => window.removeEventListener("zai:open-wizard", handleOpenWizard);
   }, []);
 
-  // Available agent profiles
-  const agentProfiles = useMemo(
-    () => [
-      {
-        key: "zaibot",
-        name: "ZAIBOT",
-        role: "Assistente Operacional & Mascote 3D",
-        badge: "Sistema & Automação",
-        level: 5,
-        levelTitle: "Mestre Autônomo",
-        avatar: "/assets/mascot/zaibot_avatar.png",
-        status: "online",
-        description: "Operador central com comandos, análise de sistema e mascote vivo flutuante.",
-        stats: { xp: 2450, accuracy: 99, chats: 1420 },
-      },
-      {
-        key: "camila",
-        name: "Camila",
-        role: "Especialista em Vendas & Atendimento Loja",
-        badge: "WhatsApp Loja",
-        level: 4,
-        levelTitle: "Consultor Comercial",
-        avatar: "/assets/evolution/camila_avatar.png",
-        status: "online",
-        description: "Foco total em acolhimento, conversão no WhatsApp e playbooks de negociação.",
-        stats: { xp: 1450, accuracy: 96, chats: 3820 },
-      },
-    ],
-    []
-  );
+  const refreshAgents = useCallback(async () => {
+    setLoadingAgents(true);
+    try {
+      const result = await apiService.getAIAgents();
+      if (result.success === false || !Array.isArray(result.agents)) throw new Error("Não foi possível carregar os atendentes.");
+      const profiles = result.agents
+        .filter(agent => agent && typeof agent === "object" && !agent.isPlatformAssistant && agent.key !== "zaibot")
+        .map(agent => ({ ...agent, key: String(agent.key || agent.id || "").trim() }))
+        .filter(agent => Boolean(agent.key));
+      setAgentProfiles(profiles);
+      setSelectedAgentKey(current => profiles.some(agent => agent.key === current) ? current : profiles[0]?.key || "");
+    } catch (error) {
+      setAgentProfiles([]);
+      setSelectedAgentKey("");
+      toast({ title: "Falha ao carregar atendentes", description: error instanceof Error ? error.message : "Tente novamente.", variant: "destructive" });
+    } finally {
+      setLoadingAgents(false);
+    }
+  }, [toast]);
 
-  // Dynamic Agent Levels and Flows Count (Zero Mock)
-  const [agentDynamicLevels, setAgentDynamicLevels] = useState<
-    Record<string, { level: number; totalXp: number; levelTitle: string }>
-  >({});
-  const [flowsCount, setFlowsCount] = useState<number>(4);
-
-  // Load dynamic agent levels and flows from real backend
-  useEffect(() => {
-    let mounted = true;
-    const fetchLevelsAndFlows = async () => {
-      try {
-        const [zaibotRes, camilaRes, flowsRes] = await Promise.all([
-          requestApiEndpoint<any>("/api/ai/evolution/agent-level?agentKey=zaibot").catch(() => null),
-          requestApiEndpoint<any>("/api/ai/evolution/agent-level?agentKey=camila").catch(() => null),
-          requestApiEndpoint<any>("/api/flows").catch(() => null),
-        ]);
-        if (mounted) {
-          if (zaibotRes?.data || camilaRes?.data) {
-            setAgentDynamicLevels({
-              zaibot: zaibotRes?.data
-                ? { level: zaibotRes.data.level, totalXp: zaibotRes.data.totalXp, levelTitle: zaibotRes.data.levelTitle }
-                : { level: 5, totalXp: 2450, levelTitle: "Mestre Autônomo" },
-              camila: camilaRes?.data
-                ? { level: camilaRes.data.level, totalXp: camilaRes.data.totalXp, levelTitle: camilaRes.data.levelTitle }
-                : { level: 4, totalXp: 1450, levelTitle: "Consultor Comercial" },
-            });
-          }
-          if (Array.isArray(flowsRes)) {
-            setFlowsCount(flowsRes.length);
-          } else if (flowsRes?.flows && Array.isArray(flowsRes.flows)) {
-            setFlowsCount(flowsRes.flows.length);
-          }
-        }
-      } catch (_) {}
-    };
-    void fetchLevelsAndFlows();
-    return () => {
-      mounted = false;
-    };
-  }, []);
+  useEffect(() => { void refreshAgents(); }, [refreshAgents]);
 
   // Load global AI Status
   useEffect(() => {
@@ -249,7 +214,7 @@ export default function UnifiedAIPage({ defaultSection }: AIPageProps) {
       toast({
         title: checked ? "Automação IA Ativada" : "Automação IA Pausada",
         description: checked
-          ? "O robô responderá aos clientes conforme as regras e prompt configurados."
+          ? "Atendimento automático habilitado para os agentes e WhatsApps configurados."
           : "O robô não enviará respostas automáticas até ser reativado.",
       });
     } catch (err: any) {
@@ -267,13 +232,11 @@ export default function UnifiedAIPage({ defaultSection }: AIPageProps) {
   // Open Customizer for a specific agent
   const handleOpenCustomizer = (agentKey?: string) => {
     const key = agentKey || selectedAgentKey;
-    const profile = agentProfiles.find((a) => a.key === key) || {
-      key: "new",
-      name: "Novo Agente",
-      role: "Atendente Especialista",
-      tone: "friendly",
-      prompt: "",
-    };
+    const profile = agentProfiles.find((a) => a.key === key);
+    if (!profile) {
+      toast({ title: "Selecione um atendente existente para configurar", variant: "destructive" });
+      return;
+    }
     setCustomizerTargetAgent(profile);
     setCustomizerModalOpen(true);
   };
@@ -318,10 +281,10 @@ export default function UnifiedAIPage({ defaultSection }: AIPageProps) {
   const tabsConfig = [
     {
       id: "agent" as UnifiedAITab,
-      label: "Atendentes Digitais",
-      shortLabel: "Atendentes",
+      label: "Configurações da IA",
+      shortLabel: "Configurações",
       icon: Users,
-      description: "Agente & Inteligência • Gestão de atendentes por loja e número WhatsApp",
+      description: "Agente, prompt e provedores de inteligência",
     },
     {
       id: "flows" as UnifiedAITab,
@@ -347,15 +310,17 @@ export default function UnifiedAIPage({ defaultSection }: AIPageProps) {
     {
       id: "zaibot" as UnifiedAITab,
       label: "Assistente ZAI",
-      shortLabel: "ZAIBOT",
+      shortLabel: "Assistente",
       icon: Bot,
       description: "Copiloto operacional do administrador",
     },
   ];
 
-  const activeConnectedSession = sessions.find(
-    (s: any) => ["connected", "online", "active"].includes((s.status || "").toLowerCase())
-  );
+  const selectedAgent = agentProfiles.find(agent => agent.key === selectedAgentKey);
+  const activeConnectedSession = sessions.find(session => selectedAgent?.sessionIds?.includes(session.id) && session.status === "connected");
+  const connectedSessions = sessions.filter(session => session.status === "connected");
+
+  if (activeTab === "zaibot") return <Navigate to="/attendants?tab=copilot" replace />;
 
   return (
     <div className="flex flex-col min-h-full bg-background pb-12">
@@ -396,6 +361,11 @@ export default function UnifiedAIPage({ defaultSection }: AIPageProps) {
             >
               <Bot className="h-3.5 w-3.5" />
               <span>Testar agora</span>
+            </Button>
+
+            <Button type="button" variant="outline" size="sm" onClick={() => navigate("/attendants")} className="h-8 text-xs gap-1.5">
+              <Users className="h-3.5 w-3.5" />
+              <span>Gerenciar atendentes</span>
             </Button>
 
             <Button
@@ -478,7 +448,7 @@ export default function UnifiedAIPage({ defaultSection }: AIPageProps) {
               </div>
               <p className="text-xs text-muted-foreground">
                 {aiEnabled
-                  ? "O atendente virtual está ativo e respondendo aos contatos configurados."
+                  ? "Atendimento automático habilitado para os agentes e WhatsApps configurados."
                   : "O atendimento automático está em pausa. Nenhuma mensagem será disparada."}
               </p>
             </div>
@@ -497,42 +467,37 @@ export default function UnifiedAIPage({ defaultSection }: AIPageProps) {
           </div>
         </div>
 
-        {/* NEURAL ENGINE & AI TELEMETRY STRIP */}
+        {/* Resumo da operação */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 p-3 rounded-2xl border border-emerald-500/20 bg-[#070c14]/80 backdrop-blur-md shadow-xs">
           <div className="flex items-center gap-2.5 px-3 py-1.5 rounded-xl bg-black/40 border border-white/5">
-            <span className="relative flex h-2 w-2">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
-              <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
-            </span>
+            <Users className="h-3.5 w-3.5 text-emerald-400 shrink-0" />
             <div className="min-w-0">
-              <span className="block text-[9px] uppercase tracking-wider text-muted-foreground font-semibold">Motor Neural</span>
-              <span className="text-xs font-bold text-foreground truncate flex items-center gap-1">
-                GPT-4o Mini <span className="text-[10px] text-emerald-400 font-mono">v2.4</span>
-              </span>
+              <span className="block text-[9px] uppercase tracking-wider text-muted-foreground font-semibold">Atendentes cadastrados</span>
+              <span className="text-xs font-bold text-foreground">{loadingAgents ? "—" : agentProfiles.length}</span>
             </div>
           </div>
 
           <div className="flex items-center gap-2.5 px-3 py-1.5 rounded-xl bg-black/40 border border-white/5">
             <Activity className="h-3.5 w-3.5 text-cyan-400 shrink-0" />
             <div className="min-w-0">
-              <span className="block text-[9px] uppercase tracking-wider text-muted-foreground font-semibold">Latência de Raciocínio</span>
-              <span className="text-xs font-bold text-cyan-400 font-mono">42ms <span className="text-[10px] text-muted-foreground font-normal">(Tempo Real)</span></span>
+              <span className="block text-[9px] uppercase tracking-wider text-muted-foreground font-semibold">WhatsApps conectados</span>
+              <span className="text-xs font-bold text-cyan-400 font-mono">{connectedSessions.length}</span>
             </div>
           </div>
 
           <div className="flex items-center gap-2.5 px-3 py-1.5 rounded-xl bg-black/40 border border-white/5">
             <Brain className="h-3.5 w-3.5 text-purple-400 shrink-0" />
             <div className="min-w-0">
-              <span className="block text-[9px] uppercase tracking-wider text-muted-foreground font-semibold">Base de Conhecimento RAG</span>
-              <span className="text-xs font-bold text-purple-300 truncate">Catálogo & Políticas Ativas</span>
+              <span className="block text-[9px] uppercase tracking-wider text-muted-foreground font-semibold">Atendente selecionado</span>
+              <span className="text-xs font-bold text-purple-300 truncate">{selectedAgent?.name || "Nenhum selecionado"}</span>
             </div>
           </div>
 
           <div className="flex items-center gap-2.5 px-3 py-1.5 rounded-xl bg-black/40 border border-white/5">
             <ShieldCheck className="h-3.5 w-3.5 text-emerald-400 shrink-0" />
             <div className="min-w-0">
-              <span className="block text-[9px] uppercase tracking-wider text-muted-foreground font-semibold">Cadência Anti-Bloqueio</span>
-              <span className="text-xs font-bold text-emerald-400">Humanizada Ativa</span>
+              <span className="block text-[9px] uppercase tracking-wider text-muted-foreground font-semibold">Automação</span>
+              <span className="text-xs font-bold text-emerald-400">{loadingStatus ? "Consultando..." : aiEnabled ? "Habilitada" : "Pausada"}</span>
             </div>
           </div>
         </div>
@@ -587,12 +552,21 @@ export default function UnifiedAIPage({ defaultSection }: AIPageProps) {
         <main className="w-full min-h-[500px] animate-fade-in transition-all duration-200">
           {activeTab === "agent" && (
             <AgentTab
+              agents={agentProfiles}
+              onRefreshAgents={refreshAgents}
               aiEnabled={aiEnabled}
               onToggleAI={handleToggleGlobalAI}
               selectedAgentKey={selectedAgentKey}
-              onSelectAgent={setSelectedAgentKey}
+              onSelectAgent={(key) => {
+                if (key === "zaibot") {
+                  navigate("/attendants?tab=copilot");
+                  return;
+                }
+                setSelectedAgentKey(key);
+                if (!agentProfiles.some(agent => agent.key === key)) void refreshAgents();
+              }}
               onOpenVoiceStudio={() => setIsVoiceStudioOpen(true)}
-              onOpenCustomizer={() => handleOpenCustomizer(selectedAgentKey)}
+              onOpenCustomizer={(agent) => handleOpenCustomizer(agent?.key || selectedAgentKey)}
             />
           )}
 
@@ -602,14 +576,6 @@ export default function UnifiedAIPage({ defaultSection }: AIPageProps) {
 
           {activeTab === "evolution" && <EvolutionTab />}
 
-          {activeTab === "zaibot" && (
-            <ZaiPlatformAssistantView
-              onOpenNewAgentWizard={(r) => {
-                setWizardDefaultRole(r || "Vendas");
-                setIsWizardOpen(true);
-              }}
-            />
-          )}
         </main>
       </div>
 
@@ -617,6 +583,7 @@ export default function UnifiedAIPage({ defaultSection }: AIPageProps) {
       <VoiceStudioDrawer
         open={isVoiceStudioOpen}
         onClose={() => setIsVoiceStudioOpen(false)}
+        agentId={selectedAgentKey || undefined}
       />
 
       <ZaiCommandPalette
@@ -629,11 +596,14 @@ export default function UnifiedAIPage({ defaultSection }: AIPageProps) {
         open={customizerModalOpen}
         onOpenChange={setCustomizerModalOpen}
         agent={customizerTargetAgent}
-        onSave={() => {
-          toast({
-            title: "Configurações Salvas",
-            description: "O atendente virtual foi atualizado com sucesso.",
-          });
+        onSave={async (updated) => {
+          if (!customizerTargetAgent?.key) throw new Error("Selecione um atendente para salvar.");
+          const key = customizerTargetAgent.key;
+          const result = await apiService.updateAIAgent(key, updated);
+          if (result.success === false) throw new Error("Não foi possível salvar o atendente.");
+          const savedAgent = result.agent || { ...customizerTargetAgent, ...updated };
+          setCustomizerTargetAgent(current => current?.key === key ? savedAgent : current);
+          setAgentProfiles(current => current.map(agent => agent.key === key ? savedAgent : agent));
         }}
       />
 
@@ -675,10 +645,10 @@ export default function UnifiedAIPage({ defaultSection }: AIPageProps) {
             <div className="grid grid-cols-2 gap-2 text-xs">
               <div className="p-3 rounded-xl border border-border/60 bg-muted/10">
                 <span className="text-[10px] text-muted-foreground uppercase font-bold block">
-                  Atendente Ativo
+                  Atendente Selecionado
                 </span>
                 <span className="font-bold text-foreground">
-                  {selectedAgentKey === "zaibot" ? "ZAIBOT (Operacional)" : "Camila (Vendas Loja)"}
+                  {selectedAgent?.name || "Nenhum selecionado"}
                 </span>
               </div>
               <div className="p-3 rounded-xl border border-border/60 bg-muted/10">
@@ -686,7 +656,7 @@ export default function UnifiedAIPage({ defaultSection }: AIPageProps) {
                   Status Global
                 </span>
                 <span className={cn("font-bold", aiEnabled ? "text-emerald-400" : "text-amber-400")}>
-                  {aiEnabled ? "Respondendo Automaticamente" : "Pausado"}
+                  {loadingStatus ? "Consultando..." : aiEnabled ? "Habilitado" : "Pausado"}
                 </span>
               </div>
             </div>
@@ -723,7 +693,11 @@ export default function UnifiedAIPage({ defaultSection }: AIPageProps) {
         open={isWizardOpen}
         onOpenChange={setIsWizardOpen}
         defaultRole={wizardDefaultRole}
-        onCreated={() => handleTabChange("agent")}
+        onCreated={(agent) => {
+          if (agent?.key) setSelectedAgentKey(agent.key);
+          void refreshAgents();
+          handleTabChange("agent");
+        }}
       />
     </div>
   );

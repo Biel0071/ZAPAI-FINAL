@@ -31,7 +31,7 @@ export default function AssistantPage() {
 
   return (
     <div className="flex flex-col min-h-screen bg-background">
-      <Header />
+      <Header title="Assistente ZAI" />
 
       <main className="flex-1 p-4 md:p-6 max-w-7xl mx-auto w-full space-y-6">
         {/* Top Header */}
@@ -59,7 +59,7 @@ export default function AssistantPage() {
             <Button
               variant="outline"
               size="sm"
-              onClick={() => navigate("/stores")}
+              onClick={() => navigate("/attendants?section=business")}
               className="rounded-xl text-xs gap-1.5 border-border/60"
             >
               <Storefront className="h-3.5 w-3.5" />

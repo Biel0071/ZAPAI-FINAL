@@ -87,7 +87,7 @@ export function ConnectionsView({
         </div>
         <div className="flex flex-wrap gap-2">
           <Button variant="outline" size="sm" className="rounded-xl" onClick={onRefresh}>
-            Ver Logs
+            Atualizar
           </Button>
           <Button variant="outline" size="sm" className="rounded-xl" onClick={onOpenDiagnostics}>
             Diagnósticos

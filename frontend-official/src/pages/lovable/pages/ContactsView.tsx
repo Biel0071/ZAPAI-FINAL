@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { businessLabel } from '@/core/utils/tagEmojis';
 import { useNavigate } from "react-router-dom";
 import { cn } from "@/core/lib/utils";
 import { AddressBook, ChatCircleDots, Phone, SquaresFour, List, DotsThreeVertical, Tag, ChatCircle, PencilSimple, Kanban, Archive, Megaphone, Funnel } from "@phosphor-icons/react";
@@ -619,7 +620,7 @@ export function ContactsView({
                             <TableCell>
                               {contact.status ? (
                                 <Badge variant="outline" className="rounded-full text-[10px] capitalize">
-                                  {contact.status}
+                                  {businessLabel(contact.status)}
                                 </Badge>
                               ) : (
                                 "-"

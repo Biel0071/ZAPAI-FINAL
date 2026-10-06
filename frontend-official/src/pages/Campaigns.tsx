@@ -277,36 +277,6 @@ function extractCampaignProduct(prompt: string) {
   return titleCaseCampaign(product || "Produto");
 }
 
-function buildHumanizedFollowUpMessages(product: string, prompt: string, leadProfile: string): CampaignDraftMessage[] {
-  const context = prompt.trim();
-  const profileHint = leadProfile === "hot" ? "vi que pode fazer sentido para voce agora" : leadProfile === "cold" ? "sem pressa, so quero te apresentar de forma simples" : "acredito que pode encaixar bem no seu momento";
-  return [
-    {
-      type: "text" as const,
-      content: "Oi, tudo bem? Estou falando sobre " + product + ". " + profileHint + ". Posso te mandar uma ideia rapida?",
-    },
-    {
-      type: "text" as const,
-      content: "Vou ser direto: " + product + " ajuda quem quer resolver isso com mais praticidade e menos tentativa no escuro. Pelo seu perfil, pode valer uma olhada.",
-    },
-    {
-      type: "text" as const,
-      content: "Se fizer sentido, eu te mostro as condicoes e tiro suas duvidas por aqui mesmo. Quer que eu te envie os detalhes?",
-    },
-    {
-      type: "text" as const,
-      content: "Passando para fazer um follow-up rapido sobre " + product + ". Ainda faz sentido para voce ou prefere que eu te chame outro dia?",
-    },
-    {
-      type: "text" as const,
-      content: "Ultimo toque para nao te incomodar: consigo deixar uma condicao especial de " + product + " e te explicar em poucos minutos. Quer aproveitar?",
-    },
-  ].map((message, index) => ({
-    ...message,
-    content: context && index === 1 ? message.content + "\n\nContexto usado: " + context : message.content,
-  }));
-}
-
 type CampaignDispatchStatus = {
   status?: string;
   pending?: number;
@@ -991,7 +961,7 @@ export default function Campaigns() {
     } catch (error) {
       notify.error(error instanceof Error ? error.message : "Falha ao salvar padrao de campanha");
     }
-  }, [campaignName, cleanMessages, intervalSeconds, typingDelay]);
+  }, [campaignName, cleanMessages, intervalSeconds, typingDelay, editingQuickReplyId, loadPageData]);
 
   const duplicateSelectedFlowTemplate = useCallback(async () => {
     const flow = quickReplies.find((item) => item.id === selectedFlowId);
@@ -1027,9 +997,9 @@ export default function Campaigns() {
     const activeAgent = aiAgents.find((agent) => String(agent.key || agent.name || "") === selectedAiAgentKey) || aiAgents.find((agent) => agent.active !== false) || aiAgents[0];
     let generatedName = "IA - " + product + " - " + now.toLocaleDateString("pt-BR");
     const followUpDays = Math.max(1, Number(aiFollowUpDays) || 3);
-    let generatedMessages = buildHumanizedFollowUpMessages(product, prompt, aiLeadProfile);
+    let generatedMessages: CampaignDraftMessage[] = [];
     let generatedTags = ["ia", "campanha", "follow-up", product.toLowerCase().replace(/\s+/g, "-")];
-    let aiSource = "fallback-local";
+    let aiSource = "";
     let aiDelayProfile: AICampaignDraft["delayProfile"] | undefined;
 
     try {
@@ -1065,6 +1035,7 @@ export default function Campaigns() {
           message: aiInstruction,
           agentKey: activeAgent.key,
           agentName: activeAgent.name,
+          sessionId: getCampaignSessionId(),
           responseStyle: "elaborate",
           temperature: 0.7,
         });
@@ -1077,9 +1048,12 @@ export default function Campaigns() {
           aiSource = activeAgent.name || activeAgent.key || "atendente IA";
         }
       }
+      generatedMessages = generatedMessages.filter(message => typeof message.content === 'string' && message.content.trim());
+      if (!generatedMessages.length || !aiSource) throw new Error('O provedor não retornou mensagens válidas. Revise a configuração de IA e tente novamente.');
     } catch (error) {
-      console.warn("[Campaigns] AI attendant campaign generation fallback:", error);
-      notify.error("Atendente IA nao respondeu em JSON valido. Usei o gerador local como fallback.");
+      notify.error(error instanceof Error ? error.message : 'Não foi possível gerar a campanha. Seu rascunho foi preservado.');
+      setIsAiCampaignGenerating(false);
+      return;
     }
 
     const promptWords = prompt
@@ -1541,7 +1515,7 @@ export default function Campaigns() {
                           <p className="text-xs text-muted-foreground">{campaignMetrics.failed} falha(s)</p>
                         </div>
                       </div>
-                      <OperationalStatusBadge label="Pipeline ativo" tone="online" />
+                      <OperationalStatusBadge label="Envios registrados" tone="syncing" />
                     </CardContent>
                   </Card>
 

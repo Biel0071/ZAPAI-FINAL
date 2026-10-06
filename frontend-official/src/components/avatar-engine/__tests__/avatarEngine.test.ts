@@ -1,4 +1,12 @@
-import { describe, it, expect } from "vitest";
+import React, { act } from "react";
+import { createRoot } from "react-dom/client";
+import { renderToStaticMarkup } from "react-dom/server";
+import { describe, it, expect, vi } from "vitest";
+import * as characterFactory from "../CharacterFactory";
+import { AvatarEditorModal } from "../AvatarEditorModal";
+import { ZaiAvatarRenderer } from "../ZaiAvatarRenderer";
+import { normalizeAgentToIdentity } from "../../ai/workspace/AgentIdentity";
+import { AgentWorkspace } from "../../ai/workspace/AgentWorkspace";
 import {
   buildStoreVisualDNA,
   createAgentAvatar,
@@ -143,5 +151,72 @@ describe("ZAI Avatar Engine — Modular Character Factory & Store DNA", () => {
     expect(randomized.branding.storeName).toBe(storeDNA.storeName);
     expect(randomized.clothing).toBe(storeDNA.defaultClothing);
     expect(randomized.catalogSpriteId).toBeDefined();
+  });
+});
+
+describe("Avatar operational state regressions", () => {
+  it("keeps store-bound editing stable and preserves an unsaved change on rerender", async () => {
+    const store = { id: "shop-1", name: "Loja Centro", settings: {} };
+    const agent = { key: "camila", name: "Camila", role: "Vendas" };
+    const buildDNA = characterFactory.buildStoreVisualDNA;
+    let calls = 0;
+    const spy = vi.spyOn(characterFactory, "buildStoreVisualDNA").mockImplementation((value) => {
+      if (++calls > 8) throw new Error("Store DNA render loop");
+      return buildDNA(value);
+    });
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    const container = document.createElement("div");
+    document.body.appendChild(container);
+    const root = createRoot(container);
+    const onOpenChange = vi.fn();
+    try {
+      await expect(act(async () => {
+        root.render(React.createElement(AvatarEditorModal, { open: true, onOpenChange, agent, store }));
+      })).resolves.toBeUndefined();
+      const getMaleButton = () => Array.from(document.querySelectorAll("button"))
+        .find((button) => button.textContent?.includes("Masculino"))!;
+      const maleButton = getMaleButton();
+      await act(async () => maleButton.click());
+      expect(maleButton.className).toContain("border-emerald-500");
+      expect(document.querySelector('img[alt="camila"]')?.getAttribute("src")).toContain("sprite_r1_c1");
+      await act(async () => {
+        root.render(React.createElement(AvatarEditorModal, { open: true, onOpenChange, agent, store }));
+      });
+      expect(getMaleButton().className).toContain("border-emerald-500");
+    } finally {
+      await act(async () => root.unmount());
+      container.remove();
+      spy.mockRestore();
+      errorSpy.mockRestore();
+    }
+  });
+
+  it("does not invent active conversations or metrics when only activation is known", () => {
+    const identity = normalizeAgentToIdentity({ key: "ana", name: "Ana", active: true });
+    expect(identity.presenceState).toBe("IDLE");
+    expect(identity.stats).toBeUndefined();
+    expect(normalizeAgentToIdentity(undefined).presenceState).toBe("OFFLINE");
+  });
+
+  it("does not render runtime activity for a paused agent or simulated state controls", () => {
+    const markup = renderToStaticMarkup(React.createElement(AgentWorkspace, {
+      agent: { key: "ana", name: "Ana", active: true },
+      isOnline: false,
+      runtimeState: "RESPONDING",
+    }));
+    expect(markup).toContain("Pausado");
+    expect(markup).not.toContain("respondendo à conversa");
+    expect(markup).not.toContain("Simular estado");
+  });
+
+  it.each([
+    ["WAITING", "Aguardando"],
+    ["TYPING", "Digitando"],
+    ["ERROR", "Atenção"],
+  ] as const)("renders a useful label for %s", (state, label) => {
+    const markup = renderToStaticMarkup(React.createElement(ZaiAvatarRenderer, {
+      avatar: {}, state, showStatusBadge: true,
+    }));
+    expect(markup).toContain(label);
   });
 });

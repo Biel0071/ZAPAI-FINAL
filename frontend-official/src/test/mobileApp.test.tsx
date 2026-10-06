@@ -131,7 +131,7 @@ describe("Mobile App Interface & Mode Switcher", () => {
   });
 
   describe("MobileBottomNav Component", () => {
-    it("renders all 6 navigation tabs when in mobile mode", async () => {
+    it("renders the system navigation with commercial data inside attendants", async () => {
       act(() => {
         setViewMode("mobile");
       });
@@ -146,7 +146,7 @@ describe("Mobile App Interface & Mode Switcher", () => {
 
       expect(document.body.textContent).toContain("Inbox");
       expect(document.body.textContent).toContain("Atendentes");
-      expect(document.body.textContent).toContain("Lojas");
+      expect(document.body.textContent).not.toContain("Lojas");
       expect(document.body.textContent).toContain("Conexões");
       expect(document.body.textContent).toContain("Painel");
       expect(document.body.textContent).toContain("Mais");

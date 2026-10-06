@@ -1,10 +1,9 @@
 import React, { useState, useEffect, useCallback } from "react";
-import { useSearchParams } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import {
   Users,
   Clock,
@@ -22,7 +21,6 @@ import {
   Database,
   Radio,
   Server,
-  Play,
   Cpu,
   Search,
   FileText,
@@ -40,11 +38,11 @@ interface OperationsMetrics {
   openConversations: number;
   waitingConversations: number;
   closedConversations: number;
-  avgResponseTimeSeconds: number;
-  avgHandlingTimeMinutes: number;
-  slaCompliancePercent: number;
-  transfersToday: number;
-  productivityIndex: number;
+  avgResponseTimeSeconds: number | null;
+  avgHandlingTimeMinutes: number | null;
+  slaCompliancePercent: number | null;
+  transfersToday: number | null;
+  productivityIndex: number | null;
 }
 
 interface OperatorItem {
@@ -60,7 +58,7 @@ interface ProviderStatusItem {
   id: string;
   name: string;
   defaultModel: string;
-  status: "operational" | "degraded" | "testing" | "error";
+  status: "operational" | "degraded" | "testing" | "error" | "unknown";
   latencyMs?: number;
   lastTested?: string;
 }
@@ -75,12 +73,12 @@ interface LogEntry {
 }
 
 const PROVIDERS_MONITOR: ProviderStatusItem[] = [
-  { id: "openai", name: "OpenAI", defaultModel: "gpt-4o-mini", status: "operational", latencyMs: 140 },
-  { id: "groq", name: "Groq (Llama 3.3)", defaultModel: "llama-3.3-70b-versatile", status: "operational", latencyMs: 45 },
-  { id: "deepseek", name: "DeepSeek", defaultModel: "deepseek-chat", status: "operational", latencyMs: 180 },
-  { id: "claude", name: "Anthropic Claude", defaultModel: "claude-3-5-haiku", status: "operational", latencyMs: 220 },
-  { id: "gemini", name: "Google Gemini", defaultModel: "gemini-2.0-flash", status: "operational", latencyMs: 95 },
-  { id: "ollama", name: "Ollama Local", defaultModel: "llama3.1", status: "operational", latencyMs: 35 },
+  { id: "openai", name: "OpenAI", defaultModel: "gpt-4o-mini", status: "unknown" },
+  { id: "groq", name: "Groq (Llama 3.3)", defaultModel: "llama-3.3-70b-versatile", status: "unknown" },
+  { id: "deepseek", name: "DeepSeek", defaultModel: "deepseek-chat", status: "unknown" },
+  { id: "claude", name: "Anthropic Claude", defaultModel: "claude-3-5-haiku", status: "unknown" },
+  { id: "gemini", name: "Google Gemini", defaultModel: "gemini-2.0-flash", status: "unknown" },
+  { id: "ollama", name: "Ollama Local", defaultModel: "llama3.1", status: "unknown" },
 ];
 
 export function OperationsTab() {
@@ -105,32 +103,13 @@ export function OperationsTab() {
   };
 
   const [loading, setLoading] = useState(true);
-  const [metrics, setMetrics] = useState<OperationsMetrics>({
-    totalConversations: 0,
-    openConversations: 0,
-    waitingConversations: 0,
-    closedConversations: 0,
-    avgResponseTimeSeconds: 12,
-    avgHandlingTimeMinutes: 4.5,
-    slaCompliancePercent: 98,
-    transfersToday: 0,
-    productivityIndex: 96,
-  });
+  const [metrics, setMetrics] = useState<OperationsMetrics | null>(null);
 
   const [operators, setOperators] = useState<OperatorItem[]>([]);
 
   // Providers Live Test state
   const [providersState, setProvidersState] = useState<ProviderStatusItem[]>(PROVIDERS_MONITOR);
   const [testingProviderId, setTestingProviderId] = useState<string | null>(null);
-
-  // Queue state
-  const [queueBatchSize, setQueueBatchSize] = useState(5);
-  const [queueDelaySeconds, setQueueDelaySeconds] = useState(60);
-  const [queueMessage, setQueueMessage] = useState(
-    "Olá! Ontem você entrou em contato conosco fora do horário comercial. Estou disponível agora para te ajudar!"
-  );
-  const [queueWaitingCount, setQueueWaitingCount] = useState(0);
-  const [isProcessingQueue, setIsProcessingQueue] = useState(false);
 
   // Audit Logs state
   const [logs, setLogs] = useState<LogEntry[]>([]);
@@ -142,18 +121,15 @@ export function OperationsTab() {
   const fetchOperationsData = useCallback(async () => {
     setLoading(true);
     try {
-      const [opsRes, queueRes] = await Promise.all([
-        apiService.fetchOperationsMetrics().catch(() => null),
-        requestApiEndpoint<any>("/api/ai/queue/status").catch(() => null),
-      ]);
+      const opsRes = await apiService.fetchOperationsMetrics().catch(() => null);
 
-      if (opsRes?.success && opsRes.data) {
-        setMetrics(opsRes.data.metrics);
-        setOperators(opsRes.data.operators || []);
-      }
-
-      if (queueRes?.waiting !== undefined) {
-        setQueueWaitingCount(Number(queueRes.waiting) || 0);
+      const operations = opsRes?.data || opsRes;
+      if (operations?.metrics) {
+        setMetrics(operations.metrics);
+        setOperators(operations.operators || []);
+      } else {
+        setMetrics(null);
+        setOperators([]);
       }
     } catch (err) {
       console.error("[OperationsTab] Error fetching metrics:", err);
@@ -172,37 +148,7 @@ export function OperationsTab() {
       } else if (Array.isArray(res)) {
         setLogs(res);
       } else {
-        // Fallback default operational logs
-        setLogs([
-          {
-            id: "l-1",
-            level: "info",
-            message: "Pipeline de IA processou mensagem de lead com sucesso",
-            source: "aiPipeline",
-            timestamp: new Date(Date.now() - 1000 * 60 * 2).toISOString(),
-          },
-          {
-            id: "l-2",
-            level: "info",
-            message: "Fila de reativação verificada (0 pendências fora de horário)",
-            source: "aiQueue",
-            timestamp: new Date(Date.now() - 1000 * 60 * 15).toISOString(),
-          },
-          {
-            id: "l-3",
-            level: "warn",
-            message: "Provedor Groq reportou latência transitória de 180ms",
-            source: "providerWatcher",
-            timestamp: new Date(Date.now() - 1000 * 60 * 45).toISOString(),
-          },
-          {
-            id: "l-4",
-            level: "info",
-            message: "Sessão WhatsApp Baileys sincronizada com webhook local",
-            source: "baileysNode",
-            timestamp: new Date(Date.now() - 1000 * 60 * 90).toISOString(),
-          },
-        ]);
+        setLogs([]);
       }
     } catch (err) {
       console.error("[OperationsTab] Error fetching logs:", err);
@@ -223,7 +169,7 @@ export function OperationsTab() {
     setTestingProviderId(prov.id);
     const start = Date.now();
     try {
-      const res = await apiService.testAIConnection({
+      const res = await apiService.testAIMessage({
         message: "Ping de integridade operacional ZAI.",
         prompt: "Responda apenas: PONG",
         providerId: prov.id,
@@ -231,8 +177,8 @@ export function OperationsTab() {
       });
 
       const elapsed = Date.now() - start;
-      const latency = res?.responseTimeMs || elapsed;
-      const isSuccess = Boolean(res?.ok || res?.response);
+      const latency = res.result?.responseTimeMs ?? elapsed;
+      const isSuccess = Boolean(res.result?.ok && res.result.response);
 
       setProvidersState((prev) =>
         prev.map((p) =>
@@ -251,7 +197,7 @@ export function OperationsTab() {
         title: isSuccess ? `Provedor ${prov.name} OK` : `Falha em ${prov.name}`,
         description: isSuccess
           ? `Latência: ${latency}ms | Resposta recebida.`
-          : res?.error || "Não foi possível validar o provedor.",
+          : res.result?.error || res.error || "Não foi possível validar o provedor.",
         variant: isSuccess ? "default" : "destructive",
       });
     } catch (err: any) {
@@ -268,39 +214,8 @@ export function OperationsTab() {
     }
   };
 
-  // Process Queue
-  const handleProcessQueue = async () => {
-    setIsProcessingQueue(true);
-    try {
-      await requestApiEndpoint("/api/ai/queue/process", "POST", {
-        batchSize: queueBatchSize,
-        delaySeconds: queueDelaySeconds,
-        message: queueMessage,
-      }).catch(async () => {
-        if (typeof (apiService as any).processAIQueue === "function") {
-          return await (apiService as any).processAIQueue();
-        }
-      });
-
-      toast({
-        title: "Disparo de fila iniciado!",
-        description: `Processando lote de ${queueBatchSize} contatos pendentes.`,
-      });
-
-      await fetchOperationsData();
-    } catch (err: any) {
-      toast({
-        title: "Erro ao processar fila",
-        description: err?.message || "Não foi possível disparar a fila.",
-        variant: "destructive",
-      });
-    } finally {
-      setIsProcessingQueue(false);
-    }
-  };
-
   const activeSessionsCount = sessions.filter(
-    (s: any) => ["connected", "online", "active"].includes((s.status || "").toLowerCase())
+    (s: any) => s.status === "connected"
   ).length;
 
   const showAll = activeSub === "todos";
@@ -371,7 +286,7 @@ export function OperationsTab() {
           )}
         >
           <Send className="h-3.5 w-3.5 text-emerald-400" />
-          <span>Fila de Reativação</span>
+          <span>Fila de mensagens</span>
         </button>
         <button
           type="button"
@@ -397,10 +312,10 @@ export function OperationsTab() {
             </span>
             <div className="flex items-baseline justify-between pt-1">
               <span className="text-2xl font-black text-amber-400">
-                {metrics.waitingConversations}
+                {metrics?.waitingConversations ?? "—"}
               </span>
               <Badge variant="outline" className="border-amber-500/30 text-amber-400 text-[9px] uppercase font-bold">
-                Ao Vivo
+                {metrics ? "Atualizado" : "Indisponível"}
               </Badge>
             </div>
           </Card>
@@ -411,7 +326,7 @@ export function OperationsTab() {
             </span>
             <div className="flex items-baseline justify-between pt-1">
               <span className="text-2xl font-black text-emerald-400">
-                {metrics.openConversations}
+                {metrics?.openConversations ?? "—"}
               </span>
               <Users className="h-4 w-4 text-emerald-400" />
             </div>
@@ -419,11 +334,11 @@ export function OperationsTab() {
 
           <Card className="bg-card border-border/70 p-4 space-y-1">
             <span className="text-[10px] text-muted-foreground font-bold uppercase tracking-wider block">
-              Encerradas Hoje
+              Conversas encerradas (total)
             </span>
             <div className="flex items-baseline justify-between pt-1">
               <span className="text-2xl font-black text-foreground">
-                {metrics.closedConversations}
+                {metrics?.closedConversations ?? "—"}
               </span>
               <CheckCircle2 className="h-4 w-4 text-muted-foreground" />
             </div>
@@ -435,7 +350,7 @@ export function OperationsTab() {
             </span>
             <div className="flex items-baseline justify-between pt-1">
               <span className="text-2xl font-black text-cyan-400">
-                {metrics.avgResponseTimeSeconds}s
+                {metrics?.avgResponseTimeSeconds == null ? "—" : `${metrics.avgResponseTimeSeconds}s`}
               </span>
               <Clock className="h-4 w-4 text-cyan-400" />
             </div>
@@ -447,7 +362,7 @@ export function OperationsTab() {
             </span>
             <div className="flex items-baseline justify-between pt-1">
               <span className="text-2xl font-black text-emerald-400">
-                {metrics.slaCompliancePercent}%
+                {metrics?.slaCompliancePercent == null ? "—" : `${Math.min(100, Math.max(0, metrics.slaCompliancePercent))}%`}
               </span>
               <ShieldAlert className="h-4 w-4 text-emerald-400" />
             </div>
@@ -459,7 +374,7 @@ export function OperationsTab() {
             </span>
             <div className="flex items-baseline justify-between pt-1">
               <span className="text-2xl font-black text-purple-400">
-                {metrics.productivityIndex}%
+                {metrics?.productivityIndex == null ? "—" : `${Math.min(100, Math.max(0, metrics.productivityIndex))}%`}
               </span>
               <TrendingUp className="h-4 w-4 text-purple-400" />
             </div>
@@ -477,7 +392,7 @@ export function OperationsTab() {
                   <Activity className="h-5 w-5 text-emerald-400" /> Status dos Nós de Conexão & Processamento
                 </CardTitle>
                 <CardDescription className="text-xs text-muted-foreground">
-                  Monitoramento contínuo dos serviços de infraestrutura, mensageria e barramento de eventos.
+                  Conexões em tempo real e acesso aos diagnósticos do sistema.
                 </CardDescription>
               </div>
 
@@ -503,10 +418,10 @@ export function OperationsTab() {
                   <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
                     PostgreSQL
                   </span>
-                  <Database className="h-4 w-4 text-emerald-400" />
+                  <Database className="h-4 w-4 text-muted-foreground" />
                 </div>
-                <p className="text-base font-black text-emerald-400">Conectado</p>
-                <span className="text-[10px] text-muted-foreground block">Pool estável & replicado</span>
+                <p className="text-base font-black text-muted-foreground">—</p>
+                <Link to="/settings?tab=diagnostics" className="text-[10px] text-emerald-400 block hover:underline">Consultar diagnóstico</Link>
               </div>
 
               {/* WebSocket Realtime */}
@@ -517,8 +432,8 @@ export function OperationsTab() {
                   </span>
                   <Radio className="h-4 w-4 text-emerald-400" />
                 </div>
-                <p className="text-base font-black text-emerald-400">
-                  {websocketHealth === "online" ? "Operacional" : "Reconectando"}
+                <p className={cn("text-base font-black", websocketHealth === "online" ? "text-emerald-400" : "text-muted-foreground")}>
+                  {websocketHealth === "online" ? "Operacional" : websocketHealth === "reconnecting" ? "Reconectando" : "Desconectado"}
                 </p>
                 <span className="text-[10px] text-muted-foreground block">Eventos de chat em tempo real</span>
               </div>
@@ -541,12 +456,12 @@ export function OperationsTab() {
               <div className="p-3.5 rounded-xl border border-border/60 bg-muted/10 space-y-1.5">
                 <div className="flex items-center justify-between">
                   <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
-                    Sync Engine & Fila
+                    Fila de mensagens
                   </span>
-                  <Layers className="h-4 w-4 text-emerald-400" />
+                  <Layers className="h-4 w-4 text-muted-foreground" />
                 </div>
-                <p className="text-base font-black text-emerald-400">Ativo (0 DLQ)</p>
-                <span className="text-[10px] text-muted-foreground block">Vazão normal sem gargalos</span>
+                <p className="text-base font-black text-muted-foreground">—</p>
+                <Link to="/settings?tab=queue" className="text-[10px] text-emerald-400 block hover:underline">Consultar fila</Link>
               </div>
             </div>
           </CardContent>
@@ -563,7 +478,7 @@ export function OperationsTab() {
                   <Cpu className="h-5 w-5 text-emerald-400" /> Status dos Provedores & Testes Ao Vivo
                 </CardTitle>
                 <CardDescription className="text-xs text-muted-foreground">
-                  Validação de latência, uptime e capacidade de inferência de cada backend de inteligência.
+                  Teste a resposta e o tempo de retorno dos provedores configurados.
                 </CardDescription>
               </div>
             </div>
@@ -594,17 +509,17 @@ export function OperationsTab() {
                           "text-[9px] uppercase font-bold",
                           prov.status === "operational"
                             ? "bg-emerald-500/20 text-emerald-300 border-emerald-500/40"
-                            : "bg-destructive/20 text-destructive border-destructive/40"
+                            : prov.status === "unknown" ? "bg-muted/40 text-muted-foreground border-border/60" : "bg-destructive/20 text-destructive border-destructive/40"
                         )}
                       >
-                        {prov.status === "operational" ? "Operacional" : "Erro"}
+                        {prov.status === "operational" ? "Operacional" : prov.status === "unknown" ? "Não testado" : "Erro"}
                       </Badge>
                     </div>
 
                     <div className="flex items-center justify-between pt-1 border-t border-border/30 text-xs">
                       <span className="text-[11px] text-muted-foreground flex items-center gap-1">
                         <Clock className="h-3 w-3 text-cyan-400" />
-                        Latência: <strong className="text-foreground font-mono">{prov.latencyMs || 0}ms</strong>
+                        Latência: <strong className="text-foreground font-mono">{prov.latencyMs === undefined ? "—" : `${prov.latencyMs}ms`}</strong>
                       </span>
 
                       <Button
@@ -627,91 +542,26 @@ export function OperationsTab() {
         </Card>
       )}
 
-      {/* SECTION 3: RE-ENGAGEMENT QUEUE & CONTROLS */}
+      {/* SECTION 3: OUTBOUND QUEUE */}
       {showQueue && (
         <Card className="bg-card border-border/80 shadow-sm">
           <CardHeader className="pb-3 border-b border-border/40">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
               <div className="space-y-0.5">
                 <CardTitle className="text-base font-bold flex items-center gap-2 text-foreground">
-                  <Send className="h-5 w-5 text-emerald-400" /> Fila de Reativação Automática
+                  <Send className="h-5 w-5 text-emerald-400" /> Fila de mensagens
                 </CardTitle>
                 <CardDescription className="text-xs text-muted-foreground">
-                  Retome o contato automaticamente com leads que falaram fora do horário comercial.
+                  Consulte as mensagens pendentes, tentativas e falhas na fila de envio.
                 </CardDescription>
               </div>
-
-              <Badge
-                variant="outline"
-                className="text-xs font-semibold border-amber-500/30 text-amber-400 bg-amber-500/10 px-2.5 py-1"
-              >
-                {queueWaitingCount} leads aguardando
-              </Badge>
             </div>
           </CardHeader>
 
-          <CardContent className="p-4 sm:p-5 space-y-4">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-foreground">Tamanho do Lote por Disparo</label>
-                <Input
-                  type="number"
-                  min={1}
-                  max={20}
-                  value={queueBatchSize}
-                  onChange={(e) => setQueueBatchSize(Number(e.target.value) || 5)}
-                  className="h-9 text-xs"
-                />
-                <span className="text-[10px] text-muted-foreground block">
-                  Quantidade de contatos processados a cada rodada.
-                </span>
-              </div>
-
-              <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-foreground">Intervalo Entre Mensagens (segundos)</label>
-                <Input
-                  type="number"
-                  min={10}
-                  max={300}
-                  value={queueDelaySeconds}
-                  onChange={(e) => setQueueDelaySeconds(Number(e.target.value) || 60)}
-                  className="h-9 text-xs"
-                />
-                <span className="text-[10px] text-muted-foreground block">
-                  Pausa anti-banimento entre cada envio.
-                </span>
-              </div>
-            </div>
-
-            <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-foreground">
-                Mensagem de Reativação
-              </label>
-              <Textarea
-                value={queueMessage}
-                onChange={(e) => setQueueMessage(e.target.value)}
-                rows={2}
-                placeholder="Digite a mensagem padrão de bom dia / reativação..."
-                className="text-xs leading-relaxed bg-muted/20 border-border/70"
-              />
-            </div>
-
-            <div className="flex justify-end pt-1">
-              <Button
-                type="button"
-                onClick={handleProcessQueue}
-                disabled={isProcessingQueue}
-                size="sm"
-                className="h-9 text-xs bg-emerald-500 hover:bg-emerald-600 text-white font-semibold gap-1.5"
-              >
-                {isProcessingQueue ? (
-                  <RefreshCw className="h-3.5 w-3.5 animate-spin" />
-                ) : (
-                  <Play className="h-3.5 w-3.5 fill-current" />
-                )}
-                {isProcessingQueue ? "Disparando Lote..." : "Disparar Próximo Lote Agora"}
-              </Button>
-            </div>
+          <CardContent className="p-4 sm:p-5">
+            <Button asChild size="sm" className="h-9 text-xs bg-emerald-500 hover:bg-emerald-600 text-white font-semibold gap-1.5">
+              <Link to="/settings?tab=queue"><Send className="h-3.5 w-3.5" />Abrir fila de mensagens</Link>
+            </Button>
           </CardContent>
         </Card>
       )}
@@ -835,7 +685,7 @@ export function OperationsTab() {
           <CardContent className="p-0">
             {operators.length === 0 ? (
               <div className="p-6 text-center text-xs text-muted-foreground">
-                Nenhum operador registrado no momento.
+                Indicadores por operador indisponíveis nesta consulta.
               </div>
             ) : (
               <div className="divide-y divide-border/40 text-xs">

@@ -20,7 +20,6 @@ import {
   Cpu,
   Broadcast,
   FileText,
-  Storefront,
   Headset,
   CaretDown,
   CaretUp,
@@ -66,10 +65,8 @@ const crmItems: SidebarNavItem[] = [
   { icon: SquaresFour, label: "Dashboard", path: "/dashboard", minRole: "user" },
   { icon: ChatCircleDots, label: "Inbox", path: "/inbox", minRole: "user", badge: "LIVE" },
   { icon: Broadcast, label: "Conexões", path: "/connections", minRole: "user" },
-  { icon: Storefront, label: "Lojas", path: "/stores", minRole: "user" },
-  { icon: Headset, label: "Atendentes", path: "/attendants", minRole: "user" },
+  { icon: Headset, label: "Atendentes & Assistente ZAI", path: "/attendants", minRole: "user" },
   { icon: Megaphone, label: "Campanhas", path: "/campaigns", minRole: "user" },
-  { icon: AIIcon, label: "Assistente ZAI", path: "/assistant", minRole: "user" },
   { icon: Users, label: "Contatos", path: "/contacts", minRole: "user" },
 ];
 
@@ -122,7 +119,7 @@ export function Sidebar() {
       window.dispatchEvent(new CustomEvent<boolean>(SIDEBAR_COLLAPSE_EVENT, { detail: collapsed }));
       try {
         localStorage.setItem("zapflow_sidebar_collapsed", String(collapsed));
-      } catch {}
+      } catch { /* Sidebar remains usable when browser storage is unavailable. */ }
       const t1 = setTimeout(() => window.dispatchEvent(new Event("resize")), 100);
       const t2 = setTimeout(() => window.dispatchEvent(new Event("resize")), 220);
       return () => {

@@ -38,7 +38,127 @@ function HistoryMediaEvidence({ item }: { item: Evidence }) {
   </div>;
 }
 
-export function HistoryBootstrapPanel({ 
+type CommercialStore = {
+  id: string; name: string; segment?: string; address?: string; phone?: string; website?: string;
+  business_hours?: string; catalog_summary?: string; policies?: string; knowledge?: string;
+  settings?: Record<string, unknown>; attendant_config?: Record<string, unknown>;
+  numbers?: { sessionId: string; sessionName?: string; phone?: string }[];
+  [key: string]: unknown;
+};
+type BootstrapProps = {
+  compact?: boolean; guided?: boolean; onAgentCreated?: () => void;
+  requestedMode?: 'manual' | 'prompt' | 'history' | 'store' | null;
+  initialSessionId?: string; onClose?: () => void; isModal?: boolean;
+  lockSession?: boolean; onCommercialSaved?: () => void;
+};
+const commercialFields = [
+  ['name', 'Nome da loja', 200], ['segment', 'Segmento', 200], ['address', 'Endereço', 300],
+  ['phone', 'Contato comercial', 50], ['website', 'Site', 200], ['business_hours', 'Horários', 200],
+  ['catalog_summary', 'Catálogo', 10000], ['policies', 'Políticas', 5000], ['knowledge', 'Conhecimento oficial', 30000],
+] as const;
+const emptyCommercial = (): CommercialStore => ({ id: '', name: '', segment: '', address: '', phone: '', website: '', business_hours: '', catalog_summary: '', policies: '', knowledge: '' });
+
+function CommercialSessionEditor({ initialSessionId, lockSession, onCommercialSaved, onClose }: BootstrapProps) {
+  const [sessionId, setSessionId] = useState(initialSessionId || '');
+  const [sessions, setSessions] = useState<{ session_id: string; session_name: string }[]>([]);
+  const [stores, setStores] = useState<CommercialStore[]>([]);
+  const [storeId, setStoreId] = useState('');
+  const [form, setForm] = useState<CommercialStore>(emptyCommercial);
+  const [profile, setProfile] = useState({ segment: '', serviceType: '', evolutionMode: 'limited' });
+  const [own, setOwn] = useState(false);
+  const [pendingId, setPendingId] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [ready, setReady] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+  const [notice, setNotice] = useState('');
+  const [reload, setReload] = useState(0);
+  const operation = useRef(false);
+  const currentSession = useRef(sessionId); currentSession.current = sessionId;
+  useEffect(() => { if (initialSessionId) setSessionId(initialSessionId); }, [initialSessionId]);
+  useEffect(() => {
+    let alive = true; setLoading(true); setReady(false); setError(''); setNotice(''); setOwn(false); setPendingId('');
+    void (async () => {
+      try {
+        const [list, history] = await Promise.all([
+          requestApiEndpoint<{ success: boolean; stores: CommercialStore[] }>('/api/stores'),
+          requestApiEndpoint<{ sessions: typeof sessions }>('/api/ai/history'),
+        ]);
+        if (!alive) return;
+        if (list.success === false || !Array.isArray(list.stores)) throw new Error('Não foi possível carregar os dados comerciais.');
+        setStores(list.stores); setSessions(history.sessions || []);
+        if (!sessionId) { setSessionId(history.sessions?.[0]?.session_id || ''); return; }
+        const data = await requestApiEndpoint<{ profile: { store_id: string | null; segment: string; service_type: string; evolution_mode: string } }>(`/api/ai/history/${encodeURIComponent(sessionId)}/profile`);
+        if (!alive) return;
+        setStoreId(data.profile.store_id || '');
+        setForm(list.stores.find(store => store.id === data.profile.store_id) || emptyCommercial());
+        setProfile({ segment: data.profile.segment || '', serviceType: data.profile.service_type || '', evolutionMode: data.profile.evolution_mode || 'limited' });
+        setReady(true);
+      } catch (failure) { if (alive) setError(failure instanceof Error ? failure.message : 'Não foi possível carregar os dados comerciais.'); }
+      finally { if (alive) setLoading(false); }
+    })();
+    return () => { alive = false; };
+  }, [sessionId, reload]);
+  const save = async (kind: 'link' | 'commercial' | 'own') => {
+    if (operation.current || !sessionId || !ready) return;
+    operation.current = true; setBusy(true); setError(''); setNotice('');
+    const selectedSession = sessionId;
+    try {
+      let id = storeId;
+      if (kind === 'commercial') {
+        const result = await requestApiEndpoint<{ success?: boolean }>(`/api/ai/history/stores/${encodeURIComponent(storeId)}`, 'PUT', form);
+        if (result.success === false) throw new Error('Não foi possível salvar os dados comerciais.');
+        setStores(previous => previous.map(store => store.id === id ? { ...form, id, numbers: store.numbers } : store));
+      }
+      if (kind === 'own') {
+        id = pendingId;
+        if (!id) {
+          const { id: ignoredId, numbers: ignoredNumbers, created_at: ignoredDate, company_id: ignoredTenant, ...payload } = form;
+          void ignoredId; void ignoredNumbers; void ignoredDate; void ignoredTenant;
+          const result = await requestApiEndpoint<{ id: string; success?: boolean }>('/api/ai/history/stores', 'POST', { ...payload, attendant_name: '' });
+          if (!result.id || result.success === false) throw new Error('Não foi possível criar os dados próprios.');
+          id = result.id; setPendingId(id);
+          setStores(previous => [...previous, { ...form, id, numbers: [] }]);
+        }
+      }
+      if (kind !== 'commercial') {
+        const result = await requestApiEndpoint<{ success?: boolean }>(`/api/ai/history/${encodeURIComponent(selectedSession)}/profile`, 'PUT', { ...profile, storeId: id || null });
+        if (result.success === false) throw new Error('Não foi possível vincular os dados ao WhatsApp.');
+        setStores(previous => previous.map(store => {
+          const numbers = (store.numbers || []).filter(number => number.sessionId !== selectedSession);
+          if (store.id === id) numbers.push({ sessionId: selectedSession, sessionName: sessions.find(session => session.session_id === selectedSession)?.session_name || selectedSession });
+          return { ...store, numbers };
+        }));
+        setStoreId(id); setOwn(false); setPendingId(''); setForm(previous => ({ ...previous, id }));
+      }
+      if (currentSession.current !== selectedSession) return;
+      setNotice(kind === 'commercial' ? 'Dados comerciais salvos.' : 'Dados vinculados ao WhatsApp.');
+      onCommercialSaved?.();
+    } catch (failure) { if (currentSession.current === selectedSession) setError(failure instanceof Error ? failure.message : 'Não foi possível salvar.'); }
+    finally { operation.current = false; setBusy(false); }
+  };
+  const selected = stores.find(store => store.id === storeId);
+  return <section data-testid="history-bootstrap-panel" className="space-y-4 rounded-2xl border border-border/60 bg-card p-4 sm:p-6">
+    <div className="flex items-start justify-between gap-3"><div><h3 className="font-semibold">Dados comerciais deste WhatsApp</h3><p className="text-sm text-muted-foreground">Produtos, horários e políticas oficiais ficam separados das instruções do atendente.</p></div>{onClose && <Button aria-label="Fechar" size="icon" variant="outline" className="shrink-0 rounded-full border-emerald-500 text-emerald-500" onClick={onClose}><X /></Button>}</div>
+    {!lockSession && <label className="block text-sm">WhatsApp<select aria-label="WhatsApp dos dados comerciais" className="mt-1 w-full rounded-lg border bg-background p-2" value={sessionId} disabled={busy} onChange={event => setSessionId(event.target.value)}><option value="">Selecione um WhatsApp</option>{sessions.map(session => <option key={session.session_id} value={session.session_id}>{session.session_name || session.session_id}</option>)}</select></label>}
+    {error && <div role="alert" className="rounded-lg bg-destructive/10 p-3 text-sm text-destructive">{error}{loading ? null : <Button variant="ghost" disabled={busy || !!pendingId} onClick={() => setReload(value => value + 1)}>Recarregar dados</Button>}</div>}
+    {notice && <p role="status" className="text-sm text-emerald-500">{notice}</p>}
+    {loading ? <p role="status">Carregando dados comerciais…</p> : <fieldset disabled={busy || !sessionId || !ready} className="space-y-4 min-w-0">
+      <div className="flex flex-wrap gap-2"><Button variant={!own ? 'default' : 'outline'} onClick={() => { setOwn(false); setForm(selected || emptyCommercial()); }} disabled={!!pendingId}>Usar loja compartilhada</Button><Button variant={own ? 'default' : 'outline'} disabled={!!pendingId} onClick={() => { setOwn(true); setForm(emptyCommercial()); }}>Dados próprios deste WhatsApp</Button></div>
+      {!own ? <><label className="block text-sm">Loja vinculada<select aria-label="Loja vinculada" className="mt-1 w-full rounded-lg border bg-background p-2" value={storeId} onChange={event => { setStoreId(event.target.value); setForm(stores.find(store => store.id === event.target.value) || emptyCommercial()); }}><option value="">Sem loja vinculada</option>{stores.map(store => <option key={store.id} value={store.id}>{store.name}</option>)}</select></label><p className="text-sm text-muted-foreground">{selected?.numbers?.length ? `Este cadastro é usado por: ${selected.numbers.map(number => `${number.sessionName || number.sessionId}${number.phone ? ` (${number.phone})` : ''}`).join(', ')}. Alterações comerciais afetam esses números.` : 'Este cadastro ainda não possui outros números vinculados.'}</p></> : <div className="space-y-2"><p className="text-sm text-muted-foreground">Cadastro exclusivo, com memória e conversas deste WhatsApp preservadas.</p><div className="flex flex-wrap gap-2"><Button variant="outline" disabled={!!pendingId} onClick={() => setForm(emptyCommercial())}>Começar vazio</Button><Button variant="outline" disabled={!selected || !!pendingId} onClick={() => setForm({ ...selected!, id: '', name: `${selected!.name} — ${sessions.find(session => session.session_id === sessionId)?.session_name || sessionId}`, numbers: [] })}>Copiar loja atual</Button></div></div>}
+      <div className="grid gap-3 sm:grid-cols-2">{commercialFields.map(([field, label, maxLength]) => <label key={field} className={`block text-sm ${['catalog_summary','policies','knowledge'].includes(field) ? 'sm:col-span-2' : ''}`}>{label}{['catalog_summary','policies','knowledge'].includes(field) ? <Textarea aria-label={label} maxLength={maxLength} disabled={!!pendingId || (!own && !storeId)} value={String(form[field] || '')} onChange={event => setForm(previous => ({ ...previous, [field]: event.target.value }))} className="mt-1 min-h-24" /> : <Input aria-label={label} maxLength={maxLength} disabled={!!pendingId || (!own && !storeId)} value={String(form[field] || '')} onChange={event => setForm(previous => ({ ...previous, [field]: event.target.value }))} className="mt-1" />}</label>)}</div>
+      <label className="block text-sm">Tipo de atendimento<Input aria-label="Tipo de atendimento" value={profile.serviceType} onChange={event => setProfile(previous => ({ ...previous, serviceType: event.target.value }))} maxLength={200} className="mt-1" /></label>
+      <div className="flex flex-wrap gap-2">{own ? <Button disabled={!form.name.trim()} onClick={() => void save('own')}>{pendingId ? 'Tentar vínculo novamente' : 'Criar e vincular dados próprios'}</Button> : <><Button disabled={!storeId || !form.name.trim()} onClick={() => void save('commercial')}>Salvar dados comerciais</Button><Button variant="outline" onClick={() => void save('link')}>Salvar vínculo e atendimento</Button></>}</div>
+      {pendingId && <p className="text-sm text-amber-500">O cadastro foi criado. Tente vincular novamente; nenhum cadastro adicional será criado.</p>}
+    </fieldset>}
+  </section>;
+}
+
+export function HistoryBootstrapPanel(props: BootstrapProps) {
+  return props.requestedMode === 'store' ? <CommercialSessionEditor {...props} /> : <HistoryBootstrapLegacy {...props} />;
+}
+
+function HistoryBootstrapLegacy({
   compact = false,
   guided = false,
   onAgentCreated,
@@ -239,7 +359,8 @@ export function HistoryBootstrapPanel({
       </div>
 
       {/* ABA: LOJA & CONHECIMENTO */}
-      {mode === 'store' && <div className="space-y-4 animate-fade-in">
+      {mode === 'store' && !guided && <CommercialSessionEditor initialSessionId={sessionId} lockSession />}
+      {mode === 'store' && guided && <div className="space-y-4 animate-fade-in">
         <div className="space-y-3 rounded-xl border border-border/60 bg-muted/10 p-4 shadow-sm">
           <p className="text-xs text-muted-foreground leading-relaxed">Cada WhatsApp mantém sua memória. Vincular uma loja acrescenta seus conhecimentos sem juntar conversas.</p>
           <label className="block text-sm font-medium">Loja vinculada<select aria-label="Loja vinculada" className="mt-1.5 w-full rounded-xl border border-border/80 bg-background/60 px-3 py-2 text-sm text-foreground shadow-sm transition-colors hover:bg-muted/30 focus:outline-none focus:ring-2 focus:ring-primary/20" value={storeId} onChange={e=>setStoreId(e.target.value)}><option value="">Independente</option>{stores.map(s=><option key={s.id} value={s.id}>{s.name}</option>)}</select></label>
@@ -257,7 +378,8 @@ export function HistoryBootstrapPanel({
               },'Loja criada. Salve o vínculo para aplicá-la ao WhatsApp.')}>Criar loja</Button>
               <Button variant="outline" className="rounded-xl text-xs h-8.5 font-medium" disabled={busy || !storeId} onClick={()=>{const selected=stores.find(s=>s.id===storeId);if(selected){setStoreName(selected.name);setKnowledge(selected.knowledge);}}}>Carregar loja selecionada</Button>
               <Button variant="outline" className="rounded-xl text-xs h-8.5 font-medium" disabled={busy || !storeId || !storeName.trim()} onClick={()=>void action(async()=>{
-                await requestApiEndpoint('/api/ai/history/stores/'+encodeURIComponent(storeId),'PUT',{name:storeName,segment,knowledge});
+                const selected = stores.find(store => store.id === storeId);
+                await requestApiEndpoint('/api/ai/history/stores/'+encodeURIComponent(storeId),'PUT',{...selected,name:storeName,segment,knowledge});
                 setStores(prev=>prev.map(s=>s.id===storeId?{...s,name:storeName,segment,knowledge}:s));
               },'Conhecimento oficial atualizado.')}>Atualizar loja selecionada</Button>
             </div>

@@ -1266,7 +1266,7 @@ export const apiService = {
         ? resolveRuntimeFromHealthPayload(runtimePayload)
         : "offline";
 
-    let sessions =
+    const sessions =
       sessionsStatusResult.status === "fulfilled"
         ? parseSessionStatusPayload(sessionsStatusResult.value).map(normalizeSessionInfo)
         : [];
@@ -1621,7 +1621,7 @@ export const apiService = {
     return request<AIMetricsResponse>({ endpoint: `/ai/metrics${queryParam}`, method: "GET" });
   },
 
-  testAIMessage: (payload: { message: string; prompt?: string; model?: string; providerId?: string; agentKey?: string; agentName?: string; temperature?: number; responseStyle?: string; history?: any[]; maxWords?: number }) =>
+  testAIMessage: (payload: { message: string; prompt?: string; model?: string; providerId?: string; agentKey?: string; agentName?: string; sessionId?: string; temperature?: number; responseStyle?: string; history?: any[]; maxWords?: number }) =>
     request<{ success?: boolean; result?: AIConnectionTestResult; error?: string }>({
       endpoint: "/ai/test",
       method: "POST",
@@ -1943,14 +1943,15 @@ export const apiService = {
     return request<{ success: boolean; message?: string }>({ endpoint: `/stores/${encodeURIComponent(storeId)}`, method: "DELETE" });
   },
 
-  async getConnections(): Promise<any[]> {
+  async getConnections(options?: { throwOnError?: boolean }): Promise<any[]> {
     try {
       const res = await request<any>({ endpoint: "/connections", method: "GET" });
       if (Array.isArray(res)) return res;
       if (res && Array.isArray(res.sessions)) return res.sessions;
       if (res && Array.isArray((res as any).connections)) return (res as any).connections;
       return [];
-    } catch {
+    } catch (error) {
+      if (options?.throwOnError) throw error;
       return [];
     }
   },

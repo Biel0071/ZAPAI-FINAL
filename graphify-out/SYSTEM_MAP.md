@@ -1,5 +1,25 @@
 # Mapa canônico consultado para polimento visual
 
+## Loja integrada ao atendimento (06/10/2026)
+
+- `pages/Attendants/AttendantsPage.tsx` seleciona o contexto por `sessionId`, troca o único responsável e hospeda dados comerciais. `/stores` e `/lojas` redirecionam para `/attendants?section=business`, preservando contexto; não há página de loja nos menus.
+- `components/evolution/HistoryBootstrapPanel.tsx`, modo `store`, reutiliza APIs comerciais e perfil da sessão com editor completo compartilhado/exclusivo. Não executa polling de histórico nesse modo; cadastro criado permanece disponível quando o vínculo falha.
+- `aiAgentService.js` reconcilia vínculos em criar/editar/atribuir, preserva propriedade comercial da sessão e evita herança arbitrária em conflitos legados. `automationEngine.js` bloqueia seleção ambígua. `historyRoutes.js` valida empresa/sessão/loja e preserva campos omitidos.
+- `ZaibotFloatingAssistant.tsx` monta sob demanda o copiloto canônico, hospedado uma vez em `MainLayout.tsx`. O shell autenticado preserva as páginas CRM existentes.
+- Revisão de produção estende páginas, componentes e adaptadores existentes; dados indisponíveis não recebem resultados fictícios. Extração manual após alterações, sem hook automático.
+
+## Atendentes, Assistente ZAI e lojas por WhatsApp (05/10/2026)
+
+- Entrada de operação única: `frontend-official/src/pages/Attendants/AttendantsPage.tsx`, com atendentes digitais e aba Assistente ZAI (`components/ai/ZaiPlatformAssistantView.tsx`). `/assistant` e `/assistente-zai` redirecionam para `/attendants?tab=copilot` em `App.tsx`.
+- Configurações, fluxos, operação e evolução continuam em `frontend-official/src/pages/AI/index.tsx`; rotas legadas apontam para a respectiva aba de `/ai`. `AgentTab.tsx` compartilha a lista de perfis carregada pela página, sem um segundo cadastro de equipe.
+- Dados da loja pertencem ao WhatsApp: `ai_stores` e `session_ai_profiles`, pela empresa autenticada. `StoresPage.tsx` edita vínculos reutilizando `HistoryBootstrapPanel.tsx`. `aiAgentService.js` valida empresa/sessão/agente na transação e preserva a loja escolhida ao trocar o atendente.
+- Remover o último vínculo pausa o atendente; cópias e novos perfis sem número começam pausados. Uma sessão sem loja não herda o primeiro cadastro nem conhecimento de outra sessão.
+- Estado de atendimento vem de `useAppStore.sessions` e `aiProgressByConversationId`, alimentados pelo runtime global. Avatar Studio estabiliza o DNA da loja; aguardando, processamento e conversa seguem esse estado. Métricas indisponíveis aparecem como `—`.
+- Configuração rápida em `AgentCustomizerModal.tsx` usa nome, função, personalidade, tom, regras e memória textual consumidos pelo motor. Aparência permanece em `AvatarEditorModal.tsx`; dados comerciais ficam na loja vinculada.
+- `operationsController.js`, listagens da fila e perfis de voz exigem empresa autenticada; contadores não medidos não recebem valores de exemplo. Consultas e regressões usam mocks, sem alterar sessões ou dados de produção.
+
+Extração Graphify executada manualmente neste polimento; nenhum hook automático instalado.
+
 ## Simplificação da IA e operação real do Inbox (30/09/2026)
 
 - Navegação IA: entrada única em `components/layout/Sidebar.tsx`, página `pages/AI.tsx` e apresentação em `pages/lovable/pages/AIView.tsx`. Abas internas: Agente, Conhecimento, Operação; valores antigos de `?tab=` permanecem compatíveis.

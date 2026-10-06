@@ -5,21 +5,26 @@ import { MemoryRouter, Routes, Route, Navigate } from "react-router-dom";
 import UnifiedAIPage from "@/pages/AI";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { apiService } from "@/core/services/apiService";
+const { toast } = vi.hoisted(() => ({ toast: vi.fn() }));
+vi.mock("@/state/hooks/use-toast", () => ({ useToast: () => ({ toast }) }));
 
 // Mock apiService
 vi.mock("@/core/services/apiService", () => ({
   apiService: {
     getAIStatus: vi.fn().mockResolvedValue({ enabled: true }),
     updateAIStatus: vi.fn().mockResolvedValue({ success: true }),
-    getAIAgents: vi.fn().mockResolvedValue({ success: true, agents: [{ id: "1", name: "Agente ZAI", role: "Vendas" }] }),
+    getAIAgents: vi.fn().mockResolvedValue({ success: true, agents: [{ key: "camila", name: "Ana", role: "Suporte", personality: "Instrução salva", tone: "consultative", temperature: 0.2, responseStyle: "detailed", objective: "suporte", active: false }] }),
+    updateAIAgent: vi.fn().mockResolvedValue({ success: true }),
     getAIPrompt: vi.fn().mockResolvedValue({ prompt: "Você é o assistente virtual." }),
     saveAIPrompt: vi.fn().mockResolvedValue({ success: true }),
     getAIProviders: vi.fn().mockResolvedValue({ providers: [] }),
-    saveAIProviders: vi.fn().mockResolvedValue({ success: true }),
-    getAIBusinessHours: vi.fn().mockResolvedValue({ businessHours: { opening: "08:00", closing: "18:00", autoReply: true } }),
-    getAIAbsenceMessage: vi.fn().mockResolvedValue({ message: "Estamos ausentes." }),
-    saveAIBusinessHours: vi.fn().mockResolvedValue({ success: true }),
-    saveAIAbsenceMessage: vi.fn().mockResolvedValue({ success: true }),
+    saveUserProvider: vi.fn().mockResolvedValue({ success: true }),
+    getBusinessHours: vi.fn().mockResolvedValue({ openTime: "08:00", closeTime: "18:00", timezone: "America/Sao_Paulo", autoReplyOutsideHours: true }),
+    getAbsenceMessage: vi.fn().mockResolvedValue({ message: "Estamos ausentes." }),
+    saveBusinessHours: vi.fn().mockResolvedValue({ success: true }),
+    saveAbsenceMessage: vi.fn().mockResolvedValue({ success: true }),
+    getQueueStats: vi.fn().mockResolvedValue({ customersWaiting: 0 }),
     fetchOperationsMetrics: vi.fn().mockResolvedValue({
       success: true,
       data: {
@@ -65,7 +70,7 @@ vi.mock("@/core/services/apiService", () => ({
       newLevel: 4,
     }),
     detectAgentGaps: vi.fn().mockResolvedValue({ success: true, createdCount: 2 }),
-    testAIConnection: vi.fn().mockResolvedValue({ ok: true, response: "Olá, conexão OK!", responseTimeMs: 120, totalTokens: 42 }),
+    testAIMessage: vi.fn().mockResolvedValue({ success: true, result: { ok: true, response: "Olá, conexão OK!", responseTimeMs: 120, totalTokens: 42 } }),
   },
   requestApiEndpoint: vi.fn().mockImplementation((url: string) => {
     if (url.includes("/api/flows")) {
@@ -116,6 +121,8 @@ vi.mock("@/state/stores/systemHealthStore", () => {
 });
 
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
+vi.mock("@/components/evolution/OfficialKnowledgeManager", () => ({ OfficialKnowledgeManager: () => null }));
+vi.mock("@/components/evolution/PlaybookManager", () => ({ PlaybookManager: () => null }));
 
 let root: Root | undefined;
 let container: HTMLDivElement | undefined;
@@ -151,7 +158,7 @@ describe("Unified AI & Automação Page and Route Simplification", () => {
 
     const text = document.body.textContent || "";
     expect(text).toContain("IA & Automação");
-    expect(text).toContain("Agente & Inteligência");
+    expect(text).toContain("Configurações da IA");
     expect(text).toContain("Automação & Fluxos");
     expect(text).toContain("Operações & Filas");
     expect(text).toContain("Evolução & Score");
@@ -184,7 +191,8 @@ describe("Unified AI & Automação Page and Route Simplification", () => {
     const text = document.body.textContent || "";
     expect(text).toContain("Fila de Espera");
     expect(text).toContain("Status dos Nós de Conexão");
-    expect(text).toContain("Fila de Reativação Automática");
+    expect(text).toContain("Fila de mensagens");
+    expect(document.querySelector('a[href="/settings?tab=queue"]')).toHaveTextContent("Consultar fila");
   });
 
   it("switches to Evolução & Score tab when ?tab=evolution is in URL", async () => {
@@ -202,7 +210,7 @@ describe("Unified AI & Automação Page and Route Simplification", () => {
     expect(text).toContain("Central de Aprendizado");
   });
 
-  it("sidebar contains 'Atendentes', 'Lojas', and 'Assistente ZAI' and does NOT have separate Operações, Fluxos, or Evolução IA entries", async () => {
+  it("sidebar has the unified attendants entry and stores without duplicate navigation", async () => {
     await act(async () => {
       root!.render(
         <MemoryRouter initialEntries={["/dashboard"]}>
@@ -214,10 +222,13 @@ describe("Unified AI & Automação Page and Route Simplification", () => {
     });
 
     const text = document.body.textContent || "";
-    // MUST contain Atendentes, Lojas, and Assistente ZAI
     expect(text).toContain("Atendentes");
-    expect(text).toContain("Lojas");
-    expect(text).toContain("Assistente ZAI");
+    expect(document.querySelector('a[href="/stores"]')).toBeNull();
+    expect(text).toContain("Atendentes & Assistente ZAI");
+    expect(document.querySelectorAll('a[href="/attendants"]').length).toBe(1);
+    for (const [path, label] of [["/dashboard", "Dashboard"], ["/inbox", "Inbox"], ["/contacts", "Contatos"], ["/connections", "Conexões"], ["/campaigns", "Campanhas"], ["/settings", "Configurações"]]) {
+      expect(document.querySelector(`a[href="${path}"]`)?.textContent).toContain(label);
+    }
 
     // MUST NOT contain the old separate navigation entries in CRM menu
     expect(text).not.toContain("Evolução IA");
@@ -226,7 +237,7 @@ describe("Unified AI & Automação Page and Route Simplification", () => {
   });
 
   it("handles redirect routes properly: /operations, /flows, /evolution to /ai?tab=...", async () => {
-    let currentPath = "";
+    const currentPath = "";
 
     function LocationWatcher() {
       const location = window.location;
@@ -251,4 +262,57 @@ describe("Unified AI & Automação Page and Route Simplification", () => {
     expect(text).toContain("IA & Automação");
     expect(text).toContain("Operações & Filas");
   });
+});
+
+it("saves the selected agent's actual identity, prompt and settings instead of legacy defaults", async () => {
+  await act(async () => root!.render(<MemoryRouter initialEntries={["/ai"]}><UnifiedAIPage /></MemoryRouter>));
+  const save = Array.from(document.querySelectorAll("button")).find(button => button.textContent?.includes("Salvar Configurações do Agente"));
+  expect(save).toBeDefined();
+  await act(async () => save!.click());
+  expect(apiService.updateAIAgent).toHaveBeenCalledWith("camila", expect.objectContaining({ name: "Ana", role: "Suporte", personality: "Instrução salva", tone: "consultative", temperature: 0.2, responseStyle: "detailed", objective: "suporte" }));
+  expect(apiService.saveAIPrompt).not.toHaveBeenCalled();
+});
+
+it("keeps the selected agent's store context and discards test replies after switching agents", async () => {
+  vi.mocked(apiService.getAIAgents).mockResolvedValueOnce({ success: true, agents: [
+    { key: "alpha", name: "Ana", active: true, sessionIds: ["loja-a"], personality: "Instrução A", temperature: 0.2, responseStyle: "detailed" },
+    { key: "beta", name: "Bruno", active: false, sessionIds: ["loja-b"], personality: "Instrução B" },
+  ] });
+  let resolveReply: (value: any) => void = () => {};
+  vi.mocked(apiService.testAIMessage).mockReturnValueOnce(new Promise(resolve => { resolveReply = resolve; }));
+  await act(async () => root!.render(<MemoryRouter><UnifiedAIPage /></MemoryRouter>));
+  const input = document.querySelector('input[placeholder="Digite como se fosse um cliente..."]') as HTMLInputElement;
+  await act(async () => {
+    Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!.call(input, "Qual o prazo?");
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+  });
+  await act(async () => input.closest("form")!.dispatchEvent(new Event("submit", { bubbles: true, cancelable: true })));
+  expect(apiService.testAIMessage).toHaveBeenCalledWith(expect.objectContaining({ agentKey: "alpha", sessionId: "loja-a", temperature: 0.2, responseStyle: "detailed" }));
+  const select = document.getElementById("ai-config-agent") as HTMLSelectElement;
+  await act(async () => { select.value = "beta"; select.dispatchEvent(new Event("change", { bubbles: true })); });
+  await act(async () => resolveReply({ success: true, result: { ok: true, response: "Resposta exclusiva da Ana" } }));
+  expect(document.body.textContent).not.toContain("Resposta exclusiva da Ana");
+  expect(document.body.textContent).toContain("Testando com as regras de Bruno");
+});
+
+it("updates the configuration form after saving instructions in the popup", async () => {
+  await act(async () => root!.render(<MemoryRouter><UnifiedAIPage /></MemoryRouter>));
+  await act(async () => Array.from(document.querySelectorAll("button")).find(button => button.textContent === "Editar instruções")!.click());
+  const input = document.getElementById("agent-config-name") as HTMLInputElement;
+  await act(async () => {
+    Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!.call(input, "Ana revisada");
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+  });
+  await act(async () => Array.from(document.querySelectorAll("button")).find(button => button.textContent === "Salvar Configuração")!.click());
+  expect(document.body.textContent).toContain("Testando com as regras de Ana revisada");
+  await act(async () => Array.from(document.querySelectorAll("button")).find(button => button.textContent === "Salvar Configurações do Agente")!.click());
+  expect(apiService.updateAIAgent).toHaveBeenLastCalledWith("camila", expect.objectContaining({ name: "Ana revisada", personality: "Instrução salva" }));
+});
+
+it("shows a save failure instead of confirming an agent configuration rejected by the API", async () => {
+  vi.mocked(apiService.updateAIAgent).mockResolvedValueOnce({ success: false, agent: null });
+  await act(async () => root!.render(<MemoryRouter><UnifiedAIPage /></MemoryRouter>));
+  await act(async () => Array.from(document.querySelectorAll("button")).find(button => button.textContent === "Salvar Configurações do Agente")!.click());
+  expect(toast).toHaveBeenCalledWith(expect.objectContaining({ title: "Erro ao salvar agente", variant: "destructive" }));
+  expect(toast).not.toHaveBeenCalledWith(expect.objectContaining({ title: "Agente salvo com sucesso!" }));
 });

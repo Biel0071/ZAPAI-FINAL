@@ -2,6 +2,21 @@
 
 All notable changes to this project will be documented in this file.
 
+## Unreleased — 2026-10-06: loja integrada ao atendimento
+
+- Dados comerciais completos dentro de Atendentes & Assistente ZAI, por WhatsApp; loja compartilhada ou cadastro próprio vazio/copiado, com recuperação de vínculo sem duplicar cadastro. Rotas antigas de Lojas redirecionam para essa configuração e a navegação mantém todas as demais áreas.
+- Troca do responsável preserva ativação, histórico, memória e conhecimento do número. Criação/edição/atribuição garantem vínculo exclusivo; conflitos legados exigem escolha explícita e não selecionam arbitrariamente agente ou loja.
+- Atualizações comerciais e de perfil preservam campos omitidos e retornam falhas reais. Assistente flutuante reutiliza o copiloto canônico e possui uma única montagem no shell.
+- Corrigidos agrupamento de contatos entre números, localização aleatória no mapa e controles que simulavam funções indisponíveis; revisão de contratos e apresentação nas páginas do sistema.
+
+## Unreleased — 2026-10-05: atendentes, assistente e lojas
+
+- Atendentes e Assistente ZAI reunidos na mesma tela, preservando as configurações, fluxos e evolução da IA. Cards compactos mostram loja, WhatsApp e estado real, com personagem maior e fechamento de pop-ups em verde.
+- Removidos simuladores de estado, telemetria e informações comerciais de exemplo. Respostas de teste vêm do provedor; falhas não confirmam salvamento nem inventam sucesso.
+- Loja e conhecimento seguem o vínculo do WhatsApp, inclusive quando um atendente atende números de lojas diferentes. Trocar atendente preserva a loja da sessão; remover o último número pausa o perfil e cópias começam sem vínculos.
+- Configuração rápida conserva as instruções textuais de memória e usa os campos consumidos pelo atendimento. A página de configurações compartilha os perfis reais e descarta respostas atrasadas após trocar de agente.
+- Corrigidos carregamento do controlador de sessões, criação de lojas, rascunhos atrasados no Inbox e status das mensagens pendentes/falhas. Métricas de operação, listagens de fila e perfis de voz respeitam a empresa autenticada.
+
 ## Unreleased — 2026-10-01: correções da aceitação na VPS
 
 - Busca de conversas no servidor por empresa e conexão, com cancelamento de resultados antigos, pesquisa nas arquivadas e filtro real de todas as conexões.

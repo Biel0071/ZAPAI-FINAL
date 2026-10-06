@@ -32,6 +32,22 @@ function createProps(overrides: Partial<ComponentProps<typeof SidebarPanel>> = {
   };
 }
 describe("Painel do Inbox", () => {
+  it("mostra autoria de IA e estados de envio reais na linha do tempo", async () => {
+    const props = createProps({
+      rightPanelTab: "history",
+      messages: [
+        { id: "ai-response", content: "Resposta da IA", fromMe: true, isAI: true, status: "pending", createdAt: "2026-09-30T10:01:00Z" },
+        { id: "human-response", content: "Resposta do operador", fromMe: true, isAI: false, status: "failed", createdAt: "2026-09-30T10:02:00Z" },
+      ],
+    });
+    await renderPanel(<SidebarPanel {...props} />);
+    expect(document.body.textContent).toContain("IA Respondeu");
+    expect(document.body.textContent).toContain("Atendente Enviou");
+    expect(document.body.textContent).toContain("Na fila de envio");
+    expect(document.body.textContent).toContain("Falha no envio");
+    expect(document.body.textContent).toContain("Primeira mensagem carregada");
+    expect(document.body.textContent).not.toContain("Conversa Iniciada");
+  });
   it("distingue ativação global da permissão da conversa e permite sugestão manual", async () => {
     const props = createProps(); await renderPanel(<SidebarPanel {...props} />);
     expect([...document.querySelectorAll('[role="tab"]')].map(tab => tab.textContent)).toEqual(["Atendimento", "Respostas Rápidas", "Arquivos", "Logs"]);

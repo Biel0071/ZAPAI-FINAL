@@ -135,7 +135,7 @@ export function HeaderShell({
               <option value="all" className="bg-background text-foreground">Todas as Conexões</option>
               {sessions.map((session) => (
                 <option key={session.id} value={session.id} className="bg-background text-foreground">
-                  {session.name || session.id} ({session.status === "connected" || session.status === "online" || session.connected ? "Online" : "Offline"})
+                  {session.name || session.id} ({session.status === "connected" ? "Online" : "Offline"})
                 </option>
               ))}
             </select>

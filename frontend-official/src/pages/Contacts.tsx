@@ -189,7 +189,7 @@ export default function Contacts() {
 
       const byPhone = new Map<string, ContactRow>();
       normalizedContacts.forEach((contact) => {
-        const key = normalizePhone(contact.phone) || String(contact.id || "").trim();
+        const key = JSON.stringify([contact.sessionId || "", normalizePhone(contact.phone) || String(contact.id || "").trim()]);
         const existing = byPhone.get(key);
         if (!existing || new Date(contact.updatedAt).getTime() > new Date(existing.updatedAt).getTime()) {
           byPhone.set(key, contact);
@@ -487,7 +487,7 @@ export default function Contacts() {
         onSegmentChange={handleSegmentChange}
         onRefresh={() => void loadContacts()}
         onGoToChat={(item) => {
-          const source = filteredContacts.find((contact) => String(contact.id) === String(item.id) || contact.phone === item.phone);
+          const source = filteredContacts.find((contact) => String(contact.id) === String(item.id));
           if (source) {
             setSelectedLead(source);
           } else {

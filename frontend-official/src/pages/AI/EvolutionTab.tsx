@@ -26,7 +26,6 @@ import {
   Send,
   History,
   GraduationCap,
-  MessageSquareCheck,
   Zap,
   Users,
   MessageCircle,
@@ -108,48 +107,34 @@ export function EvolutionTab() {
 
   // Obsidian Modal State
   const [obsidianModalOpen, setObsidianModalOpen] = useState(false);
-  const [memoryGraphData, setMemoryGraphData] = useState<{ nodes: any[]; edges: any[]; stats?: any }>({
-    nodes: [
-      { id: "agent", label: "Atendente IA", type: "agent", size: 30, color: "#10b981" },
-      { id: "leads", label: "Contatos CRM", type: "entity", size: 24, color: "#38bdf8" },
-      { id: "products", label: "Catálogo de Produtos", type: "knowledge", size: 22, color: "#a855f7" },
-      { id: "playbooks", label: "Playbooks de Vendas", type: "action", size: 20, color: "#f59e0b" },
-      { id: "faq", label: "Base de Conhecimento", type: "knowledge", size: 20, color: "#10b981" },
-    ],
-    edges: [
-      { from: "agent", to: "leads", label: "atende" },
-      { from: "agent", to: "products", label: "consulta" },
-      { from: "agent", to: "playbooks", label: "aplica" },
-      { from: "agent", to: "faq", label: "aprende" },
-    ],
-    stats: { totalNodes: 5, totalEdges: 4, clusterCount: 3 },
-  });
+  const [memoryGraphData, setMemoryGraphData] = useState<{ nodes: any[]; edges: any[]; stats?: any }>({ nodes: [], edges: [] });
+  const [hasEvolutionData, setHasEvolutionData] = useState(false);
 
   // Score & Overview
   const [overview, setOverview] = useState<EvolutionOverview>({
-    score: 88,
-    level: "Nível 4 (Consultor Comercial Especialista)",
-    goal: { current: 1450, target: 2000, percentage: 72 },
-    components: { answers: 38, refinements: 28, coverage: 18, queue: 8 },
+    score: 0,
+    level: "Sem dados",
+    goal: { current: 0, target: 0, percentage: 0 },
+    components: { answers: 0, refinements: 0, coverage: 0, queue: 0 },
   });
 
   // Human stats from manual attendance mining
   const [humanStats, setHumanStats] = useState<HumanStats>({
-    level: 4,
-    levelTitle: "Consultor Comercial Especialista",
-    totalXp: 1450,
-    currentLevelMinXp: 1000,
-    nextLevelXp: 2000,
-    progressPct: 45,
-    evolutionScore: 88,
-    totalHumanMessages: 18722,
-    humanSamplesLearned: 42,
-    activePlaybooks: 4,
-    naturalnessScore: 98,
-    conversionsCount: 128,
-    objectionsLearned: 24,
-    successRate: 94,
-    totalAnalyzed: 850,
+    level: 0,
+    levelTitle: "Sem dados",
+    totalXp: 0,
+    currentLevelMinXp: 0,
+    nextLevelXp: 0,
+    progressPct: 0,
+    evolutionScore: 0,
+    totalHumanMessages: 0,
+    humanSamplesLearned: 0,
+    activePlaybooks: 0,
+    naturalnessScore: 0,
+    conversionsCount: 0,
+    objectionsLearned: 0,
+    successRate: 0,
+    totalAnalyzed: 0,
   });
 
   // Learning gaps
@@ -182,17 +167,19 @@ export function EvolutionTab() {
         }
       }
 
-      if (levelRes?.data) {
+      const levelData = levelRes?.data || levelRes;
+      setHasEvolutionData(Boolean(evoRes?.evolution || typeof levelData?.level === "number"));
+      if (typeof levelData?.level === "number") {
         setHumanStats((prev) => ({
           ...prev,
-          ...levelRes.data,
+          ...levelData,
         }));
       } else if (patternsRes) {
         setHumanStats((prev) => ({
           ...prev,
-          totalHumanMessages: patternsRes.humanMessagesCount || prev.totalHumanMessages,
-          humanSamplesLearned: patternsRes.goldSamplesCount || prev.humanSamplesLearned,
-          naturalnessScore: patternsRes.naturalnessScore || prev.naturalnessScore,
+          totalHumanMessages: patternsRes.humanMessagesCount ?? 0,
+          humanSamplesLearned: patternsRes.goldSamplesCount ?? 0,
+          naturalnessScore: patternsRes.naturalnessScore ?? 0,
         }));
       }
 
@@ -211,9 +198,8 @@ export function EvolutionTab() {
         setLearningEvents([]);
       }
 
-      if (patternsRes?.data && Array.isArray(patternsRes.data)) {
-        setLearnedPatterns(patternsRes.data);
-      }
+      const patterns = Array.isArray(patternsRes) ? patternsRes : patternsRes?.data;
+      setLearnedPatterns(Array.isArray(patterns) ? patterns : []);
     } catch (err) {
       console.error("[EvolutionTab] Error fetching evolution data:", err);
     } finally {
@@ -224,14 +210,14 @@ export function EvolutionTab() {
   // Fetch memory graph data for Obsidian Modal
   const fetchMemoryGraph = async () => {
     try {
-      const res = await requestApiEndpoint<any>(`/api/ai/memory/graph?agentKey=${selectedAgentKey}&limit=60`);
-      if (res?.data && res.data.nodes) {
-        setMemoryGraphData(res.data);
-      }
+      const res = await requestApiEndpoint<any>(`/api/ai/memory/graph?agentKey=${encodeURIComponent(selectedAgentKey)}&limit=60`);
+      const graph = res?.data || res;
+      if (!Array.isArray(graph?.nodes) || !Array.isArray(graph?.edges)) throw new Error("Grafo de memória indisponível.");
+      setMemoryGraphData(graph);
+      setObsidianModalOpen(true);
     } catch (err) {
-      console.warn("[EvolutionTab] Failed to fetch memory graph, using local model:", err);
+      toast({ title: "Não foi possível abrir a memória", description: err instanceof Error ? err.message : "Grafo de memória indisponível.", variant: "destructive" });
     }
-    setObsidianModalOpen(true);
   };
 
   useEffect(() => {
@@ -475,6 +461,7 @@ export function EvolutionTab() {
       </div>
 
       {/* HUMANIZATION & ANTI-ROBOTIC BANNER */}
+      {hasEvolutionData ? <>
       <div className="p-4 rounded-2xl border border-emerald-500/30 bg-emerald-950/20 shadow-xs flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
         <div className="flex items-center gap-3">
           <div className="h-9 w-9 rounded-xl bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center text-emerald-400 shrink-0">
@@ -486,11 +473,11 @@ export function EvolutionTab() {
                 Diretriz de Humanização WhatsApp
               </span>
               <Badge className="bg-emerald-500/20 text-emerald-300 border-emerald-500/40 text-[10px] px-2 py-0">
-                🟢 Tom 100% Natural Ativo
+                Aprendizado registrado
               </Badge>
             </div>
             <p className="text-xs text-foreground/90 font-medium pt-0.5">
-              Zero jargões de robô • Mensagens ágeis (1 a 3 frases) • Condução comercial com CTA • Conhecimento evolutivo acumulado de 18.722 atendimentos reais.
+              Evolução de estilo e padrões a partir dos atendimentos registrados no sistema.
             </p>
           </div>
         </div>
@@ -524,7 +511,7 @@ export function EvolutionTab() {
             <div className="relative flex items-center justify-center">
               <div className="h-32 w-32 rounded-full border-4 border-purple-500/20 flex flex-col items-center justify-center bg-purple-500/5 shadow-inner">
                 <span className="text-4xl font-black text-purple-400 font-display">
-                  {humanStats.evolutionScore || overview.score}
+                  {humanStats.evolutionScore ?? overview.score}
                 </span>
                 <span className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider">
                   Score
@@ -611,6 +598,7 @@ export function EvolutionTab() {
           </CardContent>
         </Card>
       </div>
+      </> : <Card className="p-5 text-sm text-muted-foreground">{isLoading ? "Carregando evolução..." : "Sem dados de evolução disponíveis para este agente."}</Card>}
 
       {/* SECTION 1.5: CANDIDATE LEARNINGS & PLAYBOOKS DETECTED */}
       <Card className="bg-card border-border/80 shadow-sm">
@@ -986,8 +974,7 @@ export function EvolutionTab() {
         open={obsidianModalOpen}
         onOpenChange={setObsidianModalOpen}
         graphData={memoryGraphData}
-        agentName={selectedAgentKey === "zaibot" ? "ZAIBOT" : "Camila"}
-        storeName="Loja Virtual ZAPFLOW"
+        agentName={selectedAgentKey === "zaibot" ? "Assistente ZAI" : selectedAgentKey}
       />
     </div>
   );

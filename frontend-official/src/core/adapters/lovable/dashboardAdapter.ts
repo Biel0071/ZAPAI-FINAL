@@ -210,25 +210,15 @@ function buildAggregates(conversations: Conversation[]) {
     // 1. Process custom geocoded pins from notes
     if (conversation.notes && conversation.notes.includes("Coordenadas:")) {
       try {
-        const coordsMatch = conversation.notes.match(/Coordenadas:\s*(-?\d+\.\d+)\s*,\s*(-?\d+\.\d+)/i);
+        const coordsMatch = conversation.notes.match(/Coordenadas:\s*(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)/i);
         if (coordsMatch) {
           lat = parseFloat(coordsMatch[1]);
           lng = parseFloat(coordsMatch[2]);
-          hasCoords = true;
+          hasCoords = Number.isFinite(lat) && Number.isFinite(lng) && Math.abs(lat) <= 90 && Math.abs(lng) <= 180;
         }
       } catch (err) {
         console.error("Failed to parse lead pin:", err);
       }
-    }
-
-    // Fallback to DDD coordinates with dynamic jitter
-    if (!hasCoords && ddd && DDD_METADATA[ddd]) {
-      const idx = leadPins.length;
-      const offsetLat = ((idx % 5) - 2) * 0.06 + (Math.random() - 0.5) * 0.05;
-      const offsetLng = ((idx % 7) - 3) * 0.06 + (Math.random() - 0.5) * 0.05;
-      lat = DDD_METADATA[ddd].lat + offsetLat;
-      lng = DDD_METADATA[ddd].lng + offsetLng;
-      hasCoords = true;
     }
 
     if (hasCoords) {
@@ -365,8 +355,6 @@ export function createDashboardLovableViewModel(params: {
     (c) => c.funnel_stage === "hot" || c.funnel_stage === "negotiation"
   ).length;
 
-  let totalResponseTime = 0;
-  let countResponseTime = 0;
   const hourCounts = new Array(24).fill(0);
 
   conversations.forEach((c) => {
@@ -415,7 +403,7 @@ export function createDashboardLovableViewModel(params: {
     ],
     map: {
       title: "Densidade de Leads por Localização",
-      description: "Interaja com o mapa para filtrar por região, estado ou DDD",
+      description: "Regiões estimadas pelo DDD. Localização individual somente com coordenadas cadastradas.",
       emptyTitle: "Nenhum lead com geografia válida",
       emptyDescription: "Assim que conversas com DDD reconhecível entrarem na base, o mapa do dashboard será populado automaticamente.",
       scopes: MAP_SCOPES,

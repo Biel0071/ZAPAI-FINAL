@@ -5,8 +5,6 @@ import { useToast } from "@/state/hooks/use-toast";
 import {
   Coffee,
   Monitor,
-  Wifi,
-  Zap,
 } from "lucide-react";
 
 interface AgentEnvironmentProps {
@@ -23,20 +21,8 @@ export const AgentEnvironment: React.FC<AgentEnvironmentProps> = ({
   className,
 }) => {
   const { toast } = useToast();
-  const appearance = agent?.appearance || {
-    clothingColor: agent?.character?.theme === "emerald" ? "#10b981" : "#0ea5e9",
-    avatarUrl: agent?.avatar,
-    style: "executive",
-    hairColor: "#332211",
-    skinTone: "#f5d0b0",
-    clothingStyle: "smart_casual",
-    accessories: [],
-  };
-  const workspace = agent?.workspace || {
-    primaryColor: appearance.clothingColor || "#10b981",
-    decorations: ["plant", "coffee"],
-  };
-  const department = agent?.department || agent?.sector || agent?.role || "Vendas";
+  const appearance = agent.appearance;
+  const workspace = agent.workspace;
   const name = agent?.name || "Atendente";
   const primaryColor = appearance.clothingColor || workspace.primaryColor || "#10b981";
 
@@ -44,7 +30,7 @@ export const AgentEnvironment: React.FC<AgentEnvironmentProps> = ({
     e.stopPropagation();
     toast({
       title: `Terminal ZAI • ${name}`,
-      description: `Canal WhatsApp Oficial ativo • Latência 38ms • GPT-4o Mini v2.4 • Departamento: ${department.toUpperCase()}`,
+      description: agent.currentActivity,
     });
   };
 
@@ -52,7 +38,7 @@ export const AgentEnvironment: React.FC<AgentEnvironmentProps> = ({
     e.stopPropagation();
     toast({
       title: "Café do Atendente",
-      description: `${name} operando com energia máxima e cadência humanizada.`,
+      description: `Item do cenário de ${name}.`,
     });
   };
 
@@ -119,7 +105,7 @@ export const AgentEnvironment: React.FC<AgentEnvironmentProps> = ({
           type="button"
           onClick={handleMonitorClick}
           className="p-1.5 rounded-lg border border-white/5 bg-black/40 backdrop-blur-xs text-slate-400 hover:text-emerald-400 transition-all cursor-pointer flex items-center gap-1 text-[9px] font-mono"
-          title="Telemetria do Terminal"
+          title="Atividade do atendente"
         >
           <Monitor className="w-3 h-3 text-emerald-400" />
           <span>TERMINAL</span>

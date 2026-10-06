@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -44,9 +44,6 @@ import { apiService, requestApiEndpoint, type AIConnectionTestResult } from "@/c
 import { useToast } from "@/state/hooks/use-toast";
 import { AICharacterViewer, type AgentRuntimeState } from "@/components/evolution/AICharacterViewer";
 import { AgentWorkspace } from "@/components/ai/workspace/AgentWorkspace";
-import { DigitalTeamView } from "@/components/ai/DigitalTeamView";
-import { AgentProfileModal } from "@/components/ai/AgentProfileModal";
-import { NewAgentWizardModal } from "@/components/ai/NewAgentWizardModal";
 import { cn } from "@/core/lib/utils";
 
 const PROMPT_TEMPLATES = [
@@ -141,16 +138,20 @@ interface AgentTabProps {
   onOpenVoiceStudio?: () => void;
   selectedAgentKey?: string;
   onSelectAgent?: (key: string) => void;
-  onOpenCustomizer?: () => void;
+  onOpenCustomizer?: (agent?: any) => void;
+  agents?: any[];
+  onRefreshAgents?: () => Promise<void>;
   aiEnabled?: boolean;
   onToggleAI?: (enabled: boolean) => void;
 }
 
 export function AgentTab({
   onOpenVoiceStudio,
-  selectedAgentKey = "camila",
+  selectedAgentKey = "",
   onSelectAgent,
   onOpenCustomizer,
+  agents,
+  onRefreshAgents,
   aiEnabled = true,
   onToggleAI,
 }: AgentTabProps) {
@@ -184,14 +185,8 @@ export function AgentTab({
   }, [selectedAgentKey]);
 
   // Agent configuration
-  const [agentName, setAgentName] = useState(
-    selectedAgentKey === "zaibot" ? "ZAIBOT" : "Camila"
-  );
-  const [agentRole, setAgentRole] = useState(
-    selectedAgentKey === "zaibot"
-      ? "Assistente Geral & Mascote Operacional"
-      : "Especialista em Vendas & Atendimento Loja"
-  );
+  const [agentName, setAgentName] = useState("Atendente");
+  const [agentRole, setAgentRole] = useState("");
   const [agentTone, setAgentTone] = useState("friendly");
   const [responseStyle, setResponseStyle] = useState("short_natural");
   const [selectedObjective, setSelectedObjective] = useState<string>("fechamento");
@@ -199,11 +194,6 @@ export function AgentTab({
   const [temperature, setTemperature] = useState(0.7);
   const [responseDelay, setResponseDelay] = useState(2);
 
-  // Personality sliders
-  const [empathyScore, setEmpathyScore] = useState(85);
-  const [proactivityScore, setProactivityScore] = useState(80);
-  const [persuasionScore, setPersuasionScore] = useState(75);
-  const [patienceScore, setPatienceScore] = useState(90);
 
   // Section toggle: Advanced Provider Config (auto-opens when ?sub=providers)
   const [showAdvancedConfig, setShowAdvancedConfig] = useState(
@@ -225,70 +215,56 @@ export function AgentTab({
   const [isLoading, setIsLoading] = useState(true);
 
   // Digital Team & Modals State
-  const [agentsList, setAgentsList] = useState<any[]>([]);
-  const [profileModalAgent, setProfileModalAgent] = useState<any>(null);
-  const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
-  const [isNewAgentWizardOpen, setIsNewAgentWizardOpen] = useState(false);
-  const [wizardDefaultRole, setWizardDefaultRole] = useState<string>("Vendas");
+  const [agentsList, setAgentsList] = useState<any[]>(agents || []);
+  useEffect(() => { if (agents) setAgentsList(agents); }, [agents]);
   const [showCharacterViewer, setShowCharacterViewer] = useState(true);
 
-  // Listen to open-wizard event triggered by ZAIBOT or global shortcuts
-  useEffect(() => {
-    const handleOpenWizard = (e: any) => {
-      const role = e.detail?.role || "Vendas";
-      setWizardDefaultRole(role);
-      setIsNewAgentWizardOpen(true);
-    };
-    window.addEventListener("zai:open-wizard", handleOpenWizard);
-    return () => window.removeEventListener("zai:open-wizard", handleOpenWizard);
-  }, []);
-
   const refreshAgents = async () => {
+    if (onRefreshAgents) return onRefreshAgents();
     try {
       const res = await apiService.getAIAgents();
       const list = (res as any)?.agents || (res as any)?.data?.agents || (Array.isArray(res) ? res : []);
-      if (Array.isArray(list) && list.length > 0) {
+      if (Array.isArray(list)) {
         setAgentsList(list);
       }
-    } catch (_) {}
+    } catch (error) {
+      toast({ title: "Falha ao atualizar atendentes", description: error instanceof Error ? error.message : "Tente novamente.", variant: "destructive" });
+    }
   };
 
   // Sandbox / Chat state
-  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([
-    {
-      role: "assistant",
-      text: "Olá! Sou seu assistente virtual configurado. Como posso ajudar com sua dúvida ou pedido hoje?",
-      timestamp: "Agora",
-      metadata: {
-        responseTimeMs: 95,
-        tokens: 32,
-        ruleApplied: "Saudação Oficial",
-        confidenceScore: 99,
-      },
-    },
-  ]);
+  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
   const [inputMessage, setInputMessage] = useState("");
   const [isSending, setIsSending] = useState(false);
   const [connectionTestResult, setConnectionTestResult] = useState<AIConnectionTestResult | null>(null);
   const [isTestingConnection, setIsTestingConnection] = useState(false);
+  const testVersion = useRef(0);
+  const selectedKeyRef = useRef(selectedAgentKey);
+  selectedKeyRef.current = selectedAgentKey;
+  useEffect(() => {
+    testVersion.current += 1;
+    setChatMessages([]);
+    setInputMessage("");
+    setIsSending(false);
+    setRuntimeState(aiEnabled ? "online" : "offline");
+  }, [selectedAgentKey, aiEnabled]);
 
   // Sync state when agent changes
   useEffect(() => {
-    if (selectedAgentKey === "zaibot") {
-      setAgentName("ZAIBOT");
-      setAgentRole("Assistente Operacional & Mascote 3D");
-      setCharacterMode("zaibot");
-    } else if (selectedAgentKey === "camila") {
-      setAgentName("Camila");
-      setAgentRole("Especialista em Vendas & Atendimento Loja");
-      setCharacterMode("camila");
+    const found = agentsList.find((a) => (a.key || a.id) === selectedAgentKey);
+    if (found) {
+      setAgentName(found.name || "Atendente");
+      setAgentRole(found.role || found.sector || "");
+      setPrompt(found.personality || found.prompt || "");
+      setAgentTone(found.tone || "professional");
+      setResponseStyle(found.responseStyle || "short_natural");
+      setTemperature(found.temperature ?? 0.7);
+      setSelectedObjective(found.objective || "fechamento");
+      setResponseDelay((found.delayProfile?.minMs ?? 12000) / 1000);
     } else {
-      const found = agentsList.find((a) => (a.key || a.id) === selectedAgentKey);
-      if (found) {
-        setAgentName(found.name || "Agente");
-        setAgentRole(found.role || found.sector || "Atendimento");
-        if (found.prompt || found.personality) setPrompt(found.personality || found.prompt);
-      }
+      setAgentName("Atendente");
+      setAgentRole("");
+      setPrompt("");
     }
   }, [selectedAgentKey, agentsList]);
 
@@ -298,39 +274,23 @@ export function AgentTab({
     const loadConfig = async () => {
       setIsLoading(true);
       try {
-        const [agentsRes, promptRes, providersRes] = await Promise.all([
-          apiService.getAIAgents().catch(() => ({ success: false, agents: [] })),
+        const [promptRes, providersRes] = await Promise.all([
           apiService.getAIPrompt().catch(() => ({ success: false, prompt: "" })),
           apiService.getAIProviders().catch(() => ({ success: false, providers: [] })),
         ]);
 
         if (!mounted) return;
 
-        const loadedAgents =
-          (agentsRes as any)?.agents || (agentsRes as any)?.data?.agents || (Array.isArray(agentsRes) ? agentsRes : []);
-
-        if (Array.isArray(loadedAgents) && loadedAgents.length > 0) {
-          setAgentsList(loadedAgents);
-          const match = loadedAgents.find(
-            (a: any) => (a.key || a.id) === selectedAgentKey
-          ) || loadedAgents[0];
-
-          if (match) {
-            setAgentName(match.name || "Assistente ZAI");
-            setAgentRole(match.role || "Especialista de Atendimento");
-            if (match.prompt || match.personality) setPrompt(match.personality || match.prompt);
-            if (match.tone) setAgentTone(match.tone);
-          }
-        } else if (promptRes?.prompt) {
+        if (!selectedAgentKey && promptRes?.prompt) {
           setPrompt(promptRes.prompt);
         }
 
         if (providersRes?.providers && providersRes.providers.length > 0) {
-          const activeProv = providersRes.providers.find((p: any) => p.active) || providersRes.providers[0];
+          const activeProv = providersRes.providers.find((p: any) => p.enabled ?? p.active) || providersRes.providers[0];
           if (activeProv) {
-            setSelectedProvider(activeProv.id || "openai");
+            setSelectedProvider(activeProv.provider || activeProv.id || "openai");
             setSelectedModel(activeProv.model || "gpt-4o-mini");
-            if (activeProv.apiKey) setApiKey(activeProv.apiKey);
+            setApiKey("");
           }
         }
       } catch (err) {
@@ -346,6 +306,15 @@ export function AgentTab({
     };
   }, [selectedAgentKey]);
 
+  useEffect(() => {
+    if (agents) return;
+    let mounted = true;
+    apiService.getAIAgents().then(result => { if (mounted) setAgentsList(result.agents || []); }).catch(error => {
+      if (mounted) toast({ title: "Falha ao carregar atendentes", description: error instanceof Error ? error.message : "Tente novamente.", variant: "destructive" });
+    });
+    return () => { mounted = false; };
+  }, [agents, toast]);
+
   // Update model choices when provider changes
   const currentProviderDef = PROVIDER_OPTIONS.find((p) => p.id === selectedProvider) || PROVIDER_OPTIONS[0];
 
@@ -360,46 +329,34 @@ export function AgentTab({
   const handleSave = async () => {
     setIsSaving(true);
     try {
-      // 1. Save Prompt
-      await apiService.saveAIPrompt(prompt);
-
-      // 2. Save Agent if existing
+      // Save the selected attendant using its canonical configuration fields.
       if (selectedAgentKey) {
-        await apiService.updateAIAgent(selectedAgentKey, {
+        const saved = await apiService.updateAIAgent(selectedAgentKey, {
           name: agentName,
           role: agentRole,
           prompt,
+          personality: prompt,
           tone: agentTone,
           responseStyle,
           temperature,
-          delaySeconds: responseDelay,
-          providerId: selectedProvider,
-          model: selectedModel,
-          empathyScore,
-          proactivityScore,
-          persuasionScore,
-          patienceScore,
+          delayProfile: { minMs: responseDelay * 1000, maxMs: responseDelay * 1000 },
           objective: selectedObjective,
-        }).catch(() => null);
+        });
+        if (saved.success === false) throw new Error("Não foi possível salvar o atendente.");
       }
 
       // 3. Save Provider config if api key provided
       if (apiKey) {
-        await apiService.saveAIProviders([
-          {
-            id: selectedProvider,
-            name: currentProviderDef.name,
-            apiKey,
-            model: selectedModel,
-            active: true,
-          },
-        ]).catch(() => null);
+        const saved = await apiService.saveUserProvider({ provider: selectedProvider, api_key: apiKey, model: selectedModel, enabled: true });
+        if (saved.success === false) throw new Error("A configuração do provedor não foi salva.");
+        setApiKey("");
       }
 
       toast({
-        title: "Agente salvo com sucesso!",
-        description: "As instruções, personalidade e parâmetros foram atualizados no cérebro da IA.",
+        title: selectedAgentKey ? "Agente salvo com sucesso!" : "Provedor salvo",
+        description: selectedAgentKey ? "As instruções e parâmetros do atendente foram atualizados." : "A chave e o modelo do provedor foram salvos.",
       });
+      await refreshAgents();
     } catch (err: any) {
       toast({
         title: "Erro ao salvar agente",
@@ -413,7 +370,7 @@ export function AgentTab({
 
   const handleSendMessage = async (textToSend?: string) => {
     const text = (textToSend || inputMessage).trim();
-    if (!text || isSending) return;
+    if (!text || isSending || !selectedAgentKey) return;
 
     const userMsg: ChatMessage = {
       role: "user",
@@ -427,38 +384,33 @@ export function AgentTab({
     setRuntimeState("thinking");
 
     const startTime = Date.now();
+    const version = ++testVersion.current;
+    const agentKey = selectedAgentKey;
     try {
       const activeObjDef = OBJECTIVES.find((o) => o.id === selectedObjective);
       const enhancedPrompt = `${prompt}
 \n[DIRETRIZES DE PERSONALIDADE]
-Empatia: ${empathyScore}/100 | Proatividade: ${proactivityScore}/100 | Persuasão: ${persuasionScore}/100 | Paciência: ${patienceScore}/100
 Objetivo Atual: ${activeObjDef?.title || "Vendas"} (${activeObjDef?.desc || ""})
 Tom: ${agentTone}. Estilo: ${responseStyle}.`;
 
       setRuntimeState("working");
-      const res = await apiService.testAIConnection({
+      const response = await apiService.testAIMessage({
         message: text,
         prompt: enhancedPrompt,
         model: selectedModel,
         providerId: selectedProvider,
+        agentKey: selectedAgentKey,
+        sessionId: agentsList.find(agent => (agent.key || agent.id) === selectedAgentKey)?.sessionIds?.[0],
+        temperature,
+        responseStyle,
       });
+      if (version !== testVersion.current || agentKey !== selectedKeyRef.current) return;
+      const res = response.result;
+      if (response.success === false || !res?.ok || !res.response) throw new Error(response.error || res?.error || "O teste não retornou uma resposta.");
 
       const responseTimeMs = Date.now() - startTime;
       const replyText =
-        res.response ||
-        (res.ok
-          ? "Recebi sua mensagem e o fluxo da IA está operando perfeitamente."
-          : `Não foi possível gerar a resposta: ${res.error || "Verifique a chave de API e o modelo."}`);
-
-      // Determine simulated rule applied
-      let ruleApplied = "Prompt Principal";
-      if (text.toLowerCase().includes("pix") || text.toLowerCase().includes("cartao")) {
-        ruleApplied = "Playbook: Formas de Pagamento";
-      } else if (text.toLowerCase().includes("caro") || text.toLowerCase().includes("desconto")) {
-        ruleApplied = "Playbook: Objeção de Preço";
-      } else if (text.toLowerCase().includes("prazo") || text.toLowerCase().includes("entrega")) {
-        ruleApplied = "Base Oficial: Logística & Prazos";
-      }
+        res.response;
 
       const assistantMsg: ChatMessage = {
         role: "assistant",
@@ -466,23 +418,16 @@ Tom: ${agentTone}. Estilo: ${responseStyle}.`;
         timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
         metadata: {
           responseTimeMs: res.responseTimeMs || responseTimeMs,
-          tokens: res.totalTokens || Math.max(24, Math.round(replyText.length / 4)),
+          tokens: res.totalTokens,
           model: res.model || selectedModel,
-          ruleApplied,
-          confidenceScore: 97,
+          ruleApplied: res.rulesTriggered,
         },
       };
 
       setChatMessages((prev) => [...prev, assistantMsg]);
-      setRuntimeState("responding");
-
-      setTimeout(() => {
-        setRuntimeState("success");
-        setTimeout(() => {
-          setRuntimeState(aiEnabled ? "online" : "offline");
-        }, 1500);
-      }, 2500);
+      setRuntimeState(aiEnabled ? "online" : "offline");
     } catch (err: any) {
+      if (version !== testVersion.current || agentKey !== selectedKeyRef.current) return;
       setChatMessages((prev) => [
         ...prev,
         {
@@ -492,24 +437,27 @@ Tom: ${agentTone}. Estilo: ${responseStyle}.`;
         },
       ]);
       setRuntimeState("error");
-      setTimeout(() => {
-        setRuntimeState(aiEnabled ? "online" : "offline");
-      }, 3000);
     } finally {
-      setIsSending(false);
+      if (version === testVersion.current) setIsSending(false);
     }
   };
 
   const handleTestConnection = async () => {
+    if (apiKey.trim()) {
+      toast({ title: "Salve a chave antes de testar", description: "O teste usa a configuração já salva do provedor.", variant: "destructive" });
+      return;
+    }
     setIsTestingConnection(true);
     setConnectionTestResult(null);
     try {
-      const res = await apiService.testAIConnection({
+      const response = await apiService.testAIMessage({
         message: "Teste de conexão e integridade da API ZAI.",
         prompt: "Responda apenas: CONEXÃO BEM-SUCEDIDA.",
         model: selectedModel,
         providerId: selectedProvider,
       });
+      const res = response.result;
+      if (!res) throw new Error(response.error || "O teste não retornou dados.");
       setConnectionTestResult(res);
       if (res.ok) {
         toast({
@@ -542,14 +490,14 @@ Tom: ${agentTone}. Estilo: ${responseStyle}.`;
         name: "ZAIBOT",
         role: "Assistente Operacional ZAI",
         isPlatformAssistant: true,
-        active: aiEnabled ?? true,
+        active: aiEnabled,
       };
     }
     const found = agentsList.find((a) => (a.key || a.id) === selectedAgentKey);
     if (found) {
       return {
         ...found,
-        active: aiEnabled ?? true,
+        active: found.active !== false && aiEnabled,
         name: agentName || found.name,
         role: agentRole || found.role,
         prompt: prompt || found.prompt,
@@ -558,10 +506,10 @@ Tom: ${agentTone}. Estilo: ${responseStyle}.`;
       };
     }
     return {
-      key: "camila",
-      name: agentName || "Camila",
-      role: agentRole || "Especialista em Vendas",
-      active: aiEnabled ?? true,
+      key: selectedAgentKey,
+      name: agentName || "Atendente",
+      role: agentRole,
+      active: false,
       prompt,
       tone: agentTone,
       objective: selectedObjective,
@@ -583,40 +531,20 @@ Tom: ${agentTone}. Estilo: ${responseStyle}.`;
             setCharacterMode(mode);
             onSelectAgent?.(mode);
           }}
-          onOpenCustomizer={() => onOpenCustomizer?.()}
+          onOpenCustomizer={() => onOpenCustomizer?.(activeWorkspaceAgent)}
         />
       </Card>
 
-      {/* 2. EQUIPE DIGITAL / GESTÃO DE AGENTES */}
-      <DigitalTeamView
-        agents={agentsList}
-        selectedAgentKey={selectedAgentKey}
-        onSelectAgent={(ag) => {
-          const key = ag.key || ag.id || "camila";
-          onSelectAgent?.(key);
-          setAgentName(ag.name || "Agente");
-          setAgentRole(ag.role || ag.sector || "Atendimento");
-          if (ag.prompt || ag.personality) setPrompt(ag.personality || ag.prompt);
-          if (ag.tone) setAgentTone(ag.tone);
-          if (ag.objective) setSelectedObjective(ag.objective);
-          toast({
-            title: `Agente Conectado: ${ag.name}`,
-            description: `Área de trabalho agora visualizando ${ag.name} (${ag.role || "Atendimento"}).`,
-          });
-        }}
-        onOpenProfile={(ag) => {
-          setProfileModalAgent(ag);
-          setIsProfileModalOpen(true);
-        }}
-        onOpenNewAgentWizard={(defRole) => {
-          setWizardDefaultRole(defRole || "Vendas");
-          setIsNewAgentWizardOpen(true);
-        }}
-        onOpenCustomizer={(ag) => {
-          onOpenCustomizer?.();
-        }}
-        onRefresh={refreshAgents}
-      />
+      <Card className="border-border/80">
+        <CardContent className="flex flex-col sm:flex-row sm:items-center gap-3 p-4">
+          <label htmlFor="ai-config-agent" className="text-sm font-semibold">Atendente das configurações</label>
+          <select id="ai-config-agent" className="h-10 min-w-0 flex-1 rounded-md border border-input bg-background px-3 text-sm" value={selectedAgentKey} onChange={event => onSelectAgent?.(event.target.value)} disabled={!agentsList.length}>
+            {!agentsList.length && <option value="">Nenhum atendente cadastrado</option>}
+            {agentsList.filter(agent => !agent.isPlatformAssistant && agent.key !== "zaibot").map(agent => <option key={agent.key || agent.id} value={agent.key || agent.id}>{agent.name} · {agent.role || "Atendimento"}</option>)}
+          </select>
+          <Button variant="outline" disabled={!selectedAgentKey} onClick={() => onOpenCustomizer?.(agentsList.find(agent => (agent.key || agent.id) === selectedAgentKey))}>Editar instruções</Button>
+        </CardContent>
+      </Card>
 
       {/* TWO COLUMN WORKSPACE: CONFIGURATION & SIMULATOR */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
@@ -706,104 +634,14 @@ Tom: ${agentTone}. Estilo: ${responseStyle}.`;
           <Card className="bg-card border-border/80 shadow-sm">
             <CardHeader className="pb-3 border-b border-border/40">
               <CardTitle className="text-base font-bold flex items-center gap-2 text-foreground">
-                <Sliders className="h-5 w-5 text-emerald-400" /> Parâmetros de Personalidade & Tom
+                <Sliders className="h-5 w-5 text-emerald-400" /> Tom de Atendimento
               </CardTitle>
               <CardDescription className="text-xs text-muted-foreground">
-                Calibre o equilíbrio emocional e a velocidade de resposta do atendente.
+                Escolha a linguagem usada nas respostas do atendente.
               </CardDescription>
             </CardHeader>
 
             <CardContent className="p-4 sm:p-5 space-y-4">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                {/* Empatia */}
-                <div className="space-y-1.5 p-3 rounded-xl border border-border/60 bg-muted/10">
-                  <div className="flex justify-between text-xs font-semibold">
-                    <span className="flex items-center gap-1.5 text-foreground">
-                      <Heart className="h-3.5 w-3.5 text-rose-400" /> Empatia
-                    </span>
-                    <span className="text-emerald-400 font-bold">{empathyScore}%</span>
-                  </div>
-                  <Slider
-                    value={[empathyScore]}
-                    min={30}
-                    max={100}
-                    step={5}
-                    onValueChange={(val) => setEmpathyScore(val[0])}
-                    className="py-1"
-                  />
-                  <div className="flex justify-between text-[10px] text-muted-foreground">
-                    <span>Objetivo</span>
-                    <span>Acolhedor & Gentil</span>
-                  </div>
-                </div>
-
-                {/* Proatividade */}
-                <div className="space-y-1.5 p-3 rounded-xl border border-border/60 bg-muted/10">
-                  <div className="flex justify-between text-xs font-semibold">
-                    <span className="flex items-center gap-1.5 text-foreground">
-                      <Zap className="h-3.5 w-3.5 text-amber-400" /> Proatividade
-                    </span>
-                    <span className="text-emerald-400 font-bold">{proactivityScore}%</span>
-                  </div>
-                  <Slider
-                    value={[proactivityScore]}
-                    min={30}
-                    max={100}
-                    step={5}
-                    onValueChange={(val) => setProactivityScore(val[0])}
-                    className="py-1"
-                  />
-                  <div className="flex justify-between text-[10px] text-muted-foreground">
-                    <span>Reativo</span>
-                    <span>Sugere Produtos</span>
-                  </div>
-                </div>
-
-                {/* Persuasão */}
-                <div className="space-y-1.5 p-3 rounded-xl border border-border/60 bg-muted/10">
-                  <div className="flex justify-between text-xs font-semibold">
-                    <span className="flex items-center gap-1.5 text-foreground">
-                      <Flame className="h-3.5 w-3.5 text-orange-400" /> Persuasão
-                    </span>
-                    <span className="text-emerald-400 font-bold">{persuasionScore}%</span>
-                  </div>
-                  <Slider
-                    value={[persuasionScore]}
-                    min={30}
-                    max={100}
-                    step={5}
-                    onValueChange={(val) => setPersuasionScore(val[0])}
-                    className="py-1"
-                  />
-                  <div className="flex justify-between text-[10px] text-muted-foreground">
-                    <span>Neutro</span>
-                    <span>Fechador</span>
-                  </div>
-                </div>
-
-                {/* Paciência */}
-                <div className="space-y-1.5 p-3 rounded-xl border border-border/60 bg-muted/10">
-                  <div className="flex justify-between text-xs font-semibold">
-                    <span className="flex items-center gap-1.5 text-foreground">
-                      <Smile className="h-3.5 w-3.5 text-cyan-400" /> Paciência
-                    </span>
-                    <span className="text-emerald-400 font-bold">{patienceScore}%</span>
-                  </div>
-                  <Slider
-                    value={[patienceScore]}
-                    min={30}
-                    max={100}
-                    step={5}
-                    onValueChange={(val) => setPatienceScore(val[0])}
-                    className="py-1"
-                  />
-                  <div className="flex justify-between text-[10px] text-muted-foreground">
-                    <span>Direto</span>
-                    <span>Didático & Detalhado</span>
-                  </div>
-                </div>
-              </div>
-
               {/* Tom de Voz Chips */}
               <div className="space-y-2 pt-2 border-t border-border/40">
                 <label className="text-xs font-semibold text-foreground">Tom de Voz Principal</label>
@@ -1051,11 +889,11 @@ Tom: ${agentTone}. Estilo: ${responseStyle}.`;
             <Button
               type="button"
               onClick={handleSave}
-              disabled={isSaving}
+              disabled={isSaving || (!selectedAgentKey && !apiKey.trim())}
               className="h-10 px-6 font-semibold bg-emerald-500 hover:bg-emerald-600 text-white shadow-md gap-2"
             >
               {isSaving ? <RefreshCw className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
-              {isSaving ? "Salvando Alterações..." : "Salvar Configurações do Agente"}
+              {isSaving ? "Salvando Alterações..." : selectedAgentKey ? "Salvar Configurações do Agente" : "Salvar provedor"}
             </Button>
           </div>
         </div>
@@ -1084,21 +922,7 @@ Tom: ${agentTone}. Estilo: ${responseStyle}.`;
                   type="button"
                   variant="ghost"
                   size="sm"
-                  onClick={() =>
-                    setChatMessages([
-                      {
-                        role: "assistant",
-                        text: "Conversa reiniciada. Como posso te ajudar agora?",
-                        timestamp: "Agora",
-                        metadata: {
-                          responseTimeMs: 80,
-                          tokens: 28,
-                          ruleApplied: "Reset do Sandbox",
-                          confidenceScore: 100,
-                        },
-                      },
-                    ])
-                  }
+                  onClick={() => setChatMessages([])}
                   title="Limpar conversa"
                   className="h-7 w-7 p-0 text-muted-foreground hover:text-foreground"
                 >
@@ -1115,7 +939,7 @@ Tom: ${agentTone}. Estilo: ${responseStyle}.`;
                   key={idx}
                   type="button"
                   onClick={() => handleSendMessage(q)}
-                  disabled={isSending}
+                  disabled={isSending || !selectedAgentKey}
                   className="px-2 py-0.5 rounded-full text-[10px] bg-muted/40 hover:bg-emerald-500/15 text-muted-foreground hover:text-emerald-300 border border-border/60 shrink-0 transition-colors"
                 >
                   {q}
@@ -1202,7 +1026,7 @@ Tom: ${agentTone}. Estilo: ${responseStyle}.`;
                 <Button
                   type="submit"
                   size="sm"
-                  disabled={isSending || !inputMessage.trim()}
+                  disabled={isSending || !selectedAgentKey || !inputMessage.trim()}
                   className="h-9 w-9 p-0 bg-emerald-500 hover:bg-emerald-600 text-white shrink-0"
                 >
                   <Send className="h-4 w-4" />
@@ -1217,28 +1041,6 @@ Tom: ${agentTone}. Estilo: ${responseStyle}.`;
         </div>
       </div>
 
-      {/* AGENT PROFILE MODAL */}
-      <AgentProfileModal
-        open={isProfileModalOpen}
-        onOpenChange={setIsProfileModalOpen}
-        agent={profileModalAgent}
-        onUpdated={refreshAgents}
-        onOpenCustomizer={(ag) => {
-          setIsProfileModalOpen(false);
-          onOpenCustomizer?.();
-        }}
-      />
-
-      {/* NEW AGENT WIZARD MODAL */}
-      <NewAgentWizardModal
-        open={isNewAgentWizardOpen}
-        onOpenChange={setIsNewAgentWizardOpen}
-        defaultRole={wizardDefaultRole}
-        onCreated={(newAgent) => {
-          refreshAgents();
-          onSelectAgent?.(newAgent.key);
-        }}
-      />
     </div>
   );
 }

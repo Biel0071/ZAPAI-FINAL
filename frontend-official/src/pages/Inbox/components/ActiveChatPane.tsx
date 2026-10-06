@@ -262,14 +262,20 @@ export function ActiveChatPane({
   const navigate = useNavigate();
   const { toast } = useToast();
   const [generatingSheet, setGeneratingSheet] = useState(false);
+  const sheetRequestVersion = useRef(0);
+
+  useEffect(() => {
+    setGeneratingSheet(false);
+    return () => { sheetRequestVersion.current += 1; };
+  }, [selectedConversation?.id]);
 
   const handleGenerateSheet = async () => {
     if (!selectedConversation?.id) return;
+    const version = ++sheetRequestVersion.current;
     setGeneratingSheet(true);
     try {
-      const res = await requestApiEndpoint<any>(`/api/conversations/${selectedConversation.id}/generate-sheet`, {
-        method: "POST",
-      });
+      const res = await requestApiEndpoint<any>(`/api/conversations/${encodeURIComponent(selectedConversation.id)}/generate-sheet`, "POST");
+      if (version !== sheetRequestVersion.current) return;
       const text = res?.suggestedText || (res?.profile ? `Ficha do Cliente: ${res.profile.customer?.name || ''}\nResumo: ${res.profile.summary || ''}\nPróxima ação: ${res.profile.nextAction || ''}` : null);
       if (text) {
         setMessageInput(text);
@@ -279,13 +285,14 @@ export function ActiveChatPane({
         });
       }
     } catch (err: any) {
+      if (version !== sheetRequestVersion.current) return;
       toast({
         title: "Erro ao gerar ficha",
         description: err?.message || "Não foi possível gerar a ficha do atendimento.",
         variant: "destructive",
       });
     } finally {
-      setGeneratingSheet(false);
+      if (version === sheetRequestVersion.current) setGeneratingSheet(false);
     }
   };
 

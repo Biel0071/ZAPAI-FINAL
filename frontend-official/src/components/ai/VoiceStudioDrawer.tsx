@@ -13,7 +13,7 @@ import {
   MusicNotes,
   Waveform,
 } from "@phosphor-icons/react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
 import { Badge } from "@/components/ui/badge";
@@ -114,7 +114,7 @@ interface VoiceStudioDrawerProps {
   onClose: () => void;
   agentId?: string;
   currentVoiceId?: string;
-  onSaveVoice?: (voiceId: string, params: any) => void;
+  onSaveVoice?: (voiceId: string, params: VoiceProfile["defaultParams"]) => Promise<void> | void;
 }
 
 export function VoiceStudioDrawer({ open, onClose, agentId, currentVoiceId, onSaveVoice }: VoiceStudioDrawerProps) {
@@ -128,6 +128,7 @@ export function VoiceStudioDrawer({ open, onClose, agentId, currentVoiceId, onSa
   );
   const [testingAudio, setTestingAudio] = useState(false);
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
+  const [isSavingVoice, setIsSavingVoice] = useState(false);
 
   useEffect(() => {
     const voice = OFFICIAL_VOICES.find((v) => v.id === currentVoiceId) || OFFICIAL_VOICES[0];
@@ -139,6 +140,7 @@ export function VoiceStudioDrawer({ open, onClose, agentId, currentVoiceId, onSa
   }, [currentVoiceId]);
 
   const handleSelectVoice = (voice: VoiceProfile) => {
+    setAudioUrl(null);
     setSelectedVoice(voice);
     setParams({ ...voice.defaultParams });
     setSampleText(
@@ -147,16 +149,21 @@ export function VoiceStudioDrawer({ open, onClose, agentId, currentVoiceId, onSa
   };
 
   const handleTestVoice = async () => {
+    if (testingAudio || !sampleText.trim()) return;
     setTestingAudio(true);
+    setAudioUrl(null);
     try {
       notify.info(`Sintetizando preview da voz ${selectedVoice.name}...`);
       const res = await apiService.testVoiceSynthesis(selectedVoice.id, sampleText, params);
-      if (res?.data) {
-        setAudioUrl("synthetic-preview-active");
-        notify.success("Preview de voz gerado com sucesso!");
+      const payload = res.data && typeof res.data === "object" ? res.data : res;
+      const previewUrl = "url" in payload ? payload.url : "audioUrl" in payload ? payload.audioUrl : null;
+      if (typeof previewUrl !== "string" || !previewUrl.trim()) {
+        throw new Error("A prévia retornou apenas parâmetros. Nenhum áudio foi gerado.");
       }
-    } catch {
-      notify.error("Falha ao sintetizar preview de voz.");
+      setAudioUrl(previewUrl);
+      notify.success("Áudio de prévia disponível.");
+    } catch (error) {
+      notify.error(error instanceof Error ? error.message : "Falha ao gerar áudio de prévia.");
     } finally {
       setTestingAudio(false);
     }
@@ -168,15 +175,24 @@ export function VoiceStudioDrawer({ open, onClose, agentId, currentVoiceId, onSa
   };
 
   const handleSave = async () => {
+    if (isSavingVoice) return;
+    if (!agentId && !onSaveVoice) {
+      notify.error("Selecione um atendente para salvar o perfil vocal.");
+      return;
+    }
+    setIsSavingVoice(true);
     try {
-      await apiService.saveVoiceProfile(agentId || "default", selectedVoice.id, params);
       if (onSaveVoice) {
-        onSaveVoice(selectedVoice.id, params);
+        await onSaveVoice(selectedVoice.id, params);
+      } else {
+        await apiService.saveVoiceProfile(agentId, selectedVoice.id, params);
       }
       notify.success(`Perfil vocal ${selectedVoice.name} salvo com sucesso para o atendente!`);
       onClose();
     } catch {
       notify.error("Erro ao salvar perfil vocal.");
+    } finally {
+      setIsSavingVoice(false);
     }
   };
 
@@ -190,12 +206,16 @@ export function VoiceStudioDrawer({ open, onClose, agentId, currentVoiceId, onSa
               <Microphone className="h-5 w-5 animate-pulse" weight="fill" />
             </div>
             <div>
-              <h2 className="font-display text-lg font-bold text-foreground">ZAPFLOW AI Voices Studio</h2>
-              <p className="text-xs text-muted-foreground">Sintonia vocal fina e identidade das vozes neurais brasileiras</p>
+              <DialogTitle className="font-display text-lg font-bold text-foreground">ZAPFLOW AI Voices Studio</DialogTitle>
+              <DialogDescription className="text-xs text-muted-foreground">Ajuste a identidade vocal do atendente.</DialogDescription>
             </div>
           </div>
-          <button onClick={onClose} className="text-muted-foreground hover:text-foreground">
-            <X className="h-5 w-5" />
+          <button
+            onClick={onClose}
+            className="h-7 w-7 rounded-full flex items-center justify-center border border-emerald-500/40 bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/25 hover:text-emerald-300 hover:border-emerald-400 transition-all focus:outline-none"
+            aria-label="Fechar"
+          >
+            <X className="h-4 w-4" />
           </button>
         </div>
 
@@ -361,18 +381,20 @@ export function VoiceStudioDrawer({ open, onClose, agentId, currentVoiceId, onSa
             </div>
 
             {/* Actions */}
+            {audioUrl && <audio controls src={audioUrl} className="w-full" aria-label="Prévia da voz" />}
+            {!agentId && !onSaveVoice && <p className="text-xs text-muted-foreground">Selecione um atendente para salvar o perfil vocal.</p>}
             <div className="flex items-center gap-3 pt-2">
               <Button
                 variant="outline"
                 className="w-1/2 rounded-xl text-xs gap-2 border-primary/30 hover:bg-primary/10"
                 onClick={() => void handleTestVoice()}
-                disabled={testingAudio}
+                disabled={testingAudio || !sampleText.trim()}
               >
                 <Play className={`h-4 w-4 text-primary ${testingAudio ? "animate-pulse" : ""}`} />
                 {testingAudio ? "Sintetizando..." : "Testar Voz ao Vivo"}
               </Button>
 
-              <Button className="w-1/2 rounded-xl text-xs font-bold gap-2 shadow-glow" onClick={() => void handleSave()}>
+              <Button className="w-1/2 rounded-xl text-xs font-bold gap-2 shadow-glow" onClick={() => void handleSave()} disabled={isSavingVoice}>
                 <FloppyDisk className="h-4 w-4" />
                 Salvar Perfil Vocal
               </Button>

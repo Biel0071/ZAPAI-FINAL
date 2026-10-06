@@ -176,9 +176,9 @@ export function normalizeAgentToIdentity(agent: any, fallbackThemeColor = "#10b9
       role: "Especialista em Vendas",
       department: "vendas",
       objective: "Atender leads e conduzir para orçamento com agilidade",
-      presenceState: "WORKING",
-      currentActivity: "Atendendo cliente sobre orçamento no WhatsApp",
-      active: true,
+      presenceState: "OFFLINE",
+      currentActivity: "Aguardando configuração do atendente",
+      active: false,
       personality: {
         tone: "friendly",
         communicationStyle: "consultivo",
@@ -250,35 +250,38 @@ export function normalizeAgentToIdentity(agent: any, fallbackThemeColor = "#10b9
   }
 
   // Presence State derivation
-  let presenceState: AgentPresenceState = "WORKING";
-  if (agent.active === false || agent.status === "offline" || agent.status === "paused") {
+  const status = String(agent.presenceState || agent.status || "").toUpperCase();
+  let presenceState: AgentPresenceState = "IDLE";
+  if (agent.active === false || status === "OFFLINE" || status === "PAUSED") {
     presenceState = "OFFLINE";
-  } else if (agent.status === "idle") {
-    presenceState = "IDLE";
-  } else if (agent.status === "thinking" || agent.status === "processing") {
+  } else if (status === "WORKING" || status === "TYPING") {
+    presenceState = "WORKING";
+  } else if (status === "THINKING" || status === "PROCESSING") {
     presenceState = "THINKING";
-  } else if (agent.status === "responding") {
+  } else if (status === "RESPONDING" || status === "TALKING") {
     presenceState = "RESPONDING";
-  } else if (agent.status === "learning") {
+  } else if (status === "LEARNING") {
     presenceState = "LEARNING";
-  } else if (agent.status === "success") {
+  } else if (status === "SUCCESS") {
     presenceState = "SUCCESS";
-  } else if (agent.status === "error") {
+  } else if (status === "ERROR") {
     presenceState = "ERROR";
+  } else if (status === "AWAY") {
+    presenceState = "AWAY";
   }
 
   const deptMeta = DEPARTMENT_METADATA[department];
   const charCfg = agent.character || agent.config || {};
 
   return {
-    id: String(agent.id || agent.key || `ag-${Date.now()}`),
+    id: String(agent.id || agent.key || rawKey),
     key: rawKey,
     companyId: agent.companyId,
     name,
     role,
     department,
     objective: agent.objective || "Atendimento rápido, resolutivo e consultivo no WhatsApp.",
-    active: agent.active !== false && agent.status !== "offline",
+    active: presenceState !== "OFFLINE",
     isPlatformAssistant: Boolean(agent.isPlatformAssistant || rawKey === "zaibot"),
     presenceState,
     currentActivity:
@@ -286,9 +289,9 @@ export function normalizeAgentToIdentity(agent: any, fallbackThemeColor = "#10b9
       (presenceState === "OFFLINE"
         ? `${name} está fora de expediente (Em pé aguardando ativação)`
         : presenceState === "WORKING"
-        ? `${name} atendendo clientes no WhatsApp via terminal ZAI`
+        ? `${name} operando o atendimento`
         : presenceState === "THINKING"
-        ? "Processando raciocínio neural para gerar cotação"
+        ? "Processando resposta"
         : `${name} pronto para novos atendimentos`),
     personality: {
       tone: agent.tone || "friendly",
@@ -316,12 +319,6 @@ export function normalizeAgentToIdentity(agent: any, fallbackThemeColor = "#10b9
       deskItems: ["pc_monitor", "keyboard", "mouse", "coffee_mug", "plant"],
       ambientLight: department === "financeiro" ? "warm" : department === "suporte" ? "blue" : "emerald",
     },
-    stats: agent.stats || {
-      chatsToday: rawKey === "camila" ? 127 : 42,
-      slaPercent: 96,
-      satisfactionCsat: 98,
-      avgResponseTime: "16s",
-      totalConversions: 18,
-    },
+    stats: agent.stats,
   };
 }

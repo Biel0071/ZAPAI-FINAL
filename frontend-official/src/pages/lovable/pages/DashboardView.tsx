@@ -176,10 +176,10 @@ export function DashboardView({
     }
     return {
       kpis: [
-        { label: "Mensagens Hoje", value: "0", tone: "primary" as const, hint: "Total enviadas + recebidas" },
-        { label: "Fila Ativa", value: "0", tone: "warning" as const, hint: "Conversas aguardando atendimento" },
-        { label: "Respostas IA", value: "0", tone: "success" as const, hint: "Mensagens automáticas processadas" },
-        { label: "Total de Leads", value: "0", tone: "info" as const, hint: "Contatos cadastrados no CRM" },
+        { label: "Mensagens no período", value: "—", tone: "primary" as const, hint: "Total enviadas + recebidas" },
+        { label: "Fila Ativa", value: "—", tone: "warning" as const, hint: "Conversas aguardando atendimento" },
+        { label: "Participação da IA", value: "—", tone: "success" as const, hint: "Mensagens automáticas processadas" },
+        { label: "Conversas no período", value: "—", tone: "info" as const, hint: "Contatos cadastrados no CRM" },
       ],
       chartData: [],
       tempDistribution: [],
@@ -309,44 +309,15 @@ export function DashboardView({
   }, [aiStatus]);
 
   const tokensPeriodFormatted = useMemo(() => {
-    const tokens = Number(aiMetrics?.tokensToday) || 0;
+    if (aiMetrics?.tokensToday === undefined || aiMetrics?.tokensToday === null) return "—";
+    const tokens = Number(aiMetrics.tokensToday);
     return tokens > 1000 ? `${(tokens / 1000).toFixed(1)}K` : String(tokens);
   }, [aiMetrics]);
 
-  const aiCost = useMemo(() => {
-    const prompt = Number(aiMetrics?.promptTokensToday) || 0;
-    const completion = Number(aiMetrics?.completionTokensToday) || 0;
-    if (prompt === 0 && completion === 0) return "$0.00";
-    
-    const model = activeModelName.toLowerCase();
-    let promptPricePerM = 0;
-    let completionPricePerM = 0;
-    
-    if (model.includes("gpt-4o-mini")) {
-      promptPricePerM = 0.15; completionPricePerM = 0.60;
-    } else if (model.includes("gpt-4o") || model.includes("gpt-4")) {
-      promptPricePerM = 5.00; completionPricePerM = 15.00;
-    } else if (model.includes("gemini-1.5-flash") || model.includes("gemini")) {
-      promptPricePerM = 0.075; completionPricePerM = 0.30;
-    } else if (model.includes("claude-3-haiku")) {
-      promptPricePerM = 0.25; completionPricePerM = 1.25;
-    } else if (model.includes("claude-3-5-sonnet")) {
-      promptPricePerM = 3.00; completionPricePerM = 15.00;
-    } else {
-      promptPricePerM = 0.50; completionPricePerM = 1.50;
-    }
-
-    const cost = (prompt / 1000000) * promptPricePerM + (completion / 1000000) * completionPricePerM;
-    return `$${cost.toFixed(3)}`;
-  }, [aiMetrics, activeModelName]);
-  const automationPercentage = useMemo(() => {
-    const totalMsg = viewModel.rawMetrics?.messagesToday ?? 0;
-    const aiMsg = viewModel.rawMetrics?.aiResponses ?? 0;
-    if (totalMsg === 0) return 0;
-    // Clamp to 100%: aiResponses and messagesToday can span different windows,
-    // so the raw ratio may exceed 100% — a resolution rate never should.
-    return Math.min(100, Math.round((aiMsg / totalMsg) * 100));
-  }, [viewModel.rawMetrics]);
+  // The API does not supply billing prices or measured resolution rates.
+  const aiCost = '—';
+  const participationLabel = safeAnalyticsViewModel.kpis[2]?.value ?? '—';
+  const automationPercentage = participationLabel === '—' ? 0 : Number.parseFloat(participationLabel);
 
   return (
     <div className="space-y-6">
@@ -511,19 +482,19 @@ export function DashboardView({
             >
               <CardContent className="space-y-1 p-3.5 sm:p-4">
                 <div className="flex items-center justify-between">
-                  <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Volume de Contatos</p>
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Conversas no período</p>
                   <span className="h-2 w-2 rounded-full bg-primary" />
                 </div>
                 <h3 className="font-display text-2xl sm:text-3xl font-black">{safeAnalyticsViewModel.kpis[3]?.value || "0"}</h3>
                 <span className="text-[10px] text-primary font-semibold flex items-center gap-0.5 truncate">
-                  Contatos no CRM
+                  No período selecionado
                 </span>
               </CardContent>
             </Card>
 
             <Card
               className="glass-card metric-card rounded-2xl border-border/70 hover:border-primary/50 transition-all duration-200 cursor-pointer hover-lift select-none"
-              onClick={() => onTabChange('operations')}
+              onClick={() => navigate('/settings?tab=diagnostics')}
             >
               <CardContent className="space-y-1 p-3.5 sm:p-4">
                 <div className="flex items-center justify-between">
@@ -539,7 +510,7 @@ export function DashboardView({
 
             <Card
               className="glass-card metric-card rounded-2xl border-border/70 hover:border-primary/50 transition-all duration-200 cursor-pointer hover-lift select-none"
-              onClick={() => onTabChange('operations')}
+              onClick={() => navigate('/settings?tab=diagnostics')}
             >
               <CardContent className="space-y-1 p-3.5 sm:p-4">
                 <div className="flex items-center justify-between">
@@ -564,7 +535,7 @@ export function DashboardView({
                 </div>
                 <h3 className="font-display text-2xl sm:text-3xl font-black">{safeAnalyticsViewModel.kpis[2]?.value || "0"}</h3>
                 <span className="text-[10px] text-success font-semibold flex items-center gap-0.5 truncate">
-                  Taxa de Resolução
+                  Participação da IA
                 </span>
               </CardContent>
             </Card>
@@ -678,17 +649,17 @@ export function DashboardView({
                   <p className="text-[10px] font-bold uppercase text-muted-foreground">Total de Tokens (Hoje)</p>
                   <p className="text-2xl font-display font-bold text-foreground mt-0.5">{tokensPeriodFormatted}</p>
                   <div className="flex gap-4 mt-2">
-                    <span className="text-[10px] text-muted-foreground">Prompt: {Number(aiMetrics?.promptTokensToday || 0).toLocaleString('pt-BR')}</span>
-                    <span className="text-[10px] text-muted-foreground">Completion: {Number(aiMetrics?.completionTokensToday || 0).toLocaleString('pt-BR')}</span>
+                    <span className="text-[10px] text-muted-foreground">Prompt: {aiMetrics?.promptTokensToday == null ? '—' : Number(aiMetrics.promptTokensToday).toLocaleString('pt-BR')}</span>
+                    <span className="text-[10px] text-muted-foreground">Completion: {aiMetrics?.completionTokensToday == null ? '—' : Number(aiMetrics.completionTokensToday).toLocaleString('pt-BR')}</span>
                   </div>
                 </div>
                 <div>
                   <p className="text-[10px] font-bold uppercase text-muted-foreground">Taxa de Automação</p>
                   <div className="flex items-center gap-3 mt-1">
                     <div className="flex-1 h-2 rounded-full bg-muted overflow-hidden">
-                      <div className="h-full bg-success rounded-full transition-all" style={{ width: `${automationPercentage}%` }} />
+                      <div className="h-full bg-success rounded-full transition-all" style={{ width: `${participationLabel}` }} />
                     </div>
-                    <span className="text-xs font-bold">{automationPercentage}%</span>
+                    <span className="text-xs font-bold">{participationLabel}</span>
                   </div>
                 </div>
               </CardContent>
@@ -1059,14 +1030,14 @@ export function DashboardView({
               <CardContent className="space-y-2 p-5">
                 <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Custo Diário LLM</p>
                 <h3 className="font-display text-2xl font-bold text-amber-400">{aiCost}</h3>
-                <span className="text-[10px] text-amber-400/80 font-semibold">Estimado do dia atual</span>
+                <span className="text-[10px] text-amber-400/80 font-semibold">Custo não informado pelo provedor</span>
               </CardContent>
             </Card>
             <Card className="glass-card metric-card rounded-2xl border-border/70 hover-lift">
               <CardContent className="space-y-2 p-5">
                 <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Automação IA</p>
-                <h3 className="font-display text-2xl font-bold">{automationPercentage}%</h3>
-                <span className="text-[10px] text-success font-semibold">Contatos resolvidos sem humano</span>
+                <h3 className="font-display text-2xl font-bold">{participationLabel}</h3>
+                <span className="text-[10px] text-success font-semibold">Participação nas mensagens do período</span>
               </CardContent>
             </Card>
             <Card className="glass-card metric-card rounded-2xl border-border/70 hover-lift">

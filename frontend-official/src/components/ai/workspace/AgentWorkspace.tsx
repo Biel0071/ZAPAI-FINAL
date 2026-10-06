@@ -1,17 +1,14 @@
-import React, { useState, useEffect } from "react";
+import React from "react";
 import { AgentIdentity, AgentPresenceState, normalizeAgentToIdentity } from "./AgentIdentity";
-import { getAgentStateVisual } from "./AgentStateMachine";
+import { AGENT_STATE_CONFIGS, getAgentStateVisual } from "./AgentStateMachine";
 import { AgentCharacter } from "./AgentCharacter";
 import { AgentEnvironment } from "./AgentEnvironment";
 import { AgentActivity } from "./AgentActivity";
 import { AgentPresence } from "./AgentPresence";
-import { Badge } from "@/components/ui/badge";
 import { cn } from "@/core/lib/utils";
 import { useToast } from "@/state/hooks/use-toast";
 import {
-  Brain,
   Bot,
-  Activity,
   User,
   Shirt,
   Headphones,
@@ -36,7 +33,6 @@ export const AgentWorkspace: React.FC<AgentWorkspaceProps> = ({
   isOnline = true,
   onToggleOnline,
   runtimeState,
-  onRuntimeStateChange,
   agentMode,
   onToggleMode,
   onOpenCustomizer,
@@ -53,31 +49,20 @@ export const AgentWorkspace: React.FC<AgentWorkspaceProps> = ({
     identity.isPlatformAssistant ||
     identity.key === "zaibot";
 
-  // Effective State Machine
-  const [internalState, setInternalState] = useState<AgentPresenceState | null>(null);
-
-  useEffect(() => {
-    setInternalState(null);
-  }, [isOnline, runtimeState, agent]);
-
-  const normalizedRuntime: AgentPresenceState | undefined = runtimeState
-    ? (String(runtimeState).toUpperCase() === "ONLINE"
-        ? "WORKING"
-        : (String(runtimeState).toUpperCase() as AgentPresenceState))
-    : undefined;
-
-  const effectiveState: AgentPresenceState =
-    internalState ??
-    (normalizedRuntime ??
-      (isOnline && identity.active ? (identity.presenceState || "WORKING") : "OFFLINE"));
+  const runtimeKey = String(runtimeState || "").toUpperCase();
+  const normalizedRuntime: AgentPresenceState | undefined = runtimeKey === "ONLINE"
+    ? "IDLE"
+    : Object.prototype.hasOwnProperty.call(AGENT_STATE_CONFIGS, runtimeKey)
+      ? runtimeKey as AgentPresenceState
+      : undefined;
+  const effectiveState: AgentPresenceState = !isOnline || !identity.active
+    ? "OFFLINE"
+    : normalizedRuntime || identity.presenceState;
+  const storeName = agent?.storeName || agent?.store?.name || agent?.avatarConfig?.branding?.storeName;
 
   const visual = getAgentStateVisual(effectiveState);
+  const runtimeIdentity = { ...identity, presenceState: effectiveState, currentActivity: visual.description };
   const isWorking = visual.characterPose === "seated";
-
-  const handleStateChange = (st: AgentPresenceState) => {
-    setInternalState(st);
-    onRuntimeStateChange?.(st);
-  };
 
   // Robot Mascot Visual mapping for ZAIBOT
   const getZaibotImage = () => {
@@ -106,7 +91,7 @@ export const AgentWorkspace: React.FC<AgentWorkspaceProps> = ({
         className
       )}
     >
-      {/* 1. TOP HEADER BAR: BADGE (LEFT) • MODE SELECTOR (CENTER) • PRESENCE & SIMULATION (RIGHT) */}
+      {/* Agent identity and operational state */}
       <div className="absolute top-0 inset-x-0 z-30 flex items-center justify-between p-2.5 sm:p-3 pointer-events-none gap-2">
         {/* AGENT IDENTITY BADGE (LEFT) */}
         <div className="flex items-center gap-2 bg-[#090e17]/95 backdrop-blur-md border border-white/10 px-2 py-1 sm:px-2.5 sm:py-1.5 rounded-xl shadow-lg pointer-events-auto shrink-0 max-w-[130px] sm:max-w-none">
@@ -137,7 +122,7 @@ export const AgentWorkspace: React.FC<AgentWorkspaceProps> = ({
               {isZaibot ? "ZAIBOT" : identity.name}
             </div>
             <div className="text-[9px] text-slate-400 font-medium leading-tight truncate hidden sm:block">
-              {isZaibot ? "Assistente Operacional ZAI" : identity.role}
+              {storeName || (isZaibot ? "Assistente Operacional ZAI" : identity.role)}
             </div>
           </div>
         </div>
@@ -154,7 +139,7 @@ export const AgentWorkspace: React.FC<AgentWorkspaceProps> = ({
                 : "text-slate-300 hover:text-white"
             )}
           >
-            {identity.name} (Funcionário Digital)
+            {identity.name}
           </button>
           <button
             type="button"
@@ -166,11 +151,11 @@ export const AgentWorkspace: React.FC<AgentWorkspaceProps> = ({
                 : "text-slate-300 hover:text-white"
             )}
           >
-            ZAIBOT (Mascote 3D)
+            ZAIBOT
           </button>
         </div>
 
-        {/* PRESENCE CONTROLLER & SIMULATION CHIPS (RIGHT) */}
+        {/* Presence controller */}
         <div className="pointer-events-auto shrink-0 flex items-center gap-1.5 sm:gap-2">
           {/* Mobile mode switch icon button */}
           <div className="md:hidden flex items-center p-0.5 rounded-lg bg-black/70 border border-white/10">
@@ -186,10 +171,9 @@ export const AgentWorkspace: React.FC<AgentWorkspaceProps> = ({
           </div>
 
           <AgentPresence
-            agent={identity}
+            agent={runtimeIdentity}
             state={effectiveState}
             onToggleOnline={onToggleOnline}
-            onSelectState={handleStateChange}
           />
         </div>
       </div>
@@ -235,35 +219,8 @@ export const AgentWorkspace: React.FC<AgentWorkspaceProps> = ({
             />
           </div>
 
-          {/* Interactive Room Hotspots */}
-          <div
-            title="Terminal Neural ZAIBOT"
-            onClick={() =>
-              toast({
-                title: "Terminal Neural",
-                description: "Monitoramento em tempo real de automações e filas.",
-              })
-            }
-            className="absolute top-[35%] left-[18%] h-10 w-10 rounded-full cursor-pointer border border-cyan-400/30 bg-cyan-400/10 hover:bg-cyan-400/30 transition-all flex items-center justify-center"
-          >
-            <Brain className="h-4 w-4 text-cyan-400 animate-pulse" />
-          </div>
-
-          <div
-            title="Telemetria & Latência"
-            onClick={() =>
-              toast({
-                title: "Telemetria",
-                description: "Latência média de 42ms. Todas as APIs conectadas.",
-              })
-            }
-            className="absolute top-[35%] right-[18%] h-10 w-10 rounded-full cursor-pointer border border-emerald-400/30 bg-emerald-400/10 hover:bg-emerald-400/30 transition-all flex items-center justify-center"
-          >
-            <Activity className="h-4 w-4 text-emerald-400 animate-pulse" />
-          </div>
-
           {/* Activity Overlays */}
-          <AgentActivity agent={identity} state={effectiveState} />
+          <AgentActivity agent={runtimeIdentity} state={effectiveState} />
         </div>
       ) : (
         /* ========================================================
@@ -297,22 +254,22 @@ export const AgentWorkspace: React.FC<AgentWorkspaceProps> = ({
 
           {/* B. LIVING WORKSPACE ENVIRONMENT WITH FULL-BODY CHARACTER */}
           <div className="relative flex-1 h-full overflow-hidden">
-            <AgentEnvironment agent={identity} isWorking={isWorking}>
+            <AgentEnvironment agent={runtimeIdentity} isWorking={isWorking}>
               <AgentCharacter
-                agent={identity}
+                agent={runtimeIdentity}
                 pose={isWorking ? "seated" : "standing"}
                 isTyping={effectiveState === "WORKING" || effectiveState === "RESPONDING"}
                 onClick={() => {
                   toast({
                     title: `${identity.name} • ${identity.role}`,
-                    description: `Departamento: ${identity.department.toUpperCase()} • ${identity.currentActivity}`,
+                    description: `Departamento: ${identity.department.toUpperCase()} • ${runtimeIdentity.currentActivity}`,
                   });
                 }}
               />
             </AgentEnvironment>
 
             {/* C. ACTIVITY OVERLAYS & TELEMETRY */}
-            <AgentActivity agent={identity} state={effectiveState} />
+            <AgentActivity agent={runtimeIdentity} state={effectiveState} />
           </div>
         </div>
       )}

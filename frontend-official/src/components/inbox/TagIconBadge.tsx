@@ -46,6 +46,7 @@ import {
   getTagDescriptor,
   extractLeadingEmoji,
   cleanTagName,
+  businessLabel,
   TagVisualDescriptor,
 } from "@/core/utils/tagEmojis";
 import { TagEmojiPicker } from "./TagEmojiPicker";
@@ -133,7 +134,7 @@ export function TagIconBadge({
   }, [tag]);
 
   const { cleanText } = extractLeadingEmoji(tag);
-  const displayName = cleanText || tag;
+  const displayName = businessLabel(cleanText || tag);
 
   // Render the visual element (Phosphor Icon or Emoji)
   const renderVisual = () => {

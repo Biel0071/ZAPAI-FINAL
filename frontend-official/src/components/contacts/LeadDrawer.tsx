@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   X,
@@ -34,6 +34,7 @@ import { LeadKnowledgeGraph } from "@/components/contacts/LeadKnowledgeGraph";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { apiService } from "@/core/services/apiService";
 import { notify } from "@/core/services/notifyService";
+import { businessLabel } from '@/core/utils/tagEmojis';
 
 export interface LeadDrawerLead {
   id: string;
@@ -60,51 +61,44 @@ export function LeadDrawer({ lead, onClose, onUpdateLead }: LeadDrawerProps) {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<"summary" | "graph" | "timeline" | "products" | "followups">("summary");
   const [loadingAi, setLoadingAi] = useState(false);
+  const leadScope = `${lead?.sessionId || ""}:${lead?.conversationId || lead?.id || ""}`;
+  const currentLeadScope = useRef(leadScope);
+  currentLeadScope.current = leadScope;
+  const [analysisError, setAnalysisError] = useState<string | null>(null);
   const [aiData, setAiData] = useState<any>(null);
   const [followupPlan, setFollowupPlan] = useState<any>(null);
   const [recoveryApproach, setRecoveryApproach] = useState<any>(null);
 
   useEffect(() => {
-    if (!lead) {
-      setAiData(null);
-      setFollowupPlan(null);
-      setRecoveryApproach(null);
-      return;
-    }
-
-    const loadLeadDetails = async () => {
-      setLoadingAi(true);
-      try {
-        if (lead.conversationId) {
-          const res = await apiService.getConversationInsights(lead.conversationId).catch(() => null);
-          if (res?.data) {
-            setAiData(res.data);
-          }
-        }
-      } catch (err) {
-        console.warn("Error fetching lead AI analysis:", err);
-      } finally {
-        setLoadingAi(false);
-      }
-    };
-
-    void loadLeadDetails();
-  }, [lead]);
+    let active = true;
+    setAiData(null); setFollowupPlan(null); setRecoveryApproach(null); setAnalysisError(null); setActiveTab('summary');
+    if (!lead?.conversationId) { setLoadingAi(false); return; }
+    setLoadingAi(true);
+    apiService.getConversationInsights(lead.conversationId)
+      .then(res => { if (active) setAiData(res?.data || null); })
+      .catch(() => { if (active) setAnalysisError('Não foi possível carregar a análise deste contato.'); })
+      .finally(() => { if (active) setLoadingAi(false); });
+    return () => { active = false; };
+  }, [leadScope, lead?.conversationId]);
 
   if (!lead) return null;
 
-  const temp = (lead.temperature || "warm").toLowerCase();
+  const temp = (lead.temperature || "").toLowerCase();
   const tempBadge =
     temp === "hot" || temp === "quente"
       ? { label: "Quente", color: "bg-red-500/15 text-red-400 border-red-500/30", icon: <Flame className="h-3.5 w-3.5 text-red-400" weight="fill" /> }
       : temp === "cold" || temp === "frio"
       ? { label: "Frio", color: "bg-blue-500/15 text-blue-400 border-blue-500/30", icon: <Snowflake className="h-3.5 w-3.5 text-blue-400" weight="fill" /> }
-      : { label: "Morno", color: "bg-amber-500/15 text-amber-400 border-amber-500/30", icon: <Sun className="h-3.5 w-3.5 text-amber-400" weight="fill" /> };
+      : temp === "warm" || temp === "morno" ? { label: "Morno", color: "bg-amber-500/15 text-amber-400 border-amber-500/30", icon: <Sun className="h-3.5 w-3.5 text-amber-400" weight="fill" /> }
+      : { label: "Não classificado", color: "bg-muted text-muted-foreground border-border", icon: null };
 
   const handleGenerateFollowup = async () => {
+    const scope = leadScope;
     try {
       notify.info("Gerando plano de follow-up por IA...");
       const res = await apiService.getAIFollowupPlan(lead.conversationId || lead.id, lead.phone);
+      if (currentLeadScope.current !== scope) return;
+      if (!res?.data) throw new Error("Resposta indisponível");
       if (res?.data) {
         setFollowupPlan(res.data);
         setActiveTab("followups");
@@ -116,9 +110,12 @@ export function LeadDrawer({ lead, onClose, onUpdateLead }: LeadDrawerProps) {
   };
 
   const handleGenerateRecovery = async () => {
+    const scope = leadScope;
     try {
       notify.info("Criando abordagem de recuperação...");
-      const res = await apiService.getAIRecoveryApproach(lead.conversationId || lead.id, lead.phone, "Orçamento de materiais");
+      const res = await apiService.getAIRecoveryApproach(lead.conversationId || lead.id, lead.phone, lead.lastMessage || "");
+      if (currentLeadScope.current !== scope) return;
+      if (!res?.data) throw new Error("Resposta indisponível");
       if (res?.data) {
         setRecoveryApproach(res.data);
         notify.success("Nova abordagem de recuperação gerada!");
@@ -130,19 +127,17 @@ export function LeadDrawer({ lead, onClose, onUpdateLead }: LeadDrawerProps) {
 
   const handleGoToChat = () => {
     onClose();
-    window.localStorage.setItem("zapai_inbox_last_chat_scope", `default:${lead.phone}`);
+    window.localStorage.setItem("zapai_inbox_last_chat_scope", `${lead.sessionId || "default"}:${lead.phone}`);
     navigate(`/inbox?phone=${encodeURIComponent(lead.phone)}&chatId=${encodeURIComponent(lead.phone)}&conversationId=${encodeURIComponent(lead.conversationId || lead.id)}`);
   };
 
   return (
     <Dialog open={Boolean(lead)} onOpenChange={(open) => { if (!open) onClose(); }}>
-      <DialogContent className="max-w-3xl border-border/80 bg-card/95 backdrop-blur-xl p-0 overflow-hidden rounded-3xl shadow-2xl">
+      <DialogContent aria-describedby={undefined} className="max-w-3xl border-border/80 bg-card/95 backdrop-blur-xl p-0 overflow-hidden rounded-3xl shadow-2xl">
         {/* Header Header */}
-        <div className="bg-gradient-to-r from-card via-background to-card p-6 border-b border-border/50 relative">
-          <button onClick={onClose} className="absolute right-4 top-4 text-muted-foreground hover:text-foreground rounded-full p-1 transition-colors">
-            <X className="h-5 w-5" />
-          </button>
+        <div className="bg-gradient-to-r from-card via-background to-card p-4 pr-12 sm:p-6 sm:pr-12 border-b border-border/50 relative">
 
+          <DialogTitle className="sr-only">Detalhes de {lead.name}</DialogTitle>
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div className="flex items-center gap-4">
               <Avatar className="h-14 w-14 rounded-2xl border border-primary/20 shadow-glow">
@@ -182,46 +177,45 @@ export function LeadDrawer({ lead, onClose, onUpdateLead }: LeadDrawerProps) {
 
         {/* Content Body */}
         <div className="p-6 space-y-6 max-h-[70vh] overflow-y-auto scrollbar-thin">
+          {analysisError && <p role="alert" className="text-sm text-amber-400">{analysisError}</p>}
           {/* Quick Metrics Bar */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             <Card className="rounded-2xl border-border/60 bg-background/50 p-3">
-              <span className="text-[10px] uppercase font-bold text-muted-foreground block">Chance de Fechamento</span>
+              <span className="text-[10px] uppercase font-bold text-muted-foreground block">Confiança da análise IA</span>
               <span className="text-lg font-bold font-display text-success flex items-center gap-1 mt-0.5">
                 <TrendUp className="h-4 w-4" />
-                {aiData?.confidence ? `${Math.round(aiData.confidence * 100)}%` : "84%"}
+                {typeof aiData?.confidence === "number" && Number.isFinite(aiData.confidence) ? `${Math.round(aiData.confidence * 100)}%` : "—"}
               </span>
             </Card>
 
             <Card className="rounded-2xl border-border/60 bg-background/50 p-3">
               <span className="text-[10px] uppercase font-bold text-muted-foreground block">Intenção Identificada</span>
               <span className="text-xs font-bold text-foreground mt-1 block truncate">
-                {aiData?.intent || "Compra Direta / Orçamento"}
+                {aiData?.intent ? businessLabel(aiData.intent) : "—"}
               </span>
             </Card>
 
             <Card className="rounded-2xl border-border/60 bg-background/50 p-3">
               <span className="text-[10px] uppercase font-bold text-muted-foreground block">Sentimento</span>
               <span className="text-xs font-bold text-primary mt-1 block capitalize">
-                {aiData?.sentiment || "Muito Interessado"}
+                {aiData?.sentiment ? businessLabel(aiData.sentiment) : "—"}
               </span>
             </Card>
 
             <Card className="rounded-2xl border-border/60 bg-background/50 p-3">
               <span className="text-[10px] uppercase font-bold text-muted-foreground block">Próxima Ação IA</span>
               <span className="text-xs font-bold text-amber-400 mt-1 block truncate">
-                {aiData?.nextAction || "Enviar proposta com desconto"}
+                {aiData?.nextAction ? businessLabel(aiData.nextAction) : "—"}
               </span>
             </Card>
           </div>
 
           {/* Navigation Tabs */}
           <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)}>
-            <TabsList className="w-full justify-start rounded-xl border border-border/60 bg-card/60 p-1">
+            <TabsList className="w-full justify-start overflow-x-auto rounded-xl border border-border/60 bg-card/60 p-1">
               <TabsTrigger value="summary" className="text-xs font-semibold">Resumo IA & Visão 360°</TabsTrigger>
               <TabsTrigger value="graph" className="text-xs font-semibold">Grafo Inteligente</TabsTrigger>
-              <TabsTrigger value="timeline" className="text-xs font-semibold">Linha do Tempo</TabsTrigger>
-              <TabsTrigger value="products" className="text-xs font-semibold">Produtos & Propostas</TabsTrigger>
-              <TabsTrigger value="followups" className="text-xs font-semibold">Plano de Follow-up ({followupPlan?.steps?.length || 6})</TabsTrigger>
+              <TabsTrigger value="followups" className="text-xs font-semibold">Plano de Follow-up ({followupPlan?.steps?.length ?? 0})</TabsTrigger>
             </TabsList>
 
             {/* TAB: GRAFO INTELIGENTE DE CONHECIMENTO */}
@@ -238,7 +232,7 @@ export function LeadDrawer({ lead, onClose, onUpdateLead }: LeadDrawerProps) {
                 </div>
                 <p className="text-xs text-foreground/90 leading-relaxed italic">
                   {aiData?.summary ||
-                    `Resumo das interações com ${lead.name} (${lead.phone}). Informações detalhadas disponíveis no grafo de conhecimento do lead.`}
+                    (loadingAi ? "Carregando análise…" : "Ainda não há resumo de IA disponível para este contato.")}
                 </p>
               </Card>
 
@@ -289,15 +283,15 @@ export function LeadDrawer({ lead, onClose, onUpdateLead }: LeadDrawerProps) {
                   <div className="space-y-1.5 text-xs">
                     <div className="flex justify-between text-muted-foreground">
                       <span>Responsividade:</span>
-                      <strong className="text-foreground">Alta (Responde em &lt; 5 min)</strong>
+                      <strong className="text-foreground">—</strong>
                     </div>
                     <div className="flex justify-between text-muted-foreground">
                       <span>Última interação:</span>
-                      <strong className="text-foreground">{lead.updatedAt ? new Date(lead.updatedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Hoje'}</strong>
+                      <strong className="text-foreground">{lead.updatedAt ? new Date(lead.updatedAt).toLocaleString('pt-BR') : '—'}</strong>
                     </div>
                     <div className="flex justify-between text-muted-foreground">
                       <span>Canal de Origem:</span>
-                      <strong className="text-primary font-bold">WhatsApp Direct B2B</strong>
+                      <strong className="text-primary font-bold">WhatsApp</strong>
                     </div>
                   </div>
                 </Card>
@@ -311,63 +305,11 @@ export function LeadDrawer({ lead, onClose, onUpdateLead }: LeadDrawerProps) {
               </div>
             </TabsContent>
 
-            {/* TAB 2: TIMELINE */}
-            <TabsContent value="timeline" className="space-y-3 mt-4">
-              <div className="space-y-3 relative before:absolute before:left-3 before:top-2 before:bottom-2 before:w-0.5 before:bg-border/60">
-                <div className="relative pl-7 space-y-1">
-                  <span className="absolute left-1.5 top-1 h-3 w-3 rounded-full bg-primary ring-4 ring-card"></span>
-                  <p className="text-xs font-bold text-foreground">Lead visualizou proposta enviada</p>
-                  <p className="text-[10px] text-muted-foreground">Hoje às 12:45 • WhatsApp Direct</p>
-                </div>
-                <div className="relative pl-7 space-y-1">
-                  <span className="absolute left-1.5 top-1 h-3 w-3 rounded-full bg-info ring-4 ring-card"></span>
-                  <p className="text-xs font-bold text-foreground">IA respondeu dúvidas sobre prazo de entrega</p>
-                  <p className="text-[10px] text-muted-foreground">Hoje às 11:20 • Resposta Automática</p>
-                </div>
-                <div className="relative pl-7 space-y-1">
-                  <span className="absolute left-1.5 top-1 h-3 w-3 rounded-full bg-success ring-4 ring-card"></span>
-                  <p className="text-xs font-bold text-foreground">Estágio de Funil alterado para "Em Negociação"</p>
-                  <p className="text-[10px] text-muted-foreground">Ontem às 16:30 • Atualização por Agente</p>
-                </div>
-              </div>
-            </TabsContent>
-
-            {/* TAB 3: PRODUCTS */}
-            <TabsContent value="products" className="space-y-3 mt-4">
-              <div className="space-y-2">
-                <Card className="rounded-2xl border-border/60 bg-card/60 p-3 flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary font-bold">
-                      <ShoppingBag className="h-5 w-5" />
-                    </div>
-                    <div>
-                      <p className="text-xs font-bold text-foreground">Produto de interesse</p>
-                      <p className="text-[10px] text-muted-foreground">Dados do grafo de memória do lead</p>
-                    </div>
-                  </div>
-                  <span className="text-xs font-bold text-primary">—</span>
-                </Card>
-
-                <Card className="rounded-2xl border-border/60 bg-card/60 p-3 flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary font-bold">
-                      <FileText className="h-5 w-5" />
-                    </div>
-                    <div>
-                      <p className="text-xs font-bold text-foreground">Orçamento #4820 — Condição Especial</p>
-                      <p className="text-[10px] text-muted-foreground">PDF enviado com validade até sexta-feira</p>
-                    </div>
-                  </div>
-                  <Badge variant="outline" className="text-[9px] border-success/30 text-success">Enviado</Badge>
-                </Card>
-              </div>
-            </TabsContent>
-
             {/* TAB 4: FOLLOW-UPS */}
             <TabsContent value="followups" className="space-y-3 mt-4">
               {followupPlan ? (
                 <div className="space-y-2">
-                  {followupPlan.steps.map((step: any, idx: number) => (
+                  {(Array.isArray(followupPlan.steps) ? followupPlan.steps : []).map((step: any, idx: number) => (
                     <Card key={idx} className="rounded-2xl border-border/60 bg-card/60 p-3 space-y-1.5">
                       <div className="flex items-center justify-between text-xs font-bold">
                         <span className="text-primary flex items-center gap-1.5">

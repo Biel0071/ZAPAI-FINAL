@@ -3,7 +3,6 @@ import { NavLink, useLocation } from "react-router-dom";
 import {
   ChatCircleDots,
   Headset,
-  Storefront,
   Broadcast,
   SquaresFour,
   List,
@@ -50,7 +49,7 @@ export function MobileBottomNav() {
         if ("vibrate" in navigator) {
           navigator.vibrate(10);
         }
-      } catch {}
+      } catch { /* Haptic feedback is optional when the browser does not support it. */ }
       window.dispatchEvent(new CustomEvent("zapflow:open-mobile-menu"));
     }
   };
@@ -68,12 +67,6 @@ export function MobileBottomNav() {
       label: "Atendentes",
       icon: Headset,
       path: "/attendants",
-    },
-    {
-      id: "stores",
-      label: "Lojas",
-      icon: Storefront,
-      path: "/stores",
     },
     {
       id: "connections",
@@ -137,11 +130,6 @@ export function MobileBottomNav() {
                 location.pathname.startsWith("/operations") ||
                 location.pathname.startsWith("/flows") ||
                 location.pathname.startsWith("/automation")
-              )
-            : tab.id === "stores"
-            ? (
-                location.pathname.startsWith("/stores") ||
-                location.pathname.startsWith("/lojas")
               )
             : tab.path === "/dashboard"
             ? (location.pathname === "/dashboard" || location.pathname === "/")

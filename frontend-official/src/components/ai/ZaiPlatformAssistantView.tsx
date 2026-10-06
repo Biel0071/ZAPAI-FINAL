@@ -1,473 +1,193 @@
 import React, { useState, useEffect, useRef } from "react";
+import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import {
-  Bot,
-  Sparkles,
-  Send,
-  ShieldCheck,
-  Activity,
-  CheckCircle2,
-  AlertCircle,
-  HelpCircle,
-  Play,
-  Pause,
-  RefreshCw,
-  Plus,
-  Users,
-  Sliders,
-  FileText,
-  Trash2,
-} from "lucide-react";
-import { useToast } from "@/state/hooks/use-toast";
-import { apiService, requestApiEndpoint } from "@/core/services/apiService";
+import { Bot, Send, Plus, Users, ShieldCheck, Loader2 } from "lucide-react";
+import { apiService } from "@/core/services/apiService";
 import { cn } from "@/core/lib/utils";
 
 interface ZaiPlatformAssistantViewProps {
   onOpenNewAgentWizard?: (defaultRole?: string) => void;
-  onRefreshAgents?: () => void;
-}
-
-interface ActionConfirmation {
-  actionType: "toggle_agent" | "create_agent" | "create_rule" | "inspect_queue" | "create_automation";
-  description: string;
-  agentKey?: string;
-  agentName?: string;
-  newState?: boolean;
-  payload?: any;
+  onRefreshAgents?: () => void | Promise<void>;
 }
 
 interface CopilotMessage {
-  id: string;
+  id: number;
   sender: "zaibot" | "user";
   text: string;
-  timestamp: string;
-  actionRequired?: ActionConfirmation;
+  link?: { to: string; label: string };
+  action?: { agentKey: string; agentName: string; active: boolean };
   confirmed?: boolean;
+  error?: string;
 }
 
-const SUGGESTIONS = [
-  "Mostre meus agentes ativos.",
-  "Como está o desempenho da Camila?",
-  "Ver desempenho dos agentes",
-  "Crie um follow-up para orçamentos sem resposta.",
-  "Mostre os clientes que não receberam resposta hoje.",
-  "Mostrar tarefas pendentes.",
-  "Analise os principais motivos de perda de vendas.",
-  "Crie um agente de pós-venda.",
-  "Desative a Camila.",
-  "Quais agentes estão offline?",
-  "Mostre os atendimentos que precisam de atenção.",
-];
+const SUGGESTIONS = ["Mostrar atendentes", "Ver desempenho dos agentes", "Consultar fila", "Conexões WhatsApp", "Lojas", "Criar atendente"];
 
-export function ZaiPlatformAssistantView({
-  onOpenNewAgentWizard,
-  onRefreshAgents,
-}: ZaiPlatformAssistantViewProps) {
-  const { toast } = useToast();
+function normalize(value: string) {
+  return value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+}
+
+export function ZaiPlatformAssistantView({ onOpenNewAgentWizard, onRefreshAgents }: ZaiPlatformAssistantViewProps) {
   const [input, setInput] = useState("");
   const [isProcessing, setIsProcessing] = useState(false);
+  const processing = useRef(false);
+  const nextId = useRef(1);
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
-
   const [messages, setMessages] = useState<CopilotMessage[]>([
-    {
-      id: "welcome",
-      sender: "zaibot",
-      text: "Olá! Eu sou o **ZAIBOT**, o assistente operacional da plataforma ZAI CRM.\n\nEstou aqui para ajudar você a operar o CRM, auditar atendimentos, configurar atendentes digitais por loja e número de WhatsApp, e analisar métricas em tempo real.\n\nComo posso apoiar sua gestão hoje?",
-      timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
-    },
+    { id: 0, sender: "zaibot", text: "Olá! Posso consultar seus atendentes, conexões, lojas, fila e uso de IA. Para pausar ou ativar um atendente, informe seu nome." },
   ]);
 
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    messagesEndRef.current?.scrollIntoView?.({ behavior: "smooth", block: "nearest" });
   }, [messages]);
 
-  const handleSendMessage = async (textToSend?: string) => {
-    const query = (textToSend || input).trim();
-    if (!query || isProcessing) return;
-
-    const userMsg: CopilotMessage = {
-      id: `usr-${Date.now()}`,
-      sender: "user",
-      text: query,
-      timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
-    };
-
-    setMessages((prev) => [...prev, userMsg]);
-    setInput("");
+  const handleSendMessage = async (suggestion?: string) => {
+    const query = (suggestion || input).trim();
+    if (!query || processing.current) return;
+    processing.current = true;
     setIsProcessing(true);
-
+    setInput("");
+    setMessages((current) => [...current, { id: nextId.current++, sender: "user", text: query }]);
+    const answer: CopilotMessage = { id: nextId.current++, sender: "zaibot", text: "" };
     try {
-      const lower = query.toLowerCase();
-      let botResponse = "";
-      let actionRequired: ActionConfirmation | undefined = undefined;
-
-      const agentsRes = await apiService.getAIAgents().catch(() => ({ agents: [] }));
-      const allAgents = agentsRes?.agents || [];
-      const employees = allAgents.filter((a: any) => !a.isPlatformAssistant && a.key !== "zaibot");
-
-      // Desativar ou pausar agente com confirmação dinâmica
-      if (lower.includes("desative") || lower.includes("pausar") || lower.includes("pause") || lower.includes("desativar")) {
-        const found = employees.find((a: any) =>
-          lower.includes(a.name.toLowerCase()) || lower.includes(a.key.toLowerCase())
-        );
-        const targetAgent = found || employees.find((a: any) => a.key === "camila") || employees[0] || { key: "camila", name: "Camila" };
-        const targetName = targetAgent.name || "o agente";
-        const targetKey = targetAgent.key || "camila";
-        const isFemale = targetName.toLowerCase().endsWith("a");
-
-        botResponse = `${targetName} está ${isFemale ? "ativa" : "ativo"} no WhatsApp.\n\nDeseja realmente pausá-${isFemale ? "la" : "lo"}?`;
-        actionRequired = {
-          actionType: "toggle_agent",
-          description: `Pausar o atendimento de ${targetName} no WhatsApp`,
-          agentKey: targetKey,
-          agentName: targetName,
-          newState: false,
-        };
-      }
-      // Criar novo agente (ex: "Crie um agente de pós-venda")
-      else if (lower.includes("crie um agente") || lower.includes("novo agente") || lower.includes("criar agente") || lower.includes("crie um")) {
-        const isPosVenda = lower.includes("pós") || lower.includes("pos");
-        const isSuporte = lower.includes("suporte");
-        const isFinanceiro = lower.includes("financeiro");
-        const role = isPosVenda ? "Pós-venda" : isSuporte ? "Suporte" : isFinanceiro ? "Financeiro" : "Vendas";
-
-        botResponse = `Perfeito! Vou iniciar o assistente para adicionar um novo atendente digital de **${role}** vinculado à sua loja e número WhatsApp.`;
-        if (onOpenNewAgentWizard) {
-          onOpenNewAgentWizard(role);
-        }
-      }
-      // Criar automação / Follow-up pós-orçamento
-      else if (lower.includes("automação") || lower.includes("automacao") || lower.includes("follow-up") || lower.includes("follow up") || lower.includes("orçamento") || lower.includes("orcamento")) {
-        botResponse = `**Regra de Automação Preparada:**\n\n• **Gatilho:** Orçamento enviado via WhatsApp sem resposta após 24 horas\n• **Ação:** Atendente digital dispara lembrete gentil com condições especiais de pagamento\n• **Canal:** WhatsApp Oficial\n• **Condição:** Respeita horário comercial e cancela se o cliente responder.\n\nDeseja autorizar a criação desta regra no motor de automação?`;
-        actionRequired = {
-          actionType: "create_automation",
-          description: "Criar regra de follow-up automático pós-orçamento",
-          payload: { type: "followup_quote" },
-        };
-      }
-      // Encontrar clientes sem resposta hoje
-      else if (lower.includes("encontrar clientes") || lower.includes("procurar clientes") || lower.includes("não receberam resposta") || lower.includes("nao receberam resposta")) {
-        botResponse = `**Auditoria de Contatos (Hoje):**\n\nIdentifiquei **3 clientes** que enviaram mensagem hoje e aguardam retorno ou follow-up:\n• **(11) 98765-4321** — Solicitou cotação de materiais (14:20)\n• **(11) 99876-5432** — Aguarda 2ª via de boleto (Financeiro)\n• **(19) 97654-3210** — Dúvida sobre entrega e frete\n\nTodos os atendimentos estão sincronizados no seu **Inbox ZAI** prontos para acompanhamento.`;
-      }
-      // Mostrar tarefas pendentes
-      else if (lower.includes("tarefas pendentes") || lower.includes("pendentes") || lower.includes("tarefa")) {
-        botResponse = `**Tarefas Operacionais Pendentes:**\n\n1. **2 orçamentos** aguardam aprovação de condição comercial especial\n2. **1 follow-up** programado pela Camila para as 17:00\n3. **1 sincronização** de catálogo pendente no WhatsApp\n\nTodos os atendentes digitais estão operando dentro do SLA estabelecido.`;
-      }
-      // Analisar motivos de perda de vendas
-      else if (lower.includes("perda de vendas") || lower.includes("motivos de perda") || lower.includes("vendas perdidas")) {
-        botResponse = `**Análise dos Principais Motivos de Perda de Vendas:**\n\n1. **Prazo de entrega em obras urgentes (42%)** — Clientes precisavam para o mesmo dia\n2. **Condição de pagamento (28%)** — Solicitação de boleto faturado para pessoa física\n3. **Custo de frete (18%)** — Orçamentos com frete acima da expectativa\n4. **Sem resposta ao follow-up (12%)**\n\n💡 **Sugestão ZAIBOT:** Ativar o playbook de frete compartilhado e oferecer desconto no Pix na primeira mensagem de follow-up.`;
-      }
-      // Horário de funcionamento do agente
-      else if (lower.includes("horário") || lower.includes("horario")) {
-        botResponse = `**Horários de Atendimento:**\n\n• **Camila (Vendas):** Segunda a Sexta das 07:00 às 18:00, Sábados das 08:00 às 12:00\n• **Demais atendentes:** Conforme turnos configurados no perfil de cada atendente.\n\nPara alterar turnos, acesse o atendente na tela de Atendentes.`;
-      }
-      // Status dos agentes / Agentes ativos / Offline
-      else if (lower.includes("agentes ativos") || lower.includes("mostrar agentes") || lower.includes("status dos agentes") || lower.includes("quais agentes") || lower.includes("status")) {
-        const activeList = employees.filter((a: any) => a.active !== false);
-        const pausedList = employees.filter((a: any) => a.active === false);
-
-        if (lower.includes("offline") || lower.includes("pausados")) {
-          if (pausedList.length === 0) {
-            botResponse = `Nenhum atendente está offline ou pausado no momento! Todos os **${activeList.length} atendentes digitais** estão ativos atendendo normalmente.`;
+      const lower = normalize(query);
+      if (/paus|desativ|deslig|ativar|ative/.test(lower)) {
+        const response = await apiService.getAIAgents();
+        if (response.success === false) throw new Error("Consulta de atendentes indisponível.");
+        const agents = (response.agents || []).filter((agent: any) => !agent.isPlatformAssistant && agent.key !== "zaibot");
+        const words = lower.split(/[^a-z0-9]+/).filter(Boolean);
+        const matches = agents.filter((agent: any) => [agent.name, agent.key].filter(Boolean).some((name) => {
+          const nameWords = normalize(String(name)).split(/[^a-z0-9]+/).filter(Boolean);
+          return nameWords.length > 0 && nameWords.every((word) => words.includes(word));
+        }));
+        if (matches.length !== 1) {
+          answer.text = "Informe o nome completo de um atendente para ativar ou pausar. Disponíveis: " + (agents.map((agent: any) => agent.name).join(", ") || "nenhum cadastrado");
+        } else {
+          const agent = matches[0];
+          const active = !/paus|desativ|deslig/.test(lower);
+          if (active && !agent.sessionIds?.length) {
+            answer.text = `Vincule um WhatsApp a ${agent.name} antes de ativar o atendimento.`;
+            answer.link = { to: "/attendants", label: "Vincular WhatsApp" };
           } else {
-            botResponse = `Existem **${pausedList.length} atendentes pausados** no momento:\n` +
-              pausedList.map((a: any) => `• **${a.name}** (${a.role || a.sector || "Vendas"}) - Pausado`).join("\n");
+            answer.text = `${active ? "Ativar" : "Pausar"} ${agent.name}? A alteração será salva na configuração do atendente.`;
+            answer.action = { agentKey: agent.key, agentName: agent.name, active };
           }
-        } else {
-          botResponse = `Aqui está o panorama atual dos seus Atendentes Digitais:\n\n` +
-            `• Total de atendentes cadastrados: **${employees.length}**\n` +
-            `• Atendentes ativos agora: **${activeList.length}**\n\n` +
-            activeList.map((a: any) => `✅ **${a.name}** — ${a.role || a.sector || "Vendas"} (Canais: ${(a.channels || ["whatsapp"]).join(", ")})`).join("\n");
         }
+      } else if (/cria|novo/.test(lower) && /agente|atendente/.test(lower)) {
+        answer.text = "Use o cadastro para revisar a identidade e o WhatsApp do novo atendente.";
+        onOpenNewAgentWizard?.(/pos.venda/.test(lower) ? "Pós-venda" : undefined);
+      } else if (/follow|automacao|orcamento/.test(lower)) {
+        answer.text = "Configure e revise o fluxo na área de automações.";
+        answer.link = { to: "/ai?tab=flows", label: "Abrir automações" };
+      } else if (/cliente|sem resposta|nao receberam|conversa/.test(lower)) {
+        answer.text = "Consulte as conversas e acompanhe os clientes pelo Inbox.";
+        answer.link = { to: "/inbox", label: "Abrir Inbox" };
+      } else if (/tarefa|pendente/.test(lower)) {
+        answer.text = "Consulte as pendências registradas na operação.";
+        answer.link = { to: "/ai?tab=operations", label: "Abrir operação" };
+      } else if (/perda|venda perdida|analise/.test(lower)) {
+        answer.text = "Consulte os indicadores registrados no dashboard.";
+        answer.link = { to: "/dashboard?tab=analytics", label: "Abrir indicadores" };
+      } else if (/desempenho|metrica|uso/.test(lower)) {
+        const response = await apiService.getAIMetrics();
+        const metrics = response.data || response;
+        answer.text = `Uso de IA hoje: ${metrics.messagesToday ?? "não informado"} respostas • ${metrics.tokensToday ?? "não informado"} tokens.`;
+        answer.link = { to: "/ai?tab=operations", label: "Ver operação" };
+      } else if (/fila|atencao|alerta/.test(lower)) {
+        answer.text = "Acompanhe e revise os itens da fila na operação.";
+        answer.link = { to: "/settings?tab=queue", label: "Abrir fila" };
+      } else if (/conex|whatsapp|offline/.test(lower)) {
+        const connections = await apiService.getConnections({ throwOnError: true });
+        answer.text = connections.length
+          ? connections.map((session: any) => `${session.sessionName || session.name || session.sessionId}: ${session.status || "estado indisponível"}`).join("\n")
+          : "Nenhuma conexão disponível nesta consulta.";
+        answer.link = { to: "/connections", label: "Abrir conexões" };
+      } else if (/loja|horario/.test(lower)) {
+        const response = await apiService.getStores();
+        if (response.success === false) throw new Error("Consulta de lojas indisponível.");
+        answer.text = response.stores.length
+          ? response.stores.map((store: any) => `${store.name} • ${store.numbers?.length ?? 0} WhatsApps vinculados`).join("\n")
+          : "Nenhuma loja cadastrada.";
+        answer.link = { to: "/attendants?section=business", label: "Dados comerciais do WhatsApp" };
+      } else if (/agente|atendente|status/.test(lower)) {
+        const response = await apiService.getAIAgents();
+        if (response.success === false) throw new Error("Consulta de atendentes indisponível.");
+        const agents = (response.agents || []).filter((agent: any) => !agent.isPlatformAssistant && agent.key !== "zaibot");
+        answer.text = agents.length ? agents.map((agent: any) => `${agent.name} • ${agent.active === false ? "pausado" : "habilitado"} • ${agent.sessionIds?.length ?? 0} WhatsApps`).join("\n") : "Nenhum atendente cadastrado.";
+        answer.link = { to: "/attendants", label: "Ver atendentes" };
+      } else {
+        answer.text = "Posso consultar atendentes, lojas, conexões, fila e uso de IA. Escolha uma ação acima ou informe o nome do atendente que deseja ativar ou pausar.";
       }
-      // Desempenho geral ou específico
-      else if (lower.includes("desempenho") || lower.includes("camila") || lower.includes("joão") || lower.includes("joao") || lower.includes("marina") || lower.includes("carlos")) {
-        if (lower.includes("equipe") || lower.includes("agentes") || lower.includes("geral") || (!lower.includes("camila") && !lower.includes("joão") && !lower.includes("joao") && !lower.includes("marina") && !lower.includes("carlos"))) {
-          const totalChats = employees.reduce((acc: number, a: any) => acc + (a.stats?.chatsToday || (a.key === "camila" ? 127 : 35)), 0);
-          botResponse = `**Desempenho dos Atendentes Digitais (Hoje):**\n\n` +
-            `• **${totalChats} atendimentos totais** realizados hoje\n` +
-            `• **96% de conformidade com SLA** (tempo médio de 18s)\n` +
-            `• **98% de satisfação CSAT média**\n\n` +
-            `Atendentes ativos:\n` +
-            employees.map((a: any) => `• **${a.name}** (${a.role || "Vendas"}): ${a.stats?.chatsToday ?? (a.key === "camila" ? 127 : 35)} atendimentos • SLA ${a.stats?.slaPercent ?? 95}%`).join("\n");
-        } else {
-          const found = employees.find((a: any) =>
-            lower.includes(a.name.toLowerCase()) || lower.includes(a.key.toLowerCase())
-          );
-          const ag = found || employees.find((a: any) => a.key === "camila") || employees[0] || { name: "Camila", role: "Vendas" };
-          const chats = ag.stats?.chatsToday ?? (ag.key === "camila" ? 127 : 45);
-          const activeC = ag.stats?.activeChats ?? (ag.key === "camila" ? 34 : 12);
-          const opps = ag.stats?.opportunities ?? (ag.key === "camila" ? 18 : 6);
-          const sla = ag.stats?.slaPercent ?? (ag.key === "camila" ? 94 : 98);
-          const csat = ag.stats?.satisfactionCsat ?? (ag.key === "camila" ? 98 : 96);
-          const time = ag.stats?.avgResponseTime ?? (ag.key === "camila" ? "18s" : "20s");
-
-          botResponse = `**Desempenho de ${ag.name} (Hoje):**\n\n` +
-            `• **${chats} atendimentos** realizados via ${(ag.channels || ["WhatsApp"]).join(", ")}\n` +
-            `• **${activeC} conversas em andamento**\n` +
-            `• **${opps} orçamentos gerados** com êxito\n` +
-            `• **${sla}% no SLA** (tempo médio de ${time})\n` +
-            `• **${csat}% de satisfação CSAT**\n\nOperação comercial de alta produtividade.`;
-        }
-      }
-      // Fila & Atendimentos que precisam de atenção
-      else if (lower.includes("atenção") || lower.includes("atencao") || lower.includes("problema") || lower.includes("fila") || lower.includes("alerta")) {
-        const queueRes = await requestApiEndpoint<any>("/api/ai/queue/status").catch(() => null);
-        const waiting = queueRes?.waiting || 0;
-        botResponse = `Diagnóstico operacional do ZAI CRM:\n\n` +
-          `• Conversas na fila de espera: **${waiting}**\n` +
-          `• Conexão WhatsApp: **Estável e Online**\n` +
-          `• Nenhuma falha de entrega ou banimento detectado\n` +
-          `• 2 clientes aguardam follow-up há mais de 4 horas (sugiro disparar lembrete automático).`;
-      }
-      // Default intelligent operational answer
-      else {
-        botResponse = `Compreendido! Como copiloto operacional do ZAI CRM, posso consultar métricas, auditar atendimentos por loja/número WhatsApp ou alterar configurações autorizadas. Selecione uma das ações rápidas ou me informe o que deseja gerenciar.`;
-      }
-
-      setMessages((prev) => [
-        ...prev,
-        {
-          id: `zai-${Date.now()}`,
-          sender: "zaibot",
-          text: botResponse,
-          timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
-          actionRequired,
-        },
-      ]);
-    } catch (err: any) {
-      setMessages((prev) => [
-        ...prev,
-        {
-          id: `zai-err-${Date.now()}`,
-          sender: "zaibot",
-          text: "Houve uma oscilação na resposta interna do assistente. Mas estou pronto para receber sua próxima instrução.",
-          timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
-        },
-      ]);
+    } catch (error) {
+      answer.text = `Não foi possível consultar: ${error instanceof Error ? error.message : "serviço indisponível"}. Tente novamente.`;
     } finally {
+      setMessages((current) => [...current, answer].slice(-60));
+      processing.current = false;
       setIsProcessing(false);
     }
   };
 
-  const handleConfirmAction = async (msgId: string, action: ActionConfirmation) => {
+  const confirmAction = async (message: CopilotMessage) => {
+    if (!message.action || processing.current) return;
+    processing.current = true;
     setIsProcessing(true);
     try {
-      if (action.actionType === "toggle_agent" && action.agentKey) {
-        await apiService.toggleAIAgent(action.agentKey, Boolean(action.newState));
-        const agName = action.agentName || (action.agentKey === "camila" ? "Camila" : "Agente");
-        const isFem = agName.toLowerCase().endsWith("a");
-        toast({
-          title: "Ação executada",
-          description: `${agName} foi ${action.newState ? (isFem ? "ativada" : "ativado") : (isFem ? "pausada" : "pausado")}.`,
-        });
-        if (onRefreshAgents) onRefreshAgents();
-      } else if (action.actionType === "create_automation") {
-        toast({
-          title: "Regra de Automação Criada",
-          description: action.description,
-        });
-      }
-
-      setMessages((prev) =>
-        prev.map((m) =>
-          m.id === msgId
-            ? {
-                ...m,
-                confirmed: true,
-                text: `${m.text}\n\n✅ **Ação autorizada e executada com sucesso:** ${action.description}`,
-              }
-            : m
-        )
-      );
-    } catch (err: any) {
-      toast({
-        title: "Erro ao executar ação",
-        description: err.message || "Falha na execução.",
-        variant: "destructive",
-      });
+      const result = await apiService.toggleAIAgent(message.action.agentKey, message.action.active);
+      if (result.success === false) throw new Error("O serviço não salvou a alteração.");
+      setMessages((current) => current.map((item) => item.id === message.id
+        ? { ...item, confirmed: true, error: undefined, text: `${message.action!.agentName}: ${message.action!.active ? "habilitado" : "pausado"}. Alteração salva.` } : item));
+      await onRefreshAgents?.();
+    } catch (error) {
+      setMessages((current) => current.map((item) => item.id === message.id
+        ? { ...item, error: error instanceof Error ? error.message : "Não foi possível salvar." } : item));
     } finally {
+      processing.current = false;
       setIsProcessing(false);
     }
   };
 
   return (
-    <div className="space-y-5">
-      {/* HEADER DO ASSISTENTE ZAI */}
-      <div className="p-5 rounded-2xl border border-border/80 bg-card/60 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div className="flex items-center gap-4">
-          <div className="relative group cursor-pointer">
-            <img
-              src="/assets/characters/zaibot/working.jpg"
-              alt="ZAIBOT 3D Robot"
-              className="h-20 w-20 sm:h-24 sm:w-24 rounded-2xl object-cover border-2 border-emerald-500/50 bg-black/60 shadow-[0_0_25px_rgba(0,240,144,0.35)] transition-all duration-300 group-hover:scale-105"
-            />
-            <span className="absolute -top-1 -right-1 flex h-4 w-4">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
-              <span className="relative inline-flex rounded-full h-4 w-4 bg-emerald-500 ring-2 ring-background" />
-            </span>
-          </div>
+    <div className="space-y-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div className="flex items-center gap-3 min-w-0">
+          <img src="/assets/mascot/zaibot_avatar.png" alt="ZAIBOT" className="h-16 w-16 rounded-2xl border border-emerald-500/40 object-cover bg-background shrink-0" />
           <div>
-            <div className="flex items-center gap-2">
-              <h2 className="text-xl font-bold tracking-tight text-foreground font-display flex items-center gap-2">
-                <span>ZAIBOT</span>
-                <span className="text-xs px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 font-mono font-bold">
-                  COPILOTO OPERACIONAL 3D
-                </span>
-              </h2>
-            </div>
-            <p className="text-xs sm:text-sm text-muted-foreground mt-1 max-w-xl">
-              Inteligência operacional em tempo real: audite conversas, configure atendentes por loja, monitore SLA e gerencie automações comerciais.
-            </p>
+            <h2 className="text-xl font-bold font-display">ZAIBOT</h2>
+            <p className="text-sm text-muted-foreground">Atendentes, lojas e operação do sistema.</p>
           </div>
         </div>
-
-        <div className="flex items-center gap-2">
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={() => handleSendMessage("Mostre meus agentes ativos.")}
-            className="h-8 text-xs font-semibold gap-1.5 border-border/80"
-          >
-            <Users className="h-3.5 w-3.5 text-emerald-400" />
-            <span>Consultar Atendentes</span>
-          </Button>
-
-          {onOpenNewAgentWizard && (
-            <Button
-              type="button"
-              size="sm"
-              onClick={() => onOpenNewAgentWizard()}
-              className="h-8 text-xs font-semibold bg-emerald-500 hover:bg-emerald-600 text-white gap-1.5 shadow-xs"
-            >
-              <Plus className="h-3.5 w-3.5" />
-              <span>Novo Agente</span>
-            </Button>
-          )}
+        <div className="flex gap-2 flex-wrap">
+          <Button variant="outline" size="sm" disabled={isProcessing} onClick={() => void handleSendMessage("Mostrar atendentes")}><Users className="mr-2 h-4 w-4" />Consultar</Button>
+          {onOpenNewAgentWizard && <Button size="sm" onClick={() => onOpenNewAgentWizard()} className="bg-emerald-600 hover:bg-emerald-500"><Plus className="mr-2 h-4 w-4" />Novo atendente</Button>}
         </div>
       </div>
-
-      {/* CHAT INTERACTIVE PANEL */}
-      <div className="rounded-2xl border border-border/80 bg-card/40 flex flex-col h-[520px] overflow-hidden shadow-xs">
-        {/* SUGGESTION PILLS */}
-        <div className="p-3 border-b border-border/60 bg-muted/20 flex items-center gap-1.5 overflow-x-auto scrollbar-none shrink-0">
-          <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mr-1 shrink-0">
-            Ações Rápidas:
-          </span>
-          {SUGGESTIONS.map((sugg) => (
-            <button
-              key={sugg}
-              type="button"
-              onClick={() => handleSendMessage(sugg)}
-              className="px-2.5 py-1 rounded-full text-xs font-medium bg-muted/60 hover:bg-emerald-500/15 hover:text-emerald-400 border border-border/60 text-muted-foreground transition-colors whitespace-nowrap cursor-pointer"
-            >
-              {sugg}
-            </button>
-          ))}
+      <div className="rounded-2xl border border-border/70 bg-card/40 flex flex-col h-[min(580px,70vh)] min-h-[380px] overflow-hidden">
+        <div className="flex gap-2 overflow-x-auto p-3 border-b border-border/60 shrink-0">
+          {SUGGESTIONS.map((suggestion) => <button key={suggestion} type="button" disabled={isProcessing} onClick={() => void handleSendMessage(suggestion)} className="shrink-0 rounded-full border border-border/60 px-3 py-1.5 text-xs text-muted-foreground hover:bg-emerald-500/10 hover:text-emerald-400 disabled:opacity-50">{suggestion}</button>)}
         </div>
-
-        {/* MESSAGES LIST */}
-        <div className="flex-1 p-5 overflow-y-auto space-y-4">
-          {messages.map((msg) => {
-            const isBot = msg.sender === "zaibot";
-            return (
-              <div
-                key={msg.id}
-                className={cn(
-                  "flex gap-3 text-xs animate-in fade-in duration-150",
-                  isBot ? "items-start" : "items-end justify-end"
-                )}
-              >
-                {isBot && (
-                  <img
-                    src="/assets/mascot/zaibot_avatar.png"
-                    alt="ZAIBOT"
-                    className="h-8 w-8 rounded-xl object-cover border border-emerald-500/30 bg-black/40 shrink-0 mt-0.5"
-                  />
-                )}
-
-                <div
-                  className={cn(
-                    "p-4 rounded-2xl max-w-[85%] leading-relaxed shadow-xs",
-                    isBot
-                      ? "bg-card border border-border/70 text-foreground rounded-tl-sm"
-                      : "bg-emerald-600 text-white rounded-tr-sm ml-auto"
-                  )}
-                >
-                  <div className="whitespace-pre-line text-xs font-normal leading-relaxed">{msg.text}</div>
-
-                  {/* ACTION CONFIRMATION (REQUIREMENT #11) */}
-                  {msg.actionRequired && !msg.confirmed && (
-                    <div className="mt-4 pt-3 border-t border-border/60 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                      <div className="flex items-center gap-1.5 text-[11px] text-amber-400 font-semibold">
-                        <ShieldCheck className="h-4 w-4" />
-                        <span>Ação importante requer sua autorização</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => {
-                            setMessages((prev) =>
-                              prev.map((m) =>
-                                m.id === msg.id ? { ...m, confirmed: true, text: `${m.text}\n\n❌ **Ação cancelada pelo operador.**` } : m
-                              )
-                            );
-                          }}
-                          className="h-7 text-xs text-muted-foreground hover:text-foreground"
-                        >
-                          Cancelar
-                        </Button>
-                        <Button
-                          type="button"
-                          size="sm"
-                          onClick={() => handleConfirmAction(msg.id, msg.actionRequired!)}
-                          className="h-7 text-xs font-bold bg-amber-500 hover:bg-amber-600 text-black px-3"
-                        >
-                          {msg.actionRequired.agentName
-                            ? `Pausar ${msg.actionRequired.agentName}`
-                            : msg.actionRequired.description.includes("Pausar")
-                            ? msg.actionRequired.description
-                            : msg.actionRequired.actionType === "create_automation"
-                            ? "Autorizar Automação"
-                            : "Autorizar Ação"}
-                        </Button>
-                      </div>
-                    </div>
-                  )}
+        <div className="flex-1 overflow-y-auto space-y-4 p-4" role="log" aria-label="Conversa com assistente">
+          {messages.map((message) => <div key={message.id} className={cn("flex gap-2", message.sender === "user" && "justify-end")}>
+            {message.sender === "zaibot" && <Bot className="h-5 w-5 shrink-0 text-emerald-400 mt-2" />}
+            <div className={cn("rounded-2xl p-3 max-w-[90%] text-sm whitespace-pre-line", message.sender === "user" ? "bg-emerald-600 text-white" : "border border-border/60 bg-card")}>
+              {message.text}
+              {message.link && <Link to={message.link.to} className="block mt-2 text-emerald-400 font-medium hover:underline">{message.link.label}</Link>}
+              {message.action && !message.confirmed && <div className="mt-3 pt-3 border-t border-border/50 space-y-2">
+                <p className="text-xs text-muted-foreground flex items-center gap-1"><ShieldCheck className="h-3.5 w-3.5" />Revisar alteração</p>
+                {message.error && <p role="alert" className="text-xs text-amber-400">{message.error}</p>}
+                <div className="flex gap-2">
+                  <Button size="sm" variant="ghost" disabled={isProcessing} onClick={() => setMessages(current => current.map(item => item.id === message.id ? { ...item, confirmed: true, text: "Alteração cancelada.", error: undefined } : item))}>Cancelar</Button>
+                  <Button size="sm" disabled={isProcessing} onClick={() => void confirmAction(message)} className="bg-emerald-600 hover:bg-emerald-500">{message.action.active ? "Ativar" : "Pausar"} {message.action.agentName}</Button>
                 </div>
-              </div>
-            );
-          })}
+              </div>}
+            </div>
+          </div>)}
+          {isProcessing && <p role="status" className="flex items-center gap-2 text-xs text-muted-foreground"><Loader2 className="h-4 w-4 animate-spin" />Consultando o sistema…</p>}
           <div ref={messagesEndRef} />
         </div>
-
-        {/* INPUT BAR */}
-        <div className="p-3 border-t border-border/60 bg-muted/20 flex items-center gap-2">
-          <Input
-            placeholder="Digite o que você precisa no sistema (ex: 'Mostre meus agentes ativos', 'Como está a Camila')..."
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") handleSendMessage();
-            }}
-            className="h-10 text-xs bg-background border-border/80"
-          />
-          <Button
-            type="button"
-            size="sm"
-            disabled={isProcessing || !input.trim()}
-            onClick={() => handleSendMessage()}
-            className="h-10 bg-emerald-500 hover:bg-emerald-600 text-white font-semibold px-4 text-xs gap-1.5 shrink-0"
-          >
-            <Send className="h-3.5 w-3.5" />
-            <span>Enviar</span>
-          </Button>
-        </div>
+        <form onSubmit={(event) => { event.preventDefault(); void handleSendMessage(); }} className="flex gap-2 p-3 border-t border-border/60">
+          <Input aria-label="Mensagem para o assistente" placeholder="Consulte a operação ou informe o nome de um atendente…" value={input} onChange={event => setInput(event.target.value)} disabled={isProcessing} className="min-w-0" />
+          <Button type="submit" disabled={isProcessing || !input.trim()} className="bg-emerald-600 hover:bg-emerald-500"><Send className="h-4 w-4 mr-2" />Enviar</Button>
+        </form>
       </div>
     </div>
   );

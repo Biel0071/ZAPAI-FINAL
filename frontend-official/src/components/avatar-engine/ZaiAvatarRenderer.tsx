@@ -14,8 +14,6 @@ import {
   CheckCircle,
   WarningCircle,
   Clock,
-  Broadcast,
-  Lightning,
 } from "@phosphor-icons/react";
 
 export interface ZaiAvatarRendererProps {
@@ -38,6 +36,20 @@ const SIZE_CONFIGS = {
   workspace: { container: "w-full h-full max-h-[380px]", sprite: "h-full max-h-[360px]", badge: "text-xs px-3 py-1", indicator: "w-4 h-4" },
 };
 
+const STATE_LABELS: Record<AnimationState, string> = {
+  IDLE: "Aguardando",
+  WAITING: "Aguardando",
+  WORKING: "No PC · operando",
+  THINKING: "Processando",
+  TYPING: "Digitando",
+  TALKING: "Conversando",
+  WALKING: "Em atividade",
+  SUCCESS: "Concluído",
+  ERROR: "Atenção",
+  ALERT: "Atenção",
+  OFFLINE: "Pausado",
+};
+
 export const ZaiAvatarRenderer: React.FC<ZaiAvatarRendererProps> = ({
   avatar,
   state: stateProp,
@@ -48,7 +60,7 @@ export const ZaiAvatarRenderer: React.FC<ZaiAvatarRendererProps> = ({
   className,
   onClick,
 }) => {
-  const currentState = stateProp || avatar.animationState || "WORKING";
+  const currentState = stateProp || avatar.animationState || "WAITING";
   const sizeConfig = SIZE_CONFIGS[size] || SIZE_CONFIGS.md;
 
   // Resolve matching sprite file
@@ -69,12 +81,16 @@ export const ZaiAvatarRenderer: React.FC<ZaiAvatarRendererProps> = ({
 
   // State visuals & auras
   const isOperating = currentState !== "OFFLINE";
-  const isTalking = currentState === "TALKING" || currentState === "RESPONDING";
+  const isTalking = currentState === "TALKING";
   const isThinking = currentState === "THINKING";
   const isWorking = currentState === "WORKING" || currentState === "TYPING";
+  const showWorkstation = (isWorking || isThinking || isTalking) && (size === "workspace" || size === "xl");
   const isSuccess = currentState === "SUCCESS";
   const isAlert = currentState === "ALERT" || currentState === "ERROR";
   const isOffline = currentState === "OFFLINE";
+  // Lower catalog rows include a small remnant of the preceding row.
+  const spriteTopInset = /^sprite_r[23]_/.test(spriteId) ? "8%" : "0";
+  const spriteLeftInset = spriteId === "sprite_r3_c5" ? "28%" : "0";
 
   return (
     <div
@@ -121,7 +137,7 @@ export const ZaiAvatarRenderer: React.FC<ZaiAvatarRendererProps> = ({
       )}
 
       {/* 3. Base Character Sprite (High-Fidelity Isometric Pixel Art) */}
-      <div className="relative z-10 flex items-center justify-center w-full h-full">
+      <div className="relative z-10 flex items-center justify-center w-fit max-w-full h-full">
         <img
           src={spriteSrc}
           alt={avatar.agentId || "Agent Avatar"}
@@ -134,15 +150,32 @@ export const ZaiAvatarRenderer: React.FC<ZaiAvatarRendererProps> = ({
           )}
           style={{
             imageRendering: "pixelated",
+            clipPath: `inset(${spriteTopInset} 0 ${showWorkstation ? "22%" : "0"} ${spriteLeftInset})`,
           }}
           onError={(e) => {
-            // Fallback to Camila default sprite if specific one is missing
             const target = e.target as HTMLImageElement;
+            target.onerror = null;
             if (!target.src.includes("sprite_r2_c1_clean.png")) {
               target.src = "/assets/avatar_factory/catalog/sprite_r2_c1_clean.png";
             }
           }}
         />
+
+        {showWorkstation && (
+          <div aria-hidden="true" className="absolute bottom-[12%] z-20 h-[36%] w-[85%] max-w-[260px] pointer-events-none">
+            <div className="absolute right-0 top-0 h-[55%] w-[44%] rounded-md border-2 border-slate-600 bg-[#07131b] p-2 shadow-lg">
+              <div className="space-y-1.5">
+                <div className="h-1 w-3/4 rounded-full" style={{ backgroundColor: branding.primaryColor }} />
+                <div className="h-1 w-full rounded-full bg-slate-700" />
+                <div className="h-1 w-2/3 rounded-full bg-slate-700" />
+              </div>
+            </div>
+            <div className="absolute right-[20%] top-[55%] h-[10%] w-2 bg-slate-600" />
+            <div className="absolute bottom-[34%] inset-x-0 h-3 rounded-sm border border-slate-500 bg-slate-700 shadow-lg" />
+            <div className="absolute left-[8%] bottom-0 h-[34%] w-2 bg-slate-600" />
+            <div className="absolute right-[8%] bottom-0 h-[34%] w-2 bg-slate-600" />
+          </div>
+        )}
 
         {/* 4. Dynamic Store Branding Layer (Logo on Chest / Cap / Badge) */}
         {showBrandingLayer && isOperating && (
@@ -234,7 +267,7 @@ export const ZaiAvatarRenderer: React.FC<ZaiAvatarRendererProps> = ({
         {isSuccess && (
           <div className="absolute -top-3 left-[50%] -translate-x-1/2 pointer-events-none flex items-center gap-1 bg-emerald-950/90 border border-emerald-400 px-2.5 py-0.5 rounded-full shadow-xl animate-bounce">
             <CheckCircle className="w-3.5 h-3.5 text-emerald-400" weight="fill" />
-            <span className="text-[10px] font-extrabold text-emerald-300">VENDA!</span>
+            <span className="text-[10px] font-extrabold text-emerald-300">CONCLUÍDO</span>
           </div>
         )}
 
@@ -262,7 +295,9 @@ export const ZaiAvatarRenderer: React.FC<ZaiAvatarRendererProps> = ({
             className={cn(
               "inline-flex items-center gap-1 rounded-full font-bold uppercase tracking-wider border shadow-sm",
               sizeConfig.badge,
-              isOperating
+              isAlert
+                ? "bg-amber-500/15 border-amber-500/40 text-amber-400"
+                : isOperating
                 ? "bg-emerald-500/15 border-emerald-500/40 text-emerald-400"
                 : "bg-slate-800/60 border-slate-700 text-slate-400"
             )}
@@ -271,19 +306,10 @@ export const ZaiAvatarRenderer: React.FC<ZaiAvatarRendererProps> = ({
               className={cn(
                 "rounded-full",
                 sizeConfig.indicator,
-                isOperating ? "bg-emerald-400 animate-pulse" : "bg-slate-500"
+                isAlert ? "bg-amber-400 animate-pulse" : isOperating ? "bg-emerald-400 animate-pulse" : "bg-slate-500"
               )}
             />
-            <span>
-              {currentState === "WORKING" && "Trabalhando"}
-              {currentState === "IDLE" && "Aguardando"}
-              {currentState === "TALKING" && "Respondendo"}
-              {currentState === "THINKING" && "Processando"}
-              {currentState === "SUCCESS" && "Conversão"}
-              {currentState === "OFFLINE" && "Desconectado"}
-              {currentState === "WALKING" && "Em Rota"}
-              {currentState === "ALERT" && "Alerta"}
-            </span>
+            <span>{STATE_LABELS[currentState]}</span>
           </div>
         </div>
       )}

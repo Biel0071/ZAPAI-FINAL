@@ -176,6 +176,18 @@ export function cleanTagName(text: string): string {
   return extractLeadingEmoji(text).cleanText;
 }
 
+/** Presentation only: stored tags and API values retain their original names. */
+export function businessLabel(value: string): string {
+  const labels: Record<string, string> = {
+    open: 'Em atendimento', active: 'Ativo', closed: 'Encerrado', archived: 'Arquivado', blocked: 'Bloqueado',
+    information: 'Informações', cold: 'Frio', warm: 'Morno', hot: 'Quente', educate: 'Orientar',
+    unknown: 'Não identificado', new_lead: 'Novo lead', interested: 'Interessado', price_request: 'Pedido de preço',
+    send_price: 'Enviar preço', price_sent: 'Preço enviado', negotiation: 'Negociação', ready_to_buy: 'Pronto para comprar',
+    purchase: 'Compra', buy: 'Compra', support: 'Suporte', positive: 'Positivo', neutral: 'Neutro', negative: 'Negativo',
+  };
+  return labels[value.trim().toLowerCase()] || value;
+}
+
 /**
  * Deterministically generates an icon from the palette using DJB2 hash.
  */
