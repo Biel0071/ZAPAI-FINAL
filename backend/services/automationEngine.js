@@ -232,17 +232,21 @@ async function processMessage({ payload, conversation, store, sock, sessionId })
   // 3. Rules Engine: Load Active Agent
   const aiAgentService = require('../src/ai/agents/services/aiAgentService');
   let matchedAgent = null;
+  let ambiguousAssignment = false;
   try {
-    await aiAgentService.listAgents(companyId);
+    const allAgents = await aiAgentService.listAgents(companyId);
     const activeAgents = aiAgentService.getActiveAgentsSync(companyId);
-    const targetAgent = authoritativeConversation?.agent_name || conversation?.agent_name;
-    const eligible = activeAgents.filter(a => !a.sessionIds?.length || a.sessionIds.includes(sessionId));
-    matchedAgent = (targetAgent ? eligible.find(a => a.name === targetAgent || a.key === targetAgent) : null)
-      || eligible[0]
-      || activeAgents[0]
-      || null;
+    const assigned = allAgents.filter(agent => agent.sessionIds?.includes(sessionId));
+    const eligible = assigned.length ? assigned : activeAgents.filter(agent => !agent.sessionIds?.length);
+    ambiguousAssignment = eligible.length > 1;
+    matchedAgent = eligible.length === 1 && activeAgents.some(agent => agent.key === eligible[0].key) ? eligible[0] : null;
   } catch (err) {
     console.error('[AutomationEngine] Failed to load agent configuration:', err);
+  }
+
+  if (ambiguousAssignment) {
+    publishProgress('no_agent', { message: 'Há mais de um atendente vinculado a este WhatsApp. Escolha o responsável em Atendentes.' });
+    return { success: false, reason: 'ambiguous_session_agent' };
   }
 
   if (!matchedAgent) {

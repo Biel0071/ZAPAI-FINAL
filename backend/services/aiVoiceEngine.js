@@ -172,8 +172,10 @@ function getVoiceById(id) {
   return SYSTEM_VOICES.find((v) => v.id === id || v.name === id) || SYSTEM_VOICES[0];
 }
 
-function saveVoiceProfile({ agentId, voiceId, params, companyId = 'default' }) {
-  const key = `${companyId}:${agentId || 'default'}`;
+function saveVoiceProfile({ agentId, voiceId, params, companyId }) {
+  const tenantId = String(companyId || '').trim();
+  if (!tenantId) throw new Error('Empresa obrigatória.');
+  const key = JSON.stringify([tenantId, String(agentId || 'default')]);
   const profile = {
     agentId,
     voiceId,
@@ -184,8 +186,10 @@ function saveVoiceProfile({ agentId, voiceId, params, companyId = 'default' }) {
   return profile;
 }
 
-function getVoiceProfile(agentId, companyId = 'default') {
-  const key = `${companyId}:${agentId || 'default'}`;
+function getVoiceProfile(agentId, companyId) {
+  const tenantId = String(companyId || '').trim();
+  if (!tenantId) throw new Error('Empresa obrigatória.');
+  const key = JSON.stringify([tenantId, String(agentId || 'default')]);
   return customProfiles.get(key) || null;
 }
 

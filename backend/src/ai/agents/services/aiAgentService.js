@@ -325,9 +325,14 @@ async function mutateAgents(companyId, change, reason) {
   }catch(error){await client.query('ROLLBACK');throw error;}finally{client.release();}
 }
 async function createAgent(payload={},tenantId) {
-  await validateSessions(tenantId,payload.sessionIds);
+  const unassignedDraft = payload.active === false && Array.isArray(payload.sessionIds) && payload.sessionIds.length === 0;
+  if (!unassignedDraft) await validateSessions(tenantId,payload.sessionIds);
   const next=normalizeAgent({...payload,active:payload.active===true});
-  return mutateAgents(tenantId,all=>{if(all.some(a=>a.key===next.key))throw new Error('Atendente já existe.');all.push(next);return next;},'configuration');
+  return mutateAgents(tenantId,async(all,client)=>{
+    if(all.some(a=>a.key===next.key))throw new Error('Atendente já existe.');
+    for(const sessionId of next.sessionIds || []) await preserveSessionOwnership(all,next,sessionId,tenantId,client);
+    all.push(next);return next;
+  },'configuration');
 }
 async function updateAgent(agentKey,payload={},tenantId) {
   return mutateAgents(tenantId,async (all,client)=>{
@@ -335,6 +340,10 @@ async function updateAgent(agentKey,payload={},tenantId) {
     const next=normalizeAgent({...all[index],...payload,key:agentKey});
     if (payload.sessionIds !== undefined) {
       await validateSessions(tenantId,next.sessionIds,client);
+      for(const sessionId of all[index].sessionIds || []) {
+        if(!next.sessionIds.includes(sessionId)) await preserveSessionOwnership(all,null,sessionId,tenantId,client,false);
+      }
+      for(const sessionId of next.sessionIds) await preserveSessionOwnership(all,next,sessionId,tenantId,client);
     }
     all[index]=next;return next;
   },'configuration');
@@ -343,9 +352,15 @@ async function setAgentActive(agentKey,active,tenantId){
   const isActive = Boolean(active);
   return updateAgent(agentKey,{active:isActive, status: isActive ? 'active' : 'paused'},tenantId);
 }
-async function deleteAgent(agentKey,tenantId){return mutateAgents(tenantId,all=>{const i=all.findIndex(a=>a.key===agentKey);if(i<0)throw new Error('Atendente não encontrado.');return all.splice(i,1)[0];},'deleted');}
+async function deleteAgent(agentKey,tenantId){
+  return mutateAgents(tenantId,async(all,client)=>{
+    const index=all.findIndex(agent=>agent.key===agentKey);if(index<0)throw new Error('Atendente não encontrado.');
+    for(const sessionId of all[index].sessionIds || []) await preserveSessionOwnership(all,null,sessionId,tenantId,client,false);
+    return all.splice(index,1)[0];
+  },'deleted');
+}
 async function cloneAgent(agentKey,tenantId){
-  return mutateAgents(tenantId,all=>{const original=all.find(a=>a.key===agentKey);if(!original)throw new Error('Atendente não encontrado.');const next=normalizeAgent({...original,key:require('crypto').randomUUID(),name:original.name+' (Cópia)',active:false});all.push(next);return next;},'configuration');
+  return mutateAgents(tenantId,all=>{const original=all.find(a=>a.key===agentKey);if(!original)throw new Error('Atendente não encontrado.');const next=normalizeAgent({...original,key:require('crypto').randomUUID(),name:original.name+' (Cópia)',active:false,sessionIds:[]});all.push(next);return next;},'configuration');
 }
 
 function resetCache(tenantId) {
@@ -441,73 +456,62 @@ async function getStoreKnowledge(companyId, storeId) {
 
 async function sessionKnowledge(companyId, sessionId) {
   const { query } = require('../../../infrastructure/config/database');
-  let store = (await query(`SELECT s.* FROM ai_stores s JOIN session_ai_profiles p
-    ON p.company_id=s.company_id AND p.store_id=s.id WHERE p.company_id=$1 AND p.session_id=$2`, [companyId, sessionId])).rows[0];
+  const profile = (await query('SELECT store_id FROM session_ai_profiles WHERE company_id=$1 AND session_id=$2', [companyId, sessionId])).rows[0];
+  // An existing profile is authoritative, including an explicitly cleared store.
+  const legacyStoreIds = [...new Set(getAgentsSync(companyId)
+    .filter(agent => agent.sessionIds?.includes(sessionId) && agent.storeId).map(agent => agent.storeId))];
+  const storeId = profile ? profile.store_id
+    : legacyStoreIds.length === 1 ? legacyStoreIds[0] : null;
+  return getStoreKnowledge(companyId, storeId);
+}
 
-  if (!store) {
-    const agents = getAgentsSync(companyId);
-    const assignedAgent = agents.find(a => a.sessionIds?.includes(sessionId) && a.storeId);
-    if (assignedAgent?.storeId) {
-      store = (await query('SELECT * FROM ai_stores WHERE company_id=$1 AND id=$2', [companyId, assignedAgent.storeId])).rows[0];
+async function preserveSessionOwnership(agents, target, sessionId, normalizedTenantId, client, replaceOwner = true) {
+    const profile = (await client.query('SELECT store_id FROM session_ai_profiles WHERE company_id=$1 AND session_id=$2', [normalizedTenantId, sessionId])).rows[0];
+    const previousOwners = agents.filter(agent => agent.sessionIds?.includes(sessionId));
+    const previousStoreIds = [...new Set(previousOwners.map(agent => agent.storeId).filter(Boolean))];
+    const legacyStoreOwner = previousOwners.length === 1 ? previousOwners[0] : previousOwners.length ? null : target;
+    const legacyStoreId = previousOwners.length
+      ? previousStoreIds.length === 1 ? previousStoreIds[0] : null
+      : target?.storeId || null;
+    if (!profile && (previousOwners.length || legacyStoreId)) {
+      if (legacyStoreId) {
+        const store = (await client.query('SELECT id FROM ai_stores WHERE company_id=$1 AND id=$2', [normalizedTenantId, legacyStoreId])).rows[0];
+        if (!store) throw new Error('Loja não encontrada.');
+      }
+      // Initialize legacy links once; changing attendants never replaces the WhatsApp store.
+      // Conflicting legacy stores require explicit commercial configuration, never list order.
+      await client.query(`
+          INSERT INTO session_ai_profiles (company_id, session_id, store_id, segment, service_type, evolution_mode)
+          VALUES ($1, $2, $3, $4, $5, 'limited')
+          ON CONFLICT (company_id, session_id) DO NOTHING
+        `, [normalizedTenantId, sessionId, legacyStoreId, legacyStoreOwner?.segment || '', legacyStoreOwner?.role || '']);
     }
-  }
 
-  if (!store) {
-    const stores = (await query('SELECT * FROM ai_stores WHERE company_id=$1 ORDER BY created_at ASC LIMIT 1', [companyId])).rows;
-    if (stores.length > 0) {
-      store = stores[0];
+    if (!replaceOwner) return;
+    // Regra Principal: 1 Número = 1 Atendente Principal
+    for (const agent of agents) {
+      if (Array.isArray(agent.sessionIds) && agent.key !== target?.key && agent.sessionIds.includes(sessionId)) {
+        agent.sessionIds = agent.sessionIds.filter(id => id !== sessionId);
+        if (!agent.sessionIds.length) {
+          agent.active = false;
+          agent.status = 'paused';
+        }
+      }
     }
-  }
-
-  if (!store) return '';
-  const parts = [`\n=== IDENTIDADE E CONHECIMENTO DA LOJA (${store.name}) ===`];
-  if (store.phone) parts.push(`Telefone/WhatsApp Oficial da Loja: ${store.phone}`);
-  if (store.website) parts.push(`Site Oficial: ${store.website}`);
-  if (store.business_hours) parts.push(`Horário de Atendimento: ${store.business_hours}`);
-  if (store.policies) parts.push(`Políticas Oficiais (Trocas/Garantia/Frete/Pagamento): ${store.policies}`);
-  if (store.catalog_summary) parts.push(`Catálogo & Produtos Principais:\n${store.catalog_summary}`);
-  if (store.knowledge) parts.push(`Instruções e Base de Conhecimento Específica:\n${store.knowledge}`);
-  return '\n' + parts.join('\n');
 }
 
 async function assignAgentToSession({ companyId, agentKey, sessionId }) {
-  const normalizedTenantId = normalizeTenantId(companyId);
-  await hydrateFromSettings(normalizedTenantId);
-  const cache = getTenantCache(normalizedTenantId);
+  const normalizedTenantId = String(companyId || '').trim();
+  if (!normalizedTenantId) throw new Error('Empresa obrigatória.');
+  const assignedAgent = await mutateAgents(normalizedTenantId, async (agents, client) => {
+    await require('../../../../services/aiMemoryEngine').assertSession(normalizedTenantId, sessionId, client);
+    const target = agentKey ? agents.find(agent => agent.key === agentKey) : null;
+    if (agentKey && !target) throw new Error('Atendente não encontrado.');
 
-  // Regra Principal: 1 Número = 1 Atendente Principal
-  for (const a of cache) {
-    if (Array.isArray(a.sessionIds) && a.sessionIds.includes(sessionId) && a.key !== agentKey) {
-      a.sessionIds = a.sessionIds.filter(id => id !== sessionId);
-    }
-  }
-
-  let assignedAgent = null;
-  if (agentKey) {
-    assignedAgent = cache.find(a => a.key === agentKey);
-    if (assignedAgent) {
-      if (!Array.isArray(assignedAgent.sessionIds)) assignedAgent.sessionIds = [];
-      if (!assignedAgent.sessionIds.includes(sessionId)) {
-        assignedAgent.sessionIds.push(sessionId);
-      }
-    }
-  }
-
-  await persistAgents(normalizedTenantId);
-
-  if (sessionId) {
-    try {
-      const { query } = require('../../../infrastructure/config/database');
-      const storeId = assignedAgent?.storeId || null;
-      if (storeId) {
-        await query(`
-          INSERT INTO session_ai_profiles (company_id, session_id, store_id, segment, service_type, evolution_mode)
-          VALUES ($1, $2, $3, $4, $5, 'limited')
-          ON CONFLICT (company_id, session_id) DO UPDATE SET store_id = EXCLUDED.store_id
-        `, [normalizedTenantId, sessionId, storeId, assignedAgent.segment || '', assignedAgent.role || '']);
-      }
-    } catch (_) {}
-  }
+    await preserveSessionOwnership(agents, target, sessionId, normalizedTenantId, client);
+    if (target) target.sessionIds = [...new Set([...(target.sessionIds || []), sessionId])];
+    return target;
+  }, 'connection_assignment');
 
   return { success: true, assignedAgent, sessionId };
 }

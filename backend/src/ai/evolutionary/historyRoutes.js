@@ -64,8 +64,7 @@ function createHistoryRouter({ repository = historySync.repository, db = pool, a
     }=req.body || {};
     if(typeof name!=='string' || !name.trim() || name.length>200 || typeof knowledge!=='string' || knowledge.length>30000) return res.status(400).json({error:'Informe nome e conhecimento válidos.'});
     const id=require('crypto').randomUUID();
-    try {
-      await db.query(`INSERT INTO ai_stores(
+    await db.query(`INSERT INTO ai_stores(
         company_id, id, name, segment, knowledge, phone, website, business_hours, policies, catalog_summary,
         theme_color, address, attendant_name, attendant_role, attendant_config, settings
       ) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15::jsonb,$16::jsonb)`,
@@ -77,28 +76,12 @@ function createHistoryRouter({ repository = historySync.repository, db = pool, a
         String(attendant_name).slice(0,100), String(attendant_role).slice(0,100),
         JSON.stringify(attendant_config || {}), JSON.stringify(settings || {})
       ]);
-    } catch (_) {
-      await db.query('INSERT INTO ai_stores(company_id,id,name,segment,knowledge) VALUES($1,$2,$3,$4,$5)',[req.authTenantId,id,name.trim(),String(segment).slice(0,200),knowledge]);
-    }
-
-    // Se informou nome do atendente para a loja, sincronizar/criar agente persona
-    if (result.rows.length && attendant_name && attendant_name.trim()) {
-      try {
-        const existingAgents = await agentService.listAgents(req.authTenantId);
-        const match = existingAgents.find(a => a.name?.toLowerCase() === attendant_name.trim().toLowerCase());
-        if (!match) {
-          await agentService.createAgent({
-            name: attendant_name.trim(),
-            personality: `Você é ${attendant_name.trim()}, ${attendant_role || 'assistente oficial'} da loja ${name.trim()}. Atendimento prestativo, consultivo e focado em apresentar os melhores produtos e condições.`,
-            active: true,
-          }, req.authTenantId);
-        }
-      } catch (_) {}
-    }
 
     res.status(201).json({id});
   }));
   router.put('/stores/:storeId',handle(async(req,res)=>{
+    const current=(await db.query('SELECT * FROM ai_stores WHERE company_id=$1 AND id=$2',[req.authTenantId,req.params.storeId])).rows[0];
+    if(!current) return res.status(404).json({error:'Loja não encontrada.'});
     const {
       name,
       knowledge='',
@@ -114,14 +97,24 @@ function createHistoryRouter({ repository = historySync.repository, db = pool, a
       attendant_role='Assistente de Vendas',
       attendant_config={},
       settings={}
-    }=req.body || {};
+    }={...current,...(req.body || {})};
     const safeKnowledge = typeof knowledge === 'string' ? knowledge : '';
-    if(typeof name!=='string' || !name.trim() || name.length>200 || safeKnowledge.length>30000) return res.status(400).json({error:'Dados da loja inválidos.'});
-    let result;
-    try {
-      result=await db.query(`UPDATE ai_stores SET
-        name=$3, knowledge=$4, segment=$5, phone=$6, website=$7, business_hours=$8, policies=$9, catalog_summary=$10,
-        theme_color=$11, address=$12, attendant_name=$13, attendant_role=$14, attendant_config=$15::jsonb, settings=$16::jsonb
+    if(typeof name!=='string' || !name.trim() || name.length>200 || typeof knowledge!=='string' || safeKnowledge.length>30000) return res.status(400).json({error:'Dados da loja inválidos.'});
+    const result=await db.query(`UPDATE ai_stores SET
+        name=CASE WHEN $17::jsonb ? 'name' THEN $3 ELSE name END,
+        knowledge=CASE WHEN $17::jsonb ? 'knowledge' THEN $4 ELSE knowledge END,
+        segment=CASE WHEN $17::jsonb ? 'segment' THEN $5 ELSE segment END,
+        phone=CASE WHEN $17::jsonb ? 'phone' THEN $6 ELSE phone END,
+        website=CASE WHEN $17::jsonb ? 'website' THEN $7 ELSE website END,
+        business_hours=CASE WHEN $17::jsonb ? 'business_hours' THEN $8 ELSE business_hours END,
+        policies=CASE WHEN $17::jsonb ? 'policies' THEN $9 ELSE policies END,
+        catalog_summary=CASE WHEN $17::jsonb ? 'catalog_summary' THEN $10 ELSE catalog_summary END,
+        theme_color=CASE WHEN $17::jsonb ? 'theme_color' THEN $11 ELSE theme_color END,
+        address=CASE WHEN $17::jsonb ? 'address' THEN $12 ELSE address END,
+        attendant_name=CASE WHEN $17::jsonb ? 'attendant_name' THEN $13 ELSE attendant_name END,
+        attendant_role=CASE WHEN $17::jsonb ? 'attendant_role' THEN $14 ELSE attendant_role END,
+        attendant_config=CASE WHEN $17::jsonb ? 'attendant_config' THEN $15::jsonb ELSE attendant_config END,
+        settings=CASE WHEN $17::jsonb ? 'settings' THEN $16::jsonb ELSE settings END
         WHERE company_id=$1 AND id=$2 RETURNING id`,
       [
         req.authTenantId, req.params.storeId, name, safeKnowledge, String(segment).slice(0,200),
@@ -129,27 +122,10 @@ function createHistoryRouter({ repository = historySync.repository, db = pool, a
         String(policies).slice(0,5000), String(catalog_summary).slice(0,10000),
         String(theme_color || '#10b981').slice(0,50), String(address).slice(0,300),
         String(attendant_name).slice(0,100), String(attendant_role).slice(0,100),
-        JSON.stringify(attendant_config || {}), JSON.stringify(settings || {})
+        JSON.stringify(attendant_config || {}), JSON.stringify(settings || {}), JSON.stringify(req.body || {})
       ]);
-    } catch (_) {
-      result=await db.query('UPDATE ai_stores SET name=$3,knowledge=$4,segment=$5 WHERE company_id=$1 AND id=$2 RETURNING id',[req.authTenantId,req.params.storeId,name,knowledge,String(segment).slice(0,200)]);
-    }
 
-    // A edição da loja não deve substituir as instruções de um atendente existente.
-    if (result.rows.length && attendant_name && attendant_name.trim()) {
-      try {
-        const existingAgents = await agentService.listAgents(req.authTenantId);
-        const match = existingAgents.find(a => a.name?.toLowerCase() === attendant_name.trim().toLowerCase());
-        if (!match) {
-          await agentService.createAgent({
-            name: attendant_name.trim(),
-            personality: `Você é ${attendant_name.trim()}, ${attendant_role || 'assistente oficial'} da loja ${name.trim()}. Atendimento prestativo, consultivo e focado em apresentar os melhores produtos e condições.`,
-            active: true,
-          }, req.authTenantId);
-        }
-      } catch (_) {}
-    }
-
+    // Commercial data never creates or overwrites a shared attendant instructions.
     res.status(result.rows.length?200:404).json({success:Boolean(result.rows.length)});
   }));
   router.get('/:sessionId/profile',handle(async(req,res)=>{
@@ -158,11 +134,20 @@ function createHistoryRouter({ repository = historySync.repository, db = pool, a
     res.json({profile:profile || {store_id:null,segment:'',service_type:'',evolution_mode:'limited'},memory});
   }));
   router.put('/:sessionId/profile',handle(async(req,res)=>{
-    const {storeId=null,segment='',serviceType='',evolutionMode='limited'}=req.body || {};
+    const current=(await db.query('SELECT * FROM session_ai_profiles WHERE company_id=$1 AND session_id=$2',[req.authTenantId,req.params.sessionId])).rows[0];
+    const {storeId=null,segment='',serviceType='',evolutionMode='limited'}={
+      storeId:current?.store_id ?? null,segment:current?.segment || '',serviceType:current?.service_type || '',
+      evolutionMode:current?.evolution_mode || 'limited',...(req.body || {})
+    };
     if(!['limited','paused'].includes(evolutionMode)) return res.status(400).json({error:'Modo inválido.'});
     if(storeId && !(await db.query('SELECT id FROM ai_stores WHERE company_id=$1 AND id=$2',[req.authTenantId,storeId])).rows.length) return res.status(404).json({error:'Loja não encontrada.'});
     await db.query(`INSERT INTO session_ai_profiles(company_id,session_id,store_id,segment,service_type,evolution_mode) VALUES($1,$2,$3,$4,$5,$6)
-      ON CONFLICT(company_id,session_id) DO UPDATE SET store_id=EXCLUDED.store_id,segment=EXCLUDED.segment,service_type=EXCLUDED.service_type,evolution_mode=EXCLUDED.evolution_mode`,[req.authTenantId,req.params.sessionId,storeId,String(segment).slice(0,200),String(serviceType).slice(0,200),evolutionMode]);
+      ON CONFLICT(company_id,session_id) DO UPDATE SET
+      store_id=CASE WHEN $7::jsonb ? 'storeId' THEN EXCLUDED.store_id ELSE session_ai_profiles.store_id END,
+      segment=CASE WHEN $7::jsonb ? 'segment' THEN EXCLUDED.segment ELSE session_ai_profiles.segment END,
+      service_type=CASE WHEN $7::jsonb ? 'serviceType' THEN EXCLUDED.service_type ELSE session_ai_profiles.service_type END,
+      evolution_mode=CASE WHEN $7::jsonb ? 'evolutionMode' THEN EXCLUDED.evolution_mode ELSE session_ai_profiles.evolution_mode END`,
+      [req.authTenantId,req.params.sessionId,storeId,String(segment).slice(0,200),String(serviceType).slice(0,200),evolutionMode,JSON.stringify(req.body || {})]);
     res.json({success:true});
   }));
   router.post('/:sessionId/preview',handle(async(req,res)=>{
@@ -185,7 +170,7 @@ function createHistoryRouter({ repository = historySync.repository, db = pool, a
   router.post('/:sessionId/agents/:agentKey/link',handle(async(req,res)=>{
     const current=(await agentService.listAgents(req.authTenantId)).find(a=>a.key===req.params.agentKey);
     if(!current) return res.status(404).json({error:'Atendente não encontrado.'});
-    const agent=await agentService.updateAgent(current.key,{sessionIds:[...new Set([...(current.sessionIds || []),req.params.sessionId])]},req.authTenantId);
+    const {assignedAgent:agent}=await agentService.assignAgentToSession({companyId:req.authTenantId,agentKey:current.key,sessionId:req.params.sessionId});
     res.json({agent});
   }));
   router.post('/:sessionId/agents/:agentKey/preview',handle(async(req,res)=>{

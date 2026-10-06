@@ -47,7 +47,7 @@ router.get('/', async (req, res) => {
           };
         });
 
-      const storeAttendants = agents.filter(a => a.storeId === store.id || (agents.length === 1 && !a.isPlatformAssistant));
+      const storeAttendants = agents.filter(a => a.storeId === store.id);
 
       return {
         ...store,

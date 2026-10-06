@@ -12,14 +12,22 @@ async function enqueue(req, res) {
 }
 
 function listPending(req, res) {
+  const companyId = String(req.authTenantId || '').trim();
+  if (!companyId) {
+    return res.status(401).json({ error: 'Autenticação obrigatória.' });
+  }
   const limit = Number(req.query?.limit) || 100;
-  const items = outboundQueueService.listPending(limit);
+  const items = outboundQueueService.listPending(limit, companyId);
   return res.status(200).json({ items });
 }
 
 function listDeadLetter(req, res) {
+  const companyId = String(req.authTenantId || '').trim();
+  if (!companyId) {
+    return res.status(401).json({ error: 'Autenticação obrigatória.' });
+  }
   const limit = Number(req.query?.limit) || 100;
-  const items = outboundQueueService.listDeadLetter(limit);
+  const items = outboundQueueService.listDeadLetter(limit, companyId);
   return res.status(200).json({ items });
 }
 

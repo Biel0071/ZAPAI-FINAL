@@ -445,6 +445,8 @@ async function checkNumber(req, res) {
       error: error.message || 'Erro ao verificar número no WhatsApp.'
     });
   }
+}
+
 async function assignAttendant(req, res) {
   if (!req.authTenantId) return res.status(401).json({ error: 'Autenticação da empresa obrigatória.' });
   const sessionId = getTargetSessionId(req);

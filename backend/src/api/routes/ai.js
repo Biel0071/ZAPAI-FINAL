@@ -241,10 +241,11 @@ router.get('/ai/voices', (req, res) => {
 });
 
 router.post('/ai/voices/profiles', (req, res) => {
+  if (!req.authTenantId) return res.status(401).json({ success: false, error: 'Autenticação obrigatória.' });
   try {
     const aiVoiceEngine = require('../../../services/aiVoiceEngine');
     const { agentId, voiceId, params } = req.body || {};
-    const profile = aiVoiceEngine.saveVoiceProfile({ agentId, voiceId, params });
+    const profile = aiVoiceEngine.saveVoiceProfile({ agentId, voiceId, params, companyId: req.authTenantId });
     res.json({ success: true, data: profile });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
