@@ -211,30 +211,18 @@ async function main() {
   await mobilePage.waitForTimeout(3000);
   await loginIfNeeded(mobilePage);
 
-  const mobInboxLink = mobilePage.locator('a[href="/inbox"]').first();
-  if (await mobInboxLink.isVisible()) {
-    await mobInboxLink.click();
-    await mobilePage.waitForTimeout(3000);
-  }
-
   const mobConv = mobilePage.locator('div.cursor-pointer').filter({ hasText: /Sueli|Conversa|\d{10,}/ }).first();
   if (await mobConv.isVisible()) {
-    await mobConv.click();
+    console.log('Clicking mobile conversation...');
+    await mobConv.click({ force: true });
     await mobilePage.waitForTimeout(2000);
   }
 
-  const painelBtn = mobilePage.locator('button[aria-label="Abrir painel da conversa"], button:has-text("Painel")').first();
-  if (await painelBtn.isVisible()) {
+  const painelBtn = mobilePage.locator('button[aria-label="Abrir painel da conversa"]').first();
+  if (await painelBtn.count() > 0) {
     console.log('Clicking mobile panel button...');
     await painelBtn.click({ force: true });
     await mobilePage.waitForTimeout(2500);
-  } else {
-    console.log('Trying fallback click on conversation header to open lead drawer...');
-    const contactHeader = mobilePage.locator('div.cursor-pointer').filter({ hasText: /Sueli|Conversa|\d{10,}/ }).first();
-    if (await contactHeader.isVisible()) {
-      await contactHeader.click({ force: true });
-      await mobilePage.waitForTimeout(2500);
-    }
   }
 
   await saveMultiScreenshot(mobilePage, 'VERIFIED_INBOX_MOBILE_DRAWER_390x844.png');

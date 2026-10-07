@@ -611,7 +611,7 @@ export function SidebarPanel({
                 )}
                 title={section.fullLabel}
               >
-                <span className="truncate text-[9.5px] sm:text-[11px] font-medium tracking-tight select-none">
+                <span className="text-[10px] font-medium tracking-tight select-none whitespace-nowrap">
                   {section.label}
                 </span>
               </TabsTrigger>
