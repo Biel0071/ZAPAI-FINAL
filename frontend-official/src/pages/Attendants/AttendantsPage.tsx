@@ -231,11 +231,9 @@ export default function AttendantsPage() {
     setSandboxInput("");
     testVersion.current += 1;
     setIsTestingAgent(false);
-    if (previewSession?.sessionId) {
-      apiService.getAIMetrics(previewSession.sessionId).then((metrics) => {
-        if (!cancelled) setSessionMetrics(metrics.data || metrics);
-      }).catch(() => { /* unavailable metrics stay empty */ });
-    }
+    apiService.getAIMetrics(previewSession?.sessionId || undefined).then((metrics) => {
+      if (!cancelled) setSessionMetrics(metrics.data || metrics);
+    }).catch(() => { /* unavailable metrics stay empty */ });
     return () => { cancelled = true; };
   }, [previewAgent?.key, previewSession?.sessionId]);
 

@@ -37,8 +37,6 @@ import {
   Check,
   X,
   FileCheck,
-  Target,
-  Compass,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { apiService, requestApiEndpoint } from "@/core/services/apiService";
@@ -298,24 +296,6 @@ export function EvolutionTab({ agentKey, onSelectAgent, agents: initialAgents }:
     }
     return items;
   }, [memoryItems, memoryCategory, memorySearch]);
-
-  const handleSlashCommand = (cmd: string) => {
-    if (cmd === "/goal") {
-      toast({ title: "Comando /goal", description: "Meta de conversão e assertividade cognitiva ativas." });
-    } else if (cmd === "/browser") {
-      setMemoryCategory("todos");
-      setMemorySearch("");
-      toast({ title: "Memórias", description: "Exibindo memórias e aprendizados consolidados do atendente." });
-    } else if (cmd === "/plan") {
-      navigate("/ai?tab=flows");
-    } else if (cmd === "/grill-me") {
-      void handleDetectGaps();
-    } else if (cmd === "/learn") {
-      void handleSyncManual();
-    } else if (cmd === "/boost") {
-      toast({ title: "Comando /boost", description: "Otimizando sinapses cognitivas e acelerando aprendizado de respostas." });
-    }
-  };
 
   const calculatedXp = React.useMemo(() => {
     if (humanStats.totalXp && humanStats.totalXp > 0) return humanStats.totalXp;
@@ -590,35 +570,6 @@ export function EvolutionTab({ agentKey, onSelectAgent, agents: initialAgents }:
           <RefreshCw className="h-4 w-4 mr-2" /> Tentar novamente
         </Button>
       </Card>}
-
-      {/* SLASH COMMANDS ACTION BAR */}
-      <div className="flex flex-wrap items-center gap-1.5 p-3 rounded-2xl border border-border/80 bg-card shadow-xs">
-        <span className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider mr-1 shrink-0">Comandos:</span>
-        {[
-          { cmd: "/goal", label: "/goal", icon: Target, desc: "Meta & Assertividade" },
-          { cmd: "/browser", label: "/browser", icon: Compass, desc: "Consultar Memórias do Atendente" },
-          { cmd: "/plan", label: "/plan", icon: BookOpen, desc: "Playbooks de Atendimento" },
-          { cmd: "/grill-me", label: "/grill-me", icon: HelpCircle, desc: "Escanear Lacunas da IA" },
-          { cmd: "/learn", label: "/learn", icon: Brain, desc: "Aprender com Atendimentos" },
-          { cmd: "/boost", label: "/boost", icon: Zap, desc: "Turbinar Conexões e XP" },
-        ].map((action) => {
-          const Icon = action.icon;
-          return (
-            <Button
-              key={action.cmd}
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={() => handleSlashCommand(action.cmd)}
-              className="h-8 px-2.5 text-xs gap-1.5 rounded-xl border-border/70 hover:border-purple-500/50 hover:bg-purple-500/10 text-muted-foreground hover:text-purple-300 font-mono transition-colors"
-              title={action.desc}
-            >
-              <Icon className="h-3.5 w-3.5 text-purple-400" />
-              <span>{action.label}</span>
-            </Button>
-          );
-        })}
-      </div>
 
       {/* HUMAN-CENTRIC MEMORY & KNOWLEDGE BASE */}
       <Card className="bg-card border-border/80 shadow-md overflow-hidden">

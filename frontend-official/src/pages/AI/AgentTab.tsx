@@ -623,31 +623,6 @@ Tom: ${agentTone}. Estilo: ${responseStyle}.`;
     };
   }, [selectedAgentKey, characterMode, agentsList, aiEnabled, agentName, agentRole, prompt, agentTone, selectedObjective]);
 
-  const handleSlashCommand = (cmd: string) => {
-    if (cmd === "/goal") {
-      if (viewMode === "steps") setActiveStep(2);
-      setCollapsedCards((prev) => ({ ...prev, objective: false }));
-      toast({ title: "Comando /goal", description: "Configuração de objetivos estratégicos em foco." });
-    } else if (cmd === "/browser") {
-      navigate("/ai?tab=evolution");
-    } else if (cmd === "/plan") {
-      if (viewMode === "steps") setActiveStep(3);
-      setCollapsedCards((prev) => ({ ...prev, prompt: false }));
-      toast({ title: "Comando /plan", description: "Instruções e templates em foco." });
-    } else if (cmd === "/grill-me") {
-      if (viewMode === "steps") setActiveStep(5);
-      setCollapsedCards((prev) => ({ ...prev, sandbox: false }));
-      void handleSendMessage("Tenho urgência no pedido e achei o preço alto, o que você pode fazer?");
-    } else if (cmd === "/learn") {
-      navigate("/ai?tab=evolution");
-    } else if (cmd === "/boost") {
-      if (viewMode === "steps") setActiveStep(4);
-      setShowAdvancedConfig(true);
-      setCollapsedCards((prev) => ({ ...prev, providers: false }));
-      toast({ title: "Comando /boost", description: "Parâmetros técnicos e provedores em foco." });
-    }
-  };
-
   const currentObjectiveDef = OBJECTIVES.find((o) => o.id === selectedObjective) || OBJECTIVES[0];
   const currentToneDef = TONE_OPTIONS.find((t) => t.id === agentTone) || TONE_OPTIONS[0];
 
