@@ -271,10 +271,9 @@ class HumanAttendanceLearner {
     try {
       // Count only messages belonging to this authenticated company.
       const humanMsgsRes = await this.pool.query(
-        `SELECT COUNT(*) AS total FROM messages m
-         JOIN conversations c ON c.id = m.conversation_id
-         WHERE c.company_id = $1 AND m.from_me = TRUE
-           AND (m.sender = 'agent' OR m.sender IS NULL)`,
+        `SELECT COUNT(*) AS total FROM messages
+         WHERE company_id = $1 AND from_me = TRUE
+           AND (sender = 'agent' OR sender IS NULL)`,
         [cleanCompany]
       );
       const totalHumanMessages = Number(humanMsgsRes.rows[0]?.total ?? 0);
