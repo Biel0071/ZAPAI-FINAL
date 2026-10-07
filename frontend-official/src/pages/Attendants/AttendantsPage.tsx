@@ -50,6 +50,9 @@ import { AgentProfileModal } from "@/components/ai/AgentProfileModal";
 import { NewAgentWizardModal } from "@/components/ai/NewAgentWizardModal";
 import { AvatarEditorModal } from "@/components/avatar-engine/AvatarEditorModal";
 import { ZaiAvatarRenderer } from "@/components/avatar-engine/ZaiAvatarRenderer";
+import { AttendantItemCard } from "@/components/attendants/AttendantItemCard";
+import { AddAttendantCard } from "@/components/attendants/AddAttendantCard";
+import { EXAMPLE_ATTENDANTS } from "@/components/attendants/exampleAttendants";
 import { createAgentAvatar, buildStoreVisualDNA, resolveSpriteForAvatar, applyStylePreset } from "@/components/avatar-engine/CharacterFactory";
 import {
   AVATAR_HAIRS,
@@ -274,6 +277,9 @@ export default function AttendantsPage() {
       avatarConfig: updatedConfig,
       avatar: avatarUrl,
     }));
+
+    if (previewAgent.isExample) return;
+
     setAgents((prev) =>
       prev.map((a) =>
         a.key === previewAgent.key
@@ -285,6 +291,11 @@ export default function AttendantsPage() {
 
   const handleSaveAvatar = useCallback(async () => {
     if (!previewAgent) return;
+    if (previewAgent.isExample) {
+      notify.info(`Este perfil é o modelo demonstrativo de ${previewAgent.name}. Clique em 'Criar Atendente' para criar um funcionário digital real para sua loja.`);
+      setIsWizardOpen(true);
+      return;
+    }
     setIsSavingAvatar(true);
     try {
       const configToSave = previewAgent.avatarConfig || createAgentAvatar({
@@ -689,6 +700,88 @@ export default function AttendantsPage() {
 
         {loadError && <div role="alert" className="flex items-center justify-between gap-3 rounded-xl border border-amber-500/40 bg-amber-500/10 p-3 text-sm"><span>{loadError}</span><Button size="sm" variant="outline" onClick={() => void fetchData()}>Tentar novamente</Button></div>}
 
+        {/* ROW 0: ATTENDANTS CAROUSEL (REAL VS EXAMPLE MODELS + ADD CARD) */}
+        <section aria-label="Lista de Atendentes" className="space-y-2.5">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5">
+            <div className="flex items-center gap-2">
+              <h2 className="text-sm font-bold text-foreground font-display">Atendentes IA</h2>
+              <span className="text-xs text-muted-foreground hidden md:inline">
+                — Gerencie seus atendentes, personalize avatares e teste o atendimento.
+              </span>
+            </div>
+            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+              <span className="inline-flex items-center gap-1.5 text-emerald-400 font-semibold font-mono text-[11px]">
+                <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
+                <span>{agents.length} Cadastrado(s)</span>
+              </span>
+              <span>•</span>
+              <span className="badge-zai-example">4 Modelos de Exemplo</span>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-3 overflow-x-auto pb-2 pt-1 scrollbar-zai">
+            {/* Real Attendants from Database / API */}
+            {agents.map((agent) => (
+              <AttendantItemCard
+                key={agent.key || agent.id}
+                attendant={{
+                  id: agent.id || agent.key,
+                  key: agent.key || agent.id,
+                  name: agent.name,
+                  role: agent.role || "Especialista de Atendimento",
+                  isExample: false,
+                  active: agent.active !== false,
+                  avatarConfig: agent.avatarConfig,
+                }}
+                isSelected={previewAgent?.key === (agent.key || agent.id) && !previewAgent?.isExample}
+                onSelect={(att) => {
+                  const found = agents.find((a) => (a.key || a.id) === att.key);
+                  if (found) setPreviewAgent(found);
+                }}
+                onEdit={(att) => {
+                  const found = agents.find((a) => (a.key || a.id) === att.key);
+                  if (found) setPreviewAgent(found);
+                }}
+              />
+            ))}
+
+            {/* Example Attendants (Visual Demonstrations, strictly client-side) */}
+            {EXAMPLE_ATTENDANTS.map((example) => (
+              <AttendantItemCard
+                key={example.id}
+                attendant={{
+                  id: example.id,
+                  key: example.key,
+                  name: example.name,
+                  role: example.role,
+                  isExample: true,
+                  avatarConfig: example.avatarConfig as any,
+                }}
+                isSelected={previewAgent?.key === example.key && previewAgent?.isExample === true}
+                onSelect={() => {
+                  setPreviewAgent({
+                    ...example,
+                    key: example.key,
+                    active: true,
+                    isExample: true,
+                  });
+                }}
+                onEdit={() => {
+                  setPreviewAgent({
+                    ...example,
+                    key: example.key,
+                    active: true,
+                    isExample: true,
+                  });
+                }}
+              />
+            ))}
+
+            {/* Add New Attendant Card */}
+            <AddAttendantCard onAdd={() => setIsWizardOpen(true)} />
+          </div>
+        </section>
+
         {/* ROW 1: COMPACT OPERATIONAL INDICATORS BAR */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 p-3 rounded-2xl border border-border/70 bg-card/75 shadow-sm">
           <div className="rounded-xl border border-border/50 bg-background/50 p-2.5 flex items-center justify-between">
@@ -827,20 +920,26 @@ export default function AttendantsPage() {
                         <div className="min-w-0">
                           <CardTitle className="text-sm font-bold text-foreground font-display flex items-center gap-2 truncate">
                             <span>Avatar Studio ({previewAgent.name})</span>
-                            <Badge
-                              variant="outline"
-                              className={cn(
-                                "text-[10px] font-bold uppercase shrink-0",
-                                previewAgent.active !== false
-                                  ? "border-emerald-500/30 text-emerald-400 bg-emerald-500/10"
-                                  : "border-amber-500/30 text-amber-400 bg-amber-500/10"
-                              )}
-                            >
-                              {previewPresence?.label}
-                            </Badge>
+                            {previewAgent.isExample ? (
+                              <span className="badge-zai-example">
+                                Modelo Demonstrativo
+                              </span>
+                            ) : (
+                              <Badge
+                                variant="outline"
+                                className={cn(
+                                  "text-[10px] font-bold uppercase shrink-0",
+                                  previewAgent.active !== false
+                                    ? "border-emerald-500/30 text-emerald-400 bg-emerald-500/10"
+                                    : "border-amber-500/30 text-amber-400 bg-amber-500/10"
+                                )}
+                              >
+                                {previewPresence?.label}
+                              </Badge>
+                            )}
                           </CardTitle>
                           <CardDescription className="text-[11px] truncate">
-                            {previewAgent.role || "Especialista em Vendas"} · {previewStore?.name || "Sem loja vinculada"}
+                            {previewAgent.role || (previewAgent.isExample ? "Modelo de Demonstração" : "Especialista em Vendas")} · {previewAgent.isExample ? "Exemplo Visual" : (previewStore?.name || "Sem loja vinculada")}
                           </CardDescription>
                         </div>
 
@@ -850,24 +949,62 @@ export default function AttendantsPage() {
                             size="sm"
                             onClick={handleSaveAvatar}
                             disabled={isSavingAvatar}
-                            className="h-7 text-xs rounded-xl px-2.5 gap-1.5 bg-emerald-600 hover:bg-emerald-500 text-white font-semibold shadow-xs"
-                            title="Salvar alterações do avatar no servidor"
+                            className={cn(
+                              "h-7 text-xs rounded-xl px-2.5 gap-1.5 font-semibold shadow-xs",
+                              previewAgent.isExample
+                                ? "bg-sky-600 hover:bg-sky-500 text-white"
+                                : "bg-emerald-600 hover:bg-emerald-500 text-white"
+                            )}
+                            title={previewAgent.isExample ? "Criar atendente a partir deste modelo" : "Salvar alterações do avatar no servidor"}
                           >
-                            <FloppyDisk className="h-3.5 w-3.5" />
-                            <span>{isSavingAvatar ? "Salvando..." : "Salvar Avatar"}</span>
+                            {previewAgent.isExample ? (
+                              <>
+                                <Plus weight="bold" className="h-3.5 w-3.5" />
+                                <span>Criar Atendente</span>
+                              </>
+                            ) : (
+                              <>
+                                <FloppyDisk className="h-3.5 w-3.5" />
+                                <span>{isSavingAvatar ? "Salvando..." : "Salvar Avatar"}</span>
+                              </>
+                            )}
                           </Button>
 
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => setAvatarEditorAgent(previewAgent)}
-                            className="h-7 text-xs rounded-xl px-2 border-border/60 text-muted-foreground hover:text-foreground"
-                            title="Abrir Studio Completo em Janela Expandida"
-                          >
-                            <TShirt className="h-3.5 w-3.5" />
-                          </Button>
+                          {!previewAgent.isExample && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => setAvatarEditorAgent(previewAgent)}
+                              className="h-7 text-xs rounded-xl px-2 border-border/60 text-muted-foreground hover:text-foreground"
+                              title="Abrir Studio Completo em Janela Expandida"
+                            >
+                              <TShirt className="h-3.5 w-3.5" />
+                            </Button>
+                          )}
                         </div>
                       </div>
+
+                      {previewAgent.isExample && (
+                        <div className="mt-2.5 p-2.5 rounded-xl border border-sky-500/30 bg-sky-950/25 text-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
+                          <div className="space-y-0.5">
+                            <span className="font-bold text-sky-300 text-[10px] uppercase tracking-wider block">
+                              Modelo Demonstrativo ({previewAgent.name})
+                            </span>
+                            <p className="text-[11px] text-muted-foreground">
+                              Este perfil é um exemplo visual para inspiração. Não envia mensagens nem consome recursos.
+                            </p>
+                          </div>
+                          <Button
+                            type="button"
+                            size="sm"
+                            onClick={() => setIsWizardOpen(true)}
+                            className="h-6 text-[11px] bg-sky-600 hover:bg-sky-500 text-white font-semibold rounded-lg shrink-0 gap-1 cursor-pointer"
+                          >
+                            <Plus weight="bold" className="h-3 w-3" />
+                            <span>Ativar como Real</span>
+                          </Button>
+                        </div>
+                      )}
                     </CardHeader>
 
                     <CardContent className="p-3.5 space-y-3">

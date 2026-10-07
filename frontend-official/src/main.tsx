@@ -6,6 +6,7 @@ import {
 import { createRoot } from "react-dom/client";
 import App from "./App.tsx";
 import "./index.css";
+import "./styles/zai-design-system.css";
 import {
   createRuntimeManifest,
   OFFICIAL_BACKEND_PORT,
