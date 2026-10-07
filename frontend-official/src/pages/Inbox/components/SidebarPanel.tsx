@@ -598,22 +598,20 @@ export function SidebarPanel({
             </Button>
           )}
         </div>
-        <TabsList className="grid h-9 w-full grid-cols-4 gap-1 bg-muted/50 p-1 rounded-xl border border-border/60">
+        <TabsList className="grid h-8.5 w-full grid-cols-4 gap-1 bg-muted/50 p-1 rounded-xl border border-border/60">
           {SECTIONS.map((section) => {
-            const Icon = section.icon;
             return (
               <TabsTrigger
                 key={section.id}
                 value={section.id}
                 className={cn(
-                  "group relative flex items-center justify-center gap-1.5 py-1 px-1 rounded-lg h-7 transition-all duration-150",
+                  "flex items-center justify-center py-1 px-1 rounded-lg h-6.5 transition-all duration-150",
                   "text-muted-foreground hover:text-foreground hover:bg-muted/60 border border-transparent",
                   "data-[state=active]:bg-background data-[state=active]:text-emerald-600 dark:data-[state=active]:text-emerald-400 data-[state=active]:font-semibold data-[state=active]:border-border/60 data-[state=active]:shadow-xs"
                 )}
                 title={section.fullLabel}
               >
-                <Icon className="h-3.5 w-3.5 shrink-0 transition-colors group-hover:scale-105" />
-                <span className="truncate text-[11px] sm:text-xs tracking-tight select-none">
+                <span className="truncate text-[10.5px] font-medium tracking-tight select-none">
                   {section.label}
                 </span>
               </TabsTrigger>
