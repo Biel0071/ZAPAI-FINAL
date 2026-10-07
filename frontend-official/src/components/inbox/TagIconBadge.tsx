@@ -144,12 +144,12 @@ export function TagIconBadge({
 
     if (descriptor.type === "icon") {
       const IconComponent = TAG_PHOSPHOR_ICONS[descriptor.value] || Tag;
-      const iconSize = size === "xs" ? "h-3 w-3" : size === "sm" ? "h-3.5 w-3.5" : "h-4 w-4";
+      const iconSize = size === "xs" ? "h-2.5 w-2.5" : size === "sm" ? "h-3.5 w-3.5" : "h-4 w-4";
       return <IconComponent className={cn(iconSize, "shrink-0 currentColor")} weight="bold" />;
     }
 
     // Emoji type
-    const emojiSize = size === "xs" ? "text-[11px]" : size === "sm" ? "text-xs" : "text-sm";
+    const emojiSize = size === "xs" ? "text-[10px]" : size === "sm" ? "text-xs" : "text-sm";
     if (descriptor.isMonochrome) {
       return (
         <span
@@ -177,7 +177,7 @@ export function TagIconBadge({
   }
 
   const badgeSizeClasses = {
-    xs: showName ? "py-0.5 px-1.5 text-[11px] gap-1" : "h-4 w-4 p-0 justify-center rounded-full text-[10px]",
+    xs: showName ? "h-5 py-0 px-1.5 text-[10px] gap-1" : "h-4 w-4 p-0 justify-center rounded-full text-[10px]",
     sm: showName ? "py-1 px-2 text-xs gap-1.5" : "h-5 w-5 p-0 justify-center rounded-full text-xs",
     md: showName ? "py-1.5 px-2.5 text-sm gap-2" : "h-6 w-6 p-0 justify-center rounded-full text-sm",
   };
@@ -210,7 +210,7 @@ export function TagIconBadge({
               setPickerOpen(!pickerOpen);
             }}
           >
-            {renderVisual() || <Tag className="h-2.5 w-2.5 opacity-50 hover:opacity-100" />}
+            {renderVisual() || <Tag className="h-2 w-2 opacity-50 hover:opacity-100" />}
           </button>
         </TagEmojiPicker>
       ) : (
@@ -229,7 +229,7 @@ export function TagIconBadge({
           className="ml-0.5 rounded p-0.5 hover:bg-black/10 dark:hover:bg-white/10 text-muted-foreground hover:text-destructive transition-colors"
           aria-label={`Remover etiqueta ${displayName}`}
         >
-          <X className="h-2.5 w-2.5" />
+          <X className="h-2 w-2" />
         </button>
       )}
     </span>

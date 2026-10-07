@@ -21,6 +21,9 @@ import {
   File as FileIcon,
   Warning,
   Info,
+  UserSwitch,
+  UserCircle,
+  CheckCircle,
 } from "@phosphor-icons/react";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
@@ -641,142 +644,105 @@ export function ActiveChatPane({
                     : "offline"
             }
             rightActions={
-              <div className="flex min-w-0 items-center gap-1.5">
+              <div className="flex min-w-0 items-center gap-1 sm:gap-1.5">
+                {/* 1. Buscar */}
                 <Button
                   type="button"
                   variant="ghost"
                   size="sm"
-                  className="hidden h-8 px-2 text-[11px] font-semibold text-muted-foreground hover:text-foreground hover:bg-muted gap-1 2xl:flex"
+                  className="h-8 px-2 sm:px-2.5 text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted/80 rounded-lg gap-1.5 shrink-0 transition-colors border border-border/40"
                   onClick={() => setConversationSearchOpen(true)}
                   title="Buscar na conversa"
+                  aria-label="Buscar na conversa"
                 >
-                  <MagnifyingGlass className="h-4 w-4" />
-                  Buscar
+                  <MagnifyingGlass className="h-3.5 w-3.5 shrink-0" />
+                  <span className="hidden sm:inline">Buscar</span>
                 </Button>
 
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      className={cn(
-                        "h-8 px-1.5 sm:px-2 text-[11px] font-semibold gap-1 shrink-0",
-                        aiEnabledForConversation
-                          ? "bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500/20 border-emerald-500/30"
-                          : isAiCountdownActive
-                          ? "bg-amber-500/10 text-amber-500 hover:bg-amber-500/20 border-amber-500/30"
-                          : "bg-red-500/10 text-red-500 hover:bg-red-500/20 border-red-500/30"
-                      )}
-                      title="Controle da IA"
-                    >
-                      <Robot className="h-4 w-4 shrink-0" weight={aiEnabledForConversation ? "fill" : "regular"} />
-                      <span className="hidden lg:inline">
-                        {aiEnabledForConversation ? "IA ativa" : isAiCountdownActive ? `IA pausada (${timeLeft})` : aiRuntime?.globalEnabled === false ? "IA global pausada" : "Humano"}
-                      </span>
-                      <span className="inline lg:hidden text-[10px]">
-                        {aiEnabledForConversation ? "IA ativa" : isAiCountdownActive ? timeLeft : aiRuntime?.globalEnabled === false ? "Pausada" : "Humano"}
-                      </span>
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" className="w-48 bg-popover/95 border-border/80 text-popover-foreground">
-                    <DropdownMenuItem 
-                      onClick={() => {
-                        if (aiRuntime?.globalEnabled === false) {
-                          navigate("/ai?tab=dashboard");
-                        } else {
-                          void handleSetConversationAiEnabled(true, null);
-                        }
-                      }}
-                      className="gap-2 cursor-pointer focus:bg-emerald-500/10 focus:text-emerald-500"
-                    >
-                      <Robot className="h-4 w-4 text-emerald-500" weight="fill" />
-                      <span>{aiRuntime?.globalEnabled === false ? "Configurar automação" : "Permitir IA nesta conversa"}</span>
-                    </DropdownMenuItem>
-                    <DropdownMenuItem 
-                      onClick={() => void handleSetConversationAiEnabled(false, new Date(Date.now() + 86400000).toISOString())}
-                      className="gap-2 cursor-pointer focus:bg-amber-500/10 focus:text-amber-500"
-                    >
-                      <Robot className="h-4 w-4 text-amber-500" weight="fill" />
-                      <span>Pausar IA (24h)</span>
-                    </DropdownMenuItem>
-                    <DropdownMenuItem 
-                      onClick={() => void handleSetConversationAiEnabled(false, null)}
-                      className="gap-2 cursor-pointer focus:bg-red-500/10 focus:text-red-500 text-red-500"
-                    >
-                      <Robot className="h-4 w-4 text-red-500" weight="fill" />
-                      <span>Desativar IA</span>
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-
-                {aiAgents && aiAgents.length > 0 && handleSetConversationAgent && (
-                  <div className="flex min-w-0 items-center gap-1 bg-muted/50 border border-border/40 rounded-md px-2 py-0.5 text-[10px]">
-                    <span className="hidden text-[10px] text-muted-foreground uppercase font-semibold xl:inline">Agente:</span>
-                    <Select
-                      value={selectedConversation?.agent_name || selectedConversation?.assigned_to || selectedConversation?.assignedAgentName || "default"}
-                      onValueChange={(val) => void handleSetConversationAgent(val === "default" ? "" : val)}
-                    >
-                      <SelectTrigger className="h-6 min-w-[62px] max-w-[96px] bg-transparent border-none text-[11px] font-semibold text-primary focus:ring-0 p-0 gap-1 hover:text-primary-foreground justify-between">
-                        <SelectValue placeholder="Selecione..." />
-                      </SelectTrigger>
-                      <SelectContent className="bg-popover border-border/80 text-popover-foreground">
-                        <SelectItem value="default" className="text-xs">Padrão da conexão</SelectItem>
-                        {aiAgents.map((agent) => (
-                          <SelectItem
-                            key={agent.id || agent.name}
-                            value={agent.name}
-                            className="text-xs cursor-pointer hover:bg-muted text-foreground focus:bg-muted focus:text-foreground"
-                          >
-                            {agent.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                )}
-
-                {(isTabletLayout || isMobile) && (
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    className="h-8 w-8 p-0 xl:w-auto xl:px-2.5 rounded-lg text-xs font-medium text-foreground hover:bg-muted flex items-center justify-center gap-1.5 transition-colors border border-border/40 shrink-0"
-                    onClick={() => setShowLeadPanel(true)}
-                    title="Abrir painel de atendimento e ferramentas"
-                    aria-label="Abrir painel da conversa"
-                  >
-                    <Info className="h-4 w-4 text-primary shrink-0" weight="bold" />
-                    <span className="hidden xl:inline text-xs font-semibold">Painel</span>
-                  </Button>
-                )}
-
-                {/* Gerar Ficha Button */}
+                {/* 2. Gerar Ficha */}
                 <Button
                   type="button"
                   variant="ghost"
                   size="sm"
                   disabled={generatingSheet}
-                  className="h-8 px-2.5 rounded-lg text-xs font-semibold text-emerald-400 hover:text-emerald-300 hover:bg-emerald-500/10 flex items-center justify-center gap-1.5 transition-colors border border-emerald-500/30 shrink-0"
+                  className="h-8 px-2 sm:px-2.5 rounded-lg text-xs font-semibold text-emerald-400 hover:text-emerald-300 hover:bg-emerald-500/10 flex items-center justify-center gap-1.5 transition-colors border border-emerald-500/30 shrink-0"
                   onClick={handleGenerateSheet}
-                  title="Gerar ficha de atendimento com IA (resumo e próximo passo)"
+                  title="Gerar ficha de atendimento com IA"
                   aria-label="Gerar Ficha"
                 >
-                  <FileIcon className="h-4 w-4 text-emerald-400 shrink-0" weight="bold" />
+                  <FileIcon className="h-3.5 w-3.5 text-emerald-400 shrink-0" weight="bold" />
                   <span className="hidden sm:inline">{generatingSheet ? "Gerando..." : "Gerar Ficha"}</span>
                 </Button>
 
-                {/* Contact Menu */}
+                {/* 3. Transferir */}
+                {aiAgents && aiAgents.length > 0 && handleSetConversationAgent ? (
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="h-8 px-2 sm:px-2.5 text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted/80 rounded-lg gap-1.5 shrink-0 transition-colors border border-border/40"
+                        title="Transferir atendimento para outro atendente"
+                        aria-label="Transferir atendimento"
+                      >
+                        <UserSwitch className="h-3.5 w-3.5 shrink-0" />
+                        <span className="hidden md:inline">Transferir</span>
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="w-56 bg-popover/95 border-border/80 text-popover-foreground">
+                      <div className="px-2 py-1.5 text-[11px] font-semibold text-muted-foreground border-b border-border/40">
+                        Transferir para:
+                      </div>
+                      <DropdownMenuItem
+                        className="text-xs cursor-pointer py-1.5 gap-2"
+                        onClick={() => void handleSetConversationAgent("")}
+                      >
+                        <Robot className="h-3.5 w-3.5 text-muted-foreground" />
+                        <span>Padrão da conexão</span>
+                      </DropdownMenuItem>
+                      {aiAgents.map((agent) => (
+                        <DropdownMenuItem
+                          key={agent.id || agent.name}
+                          className="text-xs cursor-pointer py-1.5 gap-2"
+                          onClick={() => void handleSetConversationAgent(agent.name)}
+                        >
+                          <UserCircle className="h-3.5 w-3.5 text-emerald-400" />
+                          <span>{agent.name}</span>
+                        </DropdownMenuItem>
+                      ))}
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                ) : null}
+
+                {/* 4. Finalizar */}
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="h-8 px-2 sm:px-2.5 text-xs font-medium text-muted-foreground hover:text-emerald-400 hover:bg-emerald-500/10 rounded-lg gap-1.5 shrink-0 transition-colors border border-border/40"
+                  onClick={() => {
+                    handleArchiveSelectedConversation();
+                  }}
+                  title="Finalizar atendimento"
+                  aria-label="Finalizar atendimento"
+                >
+                  <CheckCircle className="h-3.5 w-3.5 text-emerald-400 shrink-0" weight="bold" />
+                  <span className="hidden md:inline">Finalizar</span>
+                </Button>
+
+                {/* 5. Menu adicional (...) */}
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <Button
                       type="button"
                       variant="ghost"
                       size="icon"
-                      className="h-9 w-9 rounded-full text-muted-foreground hover:text-foreground hover:bg-muted"
-                      title="Opções do contato"
+                      className="h-8 w-8 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/80 border border-border/40 shrink-0"
+                      title="Menu adicional"
+                      aria-label="Opções adicionais"
                     >
-                      <DotsThreeVertical className="h-5 w-5" />
+                      <DotsThreeVertical className="h-4 w-4" />
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end" className="w-52">
@@ -839,22 +805,29 @@ export function ActiveChatPane({
                       onClick={handleGenerateSheet}
                     >
                       <FileIcon className="h-3.5 w-3.5 text-emerald-400" />
-                      Gerar Ficha com IA
-                    </DropdownMenuItem>
-                    <DropdownMenuItem
-                      className="flex items-center gap-2 text-xs cursor-pointer text-foreground hover:bg-muted"
-                      onClick={() => {
-                        setRightPanelTab("lead");
-                        setRightPanelCollapsed(false);
-                      }}
-                    >
-                      <PaperPlaneTilt className="h-3.5 w-3.5" />
-                      Etiquetar & Exportar Lead
+                      Gerar ficha IA
                     </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
+
+                {/* Painel button for Mobile/Tablet */}
+                {(isTabletLayout || isMobile) && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="h-8 w-8 p-0 xl:w-auto xl:px-2.5 rounded-lg text-xs font-medium text-foreground hover:bg-muted flex items-center justify-center gap-1.5 transition-colors border border-border/40 shrink-0"
+                    onClick={() => setShowLeadPanel(true)}
+                    title="Abrir painel de atendimento e ferramentas"
+                    aria-label="Abrir painel da conversa"
+                  >
+                    <Info className="h-4 w-4 text-primary shrink-0" weight="bold" />
+                    <span className="hidden xl:inline text-xs font-semibold">Painel</span>
+                  </Button>
+                )}
               </div>
             }
+
           />
 
           {conversationSearchOpen && (
@@ -1165,46 +1138,6 @@ export function ActiveChatPane({
                 </div>
               )}
 
-              {aiProgress && (
-                <div className="mt-3 flex justify-end" aria-live="polite" aria-label="Progresso da resposta da IA">
-                  <div
-                    className={cn(
-                      "w-fit max-w-[85%] rounded-2xl rounded-br-md border px-3.5 py-3 shadow-sm",
-                      aiProgressActive
-                        ? "border-primary/30 bg-primary/10 text-foreground"
-                        : aiProgress.status === "failed" || aiProgress.status === "no_agent"
-                          ? "border-amber-500/30 bg-amber-500/10"
-                          : "border-border bg-muted/50",
-                    )}
-                  >
-                    <div className="flex items-center gap-2">
-                      <Robot className={cn("h-4 w-4 shrink-0", aiProgressActive ? "text-primary" : "text-muted-foreground")} />
-                      <span className="text-xs font-semibold">
-                        {aiProgress.agentName || "IA da loja"}
-                      </span>
-                      {aiProgressActive && (
-                        <div className="ml-1 flex gap-1">
-                          {[0, 1, 2].map((index) => (
-                            <span
-                              key={index}
-                              className="h-1.5 w-1.5 animate-bounce rounded-full bg-primary"
-                              style={{ animationDelay: `${index * 140}ms` }}
-                            />
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                    <p className="mt-1 text-xs text-muted-foreground">
-                      {aiProgress.message || "Preparando resposta..."}
-                    </p>
-                    {aiProgressActive && aiRemainingSeconds > 0 && (
-                      <p className="mt-1.5 text-[10px] font-medium text-primary">
-                        Tempo estimado: {aiRemainingSeconds}s
-                      </p>
-                    )}
-                  </div>
-                </div>
-              )}
             </div>
           </ScrollArea>
 
@@ -1238,6 +1171,20 @@ export function ActiveChatPane({
                   </Button>
                 </div>
               )}
+
+              {/* Resposta IA Disponível — Componente unificado compacto sobre o composer */}
+              {selectedConversation && (
+                <ZaiAssistantComposer
+                  key={selectedConversation.id}
+                  selectedConversation={selectedConversation}
+                  messages={messages}
+                  handleSendMessage={handleSendMessage}
+                  setMessageInput={setMessageInput}
+                  messageInputRef={messageInputRef}
+                  disabled={!canSendMessages}
+                />
+              )}
+
                {((isTyping === "composing" || isTyping === "recording" || isTyping === true) || suggestingResponse) && (
                 <div className="flex items-center gap-2 px-1 text-xs text-muted-foreground animate-pulse">
                   <div className="flex space-x-1">
@@ -1457,18 +1404,6 @@ export function ActiveChatPane({
                       accept="*/*"
                       onChange={handleAttachFiles}
                     />
-
-                    {selectedConversation && (
-                      <ZaiAssistantComposer
-                        key={selectedConversation.id}
-                        selectedConversation={selectedConversation}
-                        messages={messages}
-                        handleSendMessage={handleSendMessage}
-                        setMessageInput={setMessageInput}
-                        messageInputRef={messageInputRef}
-                        disabled={!canSendMessages}
-                      />
-                    )}
 
                     <textarea
                       ref={messageInputRef}

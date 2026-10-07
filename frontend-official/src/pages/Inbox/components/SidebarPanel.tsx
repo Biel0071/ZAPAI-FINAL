@@ -139,10 +139,10 @@ interface SidebarPanelProps {
 }
 
 const SECTIONS = [
-  { id: "ai", label: "Atendimento", fullLabel: "Atendimento", icon: MessageSquare },
-  { id: "qr", label: "Respostas", fullLabel: "Respostas Rápidas", icon: Zap },
-  { id: "files", label: "Arquivos", fullLabel: "Arquivos", icon: Folder },
-  { id: "history", label: "Histórico", fullLabel: "Histórico", icon: History },
+  { id: "ai", label: "Atendimento", fullLabel: "Atendimento", icon: MessageSquare, iconSrc: "/assets/icons/tabs/tab_atendimento.png" },
+  { id: "qr", label: "Respostas", fullLabel: "Respostas Rápidas", icon: Zap, iconSrc: "/assets/icons/tabs/tab_respostas.png" },
+  { id: "files", label: "Arquivos", fullLabel: "Arquivos", icon: Folder, iconSrc: "/assets/icons/tabs/tab_arquivos.png" },
+  { id: "history", label: "Histórico", fullLabel: "Histórico", icon: History, iconSrc: "/assets/icons/tabs/tab_historico.png" },
 ] as const;
 
 const PRESET_CATEGORY_EMOJIS = ["📁", "⚡", "💬", "🏷️", "🎯", "🚀", "💰", "📦", "⭐", "📌", "💡", "🛡️", "🔔", "📞", "🤝", "🔥"];
@@ -598,20 +598,29 @@ export function SidebarPanel({
             </Button>
           )}
         </div>
-        <TabsList className="grid h-8.5 w-full grid-cols-4 gap-1 bg-muted/50 p-1 rounded-xl border border-border/60">
+        <TabsList className="grid h-14 w-full grid-cols-4 gap-1.5 bg-muted/30 p-1.5 rounded-xl border border-border/60">
           {SECTIONS.map((section) => {
             return (
               <TabsTrigger
                 key={section.id}
                 value={section.id}
                 className={cn(
-                  "flex items-center justify-center py-1 px-0.5 rounded-lg h-6.5 transition-all duration-150",
+                  "flex flex-col items-center justify-center py-1 px-1 rounded-lg h-11 transition-all duration-150 gap-0.5",
                   "text-muted-foreground hover:text-foreground hover:bg-muted/60 border border-transparent",
-                  "data-[state=active]:bg-background data-[state=active]:text-emerald-600 dark:data-[state=active]:text-emerald-400 data-[state=active]:font-semibold data-[state=active]:border-border/60 data-[state=active]:shadow-xs"
+                  "data-[state=active]:bg-card/90 data-[state=active]:text-emerald-400 data-[state=active]:font-semibold data-[state=active]:border-emerald-500/40 data-[state=active]:shadow-xs"
                 )}
                 title={section.fullLabel}
               >
-                <span className="text-[10px] font-medium tracking-tight select-none whitespace-nowrap">
+                <img
+                  src={section.iconSrc}
+                  alt={section.label}
+                  className="h-5 w-5 object-contain shrink-0 drop-shadow-xs"
+                  loading="lazy"
+                  onError={(e) => {
+                    (e.currentTarget as HTMLImageElement).style.display = "none";
+                  }}
+                />
+                <span className="text-[10px] font-medium tracking-tight select-none whitespace-nowrap leading-tight">
                   {section.label}
                 </span>
               </TabsTrigger>
@@ -801,6 +810,7 @@ export function SidebarPanel({
                     <TagIconBadge
                       key={tag}
                       tag={tag}
+                      size="xs"
                       colorClass={getTagColor(tag)}
                       interactive={true}
                       onRemove={() => handleRemoveTagFromSelectedConversation(tag)}
@@ -1545,7 +1555,7 @@ export function SidebarPanel({
                       setRightPanelCollapsed(false);
                     }}
                   >
-                    <section.icon className="h-4 w-4" />
+                    <img src={section.iconSrc} alt={section.label} className="h-5 w-5 object-contain shrink-0" />
                   </Button>
                 </TooltipTrigger>
                 <TooltipContent side="left">{section.label}</TooltipContent>
