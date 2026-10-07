@@ -143,6 +143,70 @@ async function main() {
     console.log('Captured zoom:', tabsZoomPath);
   }
 
+  // 2. Mobile 390x844
+  console.log('Capturing mobile view (390x844)...');
+  const mobileContext = await browser.newContext({
+    viewport: { width: 390, height: 844 },
+    deviceScaleFactor: 2,
+    isMobile: true,
+    hasTouch: true,
+    ignoreHTTPSErrors: true,
+  });
+
+  await mobileContext.addInitScript((jwt) => {
+    const sessionObj = {
+      token: jwt,
+      username: 'zapadmin',
+      role: 'master',
+      tenantId: 'default',
+      companyId: 'default',
+      issuedAt: Date.now(),
+      expiresAt: Date.now() + 86400000 * 7,
+      remember: true,
+    };
+    localStorage.setItem('zapai_admin_auth_session', JSON.stringify(sessionObj));
+    sessionStorage.setItem('zapai_admin_auth_session', JSON.stringify(sessionObj));
+    localStorage.setItem('auth_token', jwt);
+    localStorage.setItem('token', jwt);
+    localStorage.setItem('auth_user', JSON.stringify({ username: 'zapadmin', role: 'master', companyId: 'default' }));
+    localStorage.setItem('theme', 'dark');
+  }, token);
+
+  const mobilePage = await mobileContext.newPage();
+  await mobilePage.goto(`${BASE_URL}/inbox`, { waitUntil: 'domcontentloaded', timeout: 30000 });
+  await mobilePage.waitForTimeout(3000);
+  await loginIfNeeded(mobilePage);
+
+  if (!mobilePage.url().includes('/inbox')) {
+    await mobilePage.goto(`${BASE_URL}/inbox`, { waitUntil: 'domcontentloaded', timeout: 30000 });
+    await mobilePage.waitForTimeout(3000);
+  }
+
+  // Click conversation to open chat
+  const convItem = mobilePage.locator('div[role="button"], div.cursor-pointer').filter({ hasText: /64630768574556|Sueli|Conversa/i }).first();
+  if (await convItem.isVisible()) {
+    await convItem.click();
+    await mobilePage.waitForTimeout(2000);
+  } else {
+    const anyC = mobilePage.locator('[data-testid="conversation-item"], div.cursor-pointer').first();
+    if (await anyC.isVisible()) {
+      await anyC.click();
+      await mobilePage.waitForTimeout(2000);
+    }
+  }
+
+  // Click Painel button in chat header to open drawer
+  const painelBtn = mobilePage.locator('button').filter({ hasText: /Painel|Detalhes/i }).first();
+  if (await painelBtn.isVisible()) {
+    console.log('Clicking Painel button on mobile...');
+    await painelBtn.click();
+    await mobilePage.waitForTimeout(2000);
+  }
+
+  const mobileDrawerPath = path.join(ARTIFACTS_DIR, 'FINAL_INBOX_MOBILE_SQUARE_TABS_390x844.png');
+  await mobilePage.screenshot({ path: mobileDrawerPath, fullPage: false });
+  console.log('Captured mobile drawer:', mobileDrawerPath);
+
   await browser.close();
   console.log('All captures completed successfully!');
 }

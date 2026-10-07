@@ -3,7 +3,7 @@ const path = require('path');
 const crypto = require('crypto');
 const { chromium } = require('../frontend-official/node_modules/@playwright/test/index.js');
 
-const BASE_URL = 'http://209.50.241.22';
+const BASE_URL = 'https://209.50.241.22';
 const USERNAME = 'zapadmin';
 const PASSWORD = 'zapadmin1010';
 const JWT_SECRET = '73d1ef96dde5afc4938e0b71a5978b2666f1885fb0d2febc4bd52cc7a1cd9e15';
