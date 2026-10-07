@@ -139,10 +139,10 @@ interface SidebarPanelProps {
 }
 
 const SECTIONS = [
-  { id: "ai", label: "Atendimento", shortLabel: "Atendimento", emoji: "💬", icon: MessageSquare },
-  { id: "qr", label: "Respostas Rápidas", shortLabel: "Respostas Rápidas", emoji: "⚡", icon: Zap },
-  { id: "files", label: "Arquivos", shortLabel: "Arquivos", emoji: "📁", icon: Folder },
-  { id: "history", label: "Histórico", shortLabel: "Histórico", emoji: "🕘", icon: History },
+  { id: "ai", label: "Atendimento", fullLabel: "Atendimento", icon: MessageSquare },
+  { id: "qr", label: "Respostas", fullLabel: "Respostas Rápidas", icon: Zap },
+  { id: "files", label: "Arquivos", fullLabel: "Arquivos", icon: Folder },
+  { id: "history", label: "Histórico", fullLabel: "Histórico", icon: History },
 ] as const;
 
 const PRESET_CATEGORY_EMOJIS = ["📁", "⚡", "💬", "🏷️", "🎯", "🚀", "💰", "📦", "⭐", "📌", "💡", "🛡️", "🔔", "📞", "🤝", "🔥"];
@@ -598,18 +598,30 @@ export function SidebarPanel({
             </Button>
           )}
         </div>
-        <TabsList className="grid h-10 w-full grid-cols-4 bg-muted/60 p-1">
-          {SECTIONS.map((section) => (
-            <TabsTrigger
-              key={section.id}
-              value={section.id}
-              className="min-w-0 px-0.5 py-1 text-[10px] sm:text-xs font-medium tracking-tight data-[state=active]:bg-background data-[state=active]:shadow-sm truncate flex items-center justify-center gap-1"
-              title={section.label}
-            >
-              <span aria-hidden="true" className="shrink-0">{section.emoji}</span>
-              <span className="truncate">{section.label}</span>
-            </TabsTrigger>
-          ))}
+        <TabsList className="grid h-auto w-full grid-cols-4 gap-1.5 bg-muted/40 p-1.5 rounded-xl border border-border/50">
+          {SECTIONS.map((section) => {
+            const Icon = section.icon;
+            return (
+              <TabsTrigger
+                key={section.id}
+                value={section.id}
+                className={cn(
+                  "group relative flex flex-col items-center justify-center gap-1.5 py-2 px-1 rounded-lg transition-all duration-200",
+                  "min-h-[58px] aspect-[1/0.95] sm:aspect-square",
+                  "text-muted-foreground hover:text-foreground hover:bg-muted/50 border border-transparent",
+                  "data-[state=active]:bg-background data-[state=active]:text-emerald-400 data-[state=active]:border-emerald-500/30 data-[state=active]:shadow-sm data-[state=active]:shadow-emerald-950/20"
+                )}
+                title={section.fullLabel}
+              >
+                <div className="flex h-5 w-5 items-center justify-center rounded-md transition-transform duration-200 group-hover:scale-110">
+                  <Icon className="h-4 w-4 shrink-0 transition-colors" />
+                </div>
+                <span className="text-[10px] sm:text-[11px] font-medium tracking-tight text-center leading-none truncate w-full px-0.5">
+                  {section.label}
+                </span>
+              </TabsTrigger>
+            );
+          })}
         </TabsList>
       </div>
 

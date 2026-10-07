@@ -29,4 +29,5 @@ async function processHumanAttendanceLearning(companyId = 'default') {
 
 module.exports = {
   processHumanAttendanceLearning,
+  runHumanAttendanceLearningCycle: processHumanAttendanceLearning,
 };

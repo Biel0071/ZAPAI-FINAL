@@ -53,7 +53,8 @@ import { ZaiAvatarRenderer } from "@/components/avatar-engine/ZaiAvatarRenderer"
 import { AttendantItemCard } from "@/components/attendants/AttendantItemCard";
 import { AddAttendantCard } from "@/components/attendants/AddAttendantCard";
 import { EXAMPLE_ATTENDANTS } from "@/components/attendants/exampleAttendants";
-import { Pagination } from "@/components/ui/Pagination";
+import { Pagination } from "@/components/ui/pagination";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import { createAgentAvatar, buildStoreVisualDNA, resolveSpriteForAvatar, applyStylePreset } from "@/components/avatar-engine/CharacterFactory";
 import {
   AVATAR_HAIRS,
@@ -728,7 +729,7 @@ export default function AttendantsPage() {
                   onClick={() => setAttendantPage((p) => Math.max(1, p - 1))}
                   aria-label="Atendentes anteriores"
                 >
-                  <CaretLeft className="h-3.5 w-3.5" />
+                  <ChevronLeft className="h-3.5 w-3.5" />
                 </Button>
                 <span className="text-[11px] font-mono text-muted-foreground px-1">
                   {attendantPage} / {totalAttendantPages}
@@ -741,7 +742,7 @@ export default function AttendantsPage() {
                   onClick={() => setAttendantPage((p) => Math.min(totalAttendantPages, p + 1))}
                   aria-label="Próximos atendentes"
                 >
-                  <CaretRight className="h-3.5 w-3.5" />
+                  <ChevronRight className="h-3.5 w-3.5" />
                 </Button>
               </div>
             )}

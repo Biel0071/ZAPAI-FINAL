@@ -3,28 +3,42 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 import { cn } from "@/core/lib/utils";
 
 export interface PaginationProps {
-  currentPage: number;
-  totalPages: number;
+  currentPage?: number;
+  totalPages?: number;
   pageSize?: number;
-  onPageChange: (page: number) => void;
+  onPageChange?: (page: number) => void;
   className?: string;
+  children?: React.ReactNode;
 }
 
 export const Pagination: React.FC<PaginationProps> = ({
-  currentPage,
-  totalPages,
+  currentPage = 1,
+  totalPages = 1,
   pageSize,
   onPageChange,
   className,
+  children,
 }) => {
+  if (children) {
+    return (
+      <nav
+        role="navigation"
+        aria-label="Paginação"
+        className={cn("mx-auto flex w-full justify-center", className)}
+      >
+        {children}
+      </nav>
+    );
+  }
+
   if (totalPages <= 1) return null;
 
   const handlePrev = () => {
-    if (currentPage > 1) onPageChange(currentPage - 1);
+    if (currentPage > 1 && onPageChange) onPageChange(currentPage - 1);
   };
 
   const handleNext = () => {
-    if (currentPage < totalPages) onPageChange(currentPage + 1);
+    if (currentPage < totalPages && onPageChange) onPageChange(currentPage + 1);
   };
 
   // Generate page numbers with ellipsis for desktop

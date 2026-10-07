@@ -50,7 +50,7 @@ describe("Painel do Inbox", () => {
   });
   it("distingue ativação global da permissão da conversa e permite sugestão manual", async () => {
     const props = createProps(); await renderPanel(<SidebarPanel {...props} />);
-    expect([...document.querySelectorAll('[role="tab"]')].map(tab => tab.textContent)).toEqual(["💬Atendimento", "⚡Respostas Rápidas", "📁Arquivos", "🕘Histórico"]);
+    expect([...document.querySelectorAll('[role="tab"]')].map(tab => tab.textContent)).toEqual(["Atendimento", "Respostas", "Arquivos", "Histórico"]);
     expect(document.getElementById("conversation-ai-toggle")).toHaveAttribute("aria-checked", "true");
     expect(document.body.textContent).toContain("IA global pausada");
     expect(button("Sugerir resposta")).not.toBeDisabled(); await click(button("Sugerir resposta"));
