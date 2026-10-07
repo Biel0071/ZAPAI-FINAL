@@ -125,20 +125,14 @@ async function main() {
   console.log('Page URL:', page.url());
 
   // Wait for conversation list to be rendered
-  await page.waitForSelector('div.cursor-pointer, [role="tablist"]', { timeout: 15000 }).catch(() => {});
+  await page.waitForSelector('.inbox-message', { timeout: 15000 }).catch(() => {});
 
-  // Click on a conversation item (e.g. Sueli or first item)
-  const convItem = page.locator('div.cursor-pointer').filter({ hasText: /Sueli|Conversa|\d{10,}/ }).first();
-  if (await convItem.isVisible()) {
-    console.log('Clicking conversation item...');
-    await convItem.click();
+  // Click on a conversation item
+  const convItem = page.locator('.inbox-message').first();
+  if (await convItem.count() > 0) {
+    console.log('Clicking conversation item (.inbox-message)...');
+    await convItem.click({ force: true });
     await page.waitForTimeout(3000);
-  } else {
-    const fallbackItem = page.locator('div[role="button"].cursor-pointer, .border-b div.cursor-pointer').first();
-    if (await fallbackItem.isVisible()) {
-      await fallbackItem.click();
-      await page.waitForTimeout(3000);
-    }
   }
 
   // Ensure right panel is visible
@@ -211,18 +205,22 @@ async function main() {
   await mobilePage.waitForTimeout(3000);
   await loginIfNeeded(mobilePage);
 
-  const mobConv = mobilePage.locator('div.cursor-pointer').filter({ hasText: /Sueli|Conversa|\d{10,}/ }).first();
-  if (await mobConv.isVisible()) {
-    console.log('Clicking mobile conversation...');
-    await mobConv.click({ force: true });
-    await mobilePage.waitForTimeout(2000);
-  }
-
   const painelBtn = mobilePage.locator('button[aria-label="Abrir painel da conversa"]').first();
-  if (await painelBtn.count() > 0) {
-    console.log('Clicking mobile panel button...');
+  if (await painelBtn.count() > 0 && await painelBtn.isVisible()) {
+    console.log('Chat already open on mobile, clicking panel button...');
     await painelBtn.click({ force: true });
     await mobilePage.waitForTimeout(2500);
+  } else {
+    const mobConv = mobilePage.locator('.inbox-message').first();
+    if (await mobConv.count() > 0 && await mobConv.isVisible()) {
+      console.log('Clicking mobile conversation (.inbox-message)...');
+      await mobConv.click({ force: true });
+      await mobilePage.waitForTimeout(2000);
+      if (await painelBtn.count() > 0) {
+        await painelBtn.click({ force: true });
+        await mobilePage.waitForTimeout(2500);
+      }
+    }
   }
 
   await saveMultiScreenshot(mobilePage, 'VERIFIED_INBOX_MOBILE_DRAWER_390x844.png');
