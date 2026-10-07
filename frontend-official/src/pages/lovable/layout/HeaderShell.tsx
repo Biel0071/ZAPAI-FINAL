@@ -72,29 +72,37 @@ export function HeaderShell({
   const notificationsList = [
     {
       id: "notif-1",
-      title: "Painel Operacional Compacto",
-      desc: "Navegação segmentada ágil, Atendimento IA e Dados do Cliente integrados.",
+      title: "Painel Operacional da Conversa",
+      desc: "Navegação segmentada ágil (Atendimento, Respostas, Arquivos, Histórico) e Dados do Cliente integrados.",
       tag: "Atualização",
-      tagColor: "bg-emerald-500/10 text-emerald-500 border-emerald-500/30",
-      time: "Hoje",
+      tagColor: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30",
+      time: "v2.8",
     },
     {
       id: "notif-2",
       title: "Modo Claro & Escuro Refinados",
-      desc: "Contraste de alto nível nos balões de chat, cartões de mídia e painéis.",
+      desc: "Alto contraste nos balões de chat, cartões de mídia, status e painéis enterprise.",
       tag: "Design",
-      tagColor: "bg-blue-500/10 text-blue-400 border-blue-500/30",
-      time: "Hoje",
+      tagColor: "bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/30",
+      time: "Design",
     },
     {
       id: "notif-3",
       title: "WhatsApp & IA Ativos",
       desc: runtimeTone === "online"
-        ? "Sessão conectada e sincronizando mensagens em tempo real."
-        : "Sistema monitorando o status das conexões Baileys.",
+        ? "Sessão conectada e sincronizando mensagens em tempo real via Baileys."
+        : "Sistema monitorando o status das conexões Baileys e automações.",
       tag: "Status",
-      tagColor: runtimeTone === "online" ? "bg-emerald-500/10 text-emerald-500 border-emerald-500/30" : "bg-amber-500/10 text-amber-500 border-amber-500/30",
+      tagColor: runtimeTone === "online" ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30" : "bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/30",
       time: "Agora",
+    },
+    {
+      id: "notif-4",
+      title: "Responsividade Automática",
+      desc: "Adaptação de viewport automática via CSS e gaveta lateral em dispositivos móveis.",
+      tag: "Sistema",
+      tagColor: "bg-purple-500/10 text-purple-600 dark:text-purple-400 border-purple-500/30",
+      time: "Auto",
     },
   ];
 

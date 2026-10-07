@@ -269,7 +269,7 @@ export const MessageRow = memo(function MessageRow({
             "chat-bubble text-left transition-all duration-150",
             message.fromMe
               ? (isAiMessage
-                  ? "bg-emerald-950/90 border border-emerald-500/60 text-emerald-50 shadow-md shadow-emerald-950/50"
+                  ? "chat-bubble-ai-sent"
                   : "chat-bubble-sent")
               : "chat-bubble-received"
           )}
@@ -387,7 +387,7 @@ export const MessageRow = memo(function MessageRow({
                     <div
                       role="button"
                       tabIndex={0}
-                      className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full hover:bg-white/5"
+                      className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full hover:bg-muted dark:hover:bg-white/5 transition-colors"
                       onClick={() => onToggleAudio(message.id, mediaUrl)}
                       onKeyDown={(event) => {
                         if (event.key === "Enter" || event.key === " ") {
@@ -413,7 +413,7 @@ export const MessageRow = memo(function MessageRow({
                         type="button"
                         disabled={isTranscribing}
                         onClick={handleTranscribe}
-                        className="flex items-center justify-center gap-1.5 rounded-full border border-blue-500/50 bg-blue-500/10 px-4 py-1 text-xs font-semibold text-blue-400 transition-all hover:bg-blue-500/20 hover:text-blue-300 disabled:opacity-50"
+                        className="flex items-center justify-center gap-1.5 rounded-full border border-blue-500/50 bg-blue-500/10 px-4 py-1 text-xs font-semibold text-blue-600 dark:text-blue-400 transition-all hover:bg-blue-500/20 hover:text-blue-700 dark:hover:text-blue-300 disabled:opacity-50"
                       >
                         <span className="text-xs">Mic</span>
                         {isTranscribing ? "Transcrevendo..." : "Transcrever"}
@@ -423,14 +423,14 @@ export const MessageRow = memo(function MessageRow({
 
                   {/* Transcription text display */}
                   {transcription && (
-                    <div className="mt-1 border-t border-white/10 pt-2 flex items-start justify-between gap-2">
+                    <div className="mt-1 border-t border-border/60 dark:border-white/10 pt-2 flex items-start justify-between gap-2">
                       <p className="text-xs text-foreground/90 whitespace-pre-wrap leading-normal font-sans text-left break-words flex-1">
                         {transcription}
                       </p>
                       <button
                         type="button"
                         onClick={handleCopyTranscription}
-                        className="p-1 text-muted-foreground hover:text-foreground hover:bg-white/5 rounded transition-colors shrink-0"
+                        className="p-1 text-muted-foreground hover:text-foreground hover:bg-muted dark:hover:bg-white/5 rounded transition-colors shrink-0"
                         title="Copiar Transcrição"
                       >
                         <CopySimple className="h-3.5 w-3.5" />

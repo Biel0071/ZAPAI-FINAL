@@ -499,7 +499,7 @@ export function SidebarPanel({
     ? "IA global pausada"
     : !aiRuntime.aiOn
     ? "Provedor indisponível"
-    : "Atendimento humano";
+    : "IA pausada nesta conversa";
 
   const chooseReply = (reply: QuickReplyItem) => {
     const entries = reply.isFlow ? reply.steps ?? [] : reply.items ?? [];
@@ -641,8 +641,8 @@ export function SidebarPanel({
                       ATIVA
                     </span>
                   ) : (
-                    <span className="inline-flex items-center gap-1 rounded-full border border-border/80 bg-muted/60 px-2 py-0.5 text-[10px] font-semibold text-muted-foreground">
-                      <span className="h-1.5 w-1.5 rounded-full bg-muted-foreground/60" />
+                    <span className="inline-flex items-center gap-1 rounded-full border border-rose-500/20 bg-rose-500/10 px-2 py-0.5 text-[10px] font-semibold text-rose-600 dark:text-rose-400">
+                      <span className="h-1.5 w-1.5 rounded-full bg-rose-500" />
                       PAUSADA
                     </span>
                   )}

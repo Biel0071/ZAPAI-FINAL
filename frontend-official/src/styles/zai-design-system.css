@@ -319,6 +319,32 @@ html.light .chat-bubble-sent,
   box-shadow: 0 1px 1px rgba(0, 0, 0, 0.08) !important;
 }
 
+html.light .chat-bubble-ai-sent,
+.light .chat-bubble-ai-sent {
+  background: #dcfce7 !important;
+  color: #064e3b !important;
+  border: 1px solid rgba(16, 185, 129, 0.45) !important;
+  box-shadow: 0 1px 2px rgba(16, 185, 129, 0.12) !important;
+  margin-left: auto;
+  border-top-left-radius: 8px !important;
+  border-top-right-radius: 0px !important;
+  border-bottom-left-radius: 8px !important;
+  border-bottom-right-radius: 8px !important;
+}
+
+.dark .chat-bubble-ai-sent,
+:root:not(.light) .chat-bubble-ai-sent {
+  background: linear-gradient(135deg, rgba(6, 78, 59, 0.95) 0%, rgba(4, 47, 36, 0.95) 100%) !important;
+  color: #ecfdf5 !important;
+  border: 1px solid rgba(16, 185, 129, 0.55) !important;
+  box-shadow: 0 2px 8px rgba(6, 78, 59, 0.4) !important;
+  margin-left: auto;
+  border-top-left-radius: 8px !important;
+  border-top-right-radius: 0px !important;
+  border-bottom-left-radius: 8px !important;
+  border-bottom-right-radius: 8px !important;
+}
+
 html.light .chat-bubble-received,
 .light .chat-bubble-received {
   background: #ffffff !important;

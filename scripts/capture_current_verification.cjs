@@ -9,6 +9,7 @@ const PASSWORD = 'zapadmin1010';
 const JWT_SECRET = '73d1ef96dde5afc4938e0b71a5978b2666f1885fb0d2febc4bd52cc7a1cd9e15';
 
 const OUTPUT_DIRS = [
+  'C:/Users/Dell/.gemini/antigravity/brain/7f486f9b-fe01-4614-8a9f-6d3f8a5ec485',
   'C:/Users/Dell/.gemini/antigravity/brain/0356c0e1-b21c-4dcb-81eb-1329a66527b2',
   'C:/Users/Dell/.gemini/antigravity/brain/578a7157-8bf3-47e3-82f2-9ed1bb8f9f40'
 ];
