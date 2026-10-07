@@ -690,7 +690,7 @@ export default function Inbox() {
         }
         rightPanel={!state.isTabletLayout ? <SidebarPanel {...sidebarProps} /> : null}
         tabletLeadSheet={
-          state.isTabletLayout ? (
+          (state.isTabletLayout || state.isMobile) ? (
             <Sheet open={state.showLeadPanel} onOpenChange={state.setShowLeadPanel}>
               <SheetContent 
                 side="right" 

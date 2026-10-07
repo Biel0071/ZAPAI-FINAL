@@ -605,13 +605,13 @@ export function SidebarPanel({
                 key={section.id}
                 value={section.id}
                 className={cn(
-                  "flex items-center justify-center py-1 px-1 rounded-lg h-6.5 transition-all duration-150",
+                  "flex items-center justify-center py-1 px-0.5 rounded-lg h-6.5 transition-all duration-150",
                   "text-muted-foreground hover:text-foreground hover:bg-muted/60 border border-transparent",
                   "data-[state=active]:bg-background data-[state=active]:text-emerald-600 dark:data-[state=active]:text-emerald-400 data-[state=active]:font-semibold data-[state=active]:border-border/60 data-[state=active]:shadow-xs"
                 )}
                 title={section.fullLabel}
               >
-                <span className="truncate text-[10.5px] font-medium tracking-tight select-none">
+                <span className="truncate text-[9.5px] sm:text-[11px] font-medium tracking-tight select-none">
                   {section.label}
                 </span>
               </TabsTrigger>
