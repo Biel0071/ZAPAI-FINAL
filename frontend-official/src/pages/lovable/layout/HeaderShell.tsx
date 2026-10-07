@@ -1,11 +1,11 @@
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import { useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { OperationalStatusBadge } from "@/components/enterprise/OperationalStatusBadge";
 import { useTheme } from "next-themes";
-import { Bell, MagnifyingGlass, Moon, Sun, Plus, User, ArrowClockwise, Info, Gear, Users } from "@phosphor-icons/react";
+import { Bell, MagnifyingGlass, Moon, Sun, Plus, User, ArrowClockwise, Info, Gear, Users, CheckCircle, Sparkle, ChatCircleDots } from "@phosphor-icons/react";
 import {
   Tooltip,
   TooltipContent,
@@ -21,12 +21,8 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useAppStore } from "@/state/stores/appStore";
-import { useViewMode, setViewMode } from "@/state/hooks/use-mobile";
-import { usePwaInstall } from "@/state/hooks/usePwaInstall";
 import { useToast } from "@/state/hooks/use-toast";
-import { Smartphone, Monitor, Laptop, Download } from "lucide-react";
 import { cn } from "@/core/lib/utils";
-import { FloatingMascotAssistant } from "@/components/ai/FloatingMascotAssistant";
 
 export interface HeaderShellProps {
   title: string;
@@ -65,14 +61,42 @@ export function HeaderShell({
   const activeSessionId = useAppStore((state) => state.activeSessionId);
   const setActiveSessionId = useAppStore((state) => state.setActiveSessionId);
   const setIsNewChatDialogOpen = useAppStore((state) => state.setIsNewChatDialogOpen);
-  const [viewMode] = useViewMode();
-  const { canInstall, isInstalled, promptInstall } = usePwaInstall();
+  const [unreadNotifications, setUnreadNotifications] = useState(true);
   const { toast } = useToast();
   const isDark = theme !== "light";
 
   const isAdminPage = ["/nodes", "/users", "/deployments", "/memory", "/logs", "/versions"].some(
     (path) => location.pathname.startsWith(path)
   );
+
+  const notificationsList = [
+    {
+      id: "notif-1",
+      title: "Painel Operacional Compacto",
+      desc: "Navegação segmentada ágil, Atendimento IA e Dados do Cliente integrados.",
+      tag: "Atualização",
+      tagColor: "bg-emerald-500/10 text-emerald-500 border-emerald-500/30",
+      time: "Hoje",
+    },
+    {
+      id: "notif-2",
+      title: "Modo Claro & Escuro Refinados",
+      desc: "Contraste de alto nível nos balões de chat, cartões de mídia e painéis.",
+      tag: "Design",
+      tagColor: "bg-blue-500/10 text-blue-400 border-blue-500/30",
+      time: "Hoje",
+    },
+    {
+      id: "notif-3",
+      title: "WhatsApp & IA Ativos",
+      desc: runtimeTone === "online"
+        ? "Sessão conectada e sincronizando mensagens em tempo real."
+        : "Sistema monitorando o status das conexões Baileys.",
+      tag: "Status",
+      tagColor: runtimeTone === "online" ? "bg-emerald-500/10 text-emerald-500 border-emerald-500/30" : "bg-amber-500/10 text-amber-500 border-amber-500/30",
+      time: "Agora",
+    },
+  ];
 
   return (
     <header className="sticky top-0 z-40 shrink-0 border-b border-border/70 bg-card/60 backdrop-blur-xl">
@@ -143,86 +167,6 @@ export function HeaderShell({
         </div>
 
         <div className="flex shrink-0 items-center gap-1 md:gap-2">
-          {location.pathname.startsWith("/inbox") && (
-            <div className="hidden sm:inline-flex shrink-0">
-              <FloatingMascotAssistant inline />
-            </div>
-          )}
-          {/* Mobile / Desktop View Mode Switcher */}
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-8 w-8 text-muted-foreground hover:text-foreground transition-all"
-                title={`Modo de visualização: ${viewMode}`}
-                aria-label="Alternar modo de visualização (Mobile / Desktop)"
-              >
-                {viewMode === "mobile" ? (
-                  <Smartphone className="h-4 w-4 text-emerald-400" />
-                ) : viewMode === "desktop" ? (
-                  <Monitor className="h-4 w-4 text-indigo-400" />
-                ) : (
-                  <Laptop className="h-4 w-4 text-muted-foreground" />
-                )}
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-48 border-border/80 bg-popover/95 backdrop-blur-xl shadow-xl">
-              <DropdownMenuLabel className="text-xs font-semibold">Modo de Exibição</DropdownMenuLabel>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem
-                onClick={() => setViewMode("mobile")}
-                className={cn("cursor-pointer text-xs flex items-center justify-between", viewMode === "mobile" && "text-emerald-400 font-bold bg-emerald-500/10")}
-              >
-                <span className="flex items-center gap-2">
-                  <Smartphone className="h-4 w-4" /> Modo Mobile
-                </span>
-                {viewMode === "mobile" && <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />}
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                onClick={() => setViewMode("desktop")}
-                className={cn("cursor-pointer text-xs flex items-center justify-between", viewMode === "desktop" && "text-indigo-400 font-bold bg-indigo-500/10")}
-              >
-                <span className="flex items-center gap-2">
-                  <Monitor className="h-4 w-4" /> Modo Desktop
-                </span>
-                {viewMode === "desktop" && <span className="h-1.5 w-1.5 rounded-full bg-indigo-400" />}
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                onClick={() => setViewMode("auto")}
-                className={cn("cursor-pointer text-xs flex items-center justify-between", viewMode === "auto" && "text-primary font-bold bg-primary/10")}
-              >
-                <span className="flex items-center gap-2">
-                  <Laptop className="h-4 w-4" /> Automático (Tela)
-                </span>
-                {viewMode === "auto" && <span className="h-1.5 w-1.5 rounded-full bg-primary" />}
-              </DropdownMenuItem>
-
-              {!isInstalled && canInstall && (
-                <>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem
-                    onClick={async () => {
-                      const res = await promptInstall();
-                      if (res === "accepted") {
-                        toast({ title: "App Instalado", description: "ZAI CRM foi adicionado à sua tela inicial!" });
-                      } else if (res === "manual_ios") {
-                        toast({
-                          title: "Instalar no iPhone / iPad",
-                          description: "Toque no botão Compartilhar do Safari e selecione 'Adicionar à Tela de Início'.",
-                          duration: 8000,
-                        });
-                      }
-                    }}
-                    className="cursor-pointer text-xs flex items-center gap-2 text-emerald-400 font-semibold"
-                  >
-                    <Download className="h-4 w-4" /> Instalar App (PWA)
-                  </DropdownMenuItem>
-                </>
-              )}
-            </DropdownMenuContent>
-          </DropdownMenu>
-
           {/* Light / Dark Theme Switcher */}
           <Button
             variant="ghost"
@@ -238,18 +182,63 @@ export function HeaderShell({
             )}
           </Button>
 
-          <DropdownMenu>
+          {/* Interactive Notifications Popover */}
+          <DropdownMenu onOpenChange={(open) => { if (open) setUnreadNotifications(false); }}>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon" aria-label="Notificações" className="relative h-8 w-8 text-muted-foreground hover:text-foreground">
+              <Button
+                variant="ghost"
+                size="icon"
+                aria-label="Notificações"
+                className="relative h-8 w-8 text-muted-foreground hover:text-foreground"
+                title="Notificações e Atualizações do Sistema"
+              >
                 <Bell className="h-4 w-4" />
+                {unreadNotifications && (
+                  <span className="absolute top-1.5 right-1.5 h-2 w-2 rounded-full bg-emerald-500 ring-2 ring-background animate-pulse" />
+                )}
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-72 border-border/80 bg-popover/90 backdrop-blur-xl">
-              <DropdownMenuLabel className="text-xs">Notificações</DropdownMenuLabel>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem className="py-2.5 text-sm text-muted-foreground" disabled>
-                Sem eventos operacionais recentes
-              </DropdownMenuItem>
+            <DropdownMenuContent align="end" className="w-80 border-border/80 bg-popover/95 backdrop-blur-xl shadow-xl p-0">
+              <div className="flex items-center justify-between border-b border-border/60 px-3.5 py-2.5">
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-bold text-foreground">Notificações</span>
+                  <span className="rounded-full bg-primary/10 px-1.5 py-0.5 text-[10px] font-semibold text-primary">
+                    v2.8
+                  </span>
+                </div>
+                {unreadNotifications ? (
+                  <button
+                    type="button"
+                    onClick={() => setUnreadNotifications(false)}
+                    className="text-[11px] text-muted-foreground hover:text-foreground transition-colors"
+                  >
+                    Marcar como lidas
+                  </button>
+                ) : (
+                  <span className="text-[10px] text-muted-foreground">Tudo atualizado</span>
+                )}
+              </div>
+
+              <div className="max-h-80 overflow-y-auto divide-y divide-border/40 p-1">
+                {notificationsList.map((item) => (
+                  <div key={item.id} className="p-2.5 hover:bg-muted/40 rounded-lg transition-colors">
+                    <div className="flex items-center justify-between gap-1 mb-1">
+                      <span className="text-xs font-semibold text-foreground truncate">{item.title}</span>
+                      <span className={cn("text-[9.5px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded border", item.tagColor)}>
+                        {item.tag}
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-muted-foreground leading-relaxed">{item.desc}</p>
+                    <span className="mt-1 block text-[10px] text-muted-foreground/60">{item.time}</span>
+                  </div>
+                ))}
+              </div>
+
+              <div className="border-t border-border/60 bg-muted/20 px-3 py-2 text-center">
+                <p className="text-[10px] text-muted-foreground">
+                  ZAPFLOW AI • Sistema Operacional e Conectado
+                </p>
+              </div>
             </DropdownMenuContent>
           </DropdownMenu>
 

@@ -598,7 +598,7 @@ export function SidebarPanel({
             </Button>
           )}
         </div>
-        <TabsList className="grid h-auto w-full grid-cols-4 gap-1 bg-muted/40 p-1 rounded-xl border border-border/50">
+        <TabsList className="grid h-9 w-full grid-cols-4 gap-1 bg-muted/50 p-1 rounded-xl border border-border/60">
           {SECTIONS.map((section) => {
             const Icon = section.icon;
             return (
@@ -606,17 +606,14 @@ export function SidebarPanel({
                 key={section.id}
                 value={section.id}
                 className={cn(
-                  "group relative flex flex-col items-center justify-center gap-1 py-1.5 px-0.5 rounded-lg transition-all duration-200",
-                  "min-h-[56px] aspect-[1/0.95] sm:aspect-square",
-                  "text-muted-foreground hover:text-foreground hover:bg-muted/50 border border-transparent",
-                  "data-[state=active]:bg-background data-[state=active]:text-emerald-400 data-[state=active]:border-emerald-500/30 data-[state=active]:shadow-sm data-[state=active]:shadow-emerald-950/20"
+                  "group relative flex items-center justify-center gap-1.5 py-1 px-1 rounded-lg h-7 transition-all duration-150",
+                  "text-muted-foreground hover:text-foreground hover:bg-muted/60 border border-transparent",
+                  "data-[state=active]:bg-background data-[state=active]:text-emerald-600 dark:data-[state=active]:text-emerald-400 data-[state=active]:font-semibold data-[state=active]:border-border/60 data-[state=active]:shadow-xs"
                 )}
                 title={section.fullLabel}
               >
-                <div className="flex h-5 w-5 items-center justify-center rounded-md transition-transform duration-200 group-hover:scale-110">
-                  <Icon className="h-4 w-4 shrink-0 transition-colors" />
-                </div>
-                <span className="text-[9.5px] xl:text-[10.5px] font-medium tracking-tight text-center leading-none select-none">
+                <Icon className="h-3.5 w-3.5 shrink-0 transition-colors group-hover:scale-105" />
+                <span className="truncate text-[11px] sm:text-xs tracking-tight select-none">
                   {section.label}
                 </span>
               </TabsTrigger>
@@ -625,98 +622,111 @@ export function SidebarPanel({
         </TabsList>
       </div>
 
-      <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-contain p-3 sm:p-4 text-sm scrollbar-thin">
+      <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-contain p-3 sm:p-3.5 text-sm scrollbar-thin">
         {/* TAB 1: UNIFIED ATENDIMENTO & CLIENTE */}
-        <TabsContent value="ai" className="m-0 space-y-5">
+        <TabsContent value="ai" className="m-0 space-y-3">
           <InboxSectionBoundary fallbackLabel="Atendimento">
-            {/* Box 1: Atendimento Controls */}
-            <section className="space-y-4 rounded-xl border border-border/60 bg-card/40 p-3.5">
-              <div className="flex items-start justify-between gap-2">
-                <div>
-                  <h3 className="font-semibold">Atendimento</h3>
-                  <p className={cn("mt-1 text-xs", isWhatsappConnected ? "text-emerald-500" : "text-amber-500")}>
-                    WhatsApp {isWhatsappConnected ? "conectado" : "desconectado"}
-                  </p>
+            {/* Box 1: ATENDIMENTO IA (Compact Operational Block) */}
+            <section className="space-y-2.5 rounded-xl border border-border/70 bg-card/60 p-3 shadow-xs">
+              {/* Header: Title + Status Badge */}
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-1.5">
+                  <Bot className="h-4 w-4 text-emerald-500" />
+                  <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
+                    Atendimento IA
+                  </span>
                 </div>
-                <Badge
-                  variant="outline"
-                  className={cn(
-                    "shrink-0 text-xs",
-                    aiEnabledForConversation ? "border-emerald-500/30 text-emerald-500" : "text-muted-foreground"
+                <div>
+                  {aiEnabledForConversation ? (
+                    <span className="inline-flex items-center gap-1 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2 py-0.5 text-[10px] font-bold text-emerald-600 dark:text-emerald-400">
+                      <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                      ATIVA
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center gap-1 rounded-full border border-border/80 bg-muted/60 px-2 py-0.5 text-[10px] font-semibold text-muted-foreground">
+                      <span className="h-1.5 w-1.5 rounded-full bg-muted-foreground/60" />
+                      PAUSADA
+                    </span>
                   )}
-                >
-                  {aiEnabledForConversation ? "IA ativa" : "Humano"}
-                </Badge>
+                </div>
               </div>
 
+              <div className="border-t border-border/50" />
+
+              {/* Row: IA nesta conversa + Real Switch */}
               <div className="flex items-center justify-between gap-3">
                 <label htmlFor="conversation-ai-toggle" className="min-w-0 cursor-pointer">
-                  <span className="block text-sm font-medium">Permitir IA nesta conversa</span>
-                  <span className="mt-0.5 block text-xs leading-relaxed text-muted-foreground">{aiStatus}</span>
+                  <span className="block text-xs font-semibold text-foreground">IA nesta conversa</span>
+                  <span className="mt-0.5 block text-[11px] leading-tight text-muted-foreground">{aiStatus}</span>
                 </label>
                 <Switch
                   id="conversation-ai-toggle"
                   checked={conversationAiOverrideEnabled}
                   onCheckedChange={handleSetConversationAiEnabled}
                   disabled={updatingAiToggle || aiRuntime.loading}
+                  aria-label="Ativar ou pausar IA nesta conversa"
                 />
               </div>
 
-              <div className="space-y-1.5">
-                <label htmlFor="conversation-agent" className="text-xs font-medium text-muted-foreground">
-                  Agente responsável
+              {/* Row: Atendente responsável */}
+              <div className="space-y-1">
+                <label htmlFor="conversation-agent" className="block text-xs font-medium text-muted-foreground">
+                  Atendente responsável
                 </label>
                 <select
                   id="conversation-agent"
                   value={agentName}
                   onChange={(event) => void handleSetConversationAgent?.(event.target.value)}
                   disabled={loadingAgents || !handleSetConversationAgent || aiAgents.length === 0}
-                  className="h-10 w-full rounded-lg border border-border bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                  className="h-8.5 w-full rounded-lg border border-border/80 bg-background/80 px-2.5 text-xs font-medium text-foreground hover:border-border focus:outline-none focus:ring-1 focus:ring-primary backdrop-blur-sm transition-colors"
                 >
-                  <option value="">Agente padrão da conexão</option>
+                  <option value="" className="bg-background text-foreground">Agente padrão da conexão</option>
                   {agentName && !aiAgents.some((agent) => agent.name === agentName) && (
-                    <option value={agentName}>{agentName}</option>
+                    <option value={agentName} className="bg-background text-foreground">{agentName}</option>
                   )}
                   {aiAgents.map((agent) => (
-                    <option key={agent.id || agent.name} value={agent.name}>
+                    <option key={agent.id || agent.name} value={agent.name} className="bg-background text-foreground">
                       {agent.name}
                       {agent.active === false ? " (pausado)" : ""}
                     </option>
                   ))}
                 </select>
                 {!loadingAgents && aiAgents.length === 0 && (
-                  <p className="text-xs text-muted-foreground">Cadastre um agente em IA & Automação.</p>
+                  <p className="text-[10px] text-muted-foreground">Cadastre um agente em IA & Automação.</p>
                 )}
               </div>
 
-              <div className="border-t border-border/50 pt-3">
+              {/* Compact Sugerir Resposta Button */}
+              <div className="pt-0.5">
                 <Button
-                  className="h-auto min-h-10 w-full gap-2 py-2 text-sm"
+                  size="sm"
+                  variant="outline"
+                  className="h-8 w-full gap-1.5 rounded-lg border-border/80 text-xs font-medium hover:bg-muted/50 transition-colors"
                   disabled={aiRuntime.loading || !aiRuntime.providerReady || suggestingResponse || !hasCustomerMessage}
                   onClick={() => void handleSuggestResponse()}
                 >
-                  <Bot className="h-4 w-4" />
+                  <Bot className="h-3.5 w-3.5 text-primary" />
                   {suggestingResponse ? "Preparando sugestão…" : "Sugerir resposta"}
                 </Button>
-                <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
-                  {!hasCustomerMessage
-                    ? "Aguarde uma mensagem de texto do cliente para gerar uma sugestão."
-                    : !aiRuntime.providerReady && !aiRuntime.loading
-                    ? "Configure um provedor de IA para gerar sugestões."
-                    : "A sugestão entra no rascunho para sua revisão, mesmo com o atendimento automático pausado."}
-                </p>
+                {!hasCustomerMessage ? (
+                  <p className="mt-1 text-[10px] text-muted-foreground/80">
+                    Aguarde uma mensagem do cliente para gerar sugestão.
+                  </p>
+                ) : null}
               </div>
             </section>
 
-            {/* Box 2: Dados do Cliente */}
-            <section className="space-y-3 rounded-xl border border-border/60 bg-card/40 p-3.5">
+            {/* Box 2: DADOS DO CLIENTE (Directly Below, Zero Waste) */}
+            <section className="space-y-2.5 rounded-xl border border-border/70 bg-card/60 p-3 shadow-xs">
               <div className="flex items-center justify-between">
-                <h3 className="font-semibold text-sm">Dados do Cliente</h3>
+                <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
+                  Dados do Cliente
+                </span>
                 {selectedConversation.phone && (
                   <Button
                     size="sm"
                     variant="ghost"
-                    className="h-7 gap-1 px-2 text-xs text-muted-foreground hover:text-foreground"
+                    className="h-6 gap-1 px-2 text-[11px] text-muted-foreground hover:text-foreground"
                     onClick={copyPhoneNumber}
                   >
                     <Copy className="h-3 w-3" />
@@ -725,10 +735,12 @@ export function SidebarPanel({
                 )}
               </div>
 
-              {/* Contact Avatar + Name + Phone */}
-              <div className="flex items-center gap-3">
+              <div className="border-t border-border/50" />
+
+              {/* Contact Avatar + Name + WhatsApp status */}
+              <div className="flex items-center gap-2.5">
                 <div className="relative group/avatar shrink-0">
-                  <Avatar className="h-12 w-12 border border-border/60 shadow-xs">
+                  <Avatar className="h-10 w-10 border border-border/60 shadow-xs">
                     {leadAvatar ? (
                       <AvatarImage
                         src={leadAvatar}
@@ -736,7 +748,7 @@ export function SidebarPanel({
                         className="object-cover"
                       />
                     ) : null}
-                    <AvatarFallback className="bg-primary/10 font-bold text-sm text-primary">
+                    <AvatarFallback className="bg-primary/10 font-bold text-xs text-primary">
                       {getInitials(cleanName)}
                     </AvatarFallback>
                   </Avatar>
@@ -744,44 +756,49 @@ export function SidebarPanel({
                     type="button"
                     onClick={() => void handleRefreshAvatar()}
                     disabled={refreshingAvatar}
-                    className="absolute -bottom-1 -right-1 h-5 w-5 rounded-full bg-background border border-border shadow-xs flex items-center justify-center text-muted-foreground hover:text-primary transition-all opacity-80 group-hover/avatar:opacity-100"
+                    className="absolute -bottom-1 -right-1 h-4 w-4 rounded-full bg-background border border-border shadow-xs flex items-center justify-center text-muted-foreground hover:text-primary transition-all opacity-80 group-hover/avatar:opacity-100"
                     title="Atualizar foto do WhatsApp"
                     aria-label="Atualizar foto do WhatsApp"
                   >
-                    <ArrowClockwise className={cn("h-3 w-3", refreshingAvatar && "animate-spin text-primary")} />
+                    <ArrowClockwise className={cn("h-2.5 w-2.5", refreshingAvatar && "animate-spin text-primary")} />
                   </button>
                 </div>
 
                 <div className="min-w-0 flex-1">
-                  <p className="break-words text-sm font-semibold truncate" title={cleanName}>
+                  <p className="truncate text-xs font-semibold text-foreground" title={cleanName}>
                     {cleanName}
                   </p>
-                  {selectedConversation.phone && (
-                    <p className="font-mono text-xs text-muted-foreground">
-                      {formatPhoneNumber(selectedConversation.phone)}
-                    </p>
-                  )}
+                  <p className="truncate text-[11px] text-muted-foreground">
+                    {selectedConversation.phone ? formatPhoneNumber(selectedConversation.phone) : "WhatsApp"}
+                    {" • "}
+                    <span className="font-medium text-foreground/80">{selectedConversation.funnel_stage || "Lead Quente"}</span>
+                  </p>
                 </div>
               </div>
 
-              <dl className="grid grid-cols-2 gap-2 text-xs">
-                <div className="rounded-lg bg-muted/30 p-2">
-                  <dt className="text-muted-foreground">Origem</dt>
-                  <dd className="mt-0.5 font-medium">{getConversationSourceLabel(selectedConversation)}</dd>
+              {/* 2-column compact grid for Origem & Etapa */}
+              <div className="grid grid-cols-2 gap-2 text-xs">
+                <div className="rounded-lg bg-muted/40 px-2.5 py-1.5 border border-border/40">
+                  <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">Origem</p>
+                  <p className="mt-0.5 truncate text-xs font-semibold text-foreground">
+                    {getConversationSourceLabel(selectedConversation)}
+                  </p>
                 </div>
-                <div className="rounded-lg bg-muted/30 p-2">
-                  <dt className="text-muted-foreground">Etapa do Funil</dt>
-                  <dd className="mt-0.5 font-medium">{selectedConversation.funnel_stage || "Novo Lead"}</dd>
+                <div className="rounded-lg bg-muted/40 px-2.5 py-1.5 border border-border/40">
+                  <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">Etapa</p>
+                  <p className="mt-0.5 truncate text-xs font-semibold text-foreground">
+                    {selectedConversation.funnel_stage || "Lead Quente"}
+                  </p>
                 </div>
-              </dl>
+              </div>
 
-              {/* Tags */}
-              <div className="border-t border-border/40 pt-3">
-                <div className="flex items-center justify-between mb-2">
-                  <p className="text-xs font-medium text-muted-foreground">Etiquetas</p>
-                  <span className="text-[10px] text-muted-foreground/70">Clique no ícone para alterar</span>
+              {/* Compact Chips for Etiquetas */}
+              <div className="border-t border-border/40 pt-2">
+                <div className="flex items-center justify-between mb-1.5">
+                  <p className="text-[11px] font-medium text-muted-foreground">Etiquetas</p>
+                  <span className="text-[9.5px] text-muted-foreground/70">Clique para editar</span>
                 </div>
-                <div className="flex flex-wrap gap-1.5">
+                <div className="flex flex-wrap gap-1">
                   {(selectedConversation.tags ?? []).map((tag) => (
                     <TagIconBadge
                       key={tag}
@@ -792,16 +809,16 @@ export function SidebarPanel({
                     />
                   ))}
                   {!selectedConversation.tags?.length && (
-                    <span className="text-xs text-muted-foreground">Nenhuma etiqueta.</span>
+                    <span className="text-[11px] text-muted-foreground">Nenhuma etiqueta</span>
                   )}
                 </div>
-                <div className="mt-2.5 flex gap-1.5">
+                <div className="mt-2 flex gap-1">
                   <Input
                     aria-label="Nova etiqueta"
                     value={newTagInput}
                     onChange={(event) => setNewTagInput(event.target.value)}
                     placeholder="Adicionar etiqueta..."
-                    className="h-8 text-xs"
+                    className="h-7 text-xs"
                     onKeyDown={(event) => {
                       if (event.key === "Enter") {
                         event.preventDefault();
@@ -812,32 +829,35 @@ export function SidebarPanel({
                   <Button
                     size="icon"
                     variant="outline"
-                    className="h-8 w-8 shrink-0"
+                    className="h-7 w-7 shrink-0"
                     aria-label="Adicionar etiqueta"
                     disabled={!newTagInput.trim()}
                     onClick={handleAddTagToSelectedConversation}
                   >
-                    <Plus className="h-3.5 w-3.5" />
+                    <Plus className="h-3 w-3" />
                   </Button>
                 </div>
               </div>
 
-              {/* Notes */}
-              <div className="border-t border-border/40 pt-3">
-                <label htmlFor="client-notes" className="text-xs font-medium text-muted-foreground">
-                  Notas do Atendimento
-                </label>
+              {/* Notas do Atendimento */}
+              <div className="border-t border-border/40 pt-2">
+                <div className="flex items-center justify-between mb-1">
+                  <label htmlFor="client-notes" className="text-[11px] font-medium text-muted-foreground">
+                    Notas do Atendimento
+                  </label>
+                  {savingNotes && <span className="text-[10px] text-primary">Salvando…</span>}
+                </div>
                 <textarea
                   id="client-notes"
                   value={leadNotes}
                   onChange={(event) => setLeadNotes(event.target.value)}
-                  placeholder="Registre contexto, preferências ou pendências deste cliente..."
-                  className="mt-1.5 min-h-20 w-full resize-y rounded-lg border border-border bg-background p-2.5 text-xs leading-relaxed outline-none focus:ring-2 focus:ring-ring"
+                  placeholder="Registre contexto ou preferências deste cliente..."
+                  className="min-h-16 w-full resize-y rounded-lg border border-border/70 bg-background/60 p-2 text-xs leading-relaxed outline-none focus:ring-1 focus:ring-primary"
                 />
                 <Button
                   size="sm"
                   variant="outline"
-                  className="mt-2 h-8 text-xs"
+                  className="mt-1.5 h-7 text-xs"
                   disabled={savingNotes}
                   onClick={async () => {
                     setSavingNotes(true);
@@ -853,19 +873,21 @@ export function SidebarPanel({
               </div>
 
               {/* AI Memory / Summary */}
-              <details className="rounded-lg border border-border/40 bg-muted/20">
-                <summary className="cursor-pointer p-2.5 text-xs font-medium text-muted-foreground hover:text-foreground">
-                  Resumo salvo da conversa
-                </summary>
-                <p className="px-3 pb-2.5 text-xs leading-relaxed text-muted-foreground">
-                  {summary || "Ainda não há resumo salvo para esta conversa."}
-                </p>
-                {aiMemory?.last_updated && (
-                  <p className="px-3 pb-2 text-[10px] text-muted-foreground/70">
-                    Atualizado em {new Date(aiMemory.last_updated).toLocaleString("pt-BR")}
+              {summary ? (
+                <details className="rounded-lg border border-border/40 bg-muted/20">
+                  <summary className="cursor-pointer p-2 text-[11px] font-medium text-muted-foreground hover:text-foreground">
+                    Resumo salvo da conversa
+                  </summary>
+                  <p className="px-2.5 pb-2 text-xs leading-relaxed text-muted-foreground">
+                    {summary}
                   </p>
-                )}
-              </details>
+                  {aiMemory?.last_updated && (
+                    <p className="px-2.5 pb-2 text-[9.5px] text-muted-foreground/70">
+                      Atualizado em {new Date(aiMemory.last_updated).toLocaleString("pt-BR")}
+                    </p>
+                  )}
+                </details>
+              ) : null}
             </section>
           </InboxSectionBoundary>
         </TabsContent>

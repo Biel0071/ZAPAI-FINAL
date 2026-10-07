@@ -285,7 +285,7 @@ export const MessageRow = memo(function MessageRow({
               <div
                 role="button"
                 tabIndex={0}
-                className="flex items-center gap-3 rounded-lg bg-[#202c33] border border-border/40 p-3 text-xs font-medium text-foreground hover:bg-[#202c33]/80 transition-all select-none w-64 shadow-sm text-left"
+                className="flex items-center gap-3 rounded-lg bg-card/90 dark:bg-[#202c33] border border-border/40 p-3 text-xs font-medium text-foreground hover:bg-card/80 dark:hover:bg-[#202c33]/80 transition-all select-none w-64 shadow-sm text-left"
                 onClick={() => onDownloadMedia(message)}
                 onKeyDown={(event) => {
                   if (event.key === "Enter" || event.key === " ") {
@@ -378,7 +378,7 @@ export const MessageRow = memo(function MessageRow({
               )}
 
               {resolvedMediaType === "audio" && (
-                <div className={cn("w-64 rounded-lg border border-border bg-[#202c33] p-3 flex flex-col gap-2", mediaLoading && "hidden")}>
+                <div className={cn("w-64 rounded-lg border border-border bg-card/90 dark:bg-[#202c33] p-3 flex flex-col gap-2", mediaLoading && "hidden")}>
                   <div className="flex items-center justify-between gap-3">
                     <div className="min-w-0">
                       <p className="truncate text-xs font-semibold text-foreground">{getMediaFileName(message)}</p>
@@ -444,15 +444,15 @@ export const MessageRow = memo(function MessageRow({
                 <div
                   role="button"
                   tabIndex={0}
-                  className="flex items-center gap-3 rounded-lg bg-[#202c33] border border-border/40 p-3 text-xs font-medium text-foreground hover:bg-[#202c33]/80 transition-all select-none w-64 shadow-sm text-left"
+                  className="flex items-center gap-3 rounded-lg bg-card/90 dark:bg-[#202c33] border border-border/40 p-3 text-xs font-medium text-foreground hover:bg-card/80 dark:hover:bg-[#202c33]/80 transition-all select-none w-64 shadow-sm text-left"
                   onClick={() => onOpenMediaPreview({ url: mediaUrl, type: "file", fileName: getMediaFileName(message), messageId: message.id })}
                 >
                   <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-[#00a884] text-white">
                     <FileIcon className="h-5 w-5" weight="fill" />
                   </div>
                   <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-medium text-[#e9edef] leading-tight mb-0.5">{getMediaFileName(message)}</p>
-                    <p className="truncate text-xs text-[#8696a0] opacity-80 uppercase tracking-wide">{getMediaFileReferenceLabel(message)}</p>
+                    <p className="truncate text-sm font-medium text-foreground leading-tight mb-0.5">{getMediaFileName(message)}</p>
+                    <p className="truncate text-xs text-muted-foreground opacity-80 uppercase tracking-wide">{getMediaFileReferenceLabel(message)}</p>
                   </div>
                 </div>
               )}
@@ -461,7 +461,7 @@ export const MessageRow = memo(function MessageRow({
                 <div
                   role="button"
                   tabIndex={0}
-                  className="flex flex-col gap-2 rounded-lg bg-[#202c33] border border-border/40 p-3 text-xs font-medium text-foreground hover:bg-[#202c33]/80 transition-all select-none w-64 shadow-sm text-left"
+                  className="flex flex-col gap-2 rounded-lg bg-card/90 dark:bg-[#202c33] border border-border/40 p-3 text-xs font-medium text-foreground hover:bg-card/80 dark:hover:bg-[#202c33]/80 transition-all select-none w-64 shadow-sm text-left"
                   onClick={() => onOpenMediaPreview({ url: mediaUrl, type: "image", fileName: "Produto/Catálogo", messageId: message.id })}
                 >
                   <div className="flex items-center gap-3">
@@ -469,17 +469,17 @@ export const MessageRow = memo(function MessageRow({
                       <Storefront className="h-5 w-5" weight="fill" />
                     </div>
                     <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm font-medium text-[#e9edef] leading-tight mb-0.5">Item do Catálogo</p>
-                      <p className="truncate text-xs text-[#8696a0] opacity-80 uppercase tracking-wide">Produto</p>
+                      <p className="truncate text-sm font-medium text-foreground leading-tight mb-0.5">Item do Catálogo</p>
+                      <p className="truncate text-xs text-muted-foreground opacity-80 uppercase tracking-wide">Produto</p>
                     </div>
                   </div>
                   {mediaUrl && (
-                    <div className="relative w-full aspect-square bg-[#111b21] rounded-md overflow-hidden mt-1 border border-white/5">
+                    <div className="relative w-full aspect-square bg-muted dark:bg-[#111b21] rounded-md overflow-hidden mt-1 border border-white/5">
                        <img src={mediaUrl} alt="Produto" className="w-full h-full object-cover" />
                     </div>
                   )}
                   {displayText && (
-                    <p className="text-[#e9edef] text-sm whitespace-pre-wrap mt-1 opacity-90 line-clamp-3">
+                    <p className="text-foreground text-sm whitespace-pre-wrap mt-1 opacity-90 line-clamp-3">
                       {displayText}
                     </p>
                   )}

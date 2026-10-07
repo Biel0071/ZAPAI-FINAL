@@ -81,6 +81,36 @@
   --viewport-mobile-h: 844px;
 }
 
+html.light, .light {
+  /* ZAI Brand & Neutral Foundations - Light */
+  --zai-bg: #f8fafc;
+  --zai-surface: #ffffff;
+  --zai-card: #ffffff;
+  --zai-card-hover: #f1f5f9;
+  --zai-border: #e2e8f0;
+  --zai-border-subtle: #f1f5f9;
+  --zai-border-strong: #cbd5e1;
+
+  /* ZAI WhatsApp Emerald */
+  --zai-green: #059669;
+  --zai-green-neon: #10b981;
+  --zai-green-dark: #047857;
+  --zai-green-glow: rgba(16, 185, 129, 0.12);
+  --zai-green-glow-strong: rgba(16, 185, 129, 0.2);
+
+  /* Memory, Brain & Knowledge Tokens - Light */
+  --memory-purple: #7c3aed;
+  --memory-purple-neon: #9333ea;
+  --memory-purple-dark: #6d28d9;
+  --memory-purple-glow: rgba(124, 58, 237, 0.12);
+  --memory-purple-glow-strong: rgba(147, 51, 234, 0.2);
+
+  /* Text & Contrast */
+  --zai-text-primary: #0f172a;
+  --zai-text-secondary: #334155;
+  --zai-text-muted: #64748b;
+}
+
 /* =======================================================================
    ANIMATIONS & KEYFRAMES
    ======================================================================= */
@@ -269,3 +299,41 @@
 .scrollbar-zai::-webkit-scrollbar-thumb:hover {
   background: rgba(16, 185, 129, 0.5);
 }
+
+html.light .scrollbar-zai::-webkit-scrollbar-track,
+.light .scrollbar-zai::-webkit-scrollbar-track {
+  background: rgba(241, 245, 249, 0.9);
+}
+
+html.light .scrollbar-zai::-webkit-scrollbar-thumb,
+.light .scrollbar-zai::-webkit-scrollbar-thumb {
+  background: rgba(148, 163, 184, 0.6);
+}
+
+/* Light Mode Chat Bubble Refinements */
+html.light .chat-bubble-sent,
+.light .chat-bubble-sent {
+  background: #d9fdd3 !important;
+  color: #111b21 !important;
+  border: 1px solid rgba(16, 185, 129, 0.35) !important;
+  box-shadow: 0 1px 1px rgba(0, 0, 0, 0.08) !important;
+}
+
+html.light .chat-bubble-received,
+.light .chat-bubble-received {
+  background: #ffffff !important;
+  color: #111b21 !important;
+  border: 1px solid #e2e8f0 !important;
+  box-shadow: 0 1px 1px rgba(0, 0, 0, 0.08) !important;
+}
+
+html.light .chat-area-bg,
+.light .chat-area-bg {
+  background-color: #efeae2 !important;
+}
+
+html.light .chat-area-bg::before,
+.light .chat-area-bg::before {
+  opacity: 0.05 !important;
+}
+
