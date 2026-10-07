@@ -3,7 +3,9 @@ const path = require('path');
 const crypto = require('crypto');
 const { chromium } = require('../frontend-official/node_modules/@playwright/test/index.js');
 
-const BASE_URL = 'http://209.50.241.22';
+const BASE_URL = 'https://209.50.241.22';
+const USERNAME = 'zapadmin';
+const PASSWORD = 'zapadmin1010';
 const JWT_SECRET = '73d1ef96dde5afc4938e0b71a5978b2666f1885fb0d2febc4bd52cc7a1cd9e15';
 const ARTIFACTS_DIR = 'C:/Users/Dell/.gemini/antigravity/brain/578a7157-8bf3-47e3-82f2-9ed1bb8f9f40';
 
@@ -36,6 +38,21 @@ function generateAdminToken() {
   return `${sData}.${sig}`;
 }
 
+async function loginIfNeeded(page) {
+  if (page.url().includes('login') || (await page.locator('input[type="password"]').count()) > 0) {
+    console.log('Submitting login form...');
+    const userInput = page.locator('input[type="text"], input[name="username"]').first();
+    if (await userInput.isVisible()) await userInput.fill(USERNAME);
+    const pwInput = page.locator('input[type="password"]').first();
+    if (await pwInput.isVisible()) await pwInput.fill(PASSWORD);
+    const submitBtn = page.locator('button[type="submit"], button:has-text("Entrar")').first();
+    if (await submitBtn.isVisible()) {
+      await submitBtn.click();
+      await page.waitForTimeout(3000);
+    }
+  }
+}
+
 async function main() {
   console.log('Launching browser to capture Inbox square tabs...');
   const browser = await chromium.launch({
@@ -45,13 +62,25 @@ async function main() {
 
   const token = generateAdminToken();
 
-  // Desktop 1440x900
   const context = await browser.newContext({
     viewport: { width: 1440, height: 900 },
     deviceScaleFactor: 1,
+    ignoreHTTPSErrors: true,
   });
 
   await context.addInitScript((jwt) => {
+    const sessionObj = {
+      token: jwt,
+      username: 'zapadmin',
+      role: 'master',
+      tenantId: 'default',
+      companyId: 'default',
+      issuedAt: Date.now(),
+      expiresAt: Date.now() + 86400000 * 7,
+      remember: true,
+    };
+    localStorage.setItem('zapai_admin_auth_session', JSON.stringify(sessionObj));
+    sessionStorage.setItem('zapai_admin_auth_session', JSON.stringify(sessionObj));
     localStorage.setItem('auth_token', jwt);
     localStorage.setItem('token', jwt);
     localStorage.setItem('auth_user', JSON.stringify({ username: 'zapadmin', role: 'master', companyId: 'default' }));
@@ -61,19 +90,38 @@ async function main() {
   const page = await context.newPage();
 
   console.log('Navigating to /inbox...');
-  await page.goto(`${BASE_URL}/inbox`, { waitUntil: 'networkidle', timeout: 30000 });
-  await page.waitForTimeout(4000);
+  await page.goto(`${BASE_URL}/inbox`, { waitUntil: 'domcontentloaded', timeout: 30000 });
+  await page.waitForTimeout(3000);
+
+  await loginIfNeeded(page);
+
+  if (page.url().includes('login')) {
+    console.log('Still on login, re-attempting submit...');
+    await loginIfNeeded(page);
+    await page.waitForTimeout(3000);
+  }
+
+  // Navigate explicitly to /inbox if on dashboard
+  if (!page.url().includes('/inbox')) {
+    await page.goto(`${BASE_URL}/inbox`, { waitUntil: 'domcontentloaded', timeout: 30000 });
+    await page.waitForTimeout(3000);
+  }
+
+  console.log('Current URL:', page.url());
+
+  // Wait for conversation list to load
+  await page.waitForSelector('input[placeholder*="Buscar"], [role="button"], div.cursor-pointer', { timeout: 15000 }).catch(() => {});
 
   // Click on the first conversation to open it if not already opened
-  const firstConv = page.locator('div[role="button"]:has-text("64630768574556"), div.cursor-pointer:has-text("64630768574556")').first();
+  const firstConv = page.locator('div[role="button"], div.cursor-pointer').filter({ hasText: /64630768574556|Sueli|Conversa/i }).first();
   if (await firstConv.isVisible()) {
-    console.log('Selecting conversation 64630768574556...');
+    console.log('Selecting matched conversation...');
     await firstConv.click();
     await page.waitForTimeout(2000);
   } else {
-    // Click any conversation in list
     const anyConv = page.locator('[data-testid="conversation-item"], div.cursor-pointer').first();
     if (await anyConv.isVisible()) {
+      console.log('Selecting first conversation...');
       await anyConv.click();
       await page.waitForTimeout(2000);
     }
@@ -88,7 +136,7 @@ async function main() {
   console.log('Captured:', inbox1440Path);
 
   // Zoom in on Detalhes da conversa and the 4 square tabs
-  const detailsPanel = page.locator('aside:has-text("Detalhes da conversa"), div:has-text("Detalhes da conversa")').first();
+  const detailsPanel = page.locator('aside, div').filter({ hasText: 'Detalhes da conversa' }).first();
   if (await detailsPanel.isVisible()) {
     const tabsZoomPath = path.join(ARTIFACTS_DIR, 'FINAL_INBOX_TABS_ZOOM.png');
     await detailsPanel.screenshot({ path: tabsZoomPath });
