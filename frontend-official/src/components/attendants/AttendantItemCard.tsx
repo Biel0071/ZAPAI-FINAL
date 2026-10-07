@@ -1,5 +1,4 @@
 import React from "react";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ZaiAvatarRenderer } from "@/components/avatar-engine/ZaiAvatarRenderer";
 import { AgentAvatarConfig } from "@/components/avatar-engine/AvatarDefinition";
@@ -33,9 +32,10 @@ export const AttendantItemCard: React.FC<AttendantItemCardProps> = ({
 
   return (
     <div
+      data-carousel-agent-key={attendant.key}
       onClick={() => onSelect(attendant)}
       className={cn(
-        "group relative flex flex-col justify-between w-[150px] sm:w-[160px] h-[170px] p-2.5 rounded-2xl cursor-pointer select-none transition-all duration-200 shrink-0",
+        "group relative flex flex-col justify-between w-[165px] h-[155px] p-2.5 rounded-[14px] cursor-pointer select-none transition-all duration-200 shrink-0",
         isExample
           ? isSelected
             ? "border border-dashed border-sky-400/80 bg-sky-950/20 shadow-md shadow-sky-500/10 opacity-100"
@@ -67,15 +67,15 @@ export const AttendantItemCard: React.FC<AttendantItemCardProps> = ({
           </span>
         )}
 
-        {isExample && attendant.role && (
-          <span className="text-[9px] font-medium text-muted-foreground/70 truncate max-w-[70px]">
+        {attendant.role && (
+          <span className="text-[11px] font-medium text-muted-foreground/70 truncate max-w-[75px]" title={attendant.role}>
             {attendant.role.split(" ")[0]}
           </span>
         )}
       </div>
 
-      {/* Avatar Bust */}
-      <div className="relative flex items-center justify-center h-16 w-full overflow-hidden my-0.5">
+      {/* Avatar Container (64–76px canonical range -> 68px) */}
+      <div className="relative flex items-center justify-center h-[68px] w-full overflow-hidden my-0.5">
         <div className="transform scale-[0.62] origin-center -translate-y-4 pointer-events-none">
           <ZaiAvatarRenderer
             avatar={attendant.avatarConfig || {}}
@@ -85,9 +85,9 @@ export const AttendantItemCard: React.FC<AttendantItemCardProps> = ({
         </div>
       </div>
 
-      {/* Bottom Name & Action Button */}
-      <div className="space-y-1.5 pt-1 border-t border-border/40 text-center w-full">
-        <h4 className="text-xs font-bold text-foreground truncate px-1">
+      {/* Bottom Name & Action Button (Height 32px canonical) */}
+      <div className="space-y-1 pt-1 border-t border-border/40 text-center w-full">
+        <h4 className="text-[13px] font-bold text-foreground truncate px-1 leading-tight">
           {attendant.name}
         </h4>
 
@@ -100,12 +100,12 @@ export const AttendantItemCard: React.FC<AttendantItemCardProps> = ({
             onEdit ? onEdit(attendant) : onSelect(attendant);
           }}
           className={cn(
-            "h-6 w-full text-[11px] font-semibold rounded-lg px-2 transition-all",
+            "h-8 w-full text-[11px] font-semibold rounded-lg px-2 transition-all cursor-pointer",
             isSelected && !isExample
               ? "bg-emerald-600 hover:bg-emerald-500 text-white"
               : isSelected && isExample
               ? "border-sky-500/50 text-sky-300 hover:bg-sky-500/10"
-              : "text-muted-foreground hover:text-foreground hover:bg-muted/40"
+              : "text-muted-foreground hover:text-foreground hover:bg-muted/40 border border-transparent hover:border-border/60"
           )}
         >
           {isExample ? "Ver Modelo" : "Editar"}

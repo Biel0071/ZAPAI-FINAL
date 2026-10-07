@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
+import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Input } from "@/components/ui/input";
+import { Pagination } from "@/components/ui/Pagination";
 import {
   Select,
   SelectContent,
@@ -151,6 +152,7 @@ export function EvolutionTab({ agentKey, onSelectAgent, agents: initialAgents }:
   // Human Memory & Learning State
   const [memorySearch, setMemorySearch] = useState("");
   const [memoryCategory, setMemoryCategory] = useState<string>("todos");
+  const [memoryPage, setMemoryPage] = useState(1);
   const [memoryItems, setMemoryItems] = useState<MemoryNodeData[]>([]);
   const [hasEvolutionData, setHasEvolutionData] = useState(false);
 
@@ -397,6 +399,17 @@ export function EvolutionTab({ agentKey, onSelectAgent, agents: initialAgents }:
     }
     return items;
   }, [memoryItems, memoryCategory, memorySearch]);
+
+  useEffect(() => {
+    setMemoryPage(1);
+  }, [memoryCategory, memorySearch]);
+
+  const MEMORY_PAGE_SIZE = 10;
+  const totalMemoryPages = Math.max(1, Math.ceil(filteredMemories.length / MEMORY_PAGE_SIZE));
+  const paginatedMemories = React.useMemo(() => {
+    const start = (memoryPage - 1) * MEMORY_PAGE_SIZE;
+    return filteredMemories.slice(start, start + MEMORY_PAGE_SIZE);
+  }, [filteredMemories, memoryPage]);
 
   const calculatedXp = React.useMemo(() => {
     if (humanStats.totalXp && humanStats.totalXp > 0) return humanStats.totalXp;
@@ -672,20 +685,17 @@ export function EvolutionTab({ agentKey, onSelectAgent, agents: initialAgents }:
         </Button>
       </Card>}
 
-      {/* ROW 1: 4 COGNITIVE KPI METRICS (Matching media_1791334361358.jpg) */}
+      {/* ROW 1: 4 COGNITIVE KPI METRICS (Canonical Height 72–84px, Real Data) */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <div className="p-3.5 rounded-2xl border border-border/80 bg-card/80 shadow-xs flex items-center justify-between">
+        <div className="h-[76px] p-3 rounded-2xl border border-border/80 bg-card/80 shadow-xs flex items-center justify-between">
           <div className="space-y-0.5">
             <span className="text-[11px] font-medium text-muted-foreground block">
               Memórias Ativas
             </span>
             <div className="flex items-baseline gap-2">
               <strong className="text-xl font-bold font-mono text-foreground">
-                {memoryItems.length > 0 ? (memoryItems.length * 12 + 10) : 342}
+                {memoryItems.length}
               </strong>
-              <span className="text-[10px] font-bold text-emerald-400 font-mono">
-                +12% este mês
-              </span>
             </div>
           </div>
           <div className="h-9 w-9 rounded-xl bg-purple-500/10 text-purple-400 flex items-center justify-center shrink-0">
@@ -693,18 +703,15 @@ export function EvolutionTab({ agentKey, onSelectAgent, agents: initialAgents }:
           </div>
         </div>
 
-        <div className="p-3.5 rounded-2xl border border-border/80 bg-card/80 shadow-xs flex items-center justify-between">
+        <div className="h-[76px] p-3 rounded-2xl border border-border/80 bg-card/80 shadow-xs flex items-center justify-between">
           <div className="space-y-0.5">
             <span className="text-[11px] font-medium text-muted-foreground block">
               Tópicos Identificados
             </span>
             <div className="flex items-baseline gap-2">
               <strong className="text-xl font-bold font-mono text-foreground">
-                {learnedPatterns.length > 0 ? (learnedPatterns.length * 4 + 14) : 86}
+                {learnedPatterns.length}
               </strong>
-              <span className="text-[10px] font-bold text-emerald-400 font-mono">
-                +8% este mês
-              </span>
             </div>
           </div>
           <div className="h-9 w-9 rounded-xl bg-emerald-500/10 text-emerald-400 flex items-center justify-center shrink-0">
@@ -712,16 +719,15 @@ export function EvolutionTab({ agentKey, onSelectAgent, agents: initialAgents }:
           </div>
         </div>
 
-        <div className="p-3.5 rounded-2xl border border-border/80 bg-card/80 shadow-xs flex items-center justify-between">
+        <div className="h-[76px] p-3 rounded-2xl border border-border/80 bg-card/80 shadow-xs flex items-center justify-between">
           <div className="space-y-0.5">
             <span className="text-[11px] font-medium text-muted-foreground block">
-              Objetos Resolvidos
+              Objeções Aprendidas
             </span>
             <div className="flex items-baseline gap-2">
-              <strong className="text-xl font-bold font-mono text-foreground">54</strong>
-              <span className="text-[10px] font-bold text-emerald-400 font-mono">
-                +18% este mês
-              </span>
+              <strong className="text-xl font-bold font-mono text-foreground">
+                {humanStats.objectionsLearned ?? 0}
+              </strong>
             </div>
           </div>
           <div className="h-9 w-9 rounded-xl bg-amber-500/10 text-amber-400 flex items-center justify-center shrink-0">
@@ -729,18 +735,15 @@ export function EvolutionTab({ agentKey, onSelectAgent, agents: initialAgents }:
           </div>
         </div>
 
-        <div className="p-3.5 rounded-2xl border border-border/80 bg-card/80 shadow-xs flex items-center justify-between">
+        <div className="h-[76px] p-3 rounded-2xl border border-border/80 bg-card/80 shadow-xs flex items-center justify-between">
           <div className="space-y-0.5">
             <span className="text-[11px] font-medium text-muted-foreground block">
-              Clientes Relacionados
+              Atendimentos Analisados
             </span>
             <div className="flex items-baseline gap-2">
               <strong className="text-xl font-bold font-mono text-foreground">
-                {humanStats.totalAnalyzed > 0 ? humanStats.totalAnalyzed : 129}
+                {humanStats.totalAnalyzed ?? 0}
               </strong>
-              <span className="text-[10px] font-bold text-emerald-400 font-mono">
-                +27% este mês
-              </span>
             </div>
           </div>
           <div className="h-9 w-9 rounded-xl bg-cyan-500/10 text-cyan-400 flex items-center justify-center shrink-0">
@@ -749,7 +752,7 @@ export function EvolutionTab({ agentKey, onSelectAgent, agents: initialAgents }:
         </div>
       </div>
 
-      {/* SUB-TABS: CÉREBRO ATIVO (GRAFO) / LISTA / LINHA DO TEMPO / EVOLUÇÃO COGNITIVA */}
+      {/* SUB-TABS: CÉREBRO ATIVO / MEMÓRIAS RELEVANTES / LINHA DO TEMPO / EVOLUÇÃO COGNITIVA */}
       <div className="flex items-center gap-1.5 p-1 rounded-2xl bg-card/80 border border-border/70 w-fit flex-wrap">
         <button
           type="button"
@@ -762,7 +765,7 @@ export function EvolutionTab({ agentKey, onSelectAgent, agents: initialAgents }:
           )}
         >
           <Brain className="h-4 w-4 text-purple-400" />
-          <span>Cérebro Ativo (Grafo)</span>
+          <span>Cérebro Ativo</span>
         </button>
 
         <button
@@ -776,7 +779,7 @@ export function EvolutionTab({ agentKey, onSelectAgent, agents: initialAgents }:
           )}
         >
           <BookOpen className="h-4 w-4 text-purple-400" />
-          <span>Memórias Relevantes (Lista)</span>
+          <span>Memórias Relevantes</span>
         </button>
 
         <button
@@ -1005,128 +1008,173 @@ export function EvolutionTab({ agentKey, onSelectAgent, agents: initialAgents }:
       </div>
       )}
 
-      {/* MODE 2: MEMÓRIAS RELEVANTES (LISTA) */}
+      {/* MODE 2: MEMÓRIAS RELEVANTES (LISTA COM PAGINAÇÃO CANÔNICA) */}
       {evolutionSubTab === "list" && (
-      <Card className="bg-card border-border/80 shadow-md overflow-hidden">
-        <CardHeader className="pb-3 border-b border-border/40">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-            <div className="space-y-0.5">
-              <CardTitle className="text-base font-bold flex items-center gap-2 text-foreground">
-                <Brain className="h-5 w-5 text-purple-400" /> Memórias & Aprendizados Relevantes
-              </CardTitle>
-              <CardDescription className="text-xs text-muted-foreground">
-                Este atendente está aprendendo com os atendimentos. Conceitos, preferências e respostas refinadas.
-              </CardDescription>
-            </div>
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 items-start">
+          <div className={cn(selectedMemoryNode ? "lg:col-span-8" : "lg:col-span-12")}>
+            <Card className="bg-card border-border/80 shadow-md overflow-hidden flex flex-col">
+              <CardHeader className="pb-3 border-b border-border/40">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div className="space-y-0.5">
+                    <CardTitle className="text-base font-bold flex items-center gap-2 text-foreground">
+                      <Brain className="h-5 w-5 text-purple-400" /> Memórias Relevantes
+                    </CardTitle>
+                    <CardDescription className="text-xs text-muted-foreground">
+                      {filteredMemories.length} memórias consolidadas para este atendente (10 por página).
+                    </CardDescription>
+                  </div>
 
-            {/* Category Filter Chips */}
-            <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-none py-1">
-              {[
-                { id: "todos", label: "Todas as Memórias" },
-                { id: "topic", label: "Tópicos & Regras" },
-                { id: "objection", label: "Objeções Resolvidas" },
-                { id: "preference", label: "Preferências de Clientes" },
-              ].map((cat) => (
-                <button
-                  key={cat.id}
-                  type="button"
-                  onClick={() => setMemoryCategory(cat.id)}
-                  className={cn(
-                    "px-2.5 py-1 rounded-lg text-xs font-semibold transition-all shrink-0 select-none",
-                    memoryCategory === cat.id
-                      ? "bg-purple-500/20 text-purple-300 border border-purple-500/50 shadow-xs"
-                      : "bg-muted/20 text-muted-foreground hover:bg-muted/40 hover:text-foreground border border-border/50"
+                  {/* Category Filter Chips */}
+                  <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-none py-1">
+                    {[
+                      { id: "todos", label: "Todas as Memórias" },
+                      { id: "topic", label: "Tópicos & Regras" },
+                      { id: "objection", label: "Objeções Resolvidas" },
+                      { id: "preference", label: "Preferências de Clientes" },
+                    ].map((cat) => (
+                      <button
+                        key={cat.id}
+                        type="button"
+                        onClick={() => setMemoryCategory(cat.id)}
+                        className={cn(
+                          "px-2.5 py-1 rounded-lg text-xs font-semibold transition-all shrink-0 select-none cursor-pointer",
+                          memoryCategory === cat.id
+                            ? "bg-purple-500/20 text-purple-300 border border-purple-500/50 shadow-xs"
+                            : "bg-muted/20 text-muted-foreground hover:bg-muted/40 hover:text-foreground border border-border/50"
+                        )}
+                      >
+                        {cat.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Search bar */}
+                <div className="pt-2 flex items-center gap-2">
+                  <div className="relative flex-1">
+                    <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+                    <Input
+                      value={memorySearch}
+                      onChange={(e) => setMemorySearch(e.target.value)}
+                      placeholder="Pesquisar memórias aprendidas, tópicos, objeções ou regras..."
+                      className="h-8 pl-8 text-xs bg-muted/20"
+                    />
+                  </div>
+                  {memorySearch && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setMemorySearch("")}
+                      className="h-8 text-xs text-muted-foreground"
+                    >
+                      Limpar
+                    </Button>
                   )}
-                >
-                  {cat.label}
-                </button>
-              ))}
-            </div>
-          </div>
+                </div>
+              </CardHeader>
 
-          {/* Search bar */}
-          <div className="pt-2 flex items-center gap-2">
-            <div className="relative flex-1">
-              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
-              <Input
-                value={memorySearch}
-                onChange={(e) => setMemorySearch(e.target.value)}
-                placeholder="Pesquisar memórias aprendidas, tópicos, objeções ou regras..."
-                className="h-8 pl-8 text-xs bg-muted/20"
-              />
-            </div>
-            {memorySearch && (
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setMemorySearch("")}
-                className="h-8 text-xs text-muted-foreground"
-              >
-                Limpar
-              </Button>
-            )}
-          </div>
-        </CardHeader>
-
-        <CardContent className="p-4">
-          {filteredMemories.length === 0 ? (
-            <div className="text-center py-8 text-xs text-muted-foreground border border-dashed border-border/60 rounded-xl p-4">
-              Nenhuma memória encontrada para este filtro. Conforme novos atendimentos ocorrerem, os aprendizados consolidados serão listados aqui.
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-              {filteredMemories.map((mem) => {
-                const isObjection = mem.type === "objection";
-                const isPref = mem.type === "preference";
-                return (
-                  <div
-                    key={mem.id}
-                    className="p-3.5 rounded-xl border border-border/70 bg-card/60 hover:bg-card hover:border-purple-500/40 transition-all space-y-2 flex flex-col justify-between"
-                  >
-                    <div className="space-y-1.5">
-                      <div className="flex items-center justify-between gap-2">
-                        <Badge
-                          variant="outline"
+              <CardContent className="p-4">
+                {filteredMemories.length === 0 ? (
+                  <div className="text-center py-8 text-xs text-muted-foreground border border-dashed border-border/60 rounded-xl p-4">
+                    Nenhuma memória encontrada para este filtro. Conforme novos atendimentos ocorrerem, os aprendizados consolidados serão listados aqui.
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    {paginatedMemories.map((mem) => {
+                      const isObjection = mem.type === "objection";
+                      const isPref = mem.type === "preference";
+                      const isSelected = selectedMemoryNode?.id === mem.id;
+                      return (
+                        <div
+                          key={mem.id}
+                          onClick={() => setSelectedMemoryNode(mem)}
                           className={cn(
-                            "text-[10px] font-bold uppercase",
-                            isObjection
-                              ? "border-amber-500/40 text-amber-300 bg-amber-500/10"
-                              : isPref
-                              ? "border-emerald-500/40 text-emerald-300 bg-emerald-500/10"
-                              : "border-purple-500/40 text-purple-300 bg-purple-500/10"
+                            "p-3 rounded-xl border transition-all space-y-1.5 flex flex-col justify-between min-h-[110px] max-h-[140px] cursor-pointer select-none",
+                            isSelected
+                              ? "bg-purple-950/20 border-purple-500 shadow-sm shadow-purple-500/10"
+                              : "border-border/70 bg-card/60 hover:bg-card hover:border-purple-500/40"
                           )}
                         >
-                          {isObjection ? "Objeção" : isPref ? "Preferência" : "Tópico & Regra"}
-                        </Badge>
-                        <span className="text-[10px] font-mono text-muted-foreground font-semibold">
-                          Assertividade {mem.confidence}%
-                        </span>
-                      </div>
-                      <h4 className="text-xs font-bold text-foreground line-clamp-1">{mem.label}</h4>
-                      <p className="text-[11px] text-muted-foreground line-clamp-2 leading-relaxed">{mem.desc}</p>
-                    </div>
+                          <div className="space-y-1">
+                            <div className="flex items-center justify-between gap-2">
+                              <Badge
+                                variant="outline"
+                                className={cn(
+                                  "text-[9px] font-bold uppercase py-0",
+                                  isObjection
+                                    ? "border-amber-500/40 text-amber-300 bg-amber-500/10"
+                                    : isPref
+                                    ? "border-emerald-500/40 text-emerald-300 bg-emerald-500/10"
+                                    : "border-purple-500/40 text-purple-300 bg-purple-500/10"
+                                )}
+                              >
+                                {isObjection ? "Objeção" : isPref ? "Preferência" : "Tópico & Regra"}
+                              </Badge>
+                              <span className="text-[10px] font-mono text-muted-foreground font-semibold">
+                                Assertividade {mem.confidence}%
+                              </span>
+                            </div>
+                            <h4 className="text-xs font-bold text-foreground line-clamp-1">{mem.label}</h4>
+                            <p className="text-[11px] text-muted-foreground line-clamp-2 leading-relaxed">{mem.desc}</p>
+                          </div>
 
-                    <div className="pt-2 border-t border-border/40 flex items-center justify-between text-[10px] text-muted-foreground">
-                      <span className="flex items-center gap-1 text-emerald-400 font-semibold">
-                        <CheckCircle2 className="h-3 w-3" /> Memória ativa
-                      </span>
-                      {mem.phone && (
-                        <button
-                          type="button"
-                          onClick={() => navigate(`/inbox?chatId=${encodeURIComponent(mem.phone)}`)}
-                          className="hover:text-foreground text-purple-400 font-medium hover:underline"
-                        >
-                          Ver no chat
-                        </button>
-                      )}
-                    </div>
+                          <div className="pt-1.5 border-t border-border/40 flex items-center justify-between text-[10px] text-muted-foreground">
+                            <span className="flex items-center gap-1 text-emerald-400 font-semibold">
+                              <CheckCircle2 className="h-3 w-3" /> Ativa
+                            </span>
+                            {mem.phone && (
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  navigate(`/inbox?chatId=${encodeURIComponent(mem.phone!)}`);
+                                }}
+                                className="hover:text-foreground text-purple-400 font-medium hover:underline cursor-pointer"
+                              >
+                                Ver no chat
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
-                );
-              })}
+                )}
+              </CardContent>
+
+              {totalMemoryPages > 1 && (
+                <CardFooter className="pt-2 pb-3 border-t border-border/40 flex justify-center">
+                  <Pagination
+                    currentPage={memoryPage}
+                    totalPages={totalMemoryPages}
+                    pageSize={MEMORY_PAGE_SIZE}
+                    onPageChange={setMemoryPage}
+                  />
+                </CardFooter>
+              )}
+            </Card>
+          </div>
+
+          {/* Side Drawer in List Mode when a memory is selected */}
+          {selectedMemoryNode && (
+            <div className="lg:col-span-4">
+              <MemoryDetailDrawer
+                memory={selectedMemoryNode}
+                onClose={() => setSelectedMemoryNode(null)}
+                onEdit={(m) => {
+                  toast({ title: "Edição de Memória", description: `Abrindo editor para "${m.label}"...` });
+                }}
+                onTransformToRule={(m) => {
+                  toast({ title: "Regra Comercial Criada", description: `"${m.label}" agora é uma regra oficial de atendimento.` });
+                }}
+                onArchive={(m) => {
+                  toast({ title: "Memória Arquivada", description: `"${m.label}" arquivada com sucesso.` });
+                  setSelectedMemoryNode(null);
+                }}
+              />
             </div>
           )}
-        </CardContent>
-      </Card>
+        </div>
       )}
 
       {/* MODE 4: EVOLUÇÃO COGNITIVA */}

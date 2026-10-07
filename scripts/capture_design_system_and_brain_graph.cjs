@@ -173,7 +173,69 @@ async function main() {
 
   await notebookContext.close();
 
-  // 3. MOBILE 390x844 CONTEXT
+  // 3. NOTEBOOK COMPACT 1280x720 CONTEXT
+  const laptopContext = await browser.newContext({
+    viewport: { width: 1280, height: 720 },
+    ignoreHTTPSErrors: true,
+  });
+  const pageLaptop = await laptopContext.newPage();
+  await pageLaptop.addInitScript(({ token }) => {
+    const session = {
+      token,
+      username: 'zapadmin',
+      role: 'master',
+      tenantId: 'default',
+      companyId: 'default',
+      issuedAt: Date.now(),
+      expiresAt: Date.now() + 86400 * 7 * 1000,
+      remember: true,
+    };
+    localStorage.setItem('zapai_admin_auth_session', JSON.stringify(session));
+    localStorage.setItem('token', token);
+  }, { token });
+
+  console.log('Navigating to /attendants (1280x720)...');
+  await pageLaptop.goto(`${BASE_URL}/attendants`, { waitUntil: 'networkidle' });
+  await pageLaptop.waitForTimeout(3500);
+
+  const lapPath = path.join(ARTIFACTS_DIR, 'FINAL_ATTENDANTS_1280x720.png');
+  await pageLaptop.screenshot({ path: lapPath, fullPage: false });
+  console.log(`Saved: ${lapPath}`);
+
+  await laptopContext.close();
+
+  // 4. TABLET 1024x768 CONTEXT
+  const tabletContext = await browser.newContext({
+    viewport: { width: 1024, height: 768 },
+    ignoreHTTPSErrors: true,
+  });
+  const pageTab = await tabletContext.newPage();
+  await pageTab.addInitScript(({ token }) => {
+    const session = {
+      token,
+      username: 'zapadmin',
+      role: 'master',
+      tenantId: 'default',
+      companyId: 'default',
+      issuedAt: Date.now(),
+      expiresAt: Date.now() + 86400 * 7 * 1000,
+      remember: true,
+    };
+    localStorage.setItem('zapai_admin_auth_session', JSON.stringify(session));
+    localStorage.setItem('token', token);
+  }, { token });
+
+  console.log('Navigating to /attendants (1024x768)...');
+  await pageTab.goto(`${BASE_URL}/attendants`, { waitUntil: 'networkidle' });
+  await pageTab.waitForTimeout(3500);
+
+  const tabPath = path.join(ARTIFACTS_DIR, 'FINAL_ATTENDANTS_1024x768.png');
+  await pageTab.screenshot({ path: tabPath, fullPage: false });
+  console.log(`Saved: ${tabPath}`);
+
+  await tabletContext.close();
+
+  // 5. MOBILE 390x844 CONTEXT
   const mobileContext = await browser.newContext({
     viewport: { width: 390, height: 844 },
     isMobile: true,

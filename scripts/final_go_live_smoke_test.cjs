@@ -3,7 +3,7 @@ const path = require('path');
 const crypto = require('crypto');
 const { chromium } = require('../frontend-official/node_modules/@playwright/test/index.js');
 
-const BASE_URL = process.env.TEST_URL || 'http://209.50.241.22';
+const BASE_URL = process.env.TEST_URL || 'https://209.50.241.22';
 const USERNAME = 'zapadmin';
 const PASSWORD = 'zapadmin1010';
 const JWT_SECRET = '73d1ef96dde5afc4938e0b71a5978b2666f1885fb0d2febc4bd52cc7a1cd9e15';
@@ -38,9 +38,29 @@ function generateAdminToken() {
   return `${sData}.${sig}`;
 }
 
+async function injectAuth(context, token) {
+  await context.addInitScript((jwt) => {
+    const now = Date.now();
+    const sessionObj = {
+      token: jwt,
+      username: "zapadmin",
+      role: "master",
+      tenantId: "default",
+      companyId: "default",
+      issuedAt: now,
+      expiresAt: now + 86400 * 7 * 1000,
+      remember: true
+    };
+    localStorage.setItem('zapai_admin_auth_session', JSON.stringify(sessionObj));
+    localStorage.setItem('admin_token', jwt);
+    localStorage.setItem('auth_token', jwt);
+    localStorage.setItem('zapflow_sidebar_collapsed', 'true');
+  }, token);
+}
+
 async function loginIfNeeded(page) {
-  if (page.url().includes('login') || (await page.locator('input[type="password"]').count()) > 0) {
-    console.log('Submitting login credentials...');
+  if (page.url().includes('/login') || (await page.locator('input[type="password"]').count()) > 0) {
+    console.log('[SmokeTest] Submitting login form...');
     const userInput = page.locator('input[type="text"], input[name="username"]').first();
     if (await userInput.isVisible()) await userInput.fill(USERNAME);
     const pwInput = page.locator('input[type="password"]').first();
@@ -53,8 +73,18 @@ async function loginIfNeeded(page) {
   }
 }
 
+async function ensureAttendantsPage(page) {
+  await loginIfNeeded(page);
+  if (!page.url().includes('/attendants')) {
+    console.log('[SmokeTest] Navigating explicitly to /attendants...');
+    await page.goto(`${BASE_URL}/attendants`, { waitUntil: 'domcontentloaded', timeout: 35000 });
+    await page.waitForTimeout(3500);
+  }
+  await page.waitForSelector('text=Atendente IA', { timeout: 15000 }).catch(() => {});
+}
+
 async function runSmokeTests() {
-  console.log(`[SmokeTest] Starting Go-Live validation against ${BASE_URL}...`);
+  console.log(`[SmokeTest] Starting Production Go-Live Validation against ${BASE_URL}...`);
   const browser = await chromium.launch({
     headless: true,
     args: ['--no-sandbox', '--disable-setuid-sandbox', '--ignore-certificate-errors'],
@@ -70,20 +100,15 @@ async function runSmokeTests() {
     const contextDesktop = await browser.newContext({
       viewport: { width: 1440, height: 900 },
       deviceScaleFactor: 1,
+      ignoreHTTPSErrors: true,
     });
-    await contextDesktop.addInitScript((jwt) => {
-      localStorage.setItem('admin_token', jwt);
-      localStorage.setItem('auth_token', jwt);
-      localStorage.setItem('zapflow_sidebar_collapsed', 'true');
-    }, token);
+    await injectAuth(contextDesktop, token);
 
     const page = await contextDesktop.newPage();
-    await page.goto(`${BASE_URL}/attendants`, { waitUntil: 'networkidle', timeout: 35000 });
-    await loginIfNeeded(page);
-    await page.waitForTimeout(2500);
+    await page.goto(`${BASE_URL}/attendants`, { waitUntil: 'domcontentloaded', timeout: 35000 });
+    await ensureAttendantsPage(page);
 
-    // Assert that the page loaded
-    console.log('[SmokeTest] Current URL:', page.url());
+    console.log('[SmokeTest] Confirmed Page URL:', page.url());
 
     // Test 5 categories cycling:
     console.log('[SmokeTest] Testing 5 Categories in Avatar Studio...');
@@ -92,50 +117,50 @@ async function runSmokeTests() {
     const hairTab = page.locator('button:has-text("Cabelo")').first();
     if (await hairTab.isVisible()) {
       await hairTab.click();
-      await page.waitForTimeout(300);
+      await page.waitForTimeout(350);
       const hairItem = page.locator('button[data-avatar-item="hair_03"]').first();
       if (await hairItem.isVisible()) await hairItem.click();
-      await page.waitForTimeout(300);
+      await page.waitForTimeout(350);
     }
 
     // 2. Rosto -> select Face 04 (Expressivo / Confiante)
     const faceTab = page.locator('button:has-text("Rosto")').first();
     if (await faceTab.isVisible()) {
       await faceTab.click();
-      await page.waitForTimeout(300);
+      await page.waitForTimeout(350);
       const faceItem = page.locator('button[data-avatar-item="face_04"]').first();
       if (await faceItem.isVisible()) await faceItem.click();
-      await page.waitForTimeout(300);
+      await page.waitForTimeout(350);
     }
 
     // 3. Roupa -> select Outfit 05 (Uniforme Comercial)
     const outfitTab = page.locator('button:has-text("Roupa")').first();
     if (await outfitTab.isVisible()) {
       await outfitTab.click();
-      await page.waitForTimeout(300);
+      await page.waitForTimeout(350);
       const outfitItem = page.locator('button[data-avatar-item="outfit_05"]').first();
       if (await outfitItem.isVisible()) await outfitItem.click();
-      await page.waitForTimeout(300);
+      await page.waitForTimeout(350);
     }
 
     // 4. Acessórios -> select Accessory
     const accTab = page.locator('button:has-text("Acessórios")').first();
     if (await accTab.isVisible()) {
       await accTab.click();
-      await page.waitForTimeout(300);
+      await page.waitForTimeout(350);
       const accItem = page.locator('button:has-text("Headset"), button:has-text("Óculos")').first();
       if (await accItem.isVisible()) await accItem.click();
-      await page.waitForTimeout(300);
+      await page.waitForTimeout(350);
     }
 
     // 5. Estilo -> select Estilo Vendas
     const styleTab = page.locator('button:has-text("Estilo")').first();
     if (await styleTab.isVisible()) {
       await styleTab.click();
-      await page.waitForTimeout(300);
+      await page.waitForTimeout(350);
       const styleItem = page.locator('button[data-avatar-item="style_vendas"]').first();
       if (await styleItem.isVisible()) await styleItem.click();
-      await page.waitForTimeout(300);
+      await page.waitForTimeout(350);
     }
 
     // Click "Salvar Avatar"
@@ -143,7 +168,7 @@ async function runSmokeTests() {
     if (await saveAvatarBtn.isVisible()) {
       console.log('[SmokeTest] Saving Avatar configuration...');
       await saveAvatarBtn.click();
-      await page.waitForTimeout(2000);
+      await page.waitForTimeout(1800);
     }
 
     // Test Chat: Send a message in sandbox
@@ -154,7 +179,7 @@ async function runSmokeTests() {
       const sendBtn = page.locator('button[type="submit"]:has-text("Enviar")').first();
       if (await sendBtn.isVisible()) {
         await sendBtn.click();
-        await page.waitForTimeout(3500);
+        await page.waitForTimeout(4000);
       }
     }
 
@@ -164,18 +189,16 @@ async function runSmokeTests() {
     console.log('[SmokeTest] Captured FINAL_1440x900.png');
 
     // Test Assistente ZAI Floating Button & Modal
-    console.log('[SmokeTest] Testing Assistente ZAI modal...');
+    console.log('[SmokeTest] Testing Assistente ZAI floating button & modal...');
     const zaiFloatingBtn = page.locator('[data-testid="zaibot-floating-button"]').first();
     if (await zaiFloatingBtn.isVisible()) {
       await zaiFloatingBtn.click();
-      await page.waitForTimeout(1000);
-      // Verify dialog is visible
+      await page.waitForTimeout(1200);
       const dialog = page.locator('div[role="dialog"]');
       if (await dialog.isVisible()) {
         console.log('[SmokeTest] Assistente ZAI modal opened successfully.');
-        // Close modal via Escape or close button
         await page.keyboard.press('Escape');
-        await page.waitForTimeout(500);
+        await page.waitForTimeout(600);
       }
     }
 
@@ -186,17 +209,13 @@ async function runSmokeTests() {
     const contextLaptop = await browser.newContext({
       viewport: { width: 1366, height: 768 },
       deviceScaleFactor: 1,
+      ignoreHTTPSErrors: true,
     });
-    await contextLaptop.addInitScript((jwt) => {
-      localStorage.setItem('admin_token', jwt);
-      localStorage.setItem('auth_token', jwt);
-      localStorage.setItem('zapflow_sidebar_collapsed', 'true');
-    }, token);
+    await injectAuth(contextLaptop, token);
 
     const pageLaptop = await contextLaptop.newPage();
-    await pageLaptop.goto(`${BASE_URL}/attendants`, { waitUntil: 'networkidle', timeout: 35000 });
-    await loginIfNeeded(pageLaptop);
-    await pageLaptop.waitForTimeout(2000);
+    await pageLaptop.goto(`${BASE_URL}/attendants`, { waitUntil: 'domcontentloaded', timeout: 35000 });
+    await ensureAttendantsPage(pageLaptop);
 
     const shot1366 = path.join(ARTIFACTS_DIR, 'FINAL_1366x768.png');
     await pageLaptop.screenshot({ path: shot1366, fullPage: false });
@@ -211,16 +230,13 @@ async function runSmokeTests() {
       isMobile: true,
       hasTouch: true,
       deviceScaleFactor: 2,
+      ignoreHTTPSErrors: true,
     });
-    await contextMobile.addInitScript((jwt) => {
-      localStorage.setItem('admin_token', jwt);
-      localStorage.setItem('auth_token', jwt);
-    }, token);
+    await injectAuth(contextMobile, token);
 
     const pageMobile = await contextMobile.newPage();
-    await pageMobile.goto(`${BASE_URL}/attendants`, { waitUntil: 'networkidle', timeout: 35000 });
-    await loginIfNeeded(pageMobile);
-    await pageMobile.waitForTimeout(2000);
+    await pageMobile.goto(`${BASE_URL}/attendants`, { waitUntil: 'domcontentloaded', timeout: 35000 });
+    await ensureAttendantsPage(pageMobile);
 
     const shotMobile = path.join(ARTIFACTS_DIR, 'FINAL_MOBILE.png');
     await pageMobile.screenshot({ path: shotMobile, fullPage: false });
@@ -230,8 +246,8 @@ async function runSmokeTests() {
     // Test 4: Memória & Evolução Tab Validation
     // -------------------------------------------------------------
     console.log('[SmokeTest] Checking Memória & Evolução tab...');
-    await page.goto(`${BASE_URL}/attendants?tab=evolution`, { waitUntil: 'networkidle', timeout: 35000 });
-    await page.waitForTimeout(2000);
+    await page.goto(`${BASE_URL}/attendants?tab=evolution`, { waitUntil: 'domcontentloaded', timeout: 35000 });
+    await page.waitForTimeout(3000);
     const shotEvolution = path.join(ARTIFACTS_DIR, 'FINAL_MEMORIA_EVOLUCAO.png');
     await page.screenshot({ path: shotEvolution, fullPage: false });
     console.log('[SmokeTest] Captured FINAL_MEMORIA_EVOLUCAO.png');

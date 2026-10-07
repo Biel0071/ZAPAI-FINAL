@@ -6,6 +6,7 @@ import { AddAttendantCard } from "@/components/attendants/AddAttendantCard";
 import { EXAMPLE_ATTENDANTS } from "@/components/attendants/exampleAttendants";
 import { MemoryDetailDrawer, type MemoryNodeData } from "@/components/evolution/MemoryDetailDrawer";
 import { ActiveBrainGraph } from "@/components/evolution/ActiveBrainGraph";
+import { Pagination } from "@/components/ui/pagination";
 
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
 
@@ -209,5 +210,73 @@ describe("ZAI CRM — Active Brain Graph & Memory Detail Drawer", () => {
     expect(container.querySelector('button[title="Aumentar Zoom"]')).toBeDefined();
     expect(container.querySelector('button[title="Diminuir Zoom"]')).toBeDefined();
     expect(container.querySelector('button[title="Centralizar e Enquadrar"]')).toBeDefined();
+  });
+});
+
+describe("ZAI CRM — Canonical Pagination Component", () => {
+  it("renders null when totalPages <= 1", async () => {
+    const handlePageChange = vi.fn();
+    await renderComponent(
+      <Pagination
+        currentPage={1}
+        totalPages={1}
+        pageSize={10}
+        onPageChange={handlePageChange}
+      />
+    );
+    expect(container.textContent).toBe("");
+  });
+
+  it("renders desktop and mobile pagination elements and responds to clicks", async () => {
+    const handlePageChange = vi.fn();
+    await renderComponent(
+      <Pagination
+        currentPage={2}
+        totalPages={5}
+        pageSize={10}
+        onPageChange={handlePageChange}
+      />
+    );
+
+    // Desktop page buttons
+    expect(container.textContent).toContain("1");
+    expect(container.textContent).toContain("2");
+    expect(container.textContent).toContain("3");
+    expect(container.textContent).toContain("4");
+    expect(container.textContent).toContain("5");
+
+    // Mobile layout text
+    expect(container.textContent).toContain("Página 2 de 5");
+
+    // Click next page
+    const nextBtn = container.querySelector('button[aria-label="Próxima página"]') as HTMLButtonElement | null;
+    expect(nextBtn).toBeDefined();
+    await act(async () => {
+      nextBtn?.click();
+    });
+    expect(handlePageChange).toHaveBeenCalledWith(3);
+
+    // Click previous page
+    const prevBtn = container.querySelector('button[aria-label="Página anterior"]') as HTMLButtonElement | null;
+    expect(prevBtn).toBeDefined();
+    await act(async () => {
+      prevBtn?.click();
+    });
+    expect(handlePageChange).toHaveBeenCalledWith(1);
+  });
+
+  it("renders ellipsis when totalPages > 7", async () => {
+    const handlePageChange = vi.fn();
+    await renderComponent(
+      <Pagination
+        currentPage={5}
+        totalPages={10}
+        pageSize={10}
+        onPageChange={handlePageChange}
+      />
+    );
+
+    expect(container.textContent).toContain("...");
+    expect(container.textContent).toContain("10");
   });
 });

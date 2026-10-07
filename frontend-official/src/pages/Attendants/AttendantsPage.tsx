@@ -53,6 +53,7 @@ import { ZaiAvatarRenderer } from "@/components/avatar-engine/ZaiAvatarRenderer"
 import { AttendantItemCard } from "@/components/attendants/AttendantItemCard";
 import { AddAttendantCard } from "@/components/attendants/AddAttendantCard";
 import { EXAMPLE_ATTENDANTS } from "@/components/attendants/exampleAttendants";
+import { Pagination } from "@/components/ui/Pagination";
 import { createAgentAvatar, buildStoreVisualDNA, resolveSpriteForAvatar, applyStylePreset } from "@/components/avatar-engine/CharacterFactory";
 import {
   AVATAR_HAIRS,
@@ -420,6 +421,25 @@ export default function AttendantsPage() {
     if (selectedStoreFilter === "all") return agents;
     return agents.filter((a) => belongsToStore(a, selectedStoreFilter));
   }, [agents, selectedStoreFilter, belongsToStore, selectedWhatsApp]);
+
+  // Top Carousel Pagination (Canonical: max 5 real attendants visible per view)
+  const [attendantPage, setAttendantPage] = useState(1);
+  const ATTENDANTS_PER_PAGE = 5;
+  const totalAttendantPages = Math.max(1, Math.ceil(agents.length / ATTENDANTS_PER_PAGE));
+  const paginatedAgents = useMemo(() => {
+    const start = (attendantPage - 1) * ATTENDANTS_PER_PAGE;
+    return agents.slice(start, start + ATTENDANTS_PER_PAGE);
+  }, [agents, attendantPage]);
+
+  // Operational Cards Pagination (Max 4 cards per page to prevent infinite page growth)
+  const [opCardPage, setOpCardPage] = useState(1);
+  const OP_CARDS_PER_PAGE = 4;
+  const totalOpCardPages = Math.max(1, Math.ceil(filteredAttendants.length / OP_CARDS_PER_PAGE));
+  const paginatedOpCards = useMemo(() => {
+    const start = (opCardPage - 1) * OP_CARDS_PER_PAGE;
+    return filteredAttendants.slice(start, start + OP_CARDS_PER_PAGE);
+  }, [filteredAttendants, opCardPage]);
+
   const assignmentConflicts = useMemo(() => sessions.flatMap(session => {
     const sessionId = session.sessionId || session.id;
     const responsible = agents.filter(agent => agent.sessionIds?.includes(sessionId));
@@ -672,25 +692,10 @@ export default function AttendantsPage() {
             </div>
           </div>
 
-          <div className="flex items-center gap-2 flex-wrap">
-            <Button
-              variant={activeTab === "config" ? "secondary" : "outline"}
-              className="rounded-xl"
-              onClick={() => handleTabChange("config")}
-            >
-              Configuração
-            </Button>
-            <Button
-              variant={(activeTab === "evolution" || activeTab === "memory") ? "secondary" : "outline"}
-              className="rounded-xl gap-1.5"
-              onClick={() => handleTabChange("evolution")}
-            >
-              <Sparkle weight="fill" className="h-4 w-4 text-purple-400" />
-              <span>Memória & Evolução</span>
-            </Button>
+          <div className="flex items-center gap-2">
             <Button
               onClick={() => setIsWizardOpen(true)}
-              className="gap-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-medium shadow-glow"
+              className="h-9 px-3.5 gap-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-medium shadow-glow cursor-pointer"
             >
               <Plus weight="bold" className="h-4 w-4" />
               <span>Novo Atendente</span>
@@ -700,28 +705,51 @@ export default function AttendantsPage() {
 
         {loadError && <div role="alert" className="flex items-center justify-between gap-3 rounded-xl border border-amber-500/40 bg-amber-500/10 p-3 text-sm"><span>{loadError}</span><Button size="sm" variant="outline" onClick={() => void fetchData()}>Tentar novamente</Button></div>}
 
-        {/* ROW 0: ATTENDANTS CAROUSEL (REAL VS EXAMPLE MODELS + ADD CARD) */}
-        <section aria-label="Lista de Atendentes" className="space-y-2.5">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5">
+        {/* ROW 0: ATTENDANTS CANONICAL TOP SYSTEM (REAL ATTENDANTS + SEPARATED EXAMPLE MODELS) */}
+        <section aria-label="Lista de Atendentes" className="space-y-3 p-3.5 rounded-2xl border border-border/70 bg-card/40">
+          {/* Real Attendants Header */}
+          <div className="flex items-center justify-between gap-2">
             <div className="flex items-center gap-2">
               <h2 className="text-sm font-bold text-foreground font-display">Atendentes IA</h2>
-              <span className="text-xs text-muted-foreground hidden md:inline">
-                — Gerencie seus atendentes, personalize avatares e teste o atendimento.
-              </span>
-            </div>
-            <div className="flex items-center gap-2 text-xs text-muted-foreground">
               <span className="inline-flex items-center gap-1.5 text-emerald-400 font-semibold font-mono text-[11px]">
                 <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
                 <span>{agents.length} Cadastrado(s)</span>
               </span>
-              <span>•</span>
-              <span className="badge-zai-example">4 Modelos de Exemplo</span>
             </div>
+
+            {/* Pagination Controls for Real Attendants (Max 5 visible) */}
+            {totalAttendantPages > 1 && (
+              <div className="flex items-center gap-1 text-xs">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-7 w-7 rounded-lg cursor-pointer"
+                  disabled={attendantPage <= 1}
+                  onClick={() => setAttendantPage((p) => Math.max(1, p - 1))}
+                  aria-label="Atendentes anteriores"
+                >
+                  <CaretLeft className="h-3.5 w-3.5" />
+                </Button>
+                <span className="text-[11px] font-mono text-muted-foreground px-1">
+                  {attendantPage} / {totalAttendantPages}
+                </span>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-7 w-7 rounded-lg cursor-pointer"
+                  disabled={attendantPage >= totalAttendantPages}
+                  onClick={() => setAttendantPage((p) => Math.min(totalAttendantPages, p + 1))}
+                  aria-label="Próximos atendentes"
+                >
+                  <CaretRight className="h-3.5 w-3.5" />
+                </Button>
+              </div>
+            )}
           </div>
 
+          {/* Real Attendants Carousel (Max 5 real + 1 Add Card) */}
           <div className="flex items-center gap-3 overflow-x-auto pb-2 pt-1 scrollbar-zai">
-            {/* Real Attendants from Database / API */}
-            {agents.map((agent) => (
+            {paginatedAgents.map((agent) => (
               <AttendantItemCard
                 key={agent.key || agent.id}
                 attendant={{
@@ -745,48 +773,64 @@ export default function AttendantsPage() {
               />
             ))}
 
-            {/* Example Attendants (Visual Demonstrations, strictly client-side) */}
-            {EXAMPLE_ATTENDANTS.map((example) => (
-              <AttendantItemCard
-                key={example.id}
-                attendant={{
-                  id: example.id,
-                  key: example.key,
-                  name: example.name,
-                  role: example.role,
-                  isExample: true,
-                  avatarConfig: example.avatarConfig as any,
-                }}
-                isSelected={previewAgent?.key === example.key && previewAgent?.isExample === true}
-                onSelect={() => {
-                  setPreviewAgent({
-                    ...example,
-                    key: example.key,
-                    active: true,
-                    isExample: true,
-                  });
-                }}
-                onEdit={() => {
-                  setPreviewAgent({
-                    ...example,
-                    key: example.key,
-                    active: true,
-                    isExample: true,
-                  });
-                }}
-              />
-            ))}
-
-            {/* Add New Attendant Card */}
+            {/* + Novo Atendente (Always the last card) */}
             <AddAttendantCard onAdd={() => setIsWizardOpen(true)} />
+          </div>
+
+          {/* Visually Separated Example Models Section */}
+          <div className="pt-2.5 border-t border-border/40">
+            <div className="flex items-center justify-between mb-2">
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                  Modelos de Exemplo
+                </span>
+                <span className="badge-zai-example">EXEMPLO</span>
+              </div>
+              <span className="text-[11px] text-muted-foreground hidden sm:inline">
+                Perfis demonstrativos para inspiração — clique para visualizar
+              </span>
+            </div>
+
+            <div className="flex items-center gap-3 overflow-x-auto pb-1.5 scrollbar-zai opacity-85 hover:opacity-100 transition-opacity">
+              {EXAMPLE_ATTENDANTS.map((example) => (
+                <AttendantItemCard
+                  key={example.id}
+                  attendant={{
+                    id: example.id,
+                    key: example.key,
+                    name: example.name,
+                    role: example.role,
+                    isExample: true,
+                    avatarConfig: example.avatarConfig as any,
+                  }}
+                  isSelected={previewAgent?.key === example.key && previewAgent?.isExample === true}
+                  onSelect={() => {
+                    setPreviewAgent({
+                      ...example,
+                      key: example.key,
+                      active: true,
+                      isExample: true,
+                    });
+                  }}
+                  onEdit={() => {
+                    setPreviewAgent({
+                      ...example,
+                      key: example.key,
+                      active: true,
+                      isExample: true,
+                    });
+                  }}
+                />
+              ))}
+            </div>
           </div>
         </section>
 
-        {/* ROW 1: COMPACT OPERATIONAL INDICATORS BAR */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 p-3 rounded-2xl border border-border/70 bg-card/75 shadow-sm">
-          <div className="rounded-xl border border-border/50 bg-background/50 p-2.5 flex items-center justify-between">
+        {/* ROW 1: COMPACT OPERATIONAL INDICATORS BAR (Canonical 72–84px Height) */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 p-2.5 rounded-2xl border border-border/70 bg-card/75 shadow-sm h-auto md:h-[76px]">
+          <div className="rounded-xl border border-border/50 bg-background/50 px-3 py-2 flex items-center justify-between h-full">
             <div>
-              <span className="text-muted-foreground block text-[11px] font-medium">Respostas IA hoje</span>
+              <span className="text-muted-foreground block text-[11px] font-medium leading-none mb-1">Respostas IA hoje</span>
               <strong className="text-base font-bold text-foreground font-mono">{sessionMetrics?.messagesToday ?? 0}</strong>
             </div>
             <div className="h-8 w-8 rounded-lg bg-emerald-500/10 text-emerald-400 flex items-center justify-center shrink-0">
@@ -794,9 +838,9 @@ export default function AttendantsPage() {
             </div>
           </div>
 
-          <div className="rounded-xl border border-border/50 bg-background/50 p-2.5 flex items-center justify-between">
+          <div className="rounded-xl border border-border/50 bg-background/50 px-3 py-2 flex items-center justify-between h-full">
             <div>
-              <span className="text-muted-foreground block text-[11px] font-medium">Tokens hoje</span>
+              <span className="text-muted-foreground block text-[11px] font-medium leading-none mb-1">Tokens hoje</span>
               <strong className="text-base font-bold text-foreground font-mono">{formatTokens(sessionMetrics?.tokensToday ?? 0)}</strong>
             </div>
             <div className="h-8 w-8 rounded-lg bg-cyan-500/10 text-cyan-400 flex items-center justify-center shrink-0">
@@ -804,9 +848,9 @@ export default function AttendantsPage() {
             </div>
           </div>
 
-          <div className="rounded-xl border border-border/50 bg-background/50 p-2.5 flex items-center justify-between">
+          <div className="rounded-xl border border-border/50 bg-background/50 px-3 py-2 flex items-center justify-between h-full">
             <div>
-              <span className="text-muted-foreground block text-[11px] font-medium">Conversas hoje</span>
+              <span className="text-muted-foreground block text-[11px] font-medium leading-none mb-1">Conversas hoje</span>
               <strong className="text-base font-bold text-foreground font-mono">{sessionMetrics?.conversationsToday ?? (sessionMetrics?.messagesToday ?? 0)}</strong>
             </div>
             <div className="h-8 w-8 rounded-lg bg-purple-500/10 text-purple-400 flex items-center justify-center shrink-0">
@@ -814,9 +858,9 @@ export default function AttendantsPage() {
             </div>
           </div>
 
-          <div className="rounded-xl border border-border/50 bg-background/50 p-2.5 flex items-center justify-between">
+          <div className="rounded-xl border border-border/50 bg-background/50 px-3 py-2 flex items-center justify-between h-full">
             <div>
-              <span className="text-muted-foreground block text-[11px] font-medium">Leads hoje</span>
+              <span className="text-muted-foreground block text-[11px] font-medium leading-none mb-1">Leads hoje</span>
               <strong className="text-base font-bold text-foreground font-mono">{sessionMetrics?.leadsToday ?? 0}</strong>
             </div>
             <div className="h-8 w-8 rounded-lg bg-amber-500/10 text-amber-400 flex items-center justify-center shrink-0">
@@ -914,7 +958,7 @@ export default function AttendantsPage() {
               <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
                 {/* Coluna Esquerda: Avatar Studio 2.5D com 5 Categorias (Col 5) */}
                 <div className="lg:col-span-5 space-y-4">
-                  <Card className="rounded-2xl border-border/70 bg-card/85 backdrop-blur shadow-sm overflow-hidden">
+                  <Card className="rounded-2xl border-border/70 bg-card/85 backdrop-blur shadow-sm overflow-hidden flex flex-col h-auto lg:h-[510px] lg:max-h-[510px]">
                     <CardHeader className="p-3.5 pb-2.5 border-b border-border/40">
                       <div className="flex items-center justify-between gap-2">
                         <div className="min-w-0">
@@ -1007,9 +1051,9 @@ export default function AttendantsPage() {
                       )}
                     </CardHeader>
 
-                    <CardContent className="p-3.5 space-y-3">
+                    <CardContent className="p-3.5 space-y-2.5 flex-1 flex flex-col min-h-0 overflow-hidden">
                       {/* 2.5D Living Avatar Box */}
-                      <div className="w-full h-[220px] rounded-2xl overflow-hidden border border-border/50 shadow-inner relative flex flex-col items-center justify-center bg-gradient-to-b from-[#091120] to-[#040812] select-none">
+                      <div className="w-full h-[200px] shrink-0 rounded-2xl overflow-hidden border border-border/50 shadow-inner relative flex flex-col items-center justify-center bg-gradient-to-b from-[#091120] to-[#040812] select-none">
                         {/* Isometric Grid Floor Accent */}
                         <div
                           className="absolute inset-0 opacity-15 pointer-events-none"
@@ -1082,7 +1126,7 @@ export default function AttendantsPage() {
                       </div>
 
                       {/* Exactly 5 Category Buttons */}
-                      <div className="grid grid-cols-5 gap-1 p-1 rounded-xl bg-muted/20 border border-border/50">
+                      <div className="grid grid-cols-5 gap-1 p-1 rounded-xl bg-muted/20 border border-border/50 shrink-0">
                         <button
                           type="button"
                           onClick={() => setStudioCategory("hair")}
@@ -1155,7 +1199,7 @@ export default function AttendantsPage() {
                       </div>
 
                       {/* Items Selection Grid for Current Category */}
-                      <div className="h-[150px] overflow-y-auto pr-1">
+                      <div className="flex-1 min-h-[110px] overflow-y-auto pr-1 scrollbar-zai">
                         {studioCategory === "hair" && (
                           <div className="grid grid-cols-2 gap-1.5">
                             {AVATAR_HAIRS.map((h) => {
@@ -1351,8 +1395,8 @@ export default function AttendantsPage() {
 
                 {/* Coluna Direita: Central Interativa / Chat de Teste Real (Col 7) */}
                 <div className="lg:col-span-7 space-y-4">
-                  <Card className="rounded-2xl border-border/70 bg-card/85 backdrop-blur shadow-sm overflow-hidden flex flex-col">
-                    <CardHeader className="p-3.5 border-b border-border/40 bg-muted/10 flex flex-row items-center justify-between gap-2">
+                  <Card className="rounded-2xl border-border/70 bg-card/85 backdrop-blur shadow-sm overflow-hidden flex flex-col h-auto lg:h-[510px] lg:max-h-[510px]">
+                    <CardHeader className="h-[56px] px-3.5 py-0 border-b border-border/40 bg-muted/10 flex flex-row items-center justify-between gap-2 shrink-0">
                       <div className="flex items-center gap-2.5 min-w-0">
                         <div className="h-8 w-8 rounded-xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-emerald-400 shrink-0">
                           <ChatCircleText weight="bold" className="h-4 w-4" />
@@ -1371,9 +1415,9 @@ export default function AttendantsPage() {
                       </Badge>
                     </CardHeader>
 
-                    <CardContent className="p-3.5 space-y-3 flex-1 flex flex-col justify-between">
+                    <CardContent className="p-3.5 space-y-2.5 flex-1 flex flex-col justify-between min-h-0 overflow-hidden">
                       {/* Quick test prompt pills */}
-                      <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-none pb-1">
+                      <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-none pb-1 shrink-0">
                         <span className="text-[10px] text-muted-foreground shrink-0 font-medium">Perguntas rápidas:</span>
                         {["Qual é o catálogo?", "Formas de pagamento?", "Horário de atendimento?", "Quais são as promoções?"].map((q, idx) => (
                           <button
@@ -1389,7 +1433,7 @@ export default function AttendantsPage() {
                       </div>
 
                       {/* Chat Messages Box */}
-                      <div className="h-[290px] sm:h-[310px] rounded-xl border border-border/60 bg-background/50 p-3 overflow-y-auto space-y-2.5 text-xs">
+                      <div className="flex-1 min-h-0 rounded-xl border border-border/60 bg-background/50 p-3 overflow-y-auto space-y-2.5 text-xs scrollbar-zai">
                         {sandboxMessages.length === 0 && (
                           <div className="h-full flex flex-col items-center justify-center text-center p-4 text-muted-foreground space-y-2">
                             <Headset className="h-8 w-8 text-muted-foreground/60" />
@@ -1421,7 +1465,7 @@ export default function AttendantsPage() {
                       </div>
 
                       {/* Input form */}
-                      <form onSubmit={handleSendTestMessage} className="flex gap-2 pt-1">
+                      <form onSubmit={handleSendTestMessage} className="h-[48px] flex items-center gap-2 pt-1 shrink-0">
                         <Input
                           placeholder={`Pergunte algo para ${previewAgent.name}...`}
                           value={sandboxInput}
@@ -1554,7 +1598,7 @@ export default function AttendantsPage() {
                 </div>
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {filteredAttendants.map((agent) => {
+                    {paginatedOpCards.map((agent) => {
                       const isSelected = previewAgent?.key === agent.key;
                       const assignedSession = getAssignedSession(agent);
                       const assignedStore = getAssignedStore(agent);
@@ -1822,6 +1866,17 @@ export default function AttendantsPage() {
                         </Card>
                       );
                     })}
+                  </div>
+                )}
+
+                {totalOpCardPages > 1 && (
+                  <div className="flex justify-center pt-2">
+                    <Pagination
+                      currentPage={opCardPage}
+                      totalPages={totalOpCardPages}
+                      pageSize={OP_CARDS_PER_PAGE}
+                      onPageChange={setOpCardPage}
+                    />
                   </div>
                 )}
               </div>

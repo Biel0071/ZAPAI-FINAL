@@ -41,6 +41,44 @@
   --zai-text-primary: #f8fafc;
   --zai-text-secondary: #94a3b8;
   --zai-text-muted: #64748b;
+
+  /* Canonical Application Shell Tokens */
+  --app-sidebar-width: 240px;
+  --app-topbar-height: 56px;
+  --app-content-max-width: 1280px;
+  --app-content-padding: 24px;
+  --app-card-radius: 14px;
+  --app-card-gap: 16px;
+
+  /* Canonical Spacing Scale */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-10: 40px;
+  --space-12: 48px;
+
+  /* Canonical Breakpoints */
+  --bp-mobile: 640px;
+  --bp-tablet: 768px;
+  --bp-laptop: 1024px;
+  --bp-desktop: 1280px;
+  --bp-wide: 1440px;
+
+  /* Canonical Viewport Contracts */
+  --viewport-desktop-main-w: 1440px;
+  --viewport-desktop-main-h: 900px;
+  --viewport-desktop-sec-w: 1366px;
+  --viewport-desktop-sec-h: 768px;
+  --viewport-laptop-w: 1280px;
+  --viewport-laptop-h: 720px;
+  --viewport-tablet-w: 768px;
+  --viewport-tablet-h: 1024px;
+  --viewport-mobile-w: 390px;
+  --viewport-mobile-h: 844px;
 }
 
 /* =======================================================================
