@@ -205,8 +205,16 @@ export const MessageRow = memo(function MessageRow({
     (message as any).source === 'ai' ||
     (message as any).metadata?.source === 'ai' ||
     (message as any).sender === 'ai' ||
+    (message as any).sender === 'bot' ||
+    (message as any).sender === 'campaign' ||
     (message as any).origin === 'ai' ||
+    (message as any).origin === 'campaign' ||
     (message as any).message_origin === 'ai' ||
+    (message as any).message_origin === 'campaign' ||
+    (message as any).campaignId ||
+    (message as any).campaign_id ||
+    (message as any).metadata?.campaignId ||
+    (message as any).metadata?.campaign_id ||
     (message as any).agentName
   );
 

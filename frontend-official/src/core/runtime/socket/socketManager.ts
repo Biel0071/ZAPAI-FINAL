@@ -369,11 +369,16 @@ function normalizeRealtimeMessage(input: RawRealtimeMessage): RealtimeMessage {
     nestedMessage?.jid;
   const rawSender = String(input.sender ?? nestedMessage?.sender ?? "").toLowerCase();
   const isAI = Boolean(
-    input.isAI ??
-    nestedMessage?.isAI ??
-    (input as any).is_ai ??
-    (nestedMessage as any)?.is_ai ??
-    rawSender === "ai"
+    input.isAI ||
+    nestedMessage?.isAI ||
+    (input as any).is_ai ||
+    (nestedMessage as any)?.is_ai ||
+    rawSender === "ai" ||
+    rawSender === "bot" ||
+    rawSender === "campaign" ||
+    (input as any).message_origin === "ai" ||
+    (input as any).message_origin === "campaign" ||
+    (input as any).source === "ai"
   );
   const fromMe = Boolean(
     input.fromMe ??

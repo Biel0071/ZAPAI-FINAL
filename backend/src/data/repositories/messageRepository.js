@@ -25,9 +25,12 @@ function mapMessage(row) {
   const isAI = Boolean(
     row.sender === 'ai' ||
     row.sender === 'bot' ||
+    row.sender === 'campaign' ||
     row.message_origin === 'ai' ||
+    row.message_origin === 'campaign' ||
     row.origin === 'ai' ||
-    (parsedMetadata && (parsedMetadata.source === 'ai' || parsedMetadata.ai_response))
+    row.origin === 'campaign' ||
+    (parsedMetadata && (parsedMetadata.source === 'ai' || parsedMetadata.ai_response || parsedMetadata.campaignId || parsedMetadata.campaign_id))
   );
 
   return {
