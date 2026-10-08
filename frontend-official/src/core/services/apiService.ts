@@ -88,6 +88,7 @@ export interface Conversation {
   avatar?: string;
   isGroup?: boolean;
   lastMessage: string;
+  lastMessageAt?: string | null;
   updatedAt: string;
   phone: string;
   unread?: number;
@@ -951,6 +952,7 @@ function normalizeConversation(item: RawConversation, index: number): Conversati
     avatar: item.avatar ?? item.profilePictureUrl ?? item.profile_picture_url,
     isGroup: item.isGroup ?? resolvedPhone.includes("@g.us"),
     lastMessage: sanitizeLegacyPlaceholder(item.lastMessage ?? item.last_message ?? "", String(normalizedType)),
+    lastMessageAt: item.lastMessageAt ?? item.last_message_at ?? item.timestamp ?? item.updatedAt ?? item.updated_at ?? null,
     updatedAt: item.updatedAt ?? item.updated_at ?? new Date().toISOString(),
     phone: resolvedPhone,
     unread: item.unread ?? item.unread_count ?? item.unreadCount ?? 0,

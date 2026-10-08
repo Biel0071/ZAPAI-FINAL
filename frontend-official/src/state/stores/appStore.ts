@@ -114,7 +114,9 @@ function getTime(value?: string | null): number {
 }
 
 function mergeConversationRecord(existing: Conversation, incoming: Conversation): Conversation {
-  const incomingIsNewer = getTime(incoming.updatedAt) >= getTime(existing.updatedAt);
+  const incomingTime = getTime(incoming.lastMessageAt || incoming.updatedAt);
+  const existingTime = getTime(existing.lastMessageAt || existing.updatedAt);
+  const incomingIsNewer = incomingTime >= existingTime;
   const preferred = incomingIsNewer ? incoming : existing;
   const fallback = incomingIsNewer ? existing : incoming;
 
@@ -127,6 +129,7 @@ function mergeConversationRecord(existing: Conversation, incoming: Conversation)
     contactId: preferred.contactId || fallback.contactId,
     sessionId: preferred.sessionId || fallback.sessionId,
     contactName: preferred.contactName || fallback.contactName,
+    lastMessageAt: preferred.lastMessageAt || fallback.lastMessageAt || null,
     unread: Math.max(existing.unread ?? 0, incoming.unread ?? 0),
     tags: preferred.tags?.length ? preferred.tags : fallback.tags ?? [],
   };
@@ -774,6 +777,7 @@ export const useAppStore = create<AppState>((set) => ({
           contactName: mappedConv.contactName || mappedConv.name || mappedConv.phone || "Contato",
           phone: mappedConv.phone || "",
           unread: mappedConv.unread ?? 0,
+          lastMessageAt: mappedConv.lastMessageAt || mappedConv.updatedAt || new Date().toISOString(),
           updatedAt: mappedConv.updatedAt || new Date().toISOString(),
           status: mappedConv.status || "offline",
           lastMessage: mappedConv.lastMessage || "",

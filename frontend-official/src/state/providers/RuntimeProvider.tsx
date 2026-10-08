@@ -593,6 +593,7 @@ export function RuntimeProvider({ children }: { children: ReactNode }) {
         store.updateConversationRealtime({
           id: conversationId,
           lastMessage: incoming.content || "",
+          lastMessageAt: incoming.timestamp || incoming.createdAt || new Date().toISOString(),
           updatedAt: incoming.createdAt || new Date().toISOString(),
           phone: incoming.phone || incoming.remoteJid || currentConv?.phone,
           chatId: incoming.chatId || incoming.remoteJid || currentConv?.chatId || currentConv?.phone,
@@ -705,6 +706,7 @@ export function RuntimeProvider({ children }: { children: ReactNode }) {
         store.updateConversationRealtime({
           id: conversationId,
           lastMessage: incoming.content || "",
+          lastMessageAt: incoming.timestamp || incoming.createdAt || new Date().toISOString(),
           updatedAt: incoming.createdAt || new Date().toISOString(),
           unread: isActive ? 0 : (incoming.fromMe ? 0 : 1) + (currentConv?.unread ?? 0),
           phone: incoming.phone || incoming.remoteJid || currentConv?.phone,
