@@ -605,7 +605,7 @@ export function SidebarPanel({
                 key={section.id}
                 value={section.id}
                 className={cn(
-                  "flex flex-col items-center justify-center py-1 px-1 rounded-lg h-11 transition-all duration-150 gap-0.5",
+                  "group flex flex-col items-center justify-center py-1 px-1 rounded-lg h-11 transition-all duration-150 gap-0.5",
                   "text-muted-foreground hover:text-foreground hover:bg-muted/60 border border-transparent",
                   "data-[state=active]:bg-card/90 data-[state=active]:text-emerald-400 data-[state=active]:font-semibold data-[state=active]:border-emerald-500/40 data-[state=active]:shadow-xs"
                 )}
@@ -614,7 +614,7 @@ export function SidebarPanel({
                 <img
                   src={section.iconSrc}
                   alt={section.label}
-                  className="h-5 w-5 object-contain shrink-0 drop-shadow-xs"
+                  className="h-6 w-6 object-contain shrink-0 drop-shadow-xs transition-transform duration-150 group-hover:scale-110 select-none pointer-events-none"
                   loading="lazy"
                   onError={(e) => {
                     (e.currentTarget as HTMLImageElement).style.display = "none";
