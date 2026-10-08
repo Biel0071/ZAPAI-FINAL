@@ -1081,7 +1081,7 @@ export function SidebarPanel({
                           {items.map((reply) => (
                             <div
                               key={reply.id}
-                              className="group flex items-center justify-between gap-1 p-2 hover:bg-muted/30 transition-colors"
+                              className="group flex items-center justify-between gap-1.5 py-1 px-2 hover:bg-muted/30 transition-colors"
                             >
                               {/* Main Click Button (Inserts into composer or previews) */}
                               <button
@@ -1095,16 +1095,16 @@ export function SidebarPanel({
                                 }}
                                 onDoubleClick={() => setMessageInput(getQuickReplyPreviewText(reply, variableContext))}
                                 disabled={sending}
-                                className="flex min-w-0 flex-1 items-center gap-2 text-left focus-visible:ring-2 focus-visible:ring-ring rounded-md p-1"
+                                className="flex min-w-0 flex-1 items-center gap-2 text-left focus-visible:ring-2 focus-visible:ring-ring rounded-md py-0.5 px-1"
                               >
                                 {renderReplyTypeIcon(reply)}
-                                <div className="min-w-0 flex-1">
-                                  <p className="truncate text-xs font-semibold text-foreground/95">
+                                <div className="min-w-0 flex-1 flex items-baseline gap-1.5 overflow-hidden">
+                                  <span className="truncate text-xs font-semibold text-foreground/95 shrink-0 max-w-[55%]">
                                     {reply.title || reply.text}
-                                  </p>
-                                  <p className="truncate text-[11px] text-muted-foreground">
+                                  </span>
+                                  <span className="truncate text-[11px] text-muted-foreground font-normal">
                                     {reply.isFlow ? "Fluxo sequencial" : getQuickReplyPreviewText(reply, variableContext)}
-                                  </p>
+                                  </span>
                                 </div>
                               </button>
 
@@ -1116,10 +1116,10 @@ export function SidebarPanel({
                                     <Button
                                       size="icon"
                                       variant="ghost"
-                                      className="h-7 w-7 text-muted-foreground hover:text-foreground"
+                                      className="h-6 w-6 text-muted-foreground hover:text-foreground"
                                       aria-label={`Opções de ${reply.title}`}
                                     >
-                                      <MoreHorizontal className="h-4 w-4" />
+                                      <MoreHorizontal className="h-3.5 w-3.5" />
                                     </Button>
                                   </DropdownMenuTrigger>
                                   <DropdownMenuContent align="end">
@@ -1152,11 +1152,11 @@ export function SidebarPanel({
                                       <Button
                                         size="icon"
                                         variant="ghost"
-                                        className="h-7 w-7 text-muted-foreground hover:text-foreground"
+                                        className="h-6 w-6 text-muted-foreground hover:text-foreground"
                                         aria-label={`Ver prévia de ${reply.title}`}
                                         onClick={() => chooseReply(reply)}
                                       >
-                                        <Eye className="h-4 w-4" />
+                                        <Eye className="h-3.5 w-3.5" />
                                       </Button>
                                     </TooltipTrigger>
                                     <TooltipContent side="top">Prévia / Rascunho</TooltipContent>
@@ -1170,12 +1170,12 @@ export function SidebarPanel({
                                       <Button
                                         size="icon"
                                         variant="ghost"
-                                        className="h-7 w-7 text-primary hover:bg-primary/10 hover:text-primary"
+                                        className="h-6 w-6 text-primary hover:bg-primary/10 hover:text-primary"
                                         disabled={sending || !isWhatsappConnected}
                                         aria-label={`Enviar ${reply.title} agora`}
                                         onClick={() => void sendQuickReply(reply, 0)}
                                       >
-                                        <Send className="h-3.5 w-3.5" />
+                                        <Send className="h-3 w-3" />
                                       </Button>
                                     </TooltipTrigger>
                                     <TooltipContent side="top">Enviar diretamente</TooltipContent>

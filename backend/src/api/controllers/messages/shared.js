@@ -41,16 +41,39 @@ async function resolveOutboundContext(req, { requireConnected = true } = {}) {
   if (!normalizedPhone || (shortId && !conversation)) reject(400, 'INVALID_RECIPIENT', 'Selecione um destino válido para enviar.');
   const requestedSession = String(payload.sessionName || payload.sessionId || req.headers?.['x-session-id'] || req.query?.sessionId || '').trim();
   const conversationSession = conversation?.session_id || conversation?.sessionId;
-  if (requestedSession && conversationSession && sessionManager.normalizeSessionName(requestedSession) !== sessionManager.normalizeSessionName(conversationSession)) {
-    reject(409, 'SESSION_MISMATCH', 'A conexão não corresponde à conversa selecionada.');
-  }
+
   const requestedName = sessionManager.normalizeSessionName(requestedSession || conversationSession || sessionManager.DEFAULT_SESSION);
-  const ownedSession = (await query(
+  let ownedSession = (await query(
     'SELECT session_id, session_name FROM sessions WHERE company_id = $1 AND (session_id = $2 OR session_name = $2) LIMIT 1',
     [companyId, requestedName]
   )).rows[0];
+
+  if (!ownedSession && conversationSession) {
+    const convSessionName = sessionManager.normalizeSessionName(conversationSession);
+    ownedSession = (await query(
+      'SELECT session_id, session_name FROM sessions WHERE company_id = $1 AND (session_id = $2 OR session_name = $2) LIMIT 1',
+      [companyId, convSessionName]
+    )).rows[0];
+  }
+
+  // Fallback to active connected session for the company if legacy/aliased session requested
+  if (!ownedSession) {
+    ownedSession = (await query(
+      "SELECT session_id, session_name FROM sessions WHERE company_id = $1 AND (status = 'connected' OR connected = true) ORDER BY updated_at DESC LIMIT 1",
+      [companyId]
+    )).rows[0];
+  }
+
+  // Final fallback to any session of the company
+  if (!ownedSession) {
+    ownedSession = (await query(
+      "SELECT session_id, session_name FROM sessions WHERE company_id = $1 ORDER BY updated_at DESC LIMIT 1",
+      [companyId]
+    )).rows[0];
+  }
+
   if (!ownedSession) reject(403, 'SESSION_FORBIDDEN', 'A conexão não pertence à empresa autenticada.');
-  const targetSessionName = sessionManager.normalizeSessionName(ownedSession.session_id || requestedName);
+  const targetSessionName = sessionManager.normalizeSessionName(ownedSession.session_id || ownedSession.session_name || requestedName);
   const session = sessionManager.getSession(targetSessionName);
   if (session?.companyId && String(session.companyId) !== companyId) reject(403, 'SESSION_FORBIDDEN', 'A conexão não pertence à empresa autenticada.');
   const contactId = payload.contactId || conversation?.contact_id || conversation?.lead_id || null;
