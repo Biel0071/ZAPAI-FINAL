@@ -22,6 +22,14 @@ function mapMessage(row) {
     }
   }
 
+  const isAI = Boolean(
+    row.sender === 'ai' ||
+    row.sender === 'bot' ||
+    row.message_origin === 'ai' ||
+    row.origin === 'ai' ||
+    (parsedMetadata && (parsedMetadata.source === 'ai' || parsedMetadata.ai_response))
+  );
+
   return {
     content: cleanContent,
     conversationId: row.conversation_id,
@@ -60,6 +68,10 @@ function mapMessage(row) {
     text: cleanContent,
     timestamp: row.timestamp || row.created_at,
     type: row.media_type || row.type || 'text',
+    sender: row.sender || ((typeof row.from_me === 'boolean' ? row.from_me : row.fromMe) ? 'agent' : 'client'),
+    origin: row.message_origin || row.origin || null,
+    message_origin: row.message_origin || row.origin || null,
+    isAI,
   };
 }
 
@@ -298,7 +310,8 @@ async function getMessagesByConversation(conversationId, options = {}) {
                m.from_me,
                m.whatsapp_message_id,
                m.remote_jid,
-               m.participant_jid
+               m.participant_jid,
+               m.message_origin
         FROM messages m
         LEFT JOIN conversations conv ON conv.id = m.conversation_id
         LEFT JOIN leads l ON l.id = conv.lead_id
@@ -369,7 +382,8 @@ async function getMessagesByPhone(phone, companyId, sessionId) {
              m.from_me,
              m.whatsapp_message_id,
              m.remote_jid,
-             m.participant_jid
+             m.participant_jid,
+             m.message_origin
       FROM messages m
       LEFT JOIN conversations conv ON conv.id = m.conversation_id
       LEFT JOIN leads l ON l.id = conv.lead_id
@@ -414,7 +428,8 @@ async function getLastMessage(conversationId) {
         m.from_me,
         m.whatsapp_message_id,
         m.remote_jid,
-        m.participant_jid
+        m.participant_jid,
+        m.message_origin
       FROM messages m
       INNER JOIN conversations conv ON conv.id = m.conversation_id
       INNER JOIN leads l ON l.id = conv.lead_id
@@ -448,7 +463,8 @@ async function listRecentMessages(limit = 2000, companyId) {
         m.from_me,
         m.whatsapp_message_id,
         m.remote_jid,
-        m.participant_jid
+        m.participant_jid,
+        m.message_origin
       FROM messages m
       INNER JOIN conversations conv ON conv.id = m.conversation_id
       INNER JOIN leads l ON l.id = conv.lead_id
@@ -482,7 +498,8 @@ async function findById(messageId, companyId) {
         m.from_me,
         m.whatsapp_message_id,
         m.remote_jid,
-        m.participant_jid
+        m.participant_jid,
+        m.message_origin
       FROM messages m
       INNER JOIN conversations conv ON conv.id = m.conversation_id
       INNER JOIN leads l ON l.id = conv.lead_id

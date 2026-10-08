@@ -103,9 +103,11 @@ function normalizeRuntimeIdentityPart(value: unknown): string {
 
 function isSessionMatch(convSessionId?: string, incomingSessionId?: string): boolean {
   if (!incomingSessionId) return true;
-  const cSess = String(convSessionId || "main").trim().toLowerCase();
-  const iSess = String(incomingSessionId || "main").trim().toLowerCase();
-  return cSess === iSess;
+  const normalize = (s?: string) => {
+    const val = String(s || "main").trim().toLowerCase();
+    return val === "default" || val === "" ? "main" : val;
+  };
+  return normalize(convSessionId) === normalize(incomingSessionId);
 }
 
 function resolveConversationIdForRealtimeMessage(
@@ -118,6 +120,15 @@ function resolveConversationIdForRealtimeMessage(
   conversations: Conversation[],
 ): string | null {
   console.log(`[INBOX REALTIME] [REALTIME_MESSAGE] Resolving conversation for message: id=${incoming.id} phone=${incoming.phone} chatId=${incoming.chatId} conversationId=${incoming.conversationId} sessionId=${incoming.sessionId}`);
+
+  // 0. Primary key match (database conversation UUID/ID takes absolute precedence)
+  if (incoming.conversationId) {
+    const pkMatch = conversations.find((c) => String(c.id) === String(incoming.conversationId));
+    if (pkMatch) {
+      console.log(`[INBOX REALTIME] [PK MATCH] Direct database ID match found: ${pkMatch.id}`);
+      return pkMatch.id;
+    }
+  }
 
   const incomingId = incoming.conversationId || incoming.chatId;
   const incomingPhone = incoming.phone || incoming.chatId || incoming.remoteJid;

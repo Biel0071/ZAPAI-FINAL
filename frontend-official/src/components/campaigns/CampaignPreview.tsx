@@ -30,6 +30,7 @@ export interface CampaignStepItem {
   message: string;
   mediaType?: "text" | "image" | "video" | "audio" | "document" | "file" | "sticker" | null;
   mediaName?: string | null;
+  mediaUrl?: string | null;
 }
 
 export interface StructuredCampaignPayload {
@@ -303,6 +304,7 @@ export function CampaignPreview({
                     messageText={step.message}
                     mediaType={step.mediaType}
                     mediaName={step.mediaName}
+                    mediaUrl={step.mediaUrl || (step as any).localUrl}
                     senderName={attendantName}
                     senderAvatarUrl={attendantAvatarUrl}
                   />

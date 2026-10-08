@@ -249,6 +249,10 @@ function buildStandardNewMessageEnvelope(message = {}) {
       mimeType: normalized.mimeType || null,
       filename: normalized.filename || null,
       thumbnail: normalized.thumbnail || null,
+      isAI: Boolean(normalized.isAI),
+      sender: normalized.sender || (normalized.fromMe ? 'agent' : 'client'),
+      source: normalized.source || null,
+      agentName: normalized.agentName || null,
     },
   };
 }

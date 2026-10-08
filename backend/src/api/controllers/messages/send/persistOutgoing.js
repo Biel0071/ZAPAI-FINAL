@@ -99,6 +99,7 @@ async function persistOutgoingMessageRecord(store, payload) {
     {
       lastMessage: messagePreview,
       lastMessageType: payload.mediaType || 'text',
+      last_message_at: new Date().toISOString(),
       status: 'open',
       unreadCount: 0,
       updatedAt: new Date().toISOString(),

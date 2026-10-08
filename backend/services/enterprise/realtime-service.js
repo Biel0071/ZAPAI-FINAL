@@ -140,6 +140,11 @@ function buildRealtimeMessageEnvelope(message = {}) {
       sessionId: message.sessionId || message.session_id || null,
       mimeType: message.mimeType || message.mimetype || null,
       filename: message.filename || message.fileName || null,
+      isAI: Boolean(message.isAI || message.is_ai || message.sender === 'ai'),
+      sender: message.sender || (message.fromMe ? (message.isAI ? 'ai' : 'agent') : 'client'),
+      origin: message.origin || message.message_origin || (message.fromMe ? 'human' : 'client'),
+      source: message.source || null,
+      agentName: message.agentName || message.agent_name || null,
     },
   };
 }

@@ -35,6 +35,7 @@ import { useAiCountdown } from "@/state/hooks/useAiCountdown";
 import {
   getInitials,
   formatTime,
+  formatConversationTimestamp,
   inferConversationMessageType,
   normalizeId,
   getTagColor,
@@ -275,7 +276,7 @@ export function ConversationRow(props: RowComponentProps<ConversationRowData>) {
                 <Star weight="fill" className="h-3.5 w-3.5 text-amber-400 shrink-0" />
               )}
               <span className="text-[10px] text-muted-foreground/70 font-medium tabular-nums">
-                {formatTime((conversation as any).lastMessageAt || (conversation as any).lastInteractionAt || (conversation as any).timestamp || conversation.updatedAt)}
+                {formatConversationTimestamp((conversation as any).lastMessageAt || (conversation as any).lastInteractionAt || (conversation as any).timestamp || conversation.updatedAt)}
               </span>
             </div>
           </div>

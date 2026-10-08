@@ -7,6 +7,7 @@ interface WhatsAppMessagePreviewProps {
   messageText: string;
   mediaType?: "text" | "image" | "video" | "audio" | "document" | "file" | "sticker" | null;
   mediaName?: string | null;
+  mediaUrl?: string | null;
   time?: string;
   senderName?: string;
   senderAvatarUrl?: string;
@@ -41,6 +42,7 @@ export function WhatsAppMessagePreview({
   messageText,
   mediaType = "text",
   mediaName,
+  mediaUrl,
   time = "10:42",
   senderName = "Camila • ZAI AI",
   senderAvatarUrl,
@@ -54,6 +56,17 @@ export function WhatsAppMessagePreview({
 
     switch (mediaType) {
       case "image":
+        if (mediaUrl) {
+          return (
+            <div className="mb-2 rounded-lg overflow-hidden bg-black/20 border border-black/10">
+              <img
+                src={mediaUrl}
+                alt={mediaName || "Imagem da campanha"}
+                className="w-full h-auto max-h-48 object-cover rounded-lg"
+              />
+            </div>
+          );
+        }
         return (
           <div className={cn(mediaStyles, "h-28 bg-black/20")}>
             <Image className="h-7 w-7 text-white/70" weight="fill" />

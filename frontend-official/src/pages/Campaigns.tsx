@@ -79,9 +79,10 @@ import {
   type Conversation,
   type Contact,
 } from "@/core/services/apiService";
-import { notify } from "@/core/services/notifyService";
 import { cn } from "@/core/lib/utils";
+import { notify } from "@/core/services/notifyService";
 import type { QuickReplyItem } from "./Inbox/types";
+import { resolveMediaUrl } from "@/core/runtime/utils/inboxNormalization";
 
 type ComposerMode = "create" | "edit" | "duplicate";
 type CreationMode = "select" | "ai" | "manual";
@@ -2095,11 +2096,15 @@ export default function Campaigns() {
                                       <div className="border-t border-border/40 p-4 bg-background/40">
                                         <div className="flex min-w-0 items-center gap-3">
                                           <div className="h-12 w-12 shrink-0 rounded-lg overflow-hidden bg-muted flex items-center justify-center border border-border/50">
-                                            {variant.localUrl && variant.type === "image" ? (
-                                              <img src={variant.localUrl} alt="Preview" className="h-full w-full object-cover" />
-                                            ) : (
-                                              <span className="text-muted-foreground">{getDraftMediaIcon(variant.type)}</span>
-                                            )}
+                                            {(() => {
+                                              const rawMedia = variant.localUrl || variant.mediaUrl || variant.mediaPath || "";
+                                              const resolvedUrl = resolveMediaUrl(rawMedia);
+                                              const isImg = variant.type === "image" || variant.mimetype?.startsWith("image/") || /\.(jpe?g|png|gif|webp|svg)$/i.test(variant.fileName || "");
+                                              if (resolvedUrl && isImg) {
+                                                return <img src={resolvedUrl} alt="Preview" className="h-full w-full object-cover" />;
+                                              }
+                                              return <span className="text-muted-foreground">{getDraftMediaIcon(variant.type)}</span>;
+                                            })()}
                                           </div>
                                           <div className="min-w-0 flex-1">
                                             <div className="flex items-center gap-2">
@@ -2168,14 +2173,22 @@ export default function Campaigns() {
                                     {(selectedFlowId ? (quickReplies.find(q => q.id === selectedFlowId)?.steps || []) : messageVariants).map((variant: any, i: number) => (
                                       <div key={i} className="flex justify-end">
                                         <div className="max-w-[85%] rounded-lg bg-[#005c4b] text-[#e9edef] p-2 shadow-sm text-[14px] leading-relaxed relative">
-                                          {(variant.localUrl || variant.mediaUrl) && variant.type === 'image' && (
-                                            <div className="mb-2 rounded-md overflow-hidden relative group">
-                                              <img src={variant.localUrl || variant.mediaUrl || ""} className="w-full h-auto max-h-48 object-cover" alt="Midia preview" />
-                                              {variant.uploadStatus === 'uploading' && (
-                                                <div className="absolute inset-0 bg-black/40 flex items-center justify-center"><Clock className="h-6 w-6 text-white animate-spin" /></div>
-                                              )}
-                                            </div>
-                                          )}
+                                          {(() => {
+                                            const rawMedia = variant.localUrl || variant.mediaUrl || variant.mediaPath || "";
+                                            const resolvedImgUrl = resolveMediaUrl(rawMedia);
+                                            const isImg = variant.type === "image" || variant.mimetype?.startsWith("image/") || /\.(jpe?g|png|gif|webp|svg)$/i.test(variant.fileName || "");
+                                            if (resolvedImgUrl && isImg) {
+                                              return (
+                                                <div className="mb-2 rounded-md overflow-hidden relative group">
+                                                  <img src={resolvedImgUrl} className="w-full h-auto max-h-48 object-cover rounded-md" alt={variant.fileName || "Mídia preview"} />
+                                                  {variant.uploadStatus === "uploading" && (
+                                                    <div className="absolute inset-0 bg-black/40 flex items-center justify-center"><Clock className="h-6 w-6 text-white animate-spin" /></div>
+                                                  )}
+                                                </div>
+                                              );
+                                            }
+                                            return null;
+                                          })()}
                                           {(variant.fileName && variant.type !== 'image') && (
                                             <div className="mb-2 rounded-md bg-black/20 p-2 flex items-center gap-2">
                                               {getDraftMediaIcon(variant.type)} <span className="truncate text-xs">{variant.fileName}</span>

@@ -113,7 +113,7 @@ function mapConversation(row) {
     tags: Array.isArray(row.tags) ? row.tags : [],
     unreadCount: Number(row.unread_count) || 0,
     updatedAt: row.updated_at,
-    lastMessageAt: row.updated_at,
+    lastMessageAt: row.last_message_at || row.updated_at || row.created_at,
     isBlocked: !!row.is_blocked,
   };
 }
@@ -142,6 +142,7 @@ function getBaseSelect() {
       conv.unread_count,
       conv.created_at,
       conv.updated_at,
+      COALESCE(conv.last_message_at, conv.updated_at, conv.created_at) as last_message_at,
       COALESCE(l.phone, conv.remote_jid) as phone,
       COALESCE(NULLIF(l.name, ''), conv.remote_jid, 'Contato') as name,
       l.is_blocked
@@ -421,6 +422,8 @@ async function updateConversationState(conversationId, fields = {}, companyId) {
     funnel_stage: 'funnel_stage',
     lastMessage: 'last_message',
     lastMessageType: 'last_message_type',
+    lastMessageAt: 'last_message_at',
+    last_message_at: 'last_message_at',
     lead_confidence: 'lead_confidence',
     lead_intent: 'lead_intent',
     lead_temperature: 'lead_temperature',
@@ -504,17 +507,19 @@ async function updateConversationAIEnabled(phone, aiEnabled, companyId) {
   return updatedConversation;
 }
 
-async function updateConversationAfterMessage(conversationId, content, type = 'text') {
+async function updateConversationAfterMessage(conversationId, content, type = 'text', messageTimestamp = null) {
+  const ts = messageTimestamp ? new Date(messageTimestamp) : new Date();
   const result = await query(
     `
       UPDATE conversations
       SET last_message = $1,
           last_message_type = $2,
+          last_message_at = $3,
           updated_at = NOW()
-      WHERE id = $3
+      WHERE id = $4
       RETURNING id
     `,
-    [content || '', type || 'text', conversationId]
+    [content || '', type || 'text', ts, conversationId]
   );
 
   if (!result.rows[0]) {
@@ -602,6 +607,7 @@ async function listConversations(companyId, limit = 50, options = {}) {
           conv.unread_count,
           conv.created_at,
           conv.updated_at,
+          COALESCE(conv.last_message_at, conv.updated_at, conv.created_at) as last_message_at,
           COALESCE(l.phone, conv.remote_jid) as phone,
           COALESCE(NULLIF(l.name, ''), conv.remote_jid, 'Contato') as name,
           l.is_blocked
@@ -612,11 +618,11 @@ async function listConversations(companyId, limit = 50, options = {}) {
           conv.company_id,
           COALESCE(conv.remote_jid, l.phone, conv.id::text),
           COALESCE(NULLIF(conv.session_id, ''), 'main'),
-          conv.updated_at DESC,
+          COALESCE(conv.last_message_at, conv.updated_at) DESC,
           conv.id DESC
       ) deduplicated
       ${searchClause}
-      ORDER BY updated_at DESC
+      ORDER BY last_message_at DESC
       LIMIT $${values.length}
     `,
     values

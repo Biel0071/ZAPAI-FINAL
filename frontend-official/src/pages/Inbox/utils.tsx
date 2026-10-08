@@ -96,6 +96,63 @@ export function formatTime(value?: string | number): string {
   return date.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
 }
 
+export function formatConversationTimestamp(value?: string | number): string {
+  if (!value) return "";
+  let date: Date;
+  if (typeof value === "number") {
+    const ms = value > 1e9 && value < 9e9 ? value * 1000 : value;
+    date = new Date(ms);
+  } else {
+    const str = String(value).trim();
+    if (/^\d+$/.test(str)) {
+      const num = Number(str);
+      const ms = num > 1e9 && num < 9e9 ? num * 1000 : num;
+      date = new Date(ms);
+    } else {
+      date = new Date(str);
+    }
+  }
+  if (Number.isNaN(date.getTime())) {
+    const strVal = String(value);
+    return strVal.length <= 5 ? strVal : "";
+  }
+
+  const now = new Date();
+  const isToday =
+    date.getDate() === now.getDate() &&
+    date.getMonth() === now.getMonth() &&
+    date.getFullYear() === now.getFullYear();
+
+  if (isToday) {
+    return date.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+  }
+
+  const yesterday = new Date(now);
+  yesterday.setDate(now.getDate() - 1);
+  const isYesterday =
+    date.getDate() === yesterday.getDate() &&
+    date.getMonth() === yesterday.getMonth() &&
+    date.getFullYear() === yesterday.getFullYear();
+
+  if (isYesterday) {
+    return "Ontem";
+  }
+
+  const diffDays = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60 * 24));
+  if (diffDays > 0 && diffDays < 7) {
+    const weekdays = ["Domingo", "Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado"];
+    return weekdays[date.getDay()];
+  }
+
+  const sameYear = date.getFullYear() === now.getFullYear();
+  const day = String(date.getDate()).padStart(2, "0");
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  if (sameYear) {
+    return `${day}/${month}`;
+  }
+  return `${day}/${month}/${date.getFullYear()}`;
+}
+
 export function formatPhoneNumber(phone: string): string {
   const clean = String(phone || "").replace(/\D/g, "");
   if (!clean) return phone || "Sem número";

@@ -143,8 +143,15 @@ export default function Inbox() {
         if (state.filter === "archived") {
           if (!isArchived) return false;
         } else if (isArchived) return false;
-        if (state.filter === "unread" && (conversation.unread ?? 0) <= 0) return false;
-        if (state.filter === "ai" && !(state.conversationControls[conversation.id]?.aiEnabled ?? true)) return false;
+        if (state.filter === "unread" && (Number(conversation.unread) || 0) <= 0 && (Number(conversation.unreadCount) || 0) <= 0) return false;
+        if (state.filter === "ai") {
+          const isAiActive =
+            (conversation as any).aiEnabled !== false &&
+            (conversation as any).ai_enabled !== false &&
+            (conversation as any).isAiActive !== false &&
+            (state.conversationControls[conversation.id]?.aiEnabled ?? true);
+          if (!isAiActive) return false;
+        }
         if (!showGroups && conversation.isGroup) return false;
         if (!normalizedSearch) return true;
 
@@ -167,8 +174,10 @@ export default function Inbox() {
 
         const aDraftTime = state.draftsByConversationId[a.id]?.timestamp ?? 0;
         const bDraftTime = state.draftsByConversationId[b.id]?.timestamp ?? 0;
-        const aActivityTime = Math.max(normalizeConversationTimestamp(a.updatedAt), aDraftTime);
-        const bActivityTime = Math.max(normalizeConversationTimestamp(b.updatedAt), bDraftTime);
+        const aLastMsg = (a as any).lastMessageAt || (a as any).lastInteractionAt || (a as any).timestamp || a.updatedAt;
+        const bLastMsg = (b as any).lastMessageAt || (b as any).lastInteractionAt || (b as any).timestamp || b.updatedAt;
+        const aActivityTime = Math.max(normalizeConversationTimestamp(aLastMsg), aDraftTime);
+        const bActivityTime = Math.max(normalizeConversationTimestamp(bLastMsg), bDraftTime);
         return bActivityTime - aActivityTime;
       });
 

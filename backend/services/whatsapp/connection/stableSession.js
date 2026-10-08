@@ -2097,6 +2097,9 @@ async function createStableSession({
           sessionId: normalizedSessionName,
           mimeType: realtimeMediaPayload?.mimetype || null,
           filename: realtimeMediaPayload?.fileName || realtimeMediaPayload?.filename || null,
+          isAI: Boolean(savedMessage?.isAI || savedMessage?.is_ai || savedMessage?.sender === 'ai'),
+          sender: savedMessage?.sender || (formattedRealtimeMessage.fromMe ? 'human' : 'client'),
+          origin: savedMessage?.origin || (formattedRealtimeMessage.fromMe ? 'human' : 'client'),
         });
       }
 

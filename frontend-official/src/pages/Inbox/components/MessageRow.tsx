@@ -200,11 +200,13 @@ export const MessageRow = memo(function MessageRow({
 
   const isAiMessage = Boolean(
     message.isAI ||
-    message.isAI ||
     (message as any).is_ai ||
     (message as any).isAiGenerated ||
     (message as any).source === 'ai' ||
     (message as any).metadata?.source === 'ai' ||
+    (message as any).sender === 'ai' ||
+    (message as any).origin === 'ai' ||
+    (message as any).message_origin === 'ai' ||
     (message as any).agentName
   );
 
@@ -507,6 +509,15 @@ export const MessageRow = memo(function MessageRow({
           )}
 
           <div className={cn("mt-1 flex flex-nowrap items-center justify-end gap-1.5 whitespace-nowrap text-[10px]", message.fromMe ? "text-primary-foreground/70" : "text-muted-foreground")}>
+            {message.fromMe && (
+              <span
+                className="inline-flex items-center justify-center text-[11px] leading-none select-none shrink-0"
+                title={isAiMessage ? "Atendente IA" : "Atendente Humano"}
+                aria-label={isAiMessage ? "Atendente IA" : "Atendente Humano"}
+              >
+                {isAiMessage ? "🤖" : "👤"}
+              </span>
+            )}
             <time dateTime={typeof messageTime === "string" ? messageTime || undefined : undefined} title={timeDescription}>{formatTime(messageTime)}</time>
             {message.fromMe && (
               <span className="flex items-center shrink-0 ml-0.5" aria-label={statusMeta.label} title={statusMeta.label}>

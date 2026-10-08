@@ -23,6 +23,9 @@ interface ZaiAssistantComposerProps {
   setMessageInput: React.Dispatch<React.SetStateAction<string>>;
   messageInputRef: React.RefObject<HTMLTextAreaElement | null>;
   disabled?: boolean;
+  isOpen?: boolean;
+  onOpenChange?: (open: boolean) => void;
+  hideDefaultTrigger?: boolean;
 }
 
 interface DetectedContext {
@@ -58,8 +61,21 @@ export function ZaiAssistantComposer({
   setMessageInput,
   messageInputRef,
   disabled = false,
+  isOpen,
+  onOpenChange,
+  hideDefaultTrigger = false,
 }: ZaiAssistantComposerProps) {
-  const [open, setOpen] = useState(false);
+  const isControlled = typeof isOpen === "boolean";
+  const [internalOpen, setInternalOpen] = useState(false);
+  const open = isControlled ? isOpen : internalOpen;
+
+  const setOpen = useCallback((val: boolean) => {
+    if (!isControlled) {
+      setInternalOpen(val);
+    }
+    onOpenChange?.(val);
+  }, [isControlled, onOpenChange]);
+
   const [showRefinements, setShowRefinements] = useState(false);
   const [instruction, setInstruction] = useState("");
   const [generated, setGenerated] = useState<string | null>(null);
@@ -81,6 +97,12 @@ export function ZaiAssistantComposer({
     contextVersionRef.current += 1;
     if (timerIntervalRef.current) clearInterval(timerIntervalRef.current);
   }, []);
+
+  useEffect(() => {
+    if (open && !generated && !loading && !generatingRef.current) {
+      void handleGenerate();
+    }
+  }, [open, generated, loading]);
 
   const recentMessages = messages
     .slice(-10)
@@ -235,7 +257,7 @@ export function ZaiAssistantComposer({
   return (
     <div className="w-full">
       {/* 1. MUDANÇA 3: COMPONENTE COMPACTO FECHADO POR PADRÃO */}
-      {!open && (
+      {!open && !hideDefaultTrigger && (
         <div className="flex items-center gap-2 mb-2">
           <button
             type="button"

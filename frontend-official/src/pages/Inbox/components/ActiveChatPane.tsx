@@ -271,10 +271,12 @@ export function ActiveChatPane({
   const navigate = useNavigate();
   const { toast } = useToast();
   const [generatingSheet, setGeneratingSheet] = useState(false);
+  const [isAiSuggestionOpen, setIsAiSuggestionOpen] = useState(false);
   const sheetRequestVersion = useRef(0);
 
   useEffect(() => {
     setGeneratingSheet(false);
+    setIsAiSuggestionOpen(false);
     return () => { sheetRequestVersion.current += 1; };
   }, [selectedConversation?.id]);
 
@@ -1182,6 +1184,9 @@ export function ActiveChatPane({
                   setMessageInput={setMessageInput}
                   messageInputRef={messageInputRef}
                   disabled={!canSendMessages}
+                  isOpen={isAiSuggestionOpen}
+                  onOpenChange={setIsAiSuggestionOpen}
+                  hideDefaultTrigger={true}
                 />
               )}
 
@@ -1384,6 +1389,23 @@ export function ActiveChatPane({
                       <Smiley className="h-5 w-5" />
                     </Button>
                     </PopoverTrigger>
+
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className={cn(
+                        MOBILE_TOUCH_TARGET_CLASS,
+                        "hover:text-emerald-400 hover:bg-emerald-500/10 transition-colors",
+                        isAiSuggestionOpen && "text-emerald-400 bg-emerald-500/15"
+                      )}
+                      aria-label="Resposta IA disponível"
+                      title="✨ Resposta IA disponível"
+                      onClick={() => setIsAiSuggestionOpen((prev) => !prev)}
+                      disabled={!selectedConversation || !canSendMessages}
+                    >
+                      <span className="text-base leading-none select-none">✨</span>
+                    </Button>
 
                     <Button
                       type="button"

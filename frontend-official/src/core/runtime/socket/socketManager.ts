@@ -345,26 +345,47 @@ function normalizeRealtimeMessage(input: RawRealtimeMessage): RealtimeMessage {
     inferMediaTypeFromMime(input.mimeType ?? input.mimetype ?? nestedMime ?? input.media?.mimeType ?? input.media?.mimetype) ??
     (input.hasMedia ? "file" : "text"),
   );
-  const rawConversationId =
+  const explicitConvId =
     input.conversationId ??
     input.conversation_id ??
+    nestedMessage?.conversationId ??
+    nestedMessage?.conversation_id ??
+    input.ticketId ??
+    nestedMessage?.ticketId;
+
+  const rawConversationId =
+    explicitConvId ??
     input.chatId ??
     input.chat_id ??
-    input.ticketId ??
     input.threadId ??
     input.dialogId ??
     input.remoteJid ??
     input.jid ??
-    nestedMessage?.conversationId ??
-    nestedMessage?.conversation_id ??
     nestedMessage?.chatId ??
     nestedMessage?.chat_id ??
-    nestedMessage?.ticketId ??
     nestedMessage?.threadId ??
     nestedMessage?.dialogId ??
     nestedMessage?.remoteJid ??
     nestedMessage?.jid;
-  const sender = (input.sender ?? "").toLowerCase();
+  const rawSender = String(input.sender ?? nestedMessage?.sender ?? "").toLowerCase();
+  const isAI = Boolean(
+    input.isAI ??
+    nestedMessage?.isAI ??
+    (input as any).is_ai ??
+    (nestedMessage as any)?.is_ai ??
+    rawSender === "ai"
+  );
+  const fromMe = Boolean(
+    input.fromMe ??
+    nestedMessage?.fromMe ??
+    input.sent ??
+    ["agent", "me", "outbound", "ai"].includes(rawSender)
+  );
+  const resolvedSender =
+    input.sender ??
+    nestedMessage?.sender ??
+    (fromMe ? (isAI ? "ai" : "human") : "client");
+  const sender = rawSender;
   const resolvedCreatedAt = input.createdAt ?? input.created_at ?? input.timestamp ?? input.time ?? nestedMessage?.createdAt ?? nestedMessage?.created_at ?? nestedMessage?.timestamp ?? new Date().toISOString();
   const resolvedContent = input.content ?? input.text ?? input.body ?? input.caption ?? nestedMessage?.content ?? nestedMessage?.text ?? nestedMessage?.body ?? nestedMessage?.caption ?? "";
   const resolvedMediaPath = input.mediaPath ?? input.media_path ?? nestedMessage?.mediaPath ?? nestedMessage?.media_path ?? input.media?.path;
@@ -444,11 +465,13 @@ function normalizeRealtimeMessage(input: RawRealtimeMessage): RealtimeMessage {
     contactId: input.contactId ?? input.contact_id ?? nestedMessage?.contactId ?? nestedMessage?.contact_id,
     sessionId: input.sessionId ?? input.session_id ?? input.instanceId ?? input.instance_id ?? nestedMessage?.sessionId ?? nestedMessage?.session_id,
     content: resolvedContent,
-    fromMe: input.fromMe ?? input.sent ?? ["agent", "me", "outbound"].includes(sender),
+    fromMe,
     createdAt: resolvedCreatedAt,
     timestamp: resolvedCreatedAt,
     status: input.status ?? "sent",
-    isAI: input.isAI ?? false,
+    isAI,
+    sender: resolvedSender,
+    origin: (input as any).origin ?? (input as any).message_origin ?? (nestedMessage as any)?.origin ?? (nestedMessage as any)?.message_origin ?? (fromMe ? "human" : "client"),
     aiProvider: input.aiProvider ?? input.provider,
     aiModel: input.aiModel ?? input.model,
     aiAgentName: input.aiAgentName ?? input.agentName,

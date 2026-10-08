@@ -82,6 +82,8 @@ async function persistInboundMessage(payload = {}) {
     timestamp: payload.timestamp || payload.receivedAt || new Date().toISOString(),
     whatsappMessageId: externalMessageId,
     hash: payload.hash || null,
+    sender: payload.sender || (payload.fromMe ? 'human' : 'client'),
+    origin: payload.origin || (payload.fromMe ? 'human' : 'client'),
   });
 
   const updatedConversation = await conversationRepository.updateConversationState(conversation.id, {
@@ -90,6 +92,7 @@ async function persistInboundMessage(payload = {}) {
     session_id: sessionId,
     status: 'open',
     unreadCount: payload.fromMe ? 0 : (Number(conversation.unreadCount) || 0) + 1,
+    last_message_at: payload.timestamp || payload.receivedAt || new Date().toISOString(),
   });
 
   setImmediate(async () => {
