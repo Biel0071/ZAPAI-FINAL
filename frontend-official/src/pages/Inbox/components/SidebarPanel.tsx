@@ -544,9 +544,21 @@ export function SidebarPanel({
     }
   };
 
-  // Helper to render type icon for quick reply
+  // Helper to render type icon for quick reply matching Image 1
   const renderReplyTypeIcon = (reply: QuickReplyItem) => {
-    if (reply.isFlow) return <Workflow className="h-4 w-4 shrink-0 text-amber-400" />;
+    const titleLower = (reply.title || "").toLowerCase();
+    const isScript =
+      reply.isFlow ||
+      titleLower.startsWith("script") ||
+      (reply.category || "").toLowerCase() === "scripts";
+    if (isScript) return <Filter className="h-4 w-4 shrink-0 text-amber-400" />;
+    if (
+      titleLower.includes("chale") ||
+      titleLower.includes("betoneira") ||
+      titleLower.includes("churras")
+    ) {
+      return <Bot className="h-4 w-4 shrink-0 text-emerald-400" />;
+    }
     const firstType = reply.items?.[0]?.type || "text";
     if (firstType === "audio") return <Mic className="h-4 w-4 shrink-0 text-blue-400" />;
     if (firstType === "video") return <Video className="h-4 w-4 shrink-0 text-purple-400" />;
@@ -1012,26 +1024,55 @@ export function SidebarPanel({
                 </button>
               </div>
 
-              {/* Search bar + New button */}
+              {/* Search bar + New button with Dropdown matching Image 1 */}
               <div className="flex items-center gap-1.5 sm:gap-2">
                 <div className="relative flex-1 min-w-0">
                   <Search className="pointer-events-none absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                   <Input
-                    aria-label="Buscar respostas rápidas"
+                    aria-label="Pesquisar resposta rápida"
                     value={responseSearchQuery}
                     onChange={(event) => setResponseSearchQuery(event.target.value)}
-                    placeholder="Buscar resposta rápida..."
+                    placeholder="Pesquisar resposta rápida"
                     className="h-9 pl-8 text-xs"
                   />
                 </div>
-                <Button
-                  size="sm"
-                  className="h-9 shrink-0 gap-1 px-2.5 sm:px-3 text-xs bg-primary hover:bg-primary/90 text-primary-foreground font-medium"
-                  onClick={openCreateQuickReplyDialog}
-                >
-                  <Plus className="h-3.5 w-3.5" />
-                  Nova
-                </Button>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      size="sm"
+                      className="h-9 shrink-0 gap-1 px-2.5 sm:px-3 text-xs bg-primary hover:bg-primary/90 text-primary-foreground font-medium"
+                      aria-label="Criar nova"
+                    >
+                      <Plus className="h-3.5 w-3.5" />
+                      Nova
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-48 z-50">
+                    <DropdownMenuItem
+                      onClick={openCreateQuickReplyDialog}
+                      className="flex items-center gap-2.5 cursor-pointer py-2"
+                    >
+                      <Zap className="h-4 w-4 text-amber-400" />
+                      <span className="font-semibold text-xs">Respostas Rápidas</span>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      onClick={() => {
+                        openCreateQuickReplyDialog();
+                      }}
+                      className="flex items-center gap-2.5 cursor-pointer py-2"
+                    >
+                      <Filter className="h-4 w-4 text-blue-400" />
+                      <span className="font-semibold text-xs">Script</span>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      onClick={() => openCategoryEditor("Nova Categoria")}
+                      className="flex items-center gap-2.5 cursor-pointer py-2"
+                    >
+                      <Folder className="h-4 w-4 text-emerald-400" />
+                      <span className="font-semibold text-xs">Categoria</span>
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
               </div>
             </div>
 
@@ -1131,7 +1172,7 @@ export function SidebarPanel({
                                       <Pencil className="mr-2 h-3.5 w-3.5" />
                                       Editar
                                     </DropdownMenuItem>
-                                    <DropdownMenuItem onClick={() => chooseReply(reply)}>
+                                    <DropdownMenuItem onClick={() => setPreviewReply(reply)}>
                                       <Eye className="mr-2 h-3.5 w-3.5" />
                                       Editar e enviar
                                     </DropdownMenuItem>
@@ -1145,7 +1186,7 @@ export function SidebarPanel({
                                   </DropdownMenuContent>
                                 </DropdownMenu>
 
-                                {/* Eye Button (Preview / Insert) */}
+                                {/* Eye Button (Preview / Edit & Send) */}
                                 <TooltipProvider delayDuration={150}>
                                   <Tooltip>
                                     <TooltipTrigger asChild>
@@ -1153,8 +1194,8 @@ export function SidebarPanel({
                                         size="icon"
                                         variant="ghost"
                                         className="h-6 w-6 text-muted-foreground hover:text-foreground"
-                                        aria-label={`Ver prévia de ${reply.title}`}
-                                        onClick={() => chooseReply(reply)}
+                                        aria-label={`Editar e enviar ${reply.title}`}
+                                        onClick={() => setPreviewReply(reply)}
                                       >
                                         <Eye className="h-3.5 w-3.5" />
                                       </Button>
@@ -1507,6 +1548,7 @@ export function SidebarPanel({
         onClose={() => setPreviewReply(null)}
         quickReply={previewReply}
         recipientName={selectedConversation.contactName}
+        recipientPhone={selectedConversation.phone}
         onDispatch={sendQuickReply}
         disabled={sending || !isWhatsappConnected}
       />

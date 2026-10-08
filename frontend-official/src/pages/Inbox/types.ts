@@ -64,17 +64,23 @@ export interface QuickReplyMediaItem {
   value: string;
   filename?: string;
   typingMs?: number;
+  typingSeconds?: number;
   delayMs?: number;
+  delaySeconds?: number;
+  viewOnce?: boolean;
   caption?: string;
 }
 
 export interface FlowStep {
   id: string;
-  type: "text" | "image" | "video" | "audio" | "file";
+  type: "text" | "image" | "video" | "audio" | "file" | "pdf" | "document" | "sticker";
   value: string;
   filename?: string;
   delayMs: number;
+  delaySeconds?: number;
   typingMs?: number;
+  typingSeconds?: number;
+  viewOnce?: boolean;
   caption?: string;
   actions?: {
     addTags?: string[];

@@ -1241,13 +1241,51 @@ export function interpolateTemplateVariables(
     contactName?: string | null;
     phone?: string | null;
     company?: string | null;
+    email?: string | null;
+    city?: string | null;
+    state?: string | null;
+    source?: string | null;
+    gender?: string | null;
+    birthDate?: string | null;
+    language?: string | null;
+    entryDate?: string | null;
+    exitDate?: string | null;
+    dealValue?: string | number | null;
+    role?: string | null;
+    products?: string | null;
+    notes?: string | null;
   },
 ): string {
   const normalizedPhone = normalizePhone(context.phone || "");
+  const formattedPhone = formatPhoneNumber(context.phone || "");
+  const fullName = (context.contactName || "").trim();
+  const firstName = fullName ? fullName.split(/\s+/)[0] : "cliente";
+
+  const hour = new Date().getHours();
+  const periodoDia = hour >= 5 && hour < 12 ? "dia" : hour >= 12 && hour < 18 ? "tarde" : "noite";
+  const saudacao = hour >= 5 && hour < 12 ? "Bom dia" : hour >= 12 && hour < 18 ? "Boa tarde" : "Boa noite";
+
   return String(template || "")
-    .replace(/\{\{\s*nome\s*\}\}/gi, context.contactName?.trim() || "cliente")
-    .replace(/\{\{\s*telefone\s*\}\}/gi, normalizedPhone || context.phone?.trim() || "")
-    .replace(/\{\{\s*empresa\s*\}\}/gi, context.company?.trim() || "{{empresa}}");
+    .replace(/(?:\{\{\s*nome\s*\}\}|#nome\b)/gi, fullName || "cliente")
+    .replace(/(?:\{\{\s*primeironome\s*\}\}|#primeironome\b)/gi, firstName)
+    .replace(/(?:\{\{\s*(?:numero|telefone)\s*\}\}|#(?:numero|telefone)\b)/gi, formattedPhone || normalizedPhone || "")
+    .replace(/(?:\{\{\s*periodo[-_]dia\s*\}\}|#periodo[-_]dia\b)/gi, periodoDia)
+    .replace(/(?:\{\{\s*sauda[çc][ãa]o\s*\}\}|#sauda[çc][ãa]o\b)/gi, saudacao)
+    .replace(/(?:\{\{\s*mencionar[-_]todos\s*\}\}|#mencionar[-_]todos\b)/gi, "@todos")
+    .replace(/(?:\{\{\s*sexo\s*\}\}|#sexo\b)/gi, context.gender || "")
+    .replace(/(?:\{\{\s*data[-_]nascimento\s*\}\}|#data[-_]nascimento\b)/gi, context.birthDate || "")
+    .replace(/(?:\{\{\s*idioma\s*\}\}|#idioma\b)/gi, context.language || "Português")
+    .replace(/(?:\{\{\s*email\s*\}\}|#email\b)/gi, context.email || "")
+    .replace(/(?:\{\{\s*cidade\s*\}\}|#cidade\b)/gi, context.city || "")
+    .replace(/(?:\{\{\s*estado\s*\}\}|#estado\b)/gi, context.state || "")
+    .replace(/(?:\{\{\s*origem\s*\}\}|#origem\b)/gi, context.source || "WhatsApp")
+    .replace(/(?:\{\{\s*data[-_]entrada\s*\}\}|#data[-_]entrada\b)/gi, context.entryDate || new Date().toLocaleDateString("pt-BR"))
+    .replace(/(?:\{\{\s*data[-_]saida\s*\}\}|#data[-_]saida\b)/gi, context.exitDate || "")
+    .replace(/(?:\{\{\s*valor[-_]negocio\s*\}\}|#valor[-_]negocio\b)/gi, context.dealValue ? String(context.dealValue) : "")
+    .replace(/(?:\{\{\s*empresa\s*\}\}|#empresa\b)/gi, context.company?.trim() || "")
+    .replace(/(?:\{\{\s*cargo\s*\}\}|#cargo\b)/gi, context.role || "")
+    .replace(/(?:\{\{\s*produtos(?:_de_interesse)?\s*\}\}|#produtos(?:_de_interesse)?\b)/gi, context.products || "")
+    .replace(/(?:\{\{\s*observa[çc][õo]es\s*\}\}|#observa[çc][õo]es\b)/gi, context.notes || "");
 }
 
 export function getQuickReplyPreviewText(

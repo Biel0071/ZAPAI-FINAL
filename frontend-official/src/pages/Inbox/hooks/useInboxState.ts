@@ -3059,7 +3059,7 @@ export function useInboxState() {
     [aiMemory?.company, selectedConversation?.contactName, selectedConversation?.phone],
   );
 
-  const sendQuickReply = useCallback(async (arg: string | QuickReplyItem, overrideDelayMs?: number) => {
+  const sendQuickReply = useCallback(async (arg: string | QuickReplyItem, overrideDelayMs?: number, customSteps?: any[]) => {
     const targetConversation = selectedConversationRef.current;
     if (!targetConversation) throw new Error("Selecione uma conversa antes de enviar.");
     if (sendingQuickReplyRef.current || sendingRef.current) throw new Error("Aguarde o envio atual.");
@@ -3074,7 +3074,7 @@ export function useInboxState() {
     setSending(true);
     try {
       if (!arg.id) throw new Error("Salve a resposta rápida antes de enviar.");
-      const retryKey = JSON.stringify([targetConversation.id, arg.id, overrideDelayMs]);
+      const retryKey = JSON.stringify([targetConversation.id, arg.id, overrideDelayMs, customSteps?.length]);
       const currentSendId = retryQuickReplyIdsRef.current.get(retryKey) ?? generateUuid();
       retryQuickReplyIdsRef.current.set(retryKey, currentSendId);
       const response = await apiService.executeQuickReplyFlow(arg.id, {
@@ -3082,7 +3082,8 @@ export function useInboxState() {
         conversationId: targetConversation.id,
         sessionId: targetConversation.sessionId || preferredSessionId || undefined,
         overrideDelayMs,
-        sendId: currentSendId
+        sendId: currentSendId,
+        steps: customSteps,
       });
       if (!response?.success) throw new Error("O servidor não confirmou o envio da resposta rápida.");
       retryQuickReplyIdsRef.current.delete(retryKey);

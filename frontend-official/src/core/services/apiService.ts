@@ -2316,8 +2316,8 @@ export const apiService = {
   async deleteQuickReply(id: string) {
     return request<any>({ endpoint: `/api/quick-replies/${encodeURIComponent(id)}`, method: "DELETE" });
   },
-  async executeQuickReplyFlow(id: string, payload: { phone: string; sessionId?: string; conversationId?: string; overrideDelayMs?: number; sendId?: string }) {
-    return request<{ success: boolean; stepsCount: number }>({
+  async executeQuickReplyFlow(id: string, payload: { phone: string; sessionId?: string; conversationId?: string; overrideDelayMs?: number; sendId?: string; steps?: any[] }) {
+    return request<{ success: boolean; stepsCount: number; flowRunId?: string }>({
       endpoint: `/api/quick-replies/${encodeURIComponent(id)}/execute`,
       method: "POST",
       body: payload,
