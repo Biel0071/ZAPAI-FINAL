@@ -120,7 +120,7 @@ async function status(req, res) {
     let activeAgentName = null;
     let activeAgentRole = null;
     try {
-      const aiAgentService = require('../../../ai/agents/services/aiAgentService');
+      const aiAgentService = require('../../ai/agents/services/aiAgentService');
       const agents = await aiAgentService.listAgents(tenantId);
       const activeAgent = Array.isArray(agents) ? agents.find(a => a.active && a.key !== 'zaibot') || agents.find(a => a.active) : null;
       if (activeAgent) {

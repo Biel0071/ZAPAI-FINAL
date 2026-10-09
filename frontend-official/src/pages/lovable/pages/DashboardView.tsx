@@ -447,16 +447,25 @@ export function DashboardView({
   }, [aiStatus]);
 
   const activeModelName = useMemo(() => {
-    if (!aiStatus) return "Nenhum ativo";
-    const agentPrefix = aiStatus.agentName ? `${aiStatus.agentName} • ` : "";
-    if (aiStatus.model) return `${agentPrefix}${aiStatus.model}`;
-    if (aiStatus.enabled && aiStatus.provider) {
+    const hasActiveAIInConversations = (viewModel.conversations || []).some(
+      (c: any) => c.aiEnabled || c.ai_enabled || c.agent_name || c.assignedAgentName
+    );
+    if (aiStatus && (aiStatus.enabled === false || aiStatus.active === false) && !hasActiveAIInConversations) {
+      return "Nenhum ativo";
+    }
+    const agentName = aiStatus?.agentName || (hasActiveAIInConversations ? "Camila" : "");
+    const agentPrefix = agentName ? `${agentName} • ` : "";
+    if (aiStatus?.model) return `${agentPrefix}${aiStatus.model}`;
+    if (aiStatus?.provider) {
       const model = aiStatus.provider === 'openai' ? 'gpt-4o-mini' : aiStatus.provider;
       return `${agentPrefix}${model}`;
     }
-    if (aiStatus.enabled) return `${agentPrefix || 'Camila • '}Ativa`;
+    if (hasActiveAIInConversations) {
+      return `${agentPrefix}gpt-4o-mini`;
+    }
+    if (aiStatus?.enabled) return `${agentPrefix || 'Camila • '}Ativa`;
     return "Nenhum ativo";
-  }, [aiStatus]);
+  }, [aiStatus, viewModel.conversations]);
 
   const tokensPeriodFormatted = useMemo(() => {
     if (aiMetrics?.tokensToday === undefined || aiMetrics?.tokensToday === null) return "—";
