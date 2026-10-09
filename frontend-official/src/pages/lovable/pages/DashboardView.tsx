@@ -43,9 +43,12 @@ import {
   PieChart,
   Pie,
   Cell,
+  LabelList,
 } from "recharts";
 import {
   DDD_METADATA,
+  isLeadClosed,
+  isLeadInDecision,
   type DashboardLovableViewModel,
   type DashboardMapScope,
   type DashboardMapRow,
@@ -455,17 +458,18 @@ export function DashboardView({
   const participationLabel = safeAnalyticsViewModel.kpis[2]?.value ?? '—';
 
   const totalConversationsCount = viewModel.commercialMetrics?.conversationsCount || 0;
-  const hotAndClosedCount = (viewModel.commercialMetrics?.hotLeadsCount || 0) + (viewModel.commercialMetrics?.closedLeadsCount || 0);
-  const conversionRateDisplay = totalConversationsCount > 0 && hotAndClosedCount > 0
-    ? `${Math.min(100, Math.round((hotAndClosedCount / totalConversationsCount) * 100))}%`
-    : totalConversationsCount > 0 && (viewModel.commercialMetrics?.contactsCount || 0) > 0
-    ? `${Math.min(100, Math.round(((viewModel.commercialMetrics?.contactsCount || 0) / totalConversationsCount) * 100))}%`
+  const closedCount = viewModel.commercialMetrics?.closedLeadsCount || 0;
+  const hotCount = viewModel.commercialMetrics?.hotLeadsCount || 0;
+
+  // Taxa de Conversão real: fechamentos sobre o total de conversas da base no período
+  const conversionRateDisplay = totalConversationsCount > 0
+    ? `${((closedCount / totalConversationsCount) * 100).toFixed(1).replace(/\.0$/, "")}%`
     : "—";
 
   const closingLeads = useMemo(() => {
     return (viewModel.conversations || [])
-      .filter((c) => c.funnel_stage === "closed" || c.funnel_stage === "negotiation" || c.funnel_stage === "hot" || (c.tags || []).some(t => t.toLowerCase().includes("venda") || t.toLowerCase().includes("fechado") || t.toLowerCase().includes("negoc")))
-      .sort((a, b) => (a.funnel_stage === "closed" ? -1 : 1))
+      .filter((c) => isLeadClosed(c) || isLeadInDecision(c))
+      .sort((a, b) => (isLeadClosed(a) ? -1 : 1))
       .slice(0, 10);
   }, [viewModel.conversations]);
 
@@ -652,7 +656,7 @@ export function DashboardView({
                   {conversionRateDisplay}
                 </h3>
                 <span className="text-[10px] text-emerald-400 font-semibold truncate block">
-                  Qualificação comercial
+                  {closedCount > 0 ? `${closedCount} de ${totalConversationsCount} leads` : "Fechamento de vendas"}
                 </span>
               </CardContent>
             </Card>
@@ -667,10 +671,10 @@ export function DashboardView({
                   <span className="h-2 w-2 rounded-full bg-amber-400" />
                 </div>
                 <h3 className="font-display text-xl sm:text-2xl font-black text-amber-400">
-                  {hotAndClosedCount}
+                  {hotCount}
                 </h3>
-                <span className="text-[10px] text-muted-foreground truncate block">
-                  Negociação & Fechamento
+                <span className="text-[10px] text-amber-400/90 font-medium truncate block">
+                  {hotCount > 0 ? `${hotCount} em negociação` : "Negociação & proposta"}
                 </span>
               </CardContent>
             </Card>
@@ -717,13 +721,13 @@ export function DashboardView({
               {/* Row 1: Activity Flow & Volumetry Charts Side-by-Side */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 {/* Activity Flow */}
-                <Card className="glass-card rounded-2xl border-border/70 hover-lift">
-                  <CardHeader className="py-2.5 px-3.5 border-b border-border/40">
+                <Card className="glass-card rounded-2xl border-border/70 hover-lift h-[200px] flex flex-col">
+                  <CardHeader className="py-2 px-3 border-b border-border/40 shrink-0">
                     <CardTitle className="text-[11px] font-bold uppercase tracking-widest flex items-center gap-1.5 text-muted-foreground">
                       <Clock weight="bold" className="h-3.5 w-3.5 text-primary" /> Fluxo de Atividade Comercial
                     </CardTitle>
                   </CardHeader>
-                  <CardContent className="h-[185px] p-2.5">
+                  <CardContent className="flex-1 p-2 min-h-0">
                     {safeAnalyticsViewModel.chartData.length > 0 ? (
                       <ResponsiveContainer width="100%" height="100%">
                         <AreaChart data={safeAnalyticsViewModel.chartData}>
@@ -751,8 +755,8 @@ export function DashboardView({
                 </Card>
 
                 {/* Volumetry By Hour */}
-                <Card className="glass-card rounded-2xl border-border/70 hover-lift">
-                  <CardHeader className="py-2.5 px-3.5 border-b border-border/40 flex flex-row items-center justify-between">
+                <Card className="glass-card rounded-2xl border-border/70 hover-lift h-[200px] flex flex-col">
+                  <CardHeader className="py-2 px-3 border-b border-border/40 shrink-0 flex flex-row items-center justify-between">
                     <CardTitle className="text-[11px] font-bold uppercase tracking-widest flex items-center gap-1.5 text-muted-foreground">
                       <ChartBar className="h-3.5 w-3.5 text-primary" /> Volumetria por Bloco de Horários
                     </CardTitle>
@@ -762,10 +766,11 @@ export function DashboardView({
                       </Badge>
                     )}
                   </CardHeader>
-                  <CardContent className="h-[185px] p-2.5">
+                  <CardContent className="flex-1 p-2 min-h-0">
                     <ResponsiveContainer width="100%" height="100%">
                       <BarChart
                         data={viewModel.commercialMetrics?.hourlyData || []}
+                        margin={{ top: 12, right: 8, left: -16, bottom: 0 }}
                         onClick={(data) => {
                           if (data && data.activePayload && data.activePayload[0]) {
                             setSelectedHourBlock(data.activePayload[0].payload);
@@ -779,9 +784,11 @@ export function DashboardView({
                         <Bar
                           dataKey="volume"
                           name="Contatos"
-                          fill="hsl(var(--primary))"
-                          radius={[3, 3, 0, 0]}
-                        />
+                          fill="#10b981"
+                          radius={[4, 4, 0, 0]}
+                        >
+                          <LabelList dataKey="volume" position="top" fill="hsl(var(--foreground))" fontSize={10} fontWeight="bold" />
+                        </Bar>
                       </BarChart>
                     </ResponsiveContainer>
                   </CardContent>
@@ -789,7 +796,7 @@ export function DashboardView({
               </div>
 
               {/* Row 2: Esteira Comercial (Fechamentos & Negociações) */}
-              <Card className="glass-card rounded-2xl border-border/70 hover-lift flex flex-col h-[205px] overflow-hidden">
+              <Card className="glass-card rounded-2xl border-border/70 hover-lift flex flex-col h-[210px] overflow-hidden">
                 <CardHeader className="py-2.5 px-3.5 border-b border-border/50 shrink-0 flex flex-row items-center justify-between">
                   <CardTitle className="text-[11px] font-bold uppercase tracking-widest flex items-center gap-2 text-muted-foreground">
                     <CheckCircle weight="bold" className="h-3.5 w-3.5 text-success" /> Esteira Comercial (Fechamentos & Negociações)
@@ -816,8 +823,8 @@ export function DashboardView({
                             </div>
                           </div>
                           <div className="flex items-center gap-2 shrink-0">
-                            <Badge variant="outline" className={`text-[8px] rounded-full px-1.5 py-0 capitalize ${lead.funnel_stage === 'closed' ? 'bg-success/10 text-success border-success/20' : 'bg-warning/10 text-warning border-warning/20'}`}>
-                              {lead.funnel_stage === 'closed' ? 'Fechado' : 'Negociação'}
+                            <Badge variant="outline" className={`text-[8px] rounded-full px-1.5 py-0 capitalize ${isLeadClosed(lead) ? 'bg-success/10 text-success border-success/20' : 'bg-warning/10 text-warning border-warning/20'}`}>
+                              {isLeadClosed(lead) ? 'Fechado' : 'Negociação'}
                             </Badge>
                             <Button size="sm" variant="secondary" className="h-6 text-[9px] px-2 rounded-md" onClick={() => navigate(`/inbox?chatId=${lead.phone}`)}>
                               Abrir
@@ -834,17 +841,17 @@ export function DashboardView({
             {/* Right Column (5 cols): Temperature Donut + Real AI Usage */}
             <div className="lg:col-span-5 flex flex-col gap-3.5">
               {/* Temperature Donut */}
-              <Card className="glass-card rounded-2xl border-border/70 hover-lift h-[205px] flex flex-col">
-                <CardHeader className="py-2.5 px-3.5 border-b border-border/40 shrink-0">
+              <Card className="glass-card rounded-2xl border-border/70 hover-lift h-[200px] flex flex-col">
+                <CardHeader className="py-2 px-3 border-b border-border/40 shrink-0">
                   <CardTitle className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground flex items-center gap-1.5">
                     <ChartBar weight="bold" className="h-3.5 w-3.5 text-primary" /> Temperatura da Base de Leads
                   </CardTitle>
                 </CardHeader>
-                <CardContent className="flex-1 flex flex-col items-center justify-center relative p-2">
-                  <div className="h-[120px] w-full relative flex items-center justify-center">
+                <CardContent className="flex-1 flex flex-col items-center justify-center relative p-2 min-h-0">
+                  <div className="h-[110px] w-full relative flex items-center justify-center">
                     <ResponsiveContainer width="100%" height="100%">
                       <PieChart>
-                        <Pie data={safeAnalyticsViewModel.tempDistribution} innerRadius={40} outerRadius={54} paddingAngle={4} dataKey="value">
+                        <Pie data={safeAnalyticsViewModel.tempDistribution} innerRadius={38} outerRadius={52} cornerRadius={3} paddingAngle={3} dataKey="value">
                           {safeAnalyticsViewModel.tempDistribution.map((entry: any, index: number) => (
                             <Cell key={`cell-${index}`} fill={entry.color} />
                           ))}
@@ -864,28 +871,42 @@ export function DashboardView({
                             : "0";
                         })()}
                       </span>
-                      <span className="text-[8px] text-muted-foreground uppercase font-bold">Leads Ativos</span>
+                      <span className="text-[8px] text-muted-foreground uppercase font-bold">Leads Base</span>
                     </div>
                   </div>
-                  <div className="flex justify-center gap-3 text-xs mt-1 shrink-0">
-                    <div className="flex items-center gap-1">
-                      <span className="h-1.5 w-1.5 rounded-full bg-[#ef4444]" />
-                      <span className="text-muted-foreground text-[10px]">Quente ({safeAnalyticsViewModel.tempDistribution[0]?.value || 0})</span>
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <span className="h-1.5 w-1.5 rounded-full bg-[#f59e0b]" />
-                      <span className="text-muted-foreground text-[10px]">Morno ({safeAnalyticsViewModel.tempDistribution[1]?.value || 0})</span>
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <span className="h-1.5 w-1.5 rounded-full bg-[#0ea5e9]" />
-                      <span className="text-muted-foreground text-[10px]">Frio ({safeAnalyticsViewModel.tempDistribution[2]?.value || 0})</span>
-                    </div>
-                  </div>
+                  {(() => {
+                    const total = safeAnalyticsViewModel.tempDistribution.reduce((acc: number, cur: any) => acc + (cur.value || 0), 0);
+                    const hotVal = safeAnalyticsViewModel.tempDistribution[0]?.value || 0;
+                    const warmVal = safeAnalyticsViewModel.tempDistribution[1]?.value || 0;
+                    const coldVal = safeAnalyticsViewModel.tempDistribution[2]?.value || 0;
+                    const hotPct = total > 0 ? Math.round((hotVal / total) * 100) : 0;
+                    const warmPct = total > 0 ? Math.round((warmVal / total) * 100) : 0;
+                    const coldPct = total > 0 ? Math.round((coldVal / total) * 100) : 0;
+                    return (
+                      <div className="flex flex-wrap items-center justify-center gap-1.5 text-xs mt-1 shrink-0">
+                        <div className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-red-500/10 border border-red-500/20 text-[9px]">
+                          <span className="h-1.5 w-1.5 rounded-full bg-[#ef4444]" />
+                          <span className="font-semibold text-red-400">Quente:</span>
+                          <span className="text-foreground font-mono">{hotPct}% ({hotVal})</span>
+                        </div>
+                        <div className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-500/10 border border-amber-500/20 text-[9px]">
+                          <span className="h-1.5 w-1.5 rounded-full bg-[#f59e0b]" />
+                          <span className="font-semibold text-amber-400">Morno:</span>
+                          <span className="text-foreground font-mono">{warmPct}% ({warmVal})</span>
+                        </div>
+                        <div className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-sky-500/10 border border-sky-500/20 text-[9px]">
+                          <span className="h-1.5 w-1.5 rounded-full bg-[#0ea5e9]" />
+                          <span className="font-semibold text-sky-400">Frio:</span>
+                          <span className="text-foreground font-mono">{coldPct}% ({coldVal})</span>
+                        </div>
+                      </div>
+                    );
+                  })()}
                 </CardContent>
               </Card>
 
               {/* Real AI Usage */}
-              <Card className="glass-card rounded-2xl border-border/70 hover-lift h-[185px] flex flex-col justify-between">
+              <Card className="glass-card rounded-2xl border-border/70 hover-lift h-[210px] flex flex-col justify-between">
                 <CardHeader className="py-2.5 px-3.5 border-b border-border/40 shrink-0 flex flex-row items-center justify-between">
                   <CardTitle className="text-[11px] font-bold uppercase tracking-widest flex items-center gap-1.5 text-muted-foreground">
                     <Brain weight="bold" className="h-3.5 w-3.5 text-primary" /> Uso Real da IA
@@ -909,10 +930,15 @@ export function DashboardView({
                   <div>
                     <div className="flex justify-between text-[10px] font-bold text-muted-foreground mb-1">
                       <span>Automação IA</span>
-                      <span className="text-foreground">{participationLabel}</span>
+                      <span className="text-foreground font-mono">{participationLabel}</span>
                     </div>
                     <div className="h-1.5 rounded-full bg-muted overflow-hidden">
-                      <div className="h-full bg-success rounded-full transition-all" style={{ width: `${participationLabel}` }} />
+                      <div
+                        className="h-full bg-success rounded-full transition-all duration-500"
+                        style={{
+                          width: `${Math.min(100, Math.max(0, parseInt(participationLabel, 10) || 0))}%`,
+                        }}
+                      />
                     </div>
                   </div>
 

@@ -260,24 +260,6 @@ function buildAggregates(conversations: Conversation[]) {
         hasExactCoords: true,
         conversationId: conversation.id,
       });
-    } else if (ddd) {
-      const meta = DDD_METADATA[ddd];
-      const [dLat, dLng] = getDeterministicOffset(conversation.id || conversation.phone, index);
-      leadPins.push({
-        id: `lead-pin-${conversation.id}`,
-        name: conversation.contactName || conversation.phone || `Lead ${ddd}`,
-        phone: conversation.phone || "",
-        address: address || `${meta.stateName} (DDD ${ddd})`,
-        lat: meta.lat + dLat,
-        lng: meta.lng + dLng,
-        funnelStage: conversation.funnel_stage || "new_lead",
-        ddd,
-        stateCode: meta.stateCode,
-        stateName: meta.stateName,
-        region: meta.region,
-        hasExactCoords: false,
-        conversationId: conversation.id,
-      });
     }
 
     if (!ddd) return;
@@ -363,6 +345,35 @@ export function getDashboardMapRows(
   return map.regionRows;
 }
 
+export function isLeadClosed(c: Conversation): boolean {
+  const stage = String(c.funnel_stage || "").toLowerCase();
+  const tags = (c.tags || []).map(t => t.toLowerCase());
+  return (
+    stage === "closed" ||
+    stage === "fechado" ||
+    stage === "venda" ||
+    stage === "ganho" ||
+    stage === "won" ||
+    tags.some(t => t.includes("venda") || t.includes("fechado") || t.includes("fechamento") || t.includes("ganho") || t.includes("convertido"))
+  );
+}
+
+export function isLeadInDecision(c: Conversation): boolean {
+  if (isLeadClosed(c)) return false;
+  const stage = String(c.funnel_stage || "").toLowerCase();
+  const tags = (c.tags || []).map(t => t.toLowerCase());
+  return (
+    stage === "hot" ||
+    stage === "negotiation" ||
+    stage === "negociacao" ||
+    stage === "decisao" ||
+    stage === "quente" ||
+    stage === "lead_quente" ||
+    stage === "proposta" ||
+    tags.some(t => t.includes("negoc") || t.includes("quente") || t.includes("decis") || t.includes("proposta") || t.includes("orcamento"))
+  );
+}
+
 export function createDashboardLovableViewModel(params: {
   conversations: Conversation[];
   metrics: MetricsSummary | null;
@@ -394,20 +405,20 @@ export function createDashboardLovableViewModel(params: {
   // Computando métricas comerciais baseadas em dados REAIS do sistema
   const conversationsCount = conversations.length;
   const contactsCount = conversations.filter((c) => c.phone || c.contactId).length;
-  const hotLeadsCount = conversations.filter(
-    (c) => c.funnel_stage === "hot" || c.funnel_stage === "negotiation"
-  ).length;
-  const closedLeadsCount = conversations.filter(
-    (c) => c.funnel_stage === "closed" || (c.tags || []).some(t => t.toLowerCase().includes("venda") || t.toLowerCase().includes("fechado"))
-  ).length;
+  const hotLeadsCount = conversations.filter(isLeadInDecision).length;
+  const closedLeadsCount = conversations.filter(isLeadClosed).length;
 
   const hourCounts = new Array(24).fill(0);
 
   conversations.forEach((c) => {
-    if (c.updatedAt) {
-      const hour = new Date(c.updatedAt).getHours();
-      if (hour >= 0 && hour < 24) {
-        hourCounts[hour]++;
+    const timeStr = c.lastMessageAt || c.updatedAt || (c as any).updated_at || (c as any).createdAt || (c as any).created_at;
+    if (timeStr) {
+      const date = new Date(timeStr);
+      if (!isNaN(date.getTime())) {
+        const hour = date.getHours();
+        if (hour >= 0 && hour < 24) {
+          hourCounts[hour]++;
+        }
       }
     }
   });

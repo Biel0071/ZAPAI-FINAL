@@ -51,25 +51,60 @@ export function createAnalyticsLovableViewModel(params: {
   const rawConversationsTotal = resolveMetric(metrics, ['totalConversations', 'leads', 'conversationCount']) ?? (metrics ? conversationCount : null);
   const format = (value: number | null) => value === null ? '—' : value.toLocaleString('pt-BR');
   const temperatures = { hot: 0, warm: 0, cold: 0 };
-  for (const conversation of conversations) {
-    const recorded = String((conversation as Conversation & { lead_temperature?: string }).lead_temperature || '').toLowerCase();
-    const values = [recorded, ...(conversation.tags || []).map(tag => tag.toLowerCase())];
-    if (values.some(value => ['hot', 'quente'].includes(value))) temperatures.hot++;
-    else if (values.some(value => ['warm', 'morno'].includes(value))) temperatures.warm++;
-    else if (values.some(value => ['cold', 'frio'].includes(value))) temperatures.cold++;
+  let aiCount = 0;
+
+  if (conversations.length > 0) {
+    for (const conversation of conversations) {
+      const recorded = String((conversation as Conversation & { lead_temperature?: string }).lead_temperature || '').toLowerCase();
+      const stage = String(conversation.funnel_stage || '').toLowerCase();
+      const tags = (conversation.tags || []).map(tag => tag.toLowerCase());
+      const values = [recorded, stage, ...tags];
+
+      const hasAi = Boolean(
+        conversation.isAI ||
+        tags.some(t => t.includes('ia') || t.includes('bot') || t.includes('camila')) ||
+        (conversation.notes && conversation.notes.toLowerCase().includes('ia'))
+      );
+      if (hasAi) aiCount++;
+
+      if (values.some(value => ['hot', 'quente', 'closed', 'fechado', 'negotiation', 'negociacao', 'decisao', 'proposta'].includes(value)) ||
+          tags.some(t => t.includes('quente') || t.includes('venda') || t.includes('fech') || t.includes('negoc'))) {
+        temperatures.hot++;
+      } else if (values.some(value => ['warm', 'morno', 'qualificacao', 'atendimento', 'engaged', 'lead_qualificado'].includes(value)) ||
+                 tags.some(t => t.includes('morno') || t.includes('orc') || t.includes('prosp'))) {
+        temperatures.warm++;
+      } else {
+        temperatures.cold++;
+      }
+    }
   }
+
   const totalCategorized = temperatures.hot + temperatures.warm + temperatures.cold;
   const conversationsTotal = totalCategorized > 0
     ? totalCategorized
     : (rawConversationsTotal ?? (conversations.length > 0 ? conversations.length : null));
-  const participation = messages !== null && messages > 0 && ai !== null
-    ? `${Math.min(100, Math.max(0, Math.round(ai / messages * 100)))}%` : '—';
+
+  let participation = '—';
+  if (messages !== null && messages > 0 && ai !== null) {
+    participation = `${Math.min(100, Math.max(0, Math.round(ai / messages * 100)))}%`;
+  } else if (conversations.length > 0 && aiCount > 0) {
+    participation = `${Math.min(100, Math.max(0, Math.round((aiCount / conversations.length) * 100)))}%`;
+  } else if (messages !== null && messages === 0) {
+    participation = '0%';
+  }
 
   // Computação real de volumetria ao longo do tempo baseada nas conversas reais do período
   const chartData: AnalyticsChartPoint[] = [];
   if (conversations.length > 0) {
+    const getConvTime = (c: Conversation): number => {
+      const timeStr = c.lastMessageAt || c.updatedAt || (c as any).updated_at || (c as any).createdAt || (c as any).created_at;
+      if (!timeStr) return 0;
+      const t = new Date(timeStr).getTime();
+      return isNaN(t) ? 0 : t;
+    };
+
     const validTimestamps = conversations
-      .map(c => c.updatedAt ? new Date(c.updatedAt).getTime() : 0)
+      .map(getConvTime)
       .filter(t => t > 0)
       .sort((a, b) => a - b);
 
@@ -85,12 +120,13 @@ export function createAnalyticsLovableViewModel(params: {
           hourMap.set(h, { msgs: 0, ai: 0 });
         }
         for (const c of conversations) {
-          if (!c.updatedAt) continue;
-          const h = new Date(c.updatedAt).getHours();
+          const t = getConvTime(c);
+          if (t === 0) continue;
+          const h = new Date(t).getHours();
           const bucket = Math.floor(h / 4) * 4;
           const current = hourMap.get(bucket) || { msgs: 0, ai: 0 };
           current.msgs++;
-          if (c.tags?.some(t => t.toLowerCase().includes("ia") || t.toLowerCase().includes("bot"))) {
+          if (c.isAI || c.tags?.some(t => t.toLowerCase().includes("ia") || t.toLowerCase().includes("bot") || t.toLowerCase().includes("camila"))) {
             current.ai++;
           }
           hourMap.set(bucket, current);
@@ -107,12 +143,13 @@ export function createAnalyticsLovableViewModel(params: {
         // Agrupamento por dia (DD/MM)
         const dayMap = new Map<string, { msgs: number; ai: number }>();
         for (const c of conversations) {
-          if (!c.updatedAt) continue;
-          const d = new Date(c.updatedAt);
+          const t = getConvTime(c);
+          if (t === 0) continue;
+          const d = new Date(t);
           const key = `${String(d.getDate()).padStart(2, "0")}/${String(d.getMonth() + 1).padStart(2, "0")}`;
           const current = dayMap.get(key) || { msgs: 0, ai: 0 };
           current.msgs++;
-          if (c.tags?.some(t => t.toLowerCase().includes("ia") || t.toLowerCase().includes("bot"))) {
+          if (c.isAI || c.tags?.some(t => t.toLowerCase().includes("ia") || t.toLowerCase().includes("bot") || t.toLowerCase().includes("camila"))) {
             current.ai++;
           }
           dayMap.set(key, current);
