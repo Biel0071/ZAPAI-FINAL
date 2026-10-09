@@ -167,6 +167,7 @@ export default function AttendantsPage() {
   const [customizerAgent, setCustomizerAgent] = useState<any | null>(null);
   const [profileAgent, setProfileAgent] = useState<any | null>(null);
   const [isWizardOpen, setIsWizardOpen] = useState(false);
+  const [showExampleModels, setShowExampleModels] = useState(false);
   useEffect(() => {
     if (searchParams.get("new") !== "1") return;
     setIsWizardOpen(true);
@@ -1775,52 +1776,57 @@ export default function AttendantsPage() {
             <AddAttendantCard onAdd={() => setIsWizardOpen(true)} />
           </div>
 
-          {/* Visually Separated Example Models Section */}
-          <div className="pt-2.5 border-t border-border/40">
-            <div className="flex items-center justify-between mb-2">
-              <div className="flex items-center gap-2">
-                <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                  Modelos de Exemplo
-                </span>
+          {/* Visually Separated Example Models Section (Collapsible to preserve compact layout) */}
+          <div className="pt-2 border-t border-border/40">
+            <div className="flex items-center justify-between">
+              <button
+                type="button"
+                onClick={() => setShowExampleModels(!showExampleModels)}
+                className="flex items-center gap-2 text-xs font-semibold text-muted-foreground hover:text-foreground cursor-pointer transition-colors select-none py-1"
+              >
+                <span className="uppercase tracking-wider">Modelos de Exemplo ({EXAMPLE_ATTENDANTS.length})</span>
                 <span className="badge-zai-example">EXEMPLO</span>
-              </div>
+                <ChevronDown className={cn("h-3.5 w-3.5 transition-transform duration-200", showExampleModels ? "rotate-180" : "")} />
+              </button>
               <span className="text-[11px] text-muted-foreground hidden sm:inline">
-                Perfis demonstrativos para inspiração — clique para visualizar
+                Perfis demonstrativos para inspiração — clique para {showExampleModels ? "recolher" : "visualizar"}
               </span>
             </div>
 
-            <div className="flex items-center gap-3 overflow-x-auto pb-1.5 scrollbar-zai opacity-85 hover:opacity-100 transition-opacity">
-              {EXAMPLE_ATTENDANTS.map((example) => (
-                <AttendantItemCard
-                  key={example.id}
-                  attendant={{
-                    id: example.id,
-                    key: example.key,
-                    name: example.name,
-                    role: example.role,
-                    isExample: true,
-                    avatarConfig: example.avatarConfig as any,
-                  }}
-                  isSelected={previewAgent?.key === example.key && previewAgent?.isExample === true}
-                  onSelect={() => {
-                    setPreviewAgent({
-                      ...example,
+            {showExampleModels && (
+              <div className="flex items-center gap-3 overflow-x-auto pt-2 pb-1.5 scrollbar-zai opacity-85 hover:opacity-100 transition-opacity animate-in fade-in duration-200">
+                {EXAMPLE_ATTENDANTS.map((example) => (
+                  <AttendantItemCard
+                    key={example.id}
+                    attendant={{
+                      id: example.id,
                       key: example.key,
-                      active: true,
+                      name: example.name,
+                      role: example.role,
                       isExample: true,
-                    });
-                  }}
-                  onEdit={() => {
-                    setPreviewAgent({
-                      ...example,
-                      key: example.key,
-                      active: true,
-                      isExample: true,
-                    });
-                  }}
-                />
-              ))}
-            </div>
+                      avatarConfig: example.avatarConfig as any,
+                    }}
+                    isSelected={previewAgent?.key === example.key && previewAgent?.isExample === true}
+                    onSelect={() => {
+                      setPreviewAgent({
+                        ...example,
+                        key: example.key,
+                        active: true,
+                        isExample: true,
+                      });
+                    }}
+                    onEdit={() => {
+                      setPreviewAgent({
+                        ...example,
+                        key: example.key,
+                        active: true,
+                        isExample: true,
+                      });
+                    }}
+                  />
+                ))}
+              </div>
+            )}
           </div>
         </section>
 
