@@ -31,6 +31,8 @@ function resolveLocalMediaDiskPath(filePath) {
   const candidates = [
     path.resolve(process.cwd(), cleanPath.replace(/^\//, '')),
     path.resolve(process.cwd(), 'backend', cleanPath.replace(/^\//, '')),
+    path.resolve(__dirname, '..', '..', '..', cleanPath.replace(/^\//, '')),
+    path.resolve(__dirname, '..', '..', '..', 'backend', cleanPath.replace(/^\//, '')),
     path.resolve(process.cwd(), 'storage', 'media', 'temp', path.basename(cleanPath)),
     path.resolve(process.cwd(), 'storage', 'media', cleanPath.replace(/^\/?(media|storage\/media)\//, '')),
     path.resolve(process.cwd(), 'uploads', path.basename(cleanPath)),

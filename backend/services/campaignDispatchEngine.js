@@ -321,7 +321,9 @@ async function dispatchSingleMessage(state, contact, io) {
     return { success: false, error: 'no_phone' };
   }
 
-  if (state.flowId) {
+  // If campaign has explicit messages defined, use direct campaign dispatch pipeline.
+  // Only use flow queue if NO explicit campaign messages were provided and flowId was specified.
+  if (state.flowId && (!state.messages || state.messages.length === 0)) {
     try {
       const quickReplyService = require('./quickReplyService');
       const allReplies = await quickReplyService.listQuickReplies({ companyId: state.companyId });
@@ -335,19 +337,26 @@ async function dispatchSingleMessage(state, contact, io) {
       let cumulativeDelayMs = 0;
       const now = Date.now();
 
-      const steps = flow.steps || [];
+      const steps = (Array.isArray(flow.steps) && flow.steps.length > 0)
+        ? flow.steps
+        : (Array.isArray(flow.items) && flow.items.length > 0 ? flow.items : []);
+
+      if (steps.length === 0) {
+        throw new Error(`Flow ${state.flowId} has no steps or items to dispatch`);
+      }
+
       for (const step of steps) {
-        cumulativeDelayMs += Number(step.delayMs || 0);
+        cumulativeDelayMs += Number(step.delayMs || step.delay || 0);
         const scheduledTime = new Date(now + cumulativeDelayMs).toISOString();
 
         const itemPayload = {
           phone,
           sessionId: state.sessionId || 'main',
           companyId: state.companyId || 'default',
-          text: step.type === 'text' ? step.value : '',
+          text: step.type === 'text' ? (step.value || step.content || step.text || '') : (step.caption || ''),
           mediaType: step.type !== 'text' ? step.type : undefined,
-          mediaPath: step.type !== 'text' ? step.value : undefined,
-          fileName: step.filename,
+          mediaPath: step.type !== 'text' ? (step.value || step.mediaPath || step.mediaUrl) : undefined,
+          fileName: step.filename || step.fileName,
           nextAttemptAt: scheduledTime,
           metadata: {
             campaignId: state.id,
