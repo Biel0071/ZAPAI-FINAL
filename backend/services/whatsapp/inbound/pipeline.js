@@ -303,11 +303,14 @@ async function persistInboundMessageFallback(sessionId, incomingMessage, debugPa
   // eslint-disable-next-line no-console
   console.log('MESSAGE SAVED', savedMessage);
 
+  const nowIso = new Date().toISOString();
   const updatedConversation = await conversationRepository.updateConversationState(
     conversation.id,
     {
       lastMessage: text,
       lastMessageType: resolvedType,
+      lastMessageAt: nowIso,
+      last_message_at: nowIso,
       session_id: sessionId,
       status: 'open',
       unreadCount: (Number(conversation.unreadCount) || 0) + 1,

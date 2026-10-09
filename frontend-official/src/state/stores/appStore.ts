@@ -113,25 +113,48 @@ function getTime(value?: string | null): number {
   return Number.isFinite(parsed) ? parsed : 0;
 }
 
-function mergeConversationRecord(existing: Conversation, incoming: Conversation): Conversation {
+function mergeConversationRecord(existing: Conversation, incoming: Partial<Conversation> | Conversation): Conversation {
   const incomingTime = getTime(incoming.lastMessageAt || incoming.updatedAt);
   const existingTime = getTime(existing.lastMessageAt || existing.updatedAt);
   const incomingIsNewer = incomingTime >= existingTime;
-  const preferred = incomingIsNewer ? incoming : existing;
-  const fallback = incomingIsNewer ? existing : incoming;
+
+  const resolvedLastMessage =
+    incoming.lastMessage !== undefined
+      ? incoming.lastMessage
+      : incomingIsNewer
+        ? incoming.lastMessage
+        : existing.lastMessage;
+
+  const resolvedLastMessageAt =
+    incoming.lastMessageAt !== undefined
+      ? incoming.lastMessageAt
+      : incomingIsNewer
+        ? incoming.lastMessageAt
+        : existing.lastMessageAt;
+
+  const resolvedLastMessageType =
+    incoming.lastMessageType !== undefined
+      ? incoming.lastMessageType
+      : incomingIsNewer
+        ? incoming.lastMessageType
+        : existing.lastMessageType;
 
   return {
-    ...fallback,
-    ...preferred,
+    ...existing,
+    ...incoming,
     id: existing.id,
-    phone: preferred.phone || fallback.phone,
-    chatId: preferred.chatId || fallback.chatId,
-    contactId: preferred.contactId || fallback.contactId,
-    sessionId: preferred.sessionId || fallback.sessionId,
-    contactName: preferred.contactName || fallback.contactName,
-    lastMessageAt: preferred.lastMessageAt || fallback.lastMessageAt || null,
-    unread: Math.max(existing.unread ?? 0, incoming.unread ?? 0),
-    tags: preferred.tags?.length ? preferred.tags : fallback.tags ?? [],
+    phone: incoming.phone || existing.phone,
+    chatId: incoming.chatId || existing.chatId,
+    contactId: incoming.contactId || existing.contactId,
+    sessionId: incoming.sessionId || existing.sessionId,
+    contactName: incoming.contactName || existing.contactName,
+    lastMessage: resolvedLastMessage || existing.lastMessage || "",
+    lastMessageAt: resolvedLastMessageAt || existing.lastMessageAt || null,
+    lastMessageType: resolvedLastMessageType || existing.lastMessageType || "text",
+    unread: typeof incoming.unread === "number" ? incoming.unread : Math.max(existing.unread ?? 0, (incoming as Conversation).unread ?? 0),
+    tags: incoming.tags?.length ? incoming.tags : (existing.tags ?? []),
+    aiEnabled: incoming.aiEnabled !== undefined ? incoming.aiEnabled : existing.aiEnabled,
+    ai_reactivate_at: incoming.ai_reactivate_at !== undefined ? incoming.ai_reactivate_at : existing.ai_reactivate_at,
   };
 }
 
@@ -685,7 +708,26 @@ export const useAppStore = create<AppState>((set) => ({
             status: mergeMessageStatus(existing.status, message.status),
           };
         }
+        const convIdx = state.conversations.findIndex(
+          (c) => String(c.id) === String(resolvedId) || String(c.chatId) === String(resolvedId) || isPhoneMatch(c.phone, resolvedId)
+        );
+        let nextConversations = state.conversations;
+        if (convIdx !== -1) {
+          const existingConv = state.conversations[convIdx];
+          const messageTime = message.createdAt || message.timestamp || new Date().toISOString();
+          const updatedConv: Conversation = {
+            ...existingConv,
+            lastMessage: message.content || (message.mediaType ? `[${message.mediaType}]` : existingConv.lastMessage),
+            lastMessageType: (message.mediaType as any) || existingConv.lastMessageType || "text",
+            lastMessageAt: messageTime,
+            updatedAt: messageTime,
+            unread: (!message.fromMe && state.activeConversationId !== existingConv.id) ? (existingConv.unread ?? 0) + 1 : existingConv.unread,
+          };
+          nextConversations = [updatedConv, ...state.conversations.filter((_, i) => i !== convIdx)];
+        }
+
         return {
+          conversations: nextConversations,
           messagesByConversationId: {
             ...state.messagesByConversationId,
             [resolvedId]: next,
@@ -699,7 +741,25 @@ export const useAppStore = create<AppState>((set) => ({
         const tempIdx = next.findIndex((m) => m.id.startsWith("temp-") && (m.content || "").trim() === (message.content || "").trim());
         if (tempIdx !== -1) {
           next[tempIdx] = { ...message, conversationId: resolvedId };
+          const convIdx = state.conversations.findIndex(
+            (c) => String(c.id) === String(resolvedId) || String(c.chatId) === String(resolvedId) || isPhoneMatch(c.phone, resolvedId)
+          );
+          let nextConversations = state.conversations;
+          if (convIdx !== -1) {
+            const existingConv = state.conversations[convIdx];
+            const messageTime = message.createdAt || message.timestamp || new Date().toISOString();
+            const updatedConv: Conversation = {
+              ...existingConv,
+              lastMessage: message.content || existingConv.lastMessage,
+              lastMessageType: (message.mediaType as any) || existingConv.lastMessageType || "text",
+              lastMessageAt: messageTime,
+              updatedAt: messageTime,
+            };
+            nextConversations = [updatedConv, ...state.conversations.filter((_, i) => i !== convIdx)];
+          }
+
           return {
+            conversations: nextConversations,
             messagesByConversationId: {
               ...state.messagesByConversationId,
               [resolvedId]: next,
@@ -711,7 +771,26 @@ export const useAppStore = create<AppState>((set) => ({
       next.push({ ...message, conversationId: resolvedId });
       next.sort(compareMessageTimes);
 
+      const convIdx = state.conversations.findIndex(
+        (c) => String(c.id) === String(resolvedId) || String(c.chatId) === String(resolvedId) || isPhoneMatch(c.phone, resolvedId)
+      );
+      let nextConversations = state.conversations;
+      if (convIdx !== -1) {
+        const existingConv = state.conversations[convIdx];
+        const messageTime = message.createdAt || message.timestamp || new Date().toISOString();
+        const updatedConv: Conversation = {
+          ...existingConv,
+          lastMessage: message.content || (message.mediaType ? `[${message.mediaType}]` : existingConv.lastMessage),
+          lastMessageType: (message.mediaType as any) || existingConv.lastMessageType || "text",
+          lastMessageAt: messageTime,
+          updatedAt: messageTime,
+          unread: (!message.fromMe && state.activeConversationId !== existingConv.id) ? (existingConv.unread ?? 0) + 1 : existingConv.unread,
+        };
+        nextConversations = [updatedConv, ...state.conversations.filter((_, i) => i !== convIdx)];
+      }
+
       return {
+        conversations: nextConversations,
         messagesByConversationId: {
           ...state.messagesByConversationId,
           [resolvedId]: next,

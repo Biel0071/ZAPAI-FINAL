@@ -435,13 +435,16 @@ async function persistIncomingMessage(payload = {}) {
   const unreadCount = (Number(conversation.unreadCount) || 0) + 1;
   let updatedConversation = null;
 
+  const nowIso = receivedAt || new Date().toISOString();
   if (typeof conversationRepository.updateConversationState === 'function') {
     updatedConversation = await conversationRepository.updateConversationState(conversation.id, {
       lastMessage: preview,
       lastMessageType: messageType,
+      lastMessageAt: nowIso,
+      last_message_at: nowIso,
       session_id: sessionId,
       unreadCount,
-      updatedAt: receivedAt,
+      updatedAt: nowIso,
     });
   } else if (typeof conversationRepository.updateConversationAfterMessage === 'function') {
     updatedConversation = await conversationRepository.updateConversationAfterMessage(

@@ -453,6 +453,15 @@ async function updateConversationState(conversationId, fields = {}, companyId) {
     updates.push('updated_at = NOW()');
   }
 
+  if (
+    (typeof fields.lastMessage !== 'undefined' || typeof fields.last_message !== 'undefined') &&
+    typeof fields.lastMessageAt === 'undefined' &&
+    typeof fields.last_message_at === 'undefined' &&
+    !updates.find((entry) => entry.startsWith('last_message_at'))
+  ) {
+    updates.push('last_message_at = NOW()');
+  }
+
   if (!updates.length) {
     return getConversationById(targetId, companyId);
   }

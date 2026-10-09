@@ -539,9 +539,12 @@ async function dispatchSingleMessage(state, contact, io) {
         if (!currentTags.includes('robo_ativo')) currentTags.push('robo_ativo');
         if (!currentTags.includes('recuperacao')) currentTags.push('recuperacao');
 
+        const nowIso = new Date().toISOString();
         await conversationRepository.updateConversationState(conversation.id, {
           lastMessage: textContent,
           lastMessageType: msgType,
+          lastMessageAt: nowIso,
+          last_message_at: nowIso,
           aiEnabled: true,
           ai_reactivate_at: null,
           funnel_stage: 'Lead_Quente',
@@ -554,6 +557,10 @@ async function dispatchSingleMessage(state, contact, io) {
           ioInstance.emit('conversation_updated', {
             ...conversation,
             last_message: textContent,
+            lastMessage: textContent,
+            last_message_at: nowIso,
+            lastMessageAt: nowIso,
+            updatedAt: nowIso,
             ai_enabled: true,
             tags: currentTags,
           });

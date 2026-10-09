@@ -118,28 +118,20 @@ export function formatConversationTimestamp(value?: string | number): string {
   }
 
   const now = new Date();
-  const isToday =
-    date.getDate() === now.getDate() &&
-    date.getMonth() === now.getMonth() &&
-    date.getFullYear() === now.getFullYear();
+  // Normalizar para meia-noite local para cálculo exato de dias civis
+  const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+  const startOfMessageDay = new Date(date.getFullYear(), date.getMonth(), date.getDate()).getTime();
+  const diffDaysCalendar = Math.round((startOfToday - startOfMessageDay) / (1000 * 60 * 60 * 24));
 
-  if (isToday) {
+  if (diffDaysCalendar === 0) {
     return date.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
   }
 
-  const yesterday = new Date(now);
-  yesterday.setDate(now.getDate() - 1);
-  const isYesterday =
-    date.getDate() === yesterday.getDate() &&
-    date.getMonth() === yesterday.getMonth() &&
-    date.getFullYear() === yesterday.getFullYear();
-
-  if (isYesterday) {
+  if (diffDaysCalendar === 1) {
     return "Ontem";
   }
 
-  const diffDays = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60 * 24));
-  if (diffDays > 0 && diffDays < 7) {
+  if (diffDaysCalendar > 1 && diffDaysCalendar < 7) {
     const weekdays = ["Domingo", "Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado"];
     return weekdays[date.getDay()];
   }

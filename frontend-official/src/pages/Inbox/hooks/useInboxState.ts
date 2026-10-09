@@ -2083,6 +2083,7 @@ export function useInboxState() {
           ...current,
           lastMessage: optimisticLast?.content || textToSend || (currentAttachments[0]?.mediaType ? getMediaTypeLabel(currentAttachments[0].mediaType) : current.lastMessage || ""),
           lastMessageType: optimisticLast?.mediaType === "document" || optimisticLast?.mediaType === "media" ? "file" : optimisticLast?.mediaType ?? currentAttachments[0]?.mediaType ?? "text",
+          lastMessageAt: optimisticLast?.createdAt ?? now,
           updatedAt: optimisticLast?.createdAt ?? now,
         };
 
