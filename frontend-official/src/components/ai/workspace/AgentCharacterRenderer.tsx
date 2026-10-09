@@ -5,6 +5,8 @@ import {
   STATE_VISUAL_MAP,
   CharacterPreset,
 } from "./CharacterDefinition";
+import { ZaiAvatarRenderer } from "@/components/avatar-engine/ZaiAvatarRenderer";
+import { createAgentAvatar } from "@/components/avatar-engine/CharacterFactory";
 import { cn } from "@/core/lib/utils";
 import {
   Activity,
@@ -106,18 +108,54 @@ export const AgentCharacterRenderer: React.FC<AgentCharacterRendererProps> = ({
             : "w-[240px] sm:w-[280px] md:w-[310px] h-[360px] sm:h-[430px] md:h-[490px] border-slate-700/40 bg-gradient-to-b from-[#0b1325] via-[#070d1a] to-[#02050b]"
         )}
       >
-        {/* Main High-Fidelity Character Asset */}
-        <img
-          src={assetUrl}
-          alt={`${preset.name} - ${preset.tagline}`}
-          className={cn(
-            "w-full h-full transition-transform duration-700 pointer-events-none",
-            pose === "seated" ? "object-cover object-top" : "object-contain object-center",
-            isWorking ? "scale-100 hover:scale-[1.02]" : "scale-100",
-            stateKey === "OFFLINE" ? "grayscale-[20%] opacity-90" : "brightness-[1.03]"
+        {/* Habbo / Tibia Isometric 2.5D Pixel Art Character */}
+        <div className="relative w-full h-full flex flex-col items-center justify-center p-3">
+          <div className="relative w-full h-[220px] sm:h-[260px] flex items-center justify-center">
+            <ZaiAvatarRenderer
+              avatar={(agent as any)?.avatarConfig || createAgentAvatar({
+                agentId: agent?.key || agent?.id || agent?.name || "camila",
+                name: agent?.name || preset.name,
+                role: agent?.role || preset.tagline,
+                gender: preset.gender === "male" ? "male" : "female",
+              })}
+              state={(
+                stateKey === "OFFLINE"
+                  ? "OFFLINE"
+                  : isWorking
+                  ? isTyping
+                    ? "TYPING"
+                    : "WORKING"
+                  : stateKey === "RESPONDING"
+                  ? "TALKING"
+                  : stateKey === "THINKING"
+                  ? "THINKING"
+                  : "WAITING"
+              ) as any}
+              size="workspace"
+              showAura={true}
+              showStatusBadge={false}
+              showBrandingLayer={true}
+            />
+          </div>
+
+          {/* Isometric PC Workstation Desk overlay when seated / working */}
+          {pose === "seated" && (
+            <div className="absolute bottom-2 inset-x-6 z-20 flex flex-col items-center pointer-events-none">
+              <div className="w-full max-w-[240px] h-9 rounded-xl bg-slate-950/90 border border-emerald-500/40 shadow-lg flex items-center justify-between px-3 backdrop-blur-sm">
+                <div className="flex items-center gap-1.5">
+                  <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                  <span className="text-[9px] font-mono font-bold text-emerald-300">
+                    TERMINAL ZAI · ATIVO
+                  </span>
+                </div>
+                <div className="flex items-center gap-1">
+                  <span className="h-1.5 w-6 rounded-full bg-emerald-500/30" />
+                  <span className="h-1.5 w-2 rounded-full bg-emerald-400" />
+                </div>
+              </div>
+            </div>
           )}
-          onError={() => setImageError(true)}
-        />
+        </div>
 
         {/* Soft Depth Gradient Mask at bottom to ground character seamlessly onto desk or floor */}
         <div className="absolute inset-x-0 bottom-0 h-16 sm:h-20 bg-gradient-to-t from-[#020408] via-[#020408]/60 to-transparent pointer-events-none" />

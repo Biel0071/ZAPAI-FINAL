@@ -54,7 +54,45 @@ import { AttendantItemCard } from "@/components/attendants/AttendantItemCard";
 import { AddAttendantCard } from "@/components/attendants/AddAttendantCard";
 import { EXAMPLE_ATTENDANTS } from "@/components/attendants/exampleAttendants";
 import { Pagination } from "@/components/ui/pagination";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { Slider } from "@/components/ui/slider";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  ChevronLeft,
+  ChevronRight,
+  ChevronDown,
+  ChevronUp,
+  ChevronsUpDown,
+  Eye,
+  EyeOff,
+  Wand2,
+  Key,
+  Cpu,
+  Layers,
+  Sparkles,
+  Target,
+  Heart,
+  Zap,
+  CheckCircle2,
+  AlertCircle,
+  ArrowRight,
+  ArrowLeft,
+  Smile,
+  RefreshCw,
+} from "lucide-react";
+import {
+  OBJECTIVES,
+  TONE_OPTIONS,
+  PROVIDER_OPTIONS,
+  PROMPT_TEMPLATES,
+  QUICK_TEST_PROMPTS,
+} from "@/pages/AI/AgentTab";
 import { createAgentAvatar, buildStoreVisualDNA, resolveSpriteForAvatar, applyStylePreset } from "@/components/avatar-engine/CharacterFactory";
 import {
   AVATAR_HAIRS,
@@ -73,18 +111,16 @@ export default function AttendantsPage() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const rawTab = searchParams.get("tab");
-  const activeTab: "attendants" | "copilot" | "config" | "memory" | "evolution" =
+  const activeTab: "attendants" | "copilot" | "memory" | "evolution" =
     rawTab === "copilot"
       ? "copilot"
-      : rawTab === "config"
-      ? "config"
       : rawTab === "memory"
       ? "memory"
       : rawTab === "evolution"
       ? "evolution"
       : "attendants";
 
-  const handleTabChange = (tab: "attendants" | "copilot" | "config" | "memory" | "evolution") => {
+  const handleTabChange = (tab: "attendants" | "copilot" | "memory" | "evolution") => {
     setSearchParams((prev) => {
       const next = new URLSearchParams(prev);
       if (tab === "attendants") {
@@ -411,6 +447,148 @@ export default function AttendantsPage() {
     }
   };
 
+  // Mode switcher: "complete" (Abas Expansíveis) vs "steps" (Passo a passo guiado)
+  const [viewMode, setViewMode] = useState<"complete" | "steps">(
+    searchParams.get("mode") === "steps" ? "steps" : "complete"
+  );
+  const [activeStep, setActiveStep] = useState<number>(1);
+  const [collapsedCards, setCollapsedCards] = useState<Record<string, boolean>>({
+    avatarStudio: false,
+    objectiveTone: false,
+    prompt: false,
+    providers: false,
+    chatSandbox: false,
+  });
+
+  const toggleCard = (cardKey: string) => {
+    setCollapsedCards((prev) => ({
+      ...prev,
+      [cardKey]: !prev[cardKey],
+    }));
+  };
+
+  const toggleAllCards = () => {
+    const allCollapsed = Object.values(collapsedCards).every(Boolean);
+    const nextVal = !allCollapsed;
+    setCollapsedCards({
+      avatarStudio: nextVal,
+      objectiveTone: nextVal,
+      prompt: nextVal,
+      providers: nextVal,
+      chatSandbox: nextVal,
+    });
+  };
+
+  // Agent Configuration State
+  const [selectedObjective, setSelectedObjective] = useState<string>("fechamento");
+  const [selectedTone, setSelectedTone] = useState<string>("friendly");
+  const [responseStyle, setResponseStyle] = useState<string>("short_natural");
+  const [temperature, setTemperature] = useState<number>(0.3);
+  const [agentPrompt, setAgentPrompt] = useState<string>(PROMPT_TEMPLATES[0].prompt);
+  const [selectedProvider, setSelectedProvider] = useState<string>("openai");
+  const [selectedModel, setSelectedModel] = useState<string>("gpt-4o-mini");
+  const [apiKey, setApiKey] = useState<string>("");
+  const [showApiKey, setShowApiKey] = useState<boolean>(false);
+  const [isSavingAgent, setIsSavingAgent] = useState<boolean>(false);
+  const [isTestingConnection, setIsTestingConnection] = useState<boolean>(false);
+  const [connectionTestResult, setConnectionTestResult] = useState<any>(null);
+
+  // Sync state when previewAgent changes
+  useEffect(() => {
+    if (previewAgent) {
+      if (previewAgent.objective) setSelectedObjective(previewAgent.objective);
+      if (previewAgent.tone) setSelectedTone(previewAgent.tone);
+      if (previewAgent.responseStyle) setResponseStyle(previewAgent.responseStyle);
+      if (typeof previewAgent.temperature === "number") setTemperature(previewAgent.temperature);
+      if (previewAgent.personality || previewAgent.prompt) {
+        setAgentPrompt(previewAgent.personality || previewAgent.prompt);
+      }
+      if (previewAgent.provider) setSelectedProvider(previewAgent.provider);
+      if (previewAgent.model) setSelectedModel(previewAgent.model);
+    }
+  }, [previewAgent?.key]);
+
+  const handleSaveAgentConfig = async () => {
+    if (!previewAgent) return;
+    if (previewAgent.isExample) {
+      notify.info(`Este perfil é o modelo demonstrativo de ${previewAgent.name}. Clique em 'Criar Atendente' para criar um funcionário digital real.`);
+      setIsWizardOpen(true);
+      return;
+    }
+    setIsSavingAgent(true);
+    try {
+      const payload: any = {
+        objective: selectedObjective,
+        tone: selectedTone,
+        responseStyle,
+        temperature,
+        personality: agentPrompt,
+        prompt: agentPrompt,
+        provider: selectedProvider,
+        model: selectedModel,
+      };
+      const result = await apiService.updateAIAgent(previewAgent.key, payload);
+      if (result.success === false) throw new Error("Não foi possível salvar as configurações do atendente.");
+
+      if (apiKey.trim()) {
+        const provRes = await apiService.saveUserProvider({
+          provider: selectedProvider,
+          api_key: apiKey.trim(),
+          model: selectedModel,
+          enabled: true,
+        });
+        if (provRes.success === false) throw new Error("A chave do provedor não pôde ser salva.");
+        setApiKey("");
+      }
+
+      notify.success(`Configurações de ${previewAgent.name} salvas com sucesso!`);
+      await fetchData();
+    } catch (err: any) {
+      notify.error(err?.message || "Erro ao salvar configurações do atendente.");
+    } finally {
+      setIsSavingAgent(false);
+    }
+  };
+
+  const handleTestConnection = async () => {
+    if (apiKey.trim()) {
+      notify.info("Salve a chave de API antes de testar a conexão.");
+      return;
+    }
+    setIsTestingConnection(true);
+    setConnectionTestResult(null);
+    try {
+      const response = await apiService.testAIMessage({
+        message: "Teste de conexão e integridade da API ZAI.",
+        prompt: "Responda apenas: CONEXÃO BEM-SUCEDIDA.",
+        model: selectedModel,
+        providerId: selectedProvider,
+      });
+      const res = response.result;
+      if (!res) throw new Error(response.error || "O teste não retornou dados.");
+      setConnectionTestResult(res);
+      if (res.ok) {
+        notify.success(`Provedor ${selectedProvider} validado! Latência: ${res.responseTimeMs || 0}ms.`);
+      } else {
+        notify.error(res.error || "Falha na conexão com o provedor.");
+      }
+    } catch (err: any) {
+      notify.error(err?.message || "Não foi possível testar a conexão com o provedor.");
+    } finally {
+      setIsTestingConnection(false);
+    }
+  };
+
+  const currentObjectiveDef = OBJECTIVES.find((o) => o.id === selectedObjective) || OBJECTIVES[0];
+  const currentToneDef = TONE_OPTIONS.find((t) => t.id === selectedTone) || TONE_OPTIONS[0];
+  const currentProviderDef = PROVIDER_OPTIONS.find((p) => p.id === selectedProvider) || PROVIDER_OPTIONS[0];
+
+  const handleSaveAll = async () => {
+    await handleSaveAgentConfig();
+    if (previewAgent && !previewAgent.isExample) {
+      await handleSaveAvatar();
+    }
+  };
 
   // Filter attendants by store
   const belongsToStore = useCallback((agent: any, storeId: string) => {
@@ -563,7 +741,7 @@ export default function AttendantsPage() {
 
     try {
       const response = await apiService.testAIMessage({
-        prompt: previewAgent?.personality || undefined,
+        prompt: agentPrompt || previewAgent?.personality || undefined,
         message: userText,
         agentKey: previewAgent?.key,
         sessionId: previewAgent?.sessionIds?.[0],
@@ -582,6 +760,825 @@ export default function AttendantsPage() {
     } finally {
       if (version === testVersion.current) setIsTestingAgent(false);
     }
+  };
+
+  const STEPS = [
+    { step: 1, title: "Avatar Studio 2.5D", desc: "Aparência Habbo/Tibia", icon: TShirt },
+    { step: 2, title: "Objetivo & Tom", desc: "Conversão e linguagem", icon: Target },
+    { step: 3, title: "Prompt & Instruções", desc: "Personalidade da IA", icon: Sparkle },
+    { step: 4, title: "Provedores & Modelos", desc: "Motor e chaves de API", icon: Cpu },
+    { step: 5, title: "Chat & Sandbox", desc: "Teste ao vivo interativo", icon: ChatCircleText },
+  ];
+
+  /* -------------------------------------------------------------
+     RENDER SUB-SECTIONS (REUSABLE IN BOTH MODES)
+  ------------------------------------------------------------- */
+  const renderAvatarStudioSection = () => {
+    if (!previewAgent) return null;
+    return (
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
+        {/* Left: 2.5D Living Avatar Box (Col 5) */}
+        <div className="lg:col-span-5 space-y-3">
+          <div className="w-full h-[220px] rounded-2xl overflow-hidden border border-border/60 shadow-inner relative flex flex-col items-center justify-center bg-gradient-to-b from-[#091120] to-[#040812] select-none">
+            {/* Isometric Grid Floor Accent */}
+            <div
+              className="absolute inset-0 opacity-15 pointer-events-none"
+              style={{
+                backgroundImage: "radial-gradient(circle at 2px 2px, #10b981 1px, transparent 0)",
+                backgroundSize: "20px 20px",
+              }}
+            />
+
+            {/* Top-left Info Chip */}
+            <div className="absolute top-2.5 left-2.5 z-20 flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-black/70 border border-border/60 text-[10px] backdrop-blur-xs">
+              <span
+                className={cn(
+                  "w-1.5 h-1.5 rounded-full",
+                  previewAgent.active !== false ? "bg-emerald-400 animate-pulse" : "bg-amber-400"
+                )}
+              />
+              <span className="font-semibold text-foreground">{previewAgent.name}</span>
+              <span className="text-muted-foreground">•</span>
+              <span className="font-mono text-emerald-400 text-[9px]">{previewPresence?.label}</span>
+            </div>
+
+            {/* Top-right Gender Switcher */}
+            <button
+              type="button"
+              onClick={() => {
+                const currentGender = previewAgent?.avatarConfig?.body === "male" ? "female" : "male";
+                handleUpdateAvatar({ body: currentGender });
+              }}
+              className="absolute top-2.5 right-2.5 z-20 px-2.5 py-0.5 rounded-full bg-black/70 border border-emerald-500/40 text-[10px] text-emerald-300 font-mono hover:bg-emerald-500/20 transition-all flex items-center gap-1 backdrop-blur-xs cursor-pointer"
+              title="Alternar silhueta feminina / masculina"
+            >
+              <span>{previewAgent?.avatarConfig?.body === "male" ? "Masc" : "Fem"}</span>
+            </button>
+
+            {/* Centered 2.5D Character Sprite */}
+            <div className="relative w-full h-[160px] flex items-center justify-center my-auto">
+              <ZaiAvatarRenderer
+                avatar={previewAgent.avatarConfig || createAgentAvatar({
+                  agentId: previewAgent.key || previewAgent.name,
+                  name: previewAgent.name,
+                  role: previewAgent.role,
+                  storeId: previewStore?.id,
+                  storeDNA: previewStore ? buildStoreVisualDNA(previewStore) : undefined,
+                  gender: previewAgent.character?.gender || (previewAgent.name?.toLowerCase().includes("carlos") ? "male" : "female"),
+                })}
+                state={previewPresence?.state || "WAITING"}
+                size="workspace"
+                showAura={true}
+                showStatusBadge={false}
+                showBrandingLayer={false}
+              />
+            </div>
+
+            {/* Bottom Layer Summary Chips */}
+            <div className="absolute bottom-2 inset-x-2 z-20 flex items-center justify-center gap-1.5 overflow-x-auto scrollbar-none py-0.5">
+              <span className="px-2 py-0.5 rounded-md bg-black/80 border border-border/60 text-[9px] text-foreground font-mono truncate max-w-[100px]">
+                {activeHairItem.title}
+              </span>
+              <span className="px-2 py-0.5 rounded-md bg-black/80 border border-border/60 text-[9px] text-foreground font-mono truncate max-w-[90px]">
+                {activeFaceItem.title}
+              </span>
+              <span className="px-2 py-0.5 rounded-md bg-black/80 border border-border/60 text-[9px] text-foreground font-mono truncate max-w-[100px]">
+                {activeOutfitItem.title}
+              </span>
+              <span className="px-2 py-0.5 rounded-md bg-emerald-950/90 border border-emerald-500/50 text-[9px] text-emerald-300 font-mono font-bold truncate max-w-[80px]">
+                {activeStyleItem.title}
+              </span>
+            </div>
+          </div>
+
+          {/* Action Row */}
+          <div className="flex items-center justify-between gap-2 pt-1">
+            <span className="text-[11px] text-muted-foreground">
+              Estilo 2.5D Habbo/Tibia • Salve para persistir
+            </span>
+            <div className="flex items-center gap-2">
+              {!previewAgent.isExample && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setAvatarEditorAgent(previewAgent)}
+                  className="h-8 text-xs rounded-xl px-2.5 border-border/70 text-muted-foreground hover:text-foreground cursor-pointer"
+                  title="Abrir Studio Completo em Janela Expandida"
+                >
+                  <TShirt className="h-3.5 w-3.5 mr-1" />
+                  <span>Estúdio Avançado</span>
+                </Button>
+              )}
+              <Button
+                variant="default"
+                size="sm"
+                onClick={handleSaveAvatar}
+                disabled={isSavingAvatar}
+                className={cn(
+                  "h-8 text-xs rounded-xl px-3 gap-1.5 font-semibold shadow-xs cursor-pointer",
+                  previewAgent.isExample
+                    ? "bg-sky-600 hover:bg-sky-500 text-white"
+                    : "bg-emerald-600 hover:bg-emerald-500 text-white"
+                )}
+              >
+                <FloppyDisk className="h-3.5 w-3.5" />
+                <span>{isSavingAvatar ? "Salvando..." : "Salvar Avatar"}</span>
+              </Button>
+            </div>
+          </div>
+        </div>
+
+        {/* Right: 5 Categories Selector + Items Grid (Col 7) */}
+        <div className="lg:col-span-7 space-y-3">
+          {/* Exactly 5 Category Selector Buttons */}
+          <div className="grid grid-cols-5 gap-1.5 p-1 rounded-xl bg-muted/20 border border-border/60">
+            {[
+              { id: "hair" as const, label: "Cabelo", icon: Scissors },
+              { id: "face" as const, label: "Rosto", icon: Smiley },
+              { id: "outfit" as const, label: "Roupa", icon: TShirt },
+              { id: "accessories" as const, label: "Acessórios", icon: Eyeglasses },
+              { id: "style" as const, label: "Estilo", icon: Sparkle },
+            ].map((cat) => {
+              const Icon = cat.icon;
+              const isSelected = studioCategory === cat.id;
+              return (
+                <button
+                  key={cat.id}
+                  type="button"
+                  onClick={() => setStudioCategory(cat.id)}
+                  className={cn(
+                    "py-2 px-1 rounded-lg text-xs font-bold uppercase transition-all flex flex-col items-center justify-center gap-1 cursor-pointer",
+                    isSelected
+                      ? "bg-card text-emerald-400 border border-emerald-500/50 shadow-xs"
+                      : "text-muted-foreground hover:text-foreground hover:bg-muted/30"
+                  )}
+                >
+                  <Icon className="h-3.5 w-3.5" />
+                  <span className="text-[10px] sm:text-xs">{cat.label}</span>
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Interactive Items Selection Grid */}
+          <div className="rounded-xl border border-border/60 bg-card/60 p-3 max-h-[175px] overflow-y-auto scrollbar-zai">
+            {studioCategory === "hair" && (
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                {AVATAR_HAIRS.map((h) => {
+                  const isSelected = previewAgent?.avatarConfig?.hair === h.id;
+                  return (
+                    <button
+                      key={h.id}
+                      type="button"
+                      onClick={() => handleUpdateAvatar({
+                        hair: h.id,
+                        catalogSpriteId: h.spriteRef || resolveSpriteForAvatar({ ...(previewAgent?.avatarConfig || {}), hair: h.id, catalogSpriteId: undefined }, true),
+                      })}
+                      className={cn(
+                        "p-2 rounded-xl border text-left transition-all flex items-center gap-2 cursor-pointer select-none",
+                        isSelected
+                          ? "border-emerald-500 bg-emerald-500/15 text-emerald-300 shadow-xs"
+                          : "border-border/60 bg-muted/15 hover:border-border text-muted-foreground hover:text-foreground"
+                      )}
+                    >
+                      <span className="text-[9px] font-mono px-1 py-0.5 rounded bg-black/40 text-emerald-400 font-bold shrink-0">{h.number}</span>
+                      <div className="min-w-0">
+                        <p className="text-xs font-bold truncate text-foreground">{h.name}</p>
+                        <p className="text-[10px] text-muted-foreground truncate">{h.title}</p>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+
+            {studioCategory === "face" && (
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                {AVATAR_FACES.map((f) => {
+                  const isSelected = previewAgent?.avatarConfig?.face === f.id;
+                  return (
+                    <button
+                      key={f.id}
+                      type="button"
+                      onClick={() => handleUpdateAvatar({ face: f.id })}
+                      className={cn(
+                        "p-2 rounded-xl border text-left transition-all flex items-center gap-2 cursor-pointer select-none",
+                        isSelected
+                          ? "border-emerald-500 bg-emerald-500/15 text-emerald-300 shadow-xs"
+                          : "border-border/60 bg-muted/15 hover:border-border text-muted-foreground hover:text-foreground"
+                      )}
+                    >
+                      <span className="text-[9px] font-mono px-1 py-0.5 rounded bg-black/40 text-emerald-400 font-bold shrink-0">{f.number}</span>
+                      <div className="min-w-0">
+                        <p className="text-xs font-bold truncate text-foreground">{f.name}</p>
+                        <p className="text-[10px] text-muted-foreground truncate">{f.title}</p>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+
+            {studioCategory === "outfit" && (
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                {AVATAR_OUTFITS.map((o) => {
+                  const isSelected = (previewAgent?.avatarConfig?.outfit || previewAgent?.avatarConfig?.clothing) === o.id;
+                  return (
+                    <button
+                      key={o.id}
+                      type="button"
+                      onClick={() => handleUpdateAvatar({
+                        outfit: o.id,
+                        clothing: o.id,
+                        catalogSpriteId: o.spriteRef || resolveSpriteForAvatar({ ...(previewAgent?.avatarConfig || {}), outfit: o.id, clothing: o.id, catalogSpriteId: undefined }, true),
+                      })}
+                      className={cn(
+                        "p-2 rounded-xl border text-left transition-all flex items-center gap-2 cursor-pointer select-none",
+                        isSelected
+                          ? "border-emerald-500 bg-emerald-500/15 text-emerald-300 shadow-xs"
+                          : "border-border/60 bg-muted/15 hover:border-border text-muted-foreground hover:text-foreground"
+                      )}
+                    >
+                      <span className="text-[9px] font-mono px-1 py-0.5 rounded bg-black/40 text-emerald-400 font-bold shrink-0">{o.number}</span>
+                      <div className="min-w-0">
+                        <p className="text-xs font-bold truncate text-foreground">{o.name}</p>
+                        <p className="text-[10px] text-muted-foreground truncate">{o.title}</p>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+
+            {studioCategory === "accessories" && (
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                {AVATAR_ACCESSORIES.map((a) => {
+                  const cfg = previewAgent?.avatarConfig;
+                  const isEquipped =
+                    (a.id === "acc_01" && (!cfg?.accessories || Object.values(cfg?.accessories || {}).every((v: any) => v === "none"))) ||
+                    (a.id === "acc_02" && cfg?.headset && cfg.headset !== "none") ||
+                    (a.id === "acc_03" && cfg?.accessories?.badge && cfg.accessories.badge !== "none") ||
+                    (a.id === "acc_04" && cfg?.glasses && cfg.glasses !== "none") ||
+                    (a.id === "acc_05" && cfg?.workObject === "tablet_zai") ||
+                    (a.id === "acc_06" && cfg?.accessories?.watch && cfg.accessories.watch !== "none");
+
+                  return (
+                    <button
+                      key={a.id}
+                      type="button"
+                      onClick={() => {
+                        const updatedAccessories = { ...(cfg?.accessories || {}) };
+                        let updatedHeadset = cfg?.headset || "none";
+                        let updatedGlasses = cfg?.glasses || "none";
+                        let updatedWorkObject = cfg?.workObject || "none";
+
+                        if (a.id === "acc_01") {
+                          updatedHeadset = "none";
+                          updatedAccessories.headset = "none";
+                          updatedAccessories.badge = "none";
+                          updatedAccessories.watch = "none";
+                          updatedWorkObject = "none";
+                          updatedGlasses = "none";
+                        } else if (a.id === "acc_02") {
+                          updatedHeadset = updatedHeadset === "headset_zai_green" ? "none" : "headset_zai_green";
+                          updatedAccessories.headset = updatedHeadset;
+                        } else if (a.id === "acc_03") {
+                          updatedAccessories.badge = updatedAccessories.badge === "badge_zai_lanyard" ? "none" : "badge_zai_lanyard";
+                        } else if (a.id === "acc_04") {
+                          updatedGlasses = updatedGlasses === "glasses_square_exec" ? "none" : "glasses_square_exec";
+                          updatedAccessories.glasses = updatedGlasses;
+                        } else if (a.id === "acc_05") {
+                          updatedWorkObject = updatedWorkObject === "tablet_zai" ? "none" : "tablet_zai";
+                        } else if (a.id === "acc_06") {
+                          updatedAccessories.watch = updatedAccessories.watch === "watch_zai_smart" ? "none" : "watch_zai_smart";
+                        }
+                        handleUpdateAvatar({
+                          accessories: updatedAccessories,
+                          headset: updatedHeadset,
+                          glasses: updatedGlasses,
+                          workObject: updatedWorkObject,
+                        });
+                      }}
+                      className={cn(
+                        "p-2 rounded-xl border text-left transition-all flex items-center gap-2 cursor-pointer select-none",
+                        isEquipped
+                          ? "border-emerald-500 bg-emerald-500/15 text-emerald-300 shadow-xs"
+                          : "border-border/60 bg-muted/15 hover:border-border text-muted-foreground hover:text-foreground"
+                      )}
+                    >
+                      <span className="text-[9px] font-mono px-1 py-0.5 rounded bg-black/40 text-emerald-400 font-bold shrink-0">{a.number}</span>
+                      <div className="min-w-0">
+                        <p className="text-xs font-bold truncate text-foreground">{a.name}</p>
+                        <p className="text-[10px] text-muted-foreground truncate">{a.title}</p>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+
+            {studioCategory === "style" && (
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                {AVATAR_STYLES.map((s) => {
+                  const isSelected = previewAgent?.avatarConfig?.style === s.id;
+                  return (
+                    <button
+                      key={s.id}
+                      type="button"
+                      onClick={() => {
+                        const currentConfig = previewAgent?.avatarConfig || {};
+                        const styled = applyStylePreset(currentConfig, s.id);
+                        handleUpdateAvatar(styled);
+                      }}
+                      className={cn(
+                        "p-2 rounded-xl border text-left transition-all flex items-center gap-2 cursor-pointer select-none",
+                        isSelected
+                          ? "border-emerald-500 bg-emerald-500/15 text-emerald-300 shadow-xs"
+                          : "border-border/60 bg-muted/15 hover:border-border text-muted-foreground hover:text-foreground"
+                      )}
+                    >
+                      <span className="text-[9px] font-mono px-1 py-0.5 rounded bg-black/40 text-emerald-400 font-bold shrink-0">{s.number}</span>
+                      <div className="min-w-0">
+                        <p className="text-xs font-bold truncate text-foreground">{s.name}</p>
+                        <p className="text-[10px] text-muted-foreground truncate">{s.title}</p>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  const renderObjectiveToneSection = () => {
+    return (
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 items-start">
+        {/* Left Column: Objetivo Central de Atendimento */}
+        <div className="p-4 rounded-2xl border border-border/70 bg-card/70 space-y-3.5">
+          <div className="flex items-center justify-between">
+            <div className="space-y-0.5">
+              <h4 className="text-sm font-bold text-foreground flex items-center gap-2">
+                <Target className="h-4 w-4 text-emerald-400" />
+                <span>Objetivo Central de Atendimento</span>
+              </h4>
+              <p className="text-xs text-muted-foreground">
+                Define o foco de conversão e a postura que a IA assumirá em cada conversa.
+              </p>
+            </div>
+            <Badge className="bg-emerald-500/15 text-emerald-300 border-emerald-500/40 text-[10px]">
+              {currentObjectiveDef.title}
+            </Badge>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            {OBJECTIVES.map((obj) => {
+              const Icon = obj.icon;
+              const isSelected = selectedObjective === obj.id;
+              return (
+                <div
+                  key={obj.id}
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => {
+                    setSelectedObjective(obj.id);
+                    notify.info(`Objetivo "${obj.title}" selecionado.`);
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") setSelectedObjective(obj.id);
+                  }}
+                  className={cn(
+                    "p-3.5 rounded-2xl border text-left cursor-pointer transition-all duration-200 space-y-2 flex flex-col justify-between select-none relative group",
+                    isSelected
+                      ? "bg-emerald-500/10 border-emerald-500 shadow-[0_0_20px_rgba(16,185,129,0.15)] ring-1 ring-emerald-500/50"
+                      : "bg-background/60 border-border/70 hover:bg-card hover:border-emerald-500/30"
+                  )}
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex items-center gap-2">
+                      <div
+                        className={cn(
+                          "h-8 w-8 rounded-xl flex items-center justify-center transition-colors shrink-0",
+                          isSelected
+                            ? "bg-emerald-500 text-white shadow-xs"
+                            : "bg-muted/50 text-muted-foreground border border-border/50 group-hover:text-foreground"
+                        )}
+                      >
+                        <Icon className="h-4 w-4" />
+                      </div>
+                      <div>
+                        <span className="text-xs font-bold text-foreground block leading-tight">
+                          {obj.title}
+                        </span>
+                        <span className="text-[10px] text-muted-foreground font-mono">
+                          {isSelected ? "● Ativo agora" : "Foco comercial"}
+                        </span>
+                      </div>
+                    </div>
+                    <Badge
+                      variant="outline"
+                      className={cn(
+                        "text-[9px] font-semibold px-2 py-0.5 rounded-full shrink-0 border",
+                        isSelected
+                          ? "border-emerald-500/40 text-emerald-300 bg-emerald-500/15"
+                          : "border-border/70 text-muted-foreground bg-muted/20"
+                      )}
+                    >
+                      {obj.badge}
+                    </Badge>
+                  </div>
+                  <p className="text-[11px] text-muted-foreground leading-relaxed line-clamp-2">
+                    {obj.desc}
+                  </p>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Right Column: Tom de Atendimento & Ajustes Finos */}
+        <div className="p-4 rounded-2xl border border-border/70 bg-card/70 space-y-4">
+          <div className="flex items-center justify-between">
+            <div className="space-y-0.5">
+              <h4 className="text-sm font-bold text-foreground flex items-center gap-2">
+                <Sliders className="h-4 w-4 text-emerald-400" />
+                <span>Tom de Atendimento & Ajustes Finos</span>
+              </h4>
+              <p className="text-xs text-muted-foreground">
+                Escolha a linguagem e a velocidade de raciocínio das respostas.
+              </p>
+            </div>
+            <Badge variant="outline" className="text-[10px] border-emerald-500/40 text-emerald-300 bg-emerald-500/10">
+              {currentToneDef.label}
+            </Badge>
+          </div>
+
+          {/* 4 Tone Cards in 2x2 grid */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            {TONE_OPTIONS.map((t) => {
+              const isSelected = selectedTone === t.id;
+              return (
+                <button
+                  key={t.id}
+                  type="button"
+                  onClick={() => setSelectedTone(t.id)}
+                  className={cn(
+                    "p-3 rounded-2xl text-left border text-xs transition-all duration-200 select-none cursor-pointer space-y-1",
+                    isSelected
+                      ? "border-emerald-500 bg-emerald-500/10 text-emerald-300 font-semibold shadow-[0_0_15px_rgba(16,185,129,0.12)] ring-1 ring-emerald-500/40"
+                      : "border-border/70 bg-background/60 text-muted-foreground hover:bg-card hover:text-foreground hover:border-emerald-500/30"
+                  )}
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="font-bold text-foreground text-xs">{t.label}</span>
+                    {isSelected && <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400" />}
+                  </div>
+                  <p className="text-[10px] text-muted-foreground leading-relaxed line-clamp-2">
+                    {t.desc}
+                  </p>
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Fine Tuning Sliders */}
+          <div className="pt-2 border-t border-border/40 space-y-3">
+            {/* Response Style Segmented Control */}
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between text-xs">
+                <span className="font-medium text-foreground">Estilo de Resposta</span>
+                <span className="text-[11px] font-mono text-emerald-400">
+                  {responseStyle === "short_natural"
+                    ? "Curto & Direto"
+                    : responseStyle === "detailed"
+                    ? "Explicativo & Detalhado"
+                    : "Natural & Equilibrado"}
+                </span>
+              </div>
+              <div className="grid grid-cols-3 gap-1.5 p-1 rounded-xl bg-background/60 border border-border/60">
+                {[
+                  { id: "short_natural", label: "Curto & Direto" },
+                  { id: "balanced", label: "Equilibrado" },
+                  { id: "detailed", label: "Detalhado" },
+                ].map((st) => (
+                  <button
+                    key={st.id}
+                    type="button"
+                    onClick={() => setResponseStyle(st.id)}
+                    className={cn(
+                      "py-1.5 rounded-lg text-xs font-semibold transition-all text-center cursor-pointer",
+                      responseStyle === st.id
+                        ? "bg-emerald-600 text-white shadow-xs"
+                        : "text-muted-foreground hover:text-foreground hover:bg-muted/30"
+                    )}
+                  >
+                    {st.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Model Temperature Slider */}
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between text-xs">
+                <span className="font-medium text-foreground">Temperatura do Modelo</span>
+                <span className="text-[11px] font-mono text-emerald-400">
+                  {temperature.toFixed(2)} {temperature < 0.4 ? "(Mais Preciso)" : temperature > 0.7 ? "(Mais Criativo)" : "(Equilibrado)"}
+                </span>
+              </div>
+              <Slider
+                value={[temperature]}
+                min={0}
+                max={1}
+                step={0.05}
+                onValueChange={(val) => setTemperature(val[0])}
+                className="py-1"
+              />
+              <div className="flex justify-between text-[10px] text-muted-foreground font-mono">
+                <span>0.00 Mais Focado</span>
+                <span>0.50 Padrão</span>
+                <span>1.00 Mais Criativo</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  const renderPromptSection = () => {
+    return (
+      <div className="p-4 rounded-2xl border border-border/70 bg-card/70 space-y-3.5">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+          <div className="space-y-0.5">
+            <h4 className="text-sm font-bold text-foreground flex items-center gap-2">
+              <Sparkle weight="fill" className="h-4 w-4 text-emerald-400" />
+              <span>Prompt & Instruções do Agente</span>
+            </h4>
+            <p className="text-xs text-muted-foreground">
+              Instruções mestras que orientam o raciocínio da IA durante o atendimento no WhatsApp.
+            </p>
+          </div>
+          <span className="text-[11px] font-mono text-muted-foreground bg-muted/30 px-2 py-0.5 rounded-md border border-border/50 shrink-0">
+            {agentPrompt.length} caracteres
+          </span>
+        </div>
+
+        {/* Quick Prompt Templates */}
+        <div className="space-y-1.5">
+          <span className="text-xs font-semibold text-muted-foreground">Modelos Prontos de Prompt:</span>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+            {PROMPT_TEMPLATES.map((tmpl, idx) => (
+              <button
+                key={idx}
+                type="button"
+                onClick={() => {
+                  setAgentPrompt(tmpl.prompt);
+                  notify.info(`Modelo "${tmpl.title}" aplicado ao prompt.`);
+                }}
+                className="p-2.5 rounded-xl border border-border/60 bg-background/60 hover:bg-card hover:border-emerald-500/40 text-left transition-all cursor-pointer group"
+              >
+                <div className="flex items-center justify-between mb-1">
+                  <span className="text-xs font-bold text-foreground group-hover:text-emerald-400 transition-colors">
+                    {tmpl.title}
+                  </span>
+                  <Wand2 className="h-3 w-3 text-muted-foreground group-hover:text-emerald-400" />
+                </div>
+                <p className="text-[10px] text-muted-foreground line-clamp-2 leading-relaxed">
+                  {tmpl.desc}
+                </p>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Textarea */}
+        <div className="space-y-1.5">
+          <label htmlFor="agent-prompt-textarea" className="text-xs font-semibold text-foreground">
+            Instruções Completas do Atendente
+          </label>
+          <Textarea
+            id="agent-prompt-textarea"
+            value={agentPrompt}
+            onChange={(e) => setAgentPrompt(e.target.value)}
+            rows={7}
+            placeholder="Defina aqui como o atendente deve agir, políticas de preço, frete, formas de pagamento e comportamento..."
+            className="rounded-xl text-xs font-mono bg-background/70 border-border/70 focus:border-emerald-500/60 leading-relaxed resize-y"
+          />
+        </div>
+      </div>
+    );
+  };
+
+  const renderProvidersSection = () => {
+    return (
+      <div className="p-4 rounded-2xl border border-border/70 bg-card/70 space-y-4">
+        <div className="flex items-center justify-between">
+          <div className="space-y-0.5">
+            <h4 className="text-sm font-bold text-foreground flex items-center gap-2">
+              <Cpu className="h-4 w-4 text-emerald-400" />
+              <span>Provedores de IA & Modelos</span>
+            </h4>
+            <p className="text-xs text-muted-foreground">
+              Configure o motor neural e a chave de API que processará as respostas deste atendente.
+            </p>
+          </div>
+          <Badge variant="outline" className="text-[10px] border-emerald-500/40 text-emerald-300 bg-emerald-500/10 uppercase">
+            {currentProviderDef.name}
+          </Badge>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          {/* Provider Select */}
+          <div className="space-y-1.5">
+            <label className="text-xs font-semibold text-foreground">Provedor</label>
+            <Select
+              value={selectedProvider}
+              onValueChange={(val) => {
+                setSelectedProvider(val);
+                const def = PROVIDER_OPTIONS.find((p) => p.id === val);
+                if (def) setSelectedModel(def.defaultModel);
+              }}
+            >
+              <SelectTrigger className="h-10 rounded-xl bg-background/70 border-border/70 text-xs">
+                <SelectValue placeholder="Selecione o provedor" />
+              </SelectTrigger>
+              <SelectContent>
+                {PROVIDER_OPTIONS.map((p) => (
+                  <SelectItem key={p.id} value={p.id} className="text-xs">
+                    {p.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Model Select */}
+          <div className="space-y-1.5">
+            <label className="text-xs font-semibold text-foreground">Modelo</label>
+            <Select value={selectedModel} onValueChange={(val) => setSelectedModel(val)}>
+              <SelectTrigger className="h-10 rounded-xl bg-background/70 border-border/70 text-xs">
+                <SelectValue placeholder="Selecione o modelo" />
+              </SelectTrigger>
+              <SelectContent>
+                {currentProviderDef.models.map((m) => (
+                  <SelectItem key={m} value={m} className="text-xs">
+                    {m}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* API Key */}
+          <div className="space-y-1.5">
+            <label className="text-xs font-semibold text-foreground">Chave de API (Opcional)</label>
+            <div className="relative">
+              <Input
+                type={showApiKey ? "text" : "password"}
+                placeholder="sk-proj-..."
+                value={apiKey}
+                onChange={(e) => setApiKey(e.target.value)}
+                className="h-10 rounded-xl bg-background/70 border-border/70 text-xs pr-10"
+              />
+              <button
+                type="button"
+                onClick={() => setShowApiKey(!showApiKey)}
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground cursor-pointer"
+              >
+                {showApiKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* Test Connection Button & Result */}
+        <div className="flex flex-wrap items-center justify-between gap-3 pt-2 border-t border-border/40">
+          <div className="flex items-center gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={handleTestConnection}
+              disabled={isTestingConnection}
+              className="h-9 text-xs rounded-xl gap-2 border-emerald-500/40 text-emerald-300 hover:bg-emerald-500/10 cursor-pointer"
+            >
+              <RefreshCw className={cn("h-3.5 w-3.5", isTestingConnection && "animate-spin")} />
+              <span>{isTestingConnection ? "Validando Conexão..." : "Testar Conexão com Provedor"}</span>
+            </Button>
+            {connectionTestResult && (
+              <Badge
+                variant="outline"
+                className={cn(
+                  "text-xs px-2.5 py-1",
+                  connectionTestResult.ok
+                    ? "border-emerald-500/40 text-emerald-400 bg-emerald-500/10"
+                    : "border-destructive/40 text-destructive bg-destructive/10"
+                )}
+              >
+                {connectionTestResult.ok
+                  ? `Sucesso • ${connectionTestResult.responseTimeMs || 0}ms`
+                  : `Falha: ${connectionTestResult.error || "Erro de conexão"}`}
+              </Badge>
+            )}
+          </div>
+          <p className="text-[11px] text-muted-foreground">
+            A chave é armazenada com criptografia de ponta a ponta no backend da loja.
+          </p>
+        </div>
+      </div>
+    );
+  };
+
+  const renderSandboxSection = () => {
+    if (!previewAgent) return null;
+    return (
+      <div className="p-4 rounded-2xl border border-border/70 bg-card/70 space-y-3.5">
+        <div className="flex items-center justify-between">
+          <div className="space-y-0.5">
+            <h4 className="text-sm font-bold text-foreground flex items-center gap-2">
+              <ChatCircleText weight="bold" className="h-4 w-4 text-emerald-400" />
+              <span>Sandbox de Atendimento & Chat ao Vivo ({previewAgent.name})</span>
+            </h4>
+            <p className="text-xs text-muted-foreground">
+              Inteligência real do atendente. Mensagens de teste não afetam clientes no WhatsApp.
+            </p>
+          </div>
+          <Badge variant="outline" className="text-[10px] font-bold text-emerald-400 border-emerald-500/30 bg-emerald-500/10 uppercase">
+            AO VIVO
+          </Badge>
+        </div>
+
+        {/* Quick test pills */}
+        <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-none pb-1">
+          <span className="text-[10px] text-muted-foreground shrink-0 font-medium">Perguntas rápidas:</span>
+          {["Qual é o catálogo?", "Formas de pagamento?", "Horário de atendimento?", "Quais são as promoções?"].map((q, idx) => (
+            <button
+              key={idx}
+              type="button"
+              onClick={() => setSandboxInput(q)}
+              disabled={isTestingAgent}
+              className="px-2.5 py-0.5 rounded-full text-[10px] bg-muted/40 hover:bg-emerald-500/15 text-muted-foreground hover:text-emerald-300 border border-border/60 shrink-0 transition-colors cursor-pointer"
+            >
+              {q}
+            </button>
+          ))}
+        </div>
+
+        {/* Chat message box */}
+        <div className="h-[220px] rounded-xl border border-border/60 bg-background/50 p-3 overflow-y-auto space-y-2.5 text-xs scrollbar-zai">
+          {sandboxMessages.length === 0 && (
+            <div className="h-full flex flex-col items-center justify-center text-center p-4 text-muted-foreground space-y-1.5">
+              <Headset className="h-7 w-7 text-muted-foreground/60" />
+              <p className="text-xs font-semibold text-foreground">Ambiente de Teste Interativo</p>
+              <p className="text-[11px] max-w-xs">
+                Envie uma pergunta para testar as respostas de <strong>{previewAgent.name}</strong> com a inteligência e configurações reais salvas.
+              </p>
+            </div>
+          )}
+          {sandboxMessages.map((msg, idx) => (
+            <div
+              key={idx}
+              className={cn(
+                "max-w-[85%] rounded-2xl px-3.5 py-2 text-xs leading-relaxed shadow-xs",
+                msg.sender === "user"
+                  ? "ml-auto bg-emerald-600 text-white rounded-br-xs"
+                  : "mr-auto bg-card border border-border/60 text-foreground rounded-bl-xs"
+              )}
+            >
+              {msg.text}
+            </div>
+          ))}
+          {isTestingAgent && (
+            <div className="mr-auto bg-card border border-border/60 text-muted-foreground rounded-2xl rounded-bl-xs px-3.5 py-2 text-xs italic animate-pulse flex items-center gap-2">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping" />
+              <span>{previewAgent.name} está digitando...</span>
+            </div>
+          )}
+        </div>
+
+        {/* Input Composer */}
+        <form onSubmit={handleSendTestMessage} className="flex items-center gap-2 pt-1">
+          <Input
+            placeholder={`Pergunte algo para ${previewAgent.name}...`}
+            value={sandboxInput}
+            onChange={(e) => setSandboxInput(e.target.value)}
+            className="rounded-xl text-xs h-10 flex-1"
+            disabled={isTestingAgent}
+          />
+          <Button
+            type="submit"
+            size="sm"
+            disabled={!sandboxInput.trim() || isTestingAgent}
+            className="h-10 rounded-xl text-xs bg-emerald-600 hover:bg-emerald-500 text-white px-5 font-semibold shadow-xs cursor-pointer"
+          >
+            Enviar
+          </Button>
+        </form>
+      </div>
+    );
   };
 
   return (
@@ -870,25 +1867,25 @@ export default function AttendantsPage() {
           </div>
         </div>
 
-        {/* The 3 Main Menus */}
+        {/* The 2 Main Menus (Unificado: Atendente & Configuração + Memória & Evolução) */}
         <div className="flex items-center gap-1.5 p-1 rounded-2xl bg-card/70 border border-border/70 w-fit flex-wrap">
           <button
             type="button"
             onClick={() => handleTabChange("attendants")}
             className={cn(
-              "flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs md:text-sm font-semibold transition-all select-none",
-              activeTab === "attendants"
+              "flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs md:text-sm font-semibold transition-all select-none cursor-pointer",
+              (activeTab === "attendants" || activeTab === "config")
                 ? "bg-emerald-500/15 border border-emerald-500/40 text-emerald-400 shadow-sm"
                 : "text-muted-foreground hover:text-foreground hover:bg-card/50"
             )}
           >
             <Headset weight="fill" className="h-4 w-4" />
-            <span>Atendente IA</span>
+            <span>Atendente & Configuração</span>
             <Badge
               variant="outline"
               className={cn(
                 "ml-1 text-[10px] px-1.5 py-0 border-emerald-500/30",
-                activeTab === "attendants" ? "bg-emerald-500/20 text-emerald-300" : "text-muted-foreground"
+                (activeTab === "attendants" || activeTab === "config") ? "bg-emerald-500/20 text-emerald-300" : "text-muted-foreground"
               )}
             >
               {agents.length}
@@ -897,23 +1894,9 @@ export default function AttendantsPage() {
 
           <button
             type="button"
-            onClick={() => handleTabChange("config")}
-            className={cn(
-              "flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs md:text-sm font-semibold transition-all select-none",
-              activeTab === "config"
-                ? "bg-sky-500/15 border border-sky-500/40 text-sky-400 shadow-sm"
-                : "text-muted-foreground hover:text-foreground hover:bg-card/50"
-            )}
-          >
-            <Sliders className="h-4 w-4" />
-            <span>Configuração</span>
-          </button>
-
-          <button
-            type="button"
             onClick={() => handleTabChange("evolution")}
             className={cn(
-              "flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs md:text-sm font-semibold transition-all select-none",
+              "flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs md:text-sm font-semibold transition-all select-none cursor-pointer",
               (activeTab === "evolution" || activeTab === "memory")
                 ? "bg-purple-500/15 border border-purple-500/40 text-purple-400 shadow-sm"
                 : "text-muted-foreground hover:text-foreground hover:bg-card/50"
@@ -932,16 +1915,6 @@ export default function AttendantsPage() {
               onRefreshAgents={fetchData}
             />
           </div>
-        ) : activeTab === "config" ? (
-          <div className="rounded-2xl border border-border/70 bg-card/85 backdrop-blur shadow-sm p-4 md:p-6">
-            <React.Suspense fallback={<div className="p-8 text-center text-sm text-muted-foreground">Carregando configurações de IA...</div>}>
-              <AgentTab
-                selectedAgentKey={previewAgent?.key}
-                agents={agents}
-                onRefreshAgents={fetchData}
-              />
-            </React.Suspense>
-          </div>
         ) : (activeTab === "evolution" || activeTab === "memory") ? (
           <div className="rounded-2xl border border-border/70 bg-card/85 backdrop-blur shadow-sm p-4 md:p-6">
             <React.Suspense fallback={<div className="p-8 text-center text-sm text-muted-foreground">Carregando memória & evolução cognitiva...</div>}>
@@ -954,538 +1927,363 @@ export default function AttendantsPage() {
           </div>
         ) : (
           <>
-            {/* INÍCIO DO ATENDENTE IA: 2.5D AVATAR STUDIO & CHAT DE TESTE EM TEMPO REAL */}
+            {/* UNIFIED ATENDENTE & CONFIGURAÇÃO WORKSPACE */}
             {previewAgent ? (
-              <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
-                {/* Coluna Esquerda: Avatar Studio 2.5D com 5 Categorias (Col 5) */}
-                <div className="lg:col-span-5 space-y-4">
-                  <Card className="rounded-2xl border-border/70 bg-card/85 backdrop-blur shadow-sm overflow-hidden flex flex-col h-auto lg:h-[510px] lg:max-h-[510px]">
-                    <CardHeader className="p-3.5 pb-2.5 border-b border-border/40">
-                      <div className="flex items-center justify-between gap-2">
-                        <div className="min-w-0">
-                          <CardTitle className="text-sm font-bold text-foreground font-display flex items-center gap-2 truncate">
-                            <span>Avatar Studio ({previewAgent.name})</span>
-                            {previewAgent.isExample ? (
-                              <span className="badge-zai-example">
-                                Modelo Demonstrativo
-                              </span>
-                            ) : (
-                              <Badge
-                                variant="outline"
-                                className={cn(
-                                  "text-[10px] font-bold uppercase shrink-0",
-                                  previewAgent.active !== false
-                                    ? "border-emerald-500/30 text-emerald-400 bg-emerald-500/10"
-                                    : "border-amber-500/30 text-amber-400 bg-amber-500/10"
-                                )}
-                              >
-                                {previewPresence?.label}
-                              </Badge>
-                            )}
-                          </CardTitle>
-                          <CardDescription className="text-[11px] truncate">
-                            {previewAgent.role || (previewAgent.isExample ? "Modelo de Demonstração" : "Especialista em Vendas")} · {previewAgent.isExample ? "Exemplo Visual" : (previewStore?.name || "Sem loja vinculada")}
-                          </CardDescription>
-                        </div>
-
-                        <div className="flex items-center gap-1.5 shrink-0">
-                          <Button
-                            variant="default"
-                            size="sm"
-                            onClick={handleSaveAvatar}
-                            disabled={isSavingAvatar}
-                            className={cn(
-                              "h-7 text-xs rounded-xl px-2.5 gap-1.5 font-semibold shadow-xs",
-                              previewAgent.isExample
-                                ? "bg-sky-600 hover:bg-sky-500 text-white"
-                                : "bg-emerald-600 hover:bg-emerald-500 text-white"
-                            )}
-                            title={previewAgent.isExample ? "Criar atendente a partir deste modelo" : "Salvar alterações do avatar no servidor"}
-                          >
-                            {previewAgent.isExample ? (
-                              <>
-                                <Plus weight="bold" className="h-3.5 w-3.5" />
-                                <span>Criar Atendente</span>
-                              </>
-                            ) : (
-                              <>
-                                <FloppyDisk className="h-3.5 w-3.5" />
-                                <span>{isSavingAvatar ? "Salvando..." : "Salvar Avatar"}</span>
-                              </>
-                            )}
-                          </Button>
-
-                          {!previewAgent.isExample && (
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => setAvatarEditorAgent(previewAgent)}
-                              className="h-7 text-xs rounded-xl px-2 border-border/60 text-muted-foreground hover:text-foreground"
-                              title="Abrir Studio Completo em Janela Expandida"
-                            >
-                              <TShirt className="h-3.5 w-3.5" />
-                            </Button>
-                          )}
-                        </div>
-                      </div>
-
-                      {previewAgent.isExample && (
-                        <div className="mt-2.5 p-2.5 rounded-xl border border-sky-500/30 bg-sky-950/25 text-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
-                          <div className="space-y-0.5">
-                            <span className="font-bold text-sky-300 text-[10px] uppercase tracking-wider block">
-                              Modelo Demonstrativo ({previewAgent.name})
-                            </span>
-                            <p className="text-[11px] text-muted-foreground">
-                              Este perfil é um exemplo visual para inspiração. Não envia mensagens nem consome recursos.
-                            </p>
-                          </div>
-                          <Button
-                            type="button"
-                            size="sm"
-                            onClick={() => setIsWizardOpen(true)}
-                            className="h-6 text-[11px] bg-sky-600 hover:bg-sky-500 text-white font-semibold rounded-lg shrink-0 gap-1 cursor-pointer"
-                          >
-                            <Plus weight="bold" className="h-3 w-3" />
-                            <span>Ativar como Real</span>
-                          </Button>
-                        </div>
+              <div className="space-y-5">
+                {/* TOP CONTROLS: VIEW MODE SWITCHER + ACTIONS */}
+                <div className="p-3.5 rounded-2xl border border-border/70 bg-card/80 backdrop-blur shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  {/* Mode Toggle Switcher */}
+                  <div className="flex items-center gap-1.5 p-1 rounded-xl bg-background/60 border border-border/60">
+                    <button
+                      type="button"
+                      onClick={() => setViewMode("steps")}
+                      className={cn(
+                        "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer",
+                        viewMode === "steps"
+                          ? "bg-emerald-600 text-white shadow-xs"
+                          : "text-muted-foreground hover:text-foreground hover:bg-muted/30"
                       )}
-                    </CardHeader>
+                    >
+                      <CheckCircle2 className="h-3.5 w-3.5" />
+                      <span>Modo Guiado (Passo a Passo)</span>
+                    </button>
 
-                    <CardContent className="p-3.5 space-y-2.5 flex-1 flex flex-col min-h-0 overflow-hidden">
-                      {/* 2.5D Living Avatar Box */}
-                      <div className="w-full h-[200px] shrink-0 rounded-2xl overflow-hidden border border-border/50 shadow-inner relative flex flex-col items-center justify-center bg-gradient-to-b from-[#091120] to-[#040812] select-none">
-                        {/* Isometric Grid Floor Accent */}
-                        <div
-                          className="absolute inset-0 opacity-15 pointer-events-none"
-                          style={{
-                            backgroundImage: "radial-gradient(circle at 2px 2px, #10b981 1px, transparent 0)",
-                            backgroundSize: "20px 20px",
-                          }}
-                        />
+                    <button
+                      type="button"
+                      onClick={() => setViewMode("complete")}
+                      className={cn(
+                        "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer",
+                        viewMode === "complete"
+                          ? "bg-emerald-600 text-white shadow-xs"
+                          : "text-muted-foreground hover:text-foreground hover:bg-muted/30"
+                      )}
+                    >
+                      <Layers className="h-3.5 w-3.5" />
+                      <span>Modo Completo (Abas Expansíveis)</span>
+                    </button>
+                  </div>
 
-                        {/* Top-left Info Chip */}
-                        <div className="absolute top-2 left-2 z-20 flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-black/60 border border-border/60 text-[10px] backdrop-blur-xs">
-                          <span
-                            className={cn(
-                              "w-1.5 h-1.5 rounded-full",
-                              previewAgent.active !== false ? "bg-emerald-400 animate-pulse" : "bg-amber-400"
-                            )}
-                          />
-                          <span className="font-semibold text-foreground">{previewAgent.name}</span>
-                          <span className="text-muted-foreground">•</span>
-                          <span className="font-mono text-emerald-400 text-[9px]">{previewPresence?.label}</span>
-                        </div>
+                  {/* Right Action Buttons */}
+                  <div className="flex items-center gap-2 self-end sm:self-auto">
+                    {viewMode === "complete" && (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={toggleAllCards}
+                        className="h-8 text-xs rounded-xl gap-1.5 border-border/70 text-muted-foreground hover:text-foreground cursor-pointer"
+                      >
+                        <ChevronsUpDown className="h-3.5 w-3.5" />
+                        <span>{Object.values(collapsedCards).every(Boolean) ? "Expandir Todas" : "Recolher Todas"}</span>
+                      </Button>
+                    )}
 
-                        {/* Top-right Gender Switcher */}
-                        <button
-                          type="button"
-                          onClick={() => {
-                            const currentGender = previewAgent?.avatarConfig?.body === "male" ? "female" : "male";
-                            handleUpdateAvatar({ body: currentGender });
-                          }}
-                          className="absolute top-2 right-2 z-20 px-2 py-0.5 rounded-full bg-black/60 border border-emerald-500/30 text-[9px] text-emerald-300 font-mono hover:bg-emerald-500/20 transition-all flex items-center gap-1 backdrop-blur-xs cursor-pointer"
-                          title="Alternar silhueta feminina / masculina"
-                        >
-                          <span>{previewAgent?.avatarConfig?.body === "male" ? "Masc" : "Fem"}</span>
-                        </button>
-
-                        {/* Centered 2.5D Character Sprite */}
-                        <div className="relative w-full h-[160px] flex items-center justify-center my-auto">
-                          <ZaiAvatarRenderer
-                            avatar={previewAgent.avatarConfig || createAgentAvatar({
-                              agentId: previewAgent.key || previewAgent.name,
-                              name: previewAgent.name,
-                              role: previewAgent.role,
-                              storeId: previewStore?.id,
-                              storeDNA: previewStore ? buildStoreVisualDNA(previewStore) : undefined,
-                              gender: previewAgent.character?.gender || (previewAgent.name?.toLowerCase().includes("carlos") ? "male" : "female"),
-                            })}
-                            state={previewPresence?.state || "WAITING"}
-                            size="workspace"
-                            showAura={true}
-                            showStatusBadge={false}
-                            showBrandingLayer={false}
-                          />
-                        </div>
-
-                        {/* Bottom Layer Summary Chips */}
-                        <div className="absolute bottom-1.5 inset-x-2 z-20 flex items-center justify-center gap-1 overflow-x-auto scrollbar-none py-0.5">
-                          <span className="px-2 py-0.5 rounded-md bg-black/70 border border-border/50 text-[9px] text-foreground font-mono truncate max-w-[100px]">
-                            {activeHairItem.title}
-                          </span>
-                          <span className="px-2 py-0.5 rounded-md bg-black/70 border border-border/50 text-[9px] text-foreground font-mono truncate max-w-[90px]">
-                            {activeFaceItem.title}
-                          </span>
-                          <span className="px-2 py-0.5 rounded-md bg-black/70 border border-border/50 text-[9px] text-foreground font-mono truncate max-w-[100px]">
-                            {activeOutfitItem.title}
-                          </span>
-                          <span className="px-2 py-0.5 rounded-md bg-emerald-950/80 border border-emerald-500/40 text-[9px] text-emerald-300 font-mono font-bold truncate max-w-[80px]">
-                            {activeStyleItem.title}
-                          </span>
-                        </div>
-                      </div>
-
-                      {/* Exactly 5 Category Buttons */}
-                      <div className="grid grid-cols-5 gap-1 p-1 rounded-xl bg-muted/20 border border-border/50 shrink-0">
-                        <button
-                          type="button"
-                          onClick={() => setStudioCategory("hair")}
-                          className={cn(
-                            "py-1.5 px-1 rounded-lg text-[10px] font-bold uppercase transition-all flex flex-col items-center justify-center gap-0.5 cursor-pointer",
-                            studioCategory === "hair"
-                              ? "bg-background text-emerald-400 border border-emerald-500/40 shadow-xs"
-                              : "text-muted-foreground hover:text-foreground hover:bg-muted/30"
-                          )}
-                        >
-                          <Scissors className="h-3 w-3" />
-                          <span>Cabelo</span>
-                        </button>
-
-                        <button
-                          type="button"
-                          onClick={() => setStudioCategory("face")}
-                          className={cn(
-                            "py-1.5 px-1 rounded-lg text-[10px] font-bold uppercase transition-all flex flex-col items-center justify-center gap-0.5 cursor-pointer",
-                            studioCategory === "face"
-                              ? "bg-background text-emerald-400 border border-emerald-500/40 shadow-xs"
-                              : "text-muted-foreground hover:text-foreground hover:bg-muted/30"
-                          )}
-                        >
-                          <Smiley className="h-3 w-3" />
-                          <span>Rosto</span>
-                        </button>
-
-                        <button
-                          type="button"
-                          onClick={() => setStudioCategory("outfit")}
-                          className={cn(
-                            "py-1.5 px-1 rounded-lg text-[10px] font-bold uppercase transition-all flex flex-col items-center justify-center gap-0.5 cursor-pointer",
-                            studioCategory === "outfit"
-                              ? "bg-background text-emerald-400 border border-emerald-500/40 shadow-xs"
-                              : "text-muted-foreground hover:text-foreground hover:bg-muted/30"
-                          )}
-                        >
-                          <TShirt className="h-3 w-3" />
-                          <span>Roupa</span>
-                        </button>
-
-                        <button
-                          type="button"
-                          onClick={() => setStudioCategory("accessories")}
-                          className={cn(
-                            "py-1.5 px-1 rounded-lg text-[10px] font-bold uppercase transition-all flex flex-col items-center justify-center gap-0.5 cursor-pointer",
-                            studioCategory === "accessories"
-                              ? "bg-background text-emerald-400 border border-emerald-500/40 shadow-xs"
-                              : "text-muted-foreground hover:text-foreground hover:bg-muted/30"
-                          )}
-                        >
-                          <Eyeglasses className="h-3 w-3" />
-                          <span>Acessórios</span>
-                        </button>
-
-                        <button
-                          type="button"
-                          onClick={() => setStudioCategory("style")}
-                          className={cn(
-                            "py-1.5 px-1 rounded-lg text-[10px] font-bold uppercase transition-all flex flex-col items-center justify-center gap-0.5 cursor-pointer",
-                            studioCategory === "style"
-                              ? "bg-background text-emerald-400 border border-emerald-500/40 shadow-xs"
-                              : "text-muted-foreground hover:text-foreground hover:bg-muted/30"
-                          )}
-                        >
-                          <Sparkle className="h-3 w-3" />
-                          <span>Estilo</span>
-                        </button>
-                      </div>
-
-                      {/* Items Selection Grid for Current Category */}
-                      <div className="flex-1 min-h-[110px] overflow-y-auto pr-1 scrollbar-zai">
-                        {studioCategory === "hair" && (
-                          <div className="grid grid-cols-2 gap-1.5">
-                            {AVATAR_HAIRS.map((h) => {
-                              const isSelected = previewAgent?.avatarConfig?.hair === h.id;
-                              return (
-                                <button
-                                  key={h.id}
-                                  type="button"
-                                  data-avatar-item={h.id}
-                                  onClick={() => handleUpdateAvatar({
-                                    hair: h.id,
-                                    catalogSpriteId: h.spriteRef || resolveSpriteForAvatar({ ...(previewAgent?.avatarConfig || {}), hair: h.id, catalogSpriteId: undefined }, true),
-                                  })}
-                                  className={cn(
-                                    "p-1.5 rounded-xl border text-left transition-all flex items-center gap-2 cursor-pointer",
-                                    isSelected
-                                      ? "border-emerald-500 bg-emerald-500/15 text-emerald-300 shadow-xs"
-                                      : "border-border/60 bg-muted/15 hover:border-border text-muted-foreground hover:text-foreground"
-                                  )}
-                                >
-                                  <span className="text-[9px] font-mono px-1 py-0.5 rounded bg-black/40 text-emerald-400 font-bold shrink-0">{h.number}</span>
-                                  <div className="min-w-0">
-                                    <p className="text-xs font-bold truncate text-foreground">{h.name}</p>
-                                    <p className="text-[10px] text-muted-foreground truncate">{h.title}</p>
-                                  </div>
-                                </button>
-                              );
-                            })}
-                          </div>
-                        )}
-
-                        {studioCategory === "face" && (
-                          <div className="grid grid-cols-2 gap-1.5">
-                            {AVATAR_FACES.map((f) => {
-                              const isSelected = previewAgent?.avatarConfig?.face === f.id || (!previewAgent?.avatarConfig?.face && f.id === "face_01");
-                              return (
-                                <button
-                                  key={f.id}
-                                  type="button"
-                                  data-avatar-item={f.id}
-                                  onClick={() => handleUpdateAvatar({ face: f.id })}
-                                  className={cn(
-                                    "p-1.5 rounded-xl border text-left transition-all flex items-center gap-2 cursor-pointer",
-                                    isSelected
-                                      ? "border-emerald-500 bg-emerald-500/15 text-emerald-300 shadow-xs"
-                                      : "border-border/60 bg-muted/15 hover:border-border text-muted-foreground hover:text-foreground"
-                                  )}
-                                >
-                                  <span className="text-[9px] font-mono px-1 py-0.5 rounded bg-black/40 text-emerald-400 font-bold shrink-0">{f.number}</span>
-                                  <div className="min-w-0">
-                                    <p className="text-xs font-bold truncate text-foreground">{f.name}</p>
-                                    <p className="text-[10px] text-muted-foreground truncate">{f.title}</p>
-                                  </div>
-                                </button>
-                              );
-                            })}
-                          </div>
-                        )}
-
-                        {studioCategory === "outfit" && (
-                          <div className="grid grid-cols-2 gap-1.5">
-                            {AVATAR_OUTFITS.map((o) => {
-                              const isSelected = previewAgent?.avatarConfig?.outfit === o.id || previewAgent?.avatarConfig?.clothing === o.id;
-                              return (
-                                <button
-                                  key={o.id}
-                                  type="button"
-                                  data-avatar-item={o.id}
-                                  onClick={() => handleUpdateAvatar({
-                                    outfit: o.id,
-                                    clothing: o.id,
-                                    catalogSpriteId: o.spriteRef || resolveSpriteForAvatar({ ...(previewAgent?.avatarConfig || {}), outfit: o.id, clothing: o.id, catalogSpriteId: undefined }, true),
-                                  })}
-                                  className={cn(
-                                    "p-1.5 rounded-xl border text-left transition-all flex items-center gap-2 cursor-pointer",
-                                    isSelected
-                                      ? "border-emerald-500 bg-emerald-500/15 text-emerald-300 shadow-xs"
-                                      : "border-border/60 bg-muted/15 hover:border-border text-muted-foreground hover:text-foreground"
-                                  )}
-                                >
-                                  <span className="text-[9px] font-mono px-1 py-0.5 rounded bg-black/40 text-emerald-400 font-bold shrink-0">{o.number}</span>
-                                  <div className="min-w-0">
-                                    <p className="text-xs font-bold truncate text-foreground">{o.name}</p>
-                                    <p className="text-[10px] text-muted-foreground truncate">{o.title}</p>
-                                  </div>
-                                </button>
-                              );
-                            })}
-                          </div>
-                        )}
-
-                        {studioCategory === "accessories" && (
-                          <div className="grid grid-cols-2 gap-1.5">
-                            {AVATAR_ACCESSORIES.map((a) => {
-                              const cfg = previewAgent?.avatarConfig;
-                              const isEquipped =
-                                (a.id === "acc_01" && (!cfg?.headset || cfg?.headset === "none") && (!cfg?.glasses || cfg?.glasses === "none")) ||
-                                (a.id === "acc_02" && cfg?.headset === "headset_zai_green") ||
-                                (a.id === "acc_03" && cfg?.accessories?.badge === "badge_zai_lanyard") ||
-                                (a.id === "acc_04" && (cfg?.glasses === "glasses_square_exec" || cfg?.glasses?.includes("glasses"))) ||
-                                (a.id === "acc_05" && cfg?.workObject === "tablet_zai") ||
-                                (a.id === "acc_06" && cfg?.accessories?.watch === "watch_zai_smart");
-
-                              return (
-                                <button
-                                  key={a.id}
-                                  type="button"
-                                  data-avatar-item={a.id}
-                                  onClick={() => {
-                                    const currentConfig = cfg || {};
-                                    const currentAccessories = typeof currentConfig.accessories === "object" ? { ...currentConfig.accessories } : {};
-                                    let updatedAccessories: any = currentAccessories;
-                                    let updatedHeadset = currentConfig.headset;
-                                    let updatedGlasses = currentConfig.glasses;
-                                    let updatedWorkObject = currentConfig.workObject;
-                                    if (a.id === "acc_01") {
-                                      updatedAccessories = {};
-                                      updatedHeadset = "none";
-                                      updatedGlasses = "none";
-                                    } else if (a.id === "acc_02") {
-                                      updatedHeadset = updatedHeadset === "headset_zai_green" ? "none" : "headset_zai_green";
-                                      updatedAccessories.headset = updatedHeadset;
-                                    } else if (a.id === "acc_03") {
-                                      updatedAccessories.badge = updatedAccessories.badge === "badge_zai_lanyard" ? "none" : "badge_zai_lanyard";
-                                    } else if (a.id === "acc_04") {
-                                      updatedGlasses = updatedGlasses === "glasses_square_exec" ? "none" : "glasses_square_exec";
-                                      updatedAccessories.glasses = updatedGlasses;
-                                    } else if (a.id === "acc_05") {
-                                      updatedWorkObject = updatedWorkObject === "tablet_zai" ? "none" : "tablet_zai";
-                                    } else if (a.id === "acc_06") {
-                                      updatedAccessories.watch = updatedAccessories.watch === "watch_zai_smart" ? "none" : "watch_zai_smart";
-                                    }
-                                    handleUpdateAvatar({
-                                      accessories: updatedAccessories,
-                                      headset: updatedHeadset,
-                                      glasses: updatedGlasses,
-                                      workObject: updatedWorkObject,
-                                    });
-                                  }}
-                                  className={cn(
-                                    "p-1.5 rounded-xl border text-left transition-all flex items-center gap-2 cursor-pointer",
-                                    isEquipped
-                                      ? "border-emerald-500 bg-emerald-500/15 text-emerald-300 shadow-xs"
-                                      : "border-border/60 bg-muted/15 hover:border-border text-muted-foreground hover:text-foreground"
-                                  )}
-                                >
-                                  <span className="text-[9px] font-mono px-1 py-0.5 rounded bg-black/40 text-emerald-400 font-bold shrink-0">{a.number}</span>
-                                  <div className="min-w-0">
-                                    <p className="text-xs font-bold truncate text-foreground">{a.name}</p>
-                                    <p className="text-[10px] text-muted-foreground truncate">{a.title}</p>
-                                  </div>
-                                </button>
-                              );
-                            })}
-                          </div>
-                        )}
-
-                        {studioCategory === "style" && (
-                          <div className="grid grid-cols-2 gap-1.5">
-                            {AVATAR_STYLES.map((s) => {
-                              const isSelected = previewAgent?.avatarConfig?.style === s.id;
-                              return (
-                                <button
-                                  key={s.id}
-                                  type="button"
-                                  data-avatar-item={s.id}
-                                  onClick={() => {
-                                    const currentConfig = previewAgent?.avatarConfig || {};
-                                    const styled = applyStylePreset(currentConfig, s.id);
-                                    handleUpdateAvatar(styled);
-                                  }}
-                                  className={cn(
-                                    "p-1.5 rounded-xl border text-left transition-all flex items-center gap-2 cursor-pointer",
-                                    isSelected
-                                      ? "border-emerald-500 bg-emerald-500/15 text-emerald-300 shadow-xs"
-                                      : "border-border/60 bg-muted/15 hover:border-border text-muted-foreground hover:text-foreground"
-                                  )}
-                                >
-                                  <span className="text-[9px] font-mono px-1 py-0.5 rounded bg-black/40 text-emerald-400 font-bold shrink-0">{s.number}</span>
-                                  <div className="min-w-0">
-                                    <p className="text-xs font-bold truncate text-foreground">{s.name}</p>
-                                    <p className="text-[10px] text-muted-foreground truncate">{s.title}</p>
-                                  </div>
-                                </button>
-                              );
-                            })}
-                          </div>
-                        )}
-                      </div>
-                    </CardContent>
-                  </Card>
+                    <Button
+                      type="button"
+                      variant="default"
+                      size="sm"
+                      onClick={handleSaveAll}
+                      disabled={isSavingAgent}
+                      className="h-8 text-xs rounded-xl px-3.5 gap-1.5 font-semibold bg-emerald-600 hover:bg-emerald-500 text-white shadow-xs cursor-pointer"
+                    >
+                      <FloppyDisk className="h-3.5 w-3.5" />
+                      <span>{isSavingAgent ? "Salvando..." : "Salvar Alterações"}</span>
+                    </Button>
+                  </div>
                 </div>
 
-                {/* Coluna Direita: Central Interativa / Chat de Teste Real (Col 7) */}
-                <div className="lg:col-span-7 space-y-4">
-                  <Card className="rounded-2xl border-border/70 bg-card/85 backdrop-blur shadow-sm overflow-hidden flex flex-col h-auto lg:h-[510px] lg:max-h-[510px]">
-                    <CardHeader className="h-[56px] px-3.5 py-0 border-b border-border/40 bg-muted/10 flex flex-row items-center justify-between gap-2 shrink-0">
-                      <div className="flex items-center gap-2.5 min-w-0">
-                        <div className="h-8 w-8 rounded-xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-emerald-400 shrink-0">
-                          <ChatCircleText weight="bold" className="h-4 w-4" />
-                        </div>
-                        <div className="min-w-0">
-                          <CardTitle className="text-sm font-bold text-foreground truncate">
-                            Chat de Teste ao Vivo ({previewAgent.name})
-                          </CardTitle>
-                          <CardDescription className="text-[11px] text-muted-foreground truncate">
-                            Inteligência real do atendente. Mensagens de teste não afetam clientes no WhatsApp.
-                          </CardDescription>
-                        </div>
-                      </div>
-                      <Badge variant="outline" className="text-[10px] font-bold text-emerald-400 border-emerald-500/30 bg-emerald-500/10 uppercase shrink-0">
-                        AO VIVO
-                      </Badge>
-                    </CardHeader>
-
-                    <CardContent className="p-3.5 space-y-2.5 flex-1 flex flex-col justify-between min-h-0 overflow-hidden">
-                      {/* Quick test prompt pills */}
-                      <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-none pb-1 shrink-0">
-                        <span className="text-[10px] text-muted-foreground shrink-0 font-medium">Perguntas rápidas:</span>
-                        {["Qual é o catálogo?", "Formas de pagamento?", "Horário de atendimento?", "Quais são as promoções?"].map((q, idx) => (
+                {/* RENDER CONTENT BASED ON VIEW MODE */}
+                {viewMode === "steps" ? (
+                  /* STEPPER WORKFLOW */
+                  <div className="rounded-2xl border border-border/70 bg-card/85 backdrop-blur shadow-sm p-4 md:p-6 space-y-6">
+                    {/* Horizontal Steps Bar */}
+                    <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 border-b border-border/50 pb-4">
+                      {STEPS.map((s) => {
+                        const Icon = s.icon;
+                        const isActive = activeStep === s.step;
+                        const isDone = activeStep > s.step;
+                        return (
                           <button
-                            key={idx}
+                            key={s.step}
                             type="button"
-                            onClick={() => setSandboxInput(q)}
-                            disabled={isTestingAgent}
-                            className="px-2.5 py-0.5 rounded-full text-[10px] bg-muted/40 hover:bg-emerald-500/15 text-muted-foreground hover:text-emerald-300 border border-border/60 shrink-0 transition-colors"
-                          >
-                            {q}
-                          </button>
-                        ))}
-                      </div>
-
-                      {/* Chat Messages Box */}
-                      <div className="flex-1 min-h-0 rounded-xl border border-border/60 bg-background/50 p-3 overflow-y-auto space-y-2.5 text-xs scrollbar-zai">
-                        {sandboxMessages.length === 0 && (
-                          <div className="h-full flex flex-col items-center justify-center text-center p-4 text-muted-foreground space-y-2">
-                            <Headset className="h-8 w-8 text-muted-foreground/60" />
-                            <p className="text-xs font-semibold text-foreground">Ambiente de Teste Interativo</p>
-                            <p className="text-[11px] max-w-xs">
-                              Envie uma pergunta para testar as respostas de <strong>{previewAgent.name}</strong>. Respostas utilizam a inteligência real configurada.
-                            </p>
-                          </div>
-                        )}
-                        {sandboxMessages.map((msg, idx) => (
-                          <div
-                            key={idx}
+                            onClick={() => setActiveStep(s.step)}
                             className={cn(
-                              "max-w-[85%] rounded-2xl px-3.5 py-2 text-xs leading-relaxed shadow-xs",
-                              msg.sender === "user"
-                                ? "ml-auto bg-emerald-600 text-white rounded-br-xs"
-                                : "mr-auto bg-card border border-border/60 text-foreground rounded-bl-xs"
+                              "p-2.5 rounded-xl border text-left transition-all flex items-center gap-2.5 select-none cursor-pointer",
+                              isActive
+                                ? "bg-emerald-500/15 border-emerald-500/60 shadow-[0_0_15px_rgba(16,185,129,0.12)] ring-1 ring-emerald-500/40 text-emerald-300"
+                                : isDone
+                                ? "bg-muted/20 border-emerald-500/30 text-emerald-400"
+                                : "bg-muted/10 border-border/60 text-muted-foreground hover:bg-muted/20 hover:text-foreground"
                             )}
                           >
-                            {msg.text}
-                          </div>
-                        ))}
-                        {isTestingAgent && (
-                          <div className="mr-auto bg-card border border-border/60 text-muted-foreground rounded-2xl rounded-bl-xs px-3.5 py-2 text-xs italic animate-pulse flex items-center gap-2">
-                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping" />
-                            <span>{previewAgent.name} está digitando...</span>
-                          </div>
-                        )}
-                      </div>
+                            <div
+                              className={cn(
+                                "h-7 w-7 rounded-lg flex items-center justify-center text-xs font-bold shrink-0",
+                                isActive
+                                  ? "bg-emerald-500 text-white"
+                                  : isDone
+                                  ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/30"
+                                  : "bg-muted text-muted-foreground"
+                              )}
+                            >
+                              {isDone ? <CheckCircle2 className="h-4 w-4" /> : s.step}
+                            </div>
+                            <div className="min-w-0">
+                              <span className="text-xs font-bold block truncate leading-tight">{s.title}</span>
+                              <span className="text-[10px] text-muted-foreground hidden sm:block truncate">{s.desc}</span>
+                            </div>
+                          </button>
+                        );
+                      })}
+                    </div>
 
-                      {/* Input form */}
-                      <form onSubmit={handleSendTestMessage} className="h-[48px] flex items-center gap-2 pt-1 shrink-0">
-                        <Input
-                          placeholder={`Pergunte algo para ${previewAgent.name}...`}
-                          value={sandboxInput}
-                          onChange={(e) => setSandboxInput(e.target.value)}
-                          className="rounded-xl text-xs h-9"
-                          disabled={isTestingAgent}
-                        />
+                    {/* Step Content */}
+                    <div className="animate-in fade-in duration-200">
+                      {activeStep === 1 && renderAvatarStudioSection()}
+                      {activeStep === 2 && renderObjectiveToneSection()}
+                      {activeStep === 3 && renderPromptSection()}
+                      {activeStep === 4 && renderProvidersSection()}
+                      {activeStep === 5 && renderSandboxSection()}
+                    </div>
+
+                    {/* Stepper Navigation Footer */}
+                    <div className="flex items-center justify-between pt-4 border-t border-border/50">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        disabled={activeStep <= 1}
+                        onClick={() => setActiveStep((prev) => Math.max(1, prev - 1))}
+                        className="h-9 px-4 rounded-xl gap-2 text-xs cursor-pointer"
+                      >
+                        <ArrowLeft className="h-3.5 w-3.5" />
+                        <span>Passo Anterior</span>
+                      </Button>
+
+                      <span className="text-xs font-mono text-muted-foreground">
+                        Passo {activeStep} de {STEPS.length}
+                      </span>
+
+                      {activeStep < STEPS.length ? (
                         <Button
-                          type="submit"
+                          type="button"
+                          variant="default"
                           size="sm"
-                          disabled={!sandboxInput.trim() || isTestingAgent}
-                          className="h-9 rounded-xl text-xs bg-emerald-600 hover:bg-emerald-500 text-white px-4 font-semibold shadow-xs"
+                          onClick={() => setActiveStep((prev) => Math.min(STEPS.length, prev + 1))}
+                          className="h-9 px-4 rounded-xl gap-2 text-xs bg-emerald-600 hover:bg-emerald-500 text-white cursor-pointer"
                         >
-                          Enviar
+                          <span>Próximo Passo</span>
+                          <ArrowRight className="h-3.5 w-3.5" />
                         </Button>
-                      </form>
-                    </CardContent>
-                  </Card>
-                </div>
+                      ) : (
+                        <Button
+                          type="button"
+                          variant="default"
+                          size="sm"
+                          onClick={handleSaveAll}
+                          disabled={isSavingAgent}
+                          className="h-9 px-4 rounded-xl gap-2 text-xs bg-emerald-600 hover:bg-emerald-500 text-white font-semibold cursor-pointer"
+                        >
+                          <FloppyDisk className="h-3.5 w-3.5" />
+                          <span>Salvar e Concluir</span>
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                ) : (
+                  /* COMPLETE MODE: 5 ACCORDION / COLLAPSIBLE CARDS */
+                  <div className="space-y-4">
+                    {/* Card 1: Avatar Studio 2.5D */}
+                    <Card className="rounded-2xl border-border/70 bg-card/85 backdrop-blur shadow-sm overflow-hidden">
+                      <CardHeader
+                        onClick={() => toggleCard("avatarStudio")}
+                        className="p-3.5 sm:p-4 border-b border-border/40 bg-muted/10 flex flex-row items-center justify-between gap-2 cursor-pointer hover:bg-muted/20 transition-colors select-none"
+                      >
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          <div className="h-8 w-8 rounded-xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-emerald-400 shrink-0">
+                            <TShirt className="h-4 w-4" />
+                          </div>
+                          <div className="min-w-0">
+                            <CardTitle className="text-sm font-bold text-foreground flex items-center gap-2 truncate">
+                              <span>1. Avatar Studio 2.5D ({previewAgent?.name})</span>
+                              <Badge variant="outline" className="text-[10px] border-emerald-500/30 text-emerald-400 bg-emerald-500/10 uppercase">
+                                Habbo / Tibia
+                              </Badge>
+                            </CardTitle>
+                            <CardDescription className="text-[11px] text-muted-foreground truncate">
+                              Silhueta, cabelo, rosto, uniforme e estilo em pixel art 2.5D isométrico.
+                            </CardDescription>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2 shrink-0">
+                          <Badge variant="outline" className="text-[10px] text-muted-foreground font-mono hidden sm:inline-flex">
+                            {activeStyleItem.title}
+                          </Badge>
+                          <Button type="button" variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground">
+                            {collapsedCards.avatarStudio ? <ChevronDown className="h-4 w-4" /> : <ChevronUp className="h-4 w-4" />}
+                          </Button>
+                        </div>
+                      </CardHeader>
+                      {!collapsedCards.avatarStudio && (
+                        <CardContent className="p-4 sm:p-5">
+                          {renderAvatarStudioSection()}
+                        </CardContent>
+                      )}
+                    </Card>
+
+                    {/* Card 2: Objetivo & Tom */}
+                    <Card className="rounded-2xl border-border/70 bg-card/85 backdrop-blur shadow-sm overflow-hidden">
+                      <CardHeader
+                        onClick={() => toggleCard("objectiveTone")}
+                        className="p-3.5 sm:p-4 border-b border-border/40 bg-muted/10 flex flex-row items-center justify-between gap-2 cursor-pointer hover:bg-muted/20 transition-colors select-none"
+                      >
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          <div className="h-8 w-8 rounded-xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-emerald-400 shrink-0">
+                            <Target className="h-4 w-4" />
+                          </div>
+                          <div className="min-w-0">
+                            <CardTitle className="text-sm font-bold text-foreground flex items-center gap-2 truncate">
+                              <span>2. Objetivo Central & Tom de Atendimento</span>
+                              <Badge variant="outline" className="text-[10px] border-emerald-500/30 text-emerald-400 bg-emerald-500/10 uppercase">
+                                Comportamento
+                              </Badge>
+                            </CardTitle>
+                            <CardDescription className="text-[11px] text-muted-foreground truncate">
+                              Foco de conversão, empatia, estilo de resposta e temperatura neural.
+                            </CardDescription>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2 shrink-0">
+                          <Badge variant="outline" className="text-[10px] text-emerald-300 border-emerald-500/40 bg-emerald-500/10 hidden sm:inline-flex">
+                            {currentObjectiveDef.title} • {currentToneDef.label}
+                          </Badge>
+                          <Button type="button" variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground">
+                            {collapsedCards.objectiveTone ? <ChevronDown className="h-4 w-4" /> : <ChevronUp className="h-4 w-4" />}
+                          </Button>
+                        </div>
+                      </CardHeader>
+                      {!collapsedCards.objectiveTone && (
+                        <CardContent className="p-4 sm:p-5">
+                          {renderObjectiveToneSection()}
+                        </CardContent>
+                      )}
+                    </Card>
+
+                    {/* Card 3: Prompt & Instruções */}
+                    <Card className="rounded-2xl border-border/70 bg-card/85 backdrop-blur shadow-sm overflow-hidden">
+                      <CardHeader
+                        onClick={() => toggleCard("prompt")}
+                        className="p-3.5 sm:p-4 border-b border-border/40 bg-muted/10 flex flex-row items-center justify-between gap-2 cursor-pointer hover:bg-muted/20 transition-colors select-none"
+                      >
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          <div className="h-8 w-8 rounded-xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-emerald-400 shrink-0">
+                            <Sparkle weight="fill" className="h-4 w-4" />
+                          </div>
+                          <div className="min-w-0">
+                            <CardTitle className="text-sm font-bold text-foreground flex items-center gap-2 truncate">
+                              <span>3. Prompt & Instruções do Agente</span>
+                              <Badge variant="outline" className="text-[10px] border-emerald-500/30 text-emerald-400 bg-emerald-500/10 uppercase">
+                                Personalidade
+                              </Badge>
+                            </CardTitle>
+                            <CardDescription className="text-[11px] text-muted-foreground truncate">
+                              Instruções mestras, modelos prontos e diretrizes comerciais da loja.
+                            </CardDescription>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2 shrink-0">
+                          <span className="text-[10px] font-mono text-muted-foreground hidden sm:inline">
+                            {agentPrompt.length} chars
+                          </span>
+                          <Button type="button" variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground">
+                            {collapsedCards.prompt ? <ChevronDown className="h-4 w-4" /> : <ChevronUp className="h-4 w-4" />}
+                          </Button>
+                        </div>
+                      </CardHeader>
+                      {!collapsedCards.prompt && (
+                        <CardContent className="p-4 sm:p-5">
+                          {renderPromptSection()}
+                        </CardContent>
+                      )}
+                    </Card>
+
+                    {/* Card 4: Provedores & Modelos */}
+                    <Card className="rounded-2xl border-border/70 bg-card/85 backdrop-blur shadow-sm overflow-hidden">
+                      <CardHeader
+                        onClick={() => toggleCard("providers")}
+                        className="p-3.5 sm:p-4 border-b border-border/40 bg-muted/10 flex flex-row items-center justify-between gap-2 cursor-pointer hover:bg-muted/20 transition-colors select-none"
+                      >
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          <div className="h-8 w-8 rounded-xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-emerald-400 shrink-0">
+                            <Cpu className="h-4 w-4" />
+                          </div>
+                          <div className="min-w-0">
+                            <CardTitle className="text-sm font-bold text-foreground flex items-center gap-2 truncate">
+                              <span>4. Provedores de IA & Modelos</span>
+                              <Badge variant="outline" className="text-[10px] border-emerald-500/30 text-emerald-400 bg-emerald-500/10 uppercase">
+                                Infraestrutura
+                              </Badge>
+                            </CardTitle>
+                            <CardDescription className="text-[11px] text-muted-foreground truncate">
+                              OpenAI, Groq, Anthropic, Gemini, DeepSeek e chaves de API.
+                            </CardDescription>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2 shrink-0">
+                          <Badge variant="outline" className="text-[10px] text-muted-foreground font-mono hidden sm:inline-flex">
+                            {selectedProvider} • {selectedModel}
+                          </Badge>
+                          <Button type="button" variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground">
+                            {collapsedCards.providers ? <ChevronDown className="h-4 w-4" /> : <ChevronUp className="h-4 w-4" />}
+                          </Button>
+                        </div>
+                      </CardHeader>
+                      {!collapsedCards.providers && (
+                        <CardContent className="p-4 sm:p-5">
+                          {renderProvidersSection()}
+                        </CardContent>
+                      )}
+                    </Card>
+
+                    {/* Card 5: Sandbox de Atendimento & Chat ao Vivo */}
+                    <Card className="rounded-2xl border-border/70 bg-card/85 backdrop-blur shadow-sm overflow-hidden">
+                      <CardHeader
+                        onClick={() => toggleCard("chatSandbox")}
+                        className="p-3.5 sm:p-4 border-b border-border/40 bg-muted/10 flex flex-row items-center justify-between gap-2 cursor-pointer hover:bg-muted/20 transition-colors select-none"
+                      >
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          <div className="h-8 w-8 rounded-xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-emerald-400 shrink-0">
+                            <ChatCircleText weight="bold" className="h-4 w-4" />
+                          </div>
+                          <div className="min-w-0">
+                            <CardTitle className="text-sm font-bold text-foreground flex items-center gap-2 truncate">
+                              <span>5. Sandbox de Atendimento & Chat ao Vivo</span>
+                              <Badge variant="outline" className="text-[10px] border-emerald-500/30 text-emerald-400 bg-emerald-500/10 uppercase">
+                                Simulação
+                              </Badge>
+                            </CardTitle>
+                            <CardDescription className="text-[11px] text-muted-foreground truncate">
+                              Converse e teste respostas com inteligência real sem enviar no WhatsApp.
+                            </CardDescription>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2 shrink-0">
+                          <Badge variant="outline" className="text-[10px] text-emerald-400 border-emerald-500/30 bg-emerald-500/10 font-bold uppercase">
+                            AO VIVO
+                          </Badge>
+                          <Button type="button" variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground">
+                            {collapsedCards.chatSandbox ? <ChevronDown className="h-4 w-4" /> : <ChevronUp className="h-4 w-4" />}
+                          </Button>
+                        </div>
+                      </CardHeader>
+                      {!collapsedCards.chatSandbox && (
+                        <CardContent className="p-4 sm:p-5">
+                          {renderSandboxSection()}
+                        </CardContent>
+                      )}
+                    </Card>
+                  </div>
+                )}
               </div>
             ) : null}
 
@@ -1625,31 +2423,21 @@ export default function AttendantsPage() {
                             <div className="flex items-start justify-between gap-3">
                               <div className="flex items-center gap-3 min-w-0">
                                 <div className="relative shrink-0">
-                                  {(() => {
-                                    const cardSpriteId = agent.avatarConfig ? resolveSpriteForAvatar(agent.avatarConfig) : null;
-                                    const cardAvatarSrc = cardSpriteId
-                                      ? `/assets/avatar_factory/catalog/${cardSpriteId}_clean.png`
-                                      : (agent.avatar ||
-                                         (agent.character?.gender === "male"
-                                           ? "/assets/evolution/joao_avatar.png"
-                                           : "/assets/evolution/camila_avatar.png"));
-                                    return (
-                                      <img
-                                        src={cardAvatarSrc}
-                                        alt={agent.name}
-                                        className={cn(
-                                          "h-12 w-12 rounded-2xl border border-emerald-500/30 bg-background",
-                                          cardSpriteId ? "object-contain p-1" : "object-cover"
-                                        )}
-                                        style={cardSpriteId ? { imageRendering: "pixelated" } : undefined}
-                                        onError={(e) => {
-                                          const target = e.target as HTMLImageElement;
-                                          target.onerror = null;
-                                          target.src = "/assets/evolution/camila_avatar.png";
-                                        }}
+                                    <div className="h-12 w-12 rounded-2xl border border-emerald-500/30 bg-[#091120] flex items-center justify-center overflow-hidden">
+                                      <ZaiAvatarRenderer
+                                        avatar={agent.avatarConfig || createAgentAvatar({
+                                          agentId: agent.key || agent.name,
+                                          name: agent.name,
+                                          role: agent.role,
+                                          gender: agent.character?.gender || (agent.name?.toLowerCase().includes("carlos") ? "male" : "female"),
+                                        })}
+                                        state={isActive ? "WORKING" : "IDLE"}
+                                        size="sm"
+                                        showAura={false}
+                                        showStatusBadge={false}
+                                        showBrandingLayer={false}
                                       />
-                                    );
-                                  })()}
+                                    </div>
                                   <span
                                     className={cn(
                                       "absolute -bottom-1 -right-1 h-3.5 w-3.5 rounded-full ring-2 ring-card",

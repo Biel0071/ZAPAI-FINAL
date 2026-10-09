@@ -537,26 +537,7 @@ export function ActiveChatPane({
 
     // Add default slash commands
     const defaultCmds = [
-      {
-        cmd: "/learn",
-        desc: "🧠 Registrar insight & ensinar a IA",
-        text: "Obrigado pelo feedback! Registrei sua observação e nossa IA está aprendendo para aprimorar as próximas respostas.",
-      },
-      {
-        cmd: "/boost",
-        desc: "⚡ Atendimento Turbo & Conversão Máxima",
-        text: "⚡ Condição Especial Liberada! Aproveite esta oferta exclusiva hoje com prioridade total de atendimento e ativação imediata.",
-      },
-      {
-        cmd: "/goal",
-        desc: "🎯 Meta de Atendimento & Compromisso SLA",
-        text: "🎯 Nosso objetivo é solucionar sua solicitação em até 5 minutos com 100% de satisfação. Como posso agilizar isso para você agora?",
-      },
-      {
-        cmd: "/plan",
-        desc: "📋 Apresentar planos e propostas comerciais",
-        text: "📋 Temos os planos ideais para acelerar sua operação: Starter, Pro e Enterprise, todos com IA 24/7 e multi-atendentes. Gostaria de ver o comparativo?",
-      },
+
       {
         cmd: "/catalogo",
         desc: "Link do catálogo oficial",

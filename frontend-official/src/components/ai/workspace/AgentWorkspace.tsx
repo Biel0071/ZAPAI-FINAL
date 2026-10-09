@@ -127,49 +127,8 @@ export const AgentWorkspace: React.FC<AgentWorkspaceProps> = ({
           </div>
         </div>
 
-        {/* AGENT MODE TOGGLE (CENTER - DESKTOP & TABLET) */}
-        <div className="hidden md:flex items-center p-0.5 rounded-full bg-black/80 backdrop-blur-md border border-white/15 shadow-xl pointer-events-auto">
-          <button
-            type="button"
-            onClick={() => onToggleMode?.("camila")}
-            className={cn(
-              "px-3 py-1 rounded-full text-[10px] font-bold transition-all cursor-pointer",
-              !isZaibot
-                ? "bg-emerald-500 text-black shadow-[0_0_10px_rgba(16,185,129,0.4)]"
-                : "text-slate-300 hover:text-white"
-            )}
-          >
-            {identity.name}
-          </button>
-          <button
-            type="button"
-            onClick={() => onToggleMode?.("zaibot")}
-            className={cn(
-              "px-3 py-1 rounded-full text-[10px] font-bold transition-all cursor-pointer",
-              isZaibot
-                ? "bg-emerald-500 text-black shadow-[0_0_10px_rgba(16,185,129,0.4)]"
-                : "text-slate-300 hover:text-white"
-            )}
-          >
-            ZAIBOT
-          </button>
-        </div>
-
         {/* Presence controller */}
-        <div className="pointer-events-auto shrink-0 flex items-center gap-1.5 sm:gap-2">
-          {/* Mobile mode switch icon button */}
-          <div className="md:hidden flex items-center p-0.5 rounded-lg bg-black/70 border border-white/10">
-            <button
-              type="button"
-              onClick={() => onToggleMode?.(isZaibot ? "camila" : "zaibot")}
-              className="px-1.5 py-1 text-[8.5px] font-bold rounded text-slate-200 hover:text-white bg-white/10 flex items-center gap-1 cursor-pointer"
-              title="Alternar entre Funcionário e Mascote"
-            >
-              <Bot className="w-3 h-3 text-emerald-400" />
-              <span>{isZaibot ? "Camila" : "Mascote"}</span>
-            </button>
-          </div>
-
+        <div className="pointer-events-auto shrink-0">
           <AgentPresence
             agent={runtimeIdentity}
             state={effectiveState}

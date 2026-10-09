@@ -59,7 +59,7 @@ import { AgentWorkspace } from "@/components/ai/workspace/AgentWorkspace";
 import { AvatarEditorModal } from "@/components/avatar-engine/AvatarEditorModal";
 import { cn } from "@/core/lib/utils";
 
-const PROMPT_TEMPLATES = [
+export const PROMPT_TEMPLATES = [
   {
     title: "Vendas & Conversão",
     desc: "Focado em entender a necessidade, tirar dúvidas e levar ao fechamento rápido.",
@@ -80,7 +80,7 @@ const PROMPT_TEMPLATES = [
   },
 ];
 
-const OBJECTIVES = [
+export const OBJECTIVES = [
   {
     id: "fechamento",
     title: "Fechamento Imediato",
@@ -111,14 +111,14 @@ const OBJECTIVES = [
   },
 ];
 
-const TONE_OPTIONS = [
+export const TONE_OPTIONS = [
   { id: "friendly", label: "Amigável & Caloroso", desc: "Tom acolhedor e próximo com uso moderado de emojis" },
   { id: "professional", label: "Profissional & Direto", desc: "Claro, objetivo e corporativo sem enrolação" },
   { id: "consultative", label: "Consultivo & Especialista", desc: "Explica opções, orienta e tira dúvidas a fundo" },
   { id: "casual", label: "Descontraído & Ágil", desc: "Linguagem simples, moderna e respostas rápidas" },
 ];
 
-const PROVIDER_OPTIONS = [
+export const PROVIDER_OPTIONS = [
   { id: "openai", name: "OpenAI", defaultModel: "gpt-4o-mini", models: ["gpt-4o-mini", "gpt-4o", "gpt-3.5-turbo"] },
   { id: "groq", name: "Groq (Ultra Rápido)", defaultModel: "llama-3.3-70b-versatile", models: ["llama-3.3-70b-versatile", "llama-3.1-8b-instant", "mixtral-8x7b-32768"] },
   { id: "deepseek", name: "DeepSeek", defaultModel: "deepseek-chat", models: ["deepseek-chat", "deepseek-reasoner"] },
@@ -127,7 +127,7 @@ const PROVIDER_OPTIONS = [
   { id: "ollama", name: "Ollama (Servidor Local)", defaultModel: "llama3.1", models: ["llama3.1", "mistral", "qwen2.5"] },
 ];
 
-const QUICK_TEST_PROMPTS = [
+export const QUICK_TEST_PROMPTS = [
   "Vocês aceitam Pix ou parcelam no cartão?",
   "Qual é o prazo de entrega para meu CEP?",
   "Achei o valor um pouco alto, tem desconto?",
@@ -721,7 +721,7 @@ Tom: ${agentTone}. Estilo: ${responseStyle}.`;
   );
 
   const renderObjectiveCard = () => (
-    <Card className="bg-card border-border/80 shadow-sm">
+    <Card className="bg-card border-border/80 shadow-sm overflow-hidden">
       <CardHeader className="pb-3 border-b border-border/40">
         <div className="flex items-center justify-between">
           <div className="space-y-0.5">
@@ -738,7 +738,7 @@ Tom: ${agentTone}. Estilo: ${responseStyle}.`;
               variant="ghost"
               size="sm"
               onClick={() => toggleCard("objective")}
-              className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground"
+              className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground cursor-pointer"
             >
               <ChevronDown className={cn("h-4 w-4 transition-transform", !collapsedCards.objective && "rotate-180")} />
             </Button>
@@ -755,7 +755,7 @@ Tom: ${agentTone}. Estilo: ${responseStyle}.`;
         </div>
       ) : (
         <CardContent className="p-4 sm:p-5">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
             {OBJECTIVES.map((obj) => {
               const Icon = obj.icon;
               const isSelected = selectedObjective === obj.id;
@@ -774,41 +774,46 @@ Tom: ${agentTone}. Estilo: ${responseStyle}.`;
                     }
                   }}
                   className={cn(
-                    "p-3 rounded-xl border text-left cursor-pointer transition-all space-y-1.5",
+                    "p-3.5 sm:p-4 rounded-2xl border text-left cursor-pointer transition-all duration-200 space-y-2 flex flex-col justify-between select-none relative group",
                     isSelected
-                      ? "bg-emerald-500/10 border-emerald-500/50 shadow-xs ring-1 ring-emerald-500/30"
-                      : "bg-muted/20 border-border/60 hover:bg-muted/40 hover:border-border"
+                      ? "bg-emerald-500/10 border-emerald-500 shadow-[0_0_20px_rgba(16,185,129,0.15)] ring-1 ring-emerald-500/50"
+                      : "bg-card/70 border-border/70 hover:bg-card hover:border-emerald-500/30 hover:shadow-xs"
                   )}
                 >
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex items-center gap-2.5">
                       <div
                         className={cn(
-                          "h-7 w-7 rounded-lg flex items-center justify-center",
+                          "h-8 w-8 rounded-xl flex items-center justify-center transition-colors shrink-0",
                           isSelected
-                            ? "bg-emerald-500/20 text-emerald-400"
-                            : "bg-muted/40 text-muted-foreground"
+                            ? "bg-emerald-500 text-white shadow-xs"
+                            : "bg-muted/50 text-muted-foreground border border-border/50 group-hover:text-foreground"
                         )}
                       >
-                        <Icon className="h-3.5 w-3.5" />
+                        <Icon className="h-4 w-4" />
                       </div>
-                      <span className="text-xs font-bold text-foreground">
-                        {obj.title}
-                      </span>
+                      <div>
+                        <span className="text-xs sm:text-sm font-bold text-foreground block leading-tight">
+                          {obj.title}
+                        </span>
+                        <span className="text-[10px] text-muted-foreground font-mono">
+                          {isSelected ? "● Ativo agora" : "Foco comercial"}
+                        </span>
+                      </div>
                     </div>
                     <Badge
                       variant="outline"
                       className={cn(
-                        "text-[9px] px-1.5 py-0",
+                        "text-[10px] font-semibold px-2 py-0.5 rounded-full shrink-0 border",
                         isSelected
-                          ? "border-emerald-500/40 text-emerald-300"
-                          : "border-border/70 text-muted-foreground"
+                          ? "border-emerald-500/40 text-emerald-300 bg-emerald-500/15"
+                          : "border-border/70 text-muted-foreground bg-muted/20"
                       )}
                     >
                       {obj.badge}
                     </Badge>
                   </div>
-                  <p className="text-[11px] text-muted-foreground line-clamp-2 leading-relaxed">
+                  <p className="text-[11px] sm:text-xs text-muted-foreground leading-relaxed line-clamp-2">
                     {obj.desc}
                   </p>
                 </div>
@@ -821,7 +826,7 @@ Tom: ${agentTone}. Estilo: ${responseStyle}.`;
   );
 
   const renderToneCard = () => (
-    <Card className="bg-card border-border/80 shadow-sm">
+    <Card className="bg-card border-border/80 shadow-sm overflow-hidden">
       <CardHeader className="pb-3 border-b border-border/40">
         <div className="flex items-center justify-between">
           <div>
@@ -838,7 +843,7 @@ Tom: ${agentTone}. Estilo: ${responseStyle}.`;
               variant="ghost"
               size="sm"
               onClick={() => toggleCard("tone")}
-              className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground"
+              className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground cursor-pointer"
             >
               <ChevronDown className={cn("h-4 w-4 transition-transform", !collapsedCards.tone && "rotate-180")} />
             </Button>
@@ -855,9 +860,9 @@ Tom: ${agentTone}. Estilo: ${responseStyle}.`;
         </div>
       ) : (
         <CardContent className="p-4 sm:p-5 space-y-4">
-          <div className="space-y-2 pt-2">
+          <div className="space-y-2">
             <label className="text-xs font-semibold text-foreground">Tom de Voz Principal</label>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               {TONE_OPTIONS.map((t) => {
                 const isSelected = agentTone === t.id;
                 return (
@@ -866,14 +871,19 @@ Tom: ${agentTone}. Estilo: ${responseStyle}.`;
                     type="button"
                     onClick={() => setAgentTone(t.id)}
                     className={cn(
-                      "p-2.5 rounded-xl text-left border text-xs transition-all",
+                      "p-3 rounded-2xl text-left border text-xs transition-all duration-200 select-none cursor-pointer space-y-1",
                       isSelected
-                        ? "border-emerald-500 bg-emerald-500/10 text-emerald-300 font-semibold shadow-xs"
-                        : "border-border/60 bg-muted/20 text-muted-foreground hover:bg-muted/40 hover:text-foreground"
+                        ? "border-emerald-500 bg-emerald-500/10 text-emerald-300 font-semibold shadow-[0_0_15px_rgba(16,185,129,0.12)] ring-1 ring-emerald-500/40"
+                        : "border-border/70 bg-card/70 text-muted-foreground hover:bg-card hover:text-foreground hover:border-emerald-500/30"
                     )}
                   >
-                    <span className="block font-medium truncate">{t.label}</span>
-                    <span className="text-[10px] text-muted-foreground/80 line-clamp-1 mt-0.5">{t.desc}</span>
+                    <div className="flex items-center justify-between">
+                      <span className="font-bold text-foreground text-xs sm:text-sm">{t.label}</span>
+                      {isSelected && (
+                        <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
+                      )}
+                    </div>
+                    <span className="text-[11px] text-muted-foreground block leading-relaxed">{t.desc}</span>
                   </button>
                 );
               })}
