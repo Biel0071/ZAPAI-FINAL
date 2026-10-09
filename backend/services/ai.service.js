@@ -542,7 +542,9 @@ async function getAIIntegrationStatus(store, companyId = 'default') {
     apiKeyValid,
     modelConfigured,
     providerOnline,
-    aiOn
+    aiOn,
+    provider: activeProvider ? activeProvider.id : null,
+    model: activeProvider ? activeProvider.model : null,
   };
 }
 

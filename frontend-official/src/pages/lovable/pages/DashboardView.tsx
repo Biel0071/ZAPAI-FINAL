@@ -430,7 +430,7 @@ export function DashboardView({
 
   // Model distribution data
   const aiModelDistribution = useMemo(() => {
-    if (!aiStatus || !aiStatus.model) {
+    if (!aiStatus || (!aiStatus.model && !aiStatus.provider && !aiStatus.enabled)) {
       return [{ name: "Nenhum ativo", value: 100, color: "#94a3b8" }];
     }
     const rawProvider = String(aiStatus.provider || 'openai').toLowerCase();
@@ -438,15 +438,24 @@ export function DashboardView({
     const isClaude = rawProvider === 'claude' || rawProvider === 'anthropic';
 
     const providerLabel = isGemini ? "Google" : isClaude ? "Anthropic" : "OpenAI";
-    const name = `${aiStatus.model} (${providerLabel})`;
+    const model = aiStatus.model || (isGemini ? "Gemini 1.5 Pro" : isClaude ? "Claude 3.5 Sonnet" : "gpt-4o-mini");
+    const agentLabel = aiStatus.agentName ? `${aiStatus.agentName} • ` : "";
+    const name = `${agentLabel}${model} (${providerLabel})`;
     const color = isGemini ? "#38bdf8" : isClaude ? "#f97316" : "#10b981";
 
     return [{ name, value: 100, color }];
   }, [aiStatus]);
 
   const activeModelName = useMemo(() => {
-    if (!aiStatus || !aiStatus.model) return "Nenhum ativo";
-    return aiStatus.model;
+    if (!aiStatus) return "Nenhum ativo";
+    const agentPrefix = aiStatus.agentName ? `${aiStatus.agentName} • ` : "";
+    if (aiStatus.model) return `${agentPrefix}${aiStatus.model}`;
+    if (aiStatus.enabled && aiStatus.provider) {
+      const model = aiStatus.provider === 'openai' ? 'gpt-4o-mini' : aiStatus.provider;
+      return `${agentPrefix}${model}`;
+    }
+    if (aiStatus.enabled) return `${agentPrefix || 'Camila • '}Ativa`;
+    return "Nenhum ativo";
   }, [aiStatus]);
 
   const tokensPeriodFormatted = useMemo(() => {

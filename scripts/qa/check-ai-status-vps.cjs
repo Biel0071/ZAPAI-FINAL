@@ -3,6 +3,7 @@ const { spawn } = require('child_process');
 const VPS_HOST = 'root@209.50.241.22';
 
 const remoteCmd = `cd /opt/zapai/backend && node -e "
+require('dotenv').config({ path: '/opt/zapai/backend/.env' });
 const { getAIEnabled, enableAI } = require('./src/infrastructure/config/aiToggle');
 const { getAIIntegrationStatus } = require('./services/ai.service');
 const { query } = require('./src/infrastructure/config/database');

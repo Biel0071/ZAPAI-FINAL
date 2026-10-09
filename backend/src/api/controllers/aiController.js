@@ -117,6 +117,20 @@ async function status(req, res) {
     catch { automationScopeError = 'Não foi possível verificar o alcance da automação. Respostas automáticas ficam bloqueadas.'; }
     const active = Boolean(enabled && integration.aiOn && automationScope && (automationScope.mode === 'all' || automationScope.phones.length > 0));
 
+    let activeAgentName = null;
+    let activeAgentRole = null;
+    try {
+      const aiAgentService = require('../../../ai/agents/services/aiAgentService');
+      const agents = await aiAgentService.listAgents(tenantId);
+      const activeAgent = Array.isArray(agents) ? agents.find(a => a.active && a.key !== 'zaibot') || agents.find(a => a.active) : null;
+      if (activeAgent) {
+        activeAgentName = activeAgent.name;
+        activeAgentRole = activeAgent.role;
+      }
+    } catch {
+      // non-fatal fallback
+    }
+
     return res.status(200).json({
       ...integration,
       ai: enabled,
@@ -126,6 +140,8 @@ async function status(req, res) {
       tenantId,
       automationScope,
       automationScopeError,
+      agentName: activeAgentName,
+      agentRole: activeAgentRole,
     });
   } catch (error) {
     console.error('[aiController] status failed:', error);

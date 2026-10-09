@@ -62,6 +62,10 @@ export function createAnalyticsLovableViewModel(params: {
 
       const hasAi = Boolean(
         conversation.isAI ||
+        conversation.aiEnabled ||
+        conversation.ai_enabled ||
+        conversation.agent_name ||
+        conversation.assignedAgentName ||
         tags.some(t => t.includes('ia') || t.includes('bot') || t.includes('camila')) ||
         (conversation.notes && conversation.notes.toLowerCase().includes('ia'))
       );
@@ -85,10 +89,12 @@ export function createAnalyticsLovableViewModel(params: {
     : (rawConversationsTotal ?? (conversations.length > 0 ? conversations.length : null));
 
   let participation = '—';
-  if (messages !== null && messages > 0 && ai !== null) {
+  if (messages !== null && messages > 0 && ai !== null && ai > 0) {
     participation = `${Math.min(100, Math.max(0, Math.round(ai / messages * 100)))}%`;
   } else if (conversations.length > 0 && aiCount > 0) {
     participation = `${Math.min(100, Math.max(0, Math.round((aiCount / conversations.length) * 100)))}%`;
+  } else if (ai !== null && ai > 0) {
+    participation = '100%';
   } else if (messages !== null && messages === 0) {
     participation = '0%';
   }
@@ -126,7 +132,7 @@ export function createAnalyticsLovableViewModel(params: {
           const bucket = Math.floor(h / 4) * 4;
           const current = hourMap.get(bucket) || { msgs: 0, ai: 0 };
           current.msgs++;
-          if (c.isAI || c.tags?.some(t => t.toLowerCase().includes("ia") || t.toLowerCase().includes("bot") || t.toLowerCase().includes("camila"))) {
+          if (c.isAI || c.aiEnabled || c.ai_enabled || Boolean(c.agent_name) || Boolean(c.assignedAgentName) || c.tags?.some(t => t.toLowerCase().includes("ia") || t.toLowerCase().includes("bot") || t.toLowerCase().includes("camila"))) {
             current.ai++;
           }
           hourMap.set(bucket, current);
@@ -149,7 +155,7 @@ export function createAnalyticsLovableViewModel(params: {
           const key = `${String(d.getDate()).padStart(2, "0")}/${String(d.getMonth() + 1).padStart(2, "0")}`;
           const current = dayMap.get(key) || { msgs: 0, ai: 0 };
           current.msgs++;
-          if (c.isAI || c.tags?.some(t => t.toLowerCase().includes("ia") || t.toLowerCase().includes("bot") || t.toLowerCase().includes("camila"))) {
+          if (c.isAI || c.aiEnabled || c.ai_enabled || Boolean(c.agent_name) || Boolean(c.assignedAgentName) || c.tags?.some(t => t.toLowerCase().includes("ia") || t.toLowerCase().includes("bot") || t.toLowerCase().includes("camila"))) {
             current.ai++;
           }
           dayMap.set(key, current);
