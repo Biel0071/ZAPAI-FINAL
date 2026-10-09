@@ -86,11 +86,11 @@ async function getAutomationPermission({ companyId, sessionId, phone } = {}, dep
     }
     const readGlobal = dependencies.getAIEnabled || getAIEnabled;
     if (!(await readGlobal(companyId))) return { allowed: false, reason: 'global_ai_off' };
-    const normalizedPhone = await resolveAutomationPhone({ companyId, sessionId, phone }, dependencies);
     const readScope = dependencies.getAutomationScope || getAutomationScope;
     const scope = normalizeAutomationScope(await readScope(companyId));
     if (scope.mode === 'all') return { allowed: true, reason: 'automation_scope_all' };
     if (scope.sessionId !== sessionId) return { allowed: false, reason: 'automation_session_outside_scope' };
+    const normalizedPhone = await resolveAutomationPhone({ companyId, sessionId, phone }, dependencies);
     const aliases = new Set(getPhoneAliases(normalizedPhone));
     const allowed = scope.phones.some(candidate => getPhoneAliases(candidate).some(alias => aliases.has(alias)));
     return { allowed, reason: allowed ? 'automation_scope_selected' : 'automation_phone_outside_scope' };

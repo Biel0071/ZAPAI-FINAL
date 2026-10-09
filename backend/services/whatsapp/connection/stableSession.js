@@ -1050,15 +1050,15 @@ async function createStableSession({
   const fetchLatestWaWebVersion = baileys.fetchLatestWaWebVersion;
   const useMultiFileAuthState = baileys.useMultiFileAuthState;
 
-  // Self-healing: Purge any corrupted oversized Signal ratchet session files (> 12KB)
-  // preventing libsignal 'Over 2000 messages into the future!' desync deadlocks
+  // Self-healing: Purge any corrupted oversized Signal ratchet session files (> 8KB)
+  // preventing libsignal 'Over 2000 messages into the future!' and 'Bad MAC' desync deadlocks
   try {
     const sessionFiles = await fs.readdir(sessionPath);
     for (const file of sessionFiles) {
       if (file.startsWith('session-') && file.endsWith('.json')) {
         const filePath = path.join(sessionPath, file);
         const fileStat = await fs.stat(filePath).catch(() => null);
-        if (fileStat && fileStat.size > 12000) {
+        if (fileStat && fileStat.size > 8000) {
           console.warn(`[WHATSAPP-STABLE-CONN] Purging oversized corrupted session file: ${file} (${fileStat.size} bytes)`);
           await fs.unlink(filePath).catch(() => {});
         }
@@ -1089,6 +1089,8 @@ async function createStableSession({
     baileysLogger = pino({ level: 'silent' });
   }
 
+  const msgRetryCounterCache = new Map();
+
   const sock = makeWASocket({
     auth: state,
     browser: baileys.Browsers.ubuntu('Chrome'),
@@ -1099,6 +1101,22 @@ async function createStableSession({
     connectTimeoutMs: 60000,
     defaultQueryTimeoutMs: 60000,
     keepAliveIntervalMs: 30000,
+    msgRetryCounterCache,
+    getMessage: async (key) => {
+      if (!key || !key.id) return undefined;
+      try {
+        const msg = await messageRepository.findByWhatsappMessageId(key.id);
+        if (msg) {
+          const text = msg.text || msg.content || '';
+          return {
+            conversation: text
+          };
+        }
+      } catch (err) {
+        console.warn(`[WHATSAPP-STABLE-CONN] getMessage error for ${key.id}:`, err?.message);
+      }
+      return undefined;
+    },
   });
 
   const originalQuery = sock.query;

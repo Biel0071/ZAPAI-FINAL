@@ -521,9 +521,9 @@ export const useAppStore = create<AppState>((set) => ({
         const newConv = { ...defaultConv, ...mappedConv } as Conversation;
         next = [newConv, ...state.conversations];
       } else {
-        next = state.conversations.slice();
-        const existing = next[idx];
-        next[idx] = mergeConversationRecord(existing, mappedConv);
+        const existing = state.conversations[idx];
+        const updated = mergeConversationRecord(existing, mappedConv);
+        next = [updated, ...state.conversations.filter((_, i) => i !== idx)];
       }
       const deduped = dedupeConversationState(next, state.messagesByConversationId);
       return { 
@@ -787,9 +787,9 @@ export const useAppStore = create<AppState>((set) => ({
         const newConv = { ...defaultConv, ...mappedConv } as Conversation;
         next = [newConv, ...state.conversations];
       } else {
-        next = state.conversations.slice();
-        const existing = next[idx];
-        next[idx] = mergeConversationRecord(existing, mappedConv as Conversation);
+        const existing = state.conversations[idx];
+        const updated = mergeConversationRecord(existing, mappedConv as Conversation);
+        next = [updated, ...state.conversations.filter((_, i) => i !== idx)];
       }
       const deduped = dedupeConversationState(next, state.messagesByConversationId);
       return { 

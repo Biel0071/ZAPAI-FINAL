@@ -187,8 +187,8 @@ function resolveConversationIdForRealtimeMessage(
     }
   }
 
-  const fallback = incoming.conversationId || incoming.chatId || null;
-  console.log(`[INBOX REALTIME] [CONVERSATION RESOLVED] No database match found. Fallback: ${fallback}`);
+  const fallback = incoming.conversationId || incoming.chatId || incoming.phone || incoming.remoteJid || null;
+  console.log(`[INBOX REALTIME] [CONVERSATION RESOLVED] Match fallback: ${fallback}`);
   return fallback;
 }
 
@@ -569,7 +569,10 @@ export function RuntimeProvider({ children }: { children: ReactNode }) {
         if (!incoming?.id) return;
         const store = useAppStore.getState();
         console.log(`[INBOX REALTIME] [REALTIME_MESSAGE] AI Response event received: id=${incoming.id}`);
-        const conversationId = resolveConversationIdForRealtimeMessage(incoming, store.conversations);
+        let conversationId = resolveConversationIdForRealtimeMessage(incoming, store.conversations);
+        if (!conversationId) {
+          conversationId = incoming.conversationId || incoming.chatId || incoming.remoteJid || incoming.phone || null;
+        }
         if (!conversationId) return;
 
         // Clear typing and AI progress immediately when the generated message arrives.
@@ -582,6 +585,15 @@ export function RuntimeProvider({ children }: { children: ReactNode }) {
 
         console.log(`[INBOX REALTIME] [STORE_TARGET] Setting store target for AI Response: conversationId=${conversationId}`);
         const currentConv = store.conversations.find((c) => String(c.id) === String(conversationId));
+        if (!currentConv) {
+          void apiService.getConversations(true, { limit: 100, sessionId: incoming.sessionId })
+            .then((rows) => {
+              if (Array.isArray(rows) && rows.length > 0) {
+                useAppStore.getState().setConversations(rows);
+              }
+            })
+            .catch(() => {});
+        }
         const message = {
           ...incoming,
           conversationId,
@@ -659,7 +671,10 @@ export function RuntimeProvider({ children }: { children: ReactNode }) {
         if (!incoming?.id) return;
         const store = useAppStore.getState();
         console.log(`[INBOX REALTIME] [REALTIME_MESSAGE] New message event received: id=${incoming.id}`);
-        const conversationId = resolveConversationIdForRealtimeMessage(incoming, store.conversations);
+        let conversationId = resolveConversationIdForRealtimeMessage(incoming, store.conversations);
+        if (!conversationId) {
+          conversationId = incoming.conversationId || incoming.chatId || incoming.remoteJid || incoming.phone || null;
+        }
         if (!conversationId) return;
 
         // Clear typing status immediately for UUID, phone and chatId
@@ -683,6 +698,15 @@ export function RuntimeProvider({ children }: { children: ReactNode }) {
 
         console.log(`[INBOX REALTIME] [STORE_TARGET] Setting store target for New message: conversationId=${conversationId}`);
         const currentConv = store.conversations.find((c) => String(c.id) === String(conversationId));
+        if (!currentConv) {
+          void apiService.getConversations(true, { limit: 100, sessionId: incoming.sessionId })
+            .then((rows) => {
+              if (Array.isArray(rows) && rows.length > 0) {
+                useAppStore.getState().setConversations(rows);
+              }
+            })
+            .catch(() => {});
+        }
         const message = {
           ...incoming,
           conversationId,
