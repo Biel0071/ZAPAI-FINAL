@@ -227,4 +227,60 @@ describe("Dashboard 2 Grand Hubs Unification", () => {
     expect(text).toContain("Hub ZAI & Performance Comercial");
     expect(text).toContain("Fluxo de Atividade Comercial");
   });
+
+  it("generates individual lead pins and supports clicking lateral leads to focus on map", async () => {
+    const vm = createDashboardLovableViewModel({
+      conversations: mockConversations,
+      metrics: null,
+      sessions: [],
+      runtimeStatus: "online",
+      sessionState: "online",
+    });
+
+    expect(vm.map.leadPins.length).toBe(3);
+    expect(vm.map.leadPins[0].lat).toBeDefined();
+    expect(vm.map.leadPins[0].lng).toBeDefined();
+    expect(vm.map.leadPins[0].name).toBe("Cliente São Paulo");
+
+    await act(async () => {
+      root.render(
+        <MemoryRouter initialEntries={["/dashboard?tab=map"]}>
+          <Dashboard />
+        </MemoryRouter>
+      );
+    });
+
+    const text = container.textContent || "";
+    expect(text).toContain("Leads na Região (3)");
+
+    // Switch to leads tab in sidebar panel
+    const leadsTabBtn = Array.from(container.querySelectorAll("button")).find(
+      (b) => b.textContent?.includes("Leads na Região")
+    );
+    expect(leadsTabBtn).toBeDefined();
+    if (leadsTabBtn) {
+      await act(async () => {
+        leadsTabBtn.click();
+      });
+    }
+
+    const updatedText = container.textContent || "";
+    expect(updatedText).toContain("Ver no Mapa");
+    expect(updatedText).toContain("Cliente São Paulo");
+    expect(updatedText).toContain("Cliente Rio");
+    expect(updatedText).toContain("Cliente Minas");
+
+    // Click on a lead card to focus on map
+    const leadCard = container.querySelector('[title="Focar e ver no mapa"]')?.closest("div.w-full");
+    expect(leadCard).toBeDefined();
+    if (leadCard) {
+      await act(async () => {
+        (leadCard as HTMLElement).click();
+      });
+    }
+
+    // Detail drawer overlay should now appear with lead data and "Ver no Inbox"
+    const finalText = container.textContent || "";
+    expect(finalText).toContain("Ver no Inbox");
+  });
 });

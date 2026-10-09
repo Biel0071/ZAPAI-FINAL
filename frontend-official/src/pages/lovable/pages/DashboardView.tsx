@@ -75,24 +75,28 @@ function markerIcon() {
   });
 }
 
-function leadMarkerIcon(funnelStage: string) {
+function leadMarkerIcon(funnelStage: string, isSelected = false) {
   const isClosed = funnelStage === "closed";
   const isNegotiation = funnelStage === "negotiation" || funnelStage === "hot";
-  const color = isClosed ? "#00ff88" : isNegotiation ? "#f59e0b" : "#06b6d4";
-  const glow = isClosed ? "rgba(0, 255, 136, 0.95)" : isNegotiation ? "rgba(245, 158, 11, 0.95)" : "rgba(6, 182, 212, 0.95)";
+  const color = isSelected ? "#10b981" : isClosed ? "#00ff88" : isNegotiation ? "#f59e0b" : "#06b6d4";
+  const glow = isSelected ? "rgba(16, 185, 129, 1)" : isClosed ? "rgba(0, 255, 136, 0.95)" : isNegotiation ? "rgba(245, 158, 11, 0.95)" : "rgba(6, 182, 212, 0.95)";
+  const size = isSelected ? 36 : 28;
+  const half = isSelected ? 18 : 14;
+  const innerSize = isSelected ? 20 : 16;
+  const zIndex = isSelected ? 9999 : 100;
   return L.divIcon({
-    className: "vivid-lead-marker",
+    className: isSelected ? "vivid-lead-marker vivid-lead-marker-selected" : "vivid-lead-marker",
     html: `
-      <div style="position:relative;width:28px;height:28px;display:flex;align-items:center;justify-content:center;cursor:pointer;">
-        <span style="position:absolute;width:150%;height:150%;border-radius:9999px;border:1.5px solid ${color};opacity:0.5;animation:ping 3s cubic-bezier(0,0,0.2,1) infinite;"></span>
-        <span style="position:absolute;width:100%;height:100%;border-radius:9999px;background:${color};opacity:0.5;animation:ping 1.8s cubic-bezier(0,0,0.2,1) infinite;"></span>
-        <div style="position:relative;width:16px;height:16px;border-radius:9999px;background:${color};box-shadow:0 0 10px ${color}, 0 0 22px ${color}, 0 0 35px ${glow};border:2px solid #ffffff;display:flex;align-items:center;justify-content:center;">
-          <div style="width:5px;height:5px;border-radius:9999px;background:#ffffff;box-shadow:0 0 4px #ffffff;"></div>
+      <div style="position:relative;width:${size}px;height:${size}px;display:flex;align-items:center;justify-content:center;cursor:pointer;z-index:${zIndex};">
+        <span style="position:absolute;width:${isSelected ? '180%' : '150%'};height:${isSelected ? '180%' : '150%'};border-radius:9999px;border:${isSelected ? '2px' : '1.5px'} solid ${color};opacity:${isSelected ? '0.85' : '0.5'};animation:ping ${isSelected ? '1.5s' : '3s'} cubic-bezier(0,0,0.2,1) infinite;"></span>
+        <span style="position:absolute;width:100%;height:100%;border-radius:9999px;background:${color};opacity:${isSelected ? '0.75' : '0.5'};animation:ping 1.8s cubic-bezier(0,0,0.2,1) infinite;"></span>
+        <div style="position:relative;width:${innerSize}px;height:${innerSize}px;border-radius:9999px;background:${color};box-shadow:0 0 12px ${color}, 0 0 24px ${color}, 0 0 40px ${glow};border:2px solid #ffffff;display:flex;align-items:center;justify-content:center;">
+          <div style="width:${isSelected ? '7px' : '5px'};height:${isSelected ? '7px' : '5px'};border-radius:9999px;background:#ffffff;box-shadow:0 0 6px #ffffff;"></div>
         </div>
       </div>
     `,
-    iconSize: [28, 28],
-    iconAnchor: [14, 14],
+    iconSize: [size, size],
+    iconAnchor: [half, half],
   });
 }
 
@@ -117,11 +121,11 @@ const tooltipStyle = {
   borderRadius: "8px",
 };
 
-// React Leaflet view changer helper
+// React Leaflet view changer helper com transição suave flyTo
 function ChangeView({ center, zoom }: { center: [number, number]; zoom: number }) {
   const map = useMap();
   useEffect(() => {
-    map.setView(center, zoom);
+    map.flyTo(center, zoom, { animate: true, duration: 1.2 });
   }, [center, zoom, map]);
   return null;
 }
@@ -243,6 +247,28 @@ export function DashboardView({
 
   // All conversations formatted for geographical intelligence
   const allLeadsInPeriod = useMemo(() => {
+    if (viewModel.map.leadPins && viewModel.map.leadPins.length > 0) {
+      return viewModel.map.leadPins.map((pin) => {
+        const ddd = pin.ddd || getPhoneDdd(pin.phone || "");
+        const meta = ddd ? DDD_METADATA[ddd] : null;
+        return {
+          id: pin.conversationId ? String(pin.conversationId) : pin.id.replace("lead-pin-", ""),
+          pinId: pin.id,
+          name: pin.name,
+          phone: pin.phone,
+          address: pin.address,
+          ddd: ddd || "—",
+          state: pin.stateCode || meta?.stateCode || "—",
+          stateName: pin.stateName || meta?.stateName || "Brasil",
+          region: pin.region || meta?.region || "—",
+          funnelStage: pin.funnelStage,
+          lat: pin.lat,
+          lng: pin.lng,
+          hasExactCoords: pin.hasExactCoords ?? false,
+        };
+      });
+    }
+
     return (viewModel.conversations || []).map((c) => {
       const ddd = getPhoneDdd(c.phone || "");
       const meta = ddd ? DDD_METADATA[ddd] : null;
@@ -262,20 +288,22 @@ export function DashboardView({
         }
       }
       return {
-        id: c.id,
+        id: String(c.id),
+        pinId: `lead-pin-${c.id}`,
         name: c.contactName || c.phone || "Lead",
         phone: c.phone || "",
+        address: c.notes?.match(/Endereço de Entrega:\s*(.+)/i)?.[1]?.trim() || (meta ? `${meta.stateName} (DDD ${ddd})` : "Brasil"),
         ddd: ddd || "—",
         state: meta?.stateCode || "—",
         stateName: meta?.stateName || "Brasil",
         region: meta?.region || "—",
         funnelStage: c.funnel_stage || "new_lead",
-        lat: hasCoords ? lat : meta?.lat,
-        lng: hasCoords ? lng : meta?.lng,
+        lat: hasCoords ? lat : (meta?.lat || 0),
+        lng: hasCoords ? lng : (meta?.lng || 0),
         hasExactCoords: hasCoords,
       };
     });
-  }, [viewModel.conversations]);
+  }, [viewModel.map.leadPins, viewModel.conversations]);
 
   const filteredRegionalLeads = useMemo(() => {
     return allLeadsInPeriod.filter((lead) => {
@@ -298,6 +326,43 @@ export function DashboardView({
       return true;
     });
   }, [allLeadsInPeriod, leadSearchQuery, selectedGeoFilter]);
+
+  // Click handler to focus, fly-to and highlight a lead on the Leaflet map from the lateral list or map pin
+  const handleLeadSelect = (lead: {
+    id?: string | number;
+    pinId?: string;
+    name: string;
+    phone: string;
+    address?: string;
+    lat?: number;
+    lng?: number;
+    funnelStage: string;
+    ddd?: string;
+    state?: string;
+    stateName?: string;
+    region?: string;
+    hasExactCoords?: boolean;
+  }) => {
+    if (lead.lat && lead.lng) {
+      setMapCenter([lead.lat, lead.lng]);
+      setMapZoom(11);
+    }
+    const pinEquivalent: LeadPin = {
+      id: lead.pinId || (String(lead.id || "").startsWith("lead-pin-") ? String(lead.id) : `lead-pin-${lead.id || lead.phone}`),
+      name: lead.name,
+      phone: lead.phone,
+      address: lead.address || `${lead.stateName || lead.state || "Brasil"} (DDD ${lead.ddd || ""})`,
+      lat: lead.lat ?? 0,
+      lng: lead.lng ?? 0,
+      funnelStage: lead.funnelStage || "new_lead",
+      ddd: lead.ddd,
+      stateCode: lead.state,
+      stateName: lead.stateName,
+      region: lead.region,
+      hasExactCoords: lead.hasExactCoords,
+    };
+    setSelectedLead(pinEquivalent);
+  };
 
   // Click handler for geography list items
   const handleGeoRowClick = (row: DashboardMapRow) => {
@@ -788,7 +853,17 @@ export function DashboardView({
                       </PieChart>
                     </ResponsiveContainer>
                     <div className="absolute flex flex-col items-center justify-center pointer-events-none">
-                      <span className="text-lg font-bold font-display">{safeAnalyticsViewModel.totalLeadsLabel}</span>
+                      <span className="text-lg font-bold font-display">
+                        {(() => {
+                          const sumDist = (safeAnalyticsViewModel.tempDistribution[0]?.value || 0) +
+                            (safeAnalyticsViewModel.tempDistribution[1]?.value || 0) +
+                            (safeAnalyticsViewModel.tempDistribution[2]?.value || 0);
+                          if (sumDist > 0) return String(sumDist);
+                          return safeAnalyticsViewModel.totalLeadsLabel && safeAnalyticsViewModel.totalLeadsLabel !== "0"
+                            ? safeAnalyticsViewModel.totalLeadsLabel
+                            : "0";
+                        })()}
+                      </span>
                       <span className="text-[8px] text-muted-foreground uppercase font-bold">Leads Ativos</span>
                     </div>
                   </div>
@@ -954,31 +1029,33 @@ export function DashboardView({
                         />
                       ))}
 
-                      {filteredLeadPins.map((pin) => (
-                        <LeafletMarker
-                          key={pin.id}
-                          position={[pin.lat, pin.lng]}
-                          icon={leadMarkerIcon(pin.funnelStage)}
-                          eventHandlers={{
-                            click: () => {
-                              setSelectedLead(pin);
-                              setMapCenter([pin.lat, pin.lng]);
-                              setMapZoom(8);
-                            },
-                          }}
-                        >
-                          <Popup>
-                            <div className="space-y-1 p-1 text-xs">
-                              <p className="font-bold">{pin.name}</p>
-                              <p className="text-[10px] text-muted-foreground">{pin.phone}</p>
-                              <p className="text-[10px] truncate max-w-[150px]">{pin.address}</p>
-                              <span className="inline-block mt-1 text-[8px] uppercase tracking-wide px-1.5 py-0.5 rounded bg-primary/15 text-primary">
-                                {pin.funnelStage}
-                              </span>
-                            </div>
-                          </Popup>
-                        </LeafletMarker>
-                      ))}
+                      {filteredLeadPins.map((pin) => {
+                        const isSelected = selectedLead?.id === pin.id || (selectedLead?.phone && selectedLead.phone === pin.phone);
+                        return (
+                          <LeafletMarker
+                            key={pin.id}
+                            position={[pin.lat, pin.lng]}
+                            icon={leadMarkerIcon(pin.funnelStage, isSelected)}
+                            zIndexOffset={isSelected ? 1000 : 0}
+                            eventHandlers={{
+                              click: () => {
+                                handleLeadSelect(pin);
+                              },
+                            }}
+                          >
+                            <Popup>
+                              <div className="space-y-1 p-1 text-xs">
+                                <p className="font-bold">{pin.name}</p>
+                                <p className="text-[10px] text-muted-foreground">{pin.phone}</p>
+                                <p className="text-[10px] truncate max-w-[150px]">{pin.address}</p>
+                                <span className="inline-block mt-1 text-[8px] uppercase tracking-wide px-1.5 py-0.5 rounded bg-primary/15 text-primary">
+                                  {pin.funnelStage}
+                                </span>
+                              </div>
+                            </Popup>
+                          </LeafletMarker>
+                        );
+                      })}
                     </LeafletMapContainer>
 
                     {/* Interactive Lead Detail Drawer (Overlay inside the map container) */}
@@ -1157,38 +1234,66 @@ export function DashboardView({
                     {filteredRegionalLeads.length === 0 ? (
                       <p className="text-center text-xs text-muted-foreground py-8">Nenhum lead encontrado.</p>
                     ) : (
-                      filteredRegionalLeads.map((lead) => (
-                        <div
-                          key={`lead-row-${lead.id}`}
-                          className="w-full rounded-xl border border-border/60 p-2.5 bg-background/20 hover:bg-card/75 transition-all flex items-start gap-2"
-                        >
-                          <div className="h-7 w-7 rounded-full bg-primary/10 flex items-center justify-center text-primary text-[10px] font-bold shrink-0 mt-0.5">
-                            {lead.name.slice(0, 2).toUpperCase()}
-                          </div>
-                          <div className="min-w-0 flex-1">
-                            <div className="flex items-center justify-between gap-1">
-                              <h4 className="font-bold text-xs text-foreground truncate">{lead.name}</h4>
-                              <Button
-                                size="sm"
-                                variant="ghost"
-                                className="h-5 text-[9px] px-1.5 rounded-md text-primary hover:text-primary hover:bg-primary/10"
-                                onClick={() => navigate(`/inbox?chatId=${lead.phone}`)}
-                              >
-                                Inbox
-                              </Button>
+                      filteredRegionalLeads.map((lead) => {
+                        const isSelected = selectedLead?.id === lead.pinId ||
+                          selectedLead?.id === `lead-pin-${lead.id}` ||
+                          (selectedLead?.phone && selectedLead.phone === lead.phone);
+                        return (
+                          <div
+                            key={`lead-row-${lead.id}`}
+                            onClick={() => handleLeadSelect(lead)}
+                            className={`w-full rounded-xl border p-2.5 transition-all flex items-start gap-2 cursor-pointer select-none group ${
+                              isSelected
+                                ? "border-emerald-500 bg-emerald-500/10 ring-1 ring-emerald-500 shadow-[0_0_12px_rgba(16,185,129,0.25)]"
+                                : "border-border/60 bg-background/20 hover:bg-card/75 hover:border-emerald-500/50"
+                            }`}
+                          >
+                            <div className={`h-7 w-7 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0 mt-0.5 transition-colors ${
+                              isSelected ? "bg-emerald-500 text-white shadow-[0_0_8px_#10b981]" : "bg-primary/10 text-primary group-hover:bg-primary/20"
+                            }`}>
+                              {lead.name.slice(0, 2).toUpperCase()}
                             </div>
-                            <p className="text-[9px] text-muted-foreground font-mono">{lead.phone}</p>
-                            <div className="flex items-center justify-between gap-1 mt-1 pt-1 border-t border-border/10">
-                              <span className="text-[8px] font-bold uppercase tracking-wider text-muted-foreground">
-                                Funil: {lead.funnelStage}
-                              </span>
-                              <Badge variant="outline" className="text-[8px] rounded-full px-1.5 py-0 capitalize">
-                                {lead.state} • DDD {lead.ddd}
-                              </Badge>
+                            <div className="min-w-0 flex-1">
+                              <div className="flex items-center justify-between gap-1">
+                                <h4 className={`font-bold text-xs truncate transition-colors ${isSelected ? "text-emerald-400 font-black" : "text-foreground"}`}>
+                                  {lead.name}
+                                </h4>
+                                <div className="flex items-center gap-1">
+                                  <span
+                                    title="Focar e ver no mapa"
+                                    className="h-5 px-1.5 rounded-md text-[9px] font-medium flex items-center gap-0.5 text-emerald-400 bg-emerald-500/10 group-hover:bg-emerald-500/20 transition-colors"
+                                  >
+                                    <MapPin className="h-2.5 w-2.5" />
+                                    Ver no Mapa
+                                  </span>
+                                  <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    className="h-5 text-[9px] px-1.5 rounded-md text-primary hover:text-primary hover:bg-primary/10"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      navigate(`/inbox?chatId=${lead.phone}`);
+                                    }}
+                                  >
+                                    Inbox
+                                  </Button>
+                                </div>
+                              </div>
+                              <p className="text-[9px] text-muted-foreground font-mono">{lead.phone}</p>
+                              <div className="flex items-center justify-between gap-1 mt-1 pt-1 border-t border-border/10">
+                                <span className="text-[8px] font-bold uppercase tracking-wider text-muted-foreground">
+                                  Funil: {lead.funnelStage}
+                                </span>
+                                <Badge variant="outline" className={`text-[8px] rounded-full px-1.5 py-0 capitalize ${
+                                  isSelected ? "border-emerald-500/50 text-emerald-400 font-semibold" : ""
+                                }`}>
+                                  {lead.state} • DDD {lead.ddd}
+                                </Badge>
+                              </div>
                             </div>
                           </div>
-                        </div>
-                      ))
+                        );
+                      })
                     )}
                   </div>
                 </Card>

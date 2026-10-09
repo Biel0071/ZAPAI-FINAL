@@ -45,6 +45,12 @@ export type LeadPin = {
   lat: number;
   lng: number;
   funnelStage: string;
+  ddd?: string;
+  stateCode?: string;
+  stateName?: string;
+  region?: string;
+  hasExactCoords?: boolean;
+  conversationId?: string | number;
 };
 
 export type DashboardLovableViewModel = {
@@ -195,13 +201,26 @@ function normalizePhoneDdd(phone: string | undefined): string | null {
   return DDD_METADATA[ddd] ? ddd : null;
 }
 
+function getDeterministicOffset(identifier: string | number, salt: number): [number, number] {
+  const str = String(identifier || salt);
+  let hash = 0;
+  for (let i = 0; i < str.length; i++) {
+    hash = ((hash << 5) - hash + str.charCodeAt(i)) | 0;
+  }
+  const positiveHash = Math.abs(hash) + salt * 37;
+  const angle = (positiveHash % 360) * (Math.PI / 180);
+  // Raio entre ~0.035 e ~0.15 graus (~3.5km a 16km em torno do polo regional do DDD)
+  const radius = 0.035 + ((positiveHash >> 3) % 115) * 0.001;
+  return [Math.sin(angle) * radius, Math.cos(angle) * radius];
+}
+
 function buildAggregates(conversations: Conversation[]) {
   const dddMap = new Map<string, { count: number; meta: (typeof DDD_METADATA)[string] }>();
   const stateMap = new Map<string, { count: number; meta: (typeof DDD_METADATA)[string]; ddds: Set<string> }>();
   const regionMap = new Map<string, { count: number; states: Set<string> }>();
   const leadPins: LeadPin[] = [];
 
-  conversations.forEach((conversation) => {
+  conversations.forEach((conversation, index) => {
     const ddd = normalizePhoneDdd(conversation.phone);
     let lat = 0;
     let lng = 0;
@@ -221,19 +240,43 @@ function buildAggregates(conversations: Conversation[]) {
       }
     }
 
-    if (hasCoords) {
-      let address = "";
-      const addressMatch = conversation.notes?.match(/Endereço de Entrega:\s*(.+)/i);
-      if (addressMatch) address = addressMatch[1].trim();
+    let address = "";
+    const addressMatch = conversation.notes?.match(/Endereço de Entrega:\s*(.+)/i);
+    if (addressMatch) address = addressMatch[1].trim();
 
+    if (hasCoords) {
       leadPins.push({
         id: `lead-pin-${conversation.id}`,
-        name: conversation.contactName || conversation.phone,
-        phone: conversation.phone,
+        name: conversation.contactName || conversation.phone || "Lead",
+        phone: conversation.phone || "",
         address: address || (ddd ? `${DDD_METADATA[ddd].stateName}, Brasil` : "Brasil"),
         lat,
         lng,
         funnelStage: conversation.funnel_stage || "new_lead",
+        ddd: ddd || undefined,
+        stateCode: ddd ? DDD_METADATA[ddd].stateCode : undefined,
+        stateName: ddd ? DDD_METADATA[ddd].stateName : undefined,
+        region: ddd ? DDD_METADATA[ddd].region : undefined,
+        hasExactCoords: true,
+        conversationId: conversation.id,
+      });
+    } else if (ddd) {
+      const meta = DDD_METADATA[ddd];
+      const [dLat, dLng] = getDeterministicOffset(conversation.id || conversation.phone, index);
+      leadPins.push({
+        id: `lead-pin-${conversation.id}`,
+        name: conversation.contactName || conversation.phone || `Lead ${ddd}`,
+        phone: conversation.phone || "",
+        address: address || `${meta.stateName} (DDD ${ddd})`,
+        lat: meta.lat + dLat,
+        lng: meta.lng + dLng,
+        funnelStage: conversation.funnel_stage || "new_lead",
+        ddd,
+        stateCode: meta.stateCode,
+        stateName: meta.stateName,
+        region: meta.region,
+        hasExactCoords: false,
+        conversationId: conversation.id,
       });
     }
 

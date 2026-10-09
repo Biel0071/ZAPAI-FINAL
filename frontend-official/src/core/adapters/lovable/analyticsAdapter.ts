@@ -48,7 +48,7 @@ export function createAnalyticsLovableViewModel(params: {
   const messages = resolveMetric(metrics, ['messagesToday', 'todayMessages', 'messages']);
   const active = resolveMetric(metrics, ['activeChats', 'activeConversations', 'chats']);
   const ai = resolveMetric(metrics, ['aiResponses', 'ai', 'botResponses']);
-  const conversationsTotal = resolveMetric(metrics, ['totalConversations', 'leads', 'conversationCount']) ?? (metrics ? conversationCount : null);
+  const rawConversationsTotal = resolveMetric(metrics, ['totalConversations', 'leads', 'conversationCount']) ?? (metrics ? conversationCount : null);
   const format = (value: number | null) => value === null ? '—' : value.toLocaleString('pt-BR');
   const temperatures = { hot: 0, warm: 0, cold: 0 };
   for (const conversation of conversations) {
@@ -58,6 +58,10 @@ export function createAnalyticsLovableViewModel(params: {
     else if (values.some(value => ['warm', 'morno'].includes(value))) temperatures.warm++;
     else if (values.some(value => ['cold', 'frio'].includes(value))) temperatures.cold++;
   }
+  const totalCategorized = temperatures.hot + temperatures.warm + temperatures.cold;
+  const conversationsTotal = totalCategorized > 0
+    ? totalCategorized
+    : (rawConversationsTotal ?? (conversations.length > 0 ? conversations.length : null));
   const participation = messages !== null && messages > 0 && ai !== null
     ? `${Math.min(100, Math.max(0, Math.round(ai / messages * 100)))}%` : '—';
 
