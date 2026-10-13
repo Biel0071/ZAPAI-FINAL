@@ -143,9 +143,9 @@ function getBaseSelect() {
       conv.created_at,
       conv.updated_at,
       COALESCE(
-        (SELECT MAX(COALESCE(m.timestamp, m.created_at)) FROM messages m WHERE m.conversation_id = conv.id),
-        CASE WHEN conv.last_message_at IS NOT NULL AND conv.last_message_at <> conv.updated_at THEN conv.last_message_at ELSE NULL END,
-        conv.created_at
+        conv.last_message_at,
+        (SELECT MAX(COALESCE(m.timestamp, m.created_at)) AT TIME ZONE 'UTC' FROM messages m WHERE m.conversation_id = conv.id),
+        conv.created_at AT TIME ZONE 'UTC'
       ) as last_message_at,
       COALESCE(l.phone, conv.remote_jid) as phone,
       COALESCE(NULLIF(l.name, ''), conv.remote_jid, 'Contato') as name,
@@ -621,9 +621,9 @@ async function listConversations(companyId, limit = 50, options = {}) {
           conv.created_at,
           conv.updated_at,
           COALESCE(
-            (SELECT MAX(COALESCE(m.timestamp, m.created_at)) FROM messages m WHERE m.conversation_id = conv.id),
-            CASE WHEN conv.last_message_at IS NOT NULL AND conv.last_message_at <> conv.updated_at THEN conv.last_message_at ELSE NULL END,
-            conv.created_at
+            conv.last_message_at,
+            (SELECT MAX(COALESCE(m.timestamp, m.created_at)) AT TIME ZONE 'UTC' FROM messages m WHERE m.conversation_id = conv.id),
+            conv.created_at AT TIME ZONE 'UTC'
           ) as last_message_at,
           COALESCE(l.phone, conv.remote_jid) as phone,
           COALESCE(NULLIF(l.name, ''), conv.remote_jid, 'Contato') as name,
@@ -635,11 +635,7 @@ async function listConversations(companyId, limit = 50, options = {}) {
           conv.company_id,
           COALESCE(conv.remote_jid, l.phone, conv.id::text),
           COALESCE(NULLIF(conv.session_id, ''), 'main'),
-          COALESCE(
-            (SELECT MAX(COALESCE(m.timestamp, m.created_at)) FROM messages m WHERE m.conversation_id = conv.id),
-            CASE WHEN conv.last_message_at IS NOT NULL AND conv.last_message_at <> conv.updated_at THEN conv.last_message_at ELSE NULL END,
-            conv.created_at
-          ) DESC,
+          COALESCE(conv.last_message_at, conv.created_at AT TIME ZONE 'UTC') DESC,
           conv.id DESC
       ) deduplicated
       ${searchClause}
