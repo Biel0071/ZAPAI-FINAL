@@ -29,6 +29,8 @@ import {
   normalizeLoadedMessage,
   sortMessagesAsc,
   mergeMessagesById,
+  mergeFetchedMessagesWithRealtimeUpdates,
+  shouldSyncInboxMessageDivergence,
   countNewMessageEntries,
   isViewportNearBottom,
   detectMediaType,
@@ -409,6 +411,7 @@ export function useInboxState() {
   const attachmentsStateRef = useRef<ComposerAttachment[]>([]);
   const replyingToStateRef = useRef<ChatMessage | null>(null);
   const lastRenderedTailKeyRef = useRef<string>("");
+  const lastDivergenceSyncKeyRef = useRef<string>("");
   const prevConvIdScrollRef = useRef<string>("");
   const scrollFrameRef = useRef<number | null>(null);
   const scrollTimerRef = useRef<number | null>(null);
@@ -1266,6 +1269,9 @@ export function useInboxState() {
 
       const requestId = Date.now();
       activeMessageRequestRef.current.set(normalizedConversationId, requestId);
+      const requestStartState = useAppStore.getState();
+      const requestStartConversationId = resolveStoreConversationId(requestStartState.conversations, normalizedConversationId);
+      const messagesAtRequestStart = requestStartState.messagesByConversationId[requestStartConversationId] || [];
       const shouldShowLoading = !options?.background && !(cached?.messages.length || persisted.length);
       if (shouldShowLoading) {
         setLoadingMessages(true);
@@ -1282,16 +1288,17 @@ export function useInboxState() {
           ? data.map((item, index) => normalizeLoadedMessage(item, normalizedConversationId, index))
           : [];
 
-        // Server response is the authoritative source of truth.
-        // Only merge temp outgoing messages (not yet confirmed) from the current in-memory state.
         const sorted = sortMessagesAsc(
           normalizedData.filter((item) => normalizeId(item.conversationId) === normalizeId(normalizedConversationId)),
         );
-        const currentInMemory = messagesRef.current.filter(
-          (msg) => String(msg.id).startsWith("temp-") && normalizeId(msg.conversationId) === normalizeId(normalizedConversationId),
+        const latestStore = useAppStore.getState();
+        const latestConversationId = resolveStoreConversationId(latestStore.conversations, normalizedConversationId);
+        const currentStoreMessages = latestStore.messagesByConversationId[latestConversationId] || [];
+        const mergedWithCache = mergeFetchedMessagesWithRealtimeUpdates(
+          sorted,
+          messagesAtRequestStart,
+          currentStoreMessages,
         );
-        // Use server data as the base; only append unconfirmed outgoing temp messages on top.
-        const mergedWithCache = sortMessagesAsc(mergeMessagesById(sorted, currentInMemory));
         // A short first page still needs one older-page probe so the user can
         // explicitly ask WhatsApp for history using a real message cursor.
         const hasMore = normalizedData.length >= MESSAGE_PAGE_SIZE || (!options?.background && normalizedData.length > 0);
@@ -1770,24 +1777,23 @@ export function useInboxState() {
 
     if (!sidebarText || !chatPanelText) return;
 
-    const isPlaceholder = (text: string) => {
-      const lower = text.toLowerCase();
-      return lower.startsWith("[") && lower.endsWith("]");
-    };
+    const syncKey = `${selectedConversation.id}:${selectedConversation.lastMessageAt || selectedConversation.updatedAt || ""}:${sidebarText}`;
+    if (!shouldSyncInboxMessageDivergence({
+      sidebarText,
+      panelText: chatPanelText,
+      syncKey,
+      lastSyncKey: lastDivergenceSyncKeyRef.current,
+    })) return;
 
-    if (isPlaceholder(sidebarText) || isPlaceholder(chatPanelText)) {
-      return;
-    }
+    const timer = setTimeout(() => {
+      if (lastDivergenceSyncKeyRef.current === syncKey) return;
+      lastDivergenceSyncKeyRef.current = syncKey;
+      console.info("[INBOX SYNC] Refreshing conversation after a latest-message mismatch.");
+      void loadConversationMessagesRef.current(selectedConversation.id, { force: true });
+    }, 2000);
 
-    if (sidebarText !== chatPanelText) {
-      const timer = setTimeout(() => {
-        console.warn(`[INBOX SYNC] Divergence detected. Sidebar: "${sidebarText}", Chat panel: "${chatPanelText}". Syncing...`);
-        void loadConversationMessagesRef.current(selectedConversation.id, { force: true });
-      }, 2000);
-
-      return () => clearTimeout(timer);
-    }
-  }, [selectedConversation?.id, selectedConversation?.lastMessage, messages]);
+    return () => clearTimeout(timer);
+  }, [selectedConversation?.id, selectedConversation?.lastMessage, selectedConversation?.lastMessageAt, selectedConversation?.updatedAt, messages]);
 
   const analyzeCurrentConversation = useCallback(async () => {
     if (!selectedConversation || messages.length === 0) return;

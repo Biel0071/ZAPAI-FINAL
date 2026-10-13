@@ -961,6 +961,50 @@ export function sortMessagesAsc(list: ChatMessage[]): ChatMessage[] {
   return result.sort(compareMessageTimes);
 }
 
+// eslint-disable-next-line react-refresh/only-export-components
+export function shouldSyncInboxMessageDivergence(params: {
+  sidebarText: string;
+  panelText: string;
+  syncKey: string;
+  lastSyncKey: string;
+}): boolean {
+  const sidebarText = params.sidebarText.trim();
+  const panelText = params.panelText.trim();
+  const isPlaceholder = (text: string) => text.startsWith("[") && text.endsWith("]");
+
+  return Boolean(
+    sidebarText &&
+    panelText &&
+    sidebarText !== panelText &&
+    !isPlaceholder(sidebarText) &&
+    !isPlaceholder(panelText) &&
+    params.syncKey !== params.lastSyncKey,
+  );
+}
+
+// eslint-disable-next-line react-refresh/only-export-components
+export function mergeFetchedMessagesWithRealtimeUpdates(
+  fetchedMessages: ChatMessage[],
+  messagesAtRequestStart: ChatMessage[],
+  currentMessages: ChatMessage[],
+): ChatMessage[] {
+  const requestStartById = new Map(messagesAtRequestStart.map((message) => [String(message.id), message]));
+  const mergedById = new Map(fetchedMessages.map((message) => [String(message.id), message]));
+
+  for (const message of currentMessages) {
+    const id = String(message.id);
+    const wasPresentAtRequestStart = requestStartById.has(id);
+    const changedDuringRequest = requestStartById.get(id) !== message;
+    const isPendingOutgoing = id.startsWith("temp-");
+
+    if (isPendingOutgoing || !wasPresentAtRequestStart || changedDuringRequest) {
+      mergedById.set(id, message);
+    }
+  }
+
+  return sortMessagesAsc(Array.from(mergedById.values()));
+}
+
 export function mergeMessagesById(base: ChatMessage[], incoming: ChatMessage[]): ChatMessage[] {
   const result: ChatMessage[] = [];
   const idMap = new Map<string, number>();
