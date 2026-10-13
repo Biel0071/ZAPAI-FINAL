@@ -7920,5 +7920,18 @@
       "VIS-003",
       "SYNC-001"
     ]
+  },
+  "deploymentValidation": {
+    "status": "Pendente",
+    "branch": "codex/professional-inbox-ai",
+    "reviewedCommit": "127aea88f62166c32f526ecb057138efe0b36adc",
+    "siteHttp": 200,
+    "apiHealth": {
+      "backend": true,
+      "database": "online",
+      "socket": "connected"
+    },
+    "publishedBundleMatchesAuditedBuild": false,
+    "reason": "O deploy automático usa main (122 commits atrás deste branch) e a chave SSH local não é autorizada; promover o histórico inteiro foi evitado."
   }
 }

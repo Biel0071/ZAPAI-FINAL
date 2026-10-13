@@ -100,6 +100,10 @@ A linha de base anterior tem 41 rotas; a rodada atual acrescenta cinco rotas/cas
 - As telas sem fixture de dados reais permanecem documentadas como vazias; as capturas não representam dados de produção.
 - Estados aceitos: **Não auditada**, **Aberta**, **Em correção**, **Corrigida** e **Verificada**. Verificada vale para o tema, largura e estado listados; não implica validação de integração em produção.
 
+### Situação da publicação
+
+O commit da auditoria foi enviado ao branch `codex/professional-inbox-ai`. A VPS responde normalmente, mas ainda serve um bundle diferente do build auditado; portanto, esta rodada **não está publicada**. O deploy automático atual dispara somente para `main`, que está 122 commits atrás deste branch, e a tentativa SSH local foi recusada por falta de chave autorizada. A promoção para `main` foi evitada para não incluir esse histórico não revisado; o deploy e a validação ponta a ponta da Inbox permanecem pendentes de um caminho autorizado para este branch.
+
 ### Inventário de rotas e abas
 
 | Grupo | Tela/estado | Rota canônica | Estado visual | Bugs abertos | Evidência |
