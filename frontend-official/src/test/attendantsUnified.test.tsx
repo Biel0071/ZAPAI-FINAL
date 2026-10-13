@@ -232,6 +232,8 @@ describe("Unified Attendants & Assistente ZAI Integration Tests", () => {
     let resolveReply: (value: any) => void = () => {};
     vi.mocked(apiService.testAIMessage).mockReturnValueOnce(new Promise(resolve => { resolveReply = resolve; }));
     await renderPage();
+    const sandboxAccordion = document.querySelector<HTMLElement>('[aria-controls="chat-sandbox-content"]');
+    await act(async () => sandboxAccordion?.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true })));
     const input = document.querySelector('input[placeholder^="Pergunte algo"]') as HTMLInputElement;
     await act(async () => {
       Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!.call(input, "Qual o horário?");
@@ -307,7 +309,28 @@ describe("Unified Attendants & Assistente ZAI Integration Tests", () => {
     expect(text).toContain("WhatsApps");
     expect(text).toContain("Respostas IA hoje0");
     expect(text).toContain("Tokens hoje0");
+    expect(text).toContain("Conversas hoje—");
+    expect(text).toContain("Leads hoje—");
     expect(text).not.toContain("99%");
+
+    const attendantSelector = document.querySelector<HTMLSelectElement>("#attendant-selector");
+    expect(attendantSelector?.tagName).toBe("SELECT");
+    expect(attendantSelector?.value).toBe("camila");
+    expect(attendantSelector?.options.length).toBeGreaterThan(2);
+    const managementDetails = Array.from(document.querySelectorAll("details")).find((details) =>
+      details.querySelector("summary")?.textContent?.includes("Gerenciar vínculos")
+    );
+    expect(managementDetails?.open).toBe(false);
+    expect(document.body.textContent).toContain("Avatar Studio 2.5D");
+    expect(document.querySelector('[class*="h-[230px]"]')).not.toBeNull();
+    const selectorPanel = document.querySelector<HTMLElement>('[aria-label="Seleção de atendente"]');
+    expect(selectorPanel?.className).toContain("md:grid-cols");
+    const avatarAccordion = document.querySelector<HTMLElement>('[aria-controls="avatar-studio-content"]');
+    expect(avatarAccordion?.getAttribute("aria-expanded")).toBe("true");
+    await act(async () => avatarAccordion?.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true })));
+    expect(avatarAccordion?.getAttribute("aria-expanded")).toBe("false");
+    await act(async () => avatarAccordion?.dispatchEvent(new KeyboardEvent("keydown", { key: " ", bubbles: true })));
+    expect(avatarAccordion?.getAttribute("aria-expanded")).toBe("true");
 
     // Workstation status
     expect(text).toContain("Aguardando conversa");

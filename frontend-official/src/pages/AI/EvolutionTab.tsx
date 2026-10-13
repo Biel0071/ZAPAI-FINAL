@@ -47,7 +47,7 @@ import { ActiveBrainGraph } from "@/components/evolution/ActiveBrainGraph";
 import { MemoryDetailDrawer, type MemoryNodeData } from "@/components/evolution/MemoryDetailDrawer";
 
 interface EvolutionOverview {
-  score: number;
+  score: number | null;
   level: string;
   goal: { current: number; target: number; percentage: number };
   components: { answers: number; refinements: number; coverage: number; queue: number };
@@ -82,21 +82,21 @@ interface LearnedPattern {
 }
 
 interface HumanStats {
-  level: number;
-  levelTitle: string;
-  totalXp: number;
-  currentLevelMinXp: number;
-  nextLevelXp: number;
-  progressPct: number;
-  evolutionScore: number;
+  level: number | null;
+  levelTitle: string | null;
+  totalXp: number | null;
+  currentLevelMinXp: number | null;
+  nextLevelXp: number | null;
+  progressPct: number | null;
+  evolutionScore: number | null;
   totalHumanMessages: number | null;
-  humanSamplesLearned: number;
+  humanSamplesLearned: number | null;
   activePlaybooks: number | null;
   naturalnessScore: number | null;
   conversionsCount: number | null;
   objectionsLearned: number | null;
   successRate: number | null;
-  totalAnalyzed: number;
+  totalAnalyzed: number | null;
 }
 
 export interface EvolutionTabProps {
@@ -105,32 +105,49 @@ export interface EvolutionTabProps {
   agents?: any[];
 }
 
+const KNOWN_MEMORY_CATEGORIES = [
+  { id: "client", label: "Clientes", color: "#06b6d4" },
+  { id: "preference", label: "Preferências", color: "#ec4899" },
+  { id: "topic", label: "Tópicos & Regras", color: "#10b981" },
+  { id: "payment", label: "Pagamentos & PIX", color: "#f59e0b" },
+  { id: "delivery", label: "Entrega & Frete", color: "#f43f5e" },
+  { id: "product", label: "Produtos", color: "#3b82f6" },
+  { id: "objection", label: "Objeções Resolvidas", color: "#8b5cf6" },
+];
+
 export function EvolutionTab({ agentKey, onSelectAgent, agents: initialAgents }: EvolutionTabProps = {}) {
   const { toast } = useToast();
+  const onSelectAgentRef = useRef(onSelectAgent);
+  onSelectAgentRef.current = onSelectAgent;
 
   const [agentsList, setAgentsList] = useState<any[]>(initialAgents || []);
-  const [selectedAgentKey, setSelectedAgentKey] = useState<string>(() => agentKey || "camila");
+  const [selectedAgentKey, setSelectedAgentKey] = useState<string>(() => agentKey || "");
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const loadRequestId = useRef(0);
+  const memoryRequestId = useRef(0);
+  const [memoryLoading, setMemoryLoading] = useState(Boolean(agentKey));
+  const [memoryError, setMemoryError] = useState<string | null>(null);
   const [isSyncingManual, setIsSyncingManual] = useState(false);
   const [isDetectingGaps, setIsDetectingGaps] = useState(false);
 
   useEffect(() => {
-    if (agentKey && agentKey !== selectedAgentKey) {
-      setSelectedAgentKey(agentKey);
-    }
+    setSelectedAgentKey(agentKey || "");
   }, [agentKey]);
 
   useEffect(() => {
     if (initialAgents && initialAgents.length > 0) {
       setAgentsList(initialAgents);
+      if (!agentKey && !onSelectAgentRef.current) {
+        const firstAttendant = initialAgents.find((a: any) => !a.isPlatformAssistant && a.key !== "zaibot");
+        if (firstAttendant) setSelectedAgentKey(firstAttendant.key || firstAttendant.id);
+      }
     } else if (typeof apiService?.getAIAgents === "function") {
       apiService.getAIAgents().then((res) => {
         const list = res?.agents || [];
         setAgentsList(list);
-        if (!agentKey && list.length > 0) {
-          const firstAttendant = list.find((a: any) => !a.isPlatformAssistant && a.key !== "zaibot") || list[0];
+        if (!agentKey && !onSelectAgentRef.current && list.length > 0) {
+          const firstAttendant = list.find((a: any) => !a.isPlatformAssistant && a.key !== "zaibot");
           if (firstAttendant) setSelectedAgentKey(firstAttendant.key || firstAttendant.id);
         }
       }).catch(() => {});
@@ -154,11 +171,12 @@ export function EvolutionTab({ agentKey, onSelectAgent, agents: initialAgents }:
   const [memoryCategory, setMemoryCategory] = useState<string>("todos");
   const [memoryPage, setMemoryPage] = useState(1);
   const [memoryItems, setMemoryItems] = useState<MemoryNodeData[]>([]);
+  const [centralConnectionIds, setCentralConnectionIds] = useState<Array<string | number>>([]);
   const [hasEvolutionData, setHasEvolutionData] = useState(false);
 
   // Score & Overview
   const [overview, setOverview] = useState<EvolutionOverview>({
-    score: 0,
+    score: null,
     level: "Sem dados",
     goal: { current: 0, target: 0, percentage: 0 },
     components: { answers: 0, refinements: 0, coverage: 0, queue: 0 },
@@ -166,21 +184,21 @@ export function EvolutionTab({ agentKey, onSelectAgent, agents: initialAgents }:
 
   // Human stats from manual attendance mining
   const [humanStats, setHumanStats] = useState<HumanStats>({
-    level: 0,
-    levelTitle: "Sem dados",
-    totalXp: 0,
-    currentLevelMinXp: 0,
-    nextLevelXp: 0,
-    progressPct: 0,
-    evolutionScore: 0,
+    level: null,
+    levelTitle: null,
+    totalXp: null,
+    currentLevelMinXp: null,
+    nextLevelXp: null,
+    progressPct: null,
+    evolutionScore: null,
     totalHumanMessages: null,
-    humanSamplesLearned: 0,
+    humanSamplesLearned: null,
     activePlaybooks: null,
     naturalnessScore: null,
     conversionsCount: null,
     objectionsLearned: null,
     successRate: null,
-    totalAnalyzed: 0,
+    totalAnalyzed: null,
   });
 
   // Learning gaps
@@ -200,8 +218,8 @@ export function EvolutionTab({ agentKey, onSelectAgent, agents: initialAgents }:
     setIsLoading(true);
     setLoadError(null);
     setHasEvolutionData(false);
-    setOverview({ score: 0, level: "Sem dados", goal: { current: 0, target: 0, percentage: 0 }, components: { answers: 0, refinements: 0, coverage: 0, queue: 0 } });
-    setHumanStats({ level: 0, levelTitle: "Sem dados", totalXp: 0, currentLevelMinXp: 0, nextLevelXp: 0, progressPct: 0, evolutionScore: 0, totalHumanMessages: null, humanSamplesLearned: 0, activePlaybooks: null, naturalnessScore: null, conversionsCount: null, objectionsLearned: null, successRate: null, totalAnalyzed: 0 });
+    setOverview({ score: null, level: "Sem dados", goal: { current: 0, target: 0, percentage: 0 }, components: { answers: 0, refinements: 0, coverage: 0, queue: 0 } });
+    setHumanStats({ level: null, levelTitle: null, totalXp: null, currentLevelMinXp: null, nextLevelXp: null, progressPct: null, evolutionScore: null, totalHumanMessages: null, humanSamplesLearned: null, activePlaybooks: null, naturalnessScore: null, conversionsCount: null, objectionsLearned: null, successRate: null, totalAnalyzed: null });
     setHistoryLogs([]);
     setLearnedPatterns([]);
     setCandidateSuggestions([]);
@@ -215,7 +233,9 @@ export function EvolutionTab({ agentKey, onSelectAgent, agents: initialAgents }:
         requestApiEndpoint<any>("/api/ai/evolution/suggestions"),
       ]);
       if (requestId !== loadRequestId.current) return;
-      if (patternsRes?.success === false) throw new Error("Padrões aprendidos indisponíveis.");
+      if ([evoRes, learnRes, patternsRes, levelRes, suggestionsRes].some((response) => response?.success === false)) {
+        throw new Error("Não foi possível carregar os dados de evolução deste atendente.");
+      }
 
       if (evoRes?.evolution) {
         setOverview(evoRes.evolution);
@@ -225,8 +245,9 @@ export function EvolutionTab({ agentKey, onSelectAgent, agents: initialAgents }:
       }
 
       const levelData = levelRes?.data || levelRes;
-      setHasEvolutionData(Boolean(evoRes?.evolution || typeof levelData?.level === "number"));
-      if (typeof levelData?.level === "number") {
+      const hasLevelData = Boolean(levelData && typeof levelData === "object" && Object.keys(levelData).some((key) => key !== "success"));
+      setHasEvolutionData(Boolean(evoRes?.evolution || hasLevelData));
+      if (hasLevelData) {
         setHumanStats((prev) => ({
           ...prev,
           ...levelData,
@@ -262,129 +283,96 @@ export function EvolutionTab({ agentKey, onSelectAgent, agents: initialAgents }:
 
   // Load agent memories & knowledge base
   const loadAgentMemories = useCallback(async (agentKey: string) => {
-    try {
-      const targetKey = agentKey && agentKey !== "zaibot" ? agentKey : "camila";
-      const res = await requestApiEndpoint<any>(`/api/ai/memory/graph?agentKey=${encodeURIComponent(targetKey)}&limit=80`);
-      const graph = res?.data || res;
-      if (Array.isArray(graph?.nodes) && graph.nodes.length > 0) {
-        const enrichedNodes: MemoryNodeData[] = graph.nodes
-          .filter((n: any) => n.type !== "agent")
-          .map((n: any) => ({
-            id: n.id,
-            type: n.type || "topic",
-            label: n.label || n.properties?.topic || n.id,
-            desc: n.desc || n.properties?.description || n.properties?.contactName || n.properties?.objection || n.properties?.preference || "Conhecimento consolidado",
-            confidence: n.val ? Math.min(100, Math.round(n.val * 10)) : 85,
-            phone: n.properties?.contactPhone || n.properties?.phone,
-            facts: [
-              `Padrão consolidado no escopo de ${n.type || "atendimento"}`,
-              `Assertividade calculada em ${n.val ? Math.min(100, Math.round(n.val * 10)) : 85}%`,
-              `Origem: histórico de atendimentos reais no WhatsApp`,
-            ],
-            connections: ["Atendimento WhatsApp", "Políticas da Loja", "Camila"],
-            conversationSnippet: n.desc || `Dúvida respondida com base em ${n.label || n.id}`,
-          }));
-        setMemoryItems(enrichedNodes);
-        if (enrichedNodes.length > 0) {
-          setSelectedMemoryNode((curr) => curr || enrichedNodes[0]);
-        }
-        return;
-      }
-    } catch {
-      // Graceful fallback: robust baseline memory nodes
+    const requestId = ++memoryRequestId.current;
+    setMemoryItems([]);
+    setCentralConnectionIds([]);
+    setSelectedMemoryNode(null);
+    setGraphCategoryFilter("todos");
+    setMemoryCategory("todos");
+    setMemorySearch("");
+    setMemoryError(null);
+    if (!agentKey) {
+      setMemoryLoading(false);
+      return;
     }
-
-    const defaultNodes: MemoryNodeData[] = [
-      {
-        id: "mem-pix-5",
-        label: "PIX com 5% de Desconto",
-        type: "payment",
-        desc: "Oferecer 5% de desconto para pagamentos à vista via chave PIX oficial da loja.",
-        confidence: 96,
-        facts: [
-          "Regra comercial prioritária para fechamento rápido",
-          "Aplicável a todos os orçamentos e pedidos",
-          "Taxa de conversão 28% superior quando ofertado",
-        ],
-        connections: ["Fechamento Comercial", "Pagamentos", "Chave PIX Oficial"],
-        conversationSnippet: "Cliente perguntou se tinha desconto à vista. Camila informou 5% no PIX e enviou a chave com total calculado.",
-      },
-      {
-        id: "mem-frete-gratis",
-        label: "Frete Grátis acima de R$ 300",
-        type: "delivery",
-        desc: "Entregas na região metropolitana têm frete grátis para compras a partir de R$ 300.",
-        confidence: 92,
-        facts: [
-          "Válido para raio de até 35km da matriz",
-          "Prazo estimado de entrega: 24h a 48h úteis",
-          "Calculadora de frete integrada pelo CEP",
-        ],
-        connections: ["Logística", "Entrega Rápida", "Região Metropolitana"],
-        conversationSnippet: "Para compras a partir de R$ 300 entregamos sem custo de frete aí na sua região!",
-      },
-      {
-        id: "mem-horario-loja",
-        label: "Horário de Funcionamento",
-        type: "topic",
-        desc: "Segunda a Sexta das 08h às 18h e Sábados das 08h às 13h.",
-        confidence: 98,
-        facts: [
-          "Atendimento humano no balcão e no WhatsApp comercial",
-          "Fora do horário, atendente digital registra pedidos e responde dúvidas",
-        ],
-        connections: ["Matriz", "Balcão", "Horários"],
-        conversationSnippet: "Estamos abertos de segunda a sexta das 08h às 18h e sábados das 08h às 13h.",
-      },
-      {
-        id: "mem-obj-preco",
-        label: "Objeção: Frete para Interior",
-        type: "objection",
-        desc: "Cliente questiona valor do frete para cidades do interior. Sugerir retirada ou transportadora parceira.",
-        confidence: 88,
-        facts: [
-          "Objeção detectada em atendimentos reais",
-          "Solução validada: cotação via transportadora parceira ou desconto no material",
-        ],
-        connections: ["Transportadoras", "Frete Interior", "Negociação"],
-        conversationSnippet: "Podemos cotar pela transportadora parceira ou aplicar um desconto no material para compensar o frete.",
-      },
-      {
-        id: "mem-churrasqueiras",
-        label: "Churrasqueiras Pré-moldadas",
-        type: "product",
-        desc: "Catálogo completo de churrasqueiras pré-moldadas, refratários e kits de instalação.",
-        confidence: 94,
-        facts: [
-          "Produto carro-chefe da loja",
-          "Acompanha grelha inox e manual de montagem",
-        ],
-        connections: ["Produtos", "Churrasqueiras", "Orçamentos"],
-        conversationSnippet: "Temos modelos a partir de 65cm até 85cm com revestimento refratário e acabamento inox.",
-      },
-      {
-        id: "mem-cliente-vip",
-        label: "Preferência: Respostas com Fotos",
-        type: "client",
-        desc: "Identificação de que clientes preferem fotos do modelo montado e link do catálogo.",
-        confidence: 90,
-        facts: [
-          "Mais de 120 clientes classificados",
-          "Atendente prioriza foto real do produto com dimensões",
-        ],
-        connections: ["Perfil do Cliente", "Comunicação", "WhatsApp"],
-        conversationSnippet: "Entendido! Segue a foto do modelo com as medidas exatas para facilitar sua escolha.",
-      },
-    ];
-
-    setMemoryItems(defaultNodes);
-    setSelectedMemoryNode((curr) => curr || defaultNodes[0]);
+    setMemoryLoading(true);
+    try {
+      const res = await requestApiEndpoint<any>(`/api/ai/memory/graph?agentKey=${encodeURIComponent(agentKey)}&limit=80`);
+      if (requestId !== memoryRequestId.current) return;
+      if (res?.success === false) throw new Error(res.error || "Falha ao consultar memórias.");
+      const graph = res?.data || res;
+      const nodes = Array.isArray(graph?.nodes) ? graph.nodes : [];
+      const edges = Array.isArray(graph?.edges) ? graph.edges : [];
+      const visibleNodes = nodes.filter((node: any) => node.type !== "agent");
+      const agentIds = new Set(nodes.filter((node: any) => node.type === "agent").map((node: any) => String(node.id)));
+      const labels = new Map(visibleNodes.map((node: any) => [String(node.id), node.label || node.properties?.topic || String(node.id)]));
+      const relations = new Map<string, Set<string>>();
+      const centralRelations = new Set<string>();
+      for (const edge of edges) {
+        const source = String(edge.source?.id ?? edge.source);
+        const target = String(edge.target?.id ?? edge.target);
+        if (agentIds.has(source) && labels.has(target)) centralRelations.add(target);
+        if (agentIds.has(target) && labels.has(source)) centralRelations.add(source);
+        if (!labels.has(source) || !labels.has(target)) continue;
+        if (!relations.has(source)) relations.set(source, new Set());
+        if (!relations.has(target)) relations.set(target, new Set());
+        relations.get(source)!.add(target);
+        relations.get(target)!.add(source);
+      }
+      const enrichedNodes: MemoryNodeData[] = visibleNodes.map((node: any) => {
+        const properties = node.properties || {};
+        const directConfidence = node.confidence ?? properties.confidence ?? properties.confidenceScore;
+        const facts = properties.facts ?? properties.observations;
+        const id = String(node.id);
+        const type = node.type === "contact" ? "client" : node.type || node.category || "unknown";
+        return {
+          id: node.id,
+          type,
+          category: node.category,
+          label: node.label || properties.topic || id,
+          desc: node.desc || node.description || properties.description || properties.summary || properties.contactName || properties.objection || properties.preference,
+          confidence: typeof directConfidence === "number" && Number.isFinite(directConfidence) ? directConfidence : undefined,
+          phone: properties.contactPhone || properties.phone,
+          facts: Array.isArray(facts) ? facts.filter((fact: unknown): fact is string => typeof fact === "string") : undefined,
+          connections: [...(relations.get(id) || [])].map((relatedId) => labels.get(relatedId)!).filter(Boolean),
+          connectionIds: [...(relations.get(id) || [])],
+          conversationSnippet: properties.conversationSnippet || properties.exampleConversation,
+          createdAt: node.createdAt || properties.createdAt,
+        };
+      });
+      setMemoryItems(enrichedNodes);
+      setCentralConnectionIds([...centralRelations]);
+      setSelectedMemoryNode(enrichedNodes[0] || null);
+    } catch (err) {
+      if (requestId !== memoryRequestId.current) return;
+      setMemoryItems([]);
+      setCentralConnectionIds([]);
+      setSelectedMemoryNode(null);
+      setMemoryError(err instanceof Error ? err.message : "Não foi possível carregar as memórias.");
+    } finally {
+      if (requestId === memoryRequestId.current) setMemoryLoading(false);
+    }
   }, []);
 
   useEffect(() => {
     if (selectedAgentKey) {
       void loadAgentData(selectedAgentKey);
       void loadAgentMemories(selectedAgentKey);
+    } else {
+      ++loadRequestId.current;
+      ++memoryRequestId.current;
+      setIsLoading(false);
+      setMemoryItems([]);
+      setCentralConnectionIds([]);
+      setSelectedMemoryNode(null);
+      setMemoryLoading(false);
+      setMemoryError(null);
+      setLoadError(null);
+      setHasEvolutionData(false);
+      setHistoryLogs([]);
+      setLearnedPatterns([]);
+      setCandidateSuggestions([]);
+      setLearningEvents([]);
     }
   }, [selectedAgentKey, loadAgentData, loadAgentMemories]);
 
@@ -400,9 +388,39 @@ export function EvolutionTab({ agentKey, onSelectAgent, agents: initialAgents }:
     return items;
   }, [memoryItems, memoryCategory, memorySearch]);
 
+  const memoryCategories = React.useMemo(() => {
+    const presentTypes = new Set(memoryItems.map((memory) => memory.type || memory.category || "unknown"));
+    const knownIds = new Set(KNOWN_MEMORY_CATEGORIES.map((category) => category.id));
+    const known = KNOWN_MEMORY_CATEGORIES
+      .filter((category) => presentTypes.has(category.id))
+      .map((category) => ({
+        ...category,
+        count: memoryItems.filter((memory) => (memory.type || memory.category) === category.id).length,
+      }));
+    const additional = [...presentTypes]
+      .filter((type) => !knownIds.has(type))
+      .map((type, index) => ({
+        id: type,
+        label: type === "unknown" ? "Sem categoria" : type.replace(/[_-]/g, " ").replace(/^\w/, (letter) => letter.toLocaleUpperCase("pt-BR")),
+        color: ["#14b8a6", "#f97316", "#a855f7", "#84cc16"][index % 4],
+        count: memoryItems.filter((memory) => (memory.type || memory.category || "unknown") === type).length,
+      }));
+    return [...known, ...additional];
+  }, [memoryItems]);
+
   useEffect(() => {
     setMemoryPage(1);
   }, [memoryCategory, memorySearch]);
+
+  useEffect(() => {
+    if (
+      selectedMemoryNode &&
+      graphCategoryFilter !== "todos" &&
+      (selectedMemoryNode.type || selectedMemoryNode.category) !== graphCategoryFilter
+    ) {
+      setSelectedMemoryNode(null);
+    }
+  }, [graphCategoryFilter, selectedMemoryNode]);
 
   const MEMORY_PAGE_SIZE = 10;
   const totalMemoryPages = Math.max(1, Math.ceil(filteredMemories.length / MEMORY_PAGE_SIZE));
@@ -411,38 +429,16 @@ export function EvolutionTab({ agentKey, onSelectAgent, agents: initialAgents }:
     return filteredMemories.slice(start, start + MEMORY_PAGE_SIZE);
   }, [filteredMemories, memoryPage]);
 
-  const calculatedXp = React.useMemo(() => {
-    if (humanStats.totalXp && humanStats.totalXp > 0) return humanStats.totalXp;
-    const mined = humanStats.humanSamplesLearned || 0;
-    const patternsCount = learnedPatterns.length || 0;
-    const resolvedObjections = humanStats.objectionsLearned || 0;
-    const scoreBase = overview.score || 0;
-    return mined * 30 + patternsCount * 45 + resolvedObjections * 50 + scoreBase * 10;
-  }, [humanStats, learnedPatterns, overview]);
-
-  const calculatedLevel = React.useMemo(() => {
-    if (humanStats.level && humanStats.level > 0) return humanStats.level;
-    if (calculatedXp >= 7000) return 5;
-    if (calculatedXp >= 3500) return 4;
-    if (calculatedXp >= 1500) return 3;
-    if (calculatedXp >= 500) return 2;
-    return calculatedXp > 0 ? 1 : 1;
-  }, [humanStats.level, calculatedXp]);
-
-  const levelTitles = ["Aprendiz", "Atendente Júnior", "Consultor Comercial", "Especialista em Fechamento", "Mestre da Conversão ZAI"];
-  const calculatedLevelTitle = humanStats.levelTitle && humanStats.levelTitle !== "Sem dados"
-    ? humanStats.levelTitle
-    : calculatedXp > 0 ? (levelTitles[calculatedLevel - 1] || "Aprendiz") : "Aprendiz";
-
   // Sync and Learn from Manual Attendances
   const handleSyncManual = async () => {
+    if (!selectedAgentKey) return;
     setIsSyncingManual(true);
     try {
       const res = await apiService.syncManualAttendance(300);
       if (res?.success) {
         toast({
           title: "Aprendizado Manual Concluído!",
-          description: `${res.pairsFound || 0} conversas reais analisadas e ${res.newSamplesLearned || 0} novos padrões de ouro absorvidos. O atendente evoluiu com o tom real dos operadores.`,
+          description: `${res.pairsFound ?? "—"} conversas analisadas e ${res.newSamplesLearned ?? "—"} novos padrões registrados.`,
         });
         await loadAgentData(selectedAgentKey);
       } else {
@@ -464,12 +460,13 @@ export function EvolutionTab({ agentKey, onSelectAgent, agents: initialAgents }:
 
   // Detect Gaps
   const handleDetectGaps = async () => {
+    if (!selectedAgentKey) return;
     setIsDetectingGaps(true);
     try {
       const res = await apiService.detectAgentGaps(selectedAgentKey);
       toast({
         title: "Varredura concluída",
-        description: `${res?.createdCount ?? 0} novas oportunidades de melhoria identificadas nas conversas.`,
+        description: `${res?.createdCount ?? "—"} oportunidades de melhoria identificadas nas conversas.`,
       });
       await loadAgentData(selectedAgentKey);
     } catch (err: any) {
@@ -622,12 +619,12 @@ export function EvolutionTab({ agentKey, onSelectAgent, agents: initialAgents }:
           <div>
             <h3 className="text-sm font-bold text-foreground flex items-center gap-2">
               Evolução & Memória do Atendente
-              <Badge variant="outline" className="text-[10px] border-purple-500/40 text-purple-300 bg-purple-500/10 capitalize">
-                {agentsList.find((a) => (a.key || a.id) === selectedAgentKey)?.name || (selectedAgentKey === "camila" ? "Camila" : selectedAgentKey)}
-              </Badge>
+              {selectedAgentKey && <Badge variant="outline" className="text-[10px] border-purple-500/40 text-purple-300 bg-purple-500/10 capitalize">
+                {agentsList.find((a) => (a.key || a.id) === selectedAgentKey)?.name || selectedAgentKey}
+              </Badge>}
             </h3>
             <p className="text-xs text-muted-foreground">
-              Este atendente está aprendendo com os atendimentos e consultas dos clientes.
+              {selectedAgentKey ? "Memórias e métricas registradas pelo sistema para este atendente." : "Selecione um atendente para consultar seus dados."}
             </p>
           </div>
         </div>
@@ -652,7 +649,7 @@ export function EvolutionTab({ agentKey, onSelectAgent, agents: initialAgents }:
             </div>
           )}
 
-          <Button
+          {selectedAgentKey && <Button
             type="button"
             variant="default"
             size="sm"
@@ -662,9 +659,9 @@ export function EvolutionTab({ agentKey, onSelectAgent, agents: initialAgents }:
           >
             <Sparkles className={cn("h-3.5 w-3.5", isSyncingManual && "animate-spin")} />
             {isSyncingManual ? "Minerando Atendimentos..." : "Aprender dos Atendimentos Manuais"}
-          </Button>
+          </Button>}
 
-          <Button
+          {selectedAgentKey && <Button
             type="button"
             variant="outline"
             size="sm"
@@ -674,9 +671,16 @@ export function EvolutionTab({ agentKey, onSelectAgent, agents: initialAgents }:
           >
             <Search className={cn("h-3.5 w-3.5", isDetectingGaps && "animate-spin")} />
             {isDetectingGaps ? "Analisando..." : "Escanear Lacunas"}
-          </Button>
+          </Button>}
         </div>
       </div>
+
+      {!selectedAgentKey ? (
+        <Card role="status" className="p-8 text-center border-border/70 bg-card/60">
+          <p className="text-sm font-medium text-foreground">{agentsList.length ? "Selecione um atendente para ver suas memórias." : "Nenhum atendente disponível."}</p>
+          <p className="mt-1 text-xs text-muted-foreground">Os dados de memória e evolução aparecerão aqui quando houver um atendente selecionado.</p>
+        </Card>
+      ) : <>
 
       {loadError && <Card role="alert" className="border-destructive/40 p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <p className="text-sm text-destructive">Não foi possível carregar métricas e padrões deste atendente: {loadError}</p>
@@ -694,7 +698,7 @@ export function EvolutionTab({ agentKey, onSelectAgent, agents: initialAgents }:
             </span>
             <div className="flex items-baseline gap-2">
               <strong className="text-xl font-bold font-mono text-foreground">
-                {memoryItems.length}
+                {memoryLoading ? "…" : memoryError ? "—" : memoryItems.length}
               </strong>
             </div>
           </div>
@@ -710,7 +714,7 @@ export function EvolutionTab({ agentKey, onSelectAgent, agents: initialAgents }:
             </span>
             <div className="flex items-baseline gap-2">
               <strong className="text-xl font-bold font-mono text-foreground">
-                {learnedPatterns.length}
+                {isLoading ? "…" : loadError ? "—" : learnedPatterns.length}
               </strong>
             </div>
           </div>
@@ -726,7 +730,7 @@ export function EvolutionTab({ agentKey, onSelectAgent, agents: initialAgents }:
             </span>
             <div className="flex items-baseline gap-2">
               <strong className="text-xl font-bold font-mono text-foreground">
-                {humanStats.objectionsLearned ?? 0}
+                {loadError ? "—" : humanStats.objectionsLearned ?? "—"}
               </strong>
             </div>
           </div>
@@ -742,7 +746,7 @@ export function EvolutionTab({ agentKey, onSelectAgent, agents: initialAgents }:
             </span>
             <div className="flex items-baseline gap-2">
               <strong className="text-xl font-bold font-mono text-foreground">
-                {humanStats.totalAnalyzed ?? 0}
+                {loadError ? "—" : humanStats.totalAnalyzed ?? "—"}
               </strong>
             </div>
           </div>
@@ -822,19 +826,14 @@ export function EvolutionTab({ agentKey, onSelectAgent, agents: initialAgents }:
                 Categorias do Cérebro
               </span>
               <Badge variant="outline" className="text-[10px] border-purple-500/30 text-purple-300">
-                {memoryItems.length} Nós
+                {memoryLoading ? "…" : memoryError ? "—" : memoryItems.length} Nós
               </Badge>
             </div>
 
             <div className="space-y-1 pt-1">
               {[
                 { id: "todos", label: "Todos os Nós", color: "#8b5cf6", count: memoryItems.length },
-                { id: "client", label: "Clientes", color: "#06b6d4", count: memoryItems.filter(m => (m.type || m.category) === "client").length || 1 },
-                { id: "topic", label: "Tópicos & Regras", color: "#10b981", count: memoryItems.filter(m => (m.type || m.category) === "topic").length || 1 },
-                { id: "payment", label: "Pagamentos & PIX", color: "#f59e0b", count: memoryItems.filter(m => (m.type || m.category) === "payment").length || 1 },
-                { id: "delivery", label: "Entrega & Frete", color: "#f43f5e", count: memoryItems.filter(m => (m.type || m.category) === "delivery").length || 1 },
-                { id: "product", label: "Produtos", color: "#3b82f6", count: memoryItems.filter(m => (m.type || m.category) === "product").length || 1 },
-                { id: "objection", label: "Objeções Resolvidas", color: "#8b5cf6", count: memoryItems.filter(m => (m.type || m.category) === "objection").length || 1 },
+                ...memoryCategories,
               ].map((cat) => (
                 <button
                   key={cat.id}
@@ -852,7 +851,7 @@ export function EvolutionTab({ agentKey, onSelectAgent, agents: initialAgents }:
                     <span>{cat.label}</span>
                   </span>
                   <span className="text-[10px] font-mono text-muted-foreground px-1.5 py-0.5 rounded bg-muted/40">
-                    {cat.count}
+                {memoryLoading ? "…" : memoryError ? "—" : cat.count}
                   </span>
                 </button>
               ))}
@@ -861,15 +860,29 @@ export function EvolutionTab({ agentKey, onSelectAgent, agents: initialAgents }:
 
           {/* Center Column: Interactive Active Brain Graph Canvas */}
           <div className={cn("space-y-2", selectedMemoryNode ? "lg:col-span-6" : "lg:col-span-9")}>
-            <ActiveBrainGraph
-              attendantName={agentsList.find((a) => (a.key || a.id) === selectedAgentKey)?.name || (selectedAgentKey === "camila" ? "Camila" : selectedAgentKey)}
+            {memoryLoading ? (
+              <div role="status" className="min-h-[220px] rounded-2xl border border-border/70 bg-card/60 flex items-center justify-center text-sm text-muted-foreground">Carregando memórias…</div>
+            ) : memoryError ? (
+              <div role="alert" className="min-h-[220px] rounded-2xl border border-destructive/40 bg-card/60 p-5 flex flex-col items-center justify-center gap-3 text-center">
+                <p className="text-sm text-destructive">Não foi possível carregar as memórias: {memoryError}</p>
+                <Button type="button" variant="outline" size="sm" onClick={() => void loadAgentMemories(selectedAgentKey)}><RefreshCw className="mr-2 h-4 w-4" />Tentar novamente</Button>
+              </div>
+            ) : memoryItems.length === 0 ? (
+              <div role="status" className="min-h-[220px] rounded-2xl border border-dashed border-border/70 bg-card/40 p-5 flex flex-col items-center justify-center gap-2 text-center">
+                <Brain className="h-8 w-8 text-muted-foreground" />
+                <p className="text-sm font-semibold text-foreground">Nenhuma memória registrada</p>
+                <p className="text-xs text-muted-foreground">As memórias aparecerão aqui quando forem registradas pelo sistema.</p>
+              </div>
+            ) : <ActiveBrainGraph
+              attendantName={agentsList.find((a) => (a.key || a.id) === selectedAgentKey)?.name || selectedAgentKey}
               avatarConfig={agentsList.find((a) => (a.key || a.id) === selectedAgentKey)?.avatarConfig}
               memories={memoryItems}
+              centralConnectionIds={centralConnectionIds}
               selectedCategory={graphCategoryFilter}
               selectedMemoryId={selectedMemoryNode?.id || null}
               onSelectMemory={(mem) => setSelectedMemoryNode(mem)}
               height={580}
-            />
+            />}
           </div>
 
           {/* Right Column: Memory Detail Drawer */}
@@ -911,7 +924,7 @@ export function EvolutionTab({ agentKey, onSelectAgent, agents: initialAgents }:
                 <div className="relative flex items-center justify-center">
                   <div className="h-28 w-28 rounded-full border-4 border-purple-500/20 flex flex-col items-center justify-center bg-purple-500/5 shadow-inner">
                     <span className="text-3xl font-black text-purple-400 font-display">
-                      {humanStats.evolutionScore ?? overview.score}
+                      {humanStats.evolutionScore ?? overview.score ?? "—"}
                     </span>
                     <span className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider">
                       Registros
@@ -921,16 +934,18 @@ export function EvolutionTab({ agentKey, onSelectAgent, agents: initialAgents }:
 
                 <div className="text-center space-y-2 w-full max-w-xs">
                   <Badge className="bg-purple-500/20 text-purple-300 border-purple-500/40 text-xs px-3 py-1 uppercase font-bold tracking-wider">
-                    Nível {humanStats.level || calculatedLevel}: {calculatedLevelTitle}
+                    Nível {humanStats.level ?? "—"}: {humanStats.levelTitle || "—"}
                   </Badge>
                   <div className="space-y-1 pt-1">
                     <div className="flex justify-between text-[11px] text-muted-foreground">
                       <span>Progresso do Nível</span>
                       <span className="font-mono font-bold text-foreground">
-                        {(humanStats.totalXp || calculatedXp).toLocaleString("pt-BR")} / {(humanStats.nextLevelXp || (calculatedLevel * 1500)).toLocaleString("pt-BR")} XP
+                        {humanStats.totalXp == null ? "—" : humanStats.totalXp.toLocaleString("pt-BR")} / {humanStats.nextLevelXp == null ? "—" : humanStats.nextLevelXp.toLocaleString("pt-BR")} XP
                       </span>
                     </div>
-                    <Progress value={humanStats.progressPct || Math.min(100, Math.round(((calculatedXp % 1500) / 1500) * 100))} className="h-2 bg-muted/40" />
+                    {humanStats.progressPct == null ? (
+                      <span className="text-xs text-muted-foreground">—</span>
+                    ) : <Progress value={humanStats.progressPct} className="h-2 bg-muted/40" />}
                   </div>
                 </div>
               </CardContent>
@@ -956,7 +971,9 @@ export function EvolutionTab({ agentKey, onSelectAgent, agents: initialAgents }:
                     </span>
                     <span className="text-muted-foreground font-mono font-bold">{humanStats.naturalnessScore == null ? "—" : `${humanStats.naturalnessScore}%`}</span>
                   </div>
-                  <Progress value={humanStats.naturalnessScore ?? 0} className="h-2 bg-muted/40" />
+                  {humanStats.naturalnessScore == null ? (
+                    <span className="text-xs text-muted-foreground">—</span>
+                  ) : <Progress value={humanStats.naturalnessScore} className="h-2 bg-muted/40" />}
                 </div>
 
                 <div className="space-y-1.5">
@@ -967,7 +984,6 @@ export function EvolutionTab({ agentKey, onSelectAgent, agents: initialAgents }:
                     </span>
                     <span className="text-muted-foreground font-mono font-bold">{humanStats.objectionsLearned == null ? "—" : `${humanStats.objectionsLearned} padrões`}</span>
                   </div>
-                  <Progress value={Math.min(100, (humanStats.objectionsLearned || 0) * 10)} className="h-2 bg-muted/40" />
                 </div>
               </CardContent>
             </Card>
@@ -995,12 +1011,14 @@ export function EvolutionTab({ agentKey, onSelectAgent, agents: initialAgents }:
                 variant="outline"
                 className={cn(
                   "text-xs px-2.5 py-0.5 font-bold",
-                  learningEvents.length > 0
+                  isLoading || loadError
+                    ? "border-border/60 text-muted-foreground bg-muted/10"
+                    : learningEvents.length > 0
                     ? "border-amber-500/40 text-amber-400 bg-amber-500/10"
                     : "border-emerald-500/40 text-emerald-400 bg-emerald-500/10"
                 )}
               >
-                {learningEvents.length > 0 ? `${learningEvents.length} pendentes` : "Sem pendências"}
+                {isLoading ? "…" : loadError ? "—" : learningEvents.length > 0 ? `${learningEvents.length} pendentes` : "Sem pendências"}
               </Badge>
             </div>
           </CardHeader>
@@ -1076,13 +1094,15 @@ export function EvolutionTab({ agentKey, onSelectAgent, agents: initialAgents }:
               <CardContent className="p-4">
                 {filteredMemories.length === 0 ? (
                   <div className="text-center py-8 text-xs text-muted-foreground border border-dashed border-border/60 rounded-xl p-4">
-                    Nenhuma memória encontrada para este filtro. Conforme novos atendimentos ocorrerem, os aprendizados consolidados serão listados aqui.
+                    {memoryLoading ? "Carregando memórias…" : memoryError ? "Não foi possível carregar as memórias." : memoryItems.length === 0 ? "Nenhuma memória registrada para este atendente." : "Nenhuma memória encontrada para este filtro."}
                   </div>
                 ) : (
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                     {paginatedMemories.map((mem) => {
                       const isObjection = mem.type === "objection";
                       const isPref = mem.type === "preference";
+                      const categoryLabel = KNOWN_MEMORY_CATEGORIES.find((category) => category.id === (mem.type || mem.category))?.label
+                        || ((mem.type || mem.category) === "unknown" ? "Sem categoria" : (mem.type || mem.category || "—").replace(/[_-]/g, " "));
                       const isSelected = selectedMemoryNode?.id === mem.id;
                       return (
                         <div
@@ -1108,10 +1128,10 @@ export function EvolutionTab({ agentKey, onSelectAgent, agents: initialAgents }:
                                     : "border-purple-500/40 text-purple-300 bg-purple-500/10"
                                 )}
                               >
-                                {isObjection ? "Objeção" : isPref ? "Preferência" : "Tópico & Regra"}
+                                {isObjection ? "Objeção" : isPref ? "Preferência" : categoryLabel}
                               </Badge>
-                              <span className="text-[10px] font-mono text-muted-foreground font-semibold">
-                                Assertividade {mem.confidence}%
+                            <span className="text-[10px] font-mono text-muted-foreground font-semibold">
+                                Assertividade {mem.confidence == null ? "—" : `${mem.confidence}%`}
                               </span>
                             </div>
                             <h4 className="text-xs font-bold text-foreground line-clamp-1">{mem.label}</h4>
@@ -1182,7 +1202,7 @@ export function EvolutionTab({ agentKey, onSelectAgent, agents: initialAgents }:
         <div className="space-y-6">
           {hasEvolutionData ? (
             <>
-              <div className="p-4 rounded-2xl border border-emerald-500/30 bg-emerald-950/20 shadow-xs flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+              {(humanStats.totalHumanMessages != null || humanStats.naturalnessScore != null) && <div className="p-4 rounded-2xl border border-emerald-500/30 bg-emerald-950/20 shadow-xs flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
         <div className="flex items-center gap-3">
           <div className="h-9 w-9 rounded-xl bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center text-emerald-400 shrink-0">
             <Zap className="h-5 w-5" />
@@ -1212,7 +1232,7 @@ export function EvolutionTab({ agentKey, onSelectAgent, agents: initialAgents }:
             <span>{humanStats.naturalnessScore == null ? "Naturalidade —" : `${humanStats.naturalnessScore}% Naturalidade`}</span>
           </div>
         </div>
-      </div>
+      </div>}
 
       {/* SECTION 1: SCORE OVERVIEW & LEVEL PROGRESSION */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
@@ -1231,7 +1251,7 @@ export function EvolutionTab({ agentKey, onSelectAgent, agents: initialAgents }:
             <div className="relative flex items-center justify-center">
               <div className="h-32 w-32 rounded-full border-4 border-purple-500/20 flex flex-col items-center justify-center bg-purple-500/5 shadow-inner">
                 <span className="text-4xl font-black text-purple-400 font-display">
-                  {humanStats.evolutionScore ?? overview.score}
+                  {humanStats.evolutionScore ?? overview.score ?? "—"}
                 </span>
                 <span className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider">
                   Registros
@@ -1241,16 +1261,18 @@ export function EvolutionTab({ agentKey, onSelectAgent, agents: initialAgents }:
 
             <div className="text-center space-y-2 w-full max-w-xs">
               <Badge className="bg-purple-500/20 text-purple-300 border-purple-500/40 text-xs px-3 py-1 uppercase font-bold tracking-wider">
-                Nível {humanStats.level || calculatedLevel}: {calculatedLevelTitle}
+                Nível {humanStats.level ?? "—"}: {humanStats.levelTitle || "—"}
               </Badge>
               <div className="space-y-1 pt-1">
                 <div className="flex justify-between text-[11px] text-muted-foreground">
                   <span>Progresso do Nível</span>
                   <span className="font-mono font-bold text-foreground">
-                    {(humanStats.totalXp || calculatedXp).toLocaleString("pt-BR")} / {(humanStats.nextLevelXp || (calculatedLevel * 1500)).toLocaleString("pt-BR")} XP
+                    {humanStats.totalXp == null ? "—" : humanStats.totalXp.toLocaleString("pt-BR")} / {humanStats.nextLevelXp == null ? "—" : humanStats.nextLevelXp.toLocaleString("pt-BR")} XP
                   </span>
                 </div>
-                <Progress value={humanStats.progressPct || Math.min(100, Math.round(((calculatedXp % 1500) / 1500) * 100))} className="h-2 bg-muted/40" />
+                {humanStats.progressPct == null ? (
+                  <span className="text-xs text-muted-foreground">—</span>
+                ) : <Progress value={humanStats.progressPct} className="h-2 bg-muted/40" />}
               </div>
             </div>
           </CardContent>
@@ -1277,7 +1299,9 @@ export function EvolutionTab({ agentKey, onSelectAgent, agents: initialAgents }:
                 </span>
                 <span className="text-muted-foreground font-mono font-bold">{humanStats.naturalnessScore == null ? "—" : `${humanStats.naturalnessScore}%`}</span>
               </div>
-              <Progress value={humanStats.naturalnessScore ?? 0} className="h-2 bg-muted/40" />
+              {humanStats.naturalnessScore == null ? (
+                <span className="text-xs text-muted-foreground">—</span>
+              ) : <Progress value={humanStats.naturalnessScore} className="h-2 bg-muted/40" />}
             </div>
 
             {/* Pilar 2: Objeções Aprendidas de Humanos */}
@@ -1285,7 +1309,7 @@ export function EvolutionTab({ agentKey, onSelectAgent, agents: initialAgents }:
               <div className="flex justify-between text-xs">
                 <span className="font-semibold text-foreground flex items-center gap-1.5">
                   <ShieldCheck className="h-3.5 w-3.5 text-emerald-400" />
-                  Objeções Reais Aprendidas (Frete, PIX, Medidas)
+                  Objeções Aprendidas
                 </span>
                 <span className="text-muted-foreground font-mono font-bold">{humanStats.objectionsLearned == null ? "—" : `${humanStats.objectionsLearned} resolvidas`}</span>
               </div>
@@ -1311,7 +1335,9 @@ export function EvolutionTab({ agentKey, onSelectAgent, agents: initialAgents }:
                 </span>
                 <span className="text-muted-foreground font-mono font-bold">{humanStats.successRate == null ? "—" : `${humanStats.successRate}%`}</span>
               </div>
-              <Progress value={humanStats.successRate ?? 0} className="h-2 bg-muted/40" />
+              {humanStats.successRate == null ? (
+                <span className="text-xs text-muted-foreground">—</span>
+              ) : <Progress value={humanStats.successRate} className="h-2 bg-muted/40" />}
             </div>
           </CardContent>
         </Card>
@@ -1343,12 +1369,14 @@ export function EvolutionTab({ agentKey, onSelectAgent, agents: initialAgents }:
               variant="outline"
               className={cn(
                 "text-xs px-2.5 py-0.5 font-bold",
-                candidateSuggestions.length > 0
+                isLoading || loadError
+                  ? "border-border/60 text-muted-foreground bg-muted/10"
+                  : candidateSuggestions.length > 0
                   ? "border-emerald-500/40 text-emerald-400 bg-emerald-500/10"
                   : "border-border/60 text-muted-foreground bg-muted/10"
               )}
             >
-              {candidateSuggestions.length > 0
+              {isLoading ? "…" : loadError ? "—" : candidateSuggestions.length > 0
                 ? `${candidateSuggestions.length} candidatos pendentes`
                 : "Sem candidatos pendentes"}
             </Badge>
@@ -1358,18 +1386,21 @@ export function EvolutionTab({ agentKey, onSelectAgent, agents: initialAgents }:
         <CardContent className="p-4 sm:p-5">
           {candidateSuggestions.length === 0 ? (
             <div className="py-8 text-center space-y-2 border border-dashed border-border/60 rounded-xl bg-muted/10">
-              <CheckCircle2 className="h-8 w-8 mx-auto text-emerald-400" />
+              {!loadError && !isLoading && <CheckCircle2 className="h-8 w-8 mx-auto text-emerald-400" />}
               <p className="text-xs font-semibold text-foreground">
-                Nenhum aprendizado candidato pendente no momento.
+                {isLoading ? "Carregando candidatos…" : loadError ? "Não foi possível consultar os candidatos." : "Nenhum aprendizado candidato pendente no momento."}
               </p>
               <p className="text-[11px] text-muted-foreground">
-                Conforme os operadores realizam atendimentos, novas oportunidades serão mineradas e listadas aqui.
+                {loadError ? "Tente novamente para consultar os dados mais recentes." : "As oportunidades registradas aparecerão aqui para validação."}
               </p>
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {candidateSuggestions.map((sug) => {
                 const isProcessing = processingSuggestionId === sug.id;
+                const confidence = typeof sug.confidence_score === "number" && Number.isFinite(sug.confidence_score)
+                  ? `${Math.round(sug.confidence_score * 100)}% confiança`
+                  : "—";
                 return (
                   <div
                     key={sug.id}
@@ -1377,16 +1408,16 @@ export function EvolutionTab({ agentKey, onSelectAgent, agents: initialAgents }:
                   >
                     <div className="flex items-center justify-between gap-2">
                       <Badge className="bg-emerald-500/15 text-emerald-300 border-emerald-500/30 text-[10px] font-bold uppercase tracking-wider">
-                        {sug.topic || "Estratégia de Atendimento"}
+                        {sug.topic || "—"}
                       </Badge>
                       <div className="flex items-center gap-2">
                         {sug.status === "testing" ? (
                           <Badge variant="outline" className="border-purple-500/40 text-purple-300 bg-purple-500/10 text-[9px] font-bold">
-                            Sandbox 10% Ativo
+                            Teste em andamento
                           </Badge>
                         ) : (
                           <span className="text-[10px] text-emerald-400 font-semibold">
-                            {sug.confidence_score ? `${Math.round(sug.confidence_score * 100)}% confiança` : "Alta Relevância"}
+                            {confidence}
                           </span>
                         )}
                       </div>
@@ -1395,14 +1426,14 @@ export function EvolutionTab({ agentKey, onSelectAgent, agents: initialAgents }:
                     <div className="space-y-1">
                       <span className="text-[10px] text-muted-foreground font-bold uppercase">Situação Identificada:</span>
                       <p className="text-xs text-foreground font-medium italic">
-                        "{sug.situation_summary || sug.pattern || "Situação identificada em conversas"}"
+                        {sug.situation_summary || sug.pattern || "—"}
                       </p>
                     </div>
 
                     <div className="space-y-1 bg-emerald-500/10 p-2.5 rounded-lg border border-emerald-500/20">
                       <span className="text-[10px] text-emerald-300 font-bold uppercase">Estratégia Proposta:</span>
                       <p className="text-xs text-foreground font-semibold">
-                        {sug.proposed_strategy || sug.golden_response || "Resposta recomendada para fechamento assertivo"}
+                        {sug.proposed_strategy || sug.golden_response || "—"}
                       </p>
                     </div>
 
@@ -1477,7 +1508,7 @@ export function EvolutionTab({ agentKey, onSelectAgent, agents: initialAgents }:
 
         <CardContent className="p-4 sm:p-5">
           {learnedPatterns.length === 0 ? (
-            <p className="py-8 text-center text-sm text-muted-foreground">Nenhum padrão aprendido está disponível para este atendente.</p>
+            <p className="py-8 text-center text-sm text-muted-foreground">{isLoading ? "Carregando padrões…" : loadError ? "Não foi possível carregar os padrões deste atendente." : "Nenhum padrão aprendido registrado para este atendente."}</p>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {learnedPatterns.map(pattern => (
@@ -1510,12 +1541,14 @@ export function EvolutionTab({ agentKey, onSelectAgent, agents: initialAgents }:
               variant="outline"
               className={cn(
                 "text-xs px-2.5 py-0.5 font-bold",
-                learningEvents.length > 0
+                isLoading || loadError
+                  ? "border-border/60 text-muted-foreground bg-muted/10"
+                  : learningEvents.length > 0
                   ? "border-amber-500/40 text-amber-400 bg-amber-500/10"
                   : "border-emerald-500/40 text-emerald-400 bg-emerald-500/10"
               )}
             >
-              {learningEvents.length > 0 ? `${learningEvents.length} pendentes` : "Sem pendências"}
+              {isLoading ? "…" : loadError ? "—" : learningEvents.length > 0 ? `${learningEvents.length} pendentes` : "Sem pendências"}
             </Badge>
           </div>
         </CardHeader>
@@ -1523,10 +1556,10 @@ export function EvolutionTab({ agentKey, onSelectAgent, agents: initialAgents }:
         <CardContent className="p-4 sm:p-5">
           {learningEvents.length === 0 ? (
             <div className="py-8 text-center space-y-2 border border-dashed border-border/60 rounded-xl bg-muted/10">
-              <CheckCircle2 className="h-8 w-8 mx-auto text-emerald-400" />
-              <p className="text-xs font-semibold text-foreground">Nenhuma lacuna pendente no momento!</p>
+              {!loadError && !isLoading && <CheckCircle2 className="h-8 w-8 mx-auto text-emerald-400" />}
+              <p className="text-xs font-semibold text-foreground">{isLoading ? "Carregando lacunas…" : loadError ? "Não foi possível consultar as lacunas." : "Nenhuma lacuna pendente registrada."}</p>
               <p className="text-[11px] text-muted-foreground">
-                Seu atendente está respondendo todas as dúvidas dos clientes com confiança e naturalidade.
+                {loadError ? "Tente novamente para consultar os dados mais recentes." : "As lacunas registradas aparecerão aqui para validação."}
               </p>
             </div>
           ) : (
@@ -1605,7 +1638,7 @@ export function EvolutionTab({ agentKey, onSelectAgent, agents: initialAgents }:
         <CardContent className="p-4 sm:p-5">
           {historyLogs.length === 0 ? (
             <div className="py-6 text-center text-xs text-muted-foreground">
-              O histórico evolutivo será registrado conforme o atendente for treinado.
+              {isLoading ? "Carregando histórico…" : loadError ? "Não foi possível carregar o histórico deste atendente." : "Nenhuma atualização de evolução registrada para este atendente."}
             </div>
           ) : (
             <div className="space-y-3 relative before:absolute before:left-3 before:top-2 before:bottom-2 before:w-[1px] before:bg-border/60">
@@ -1615,8 +1648,8 @@ export function EvolutionTab({ agentKey, onSelectAgent, agents: initialAgents }:
                   <div className="flex-1 text-xs space-y-0.5">
                     <p className="font-semibold text-foreground">{log.description}</p>
                     <div className="flex items-center gap-2 text-[10px] text-muted-foreground">
-                      <span>{log.createdAt || "Recentemente"}</span>
-                      {log.scoreChange && (
+                      <span>{log.createdAt || "—"}</span>
+                      {log.scoreChange != null && (
                         <span className="text-emerald-400 font-bold">+{log.scoreChange} pts</span>
                       )}
                     </div>
@@ -1629,6 +1662,7 @@ export function EvolutionTab({ agentKey, onSelectAgent, agents: initialAgents }:
       </Card>
         </div>
       )}
+      </>}
     </div>
   );
 }

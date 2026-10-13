@@ -204,7 +204,10 @@ describe("ZAI CRM — Active Brain Graph & Memory Detail Drawer", () => {
 
     // Expect Central Attendant Node
     expect(container.textContent).toContain("Camila");
-    expect(container.textContent).toContain("Cérebro Ativo Online");
+    expect(container.textContent).toContain("CÉREBRO ATIVO");
+    expect(container.textContent).toContain("Atendente selecionado");
+    expect(container.textContent).toContain("Pagamentos & PIX1 itens");
+    expect(container.textContent).not.toContain("Clientes0 itens");
 
     // Expect Toolbar Controls
     expect(container.querySelector('button[title="Aumentar Zoom"]')).toBeDefined();

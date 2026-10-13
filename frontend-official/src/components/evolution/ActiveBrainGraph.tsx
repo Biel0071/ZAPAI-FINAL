@@ -8,6 +8,7 @@ export interface ActiveBrainGraphProps {
   attendantName: string;
   avatarConfig?: any;
   memories: MemoryNodeData[];
+  centralConnectionIds?: Array<string | number>;
   selectedCategory: string;
   selectedMemoryId: string | number | null;
   onSelectMemory: (memory: MemoryNodeData) => void;
@@ -23,10 +24,31 @@ interface GraphCategoryBranch {
   distance: number;
 }
 
+const GRAPH_CATEGORY_LABELS: Record<string, string> = {
+  client: "Clientes",
+  preference: "Preferências",
+  topic: "Tópicos & Regras",
+  payment: "Pagamentos & PIX",
+  delivery: "Entrega & Frete",
+  product: "Produtos",
+  objection: "Objeções",
+  unknown: "Sem categoria",
+};
+const GRAPH_CATEGORY_COLORS: Record<string, string> = {
+  client: "#06b6d4",
+  preference: "#ec4899",
+  topic: "#10b981",
+  payment: "#f59e0b",
+  delivery: "#f43f5e",
+  product: "#3b82f6",
+  objection: "#8b5cf6",
+};
+
 export const ActiveBrainGraph: React.FC<ActiveBrainGraphProps> = ({
   attendantName,
   avatarConfig,
   memories,
+  centralConnectionIds = [],
   selectedCategory,
   selectedMemoryId,
   onSelectMemory,
@@ -58,24 +80,24 @@ export const ActiveBrainGraph: React.FC<ActiveBrainGraphProps> = ({
   const centerX = viewBoxSize.width / 2;
   const centerY = viewBoxSize.height / 2;
 
-  // Primary Category Branches
-  const categoryBranches: GraphCategoryBranch[] = useMemo(
-    () => [
-      { id: "client", label: "Clientes", color: "#06b6d4", angle: (0 * Math.PI) / 3, distance: 160 },
-      { id: "topic", label: "Tópicos & Regras", color: "#10b981", angle: (1 * Math.PI) / 3, distance: 160 },
-      { id: "payment", label: "Pagamentos & PIX", color: "#f59e0b", angle: (2 * Math.PI) / 3, distance: 160 },
-      { id: "delivery", label: "Entrega & Frete", color: "#f43f5e", angle: (3 * Math.PI) / 3, distance: 160 },
-      { id: "product", label: "Produtos", color: "#3b82f6", angle: (4 * Math.PI) / 3, distance: 160 },
-      { id: "objection", label: "Objeções", color: "#8b5cf6", angle: (5 * Math.PI) / 3, distance: 160 },
-    ],
-    []
-  );
+  // Category anchors are generated from the real node types returned by the API.
+  const categoryBranches: GraphCategoryBranch[] = useMemo(() => {
+    const present = memories.map((memory) => memory.type || memory.category || "unknown");
+    const categories = [...new Set(present)];
+    return categories.map((id, index) => ({
+      id,
+      label: GRAPH_CATEGORY_LABELS[id] || id.replace(/[_-]/g, " ").replace(/^\w/, (letter) => letter.toLocaleUpperCase("pt-BR")),
+      color: GRAPH_CATEGORY_COLORS[id] || ["#14b8a6", "#f97316", "#a855f7", "#84cc16"][index % 4],
+      angle: (index * 2 * Math.PI) / categories.length,
+      distance: 160,
+    }));
+  }, [memories]);
 
   // Filter memories if a category is selected
   const activeMemories = useMemo(() => {
     if (!selectedCategory || selectedCategory === "todos") return memories;
     return memories.filter((m) => {
-      const type = m.type || m.category || "topic";
+      const type = m.type || m.category || "unknown";
       return type === selectedCategory;
     });
   }, [memories, selectedCategory]);
@@ -99,7 +121,7 @@ export const ActiveBrainGraph: React.FC<ActiveBrainGraphProps> = ({
     });
 
     activeMemories.forEach((mem) => {
-      const cat = mem.type || mem.category || "topic";
+      const cat = mem.type || mem.category || "unknown";
       if (!byCategory[cat]) byCategory[cat] = [];
       byCategory[cat].push(mem);
     });
@@ -130,6 +152,23 @@ export const ActiveBrainGraph: React.FC<ActiveBrainGraphProps> = ({
 
     return result;
   }, [activeMemories, categoryBranches, centerX, centerY, selectedMemoryId]);
+
+  const connectionLines = useMemo(() => {
+    const positions = new Map(positionedNodes.map((node) => [String(node.memory.id), node]));
+    const seen = new Set<string>();
+    return positionedNodes.flatMap((node) => (node.memory.connectionIds || []).flatMap((relatedId) => {
+      const target = positions.get(String(relatedId));
+      const sourceId = String(node.memory.id);
+      const targetId = String(relatedId);
+      const edgeKey = [sourceId, targetId].sort().join("::");
+      if (!target || seen.has(edgeKey)) return [];
+      seen.add(edgeKey);
+      return [{ source: node, target, key: edgeKey }];
+    }));
+  }, [positionedNodes]);
+  const centralConnections = positionedNodes.filter((node) =>
+    centralConnectionIds.some((id) => String(id) === String(node.memory.id))
+  );
 
   // Pan / Drag handlers
   const handleMouseDown = (e: React.MouseEvent) => {
@@ -209,18 +248,18 @@ export const ActiveBrainGraph: React.FC<ActiveBrainGraphProps> = ({
         </span>
       </div>
 
-      {/* Bottom Connection Intensity Indicator */}
+      {activeMemories.length === 0 && (
+        <div role="status" className="absolute inset-x-4 top-1/2 z-10 -translate-y-1/2 text-center pointer-events-none">
+          <span className="inline-block rounded-xl border border-border/70 bg-card/90 px-4 py-2 text-xs font-medium text-muted-foreground shadow-sm">
+            Nenhuma memória nesta categoria
+          </span>
+        </div>
+      )}
+
+      {/* Number of API-backed relationships */}
       <div className="absolute bottom-3 left-3 z-20 hidden sm:flex items-center gap-3 p-1.5 px-3 rounded-xl bg-card/80 backdrop-blur-md border border-border/60 text-[10px] text-muted-foreground">
-        <span className="font-bold text-foreground">Intensidade:</span>
-        <span className="flex items-center gap-1">
-          <span className="h-1.5 w-4 rounded-full bg-emerald-400" /> Forte
-        </span>
-        <span className="flex items-center gap-1">
-          <span className="h-1.5 w-4 rounded-full bg-purple-400" /> Média
-        </span>
-        <span className="flex items-center gap-1">
-          <span className="h-1.5 w-4 rounded-full bg-slate-500" /> Fraca
-        </span>
+        <span className="font-bold text-foreground">Conexões registradas:</span>
+        <span>{connectionLines.length + centralConnections.length}</span>
       </div>
 
       {/* SVG Canvas */}
@@ -248,50 +287,42 @@ export const ActiveBrainGraph: React.FC<ActiveBrainGraphProps> = ({
 
         {/* Transformed Group (Zoom & Pan) */}
         <g transform={`translate(${pan.x}, ${pan.y}) scale(${zoom})`} transform-origin={`${centerX} ${centerY}`}>
-          {/* Large subtle aura */}
+        {/* Large subtle aura */}
           <circle cx={centerX} cy={centerY} r={280} fill="url(#centerGlow)" />
 
-          {/* Lines from Center to Primary Category Branches */}
-          {categoryBranches.map((branch) => {
-            const bx = centerX + Math.cos(branch.angle) * branch.distance;
-            const by = centerY + Math.sin(branch.angle) * branch.distance;
-            return (
-              <g key={`branch-line-${branch.id}`}>
-                <line
-                  x1={centerX}
-                  y1={centerY}
-                  x2={bx}
-                  y2={by}
-                  stroke={branch.color}
-                  strokeWidth="2.5"
-                  strokeOpacity="0.45"
-                  strokeDasharray="4 4"
-                />
-              </g>
-            );
-          })}
-
-          {/* Lines from Category Branches to Leaf Memories */}
-          {positionedNodes.map((item, idx) => {
-            return (
-              <line
-                key={`leaf-line-${idx}`}
-                x1={item.branchX}
-                y1={item.branchY}
-                x2={item.x}
-                y2={item.y}
-                stroke={item.branchColor}
-                strokeWidth={item.isSelected ? "2.5" : "1.2"}
-                strokeOpacity={item.isSelected ? "0.9" : "0.35"}
-              />
-            );
-          })}
+          {/* Only draw relationships returned by the memory graph API. */}
+          {centralConnections.map((node) => (
+            <line
+              key={`agent-edge-${node.memory.id}`}
+              data-testid="memory-relationship"
+              x1={centerX}
+              y1={centerY}
+              x2={node.x}
+              y2={node.y}
+              stroke={node.branchColor}
+              strokeWidth={node.isSelected ? "2.5" : "1.4"}
+              strokeOpacity={node.isSelected ? "0.85" : "0.55"}
+            />
+          ))}
+          {connectionLines.map(({ source, target, key }) => (
+            <line
+              key={`memory-edge-${key}`}
+              data-testid="memory-relationship"
+              x1={source.x}
+              y1={source.y}
+              x2={target.x}
+              y2={target.y}
+              stroke={source.branchColor}
+              strokeWidth={source.isSelected || target.isSelected ? "2.5" : "1.4"}
+              strokeOpacity={source.isSelected || target.isSelected ? "0.85" : "0.55"}
+            />
+          ))}
 
           {/* Primary Category Branch Nodes */}
           {categoryBranches.map((branch) => {
             const bx = centerX + Math.cos(branch.angle) * branch.distance;
             const by = centerY + Math.sin(branch.angle) * branch.distance;
-            const count = memories.filter((m) => (m.type || m.category || "topic") === branch.id).length;
+            const count = memories.filter((m) => (m.type || m.category || "unknown") === branch.id).length;
 
             return (
               <g key={`branch-node-${branch.id}`} className="cursor-pointer">
@@ -333,9 +364,19 @@ export const ActiveBrainGraph: React.FC<ActiveBrainGraphProps> = ({
               <g
                 key={`leaf-${item.memory.id}`}
                 onClick={() => onSelectMemory(item.memory)}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter" || event.key === " ") {
+                    event.preventDefault();
+                    onSelectMemory(item.memory);
+                  }
+                }}
                 onMouseEnter={() => setHoveredNodeId(item.memory.id)}
                 onMouseLeave={() => setHoveredNodeId(null)}
-                className="cursor-pointer group"
+                role="button"
+                tabIndex={0}
+                aria-label={`Selecionar memória: ${item.memory.label}`}
+                aria-pressed={item.isSelected}
+                className="cursor-pointer group focus-visible:outline-none"
               >
                 {/* Pulse ring if selected */}
                 {item.isSelected && (
@@ -431,7 +472,7 @@ export const ActiveBrainGraph: React.FC<ActiveBrainGraphProps> = ({
               fontWeight="bold"
               className="drop-shadow-md"
             >
-              {attendantName || "Camila"}
+              {attendantName || "Atendente"}
             </text>
             <text
               x={centerX}
@@ -442,7 +483,7 @@ export const ActiveBrainGraph: React.FC<ActiveBrainGraphProps> = ({
               fontWeight="600"
               className="font-mono"
             >
-              ● Cérebro Ativo Online
+              ● Atendente selecionado
             </text>
           </g>
         </g>

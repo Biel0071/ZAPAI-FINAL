@@ -21,6 +21,7 @@ export interface MemoryNodeData {
   confidence?: number;
   facts?: string[];
   connections?: string[];
+  connectionIds?: Array<string | number>;
   conversationSnippet?: string;
   phone?: string;
   createdAt?: string;
@@ -43,8 +44,7 @@ export const MemoryDetailDrawer: React.FC<MemoryDetailDrawerProps> = ({
 }) => {
   if (!memory) return null;
 
-  const category = memory.type || memory.category || "topic";
-  const confidence = memory.confidence || 85;
+  const category = memory.type || memory.category || "unknown";
 
   const getCategoryBadge = () => {
     switch (category) {
@@ -59,32 +59,27 @@ export const MemoryDetailDrawer: React.FC<MemoryDetailDrawerProps> = ({
         return { label: "Objeção Comercial", color: "border-purple-500/40 text-purple-300 bg-purple-500/10" };
       case "product":
         return { label: "Produto & Catálogo", color: "border-blue-500/40 text-blue-300 bg-blue-500/10" };
+      case "episode":
+        return { label: "Atendimento", color: "border-sky-500/40 text-sky-300 bg-sky-500/10" };
+      case "concept":
+        return { label: "Conceito", color: "border-indigo-500/40 text-indigo-300 bg-indigo-500/10" };
+      case "habit":
+        return { label: "Hábito", color: "border-teal-500/40 text-teal-300 bg-teal-500/10" };
+      case "insight":
+        return { label: "Insight", color: "border-fuchsia-500/40 text-fuchsia-300 bg-fuchsia-500/10" };
+      case "product_media":
+        return { label: "Mídia de Produto", color: "border-blue-500/40 text-blue-300 bg-blue-500/10" };
+      case "unknown":
+        return { label: "Memória", color: "border-border/70 text-muted-foreground bg-muted/20" };
       default:
-        return { label: "Tópico & Regra", color: "border-emerald-500/40 text-emerald-300 bg-emerald-500/10" };
+        return { label: category.replace(/[_-]/g, " ").replace(/^\w/, (letter) => letter.toLocaleUpperCase("pt-BR")), color: "border-border/70 text-muted-foreground bg-muted/20" };
     }
   };
 
   const badgeInfo = getCategoryBadge();
 
-  // Generate sensible facts and connections if not provided
-  const facts = memory.facts || [
-    `Padrão consolidado através de conversas reais no WhatsApp`,
-    `Taxa de assertividade calculada em ${confidence}% com base no feedback`,
-    `Classificado automaticamente no escopo de ${badgeInfo.label}`,
-  ];
-
-  const connections = memory.connections || [
-    "Atendimento Comercial",
-    "Políticas de Vendas",
-    "FAQ da Loja",
-    "Camila (Atendente)",
-  ];
-
-  const conversationSnippet =
-    memory.conversationSnippet ||
-    (memory.desc
-      ? `"${memory.desc}"`
-      : `"Cliente solicitou confirmação de prazo e condições de pagamento antes de fechar o pedido."`);
+  const facts = memory.facts || [];
+  const connections = memory.connections || [];
 
   return (
     <aside
@@ -119,14 +114,14 @@ export const MemoryDetailDrawer: React.FC<MemoryDetailDrawerProps> = ({
           </button>
         </div>
 
-        {/* Category & Confidence */}
+        {/* Category & confidence from the API, when present */}
         <div className="flex items-center justify-between gap-2">
           <Badge variant="outline" className={cn("text-[10px] font-bold uppercase", badgeInfo.color)}>
             {badgeInfo.label}
           </Badge>
           <span className="text-[11px] font-mono font-bold text-emerald-400 flex items-center gap-1">
-            <CheckCircle2 className="h-3 w-3" />
-            Assertividade {confidence}%
+            {typeof memory.confidence === "number" && Number.isFinite(memory.confidence) && <CheckCircle2 className="h-3 w-3" />}
+            Assertividade {typeof memory.confidence === "number" && Number.isFinite(memory.confidence) ? `${memory.confidence}%` : "—"}
           </span>
         </div>
 
@@ -143,12 +138,12 @@ export const MemoryDetailDrawer: React.FC<MemoryDetailDrawerProps> = ({
             Resumo
           </span>
           <p className="text-xs text-foreground/90 leading-relaxed">
-            {memory.desc || "Informação cognitiva capturada durante o atendimento que orienta respostas futuras."}
+            {memory.desc || "Sem resumo disponível."}
           </p>
         </div>
 
         {/* Observações & Fatos */}
-        <div className="space-y-2">
+        {facts.length > 0 && <div className="space-y-2">
           <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider block">
             Observações & Fatos Aprendidos
           </span>
@@ -160,10 +155,10 @@ export const MemoryDetailDrawer: React.FC<MemoryDetailDrawerProps> = ({
               </li>
             ))}
           </ul>
-        </div>
+        </div>}
 
         {/* Conexões Relacionadas */}
-        <div className="space-y-2">
+        {connections.length > 0 && <div className="space-y-2">
           <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider block">
             Conexões Relacionadas
           </span>
@@ -177,18 +172,18 @@ export const MemoryDetailDrawer: React.FC<MemoryDetailDrawerProps> = ({
               </span>
             ))}
           </div>
-        </div>
+        </div>}
 
         {/* Exemplos de Conversas */}
-        <div className="space-y-1.5 p-2.5 rounded-xl bg-purple-950/20 border border-purple-500/20">
+        {memory.conversationSnippet && <div className="space-y-1.5 p-2.5 rounded-xl bg-purple-950/20 border border-purple-500/20">
           <div className="flex items-center gap-1.5 text-purple-400 text-[10px] font-bold uppercase">
             <MessageSquare className="h-3.5 w-3.5" />
             <span>Exemplo de Conversa</span>
           </div>
           <p className="text-[11px] text-purple-200/90 italic leading-relaxed">
-            {conversationSnippet}
+            {memory.conversationSnippet}
           </p>
-        </div>
+        </div>}
       </div>
 
       {/* Action Buttons */}

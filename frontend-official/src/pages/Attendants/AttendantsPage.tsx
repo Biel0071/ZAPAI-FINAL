@@ -50,8 +50,6 @@ import { AgentProfileModal } from "@/components/ai/AgentProfileModal";
 import { NewAgentWizardModal } from "@/components/ai/NewAgentWizardModal";
 import { AvatarEditorModal } from "@/components/avatar-engine/AvatarEditorModal";
 import { ZaiAvatarRenderer } from "@/components/avatar-engine/ZaiAvatarRenderer";
-import { AttendantItemCard } from "@/components/attendants/AttendantItemCard";
-import { AddAttendantCard } from "@/components/attendants/AddAttendantCard";
 import { EXAMPLE_ATTENDANTS } from "@/components/attendants/exampleAttendants";
 import { Pagination } from "@/components/ui/pagination";
 import { Slider } from "@/components/ui/slider";
@@ -167,7 +165,6 @@ export default function AttendantsPage() {
   const [customizerAgent, setCustomizerAgent] = useState<any | null>(null);
   const [profileAgent, setProfileAgent] = useState<any | null>(null);
   const [isWizardOpen, setIsWizardOpen] = useState(false);
-  const [showExampleModels, setShowExampleModels] = useState(false);
   useEffect(() => {
     if (searchParams.get("new") !== "1") return;
     setIsWizardOpen(true);
@@ -279,8 +276,8 @@ export default function AttendantsPage() {
     return () => { cancelled = true; };
   }, [previewAgent?.key, previewSession?.sessionId]);
 
-  function formatTokens(tokens: number): string {
-    if (!tokens || isNaN(tokens)) return "0";
+  function formatTokens(tokens: number | null | undefined): string {
+    if (tokens == null || !Number.isFinite(tokens)) return "—";
     if (tokens >= 1_000_000) return `${(tokens / 1_000_000).toFixed(1).replace(/\.0$/, "")}M`;
     if (tokens >= 1_000) return `${(tokens / 1_000).toFixed(1).replace(/\.0$/, "")}K`;
     return String(tokens);
@@ -455,10 +452,10 @@ export default function AttendantsPage() {
   const [activeStep, setActiveStep] = useState<number>(1);
   const [collapsedCards, setCollapsedCards] = useState<Record<string, boolean>>({
     avatarStudio: false,
-    objectiveTone: false,
-    prompt: false,
-    providers: false,
-    chatSandbox: false,
+    objectiveTone: true,
+    prompt: true,
+    providers: true,
+    chatSandbox: true,
   });
 
   const toggleCard = (cardKey: string) => {
@@ -466,6 +463,13 @@ export default function AttendantsPage() {
       ...prev,
       [cardKey]: !prev[cardKey],
     }));
+  };
+
+  const handleCardHeaderKeyDown = (event: React.KeyboardEvent<HTMLElement>, cardKey: string) => {
+    if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault();
+      toggleCard(cardKey);
+    }
   };
 
   const toggleAllCards = () => {
@@ -601,15 +605,6 @@ export default function AttendantsPage() {
     if (selectedStoreFilter === "all") return agents;
     return agents.filter((a) => belongsToStore(a, selectedStoreFilter));
   }, [agents, selectedStoreFilter, belongsToStore, selectedWhatsApp]);
-
-  // Top Carousel Pagination (Canonical: max 5 real attendants visible per view)
-  const [attendantPage, setAttendantPage] = useState(1);
-  const ATTENDANTS_PER_PAGE = 5;
-  const totalAttendantPages = Math.max(1, Math.ceil(agents.length / ATTENDANTS_PER_PAGE));
-  const paginatedAgents = useMemo(() => {
-    const start = (attendantPage - 1) * ATTENDANTS_PER_PAGE;
-    return agents.slice(start, start + ATTENDANTS_PER_PAGE);
-  }, [agents, attendantPage]);
 
   // Operational Cards Pagination (Max 4 cards per page to prevent infinite page growth)
   const [opCardPage, setOpCardPage] = useState(1);
@@ -780,7 +775,7 @@ export default function AttendantsPage() {
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
         {/* Left: 2.5D Living Avatar Box (Col 5) */}
         <div className="lg:col-span-5 space-y-3">
-          <div className="w-full h-[220px] rounded-2xl overflow-hidden border border-border/60 shadow-inner relative flex flex-col items-center justify-center bg-gradient-to-b from-[#091120] to-[#040812] select-none">
+          <div className="w-full h-[300px] sm:h-[330px] rounded-2xl overflow-hidden border border-border/60 shadow-inner relative flex flex-col items-center justify-center bg-gradient-to-b from-[#091120] to-[#040812] select-none">
             {/* Isometric Grid Floor Accent */}
             <div
               className="absolute inset-0 opacity-15 pointer-events-none"
@@ -817,7 +812,7 @@ export default function AttendantsPage() {
             </button>
 
             {/* Centered 2.5D Character Sprite */}
-            <div className="relative w-full h-[160px] flex items-center justify-center my-auto">
+            <div className="relative w-full h-[230px] sm:h-[250px] flex items-center justify-center my-auto">
               <ZaiAvatarRenderer
                 avatar={previewAgent.avatarConfig || createAgentAvatar({
                   agentId: previewAgent.key || previewAgent.name,
@@ -1704,138 +1699,45 @@ export default function AttendantsPage() {
 
         {loadError && <div role="alert" className="flex items-center justify-between gap-3 rounded-xl border border-amber-500/40 bg-amber-500/10 p-3 text-sm"><span>{loadError}</span><Button size="sm" variant="outline" onClick={() => void fetchData()}>Tentar novamente</Button></div>}
 
-        {/* ROW 0: ATTENDANTS CANONICAL TOP SYSTEM (REAL ATTENDANTS + SEPARATED EXAMPLE MODELS) */}
-        <section aria-label="Lista de Atendentes" className="space-y-3 p-3.5 rounded-2xl border border-border/70 bg-card/40">
-          {/* Real Attendants Header */}
-          <div className="flex items-center justify-between gap-2">
-            <div className="flex items-center gap-2">
-              <h2 className="text-sm font-bold text-foreground font-display">Atendentes IA</h2>
-              <span className="inline-flex items-center gap-1.5 text-emerald-400 font-semibold font-mono text-[11px]">
-                <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
-                <span>{agents.length} Cadastrado(s)</span>
-              </span>
-            </div>
-
-            {/* Pagination Controls for Real Attendants (Max 5 visible) */}
-            {totalAttendantPages > 1 && (
-              <div className="flex items-center gap-1 text-xs">
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-7 w-7 rounded-lg cursor-pointer"
-                  disabled={attendantPage <= 1}
-                  onClick={() => setAttendantPage((p) => Math.max(1, p - 1))}
-                  aria-label="Atendentes anteriores"
-                >
-                  <ChevronLeft className="h-3.5 w-3.5" />
-                </Button>
-                <span className="text-[11px] font-mono text-muted-foreground px-1">
-                  {attendantPage} / {totalAttendantPages}
-                </span>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-7 w-7 rounded-lg cursor-pointer"
-                  disabled={attendantPage >= totalAttendantPages}
-                  onClick={() => setAttendantPage((p) => Math.min(totalAttendantPages, p + 1))}
-                  aria-label="Próximos atendentes"
-                >
-                  <ChevronRight className="h-3.5 w-3.5" />
-                </Button>
-              </div>
-            )}
+        {/* ROW 0: SIMPLE ATTENDANT SELECTOR */}
+        <section aria-label="Seleção de atendente" className="grid grid-cols-1 md:grid-cols-[minmax(0,1fr)_minmax(16rem,0.8fr)] items-center gap-4 p-4 rounded-2xl border border-border/70 bg-card/60">
+          <div className="space-y-1">
+            <h2 className="text-sm font-bold text-foreground font-display">Atendentes IA</h2>
+            <p className="text-xs text-muted-foreground">{agents.length} atendente(s) cadastrado(s). Selecione um perfil para personalizar.</p>
           </div>
-
-          {/* Real Attendants Carousel (Max 5 real + 1 Add Card) */}
-          <div className="flex items-center gap-3 overflow-x-auto pb-2 pt-1 scrollbar-zai">
-            {paginatedAgents.map((agent) => (
-              <AttendantItemCard
-                key={agent.key || agent.id}
-                attendant={{
-                  id: agent.id || agent.key,
-                  key: agent.key || agent.id,
-                  name: agent.name,
-                  role: agent.role || "Especialista de Atendimento",
-                  isExample: false,
-                  active: agent.active !== false,
-                  avatarConfig: agent.avatarConfig,
-                }}
-                isSelected={previewAgent?.key === (agent.key || agent.id) && !previewAgent?.isExample}
-                onSelect={(att) => {
-                  const found = agents.find((a) => (a.key || a.id) === att.key);
-                  if (found) setPreviewAgent(found);
-                }}
-                onEdit={(att) => {
-                  const found = agents.find((a) => (a.key || a.id) === att.key);
-                  if (found) setPreviewAgent(found);
-                }}
-              />
-            ))}
-
-            {/* + Novo Atendente (Always the last card) */}
-            <AddAttendantCard onAdd={() => setIsWizardOpen(true)} />
-          </div>
-
-          {/* Visually Separated Example Models Section (Collapsible to preserve compact layout) */}
-          <div className="pt-2 border-t border-border/40">
-            <div className="flex items-center justify-between">
-              <button
-                type="button"
-                onClick={() => setShowExampleModels(!showExampleModels)}
-                className="flex items-center gap-2 text-xs font-semibold text-muted-foreground hover:text-foreground cursor-pointer transition-colors select-none py-1"
-              >
-                <span className="uppercase tracking-wider">Modelos de Exemplo ({EXAMPLE_ATTENDANTS.length})</span>
-                <span className="badge-zai-example">EXEMPLO</span>
-                <ChevronDown className={cn("h-3.5 w-3.5 transition-transform duration-200", showExampleModels ? "rotate-180" : "")} />
-              </button>
-              <span className="text-[11px] text-muted-foreground hidden sm:inline">
-                Perfis demonstrativos para inspiração — clique para {showExampleModels ? "recolher" : "visualizar"}
-              </span>
-            </div>
-
-            {showExampleModels && (
-              <div className="flex items-center gap-3 overflow-x-auto pt-2 pb-1.5 scrollbar-zai opacity-85 hover:opacity-100 transition-opacity animate-in fade-in duration-200">
-                {EXAMPLE_ATTENDANTS.map((example) => (
-                  <AttendantItemCard
-                    key={example.id}
-                    attendant={{
-                      id: example.id,
-                      key: example.key,
-                      name: example.name,
-                      role: example.role,
-                      isExample: true,
-                      avatarConfig: example.avatarConfig as any,
-                    }}
-                    isSelected={previewAgent?.key === example.key && previewAgent?.isExample === true}
-                    onSelect={() => {
-                      setPreviewAgent({
-                        ...example,
-                        key: example.key,
-                        active: true,
-                        isExample: true,
-                      });
-                    }}
-                    onEdit={() => {
-                      setPreviewAgent({
-                        ...example,
-                        key: example.key,
-                        active: true,
-                        isExample: true,
-                      });
-                    }}
-                  />
-                ))}
-              </div>
-            )}
+          <div className="space-y-1.5">
+            <Label htmlFor="attendant-selector" className="text-xs font-semibold">Atendente selecionado</Label>
+            <select
+              id="attendant-selector"
+              aria-label="Selecionar atendente"
+              value={previewAgent?.isExample ? `example:${previewAgent.key}` : previewAgent?.key || ""}
+              onChange={(event) => {
+                const value = event.target.value;
+                if (value.startsWith("example:")) {
+                  const example = EXAMPLE_ATTENDANTS.find((item) => item.key === value.slice("example:".length));
+                  if (example) setPreviewAgent({ ...example, active: true, isExample: true });
+                  return;
+                }
+                setPreviewAgent(agents.find((agent) => (agent.key || agent.id) === value) || null);
+              }}
+              className="h-10 w-full rounded-xl border border-border/70 bg-background px-3 text-sm text-foreground outline-none focus-visible:ring-2 focus-visible:ring-emerald-500"
+            >
+              <option value="">{isLoading ? "Carregando atendentes…" : "Selecione um atendente"}</option>
+              {agents.length > 0 && <optgroup label="Atendentes cadastrados">
+                {agents.map((agent) => <option key={agent.key || agent.id} value={agent.key || agent.id}>{agent.name || agent.key}</option>)}
+              </optgroup>}
+              <optgroup label="Perfis de exemplo · demonstração">
+                {EXAMPLE_ATTENDANTS.map((example) => <option key={example.key} value={`example:${example.key}`}>{example.name} · exemplo</option>)}
+              </optgroup>
+            </select>
           </div>
         </section>
-
         {/* ROW 1: COMPACT OPERATIONAL INDICATORS BAR (Canonical 72–84px Height) */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 p-2.5 rounded-2xl border border-border/70 bg-card/75 shadow-sm h-auto md:h-[76px]">
           <div className="rounded-xl border border-border/50 bg-background/50 px-3 py-2 flex items-center justify-between h-full">
             <div>
               <span className="text-muted-foreground block text-[11px] font-medium leading-none mb-1">Respostas IA hoje</span>
-              <strong className="text-base font-bold text-foreground font-mono">{sessionMetrics?.messagesToday ?? 0}</strong>
+              <strong className="text-base font-bold text-foreground font-mono">{sessionMetrics?.messagesToday ?? "—"}</strong>
             </div>
             <div className="h-8 w-8 rounded-lg bg-emerald-500/10 text-emerald-400 flex items-center justify-center shrink-0">
               <ChatCircleText className="h-4 w-4" />
@@ -1845,7 +1747,7 @@ export default function AttendantsPage() {
           <div className="rounded-xl border border-border/50 bg-background/50 px-3 py-2 flex items-center justify-between h-full">
             <div>
               <span className="text-muted-foreground block text-[11px] font-medium leading-none mb-1">Tokens hoje</span>
-              <strong className="text-base font-bold text-foreground font-mono">{formatTokens(sessionMetrics?.tokensToday ?? 0)}</strong>
+              <strong className="text-base font-bold text-foreground font-mono">{formatTokens(sessionMetrics?.tokensToday)}</strong>
             </div>
             <div className="h-8 w-8 rounded-lg bg-cyan-500/10 text-cyan-400 flex items-center justify-center shrink-0">
               <Sparkle className="h-4 w-4" />
@@ -1855,7 +1757,7 @@ export default function AttendantsPage() {
           <div className="rounded-xl border border-border/50 bg-background/50 px-3 py-2 flex items-center justify-between h-full">
             <div>
               <span className="text-muted-foreground block text-[11px] font-medium leading-none mb-1">Conversas hoje</span>
-              <strong className="text-base font-bold text-foreground font-mono">{sessionMetrics?.conversationsToday ?? (sessionMetrics?.messagesToday ?? 0)}</strong>
+              <strong className="text-base font-bold text-foreground font-mono">{sessionMetrics?.conversationsToday ?? "—"}</strong>
             </div>
             <div className="h-8 w-8 rounded-lg bg-purple-500/10 text-purple-400 flex items-center justify-center shrink-0">
               <WhatsappLogo className="h-4 w-4" />
@@ -1865,7 +1767,7 @@ export default function AttendantsPage() {
           <div className="rounded-xl border border-border/50 bg-background/50 px-3 py-2 flex items-center justify-between h-full">
             <div>
               <span className="text-muted-foreground block text-[11px] font-medium leading-none mb-1">Leads hoje</span>
-              <strong className="text-base font-bold text-foreground font-mono">{sessionMetrics?.leadsToday ?? 0}</strong>
+              <strong className="text-base font-bold text-foreground font-mono">{sessionMetrics?.leadsToday ?? "—"}</strong>
             </div>
             <div className="h-8 w-8 rounded-lg bg-amber-500/10 text-amber-400 flex items-center justify-center shrink-0">
               <TrendUp className="h-4 w-4" />
@@ -1925,8 +1827,8 @@ export default function AttendantsPage() {
           <div className="rounded-2xl border border-border/70 bg-card/85 backdrop-blur shadow-sm p-4 md:p-6">
             <React.Suspense fallback={<div className="p-8 text-center text-sm text-muted-foreground">Carregando memória & evolução cognitiva...</div>}>
               <EvolutionTab
-                agentKey={previewAgent?.key || "camila"}
-                onSelectAgent={(key) => setPreviewAgent(agents.find((a) => a.key === key) || null)}
+                agentKey={previewAgent?.key}
+                onSelectAgent={(key) => setPreviewAgent(agents.find((a) => (a.key || a.id) === key) || null)}
                 agents={agents}
               />
             </React.Suspense>
@@ -2103,6 +2005,11 @@ export default function AttendantsPage() {
                     <Card className="rounded-2xl border-border/70 bg-card/85 backdrop-blur shadow-sm overflow-hidden">
                       <CardHeader
                         onClick={() => toggleCard("avatarStudio")}
+                        onKeyDown={(event) => handleCardHeaderKeyDown(event, "avatarStudio")}
+                        role="button"
+                        tabIndex={0}
+                        aria-expanded={!collapsedCards.avatarStudio}
+                        aria-controls="avatar-studio-content"
                         className="p-3.5 sm:p-4 border-b border-border/40 bg-muted/10 flex flex-row items-center justify-between gap-2 cursor-pointer hover:bg-muted/20 transition-colors select-none"
                       >
                         <div className="flex items-center gap-2.5 min-w-0">
@@ -2125,13 +2032,13 @@ export default function AttendantsPage() {
                           <Badge variant="outline" className="text-[10px] text-muted-foreground font-mono hidden sm:inline-flex">
                             {activeStyleItem.title}
                           </Badge>
-                          <Button type="button" variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground">
+                          <span aria-hidden="true" className="h-7 w-7 flex items-center justify-center text-muted-foreground">
                             {collapsedCards.avatarStudio ? <ChevronDown className="h-4 w-4" /> : <ChevronUp className="h-4 w-4" />}
-                          </Button>
+                          </span>
                         </div>
                       </CardHeader>
                       {!collapsedCards.avatarStudio && (
-                        <CardContent className="p-4 sm:p-5">
+                        <CardContent id="avatar-studio-content" className="p-4 sm:p-5">
                           {renderAvatarStudioSection()}
                         </CardContent>
                       )}
@@ -2141,6 +2048,11 @@ export default function AttendantsPage() {
                     <Card className="rounded-2xl border-border/70 bg-card/85 backdrop-blur shadow-sm overflow-hidden">
                       <CardHeader
                         onClick={() => toggleCard("objectiveTone")}
+                        onKeyDown={(event) => handleCardHeaderKeyDown(event, "objectiveTone")}
+                        role="button"
+                        tabIndex={0}
+                        aria-expanded={!collapsedCards.objectiveTone}
+                        aria-controls="objective-tone-content"
                         className="p-3.5 sm:p-4 border-b border-border/40 bg-muted/10 flex flex-row items-center justify-between gap-2 cursor-pointer hover:bg-muted/20 transition-colors select-none"
                       >
                         <div className="flex items-center gap-2.5 min-w-0">
@@ -2163,13 +2075,13 @@ export default function AttendantsPage() {
                           <Badge variant="outline" className="text-[10px] text-emerald-300 border-emerald-500/40 bg-emerald-500/10 hidden sm:inline-flex">
                             {currentObjectiveDef.title} • {currentToneDef.label}
                           </Badge>
-                          <Button type="button" variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground">
+                          <span aria-hidden="true" className="h-7 w-7 flex items-center justify-center text-muted-foreground">
                             {collapsedCards.objectiveTone ? <ChevronDown className="h-4 w-4" /> : <ChevronUp className="h-4 w-4" />}
-                          </Button>
+                          </span>
                         </div>
                       </CardHeader>
                       {!collapsedCards.objectiveTone && (
-                        <CardContent className="p-4 sm:p-5">
+                        <CardContent id="objective-tone-content" className="p-4 sm:p-5">
                           {renderObjectiveToneSection()}
                         </CardContent>
                       )}
@@ -2179,6 +2091,11 @@ export default function AttendantsPage() {
                     <Card className="rounded-2xl border-border/70 bg-card/85 backdrop-blur shadow-sm overflow-hidden">
                       <CardHeader
                         onClick={() => toggleCard("prompt")}
+                        onKeyDown={(event) => handleCardHeaderKeyDown(event, "prompt")}
+                        role="button"
+                        tabIndex={0}
+                        aria-expanded={!collapsedCards.prompt}
+                        aria-controls="agent-prompt-content"
                         className="p-3.5 sm:p-4 border-b border-border/40 bg-muted/10 flex flex-row items-center justify-between gap-2 cursor-pointer hover:bg-muted/20 transition-colors select-none"
                       >
                         <div className="flex items-center gap-2.5 min-w-0">
@@ -2201,13 +2118,13 @@ export default function AttendantsPage() {
                           <span className="text-[10px] font-mono text-muted-foreground hidden sm:inline">
                             {agentPrompt.length} chars
                           </span>
-                          <Button type="button" variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground">
+                          <span aria-hidden="true" className="h-7 w-7 flex items-center justify-center text-muted-foreground">
                             {collapsedCards.prompt ? <ChevronDown className="h-4 w-4" /> : <ChevronUp className="h-4 w-4" />}
-                          </Button>
+                          </span>
                         </div>
                       </CardHeader>
                       {!collapsedCards.prompt && (
-                        <CardContent className="p-4 sm:p-5">
+                        <CardContent id="agent-prompt-content" className="p-4 sm:p-5">
                           {renderPromptSection()}
                         </CardContent>
                       )}
@@ -2217,6 +2134,11 @@ export default function AttendantsPage() {
                     <Card className="rounded-2xl border-border/70 bg-card/85 backdrop-blur shadow-sm overflow-hidden">
                       <CardHeader
                         onClick={() => toggleCard("providers")}
+                        onKeyDown={(event) => handleCardHeaderKeyDown(event, "providers")}
+                        role="button"
+                        tabIndex={0}
+                        aria-expanded={!collapsedCards.providers}
+                        aria-controls="providers-content"
                         className="p-3.5 sm:p-4 border-b border-border/40 bg-muted/10 flex flex-row items-center justify-between gap-2 cursor-pointer hover:bg-muted/20 transition-colors select-none"
                       >
                         <div className="flex items-center gap-2.5 min-w-0">
@@ -2239,13 +2161,13 @@ export default function AttendantsPage() {
                           <Badge variant="outline" className="text-[10px] text-muted-foreground font-mono hidden sm:inline-flex">
                             {selectedProvider} • {selectedModel}
                           </Badge>
-                          <Button type="button" variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground">
+                          <span aria-hidden="true" className="h-7 w-7 flex items-center justify-center text-muted-foreground">
                             {collapsedCards.providers ? <ChevronDown className="h-4 w-4" /> : <ChevronUp className="h-4 w-4" />}
-                          </Button>
+                          </span>
                         </div>
                       </CardHeader>
                       {!collapsedCards.providers && (
-                        <CardContent className="p-4 sm:p-5">
+                        <CardContent id="providers-content" className="p-4 sm:p-5">
                           {renderProvidersSection()}
                         </CardContent>
                       )}
@@ -2255,6 +2177,11 @@ export default function AttendantsPage() {
                     <Card className="rounded-2xl border-border/70 bg-card/85 backdrop-blur shadow-sm overflow-hidden">
                       <CardHeader
                         onClick={() => toggleCard("chatSandbox")}
+                        onKeyDown={(event) => handleCardHeaderKeyDown(event, "chatSandbox")}
+                        role="button"
+                        tabIndex={0}
+                        aria-expanded={!collapsedCards.chatSandbox}
+                        aria-controls="chat-sandbox-content"
                         className="p-3.5 sm:p-4 border-b border-border/40 bg-muted/10 flex flex-row items-center justify-between gap-2 cursor-pointer hover:bg-muted/20 transition-colors select-none"
                       >
                         <div className="flex items-center gap-2.5 min-w-0">
@@ -2277,13 +2204,13 @@ export default function AttendantsPage() {
                           <Badge variant="outline" className="text-[10px] text-emerald-400 border-emerald-500/30 bg-emerald-500/10 font-bold uppercase">
                             AO VIVO
                           </Badge>
-                          <Button type="button" variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground">
+                          <span aria-hidden="true" className="h-7 w-7 flex items-center justify-center text-muted-foreground">
                             {collapsedCards.chatSandbox ? <ChevronDown className="h-4 w-4" /> : <ChevronUp className="h-4 w-4" />}
-                          </Button>
+                          </span>
                         </div>
                       </CardHeader>
                       {!collapsedCards.chatSandbox && (
-                        <CardContent className="p-4 sm:p-5">
+                        <CardContent id="chat-sandbox-content" className="p-4 sm:p-5">
                           {renderSandboxSection()}
                         </CardContent>
                       )}
@@ -2368,6 +2295,10 @@ export default function AttendantsPage() {
               </div>
             )}
 
+            <details className="rounded-2xl border border-border/60 bg-card/30">
+            <summary className="cursor-pointer list-none px-4 py-3 text-sm font-semibold text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 rounded-2xl">
+              Gerenciar vínculos, lojas e atendentes cadastrados
+            </summary>
             {/* Lista Completa de Atendentes */}
             <div className="space-y-4">
               <div className="flex items-center justify-between">
@@ -2675,6 +2606,7 @@ export default function AttendantsPage() {
                   </div>
                 )}
               </div>
+            </details>
 
           </>
         )}

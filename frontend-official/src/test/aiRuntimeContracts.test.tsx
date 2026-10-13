@@ -205,7 +205,7 @@ describe("Contratos reais da operação de IA", () => {
   });
 
   it("não mostra dados de evolução fictícios na indisponibilidade do backend", async () => {
-    await render(<EvolutionTab />);
+    await render(<EvolutionTab agents={[{ key: "camila", name: "Camila" }]} />);
     expect(document.body.textContent).not.toContain("18.722");
     expect(document.body.textContent).not.toContain("98% Naturalidade");
     expect(document.body.textContent).toContain("Sem dados de evolução");
@@ -216,7 +216,7 @@ describe("Contratos reais da operação de IA", () => {
       .mockRejectedValueOnce(new Error("Padrões indisponíveis"))
       .mockResolvedValueOnce({ data: [] } as any);
 
-    await render(<EvolutionTab />);
+    await render(<EvolutionTab agents={[{ key: "camila", name: "Camila" }]} />);
     expect(document.body.textContent).toContain("Não foi possível carregar métricas e padrões deste atendente");
     await click("Tentar novamente");
     expect(document.body.textContent).not.toContain("Não foi possível carregar métricas e padrões deste atendente");

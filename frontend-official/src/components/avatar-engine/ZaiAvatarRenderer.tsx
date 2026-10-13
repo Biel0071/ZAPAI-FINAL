@@ -43,7 +43,7 @@ const SIZE_CONFIGS = {
   xl: { container: "w-48 h-64", character: "h-56 w-auto", badge: "text-xs px-3 py-1", indicator: "w-4 h-4" },
   workspace: {
     container: "w-full h-full flex flex-col items-center justify-center",
-    character: "h-[140px] sm:h-[145px] w-auto max-w-[130px]",
+    character: "h-[205px] sm:h-[220px] w-auto max-w-[185px]",
     badge: "text-xs px-2.5 py-0.5",
     indicator: "w-3 h-3",
   },
