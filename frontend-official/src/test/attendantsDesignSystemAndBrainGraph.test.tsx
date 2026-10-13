@@ -214,6 +214,57 @@ describe("ZAI CRM — Active Brain Graph & Memory Detail Drawer", () => {
     expect(container.querySelector('button[title="Diminuir Zoom"]')).toBeDefined();
     expect(container.querySelector('button[title="Centralizar e Enquadrar"]')).toBeDefined();
   });
+
+  it("summarizes a large all-category graph and derives category links from real memory edges", async () => {
+    const memories: MemoryNodeData[] = Array.from({ length: 20 }, (_, index) => ({
+      id: `memory-${index + 1}`,
+      label: `Contato ${index + 1}`,
+      type: index === 19 ? "payment" : "client",
+      connectionIds: index === 0 ? ["memory-20"] : [],
+    }));
+
+    await renderComponent(
+      <ActiveBrainGraph
+        attendantName="Camila"
+        memories={memories}
+        centralConnectionIds={["memory-1"]}
+        selectedCategory="todos"
+        selectedMemoryId={null}
+        onSelectMemory={vi.fn()}
+        height={400}
+      />
+    );
+
+    expect(container.textContent).toContain("Selecione uma categoria para explorar memórias individuais");
+    expect(container.textContent).not.toContain("Contato 20");
+    expect(container.querySelectorAll('[data-testid="category-relationship"]')).toHaveLength(1);
+    expect(container.querySelector('[data-testid="category-relationship"]')?.getAttribute("aria-label")).toContain("1 conexão");
+    expect(container.querySelectorAll('[data-testid="central-category-relationship"]')).toHaveLength(1);
+  });
+
+  it("shows real memory nodes after a category filter narrows the graph", async () => {
+    const memories: MemoryNodeData[] = [
+      { id: "client-1", label: "Cliente Alfa", type: "client", connectionIds: ["client-2"] },
+      { id: "client-2", label: "Cliente Beta", type: "client" },
+      ...Array.from({ length: 12 }, (_, index) => ({ id: `other-${index}`, label: `Outro ${index}`, type: "topic" })),
+    ];
+
+    await renderComponent(
+      <ActiveBrainGraph
+        attendantName="Camila"
+        memories={memories}
+        selectedCategory="client"
+        selectedMemoryId={null}
+        onSelectMemory={vi.fn()}
+        height={400}
+      />
+    );
+
+    expect(container.querySelectorAll('[data-testid="memory-leaf"]')).toHaveLength(2);
+    expect(container.textContent).toContain("Cliente Alfa");
+    expect(container.textContent).toContain("Cliente Beta");
+    expect(container.textContent).not.toContain("Outro 0");
+  });
 });
 
 describe("ZAI CRM — Canonical Pagination Component", () => {

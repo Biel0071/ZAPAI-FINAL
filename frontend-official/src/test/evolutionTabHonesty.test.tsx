@@ -176,7 +176,7 @@ describe("EvolutionTab uses only returned memory and evolution data", () => {
     expect(document.body.textContent).toContain("Cliente Ana");
     expect(document.body.textContent).toContain("Preferências1");
     expect(document.body.textContent).toContain("Clientes1");
-    expect(document.querySelectorAll('[data-testid="memory-relationship"]')).toHaveLength(1);
+    expect(document.querySelectorAll('[data-testid="category-relationship"]')).toHaveLength(1);
     expect(document.body.textContent).toContain("Preferência confirmada pela cliente.");
     expect(document.body.textContent).not.toContain("Taxa de conversão 28% superior");
   });

@@ -22,7 +22,16 @@ interface GraphCategoryBranch {
   color: string;
   angle: number; // in radians
   distance: number;
+  count: number;
 }
+
+interface GraphCategoryRelationship {
+  sourceCategory: string;
+  targetCategory: string;
+  count: number;
+}
+
+const MAX_VISIBLE_CATEGORY_MEMORIES = 8;
 
 const GRAPH_CATEGORY_LABELS: Record<string, string> = {
   client: "Clientes",
@@ -82,14 +91,20 @@ export const ActiveBrainGraph: React.FC<ActiveBrainGraphProps> = ({
 
   // Category anchors are generated from the real node types returned by the API.
   const categoryBranches: GraphCategoryBranch[] = useMemo(() => {
-    const present = memories.map((memory) => memory.type || memory.category || "unknown");
-    const categories = [...new Set(present)];
+    const categoryCounts = new Map<string, number>();
+    memories.forEach((memory) => {
+      const id = memory.type || memory.category || "unknown";
+      categoryCounts.set(id, (categoryCounts.get(id) || 0) + 1);
+    });
+
+    const categories = [...categoryCounts.keys()];
     return categories.map((id, index) => ({
       id,
       label: GRAPH_CATEGORY_LABELS[id] || id.replace(/[_-]/g, " ").replace(/^\w/, (letter) => letter.toLocaleUpperCase("pt-BR")),
       color: GRAPH_CATEGORY_COLORS[id] || ["#14b8a6", "#f97316", "#a855f7", "#84cc16"][index % 4],
       angle: (index * 2 * Math.PI) / categories.length,
       distance: 160,
+      count: categoryCounts.get(id) || 0,
     }));
   }, [memories]);
 
@@ -101,6 +116,75 @@ export const ActiveBrainGraph: React.FC<ActiveBrainGraphProps> = ({
       return type === selectedCategory;
     });
   }, [memories, selectedCategory]);
+
+  const isAllCategories = !selectedCategory || selectedCategory === "todos";
+  const showMemoryNodes = !isAllCategories && activeMemories.length <= MAX_VISIBLE_CATEGORY_MEMORIES;
+  const graphMemories = showMemoryNodes ? activeMemories : [];
+
+  const categoryPositions = useMemo(() => new Map(categoryBranches.map((branch) => [
+    branch.id,
+    {
+      x: centerX + Math.cos(branch.angle) * branch.distance,
+      y: centerY + Math.sin(branch.angle) * branch.distance,
+    },
+  ])), [categoryBranches, centerX, centerY]);
+
+  const categoryRelationships: GraphCategoryRelationship[] = useMemo(() => {
+    const memoryById = new Map(memories.map((memory) => [String(memory.id), memory]));
+    const seen = new Set<string>();
+    const counts = new Map<string, GraphCategoryRelationship>();
+
+    memories.forEach((memory) => {
+      const sourceCategory = memory.type || memory.category || "unknown";
+      (memory.connectionIds || []).forEach((relatedId) => {
+        const target = memoryById.get(String(relatedId));
+        if (!target) return;
+
+        const targetCategory = target.type || target.category || "unknown";
+        if (sourceCategory === targetCategory) return;
+
+        const pair = [sourceCategory, targetCategory].sort();
+        const edgeKey = [String(memory.id), String(target.id)].sort().join("::");
+        const categoryKey = pair.join("::");
+        if (seen.has(edgeKey)) return;
+        seen.add(edgeKey);
+
+        const relationship = counts.get(categoryKey) || {
+          sourceCategory: pair[0],
+          targetCategory: pair[1],
+          count: 0,
+        };
+        relationship.count += 1;
+        counts.set(categoryKey, relationship);
+      });
+    });
+
+    return [...counts.values()];
+  }, [memories]);
+
+  const centralCategoryConnections = useMemo(() => {
+    const centralIds = new Set(centralConnectionIds.map(String));
+    const counts = new Map<string, number>();
+    memories.forEach((memory) => {
+      if (!centralIds.has(String(memory.id))) return;
+      const category = memory.type || memory.category || "unknown";
+      counts.set(category, (counts.get(category) || 0) + 1);
+    });
+    return [...counts.entries()].map(([category, count]) => ({ category, count }));
+  }, [centralConnectionIds, memories]);
+
+  const registeredRelationshipCount = useMemo(() => {
+    const memoryIds = new Set(memories.map((memory) => String(memory.id)));
+    const memoryEdges = new Set<string>();
+    memories.forEach((memory) => {
+      (memory.connectionIds || []).forEach((relatedId) => {
+        if (!memoryIds.has(String(relatedId)) || String(memory.id) === String(relatedId)) return;
+        memoryEdges.add([String(memory.id), String(relatedId)].sort().join("::"));
+      });
+    });
+    const centralEdges = new Set(centralConnectionIds.map(String).filter((id) => memoryIds.has(id)));
+    return memoryEdges.size + centralEdges.size;
+  }, [centralConnectionIds, memories]);
 
   // Compute positions for leaf memory nodes around their corresponding category branch
   const positionedNodes = useMemo(() => {
@@ -120,7 +204,7 @@ export const ActiveBrainGraph: React.FC<ActiveBrainGraphProps> = ({
       byCategory[b.id] = [];
     });
 
-    activeMemories.forEach((mem) => {
+    graphMemories.forEach((mem) => {
       const cat = mem.type || mem.category || "unknown";
       if (!byCategory[cat]) byCategory[cat] = [];
       byCategory[cat].push(mem);
@@ -151,7 +235,7 @@ export const ActiveBrainGraph: React.FC<ActiveBrainGraphProps> = ({
     });
 
     return result;
-  }, [activeMemories, categoryBranches, centerX, centerY, selectedMemoryId]);
+  }, [graphMemories, categoryBranches, centerX, centerY, selectedMemoryId]);
 
   const connectionLines = useMemo(() => {
     const positions = new Map(positionedNodes.map((node) => [String(node.memory.id), node]));
@@ -259,8 +343,16 @@ export const ActiveBrainGraph: React.FC<ActiveBrainGraphProps> = ({
       {/* Number of API-backed relationships */}
       <div className="absolute bottom-3 left-3 z-20 hidden sm:flex items-center gap-3 p-1.5 px-3 rounded-xl bg-card/80 backdrop-blur-md border border-border/60 text-[10px] text-muted-foreground">
         <span className="font-bold text-foreground">Conexões registradas:</span>
-        <span>{connectionLines.length + centralConnections.length}</span>
+        <span>{registeredRelationshipCount}</span>
       </div>
+
+      {activeMemories.length > 0 && !showMemoryNodes && (
+        <div role="status" className="absolute bottom-3 right-3 z-20 max-w-[70%] rounded-xl border border-border/70 bg-card/90 px-3 py-2 text-[10px] text-muted-foreground shadow-sm">
+          {isAllCategories
+            ? "Selecione uma categoria para explorar memórias individuais"
+            : `Esta categoria tem ${activeMemories.length} memórias. Use a lista ao lado para explorar os registros.`}
+        </div>
+      )}
 
       {/* SVG Canvas */}
       <svg
@@ -318,11 +410,53 @@ export const ActiveBrainGraph: React.FC<ActiveBrainGraphProps> = ({
             />
           ))}
 
+          {/* Summarize real API relationships between categories in overview mode. */}
+          {!showMemoryNodes && categoryRelationships.map((relationship) => {
+            const source = categoryPositions.get(relationship.sourceCategory);
+            const target = categoryPositions.get(relationship.targetCategory);
+            if (!source || !target) return null;
+
+            return (
+              <line
+                key={`category-edge-${relationship.sourceCategory}-${relationship.targetCategory}`}
+                data-testid="category-relationship"
+                aria-label={`${relationship.count} ${relationship.count === 1 ? "conexão" : "conexões"} entre ${relationship.sourceCategory} e ${relationship.targetCategory}`}
+                x1={source.x}
+                y1={source.y}
+                x2={target.x}
+                y2={target.y}
+                stroke="#94a3b8"
+                strokeWidth={Math.min(3, 1 + Math.log2(relationship.count))}
+                strokeOpacity="0.45"
+              />
+            );
+          })}
+          {!showMemoryNodes && centralCategoryConnections.map(({ category, count }) => {
+            const branch = categoryBranches.find((item) => item.id === category);
+            const position = categoryPositions.get(category);
+            if (!branch || !position) return null;
+
+            return (
+              <line
+                key={`central-category-edge-${category}`}
+                data-testid="central-category-relationship"
+                aria-label={`${count} conexão(ões) do atendente para ${branch.label}`}
+                x1={centerX}
+                y1={centerY}
+                x2={position.x}
+                y2={position.y}
+                stroke={branch.color}
+                strokeWidth={Math.min(3, 1 + Math.log2(count))}
+                strokeOpacity="0.6"
+              />
+            );
+          })}
+
           {/* Primary Category Branch Nodes */}
           {categoryBranches.map((branch) => {
             const bx = centerX + Math.cos(branch.angle) * branch.distance;
             const by = centerY + Math.sin(branch.angle) * branch.distance;
-            const count = memories.filter((m) => (m.type || m.category || "unknown") === branch.id).length;
+            const count = branch.count;
 
             return (
               <g key={`branch-node-${branch.id}`} className="cursor-pointer">
@@ -363,6 +497,7 @@ export const ActiveBrainGraph: React.FC<ActiveBrainGraphProps> = ({
             return (
               <g
                 key={`leaf-${item.memory.id}`}
+                data-testid="memory-leaf"
                 onClick={() => onSelectMemory(item.memory)}
                 onKeyDown={(event) => {
                   if (event.key === "Enter" || event.key === " ") {
