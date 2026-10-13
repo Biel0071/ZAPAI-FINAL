@@ -3,6 +3,7 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { SidebarPanel } from "@/pages/Inbox/components/SidebarPanel";
 import { QuickResponseModal } from "@/pages/Inbox/components/QuickResponseModal";
+import { InboxView } from "@/pages/lovable/pages/InboxView";
 import type { QuickReplyItem } from "@/pages/Inbox/types";
 
 vi.mock("@/core/runtime/hooks/useProtectedMediaUrl", () => ({ useProtectedMediaUrl: (url: string | null) => url }));
@@ -87,6 +88,31 @@ describe("Painel do Inbox", () => {
     expect(document.body.textContent).not.toContain("Olá, como posso ajudar?");
   });
 });
+
+describe("Layout redimensionável do Inbox", () => {
+  it("recria o grupo quando o painel contextual aparece após carregar uma conversa", async () => {
+    vi.stubGlobal("ResizeObserver", class {
+      observe() {}
+      disconnect() {}
+    });
+    const panels = {
+      leftPanel: <div>Conversas</div>,
+      centerPanel: <div>Chat</div>,
+    };
+
+    await renderPanel(<InboxView {...panels} rightPanel={null} />);
+    const previousGroup = document.querySelector("[data-panel-group]");
+    await renderPanel(<InboxView {...panels} rightPanel={<div>Contexto</div>} />);
+    const nextGroup = document.querySelector("[data-panel-group]");
+
+    expect(nextGroup).not.toBe(previousGroup);
+    expect(document.body.textContent).toContain("Conversas");
+    expect(document.body.textContent).toContain("Chat");
+    expect(document.body.textContent).toContain("Contexto");
+    expect(document.querySelectorAll("[data-panel]")).toHaveLength(3);
+  });
+});
+
 describe("Confirmação de resposta rápida", () => {
   it("preserva a prévia ao falhar a fila", async () => {
     const onClose = vi.fn(); const onDispatch = vi.fn().mockRejectedValue(new Error("WhatsApp desconectado"));

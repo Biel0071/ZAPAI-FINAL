@@ -88,8 +88,9 @@ export function InboxView({
     <>
       <div ref={layoutRef} className="w-full flex-1 min-h-0 flex overflow-hidden border-t border-border/60 bg-card/30">
         <ResizablePanelGroup
+          key={hasRightPanel ? "with-context-panel" : "two-panel-layout"}
           direction="horizontal"
-          autoSaveId={hasRightPanel ? "zapflow-inbox-desktop-v3" : "zapflow-inbox-tablet-v3"}
+          autoSaveId={hasRightPanel ? "zapflow-inbox-desktop-v4" : "zapflow-inbox-tablet-v4"}
           className="h-full w-full"
         >
           <ResizablePanel
