@@ -389,13 +389,13 @@ export const AvatarEditorModal: React.FC<AvatarEditorModalProps> = ({
             <div className="relative my-auto flex-1 flex flex-col items-center justify-center py-6 w-full">
               <div className="h-[260px] w-full drop-shadow-2xl transition-transform duration-300 sm:h-[280px] lg:h-[340px]">
                 {previewMode === "illustration" ? (
-                  <div className="relative mx-auto h-full w-[140px] overflow-hidden">
+                  <div className="relative mx-auto flex h-full w-[160px] items-center justify-center overflow-hidden">
                     <img
                       src={`/assets/avatar_factory/catalog/${previewSpriteId}_clean.png`}
                       alt={agent?.name || "Avatar do atendente"}
                       data-avatar-preview-focal-x={previewFocalX}
-                      className="absolute left-1/2 top-[-7%] h-full w-auto max-w-none object-contain"
-                      style={{ transform: `translateX(-${previewFocalX}%)`, imageRendering: "pixelated" }}
+                      className="h-full w-full object-contain"
+                      style={{ imageRendering: "pixelated" }}
                     />
                   </div>
                 ) : (

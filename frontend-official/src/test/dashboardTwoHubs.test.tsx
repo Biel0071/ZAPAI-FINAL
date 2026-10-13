@@ -286,4 +286,59 @@ describe("Dashboard 2 Grand Hubs Unification", () => {
     const finalText = container.textContent || "";
     expect(finalText).toContain("Ver no Inbox");
   });
+
+  it("filters conversations by lastMessageAt rather than bulk-modified updatedAt when selecting Hoje", async () => {
+    const oldMessageDate = new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString();
+    const todayDate = new Date().toISOString();
+    const originalConversations = [...hoisted.state.conversations];
+    hoisted.state.conversations = [
+      {
+        ...originalConversations[0],
+        contactName: "Lead Ativo Hoje",
+        lastMessageAt: todayDate,
+        updatedAt: todayDate,
+      },
+      {
+        ...originalConversations[1],
+        contactName: "Lead Antigo Tocado Em Massa",
+        lastMessageAt: oldMessageDate,
+        updatedAt: todayDate,
+      },
+    ] as any;
+
+    try {
+      await act(async () => {
+        root.render(
+          <MemoryRouter initialEntries={["/dashboard?tab=map"]}>
+            <Dashboard />
+          </MemoryRouter>
+        );
+      });
+
+      const todayBtn = Array.from(container.querySelectorAll("button")).find(
+        (b) => b.textContent?.trim() === "Hoje"
+      );
+      expect(todayBtn).toBeDefined();
+      await act(async () => {
+        todayBtn!.click();
+      });
+
+      const leadsTabBtn = Array.from(container.querySelectorAll("button")).find(
+        (b) => b.textContent?.includes("Leads na Região")
+      );
+      if (leadsTabBtn) {
+        await act(async () => {
+          leadsTabBtn.click();
+        });
+      }
+
+      const text = container.textContent || "";
+      expect(text).toContain("Leads na Região (1)");
+      expect(text).toContain("Lead Ativo Hoje");
+      expect(text).not.toContain("Lead Antigo Tocado Em Massa");
+    } finally {
+      hoisted.state.conversations = originalConversations;
+    }
+  });
 });
+

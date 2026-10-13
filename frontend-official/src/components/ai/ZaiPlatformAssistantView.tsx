@@ -9,6 +9,7 @@ import { cn } from "@/core/lib/utils";
 interface ZaiPlatformAssistantViewProps {
   onOpenNewAgentWizard?: (defaultRole?: string) => void;
   onRefreshAgents?: () => void | Promise<void>;
+  onNavigate?: () => void;
 }
 
 interface CopilotMessage {
@@ -36,7 +37,7 @@ function normalize(value: string) {
   return value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
 }
 
-export function ZaiPlatformAssistantView({ onOpenNewAgentWizard, onRefreshAgents }: ZaiPlatformAssistantViewProps) {
+export function ZaiPlatformAssistantView({ onOpenNewAgentWizard, onRefreshAgents, onNavigate }: ZaiPlatformAssistantViewProps) {
   const [input, setInput] = useState("");
   const [isProcessing, setIsProcessing] = useState(false);
   const processing = useRef(false);
@@ -161,7 +162,7 @@ export function ZaiPlatformAssistantView({ onOpenNewAgentWizard, onRefreshAgents
   };
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 min-w-0 max-w-full overflow-hidden">
       {/* Header Card: ZAIBOT Mascot Avatar, Name and Status */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3.5 rounded-2xl border border-emerald-500/30 bg-gradient-to-r from-emerald-950/20 via-background to-background">
         <div className="flex items-center gap-3.5 min-w-0">
@@ -189,7 +190,7 @@ export function ZaiPlatformAssistantView({ onOpenNewAgentWizard, onRefreshAgents
       </div>
 
       {/* Interactive Chat Console with Suggestions */}
-      <div className="rounded-2xl border border-border/70 bg-card/40 flex flex-col h-[min(580px,70vh)] min-h-[380px] overflow-hidden">
+      <div className="rounded-2xl border border-border/70 bg-card/40 flex flex-col h-[min(580px,70vh)] min-h-[380px] min-w-0 overflow-hidden">
         {/* Suggested Questions Row */}
         <div className="p-2.5 border-b border-border/60 bg-muted/20 shrink-0">
           <div className="flex items-center gap-1.5 mb-1.5 px-1">
@@ -222,7 +223,7 @@ export function ZaiPlatformAssistantView({ onOpenNewAgentWizard, onRefreshAgents
               )}
               <div className={cn("rounded-2xl p-3 max-w-[90%] text-sm whitespace-pre-line", message.sender === "user" ? "bg-emerald-600 text-white" : "border border-border/60 bg-card")}>
                 {message.text}
-                {message.link && <Link to={message.link.to} className="block mt-2 text-emerald-400 font-medium hover:underline">{message.link.label}</Link>}
+                {message.link && <Link to={message.link.to} onClick={() => onNavigate?.()} className="block mt-2 text-emerald-400 font-medium hover:underline">{message.link.label}</Link>}
                 {message.action && !message.confirmed && (
                   <div className="mt-3 pt-3 border-t border-border/50 space-y-2">
                     <p className="text-xs text-muted-foreground flex items-center gap-1"><ShieldCheck className="h-3.5 w-3.5" />Revisar alteração</p>

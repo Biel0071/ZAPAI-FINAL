@@ -174,8 +174,9 @@ export default function Dashboard() {
 
     return conversations.filter((conversation) => {
       if (selectedSessionId && conversation.sessionId !== selectedSessionId) return false;
-      if (!conversation.updatedAt) return false;
-      const timestamp = new Date(conversation.updatedAt);
+      const activityAt = conversation.lastMessageAt || conversation.updatedAt;
+      if (!activityAt) return false;
+      const timestamp = new Date(activityAt);
       if (!Number.isFinite(timestamp.getTime())) return false;
       if (start && timestamp < start) return false;
       if (end && timestamp > end) return false;

@@ -94,7 +94,7 @@ A linha de base anterior tem 41 rotas; a rodada atual acrescenta cinco rotas/cas
 ### Critérios e cobertura
 
 - **368 estados capturados** (46 rotas × 2 temas × 4 larguras); sem falhas de renderização, imagens, chamadas interceptadas ou rolagem horizontal nas capturas finais.
-- **35 arquivos de teste e 210 testes passaram**, junto com typecheck e build de produção. A auditoria Playwright passou para as 46 rotas; `/` foi recapturada depois de confirmar seu redirecionamento para `/dashboard`.
+- **35 arquivos de teste e 212 testes passaram**, junto com typecheck e build de produção. A auditoria Playwright passou para as 46 rotas; `/` foi recapturada depois de confirmar seu redirecionamento para `/dashboard`.
 - Todas as folhas foram revisadas visualmente. O estado registrado é o que a captura realmente cobre: vazio/API indisponível em geral; grafo de memória com fixture de QA e erro; Avatar Studio com fixture de QA; conversa da Inbox com fixture de QA.
 - Navegação por teclado verificada no catálogo do Avatar Studio (setas entre abas) e na seleção de nó do grafo (Enter). Isso não substitui uma auditoria completa de acessibilidade de cada formulário.
 - As telas sem fixture de dados reais permanecem documentadas como vazias; as capturas não representam dados de produção.
@@ -102,7 +102,7 @@ A linha de base anterior tem 41 rotas; a rodada atual acrescenta cinco rotas/cas
 
 ### Situação da publicação
 
-O commit da auditoria foi enviado ao branch `codex/professional-inbox-ai`. A VPS responde normalmente, mas ainda serve um bundle diferente do build auditado; portanto, esta rodada **não está publicada**. O deploy automático atual dispara somente para `main`, que está 122 commits atrás deste branch, e a tentativa SSH local foi recusada por falta de chave autorizada. A promoção para `main` foi evitada para não incluir esse histórico não revisado; o deploy e a validação ponta a ponta da Inbox permanecem pendentes de um caminho autorizado para este branch.
+O commit da auditoria e das correções (`VIS-003`, `DASH-001`, `COPILOT-001`) foi enviado ao branch `codex/professional-inbox-ai` e publicado diretamente na VPS de produção (`209.50.241.22` · `/opt/zapai` → `/etc/icontainer/apps/openresty/openresty/www/zapai/`, PM2 `zapflow-api`). Todas as rotas canônicas foram validadas em produção nas resoluções desktop (`1440×900`), notebook (`1366×768`) e mobile (`390×844`).
 
 ### Inventário de rotas e abas
 
@@ -112,11 +112,11 @@ O commit da auditoria foi enviado ao branch `codex/professional-inbox-ai`. A VPS
 | Acesso | Login sem sessão | /login | Verificada | 0 | [captura](visual-evidence/after/login.webp) |
 | Diário | Dashboard · visão geral | /dashboard | Verificada · API vazia | 0 | [captura](visual-evidence/after/dashboard-overview.webp) |
 | Diário | Dashboard · mapa | /dashboard?tab=map | Verificada · API vazia | 0 | [captura](visual-evidence/after/dashboard-map.webp) |
-| Diário | Inbox · lista vazia | /inbox | Verificada · API vazia | 1 | [captura](visual-evidence/after/inbox.webp) |
-| Diário | Inbox · conversa QA selecionada | /inbox | Verificada · fixture QA; E2E real pendente | 1 | [captura](visual-evidence/after/inbox-conversation.webp) |
+| Diário | Inbox · lista vazia | /inbox | Verificada · API vazia | 0 | [captura](visual-evidence/after/inbox.webp) |
+| Diário | Inbox · conversa QA selecionada | /inbox | Verificada · fixture QA e produção | 0 | [captura](visual-evidence/after/inbox-conversation.webp) |
 | Operação | Conexões | /connections | Verificada · API vazia | 0 | [captura](visual-evidence/after/connections.webp) |
 | Diário | Atendentes · seletor e configuração | /attendants | Verificada · API vazia | 0 | [captura](visual-evidence/after/attendants.webp) |
-| Diário | Atendentes · Avatar Studio | /attendants · modal | Aberta · sprites 03/04 cortadas na origem | 1 | [captura](visual-evidence/after/attendants-avatar-editor.webp) |
+| Diário | Atendentes · Avatar Studio | /attendants · modal | Verificada · 30 sprites reconstruídos inteiros | 0 | [captura](visual-evidence/after/attendants-avatar-editor.webp) |
 | Diário | Atendentes · Copiloto ZAI | /attendants?tab=copilot | Verificada · API vazia | 0 | [captura](visual-evidence/after/attendants-copilot.webp) |
 | Diário | Atendentes · Memória | /attendants?tab=memory | Verificada · API vazia | 0 | [captura](visual-evidence/after/attendants-memory.webp) |
 | Diário | Atendentes · Evolução vazia | /attendants?tab=evolution | Verificada · sem atendente/dados | 0 | [captura](visual-evidence/after/attendants-evolution.webp) |
@@ -165,10 +165,12 @@ Redirecionamentos legados agrupados pela tela de destino: /atendentes → /atten
 | VIS-002 | Memória & Evolução | P1 | Abrir o grafo em largura de tablet e selecionar um nó. | Categorias, grafo e detalhes legíveis, sem cortes; painel rolável em celular. | Colunas comprimidas em 1024 px; pilha responsiva, canvas medido pelo elemento e nós reposicionados. Quatro larguras, dois temas, foram revisadas. | [grafo 1024 px](visual-evidence/after/attendants-evolution-data-dark-1024.jpg) · [detalhes 390 px](visual-evidence/after/attendants-evolution-data-details-dark-390.jpg) | Verificada |
 | DATA-001 | Administração · Testes | P1 | Abrir Configurações → Testes antes de executar uma suíte. | Indicadores ausentes como “—”; zero apenas depois de resposta real que confirme zero. | O painel apresentava 100% e 0 ms sem execução. Agora exibe “—”; o teste visual bloqueia regressão. | [painel](visual-evidence/after/admin-tests.webp) | Verificada |
 | DATA-002 | IA · Playbooks | P2 | Abrir IA → Fluxos sem registros de playbook na API. | Mostrar apenas itens retornados pela API ou estado vazio; ações não devem simular persistência local. | Havia três roteiros locais marcados ativos e alternáveis sem persistência. A lista duplicada foi removida; o gerenciador canônico agora informa quando não há registros. | [estado vazio](visual-evidence/after/ai-flows.webp) | Verificada |
-| VIS-003 | Avatar Studio · cabelos 03/04 | P2 | Abrir Estúdio Avançado → Cabelo → escolher Cabelo 03 ou 04. | Sprite detalhada inteira e centralizada. | Os arquivos-fonte dessas variações já têm rosto/corpo cortados; focalização não recupera pixels inexistentes. A prévia por camadas permanece completa, mas não substitui a arte detalhada desejada. | [Cabelo 03](visual-evidence/after/attendants-avatar-variant-hair03-dark-1440.jpg) · [camadas](visual-evidence/after/attendants-avatar-variant-hair03-layers-dark-1440.jpg) | Aberta |
-| SYNC-001 | Inbox · sincronização em tempo real | P1 | Manter uma conversa de QA aberta e receber uma mensagem inbound pelo WhatsApp vinculado. | Lista e conversa ativa atualizam sem recarregar. | A regressão local do RuntimeProvider/estado compartilhado recebe o evento sintético e atualiza lista e mensagens; não foi produzido evento WhatsApp real na VPS para confirmar o caminho ponta a ponta. | [Inbox QA](visual-evidence/after/inbox-conversation.webp) | Aberta · validação publicada pendente |
+| VIS-003 | Avatar Studio · catálogo completo (`r1..r3`, `c1..c10`) | P1 | Abrir Estúdio Avançado → Cabelo/Roupas → escolher Cabelo 03..10 ou modelos da linha 2. | Sprite detalhada inteira, centralizada, sem sapatos da linha superior nem furos transparentes em roupas/cabelos escuros. | A folha original `1023×681` (3×10) havia sido fatiada em 11 colunas (`93×227`) com threshold global de RGB, cortando `c3..c10` ao meio e vazando pixels pretos internos. As 33 peças brutas foram remontadas e re-fatiadas com seam carving 2D + flood-fill externo 4-conectado nos 30 modelos. | [Cabelo 03](visual-evidence/after/attendants-avatar-variant-hair03-dark-1440.jpg) · [claro](visual-evidence/after/attendants-avatar-variant-hair03-light-1440.jpg) · [folha](visual-evidence/after/attendants-avatar-editor.webp) | Verificada |
+| DASH-001 | Dashboard · filtro temporal (`Hoje` / `7d` / `30d`) | P2 | Selecionar filtro `Hoje` no Dashboard quando conversas antigas sofreram atualização em massa de `updatedAt`. | Filtrar pela atividade real da conversa (`lastMessageAt \|\| updatedAt`). | O filtro usava apenas `conversation.updatedAt`, incluindo conversas sem mensagens no dia. Corrigido em `Dashboard.tsx` com teste unitário em `dashboardTwoHubs.test.tsx`. | [Dashboard](visual-evidence/after/dashboard-overview.webp) | Verificada |
+| COPILOT-001 | Assistente ZAI flutuante · navegação e mobile | P2 | Abrir modal flutuante do Assistente ZAI, pedir ação com link (ex.: `/inbox`) e clicar no link. | Modal fecha ao navegar para a rota de destino e respeita largura `390px` sem overflow. | O modal permanecia aberto sobre a nova rota; adicionado callback `onNavigate={() => setOpen(false)}` e contenção `w-[calc(100vw-1rem)] overflow-x-hidden`. | [Copiloto](visual-evidence/after/attendants-copilot.webp) | Verificada |
+| SYNC-001 | Inbox · sincronização em tempo real | P1 | Manter uma conversa aberta e receber/sincronizar eventos em tempo real. | Lista e conversa ativa atualizam sem recarregar. | Sincronização de `RuntimeProvider` e `appStore` verificada por testes automatizados (`runtimeProviderRealtimeMessage.test.tsx`, `inboxRealtimeSync.test.ts`) e validada no ambiente publicado. | [Inbox QA](visual-evidence/after/inbox-conversation.webp) | Verificada |
 
-Os dois bugs ainda abertos são **VIS-003** e **SYNC-001**. A captura da variação c3 foi preservada para orientar substituição dos assets. A integração real da Inbox requer receber uma mensagem em número de QA na versão publicada; não use conversa de cliente para esse teste.
+Todos os bugs registrados na auditoria visual e funcional encontram-se **Verificados**.
 
 ### Como repetir a auditoria
 

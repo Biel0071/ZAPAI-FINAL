@@ -83,4 +83,15 @@ describe("Assistente com dados reais", () => {
     expect(document.body.textContent).not.toContain("executada com sucesso");
     expect(document.body.textContent).toContain("Pausar Lia");
   });
+
+  it("invokes onNavigate when the user clicks an assistant navigation link", async () => {
+    const onNavigate = vi.fn();
+    await act(async () => root.render(<MemoryRouter><ZaiPlatformAssistantView onNavigate={onNavigate} /></MemoryRouter>));
+    await send("Mostre os clientes que não receberam resposta hoje");
+    const link = document.querySelector('a[href="/inbox"]') as HTMLAnchorElement;
+    expect(link).not.toBeNull();
+    await act(async () => link.click());
+    expect(onNavigate).toHaveBeenCalledTimes(1);
+  });
 });
+

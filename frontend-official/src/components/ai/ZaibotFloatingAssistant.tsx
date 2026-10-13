@@ -53,7 +53,7 @@ export function ZaibotFloatingAssistant() {
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent
           aria-describedby={undefined}
-          className="max-w-2xl max-h-[92dvh] overflow-y-auto border-emerald-500/30 bg-card p-4 sm:p-6"
+          className="w-[calc(100vw-1rem)] max-w-2xl max-h-[92dvh] overflow-x-hidden overflow-y-auto border-emerald-500/30 bg-card p-4 sm:p-6"
         >
           <DialogHeader className="border-b border-border/40 pb-3">
             <div className="flex items-center justify-between">
@@ -89,6 +89,7 @@ export function ZaibotFloatingAssistant() {
             }
           >
             <Copilot
+              onNavigate={() => setOpen(false)}
               onOpenNewAgentWizard={() => {
                 setOpen(false);
                 navigate("/attendants?new=1");
