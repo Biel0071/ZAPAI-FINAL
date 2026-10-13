@@ -113,6 +113,17 @@ function getTime(value?: string | null): number {
   return Number.isFinite(parsed) ? parsed : 0;
 }
 
+export function normalizeMessageTimestamp(value?: string | number | null): string {
+  if (typeof value === "number" || (typeof value === "string" && /^\d{10,13}$/.test(value))) {
+    const numericValue = Number(value);
+    const milliseconds = Math.abs(numericValue) < 100_000_000_000 ? numericValue * 1000 : numericValue;
+    const parsed = new Date(milliseconds);
+    if (Number.isFinite(parsed.getTime())) return parsed.toISOString();
+  }
+
+  return typeof value === "string" && value ? value : new Date().toISOString();
+}
+
 function mergeConversationRecord(existing: Conversation, incoming: Partial<Conversation> | Conversation): Conversation {
   const incomingTime = getTime(incoming.lastMessageAt || incoming.updatedAt);
   const existingTime = getTime(existing.lastMessageAt || existing.updatedAt);
@@ -678,8 +689,10 @@ export const useAppStore = create<AppState>((set) => ({
       };
     }),
 
-  addMessage: (conversationId, message) =>
+  addMessage: (conversationId, incomingMessage) =>
     set((state) => {
+      const messageTime = normalizeMessageTimestamp(incomingMessage.createdAt || incomingMessage.timestamp);
+      const message: ChatMessage = { ...incomingMessage, createdAt: messageTime, timestamp: messageTime };
       if (!isMessageValid(message)) {
         console.warn(`[Zustand Store] Invalid message ignored in addMessage for ${conversationId}:`, message);
         return {};
@@ -714,7 +727,6 @@ export const useAppStore = create<AppState>((set) => ({
         let nextConversations = state.conversations;
         if (convIdx !== -1) {
           const existingConv = state.conversations[convIdx];
-          const messageTime = message.createdAt || message.timestamp || new Date().toISOString();
           const updatedConv: Conversation = {
             ...existingConv,
             lastMessage: message.content || (message.mediaType ? `[${message.mediaType}]` : existingConv.lastMessage),
@@ -747,7 +759,6 @@ export const useAppStore = create<AppState>((set) => ({
           let nextConversations = state.conversations;
           if (convIdx !== -1) {
             const existingConv = state.conversations[convIdx];
-            const messageTime = message.createdAt || message.timestamp || new Date().toISOString();
             const updatedConv: Conversation = {
               ...existingConv,
               lastMessage: message.content || existingConv.lastMessage,
@@ -777,7 +788,6 @@ export const useAppStore = create<AppState>((set) => ({
       let nextConversations = state.conversations;
       if (convIdx !== -1) {
         const existingConv = state.conversations[convIdx];
-        const messageTime = message.createdAt || message.timestamp || new Date().toISOString();
         const updatedConv: Conversation = {
           ...existingConv,
           lastMessage: message.content || (message.mediaType ? `[${message.mediaType}]` : existingConv.lastMessage),

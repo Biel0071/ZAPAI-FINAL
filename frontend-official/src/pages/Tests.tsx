@@ -31,6 +31,14 @@ export interface SuiteOverview {
   totalTests: number;
 }
 
+type TestRunMetrics = {
+  totalTests: number | null;
+  passedTests: number | null;
+  failedTests: number | null;
+  successRate: number | null;
+  totalDurationMs: number | null;
+};
+
 const Tests: React.FC = () => {
   const [suites, setSuites] = useState<SuiteOverview[]>([]);
   const [selectedSuiteIds, setSelectedSuiteIds] = useState<string[]>([]);
@@ -38,12 +46,12 @@ const Tests: React.FC = () => {
   const [isLoadingSuites, setIsLoadingSuites] = useState<boolean>(true);
   const [graphData, setGraphData] = useState<TestGraphData | null>(null);
   const [logs, setLogs] = useState<LogEntry[]>([]);
-  const [metrics, setMetrics] = useState({
-    totalTests: 0,
-    passedTests: 0,
-    failedTests: 0,
-    successRate: 100,
-    totalDurationMs: 0,
+  const [metrics, setMetrics] = useState<TestRunMetrics>({
+    totalTests: null,
+    passedTests: null,
+    failedTests: null,
+    successRate: null,
+    totalDurationMs: null,
   });
 
   const loadInitialData = async () => {
@@ -87,7 +95,7 @@ const Tests: React.FC = () => {
           passedTests: run.metrics.passedTests,
           failedTests: run.metrics.failedTests,
           successRate: run.metrics.successRate,
-          totalDurationMs: run.totalDurationMs,
+          totalDurationMs: run.totalDurationMs ?? null,
         });
 
         if (run.graph) {
@@ -203,7 +211,7 @@ const Tests: React.FC = () => {
         <Card className="bg-[#0b0f19] border-slate-800 p-4">
           <p className="text-[11px] text-slate-400 font-medium uppercase tracking-wider">Total de Testes</p>
           <div className="flex items-baseline justify-between mt-2">
-            <span className="text-2xl font-black text-white">{metrics.totalTests}</span>
+            <span className="text-2xl font-black text-white">{metrics.totalTests ?? "—"}</span>
             <Badge variant="outline" className="border-slate-700 text-slate-400 text-[10px]">
               {suites.length} Módulos
             </Badge>
@@ -213,25 +221,29 @@ const Tests: React.FC = () => {
         <Card className="bg-[#0b0f19] border-slate-800 p-4">
           <p className="text-[11px] text-slate-400 font-medium uppercase tracking-wider">Taxa de Sucesso</p>
           <div className="flex items-baseline justify-between mt-2">
-            <span className="text-2xl font-black text-emerald-400">{metrics.successRate}%</span>
-            <CheckCircle className="w-5 h-5 text-emerald-400" />
+            <span className="text-2xl font-black text-emerald-400">
+              {metrics.successRate == null ? "—" : `${metrics.successRate}%`}
+            </span>
+            {metrics.successRate == null ? <Clock className="w-5 h-5 text-slate-500" /> : <CheckCircle className="w-5 h-5 text-emerald-400" />}
           </div>
         </Card>
 
         <Card className="bg-[#0b0f19] border-slate-800 p-4">
           <p className="text-[11px] text-slate-400 font-medium uppercase tracking-wider">Falhas Detectadas</p>
           <div className="flex items-baseline justify-between mt-2">
-            <span className={`text-2xl font-black ${metrics.failedTests > 0 ? "text-rose-400" : "text-slate-400"}`}>
-              {metrics.failedTests}
+            <span className={`text-2xl font-black ${metrics.failedTests != null && metrics.failedTests > 0 ? "text-rose-400" : "text-slate-400"}`}>
+              {metrics.failedTests ?? "—"}
             </span>
-            <XCircle className={`w-5 h-5 ${metrics.failedTests > 0 ? "text-rose-400" : "text-slate-600"}`} />
+            <XCircle className={`w-5 h-5 ${metrics.failedTests != null && metrics.failedTests > 0 ? "text-rose-400" : "text-slate-600"}`} />
           </div>
         </Card>
 
         <Card className="bg-[#0b0f19] border-slate-800 p-4">
           <p className="text-[11px] text-slate-400 font-medium uppercase tracking-wider">Tempo Total de Execução</p>
           <div className="flex items-baseline justify-between mt-2">
-            <span className="text-2xl font-black text-amber-300">⚡ {metrics.totalDurationMs}ms</span>
+            <span className="text-2xl font-black text-amber-300">
+              {metrics.totalDurationMs == null ? "—" : `⚡ ${metrics.totalDurationMs}ms`}
+            </span>
             <Lightning className="w-5 h-5 text-amber-400 animate-pulse" />
           </div>
         </Card>

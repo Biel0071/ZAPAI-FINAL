@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
+## Unreleased — 2026-10-13: auditoria visual contínua
+
+- Inventário visual sanitizado de 46 rotas e abas, em dois temas e quatro larguras, com estados vazios e fixtures isoladas de QA.
+- Atendentes: prévia Habbo/Tibia mais visível, seleção modular e grafo de evolução responsivo sem memórias ou métricas fictícias.
+- Inbox: mensagens recebidas atualizam lista e conversa ativa sem recarga, com timestamps numéricos normalizados; o rascunho de IA do fixture de QA não envia solicitações externas.
+- Removida a taxa de sucesso fictícia do painel de testes e a lista local de playbooks que simulava dados persistidos.
+- Pendências registradas: recorte das sprites detalhadas de cabelo 03/04 e validação da sincronização real da Inbox em ambiente publicado.
+
 ## Unreleased — 2026-10-06: Inbox, sincronização e Atendente IA
 
 - Abas do atendimento com nomes e emojis, Histórico no lugar de Logs e aparência editável das categorias de respostas rápidas, isolada por empresa e com salvamento confirmado.

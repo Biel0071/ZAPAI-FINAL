@@ -215,5 +215,7 @@ describe("EvolutionTab uses only returned memory and evolution data", () => {
     expect(document.body.textContent).not.toContain("Assertividade 85%");
     expect(document.body.textContent).not.toContain("Camila (Atendente)");
     expect(document.body.textContent).not.toContain("Exemplo de Conversa");
+    expect(container?.querySelector('[aria-label="Detalhes da Memória"]')?.textContent).toContain("—");
+    expect(document.body.textContent).not.toContain("Sem resumo disponível.");
   });
 });

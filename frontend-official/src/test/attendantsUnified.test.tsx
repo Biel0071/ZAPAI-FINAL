@@ -322,7 +322,7 @@ describe("Unified Attendants & Assistente ZAI Integration Tests", () => {
     );
     expect(managementDetails?.open).toBe(false);
     expect(document.body.textContent).toContain("Avatar Studio 2.5D");
-    expect(document.querySelector('[class*="h-[230px]"]')).not.toBeNull();
+    expect(document.querySelector('[class*="h-[300px]"]')).not.toBeNull();
     const selectorPanel = document.querySelector<HTMLElement>('[aria-label="Seleção de atendente"]');
     expect(selectorPanel?.className).toContain("md:grid-cols");
     const avatarAccordion = document.querySelector<HTMLElement>('[aria-controls="avatar-studio-content"]');

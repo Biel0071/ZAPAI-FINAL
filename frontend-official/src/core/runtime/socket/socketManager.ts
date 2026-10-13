@@ -100,6 +100,7 @@ type RawRealtimeMessage = {
     remoteJid?: string;
     jid?: string;
     author?: string;
+    sender?: string;
     content?: string;
     text?: string;
     body?: string;
@@ -107,6 +108,8 @@ type RawRealtimeMessage = {
     createdAt?: string;
     created_at?: string;
     timestamp?: string;
+    fromMe?: boolean;
+    isAI?: boolean;
     mediaPath?: string;
     media_path?: string;
     mediaUrl?: string;
@@ -208,6 +211,8 @@ type RawRealtimeConversation = {
   isGroup?: boolean;
   lastMessage?: string;
   last_message?: string;
+  lastMessageAt?: string;
+  last_message_at?: string;
   updatedAt?: string;
   updated_at?: string;
   timestamp?: string;
@@ -224,6 +229,8 @@ type RawRealtimeConversation = {
 };
 
 type RealtimeMessage = ChatMessage & {
+  sender?: string;
+  origin?: string;
   remoteJid?: string;
   conversationId?: string;
   chatId?: string;

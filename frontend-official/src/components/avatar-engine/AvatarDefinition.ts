@@ -6,13 +6,13 @@
 
 export type BodyType = "male" | "female" | "neutral" | "robot";
 
-export type SkinTone = 
-  | "fair"       // #fef08a / #fde68a
-  | "peach"      // #fcd34d
-  | "tan"        // #f59e0b
-  | "bronze"     // #d97706
-  | "dark"       // #b45309
-  | "deep_dark";  // #78350f
+export type SkinTone =
+  | "fair"       // Tom claro marfim
+  | "peach"      // Tom pêssego quente
+  | "tan"        // Tom bronzeado
+  | "bronze"     // Tom bronze
+  | "dark"       // Tom escuro
+  | "deep_dark";  // Tom retinto
 
 export type HairColor =
   | "black"      // #18181b

@@ -21,6 +21,83 @@ import {
   AVATAR_STYLES,
 } from "./AvatarDefinition";
 
+const RENDERER_HAIR_ALIASES: Record<string, string> = {
+  female_ponytail_brunette: "hair_01",
+  female_straight_glasses: "hair_07",
+  female_wavy_blonde: "hair_03",
+  female_curly_updo: "hair_04",
+  female_long_wavy_coffee: "hair_03",
+  female_pink_cap: "hair_01",
+  female_short_business: "hair_02",
+  female_peace_brunette: "hair_01",
+  female_silver_waves: "hair_03",
+  female_blue_wavy: "hair_10",
+  female_hardhat_brunette: "hair_01",
+  male_short_fade: "hair_05",
+  male_spiky: "hair_08",
+  male_textured_crop: "hair_05",
+  male_cap_hair: "hair_05",
+  male_curly_brown: "hair_09",
+  male_anime_silver: "hair_08",
+  male_afro_curls: "hair_06",
+  male_professor_beard: "hair_05",
+  male_dark_shades: "hair_05",
+  male_red_hoodie: "hair_08",
+};
+
+const RENDERER_OUTFIT_ALIASES: Record<string, string> = {
+  polo_zai_black: "outfit_01",
+  polo_zai_white: "outfit_01",
+  hoodie_zai_black: "outfit_03",
+  vest_hivis_safety: "outfit_06",
+  shirt_business_white: "outfit_02",
+  jacket_exec_dark: "outfit_08",
+  casual_tee_charcoal: "outfit_07",
+  uniform_tech_navy: "outfit_04",
+  delivery_cargo_set: "outfit_04",
+  blazer_emerald_trim: "outfit_05",
+};
+
+const RENDERER_FACE_ALIASES: Record<string, string> = {
+  face_friendly_smile: "face_01",
+  face_confident_smirk: "face_02",
+  face_glasses_round: "face_01",
+  face_glasses_square: "face_02",
+  face_dark_sunglasses: "face_06",
+  face_beard_mustache: "face_05",
+  face_stubble_clean: "face_05",
+  face_wink_cheerful: "face_03",
+  face_focused_analyst: "face_05",
+  face_calm_support: "face_01",
+};
+
+const RENDERER_STYLE_ALIASES: Record<string, string> = {
+  sales: "style_vendas",
+  corporate: "style_corporativo",
+  atendimento: "style_atendimento",
+  operational: "style_operacional",
+  tech: "style_tech",
+  casual: "style_casual",
+  premium: "style_premium",
+};
+
+/** Normalizes stored catalog identifiers for the renderer without changing persisted avatar data. */
+export function normalizeAvatarForRenderer(avatar: Partial<AgentAvatarConfig>): Partial<AgentAvatarConfig> {
+  const legacyFace = avatar.face || avatar.eyes;
+  const configuredOutfit = avatar.outfit || avatar.clothing;
+  const resolvedHair = RENDERER_HAIR_ALIASES[avatar.hair || ""] || avatar.hair || "";
+  const resolvedFace = RENDERER_FACE_ALIASES[legacyFace || ""] || legacyFace || "";
+  const resolvedOutfit = RENDERER_OUTFIT_ALIASES[configuredOutfit || ""] || configuredOutfit || "";
+
+  return {
+    ...avatar,
+    hair: /^hair_(0[1-9]|10)$/.test(resolvedHair) ? resolvedHair : (avatar.body === "male" ? "hair_05" : "hair_01"),
+    face: /^face_0[1-6]$/.test(resolvedFace) ? resolvedFace : "face_01",
+    outfit: /^outfit_0[1-8]$/.test(resolvedOutfit) ? resolvedOutfit : "outfit_01",
+    style: RENDERER_STYLE_ALIASES[avatar.style || ""] || avatar.style || "style_vendas",
+  };
+}
+
 /**
  * Builds a default Store Visual DNA for any store
  */

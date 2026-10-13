@@ -15,7 +15,7 @@
 
 import React, { useMemo } from "react";
 import { AgentAvatarConfig, AnimationState, StoreBranding } from "./AvatarDefinition";
-import { resolveSpriteForAvatar } from "./CharacterFactory";
+import { normalizeAvatarForRenderer, resolveSpriteForAvatar } from "./CharacterFactory";
 import { cn } from "@/core/lib/utils";
 import {
   Sparkle,
@@ -43,7 +43,7 @@ const SIZE_CONFIGS = {
   xl: { container: "w-48 h-64", character: "h-56 w-auto", badge: "text-xs px-3 py-1", indicator: "w-4 h-4" },
   workspace: {
     container: "w-full h-full flex flex-col items-center justify-center",
-    character: "h-[205px] sm:h-[220px] w-auto max-w-[185px]",
+    character: "h-[250px] sm:h-[270px] w-auto max-w-[185px]",
     badge: "text-xs px-2.5 py-0.5",
     indicator: "w-3 h-3",
   },
@@ -66,7 +66,7 @@ const STATE_LABELS: Record<AnimationState, string> = {
 // Skin tone palettes (crisp isometric shading)
 const SKIN_PALETTES: Record<string, { base: string; shadow: string; highlight: string; blush: string }> = {
   fair: { base: "#ffe0bd", shadow: "#e2b88b", highlight: "#fff5ea", blush: "#fca5a5" },
-  peach: { base: "#fcd34d", shadow: "#d97706", highlight: "#fef3c7", blush: "#f87171" },
+  peach: { base: "#f2c39f", shadow: "#bd805d", highlight: "#ffe2ca", blush: "#e89595" },
   tan: { base: "#d89759", shadow: "#b57236", highlight: "#e5ab75", blush: "#fb7185" },
   bronze: { base: "#aa6e39", shadow: "#844f22", highlight: "#c3834a", blush: "#e11d48" },
   dark: { base: "#6d4323", shadow: "#4f2e14", highlight: "#87552e", blush: "#9f1239" },
@@ -185,8 +185,8 @@ function ModularLayerAvatar({
         currentState === "OFFLINE" && "grayscale contrast-75 opacity-70"
       )}
       style={{
-        imageRendering: "pixelated",
-        shapeRendering: "crispEdges",
+        imageRendering: size === "workspace" ? "auto" : "pixelated",
+        shapeRendering: size === "workspace" ? "geometricPrecision" : "crispEdges",
       }}
     >
       <defs>
@@ -765,6 +765,7 @@ export const ZaiAvatarRenderer: React.FC<ZaiAvatarRendererProps> = ({
 }) => {
   const currentState = stateProp || avatar.animationState || "WAITING";
   const sizeConfig = SIZE_CONFIGS[size] || SIZE_CONFIGS.md;
+  const renderedAvatar = normalizeAvatarForRenderer(avatar || {});
 
   // Resolve branding attributes with robust fallbacks
   const rawBranding = avatar?.branding || (avatar as any)?.storeBranding || {};
@@ -792,9 +793,7 @@ export const ZaiAvatarRenderer: React.FC<ZaiAvatarRendererProps> = ({
         onClick && "cursor-pointer hover:scale-105",
         className
       )}
-      style={{
-        imageRendering: "pixelated",
-      }}
+      style={{ imageRendering: size === "workspace" ? "auto" : "pixelated" }}
     >
       {/* Semantic image for catalog sprite reference, accessibility, and test compatibility */}
       <img
@@ -833,7 +832,7 @@ export const ZaiAvatarRenderer: React.FC<ZaiAvatarRendererProps> = ({
       {/* Main 2.5D Pixel-Art Character (Never clipped, fits 35%-50% container height) */}
       <div className={cn("relative z-10 flex items-center justify-center my-auto", sizeConfig.character)}>
         <ModularLayerAvatar
-          avatar={avatar}
+          avatar={renderedAvatar}
           branding={branding}
           currentState={currentState}
           size={size}

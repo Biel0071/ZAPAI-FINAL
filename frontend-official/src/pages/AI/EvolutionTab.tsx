@@ -818,9 +818,14 @@ export function EvolutionTab({ agentKey, onSelectAgent, agents: initialAgents }:
       {/* MODE 1: CÉREBRO ATIVO (GRAFO) */}
       {evolutionSubTab === "graph" && (
         <div className="space-y-6">
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 items-start">
+          <div className={cn(
+            "grid grid-cols-1 gap-4 items-start",
+            selectedMemoryNode
+              ? "xl:grid-cols-[240px_minmax(0,1fr)_320px]"
+              : "xl:grid-cols-[240px_minmax(0,1fr)]"
+          )}>
           {/* Left Column: Category Filters */}
-          <div className="lg:col-span-3 space-y-2 p-3 rounded-2xl border border-border/80 bg-card shadow-sm">
+          <div className="min-w-0 space-y-2 p-3 rounded-2xl border border-border/80 bg-card shadow-sm">
             <div className="flex items-center justify-between pb-2 border-b border-border/60">
               <span className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">
                 Categorias do Cérebro
@@ -859,7 +864,7 @@ export function EvolutionTab({ agentKey, onSelectAgent, agents: initialAgents }:
           </div>
 
           {/* Center Column: Interactive Active Brain Graph Canvas */}
-          <div className={cn("space-y-2", selectedMemoryNode ? "lg:col-span-6" : "lg:col-span-9")}>
+          <div className="min-w-0 space-y-2">
             {memoryLoading ? (
               <div role="status" className="min-h-[220px] rounded-2xl border border-border/70 bg-card/60 flex items-center justify-center text-sm text-muted-foreground">Carregando memórias…</div>
             ) : memoryError ? (
@@ -887,7 +892,7 @@ export function EvolutionTab({ agentKey, onSelectAgent, agents: initialAgents }:
 
           {/* Right Column: Memory Detail Drawer */}
           {selectedMemoryNode && (
-            <div className="lg:col-span-3">
+            <div className="min-w-0">
               <MemoryDetailDrawer
                 memory={selectedMemoryNode}
                 onClose={() => setSelectedMemoryNode(null)}

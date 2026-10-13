@@ -47,36 +47,6 @@ export interface FlowItem {
   active?: boolean;
 }
 
-const DEFAULT_PLAYBOOKS = [
-  {
-    id: "pb-price-objection",
-    title: "Objeção de Preço (\"Está caro\")",
-    trigger: "caro, desconto, menor preco, valor alto",
-    category: "Vendas",
-    active: true,
-    script:
-      "Entendo perfeitamente sua preocupação com o investimento! Nossos clientes escolhem nossa solução justamente porque ela se paga em poucos dias com suporte dedicado e garantia. Posso te apresentar as condições de parcelamento sem juros?",
-  },
-  {
-    id: "pb-cart-recovery",
-    title: "Recuperação de Interesse",
-    trigger: "depois eu vejo, vou pensar, amanha falo",
-    category: "Conversão",
-    active: true,
-    script:
-      "Sem problemas! Vou deixar sua condição especial reservada por hoje. Quer que eu te envie um resumo com os principais benefícios para você analisar com calma?",
-  },
-  {
-    id: "pb-lead-qualification",
-    title: "Qualificação Rápida",
-    trigger: "orcamento, informacoes, quanto custa",
-    category: "Qualificação",
-    active: true,
-    script:
-      "Perfeito! Para eu te passar a proposta mais assertiva, me conta: você precisa da solução para uso próprio ou para sua equipe/empresa?",
-  },
-];
-
 export function FlowsTab() {
   const { toast } = useToast();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -120,9 +90,6 @@ export function FlowsTab() {
     nextSteps: "",
   });
   const [isSavingFlow, setIsSavingFlow] = useState(false);
-
-  // Playbooks state
-  const [playbooks, setPlaybooks] = useState(DEFAULT_PLAYBOOKS);
 
   // Load business hours and flows
   const loadData = useCallback(async () => {
@@ -284,14 +251,6 @@ export function FlowsTab() {
         variant: "destructive",
       });
     }
-  };
-
-  // Toggle Playbook
-  const handleTogglePlaybook = (id: string) => {
-    setPlaybooks((prev) =>
-      prev.map((p) => (p.id === id ? { ...p, active: !p.active } : p))
-    );
-    toast({ title: "Status do Playbook atualizado." });
   };
 
   const showAll = activeSub === "todos";
@@ -576,57 +535,6 @@ export function FlowsTab() {
                 ))}
               </div>
             )}
-          </CardContent>
-        </Card>
-      )}
-
-      {/* SECTION 3: SALES & SERVICE PLAYBOOKS (LEGACY QUICK VIEW CARDS) */}
-      {showPlaybooks && (
-        <Card className="bg-card border-border/80 shadow-sm">
-          <CardHeader className="pb-3 border-b border-border/40">
-            <CardTitle className="text-base font-bold flex items-center gap-2 text-foreground">
-              <BookOpen className="h-5 w-5 text-emerald-400" /> Playbooks de Negociação & Respostas Rápidas
-            </CardTitle>
-            <CardDescription className="text-xs text-muted-foreground">
-              Roteiros comerciais pré-programados para contornar objeções e acelerar conversões.
-            </CardDescription>
-          </CardHeader>
-
-          <CardContent className="p-4 sm:p-5">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-3.5">
-              {playbooks.map((pb) => (
-                <div
-                  key={pb.id}
-                  className={cn(
-                    "p-3.5 rounded-xl border transition-all space-y-2.5",
-                    pb.active
-                      ? "border-emerald-500/40 bg-card shadow-xs"
-                      : "border-border/60 bg-muted/10 opacity-70"
-                  )}
-                >
-                  <div className="flex items-start justify-between gap-2">
-                    <div>
-                      <Badge variant="outline" className="text-[9px] uppercase font-bold text-muted-foreground">
-                        {pb.category}
-                      </Badge>
-                      <h4 className="text-xs font-bold text-foreground mt-1">{pb.title}</h4>
-                    </div>
-                    <Switch
-                      checked={pb.active}
-                      onCheckedChange={() => handleTogglePlaybook(pb.id)}
-                    />
-                  </div>
-
-                  <div className="text-[10px] text-muted-foreground">
-                    <span className="font-semibold text-foreground">Gatilhos:</span> {pb.trigger}
-                  </div>
-
-                  <p className="text-xs text-muted-foreground line-clamp-3 bg-muted/20 p-2 rounded-lg border border-border/40 font-normal">
-                    "{pb.script}"
-                  </p>
-                </div>
-              ))}
-            </div>
           </CardContent>
         </Card>
       )}

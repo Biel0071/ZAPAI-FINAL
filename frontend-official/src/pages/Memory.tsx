@@ -1287,7 +1287,7 @@ function ScopedMemory({ sessionId }: { sessionId: string }) {
                   Resumo Cognitivo da IA
                 </Label>
                 <div className="rounded-xl border border-primary/20 bg-primary/5 p-4 text-xs leading-relaxed text-foreground italic">
-                  "{selectedMemory.summary || "Sem resumo disponível para este contato. A IA compila e atualiza este resumo conforme o contato avança."}"
+                  "{selectedMemory.summary || "—"}"
                 </div>
               </div>
 

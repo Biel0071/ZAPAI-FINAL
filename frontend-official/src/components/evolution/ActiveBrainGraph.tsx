@@ -75,15 +75,23 @@ export const ActiveBrainGraph: React.FC<ActiveBrainGraphProps> = ({
 
   useEffect(() => {
     const updateSize = () => {
-      if (containerRef.current) {
-        const w = containerRef.current.offsetWidth || 900;
-        const h = containerRef.current.offsetHeight || height || 600;
-        setViewBoxSize({ width: w, height: h });
-      }
+      const container = containerRef.current;
+      if (!container) return;
+      const width = Math.round(container.getBoundingClientRect().width);
+      const containerHeight = Math.round(container.getBoundingClientRect().height);
+      if (width <= 0 || containerHeight <= 0) return;
+      setViewBoxSize((current) => current.width === width && current.height === containerHeight
+        ? current
+        : { width, height: containerHeight });
     };
     updateSize();
+    const resizeObserver = typeof ResizeObserver === "undefined" ? null : new ResizeObserver(updateSize);
+    if (containerRef.current) resizeObserver?.observe(containerRef.current);
     window.addEventListener("resize", updateSize);
-    return () => window.removeEventListener("resize", updateSize);
+    return () => {
+      resizeObserver?.disconnect();
+      window.removeEventListener("resize", updateSize);
+    };
   }, [height]);
 
   const centerX = viewBoxSize.width / 2;
@@ -98,15 +106,16 @@ export const ActiveBrainGraph: React.FC<ActiveBrainGraphProps> = ({
     });
 
     const categories = [...categoryCounts.keys()];
+    const distance = Math.min(160, Math.max(48, centerX - 72));
     return categories.map((id, index) => ({
       id,
       label: GRAPH_CATEGORY_LABELS[id] || id.replace(/[_-]/g, " ").replace(/^\w/, (letter) => letter.toLocaleUpperCase("pt-BR")),
       color: GRAPH_CATEGORY_COLORS[id] || ["#14b8a6", "#f97316", "#a855f7", "#84cc16"][index % 4],
       angle: (index * 2 * Math.PI) / categories.length,
-      distance: 160,
+      distance,
       count: categoryCounts.get(id) || 0,
     }));
-  }, [memories]);
+  }, [centerX, memories]);
 
   // Filter memories if a category is selected
   const activeMemories = useMemo(() => {
@@ -218,7 +227,8 @@ export const ActiveBrainGraph: React.FC<ActiveBrainGraphProps> = ({
       memList.forEach((mem, index) => {
         // Distribute leaf nodes radially around the branch
         const leafAngle = branch.angle - 0.4 + (index * 0.8) / Math.max(1, memList.length - 1);
-        const leafDist = branch.distance + 85 + (index % 2) * 35;
+        const leafBaseDistance = Math.max(24, Math.min(72, centerX - branch.distance - 56));
+        const leafDist = branch.distance + leafBaseDistance + (index % 2) * Math.min(16, centerX * 0.06);
         const x = centerX + Math.cos(leafAngle) * leafDist;
         const y = centerY + Math.sin(leafAngle) * leafDist;
 
@@ -281,6 +291,7 @@ export const ActiveBrainGraph: React.FC<ActiveBrainGraphProps> = ({
   return (
     <div
       ref={containerRef}
+      data-testid="active-brain-graph"
       onMouseDown={handleMouseDown}
       onMouseMove={handleMouseMove}
       onMouseUp={handleMouseUp}
@@ -459,7 +470,7 @@ export const ActiveBrainGraph: React.FC<ActiveBrainGraphProps> = ({
             const count = branch.count;
 
             return (
-              <g key={`branch-node-${branch.id}`} className="cursor-pointer">
+              <g key={`branch-node-${branch.id}`} data-testid="memory-category-node" className="cursor-pointer">
                 {/* Glow ring */}
                 <circle cx={bx} cy={by} r={24} fill="#0d141e" stroke={branch.color} strokeWidth="2" />
                 <circle cx={bx} cy={by} r={8} fill={branch.color} fillOpacity="0.9" />

@@ -19,7 +19,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { connectInboxSocket, forceReconnectInboxSocket } from "@/core/runtime/socket/socketManager";
 import { apiService, type ChatMessage, type Conversation } from "@/core/services/apiService";
-import { useAppStore, isPhoneMatch } from "@/state/stores/appStore";
+import { useAppStore, isPhoneMatch, normalizeMessageTimestamp } from "@/state/stores/appStore";
 import { API_ORIGIN } from "@/core/lib/backendConfig";
 import { normalizeSession, getSessionId } from "@/core/services/normalizeSession";
 import {
@@ -594,10 +594,13 @@ export function RuntimeProvider({ children }: { children: ReactNode }) {
             })
             .catch(() => {});
         }
+        const normalizedTimestamp = normalizeMessageTimestamp(incoming.timestamp || incoming.createdAt);
         const message = {
           ...incoming,
           conversationId,
           chatId: incoming.chatId || currentConv?.chatId || currentConv?.phone,
+          createdAt: normalizedTimestamp,
+          timestamp: normalizedTimestamp,
         } as ChatMessage;
         runtimeInfo(`[Runtime] ai_response id=${incoming.id} conversation=${conversationId}`);
         store.addMessage(conversationId, message);
@@ -605,8 +608,8 @@ export function RuntimeProvider({ children }: { children: ReactNode }) {
         store.updateConversationRealtime({
           id: conversationId,
           lastMessage: incoming.content || "",
-          lastMessageAt: incoming.timestamp || incoming.createdAt || new Date().toISOString(),
-          updatedAt: incoming.createdAt || new Date().toISOString(),
+          lastMessageAt: normalizedTimestamp,
+          updatedAt: normalizedTimestamp,
           phone: incoming.phone || incoming.remoteJid || currentConv?.phone,
           chatId: incoming.chatId || incoming.remoteJid || currentConv?.chatId || currentConv?.phone,
           contactId: incoming.contactId || currentConv?.contactId,
@@ -707,10 +710,13 @@ export function RuntimeProvider({ children }: { children: ReactNode }) {
             })
             .catch(() => {});
         }
+        const normalizedTimestamp = normalizeMessageTimestamp(incoming.timestamp || incoming.createdAt);
         const message = {
           ...incoming,
           conversationId,
           chatId: incoming.chatId || currentConv?.chatId || currentConv?.phone,
+          createdAt: normalizedTimestamp,
+          timestamp: normalizedTimestamp,
         } as ChatMessage;
 
         runtimeInfo("[Runtime] new_message", {
@@ -730,8 +736,8 @@ export function RuntimeProvider({ children }: { children: ReactNode }) {
         store.updateConversationRealtime({
           id: conversationId,
           lastMessage: incoming.content || "",
-          lastMessageAt: incoming.timestamp || incoming.createdAt || new Date().toISOString(),
-          updatedAt: incoming.createdAt || new Date().toISOString(),
+          lastMessageAt: normalizedTimestamp,
+          updatedAt: normalizedTimestamp,
           unread: isActive ? 0 : (incoming.fromMe ? 0 : 1) + (currentConv?.unread ?? 0),
           phone: incoming.phone || incoming.remoteJid || currentConv?.phone,
           chatId: incoming.chatId || incoming.remoteJid || currentConv?.chatId || currentConv?.phone,

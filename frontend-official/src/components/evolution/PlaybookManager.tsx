@@ -168,6 +168,17 @@ export function PlaybookManager() {
       </div>
 
       {/* Playbooks Grid */}
+      {loading ? (
+        <div role="status" className="rounded-xl border border-border/60 bg-card/40 p-8 text-center text-sm text-muted-foreground">
+          Carregando playbooks…
+        </div>
+      ) : playbooks.length === 0 ? (
+        <div role="status" className="rounded-xl border border-dashed border-border/70 bg-card/30 px-5 py-10 text-center">
+          <BookOpen className="mx-auto mb-3 h-6 w-6 text-muted-foreground" aria-hidden="true" />
+          <p className="text-sm font-semibold text-foreground">Nenhum playbook cadastrado</p>
+          <p className="mt-1 text-xs text-muted-foreground">Crie um playbook para que ele apareça aqui.</p>
+        </div>
+      ) : (
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {playbooks.map((pb) => {
           const parsedSteps = Array.isArray(pb.steps) ? pb.steps : (typeof pb.steps === "string" ? JSON.parse(pb.steps || "[]") : []);
@@ -240,6 +251,7 @@ export function PlaybookManager() {
           );
         })}
       </div>
+      )}
 
       {/* Edit/Create Dialog */}
       <Dialog open={modalOpen} onOpenChange={setModalOpen}>

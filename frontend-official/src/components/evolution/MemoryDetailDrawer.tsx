@@ -85,7 +85,7 @@ export const MemoryDetailDrawer: React.FC<MemoryDetailDrawerProps> = ({
     <aside
       role="complementary"
       aria-label="Detalhes da Memória"
-      className="w-full lg:w-[380px] bg-card border border-border/80 rounded-2xl shadow-xl p-4 flex flex-col justify-between shrink-0 animate-in fade-in slide-in-from-right-4 duration-200"
+      className="w-full min-w-0 bg-card border border-border/80 rounded-2xl shadow-xl p-4 flex flex-col justify-between shrink-0 animate-in fade-in slide-in-from-right-4 duration-200"
     >
       <div className="space-y-4">
         {/* Drawer Header */}
@@ -138,7 +138,7 @@ export const MemoryDetailDrawer: React.FC<MemoryDetailDrawerProps> = ({
             Resumo
           </span>
           <p className="text-xs text-foreground/90 leading-relaxed">
-            {memory.desc || "Sem resumo disponível."}
+            {memory.desc || "—"}
           </p>
         </div>
 

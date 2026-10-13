@@ -16,6 +16,7 @@ import {
   unequipItem,
   randomizeAvatar,
   resolveSpriteForAvatar,
+  normalizeAvatarForRenderer,
   applyStylePreset,
 } from "../CharacterFactory";
 import {
@@ -79,6 +80,26 @@ describe("ZAI Avatar Engine — Modular Character Factory & Store DNA", () => {
     expect(camila.badge).toBe(true);
     expect(camila.body).toBe("female");
     expect(camila.catalogSpriteId).toBeDefined();
+  });
+
+  it("maps stored legacy avatar options to visible modular layers without mutating the saved config", () => {
+    const savedConfig: Partial<AgentAvatarConfig> = {
+      body: "female",
+      skin: "peach",
+      hair: "female_ponytail_brunette",
+      clothing: "polo_zai_black",
+      eyes: "face_friendly_smile",
+      style: "sales",
+    };
+
+    const renderedConfig = normalizeAvatarForRenderer(savedConfig);
+
+    expect(renderedConfig.hair).toBe("hair_01");
+    expect(renderedConfig.outfit).toBe("outfit_01");
+    expect(renderedConfig.face).toBe("face_01");
+    expect(renderedConfig.style).toBe("style_vendas");
+    expect(savedConfig.hair).toBe("female_ponytail_brunette");
+    expect(savedConfig.clothing).toBe("polo_zai_black");
   });
 
   it("guarantees that two agents from the same store are not clones", () => {
@@ -181,7 +202,7 @@ describe("Avatar operational state regressions", () => {
       await act(async () => {
         document.querySelector<HTMLButtonElement>('[data-avatar-item="female_short_business"]')?.click();
       });
-      expect(document.querySelector('img[alt="camila"]')?.getAttribute("src")).toContain("sprite_r2_c7_clean.png");
+      expect(document.querySelector('img[alt="Camila"]')?.getAttribute("src")).toContain("sprite_r2_c7_clean.png");
 
       await act(async () => {
         Array.from(document.querySelectorAll('[role="tab"]')).find(button => button.textContent?.includes("Roupas"))?.dispatchEvent(new MouseEvent("mousedown", { bubbles: true, button: 0 }));
@@ -189,7 +210,9 @@ describe("Avatar operational state regressions", () => {
       await act(async () => {
         document.querySelector<HTMLButtonElement>('[data-avatar-item="female_curly_updo"]')?.click();
       });
-      expect(document.querySelector('img[alt="camila"]')?.getAttribute("src")).toContain("sprite_r2_c4_clean.png");
+      const preview = document.querySelector<HTMLImageElement>('img[alt="Camila"]');
+      expect(preview?.getAttribute("src")).toContain("sprite_r2_c4_clean.png");
+      expect(preview?.dataset.avatarPreviewFocalX).toBe("84");
 
       await act(async () => {
         Array.from(document.querySelectorAll('[role="tab"]')).find(button => button.textContent?.includes("Acessórios"))?.dispatchEvent(new MouseEvent("mousedown", { bubbles: true, button: 0 }));
@@ -197,7 +220,7 @@ describe("Avatar operational state regressions", () => {
       await act(async () => {
         Array.from(document.querySelectorAll("button")).find(button => button.textContent?.includes("Headset ZAI Wireless Pro"))?.click();
       });
-      expect(document.querySelector('img[alt="camila"]')?.getAttribute("src")).toContain("sprite_r2_c4_clean.png");
+      expect(document.querySelector('img[alt="Camila"]')?.getAttribute("src")).toContain("sprite_r2_c4_clean.png");
 
       await act(async () => {
         Array.from(document.querySelectorAll("button")).find(button => button.textContent?.includes("Salvar Avatar"))?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
@@ -216,7 +239,7 @@ describe("Avatar operational state regressions", () => {
           agent: { ...agent, avatarConfig: persistedAvatar },
         }));
       });
-      expect(document.querySelector('img[alt="camila"]')?.getAttribute("src")).toContain("sprite_r2_c4_clean.png");
+      expect(document.querySelector('img[alt="Camila"]')?.getAttribute("src")).toContain("sprite_r2_c4_clean.png");
     } finally {
       await act(async () => root.unmount());
       container.remove();
@@ -274,7 +297,7 @@ describe("Avatar operational state regressions", () => {
       const maleButton = getMaleButton();
       await act(async () => maleButton.click());
       expect(maleButton.className).toContain("border-emerald-500");
-      expect(document.querySelector('img[alt="camila"]')?.getAttribute("src")).toContain("sprite_r1_c1");
+      expect(document.querySelector('img[alt="Camila"]')?.getAttribute("src")).toContain("sprite_r1_c1");
       await act(async () => {
         root.render(React.createElement(AvatarEditorModal, { open: true, onOpenChange, agent, store }));
       });
@@ -354,7 +377,7 @@ describe("Avatar operational state regressions", () => {
       });
 
       // 6. verify simultaneous composition
-      const previewImg = document.querySelector('img[alt="camila"]');
+      const previewImg = document.querySelector('img[alt="Camila"]');
       expect(previewImg).toBeTruthy();
 
       // 7. change Cabelo to 07 -> verify only hair changes
@@ -471,5 +494,14 @@ describe("Avatar operational state regressions", () => {
       avatar: {}, state, showStatusBadge: true,
     }));
     expect(markup).toContain(label);
+  });
+
+  it("keeps the large workspace illustration smoothly rendered", () => {
+    const markup = renderToStaticMarkup(React.createElement(ZaiAvatarRenderer, {
+      avatar: {},
+      size: "workspace",
+    }));
+
+    expect(markup).not.toContain("image-rendering:pixelated");
   });
 });

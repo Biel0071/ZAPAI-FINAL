@@ -540,8 +540,11 @@ type RawConversation = {
   isGroup?: boolean;
   lastMessage?: string;
   last_message?: string;
+  lastMessageAt?: string | number | null;
+  last_message_at?: string | number | null;
   updatedAt?: string;
   updated_at?: string;
+  timestamp?: string | number;
   phone?: string;
   unread?: number;
   unread_count?: number;
@@ -928,6 +931,7 @@ function extractChatIdentifier(value: string | number | null | undefined): strin
 
 function normalizeConversation(item: RawConversation, index: number): Conversation {
   const normalizedType = item.lastMessageType ?? item.messageType ?? item.mediaType ?? "text";
+  const lastMessageAt = item.lastMessageAt ?? item.last_message_at ?? item.timestamp ?? item.updatedAt ?? item.updated_at ?? null;
   const contactId = normalizeIdentifier((item.contactId ?? item.contact_id) as string | number | undefined);
   const sessionId = normalizeIdentifier((item.sessionId ?? item.session_id) as string | number | undefined);
   const resolvedPhone =
@@ -952,7 +956,7 @@ function normalizeConversation(item: RawConversation, index: number): Conversati
     avatar: item.avatar ?? item.profilePictureUrl ?? item.profile_picture_url,
     isGroup: item.isGroup ?? resolvedPhone.includes("@g.us"),
     lastMessage: sanitizeLegacyPlaceholder(item.lastMessage ?? item.last_message ?? "", String(normalizedType)),
-    lastMessageAt: item.lastMessageAt ?? item.last_message_at ?? item.timestamp ?? item.updatedAt ?? item.updated_at ?? null,
+    lastMessageAt: lastMessageAt == null ? null : String(lastMessageAt),
     updatedAt: item.updatedAt ?? item.updated_at ?? new Date().toISOString(),
     phone: resolvedPhone,
     unread: item.unread ?? item.unread_count ?? item.unreadCount ?? 0,

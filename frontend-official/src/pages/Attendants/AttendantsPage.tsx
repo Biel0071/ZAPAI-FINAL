@@ -812,7 +812,7 @@ export default function AttendantsPage() {
             </button>
 
             {/* Centered 2.5D Character Sprite */}
-            <div className="relative w-full h-[230px] sm:h-[250px] flex items-center justify-center my-auto">
+            <div className="relative w-full h-[270px] sm:h-[290px] flex items-center justify-center my-auto">
               <ZaiAvatarRenderer
                 avatar={previewAgent.avatarConfig || createAgentAvatar({
                   agentId: previewAgent.key || previewAgent.name,
@@ -1593,8 +1593,6 @@ export default function AttendantsPage() {
                     ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-400"
                     : activeTab === "copilot"
                     ? "bg-amber-500/10 border-amber-500/30 text-amber-400"
-                    : activeTab === "config"
-                    ? "bg-sky-500/10 border-sky-500/30 text-sky-400"
                     : activeTab === "memory"
                     ? "bg-purple-500/10 border-purple-500/30 text-purple-400"
                     : "bg-emerald-500/10 border-emerald-500/30 text-emerald-400"
@@ -1608,8 +1606,6 @@ export default function AttendantsPage() {
                     alt="ZAIBOT"
                     className="h-8 w-8 rounded-xl object-cover shrink-0"
                   />
-                ) : activeTab === "config" ? (
-                  <Sliders className="h-6 w-6" />
                 ) : activeTab === "memory" ? (
                   <Sparkle weight="fill" className="h-6 w-6" />
                 ) : (
@@ -1623,8 +1619,6 @@ export default function AttendantsPage() {
                       ? "Atendente IA"
                       : activeTab === "copilot"
                       ? "Assistente ZAI"
-                      : activeTab === "config"
-                      ? "Configuração IA"
                       : activeTab === "memory"
                       ? "Memória do Atendente"
                       : "Evolução IA"}
@@ -1637,8 +1631,6 @@ export default function AttendantsPage() {
                         ? "border-emerald-500/30 text-emerald-400 bg-emerald-500/10"
                         : activeTab === "copilot"
                         ? "border-amber-500/30 text-amber-400 bg-amber-500/10"
-                        : activeTab === "config"
-                        ? "border-sky-500/30 text-sky-400 bg-sky-500/10"
                         : activeTab === "memory"
                         ? "border-purple-500/30 text-purple-400 bg-purple-500/10"
                         : "border-emerald-500/30 text-emerald-400 bg-emerald-500/10"
@@ -1648,8 +1640,6 @@ export default function AttendantsPage() {
                       ? "Operação de Atendimento"
                       : activeTab === "copilot"
                       ? "Copiloto da Plataforma"
-                      : activeTab === "config"
-                      ? "Modelos & Comportamento"
                       : activeTab === "memory"
                       ? "Base de Conhecimento"
                       : "Aprendizado Contínuo"}
@@ -1661,8 +1651,6 @@ export default function AttendantsPage() {
                       ? "Loja, WhatsApp e atendimento em um só lugar."
                       : activeTab === "copilot"
                       ? "Consulte a operação e gerencie os atendentes com dados do sistema."
-                      : activeTab === "config"
-                      ? "Ajuste prompts, provedores, temperatura e tom de voz dos atendentes."
                       : "Acompanhe score, nível de aprendizado e respostas em tempo real."}
                   </span>
                   <span className="text-muted-foreground/60">•</span>
@@ -1782,7 +1770,7 @@ export default function AttendantsPage() {
             onClick={() => handleTabChange("attendants")}
             className={cn(
               "flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs md:text-sm font-semibold transition-all select-none cursor-pointer",
-              (activeTab === "attendants" || activeTab === "config")
+              activeTab === "attendants"
                 ? "bg-emerald-500/15 border border-emerald-500/40 text-emerald-400 shadow-sm"
                 : "text-muted-foreground hover:text-foreground hover:bg-card/50"
             )}
@@ -1793,7 +1781,7 @@ export default function AttendantsPage() {
               variant="outline"
               className={cn(
                 "ml-1 text-[10px] px-1.5 py-0 border-emerald-500/30",
-                (activeTab === "attendants" || activeTab === "config") ? "bg-emerald-500/20 text-emerald-300" : "text-muted-foreground"
+                activeTab === "attendants" ? "bg-emerald-500/20 text-emerald-300" : "text-muted-foreground"
               )}
             >
               {agents.length}

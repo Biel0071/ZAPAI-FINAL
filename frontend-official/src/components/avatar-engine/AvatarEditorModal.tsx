@@ -57,6 +57,36 @@ import {
   Sparkle,
 } from "@phosphor-icons/react";
 
+// Some source catalog cells are not centered on the character after cleanup.
+// Keep the full-size preview focused on the actual sprite, not a neighboring crop.
+const AVATAR_PREVIEW_FOCAL_X: Record<string, number> = {
+  sprite_r2_c3: 73,
+  sprite_r2_c4: 84,
+};
+const AVATAR_HAIR_COLORS: Record<string, AgentAvatarConfig["hairColor"]> = {
+  female_ponytail_brunette: "auburn",
+  female_straight_glasses: "dark_brown",
+  female_wavy_blonde: "golden_blonde",
+  female_curly_updo: "dark_brown",
+  female_long_wavy_coffee: "dark_brown",
+  female_pink_cap: "neon_pink",
+  female_short_business: "dark_brown",
+  female_peace_brunette: "auburn",
+  female_silver_waves: "platinum",
+  female_blue_wavy: "cyber_blue",
+  female_hardhat_brunette: "auburn",
+  hair_01: "auburn",
+  hair_02: "dark_brown",
+  hair_03: "golden_blonde",
+  hair_04: "dark_brown",
+  hair_05: "black",
+  hair_06: "black",
+  hair_07: "auburn",
+  hair_08: "black",
+  hair_09: "dark_brown",
+  hair_10: "cyber_blue",
+};
+
 export interface AvatarEditorModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -126,11 +156,17 @@ export const AvatarEditorModal: React.FC<AvatarEditorModalProps> = ({
     : runtimeState || "WAITING";
   const [isSaving, setIsSaving] = useState(false);
   const [activeTab, setActiveTab] = useState<string>("appearance");
+  const [previewMode, setPreviewMode] = useState<"illustration" | "layers">("illustration");
+  const previewSpriteId = avatar.catalogSpriteId && /^sprite_r[1-3]_c(?:[1-9]|1[01])$/.test(avatar.catalogSpriteId)
+    ? avatar.catalogSpriteId
+    : resolveSpriteForAvatar(avatar, true);
+  const previewFocalX = AVATAR_PREVIEW_FOCAL_X[previewSpriteId] || 50;
 
   // Re-sync when agent changes
   useEffect(() => {
     if (open && agent) {
       setAvatar(normalizeAvatarConfig(agent.avatarConfig, agent, store, storeDNA));
+      setPreviewMode("illustration");
     }
   }, [open, agent, store, storeDNA]);
 
@@ -182,20 +218,23 @@ export const AvatarEditorModal: React.FC<AvatarEditorModalProps> = ({
 
   const handleApplyStoreDNA = () => {
     if (!storeDNA) return;
-    setAvatar((prev) => ({
-      ...prev,
-      clothing: storeDNA.defaultClothing || prev.clothing,
-      shoes: storeDNA.defaultShoes || prev.shoes,
-      badge: storeDNA.defaultBadge !== false,
-      branding: {
-        ...prev.branding,
-        primaryColor: storeDNA.primaryColor,
-        secondaryColor: storeDNA.secondaryColor,
-        accentColor: storeDNA.accentColor,
-        storeName: storeDNA.storeName,
-        logo: storeDNA.logo,
-      },
-    }));
+    setAvatar((prev) => {
+      const updated = {
+        ...prev,
+        clothing: storeDNA.defaultClothing || prev.clothing,
+        shoes: storeDNA.defaultShoes || prev.shoes,
+        badge: storeDNA.defaultBadge !== false,
+        branding: {
+          ...prev.branding,
+          primaryColor: storeDNA.primaryColor,
+          secondaryColor: storeDNA.secondaryColor,
+          accentColor: storeDNA.accentColor,
+          storeName: storeDNA.storeName,
+          logo: storeDNA.logo,
+        },
+      };
+      return { ...updated, catalogSpriteId: resolveSpriteForAvatar({ ...updated, catalogSpriteId: undefined }, true) };
+    });
     notify.success("Padrão visual da loja aplicado com sucesso!");
   };
 
@@ -235,7 +274,7 @@ export const AvatarEditorModal: React.FC<AvatarEditorModalProps> = ({
     setIsSaving(true);
     try {
       const agentKey = agent.key || agent.name;
-      const spriteId = avatar.catalogSpriteId || resolveSpriteForAvatar(avatar, true);
+      const spriteId = previewSpriteId;
       const avatarUrl = `/assets/avatar_factory/catalog/${spriteId}_clean.png`;
       const fullAvatarConfig: AgentAvatarConfig = {
         ...avatar,
@@ -266,8 +305,8 @@ export const AvatarEditorModal: React.FC<AvatarEditorModalProps> = ({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl p-0 overflow-hidden bg-background border-border/70 shadow-2xl">
-        <DialogHeader className="p-5 pb-3 border-b border-border/50 bg-card/60">
+      <DialogContent className="flex max-h-[calc(100dvh-1rem)] w-[calc(100vw-1rem)] max-w-4xl flex-col gap-0 overflow-hidden border-border/70 bg-background p-0 shadow-2xl">
+        <DialogHeader className="shrink-0 border-b border-border/50 bg-card/60 p-4 pb-3 sm:p-5 sm:pb-3">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-emerald-400">
@@ -298,10 +337,10 @@ export const AvatarEditorModal: React.FC<AvatarEditorModalProps> = ({
         </DialogHeader>
 
         {/* Studio Body: Split View (Left: Real-time Live Preview | Right: Customization Panels) */}
-        <div className="grid grid-cols-1 md:grid-cols-12 min-h-[480px] max-h-[75vh]">
+        <div className="grid min-h-0 flex-1 grid-cols-1 overflow-y-auto lg:grid-cols-12 lg:max-h-[75dvh] lg:overflow-hidden">
           
           {/* LEFT: Live Avatar Preview & State Controller */}
-          <div className="md:col-span-5 bg-gradient-to-b from-card/80 via-card/40 to-background p-6 border-r border-border/50 flex flex-col items-center justify-between relative overflow-hidden">
+          <div className="relative flex min-h-[310px] flex-col items-center justify-between overflow-hidden border-b border-border/50 bg-gradient-to-b from-card/80 via-card/40 to-background p-4 lg:col-span-5 lg:min-h-0 lg:border-b-0 lg:border-r lg:p-6">
             {/* Subtle Isometric Grid Texture */}
             <div
               className="absolute inset-0 opacity-10 pointer-events-none"
@@ -332,53 +371,77 @@ export const AvatarEditorModal: React.FC<AvatarEditorModalProps> = ({
                   <span>{store.name}</span>
                 </div>
               )}
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                aria-pressed={previewMode === "illustration"}
+                aria-label={previewMode === "illustration" ? "Alternar para prévia por camadas" : "Alternar para ilustração detalhada"}
+                onClick={() => setPreviewMode((mode) => mode === "illustration" ? "layers" : "illustration")}
+                className="h-8 shrink-0 border-border/70 bg-background/80 px-2.5 text-[10px]"
+              >
+                <Sparkle className="mr-1.5 h-3.5 w-3.5 text-emerald-400" />
+                {previewMode === "illustration" ? "Prévia por camadas" : "Ilustração detalhada"}
+              </Button>
             </div>
 
-            {/* Center: Interactive Real-time Avatar Renderer (Expanded & Scaled Up) */}
+            {/* Detailed catalog illustration by default; the layer mode remains available for exact modular feedback. */}
             <div className="relative my-auto flex-1 flex flex-col items-center justify-center py-6 w-full">
-              <div className="w-full h-[340px] transition-transform duration-300 drop-shadow-2xl">
-                <ZaiAvatarRenderer
-                  avatar={avatar}
-                  state={previewState}
-                  size="workspace"
-                  showAura={true}
-                  showStatusBadge={true}
-                  showBrandingLayer={true}
-                />
+              <div className="h-[260px] w-full drop-shadow-2xl transition-transform duration-300 sm:h-[280px] lg:h-[340px]">
+                {previewMode === "illustration" ? (
+                  <div className="relative mx-auto h-full w-[140px] overflow-hidden">
+                    <img
+                      src={`/assets/avatar_factory/catalog/${previewSpriteId}_clean.png`}
+                      alt={agent?.name || "Avatar do atendente"}
+                      data-avatar-preview-focal-x={previewFocalX}
+                      className="absolute left-1/2 top-[-7%] h-full w-auto max-w-none object-contain"
+                      style={{ transform: `translateX(-${previewFocalX}%)`, imageRendering: "pixelated" }}
+                    />
+                  </div>
+                ) : (
+                  <ZaiAvatarRenderer
+                    avatar={avatar}
+                    state={previewState}
+                    size="workspace"
+                    showAura={true}
+                    showStatusBadge={true}
+                    showBrandingLayer={true}
+                  />
+                )}
               </div>
             </div>
           </div>
 
           {/* RIGHT: Layer Customization Tabs */}
-          <div className="md:col-span-7 flex flex-col overflow-hidden">
-            <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col">
-              <div className="p-3 border-b border-border/50 bg-card/30">
-                <TabsList className="grid grid-cols-7 w-full bg-background/60 p-1">
-                  <TabsTrigger value="appearance" className="text-xs flex items-center gap-1">
+          <div className="flex min-h-0 flex-col overflow-hidden lg:col-span-7">
+            <Tabs value={activeTab} onValueChange={setActiveTab} className="flex min-h-0 flex-1 flex-col">
+              <div className="shrink-0 overflow-x-auto border-b border-border/50 bg-card/30 p-2 sm:p-3">
+                <TabsList className="inline-flex h-auto w-max min-w-full bg-background/60 p-1 sm:grid sm:grid-cols-7">
+                  <TabsTrigger value="appearance" className="flex min-w-[76px] shrink-0 flex-col items-center gap-1 px-2 py-2 text-[10px] sm:min-w-0 sm:flex-row sm:text-xs">
                     <User className="w-3.5 h-3.5" />
                     <span>Corpo</span>
                   </TabsTrigger>
-                  <TabsTrigger value="hair" className="text-xs flex items-center gap-1">
+                  <TabsTrigger value="hair" className="flex min-w-[76px] shrink-0 flex-col items-center gap-1 px-2 py-2 text-[10px] sm:min-w-0 sm:flex-row sm:text-xs">
                     <Scissors className="w-3.5 h-3.5" />
                     <span>Cabelo</span>
                   </TabsTrigger>
-                  <TabsTrigger value="face" className="text-xs flex items-center gap-1">
+                  <TabsTrigger value="face" className="flex min-w-[76px] shrink-0 flex-col items-center gap-1 px-2 py-2 text-[10px] sm:min-w-0 sm:flex-row sm:text-xs">
                     <Smiley className="w-3.5 h-3.5" />
                     <span>Rosto</span>
                   </TabsTrigger>
-                  <TabsTrigger value="clothing" className="text-xs flex items-center gap-1">
+                  <TabsTrigger value="clothing" className="flex min-w-[76px] shrink-0 flex-col items-center gap-1 px-2 py-2 text-[10px] sm:min-w-0 sm:flex-row sm:text-xs">
                     <TShirt className="w-3.5 h-3.5" />
                     <span>Roupas</span>
                   </TabsTrigger>
-                  <TabsTrigger value="accessories" className="text-xs flex items-center gap-1">
+                  <TabsTrigger value="accessories" className="flex min-w-[76px] shrink-0 flex-col items-center gap-1 px-2 py-2 text-[10px] sm:min-w-0 sm:flex-row sm:text-xs">
                     <Eyeglasses className="w-3.5 h-3.5" />
                     <span>Acessórios</span>
                   </TabsTrigger>
-                  <TabsTrigger value="style" className="text-xs flex items-center gap-1">
+                  <TabsTrigger value="style" className="flex min-w-[76px] shrink-0 flex-col items-center gap-1 px-2 py-2 text-[10px] sm:min-w-0 sm:flex-row sm:text-xs">
                     <Sparkle className="w-3.5 h-3.5" />
                     <span>Estilo</span>
                   </TabsTrigger>
-                  <TabsTrigger value="branding" className="text-xs flex items-center gap-1">
+                  <TabsTrigger value="branding" className="flex min-w-[76px] shrink-0 flex-col items-center gap-1 px-2 py-2 text-[10px] sm:min-w-0 sm:flex-row sm:text-xs">
                     <Storefront className="w-3.5 h-3.5" />
                     <span>Loja DNA</span>
                   </TabsTrigger>
@@ -386,7 +449,7 @@ export const AvatarEditorModal: React.FC<AvatarEditorModalProps> = ({
               </div>
 
               {/* Scrollable Content for Tabs */}
-              <div className="flex-1 p-5 overflow-y-auto max-h-[420px] space-y-5">
+              <div className="min-h-0 flex-1 space-y-5 overflow-y-auto p-4 sm:p-5 md:max-h-[420px]">
                 
                 {/* 1. APARÊNCIA (Corpo, Tom de Pele, Rosto) */}
                 <TabsContent value="appearance" className="mt-0 space-y-5">
@@ -462,6 +525,7 @@ export const AvatarEditorModal: React.FC<AvatarEditorModalProps> = ({
                           onClick={() => setAvatar((prev) => ({
                             ...prev,
                             hair: h.id,
+                            hairColor: AVATAR_HAIR_COLORS[h.id] || prev.hairColor,
                             catalogSpriteId: h.spriteRef || resolveSpriteForAvatar({ ...prev, hair: h.id, catalogSpriteId: undefined }, true),
                           }))}
                           className={cn(
@@ -493,6 +557,7 @@ export const AvatarEditorModal: React.FC<AvatarEditorModalProps> = ({
                           onClick={() => setAvatar((prev) => ({
                             ...prev,
                             hair: h.id,
+                            hairColor: AVATAR_HAIR_COLORS[h.id] || prev.hairColor,
                             catalogSpriteId: h.spriteRef || resolveSpriteForAvatar({ ...prev, hair: h.id, catalogSpriteId: undefined }, true),
                           }))}
                           className={cn(
@@ -888,8 +953,8 @@ export const AvatarEditorModal: React.FC<AvatarEditorModalProps> = ({
         </div>
 
         {/* Modal Footer */}
-        <DialogFooter className="p-4 border-t border-border/50 bg-card/60 flex items-center justify-between sm:justify-between">
-          <div className="text-xs text-muted-foreground flex items-center gap-2">
+        <DialogFooter className="sticky bottom-0 z-20 w-full shrink-0 flex-row items-center justify-between gap-2 border-t border-border/50 bg-card/95 p-3 sm:p-4">
+          <div className="hidden items-center gap-2 text-xs text-muted-foreground sm:flex">
             <span>Prévia do visual</span>
           </div>
 
@@ -899,6 +964,7 @@ export const AvatarEditorModal: React.FC<AvatarEditorModalProps> = ({
               size="sm"
               onClick={() => onOpenChange(false)}
               disabled={isSaving}
+              className="shrink-0"
             >
               Cancelar
             </Button>
@@ -906,7 +972,7 @@ export const AvatarEditorModal: React.FC<AvatarEditorModalProps> = ({
               size="sm"
               onClick={handleSave}
               disabled={isSaving}
-              className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold gap-1.5 shadow-md"
+              className="shrink-0 bg-emerald-600 font-bold text-white shadow-md hover:bg-emerald-500"
             >
               {isSaving ? (
                 <>Salvando...</>
