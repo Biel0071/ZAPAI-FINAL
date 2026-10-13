@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatConversationTimestamp } from "@/pages/Inbox/utils";
+import { dedupeConversationsByScope, formatConversationTimestamp, parseChatsLoadedPayload } from "@/pages/Inbox/utils";
 
 describe("formatConversationTimestamp", () => {
   it("formats messages from today with time HH:mm", () => {
@@ -41,5 +41,32 @@ describe("formatConversationTimestamp", () => {
     const seconds = Math.floor(now / 1000);
     const resultSec = formatConversationTimestamp(seconds);
     expect(resultSec).toMatch(/^\d{2}:\d{2}$/);
+  });
+
+  it("preserves lastMessageAt in parseChatsLoadedPayload and prioritizes it in dedupeConversationsByScope", () => {
+    const normalized = parseChatsLoadedPayload([
+      {
+        id: "old-chat",
+        phone: "5511999991111",
+        contactName: "Cliente Antigo",
+        lastMessage: "Oi",
+        last_message_at: "2026-04-01T10:00:00.000Z",
+        updated_at: "2026-04-13T08:30:27.000Z",
+        sessionId: "main",
+      },
+      {
+        id: "recent-chat",
+        phone: "5511999992222",
+        contactName: "Cliente Recente",
+        lastMessage: "Pedido hoje",
+        last_message_at: "2026-04-12T18:00:00.000Z",
+        updated_at: "2026-04-12T18:00:00.000Z",
+        sessionId: "main",
+      },
+    ]);
+
+    expect(normalized[0].lastMessageAt).toBe("2026-04-01T10:00:00.000Z");
+    const deduped = dedupeConversationsByScope(normalized, {});
+    expect(deduped.map((c) => c.id)).toEqual(["recent-chat", "old-chat"]);
   });
 });

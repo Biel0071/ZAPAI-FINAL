@@ -117,4 +117,19 @@ describe("Inbox archived search", () => {
     act(() => root!.render(<MemoryRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}><Inbox /></MemoryRouter>));
     expect([...document.querySelectorAll("li")].map(row => row.textContent)).toEqual(["7167 arquivado"]);
   });
+
+  it("does not leak unread or archived conversations from other connections when the selected connection has zero matches for that sub-filter", () => {
+    useAppStore.setState({ activeSessionId: "main" });
+    const mainRead = { ...conversation("main-read"), contactName: "Cliente Main Lido", status: "open", unread: 0, sessionId: "main" };
+    const otherUnread = { ...conversation("other-unread"), contactName: "Cliente Outra Conexão Não Lido", status: "open", unread: 3, sessionId: "other" };
+    vi.spyOn(inboxHooks, "useInboxState").mockReturnValue({
+      conversations: [mainRead, otherUnread], selectedConversation: null, messages: [], quickReplies: [], qrDialogItems: [],
+      searchQuery: "", filter: "unread", archivedChatIds: [], pinnedChatIds: [], selectedChatIds: [],
+      draftsByConversationId: {}, conversationControls: {}, aiRuntime: { globalEnabled: false }, messageInputRef: { current: null },
+      isQuickReplyDialogOpen: false,
+    } as unknown as ReturnType<typeof inboxHooks.useInboxState>);
+    const container = document.createElement("div"); document.body.appendChild(container); root = createRoot(container);
+    act(() => root!.render(<MemoryRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}><Inbox /></MemoryRouter>));
+    expect([...document.querySelectorAll("li")].map(row => row.textContent)).toEqual([]);
+  });
 });

@@ -127,28 +127,27 @@ export function normalizeMessageTimestamp(value?: string | number | null): strin
 function mergeConversationRecord(existing: Conversation, incoming: Partial<Conversation> | Conversation): Conversation {
   const incomingTime = getTime(incoming.lastMessageAt || incoming.updatedAt);
   const existingTime = getTime(existing.lastMessageAt || existing.updatedAt);
-  const incomingIsNewer = incomingTime >= existingTime;
+  const incomingIsNewer = !existingTime || !incomingTime || incomingTime >= existingTime;
 
   const resolvedLastMessage =
-    incoming.lastMessage !== undefined
+    incomingIsNewer && incoming.lastMessage !== undefined
       ? incoming.lastMessage
-      : incomingIsNewer
-        ? incoming.lastMessage
-        : existing.lastMessage;
+      : existing.lastMessage ?? incoming.lastMessage;
 
   const resolvedLastMessageAt =
-    incoming.lastMessageAt !== undefined
+    incomingIsNewer && incoming.lastMessageAt !== undefined
       ? incoming.lastMessageAt
-      : incomingIsNewer
-        ? incoming.lastMessageAt
-        : existing.lastMessageAt;
+      : existing.lastMessageAt ?? incoming.lastMessageAt;
 
   const resolvedLastMessageType =
-    incoming.lastMessageType !== undefined
+    incomingIsNewer && incoming.lastMessageType !== undefined
       ? incoming.lastMessageType
-      : incomingIsNewer
-        ? incoming.lastMessageType
-        : existing.lastMessageType;
+      : existing.lastMessageType ?? incoming.lastMessageType;
+
+  const resolvedUpdatedAt =
+    incomingIsNewer && incoming.updatedAt !== undefined
+      ? incoming.updatedAt
+      : existing.updatedAt || incoming.updatedAt;
 
   return {
     ...existing,
@@ -162,6 +161,7 @@ function mergeConversationRecord(existing: Conversation, incoming: Partial<Conve
     lastMessage: resolvedLastMessage || existing.lastMessage || "",
     lastMessageAt: resolvedLastMessageAt || existing.lastMessageAt || null,
     lastMessageType: resolvedLastMessageType || existing.lastMessageType || "text",
+    updatedAt: resolvedUpdatedAt || existing.updatedAt,
     unread: typeof incoming.unread === "number" ? incoming.unread : Math.max(existing.unread ?? 0, (incoming as Conversation).unread ?? 0),
     tags: incoming.tags?.length ? incoming.tags : (existing.tags ?? []),
     aiEnabled: incoming.aiEnabled !== undefined ? incoming.aiEnabled : existing.aiEnabled,
@@ -727,15 +727,23 @@ export const useAppStore = create<AppState>((set) => ({
         let nextConversations = state.conversations;
         if (convIdx !== -1) {
           const existingConv = state.conversations[convIdx];
+          const existingConvTime = getTime(existingConv.lastMessageAt || existingConv.updatedAt);
+          const isNewerMessage = !existingConvTime || getTime(messageTime) >= existingConvTime;
           const updatedConv: Conversation = {
             ...existingConv,
-            lastMessage: message.content || (message.mediaType ? `[${message.mediaType}]` : existingConv.lastMessage),
-            lastMessageType: (message.mediaType as any) || existingConv.lastMessageType || "text",
-            lastMessageAt: messageTime,
-            updatedAt: messageTime,
-            unread: (!message.fromMe && state.activeConversationId !== existingConv.id) ? (existingConv.unread ?? 0) + 1 : existingConv.unread,
+            lastMessage: isNewerMessage
+              ? (message.content || (message.mediaType ? `[${message.mediaType}]` : existingConv.lastMessage))
+              : existingConv.lastMessage,
+            lastMessageType: isNewerMessage
+              ? ((message.mediaType as any) || existingConv.lastMessageType || "text")
+              : (existingConv.lastMessageType || "text"),
+            lastMessageAt: isNewerMessage ? messageTime : (existingConv.lastMessageAt || existingConv.updatedAt),
+            updatedAt: isNewerMessage ? messageTime : existingConv.updatedAt,
+            unread: state.activeConversationId === existingConv.id ? 0 : existingConv.unread,
           };
-          nextConversations = [updatedConv, ...state.conversations.filter((_, i) => i !== convIdx)];
+          nextConversations = isNewerMessage
+            ? [updatedConv, ...state.conversations.filter((_, i) => i !== convIdx)]
+            : state.conversations.map((c, i) => (i === convIdx ? updatedConv : c));
         }
 
         return {
@@ -759,14 +767,20 @@ export const useAppStore = create<AppState>((set) => ({
           let nextConversations = state.conversations;
           if (convIdx !== -1) {
             const existingConv = state.conversations[convIdx];
+            const existingConvTime = getTime(existingConv.lastMessageAt || existingConv.updatedAt);
+            const isNewerMessage = !existingConvTime || getTime(messageTime) >= existingConvTime;
             const updatedConv: Conversation = {
               ...existingConv,
-              lastMessage: message.content || existingConv.lastMessage,
-              lastMessageType: (message.mediaType as any) || existingConv.lastMessageType || "text",
-              lastMessageAt: messageTime,
-              updatedAt: messageTime,
+              lastMessage: isNewerMessage ? (message.content || existingConv.lastMessage) : existingConv.lastMessage,
+              lastMessageType: isNewerMessage
+                ? ((message.mediaType as any) || existingConv.lastMessageType || "text")
+                : (existingConv.lastMessageType || "text"),
+              lastMessageAt: isNewerMessage ? messageTime : (existingConv.lastMessageAt || existingConv.updatedAt),
+              updatedAt: isNewerMessage ? messageTime : existingConv.updatedAt,
             };
-            nextConversations = [updatedConv, ...state.conversations.filter((_, i) => i !== convIdx)];
+            nextConversations = isNewerMessage
+              ? [updatedConv, ...state.conversations.filter((_, i) => i !== convIdx)]
+              : state.conversations.map((c, i) => (i === convIdx ? updatedConv : c));
           }
 
           return {
@@ -788,15 +802,23 @@ export const useAppStore = create<AppState>((set) => ({
       let nextConversations = state.conversations;
       if (convIdx !== -1) {
         const existingConv = state.conversations[convIdx];
+        const existingConvTime = getTime(existingConv.lastMessageAt || existingConv.updatedAt);
+        const isNewerMessage = !existingConvTime || getTime(messageTime) >= existingConvTime;
         const updatedConv: Conversation = {
           ...existingConv,
-          lastMessage: message.content || (message.mediaType ? `[${message.mediaType}]` : existingConv.lastMessage),
-          lastMessageType: (message.mediaType as any) || existingConv.lastMessageType || "text",
-          lastMessageAt: messageTime,
-          updatedAt: messageTime,
+          lastMessage: isNewerMessage
+            ? (message.content || (message.mediaType ? `[${message.mediaType}]` : existingConv.lastMessage))
+            : existingConv.lastMessage,
+          lastMessageType: isNewerMessage
+            ? ((message.mediaType as any) || existingConv.lastMessageType || "text")
+            : (existingConv.lastMessageType || "text"),
+          lastMessageAt: isNewerMessage ? messageTime : (existingConv.lastMessageAt || existingConv.updatedAt),
+          updatedAt: isNewerMessage ? messageTime : existingConv.updatedAt,
           unread: (!message.fromMe && state.activeConversationId !== existingConv.id) ? (existingConv.unread ?? 0) + 1 : existingConv.unread,
         };
-        nextConversations = [updatedConv, ...state.conversations.filter((_, i) => i !== convIdx)];
+        nextConversations = isNewerMessage
+          ? [updatedConv, ...state.conversations.filter((_, i) => i !== convIdx)]
+          : state.conversations.map((c, i) => (i === convIdx ? updatedConv : c));
       }
 
       return {

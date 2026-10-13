@@ -306,7 +306,7 @@ export const AvatarEditorModal: React.FC<AvatarEditorModalProps> = ({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="flex max-h-[calc(100dvh-1rem)] w-[calc(100vw-1rem)] max-w-4xl flex-col gap-0 overflow-hidden border-border/70 bg-background p-0 shadow-2xl">
-        <DialogHeader className="shrink-0 border-b border-border/50 bg-card/60 p-4 pb-3 sm:p-5 sm:pb-3">
+        <DialogHeader className="shrink-0 border-b border-border/50 bg-card/60 p-4 pb-3 pr-12 sm:p-5 sm:pb-3 sm:pr-14">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-emerald-400">
@@ -415,33 +415,33 @@ export const AvatarEditorModal: React.FC<AvatarEditorModalProps> = ({
           {/* RIGHT: Layer Customization Tabs */}
           <div className="flex min-h-0 flex-col overflow-hidden lg:col-span-7">
             <Tabs value={activeTab} onValueChange={setActiveTab} className="flex min-h-0 flex-1 flex-col">
-              <div className="shrink-0 overflow-x-auto border-b border-border/50 bg-card/30 p-2 sm:p-3">
-                <TabsList className="inline-flex h-auto w-max min-w-full bg-background/60 p-1 sm:grid sm:grid-cols-7">
-                  <TabsTrigger value="appearance" className="flex min-w-[76px] shrink-0 flex-col items-center gap-1 px-2 py-2 text-[10px] sm:min-w-0 sm:flex-row sm:text-xs">
+              <div className="shrink-0 overflow-x-auto border-b border-border/50 bg-card/30 p-2 sm:p-2.5">
+                <TabsList className="inline-flex h-auto w-max min-w-full bg-background/60 p-1 sm:grid sm:w-full sm:grid-cols-7">
+                  <TabsTrigger value="appearance" className="flex min-w-[68px] shrink-0 flex-col items-center justify-center gap-1 px-1.5 py-1.5 text-[10px] leading-tight sm:min-w-0">
                     <User className="w-3.5 h-3.5" />
                     <span>Corpo</span>
                   </TabsTrigger>
-                  <TabsTrigger value="hair" className="flex min-w-[76px] shrink-0 flex-col items-center gap-1 px-2 py-2 text-[10px] sm:min-w-0 sm:flex-row sm:text-xs">
+                  <TabsTrigger value="hair" className="flex min-w-[68px] shrink-0 flex-col items-center justify-center gap-1 px-1.5 py-1.5 text-[10px] leading-tight sm:min-w-0">
                     <Scissors className="w-3.5 h-3.5" />
                     <span>Cabelo</span>
                   </TabsTrigger>
-                  <TabsTrigger value="face" className="flex min-w-[76px] shrink-0 flex-col items-center gap-1 px-2 py-2 text-[10px] sm:min-w-0 sm:flex-row sm:text-xs">
+                  <TabsTrigger value="face" className="flex min-w-[68px] shrink-0 flex-col items-center justify-center gap-1 px-1.5 py-1.5 text-[10px] leading-tight sm:min-w-0">
                     <Smiley className="w-3.5 h-3.5" />
                     <span>Rosto</span>
                   </TabsTrigger>
-                  <TabsTrigger value="clothing" className="flex min-w-[76px] shrink-0 flex-col items-center gap-1 px-2 py-2 text-[10px] sm:min-w-0 sm:flex-row sm:text-xs">
+                  <TabsTrigger value="clothing" className="flex min-w-[68px] shrink-0 flex-col items-center justify-center gap-1 px-1.5 py-1.5 text-[10px] leading-tight sm:min-w-0">
                     <TShirt className="w-3.5 h-3.5" />
                     <span>Roupas</span>
                   </TabsTrigger>
-                  <TabsTrigger value="accessories" className="flex min-w-[76px] shrink-0 flex-col items-center gap-1 px-2 py-2 text-[10px] sm:min-w-0 sm:flex-row sm:text-xs">
+                  <TabsTrigger value="accessories" className="flex min-w-[68px] shrink-0 flex-col items-center justify-center gap-1 px-1.5 py-1.5 text-[10px] leading-tight sm:min-w-0">
                     <Eyeglasses className="w-3.5 h-3.5" />
                     <span>Acessórios</span>
                   </TabsTrigger>
-                  <TabsTrigger value="style" className="flex min-w-[76px] shrink-0 flex-col items-center gap-1 px-2 py-2 text-[10px] sm:min-w-0 sm:flex-row sm:text-xs">
+                  <TabsTrigger value="style" className="flex min-w-[68px] shrink-0 flex-col items-center justify-center gap-1 px-1.5 py-1.5 text-[10px] leading-tight sm:min-w-0">
                     <Sparkle className="w-3.5 h-3.5" />
                     <span>Estilo</span>
                   </TabsTrigger>
-                  <TabsTrigger value="branding" className="flex min-w-[76px] shrink-0 flex-col items-center gap-1 px-2 py-2 text-[10px] sm:min-w-0 sm:flex-row sm:text-xs">
+                  <TabsTrigger value="branding" className="flex min-w-[68px] shrink-0 flex-col items-center justify-center gap-1 px-1.5 py-1.5 text-[10px] leading-tight sm:min-w-0">
                     <Storefront className="w-3.5 h-3.5" />
                     <span>Loja DNA</span>
                   </TabsTrigger>

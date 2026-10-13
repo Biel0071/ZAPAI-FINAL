@@ -731,6 +731,9 @@ export function RuntimeProvider({ children }: { children: ReactNode }) {
         });
         store.addMessage(conversationId, message);
 
+        const afterAddConv = useAppStore
+          .getState()
+          .conversations.find((c) => String(c.id) === String(conversationId)) ?? currentConv;
         const isActive = store.activeConversationId === conversationId;
 
         store.updateConversationRealtime({
@@ -738,11 +741,11 @@ export function RuntimeProvider({ children }: { children: ReactNode }) {
           lastMessage: incoming.content || "",
           lastMessageAt: normalizedTimestamp,
           updatedAt: normalizedTimestamp,
-          unread: isActive ? 0 : (incoming.fromMe ? 0 : 1) + (currentConv?.unread ?? 0),
-          phone: incoming.phone || incoming.remoteJid || currentConv?.phone,
-          chatId: incoming.chatId || incoming.remoteJid || currentConv?.chatId || currentConv?.phone,
-          contactId: incoming.contactId || currentConv?.contactId,
-          sessionId: incoming.sessionId || currentConv?.sessionId,
+          unread: isActive ? 0 : (afterAddConv ? (afterAddConv.unread ?? 0) : (incoming.fromMe ? 0 : 1)),
+          phone: incoming.phone || incoming.remoteJid || afterAddConv?.phone,
+          chatId: incoming.chatId || incoming.remoteJid || afterAddConv?.chatId || afterAddConv?.phone,
+          contactId: incoming.contactId || afterAddConv?.contactId,
+          sessionId: incoming.sessionId || afterAddConv?.sessionId,
         });
       },
 

@@ -42,3 +42,26 @@ test('search cache separates terms, tenants and strict session requests', async 
   await repository.listConversations('tenant-a', 30, { sessionId: 'main', search: 'first', strictSession: true });
   assert.equal(queries.length, 3);
 });
+
+test('derives last_message_at from messages MAX timestamp or created_at without falling back to bulk-touched updated_at', async () => {
+  await repository.listConversations('tenant-a', 20, { useCache: false });
+  const { sql } = queries[0];
+  assert.match(sql, /SELECT MAX\(COALESCE\(m\.timestamp, m\.created_at\)\) FROM messages m WHERE m\.conversation_id = conv\.id/);
+  assert.match(sql, /conv\.last_message_at <> conv\.updated_at/);
+
+  const contactsService = require('../services/contactsService');
+  const contacts = contactsService.listContactsFromConversations([
+    {
+      id: 'conv-1',
+      phone: '5511999990000',
+      name: 'Cliente Real',
+      lastMessage: 'Pedido confirmado',
+      lastMessageAt: '2026-04-02T10:00:00.000Z',
+      updatedAt: '2026-04-13T08:30:27.000Z',
+      sessionId: 'main',
+    },
+  ]);
+  assert.equal(contacts.length, 1);
+  assert.equal(contacts[0].lastMessageAt, '2026-04-02T10:00:00.000Z');
+  assert.equal(contacts[0].updatedAt, '2026-04-02T10:00:00.000Z');
+});

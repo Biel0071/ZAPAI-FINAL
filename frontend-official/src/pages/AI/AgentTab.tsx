@@ -1498,7 +1498,7 @@ Tom: ${agentTone}. Estilo: ${responseStyle}.`;
                           {conv.name || conv.phone || `Conversa #${conv.id}`}
                         </span>
                         <span className="text-[10px] text-muted-foreground font-mono">
-                          {conv.updatedAt ? new Date(conv.updatedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "Hoje"}
+                          {(conv.lastMessageAt || conv.updatedAt) ? new Date(conv.lastMessageAt || conv.updatedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "Hoje"}
                         </span>
                       </div>
                       <p className="text-[11px] text-muted-foreground line-clamp-1">

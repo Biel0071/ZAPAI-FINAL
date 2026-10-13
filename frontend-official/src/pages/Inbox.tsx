@@ -182,8 +182,9 @@ export default function Inbox() {
       });
 
     const sessionScopedConversations = applyVisibleFilters(true);
+    const hasActiveSubFilter = state.filter !== "all" || Boolean(normalizedSearch);
     const visibleConversations =
-      sessionScopedConversations.length > 0 || !selectedSessionHasConversations
+      sessionScopedConversations.length > 0 || !selectedSessionHasConversations || hasActiveSubFilter
         ? sessionScopedConversations
         : applyVisibleFilters(false);
 

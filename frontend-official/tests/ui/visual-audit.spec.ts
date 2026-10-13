@@ -520,6 +520,32 @@ test("captures every canonical route, tab, theme, and viewport with sanitized re
           await page.getByRole("alert").scrollIntoViewIfNeeded();
         }
         const state = await captureState(page, viewport, tabSelected);
+        if (route.interaction === "open-avatar-editor") {
+          const headerAndTabs = await page.evaluate(() => {
+            const dialog = document.querySelector('[role="dialog"]')?.getBoundingClientRect();
+            const randomBtn = Array.from(document.querySelectorAll('[role="dialog"] button'))
+              .find((button) => button.textContent?.includes("Aleatório"))?.getBoundingClientRect();
+            const closeBtn = Array.from(document.querySelectorAll('[role="dialog"] button'))
+              .find((button) => button.textContent?.includes("Fechar"))?.getBoundingClientRect();
+            const tabs = Array.from(document.querySelectorAll('[role="dialog"] [role="tab"]'))
+              .map((tab) => tab.getBoundingClientRect());
+            const randomClearsClose = Boolean(
+              randomBtn &&
+              closeBtn &&
+              (randomBtn.right <= closeBtn.left - 2 || randomBtn.top >= closeBtn.bottom + 2 || closeBtn.top >= randomBtn.bottom + 2),
+            );
+            const allSevenTabsFitDialog = Boolean(
+              dialog &&
+              tabs.length === 7 &&
+              tabs.every((rect) => rect.width > 0 && rect.left >= dialog.left && rect.right <= dialog.right + 1),
+            );
+            return { randomClearsClose, allSevenTabsFitDialog, tabCount: tabs.length };
+          });
+          expect(headerAndTabs.randomClearsClose, `${theme} ${viewport.width}px Aleatório button must not overlap the dialog close button`).toBe(true);
+          if (viewport.width >= 640) {
+            expect(headerAndTabs.allSevenTabsFitDialog, `${theme} ${viewport.width}px all 7 Avatar Studio tabs must fit inside the dialog without clipping`).toBe(true);
+          }
+        }
         if (route.interaction === "open-avatar-editor" && viewport.width <= 390) {
           const layout = await page.evaluate(() => {
             const dialog = document.querySelector('[role="dialog"]')?.getBoundingClientRect();

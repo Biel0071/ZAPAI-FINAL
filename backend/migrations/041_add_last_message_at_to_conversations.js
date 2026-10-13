@@ -22,9 +22,9 @@ module.exports = {
       ) m
       WHERE c.id = m.conversation_id AND c.last_message_at IS NULL;
 
-      -- Fallback to updated_at / created_at for conversations without messages
+      -- Fallback to created_at / updated_at for conversations without messages
       UPDATE conversations
-      SET last_message_at = COALESCE(updated_at, created_at, NOW())
+      SET last_message_at = COALESCE(created_at, updated_at, NOW())
       WHERE last_message_at IS NULL;
     `);
   },

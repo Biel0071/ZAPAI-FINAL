@@ -55,11 +55,13 @@ const conversation = {
   status: "online",
 };
 
+const EMPTY_MESSAGES: any[] = [];
+
 function InboxProjection() {
   const conversations = useAppStore((state) => state.conversations);
   const activeConversationId = useAppStore((state) => state.activeConversationId);
   const activeConversation = conversations.find((item) => item.id === activeConversationId);
-  const messages = useAppStore((state) => state.messagesByConversationId[activeConversationId || ""] || []);
+  const messages = useAppStore((state) => state.messagesByConversationId[activeConversationId || ""] || EMPTY_MESSAGES);
 
   useEffect(() => {
     projectionMounts += 1;
@@ -177,5 +179,57 @@ describe("RuntimeProvider delivers inbound messages to live Inbox state", () => 
     const updatedConversation = useAppStore.getState().conversations.find((item) => item.id === conversation.id);
     expect(storedMessage?.createdAt).toBe(new Date(timestamp).toISOString());
     expect(updatedConversation?.lastMessageAt).toBe(new Date(timestamp).toISOString());
+  });
+
+  it("does not double-increment unread on duplicate Socket.IO message delivery or regress preview on out-of-order older messages", async () => {
+    useAppStore.getState().setActiveConversationId("other-conversation");
+    await act(async () => {
+      root!.render(
+        <RuntimeProvider>
+          <InboxProjection />
+        </RuntimeProvider>
+      );
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    const payload = {
+      id: "qa-message-dup",
+      conversationId: conversation.id,
+      chatId: conversation.chatId,
+      sessionId: conversation.sessionId,
+      content: "Mensagem única",
+      fromMe: false,
+      createdAt: "2026-10-13T12:05:00.000Z",
+      timestamp: "2026-10-13T12:05:00.000Z",
+    };
+
+    await act(async () => {
+      mocks.subscriber?.onNewMessage?.(payload);
+      mocks.subscriber?.onNewMessage?.(payload);
+    });
+
+    let updatedConversation = useAppStore.getState().conversations.find((item) => item.id === conversation.id);
+    expect(updatedConversation?.unread).toBe(1);
+    expect(updatedConversation?.lastMessage).toBe("Mensagem única");
+    expect(updatedConversation?.lastMessageAt).toBe("2026-10-13T12:05:00.000Z");
+
+    await act(async () => {
+      mocks.subscriber?.onNewMessage?.({
+        id: "qa-message-older-out-of-order",
+        conversationId: conversation.id,
+        chatId: conversation.chatId,
+        sessionId: conversation.sessionId,
+        content: "Mensagem antiga atrasada",
+        fromMe: false,
+        createdAt: "2026-10-13T12:01:00.000Z",
+        timestamp: "2026-10-13T12:01:00.000Z",
+      });
+    });
+
+    updatedConversation = useAppStore.getState().conversations.find((item) => item.id === conversation.id);
+    expect(updatedConversation?.lastMessage).toBe("Mensagem única");
+    expect(updatedConversation?.lastMessageAt).toBe("2026-10-13T12:05:00.000Z");
+    expect(updatedConversation?.unread).toBe(2);
   });
 });

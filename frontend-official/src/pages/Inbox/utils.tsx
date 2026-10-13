@@ -454,7 +454,8 @@ export function parseChatsLoadedPayload(payload: unknown): Conversation[] {
         avatar: String(item.avatar ?? item.profilePictureUrl ?? item.profile_picture_url ?? "") || undefined,
         isGroup: Boolean(item.isGroup ?? String(item.chatId ?? item.chat_id ?? rawPhone).toLowerCase().includes("@g.us")),
         lastMessage: sanitizeLegacyPlaceholderText(item.lastMessage ?? item.last_message ?? item.preview ?? "", lastMessageType),
-        updatedAt: String(item.updatedAt ?? item.updated_at ?? item.timestamp ?? new Date().toISOString()),
+        lastMessageAt: item.lastMessageAt ? String(item.lastMessageAt) : item.last_message_at ? String(item.last_message_at) : null,
+        updatedAt: String(item.lastMessageAt ?? item.last_message_at ?? item.updatedAt ?? item.updated_at ?? item.timestamp ?? new Date().toISOString()),
         phone: resolvedPhone || rawPhone,
         unread: Number(item.unread ?? item.unread_count ?? item.unreadCount ?? 0) || 0,
         status: String(item.status ?? "online") as Conversation["status"],
@@ -565,8 +566,8 @@ export function dedupeConversationsByScope(conversations: Conversation[], contac
       return;
     }
 
-    const existingTime = new Date(existing.updatedAt).getTime();
-    const incomingTime = new Date(normalizedConversation.updatedAt).getTime();
+    const existingTime = new Date(existing.lastMessageAt || existing.updatedAt).getTime();
+    const incomingTime = new Date(normalizedConversation.lastMessageAt || normalizedConversation.updatedAt).getTime();
     const incomingIsNewer = Number.isFinite(incomingTime) && (!Number.isFinite(existingTime) || incomingTime >= existingTime);
     const preferred = incomingIsNewer ? normalizedConversation : existing;
 
@@ -577,7 +578,9 @@ export function dedupeConversationsByScope(conversations: Conversation[], contac
     });
   });
 
-  return [...byScope.values()].sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
+  return [...byScope.values()].sort(
+    (a, b) => new Date(b.lastMessageAt || b.updatedAt).getTime() - new Date(a.lastMessageAt || a.updatedAt).getTime(),
+  );
 }
 
 export function getPreferredSessionIdForConversations(sessions: SessionInfo[], preferredSessionId?: string | null): string | null {

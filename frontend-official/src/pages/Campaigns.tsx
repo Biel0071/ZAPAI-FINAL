@@ -459,7 +459,9 @@ export default function Campaigns() {
         const key = normalizePhone(conversation.phone) || String(conversation.id || "").trim();
         if (!key) return;
         const existing = conversationsByPhone.get(key);
-        if (!existing || new Date(conversation.updatedAt).getTime() > new Date(existing.updatedAt).getTime()) {
+        const convTime = new Date(conversation.lastMessageAt || conversation.updatedAt).getTime();
+        const existingTime = existing ? new Date(existing.lastMessageAt || existing.updatedAt).getTime() : 0;
+        if (!existing || convTime > existingTime) {
           conversationsByPhone.set(key, conversation);
         }
       });
@@ -471,7 +473,7 @@ export default function Campaigns() {
           name: contact.name || conversation?.contactName || contact.phone || "Contato",
           phone: contact.phone || conversation?.phone || "",
           status: conversation?.status,
-          updatedAt: conversation?.updatedAt || new Date().toISOString(),
+          updatedAt: conversation?.lastMessageAt || conversation?.updatedAt || new Date().toISOString(),
         };
       });
 
@@ -485,7 +487,7 @@ export default function Campaigns() {
           name: conv.contactName || conv.phone || "Contato",
           phone: conv.phone || "",
           status: conv.status,
-          updatedAt: conv.updatedAt || new Date().toISOString(),
+          updatedAt: conv.lastMessageAt || conv.updatedAt || new Date().toISOString(),
         }));
 
       const byPhone = new Map<string, Contact>();

@@ -113,7 +113,7 @@ function mapConversation(row) {
     tags: Array.isArray(row.tags) ? row.tags : [],
     unreadCount: Number(row.unread_count) || 0,
     updatedAt: row.updated_at,
-    lastMessageAt: row.last_message_at || row.updated_at || row.created_at,
+    lastMessageAt: row.last_message_at || row.created_at,
     isBlocked: !!row.is_blocked,
   };
 }
@@ -142,7 +142,11 @@ function getBaseSelect() {
       conv.unread_count,
       conv.created_at,
       conv.updated_at,
-      COALESCE(conv.last_message_at, conv.updated_at, conv.created_at) as last_message_at,
+      COALESCE(
+        (SELECT MAX(COALESCE(m.timestamp, m.created_at)) FROM messages m WHERE m.conversation_id = conv.id),
+        CASE WHEN conv.last_message_at IS NOT NULL AND conv.last_message_at <> conv.updated_at THEN conv.last_message_at ELSE NULL END,
+        conv.created_at
+      ) as last_message_at,
       COALESCE(l.phone, conv.remote_jid) as phone,
       COALESCE(NULLIF(l.name, ''), conv.remote_jid, 'Contato') as name,
       l.is_blocked
@@ -616,7 +620,11 @@ async function listConversations(companyId, limit = 50, options = {}) {
           conv.unread_count,
           conv.created_at,
           conv.updated_at,
-          COALESCE(conv.last_message_at, conv.updated_at, conv.created_at) as last_message_at,
+          COALESCE(
+            (SELECT MAX(COALESCE(m.timestamp, m.created_at)) FROM messages m WHERE m.conversation_id = conv.id),
+            CASE WHEN conv.last_message_at IS NOT NULL AND conv.last_message_at <> conv.updated_at THEN conv.last_message_at ELSE NULL END,
+            conv.created_at
+          ) as last_message_at,
           COALESCE(l.phone, conv.remote_jid) as phone,
           COALESCE(NULLIF(l.name, ''), conv.remote_jid, 'Contato') as name,
           l.is_blocked
@@ -627,7 +635,11 @@ async function listConversations(companyId, limit = 50, options = {}) {
           conv.company_id,
           COALESCE(conv.remote_jid, l.phone, conv.id::text),
           COALESCE(NULLIF(conv.session_id, ''), 'main'),
-          COALESCE(conv.last_message_at, conv.updated_at) DESC,
+          COALESCE(
+            (SELECT MAX(COALESCE(m.timestamp, m.created_at)) FROM messages m WHERE m.conversation_id = conv.id),
+            CASE WHEN conv.last_message_at IS NOT NULL AND conv.last_message_at <> conv.updated_at THEN conv.last_message_at ELSE NULL END,
+            conv.created_at
+          ) DESC,
           conv.id DESC
       ) deduplicated
       ${searchClause}
