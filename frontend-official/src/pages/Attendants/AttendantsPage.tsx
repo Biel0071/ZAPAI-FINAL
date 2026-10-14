@@ -98,8 +98,12 @@ import {
   AVATAR_OUTFITS,
   AVATAR_ACCESSORIES,
   AVATAR_STYLES,
+  HAIRSTYLES_FEMALE,
+  HAIRSTYLES_MALE,
+  CLOTHING_STYLES,
   type AgentAvatarConfig,
 } from "@/components/avatar-engine/AvatarDefinition";
+import { AvatarItemPreview } from "@/components/avatar-engine/AvatarItemPreview";
 const CommercialPanel = React.lazy(() => import("@/components/evolution/HistoryBootstrapPanel").then(module => ({ default: module.HistoryBootstrapPanel })));
 const AgentTab = React.lazy(() => import("@/pages/AI/AgentTab").then(module => ({ default: module.AgentTab })));
 const EvolutionTab = React.lazy(() => import("@/pages/AI/EvolutionTab").then(module => ({ default: module.EvolutionTab })));
@@ -372,17 +376,25 @@ export default function AttendantsPage() {
 
   const activeHairItem = useMemo(() => {
     const hair = previewAgent?.avatarConfig?.hair;
-    return AVATAR_HAIRS.find((h) => h.id === hair) || { title: hair || "Cabelo 01" };
+    const foundModular = AVATAR_HAIRS.find((h) => h.id === hair);
+    if (foundModular) return foundModular;
+    const foundLegacy = [...HAIRSTYLES_FEMALE, ...HAIRSTYLES_MALE].find((h) => h.id === hair);
+    if (foundLegacy) return { title: foundLegacy.label };
+    return { title: "Rabo de Cavalo Executivo" };
   }, [previewAgent?.avatarConfig?.hair]);
 
   const activeFaceItem = useMemo(() => {
     const face = previewAgent?.avatarConfig?.face;
-    return AVATAR_FACES.find((f) => f.id === face) || { title: face || "Rosto 01" };
+    return AVATAR_FACES.find((f) => f.id === face) || { title: "Cordial & Empático" };
   }, [previewAgent?.avatarConfig?.face]);
 
   const activeOutfitItem = useMemo(() => {
     const outfit = previewAgent?.avatarConfig?.outfit || previewAgent?.avatarConfig?.clothing;
-    return AVATAR_OUTFITS.find((o) => o.id === outfit) || { title: outfit || "Polo ZAI" };
+    const foundModular = AVATAR_OUTFITS.find((o) => o.id === outfit);
+    if (foundModular) return foundModular;
+    const foundLegacy = CLOTHING_STYLES.find((c) => c.id === outfit);
+    if (foundLegacy) return { title: foundLegacy.label };
+    return { title: "Polo ZAI" };
   }, [previewAgent?.avatarConfig?.outfit, previewAgent?.avatarConfig?.clothing]);
 
   const activeAccessoryItem = useMemo(() => {
@@ -917,30 +929,36 @@ export default function AttendantsPage() {
           </div>
 
           {/* Interactive Items Selection Grid */}
-          <div className="rounded-xl border border-border/60 bg-card/60 p-3 max-h-[175px] overflow-y-auto scrollbar-zai">
+          <div className="rounded-xl border border-border/60 bg-card/60 p-3 max-h-[280px] overflow-y-auto scrollbar-zai">
             {studioCategory === "hair" && (
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                 {AVATAR_HAIRS.map((h) => {
                   const isSelected = previewAgent?.avatarConfig?.hair === h.id;
                   return (
                     <button
                       key={h.id}
                       type="button"
+                      data-avatar-item={h.id}
                       onClick={() => handleUpdateAvatar({
                         hair: h.id,
                         catalogSpriteId: h.spriteRef || resolveSpriteForAvatar({ ...(previewAgent?.avatarConfig || {}), hair: h.id, catalogSpriteId: undefined }, true),
                       })}
                       className={cn(
-                        "p-2 rounded-xl border text-left transition-all flex items-center gap-2 cursor-pointer select-none",
+                        "p-2 rounded-xl border text-left transition-all flex items-center gap-2.5 cursor-pointer select-none",
                         isSelected
                           ? "border-emerald-500 bg-emerald-500/15 text-emerald-300 shadow-xs"
                           : "border-border/60 bg-muted/15 hover:border-border text-muted-foreground hover:text-foreground"
                       )}
                     >
-                      <span className="text-[9px] font-mono px-1 py-0.5 rounded bg-black/40 text-emerald-400 font-bold shrink-0">{h.number}</span>
-                      <div className="min-w-0">
-                        <p className="text-xs font-bold truncate text-foreground">{h.name}</p>
-                        <p className="text-[10px] text-muted-foreground truncate">{h.title}</p>
+                      <AvatarItemPreview
+                        spriteRef={h.spriteRef}
+                        focus="hair"
+                        selected={isSelected}
+                        size="sm"
+                      />
+                      <div className="min-w-0 flex-1">
+                        <p className="text-xs font-bold truncate text-foreground">{h.title}</p>
+                        <p className="text-[10px] text-muted-foreground truncate">{h.description}</p>
                       </div>
                     </button>
                   );
@@ -949,25 +967,31 @@ export default function AttendantsPage() {
             )}
 
             {studioCategory === "face" && (
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                 {AVATAR_FACES.map((f) => {
                   const isSelected = previewAgent?.avatarConfig?.face === f.id;
                   return (
                     <button
                       key={f.id}
                       type="button"
+                      data-avatar-item={f.id}
                       onClick={() => handleUpdateAvatar({ face: f.id })}
                       className={cn(
-                        "p-2 rounded-xl border text-left transition-all flex items-center gap-2 cursor-pointer select-none",
+                        "p-2 rounded-xl border text-left transition-all flex items-center gap-2.5 cursor-pointer select-none",
                         isSelected
                           ? "border-emerald-500 bg-emerald-500/15 text-emerald-300 shadow-xs"
                           : "border-border/60 bg-muted/15 hover:border-border text-muted-foreground hover:text-foreground"
                       )}
                     >
-                      <span className="text-[9px] font-mono px-1 py-0.5 rounded bg-black/40 text-emerald-400 font-bold shrink-0">{f.number}</span>
-                      <div className="min-w-0">
-                        <p className="text-xs font-bold truncate text-foreground">{f.name}</p>
-                        <p className="text-[10px] text-muted-foreground truncate">{f.title}</p>
+                      <AvatarItemPreview
+                        spriteRef={f.spriteRef || previewAgent?.avatarConfig?.catalogSpriteId || "sprite_r1_c1"}
+                        focus="face"
+                        selected={isSelected}
+                        size="sm"
+                      />
+                      <div className="min-w-0 flex-1">
+                        <p className="text-xs font-bold truncate text-foreground">{f.title}</p>
+                        <p className="text-[10px] text-muted-foreground truncate">{f.description}</p>
                       </div>
                     </button>
                   );
@@ -976,29 +1000,35 @@ export default function AttendantsPage() {
             )}
 
             {studioCategory === "outfit" && (
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                 {AVATAR_OUTFITS.map((o) => {
                   const isSelected = (previewAgent?.avatarConfig?.outfit || previewAgent?.avatarConfig?.clothing) === o.id;
                   return (
                     <button
                       key={o.id}
                       type="button"
+                      data-avatar-item={o.id}
                       onClick={() => handleUpdateAvatar({
                         outfit: o.id,
                         clothing: o.id,
                         catalogSpriteId: o.spriteRef || resolveSpriteForAvatar({ ...(previewAgent?.avatarConfig || {}), outfit: o.id, clothing: o.id, catalogSpriteId: undefined }, true),
                       })}
                       className={cn(
-                        "p-2 rounded-xl border text-left transition-all flex items-center gap-2 cursor-pointer select-none",
+                        "p-2 rounded-xl border text-left transition-all flex items-center gap-2.5 cursor-pointer select-none",
                         isSelected
                           ? "border-emerald-500 bg-emerald-500/15 text-emerald-300 shadow-xs"
                           : "border-border/60 bg-muted/15 hover:border-border text-muted-foreground hover:text-foreground"
                       )}
                     >
-                      <span className="text-[9px] font-mono px-1 py-0.5 rounded bg-black/40 text-emerald-400 font-bold shrink-0">{o.number}</span>
-                      <div className="min-w-0">
-                        <p className="text-xs font-bold truncate text-foreground">{o.name}</p>
-                        <p className="text-[10px] text-muted-foreground truncate">{o.title}</p>
+                      <AvatarItemPreview
+                        spriteRef={o.spriteRef}
+                        focus="outfit"
+                        selected={isSelected}
+                        size="sm"
+                      />
+                      <div className="min-w-0 flex-1">
+                        <p className="text-xs font-bold truncate text-foreground">{o.title}</p>
+                        <p className="text-[10px] text-muted-foreground truncate">{o.description}</p>
                       </div>
                     </button>
                   );
@@ -1007,7 +1037,7 @@ export default function AttendantsPage() {
             )}
 
             {studioCategory === "accessories" && (
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                 {AVATAR_ACCESSORIES.map((a) => {
                   const cfg = previewAgent?.avatarConfig;
                   const isEquipped =
@@ -1018,10 +1048,18 @@ export default function AttendantsPage() {
                     (a.id === "acc_05" && cfg?.workObject === "tablet_zai") ||
                     (a.id === "acc_06" && cfg?.accessories?.watch && cfg.accessories.watch !== "none");
 
+                  const focusType =
+                    a.id === "acc_01"
+                      ? "full"
+                      : a.id === "acc_02" || a.id === "acc_04"
+                      ? "accessory-head"
+                      : "accessory-body";
+
                   return (
                     <button
                       key={a.id}
                       type="button"
+                      data-avatar-item={a.id}
                       onClick={() => {
                         const updatedAccessories = { ...(cfg?.accessories || {}) };
                         let updatedHeadset = cfg?.headset || "none";
@@ -1056,16 +1094,21 @@ export default function AttendantsPage() {
                         });
                       }}
                       className={cn(
-                        "p-2 rounded-xl border text-left transition-all flex items-center gap-2 cursor-pointer select-none",
+                        "p-2 rounded-xl border text-left transition-all flex items-center gap-2.5 cursor-pointer select-none",
                         isEquipped
                           ? "border-emerald-500 bg-emerald-500/15 text-emerald-300 shadow-xs"
                           : "border-border/60 bg-muted/15 hover:border-border text-muted-foreground hover:text-foreground"
                       )}
                     >
-                      <span className="text-[9px] font-mono px-1 py-0.5 rounded bg-black/40 text-emerald-400 font-bold shrink-0">{a.number}</span>
-                      <div className="min-w-0">
-                        <p className="text-xs font-bold truncate text-foreground">{a.name}</p>
-                        <p className="text-[10px] text-muted-foreground truncate">{a.title}</p>
+                      <AvatarItemPreview
+                        spriteRef={a.spriteRef || previewAgent?.avatarConfig?.catalogSpriteId || "sprite_r1_c1"}
+                        focus={focusType}
+                        selected={Boolean(isEquipped)}
+                        size="sm"
+                      />
+                      <div className="min-w-0 flex-1">
+                        <p className="text-xs font-bold truncate text-foreground">{a.title}</p>
+                        <p className="text-[10px] text-muted-foreground truncate">{a.description}</p>
                       </div>
                     </button>
                   );
@@ -1074,29 +1117,36 @@ export default function AttendantsPage() {
             )}
 
             {studioCategory === "style" && (
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                 {AVATAR_STYLES.map((s) => {
                   const isSelected = previewAgent?.avatarConfig?.style === s.id;
                   return (
                     <button
                       key={s.id}
                       type="button"
+                      data-avatar-item={s.id}
                       onClick={() => {
                         const currentConfig = previewAgent?.avatarConfig || {};
                         const styled = applyStylePreset(currentConfig, s.id);
                         handleUpdateAvatar(styled);
                       }}
                       className={cn(
-                        "p-2 rounded-xl border text-left transition-all flex items-center gap-2 cursor-pointer select-none",
+                        "p-2 rounded-xl border text-left transition-all flex items-center gap-2.5 cursor-pointer select-none",
                         isSelected
                           ? "border-emerald-500 bg-emerald-500/15 text-emerald-300 shadow-xs"
                           : "border-border/60 bg-muted/15 hover:border-border text-muted-foreground hover:text-foreground"
                       )}
                     >
-                      <span className="text-[9px] font-mono px-1 py-0.5 rounded bg-black/40 text-emerald-400 font-bold shrink-0">{s.number}</span>
-                      <div className="min-w-0">
-                        <p className="text-xs font-bold truncate text-foreground">{s.name}</p>
-                        <p className="text-[10px] text-muted-foreground truncate">{s.title}</p>
+                      <AvatarItemPreview
+                        spriteRef={s.spriteRef || previewAgent?.avatarConfig?.catalogSpriteId || "sprite_r1_c1"}
+                        focus="full"
+                        accentColor={s.palette}
+                        selected={isSelected}
+                        size="sm"
+                      />
+                      <div className="min-w-0 flex-1">
+                        <p className="text-xs font-bold truncate text-foreground">{s.title}</p>
+                        <p className="text-[10px] text-muted-foreground truncate">{s.description}</p>
                       </div>
                     </button>
                   );

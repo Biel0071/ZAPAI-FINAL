@@ -41,6 +41,7 @@ import {
   applyStylePreset,
 } from "./CharacterFactory";
 import { ZaiAvatarRenderer } from "./ZaiAvatarRenderer";
+import { AvatarItemPreview } from "./AvatarItemPreview";
 import { notify } from "@/core/services/notifyService";
 import { apiService } from "@/core/services/apiService";
 import { cn } from "@/core/lib/utils";
@@ -467,9 +468,9 @@ export const AvatarEditorModal: React.FC<AvatarEditorModalProps> = ({
                             : "border-border hover:border-border/80 text-muted-foreground"
                         )}
                       >
-                        <User className="w-5 h-5 text-emerald-400" />
-                        <div>
-                          <div className="text-xs font-bold">Feminino</div>
+                        <AvatarItemPreview spriteRef="sprite_r2_c1" focus="full" title="Feminino" />
+                        <div className="min-w-0">
+                          <div className="text-xs font-bold text-foreground">Feminino</div>
                           <div className="text-[10px] text-muted-foreground">Silhueta executiva feminina</div>
                         </div>
                       </button>
@@ -484,9 +485,9 @@ export const AvatarEditorModal: React.FC<AvatarEditorModalProps> = ({
                             : "border-border hover:border-border/80 text-muted-foreground"
                         )}
                       >
-                        <User className="w-5 h-5 text-emerald-400" />
-                        <div>
-                          <div className="text-xs font-bold">Masculino</div>
+                        <AvatarItemPreview spriteRef="sprite_r1_c1" focus="full" title="Masculino" />
+                        <div className="min-w-0">
+                          <div className="text-xs font-bold text-foreground">Masculino</div>
                           <div className="text-[10px] text-muted-foreground">Silhueta executiva masculina</div>
                         </div>
                       </button>
@@ -514,7 +515,7 @@ export const AvatarEditorModal: React.FC<AvatarEditorModalProps> = ({
                   {/* Lista de Cortes */}
                   <div>
                     <Label className="text-xs font-bold text-foreground mb-2 block">
-                      Cortes Disponíveis ({availableHairstyles.length} modelos)
+                      Cortes Disponíveis
                     </Label>
                     <div className="grid grid-cols-2 gap-2.5">
                       {availableHairstyles.map((h) => (
@@ -529,15 +530,18 @@ export const AvatarEditorModal: React.FC<AvatarEditorModalProps> = ({
                             catalogSpriteId: h.spriteRef || resolveSpriteForAvatar({ ...prev, hair: h.id, catalogSpriteId: undefined }, true),
                           }))}
                           className={cn(
-                            "p-3 rounded-xl border text-left transition-all",
+                            "p-2.5 rounded-xl border text-left transition-all",
                             avatar.hair === h.id
                               ? "border-emerald-500 bg-emerald-500/10 shadow-sm"
                               : "border-border hover:border-border/80 text-muted-foreground"
                           )}
                         >
-                          <div className="flex items-center gap-2">
-                            {h.spriteRef && <img src={`/assets/avatar_factory/catalog/${h.spriteRef}_clean.png`} alt="" className="h-12 w-8 object-contain" style={{ imageRendering: "pixelated" }} />}
-                            <div><div className="text-xs font-bold text-foreground">{h.name}</div><div className="text-[10px] text-muted-foreground">{h.description}</div></div>
+                          <div className="flex items-center gap-2.5">
+                            <AvatarItemPreview spriteRef={h.spriteRef} focus="hair" title={h.name} />
+                            <div className="min-w-0">
+                              <div className="text-xs font-bold text-foreground truncate">{h.name}</div>
+                              <div className="text-[10px] text-muted-foreground line-clamp-2">{h.description}</div>
+                            </div>
                           </div>
                         </button>
                       ))}
@@ -546,9 +550,9 @@ export const AvatarEditorModal: React.FC<AvatarEditorModalProps> = ({
 
                   <div className="pt-3 border-t border-border/50">
                     <Label className="text-xs font-bold text-foreground mb-2 block">
-                      Cortes Modulares ZAI ({AVATAR_HAIRS.length} opções)
+                      Cortes Modulares ZAI
                     </Label>
-                    <div className="grid grid-cols-2 gap-2">
+                    <div className="grid grid-cols-2 gap-2.5">
                       {AVATAR_HAIRS.map((h) => (
                         <button
                           key={h.id}
@@ -567,8 +571,13 @@ export const AvatarEditorModal: React.FC<AvatarEditorModalProps> = ({
                               : "border-border hover:border-border/80 text-muted-foreground"
                           )}
                         >
-                          <div className="text-xs font-bold text-foreground">{h.name} — {h.title}</div>
-                          <div className="text-[10px] text-muted-foreground">{h.description}</div>
+                          <div className="flex items-center gap-2.5">
+                            <AvatarItemPreview spriteRef={h.spriteRef} focus="hair" title={h.title} />
+                            <div className="min-w-0">
+                              <div className="text-xs font-bold text-foreground truncate">{h.title}</div>
+                              <div className="text-[10px] text-muted-foreground line-clamp-2">{h.description}</div>
+                            </div>
+                          </div>
                         </button>
                       ))}
                     </div>
@@ -578,7 +587,7 @@ export const AvatarEditorModal: React.FC<AvatarEditorModalProps> = ({
                 {/* ROSTO (Expressões e Olhares) */}
                 <TabsContent value="face" className="mt-0 space-y-4">
                   <Label className="text-xs font-bold text-foreground block">
-                    Expressões Faciais ({AVATAR_FACES.length} modelos)
+                    Expressões Faciais
                   </Label>
                   <p className="text-xs text-muted-foreground">Escolha a expressão que melhor reflete a postura do atendente.</p>
                   <div className="grid grid-cols-2 gap-2.5">
@@ -589,14 +598,19 @@ export const AvatarEditorModal: React.FC<AvatarEditorModalProps> = ({
                         type="button"
                         onClick={() => setAvatar((prev) => ({ ...prev, face: f.id }))}
                         className={cn(
-                          "p-3 rounded-xl border text-left transition-all",
+                          "p-2.5 rounded-xl border text-left transition-all",
                           (avatar.face === f.id || (!avatar.face && f.id === "face_01"))
                             ? "border-emerald-500 bg-emerald-500/10 shadow-sm"
                             : "border-border hover:border-border/80 text-muted-foreground"
                         )}
                       >
-                        <div className="text-xs font-bold text-foreground">{f.title}</div>
-                        <div className="text-[10px] text-muted-foreground">{f.description}</div>
+                        <div className="flex items-center gap-2.5">
+                          <AvatarItemPreview spriteRef={f.spriteRef} focus="face" title={f.title} />
+                          <div className="min-w-0">
+                            <div className="text-xs font-bold text-foreground truncate">{f.title}</div>
+                            <div className="text-[10px] text-muted-foreground line-clamp-2">{f.description}</div>
+                          </div>
+                        </div>
                       </button>
                     ))}
                   </div>
@@ -616,15 +630,18 @@ export const AvatarEditorModal: React.FC<AvatarEditorModalProps> = ({
                         type="button"
                         onClick={() => selectCatalogLook(c)}
                         className={cn(
-                          "p-3 rounded-xl border text-left transition-all",
+                          "p-2.5 rounded-xl border text-left transition-all",
                           avatar.hair === c.id
                             ? "border-emerald-500 bg-emerald-500/10 shadow-sm"
                             : "border-border hover:border-border/80 text-muted-foreground"
                         )}
                       >
-                        <div className="flex items-center gap-2">
-                          {c.spriteRef && <img src={`/assets/avatar_factory/catalog/${c.spriteRef}_clean.png`} alt="" className="h-14 w-9 object-contain" style={{ imageRendering: "pixelated" }} />}
-                          <div><div className="text-xs font-bold text-foreground">{c.name}</div><div className="text-[10px] text-muted-foreground">Visual completo · {c.description}</div></div>
+                        <div className="flex items-center gap-2.5">
+                          <AvatarItemPreview spriteRef={c.spriteRef} focus="full" title={c.name} />
+                          <div className="min-w-0">
+                            <div className="text-xs font-bold text-foreground truncate">{c.name}</div>
+                            <div className="text-[10px] text-muted-foreground line-clamp-2">Visual completo · {c.description}</div>
+                          </div>
                         </div>
                       </button>
                     ))}
@@ -632,9 +649,9 @@ export const AvatarEditorModal: React.FC<AvatarEditorModalProps> = ({
 
                   <div className="pt-3 border-t border-border/50">
                     <Label className="text-xs font-bold text-foreground block mb-2">
-                      Uniformes & Trajes Corporativos ({CLOTHING_STYLES.length} opções)
+                      Uniformes & Trajes Corporativos
                     </Label>
-                    <div className="grid grid-cols-2 gap-2">
+                    <div className="grid grid-cols-2 gap-2.5">
                       {CLOTHING_STYLES.map((c) => (
                         <button
                           key={c.id}
@@ -655,8 +672,13 @@ export const AvatarEditorModal: React.FC<AvatarEditorModalProps> = ({
                               : "border-border hover:border-border/80 text-muted-foreground"
                           )}
                         >
-                          <div className="text-xs font-bold text-foreground">{c.name}</div>
-                          <div className="text-[10px] text-muted-foreground">{c.description}</div>
+                          <div className="flex items-center gap-2.5">
+                            <AvatarItemPreview spriteRef={c.spriteRef} focus="outfit" title={c.name} />
+                            <div className="min-w-0">
+                              <div className="text-xs font-bold text-foreground truncate">{c.name}</div>
+                              <div className="text-[10px] text-muted-foreground line-clamp-2">{c.description}</div>
+                            </div>
+                          </div>
                         </button>
                       ))}
                     </div>
@@ -664,9 +686,9 @@ export const AvatarEditorModal: React.FC<AvatarEditorModalProps> = ({
 
                   <div className="pt-3 border-t border-border/50">
                     <Label className="text-xs font-bold text-foreground block mb-2">
-                      Roupas Modulares ZAI ({AVATAR_OUTFITS.length} opções)
+                      Roupas Modulares ZAI
                     </Label>
-                    <div className="grid grid-cols-2 gap-2">
+                    <div className="grid grid-cols-2 gap-2.5">
                       {AVATAR_OUTFITS.map((o) => (
                         <button
                           key={o.id}
@@ -688,8 +710,13 @@ export const AvatarEditorModal: React.FC<AvatarEditorModalProps> = ({
                               : "border-border hover:border-border/80 text-muted-foreground"
                           )}
                         >
-                          <div className="text-xs font-bold text-foreground">{o.name} — {o.title}</div>
-                          <div className="text-[10px] text-muted-foreground">{o.description}</div>
+                          <div className="flex items-center gap-2.5">
+                            <AvatarItemPreview spriteRef={o.spriteRef} focus="outfit" title={o.title} />
+                            <div className="min-w-0">
+                              <div className="text-xs font-bold text-foreground truncate">{o.title}</div>
+                              <div className="text-[10px] text-muted-foreground line-clamp-2">{o.description}</div>
+                            </div>
+                          </div>
                         </button>
                       ))}
                     </div>
@@ -703,7 +730,7 @@ export const AvatarEditorModal: React.FC<AvatarEditorModalProps> = ({
                     <Label className="text-xs font-bold text-foreground mb-2 block">
                       Comunicação & Headset
                     </Label>
-                    <div className="grid grid-cols-3 gap-2">
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                       {ACCESSORIES.filter((a) => a.category === "headset").map((acc) => {
                         const isEquipped = avatar.headset === acc.id;
                         return (
@@ -712,14 +739,17 @@ export const AvatarEditorModal: React.FC<AvatarEditorModalProps> = ({
                             type="button"
                             onClick={() => handleEquipToggle("headset", acc.id)}
                             className={cn(
-                              "p-2.5 rounded-xl border text-left transition-all",
+                              "p-2 rounded-xl border text-left transition-all flex items-center gap-2",
                               isEquipped
                                 ? "border-emerald-500 bg-emerald-500/10 text-foreground"
                                 : "border-border hover:border-border/80 text-muted-foreground"
                             )}
                           >
-                            <div className="text-xs font-bold text-foreground">{acc.name}</div>
-                            <div className="text-[9px] text-muted-foreground mt-0.5">{isEquipped ? "Equipado ✓" : "Equipar"}</div>
+                            <AvatarItemPreview spriteRef={acc.spriteRef} focus="accessory-head" title={acc.name} size="sm" />
+                            <div className="min-w-0">
+                              <div className="text-xs font-bold text-foreground truncate">{acc.name}</div>
+                              <div className="text-[9px] text-muted-foreground mt-0.5">{isEquipped ? "Equipado ✓" : "Equipar"}</div>
+                            </div>
                           </button>
                         );
                       })}
@@ -731,7 +761,7 @@ export const AvatarEditorModal: React.FC<AvatarEditorModalProps> = ({
                     <Label className="text-xs font-bold text-foreground mb-2 block">
                       Óculos & Chapelaria
                     </Label>
-                    <div className="grid grid-cols-3 gap-2">
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                       {ACCESSORIES.filter((a) => a.category === "glasses" || a.category === "headwear").map((acc) => {
                         const isEquipped = avatar.glasses === acc.id || avatar.accessories.headwear === acc.id;
                         const slot = acc.category === "glasses" ? "glasses" : "headwear";
@@ -741,14 +771,17 @@ export const AvatarEditorModal: React.FC<AvatarEditorModalProps> = ({
                             type="button"
                             onClick={() => handleEquipToggle(slot, acc.id)}
                             className={cn(
-                              "p-2.5 rounded-xl border text-left transition-all",
+                              "p-2 rounded-xl border text-left transition-all flex items-center gap-2",
                               isEquipped
                                 ? "border-emerald-500 bg-emerald-500/10 text-foreground"
                                 : "border-border hover:border-border/80 text-muted-foreground"
                             )}
                           >
-                            <div className="text-xs font-bold text-foreground">{acc.name}</div>
-                            <div className="text-[9px] text-muted-foreground mt-0.5">{isEquipped ? "Equipado ✓" : "Equipar"}</div>
+                            <AvatarItemPreview spriteRef={acc.spriteRef} focus="accessory-head" title={acc.name} size="sm" />
+                            <div className="min-w-0">
+                              <div className="text-xs font-bold text-foreground truncate">{acc.name}</div>
+                              <div className="text-[9px] text-muted-foreground mt-0.5">{isEquipped ? "Equipado ✓" : "Equipar"}</div>
+                            </div>
                           </button>
                         );
                       })}
@@ -760,7 +793,7 @@ export const AvatarEditorModal: React.FC<AvatarEditorModalProps> = ({
                     <Label className="text-xs font-bold text-foreground mb-2 block">
                       Objeto de Trabalho em Mãos
                     </Label>
-                    <div className="grid grid-cols-2 gap-2">
+                    <div className="grid grid-cols-2 gap-2.5">
                       {WORK_OBJECTS.map((obj) => (
                         <button
                           key={obj.id}
@@ -773,8 +806,13 @@ export const AvatarEditorModal: React.FC<AvatarEditorModalProps> = ({
                               : "border-border hover:border-border/80 text-muted-foreground"
                           )}
                         >
-                          <div className="text-xs font-bold text-foreground">{obj.name}</div>
-                          <div className="text-[10px] text-muted-foreground">{obj.description}</div>
+                          <div className="flex items-center gap-2.5">
+                            <AvatarItemPreview spriteRef={obj.spriteRef} focus="accessory-body" title={obj.name} />
+                            <div className="min-w-0">
+                              <div className="text-xs font-bold text-foreground truncate">{obj.name}</div>
+                              <div className="text-[10px] text-muted-foreground line-clamp-2">{obj.description}</div>
+                            </div>
+                          </div>
                         </button>
                       ))}
                     </div>
@@ -782,9 +820,9 @@ export const AvatarEditorModal: React.FC<AvatarEditorModalProps> = ({
 
                   <div className="pt-3 border-t border-border/50">
                     <Label className="text-xs font-bold text-foreground mb-2 block">
-                      Acessórios Modulares ZAI ({AVATAR_ACCESSORIES.length} opções)
+                      Acessórios Modulares ZAI
                     </Label>
-                    <div className="grid grid-cols-2 gap-2">
+                    <div className="grid grid-cols-2 gap-2.5">
                       {AVATAR_ACCESSORIES.map((a) => {
                         const isEquipped =
                           (a.id === "acc_01" && (!avatar.headset || avatar.headset === "none") && (!avatar.glasses || avatar.glasses === "none")) ||
@@ -834,8 +872,18 @@ export const AvatarEditorModal: React.FC<AvatarEditorModalProps> = ({
                                 : "border-border hover:border-border/80 text-muted-foreground"
                             )}
                           >
-                            <div className="text-xs font-bold text-foreground">{a.name} — {a.title}</div>
-                            <div className="text-[9px] text-muted-foreground mt-0.5">{isEquipped ? "Equipado ✓" : "Equipar"}</div>
+                            <div className="flex items-center gap-2.5">
+                              <AvatarItemPreview
+                                spriteRef={a.spriteRef}
+                                focus={a.id === "acc_02" || a.id === "acc_04" ? "accessory-head" : "accessory-body"}
+                                title={a.title}
+                              />
+                              <div className="min-w-0">
+                                <div className="text-xs font-bold text-foreground truncate">{a.title}</div>
+                                <div className="text-[10px] text-muted-foreground line-clamp-1">{a.description}</div>
+                                <div className="text-[9px] text-emerald-400/90 mt-0.5">{isEquipped ? "Equipado ✓" : "Equipar"}</div>
+                              </div>
+                            </div>
                           </button>
                         );
                       })}
@@ -846,7 +894,7 @@ export const AvatarEditorModal: React.FC<AvatarEditorModalProps> = ({
                 {/* ESTILO (Presets de Identidade) */}
                 <TabsContent value="style" className="mt-0 space-y-4">
                   <Label className="text-xs font-bold text-foreground block">
-                    Presets de Identidade & Estilo ({AVATAR_STYLES.length} opções)
+                    Presets de Identidade & Estilo
                   </Label>
                   <p className="text-xs text-muted-foreground">Selecione um estilo operacional para configurar o conjunto completo.</p>
                   <div className="grid grid-cols-2 gap-2.5">
@@ -857,14 +905,24 @@ export const AvatarEditorModal: React.FC<AvatarEditorModalProps> = ({
                         type="button"
                         onClick={() => setAvatar((prev) => applyStylePreset(prev, s.id))}
                         className={cn(
-                          "p-3 rounded-xl border text-left transition-all",
+                          "p-2.5 rounded-xl border text-left transition-all",
                           avatar.style === s.id
                             ? "border-emerald-500 bg-emerald-500/10 shadow-sm"
                             : "border-border hover:border-border/80 text-muted-foreground"
                         )}
                       >
-                        <div className="text-xs font-bold text-foreground">{s.title}</div>
-                        <div className="text-[10px] text-muted-foreground">{s.description}</div>
+                        <div className="flex items-center gap-2.5">
+                          <AvatarItemPreview
+                            spriteRef={s.spriteRef}
+                            focus="full"
+                            title={s.title}
+                            accentColor={s.preset?.color}
+                          />
+                          <div className="min-w-0">
+                            <div className="text-xs font-bold text-foreground truncate">{s.title}</div>
+                            <div className="text-[10px] text-muted-foreground line-clamp-2">{s.description}</div>
+                          </div>
+                        </div>
                       </button>
                     ))}
                   </div>

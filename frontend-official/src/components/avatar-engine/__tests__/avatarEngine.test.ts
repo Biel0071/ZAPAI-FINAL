@@ -504,4 +504,68 @@ describe("Avatar operational state regressions", () => {
 
     expect(markup).not.toContain("image-rendering:pixelated");
   });
+
+  it("renders visual preview thumbnails for hair, face, clothing, accessories, and style without numbered prefixes", async () => {
+    const agent = {
+      key: "camila",
+      name: "Camila",
+      avatarConfig: createAgentAvatar({ agentId: "camila", name: "Camila", gender: "female" }),
+    };
+    const container = document.createElement("div");
+    document.body.appendChild(container);
+    const root = createRoot(container);
+
+    try {
+      await act(async () => {
+        root.render(React.createElement(AvatarEditorModal, { open: true, onOpenChange: vi.fn(), agent }));
+      });
+
+      // Corpo tab has full previews
+      expect(document.querySelectorAll('[data-avatar-preview-focus="full"]').length).toBeGreaterThanOrEqual(2);
+
+      // Switch to Cabelo tab
+      await act(async () => {
+        Array.from(document.querySelectorAll('[role="tab"]'))
+          .find((tab) => tab.textContent?.includes("Cabelo"))
+          ?.dispatchEvent(new MouseEvent("mousedown", { bubbles: true, button: 0 }));
+      });
+      expect(document.querySelectorAll('[data-avatar-preview-focus="hair"]').length).toBeGreaterThanOrEqual(10);
+      expect(document.body.textContent).toContain("Rabo de Cavalo Executivo");
+      expect(document.body.textContent).not.toContain("Cabelo 01");
+
+      // Switch to Rosto tab
+      await act(async () => {
+        Array.from(document.querySelectorAll('[role="tab"]'))
+          .find((tab) => tab.textContent?.includes("Rosto"))
+          ?.dispatchEvent(new MouseEvent("mousedown", { bubbles: true, button: 0 }));
+      });
+      expect(document.querySelectorAll('[data-avatar-preview-focus="face"]').length).toBeGreaterThanOrEqual(6);
+      expect(document.body.textContent).toContain("Cordial & Empático");
+      expect(document.body.textContent).not.toContain("Rosto 01");
+
+      // Switch to Roupas tab
+      await act(async () => {
+        Array.from(document.querySelectorAll('[role="tab"]'))
+          .find((tab) => tab.textContent?.includes("Roupas"))
+          ?.dispatchEvent(new MouseEvent("mousedown", { bubbles: true, button: 0 }));
+      });
+      expect(document.querySelectorAll('[data-avatar-preview-focus="outfit"]').length).toBeGreaterThanOrEqual(8);
+      expect(document.body.textContent).toContain("Polo ZAI Corporativa");
+      expect(document.body.textContent).not.toContain("Roupa 01");
+
+      // Switch to Acessórios tab
+      await act(async () => {
+        Array.from(document.querySelectorAll('[role="tab"]'))
+          .find((tab) => tab.textContent?.includes("Acessórios"))
+          ?.dispatchEvent(new MouseEvent("mousedown", { bubbles: true, button: 0 }));
+      });
+      expect(
+        document.querySelectorAll('[data-avatar-preview-focus="accessory-head"], [data-avatar-preview-focus="accessory-body"]').length
+      ).toBeGreaterThanOrEqual(10);
+      expect(document.body.textContent).not.toContain("Acessório 01");
+    } finally {
+      await act(async () => root.unmount());
+      container.remove();
+    }
+  });
 });
