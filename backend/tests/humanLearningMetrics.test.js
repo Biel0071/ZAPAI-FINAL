@@ -13,6 +13,7 @@ test('learning metrics preserve tenant-scoped zero and leave unmeasured quality 
   assert.equal(result.totalHumanMessages, 0);
   assert.equal(result.totalXp, 0);
   assert.equal(result.evolutionScore, 0);
+  assert.equal(result.objectionsLearned, 0);
   assert.equal(result.naturalnessScore, null);
   assert.equal(result.successRate, null);
   assert.equal(result.conversionsCount, null);

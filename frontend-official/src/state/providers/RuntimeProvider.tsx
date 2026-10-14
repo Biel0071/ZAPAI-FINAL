@@ -212,6 +212,7 @@ export function RuntimeProvider({ children }: { children: ReactNode }) {
   const typingTimersRef = useRef<Map<string, any>>(new Map());
   const aiProgressTimersRef = useRef<Map<string, number>>(new Map());
   const historyRefreshTimersRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
+  const conversationRefreshDebounceRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
 
   const clearTypingTimeout = useCallback((conversationId: string) => {
     const existingTimer = typingTimersRef.current.get(conversationId);
@@ -347,6 +348,27 @@ export function RuntimeProvider({ children }: { children: ReactNode }) {
     refreshTimerRef.current = setTimeout(() => void loadFromApi({ forceConversations: true }), 600);
   }, [loadFromApi]);
 
+  // Debounced fetch for conversations when updates or missing conversations arrive
+  const debouncedRefreshConversations = useCallback((sessionId?: string) => {
+    const key = sessionId || "default";
+    const existing = conversationRefreshDebounceRef.current.get(key);
+    if (existing) clearTimeout(existing);
+    conversationRefreshDebounceRef.current.set(
+      key,
+      setTimeout(() => {
+        conversationRefreshDebounceRef.current.delete(key);
+        void apiService
+          .getConversations(true, { limit: 100, sessionId: sessionId || undefined })
+          .then((rows) => {
+            if (Array.isArray(rows) && rows.length > 0) {
+              useAppStore.getState().setConversations(rows);
+            }
+          })
+          .catch(() => {});
+      }, 400)
+    );
+  }, []);
+
   // ─── Main effect: WebSocket subscription ─────────────────────
   useEffect(() => {
     if (!socketUrl) return;
@@ -453,15 +475,7 @@ export function RuntimeProvider({ children }: { children: ReactNode }) {
       onConversationUpdated: (incoming) => {
         if (!incoming?.id) {
           const sessionId = (incoming as any)?.sessionId;
-          if (sessionId) {
-            void apiService.getConversations(true, { limit: 100, sessionId })
-              .then((rows) => {
-                if (Array.isArray(rows) && rows.length > 0) {
-                  useAppStore.getState().setConversations(rows);
-                }
-              })
-              .catch(() => {});
-          }
+          debouncedRefreshConversations(sessionId);
           return;
         }
         useAppStore.getState().upsertConversation(incoming);
@@ -586,13 +600,7 @@ export function RuntimeProvider({ children }: { children: ReactNode }) {
         console.log(`[INBOX REALTIME] [STORE_TARGET] Setting store target for AI Response: conversationId=${conversationId}`);
         const currentConv = store.conversations.find((c) => String(c.id) === String(conversationId));
         if (!currentConv) {
-          void apiService.getConversations(true, { limit: 100, sessionId: incoming.sessionId })
-            .then((rows) => {
-              if (Array.isArray(rows) && rows.length > 0) {
-                useAppStore.getState().setConversations(rows);
-              }
-            })
-            .catch(() => {});
+          debouncedRefreshConversations(incoming.sessionId);
         }
         const normalizedTimestamp = normalizeMessageTimestamp(incoming.timestamp || incoming.createdAt);
         const message = {
@@ -702,13 +710,7 @@ export function RuntimeProvider({ children }: { children: ReactNode }) {
         console.log(`[INBOX REALTIME] [STORE_TARGET] Setting store target for New message: conversationId=${conversationId}`);
         const currentConv = store.conversations.find((c) => String(c.id) === String(conversationId));
         if (!currentConv) {
-          void apiService.getConversations(true, { limit: 100, sessionId: incoming.sessionId })
-            .then((rows) => {
-              if (Array.isArray(rows) && rows.length > 0) {
-                useAppStore.getState().setConversations(rows);
-              }
-            })
-            .catch(() => {});
+          debouncedRefreshConversations(incoming.sessionId);
         }
         const normalizedTimestamp = normalizeMessageTimestamp(incoming.timestamp || incoming.createdAt);
         const message = {
@@ -857,8 +859,10 @@ export function RuntimeProvider({ children }: { children: ReactNode }) {
       aiProgressTimersRef.current.clear();
       historyRefreshTimersRef.current.forEach((timer) => clearTimeout(timer));
       historyRefreshTimersRef.current.clear();
+      conversationRefreshDebounceRef.current.forEach((timer) => clearTimeout(timer));
+      conversationRefreshDebounceRef.current.clear();
     };
-  }, [socketUrl, loadFromApi, debouncedRefresh]);
+  }, [socketUrl, loadFromApi, debouncedRefresh, debouncedRefreshConversations]);
 
   // ─── Re-hydrate on tab focus ─────────────────────────────────
   // When the user switches back to this tab after being away,

@@ -339,7 +339,7 @@ class HumanAttendanceLearner {
         activePlaybooks,
         naturalnessScore: null,
         conversionsCount: null,
-        objectionsLearned: null,
+        objectionsLearned: humanSamples,
         successRate: null,
         totalAnalyzed: totalHumanMessages,
       };

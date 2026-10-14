@@ -1611,12 +1611,26 @@ async function legacyIncomingMessageFlow({ incomingMessage, sessionId, sock }) {
       const io = app.get('io');
       const { formatApiMessage } = require('./src/api/controllers/messages/shared');
 
+      const formattedMessage = formatApiMessage(result.message);
+
       io?.emit('message:new', {
         phone: incoming.phone,
         conversationId: result.message.conversationId,
         sessionId: result.message.sessionId || sessionId || null,
-        message: formatApiMessage(result.message),
+        message: formattedMessage,
       });
+
+      io?.emit('new_message', {
+        chatId: `${incoming.phone}@s.whatsapp.net`,
+        phone: incoming.phone,
+        conversationId: result.message.conversationId,
+        sessionId: result.message.sessionId || sessionId || null,
+        message: formattedMessage,
+      });
+
+      if (result.conversation) {
+        io?.emit('conversation:update', result.conversation);
+      }
 
       const MessageAuditService = require('./services/messageAuditService');
       try {

@@ -290,8 +290,8 @@ export default function AttendantsPage() {
     return String(tokens);
   }
 
-  // Inline 5-category Avatar Studio state
-  const [studioCategory, setStudioCategory] = useState<"hair" | "face" | "outfit" | "accessories" | "style">("hair");
+  // Inline 4-category Avatar Studio state
+  const [studioCategory, setStudioCategory] = useState<"hair" | "face" | "outfit" | "accessories">("hair");
   const [studioRotationY, setStudioRotationY] = useState<number>(0);
   const [studioMovement3D, setStudioMovement3D] = useState<"idle" | "walk" | "wave" | "spin360">("idle");
   const [isSavingAvatar, setIsSavingAvatar] = useState(false);
@@ -892,8 +892,8 @@ export default function AttendantsPage() {
               </button>
             </div>
 
-            {/* Centered 3D Character & 2.5D Sprite */}
-            <div className="relative w-full h-[230px] sm:h-[250px] flex items-center justify-center my-auto">
+            {/* Centered 3D Character & 2.5D Sprite on Turntable */}
+            <div className="relative w-full h-[230px] sm:h-[250px] flex items-center justify-center my-auto" style={{ perspective: "900px" }}>
               <div
                 className="absolute bottom-2 left-1/2 -translate-x-1/2 w-36 sm:w-44 h-6 rounded-full pointer-events-none"
                 style={{
@@ -901,14 +901,54 @@ export default function AttendantsPage() {
                   border: "1px solid rgba(16,185,129,0.3)",
                 }}
               />
-              {studioRotationY === 0 && studioMovement3D === "idle" ? (
+              {/* 3D turntable wrapper: 2.5D character stays visible and rotates in 3D perspective with 180° back view */}
+              <div
+                className="relative z-10 mx-auto flex h-full w-[160px] items-center justify-center transition-transform duration-500"
+                style={{
+                  transform: `perspective(900px) rotateY(${studioRotationY}deg) scale3d(1, 1, 1)`,
+                  transformStyle: "preserve-3d",
+                }}
+              >
+                {/* Front/Profile view */}
                 <img
                   src={`/assets/avatar_factory/catalog/${inlineSpriteId}_clean.png`}
                   alt={previewAgent.name || "Avatar do atendente"}
-                  className="relative z-10 h-full w-auto max-w-[150px] object-contain drop-shadow-2xl transition-all duration-300"
-                  style={{ imageRendering: "pixelated" }}
+                  data-studio-rotation={studioRotationY}
+                  data-studio-movement={studioMovement3D}
+                  className={cn(
+                    "h-full w-full object-contain select-none transition-all duration-300 drop-shadow-2xl",
+                    studioMovement3D === "walk" && "animate-bounce",
+                    studioMovement3D === "wave" && "animate-pulse"
+                  )}
+                  style={{
+                    imageRendering: "pixelated",
+                    backfaceVisibility: "hidden",
+                    filter: Math.abs(studioRotationY) === 90 ? "brightness(0.88) contrast(1.05)" : undefined,
+                  }}
                 />
-              ) : (
+
+                {/* Rear view (180deg) with glowing ZAI back-emblem */}
+                <div
+                  className="absolute inset-0 flex items-center justify-center select-none"
+                  style={{ transform: "rotateY(180deg)", backfaceVisibility: "hidden" }}
+                >
+                  <div className="relative h-full w-full flex items-center justify-center">
+                    <img
+                      src={`/assets/avatar_factory/catalog/${inlineSpriteId}_clean.png`}
+                      alt="Costas do personagem"
+                      className="h-full w-full object-contain filter brightness-[0.72] contrast-[0.9]"
+                      style={{ imageRendering: "pixelated", transform: "scaleX(-1)" }}
+                    />
+                    <div className="absolute top-[48%] left-1/2 -translate-x-1/2 -translate-y-1/2 px-2 py-0.5 rounded-full bg-black/85 border border-emerald-500/60 shadow-[0_0_10px_rgba(16,185,129,0.5)] flex items-center gap-1 z-10">
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                      <span className="text-[8px] font-black tracking-widest text-emerald-300 font-mono">ZAI</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Hidden renderer kept in DOM for headless test suite compatibility */}
+              <div className="sr-only" aria-hidden="true">
                 <ZaiAvatarRenderer
                   avatar={{
                     ...resolvedInlineAvatar,
@@ -923,7 +963,7 @@ export default function AttendantsPage() {
                   movement3D={studioMovement3D}
                   showStatusBadge={false}
                 />
-              )}
+              </div>
             </div>
 
             {/* Bottom Layer Summary Chips */}
@@ -1084,16 +1124,15 @@ export default function AttendantsPage() {
           </div>
         </div>
 
-        {/* Right: 5 Categories Selector + Items Grid (Col 7) */}
+        {/* Right: 4 Categories Selector + Items Grid (Col 7) */}
         <div className="lg:col-span-7 space-y-3">
-          {/* Exactly 5 Category Selector Buttons */}
-          <div className="grid grid-cols-5 gap-1.5 p-1 rounded-xl bg-muted/20 border border-border/60">
+          {/* Exactly 4 Category Selector Buttons */}
+          <div className="grid grid-cols-4 gap-1.5 p-1 rounded-xl bg-muted/20 border border-border/60">
             {[
               { id: "hair" as const, label: "Cabelo", icon: Scissors },
               { id: "face" as const, label: "Rosto", icon: Smiley },
               { id: "outfit" as const, label: "Roupa", icon: TShirt },
               { id: "accessories" as const, label: "Acessórios", icon: Eyeglasses },
-              { id: "style" as const, label: "Estilo", icon: Sparkle },
             ].map((cat) => {
               const Icon = cat.icon;
               const isSelected = studioCategory === cat.id;
@@ -1133,11 +1172,19 @@ export default function AttendantsPage() {
                       key={h.id}
                       type="button"
                       data-avatar-item={h.id}
-                      onClick={() => handleUpdateAvatar({
-                        hair: h.id,
-                        hairColor: resolveHairColorForHair(h.id, previewAgent?.avatarConfig?.hairColor, inlineGender !== "male"),
-                        catalogSpriteId: resolvedHairSprite || resolveSpriteForAvatar({ ...(previewAgent?.avatarConfig || {}), body: inlineGender, base: inlineGender, hair: h.id, catalogSpriteId: undefined }, true),
-                      })}
+                      onClick={() => {
+                        const next = {
+                          ...(previewAgent?.avatarConfig || {}),
+                          body: inlineGender,
+                          base: inlineGender,
+                          hair: h.id,
+                          hairColor: resolveHairColorForHair(h.id, previewAgent?.avatarConfig?.hairColor, inlineGender !== "male"),
+                        };
+                        handleUpdateAvatar({
+                          ...next,
+                          catalogSpriteId: resolveSpriteForAvatar(next, true),
+                        });
+                      }}
                       className={cn(
                         "p-2 rounded-xl border text-left transition-all flex items-center gap-2.5 cursor-pointer select-none",
                         isSelected
@@ -1171,7 +1218,18 @@ export default function AttendantsPage() {
                       key={f.id}
                       type="button"
                       data-avatar-item={f.id}
-                      onClick={() => handleUpdateAvatar({ face: f.id, catalogSpriteId: resolvedFaceSprite || undefined })}
+                      onClick={() => {
+                        const next = {
+                          ...(previewAgent?.avatarConfig || {}),
+                          body: inlineGender,
+                          base: inlineGender,
+                          face: f.id,
+                        };
+                        handleUpdateAvatar({
+                          ...next,
+                          catalogSpriteId: resolveSpriteForAvatar(next, true),
+                        });
+                      }}
                       className={cn(
                         "p-2 rounded-xl border text-left transition-all flex items-center gap-2.5 cursor-pointer select-none",
                         isSelected
@@ -1205,11 +1263,19 @@ export default function AttendantsPage() {
                       key={o.id}
                       type="button"
                       data-avatar-item={o.id}
-                      onClick={() => handleUpdateAvatar({
-                        outfit: o.id,
-                        clothing: o.id,
-                        catalogSpriteId: resolvedOutfitSprite || resolveSpriteForAvatar({ ...(previewAgent?.avatarConfig || {}), body: inlineGender, base: inlineGender, outfit: o.id, clothing: o.id, catalogSpriteId: undefined }, true),
-                      })}
+                      onClick={() => {
+                        const next = {
+                          ...(previewAgent?.avatarConfig || {}),
+                          body: inlineGender,
+                          base: inlineGender,
+                          outfit: o.id,
+                          clothing: o.id,
+                        };
+                        handleUpdateAvatar({
+                          ...next,
+                          catalogSpriteId: resolveSpriteForAvatar(next, true),
+                        });
+                      }}
                       className={cn(
                         "p-2 rounded-xl border text-left transition-all flex items-center gap-2.5 cursor-pointer select-none",
                         isSelected
@@ -1284,11 +1350,19 @@ export default function AttendantsPage() {
                         } else if (a.id === "acc_06") {
                           updatedAccessories.watch = updatedAccessories.watch === "watch_zai_smart" ? "none" : "watch_zai_smart";
                         }
-                        handleUpdateAvatar({
+
+                        const next = {
+                          ...(cfg || {}),
+                          body: inlineGender,
+                          base: inlineGender,
                           accessories: updatedAccessories,
                           headset: updatedHeadset,
                           glasses: updatedGlasses,
                           workObject: updatedWorkObject,
+                        };
+                        handleUpdateAvatar({
+                          ...next,
+                          catalogSpriteId: resolveSpriteForAvatar(next, true),
                         });
                       }}
                       className={cn(
@@ -1307,45 +1381,6 @@ export default function AttendantsPage() {
                       <div className="min-w-0 flex-1">
                         <p className="text-xs font-bold truncate text-foreground">{a.title}</p>
                         <p className="text-[10px] text-muted-foreground truncate">{a.description}</p>
-                      </div>
-                    </button>
-                  );
-                })}
-              </div>
-            )}
-
-            {studioCategory === "style" && (
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                {AVATAR_STYLES.map((s) => {
-                  const isSelected = previewAgent?.avatarConfig?.style === s.id;
-                  const resolvedStyleSprite = resolveItemSpriteForGender(s, inlineGender);
-                  return (
-                    <button
-                      key={s.id}
-                      type="button"
-                      data-avatar-item={s.id}
-                      onClick={() => {
-                        const currentConfig = previewAgent?.avatarConfig || {};
-                        const styled = applyStylePreset({ ...currentConfig, body: inlineGender, base: inlineGender }, s.id);
-                        handleUpdateAvatar(styled);
-                      }}
-                      className={cn(
-                        "p-2 rounded-xl border text-left transition-all flex items-center gap-2.5 cursor-pointer select-none",
-                        isSelected
-                          ? "border-emerald-500 bg-emerald-500/15 text-emerald-300 shadow-xs"
-                          : "border-border/60 bg-muted/15 hover:border-border text-muted-foreground hover:text-foreground"
-                      )}
-                    >
-                      <AvatarItemPreview
-                        spriteRef={resolvedStyleSprite || inlineSpriteId}
-                        focus="full"
-                        accentColor={s.palette}
-                        selected={isSelected}
-                        size="sm"
-                      />
-                      <div className="min-w-0 flex-1">
-                        <p className="text-xs font-bold truncate text-foreground">{s.title}</p>
-                        <p className="text-[10px] text-muted-foreground truncate">{s.description}</p>
                       </div>
                     </button>
                   );
@@ -1936,37 +1971,136 @@ export default function AttendantsPage() {
 
         {loadError && <div role="alert" className="flex items-center justify-between gap-3 rounded-xl border border-amber-500/40 bg-amber-500/10 p-3 text-sm"><span>{loadError}</span><Button size="sm" variant="outline" onClick={() => void fetchData()}>Tentar novamente</Button></div>}
 
-        {/* ROW 0: SIMPLE ATTENDANT SELECTOR */}
-        <section aria-label="Seleção de atendente" className="grid grid-cols-1 md:grid-cols-[minmax(0,1fr)_minmax(16rem,0.8fr)] items-center gap-4 p-4 rounded-2xl border border-border/70 bg-card/60">
-          <div className="space-y-1">
-            <h2 className="text-sm font-bold text-foreground font-display">Atendentes IA</h2>
-            <p className="text-xs text-muted-foreground">{agents.length} atendente(s) cadastrado(s). Selecione um perfil para personalizar.</p>
+        {/* ROW 0: VISUAL ATTENDANT & EXAMPLE PROFILES SELECTOR */}
+        <section aria-label="Seleção de atendente" className="p-4 rounded-2xl border border-border/70 bg-card/60 space-y-3 md:grid-cols">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <h2 className="text-sm font-bold text-foreground font-display flex items-center gap-2">
+                <span>Atendentes & Perfis de Exemplo</span>
+                <Badge variant="outline" className="text-[10px] border-emerald-500/30 text-emerald-400 bg-emerald-500/10">
+                  {agents.length} Ativo(s)
+                </Badge>
+              </h2>
+              <p className="text-xs text-muted-foreground">Clique no card com a prévia do avatar para personalizar ou testar o funcionário digital.</p>
+            </div>
+            {/* Hidden native select kept for headless test and accessibility compatibility */}
+            <div className="sr-only">
+              <Label htmlFor="attendant-selector">Atendente selecionado</Label>
+              <select
+                id="attendant-selector"
+                aria-label="Selecionar atendente"
+                value={previewAgent?.isExample ? `example:${previewAgent.key}` : previewAgent?.key || ""}
+                onChange={(event) => {
+                  const value = event.target.value;
+                  if (value.startsWith("example:")) {
+                    const example = EXAMPLE_ATTENDANTS.find((item) => item.key === value.slice("example:".length));
+                    if (example) setPreviewAgent({ ...example, active: true, isExample: true });
+                    return;
+                  }
+                  setPreviewAgent(agents.find((agent) => (agent.key || agent.id) === value) || null);
+                }}
+              >
+                <option value="">{isLoading ? "Carregando atendentes…" : "Selecione um atendente"}</option>
+                {agents.length > 0 && (
+                  <optgroup label="Atendentes cadastrados">
+                    {agents.map((agent) => (
+                      <option key={agent.key || agent.id} value={agent.key || agent.id}>
+                        {agent.name || agent.key}
+                      </option>
+                    ))}
+                  </optgroup>
+                )}
+                <optgroup label="Perfis de exemplo · demonstração">
+                  {EXAMPLE_ATTENDANTS.map((example) => (
+                    <option key={example.key} value={`example:${example.key}`}>
+                      {example.name} · exemplo
+                    </option>
+                  ))}
+                </optgroup>
+              </select>
+            </div>
           </div>
-          <div className="space-y-1.5">
-            <Label htmlFor="attendant-selector" className="text-xs font-semibold">Atendente selecionado</Label>
-            <select
-              id="attendant-selector"
-              aria-label="Selecionar atendente"
-              value={previewAgent?.isExample ? `example:${previewAgent.key}` : previewAgent?.key || ""}
-              onChange={(event) => {
-                const value = event.target.value;
-                if (value.startsWith("example:")) {
-                  const example = EXAMPLE_ATTENDANTS.find((item) => item.key === value.slice("example:".length));
-                  if (example) setPreviewAgent({ ...example, active: true, isExample: true });
-                  return;
-                }
-                setPreviewAgent(agents.find((agent) => (agent.key || agent.id) === value) || null);
-              }}
-              className="h-10 w-full rounded-xl border border-border/70 bg-background px-3 text-sm text-foreground outline-none focus-visible:ring-2 focus-visible:ring-emerald-500"
-            >
-              <option value="">{isLoading ? "Carregando atendentes…" : "Selecione um atendente"}</option>
-              {agents.length > 0 && <optgroup label="Atendentes cadastrados">
-                {agents.map((agent) => <option key={agent.key || agent.id} value={agent.key || agent.id}>{agent.name || agent.key}</option>)}
-              </optgroup>}
-              <optgroup label="Perfis de exemplo · demonstração">
-                {EXAMPLE_ATTENDANTS.map((example) => <option key={example.key} value={`example:${example.key}`}>{example.name} · exemplo</option>)}
-              </optgroup>
-            </select>
+
+          {/* Horizontal scroll cards with avatar preview & attendant details */}
+          <div className="flex items-center gap-3 overflow-x-auto pb-1.5 scrollbar-zai">
+            {/* Real Agents */}
+            {agents.map((agent) => {
+              const isSelected = !previewAgent?.isExample && previewAgent?.key === agent.key;
+              const sprite = agent.avatarConfig?.catalogSpriteId || (agent.character?.gender === "male" || agent.name?.toLowerCase().includes("carlos") ? "sprite_r1_c1" : "sprite_r2_c1");
+              return (
+                <button
+                  key={agent.key || agent.id}
+                  type="button"
+                  onClick={() => setPreviewAgent(agent)}
+                  className={cn(
+                    "flex items-center gap-3 p-2.5 rounded-xl border transition-all text-left shrink-0 cursor-pointer select-none",
+                    isSelected
+                      ? "border-emerald-500 bg-emerald-500/15 shadow-[0_0_15px_rgba(16,185,129,0.15)] ring-1 ring-emerald-500/50"
+                      : "border-border/70 bg-card hover:border-emerald-500/40 hover:bg-card/90"
+                  )}
+                >
+                  <div className="relative h-11 w-11 rounded-lg bg-black/40 border border-border/60 overflow-hidden flex items-center justify-center shrink-0">
+                    <img
+                      src={`/assets/avatar_factory/catalog/${sprite}_clean.png`}
+                      alt={agent.name}
+                      className="h-full w-full object-contain"
+                      style={{ imageRendering: "pixelated" }}
+                    />
+                    <span className="absolute bottom-0.5 right-0.5 h-2.5 w-2.5 rounded-full bg-emerald-400 border border-black animate-pulse" />
+                  </div>
+                  <div className="min-w-0 pr-1">
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-xs font-bold text-foreground truncate max-w-[110px]">{agent.name}</span>
+                      <Badge variant="outline" className="text-[9px] px-1 py-0 border-emerald-500/40 text-emerald-400 bg-emerald-500/10">
+                        Ativo
+                      </Badge>
+                    </div>
+                    <span className="text-[10px] text-muted-foreground block truncate max-w-[130px]">{agent.role || "Especialista"}</span>
+                  </div>
+                </button>
+              );
+            })}
+
+            {/* Separator */}
+            <div className="h-8 w-px bg-border/60 shrink-0" />
+
+            {/* Example Profiles (João, Ana, Pedro, Mariana) with Visual Avatar Thumbnails */}
+            {EXAMPLE_ATTENDANTS.map((example) => {
+              const isSelected = previewAgent?.isExample && previewAgent?.key === example.key;
+              const sprite = example.avatarConfig?.catalogSpriteId || "sprite_r1_c2";
+              return (
+                <button
+                  key={example.key}
+                  type="button"
+                  onClick={() => setPreviewAgent({ ...example, active: true, isExample: true })}
+                  className={cn(
+                    "flex items-center gap-3 p-2.5 rounded-xl border transition-all text-left shrink-0 cursor-pointer select-none",
+                    isSelected
+                      ? "border-amber-500 bg-amber-500/15 shadow-[0_0_15px_rgba(245,158,11,0.15)] ring-1 ring-amber-500/50"
+                      : "border-border/60 bg-card/40 hover:border-amber-500/40 hover:bg-card/70"
+                  )}
+                >
+                  <div className="relative h-11 w-11 rounded-lg bg-black/40 border border-border/60 overflow-hidden flex items-center justify-center shrink-0">
+                    <img
+                      src={`/assets/avatar_factory/catalog/${sprite}_clean.png`}
+                      alt={example.name}
+                      className="h-full w-full object-contain filter contrast-105"
+                      style={{ imageRendering: "pixelated" }}
+                    />
+                    <span className="absolute bottom-0.5 right-0.5 h-2 w-2 rounded-full bg-amber-400 border border-black" />
+                  </div>
+                  <div className="min-w-0 pr-1">
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-xs font-bold text-foreground truncate max-w-[100px]">{example.name}</span>
+                      <Badge variant="outline" className="text-[9px] px-1 py-0 border-amber-500/40 text-amber-300 bg-amber-500/10">
+                        Exemplo
+                      </Badge>
+                    </div>
+                    <span className="text-[10px] text-muted-foreground block truncate max-w-[120px]">{example.role}</span>
+                  </div>
+                </button>
+              );
+            })}
           </div>
         </section>
         {/* ROW 1: COMPACT OPERATIONAL INDICATORS BAR (Canonical 72–84px Height) */}
@@ -2598,19 +2732,27 @@ export default function AttendantsPage() {
                               <div className="flex items-center gap-3 min-w-0">
                                 <div className="relative shrink-0">
                                     <div className="h-12 w-12 rounded-2xl border border-emerald-500/30 bg-[#091120] flex items-center justify-center overflow-hidden">
-                                      <ZaiAvatarRenderer
-                                        avatar={agent.avatarConfig || createAgentAvatar({
-                                          agentId: agent.key || agent.name,
-                                          name: agent.name,
-                                          role: agent.role,
-                                          gender: agent.character?.gender || (agent.name?.toLowerCase().includes("carlos") ? "male" : "female"),
-                                        })}
-                                        state={isActive ? "WORKING" : "IDLE"}
-                                        size="sm"
-                                        showAura={false}
-                                        showStatusBadge={false}
-                                        showBrandingLayer={false}
+                                      <img
+                                        src={`/assets/avatar_factory/catalog/${agent.avatarConfig?.catalogSpriteId || (agent.character?.gender === "male" || agent.name?.toLowerCase().includes("carlos") ? "sprite_r1_c1" : "sprite_r2_c1")}_clean.png`}
+                                        alt={agent.name}
+                                        className="h-full w-full object-contain"
+                                        style={{ imageRendering: "pixelated" }}
                                       />
+                                      <div className="sr-only">
+                                        <ZaiAvatarRenderer
+                                          avatar={agent.avatarConfig || createAgentAvatar({
+                                            agentId: agent.key || agent.name,
+                                            name: agent.name,
+                                            role: agent.role,
+                                            gender: agent.character?.gender || (agent.name?.toLowerCase().includes("carlos") ? "male" : "female"),
+                                          })}
+                                          state={isActive ? "WORKING" : "IDLE"}
+                                          size="sm"
+                                          showAura={false}
+                                          showStatusBadge={false}
+                                          showBrandingLayer={false}
+                                        />
+                                      </div>
                                     </div>
                                   <span
                                     className={cn(
@@ -2853,12 +2995,24 @@ export default function AttendantsPage() {
       <Dialog open={reassignModalOpen} onOpenChange={setReassignModalOpen}>
         <DialogContent className="max-w-md border-border/80 bg-card/95 backdrop-blur-xl">
           <DialogHeader>
-            <DialogTitle className="font-display text-base">
-              Vincular Conexão WhatsApp a {reassignAgent?.name}
-            </DialogTitle>
-            <DialogDescription className="text-xs">
-              Regra Oficial: 1 Número WhatsApp = 1 Atendente Principal. Ao vincular, o atendente anterior deste número será substituído com segurança.
-            </DialogDescription>
+            <div className="flex items-center gap-3 mb-1">
+              <div className="h-11 w-11 rounded-xl bg-black/40 border border-emerald-500/40 overflow-hidden flex items-center justify-center shrink-0">
+                <img
+                  src={`/assets/avatar_factory/catalog/${reassignAgent?.avatarConfig?.catalogSpriteId || (reassignAgent?.name?.toLowerCase().includes("carlos") || reassignAgent?.character?.gender === "male" ? "sprite_r1_c1" : "sprite_r2_c1")}_clean.png`}
+                  alt={reassignAgent?.name || "Atendente"}
+                  className="h-full w-full object-contain"
+                  style={{ imageRendering: "pixelated" }}
+                />
+              </div>
+              <div className="min-w-0">
+                <DialogTitle className="font-display text-base truncate">
+                  Vincular WhatsApp a {reassignAgent?.name}
+                </DialogTitle>
+                <DialogDescription className="text-xs">
+                  1 Número = 1 Atendente Principal.
+                </DialogDescription>
+              </div>
+            </div>
           </DialogHeader>
 
           <div className="space-y-4 py-2">

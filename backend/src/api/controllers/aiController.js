@@ -167,7 +167,33 @@ async function getAiMetrics(req, res) {
     const store = getStore(req);
     const sessionId = req.query.sessionId || req.query.session_id || null;
     const metrics = await aiLogService.getMetrics(store, sessionId, req.authTenantId);
-    return res.status(200).json(metrics);
+    let conversationsToday = 0;
+    let leadsToday = 0;
+    let totalConversations = 0;
+    try {
+      const convRes = await dbQuery(
+        `SELECT
+           COUNT(*) FILTER (WHERE COALESCE(updated_at, created_at) >= CURRENT_DATE)::int AS conversations_today,
+           COUNT(*) FILTER (WHERE created_at >= CURRENT_DATE)::int AS leads_today,
+           COUNT(*)::int AS total_conversations
+         FROM conversations
+         WHERE company_id = $1 AND ($2::text IS NULL OR session_id = $2)`,
+        [req.authTenantId, sessionId]
+      );
+      if (convRes?.rows?.[0]) {
+        conversationsToday = Number(convRes.rows[0].conversations_today ?? 0);
+        leadsToday = Number(convRes.rows[0].leads_today ?? 0);
+        totalConversations = Number(convRes.rows[0].total_conversations ?? 0);
+      }
+    } catch {
+      // keep 0 defaults if DB is unreachable
+    }
+    return res.status(200).json({
+      conversationsToday,
+      leadsToday,
+      totalConversations,
+      ...metrics,
+    });
   } catch (error) {
     return res.status(500).json({ error: error.message || 'Failed to fetch AI metrics.' });
   }

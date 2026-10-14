@@ -2090,11 +2090,11 @@ async function createStableSession({
       console.log(
         `[WHATSAPP] message.saved session=${normalizedSessionName} chat=${remoteJid} id=${savedMessage.id}`
       );
-      if (result?.conversation && !isDuplicateOutgoing) {
+      if (result?.conversation) {
         emitInboundRealtimeMessage(io, savedMessage, result.conversation);
       }
 
-      if (chatStore && formattedRealtimeMessage?.chatId && !isDuplicateOutgoing) {
+      if (formattedRealtimeMessage?.chatId) {
         const realtimeUrl = realtimeMediaPayload?.url || null;
         const realtimeType = String(realtimeMediaPayload?.type || '').toLowerCase();
         const requiresUrl = ['image', 'video', 'audio', 'file'].includes(realtimeType);
