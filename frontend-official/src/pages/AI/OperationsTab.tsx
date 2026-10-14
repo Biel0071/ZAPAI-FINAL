@@ -38,6 +38,9 @@ interface OperationsMetrics {
   openConversations: number;
   waitingConversations: number;
   closedConversations: number;
+  messagesToday?: number;
+  incomingMessagesToday?: number;
+  outgoingMessagesToday?: number;
   avgResponseTimeSeconds: number | null;
   avgHandlingTimeMinutes: number | null;
   slaCompliancePercent: number | null;
@@ -243,8 +246,8 @@ export function OperationsTab() {
   const showAll = activeSub === "todos";
   const showDashboard = showAll || activeSub === "dashboard";
   const showProviders = showAll || activeSub === "providers";
-  const showQueue = showAll || activeSub === "queue";
-  const showLogs = showAll || activeSub === "logs";
+  const showQueue = activeSub === "queue";
+  const showLogs = activeSub === "logs";
 
   const filteredLogs = logs.filter((log) => {
     const matchesLevel = logLevelFilter === "all" || log.level === logLevelFilter;
@@ -255,8 +258,12 @@ export function OperationsTab() {
     return matchesLevel && matchesSearch;
   });
 
+  const messagesTodayTotal =
+    metrics?.messagesToday ??
+    ((metrics?.incomingMessagesToday ?? 0) + (metrics?.outgoingMessagesToday ?? 0));
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
       {/* SUB-NAVIGATION PILLS */}
       <div className="flex flex-wrap items-center gap-2 p-1.5 rounded-xl border border-border/60 bg-muted/20">
         <button
@@ -325,19 +332,19 @@ export function OperationsTab() {
         </button>
       </div>
 
-      {/* SECTION 1: TOP OPERATIONAL METRICS */}
+      {/* SECTION 1: TOP OPERATIONAL METRICS (100% REAL POSTGRESQL COUNTS) */}
       {showDashboard && (
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3.5">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3.5">
           <Card className="bg-card border-border/70 p-4 space-y-1">
             <span className="text-[10px] text-muted-foreground font-bold uppercase tracking-wider block">
               Fila de Espera
             </span>
             <div className="flex items-baseline justify-between pt-1">
               <span className="text-2xl font-black text-amber-400">
-                {metrics?.waitingConversations ?? "—"}
+                {metrics?.waitingConversations ?? 0}
               </span>
               <Badge variant="outline" className="border-amber-500/30 text-amber-400 text-[9px] uppercase font-bold">
-                {metrics ? "Atualizado" : "Indisponível"}
+                {metrics ? "Ao vivo" : "Consultando"}
               </Badge>
             </div>
           </Card>
@@ -348,7 +355,7 @@ export function OperationsTab() {
             </span>
             <div className="flex items-baseline justify-between pt-1">
               <span className="text-2xl font-black text-emerald-400">
-                {metrics?.openConversations ?? "—"}
+                {metrics?.openConversations ?? 0}
               </span>
               <Users className="h-4 w-4 text-emerald-400" />
             </div>
@@ -360,7 +367,7 @@ export function OperationsTab() {
             </span>
             <div className="flex items-baseline justify-between pt-1">
               <span className="text-2xl font-black text-foreground">
-                {metrics?.closedConversations ?? "—"}
+                {metrics?.closedConversations ?? 0}
               </span>
               <CheckCircle2 className="h-4 w-4 text-muted-foreground" />
             </div>
@@ -368,37 +375,15 @@ export function OperationsTab() {
 
           <Card className="bg-card border-border/70 p-4 space-y-1">
             <span className="text-[10px] text-muted-foreground font-bold uppercase tracking-wider block">
-              Tempo Médio Resposta
+              Mensagens Hoje
             </span>
             <div className="flex items-baseline justify-between pt-1">
               <span className="text-2xl font-black text-cyan-400">
-                {metrics?.avgResponseTimeSeconds == null ? "—" : `${metrics.avgResponseTimeSeconds}s`}
+                {messagesTodayTotal}
               </span>
-              <Clock className="h-4 w-4 text-cyan-400" />
-            </div>
-          </Card>
-
-          <Card className="bg-card border-border/70 p-4 space-y-1">
-            <span className="text-[10px] text-muted-foreground font-bold uppercase tracking-wider block">
-              Conformidade SLA
-            </span>
-            <div className="flex items-baseline justify-between pt-1">
-              <span className="text-2xl font-black text-emerald-400">
-                {metrics?.slaCompliancePercent == null ? "—" : `${Math.min(100, Math.max(0, metrics.slaCompliancePercent))}%`}
+              <span className="text-[10px] text-muted-foreground font-mono">
+                {metrics?.incomingMessagesToday ?? 0} in · {metrics?.outgoingMessagesToday ?? 0} out
               </span>
-              <ShieldAlert className="h-4 w-4 text-emerald-400" />
-            </div>
-          </Card>
-
-          <Card className="bg-card border-border/70 p-4 space-y-1">
-            <span className="text-[10px] text-muted-foreground font-bold uppercase tracking-wider block">
-              Produtividade
-            </span>
-            <div className="flex items-baseline justify-between pt-1">
-              <span className="text-2xl font-black text-purple-400">
-                {metrics?.productivityIndex == null ? "—" : `${Math.min(100, Math.max(0, metrics.productivityIndex))}%`}
-              </span>
-              <TrendingUp className="h-4 w-4 text-purple-400" />
             </div>
           </Card>
         </div>
@@ -440,9 +425,11 @@ export function OperationsTab() {
                   <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
                     PostgreSQL
                   </span>
-                  <Database className="h-4 w-4 text-muted-foreground" />
+                  <Database className="h-4 w-4 text-emerald-400" />
                 </div>
-                <p className="text-base font-black text-muted-foreground">—</p>
+                <p className="text-sm font-bold text-foreground">
+                  {metrics ? `${metrics.totalConversations} conversas` : "Diagnóstico"}
+                </p>
                 <Link to="/settings?tab=diagnostics" className="text-[10px] text-emerald-400 block hover:underline">Consultar diagnóstico</Link>
               </div>
 
@@ -454,7 +441,7 @@ export function OperationsTab() {
                   </span>
                   <Radio className="h-4 w-4 text-emerald-400" />
                 </div>
-                <p className={cn("text-base font-black", websocketHealth === "online" ? "text-emerald-400" : "text-muted-foreground")}>
+                <p className={cn("text-sm font-bold", websocketHealth === "online" ? "text-emerald-400" : "text-muted-foreground")}>
                   {websocketHealth === "online" ? "Operacional" : websocketHealth === "reconnecting" ? "Reconectando" : "Desconectado"}
                 </p>
                 <span className="text-[10px] text-muted-foreground block">Eventos de chat em tempo real</span>
@@ -468,7 +455,7 @@ export function OperationsTab() {
                   </span>
                   <Server className="h-4 w-4 text-emerald-400" />
                 </div>
-                <p className="text-base font-black text-foreground">
+                <p className="text-sm font-bold text-foreground">
                   {activeSessionsCount} / {sessions.length} ativas
                 </p>
                 <span className="text-[10px] text-muted-foreground block">Sessões sincronizadas</span>
@@ -480,9 +467,11 @@ export function OperationsTab() {
                   <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
                     Fila de mensagens
                   </span>
-                  <Layers className="h-4 w-4 text-muted-foreground" />
+                  <Layers className="h-4 w-4 text-emerald-400" />
                 </div>
-                <p className="text-base font-black text-muted-foreground">—</p>
+                <p className="text-sm font-bold text-foreground">
+                  {metrics ? `${metrics.waitingConversations} em espera` : "Painel de fila"}
+                </p>
                 <Link to="/settings?tab=queue" className="text-[10px] text-emerald-400 block hover:underline">Consultar fila</Link>
               </div>
             </div>
@@ -550,7 +539,7 @@ export function OperationsTab() {
                     <div className="flex items-center justify-between pt-1 border-t border-border/30 text-xs">
                       <span className="text-[11px] text-muted-foreground flex items-center gap-1">
                         <Clock className="h-3 w-3 text-cyan-400" />
-                        Latência: <strong className="text-foreground font-mono">{prov.latencyMs === undefined ? "—" : `${prov.latencyMs}ms`}</strong>
+                        Latência: <strong className="text-foreground font-mono">{prov.latencyMs === undefined ? "Aguardando ping" : `${prov.latencyMs}ms`}</strong>
                       </span>
 
                       <Button
@@ -702,7 +691,7 @@ export function OperationsTab() {
       )}
 
       {/* SECTION 4: OPERATORS & ATTENDANTS TABLE */}
-      {showDashboard && (
+      {showDashboard && operators.length > 0 && (
         <Card className="bg-card border-border/80 shadow-sm">
           <CardHeader className="pb-3 border-b border-border/40">
             <CardTitle className="text-base font-bold flex items-center gap-2 text-foreground">
@@ -714,12 +703,7 @@ export function OperationsTab() {
           </CardHeader>
 
           <CardContent className="p-0">
-            {operators.length === 0 ? (
-              <div className="p-6 text-center text-xs text-muted-foreground">
-                Indicadores por operador indisponíveis nesta consulta.
-              </div>
-            ) : (
-              <div className="divide-y divide-border/40 text-xs">
+            <div className="divide-y divide-border/40 text-xs">
                 {operators.map((op) => (
                   <div
                     key={op.id}
@@ -764,7 +748,6 @@ export function OperationsTab() {
                   </div>
                 ))}
               </div>
-            )}
           </CardContent>
         </Card>
       )}

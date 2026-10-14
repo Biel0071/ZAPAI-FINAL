@@ -1371,68 +1371,43 @@ Tom: ${agentTone}. Estilo: ${responseStyle}.`;
 
           {sandboxTab === "evolution" && (
             <div className="flex-1 p-4 overflow-y-auto space-y-4 text-xs scrollbar-thin">
-              <div className="p-3 rounded-xl border border-purple-500/30 bg-purple-500/5 space-y-2">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <Brain className="h-4 w-4 text-purple-400" />
-                    <span className="font-bold text-foreground">Score Cognitivo</span>
-                  </div>
-                  <Badge variant="outline" className="border-purple-500/30 text-purple-300 bg-purple-500/10 text-[10px] font-bold">
-                    {evolutionData?.level || "Avançado"}
-                  </Badge>
-                </div>
-                <div className="flex items-baseline justify-between pt-1">
-                  <span className="text-2xl font-bold font-display text-purple-400">
-                    {evolutionData?.score ?? 85}%
-                  </span>
-                  <span className="text-[11px] text-muted-foreground font-mono">
-                    {evolutionData?.goal?.current ?? 17}/{evolutionData?.goal?.target ?? 20} metas atingidas
-                  </span>
-                </div>
-                <div className="w-full bg-muted/40 h-2 rounded-full overflow-hidden">
-                  <div
-                    className="bg-purple-500 h-full rounded-full transition-all"
-                    style={{ width: `${Math.min(100, evolutionData?.score ?? 85)}%` }}
-                  />
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <h5 className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
-                  Ideias de Evolução Recomendadas
-                </h5>
-                <div className="space-y-2">
-                  {[
-                    {
-                      title: "Refinar objeções de preço",
-                      desc: "Mineração de conversas indica clientes com dúvidas sobre parcelas e desconto.",
-                      action: "Aplicar Playbook",
-                    },
-                    {
-                      title: "Ajustar prazo de entrega do CEP",
-                      desc: "Clientes com dúvidas de envio têm taxa de fechamento 40% maior quando respondidos rápido.",
-                      action: "Treinar Regra",
-                    },
-                    {
-                      title: "Aumentar tom consultivo no WhatsApp",
-                      desc: "Respostas com perguntas de qualificação aumentam o engajamento.",
-                      action: "Ajustar Tom",
-                    },
-                  ].map((idea, idx) => (
-                    <div key={idx} className="p-3 rounded-xl border border-border/60 bg-muted/10 space-y-1.5">
-                      <div className="flex items-center justify-between">
-                        <span className="font-semibold text-foreground text-xs">{idea.title}</span>
-                        <Badge variant="outline" className="text-[9px] border-emerald-500/30 text-emerald-400">
-                          {idea.action}
-                        </Badge>
-                      </div>
-                      <p className="text-[11px] text-muted-foreground leading-relaxed">
-                        {idea.desc}
-                      </p>
+              {evolutionData?.score != null ? (
+                <div className="p-3 rounded-xl border border-purple-500/30 bg-purple-500/5 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Brain className="h-4 w-4 text-purple-400" />
+                      <span className="font-bold text-foreground">Score Cognitivo</span>
                     </div>
-                  ))}
+                    <Badge variant="outline" className="border-purple-500/30 text-purple-300 bg-purple-500/10 text-[10px] font-bold">
+                      {evolutionData.level || "Registrado"}
+                    </Badge>
+                  </div>
+                  <div className="flex items-baseline justify-between pt-1">
+                    <span className="text-2xl font-bold font-display text-purple-400">
+                      {evolutionData.score}%
+                    </span>
+                    {evolutionData.goal?.target ? (
+                      <span className="text-[11px] text-muted-foreground font-mono">
+                        {evolutionData.goal.current ?? 0}/{evolutionData.goal.target} metas atingidas
+                      </span>
+                    ) : null}
+                  </div>
+                  <div className="w-full bg-muted/40 h-2 rounded-full overflow-hidden">
+                    <div
+                      className="bg-purple-500 h-full rounded-full transition-all"
+                      style={{ width: `${Math.min(100, evolutionData.score)}%` }}
+                    />
+                  </div>
                 </div>
-              </div>
+              ) : (
+                <div className="p-4 rounded-xl border border-dashed border-border/60 bg-muted/10 text-center space-y-1.5">
+                  <Brain className="h-5 w-5 text-purple-400 mx-auto" />
+                  <p className="font-semibold text-foreground">Sem dados de evolução</p>
+                  <p className="text-[11px] text-muted-foreground">
+                    Sincronize atendimentos reais ou acesse a aba Evolução & Score para acompanhar o aprendizado.
+                  </p>
+                </div>
+              )}
 
               <Button
                 variant="outline"

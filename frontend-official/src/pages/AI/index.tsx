@@ -307,13 +307,6 @@ export default function UnifiedAIPage({ defaultSection }: AIPageProps) {
       icon: Brain,
       description: "Maturidade, aprendizado e lacunas",
     },
-    {
-      id: "zaibot" as UnifiedAITab,
-      label: "Assistente ZAI",
-      shortLabel: "Assistente",
-      icon: Bot,
-      description: "Copiloto operacional do administrador",
-    },
   ];
 
   const selectedAgent = agentProfiles.find(agent => agent.key === selectedAgentKey);
@@ -329,43 +322,71 @@ export default function UnifiedAIPage({ defaultSection }: AIPageProps) {
         subtitle="Configure, acompanhe e evolua seus agentes inteligentes."
       />
 
-      <div className="w-full max-w-[var(--content-max-width)] mx-auto px-3.5 sm:px-5 lg:px-6 py-4 space-y-5">
-        {/* TOP BAR: TITLE & QUICK ACTIONS */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
-          <div>
-            <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-foreground flex items-center gap-2">
-              <Sparkles className="h-5 w-5 sm:h-6 sm:w-6 text-emerald-400" /> IA & Automação
-            </h1>
-            <p className="text-xs text-muted-foreground mt-0.5">
-              Configure, acompanhe e evolua seus agentes inteligentes.
-            </p>
+      <div className="w-full max-w-[var(--content-max-width)] mx-auto px-3.5 sm:px-5 lg:px-6 py-4 space-y-4">
+        {/* UNIFIED COMPACT CONTROL BAR */}
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 p-3.5 rounded-2xl border border-border/80 bg-card shadow-xs">
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="flex items-center gap-2.5 pr-3 border-r border-border/60">
+              <div
+                className={cn(
+                  "h-8 w-8 rounded-xl flex items-center justify-center shrink-0 border transition-colors",
+                  aiEnabled
+                    ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-400"
+                    : "bg-muted/30 border-border/60 text-muted-foreground"
+                )}
+              >
+                <Sparkles className="h-4 w-4" />
+              </div>
+              <div className="flex items-center gap-2">
+                <h1 className="text-xs sm:text-sm font-bold text-foreground">
+                  IA & Automação
+                </h1>
+                <span className="text-muted-foreground/50">•</span>
+                <span className="text-xs font-medium text-muted-foreground hidden sm:inline">
+                  Atendimento Automático
+                </span>
+                <Badge
+                  className={cn(
+                    "text-[10px] font-bold uppercase tracking-wider px-2 py-0",
+                    aiEnabled
+                      ? "bg-emerald-500/20 text-emerald-300 border-emerald-500/40"
+                      : "bg-muted text-muted-foreground border-border/60"
+                  )}
+                >
+                  {loadingStatus ? "..." : aiEnabled ? "Ativo" : "Pausado"}
+                </Badge>
+                <Switch
+                  checked={aiEnabled}
+                  disabled={loadingStatus || togglingStatus}
+                  onCheckedChange={handleToggleGlobalAI}
+                  aria-label="Alternar atendimento automático global"
+                  className="data-[state=checked]:bg-emerald-500 ml-1"
+                />
+              </div>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-muted/30 border border-border/50">
+                <Bot className="h-3.5 w-3.5 text-emerald-400" />
+                <strong className="text-foreground">{selectedAgent?.name || "Nenhum atendente"}</strong>
+                <span className="text-[11px]">({loadingAgents ? "—" : agentProfiles.length})</span>
+              </span>
+              <button
+                type="button"
+                onClick={() => setWhatsAppModalOpen(true)}
+                className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-muted/30 border border-border/50 hover:border-emerald-500/40 transition-colors cursor-pointer"
+              >
+                <Smartphone className="h-3.5 w-3.5 text-cyan-400" />
+                <strong className="text-cyan-400 font-mono">{connectedSessions.length}</strong>
+                <span>WhatsApp(s)</span>
+              </button>
+            </div>
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={() => setWhatsAppModalOpen(true)}
-              className="h-8 text-xs gap-1.5 border-border/80 bg-card/60 hover:bg-card hover:border-emerald-500/50 shadow-xs"
-            >
-              <Smartphone className="h-3.5 w-3.5 text-emerald-400" />
-              <span>Ver no WhatsApp</span>
-            </Button>
-
-            <Button
-              type="button"
-              size="sm"
-              onClick={() => handleTabChange("agent")}
-              className="h-8 text-xs gap-1.5 bg-emerald-500 hover:bg-emerald-600 text-white shadow-xs font-semibold"
-            >
-              <Bot className="h-3.5 w-3.5" />
-              <span>Testar agora</span>
-            </Button>
-
             <Button type="button" variant="outline" size="sm" onClick={() => navigate("/attendants")} className="h-8 text-xs gap-1.5">
-              <Users className="h-3.5 w-3.5" />
-              <span>Gerenciar atendentes</span>
+              <Users className="h-3.5 w-3.5 text-emerald-400" />
+              <span>Atendentes</span>
             </Button>
 
             <Button
@@ -376,7 +397,7 @@ export default function UnifiedAIPage({ defaultSection }: AIPageProps) {
                 setWizardDefaultRole("Vendas");
                 setIsWizardOpen(true);
               }}
-              className="h-8 text-xs gap-1.5 border-border/80 bg-card/60 hover:bg-card hover:border-emerald-500/50 shadow-xs text-emerald-400"
+              className="h-8 text-xs gap-1.5 border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/10"
             >
               <Plus className="h-3.5 w-3.5" />
               <span>Novo agente</span>
@@ -386,126 +407,22 @@ export default function UnifiedAIPage({ defaultSection }: AIPageProps) {
               type="button"
               variant="outline"
               size="sm"
-              onClick={() => handleOpenCustomizer()}
-              className="h-8 text-xs gap-1.5 border-border/80 bg-card/60 hover:bg-card hover:border-emerald-500/50 shadow-xs"
-            >
-              <Sliders className="h-3.5 w-3.5 text-emerald-400" />
-              <span>Configurações</span>
-            </Button>
-
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
               onClick={() => setCommandPaletteOpen(true)}
-              className="h-8 text-xs gap-1.5 border-border/80 bg-card/60 hover:bg-card hover:border-emerald-500/50 shadow-xs"
+              className="h-8 text-xs gap-1.5 border-border/80 bg-card/60"
             >
               <Command className="h-3.5 w-3.5 text-emerald-400" />
-              <span>Comandos Ctrl+K</span>
-              <kbd className="hidden sm:inline-block px-1.5 py-0.5 text-[10px] font-mono bg-muted rounded border border-border/60 text-muted-foreground">
+              <span className="hidden sm:inline">Comandos</span>
+              <kbd className="px-1.5 py-0.5 text-[10px] font-mono bg-muted rounded border border-border/60 text-muted-foreground">
                 Ctrl+K
               </kbd>
             </Button>
           </div>
         </div>
 
-
-        {/* GLOBAL STATUS & CONTROL STRIP */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 rounded-2xl border border-border/80 bg-card shadow-sm">
-          <div className="flex items-center gap-3">
-            <div
-              className={cn(
-                "h-10 w-10 rounded-xl flex items-center justify-center shrink-0 border transition-colors",
-                aiEnabled
-                  ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-400"
-                  : "bg-muted/30 border-border/60 text-muted-foreground"
-              )}
-            >
-              <Sparkles className="h-5 w-5" />
-            </div>
-
-            <div className="space-y-0.5">
-              <div className="flex items-center gap-2">
-                <span className="text-sm font-bold text-foreground">
-                  Atendimento Automático Global
-                </span>
-                <Badge
-                  className={cn(
-                    "text-[10px] font-bold uppercase tracking-wider px-2 py-0.5",
-                    aiEnabled
-                      ? "bg-emerald-500/20 text-emerald-300 border-emerald-500/40"
-                      : "bg-muted text-muted-foreground border-border/60"
-                  )}
-                >
-                  <span
-                    className={cn(
-                      "h-1.5 w-1.5 rounded-full mr-1.5",
-                      aiEnabled ? "bg-emerald-400 animate-pulse" : "bg-muted-foreground"
-                    )}
-                  />
-                  {aiEnabled ? "Ativo" : "Pausado"}
-                </Badge>
-              </div>
-              <p className="text-xs text-muted-foreground">
-                {aiEnabled
-                  ? "Atendimento automático habilitado para os agentes e WhatsApps configurados."
-                  : "O atendimento automático está em pausa. Nenhuma mensagem será disparada."}
-              </p>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-3 self-end sm:self-center shrink-0">
-            <span className="text-xs font-semibold text-muted-foreground">
-              {aiEnabled ? "Pausar IA" : "Ativar IA"}
-            </span>
-            <Switch
-              checked={aiEnabled}
-              disabled={loadingStatus || togglingStatus}
-              onCheckedChange={handleToggleGlobalAI}
-              className="data-[state=checked]:bg-emerald-500"
-            />
-          </div>
-        </div>
-
-        {/* Resumo da operação */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 p-3 rounded-2xl border border-emerald-500/20 bg-[#070c14]/80 backdrop-blur-md shadow-xs">
-          <div className="flex items-center gap-2.5 px-3 py-1.5 rounded-xl bg-black/40 border border-white/5">
-            <Users className="h-3.5 w-3.5 text-emerald-400 shrink-0" />
-            <div className="min-w-0">
-              <span className="block text-[9px] uppercase tracking-wider text-muted-foreground font-semibold">Atendentes cadastrados</span>
-              <span className="text-xs font-bold text-foreground">{loadingAgents ? "—" : agentProfiles.length}</span>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-2.5 px-3 py-1.5 rounded-xl bg-black/40 border border-white/5">
-            <Activity className="h-3.5 w-3.5 text-cyan-400 shrink-0" />
-            <div className="min-w-0">
-              <span className="block text-[9px] uppercase tracking-wider text-muted-foreground font-semibold">WhatsApps conectados</span>
-              <span className="text-xs font-bold text-cyan-400 font-mono">{connectedSessions.length}</span>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-2.5 px-3 py-1.5 rounded-xl bg-black/40 border border-white/5">
-            <Brain className="h-3.5 w-3.5 text-purple-400 shrink-0" />
-            <div className="min-w-0">
-              <span className="block text-[9px] uppercase tracking-wider text-muted-foreground font-semibold">Atendente selecionado</span>
-              <span className="text-xs font-bold text-purple-300 truncate">{selectedAgent?.name || "Nenhum selecionado"}</span>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-2.5 px-3 py-1.5 rounded-xl bg-black/40 border border-white/5">
-            <ShieldCheck className="h-3.5 w-3.5 text-emerald-400 shrink-0" />
-            <div className="min-w-0">
-              <span className="block text-[9px] uppercase tracking-wider text-muted-foreground font-semibold">Automação</span>
-              <span className="text-xs font-bold text-emerald-400">{loadingStatus ? "Consultando..." : aiEnabled ? "Habilitada" : "Pausada"}</span>
-            </div>
-          </div>
-        </div>
-
-        {/* 5 UNIFIED TABS SELECTOR */}
+        {/* 4 UNIFIED TABS SELECTOR */}
         <nav
           aria-label="Abas de IA e Automação"
-          className="grid grid-cols-2 md:grid-cols-5 gap-2 p-1.5 rounded-2xl border border-border/70 bg-muted/20"
+          className="grid grid-cols-2 md:grid-cols-4 gap-2 p-1.5 rounded-2xl border border-border/70 bg-muted/20"
         >
           {tabsConfig.map((tab) => {
             const Icon = tab.icon;
@@ -516,7 +433,7 @@ export default function UnifiedAIPage({ defaultSection }: AIPageProps) {
                 type="button"
                 onClick={() => handleTabChange(tab.id)}
                 className={cn(
-                  "flex items-center gap-2.5 p-3 rounded-xl text-left transition-all",
+                  "flex items-center gap-2.5 p-2.5 sm:p-3 rounded-xl text-left transition-all",
                   isSelected
                     ? "bg-card text-foreground shadow-sm ring-1 ring-emerald-500/40 border border-emerald-500/20 font-bold"
                     : "text-muted-foreground hover:bg-card/50 hover:text-foreground font-medium border border-transparent"
@@ -530,15 +447,7 @@ export default function UnifiedAIPage({ defaultSection }: AIPageProps) {
                       : "bg-muted/40 text-muted-foreground"
                   )}
                 >
-                  {tab.id === "zaibot" ? (
-                    <img
-                      src="/assets/mascot/zaibot_avatar.png"
-                      alt="ZAIBOT"
-                      className="h-5 w-5 rounded-md object-cover"
-                    />
-                  ) : (
-                    <Icon className="h-4 w-4" />
-                  )}
+                  <Icon className="h-4 w-4" />
                 </div>
                 <div className="min-w-0">
                   <span className="text-xs block truncate leading-tight">

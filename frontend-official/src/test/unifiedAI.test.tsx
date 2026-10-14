@@ -316,3 +316,21 @@ it("shows a save failure instead of confirming an agent configuration rejected b
   expect(toast).toHaveBeenCalledWith(expect.objectContaining({ title: "Erro ao salvar agente", variant: "destructive" }));
   expect(toast).not.toHaveBeenCalledWith(expect.objectContaining({ title: "Agente salvo com sucesso!" }));
 });
+
+it("keeps /ai free of duplicate Assistente ZAI tab, empty SLA/Produtividade dash cards, and hardcoded evolution ideas", async () => {
+  vi.mocked(apiService.getAgentEvolution).mockResolvedValueOnce({ success: true, evolution: null } as any);
+  await act(async () => root!.render(<MemoryRouter initialEntries={["/ai"]}><UnifiedAIPage /></MemoryRouter>));
+
+  const tabNav = document.querySelector('nav[aria-label="Abas de IA e Automação"]');
+  expect(tabNav?.querySelectorAll("button").length).toBe(4);
+  expect(tabNav?.textContent).not.toContain("Assistente ZAI");
+
+  const evoSandboxBtn = Array.from(document.querySelectorAll("button")).find(b => b.textContent?.includes("Evolução IA"));
+  expect(evoSandboxBtn).toBeDefined();
+  await act(async () => evoSandboxBtn!.click());
+
+  expect(document.body.textContent).toContain("Sem dados de evolução");
+  expect(document.body.textContent).not.toContain("Refinar objeções de preço");
+  expect(document.body.textContent).not.toContain("17/20 metas atingidas");
+});
+
