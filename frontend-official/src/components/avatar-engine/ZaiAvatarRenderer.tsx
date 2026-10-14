@@ -45,7 +45,7 @@ const SIZE_CONFIGS = {
   xl: { container: "w-48 h-64", character: "h-56 w-auto", badge: "text-xs px-3 py-1", indicator: "w-4 h-4" },
   workspace: {
     container: "w-full h-full flex flex-col items-center justify-center",
-    character: "h-[250px] sm:h-[270px] w-auto max-w-[185px]",
+    character: "h-full max-h-[235px] w-[160px]",
     badge: "text-xs px-2.5 py-0.5",
     indicator: "w-3 h-3",
   },
@@ -247,19 +247,20 @@ function ModularLayerAvatar({
       </g>
 
       {/* 3D Character Puppet Root Group with Perspective Scaling & Breathing */}
-      <g
-        id="character-3d-rig"
-        transform={`translate(${50 - 50 * bodyScaleX + torsoShiftX}, 0) scale(${bodyScaleX}, 1)`}
-      >
+      <g id="character-3d-breathe">
         {(movement3D === "idle" || isSpinning) && (
           <animateTransform
             attributeName="transform"
             type="translate"
-            values={`${50 - 50 * bodyScaleX + torsoShiftX},0; ${50 - 50 * bodyScaleX + torsoShiftX},-1.8; ${50 - 50 * bodyScaleX + torsoShiftX},0`}
+            values="0,0; 0,-1.8; 0,0"
             dur="2.8s"
             repeatCount="indefinite"
           />
         )}
+      <g
+        id="character-3d-rig"
+        transform={`translate(${50 - 50 * bodyScaleX + torsoShiftX}, 0) scale(${bodyScaleX}, 1)`}
+      >
 
       {/* ── LAYER 2: BASE BODY (Silhouette, Skin, Legs, Shoes) ─────── */}
       <g id="layer-base">
@@ -657,88 +658,92 @@ function ModularLayerAvatar({
       {/* ── LAYER 5: CABELO (Hairs 01 to 10 + Back View Coverage) ────── */}
       <g id="layer-hair" transform={`translate(${faceShiftX * 0.45}, 0)`}>
         {isBackView && (
-          // Full back-of-head hair coverage when viewing from behind (180°)
           <rect
             x="34"
             y="25"
             width="32"
-            height={isFemale ? "42" : "30"}
+            height={isFemale ? "42" : "24"}
             rx="11"
             fill={hairColor.base}
           />
         )}
         {hairId === "hair_01" && (
-          // Rabo de Cavalo Executivo: Sleek parted crown with high ponytail behind right shoulder
           <>
-            {/* Crown hair */}
-            <rect x="34" y="24" width="32" height="18" rx="8" fill={hairColor.base} />
-            <path d="M 34 32 Q 50 26 66 32 L 66 40 L 34 40 Z" fill={hairColor.base} />
-            {/* Hair highlight curve */}
+            <rect x="34" y="24" width="32" height="16" rx="7" fill={hairColor.base} />
+            <path d="M 34 32 Q 50 26 66 32 L 66 39 L 34 39 Z" fill={hairColor.base} />
             <path d="M 38 29 Q 50 26 62 29" stroke={hairColor.highlight} strokeWidth="1.5" fill="none" />
-            {/* High Ponytail on Right (or centered in Back View) */}
-            <circle cx={isBackView ? "50" : "64"} cy="34" r="3" fill={primaryBrandColor} />
-            <path d={isBackView ? "M 46 34 Q 50 52 50 72 Q 54 52 54 34 Z" : "M 64 34 Q 72 44 70 66 Q 66 58 64 48 Z"} fill={hairColor.base} />
-            <path d="M 66 38 Q 71 48 69 62" stroke={hairColor.highlight} strokeWidth="1" fill="none" />
+            {isFemale ? (
+              <>
+                <circle cx={isBackView ? "50" : "64"} cy="34" r="3" fill={primaryBrandColor} />
+                <path d={isBackView ? "M 46 34 Q 50 52 50 72 Q 54 52 54 34 Z" : "M 64 34 Q 72 44 70 66 Q 66 58 64 48 Z"} fill={hairColor.base} />
+                <path d="M 66 38 Q 71 48 69 62" stroke={hairColor.highlight} strokeWidth="1" fill="none" />
+              </>
+            ) : (
+              <>
+                <rect x="34" y="32" width="3" height="11" fill={hairColor.shadow} />
+                <rect x="63" y="32" width="3" height="11" fill={hairColor.shadow} />
+              </>
+            )}
           </>
         )}
 
         {hairId === "hair_02" && (
-          // Chanel Alinhado: Smooth chin-length bob framing face evenly
           <>
-            <rect x="33" y="24" width="34" height="20" rx="9" fill={hairColor.base} />
-            {/* Left side bob */}
-            <rect x="33" y="34" width="6" height="22" rx="3" fill={hairColor.base} />
-            {/* Right side bob */}
-            <rect x="61" y="34" width="6" height="22" rx="3" fill={hairColor.base} />
-            {/* Parting shine */}
+            <rect x="33" y="24" width="34" height="18" rx="9" fill={hairColor.base} />
+            <rect x="33" y="34" width="5" height={isFemale ? "22" : "10"} rx="2.5" fill={hairColor.base} />
+            <rect x="62" y="34" width="5" height={isFemale ? "22" : "10"} rx="2.5" fill={hairColor.base} />
             <line x1="42" y1="28" x2="58" y2="28" stroke={hairColor.highlight} strokeWidth="1.5" strokeLinecap="round" />
           </>
         )}
 
         {hairId === "hair_03" && (
-          // Ondulado Longo Elegante: Flowing voluminous waves down past both shoulders
           <>
-            <rect x="33" y="23" width="34" height="20" rx="10" fill={hairColor.base} />
-            {/* Left voluminous waves */}
-            <path d="M 33 34 Q 28 46 31 58 Q 33 68 36 76 Q 38 66 37 54 Z" fill={hairColor.base} />
-            <path d="M 31 42 Q 29 52 33 66" stroke={hairColor.highlight} strokeWidth="1.5" fill="none" />
-            {/* Right voluminous waves */}
-            <path d="M 67 34 Q 72 46 69 58 Q 67 68 64 76 Q 62 66 63 54 Z" fill={hairColor.base} />
-            <path d="M 69 42 Q 71 52 67 66" stroke={hairColor.highlight} strokeWidth="1.5" fill="none" />
-            {/* Crown volume */}
+            <rect x="33" y="23" width="34" height="18" rx="9" fill={hairColor.base} />
+            {isFemale ? (
+              <>
+                <path d="M 33 34 Q 28 46 31 58 Q 33 68 36 76 Q 38 66 37 54 Z" fill={hairColor.base} />
+                <path d="M 31 42 Q 29 52 33 66" stroke={hairColor.highlight} strokeWidth="1.5" fill="none" />
+                <path d="M 67 34 Q 72 46 69 58 Q 67 68 64 76 Q 62 66 63 54 Z" fill={hairColor.base} />
+                <path d="M 69 42 Q 71 52 67 66" stroke={hairColor.highlight} strokeWidth="1.5" fill="none" />
+              </>
+            ) : (
+              <>
+                <polygon points="36,26 41,17 46,25" fill={hairColor.base} />
+                <polygon points="44,25 50,15 55,25" fill={hairColor.base} />
+                <polygon points="53,25 59,17 64,26" fill={hairColor.base} />
+                <rect x="34" y="32" width="3" height="11" fill={hairColor.shadow} />
+                <rect x="63" y="32" width="3" height="11" fill={hairColor.shadow} />
+              </>
+            )}
             <path d="M 36 28 Q 50 23 64 28" stroke={hairColor.highlight} strokeWidth="2" fill="none" />
           </>
         )}
 
         {hairId === "hair_04" && (
-          // Coque Alto Profissional: Neat high bun centered on crown with sleek sides
           <>
-            {/* High Bun */}
-            <circle cx="50" cy="20" r="7.5" fill={hairColor.base} />
-            <circle cx="50" cy="20" r="4.5" fill={hairColor.highlight} fillOpacity="0.4" />
-            {/* Gold Hairpin */}
-            <line x1="44" y1="18" x2="56" y2="22" stroke="#f59e0b" strokeWidth="1.2" />
-            {/* Sleek head hair */}
-            <rect x="34" y="25" width="32" height="18" rx="8" fill={hairColor.base} />
+            {isFemale && (
+              <>
+                <circle cx="50" cy="20" r="7.5" fill={hairColor.base} />
+                <circle cx="50" cy="20" r="4.5" fill={hairColor.highlight} fillOpacity="0.4" />
+                <line x1="44" y1="18" x2="56" y2="22" stroke="#f59e0b" strokeWidth="1.2" />
+              </>
+            )}
+            <rect x="34" y="25" width="32" height="17" rx="8" fill={hairColor.base} />
             <path d="M 36 30 Q 50 26 64 30" stroke={hairColor.highlight} strokeWidth="1.5" fill="none" />
           </>
         )}
 
         {hairId === "hair_05" && (
-          // Curto Fade Moderno: Executive short crop with styled parted top
           <>
             <rect x="35" y="24" width="30" height="16" rx="6" fill={hairColor.base} />
-            {/* Side fade gradient effect */}
             <rect x="34" y="32" width="3" height="12" fill={hairColor.shadow} fillOpacity="0.8" />
             <rect x="63" y="32" width="3" height="12" fill={hairColor.shadow} fillOpacity="0.8" />
-            {/* Styled textured pompadour top */}
             <path d="M 36 26 L 44 21 L 54 22 L 64 26 Z" fill={hairColor.base} />
             <line x1="38" y1="24" x2="60" y2="24" stroke={hairColor.highlight} strokeWidth="1.5" />
           </>
         )}
 
         {hairId === "hair_06" && (
-          // Black Power Texturizado: Defined full rounded afro silhouette
           <>
             <circle cx="50" cy="36" r="19" fill={hairColor.base} />
             <circle cx="44" cy="30" r="6" fill={hairColor.highlight} fillOpacity="0.3" />
@@ -747,17 +752,10 @@ function ModularLayerAvatar({
         )}
 
         {hairId === "hair_07" && (
-          // Longo Liso com Franja: Straight hair with distinct horizontal bangs & sleek sides
           <>
-            {/* Crown & Back */}
-            <rect x="33" y="23" width="34" height="20" rx="9" fill={hairColor.base} />
-            {/* Left Sleek Curtain */}
-            <rect x="32" y="34" width="5.5" height="42" rx="2.5" fill={hairColor.base} />
-            <line x1="34" y1="36" x2="34" y2="72" stroke={hairColor.highlight} strokeWidth="1" />
-            {/* Right Sleek Curtain */}
-            <rect x="62.5" y="34" width="5.5" height="42" rx="2.5" fill={hairColor.base} />
-            <line x1="66" y1="36" x2="66" y2="72" stroke={hairColor.highlight} strokeWidth="1" />
-            {/* Distinct Straight Fringe / Bangs across forehead */}
+            <rect x="33" y="23" width="34" height="18" rx="9" fill={hairColor.base} />
+            <rect x="32" y="34" width="5" height={isFemale ? "42" : "11"} rx="2.5" fill={hairColor.base} />
+            <rect x="63" y="34" width="5" height={isFemale ? "42" : "11"} rx="2.5" fill={hairColor.base} />
             {!isBackView && (
               <>
                 <rect x="38" y="31" width="24" height="7" rx="1.5" fill={hairColor.base} />
@@ -769,10 +767,8 @@ function ModularLayerAvatar({
         )}
 
         {hairId === "hair_08" && (
-          // Street Spiky Texturizado: Dynamic upright spiky hair tufts on top
           <>
             <rect x="35" y="25" width="30" height="16" rx="6" fill={hairColor.base} />
-            {/* Upright Spikes */}
             <polygon points="38,26 42,16 45,25" fill={hairColor.base} />
             <polygon points="44,25 49,14 53,25" fill={hairColor.base} />
             <polygon points="52,25 57,15 61,26" fill={hairColor.base} />
@@ -781,26 +777,31 @@ function ModularLayerAvatar({
         )}
 
         {hairId === "hair_09" && (
-          // Cachos Volumosos: Defined bouncy ringlets around head
           <>
             <circle cx="38" cy="27" r="7" fill={hairColor.base} />
             <circle cx="50" cy="23" r="8" fill={hairColor.base} />
             <circle cx="62" cy="27" r="7" fill={hairColor.base} />
             <circle cx="34" cy="37" r="6" fill={hairColor.base} />
             <circle cx="66" cy="37" r="6" fill={hairColor.base} />
-            <circle cx="33" cy="48" r="5" fill={hairColor.base} />
-            <circle cx="67" cy="48" r="5" fill={hairColor.base} />
+            {isFemale && (
+              <>
+                <circle cx="33" cy="48" r="5" fill={hairColor.base} />
+                <circle cx="67" cy="48" r="5" fill={hairColor.base} />
+              </>
+            )}
             <circle cx="50" cy="23" r="4" fill={hairColor.highlight} fillOpacity="0.4" />
           </>
         )}
 
         {hairId === "hair_10" && (
-          // Cyber Wave Longo: Flowing modern cyber wave with neon highlight
           <>
-            <path d="M 33 24 Q 50 18 67 24 Q 73 38 68 56 Q 64 68 62 76 Q 60 62 62 48 Z" fill={hairColor.base} />
-            {/* Neon Cyber Highlight Streak */}
-            <path d="M 40 22 Q 54 20 64 32 Q 68 44 65 58" stroke="#38bdf8" strokeWidth="2" fill="none" />
-            <rect x="33" y="34" width="5" height="24" rx="2.5" fill={hairColor.base} />
+            {isFemale ? (
+              <path d="M 33 24 Q 50 18 67 24 Q 73 38 68 56 Q 64 68 62 76 Q 60 62 62 48 Z" fill={hairColor.base} />
+            ) : (
+              <rect x="34" y="23" width="32" height="17" rx="7" fill={hairColor.base} />
+            )}
+            <path d="M 40 22 Q 54 20 64 32" stroke="#38bdf8" strokeWidth="2" fill="none" />
+            <rect x="33" y="34" width="4.5" height={isFemale ? "24" : "10"} rx="2" fill={hairColor.base} />
           </>
         )}
       </g>
@@ -890,6 +891,7 @@ function ModularLayerAvatar({
           <circle cx="38" cy="77.7" r="0.7" fill={primaryBrandColor} />
         </g>
       )}
+      </g>
       </g>
 
       {/* Micro-Animation Indicators */}

@@ -427,7 +427,7 @@ export const AvatarEditorModal: React.FC<AvatarEditorModalProps> = ({
                 data-avatar-stage-rotation={rotationY}
                 data-avatar-stage-movement={movement3D}
                 className={cn(
-                  "h-[230px] w-full drop-shadow-2xl transition-transform duration-300 sm:h-[250px] lg:h-[290px]",
+                  "flex h-[220px] w-full items-center justify-center drop-shadow-2xl transition-transform duration-300 sm:h-[240px] lg:h-[260px]",
                   movement3D === "walk" && "animate-bounce",
                   movement3D === "wave" && "animate-pulse"
                 )}
@@ -435,14 +435,11 @@ export const AvatarEditorModal: React.FC<AvatarEditorModalProps> = ({
               >
                 {/* Keep catalog img always in DOM for test compatibility; switch visually to 3D puppet when rotated or in 3D movement */}
                 <div
-                  className={cn(
-                    "relative mx-auto flex h-full w-[160px] items-center justify-center overflow-hidden transition-transform duration-500",
-                    (previewMode !== "illustration" || rotationY !== 0 || movement3D !== "idle") && "sr-only"
-                  )}
-                  style={{
-                    transform: `rotateY(${rotationY > 180 ? rotationY - 360 : rotationY}deg) scaleX(${rotationY >= 120 && rotationY <= 240 ? -1 : 1})`,
-                    transformStyle: "preserve-3d",
-                  }}
+                  className={
+                    previewMode === "illustration" && rotationY === 0 && movement3D === "idle"
+                      ? "relative mx-auto flex h-full w-[160px] items-center justify-center overflow-hidden transition-transform duration-500"
+                      : "sr-only"
+                  }
                 >
                   <img
                     src={`/assets/avatar_factory/catalog/${previewSpriteId}_clean.png`}
@@ -460,7 +457,7 @@ export const AvatarEditorModal: React.FC<AvatarEditorModalProps> = ({
                     state={previewState}
                     size="workspace"
                     showAura={true}
-                    showStatusBadge={true}
+                    showStatusBadge={false}
                     showBrandingLayer={true}
                     rotationY={rotationY}
                     movement3D={movement3D}
