@@ -2350,5 +2350,60 @@
     "mediaType": "audio",
     "filename": "rosana_1.bin",
     "favorite": false
+  },
+  {
+    "id": "test_qr_caixa_5000",
+    "title": "Caixa d'água 5000L Fortlev",
+    "content": "Caixa d'água de 5.000L em polietileno por R$ 2.490 à vista com tampa roscável.",
+    "items": [
+      {
+        "type": "text",
+        "value": "Caixa d'água de 5.000L em polietileno por R$ 2.490 à vista com tampa roscável.",
+        "delayMs": 0,
+        "typingMs": 1500
+      }
+    ],
+    "category": "caixa dagua",
+    "tags": [
+      "caixa",
+      "dagua",
+      "5000l",
+      "5000 litros"
+    ],
+    "favorite": false,
+    "isFlow": false,
+    "companyId": "test-tenant-ctx-a",
+    "steps": [],
+    "updatedAt": "2026-10-14T21:39:51.060Z",
+    "createdAt": "2026-10-14T21:39:51.060Z"
+  },
+  {
+    "id": "test_qr_churrasqueira",
+    "title": "Churrasqueira Pré-Moldada Completa",
+    "content": "Churrasqueira pré-moldada modelo Tijolinho por R$ 1.250 à vista com grelha inclusa.",
+    "items": [
+      {
+        "type": "text",
+        "value": "Churrasqueira pré-moldada modelo Tijolinho por R$ 1.250 à vista com grelha inclusa.",
+        "delayMs": 0,
+        "typingMs": 1500
+      }
+    ],
+    "category": "churrasqueira",
+    "tags": [
+      "churrasqueira",
+      "carvao",
+      "grelha"
+    ],
+    "favorite": false,
+    "isFlow": false,
+    "companyId": "test-tenant-ctx-a",
+    "steps": [],
+    "updatedAt": "2026-10-14T18:39:50.970Z",
+    "createdAt": "2026-10-14T18:39:50.970Z",
+    "mediaUrl": null,
+    "mediaType": null,
+    "aiMemory": null,
+    "filename": null
   }
 ]
